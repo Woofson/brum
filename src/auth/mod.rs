@@ -73,6 +73,16 @@ impl AuthManager {
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let conn = Connection::open(db_path)?;
 
+        // High-performance SQLite concurrency and memory pragmas
+        conn.execute_batch(
+            "PRAGMA journal_mode = WAL;
+             PRAGMA synchronous = NORMAL;
+             PRAGMA foreign_keys = ON;
+             PRAGMA temp_store = MEMORY;
+             PRAGMA cache_size = -16000;
+             PRAGMA busy_timeout = 5000;",
+        )?;
+
         conn.execute(
             "CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -950,4 +960,34 @@ pub fn get_linux_user_info(username: &str) -> (String, String) {
 
     let role = if is_admin { "admin".to_string() } else { "user".to_string() };
     (home_dir, role)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_auth_sqlite_wal_pragmas() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("test_auth.db");
+        let auth = AuthManager::new(
+            &db_file.to_string_lossy(),
+            "secret-key-123456789012345678901234",
+            24,
+            "builtin",
+            "login",
+            "admin",
+            "admin",
+        ).unwrap();
+        
+        let db = auth.db();
+        let conn = db.lock().unwrap();
+        
+        let journal_mode: String = conn.query_row("PRAGMA journal_mode", [], |r| r.get(0)).unwrap();
+        assert_eq!(journal_mode.to_uppercase(), "WAL");
+
+        let busy_timeout: i64 = conn.query_row("PRAGMA busy_timeout", [], |r| r.get(0)).unwrap();
+        assert_eq!(busy_timeout, 5000);
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "commanderdog"
-version = "0.7.5-rc1"
+version = "0.7.5-rc5"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Tab Web Commander - By Woofson"
@@ -24,7 +24,7 @@ dirs = "5.0"
 libc = "0.2"
 axum = { version = "0.7", features = ["ws", "multipart"] }
 tokio = { version = "1", features = ["full"] }
-tower-http = { version = "0.5", features = ["cors", "trace"] }
+tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip", "compression-br", "compression-zstd"] }
 rust-embed = { version = "8", features = ["mime-guess"] }
 mime_guess = "2.0"
 serde = { version = "1.0", features = ["derive"] }

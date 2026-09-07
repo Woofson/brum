@@ -7,7 +7,13 @@ use std::io::{Read, Write};
 use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
+#[cfg(unix)]
+use std::time::{Duration, Instant};
 use tracing::info;
+
+#[cfg(unix)]
+static USER_GROUP_CACHE: parking_lot::RwLock<Option<(Instant, HashMap<u32, String>, HashMap<u32, String>)>> =
+    parking_lot::RwLock::new(None);
 
 pub struct LocalFs;
 
@@ -50,42 +56,47 @@ pub fn expand_windows_env_vars(path_str: &str) -> String {
 }
 
 impl LocalFs {
-    /// Helper to get cached user and group name lookups
+    /// Helper to get cached user and group name lookups with 60-second TTL
     #[cfg(unix)]
     fn get_user_group_maps() -> (HashMap<u32, String>, HashMap<u32, String>) {
-        #[cfg(unix)]
         {
-            let mut users = HashMap::new();
-            let mut groups = HashMap::new();
+            let cache_read = USER_GROUP_CACHE.read();
+            if let Some((timestamp, ref users, ref groups)) = *cache_read {
+                if timestamp.elapsed() < Duration::from_secs(60) {
+                    return (users.clone(), groups.clone());
+                }
+            }
+        }
 
-            if let Ok(passwd) = fs::read_to_string("/etc/passwd") {
-                for line in passwd.lines() {
-                    let parts: Vec<&str> = line.split(':').collect();
-                    if parts.len() >= 3 {
-                        if let Ok(uid) = parts[2].parse::<u32>() {
-                            users.insert(uid, parts[0].to_string());
-                        }
+        let mut users = HashMap::new();
+        let mut groups = HashMap::new();
+
+        if let Ok(passwd) = fs::read_to_string("/etc/passwd") {
+            for line in passwd.lines() {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() >= 3 {
+                    if let Ok(uid) = parts[2].parse::<u32>() {
+                        users.insert(uid, parts[0].to_string());
                     }
                 }
             }
+        }
 
-            if let Ok(group_file) = fs::read_to_string("/etc/group") {
-                for line in group_file.lines() {
-                    let parts: Vec<&str> = line.split(':').collect();
-                    if parts.len() >= 3 {
-                        if let Ok(gid) = parts[2].parse::<u32>() {
-                            groups.insert(gid, parts[0].to_string());
-                        }
+        if let Ok(group_file) = fs::read_to_string("/etc/group") {
+            for line in group_file.lines() {
+                let parts: Vec<&str> = line.split(':').collect();
+                if parts.len() >= 3 {
+                    if let Ok(gid) = parts[2].parse::<u32>() {
+                        groups.insert(gid, parts[0].to_string());
                     }
                 }
             }
+        }
 
-            (users, groups)
-        }
-        #[cfg(not(unix))]
-        {
-            (HashMap::new(), HashMap::new())
-        }
+        let mut cache_write = USER_GROUP_CACHE.write();
+        *cache_write = Some((Instant::now(), users.clone(), groups.clone()));
+
+        (users, groups)
     }
 
     fn mode_to_symbolic(mode: u32, is_dir: bool) -> String {
@@ -959,5 +970,14 @@ mod tests {
         // show_hidden = true
         let res_with_hidden = LocalFs::list_branch_view(&root.to_string_lossy(), true, None, None).unwrap();
         assert!(res_with_hidden.entries.len() >= 3);
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn test_user_group_cache_ttl() {
+        let (u1, g1) = LocalFs::get_user_group_maps();
+        let (u2, g2) = LocalFs::get_user_group_maps();
+        assert_eq!(u1.len(), u2.len());
+        assert_eq!(g1.len(), g2.len());
     }
 }

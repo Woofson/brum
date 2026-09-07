@@ -26,6 +26,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
 
@@ -174,6 +175,7 @@ pub fn create_router(state: AppState) -> Router {
         .layer(DefaultBodyLimit::max(state.config.server.upload_max_size_mb * 1024 * 1024))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
+        .layer(CompressionLayer::new())
         .with_state(state)
 }
 
@@ -3748,22 +3750,72 @@ async fn handle_combine_files(
 
 // ---------------- STATIC ASSET EMBEDDED HANDLER ----------------
 
-async fn handle_static_asset(uri: axum::http::Uri) -> Response {
+async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
     let file_path = if path.is_empty() { "index.html" } else { path };
 
+    let is_font_or_media = file_path.starts_with("assets/fonts/")
+        || file_path.ends_with(".woff2")
+        || file_path.ends_with(".woff")
+        || file_path.ends_with(".ttf")
+        || file_path.ends_with(".svg")
+        || file_path.ends_with(".png")
+        || file_path.ends_with(".ico");
+
+    let cache_control = if is_font_or_media {
+        "public, max-age=31536000, immutable"
+    } else {
+        "no-cache"
+    };
+
     match Asset::get(file_path) {
         Some(content) => {
+            let etag = format!("\"{}\"", hex::encode(content.metadata.sha256_hash()));
+            if let Some(if_none_match) = headers.get(header::IF_NONE_MATCH) {
+                if let Ok(val) = if_none_match.to_str() {
+                    if val.trim() == etag {
+                        return Response::builder()
+                            .status(StatusCode::NOT_MODIFIED)
+                            .header(header::ETAG, etag)
+                            .header(header::CACHE_CONTROL, cache_control)
+                            .body(Body::empty())
+                            .unwrap_or_else(|_| StatusCode::NOT_MODIFIED.into_response());
+                    }
+                }
+            }
+
             let mime = mime_guess::from_path(file_path).first_or_octet_stream().to_string();
+            let data_len = content.data.len();
             Response::builder()
                 .header(header::CONTENT_TYPE, mime)
+                .header(header::CONTENT_LENGTH, data_len.to_string())
+                .header(header::ETAG, etag)
+                .header(header::CACHE_CONTROL, cache_control)
                 .body(Body::from(content.data))
                 .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Asset load error").into_response())
         }
         None => {
             if let Some(index) = Asset::get("index.html") {
+                let etag = format!("\"{}\"", hex::encode(index.metadata.sha256_hash()));
+                if let Some(if_none_match) = headers.get(header::IF_NONE_MATCH) {
+                    if let Ok(val) = if_none_match.to_str() {
+                        if val.trim() == etag {
+                            return Response::builder()
+                                .status(StatusCode::NOT_MODIFIED)
+                                .header(header::ETAG, etag)
+                                .header(header::CACHE_CONTROL, "no-cache")
+                                .body(Body::empty())
+                                .unwrap_or_else(|_| StatusCode::NOT_MODIFIED.into_response());
+                        }
+                    }
+                }
+
+                let data_len = index.data.len();
                 Response::builder()
                     .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+                    .header(header::CONTENT_LENGTH, data_len.to_string())
+                    .header(header::ETAG, etag)
+                    .header(header::CACHE_CONTROL, "no-cache")
                     .body(Body::from(index.data))
                     .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Index load error").into_response())
             } else {
@@ -4052,5 +4104,21 @@ mod tests {
         assert_eq!(normalize_path(Path::new("/home/user/../user/docs")), Path::new("/home/user/docs"));
         assert_eq!(normalize_path(Path::new("/var/log/../../etc/passwd")), Path::new("/etc/passwd"));
         assert_eq!(normalize_path(Path::new("/")), Path::new("/"));
+    }
+
+    #[tokio::test]
+    async fn test_handle_static_asset_etags() {
+        let headers = HeaderMap::new();
+        let uri: axum::http::Uri = "/index.html".parse().unwrap();
+        let res = handle_static_asset(headers, uri).await;
+        assert_eq!(res.status(), StatusCode::OK);
+        assert!(res.headers().get(header::ETAG).is_some());
+        let etag = res.headers().get(header::ETAG).unwrap().to_str().unwrap().to_string();
+
+        let mut conditional_headers = HeaderMap::new();
+        conditional_headers.insert(header::IF_NONE_MATCH, etag.parse().unwrap());
+        let cond_uri: axum::http::Uri = "/index.html".parse().unwrap();
+        let cond_res = handle_static_asset(conditional_headers, cond_uri).await;
+        assert_eq!(cond_res.status(), StatusCode::NOT_MODIFIED);
     }
 }

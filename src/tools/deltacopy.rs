@@ -342,7 +342,7 @@ async fn copy_stream_block_delta(
     };
     let dest_len = dest_file.metadata()?.len();
 
-    const BLOCK_SIZE: usize = 64 * 1024; // 64 KB block size
+    const BLOCK_SIZE: usize = 256 * 1024; // 256 KB block size
     let mut src_buf = vec![0u8; BLOCK_SIZE];
     let mut dest_buf = vec![0u8; BLOCK_SIZE];
 
@@ -476,7 +476,7 @@ async fn copy_stream_chunked(
         File::create(dest)?
     };
 
-    let mut buffer = vec![0u8; 64 * 1024]; // 64 KB heap buffer
+    let mut buffer = vec![0u8; 256 * 1024]; // 256 KB heap buffer
     let mut written = resume_offset;
 
     loop {

@@ -3838,11 +3838,11 @@ function switchSettingsTab(tabId) {
     tabId = 'tab-general';
   }
 
-  modal.querySelectorAll('.settings-tab-btn').forEach(btn => btn.classList.remove('active'));
+  modal.querySelectorAll('.settings-tab-btn, .settings-nav-btn').forEach(btn => btn.classList.remove('active'));
   modal.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
 
   let activeBtn = null;
-  if (window.event && window.event.currentTarget && window.event.currentTarget.classList.contains('settings-tab-btn')) {
+  if (window.event && window.event.currentTarget && (window.event.currentTarget.classList.contains('settings-tab-btn') || window.event.currentTarget.classList.contains('settings-nav-btn'))) {
     activeBtn = window.event.currentTarget;
   } else {
     activeBtn = modal.querySelector(`[onclick*="${tabId}"]`);
@@ -3861,16 +3861,20 @@ function switchSettingsTab(tabId) {
   if (tabId === 'tab-icons') renderIconSettingsTab();
   if (tabId === 'tab-templates') renderFileTemplatesList();
   if (tabId === 'tab-tools') renderToolsSettingsTab();
+
+  if (window.lucide && typeof lucide.createIcons === 'function') {
+    lucide.createIcons();
+  }
 }
 
 function switchAdminTab(tabId) {
   const modal = document.getElementById('admin-panel-modal');
   if (!modal) return;
-  modal.querySelectorAll('.settings-tab-btn').forEach(btn => btn.classList.remove('active'));
+  modal.querySelectorAll('.settings-tab-btn, .settings-nav-btn').forEach(btn => btn.classList.remove('active'));
   modal.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
 
   let activeBtn = null;
-  if (window.event && window.event.currentTarget && window.event.currentTarget.classList.contains('settings-tab-btn')) {
+  if (window.event && window.event.currentTarget && (window.event.currentTarget.classList.contains('settings-tab-btn') || window.event.currentTarget.classList.contains('settings-nav-btn'))) {
     activeBtn = window.event.currentTarget;
   } else {
     activeBtn = modal.querySelector(`[onclick*="${tabId}"]`);
@@ -3887,6 +3891,10 @@ function switchAdminTab(tabId) {
   if (tabId === 'admin-tab-storage') loadAdminGlobalMounts();
   if (tabId === 'admin-tab-config') loadMasterConfigEditor();
   if (tabId === 'admin-tab-security') loadAdminSecuritySettings();
+
+  if (window.lucide && typeof lucide.createIcons === 'function') {
+    lucide.createIcons();
+  }
 }
 
 async function loadUsersTable() {

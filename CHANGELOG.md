@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.5-rc5] - 2026-09-07
+
+### 📱 Responsive Phone & Tablet Menu Clamping & Fullscreen Modal Adaptations
+- **Phone Viewport Fullscreen Modals & Scrollable Pill Navigation**:
+  - Implemented responsive fullscreen viewports for Settings and Admin Control Panel (`width: 100vw; height: 100dvh; border-radius: 0;`) on mobile screens (`<= 640px`).
+  - Converted the vertical sidebar on Phone viewports into a single-row, horizontally scrollable chip carousel (`.settings-sidebar` with `overflow-x: auto; scrollbar-width: none; border-radius: 20px;`) to preserve 100% vertical space for content.
+- **Tablet & Foldable Modal Optimization**:
+  - Configured compact 190px sidebar layout and 95vw width for tablets and foldables (`641px - 1024px`), preventing text clipping.
+- **Dropdown Viewport Bounding Clamps**:
+  - Added fixed viewport-clamped positioning for Tools launchpad (`#tools-dropdown-menu`), profile menu (`#profile-dropdown-menu`), and pane favorites/color dropdowns on Phone viewports, preventing menus from bleeding past screen edges or escaping below bottom bars.
+
+## [0.7.5-rc4] - 2026-09-07
+
+### 🐛 Fix DOM Modal Nesting Between Settings and Admin Control Panel
+- **DOM Hierarchy & Modal Isolation**:
+  - Fixed an unclosed `<div>` container in `#settings-modal` that caused `#admin-panel-modal` to nest as an internal child element of the Settings modal.
+  - Resolved the bug where opening the Admin Control Panel from the user profile dropdown failed to display and subsequently popped up both modals upon triggering F10 Settings.
+
+## [0.7.5-rc3] - 2026-09-07
+
+### 🗂️ Unified Vertical Sidebar Navigation for Settings & Admin Control Panel
+- **F10 Settings Modal Sidebar Architecture**:
+  - Replaced cramped horizontal tabs with a modern, scrollable two-column layout featuring an amber-accented vertical sidebar navigation list (`.settings-sidebar` + `.settings-content-area`).
+  - Categorized all 9 settings tabs into structured groups: `Appearance & UI`, `Workflow & ChewToys`, and `System & Shortcuts`.
+  - Fully eliminates tab crowding, multi-row wrapping, and out-of-frame tab clipping across all desktop and laptop resolutions.
+- **Administrator Control Panel Sidebar Unification**:
+  - Unified the dedicated Administrator Control Panel modal with the identical sleek vertical sidebar layout.
+  - Grouped administration categories into `Server Administration` and `Security & Config`.
+- **Responsive Mobile & Tablet Viewport Adaptations**:
+  - Added responsive media queries for screens under 720px to fluidly transition sidebar items into compact horizontal chips without layout breakage.
+
+## [0.7.5-rc2] - 2026-09-07
+
+### ⚡ Comprehensive Engine Performance & Concurrency Acceleration
+- **In-Memory TTL Caching for User & Group Resolution**:
+  - Implemented a 60-second thread-safe in-memory cache (`USER_GROUP_CACHE` with `parking_lot::RwLock`) for `/etc/passwd` and `/etc/group` in `LocalFs`.
+  - Eliminates synchronous disk reads and string parsing on repeated directory listings and panel navigation.
+- **HTTP Payload Compression Layer (Gzip / Brotli / Zstd)**:
+  - Integrated `tower_http::compression::CompressionLayer` across the Axum router.
+  - Automatically compresses large JSON responses (directory listings with 5,000+ items, git commit logs, search results) by 80–90%, dramatically reducing latency over WiFi/WAN.
+- **Embedded Static Asset Caching & ETag Validation (`rust-embed`)**:
+  - Implemented strong SHA-256 `ETag` generation, `If-None-Match` -> `304 Not Modified` conditional responses, and explicit `Content-Length` headers in `handle_static_asset`.
+  - Added `Cache-Control: public, max-age=31536000, immutable` for static fonts and icons.
+- **SQLite WAL Mode & Concurrency Pragmas**:
+  - Configured SQLite connections with `PRAGMA journal_mode = WAL`, `PRAGMA synchronous = NORMAL`, `PRAGMA temp_store = MEMORY`, `PRAGMA cache_size = -16000` (16 MB cache), and `PRAGMA busy_timeout = 5000`.
+  - Unlocks concurrent non-blocking reads while writing, eliminates disk synchronization bottlenecks, and prevents lock contention.
+- **DeltaCopy & VFS Streaming Buffer Tuning**:
+  - Upgraded block-delta and streaming chunk buffers from 64 KB to 256 KB, cutting system call context switches by 4x.
+
 ## [0.7.5-rc1] - 2026-09-07
 
 ### 🚀 High-Speed In-Memory Blob URL LRU Cache & Standalone WebKitGTK Acceleration
