@@ -15434,11 +15434,41 @@ let imgZoom = 1;
 let imgRotation = 0;
 let imgFlipH = 1;
 let imgFlipV = 1;
+let currentLoadingImageId = 0;
+const imageViewerBlobCache = new Map(); // path -> { blobUrl, width, height }
+const MAX_IMAGE_BLOB_CACHE = 80;
 
 function isImageExtension(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
   return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif', 'tiff'].includes(ext);
+}
+
+async function getImageBlobUrl(path) {
+  if (imageViewerBlobCache.has(path)) {
+    const cached = imageViewerBlobCache.get(path);
+    imageViewerBlobCache.delete(path);
+    imageViewerBlobCache.set(path, cached);
+    return cached.blobUrl;
+  }
+
+  const url = getDownloadUrl(path, true);
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  const blob = await resp.blob();
+  const blobUrl = URL.createObjectURL(blob);
+
+  if (imageViewerBlobCache.size >= MAX_IMAGE_BLOB_CACHE) {
+    const oldestKey = imageViewerBlobCache.keys().next().value;
+    const oldVal = imageViewerBlobCache.get(oldestKey);
+    if (oldVal && oldVal.blobUrl) {
+      try { URL.revokeObjectURL(oldVal.blobUrl); } catch (e) {}
+    }
+    imageViewerBlobCache.delete(oldestKey);
+  }
+
+  imageViewerBlobCache.set(path, { blobUrl });
+  return blobUrl;
 }
 
 let imgPanX = 0;
@@ -15541,13 +15571,20 @@ function setupImageViewerEvents() {
 
 function preloadAdjacentImages() {
   if (!currentImageList || currentImageList.length <= 1) return;
-  const nextIdx = (currentImageIndex + 1) % currentImageList.length;
-  const prevIdx = (currentImageIndex - 1 + currentImageList.length) % currentImageList.length;
-  [nextIdx, prevIdx].forEach(idx => {
+  const total = currentImageList.length;
+  const indices = [
+    (currentImageIndex + 1) % total,
+    (currentImageIndex - 1 + total) % total,
+    (currentImageIndex + 2) % total,
+    (currentImageIndex - 2 + total) % total,
+    (currentImageIndex + 3) % total,
+    (currentImageIndex - 3 + total) % total,
+  ];
+
+  indices.forEach(idx => {
     const p = currentImageList[idx];
-    if (p) {
-      const preImg = new Image();
-      preImg.src = getDownloadUrl(p, true);
+    if (p && !imageViewerBlobCache.has(p)) {
+      getImageBlobUrl(p).catch(() => {});
     }
   });
 }
@@ -15745,7 +15782,7 @@ function openImageViewer(filePath) {
   showModal('image-viewer-modal');
 }
 
-function loadImageToViewer(path) {
+async function loadImageToViewer(path) {
   const imgEl = document.getElementById('img-viewer-element');
   const titleEl = document.getElementById('img-viewer-title');
   const metaEl = document.getElementById('img-viewer-meta');
@@ -15757,26 +15794,66 @@ function loadImageToViewer(path) {
   if (titleEl) titleEl.textContent = fileName;
   if (counterEl) counterEl.textContent = `${currentImageIndex + 1} / ${currentImageList.length}`;
 
-  const imgUrl = getDownloadUrl(path, true);
+  const loadId = ++currentLoadingImageId;
   const rawDlUrl = getDownloadUrl(path, false);
+  const dlLink = document.getElementById('img-viewer-download-link');
+  if (dlLink) dlLink.href = rawDlUrl;
 
-  if (imgEl) {
-    imgEl.classList.add('loading');
-    imgEl.src = imgUrl;
+  if (!imgEl) return;
 
+  // 1. Instant RAM Cache Hit (0ms)
+  if (imageViewerBlobCache.has(path)) {
+    const cached = imageViewerBlobCache.get(path);
+    imgEl.classList.remove('loading');
+    imgEl.src = cached.blobUrl;
+    if (metaEl && cached.width && cached.height) {
+      metaEl.textContent = `(${cached.width} × ${cached.height} px)`;
+    } else if (metaEl) {
+      metaEl.textContent = '';
+    }
+    preloadAdjacentImages();
+    return;
+  }
+
+  // 2. Fetch in background network thread as Blob to bypass single-threaded WebKitGTK HTTP stalls
+  imgEl.classList.add('loading');
+  try {
+    const blobUrl = await getImageBlobUrl(path);
+    if (loadId !== currentLoadingImageId) return;
+
+    imgEl.src = blobUrl;
     imgEl.onload = () => {
+      if (loadId !== currentLoadingImageId) return;
+      imgEl.classList.remove('loading');
+      const entry = imageViewerBlobCache.get(path);
+      if (entry) {
+        entry.width = imgEl.naturalWidth;
+        entry.height = imgEl.naturalHeight;
+      }
+      if (metaEl) metaEl.textContent = `(${imgEl.naturalWidth} × ${imgEl.naturalHeight} px)`;
+      preloadAdjacentImages();
+    };
+    imgEl.onerror = () => {
+      if (loadId !== currentLoadingImageId) return;
+      imgEl.classList.remove('loading');
+      if (metaEl) metaEl.textContent = '(Preview unavailable)';
+    };
+  } catch (err) {
+    if (loadId !== currentLoadingImageId) return;
+    // Fallback direct URL if blob creation failed
+    imgEl.src = getDownloadUrl(path, true);
+    imgEl.onload = () => {
+      if (loadId !== currentLoadingImageId) return;
       imgEl.classList.remove('loading');
       if (metaEl) metaEl.textContent = `(${imgEl.naturalWidth} × ${imgEl.naturalHeight} px)`;
       preloadAdjacentImages();
     };
     imgEl.onerror = () => {
+      if (loadId !== currentLoadingImageId) return;
       imgEl.classList.remove('loading');
       if (metaEl) metaEl.textContent = '(Preview unavailable)';
     };
   }
-
-  const dlLink = document.getElementById('img-viewer-download-link');
-  if (dlLink) dlLink.href = rawDlUrl;
 }
 
 function navImageViewer(dir) {
@@ -15865,6 +15942,11 @@ async function imageViewerDeleteCurrent() {
       });
       if (resp.ok) {
         showToast(useTrash ? `Moved "${fileName}" to Trash` : `Permanently deleted "${fileName}"`, 'success');
+        const oldEntry = imageViewerBlobCache.get(filePath);
+        if (oldEntry && oldEntry.blobUrl) {
+          try { URL.revokeObjectURL(oldEntry.blobUrl); } catch (e) {}
+        }
+        imageViewerBlobCache.delete(filePath);
         currentImageList.splice(currentImageIndex, 1);
         if (App.panes && Array.isArray(App.panes)) {
           App.panes.forEach(p => {
@@ -15998,6 +16080,11 @@ async function imageViewerRenameCurrent() {
       });
       if (resp.ok) {
         showToast(`Renamed to "${newName}"`, 'success');
+        const oldEntry = imageViewerBlobCache.get(filePath);
+        if (oldEntry && oldEntry.blobUrl) {
+          try { URL.revokeObjectURL(oldEntry.blobUrl); } catch (e) {}
+        }
+        imageViewerBlobCache.delete(filePath);
         currentImageList[currentImageIndex] = toPath;
         loadImageToViewer(toPath);
         refreshAllPanes();

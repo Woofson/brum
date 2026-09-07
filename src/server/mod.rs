@@ -2650,6 +2650,7 @@ async fn handle_download(
         let response = Response::builder()
             .header(header::CONTENT_TYPE, mime)
             .header(header::CONTENT_DISPOSITION, disposition)
+            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
             .header(header::ACCEPT_RANGES, "bytes")
             .body(Body::from(file_bytes))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -2678,6 +2679,7 @@ async fn handle_download(
         let response = Response::builder()
             .header(header::CONTENT_TYPE, mime)
             .header(header::CONTENT_DISPOSITION, disposition)
+            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
             .header(header::ACCEPT_RANGES, "bytes")
             .body(Body::from(file_bytes))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -2706,6 +2708,7 @@ async fn handle_download(
         let response = Response::builder()
             .header(header::CONTENT_TYPE, mime)
             .header(header::CONTENT_DISPOSITION, disposition)
+            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
             .header(header::ACCEPT_RANGES, "bytes")
             .body(Body::from(file_bytes))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -2740,6 +2743,7 @@ async fn handle_download(
         let response = Response::builder()
             .header(header::CONTENT_TYPE, "application/zip")
             .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
+            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
             .body(Body::from(file_bytes))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
@@ -2789,6 +2793,7 @@ async fn handle_download(
     let response = Response::builder()
         .header(header::CONTENT_TYPE, mime)
         .header(header::CONTENT_DISPOSITION, disposition)
+        .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::ETAG, etag)
         .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")

@@ -491,7 +491,7 @@ dependencies = [
 
 [[package]]
 name = "commanderdog"
-version = "0.7.4-rc9"
+version = "0.7.5-rc1"
 dependencies = [
  "aes-gcm",
  "argon2",
