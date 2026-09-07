@@ -7,6 +7,81 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.7-rc7] - 2026-09-07
+
+### 🐛 TetraDog Input Lifecycle & Window Visibility Specificity Fix
+- **Floating Window Display & Close Specificity Fix**:
+  - Removed aggressive `display: flex !important;` rule on `.floating-tetradog-window` that was overriding inline `style="display: none;"` states on mobile.
+  - Fixed issue where the window would render in an uninitialized state while `win.style.display` remained `'none'`, causing keyboard and touch inputs to be rejected and preventing `closeTetraDog()` from hiding the window.
+  - Refined mobile modal header cleanup selectors to ensure `.modal-close-btn` and buttons with `data-lucide="x"` always maintain full clickability (`display: inline-flex !important; pointer-events: auto !important;`).
+  - Added explicit `setTetraDogView('game')` in `openTetraDog()` ensuring game canvas views and event handlers are actively mounted on launch.
+
+## [0.7.7-rc6] - 2026-09-07
+
+### 🌐 Mobile Viewport & Vivaldi / Android Bottom Address Bar Collision Fix
+- **Dynamic Viewport Height & Bottom Chrome Synchronization**:
+  - Resolved mobile browser address bar collisions (specifically in Vivaldi for Android, Chrome, and Samsung Internet with bottom address/navigation bars):
+    - Replaced static `100vh` rules on mobile floating windows with dynamic `height: 100dvh` and CSS variable `var(--viewport-height, 100dvh)`.
+    - Bound `window.visualViewport` height and offset tracking with dynamic `--mobile-bottom-offset` calculations and `max(env(safe-area-inset-bottom), var(--mobile-bottom-offset))` padding.
+    - Updated TetraDog arena and canvas container to dynamically scale (`max-height: calc(var(--viewport-height, 100dvh) - 200px - ...)`), fully preventing bottom status bars and NES gamepad thumb controls from being obscured behind bottom browser address bars.
+
+## [0.7.7-rc5] - 2026-09-07
+
+### 📱 ChewToy & Modal Mobile Header Refinement: Clean Window Controls
+- **Mobile Header Clutter Elimination**:
+  - Automatically hidden redundant desktop window controls on Phone viewports (`@media (max-width: 640px)`):
+    - **Dock Button** (`panel-left-close` / `dock...`), **Minimize Button** (`minus` / `minimize...`), **Maximize/Fullscreen Button** (`maximize-2` / `fullscreen...`), and **Float Button** (`picture-in-picture` / `external-link`).
+  - Standardized phone header actions across all ChewToys (EditorDog, NoteDog, Calculator, TetraDog, Task Manager, Universal Document/PDF Viewer, Image Viewer, Git Manager, Disk Usage Analyzer, Bite! Terminal Console) to display strictly the essential ChewToy brand / view switcher and the **Close Button** (`x`).
+  - Added universal CSS and layout cleanup rules ensuring zero horizontal header squishing or accidental mis-taps on phone screens.
+
+## [0.7.7-rc4] - 2026-09-07
+
+### 🎮 TetraDog: NES Retro Controller & Ultra-Compact Mobile Viewport Optimization
+- **Tactile Virtual NES-Style Thumb Controller**:
+  - Implemented an authentic, thumb-friendly NES retro layout at the bottom of the screen designed specifically for single-handed and dual-thumb mobile play:
+    - **Left Thumb Zone**: 4-Way tactile cross D-Pad (<kbd>↑</kbd> Hard Drop / Slam, <kbd>←</kbd> Move Left, <kbd>→</kbd> Move Right, <kbd>↓</kbd> Soft Drop) with instant tactile touch feedback.
+    - **Center Zone**: Rubber-style pill buttons for <kbd>HOLD</kbd> (Select) and <kbd>PAUSE</kbd> (Start).
+    - **Right Thumb Zone**: Angled <kbd>B</kbd> (Rotate Counter-Clockwise `↺`) and <kbd>A</kbd> (Rotate Clockwise `↻`) round action buttons with ruby and amber gradients for intuitive thumb rolling.
+  - Full multi-touch support (`{ passive: false }` with `preventDefault`) preventing browser viewport scrolling, zoom, or gesture conflicts while holding directional buttons and tapping rotation.
+- **Ultra-Compact Mobile Display Layout (Z Fold & Slim Screen Optimization)**:
+  - Engineered compact layout specifically tailored for narrow displays (such as Galaxy Z Fold outer screens ~374–412px wide and compact phones):
+    - **Mini Side Cards**: Scaled Hold card (`44×44px`) and Next preview card (`44×96px`) flanking the main board.
+    - **Symmetrical Mobile Top HUD**: Centered Mode badge and Top Score HUD directly above the board canvas.
+    - **Adaptive Auto-Scaling Arena**: Board canvas dynamically maintains exact 1:2 aspect ratio (`aspect-ratio: 1 / 2; max-height: calc(100vh - 210px)`) fitting the entire board, sidecards, HUD, NES controller, and status bar with zero horizontal or vertical overflow.
+
+## [0.7.7-rc3] - 2026-09-07
+
+### 🕹️ TetraDog: Classic Arcade Tetris ChewToy & Synchronized Leaderboard
+- **Full-Spectrum Arcade ChewToy (`TetraDog`)**:
+  - Implemented 17th built-in ChewToy with dual operational modes: freely draggable/resizable floating window (`42px` header with grab handles) and in-pane docked mode across Panes 1–4.
+  - **Status-Bar & Toolbar Optimization**:
+    - Relocated live **Score**, **Level**, and **Lines** counters down to a dedicated bottom status bar (`.tetradog-statusbar`).
+    - Positioned mode badge (`MARATHON` / `SPRINT` / `ULTRA`) and **Top Score** prominently inside the main game arena stats card.
+    - Added inverted high-contrast sound toggle trigger in the status bar with live mute indicator.
+    - Cleaned top window header bar to strictly standard Orthodox actions (view switchers, dock, minimize, maximize, close) with theme selection consolidated exclusively under TetraDog Settings.
+  - **Mobile Touch & Tablet Viewport Optimization**:
+    - Compact 3-column responsive layout for Phone and Tablet viewports fitting game board, hold canvas, next preview, and enlarged touch virtual D-pad without vertical viewport clipping.
+  - **Grid & Coordinate Alignment**: Standardized active board to 20 visible rows (`10×20`), eliminated top-buffer clipping gaps, and enabled immediate piece visibility upon spawn.
+  - **Instant Play Lifecycle**: Auto-starts falling tetrominoes on window open or keypress without requiring extra modal clicks.
+  - **Frame-Accurate 60 FPS HTML5 Canvas Engine**: Zero-lag fixed-timestep game loop (`requestAnimationFrame`) with sub-pixel crisp rendering and master gravity scaling (Levels 1–20+ / 20G instant drop).
+  - **Authentic Mechanics & Guideline Parity**:
+    - **Fair 7-Bag Randomizer**: 7-bag piece generation eliminating piece droughts.
+    - **Super Rotation System (SRS)**: Complete 4-state rotation with 5-point wall kick tests for standard pieces (`J`, `L`, `S`, `T`, `Z`) and `I` tetromino, plus optional classic NES single-rotation toggle.
+    - **Ghost Piece Projection**: Accurate translucent landing shadow preview.
+    - **Hold Queue & Next Preview**: Instant 1-swap hold slot (<kbd>C</kbd> / <kbd>Shift</kbd>) and 3-piece next queue.
+    - **Lock Delay & Scoring**: 500ms lock delay with 15-reset safety limit, Back-to-Back Tetris multipliers (`1.5×`), and T-Spin detection.
+    - **3 Game Modes**: Marathon, Sprint (40 lines time attack), and Ultra (3-minute score attack).
+  - **Competitive Controls & Tuning**:
+    - Customizable **DAS** (Delayed Auto Shift, 60–250ms) and **ARR** (Auto Repeat Rate, 0–50ms / instant shift).
+    - Responsive mobile / tablet on-screen touch virtual D-pad controls.
+  - **Zero-Dependency 8-Bit Web Audio Synthesizer**:
+    - Pure browser Web Audio API synthesized retro sound effects (move clicks, rotate chirps, hard drop slam, lock sound, line clear chords, Tetris fanfare, level-up arpeggios, and game over chimes) with master volume slider and 1-click mute.
+  - **Synchronized SQLite Multi-User Leaderboards**:
+    - Server-side SQLite `tetradog_scores` table and REST API endpoints (`/api/chewtoys/tetradog/scores`).
+    - Synchronized instance-wide leaderboards displaying global Top 50, user rankings, personal bests, player aliases, line clears, and timestamps across all CommanderDog user accounts.
+  - **Retro Theme Palettes**:
+    - Instant 1-click theme switching between *Woofsons Amber Charcoal*, *Game Boy Monochrome Green*, *NES 8-Bit Vibrant*, and *Arcade Cyberpunk*.
+
 ## [0.7.6] - 2026-09-07
 
 ### 🔄 Complete Cross-Device User Preference Sync & Docker Persistence Engine

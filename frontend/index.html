@@ -98,6 +98,7 @@
           <div class="dropdown-item" onclick="openSyncthingModal()"><img src="assets/syncthing.webp" alt="Syncthing" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Syncthing</div>
           <div class="dropdown-item" onclick="openConverterModal()"><img src="assets/convertx.webp" alt="ConvertX" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> ConvertX</div>
           <div class="dropdown-item" onclick="openPdfToolModal()"><img src="assets/amber-pdftool.webp" alt="PDFDog" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> PDFDog</div>
+          <div class="dropdown-item" onclick="openTetraDog()"><img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> TetraDog</div>
           <div class="dropdown-item" onclick="openFloatingTaskManager()"><img src="assets/task.webp" alt="Task Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Task Manager</div>
         </div>
       </div>
@@ -2211,9 +2212,9 @@
 
       <div class="calc-header-actions" style="display: flex; align-items: center; gap: 4px;">
         <button class="btn btn-icon" onclick="toggleCalcHistory()" id="btn-calc-history-toggle" title="Calculation History"><i data-lucide="history"></i></button>
-        <div class="header-sep"></div>
-        <button class="btn btn-icon" onclick="dockCalculatorToActivePane()" title="Dock Calculator into Active Pane"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" onclick="minimizeFloatingCalculator()" title="Minimize to Taskbar"><i data-lucide="minus"></i></button>
+        <div class="header-sep desktop-only"></div>
+        <button class="btn btn-icon desktop-only" onclick="dockCalculatorToActivePane()" title="Dock Calculator into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingCalculator()" title="Minimize to Taskbar"><i data-lucide="minus"></i></button>
         <button class="btn btn-icon modal-close-btn" onclick="closeFloatingCalculator()" title="Close Calculator"><i data-lucide="x"></i></button>
       </div>
     </div>
@@ -2559,6 +2560,430 @@
         <button class="btn btn-accent" id="btn-notedog-create-confirm"><i data-lucide="plus" style="width: 14px;"></i> Create Note</button>
       </div>
     </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- 🕹️ TETRADOG (CLASSIC ARCADE CHEWTOY & LEADERBOARD) -->
+  <!-- ========================================== -->
+  <div class="floating-tetradog-window" id="floating-tetradog-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="tetradog-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="tetradog-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="tetradog-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="tetradog-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="tetradog-resize-corner"></div>
+
+    <!-- 1. TetraDog Header (42px standard drag handle) -->
+    <div class="modal-header tetradog-header" id="tetradog-header">
+      <div class="tetradog-header-left" style="display: flex; align-items: center; gap: 8px;">
+        <span class="tetradog-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
+          <img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
+          <span class="chewtoy-brand-text">TetraDog</span>
+        </span>
+      </div>
+
+      <div class="tetradog-header-actions" style="display: flex; align-items: center; gap: 4px;">
+        <div class="layout-btn-group" id="tetradog-view-toggle-group">
+          <button type="button" class="btn btn-icon tetradog-view-btn active" id="btn-tetradog-view-game" onclick="setTetraDogView('game')" title="Arcade Game View"><i data-lucide="gamepad-2"></i></button>
+          <button type="button" class="btn btn-icon tetradog-view-btn" id="btn-tetradog-view-leaderboard" onclick="setTetraDogView('leaderboard')" title="High Scores & Leaderboard (All Users)"><i data-lucide="trophy"></i></button>
+          <button type="button" class="btn btn-icon tetradog-view-btn" id="btn-tetradog-view-settings" onclick="setTetraDogView('settings')" title="TetraDog Settings & Controls"><i data-lucide="sliders"></i></button>
+        </div>
+        <button class="btn btn-icon desktop-only" onclick="dockTetraDogToActivePane()" title="Dock TetraDog into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeTetraDog()" title="Minimize to Pill"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="maximizeTetraDog()" title="Maximize / Restore Window"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeTetraDog()" title="Close TetraDog"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- 2. TetraDog Body Container -->
+    <div class="tetradog-body" id="tetradog-body">
+      <!-- VIEW 1: ARCADE GAME -->
+      <div class="tetradog-view tetradog-game-view" id="tetradog-view-game">
+        <div class="tetradog-arena">
+          <!-- Left Column: Hold & Stats (Desktop) / Mini Hold & Stats (Mobile) -->
+          <div class="tetradog-side-col tetradog-left-col">
+            <div class="tetradog-panel-card tetradog-hold-card">
+              <div class="tetradog-card-title">HOLD <span class="tetradog-key-hint desktop-only">C / Shift</span></div>
+              <div class="tetradog-canvas-wrap">
+                <canvas id="tetradog-hold-canvas" width="90" height="90"></canvas>
+              </div>
+            </div>
+
+            <div class="tetradog-panel-card tetradog-stats-card desktop-only-card">
+              <div class="tetradog-mode-banner">
+                <span class="tetradog-mode-badge" id="tetradog-arena-mode-badge">MARATHON</span>
+              </div>
+              <div class="tetradog-stat-row">
+                <span class="tetradog-stat-label">TOP SCORE</span>
+                <span class="tetradog-stat-number tetradog-glow-gold" id="tetradog-stat-hiscore">0</span>
+              </div>
+              <div class="tetradog-stat-row">
+                <span class="tetradog-stat-label">MODE</span>
+                <select id="tetradog-mode-select" class="tetradog-select" onchange="changeTetraDogMode(this.value)">
+                  <option value="marathon">Marathon</option>
+                  <option value="sprint">Sprint (40L)</option>
+                  <option value="ultra">Ultra (3 Min)</option>
+                </select>
+              </div>
+              <div class="tetradog-stat-row" id="tetradog-timer-row" style="display: none;">
+                <span class="tetradog-stat-label">TIME</span>
+                <span class="tetradog-stat-number" id="tetradog-stat-timer">00:00.0</span>
+              </div>
+            </div>
+
+            <div class="tetradog-b2b-badge" id="tetradog-b2b-badge" style="display: none;">
+              ⚡ BACK-TO-BACK
+            </div>
+            <div class="tetradog-combo-badge" id="tetradog-combo-badge" style="display: none;">
+              COMBO ×<span id="tetradog-combo-count">0</span>
+            </div>
+          </div>
+
+          <!-- Center Column: Board Canvas & Overlays -->
+          <div class="tetradog-center-col">
+            <!-- Mobile Center Mode & Top Score Badge (Mobile Only) -->
+            <div class="tetradog-mobile-center-hud mobile-only-flex">
+              <span class="tetradog-mode-badge" id="tetradog-mobile-mode-badge">MARATHON</span>
+              <div class="tetradog-mob-stat-row">
+                <span class="tetradog-mob-stat-lbl">TOP:</span>
+                <span class="tetradog-mob-stat-val tetradog-glow-gold" id="tetradog-mob-hiscore">0</span>
+              </div>
+            </div>
+
+            <div class="tetradog-canvas-container" id="tetradog-canvas-container">
+              <canvas id="tetradog-board-canvas" width="240" height="480" class="tetradog-main-canvas"></canvas>
+              <div class="tetradog-scanlines" id="tetradog-scanlines"></div>
+
+              <!-- Ready / Countdown Overlay -->
+              <div class="tetradog-overlay" id="tetradog-ready-overlay">
+                <div class="tetradog-overlay-box">
+                  <div class="tetradog-arcade-logo">TETRADOG</div>
+                  <div class="tetradog-arcade-sub">AUTHENTIC 60 FPS ARCADE CHEWTOY</div>
+                  <div class="tetradog-ready-action">
+                    <button class="btn btn-accent tetradog-btn-lg" onclick="startTetraDogGame()">
+                      <i data-lucide="play"></i> START GAME
+                    </button>
+                  </div>
+                  <div class="tetradog-key-legend desktop-only">
+                    <div><kbd>←</kbd> <kbd>→</kbd> Move</div>
+                    <div><kbd>↑</kbd> / <kbd>X</kbd> Rotate CW</div>
+                    <div><kbd>Z</kbd> / <kbd>Ctrl</kbd> Rotate CCW</div>
+                    <div><kbd>↓</kbd> Soft Drop</div>
+                    <div><kbd>Space</kbd> Hard Drop</div>
+                    <div><kbd>C</kbd> / <kbd>Shift</kbd> Hold</div>
+                    <div><kbd>P</kbd> / <kbd>Esc</kbd> Pause</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pause Overlay -->
+              <div class="tetradog-overlay" id="tetradog-pause-overlay" style="display: none;">
+                <div class="tetradog-overlay-box">
+                  <div class="tetradog-overlay-title">PAUSED</div>
+                  <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Press <kbd>P</kbd> or <kbd>Esc</kbd> to resume</div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-accent" onclick="resumeTetraDogGame()"><i data-lucide="play"></i> Resume</button>
+                    <button class="btn" onclick="restartTetraDogGame()"><i data-lucide="rotate-ccw"></i> Restart</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Game Over Overlay -->
+              <div class="tetradog-overlay" id="tetradog-gameover-overlay" style="display: none;">
+                <div class="tetradog-overlay-box">
+                  <div class="tetradog-overlay-title tetradog-danger-glow" id="tetradog-gameover-title">GAME OVER</div>
+                  <div class="tetradog-go-stats">
+                    <div class="tetradog-go-stat-item">
+                      <div class="tetradog-go-label">FINAL SCORE</div>
+                      <div class="tetradog-go-val tetradog-accent-glow" id="tetradog-go-score">0</div>
+                    </div>
+                    <div class="tetradog-go-stat-item">
+                      <div class="tetradog-go-label">LEVEL</div>
+                      <div class="tetradog-go-val" id="tetradog-go-level">1</div>
+                    </div>
+                    <div class="tetradog-go-stat-item">
+                      <div class="tetradog-go-label">LINES</div>
+                      <div class="tetradog-go-val" id="tetradog-go-lines">0</div>
+                    </div>
+                    <div class="tetradog-go-stat-item">
+                      <div class="tetradog-go-label">TIME</div>
+                      <div class="tetradog-go-val" id="tetradog-go-time">00:00</div>
+                    </div>
+                  </div>
+
+                  <div class="tetradog-rank-banner" id="tetradog-rank-banner" style="display: none;">
+                    🏆 <span id="tetradog-rank-text">Achieved Rank #1!</span>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; margin-top: 12px; width: 100%;">
+                    <button class="btn btn-accent" style="flex: 1;" onclick="restartTetraDogGame()"><i data-lucide="rotate-ccw"></i> Play Again</button>
+                    <button class="btn" onclick="setTetraDogView('leaderboard')"><i data-lucide="trophy"></i> High Scores</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right Column: Next Pieces & Quick Actions -->
+          <div class="tetradog-side-col tetradog-right-col">
+            <div class="tetradog-panel-card tetradog-next-card">
+              <div class="tetradog-card-title">NEXT</div>
+              <div class="tetradog-canvas-wrap">
+                <canvas id="tetradog-next-canvas" width="90" height="220"></canvas>
+              </div>
+            </div>
+
+            <div class="tetradog-panel-card tetradog-actions-card desktop-only-card">
+              <button class="btn btn-accent btn-sm" id="btn-tetradog-start-pause" onclick="toggleTetraDogPlayPause()" style="width: 100%;">
+                <i data-lucide="play" id="icon-tetradog-play-pause"></i> <span id="label-tetradog-play-pause">Play</span>
+              </button>
+              <button class="btn btn-sm" onclick="restartTetraDogGame()" style="width: 100%;">
+                <i data-lucide="rotate-ccw"></i> Restart
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Virtual NES-Style Thumb Controller for Mobile & Tablet Touch -->
+        <div class="tetradog-nes-controller" id="tetradog-nes-controller">
+          <!-- Left Zone: Authentic 4-Way Cross D-Pad -->
+          <div class="tetradog-dpad-cross">
+            <button class="dpad-btn dpad-up" id="tbtn-up" data-action="hardDrop" title="Hard Drop (Slam Piece)">
+              <i data-lucide="chevrons-up"></i>
+            </button>
+            <button class="dpad-btn dpad-left" id="tbtn-left" data-action="left" title="Move Left">
+              <i data-lucide="arrow-left"></i>
+            </button>
+            <div class="dpad-center"></div>
+            <button class="dpad-btn dpad-right" id="tbtn-right" data-action="right" title="Move Right">
+              <i data-lucide="arrow-right"></i>
+            </button>
+            <button class="dpad-btn dpad-down" id="tbtn-down" data-action="down" title="Soft Drop (Drop Faster)">
+              <i data-lucide="arrow-down"></i>
+            </button>
+          </div>
+
+          <!-- Center Zone: SELECT (Hold) & START (Pause) -->
+          <div class="tetradog-nes-center-btns">
+            <button class="nes-pill-btn" id="tbtn-hold" data-action="hold" title="Hold Piece">
+              <span class="nes-pill-label">HOLD</span>
+            </button>
+            <button class="nes-pill-btn" id="tbtn-pause" onclick="toggleTetraDogPlayPause()" title="Play / Pause">
+              <span class="nes-pill-label" id="tbtn-pause-label">PAUSE</span>
+            </button>
+          </div>
+
+          <!-- Right Zone: B and A Action Buttons (Angled NES Layout) -->
+          <div class="tetradog-nes-actions">
+            <button class="nes-round-btn nes-btn-b" id="tbtn-rot-ccw" data-action="rotateCCW" title="Rotate CCW (B Button)">
+              <span class="nes-btn-name">B</span>
+              <span class="nes-btn-sub">↺</span>
+            </button>
+            <button class="nes-round-btn nes-btn-a" id="tbtn-rot-cw" data-action="rotateCW" title="Rotate CW (A Button)">
+              <span class="nes-btn-name">A</span>
+              <span class="nes-btn-sub">↻</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: LEADERBOARD & DB TOP SCORES -->
+      <div class="tetradog-view tetradog-leaderboard-view" id="tetradog-view-leaderboard" style="display: none;">
+        <div class="tetradog-lb-header-bar">
+          <div class="tetradog-lb-mode-pills">
+            <button class="btn btn-xs tetradog-lb-tab active" data-mode="marathon" onclick="loadTetraDogLeaderboard('marathon')">Marathon</button>
+            <button class="btn btn-xs tetradog-lb-tab" data-mode="sprint" onclick="loadTetraDogLeaderboard('sprint')">Sprint (40L)</button>
+            <button class="btn btn-xs tetradog-lb-tab" data-mode="ultra" onclick="loadTetraDogLeaderboard('ultra')">Ultra (3 Min)</button>
+          </div>
+          <div class="tetradog-lb-scope-toggle">
+            <label class="tetradog-scope-btn"><input type="radio" name="tetradog-scope" value="all" checked onchange="handleTetraDogScopeChange(this.value)"> 🌐 All Users</label>
+            <label class="tetradog-scope-btn"><input type="radio" name="tetradog-scope" value="mine" onchange="handleTetraDogScopeChange(this.value)"> 👤 My Best</label>
+            <button class="btn btn-icon btn-xs" onclick="refreshTetraDogLeaderboard()" title="Refresh Scores"><i data-lucide="refresh-cw"></i></button>
+          </div>
+        </div>
+
+        <!-- User Stats Summary Banner -->
+        <div class="tetradog-user-summary" id="tetradog-user-summary">
+          <div class="tetradog-summary-item">
+            <span class="tetradog-summary-lbl">PERSONAL BEST</span>
+            <span class="tetradog-summary-val tetradog-glow-gold" id="tetradog-sum-best">0</span>
+          </div>
+          <div class="tetradog-summary-item">
+            <span class="tetradog-summary-lbl">GLOBAL RANK</span>
+            <span class="tetradog-summary-val" id="tetradog-sum-rank">-</span>
+          </div>
+          <div class="tetradog-summary-item">
+            <span class="tetradog-summary-lbl">MAX LEVEL</span>
+            <span class="tetradog-summary-val" id="tetradog-sum-level">1</span>
+          </div>
+          <div class="tetradog-summary-item">
+            <span class="tetradog-summary-lbl">TOTAL LINES</span>
+            <span class="tetradog-summary-val" id="tetradog-sum-lines">0</span>
+          </div>
+          <div class="tetradog-summary-item">
+            <span class="tetradog-summary-lbl">GAMES PLAYED</span>
+            <span class="tetradog-summary-val" id="tetradog-sum-games">0</span>
+          </div>
+        </div>
+
+        <!-- Leaderboard Table Container -->
+        <div class="tetradog-lb-table-wrap">
+          <table class="tetradog-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">Rank</th>
+                <th>Player</th>
+                <th style="text-align: right;">Score</th>
+                <th style="text-align: right;">Level</th>
+                <th style="text-align: right;">Lines</th>
+                <th style="text-align: right;">Time</th>
+                <th style="text-align: right;">Date</th>
+              </tr>
+            </thead>
+            <tbody id="tetradog-leaderboard-tbody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading top scores from database...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Leaderboard Bottom Alias Bar -->
+        <div class="tetradog-lb-footer">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="tetradog-player-alias" style="font-size: 11px; color: var(--text-dim);">Player Alias:</label>
+            <input type="text" id="tetradog-player-alias" class="pane-quick-filter" placeholder="Your Name" style="width: 140px; height: 26px; font-size: 11px;" onchange="saveTetraDogPlayerAlias(this.value)">
+            <button class="btn btn-xs btn-outline" onclick="saveTetraDogPlayerAlias(document.getElementById('tetradog-player-alias').value)">Save</button>
+          </div>
+          <div>
+            <button class="btn btn-xs btn-danger-action" onclick="promptClearTetraDogScores()" title="Reset high scores"><i data-lucide="trash-2" style="width: 11px;"></i> Clear Scores</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: SETTINGS & CUSTOMIZATION -->
+      <div class="tetradog-view tetradog-settings-view" id="tetradog-view-settings" style="display: none;">
+        <div class="tetradog-settings-scroll">
+          <div class="tetradog-settings-section">
+            <div class="tetradog-section-title">🕹️ Gameplay & Controls</div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">Starting Level</div>
+                <div class="tetradog-setting-sub">Select starting gravity level (1 = standard, 10 = master speed)</div>
+              </div>
+              <select id="tetradog-cfg-start-level" class="tetradog-select" onchange="updateTetraDogConfig('startLevel', parseInt(this.value, 10))">
+                <option value="1">Level 1 (Relaxed)</option>
+                <option value="3">Level 3 (Brisk)</option>
+                <option value="5">Level 5 (Fast)</option>
+                <option value="8">Level 8 (Intense)</option>
+                <option value="10">Level 10 (Master)</option>
+              </select>
+            </div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">Rotation System</div>
+                <div class="tetradog-setting-sub">SRS (Super Rotation System with wall kicks) or NES Classic</div>
+              </div>
+              <select id="tetradog-cfg-rotation" class="tetradog-select" onchange="updateTetraDogConfig('rotationSystem', this.value)">
+                <option value="srs">Super Rotation System (SRS)</option>
+                <option value="nes">Classic NES (Single Rotation)</option>
+              </select>
+            </div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">Ghost Piece Projection</div>
+                <div class="tetradog-setting-sub">Project translucent landing shadow on the board</div>
+              </div>
+              <input type="checkbox" id="tetradog-cfg-ghost" checked onchange="updateTetraDogConfig('ghostPiece', this.checked)">
+            </div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">Delayed Auto Shift (DAS)</div>
+                <div class="tetradog-setting-sub">Initial delay before rapid piece shifting (<span id="tetradog-das-val">133</span>ms)</div>
+              </div>
+              <input type="range" min="60" max="250" step="5" value="133" id="tetradog-cfg-das" oninput="document.getElementById('tetradog-das-val').textContent=this.value; updateTetraDogConfig('das', parseInt(this.value, 10))">
+            </div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">Auto Repeat Rate (ARR)</div>
+                <div class="tetradog-setting-sub">Continuous shift speed (<span id="tetradog-arr-val">16</span>ms)</div>
+              </div>
+              <input type="range" min="0" max="50" step="2" value="16" id="tetradog-cfg-arr" oninput="document.getElementById('tetradog-arr-val').textContent=this.value; updateTetraDogConfig('arr', parseInt(this.value, 10))">
+            </div>
+          </div>
+
+          <div class="tetradog-settings-section">
+            <div class="tetradog-section-title">🎨 Audio & Visual Style</div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">Retro Theme Palette</div>
+                <div class="tetradog-setting-sub">Color palette for board canvas and tetrominoes</div>
+              </div>
+              <select id="tetradog-cfg-theme" class="tetradog-select" onchange="setTetraDogTheme(this.value)">
+                <option value="amber">Woofsons Amber Charcoal</option>
+                <option value="gameboy">Game Boy Monochrome Green</option>
+                <option value="nes">NES 8-Bit Vibrant</option>
+                <option value="cyberpunk">Arcade Cyberpunk</option>
+              </select>
+            </div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">CRT Scanlines & Glow</div>
+                <div class="tetradog-setting-sub">Subtle retro CRT screen scanline overlay</div>
+              </div>
+              <input type="checkbox" id="tetradog-cfg-scanlines" checked onchange="updateTetraDogConfig('scanlines', this.checked)">
+            </div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">8-Bit Sound Effects</div>
+                <div class="tetradog-setting-sub">Synthesized Web Audio sound effects</div>
+              </div>
+              <input type="checkbox" id="tetradog-cfg-sound" checked onchange="updateTetraDogConfig('soundEnabled', this.checked)">
+            </div>
+            <div class="tetradog-setting-row">
+              <div>
+                <div class="tetradog-setting-title">Audio Volume (<span id="tetradog-vol-val">60</span>%)</div>
+                <div class="tetradog-setting-sub">Master volume level for synthesized audio</div>
+              </div>
+              <input type="range" min="0" max="100" step="5" value="60" id="tetradog-cfg-volume" oninput="document.getElementById('tetradog-vol-val').textContent=this.value; updateTetraDogConfig('volume', parseInt(this.value, 10))">
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. TetraDog Bottom Status-Bar -->
+    <div class="tetradog-statusbar" id="tetradog-statusbar">
+      <div class="tetradog-sb-left">
+        <button class="tetradog-statusbar-sound-btn" id="btn-tetradog-audio" onclick="toggleTetraDogAudio()" title="Sound Effects (Click to Mute/Unmute)">
+          <i data-lucide="volume-2" id="icon-tetradog-audio"></i>
+        </button>
+        <span class="tetradog-sb-hint desktop-only">P / Esc: Pause</span>
+      </div>
+
+      <div class="tetradog-sb-center">
+        <div class="tetradog-sb-pill">
+          <span class="tetradog-sb-label">SCORE</span>
+          <span class="tetradog-sb-val" id="tetradog-sb-score-val">0</span>
+        </div>
+        <div class="tetradog-sb-pill">
+          <span class="tetradog-sb-label">LEVEL</span>
+          <span class="tetradog-sb-val" id="tetradog-sb-lvl-val">1</span>
+        </div>
+        <div class="tetradog-sb-pill">
+          <span class="tetradog-sb-label">LINES</span>
+          <span class="tetradog-sb-val" id="tetradog-sb-lines-val">0</span>
+        </div>
+      </div>
+
+      <div class="tetradog-sb-right">
+        <span class="tetradog-sb-engine">60 FPS • SRS</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TetraDog Minimized Pill -->
+  <div class="tetradog-pill" id="tetradog-pill" style="display: none;" onclick="restoreTetraDog()" title="Click to restore TetraDog">
+    <img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
+    <span id="tetradog-pill-text">TetraDog</span>
+    <span class="tetradog-pill-score" id="tetradog-pill-score">0</span>
   </div>
 
   <!-- Diff & Comparison Modal -->
@@ -3228,10 +3653,10 @@
             <button class="btn btn-icon btn-sm" id="du-view-btn-list" onclick="setDiskUsageViewMode('list')" title="Detailed List View" style="width: 28px; height: 28px;"><i data-lucide="list" style="width: 14px; height: 14px;"></i></button>
           </div>
 
-          <div class="header-sep"></div>
+          <div class="header-sep desktop-only"></div>
 
           <button class="btn btn-icon btn-sm" id="du-rescan-btn" onclick="runDiskUsageScan(document.getElementById('du-path-input').value)" title="Rescan Current Directory" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
-          <button class="btn btn-icon btn-sm" id="du-maximize-btn" onclick="toggleDiskUsageMaximize()" title="Toggle Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm desktop-only" id="du-maximize-btn" onclick="toggleDiskUsageMaximize()" title="Toggle Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i></button>
           <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeModal('disk-usage-modal')" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
         </div>
       </div>
@@ -4028,9 +4453,9 @@
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
         <button class="btn btn-icon" onclick="clearTerminal()" title="Clear Terminal"><i data-lucide="trash-2"></i></button>
-        <div class="header-sep"></div>
-        <button class="btn btn-icon" onclick="dockTerminalToActivePane()" title="Dock Terminal into Active Pane"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" onclick="toggleTerminalFullscreen()" title="Toggle Maximize"><i data-lucide="maximize-2"></i></button>
+        <div class="header-sep desktop-only"></div>
+        <button class="btn btn-icon desktop-only" onclick="dockTerminalToActivePane()" title="Dock Terminal into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="toggleTerminalFullscreen()" title="Toggle Maximize"><i data-lucide="maximize-2"></i></button>
         <button class="btn btn-icon modal-close-btn" onclick="toggleTerminal(false)" title="Close Terminal"><i data-lucide="x"></i></button>
       </div>
     </div>
@@ -4145,17 +4570,17 @@
           <div style="width: 1px; height: 18px; background: var(--border); margin: 0 2px;"></div>
 
           <div class="doc-viewer-actions-right" style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-icon btn-sm" onclick="docViewerRenameCurrent()" title="Rename File (F2)"><i data-lucide="edit-3"></i></button>
-            <button class="btn btn-icon btn-sm" onclick="docViewerCopyCurrent()" title="Copy to Opposite Panel (F5)"><i data-lucide="copy"></i></button>
-            <button class="btn btn-icon btn-sm" onclick="docViewerMoveCurrent()" title="Move to Opposite Panel (F6)"><i data-lucide="folder-input"></i></button>
-            <button class="btn btn-icon btn-sm" onclick="docViewerDeleteCurrent()" title="Delete / Move to Trash (F8 / Del)" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
-            <div style="width: 1px; height: 18px; background: var(--border); margin: 0 2px;"></div>
+            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerRenameCurrent()" title="Rename File (F2)"><i data-lucide="edit-3"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerCopyCurrent()" title="Copy to Opposite Panel (F5)"><i data-lucide="copy"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerMoveCurrent()" title="Move to Opposite Panel (F6)"><i data-lucide="folder-input"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerDeleteCurrent()" title="Delete / Move to Trash (F8 / Del)" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
+            <div class="header-sep desktop-only" style="width: 1px; height: 18px; background: var(--border); margin: 0 2px;"></div>
             <button class="btn btn-icon btn-sm" id="doc-viewer-edit-btn" onclick="docViewerEditFile()" title="Edit in EditorDog (F4)"><i data-lucide="code"></i></button>
             <a id="doc-viewer-download" class="btn btn-icon btn-sm" href="#" download title="Download File"><i data-lucide="download"></i></a>
-            <a id="doc-viewer-external" class="btn btn-icon btn-sm" href="#" target="_blank" title="Open in New Tab"><i data-lucide="external-link"></i></a>
-            <button class="btn btn-icon btn-sm" id="btn-doc-viewer-float" onclick="toggleDocViewerFloating()" title="Toggle Floating Window / Overlay (⇱ / ⇲)"><i data-lucide="picture-in-picture"></i></button>
-            <button class="btn btn-icon btn-sm" id="doc-viewer-fullscreen" onclick="toggleDocViewerFullscreen()" title="Toggle Fullscreen"><i data-lucide="maximize-2"></i></button>
-            <button class="btn btn-icon btn-sm" onclick="closeDocViewerModal()" title="Close (Esc)"><i data-lucide="x"></i></button>
+            <a id="doc-viewer-external" class="btn btn-icon btn-sm desktop-only" href="#" target="_blank" title="Open in New Tab"><i data-lucide="external-link"></i></a>
+            <button class="btn btn-icon btn-sm desktop-only" id="btn-doc-viewer-float" onclick="toggleDocViewerFloating()" title="Toggle Floating Window / Overlay (⇱ / ⇲)"><i data-lucide="picture-in-picture"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" id="doc-viewer-fullscreen" onclick="toggleDocViewerFullscreen()" title="Toggle Fullscreen"><i data-lucide="maximize-2"></i></button>
+            <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeDocViewerModal()" title="Close (Esc)"><i data-lucide="x"></i></button>
           </div>
         </div>
       </div>

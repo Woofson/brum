@@ -146,6 +146,9 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/notedog/section/decrypt", post(handle_notedog_section_decrypt))
         .route("/api/tools/notedog/notebook/encrypt", post(handle_notedog_notebook_encrypt))
         .route("/api/tools/notedog/notebook/decrypt", post(handle_notedog_notebook_decrypt))
+        // TetraDog Classic Arcade ChewToy & Leaderboard API
+        .route("/api/tools/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score).delete(handle_tetradog_clear_scores))
+        .route("/api/chewtoys/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score))
         // Git Client & Version Control API
         .route("/api/git/status", get(handle_git_status))
         .route("/api/git/diff", get(handle_git_diff))
@@ -3237,6 +3240,60 @@ async fn handle_notedog_notebook_decrypt(
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
+}
+
+// ---------------- TETRADOG CLASSIC ARCADE CHEWTOY & LEADERBOARD HANDLERS ----------------
+
+#[derive(Deserialize)]
+struct TetraDogScoresQuery {
+    limit: Option<usize>,
+    mode: Option<String>,
+    user_only: Option<bool>,
+}
+
+async fn handle_tetradog_get_scores(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<TetraDogScoresQuery>,
+) -> Result<Json<crate::tools::tetradog::TetraLeaderboardResponse>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let db_arc = state.auth.db();
+    let conn = db_arc.lock().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database lock poisoned".to_string()))?;
+    let limit = query.limit.unwrap_or(50);
+    let mode = query.mode.as_deref();
+    let user_only = query.user_only.unwrap_or(false);
+
+    let resp = crate::tools::tetradog::get_leaderboard(&conn, &claims.sub, limit, mode, user_only)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(resp))
+}
+
+async fn handle_tetradog_submit_score(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::tools::tetradog::SubmitScoreRequest>,
+) -> Result<Json<crate::tools::tetradog::SubmitScoreResponse>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let db_arc = state.auth.db();
+    let conn = db_arc.lock().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database lock poisoned".to_string()))?;
+
+    let resp = crate::tools::tetradog::submit_score(&conn, &claims.sub, payload)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(resp))
+}
+
+async fn handle_tetradog_clear_scores(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let db_arc = state.auth.db();
+    let conn = db_arc.lock().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database lock poisoned".to_string()))?;
+
+    let user_filter = if claims.role == "admin" { None } else { Some(claims.sub.as_str()) };
+    let cleared = crate::tools::tetradog::clear_scores(&conn, user_filter)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    Ok(Json(serde_json::json!({ "success": true, "cleared_count": cleared })))
 }
 
 // ---------------- PHASE 4 HANDLERS (SYNC, SEARCH, SCRIPT ACTIONS) ----------------

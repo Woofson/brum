@@ -2,7 +2,7 @@
 
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
 > **Slogan**: *Multi-Tab File Commander for Web & Native Desktop — By Woofson*  
-> **Current Version**: `v0.7.6 (Desktop & Web)`  
+> **Current Version**: `v0.7.7-rc7 (Desktop & Web)`  
 > **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`).  
 > **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.7.3`), see [**`CHANGELOG.md`**](CHANGELOG.md).
 
@@ -176,7 +176,7 @@ graph TD
   - **Interactive Proportional Treemap & Multi-Color Distribution**: Added responsive proportional squarified/flex treemap tiles with category gradients, 1-click drill-down, and stacked multi-colored storage proportion bar.
   - **Interactive Navigation & Breadcrumbs**: Added full breadcrumb path navigation chips, parent directory (`Up ..`) jump button, real-time live filter, quick panel jump, and terminal launcher.
   - **ChewToy Standards Alignment**: Standardized 42px drag handle header, right-aligned 28px view switchers (`Split`, `Treemap`, `List`), maximize/restore toggle, and 26px sub-header toolbars.
-- [ ] **TetraDog (Authentic Classic Tetris ChewToy & Leaderboard)**:
+- [x] **TetraDog (Authentic Classic Tetris ChewToy & Leaderboard)** (Shipped in `v0.7.7-rc1`):
   - **Frame-Accurate 60 FPS HTML5 Canvas Engine**: Zero-lag fixed-timestep game loop (`requestAnimationFrame`) engineered for ultra-responsive control and razor-sharp inputs during high-speed master gravity (Level 15+ up to 20G instant drop).
   - **Competitive Input Ergonomics (DAS & ARR Tuning)**: Sub-millisecond keyboard event handling with customizable Delayed Auto Shift (DAS, ~133ms default) and Auto Repeat Rate (ARR, ~16ms/0ms instant repeat), customizable keybindings (Arrow keys, WASD, Numpad, Space hard drop, Shift/C hold), and responsive touch D-pad for Phone/Tablet viewports.
   - **Authentic Mechanics & Guideline Parity**:
@@ -188,7 +188,7 @@ graph TD
     - Progressive gravity scaling across Levels 1–20+ with progressive line clear level-up thresholds.
   - **High Score Leaderboards**:
     - **Local Scoreboard**: Persistent `localStorage` tracking personal Top 10 high scores, cleared lines, max level, and timestamps.
-    - **Server-Wide High Scores**: Optional SQLite backend integration (`/api/chewtoys/tetris/scores`) sharing instance-wide leaderboards.
+    - **Server-Wide High Scores**: SQLite backend integration (`/api/chewtoys/tetradog/scores`) sharing instance-wide synchronized multi-user leaderboards with player aliases and rankings.
   - **Zero-Dependency 8-Bit Web Audio Synthesizer**:
     - Retro synthesized audio effects (movement bleeps, hard drop slam, line clear fanfare, level-up arpeggio, game over chime) using the browser Web Audio API oscillator with 1-click sound mute.
   - **ChewToy Standards Compliance**:
@@ -232,6 +232,6 @@ graph TD
 | **`v0.7.1`** | Universal Floating Viewers, Live Tail Follow, Bundled Fonts & Themes | **Released** | [View Notes](CHANGELOG.md#071---2026-09-03) |
 | **`v0.7.2`** | Documentation Reorganization & Chewtoy UI/UX Refinements | **Released** | [View Notes](CHANGELOG.md#072---2026-09-04) |
 | **`v0.7.3`** | WebP Icon Suite, Visual Disk Treemap, NoteDog Encryption & Release Automation | **Released** | [View Notes](CHANGELOG.md#073---2026-09-04) |
-| **`v0.7.4`** | TetraDog (Classic Arcade Tetris ChewToy & Leaderboard) | **In Progress** | — |
+| **`v0.7.7`** | TetraDog (Classic Arcade Tetris ChewToy & Synchronized Leaderboard) | **In Progress** | — |
 | **`v0.8.0`** | Enterprise OIDC SSO, Collaborative Office (WOPI) & Automation | *Planned* | — |
 | **`v1.0.0`** | High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |

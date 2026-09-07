@@ -8349,6 +8349,7 @@ body {
   /* All floating chewtoys become fixed/fullscreen modals without drag-offsets */
   .floating-notedog-window,
   .floating-editor-window,
+  .floating-tetradog-window,
   #doc-viewer-modal.floating-mode .doc-viewer-box,
   #image-viewer-modal.floating-mode .image-viewer-box {
     position: fixed !important;
@@ -8357,11 +8358,13 @@ body {
     right: 0 !important;
     bottom: 0 !important;
     width: 100vw !important;
-    height: 100vh !important;
+    height: 100% !important;
     height: 100dvh !important;
+    height: var(--viewport-height, 100dvh) !important;
     max-width: 100vw !important;
-    max-height: 100vh !important;
+    max-height: 100% !important;
     max-height: 100dvh !important;
+    max-height: var(--viewport-height, 100dvh) !important;
     min-width: 0 !important;
     min-height: 0 !important;
     border-radius: 0 !important;
@@ -10037,3 +10040,1306 @@ body.standalone-mode .server-only-setting {
 .ext-preset-btn:active {
   transform: translateY(0);
 }
+
+/* ==========================================================================
+   🕹️ TETRADOG: CLASSIC ARCADE CHEWTOY & LEADERBOARD STYLES
+   ========================================================================== */
+
+.floating-tetradog-window {
+  position: fixed;
+  top: 70px;
+  right: 50px;
+  width: 520px;
+  height: 640px;
+  min-width: 440px;
+  min-height: 520px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 40px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 2850;
+  overflow: hidden;
+  user-select: none;
+  font-family: var(--font-sans), sans-serif;
+  transition: width 0.15s ease, height 0.15s ease;
+}
+
+.floating-tetradog-window.maximized {
+  top: 36px !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 36px) !important;
+  border-radius: 0 !important;
+}
+
+.tetradog-header {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+}
+
+.tetradog-header:active {
+  cursor: grabbing;
+}
+
+.tetradog-mode-banner {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 6px;
+}
+
+.tetradog-mode-badge {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  color: var(--accent);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  letter-spacing: 0.8px;
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.15);
+}
+
+.tetradog-score-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.tetradog-pill-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.tetradog-pill-val {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.tetradog-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #090a0f;
+  position: relative;
+}
+
+.tetradog-view {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Game Arena Layout */
+.tetradog-arena {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.tetradog-side-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.tetradog-panel-card {
+  background: rgba(18, 20, 26, 0.85);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.tetradog-card-title {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  text-align: center;
+  width: 100%;
+}
+
+.tetradog-key-hint {
+  font-size: 8px;
+  color: var(--text-muted);
+  font-weight: normal;
+  display: block;
+}
+
+.tetradog-canvas-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #050608;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 2px;
+}
+
+.tetradog-stat-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.tetradog-stat-row:last-child {
+  margin-bottom: 0;
+}
+
+.tetradog-stat-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.tetradog-stat-number {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main);
+}
+
+.tetradog-glow-gold {
+  color: #fbbf24 !important;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
+}
+
+.tetradog-select {
+  width: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  border-radius: 4px;
+  font-size: 10px;
+  padding: 3px 4px;
+  outline: none;
+  font-family: var(--font-sans);
+}
+
+.tetradog-b2b-badge,
+.tetradog-combo-badge {
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  text-align: center;
+  animation: tetradogPulse 1.2s infinite alternate ease-in-out;
+}
+
+.tetradog-b2b-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.tetradog-combo-badge {
+  background: rgba(59, 130, 246, 0.2);
+  color: #60a5fa;
+  border: 1px solid rgba(59, 130, 246, 0.4);
+}
+
+@keyframes tetradogPulse {
+  from { transform: scale(0.97); opacity: 0.85; }
+  to { transform: scale(1.03); opacity: 1; }
+}
+
+/* Center Canvas Column */
+.tetradog-center-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+
+.tetradog-canvas-container {
+  position: relative;
+  background: #040507;
+  border: 2px solid rgba(245, 158, 11, 0.3);
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(245, 158, 11, 0.12);
+  overflow: hidden;
+}
+
+.tetradog-main-canvas {
+  display: block;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.tetradog-scanlines {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
+  background-size: 100% 4px;
+  pointer-events: none;
+  opacity: 0.6;
+}
+
+/* Canvas Overlays */
+.tetradog-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(4, 5, 8, 0.88);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 10;
+  animation: fadeIn 0.15s ease-out;
+}
+
+.tetradog-overlay-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  width: 100%;
+}
+
+.tetradog-arcade-logo {
+  font-family: var(--font-mono);
+  font-size: 24px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
+  margin-bottom: 2px;
+}
+
+.tetradog-arcade-sub {
+  font-size: 8px;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+
+.tetradog-key-legend {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px 10px;
+  font-size: 9.5px;
+  color: var(--text-dim);
+  text-align: left;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 8px 10px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tetradog-key-legend kbd {
+  background: #181b22;
+  border: 1px solid #30363d;
+  border-radius: 3px;
+  padding: 1px 4px;
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent);
+}
+
+.tetradog-overlay-title {
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--text-main);
+  margin-bottom: 8px;
+}
+
+.tetradog-danger-glow {
+  color: #ef4444 !important;
+  text-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+}
+
+.tetradog-accent-glow {
+  color: var(--accent) !important;
+  text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+}
+
+.tetradog-go-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  width: 100%;
+  margin: 10px 0;
+  background: rgba(0, 0, 0, 0.35);
+  padding: 10px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.tetradog-go-label {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.tetradog-go-val {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 800;
+  color: #f1f5f9;
+}
+
+.tetradog-rank-banner {
+  padding: 6px 12px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+  margin-top: 6px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
+}
+
+/* Mobile HUD Row (Mode & Top score) */
+.tetradog-mobile-center-hud {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 220px;
+  padding: 2px 6px;
+  margin-bottom: 4px;
+  background: rgba(18, 20, 26, 0.7);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-sizing: border-box;
+}
+
+.tetradog-mob-stat-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+}
+
+.tetradog-mob-stat-lbl {
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.tetradog-mob-stat-val {
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Visibility helpers */
+.desktop-only-card {
+  display: flex;
+}
+
+.mobile-only-flex {
+  display: none;
+}
+
+/* ==========================================================================
+   TETRADOG NES CONTROLLER & TOUCH CONTROLS
+   ========================================================================== */
+.tetradog-nes-controller {
+  display: none; /* hidden on desktop mouse viewports */
+  width: 100%;
+  padding: 6px 12px 8px 12px;
+  background: rgba(10, 12, 17, 0.95);
+  border-top: 1px solid var(--border);
+  align-items: center;
+  justify-content: space-between;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  user-select: none;
+  touch-action: manipulation;
+  z-index: 10;
+}
+
+/* 1. Left Zone: Retro 4-Way Cross D-Pad */
+.tetradog-dpad-cross {
+  display: grid;
+  grid-template-columns: 38px 38px 38px;
+  grid-template-rows: 38px 38px 38px;
+  width: 114px;
+  height: 114px;
+  position: relative;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
+}
+
+.dpad-btn {
+  background: #1e222d;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: #cbd5e1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  padding: 0;
+  transition: background 0.08s ease, transform 0.08s ease;
+}
+
+.dpad-btn i,
+.dpad-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke-width: 2.5px;
+  pointer-events: none;
+}
+
+.dpad-btn:active {
+  background: var(--accent);
+  color: #050608;
+  border-color: var(--accent);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.dpad-up {
+  grid-column: 2;
+  grid-row: 1;
+  border-radius: 8px 8px 0 0;
+  border-bottom: none;
+  background: linear-gradient(180deg, #272c3a 0%, #1e222d 100%);
+}
+
+.dpad-up i,
+.dpad-up svg {
+  color: #fca5a5;
+}
+
+.dpad-left {
+  grid-column: 1;
+  grid-row: 2;
+  border-radius: 8px 0 0 8px;
+  border-right: none;
+  background: linear-gradient(90deg, #272c3a 0%, #1e222d 100%);
+}
+
+.dpad-center {
+  grid-column: 2;
+  grid-row: 2;
+  background: #171a23;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dpad-center::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #12141c;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.8), 0 1px 1px rgba(255, 255, 255, 0.08);
+}
+
+.dpad-right {
+  grid-column: 3;
+  grid-row: 2;
+  border-radius: 0 8px 8px 0;
+  border-left: none;
+  background: linear-gradient(270deg, #272c3a 0%, #1e222d 100%);
+}
+
+.dpad-down {
+  grid-column: 2;
+  grid-row: 3;
+  border-radius: 0 0 8px 8px;
+  border-top: none;
+  background: linear-gradient(0deg, #272c3a 0%, #1e222d 100%);
+}
+
+/* 2. Center Zone: SELECT (Hold) & START (Pause) Rubber Pill Buttons */
+.tetradog-nes-center-btns {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.nes-pill-btn {
+  background: #181b24;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 12px;
+  width: 52px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.1);
+  transform: rotate(-18deg);
+  transition: transform 0.08s ease, background 0.08s ease;
+}
+
+.nes-pill-btn:active {
+  transform: rotate(-18deg) scale(0.92);
+  background: #272b38;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+
+.nes-pill-label {
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  color: #94a3b8;
+}
+
+#tbtn-hold .nes-pill-label {
+  color: #93c5fd;
+}
+
+#tbtn-pause .nes-pill-label {
+  color: #fbbf24;
+}
+
+/* 3. Right Zone: Angled B & A Action Buttons */
+.tetradog-nes-actions {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  transform: rotate(-14deg);
+  margin-right: 4px;
+}
+
+.nes-round-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  user-select: none;
+  touch-action: manipulation;
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.6), inset 0 2px 2px rgba(255, 255, 255, 0.35);
+  transition: transform 0.06s ease, filter 0.06s ease;
+}
+
+.nes-round-btn:active {
+  transform: scale(0.92);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.8), inset 0 2px 4px rgba(0, 0, 0, 0.5);
+  filter: brightness(1.2);
+}
+
+.nes-btn-b {
+  background: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+  color: #ffffff;
+}
+
+.nes-btn-a {
+  background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+  color: #ffffff;
+  margin-bottom: 12px; /* angled stagger */
+}
+
+.nes-btn-name {
+  font-family: var(--font-mono);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.nes-btn-sub {
+  font-size: 9px;
+  font-weight: 700;
+  line-height: 1;
+  opacity: 0.85;
+  margin-top: 1px;
+}
+
+/* Leaderboard View */
+.tetradog-lb-header-bar {
+  padding: 8px 12px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tetradog-lb-mode-pills {
+  display: flex;
+  gap: 4px;
+}
+
+.tetradog-lb-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim);
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.tetradog-lb-tab:hover {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.tetradog-lb-tab.active {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.tetradog-lb-scope-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.tetradog-scope-btn {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.tetradog-user-summary {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(18, 20, 26, 0.7);
+  border-bottom: 1px solid var(--border);
+}
+
+.tetradog-summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.tetradog-summary-lbl {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.tetradog-summary-val {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.tetradog-lb-table-wrap {
+  flex: 1;
+  overflow-y: auto;
+  background: #090a0f;
+}
+
+.tetradog-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.tetradog-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-dark);
+  padding: 6px 10px;
+  text-align: left;
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 700;
+  border-bottom: 1px solid var(--border);
+  z-index: 2;
+}
+
+.tetradog-table td {
+  padding: 6px 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  color: var(--text-main);
+  font-family: var(--font-mono);
+}
+
+.tetradog-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tetradog-table tr.current-user-row {
+  background: rgba(245, 158, 11, 0.12);
+  border-left: 2px solid var(--accent);
+}
+
+.tetradog-table tr.current-user-row td {
+  color: #fbbf24;
+  font-weight: 700;
+}
+
+.tetradog-rank-medal {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-weight: 800;
+  font-size: 11px;
+}
+
+.rank-gold {
+  background: rgba(251, 191, 36, 0.25);
+  color: #fbbf24;
+  border: 1px solid rgba(251, 191, 36, 0.6);
+}
+
+.rank-silver {
+  background: rgba(203, 213, 225, 0.25);
+  color: #cbd5e1;
+  border: 1px solid rgba(203, 213, 225, 0.6);
+}
+
+.rank-bronze {
+  background: rgba(217, 119, 6, 0.25);
+  color: #d97706;
+  border: 1px solid rgba(217, 119, 6, 0.6);
+}
+
+.tetradog-lb-footer {
+  padding: 6px 12px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+/* Settings View */
+.tetradog-settings-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.tetradog-settings-section {
+  background: rgba(18, 20, 26, 0.6);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tetradog-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.tetradog-setting-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.tetradog-setting-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.tetradog-setting-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.tetradog-setting-sub {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+/* 3. Bottom Status-Bar */
+.tetradog-statusbar {
+  min-height: 30px;
+  height: 30px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  font-size: 11px;
+  user-select: none;
+  flex-shrink: 0;
+  z-index: 5;
+}
+
+.tetradog-sb-left,
+.tetradog-sb-center,
+.tetradog-sb-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tetradog-sb-center {
+  gap: 10px;
+}
+
+.tetradog-statusbar-sound-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #040507;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 6px rgba(245, 158, 11, 0.35);
+  transition: all 0.15s ease;
+}
+
+.tetradog-statusbar-sound-btn i,
+.tetradog-statusbar-sound-btn svg {
+  width: 12px;
+  height: 12px;
+  stroke-width: 2.4px;
+}
+
+.tetradog-statusbar-sound-btn:hover {
+  transform: scale(1.06);
+  filter: brightness(1.1);
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
+}
+
+.tetradog-statusbar-sound-btn:active {
+  transform: scale(0.94);
+}
+
+.tetradog-statusbar-sound-btn.muted {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-dim);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
+}
+
+.tetradog-statusbar-sound-btn.muted:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-main);
+}
+
+.tetradog-sb-hint {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+.tetradog-sb-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 1px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.tetradog-sb-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  color: var(--text-dim);
+  letter-spacing: 0.5px;
+}
+
+.tetradog-sb-val {
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.tetradog-sb-engine {
+  font-size: 9.5px;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+}
+
+/* Minimized Pill */
+.tetradog-pill {
+  position: fixed;
+  bottom: 16px;
+  right: 160px;
+  height: 32px;
+  padding: 0 12px;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  z-index: 2840;
+  user-select: none;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.tetradog-pill:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
+}
+
+.tetradog-pill-score {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  background: rgba(245, 158, 11, 0.15);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+/* Retro Themes */
+.tetradog-theme-gameboy {
+  background: #306230 !important;
+  color: #0f380f !important;
+}
+
+.tetradog-theme-gameboy .tetradog-body,
+.tetradog-theme-gameboy .tetradog-canvas-container,
+.tetradog-theme-gameboy .tetradog-lb-table-wrap {
+  background: #0f380f !important;
+}
+
+.tetradog-theme-gameboy .tetradog-main-canvas {
+  filter: sepia(1) hue-rotate(50deg) saturate(2);
+}
+
+.tetradog-theme-nes .tetradog-main-canvas {
+  filter: contrast(1.1) saturate(1.2);
+}
+
+.tetradog-theme-cyberpunk {
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(244, 63, 94, 0.25) !important;
+}
+
+.tetradog-theme-cyberpunk .tetradog-main-canvas {
+  filter: saturate(1.3);
+}
+
+/* Viewport Responsiveness: Phone / Tablet / PC */
+@media (max-width: 640px) {
+  .desktop-only-card {
+    display: none !important;
+  }
+
+  .mobile-only-flex {
+    display: flex !important;
+  }
+
+  /* Universal ChewToy & Modal Header Cleanup: Hide Dock, Minimize, Maximize & Float on Phone */
+  .modal-header .btn[onclick*="dock"],
+  .modal-header .btn[onclick*="minimize"],
+  .modal-header .btn[onclick*="maximize"],
+  .modal-header .btn[onclick*="Fullscreen"],
+  .modal-header .btn[onclick*="toggleTerminalFullscreen"],
+  .modal-header .btn[onclick*="toggleDocViewerFullscreen"],
+  .modal-header .btn[onclick*="toggleDiskUsageMaximize"],
+  .modal-header .btn[onclick*="toggleDocViewerFloating"],
+  .modal-header .btn[onclick*="toggleImageViewerFloating"],
+  .modal-header .btn[id*="maximize"],
+  .modal-header .btn[id*="minimize"],
+  .modal-header .btn[id*="dock"],
+  .modal-header .btn.desktop-only,
+  .modal-header .header-sep.desktop-only,
+  .modal-header .header-sep:has(+ .desktop-only),
+  .modal-header button:has(i[data-lucide="panel-left-close"]),
+  .modal-header button:has(i[data-lucide="minus"]),
+  .modal-header button:has(i[data-lucide="maximize-2"]),
+  .modal-header button:has(i[data-lucide="picture-in-picture"]) {
+    display: none !important;
+  }
+
+  .modal-header .modal-close-btn,
+  .modal-header button:has(i[data-lucide="x"]) {
+    display: inline-flex !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+  }
+
+  .floating-tetradog-window {
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    height: var(--viewport-height, 100dvh) !important;
+    min-width: 100vw !important;
+    min-height: 0 !important;
+    max-width: 100vw !important;
+    max-height: 100% !important;
+    max-height: 100dvh !important;
+    max-height: var(--viewport-height, 100dvh) !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    position: fixed !important;
+    flex-direction: column;
+    overflow: hidden !important;
+    padding-bottom: max(env(safe-area-inset-bottom, 0px), var(--mobile-bottom-offset, 0px));
+    box-sizing: border-box !important;
+  }
+
+  .tetradog-header {
+    min-height: 38px;
+    height: 38px;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  .tetradog-view {
+    height: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .tetradog-game-view {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .tetradog-arena {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 2px 6px;
+    gap: 6px;
+    overflow: hidden;
+    flex: 1 1 auto;
+    min-height: 0;
+  }
+
+  .tetradog-side-col {
+    width: 52px;
+    gap: 4px;
+    align-items: center;
+    flex-shrink: 0;
+  }
+
+  .tetradog-panel-card {
+    padding: 3px 2px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+
+  .tetradog-card-title {
+    font-size: 8px;
+    margin-bottom: 2px;
+  }
+
+  .tetradog-key-hint {
+    display: none !important;
+  }
+
+  .tetradog-canvas-wrap {
+    padding: 0;
+  }
+
+  #tetradog-hold-canvas {
+    width: 44px !important;
+    height: 44px !important;
+  }
+
+  #tetradog-next-canvas {
+    width: 44px !important;
+    height: 96px !important;
+  }
+
+  .tetradog-center-col {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    max-width: 240px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tetradog-canvas-container {
+    flex: 1 1 auto;
+    min-height: 0;
+    max-height: calc(var(--viewport-height, 100dvh) - 200px - max(env(safe-area-inset-bottom, 0px), var(--mobile-bottom-offset, 0px)));
+    aspect-ratio: 1 / 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  .tetradog-main-canvas {
+    width: auto !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain;
+  }
+
+  .tetradog-nes-controller {
+    display: flex !important;
+    padding: 4px 8px 6px 8px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+  }
+
+  .tetradog-statusbar {
+    min-height: 26px;
+    height: 26px;
+    padding: 0 6px;
+    flex-shrink: 0;
+    box-sizing: border-box;
+  }
+
+  .tetradog-sb-center {
+    gap: 4px;
+  }
+
+  .tetradog-sb-pill {
+    padding: 1px 4px;
+    font-size: 9.5px;
+    gap: 3px;
+  }
+
+  .tetradog-sb-label {
+    font-size: 7px;
+  }
+
+  .tetradog-sb-val {
+    font-size: 9.5px;
+  }
+
+  .tetradog-sb-right {
+    display: none;
+  }
+}
+
+/* Tablet Viewport (641px - 1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .floating-tetradog-window {
+    width: min(540px, 94vw);
+    height: min(720px, 94vh);
+    min-width: 420px;
+    min-height: 540px;
+  }
+
+  .tetradog-arena {
+    padding: 8px 10px;
+    gap: 10px;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .tetradog-side-col {
+    width: 90px;
+  }
+
+  #tetradog-hold-canvas {
+    width: 74px !important;
+    height: 74px !important;
+  }
+
+  #tetradog-next-canvas {
+    width: 74px !important;
+    height: 180px !important;
+  }
+
+  .tetradog-canvas-container {
+    max-height: calc(100vh - 240px);
+  }
+
+  .tetradog-nes-controller {
+    display: flex !important;
+  }
+}
+
+@media (pointer: coarse) and (min-width: 1025px) {
+  .tetradog-nes-controller {
+    display: flex !important;
+  }
+}
+

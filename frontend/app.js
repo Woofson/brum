@@ -9104,6 +9104,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'ConvertX', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDFDog', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
+  { id: 'tetradog', label: 'TetraDog', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade Tetris chewtoy with synchronized top scores', visible: true },
   { id: 'tasks', label: 'Task Manager', icon: 'assets/task.webp', action: 'openFloatingTaskManager()', desc: 'Active transfers, speeds & queue control', visible: true }
 ];
 
@@ -20483,24 +20484,30 @@ function clearActiveSelections() {
 // ---------------- DYNAMIC VIEWPORT HEIGHT & BOTTOM ADDRESS BAR SYNC ----------------
 function updateDynamicViewportHeight() {
   if (window.visualViewport) {
-    const vh = window.visualViewport.height;
+    const vh = Math.round(window.visualViewport.height);
+    const vTop = Math.round(window.visualViewport.offsetTop || 0);
     document.documentElement.style.setProperty('--viewport-height', `${vh}px`);
     document.body.style.height = `${vh}px`;
 
-    // Dynamic bottom offset if browser address bar / chrome sits at bottom
-    const bottomBarOffset = Math.max(0, window.innerHeight - (window.visualViewport.height + window.visualViewport.offsetTop));
+    // Dynamic bottom offset if browser address bar / chrome sits at bottom (e.g. Vivaldi / Chrome for Android)
+    const bottomBarOffset = Math.max(0, Math.round(window.innerHeight - (vh + vTop)));
     document.documentElement.style.setProperty('--mobile-bottom-offset', `${bottomBarOffset}px`);
   } else {
-    document.documentElement.style.setProperty('--viewport-height', `${window.innerHeight}px`);
+    const vh = window.innerHeight;
+    document.documentElement.style.setProperty('--viewport-height', `${vh}px`);
     document.documentElement.style.setProperty('--mobile-bottom-offset', '0px');
   }
 }
 window.addEventListener('resize', updateDynamicViewportHeight);
+window.addEventListener('orientationchange', () => {
+  setTimeout(updateDynamicViewportHeight, 100);
+});
 if (window.visualViewport) {
   window.visualViewport.addEventListener('resize', updateDynamicViewportHeight);
   window.visualViewport.addEventListener('scroll', updateDynamicViewportHeight);
 }
 document.addEventListener('DOMContentLoaded', updateDynamicViewportHeight);
+window.addEventListener('load', updateDynamicViewportHeight);
 
 // ---------------- GLOBAL SPOTLIGHT QUICK-SWITCHER ----------------
 let spotlightCurrentCat = 'all';
@@ -20524,6 +20531,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'ConvertX', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDFDog', sub: 'PDF Power Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
+  { id: 'tetradog', title: 'TetraDog', sub: 'Classic arcade Tetris chewtoy with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
@@ -21373,6 +21381,10 @@ function dockGitToActivePane() {
   dockToolToPane('git', App.activePaneIndex);
 }
 
+function dockTetraDogToActivePane() {
+  dockToolToPane('tetradog', App.activePaneIndex);
+}
+
 function rebuildPaneDOM(paneIndex) {
   const oldPaneEl = document.getElementById(`pane-${paneIndex}`);
   const pane = App.panes[paneIndex];
@@ -21451,6 +21463,13 @@ function dockToolToPane(toolName, paneIndex) {
   else if (toolName === 'git') {
     closeModal('git-modal');
   }
+  // 7. TetraDog: hide floating window & pill
+  else if (toolName === 'tetradog') {
+    const win = document.getElementById('floating-tetradog-window');
+    if (win) win.style.display = 'none';
+    const pill = document.getElementById('tetradog-pill');
+    if (pill) pill.style.display = 'none';
+  }
 
   rebuildPaneDOM(paneIndex);
   showToast(`Docked ${toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
@@ -21496,6 +21515,8 @@ function undockToolFromPane(paneIndex) {
     openFloatingTaskManager();
   } else if (tool === 'git') {
     openGitManager(paneIndex, pane.path);
+  } else if (tool === 'tetradog') {
+    openTetraDog();
   }
 }
 
@@ -21782,6 +21803,28 @@ function mountDockedTool(paneIndex) {
       </div>
     `;
     loadGitStatusForDocked(paneIndex, pane.path);
+  }
+  // 6. DOCKED TETRADOG (CLASSIC ARCADE CHEWTOY)
+  else if (tool === 'tetradog') {
+    mount.innerHTML = `
+      <div class="docked-tetradog-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+        <div style="padding: 4px 8px; min-height: 32px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 14px; height: 14px; object-fit: contain;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">TetraDog</span>
+            <span class="tetradog-mode-badge" id="docked-tetradog-mode-${paneIndex}">MARATHON</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button class="btn btn-xs btn-accent" onclick="startTetraDogGame()"><i data-lucide="play" style="width: 11px;"></i> Play</button>
+            <button class="btn btn-xs btn-outline" onclick="setTetraDogView('leaderboard')"><i data-lucide="trophy" style="width: 11px;"></i> Scores</button>
+          </div>
+        </div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #090a0f; padding: 6px;" id="docked-tetradog-host-${paneIndex}"></div>
+      </div>
+    `;
+    setTimeout(() => {
+      mountDockedTetraDog(paneIndex);
+    }, 50);
   }
 
   if (window.lucide) lucide.createIcons({ root: mount });
@@ -23191,6 +23234,1786 @@ async function executePdfActiveTab() {
   }
 }
 
+// ==========================================================================
+// 🕹️ TETRADOG: CLASSIC ARCADE CHEWTOY & LEADERBOARD ENGINE
+// ==========================================================================
 
+const TETRADOG_PIECES = {
+  I: {
+    matrix: [
+      [0, 0, 0, 0],
+      [1, 1, 1, 1],
+      [0, 0, 0, 0],
+      [0, 0, 0, 0]
+    ],
+    color: '#06b6d4',
+    glow: 'rgba(6, 182, 212, 0.7)'
+  },
+  J: {
+    matrix: [
+      [1, 0, 0],
+      [1, 1, 1],
+      [0, 0, 0]
+    ],
+    color: '#3b82f6',
+    glow: 'rgba(59, 130, 246, 0.7)'
+  },
+  L: {
+    matrix: [
+      [0, 0, 1],
+      [1, 1, 1],
+      [0, 0, 0]
+    ],
+    color: '#f97316',
+    glow: 'rgba(249, 115, 22, 0.7)'
+  },
+  O: {
+    matrix: [
+      [1, 1],
+      [1, 1]
+    ],
+    color: '#eab308',
+    glow: 'rgba(234, 179, 8, 0.7)'
+  },
+  S: {
+    matrix: [
+      [0, 1, 1],
+      [1, 1, 0],
+      [0, 0, 0]
+    ],
+    color: '#22c55e',
+    glow: 'rgba(34, 197, 94, 0.7)'
+  },
+  T: {
+    matrix: [
+      [0, 1, 0],
+      [1, 1, 1],
+      [0, 0, 0]
+    ],
+    color: '#a855f7',
+    glow: 'rgba(168, 85, 247, 0.7)'
+  },
+  Z: {
+    matrix: [
+      [1, 1, 0],
+      [0, 1, 1],
+      [0, 0, 0]
+    ],
+    color: '#ef4444',
+    glow: 'rgba(239, 68, 68, 0.7)'
+  }
+};
 
+const TETRADOG_SRS_KICKS_JLSTZ = {
+  '0->1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+  '1->0': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+  '1->2': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
+  '2->1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
+  '2->3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+  '3->2': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+  '3->0': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
+  '0->3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
+};
 
+const TETRADOG_SRS_KICKS_I = {
+  '0->1': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+  '1->0': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+  '1->2': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+  '2->1': [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+  '2->3': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
+  '3->2': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
+  '3->0': [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
+  '0->3': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
+};
+
+let tetradogState = {
+  initialized: false,
+  isMaximized: false,
+  activeView: 'game',
+  theme: localStorage.getItem('cd_tetradog_theme') || 'amber',
+  soundEnabled: localStorage.getItem('cd_tetradog_sound') !== '0',
+  volume: parseInt(localStorage.getItem('cd_tetradog_vol') || '60', 10),
+  playerAlias: localStorage.getItem('cd_tetradog_alias') || '',
+  config: {
+    startLevel: parseInt(localStorage.getItem('cd_tetradog_start_lvl') || '1', 10),
+    rotationSystem: localStorage.getItem('cd_tetradog_rotation') || 'srs',
+    ghostPiece: localStorage.getItem('cd_tetradog_ghost') !== '0',
+    das: parseInt(localStorage.getItem('cd_tetradog_das') || '133', 10),
+    arr: parseInt(localStorage.getItem('cd_tetradog_arr') || '16', 10),
+    scanlines: localStorage.getItem('cd_tetradog_scanlines') !== '0',
+  },
+  game: {
+    boardWidth: 10,
+    boardHeight: 20,
+    visibleHeight: 20,
+    cellSize: 24,
+    grid: [],
+    currentPiece: null,
+    nextQueue: [],
+    holdPiece: null,
+    canHold: true,
+    ghostY: 0,
+    status: 'ready', // 'ready' | 'playing' | 'paused' | 'gameover'
+    mode: 'marathon',
+    score: 0,
+    lines: 0,
+    level: 1,
+    highScore: 0,
+    b2b: false,
+    combo: 0,
+    startTime: 0,
+    elapsedMs: 0,
+    lastFrameTime: 0,
+    dropTimer: 0,
+    dropInterval: 1000,
+    lockTimer: 0,
+    lockDelay: 500,
+    lockResets: 0,
+    maxLockResets: 15,
+    isLocking: false,
+    animatingRows: [],
+    animationTimer: 0,
+    keyState: {},
+    dasTimer: 0,
+    arrTimer: 0,
+    dasDir: 0,
+    softDropActive: false,
+    lastActionWasRotate: false
+  },
+  leaderboard: {
+    mode: 'marathon',
+    scope: 'all',
+    list: [],
+    userStats: null,
+    isLoading: false
+  }
+};
+
+let tetraAudioCtx = null;
+let tetraRafId = null;
+let tetraDragInit = false;
+
+// ---------------- AUDIO SYNTHESIZER (WEB AUDIO API) ----------------
+function initTetraAudio() {
+  if (!tetraAudioCtx) {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      tetraAudioCtx = new AudioCtx();
+    }
+  }
+  if (tetraAudioCtx && tetraAudioCtx.state === 'suspended') {
+    tetraAudioCtx.resume();
+  }
+}
+
+function playTetraSound(type) {
+  if (!tetradogState.soundEnabled) return;
+  try {
+    initTetraAudio();
+    if (!tetraAudioCtx) return;
+
+    const masterVol = (tetradogState.volume / 100) * 0.15;
+    const now = tetraAudioCtx.currentTime;
+
+    if (type === 'move') {
+      const osc = tetraAudioCtx.createOscillator();
+      const gain = tetraAudioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(220, now);
+      osc.frequency.exponentialRampToValueAtTime(180, now + 0.035);
+      gain.gain.setValueAtTime(masterVol * 0.6, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
+      osc.connect(gain);
+      gain.connect(tetraAudioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.035);
+    } else if (type === 'rotate') {
+      const osc = tetraAudioCtx.createOscillator();
+      const gain = tetraAudioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(640, now + 0.045);
+      gain.gain.setValueAtTime(masterVol * 0.5, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
+      osc.connect(gain);
+      gain.connect(tetraAudioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.045);
+    } else if (type === 'harddrop') {
+      const osc = tetraAudioCtx.createOscillator();
+      const gain = tetraAudioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(140, now);
+      osc.frequency.exponentialRampToValueAtTime(35, now + 0.08);
+      gain.gain.setValueAtTime(masterVol * 1.0, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+      osc.connect(gain);
+      gain.connect(tetraAudioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.08);
+    } else if (type === 'lock') {
+      const osc = tetraAudioCtx.createOscillator();
+      const gain = tetraAudioCtx.createGain();
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(110, now + 0.04);
+      gain.gain.setValueAtTime(masterVol * 0.6, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
+      osc.connect(gain);
+      gain.connect(tetraAudioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.04);
+    } else if (type === 'hold') {
+      const osc = tetraAudioCtx.createOscillator();
+      const gain = tetraAudioCtx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(350, now);
+      osc.frequency.linearRampToValueAtTime(480, now + 0.06);
+      gain.gain.setValueAtTime(masterVol * 0.7, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
+      osc.connect(gain);
+      gain.connect(tetraAudioCtx.destination);
+      osc.start(now);
+      osc.stop(now + 0.06);
+    } else if (type === 'clear') {
+      [523.25, 659.25, 783.99].forEach((freq, idx) => {
+        const osc = tetraAudioCtx.createOscillator();
+        const gain = tetraAudioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+        gain.gain.setValueAtTime(masterVol * 0.6, now + idx * 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.09);
+        osc.connect(gain);
+        gain.connect(tetraAudioCtx.destination);
+        osc.start(now + idx * 0.04);
+        osc.stop(now + idx * 0.04 + 0.09);
+      });
+    } else if (type === 'tetris') {
+      [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
+        const osc = tetraAudioCtx.createOscillator();
+        const gain = tetraAudioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
+        gain.gain.setValueAtTime(masterVol * 0.8, now + idx * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.22);
+        osc.connect(gain);
+        gain.connect(tetraAudioCtx.destination);
+        osc.start(now + idx * 0.05);
+        osc.stop(now + idx * 0.05 + 0.22);
+      });
+    } else if (type === 'levelup') {
+      [440, 554.37, 659.25, 880].forEach((freq, idx) => {
+        const osc = tetraAudioCtx.createOscillator();
+        const gain = tetraAudioCtx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
+        gain.gain.setValueAtTime(masterVol * 0.7, now + idx * 0.04);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.12);
+        osc.connect(gain);
+        gain.connect(tetraAudioCtx.destination);
+        osc.start(now + idx * 0.04);
+        osc.stop(now + idx * 0.04 + 0.12);
+      });
+    } else if (type === 'gameover') {
+      [440, 415.30, 392.00, 349.23].forEach((freq, idx) => {
+        const osc = tetraAudioCtx.createOscillator();
+        const gain = tetraAudioCtx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.setValueAtTime(freq, now + idx * 0.09);
+        gain.gain.setValueAtTime(masterVol * 0.6, now + idx * 0.09);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.16);
+        osc.connect(gain);
+        gain.connect(tetraAudioCtx.destination);
+        osc.start(now + idx * 0.09);
+        osc.stop(now + idx * 0.09 + 0.16);
+      });
+    }
+  } catch (e) {
+    console.debug('TetraAudio error:', e);
+  }
+}
+
+// ---------------- WINDOWING & LIFECYCLE ----------------
+function openTetraDog() {
+  closeToolsMenu();
+  const win = document.getElementById('floating-tetradog-window');
+  const pill = document.getElementById('tetradog-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  updateDynamicViewportHeight();
+  setTetraDogView('game');
+  initTetraDogDragAndResize();
+  initTetraDogInput();
+  applyTetraDogTheme();
+
+  if (!tetradogState.initialized) {
+    initTetraDogGame();
+    tetradogState.initialized = true;
+  }
+
+  // Auto-start game immediately on open if ready or gameover so pieces start falling!
+  if (tetradogState.game.status === 'ready' || tetradogState.game.status === 'gameover') {
+    startTetraDogGame();
+  }
+
+  if (window.lucide) {
+    try { lucide.createIcons(); } catch (e) {}
+  }
+
+  // Load hiscores from DB in background
+  loadTetraDogLeaderboard(tetradogState.game.mode, false);
+}
+
+function closeTetraDog() {
+  const win = document.getElementById('floating-tetradog-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('tetradog-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (tetradogState.game.status === 'playing') {
+    pauseTetraDogGame();
+  }
+}
+
+function minimizeTetraDog() {
+  const win = document.getElementById('floating-tetradog-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('tetradog-pill');
+  if (pill) {
+    pill.style.display = 'flex';
+    const scoreEl = document.getElementById('tetradog-pill-score');
+    if (scoreEl) scoreEl.textContent = tetradogState.game.score.toLocaleString();
+  }
+}
+
+function restoreTetraDog() {
+  openTetraDog();
+}
+
+function maximizeTetraDog() {
+  const win = document.getElementById('floating-tetradog-window');
+  if (!win) return;
+  tetradogState.isMaximized = !tetradogState.isMaximized;
+  win.classList.toggle('maximized', tetradogState.isMaximized);
+}
+
+function setTetraDogView(viewName) {
+  tetradogState.activeView = viewName;
+  ['game', 'leaderboard', 'settings'].forEach(v => {
+    const el = document.getElementById(`tetradog-view-${v}`);
+    const btn = document.getElementById(`btn-tetradog-view-${v}`);
+    if (el) el.style.display = (v === viewName) ? 'flex' : 'none';
+    if (btn) btn.classList.toggle('active', v === viewName);
+  });
+
+  if (viewName === 'leaderboard') {
+    loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+  } else if (viewName === 'game') {
+    renderTetraCanvas();
+  }
+}
+
+function setTetraDogTheme(theme) {
+  tetradogState.theme = theme;
+  localStorage.setItem('cd_tetradog_theme', theme);
+  applyTetraDogTheme();
+}
+
+function cycleTetraDogTheme() {
+  const themes = ['amber', 'gameboy', 'nes', 'cyberpunk'];
+  const curIdx = themes.indexOf(tetradogState.theme);
+  const nextTheme = themes[(curIdx + 1) % themes.length];
+  setTetraDogTheme(nextTheme);
+  showToast(`TetraDog Theme: ${nextTheme.toUpperCase()}`, 'info');
+}
+
+function applyTetraDogTheme() {
+  const win = document.getElementById('floating-tetradog-window');
+  if (!win) return;
+  win.classList.remove('tetradog-theme-amber', 'tetradog-theme-gameboy', 'tetradog-theme-nes', 'tetradog-theme-cyberpunk');
+  win.classList.add(`tetradog-theme-${tetradogState.theme}`);
+
+  const themeSelect = document.getElementById('tetradog-cfg-theme');
+  if (themeSelect) themeSelect.value = tetradogState.theme;
+
+  renderTetraCanvas();
+}
+
+function toggleTetraDogAudio() {
+  tetradogState.soundEnabled = !tetradogState.soundEnabled;
+  localStorage.setItem('cd_tetradog_sound', tetradogState.soundEnabled ? '1' : '0');
+
+  const icon = document.getElementById('icon-tetradog-audio');
+  const btn = document.getElementById('btn-tetradog-audio');
+  if (icon) {
+    icon.setAttribute('data-lucide', tetradogState.soundEnabled ? 'volume-2' : 'volume-x');
+    if (window.lucide) lucide.createIcons({ root: icon.parentElement });
+  }
+  if (btn) {
+    btn.classList.toggle('muted', !tetradogState.soundEnabled);
+    btn.title = tetradogState.soundEnabled ? 'Sound Effects (Click to Mute)' : 'Sound Muted (Click to Unmute)';
+  }
+
+  const chk = document.getElementById('tetradog-cfg-sound');
+  if (chk) chk.checked = tetradogState.soundEnabled;
+
+  showToast(tetradogState.soundEnabled ? 'Sound Enabled' : 'Sound Muted', 'info');
+}
+
+function updateTetraDogConfig(key, val) {
+  tetradogState.config[key] = val;
+  if (key === 'startLevel') {
+    localStorage.setItem('cd_tetradog_start_lvl', val);
+    if (tetradogState.game.status === 'ready') {
+      tetradogState.game.level = val;
+      updateTetraHeaderAndStats();
+    }
+  } else if (key === 'rotationSystem') {
+    localStorage.setItem('cd_tetradog_rotation', val);
+  } else if (key === 'ghostPiece') {
+    localStorage.setItem('cd_tetradog_ghost', val ? '1' : '0');
+    renderTetraCanvas();
+  } else if (key === 'das') {
+    localStorage.setItem('cd_tetradog_das', val);
+  } else if (key === 'arr') {
+    localStorage.setItem('cd_tetradog_arr', val);
+  } else if (key === 'scanlines') {
+    localStorage.setItem('cd_tetradog_scanlines', val ? '1' : '0');
+    const scanlinesEl = document.getElementById('tetradog-scanlines');
+    if (scanlinesEl) scanlinesEl.style.display = val ? 'block' : 'none';
+  } else if (key === 'volume') {
+    tetradogState.volume = val;
+    localStorage.setItem('cd_tetradog_vol', val);
+  }
+}
+
+function initTetraDogDragAndResize() {
+  if (tetraDragInit) return;
+  tetraDragInit = true;
+
+  const win = document.getElementById('floating-tetradog-window');
+  const header = document.getElementById('tetradog-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_tetradog_x');
+  const savedTop = localStorage.getItem('cd_tetradog_y');
+  const savedW = localStorage.getItem('cd_tetradog_w');
+  const savedH = localStorage.getItem('cd_tetradog_h');
+
+  if (savedW) win.style.width = `${Math.max(440, parseInt(savedW, 10))}px`;
+  if (savedH) win.style.height = `${Math.max(520, parseInt(savedH, 10))}px`;
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 400, Math.max(10, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 400, Math.max(40, parseInt(savedTop, 10)))}px`;
+  }
+
+  // Header Dragging
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 640 || win.classList.contains('maximized')) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, winStartX + dx));
+    const newTop = Math.max(36, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newLeft}px`;
+    win.style.top = `${newTop}px`;
+    win.style.right = 'auto';
+    localStorage.setItem('cd_tetradog_x', newLeft);
+    localStorage.setItem('cd_tetradog_y', newTop);
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+    }
+  });
+
+  // Window Resizers
+  const handles = {
+    top: document.getElementById('tetradog-resize-top'),
+    bottom: document.getElementById('tetradog-resize-bottom'),
+    left: document.getElementById('tetradog-resize-left'),
+    right: document.getElementById('tetradog-resize-right'),
+    corner: document.getElementById('tetradog-resize-corner')
+  };
+
+  let resizeMode = null;
+  let rStartX = 0, rStartY = 0;
+  let rStartW = 0, rStartH = 0;
+  let rStartLeft = 0, rStartTop = 0;
+
+  Object.entries(handles).forEach(([mode, handle]) => {
+    if (!handle) return;
+    handle.addEventListener('mousedown', (e) => {
+      if (win.classList.contains('maximized')) return;
+      e.preventDefault();
+      e.stopPropagation();
+      resizeMode = mode;
+      rStartX = e.clientX;
+      rStartY = e.clientY;
+      const rect = win.getBoundingClientRect();
+      rStartW = rect.width;
+      rStartH = rect.height;
+      rStartLeft = rect.left;
+      rStartTop = rect.top;
+      document.body.style.userSelect = 'none';
+
+      const onMouseMove = (moveEvent) => {
+        if (!resizeMode) return;
+        const dx = moveEvent.clientX - rStartX;
+        const dy = moveEvent.clientY - rStartY;
+        const minW = 440;
+        const minH = 520;
+
+        if (resizeMode === 'right' || resizeMode === 'corner') {
+          const newW = Math.max(minW, rStartW + dx);
+          win.style.width = `${newW}px`;
+          localStorage.setItem('cd_tetradog_w', newW);
+        }
+        if (resizeMode === 'bottom' || resizeMode === 'corner') {
+          const newH = Math.max(minH, rStartH + dy);
+          win.style.height = `${newH}px`;
+          localStorage.setItem('cd_tetradog_h', newH);
+        }
+        if (resizeMode === 'left') {
+          const newW = Math.max(minW, rStartW - dx);
+          if (newW > minW) {
+            win.style.width = `${newW}px`;
+            win.style.left = `${rStartLeft + dx}px`;
+            localStorage.setItem('cd_tetradog_w', newW);
+            localStorage.setItem('cd_tetradog_x', rStartLeft + dx);
+          }
+        }
+        if (resizeMode === 'top') {
+          const newH = Math.max(minH, rStartH - dy);
+          if (newH > minH) {
+            win.style.height = `${newH}px`;
+            win.style.top = `${rStartTop + dy}px`;
+            localStorage.setItem('cd_tetradog_h', newH);
+            localStorage.setItem('cd_tetradog_y', rStartTop + dy);
+          }
+        }
+      };
+
+      const onMouseUp = () => {
+        resizeMode = null;
+        document.body.style.userSelect = '';
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  });
+}
+
+// ---------------- GAME ENGINE IMPLEMENTATION ----------------
+function initTetraDogGame() {
+  const g = tetradogState.game;
+  g.boardWidth = 10;
+  g.boardHeight = 20;
+  g.visibleHeight = 20;
+  g.grid = createEmptyTetraGrid(g.boardHeight, g.boardWidth);
+  g.nextQueue = [];
+  g.holdPiece = null;
+  g.canHold = true;
+  g.score = 0;
+  g.lines = 0;
+  g.level = tetradogState.config.startLevel;
+  g.b2b = false;
+  g.combo = 0;
+  g.status = 'ready';
+  g.dropInterval = getTetraGravityMs(g.level);
+
+  // Fill next queue
+  while (g.nextQueue.length < 5) {
+    g.nextQueue.push(...generateTetraBag());
+  }
+
+  updateTetraHeaderAndStats();
+  renderTetraCanvas();
+  renderHoldCanvas();
+  renderNextCanvas();
+
+  // Start fixed loop
+  if (!tetraRafId) {
+    g.lastFrameTime = performance.now();
+    tetraRafId = requestAnimationFrame(tetraGameLoop);
+  }
+}
+
+function createEmptyTetraGrid(rows, cols) {
+  const grid = [];
+  for (let r = 0; r < rows; r++) {
+    grid.push(new Array(cols).fill(0));
+  }
+  return grid;
+}
+
+function generateTetraBag() {
+  const bag = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
+  for (let i = bag.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [bag[i], bag[j]] = [bag[j], bag[i]];
+  }
+  return bag;
+}
+
+function getTetraGravityMs(level) {
+  // Master gravity scaling: Level 1 = 1000ms, Level 10 = ~120ms, Level 20 = 20ms
+  const clampedLvl = Math.min(20, Math.max(1, level));
+  const ms = Math.pow(0.8 - ((clampedLvl - 1) * 0.007), clampedLvl - 1) * 1000;
+  return Math.max(20, Math.floor(ms));
+}
+
+function startTetraDogGame() {
+  initTetraAudio();
+  const g = tetradogState.game;
+  g.boardWidth = 10;
+  g.boardHeight = 20;
+  g.visibleHeight = 20;
+  g.grid = createEmptyTetraGrid(g.boardHeight, g.boardWidth);
+  g.nextQueue = [];
+  g.holdPiece = null;
+  g.canHold = true;
+  g.score = 0;
+  g.lines = 0;
+  g.level = tetradogState.config.startLevel;
+  g.b2b = false;
+  g.combo = 0;
+  g.dropInterval = getTetraGravityMs(g.level);
+  g.dropTimer = 0;
+  g.lockTimer = 0;
+  g.lockResets = 0;
+  g.isLocking = false;
+  g.animatingRows = [];
+  g.startTime = Date.now();
+  g.elapsedMs = 0;
+  g.status = 'playing';
+
+  while (g.nextQueue.length < 5) {
+    g.nextQueue.push(...generateTetraBag());
+  }
+
+  spawnTetraPiece();
+
+  // Hide Overlays
+  const readyOverlay = document.getElementById('tetradog-ready-overlay');
+  if (readyOverlay) readyOverlay.style.display = 'none';
+  const pauseOverlay = document.getElementById('tetradog-pause-overlay');
+  if (pauseOverlay) pauseOverlay.style.display = 'none';
+  const goOverlay = document.getElementById('tetradog-gameover-overlay');
+  if (goOverlay) goOverlay.style.display = 'none';
+
+  updatePlayPauseButtons();
+  updateTetraHeaderAndStats();
+  playTetraSound('levelup');
+
+  if (!tetraRafId) {
+    g.lastFrameTime = performance.now();
+    tetraRafId = requestAnimationFrame(tetraGameLoop);
+  }
+}
+
+function pauseTetraDogGame() {
+  const g = tetradogState.game;
+  if (g.status !== 'playing') return;
+  g.status = 'paused';
+  document.getElementById('tetradog-pause-overlay').style.display = 'flex';
+  updatePlayPauseButtons();
+}
+
+function resumeTetraDogGame() {
+  const g = tetradogState.game;
+  if (g.status !== 'paused') return;
+  g.status = 'playing';
+  g.lastFrameTime = performance.now();
+  document.getElementById('tetradog-pause-overlay').style.display = 'none';
+  updatePlayPauseButtons();
+}
+
+function toggleTetraDogPlayPause() {
+  const g = tetradogState.game;
+  if (g.status === 'ready' || g.status === 'gameover') {
+    startTetraDogGame();
+  } else if (g.status === 'playing') {
+    pauseTetraDogGame();
+  } else if (g.status === 'paused') {
+    resumeTetraDogGame();
+  }
+}
+
+function restartTetraDogGame() {
+  startTetraDogGame();
+}
+
+function updatePlayPauseButtons() {
+  const g = tetradogState.game;
+  const label = document.getElementById('label-tetradog-play-pause');
+  const icon = document.getElementById('icon-tetradog-play-pause');
+  if (label && icon) {
+    if (g.status === 'playing') {
+      label.textContent = 'Pause';
+      icon.setAttribute('data-lucide', 'pause');
+    } else {
+      label.textContent = 'Play';
+      icon.setAttribute('data-lucide', 'play');
+    }
+    if (window.lucide) lucide.createIcons({ root: label.parentElement });
+  }
+}
+
+function spawnTetraPiece() {
+  const g = tetradogState.game;
+  if (g.nextQueue.length < 5) {
+    g.nextQueue.push(...generateTetraBag());
+  }
+
+  const type = g.nextQueue.shift();
+  const def = TETRADOG_PIECES[type];
+  const matrix = JSON.parse(JSON.stringify(def.matrix));
+
+  const startX = Math.floor((g.boardWidth - matrix[0].length) / 2);
+  const startY = (type === 'I') ? -1 : 0;
+
+  g.currentPiece = {
+    type,
+    matrix,
+    x: startX,
+    y: startY,
+    rotation: 0
+  };
+
+  g.canHold = true;
+  g.lockTimer = 0;
+  g.lockResets = 0;
+  g.isLocking = false;
+  g.lastActionWasRotate = false;
+
+  // Collision on spawn = Game Over (Top out)
+  if (checkTetraCollision(g.grid, g.currentPiece)) {
+    endTetraDogGame('topout');
+    return;
+  }
+
+  calculateGhostY();
+  renderHoldCanvas();
+  renderNextCanvas();
+  renderTetraCanvas();
+}
+
+function holdTetraPiece() {
+  const g = tetradogState.game;
+  if (g.status !== 'playing' || !g.canHold || !g.currentPiece) return;
+
+  playTetraSound('hold');
+  const curType = g.currentPiece.type;
+
+  if (g.holdPiece) {
+    const swapType = g.holdPiece;
+    g.holdPiece = curType;
+    const def = TETRADOG_PIECES[swapType];
+    g.currentPiece = {
+      type: swapType,
+      matrix: JSON.parse(JSON.stringify(def.matrix)),
+      x: Math.floor((g.boardWidth - def.matrix[0].length) / 2),
+      y: (swapType === 'I') ? -1 : 0,
+      rotation: 0
+    };
+  } else {
+    g.holdPiece = curType;
+    spawnTetraPiece();
+  }
+
+  g.canHold = false;
+  calculateGhostY();
+  renderHoldCanvas();
+  renderTetraCanvas();
+}
+
+function moveTetraPiece(dx, dy) {
+  const g = tetradogState.game;
+  if (g.status !== 'playing' || !g.currentPiece) return false;
+
+  const testPiece = {
+    ...g.currentPiece,
+    x: g.currentPiece.x + dx,
+    y: g.currentPiece.y + dy
+  };
+
+  if (!checkTetraCollision(g.grid, testPiece)) {
+    g.currentPiece.x += dx;
+    g.currentPiece.y += dy;
+    g.lastActionWasRotate = false;
+
+    if (dx !== 0) {
+      playTetraSound('move');
+      if (g.isLocking && g.lockResets < g.maxLockResets) {
+        g.lockTimer = 0;
+        g.lockResets++;
+      }
+    }
+    if (dy > 0) {
+      g.score += 1; // Soft drop bonus
+      updateTetraHeaderAndStats();
+    }
+
+    calculateGhostY();
+    return true;
+  }
+  return false;
+}
+
+function rotateTetraPiece(dir = 1) { // 1 = CW, -1 = CCW
+  const g = tetradogState.game;
+  if (g.status !== 'playing' || !g.currentPiece) return;
+
+  const p = g.currentPiece;
+  const oldRot = p.rotation;
+  const newRot = (oldRot + dir + 4) % 4;
+
+  const rotatedMatrix = rotateMatrix(p.matrix, dir);
+
+  // SRS Wall Kick test
+  if (tetradogState.config.rotationSystem === 'srs') {
+    const kickKey = `${oldRot}->${newRot}`;
+    const kicks = (p.type === 'I')
+      ? (TETRADOG_SRS_KICKS_I[kickKey] || [[0, 0]])
+      : (TETRADOG_SRS_KICKS_JLSTZ[kickKey] || [[0, 0]]);
+
+    for (let i = 0; i < kicks.length; i++) {
+      const [kx, ky] = kicks[i];
+      const testPiece = {
+        ...p,
+        matrix: rotatedMatrix,
+        x: p.x + kx,
+        y: p.y - ky, // Inverted Y for screen coords
+        rotation: newRot
+      };
+
+      if (!checkTetraCollision(g.grid, testPiece)) {
+        p.matrix = rotatedMatrix;
+        p.x += kx;
+        p.y -= ky;
+        p.rotation = newRot;
+        p.lastActionWasRotate = true;
+        playTetraSound('rotate');
+
+        if (g.isLocking && g.lockResets < g.maxLockResets) {
+          g.lockTimer = 0;
+          g.lockResets++;
+        }
+
+        calculateGhostY();
+        return;
+      }
+    }
+  } else {
+    // Basic rotation
+    if (!checkTetraCollision(g.grid, { ...p, matrix: rotatedMatrix, rotation: newRot })) {
+      p.matrix = rotatedMatrix;
+      p.rotation = newRot;
+      p.lastActionWasRotate = true;
+      playTetraSound('rotate');
+      calculateGhostY();
+    }
+  }
+}
+
+function rotateMatrix(matrix, dir = 1) {
+  const N = matrix.length;
+  const res = [];
+  for (let r = 0; r < N; r++) {
+    res.push(new Array(N).fill(0));
+  }
+  if (dir === 1) {
+    // Clockwise: transpose + reverse each row
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        res[c][N - 1 - r] = matrix[r][c];
+      }
+    }
+  } else {
+    // Counter-Clockwise
+    for (let r = 0; r < N; r++) {
+      for (let c = 0; c < N; c++) {
+        res[N - 1 - c][r] = matrix[r][c];
+      }
+    }
+  }
+  return res;
+}
+
+function hardDropTetraPiece() {
+  const g = tetradogState.game;
+  if (g.status !== 'playing' || !g.currentPiece) return;
+
+  let droppedRows = 0;
+  while (!checkTetraCollision(g.grid, { ...g.currentPiece, y: g.currentPiece.y + 1 })) {
+    g.currentPiece.y++;
+    droppedRows++;
+  }
+
+  g.score += droppedRows * 2; // Hard drop bonus
+  playTetraSound('harddrop');
+  lockTetraPiece();
+}
+
+function calculateGhostY() {
+  const g = tetradogState.game;
+  if (!g.currentPiece) return;
+
+  let gy = g.currentPiece.y;
+  while (!checkTetraCollision(g.grid, { ...g.currentPiece, y: gy + 1 })) {
+    gy++;
+  }
+  g.ghostY = gy;
+}
+
+function checkTetraCollision(grid, piece) {
+  const { matrix, x, y } = piece;
+  for (let r = 0; r < matrix.length; r++) {
+    for (let c = 0; c < matrix[r].length; c++) {
+      if (matrix[r][c]) {
+        const boardX = x + c;
+        const boardY = y + r;
+
+        if (boardX < 0 || boardX >= 10 || boardY >= 20) {
+          return true; // Wall or floor collision
+        }
+        if (boardY >= 0 && grid[boardY] && grid[boardY][boardX]) {
+          return true; // Occupied cell collision
+        }
+      }
+    }
+  }
+  return false;
+}
+
+function lockTetraPiece() {
+  const g = tetradogState.game;
+  if (!g.currentPiece) return;
+
+  const { matrix, x, y, type } = g.currentPiece;
+  let topOut = false;
+  for (let r = 0; r < matrix.length; r++) {
+    for (let c = 0; c < matrix[r].length; c++) {
+      if (matrix[r][c]) {
+        const by = y + r;
+        const bx = x + c;
+        if (by < 0) {
+          topOut = true;
+        } else if (by < g.boardHeight && bx >= 0 && bx < g.boardWidth) {
+          g.grid[by][bx] = type;
+        }
+      }
+    }
+  }
+
+  if (topOut) {
+    endTetraDogGame('topout');
+    return;
+  }
+
+  playTetraSound('lock');
+  g.currentPiece = null;
+  g.isLocking = false;
+
+  // Check lines to clear
+  checkLineClears();
+}
+
+function checkLineClears() {
+  const g = tetradogState.game;
+  const fullRows = [];
+
+  for (let r = 0; r < g.boardHeight; r++) {
+    if (g.grid[r].every(cell => cell !== 0)) {
+      fullRows.push(r);
+    }
+  }
+
+  if (fullRows.length > 0) {
+    g.animatingRows = fullRows;
+    g.animationTimer = 120; // 120ms flash animation
+
+    // T-Spin detection: 3 corners filled of T piece
+    const isTetris = fullRows.length === 4;
+    if (isTetris) {
+      if (g.b2b) {
+        g.score += Math.floor(1200 * g.level * 1.5);
+      } else {
+        g.score += 800 * g.level;
+      }
+      g.b2b = true;
+      playTetraSound('tetris');
+    } else {
+      const scoresMap = { 1: 100, 2: 300, 3: 500 };
+      g.score += (scoresMap[fullRows.length] || 100) * g.level;
+      g.b2b = false;
+      playTetraSound('clear');
+    }
+
+    g.lines += fullRows.length;
+    g.combo++;
+
+    // Level up check
+    const newLevel = tetradogState.config.startLevel + Math.floor(g.lines / 10);
+    if (newLevel > g.level) {
+      g.level = newLevel;
+      g.dropInterval = getTetraGravityMs(g.level);
+      playTetraSound('levelup');
+    }
+
+    // Sprint Mode check (40 lines clear)
+    if (g.mode === 'sprint' && g.lines >= 40) {
+      endTetraDogGame('sprint_complete');
+      return;
+    }
+  } else {
+    g.combo = 0;
+    spawnTetraPiece();
+  }
+
+  updateTetraHeaderAndStats();
+}
+
+function executeLineCollapse() {
+  const g = tetradogState.game;
+  if (g.animatingRows.length === 0) return;
+
+  g.animatingRows.sort((a, b) => a - b);
+  g.animatingRows.forEach(rowIdx => {
+    g.grid.splice(rowIdx, 1);
+    g.grid.unshift(new Array(g.boardWidth).fill(0));
+  });
+
+  g.animatingRows = [];
+  spawnTetraPiece();
+}
+
+function endTetraDogGame(reason = 'topout') {
+  const g = tetradogState.game;
+  g.status = 'gameover';
+  playTetraSound('gameover');
+
+  const durationSec = Math.floor(g.elapsedMs / 1000);
+
+  const titleEl = document.getElementById('tetradog-gameover-title');
+  if (titleEl) {
+    if (reason === 'sprint_complete') {
+      titleEl.textContent = 'SPRINT FINISHED!';
+      titleEl.className = 'tetradog-overlay-title tetradog-accent-glow';
+    } else if (reason === 'time_up') {
+      titleEl.textContent = 'TIME IS UP!';
+      titleEl.className = 'tetradog-overlay-title tetradog-accent-glow';
+    } else {
+      titleEl.textContent = 'GAME OVER';
+      titleEl.className = 'tetradog-overlay-title tetradog-danger-glow';
+    }
+  }
+
+  document.getElementById('tetradog-go-score').textContent = g.score.toLocaleString();
+  document.getElementById('tetradog-go-level').textContent = g.level;
+  document.getElementById('tetradog-go-lines').textContent = g.lines;
+  document.getElementById('tetradog-go-time').textContent = formatTetraTimer(g.elapsedMs);
+
+  document.getElementById('tetradog-gameover-overlay').style.display = 'flex';
+  updatePlayPauseButtons();
+
+  // Submit high score to backend SQLite database
+  submitTetraDogScore(g.score, g.lines, g.level, durationSec, g.mode);
+}
+
+function changeTetraDogMode(mode) {
+  tetradogState.game.mode = mode;
+  updateTetraHeaderAndStats();
+
+  const timerRow = document.getElementById('tetradog-timer-row');
+  if (timerRow) {
+    timerRow.style.display = (mode === 'sprint' || mode === 'ultra') ? 'flex' : 'none';
+  }
+
+  if (tetradogState.game.status === 'ready') {
+    initTetraDogGame();
+  }
+}
+
+// ---------------- GAME PHYSICS LOOP (60 FPS FIXED TIMESTEP) ----------------
+function tetraGameLoop(timestamp) {
+  const g = tetradogState.game;
+  const delta = timestamp - (g.lastFrameTime || timestamp);
+  g.lastFrameTime = timestamp;
+
+  if (g.status === 'playing') {
+    g.elapsedMs += delta;
+
+    // Ultra Mode countdown check (180 seconds)
+    if (g.mode === 'ultra' && g.elapsedMs >= 180000) {
+      endTetraDogGame('time_up');
+      return;
+    }
+
+    // Timer display update
+    const timerEl = document.getElementById('tetradog-stat-timer');
+    if (timerEl && (g.mode === 'sprint' || g.mode === 'ultra')) {
+      if (g.mode === 'ultra') {
+        const remain = Math.max(0, 180000 - g.elapsedMs);
+        timerEl.textContent = formatTetraTimer(remain);
+      } else {
+        timerEl.textContent = formatTetraTimer(g.elapsedMs);
+      }
+    }
+
+    // Line clear flash animation
+    if (g.animatingRows.length > 0) {
+      g.animationTimer -= delta;
+      if (g.animationTimer <= 0) {
+        executeLineCollapse();
+      }
+    } else if (g.currentPiece) {
+      // DAS / ARR Input Processing
+      handleTetraContinuousInput(delta);
+
+      // Gravity Drop Timer
+      g.dropTimer += delta;
+      const currentInterval = g.softDropActive ? Math.min(40, g.dropInterval / 12) : g.dropInterval;
+
+      if (g.dropTimer >= currentInterval) {
+        g.dropTimer = 0;
+        const moved = moveTetraPiece(0, 1);
+        if (!moved) {
+          g.isLocking = true;
+        }
+      }
+
+      // Lock Delay Timer
+      if (g.isLocking) {
+        g.lockTimer += delta;
+        if (g.lockTimer >= g.lockDelay) {
+          lockTetraPiece();
+        }
+      }
+    }
+  }
+
+  renderTetraCanvas();
+  tetraRafId = requestAnimationFrame(tetraGameLoop);
+}
+
+function handleTetraContinuousInput(delta) {
+  const g = tetradogState.game;
+  if (!g.currentPiece || g.dasDir === 0) return;
+
+  g.dasTimer += delta;
+  if (g.dasTimer >= tetradogState.config.das) {
+    g.arrTimer += delta;
+    const arrSpeed = Math.max(0, tetradogState.config.arr);
+
+    if (arrSpeed === 0) {
+      // Instant shift
+      while (moveTetraPiece(g.dasDir, 0)) {}
+    } else if (g.arrTimer >= arrSpeed) {
+      g.arrTimer = 0;
+      moveTetraPiece(g.dasDir, 0);
+    }
+  }
+}
+
+// ---------------- CANVAS RENDERING ----------------
+function renderTetraCanvas() {
+  const canvas = document.getElementById('tetradog-board-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const g = tetradogState.game;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const cellSize = w / g.boardWidth;
+
+  // Clear background
+  ctx.fillStyle = (tetradogState.theme === 'gameboy') ? '#0f380f' : '#040507';
+  ctx.fillRect(0, 0, w, h);
+
+  // Subtle Grid Lines
+  ctx.strokeStyle = (tetradogState.theme === 'gameboy') ? 'rgba(48, 98, 48, 0.3)' : 'rgba(255, 255, 255, 0.04)';
+  ctx.lineWidth = 1;
+  for (let c = 1; c < g.boardWidth; c++) {
+    ctx.beginPath();
+    ctx.moveTo(c * cellSize, 0);
+    ctx.lineTo(c * cellSize, h);
+    ctx.stroke();
+  }
+  for (let r = 1; r < g.boardHeight; r++) {
+    ctx.beginPath();
+    ctx.moveTo(0, r * cellSize);
+    ctx.lineTo(w, r * cellSize);
+    ctx.stroke();
+  }
+
+  // Draw Settled Blocks on Board
+  for (let r = 0; r < g.boardHeight; r++) {
+    const isFlashing = g.animatingRows.includes(r);
+    for (let c = 0; c < g.boardWidth; c++) {
+      const type = g.grid[r] ? g.grid[r][c] : 0;
+      if (type && type !== 0) {
+        if (isFlashing) {
+          drawTetraBlock(ctx, c * cellSize, r * cellSize, cellSize, '#ffffff', 'rgba(255, 255, 255, 0.8)');
+        } else {
+          const pieceDef = TETRADOG_PIECES[type];
+          if (pieceDef) {
+            drawTetraBlock(ctx, c * cellSize, r * cellSize, cellSize, pieceDef.color, pieceDef.glow);
+          }
+        }
+      }
+    }
+  }
+
+  // Draw Ghost Piece
+  if (tetradogState.config.ghostPiece && g.currentPiece && (g.status === 'playing' || g.status === 'paused')) {
+    const { matrix, x } = g.currentPiece;
+    const gy = g.ghostY;
+    const pieceDef = TETRADOG_PIECES[g.currentPiece.type];
+    for (let r = 0; r < matrix.length; r++) {
+      for (let c = 0; c < matrix[r].length; c++) {
+        if (matrix[r][c]) {
+          const drawY = gy + r;
+          if (drawY >= 0 && drawY < g.boardHeight) {
+            drawGhostBlock(ctx, (x + c) * cellSize, drawY * cellSize, cellSize, pieceDef ? pieceDef.color : '#f59e0b');
+          }
+        }
+      }
+    }
+  }
+
+  // Draw Active Falling Piece
+  if (g.currentPiece && (g.status === 'playing' || g.status === 'paused')) {
+    const { matrix, x, y, type } = g.currentPiece;
+    const pieceDef = TETRADOG_PIECES[type];
+    if (pieceDef) {
+      for (let r = 0; r < matrix.length; r++) {
+        for (let c = 0; c < matrix[r].length; c++) {
+          if (matrix[r][c]) {
+            const drawY = y + r;
+            if (drawY >= 0 && drawY < g.boardHeight) {
+              drawTetraBlock(ctx, (x + c) * cellSize, drawY * cellSize, cellSize, pieceDef.color, pieceDef.glow);
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+function drawTetraBlock(ctx, x, y, size, color, glow) {
+  ctx.save();
+  const theme = tetradogState.theme;
+
+  if (theme === 'gameboy') {
+    ctx.fillStyle = '#8bac0f';
+    ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+    ctx.fillStyle = '#306230';
+    ctx.fillRect(x + 3, y + 3, size - 6, size - 6);
+    ctx.fillStyle = '#9bbc0f';
+    ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
+  } else {
+    // 3D Beveled Arcade Block
+    ctx.fillStyle = color;
+    ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
+
+    // Light top/left bevel
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.moveTo(x + 1, y + 1);
+    ctx.lineTo(x + size - 1, y + 1);
+    ctx.lineTo(x + size - 4, y + 4);
+    ctx.lineTo(x + 4, y + 4);
+    ctx.lineTo(x + 4, y + size - 4);
+    ctx.lineTo(x + 1, y + size - 1);
+    ctx.closePath();
+    ctx.fill();
+
+    // Dark bottom/right bevel
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+    ctx.beginPath();
+    ctx.moveTo(x + size - 1, y + 1);
+    ctx.lineTo(x + size - 1, y + size - 1);
+    ctx.lineTo(x + 1, y + size - 1);
+    ctx.lineTo(x + 4, y + size - 4);
+    ctx.lineTo(x + size - 4, y + size - 4);
+    ctx.lineTo(x + size - 4, y + 4);
+    ctx.closePath();
+    ctx.fill();
+
+    // Center jewel
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
+    ctx.fillRect(x + 6, y + 6, size - 12, size - 12);
+  }
+  ctx.restore();
+}
+
+function drawGhostBlock(ctx, x, y, size, color) {
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+  ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
+  ctx.restore();
+}
+
+function renderHoldCanvas() {
+  const canvas = document.getElementById('tetradog-hold-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const holdType = tetradogState.game.holdPiece;
+  if (!holdType) return;
+
+  const def = TETRADOG_PIECES[holdType];
+  const matrix = def.matrix;
+  const cellSize = 18;
+  const offsetX = (canvas.width - matrix[0].length * cellSize) / 2;
+  const offsetY = (canvas.height - matrix.length * cellSize) / 2;
+
+  for (let r = 0; r < matrix.length; r++) {
+    for (let c = 0; c < matrix[r].length; c++) {
+      if (matrix[r][c]) {
+        drawTetraBlock(ctx, offsetX + c * cellSize, offsetY + r * cellSize, cellSize, def.color, def.glow);
+      }
+    }
+  }
+}
+
+function renderNextCanvas() {
+  const canvas = document.getElementById('tetradog-next-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const queue = tetradogState.game.nextQueue.slice(0, 3);
+  const cellSize = 16;
+
+  queue.forEach((type, idx) => {
+    const def = TETRADOG_PIECES[type];
+    const matrix = def.matrix;
+    const offsetX = (canvas.width - matrix[0].length * cellSize) / 2;
+    const offsetY = 12 + idx * 64 + (48 - matrix.length * cellSize) / 2;
+
+    for (let r = 0; r < matrix.length; r++) {
+      for (let c = 0; c < matrix[r].length; c++) {
+        if (matrix[r][c]) {
+          drawTetraBlock(ctx, offsetX + c * cellSize, offsetY + r * cellSize, cellSize, def.color, def.glow);
+        }
+      }
+    }
+  });
+}
+
+function updateTetraHeaderAndStats() {
+  const g = tetradogState.game;
+
+  // Status bar pills
+  const sbScore = document.getElementById('tetradog-sb-score-val');
+  const sbLvl = document.getElementById('tetradog-sb-lvl-val');
+  const sbLines = document.getElementById('tetradog-sb-lines-val');
+  if (sbScore) sbScore.textContent = g.score.toLocaleString();
+  if (sbLvl) sbLvl.textContent = g.level;
+  if (sbLines) sbLines.textContent = g.lines;
+
+  // Header pills fallback (if present)
+  const hdrScore = document.getElementById('tetradog-hdr-score-val');
+  const hdrLvl = document.getElementById('tetradog-hdr-lvl-val');
+  const hdrLines = document.getElementById('tetradog-hdr-lines-val');
+  if (hdrScore) hdrScore.textContent = g.score.toLocaleString();
+  if (hdrLvl) hdrLvl.textContent = g.level;
+  if (hdrLines) hdrLines.textContent = g.lines;
+
+  // Minimized pill
+  const pillScore = document.getElementById('tetradog-pill-score');
+  if (pillScore) pillScore.textContent = g.score.toLocaleString();
+
+  // Arena stats (Top score)
+  const hiScoreEl = document.getElementById('tetradog-stat-hiscore');
+  if (hiScoreEl) hiScoreEl.textContent = g.highScore.toLocaleString();
+  const mobHiScore = document.getElementById('tetradog-mob-hiscore');
+  if (mobHiScore) mobHiScore.textContent = g.highScore.toLocaleString();
+
+  // Arena mode badge & select
+  const arenaBadge = document.getElementById('tetradog-arena-mode-badge');
+  if (arenaBadge) arenaBadge.textContent = g.mode.toUpperCase();
+  const mobModeBadge = document.getElementById('tetradog-mobile-mode-badge');
+  if (mobModeBadge) mobModeBadge.textContent = g.mode.toUpperCase();
+  const modeSel = document.getElementById('tetradog-mode-select');
+  if (modeSel && modeSel.value !== g.mode) modeSel.value = g.mode;
+
+  // Sound button status styling
+  const soundBtn = document.getElementById('btn-tetradog-audio');
+  if (soundBtn) {
+    soundBtn.classList.toggle('muted', !tetradogState.soundEnabled);
+  }
+
+  // B2B & Combo Badges
+  const b2bBadge = document.getElementById('tetradog-b2b-badge');
+  if (b2bBadge) b2bBadge.style.display = g.b2b ? 'block' : 'none';
+
+  const comboBadge = document.getElementById('tetradog-combo-badge');
+  const comboCnt = document.getElementById('tetradog-combo-count');
+  if (comboBadge && comboCnt) {
+    if (g.combo > 1) {
+      comboCnt.textContent = g.combo;
+      comboBadge.style.display = 'block';
+    } else {
+      comboBadge.style.display = 'none';
+    }
+  }
+}
+
+function formatTetraTimer(ms) {
+  const totalSec = Math.floor(ms / 1000);
+  const minutes = Math.floor(totalSec / 60);
+  const seconds = totalSec % 60;
+  const tenths = Math.floor((ms % 1000) / 100);
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
+}
+
+// ---------------- INPUT EVENT LISTENERS (KEYBOARD & TOUCH) ----------------
+function initTetraDogInput() {
+  if (window._tetraInputInitialized) return;
+  window._tetraInputInitialized = true;
+
+  window.addEventListener('keydown', (e) => {
+    const win = document.getElementById('floating-tetradog-window');
+    const isFloatingOpen = win && win.style.display !== 'none';
+    const isDocked = App.panes.some(p => p.dockedTool === 'tetradog');
+    if (!isFloatingOpen && !isDocked) return;
+    if (tetradogState.activeView !== 'game') return;
+
+    // Ignore if user is typing in an input
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+
+    const g = tetradogState.game;
+
+    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
+      e.preventDefault();
+      toggleTetraDogPlayPause();
+      return;
+    }
+
+    if (g.status === 'ready' || g.status === 'gameover') {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'w', 'a', 's', 'd', 'z', 'x', 'c'].includes(e.key)) {
+        e.preventDefault();
+        startTetraDogGame();
+        return;
+      }
+    }
+
+    if (g.status !== 'playing') return;
+
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      e.preventDefault();
+      if (g.dasDir !== -1) {
+        g.dasDir = -1;
+        g.dasTimer = 0;
+        g.arrTimer = 0;
+        moveTetraPiece(-1, 0);
+      }
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      e.preventDefault();
+      if (g.dasDir !== 1) {
+        g.dasDir = 1;
+        g.dasTimer = 0;
+        g.arrTimer = 0;
+        moveTetraPiece(1, 0);
+      }
+    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+      e.preventDefault();
+      g.softDropActive = true;
+    } else if (e.key === 'ArrowUp' || e.key === 'x' || e.key === 'X' || e.key === 'e' || e.key === 'E') {
+      e.preventDefault();
+      rotateTetraPiece(1);
+    } else if (e.key === 'z' || e.key === 'Z' || e.key === 'Control' || e.key === 'q' || e.key === 'Q') {
+      e.preventDefault();
+      rotateTetraPiece(-1);
+    } else if (e.key === ' ' || e.key === 'w' || e.key === 'W') {
+      e.preventDefault();
+      hardDropTetraPiece();
+    } else if (e.key === 'c' || e.key === 'C' || e.key === 'Shift') {
+      e.preventDefault();
+      holdTetraPiece();
+    }
+  });
+
+  window.addEventListener('keyup', (e) => {
+    const g = tetradogState.game;
+    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
+      if (g.dasDir === -1) g.dasDir = 0;
+    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
+      if (g.dasDir === 1) g.dasDir = 0;
+    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
+      g.softDropActive = false;
+    }
+  });
+
+  // Touch Virtual D-Pad & NES Action buttons
+  const touchMap = {
+    'tbtn-left': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); tetradogState.game.dasDir = -1; tetradogState.game.dasTimer = 0; moveTetraPiece(-1, 0); }, up: () => { if (tetradogState.game.dasDir === -1) tetradogState.game.dasDir = 0; } },
+    'tbtn-right': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); tetradogState.game.dasDir = 1; tetradogState.game.dasTimer = 0; moveTetraPiece(1, 0); }, up: () => { if (tetradogState.game.dasDir === 1) tetradogState.game.dasDir = 0; } },
+    'tbtn-down': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); tetradogState.game.softDropActive = true; }, up: () => { tetradogState.game.softDropActive = false; } },
+    'tbtn-up': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else hardDropTetraPiece(); } },
+    'tbtn-harddrop': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else hardDropTetraPiece(); } },
+    'tbtn-rot-cw': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else rotateTetraPiece(1); } },
+    'tbtn-rot-ccw': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else rotateTetraPiece(-1); } },
+    'tbtn-hold': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else holdTetraPiece(); } },
+    'tbtn-pause': { down: () => { toggleTetraDogPlayPause(); } }
+  };
+
+  Object.entries(touchMap).forEach(([btnId, handlers]) => {
+    const el = document.getElementById(btnId);
+    if (!el) return;
+    el.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (handlers.down) handlers.down();
+    }, { passive: false });
+    if (handlers.up) {
+      el.addEventListener('touchend', (e) => {
+        e.preventDefault();
+        handlers.up();
+      }, { passive: false });
+      el.addEventListener('touchcancel', (e) => {
+        e.preventDefault();
+        handlers.up();
+      }, { passive: false });
+    }
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      if (handlers.down) handlers.down();
+    });
+    if (handlers.up) {
+      el.addEventListener('mouseup', (e) => {
+        e.preventDefault();
+        handlers.up();
+      });
+    }
+  });
+}
+
+// ---------------- LEADERBOARD & DB SYNCHRONIZATION ----------------
+async function loadTetraDogLeaderboard(mode = 'marathon', showLoading = true) {
+  tetradogState.leaderboard.mode = mode;
+  const tbody = document.getElementById('tetradog-leaderboard-tbody');
+
+  // Update mode pills
+  document.querySelectorAll('.tetradog-lb-tab').forEach(b => {
+    b.classList.toggle('active', b.getAttribute('data-mode') === mode);
+  });
+
+  if (showLoading && tbody) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Fetching top scores from server...</td></tr>`;
+  }
+
+  const userOnly = tetradogState.leaderboard.scope === 'mine';
+  const url = `/api/chewtoys/tetradog/scores?mode=${encodeURIComponent(mode)}&user_only=${userOnly}&limit=50`;
+
+  try {
+    const resp = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      tetradogState.leaderboard.list = data.leaderboard || [];
+      tetradogState.leaderboard.userStats = data.user_stats || null;
+
+      // Update personal top score in game
+      if (data.user_best) {
+        tetradogState.game.highScore = data.user_best.score;
+        updateTetraHeaderAndStats();
+      }
+
+      renderTetraDogLeaderboard(data);
+    } else {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load scores (${resp.status})</td></tr>`;
+    }
+  } catch (e) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Error connecting to leaderboard API: ${e}</td></tr>`;
+  }
+}
+
+function renderTetraDogLeaderboard(data) {
+  const tbody = document.getElementById('tetradog-leaderboard-tbody');
+  if (!tbody) return;
+
+  // Update Summary Banner
+  if (data.user_stats) {
+    const bestEl = document.getElementById('tetradog-sum-best');
+    const rankEl = document.getElementById('tetradog-sum-rank');
+    const lvlEl = document.getElementById('tetradog-sum-level');
+    const linesEl = document.getElementById('tetradog-sum-lines');
+    const gamesEl = document.getElementById('tetradog-sum-games');
+
+    if (bestEl) bestEl.textContent = data.user_stats.high_score.toLocaleString();
+    if (rankEl) rankEl.textContent = data.user_stats.best_rank ? `#${data.user_stats.best_rank}` : '-';
+    if (lvlEl) lvlEl.textContent = data.user_stats.max_level;
+    if (linesEl) linesEl.textContent = data.user_stats.total_lines.toLocaleString();
+    if (gamesEl) gamesEl.textContent = data.user_stats.games_played.toLocaleString();
+  }
+
+  // Populate Table Rows
+  const scores = data.leaderboard || [];
+  if (scores.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">No high scores recorded yet in ${data.user_stats ? tetradogState.leaderboard.mode : ''} mode. Be the first!</td></tr>`;
+    return;
+  }
+
+  let html = '';
+  scores.forEach((row, idx) => {
+    let rankBadge = `${idx + 1}`;
+    if (idx === 0) rankBadge = `<span class="tetradog-rank-medal rank-gold">🥇</span>`;
+    else if (idx === 1) rankBadge = `<span class="tetradog-rank-medal rank-silver">🥈</span>`;
+    else if (idx === 2) rankBadge = `<span class="tetradog-rank-medal rank-bronze">🥉</span>`;
+
+    const rowClass = row.is_current_user ? 'current-user-row' : '';
+    const dateStr = row.created_at ? new Date(row.created_at).toLocaleDateString() : '-';
+    const durationStr = row.duration_seconds > 0 ? `${Math.floor(row.duration_seconds / 60)}m ${row.duration_seconds % 60}s` : '-';
+
+    html += `
+      <tr class="${rowClass}">
+        <td>${rankBadge}</td>
+        <td><strong>${escapeHtml(row.player_name || row.username)}</strong> ${row.is_current_user ? '<span class="badge" style="font-size: 8px; margin-left: 4px;">YOU</span>' : ''}</td>
+        <td style="text-align: right; font-weight: 800; color: var(--accent);">${row.score.toLocaleString()}</td>
+        <td style="text-align: right;">${row.level}</td>
+        <td style="text-align: right;">${row.lines_cleared}</td>
+        <td style="text-align: right; color: var(--text-dim); font-size: 10px;">${durationStr}</td>
+        <td style="text-align: right; color: var(--text-dim); font-size: 10px;">${dateStr}</td>
+      </tr>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function handleTetraDogScopeChange(scope) {
+  tetradogState.leaderboard.scope = scope;
+  loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+}
+
+function refreshTetraDogLeaderboard() {
+  loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+}
+
+function saveTetraDogPlayerAlias(alias) {
+  const clean = alias.trim();
+  tetradogState.playerAlias = clean;
+  localStorage.setItem('cd_tetradog_alias', clean);
+  showToast(`Player alias saved as: ${clean || App.user?.username || 'Player'}`, 'success');
+}
+
+async function submitTetraDogScore(score, lines, level, duration, mode) {
+  if (score <= 0) return;
+
+  const playerAlias = tetradogState.playerAlias || App.user?.nickname || App.user?.username || '';
+  try {
+    const resp = await fetch('/api/chewtoys/tetradog/scores', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${App.token}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        score,
+        lines_cleared: lines,
+        level,
+        duration_seconds: duration,
+        mode,
+        player_name: playerAlias
+      })
+    });
+
+    if (resp.ok) {
+      const result = await resp.json();
+      const rankBanner = document.getElementById('tetradog-rank-banner');
+      const rankText = document.getElementById('tetradog-rank-text');
+
+      if (rankBanner && rankText) {
+        if (result.is_global_high_score) {
+          rankText.textContent = `👑 NEW #1 ALL-TIME HIGH SCORE! (${score.toLocaleString()})`;
+          rankBanner.style.display = 'block';
+        } else if (result.is_personal_best) {
+          rankText.textContent = `⭐ Personal Best! Achieved Rank #${result.rank}`;
+          rankBanner.style.display = 'block';
+        } else {
+          rankText.textContent = `Achieved Rank #${result.rank} on Leaderboard`;
+          rankBanner.style.display = 'block';
+        }
+      }
+
+      // Update personal best in state
+      if (score > tetradogState.game.highScore) {
+        tetradogState.game.highScore = score;
+        updateTetraHeaderAndStats();
+      }
+    }
+  } catch (e) {
+    console.debug('Failed to submit TetraDog score:', e);
+  }
+}
+
+async function promptClearTetraDogScores() {
+  if (!confirm('Are you sure you want to reset your TetraDog scores?')) return;
+
+  try {
+    const resp = await fetch('/api/tools/tetradog/scores', {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+
+    if (resp.ok) {
+      showToast('TetraDog scores cleared successfully', 'success');
+      tetradogState.game.highScore = 0;
+      updateTetraHeaderAndStats();
+      loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+    } else {
+      showToast(`Failed to clear scores: ${await resp.text()}`, 'error');
+    }
+  } catch (e) {
+    showToast(`Error: ${e}`, 'error');
+  }
+}
+
+// ---------------- IN-PANE DOCKED TETRADOG ----------------
+function mountDockedTetraDog(paneIndex) {
+  const host = document.getElementById(`docked-tetradog-host-${paneIndex}`);
+  const arena = document.getElementById('tetradog-view-game');
+  if (!host || !arena) return;
+
+  // Move game arena into pane host
+  host.appendChild(arena);
+  arena.style.display = 'flex';
+  renderTetraCanvas();
+}

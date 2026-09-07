@@ -163,6 +163,23 @@ impl AuthManager {
             [],
         )?;
 
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS tetradog_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                player_name TEXT NOT NULL,
+                score INTEGER NOT NULL,
+                lines_cleared INTEGER NOT NULL,
+                level INTEGER NOT NULL,
+                duration_seconds INTEGER NOT NULL DEFAULT 0,
+                mode TEXT NOT NULL DEFAULT 'marathon',
+                created_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetradog_scores ON tetradog_scores (score DESC)", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetradog_user ON tetradog_scores (username)", []);
+
         // Safe migrations for newly added columns
         let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN email TEXT", []);
