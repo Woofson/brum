@@ -77,6 +77,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/mounts/:id", delete(handle_delete_mount))
         .route("/api/bookmarks", get(handle_list_bookmarks).post(handle_create_bookmark))
         .route("/api/bookmarks/:id", delete(handle_delete_bookmark))
+        .route("/api/user/preferences", get(handle_get_user_preferences).post(handle_save_user_preferences).delete(handle_reset_user_preferences))
         // Public Link Sharing & Guest Dropbox
         .route("/share/:token", get(handle_public_share_page))
         .route("/api/shares", get(handle_list_shares).post(handle_create_share))
@@ -286,7 +287,7 @@ async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatu
 
     Json(SystemStatusResponse {
         version: env!("CARGO_PKG_VERSION").to_string(),
-        standalone: state.config.server.standalone || !state.config.server.enable_auth,
+        standalone: state.config.server.standalone,
         auth_enabled: state.config.server.enable_auth && !state.config.server.standalone,
         current_user,
         home_dir,
@@ -996,6 +997,51 @@ async fn handle_delete_bookmark(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to delete bookmark: {}", e)))?;
 
     Ok(Json(serde_json::json!({ "success": true, "message": "Bookmark removed" })))
+}
+
+// ---------------- USER PREFERENCES HANDLERS (CROSS-DEVICE SYNC) ----------------
+
+async fn handle_get_user_preferences(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let prefs = state.auth.get_user_preferences(&claims.sub)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to load user preferences: {}", e)))?;
+
+    if let Some(p_str) = prefs {
+        let val: serde_json::Value = serde_json::from_str(&p_str)
+            .unwrap_or_else(|_| serde_json::json!({}));
+        Ok(Json(val))
+    } else {
+        Ok(Json(serde_json::json!({})))
+    }
+}
+
+async fn handle_save_user_preferences(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let p_str = serde_json::to_string(&payload)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid preferences JSON: {}", e)))?;
+
+    state.auth.save_user_preferences(&claims.sub, &p_str)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save user preferences: {}", e)))?;
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+async fn handle_reset_user_preferences(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    state.auth.reset_user_preferences(&claims.sub)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reset user preferences: {}", e)))?;
+
+    Ok(Json(serde_json::json!({ "success": true, "message": "User preferences reset to default" })))
 }
 
 async fn handle_get_security_settings(

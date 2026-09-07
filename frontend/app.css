@@ -776,7 +776,9 @@ body {
   background: rgba(255, 255, 255, 0.1);
 }
 
-.pane-filter-toggle-btn.active {
+.pane-filter-toggle-btn.active,
+.pane-tree-btn.active,
+.pane-branch-btn.active {
   background: rgba(245, 158, 11, 0.2) !important;
   color: var(--accent) !important;
   border-color: var(--accent) !important;
@@ -953,15 +955,155 @@ body {
   vertical-align: middle !important;
 }
 
+.file-table th.col-icon {
+  width: 28px !important;
+  min-width: 28px !important;
+  max-width: 28px !important;
+  padding: 0 4px !important;
+  text-align: center;
+  vertical-align: middle !important;
+}
+
+/* Inverted style table columns edit button in the leftmost table header */
+.pane-col-config-btn {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+  vertical-align: middle;
+}
+
+.pane-col-config-btn i,
+.pane-col-config-btn svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+}
+
+.pane-col-config-btn:hover {
+  background: var(--bg-hover);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .pane-footer {
   background-color: var(--bg-header);
   border-top: 1px solid var(--border);
-  padding: 4px 8px;
+  padding: 0 8px;
+  height: 24px;
+  min-height: 24px;
+  max-height: 24px;
   display: flex;
+  align-items: center;
   justify-content: space-between;
   font-size: 11px;
   color: var(--text-muted);
   flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+.pane-footer-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.pane-footer-counts {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pane-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.pane-footer-size {
+  white-space: nowrap;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.pane-footer-sep {
+  width: 1px;
+  height: 12px;
+  background-color: var(--border);
+  opacity: 0.8;
+  margin: 0 2px;
+}
+
+.pane-footer-viewmodes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Inverted style view mode buttons in footer */
+.pane-footer-view-btn {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  border-radius: 3px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  transition: all 0.15s ease;
+}
+
+.pane-footer-view-btn i,
+.pane-footer-view-btn svg {
+  width: 11px;
+  height: 11px;
+  display: block;
+  stroke: currentColor;
+}
+
+.pane-footer-view-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+  border-color: var(--accent);
+}
+
+.pane-footer-view-btn.active {
+  background: var(--accent) !important;
+  color: #111 !important;
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 5px rgba(245, 158, 11, 0.4) !important;
+}
+
+.pane-footer-view-btn.active i,
+.pane-footer-view-btn.active svg {
+  color: #111 !important;
+  stroke: #111 !important;
 }
 
 /* Bottom Orthodox Function Key Bar */
@@ -2945,46 +3087,6 @@ body {
   border-radius: 3px;
 }
 
-/* Mobile Pane Switcher Bar */
-.mobile-pane-switcher-bar {
-  display: none;
-  background: var(--bg-header);
-  border-bottom: 1px solid var(--border);
-  padding: 4px 6px;
-  gap: 6px;
-  overflow-x: auto;
-  white-space: nowrap;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-.mobile-pane-switcher-bar::-webkit-scrollbar {
-  display: none;
-}
-.mobile-pane-tab {
-  flex: 1;
-  min-width: 80px;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  color: var(--text-muted);
-  padding: 6px 10px;
-  border-radius: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  transition: all 0.15s ease;
-  user-select: none;
-}
-.mobile-pane-tab.active {
-  background: var(--accent-subtle);
-  border-color: var(--accent);
-  color: var(--accent);
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.2);
-}
-
 /* Mobile Menu Drawer */
 /* Custom Pane Border Identification Colors */
 .pane.pane-color-amber {
@@ -3115,95 +3217,6 @@ body {
   color: #f97316;
 }
 
-/* Mobile Pane Switcher Tab Color Tinting */
-.mobile-pane-tab.pane-tab-color-amber {
-  border-color: rgba(245, 158, 11, 0.35);
-  color: #f59e0b;
-}
-.mobile-pane-tab.pane-tab-color-amber.active {
-  background: rgba(245, 158, 11, 0.18);
-  border-color: #f59e0b;
-  color: #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.3);
-}
-
-.mobile-pane-tab.pane-tab-color-emerald {
-  border-color: rgba(16, 185, 129, 0.35);
-  color: #10b981;
-}
-.mobile-pane-tab.pane-tab-color-emerald.active {
-  background: rgba(16, 185, 129, 0.18);
-  border-color: #10b981;
-  color: #10b981;
-  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-}
-
-.mobile-pane-tab.pane-tab-color-sky {
-  border-color: rgba(56, 189, 248, 0.35);
-  color: #38bdf8;
-}
-.mobile-pane-tab.pane-tab-color-sky.active {
-  background: rgba(56, 189, 248, 0.18);
-  border-color: #38bdf8;
-  color: #38bdf8;
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.3);
-}
-
-.mobile-pane-tab.pane-tab-color-purple {
-  border-color: rgba(192, 132, 252, 0.35);
-  color: #c084fc;
-}
-.mobile-pane-tab.pane-tab-color-purple.active {
-  background: rgba(192, 132, 252, 0.18);
-  border-color: #c084fc;
-  color: #c084fc;
-  box-shadow: 0 0 10px rgba(192, 132, 252, 0.3);
-}
-
-.mobile-pane-tab.pane-tab-color-rose {
-  border-color: rgba(244, 63, 94, 0.35);
-  color: #f43f5e;
-}
-.mobile-pane-tab.pane-tab-color-rose.active {
-  background: rgba(244, 63, 94, 0.18);
-  border-color: #f43f5e;
-  color: #f43f5e;
-  box-shadow: 0 0 10px rgba(244, 63, 94, 0.3);
-}
-
-.mobile-pane-tab.pane-tab-color-indigo {
-  border-color: rgba(99, 102, 241, 0.35);
-  color: #6366f1;
-}
-.mobile-pane-tab.pane-tab-color-indigo.active {
-  background: rgba(99, 102, 241, 0.18);
-  border-color: #6366f1;
-  color: #6366f1;
-  box-shadow: 0 0 10px rgba(99, 102, 241, 0.3);
-}
-
-.mobile-pane-tab.pane-tab-color-teal {
-  border-color: rgba(20, 184, 166, 0.35);
-  color: #14b8a6;
-}
-.mobile-pane-tab.pane-tab-color-teal.active {
-  background: rgba(20, 184, 166, 0.18);
-  border-color: #14b8a6;
-  color: #14b8a6;
-  box-shadow: 0 0 10px rgba(20, 184, 166, 0.3);
-}
-
-.mobile-pane-tab.pane-tab-color-orange {
-  border-color: rgba(249, 115, 22, 0.35);
-  color: #f97316;
-}
-.mobile-pane-tab.pane-tab-color-orange.active {
-  background: rgba(249, 115, 22, 0.18);
-  border-color: #f97316;
-  color: #f97316;
-  box-shadow: 0 0 10px rgba(249, 115, 22, 0.3);
-}
-
 /* Custom Hex Arbitrary Color Support */
 .pane.pane-color-custom {
   border-color: var(--pane-custom-border) !important;
@@ -3211,16 +3224,6 @@ body {
 .pane.pane-color-custom.active {
   border-color: var(--pane-custom-border) !important;
   box-shadow: 0 0 0 1.5px var(--pane-custom-border) !important;
-}
-.mobile-pane-tab.pane-tab-color-custom {
-  border-color: var(--pane-custom-border) !important;
-  color: var(--pane-custom-border) !important;
-}
-.mobile-pane-tab.pane-tab-color-custom.active {
-  border-color: var(--pane-custom-border) !important;
-  color: var(--pane-custom-border) !important;
-  box-shadow: 0 0 10px var(--pane-custom-border) !important;
-  background: rgba(255, 255, 255, 0.08) !important;
 }
 
 .pane-favorites-wrapper,
@@ -4608,11 +4611,66 @@ body {
   z-index: 110;
   margin-top: -16px;
   flex-shrink: 0;
+  pointer-events: none; /* Let touches pass through transparent areas to pane footer */
 }
 
 @media (max-width: 768px) {
   .mobile-task-peek-bar {
     display: flex !important;
+    margin-top: -12px;
+    height: 12px;
+  }
+
+  /* Optimize Pane Footer on touch / phone viewports */
+  .pane-footer {
+    height: 28px !important;
+    min-height: 28px !important;
+    max-height: 28px !important;
+    padding: 0 6px !important;
+    position: relative;
+    z-index: 100;
+  }
+
+  .pane-footer-info {
+    max-width: 48%;
+    min-width: 0;
+  }
+
+  .pane-footer-right {
+    gap: 4px;
+    margin-left: auto;
+  }
+
+  .pane-footer-viewmodes {
+    gap: 4px;
+    position: relative;
+    z-index: 105;
+  }
+
+  .pane-footer-view-btn {
+    width: 22px !important;
+    height: 22px !important;
+    min-width: 22px !important;
+    min-height: 22px !important;
+    max-width: 22px !important;
+    max-height: 22px !important;
+    border-radius: 4px !important;
+    touch-action: manipulation;
+  }
+
+  .pane-footer-view-btn i,
+  .pane-footer-view-btn svg {
+    width: 13px !important;
+    height: 13px !important;
+  }
+
+  .mobile-peek-pill {
+    padding: 2px 14px 1px 14px !important;
+  }
+
+  .mobile-peek-handle {
+    width: 28px !important;
+    height: 3px !important;
   }
 }
 
@@ -4629,6 +4687,7 @@ body {
   box-shadow: 0 -3px 12px rgba(0, 0, 0, 0.5);
   transition: all 0.18s ease;
   backdrop-filter: blur(4px);
+  pointer-events: auto; /* Handle pull gestures only on the pill itself */
 }
 
 .mobile-peek-pill:hover,
@@ -4825,10 +4884,6 @@ body {
 
   /* ---------------- NARROW MOBILE SCREENS (<= 600px, e.g. Folded Outer Phone Screen) ---------------- */
   @media (max-width: 600px) {
-    .mobile-pane-switcher-bar {
-      display: flex !important;
-    }
-
     /* Panes Container: Force 1 active pane on narrow mobile */
     .panes-container,
     .panes-container.layout-single,
@@ -4862,11 +4917,6 @@ body {
 
   /* ---------------- FOLDABLE PHONES (UNFOLDED) & TABLETS (601px to 1024px) ---------------- */
   @media (min-width: 601px) and (max-width: 1024px) {
-    /* Hide single-pane tabs since dual panes are displayed side-by-side */
-    .mobile-pane-switcher-bar {
-      display: none !important;
-    }
-
     /* Dual Vertical Layout Active by default on Foldable Unfolded Screens */
     .panes-container,
     .panes-container.layout-dual-vertical,
@@ -5074,12 +5124,6 @@ body {
   .header .logo-area .app-logo-text,
   .app-header .logo-area .app-logo-text {
     font-size: 13px;
-  }
-
-  .mobile-pane-tab {
-    font-size: 10px;
-    padding: 4px 8px;
-    min-width: 70px;
   }
 
   .fkey-btn .fkey-num {
@@ -7036,7 +7080,7 @@ body {
   flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
   /* 1. Floating Power Editor Fullscreen on Mobile / Foldables */
   .floating-editor-window {
     top: 0 !important;
@@ -7694,20 +7738,6 @@ body {
   background: var(--bg-hover);
 }
 
-@media (max-width: 768px) {
-  .floating-calculator-window {
-    width: calc(100vw - 20px) !important;
-    left: 10px !important;
-    right: 10px !important;
-    bottom: 56px !important;
-    top: auto !important;
-  }
-  .calc-pill {
-    bottom: 56px;
-    right: 10px;
-  }
-}
-
 /* ==========================================================================
    🐶 NOTEDOG NOTES & MARKDOWN STUDIO CHEWTOY (FLOATING & DOCKED)
    ========================================================================== */
@@ -8308,6 +8338,340 @@ body {
   padding: 12px;
   margin: 12px 0;
   overflow-x: auto;
+}
+
+/* ==========================================================================
+   📱 CHEWTOYS & FLOATING UTILITIES RESPONSIVE ARCHITECTURE (PHONE & TABLET)
+   ========================================================================== */
+
+/* 1. Tablet & Phone Unified Non-Floating Rules (max-width: 1024px) */
+@media (max-width: 1024px) {
+  /* All floating chewtoys become fixed/fullscreen modals without drag-offsets */
+  .floating-notedog-window,
+  .floating-editor-window,
+  #doc-viewer-modal.floating-mode .doc-viewer-box,
+  #image-viewer-modal.floating-mode .image-viewer-box {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    max-height: 100dvh !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    transform: none !important;
+    margin: 0 !important;
+    z-index: 2800 !important;
+  }
+
+  /* NoteDog sidebar on tablet viewports (601px - 1024px) */
+  .notedog-sidebar {
+    width: 220px !important;
+    min-width: 180px !important;
+  }
+
+  /* Hide 2D window resize handles on touch devices */
+  .win-resize-handle,
+  .task-win-resize-handle,
+  .task-win-resize-left,
+  .task-win-resize-corner {
+    display: none !important;
+  }
+
+  /* Floating mode toggle buttons hidden on touch devices */
+  #btn-doc-viewer-float,
+  #btn-img-viewer-float {
+    display: none !important;
+  }
+
+  /* Drag handles use default pointer on touch devices */
+  .notedog-header,
+  .notedog-header-drag-handle,
+  .editor-header-drag-handle,
+  .calc-header-drag-handle,
+  .du-modal-header,
+  .image-viewer-title-group {
+    cursor: default !important;
+  }
+}
+
+/* 2. Tablet Specific Sizing (601px - 1024px) */
+@media (min-width: 601px) and (max-width: 1024px) {
+  .floating-calculator-window {
+    position: fixed !important;
+    top: 50% !important;
+    left: 50% !important;
+    right: auto !important;
+    bottom: auto !important;
+    transform: translate(-50%, -50%) !important;
+    width: min(380px, calc(100vw - 32px)) !important;
+    height: auto !important;
+    max-height: calc(100dvh - 40px) !important;
+    border-radius: var(--radius-lg) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75) !important;
+    z-index: 2800 !important;
+  }
+}
+
+/* 3. Phone Specific Optimizations (max-width: 600px) */
+@media (max-width: 600px) {
+  /* ChewToys & Modals: Icon-Only Branding (hide brand strings) */
+  .chewtoy-brand-text,
+  .notedog-header-left span span,
+  .notedog-header-drag-handle span,
+  .editor-header-left span span,
+  .editor-header-drag-handle span,
+  .calc-header-left span span,
+  .calc-header-drag-handle span,
+  .du-modal-header span.chewtoy-brand-text,
+  .diff-modal-header span.diff-header-title {
+    display: none !important;
+  }
+
+  .chewtoy-brand-icon-only {
+    display: inline-block !important;
+  }
+
+  /* NoteDog Phone Layout & Viewport Safeguards */
+  .floating-notedog-window {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .floating-notedog-window .notedog-header {
+    padding: 6px 8px !important;
+    gap: 4px !important;
+    min-height: 40px;
+    height: 40px;
+  }
+
+  .floating-notedog-window .notedog-header-center {
+    flex: 1;
+    min-width: 50px;
+    max-width: 160px;
+    margin: 0 4px !important;
+  }
+
+  .floating-notedog-window .notedog-body {
+    position: relative;
+    flex: 1;
+    overflow: hidden;
+    height: calc(100% - 40px);
+  }
+
+  /* NoteDog Mobile Master-Detail navigation */
+  .floating-notedog-window .notedog-sidebar {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-width: 100% !important;
+    display: flex !important;
+    border-right: none !important;
+  }
+
+  .floating-notedog-window .notedog-workspace {
+    display: none !important;
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+
+  .floating-notedog-window.mobile-workspace-active .notedog-sidebar {
+    display: none !important;
+  }
+
+  .floating-notedog-window.mobile-workspace-active .notedog-workspace {
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  /* NoteDog Mobile Formatting Bar: horizontal swipe, no wrap, no off-screen spill */
+  .notedog-formatting-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    padding: 4px 6px !important;
+    gap: 3px !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .notedog-formatting-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .notedog-formatting-bar button,
+  .notedog-formatting-bar .btn {
+    flex-shrink: 0 !important;
+  }
+
+  /* NoteDog Panes on Phone: Editor takes 100% in split-mode */
+  .notedog-panes-wrapper.split-mode .notedog-editor-pane {
+    width: 100% !important;
+    border-right: none !important;
+  }
+
+  .notedog-panes-wrapper.split-mode .notedog-preview-pane {
+    display: none !important;
+  }
+
+  .notedog-workspace-header {
+    padding: 4px 6px !important;
+    gap: 4px !important;
+  }
+
+  .notedog-note-title-input {
+    font-size: 13px !important;
+    min-width: 0 !important;
+    padding: 2px 4px !important;
+  }
+
+  /* Calculator on Phone: Fullscreen Modal */
+  .floating-calculator-window {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    max-width: 100vw !important;
+    max-height: 100dvh !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    z-index: 2800 !important;
+  }
+
+  .calc-header {
+    padding: 6px 10px !important;
+    min-height: 40px !important;
+  }
+
+  .calc-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 10px !important;
+  }
+
+  /* EditorDog Header & Toolbars on Phone */
+  .editor-header {
+    padding: 6px 8px !important;
+    gap: 4px !important;
+  }
+
+  .editor-tabs-bar {
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .editor-tabs-bar::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  /* Viewers on Phone */
+  .doc-viewer-header,
+  .image-viewer-toolbar {
+    padding: 6px 8px !important;
+    gap: 4px !important;
+  }
+
+  #doc-viewer-meta,
+  #img-viewer-meta {
+    display: none !important;
+  }
+
+  /* Disk Usage / Stats on Phone */
+  .du-stats-summary {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 6px !important;
+    padding: 6px 10px !important;
+  }
+
+  .du-stat-card {
+    padding: 6px 8px !important;
+  }
+
+  .du-top-bar {
+    padding: 6px 8px !important;
+  }
+}
+
+/* ==========================================================================
+   👻 PHONE VIEWPORT PANE BACKGROUND GHOST WATERMARK INDICATOR
+   ========================================================================== */
+.pane-ghost-watermark {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+  z-index: 0;
+  font-family: var(--font-mono), var(--font-main), sans-serif;
+  font-weight: 900;
+  font-size: min(44vw, 190px);
+  line-height: 1;
+  color: var(--accent);
+  opacity: 0.055;
+  text-align: center;
+  white-space: nowrap;
+  max-width: 90%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: -3px;
+  text-transform: uppercase;
+  transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.pane-ghost-watermark.pane-ghost-long {
+  font-size: min(13vw, 52px);
+  letter-spacing: 2px;
+  font-weight: 800;
+  opacity: 0.048;
+}
+
+@keyframes ghostFadeIn {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.92); }
+  to { opacity: 0.055; transform: translate(-50%, -50%) scale(1); }
+}
+
+@media (max-width: 600px) {
+  .pane-ghost-watermark {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .pane.active .pane-ghost-watermark {
+    animation: ghostFadeIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .pane-main-view {
+    position: relative;
+  }
+
+  .file-table {
+    position: relative;
+    z-index: 1;
+  }
+
+  .pull-refresh-indicator {
+    position: relative;
+    z-index: 2;
+  }
 }
 
 /* --- In-Pane Docked Tool Containers --- */
@@ -9562,7 +9926,7 @@ body.is-col-resizing {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono), 'JetBrains Mono', 'Fira Code', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', monospace, sans-serif;
+  font-family: 'JetBrainsMono Nerd Font', 'JetBrainsMono Nerd Font Mono', var(--font-mono), 'JetBrains Mono', 'Fira Code', 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji', monospace, sans-serif;
   line-height: 1;
   font-style: normal;
   text-align: center;
@@ -9571,17 +9935,17 @@ body.is-col-resizing {
   vertical-align: middle;
 }
 .file-icon-custom-glyph.icon-sm {
-  font-size: 14px;
-  width: 16px;
-  height: 16px;
+  font-size: 15px;
+  width: 17px;
+  height: 17px;
 }
 .file-icon-custom-glyph.icon-md {
-  font-size: 20px;
-  width: 24px;
-  height: 24px;
+  font-size: 22px;
+  width: 26px;
+  height: 26px;
 }
 .file-icon-custom-glyph.icon-lg {
-  font-size: 38px;
+  font-size: 44px;
   width: 48px;
   height: 48px;
 }
@@ -9643,6 +10007,11 @@ body.is-col-resizing {
 /* Standalone Desktop Mode vs Web Mode Feature Isolation */
 body:not(.standalone-mode) .desktop-only-setting,
 body:not(.standalone-mode) .standalone-only {
+  display: none !important;
+}
+
+body.standalone-mode .web-only-setting,
+body.standalone-mode .server-only-setting {
   display: none !important;
 }
 

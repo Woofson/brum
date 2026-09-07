@@ -7,6 +7,140 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.6] - 2026-09-07
+
+### 🔄 Complete Cross-Device User Preference Sync & Docker Persistence Engine
+- **Full-Spectrum User Preference Synchronization**:
+  - Cloud preferences engine persists and synchronizes all 15+ UI/UX customization dimensions across web sessions, mobile viewports, and desktop clients:
+    - **Themes & Custom Palettes**: Active theme (`cd_theme`), custom themes (`cd_custom_themes`).
+    - **Typography & Sizing**: Base UI font size (`cd_font_size`).
+    - **Border & Active Pane Styles**: Pane border width (`cd_border_width`), active ring style (`cd_ring_style`).
+    - **Custom Hostname Badging**: Hostname badge toggle, custom label, color palette, style, icon, and font size.
+    - **Directory Table Customization**: Column widths (`cd_col_widths`) and column visibility toggles (`cd_col_visibility`).
+    - **View Modes & Hierarchy**: Per-pane view modes (details, grid, compact), grid thumbnail sizes, and directory tree toggles.
+    - **Navigation & Safety Toggles**: Dotfiles / hidden files toggle, F-keys bottom bar, parent directory `..` row, double-click to navigate parent directory, and auto-open task manager.
+    - **Drag & Drop Behavior**: Default DnD action, prompt mode, and paranoid safety confirmation toggle.
+    - **Icon Themes & Nerd Fonts**: Global icon theme, global folder icon, custom filetype icon rules, and preset suites (Nerd Fonts & Emojis).
+    - **New File Templates Suite**: Custom file creation templates and boilerplate generators.
+    - **Editor & Diff Configurations**: Code editor theme, font size, word wrap, minimap, diff whitespace ignore, and split/unified diff view.
+    - **Workspaces & Panes**: Custom pane names, custom border tints, default layout, and initial start paths.
+- **Native Vector Nerd Font Glyphs Everywhere**:
+  - Fully transitioned all folder and directory representations across file listings (Table Details, Grid Gallery, Compact List) and utility modals to crisp, scalable vector Nerd Font glyphs (`` / ``).
+- **Instantaneous Real-Time Synchronization**:
+  - Attached real-time debounced updates (`queueSaveUserPreferencesToServer()`) across all preference modifiers in Settings Modal, view switchers, grid size controls, tree toggles, DnD configurations, and custom icon creators.
+  - Implemented sync-guarding (`skipSync`) during startup hydration to eliminate redundant round-trips and UI flickering.
+- **Persistent Across Container Updates**:
+  - Preferences persist directly in `commanderdog.db` SQLite database volume, ensuring preferences survive Docker container updates, recreation, and multi-user deployments.
+
+## [0.7.6-rc7] - 2026-09-07
+
+### 🔄 Real-Time Pane Color Cross-Device Synchronization Fix
+- **Direct Palette & Swatch Server Sync**:
+  - Connected `queueSaveUserPreferencesToServer()` directly to [`setPaneColorPref()`](file:///home/bolt/projects/commanderdog/frontend/app.js#L13142) and [`switchLayout()`](file:///home/bolt/projects/commanderdog/frontend/app.js#L11542), guaranteeing instant server-side persistence whenever a user selects a color swatch, hex code, cycles colors, or toggles layouts.
+- **Unrestricted Web / Remote Client Sync**:
+  - Decoupled cloud workspace loading and saving from desktop standalone mode guard so remote browser sessions, local networks, and mobile phones seamlessly exchange preference payloads over `/api/user/preferences`.
+  - Fixed `SystemStatusResponse` standalone flag ([`src/server/mod.rs`](file:///home/bolt/projects/commanderdog/src/server/mod.rs#L290)) to strictly reflect the server binary's CLI mode.
+
+## [0.7.6-rc6] - 2026-09-07
+
+### 🌐 Cross-Device Tab Naming, Coloring & Workspace Persistence (Web/Server Mode)
+- **Server-Backed User Preferences Store**:
+  - Implemented `user_preferences` SQLite storage ([`src/auth/mod.rs`](file:///home/bolt/projects/commanderdog/src/auth/mod.rs#L160)) and REST endpoints (`GET`, `POST`, `DELETE` [`/api/user/preferences`](file:///home/bolt/projects/commanderdog/src/server/mod.rs#L80)) allowing per-user persistence of pane configurations across all client devices.
+  - Automatically serializes and syncs:
+    - Custom pane names / labels (`pane_names`)
+    - Custom pane border & badge color themes (`pane_colors`)
+    - Default workspace pane layout (`default_layout`, e.g. `layout-dual-vertical`, `layout-quad`)
+    - Per-pane initial start directories (`pane_start_paths`)
+- **Seamless Frontend Hydration & Live Cloud Sync**:
+  - Automatically loads user preferences on startup and authentication ([`loadUserPreferencesFromServer()`](file:///home/bolt/projects/commanderdog/frontend/app.js#L101)).
+  - Real-time debounced background sync (`queueSaveUserPreferencesToServer()`) whenever panes are renamed, colors cycled, or layouts switched.
+  - Fallback local cache (`localStorage`) ensures instantaneous page rendering without layout shift or UI flickering.
+- **Dedicated UI Management & Isolation**:
+  - Added dedicated **"Cross-Device Workspace Defaults (Server Mode)"** card in Settings Modal (F10 -> General), enabling 1-click workspace saving or server defaults reset.
+  - Added Start Directory configuration and "Save All to Cloud" quick action directly in Pane Settings popover ([`openPaneSettingsMenu()`](file:///home/bolt/projects/commanderdog/frontend/app.js#L13320)).
+  - Strict feature isolation (`.web-only-setting`, `.server-only-setting` in [`frontend/app.css`](file:///home/bolt/projects/commanderdog/frontend/app.css#L10013)) hides cloud sync controls in local standalone desktop sessions.
+
+## [0.7.6-rc5] - 2026-09-07
+
+### 👻 Phone Viewport Ambient Pane Ghost Watermark Indicator
+- **Ambient Pane Number / Custom Name Watermark**:
+  - Added `.pane-ghost-watermark` in the background of active directory panels (`.pane-main-view`) and docked ChewToys on phone viewports (`@media (max-width: 600px)`), rendering the active pane's number (e.g. `1`, `2`) or custom user-assigned name (e.g. `DOWNLOADS`, `SERVER`) in large, subtle, low-opacity typography (`0.055`).
+  - Completely non-interactive and transparent to touch gestures (`pointer-events: none; user-select: none; z-index: 0;`), displaying cleanly behind directory file rows without obstructing readability or tap actions.
+- **Dynamic Sizing & Accent Color Synchronization**:
+  - Clamps typography between huge monospace numerals (`min(44vw, 190px)`) and adaptive letter-spaced custom strings (`.pane-ghost-long`, `min(13vw, 52px)`).
+  - Dynamically synchronizes text and color accents with pane rename events (`updatePaneTitles()`) and custom pane color picks (`applyPaneColors()`).
+  - Added smooth transition fade-in (`@keyframes ghostFadeIn 0.2s`) when toggling between panes.
+
+## [0.7.6-rc4] - 2026-09-07
+
+### 📱 Responsive ChewToys & Floating Utilities Architecture (Phone & Tablet)
+- **Non-Floating Presentation Across Phone & Tablet (`max-width: 1024px`)**:
+  - Unified all ChewToys and floating tools ([`NoteDog`](file:///home/bolt/projects/commanderdog/frontend/index.html#L2281), [`EditorDog`](file:///home/bolt/projects/commanderdog/frontend/index.html#L1983), [`Calculator`](file:///home/bolt/projects/commanderdog/frontend/index.html#L2180), Document Viewer, Image Viewer, Task Manager, Disk Usage, DiffDog) into fixed, fullscreen modals (`100vw x 100dvh`) without awkward offsets, dragging overflows, or desktop 2D resize handles.
+  - Tablet viewports (`601px - 1024px`) present centered modals or side-by-side splits with clamped dimensions, eliminating accidental off-screen displacement.
+- **Icon-Only Branding on Phone Screens (`max-width: 600px`)**:
+  - Added `.chewtoy-brand-text` across all utility headers, automatically hiding long branding strings (e.g. "NoteDog", "EditorDog", "Calculator", "Stats: Disk Usage & Storage Treemap Analyzer", "Comparison & Diff Engine") on phone viewports to preserve maximum horizontal real estate for search inputs, actions, and close buttons.
+- **NoteDog Mobile Master-Detail Navigation**:
+  - Implemented 1-tap master-detail flow on phone screens (`<= 600px`): full-width notebooks/sections/notes explorer transitions directly into the full-width note editor upon selection, with a dedicated back button ([`#btn-notedog-mobile-back`](file:///home/bolt/projects/commanderdog/frontend/index.html#L2376)) in the workspace header to return to the notes list.
+  - Optimized NoteDog's formatting bar with smooth horizontal swipe scrolling and clamped action buttons without wrapping or viewport overflow.
+
+## [0.7.6-rc3] - 2026-09-07
+
+### 📱 Streamlined Phone Viewport: Redundant Switcher Removal & Unified Badge Switching
+- **Removed Redundant Mobile Pane Switcher Bar**:
+  - Removed the top `.mobile-pane-switcher-bar` and `.mobile-pane-tab` full-width buttons on mobile viewports, relying on the unified pane number/color badge ([`.pane-badge-btn`](file:///home/bolt/projects/commanderdog/frontend/app.js#L843)) in the pane toolbar.
+- **Direct Tap-to-Switch on Phone Screens**:
+  - Tapping [`.pane-badge-btn`](file:///home/bolt/projects/commanderdog/frontend/app.js#L843) on narrow phone screens (`<= 600px`) seamlessly cycles between active panes, while long-press or right-click opens the full pane renaming, color, and border settings.
+- **Embedded Pane Switcher in Settings Popover**:
+  - Added a quick "Switch Active Pane" button bar directly into the pane settings popover ([`openPaneSettingsMenu()`](file:///home/bolt/projects/commanderdog/frontend/app.js#L13088)), providing 1-tap pane jumping from any device.
+
+## [0.7.6-rc2] - 2026-09-07
+
+### 📱 Mobile Phone Viewport Touch Pass-Through & Status-Bar Touch Targets
+- **Task Drawer Peek Bar Pointer Event Pass-Through**:
+  - Configured `pointer-events: none` on `.mobile-task-peek-bar` and `pointer-events: auto` exclusively on `.mobile-peek-pill` in [`frontend/app.css`](file:///home/bolt/projects/commanderdog/frontend/app.css#L4753). This eliminates transparent overlay dead zones across the bottom of the screen, allowing touch events to reach the Details button and status-bar controls unhindered.
+- **Enhanced Mobile Status-Bar Touch Ergonomics**:
+  - Expanded `.pane-footer-view-btn` touch hit targets to `22px x 22px` with `13px` icons and `touch-action: manipulation` on mobile/phone screens (`<= 768px`).
+  - Elevated status-bar controls to `z-index: 105` and streamlined the peek handle pill height (`12px`) for optimal tap precision.
+
+## [0.7.6-rc1] - 2026-09-07
+
+### 🧹 Panel Status-Bar View Modes & Table Header Column Config Integration
+- **View Mode Buttons Moved to Status-Bar**:
+  - Relocated the Details, Thumbnail Gallery, and Compact Multi-Column list buttons from the pane top header down into the panel's bottom status-bar (`.pane-footer` in [`frontend/app.js`](file:///home/bolt/projects/commanderdog/frontend/app.js#L993)), placed rightmost after the file size indicators.
+  - Added a subtle vertical divider (`.pane-footer-sep`) between the size stats and view-mode button group.
+  - Implemented an inverted button aesthetic (`.pane-footer-view-btn` in [`frontend/app.css`](file:///home/bolt/projects/commanderdog/frontend/app.css#L1037)) with recessed dark background and high-contrast amber active state.
+  - Kept panel status-bar height strictly constrained to `24px` to preserve compact orthodox density.
+- **Table Header Column Config Button**:
+  - Added an inverted column configuration button (`.pane-col-config-btn`, `sliders-horizontal`) inside the leftmost icon cell header (`<th class="col-header col-icon">`) directly preceding the "Name" column.
+  - Opens the table columns chooser popover (`openColumnHeaderContextMenu`) for column visibility and auto-fit adjustments.
+- **Cleaned Up Pane Header Bar**:
+  - Removed `.viewmode-btn-group` from `.pane-header` to maximize path bar and breadcrumbs visibility.
+
+## [0.7.5-rc9] - 2026-09-07
+
+### 🌿 Flat Branch View Relocated to Directory Pane Toolbars
+- **Per-Pane Branch View Button**:
+  - Relocated the Flat Branch View button (`.pane-branch-btn`, `#btn-branch-${index}`) from the top application header directly into each directory panel's navigation toolbar (`.pane-nav-btns` in [`frontend/app.js`](file:///home/bolt/projects/commanderdog/frontend/app.js#L885)), positioned right next to the pane's folder tree toggle (`#btn-tree-${index}`).
+  - Removed `#btn-toggle-branch` from the top main header toolbar in [`frontend/index.html`](file:///home/bolt/projects/commanderdog/frontend/index.html).
+- **Per-Pane State Synchronization & Visual Styling**:
+  - Enhanced `updateBranchToggleState()` to dynamically synchronize `.active` accent highlighting across each pane's individual `#btn-branch-${index}` button based on `pane.isBranchView`.
+  - Added CSS rule support for `.pane-branch-btn.active` and `.pane-tree-btn.active` in [`frontend/app.css`](file:///home/bolt/projects/commanderdog/frontend/app.css#L780) adhering to the standard amber accent aesthetic.
+
+## [0.7.5-rc8] - 2026-09-07
+
+### 🌿 Flat Branch View Header Toolbar Integration & ChewToys Clean-Up
+- **Header Toolbar Button Addition**:
+  - Added a dedicated Flat Branch View toggle button ([`#btn-toggle-branch`](file:///home/bolt/projects/commanderdog/frontend/index.html#L67), `Ctrl+B`) directly next to the Tree sidebar button in the primary header toolbar.
+  - Linked active state highlighting (`.active`) to dynamically reflect the active pane's flat branch view mode.
+- **ChewToys Menu Clean-Up**:
+  - Removed "Flat" branch view from the ChewToys / Tools launchpad dropdown menu (`#tools-dropdown-menu` and `DEFAULT_TOOLS_MENU`), matching the "Tree" streamlining.
+
+## [0.7.5-rc7] - 2026-09-07
+
+### 🧹 ChewToys Launchpad Streamlining
+- **ChewToys Menu Cleanup**:
+  - Removed duplicate "Tree" item from the ChewToys / Tools launchpad dropdown menu (`#tools-dropdown-menu` and `DEFAULT_TOOLS_MENU`), consolidating directory tree toggling to the primary header button (`#btn-toggle-tree`, `Ctrl+T`).
+
 ## [0.7.5-rc6] - 2026-09-07
 
 ### 🖥️ Native Desktop External Program Integration & Web Feature Isolation

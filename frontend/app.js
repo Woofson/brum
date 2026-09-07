@@ -29,7 +29,7 @@ const App = {
   trashEnabled: localStorage.getItem('cd_trash_enabled') !== 'false',
   customTrashDir: localStorage.getItem('cd_custom_trash_dir') || '',
   iconTheme: localStorage.getItem('cd_icon_theme') || 'default',
-  globalFolderIcon: localStorage.getItem('cd_global_folder_icon') || '',
+  globalFolderIcon: (localStorage.getItem('cd_global_folder_icon') && !localStorage.getItem('cd_global_folder_icon').includes('.webp') && !localStorage.getItem('cd_global_folder_icon').includes('assets/')) ? localStorage.getItem('cd_global_folder_icon') : '',
   customFileIcons: JSON.parse(localStorage.getItem('cd_custom_file_icons') || '{}'),
   dndDefaultAction: localStorage.getItem('cd_dnd_default_action') || 'ask',
   dndPromptMode: localStorage.getItem('cd_dnd_prompt_mode') || 'ask',
@@ -97,6 +97,416 @@ class PaneState {
   }
 }
 
+let _prefSyncDebounceTimer = null;
+
+function getAllUserPreferences() {
+  return {
+    // 1. Panes & Layout
+    pane_names: App.panes.map(p => p.customName || null),
+    pane_colors: getPaneColors(),
+    default_layout: App.layout,
+    pane_start_paths: App.panes.map(p => p.path || null),
+    pane_viewmodes: App.panes.map(p => p.viewMode || 'details'),
+    pane_gridsizes: App.panes.map(p => p.gridSize || 'md'),
+    pane_trees: App.panes.map(p => !!p.showTree),
+
+    // 2. Appearance & Theme
+    theme: localStorage.getItem('cd_theme') || 'amber-charcoal',
+    custom_themes: JSON.parse(localStorage.getItem('cd_custom_themes') || '[]'),
+    font_size: App.fontSize || 13,
+    border_width: localStorage.getItem('cd_border_width') || '1px',
+    ring_style: localStorage.getItem('cd_ring_style') || 'subtle',
+    icon_theme: localStorage.getItem('cd_icon_theme') || 'default',
+    global_folder_icon: localStorage.getItem('cd_global_folder_icon') || '',
+    custom_file_icons: JSON.parse(localStorage.getItem('cd_custom_file_icons') || '{}'),
+
+    // 3. Hostname Badge
+    show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
+    custom_hostname: localStorage.getItem('cd_custom_hostname') || '',
+    hostname_color: localStorage.getItem('cd_hostname_color') || 'amber',
+    hostname_style: localStorage.getItem('cd_hostname_style') || 'subtle',
+    hostname_icon: localStorage.getItem('cd_hostname_icon') || 'server',
+    hostname_size: localStorage.getItem('cd_hostname_size') || 'md',
+
+    // 4. Column Configuration
+    col_widths: ColumnConfig?.widths || {},
+    col_visibility: ColumnConfig?.visibility || {},
+
+    // 5. General UI Toggles & Behavior
+    show_hidden: App.showHiddenDefault,
+    show_fkeys: App.showFKeyBar,
+    show_parent_dir: App.showParentDir,
+    show_global_refresh: localStorage.getItem('cd_show_global_refresh') === 'true',
+    dblclick_up: App.dblclickUpDir,
+    auto_open_tasks: App.autoOpenTasks,
+    task_verbosity: App.taskVerbosity,
+    trash_enabled: App.trashEnabled,
+    custom_trash_dir: App.customTrashDir,
+
+    // 6. Drag & Drop
+    dnd_default_action: App.dndDefaultAction,
+    dnd_prompt_mode: App.dndPromptMode,
+    dnd_paranoid_prompt: App.dndParanoidPrompt,
+
+    // 7. Quick Destinations & Templates & Tools Menu
+    quick_destinations: App.quickDestinations,
+    custom_templates: JSON.parse(localStorage.getItem('cd_custom_templates') || '[]'),
+    custom_tools_menu: JSON.parse(localStorage.getItem('cd_custom_tools_menu') || 'null'),
+
+    // 8. EditorDog & DiffDog & Viewer
+    editor_theme: localStorage.getItem('cd_editor_theme') || 'default',
+    editor_fontsize: parseInt(localStorage.getItem('cd_editor_fontsize') || '13', 10),
+    editor_wordwrap: localStorage.getItem('cd_editor_wordwrap') !== 'false',
+    editor_minimap: localStorage.getItem('cd_editor_minimap') !== 'false',
+    diff_ignore_whitespace: localStorage.getItem('cd_diff_ignore_whitespace') === 'true',
+    diff_view_mode: localStorage.getItem('cd_diff_view_mode') || 'split'
+  };
+}
+
+function applyAllUserPreferences(prefs) {
+  if (!prefs || typeof prefs !== 'object') return;
+
+  // 1. Panes Custom Names
+  if (Array.isArray(prefs.pane_names)) {
+    prefs.pane_names.forEach((name, i) => {
+      if (App.panes[i]) App.panes[i].customName = name || null;
+    });
+    localStorage.setItem('cd_pane_custom_names', JSON.stringify(App.panes.map(p => p.customName || null)));
+  }
+
+  // 2. Pane Colors
+  if (prefs.pane_colors !== undefined && prefs.pane_colors !== null && typeof prefs.pane_colors === 'object') {
+    localStorage.setItem('cd_pane_colors', JSON.stringify(prefs.pane_colors));
+  }
+
+  // 3. Default Layout (on fresh session load)
+  if (prefs.default_layout && typeof prefs.default_layout === 'string') {
+    if (!sessionStorage.getItem('cd_session_layout_initialized')) {
+      sessionStorage.setItem('cd_session_layout_initialized', '1');
+      if (typeof switchLayout === 'function' && App.layout !== prefs.default_layout) {
+        switchLayout(prefs.default_layout);
+      }
+    }
+  }
+
+  // 4. Starting Paths (on fresh session load)
+  if (Array.isArray(prefs.pane_start_paths) && prefs.pane_start_paths.length > 0) {
+    prefs.pane_start_paths.forEach((startPath, i) => {
+      if (App.panes[i] && startPath && typeof startPath === 'string' && startPath.trim()) {
+        const sessionKey = `cd_session_path_initialized_${i}`;
+        if (!sessionStorage.getItem(sessionKey)) {
+          sessionStorage.setItem(sessionKey, '1');
+          App.panes[i].path = startPath.trim();
+          App.panes[i].history = [startPath.trim()];
+          App.panes[i].historyIndex = 0;
+          localStorage.setItem(`cd_pane_path_${i}`, startPath.trim());
+        }
+      }
+    });
+  }
+
+  // 5. Pane Viewmodes, Grid Sizes & Trees
+  if (Array.isArray(prefs.pane_viewmodes)) {
+    prefs.pane_viewmodes.forEach((vm, i) => {
+      if (App.panes[i] && vm) {
+        App.panes[i].viewMode = vm;
+        localStorage.setItem(`cd_pane_viewmode_${i}`, vm);
+      }
+    });
+  }
+  if (Array.isArray(prefs.pane_gridsizes)) {
+    prefs.pane_gridsizes.forEach((gs, i) => {
+      if (App.panes[i] && gs) {
+        App.panes[i].gridSize = gs;
+        localStorage.setItem(`cd_pane_gridsize_${i}`, gs);
+      }
+    });
+  }
+  if (Array.isArray(prefs.pane_trees)) {
+    prefs.pane_trees.forEach((tr, i) => {
+      if (App.panes[i] !== undefined) {
+        App.panes[i].showTree = !!tr;
+        localStorage.setItem(`cd_pane_tree_${i}`, tr ? '1' : '0');
+      }
+    });
+  }
+
+  // 6. Theme & Custom Themes
+  if (Array.isArray(prefs.custom_themes) && prefs.custom_themes.length > 0) {
+    localStorage.setItem('cd_custom_themes', JSON.stringify(prefs.custom_themes));
+  }
+  if (prefs.theme && typeof prefs.theme === 'string') {
+    localStorage.setItem('cd_theme', prefs.theme);
+    if (typeof applyTheme === 'function') {
+      applyTheme(prefs.theme, true);
+    }
+  }
+
+  // 7. Base Font Size
+  if (prefs.font_size && typeof prefs.font_size === 'number') {
+    App.fontSize = prefs.font_size;
+    localStorage.setItem('cd_font_size', prefs.font_size);
+    if (typeof applyFontSize === 'function') {
+      applyFontSize(prefs.font_size);
+    }
+  }
+
+  // 8. Border Width & Active Ring Style
+  if (prefs.border_width || prefs.ring_style) {
+    if (prefs.border_width) localStorage.setItem('cd_border_width', prefs.border_width);
+    if (prefs.ring_style) localStorage.setItem('cd_ring_style', prefs.ring_style);
+    if (typeof applyBorderSettings === 'function') {
+      applyBorderSettings(prefs.border_width, prefs.ring_style, true);
+    }
+  }
+
+  // 9. Hostname Badge Customizer
+  if (prefs.show_hostname_badge !== undefined) {
+    localStorage.setItem('cd_show_hostname_badge', prefs.show_hostname_badge ? 'true' : 'false');
+  }
+  if (prefs.custom_hostname !== undefined) {
+    if (prefs.custom_hostname) localStorage.setItem('cd_custom_hostname', prefs.custom_hostname);
+    else localStorage.removeItem('cd_custom_hostname');
+  }
+  if (prefs.hostname_color) localStorage.setItem('cd_hostname_color', prefs.hostname_color);
+  if (prefs.hostname_style) localStorage.setItem('cd_hostname_style', prefs.hostname_style);
+  if (prefs.hostname_icon) localStorage.setItem('cd_hostname_icon', prefs.hostname_icon);
+  if (prefs.hostname_size) localStorage.setItem('cd_hostname_size', prefs.hostname_size);
+  if (typeof updateHostnameBadge === 'function') {
+    updateHostnameBadge();
+  }
+
+  // 10. Table Column Widths & Visibility
+  if (prefs.col_widths && typeof prefs.col_widths === 'object' && ColumnConfig) {
+    ColumnConfig.widths = prefs.col_widths;
+    localStorage.setItem('cd_col_widths', JSON.stringify(prefs.col_widths));
+  }
+  if (prefs.col_visibility && typeof prefs.col_visibility === 'object' && ColumnConfig) {
+    ColumnConfig.visibility = Object.assign(ColumnConfig.visibility, prefs.col_visibility);
+    localStorage.setItem('cd_col_visibility', JSON.stringify(ColumnConfig.visibility));
+  }
+  if (typeof applyAllColumnWidths === 'function') {
+    applyAllColumnWidths();
+  }
+
+  // 11. General UI Toggles & Safety
+  if (prefs.show_hidden !== undefined) {
+    App.showHiddenDefault = !!prefs.show_hidden;
+    localStorage.setItem('cd_show_hidden', prefs.show_hidden ? 'true' : 'false');
+    const dotCb = document.getElementById('setting-show-hidden');
+    if (dotCb) dotCb.checked = App.showHiddenDefault;
+  }
+  if (prefs.show_fkeys !== undefined) {
+    App.showFKeyBar = !!prefs.show_fkeys;
+    localStorage.setItem('cd_show_fkeys', prefs.show_fkeys ? 'true' : 'false');
+    if (typeof applyFKeyBarState === 'function') applyFKeyBarState();
+  }
+  if (prefs.show_parent_dir !== undefined) {
+    App.showParentDir = !!prefs.show_parent_dir;
+    localStorage.setItem('cd_show_parent_dir', prefs.show_parent_dir ? 'true' : 'false');
+    const pCb = document.getElementById('setting-show-parent-dir');
+    if (pCb) pCb.checked = App.showParentDir;
+  }
+  if (prefs.show_global_refresh !== undefined) {
+    localStorage.setItem('cd_show_global_refresh', prefs.show_global_refresh ? 'true' : 'false');
+    const grCb = document.getElementById('setting-show-global-refresh');
+    if (grCb) grCb.checked = !!prefs.show_global_refresh;
+    if (typeof updateGlobalRefreshButtonVisibility === 'function') updateGlobalRefreshButtonVisibility();
+  }
+  if (prefs.dblclick_up !== undefined) {
+    App.dblclickUpDir = !!prefs.dblclick_up;
+    localStorage.setItem('cd_dblclick_up', prefs.dblclick_up ? 'true' : 'false');
+    const dbCb = document.getElementById('setting-dblclick-up');
+    if (dbCb) dbCb.checked = App.dblclickUpDir;
+  }
+  if (prefs.auto_open_tasks !== undefined) {
+    App.autoOpenTasks = !!prefs.auto_open_tasks;
+    localStorage.setItem('cd_auto_open_tasks', prefs.auto_open_tasks ? 'true' : 'false');
+    const aCb = document.getElementById('setting-auto-open-tasks');
+    if (aCb) aCb.checked = App.autoOpenTasks;
+  }
+  if (prefs.task_verbosity !== undefined) {
+    App.taskVerbosity = prefs.task_verbosity;
+    localStorage.setItem('cd_task_verbosity', prefs.task_verbosity);
+  }
+  if (prefs.trash_enabled !== undefined) {
+    App.trashEnabled = !!prefs.trash_enabled;
+    localStorage.setItem('cd_trash_enabled', prefs.trash_enabled ? 'true' : 'false');
+  }
+  if (prefs.custom_trash_dir !== undefined) {
+    App.customTrashDir = prefs.custom_trash_dir;
+    localStorage.setItem('cd_custom_trash_dir', prefs.custom_trash_dir);
+  }
+
+  // 12. Drag & Drop
+  if (prefs.dnd_default_action) {
+    App.dndDefaultAction = prefs.dnd_default_action;
+    localStorage.setItem('cd_dnd_default_action', prefs.dnd_default_action);
+    const dndAct = document.getElementById('setting-dnd-default-action');
+    if (dndAct) dndAct.value = prefs.dnd_default_action;
+  }
+  if (prefs.dnd_prompt_mode) {
+    App.dndPromptMode = prefs.dnd_prompt_mode;
+    localStorage.setItem('cd_dnd_prompt_mode', prefs.dnd_prompt_mode);
+  }
+  if (prefs.dnd_paranoid_prompt !== undefined) {
+    App.dndParanoidPrompt = !!prefs.dnd_paranoid_prompt;
+    localStorage.setItem('cd_dnd_paranoid_prompt', prefs.dnd_paranoid_prompt ? 'true' : 'false');
+  }
+
+  // 13. Quick Destinations & Templates & Tools Menu
+  if (Array.isArray(prefs.quick_destinations) && prefs.quick_destinations.length > 0) {
+    App.quickDestinations = prefs.quick_destinations;
+    localStorage.setItem('cd_quick_destinations', JSON.stringify(prefs.quick_destinations));
+  }
+  if (Array.isArray(prefs.custom_templates) && prefs.custom_templates.length > 0) {
+    localStorage.setItem('cd_custom_templates', JSON.stringify(prefs.custom_templates));
+  }
+  if (Array.isArray(prefs.custom_tools_menu)) {
+    localStorage.setItem('cd_custom_tools_menu', JSON.stringify(prefs.custom_tools_menu));
+    if (typeof renderToolsMenu === 'function') renderToolsMenu();
+  }
+
+  // 14. Icon Themes & Custom Overrides
+  if (prefs.icon_theme) {
+    App.iconTheme = prefs.icon_theme;
+    localStorage.setItem('cd_icon_theme', prefs.icon_theme);
+  }
+  if (prefs.global_folder_icon !== undefined) {
+    const isLegacyImg = typeof prefs.global_folder_icon === 'string' && (prefs.global_folder_icon.includes('.webp') || prefs.global_folder_icon.includes('assets/'));
+    const cleanFolderIcon = isLegacyImg ? '' : prefs.global_folder_icon;
+    App.globalFolderIcon = cleanFolderIcon;
+    if (cleanFolderIcon) localStorage.setItem('cd_global_folder_icon', cleanFolderIcon);
+    else localStorage.removeItem('cd_global_folder_icon');
+  }
+  if (prefs.custom_file_icons && typeof prefs.custom_file_icons === 'object') {
+    App.customFileIcons = prefs.custom_file_icons;
+    localStorage.setItem('cd_custom_file_icons', JSON.stringify(prefs.custom_file_icons));
+  }
+
+  // 15. EditorDog & DiffDog & Viewer Preferences
+  if (prefs.editor_theme) localStorage.setItem('cd_editor_theme', prefs.editor_theme);
+  if (prefs.editor_fontsize) localStorage.setItem('cd_editor_fontsize', prefs.editor_fontsize);
+  if (prefs.editor_wordwrap !== undefined) localStorage.setItem('cd_editor_wordwrap', prefs.editor_wordwrap ? 'true' : 'false');
+  if (prefs.editor_minimap !== undefined) localStorage.setItem('cd_editor_minimap', prefs.editor_minimap ? 'true' : 'false');
+  if (prefs.diff_ignore_whitespace !== undefined) localStorage.setItem('cd_diff_ignore_whitespace', prefs.diff_ignore_whitespace ? 'true' : 'false');
+  if (prefs.diff_view_mode) localStorage.setItem('cd_diff_view_mode', prefs.diff_view_mode);
+
+  // Synchronize UI
+  updatePaneTitles();
+  applyPaneColors();
+  if (typeof renderAllPanes === 'function') {
+    renderAllPanes();
+  }
+}
+
+async function loadUserPreferencesFromServer() {
+  try {
+    const headers = {};
+    const token = App.token || localStorage.getItem('cd_token') || '';
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const resp = await fetch('/api/user/preferences', { headers });
+    if (!resp.ok) return;
+    const prefs = await resp.json();
+    if (!prefs || typeof prefs !== 'object' || Object.keys(prefs).length === 0) return;
+
+    applyAllUserPreferences(prefs);
+  } catch (e) {
+    console.warn('Could not load user preferences from server:', e);
+  }
+}
+
+function queueSaveUserPreferencesToServer() {
+  clearTimeout(_prefSyncDebounceTimer);
+  _prefSyncDebounceTimer = setTimeout(async () => {
+    try {
+      const prefs = getAllUserPreferences();
+      const headers = { 'Content-Type': 'application/json' };
+      const token = App.token || localStorage.getItem('cd_token') || '';
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const res = await fetch('/api/user/preferences', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(prefs)
+      });
+      if (res.ok) {
+        const badge = document.getElementById('cross-device-sync-badge');
+        if (badge) {
+          badge.textContent = 'Cloud Synced';
+          badge.style.color = '#34d399';
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to save user preferences to server:', e);
+    }
+  }, 200);
+}
+
+async function saveCurrentWorkspaceAsDefault() {
+  try {
+    const prefs = getAllUserPreferences();
+    const headers = { 'Content-Type': 'application/json' };
+    const token = App.token || localStorage.getItem('cd_token') || '';
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const res = await fetch('/api/user/preferences', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(prefs)
+    });
+    if (res.ok) {
+      showToast('All profile settings, themes, columns & workspaces saved to server profile!', 'success');
+      const badge = document.getElementById('cross-device-sync-badge');
+      if (badge) {
+        badge.textContent = 'Profile Synced';
+        badge.style.color = '#34d399';
+      }
+    } else {
+      showToast('Failed to save preferences to server.', 'error');
+    }
+  } catch (e) {
+    showToast(`Error: ${e.message}`, 'error');
+  }
+}
+
+async function resetServerPreferences() {
+  try {
+    const headers = {};
+    const token = App.token || localStorage.getItem('cd_token') || '';
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const res = await fetch('/api/user/preferences', {
+      method: 'DELETE',
+      headers
+    });
+    if (res.ok) {
+      localStorage.removeItem('cd_pane_custom_names');
+      localStorage.removeItem('cd_pane_colors');
+      App.panes.forEach((p) => { p.customName = null; });
+      updatePaneTitles();
+      applyPaneColors();
+      showToast('Cross-device profile settings reset on server.', 'info');
+      const badge = document.getElementById('cross-device-sync-badge');
+      if (badge) {
+        badge.textContent = 'Reset';
+        badge.style.color = 'var(--text-muted)';
+      }
+    } else {
+      showToast('Failed to reset server preferences.', 'error');
+    }
+  } catch (e) {
+    showToast(`Error: ${e.message}`, 'error');
+  }
+}
+
 function loadPaneCustomNames() {
   try {
     const saved = JSON.parse(localStorage.getItem('cd_pane_custom_names') || '[]');
@@ -111,6 +521,7 @@ function loadPaneCustomNames() {
 function savePaneCustomNames() {
   const names = App.panes.map(p => p.customName || null);
   localStorage.setItem('cd_pane_custom_names', JSON.stringify(names));
+  queueSaveUserPreferencesToServer();
 }
 
 function promptRenamePane(index) {
@@ -142,16 +553,21 @@ function updatePaneTitles() {
 
   App.panes.forEach((pane, pIdx) => {
     const displayName = pane.customName || `${pIdx + 1}`;
-    const color = colors[pIdx] || 'default';
-    const activeHex = colorHexes[color] || color;
-
-    document.querySelectorAll(`.mobile-pane-tab[data-pane-idx="${pIdx}"]`).forEach(tab => {
-      tab.innerHTML = `<span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${activeHex}; margin-right:4px;"></span> ${escapeHtml(displayName)}`;
-      tab.title = `Pane ${pIdx + 1}: ${escapeHtml(displayName)} (Tap to Switch / Customize Rename & Color)`;
-    });
     const badgeText = document.getElementById(`pane-badge-text-${pIdx}`);
     if (badgeText) {
       badgeText.textContent = displayName;
+    }
+    const ghost = document.getElementById(`pane-ghost-${pIdx}`);
+    if (ghost) {
+      ghost.textContent = displayName;
+      const colorKey = colors[pIdx] || 'default';
+      const hex = colorHexes[colorKey] || colorKey;
+      if (hex && hex !== 'rgba(255,255,255,0.2)') {
+        ghost.style.color = hex;
+      } else {
+        ghost.style.color = 'var(--accent)';
+      }
+      ghost.classList.toggle('pane-ghost-long', displayName.length > 2);
     }
   });
 }
@@ -223,6 +639,9 @@ function updateStandaloneUI() {
   document.querySelectorAll('.desktop-only-setting, .standalone-only').forEach(el => {
     el.style.display = isStandalone ? '' : 'none';
   });
+  document.querySelectorAll('.web-only-setting, .server-only-setting').forEach(el => {
+    el.style.display = isStandalone ? 'none' : '';
+  });
   updateLogoutOrExitButton();
 }
 
@@ -245,6 +664,7 @@ async function checkAuthAndLoad() {
           await loadSystemUsersGroups();
           await loadAdminSecuritySettings();
           await loadAllFileTags();
+          await loadUserPreferencesFromServer();
           applyUserHomeToPanes();
           renderAllPanes();
           restoreTerminalState();
@@ -269,6 +689,7 @@ async function checkAuthAndLoad() {
         await loadSystemUsersGroups();
         await loadAdminSecuritySettings();
         await loadAllFileTags();
+        await loadUserPreferencesFromServer();
 
         // If session was locked before browser refresh, keep session locked!
         if (localStorage.getItem('cd_is_locked') === 'true') {
@@ -443,6 +864,7 @@ function handleHostnameSettingChange() {
   if (sizeSelect) localStorage.setItem('cd_hostname_size', sizeSelect.value);
 
   updateHostnameBadge();
+  queueSaveUserPreferencesToServer();
 }
 
 function copyHostnameBadge() {
@@ -572,6 +994,7 @@ function updateGlobalRefreshButtonVisibility() {
 function toggleGlobalRefreshButton(enabled) {
   localStorage.setItem('cd_show_global_refresh', enabled);
   updateGlobalRefreshButtonVisibility();
+  queueSaveUserPreferencesToServer();
   showToast(enabled ? 'Global Header Refresh button enabled' : 'Global Header Refresh button hidden', 'info');
 }
 
@@ -624,6 +1047,7 @@ function saveCustomBrowserTheme() {
   populateThemeSelectors();
   applyTheme(id);
   toggleCustomThemeCreator();
+  queueSaveUserPreferencesToServer();
   showToast(`Custom theme "${name}" created and applied!`, 'success');
 }
 
@@ -800,31 +1224,6 @@ function createPaneElement(pane, index) {
     'orange': '#f97316'
   };
 
-  let mobileTabs = '';
-  if (visibleCount > 1) {
-    mobileTabs = `
-      <div class="mobile-pane-switcher-bar">
-        ${Array.from({ length: visibleCount }).map((_, pIdx) => {
-          const color = colors[pIdx] || 'default';
-          const isCustom = color.startsWith('#') || color.startsWith('rgb');
-          const colorClass = (!isCustom && color !== 'default') ? `pane-tab-color-${color}` : (isCustom ? 'pane-tab-color-custom' : '');
-          const customStyle = isCustom ? `style="border-color:${color}; color:${color}; --pane-custom-border:${color};"` : '';
-          const activeHex = colorHexes[color] || color;
-          const tabName = App.panes[pIdx]?.customName || `${pIdx + 1}`;
-          return `
-            <button class="mobile-pane-tab ${colorClass} ${pIdx === index ? 'active' : ''}" ${customStyle} data-pane-idx="${pIdx}"
-                    onclick="event.stopPropagation(); if (${pIdx} === ${index}) { openPaneSettingsMenu(event, ${pIdx}); } else { setActivePane(${pIdx}); }"
-                    oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${pIdx})"
-                    ondblclick="event.stopPropagation(); openPaneSettingsMenu(event, ${pIdx})"
-                    title="Pane ${pIdx + 1}: ${escapeHtml(tabName)} (Tap to Switch / Long-press or click for Rename & Color)">
-              <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:${activeHex}; margin-right:4px;"></span> ${escapeHtml(tabName)}
-            </button>
-          `;
-        }).join('')}
-      </div>
-    `;
-  }
-
   const paneTitle = pane.customName || `${index + 1}`;
   const currentColor = colors[index] || 'default';
   const activeHex = colorHexes[currentColor] || currentColor;
@@ -840,12 +1239,11 @@ function createPaneElement(pane, index) {
       'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue'
     };
     el.innerHTML = `
-      ${mobileTabs}
       <div class="pane-header">
         <button class="pane-badge-btn" id="pane-badge-btn-${index}"
-                onclick="event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
+                onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
                 oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
-                title="Pane ${index + 1}: ${escapeHtml(paneTitle)} (Click for Renaming, Color & Border Settings)">
+                title="Pane ${index + 1}: ${escapeHtml(paneTitle)} (Click: Switch Pane / Settings)">
           <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${activeHex};"></span>
           <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
         </button>
@@ -857,21 +1255,21 @@ function createPaneElement(pane, index) {
           <button class="btn btn-icon btn-panel-control modal-close-btn" onclick="event.stopPropagation(); closeDockedTool(${index})" title="Close Docked Tool"><i data-lucide="x"></i></button>
         </div>
       </div>
-      <div class="pane-content" id="pane-content-${index}" style="padding: 0; overflow: hidden; display: flex; flex-direction: column;">
-        <div id="docked-tool-mount-${index}" style="flex: 1; height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden;"></div>
+      <div class="pane-content" id="pane-content-${index}" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; position: relative;">
+        <div class="pane-ghost-watermark ${paneTitle.length > 2 ? 'pane-ghost-long' : ''}" id="pane-ghost-${index}" style="color: ${activeHex && activeHex !== 'rgba(255,255,255,0.2)' ? activeHex : 'var(--accent)'};" aria-hidden="true">${escapeHtml(paneTitle)}</div>
+        <div id="docked-tool-mount-${index}" style="flex: 1; height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1;"></div>
       </div>
     `;
     return el;
   }
 
   el.innerHTML = `
-    ${mobileTabs}
     <div class="pane-header">
-      <!-- Leftmost Unified Pane Number & Settings Badge Button (Desktop, Laptop, Tablet, Foldable) -->
+      <!-- Leftmost Unified Pane Number & Settings Badge Button (Desktop, Laptop, Tablet, Foldable, Phone) -->
       <button class="pane-badge-btn" id="pane-badge-btn-${index}"
-              onclick="event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
+              onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
               oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
-              title="Pane ${index + 1}: ${escapeHtml(paneTitle)} (Click for Renaming, Color & Border Settings)">
+              title="Pane ${index + 1}: ${escapeHtml(paneTitle)} (Click: Switch Pane / Settings)">
         <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${activeHex};"></span>
         <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
       </button>
@@ -882,6 +1280,7 @@ function createPaneElement(pane, index) {
         <button onclick="navPaneUp(${index})" title="Parent Directory (Backspace)"><i data-lucide="arrow-up"></i></button>
         <button class="btn btn-icon pane-filter-toggle-btn ${App.panes[index]?.showFilter ? 'active' : ''}" id="btn-filter-toggle-${index}" onclick="event.stopPropagation(); togglePaneFilter(${index})" title="Toggle Quick Filter (/ or Ctrl+F)"><i data-lucide="filter"></i></button>
         <button class="btn btn-icon pane-tree-btn desktop-header-tool ${App.panes[index]?.showTree ? 'active' : ''}" id="btn-tree-${index}" onclick="event.stopPropagation(); togglePaneTree(${index});" title="Toggle Folder Tree Sidebar"><i data-lucide="folder-tree"></i></button>
+        <button class="btn btn-icon pane-branch-btn desktop-header-tool ${App.panes[index]?.isBranchView ? 'active' : ''}" id="btn-branch-${index}" onclick="event.stopPropagation(); toggleBranchView(${index});" title="Toggle Flat Branch View (Ctrl+B)"><i data-lucide="git-branch"></i></button>
         <button onclick="openRemoteModal(${index})" class="desktop-header-tool" title="Connect Remote SFTP / WebDAV Server"><i data-lucide="network"></i></button>
       </div>
 
@@ -915,14 +1314,6 @@ function createPaneElement(pane, index) {
         </button>
       </div>
 
-      <!-- View Mode Buttons (Details / Grid / Compact) & Column Chooser -->
-      <div class="viewmode-btn-group desktop-header-tool" style="display: flex; gap: 2px; align-items: center;">
-        <button class="btn btn-icon viewmode-btn ${App.panes[index]?.viewMode === 'details' ? 'active' : ''}" id="btn-view-details-${index}" onclick="setPaneViewMode(${index}, 'details')" title="Details Table View"><i data-lucide="list"></i></button>
-        <button class="btn btn-icon viewmode-btn ${App.panes[index]?.viewMode === 'grid' ? 'active' : ''}" id="btn-view-grid-${index}" onclick="setPaneViewMode(${index}, 'grid')" title="Thumbnail Gallery (Grid)"><i data-lucide="layout-grid"></i></button>
-        <button class="btn btn-icon viewmode-btn ${App.panes[index]?.viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact-${index}" onclick="setPaneViewMode(${index}, 'compact')" title="Compact Multi-Column List"><i data-lucide="columns-3"></i></button>
-        <button class="btn btn-icon desktop-header-tool" onclick="openColumnHeaderContextMenu(event, ${index})" title="Configure Table Columns & Auto-Fit"><i data-lucide="sliders-horizontal" style="width: 13px; height: 13px; color: var(--accent);"></i></button>
-      </div>
-
       <div class="pane-filter-wrapper" id="pane-filter-wrap-${index}" style="display: ${App.panes[index]?.showFilter ? 'flex' : 'none'};">
         <i data-lucide="search" class="pane-filter-icon"></i>
         <input type="text" class="pane-quick-filter" placeholder="Filter (/)..." id="pane-filter-${index}" value="${escapeHtml(App.panes[index]?.filterText || '')}" oninput="handleFilterInput(${index}, this.value)" onkeydown="handleFilterKey(event, ${index})">
@@ -935,6 +1326,7 @@ function createPaneElement(pane, index) {
         <div class="pane-tree-sidebar" id="pane-tree-${index}" style="display: ${App.panes[index]?.showTree ? 'flex' : 'none'};"></div>
         <div class="pane-tree-resizer" id="pane-tree-resizer-${index}" style="display: ${App.panes[index]?.showTree ? 'block' : 'none'};" onmousedown="initTreeResize(event, ${index})"></div>
         <div class="pane-main-view" id="pane-main-${index}">
+          <div class="pane-ghost-watermark ${paneTitle.length > 2 ? 'pane-ghost-long' : ''}" id="pane-ghost-${index}" style="color: ${activeHex && activeHex !== 'rgba(255,255,255,0.2)' ? activeHex : 'var(--accent)'};" aria-hidden="true">${escapeHtml(paneTitle)}</div>
           <div class="pull-refresh-indicator" id="pull-refresh-${index}" style="display: none; height: 0px; overflow: hidden; justify-content: center; align-items: center; background: rgba(0,0,0,0.3); color: var(--accent); font-size: 11px; font-weight: 700; transition: height 0.1s linear; border-bottom: 1px dashed var(--border);">
             <i data-lucide="rotate-cw" class="pull-refresh-spinner" style="width: 14px; margin-right: 6px;"></i>
             <span class="pull-refresh-label">Pull down to refresh...</span>
@@ -942,7 +1334,11 @@ function createPaneElement(pane, index) {
           <table class="file-table" id="pane-table-${index}">
             <thead>
               <tr id="pane-header-row-${index}" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                <th class="col-header col-icon" style="width: 28px; text-align: center;"></th>
+                <th class="col-header col-icon" style="width: 28px; min-width: 28px; max-width: 28px; text-align: center; padding: 0 4px; vertical-align: middle;">
+                  <button class="pane-col-config-btn" onclick="event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" oncontextmenu="event.preventDefault(); event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" title="Configure Table Columns & Auto-Fit">
+                    <i data-lucide="sliders-horizontal"></i>
+                  </button>
+                </th>
                 <th class="col-header col-name" id="col-header-${index}-name" onclick="sortPane(${index}, 'name')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Name</span>
                   <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'name')" ondblclick="autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
@@ -994,8 +1390,18 @@ function createPaneElement(pane, index) {
     </div>
 
     <div class="pane-footer" id="pane-footer-${index}">
-      <span>0 items</span>
-      <span>0 B</span>
+      <div class="pane-footer-info" id="pane-footer-info-${index}">
+        <span class="pane-footer-counts" id="pane-footer-counts-${index}">0 dirs, 0 files</span>
+      </div>
+      <div class="pane-footer-right" id="pane-footer-right-${index}">
+        <span class="pane-footer-size" id="pane-footer-size-${index}">Total: 0 B</span>
+        <div class="pane-footer-sep"></div>
+        <div class="pane-footer-viewmodes">
+          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'details' ? 'active' : ''}" id="btn-view-details-${index}" onclick="event.stopPropagation(); setPaneViewMode(${index}, 'details');" title="Details Table View"><i data-lucide="list"></i></button>
+          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'grid' ? 'active' : ''}" id="btn-view-grid-${index}" onclick="event.stopPropagation(); setPaneViewMode(${index}, 'grid');" title="Thumbnail Gallery (Grid)"><i data-lucide="layout-grid"></i></button>
+          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact-${index}" onclick="event.stopPropagation(); setPaneViewMode(${index}, 'compact');" title="Compact Multi-Column List"><i data-lucide="columns-3"></i></button>
+        </div>
+      </div>
     </div>
   `;
 
@@ -1221,11 +1627,7 @@ function setActivePane(index) {
     else p.classList.remove('active');
   });
 
-  document.querySelectorAll('.mobile-pane-tab').forEach((tab) => {
-    const pIdx = parseInt(tab.getAttribute('data-pane-idx'), 10);
-    if (pIdx === index) tab.classList.add('active');
-    else tab.classList.remove('active');
-  });
+  updateBranchToggleState();
 }
 
 function togglePaneDotfiles(paneIndex) {
@@ -1348,6 +1750,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
       fetchGitStatusForPane(paneIndex, pane.path);
       if (paneIndex === App.activePaneIndex) {
         syncTreeActiveNode(pane.path);
+        updateBranchToggleState();
       }
       syncPaneTreeActiveNode(paneIndex, pane.path);
     } catch (fErr) {
@@ -1967,7 +2370,7 @@ function renderPaneTable(paneIndex) {
       pCard.className = 'grid-gallery-card parent-dir-card';
       pCard.innerHTML = `
         <div class="grid-thumb-wrapper">
-          <img src="assets/folder-open.webp" style="width: 44px; height: 44px; object-fit: contain;" alt="..">
+          ${formatCustomIconToHtml('', 'lg', true, 'var(--accent)')}
         </div>
         <div class="grid-card-name" style="font-weight: 700; color: var(--accent);">..</div>
         <div class="grid-card-meta">&lt;UP&gt;</div>
@@ -2154,7 +2557,7 @@ function renderPaneTable(paneIndex) {
       const pItem = document.createElement('div');
       pItem.className = 'compact-list-item parent-dir-item';
       pItem.innerHTML = `
-        <img src="assets/folder-open.webp" style="width: 15px; height: 15px; object-fit: contain;">
+        ${formatCustomIconToHtml('', 'sm', true, 'var(--accent)')}
         <span style="font-weight: 700; color: var(--accent);">..</span>
       `;
 
@@ -2408,7 +2811,7 @@ function renderPaneTable(paneIndex) {
       parentTr.innerHTML = `
         <td class="file-cell file-cell-icon">
           <div class="row-icon-wrapper">
-            <img src="assets/folder-open.webp" class="file-icon-img" alt="Parent Directory" style="width: 17px; height: 17px;">
+            ${formatCustomIconToHtml('', 'sm', true, 'var(--accent)')}
           </div>
         </td>
         <td class="file-cell file-cell-name">
@@ -2940,6 +3343,9 @@ function formatCustomIconToHtml(iconVal, size = 'sm', isDir = false, forceColor 
 }
 
 function formatIconDetailsToHtml(iconDetails, size = 'sm', isDir = false) {
+  if (iconDetails.glyph) {
+    return formatCustomIconToHtml(iconDetails.glyph, size, isDir, iconDetails.color || (isDir ? 'var(--accent)' : null));
+  }
   if (iconDetails.src) {
     const dim = size === 'lg' ? '48px' : (size === 'md' ? '28px' : '17px');
     return `<img src="${iconDetails.src}" class="file-icon-img" alt="${isDir ? 'Folder' : 'File'}" style="width: ${dim}; height: ${dim}; object-fit: contain;">`;
@@ -2962,7 +3368,7 @@ function getFileIconDetails(name, is_dir, is_archive) {
     if (lower === 'videos') return { icon: 'video', type: 'folder', color: '#06b6d4' };
     if (lower === '.trash' || lower === 'trash') return { icon: 'trash-2', type: 'folder', color: '#ef4444' };
     if (lower === 'desktop') return { icon: 'monitor', type: 'folder', color: '#f59e0b' };
-    return { icon: null, type: 'folder-img', src: 'assets/folder-closed.webp' };
+    return { glyph: '', type: 'folder-glyph', color: 'var(--accent)' };
   }
 
   if (isVaultFile(name)) {
@@ -3030,6 +3436,9 @@ function updatePaneFooter(paneIndex, data) {
     pane.lastTotalSize = data.total_size;
   }
 
+  const countsEl = document.getElementById(`pane-footer-counts-${paneIndex}`);
+  const sizeEl = document.getElementById(`pane-footer-size-${paneIndex}`);
+
   if (pane.selected && pane.selected.size > 0) {
     let selFiles = 0;
     let selDirs = 0;
@@ -3045,26 +3454,40 @@ function updatePaneFooter(paneIndex, data) {
       }
     });
 
-    const totalCount = pane.entries.length;
+    const totalCount = pane.entries ? pane.entries.length : 0;
     const selCount = pane.selected.size;
 
-    footer.innerHTML = `
-      <span style="color: var(--accent); font-weight: 700;">
-        ⚡ ${selCount}/${totalCount} selected (${selDirs > 0 ? `${selDirs} dir${selDirs > 1 ? 's' : ''}, ` : ''}${selFiles} file${selFiles !== 1 ? 's' : ''})
-      </span>
-      <span style="color: var(--accent); font-weight: 700;">
-        Selected: ${formatBytes(selBytes)} (of ${formatBytes(pane.lastTotalSize || 0)})
-      </span>
-    `;
+    const countsText = `⚡ ${selCount}/${totalCount} selected (${selDirs > 0 ? `${selDirs} dir${selDirs > 1 ? 's' : ''}, ` : ''}${selFiles} file${selFiles !== 1 ? 's' : ''})`;
+    const sizeText = `Selected: ${formatBytes(selBytes)} (of ${formatBytes(pane.lastTotalSize || 0)})`;
+
+    if (countsEl) {
+      countsEl.textContent = countsText;
+      countsEl.style.color = 'var(--accent)';
+      countsEl.style.fontWeight = '700';
+    }
+    if (sizeEl) {
+      sizeEl.textContent = sizeText;
+      sizeEl.style.color = 'var(--accent)';
+      sizeEl.style.fontWeight = '700';
+    }
   } else {
     const totalDirs = pane.lastTotalDirs ?? 0;
     const totalFiles = pane.lastTotalFiles ?? 0;
     const totalSize = pane.lastTotalSize ?? 0;
 
-    footer.innerHTML = `
-      <span>${totalDirs} dirs, ${totalFiles} files</span>
-      <span>Total: ${formatBytes(totalSize)}</span>
-    `;
+    const countsText = `${totalDirs} dirs, ${totalFiles} files`;
+    const sizeText = `Total: ${formatBytes(totalSize)}`;
+
+    if (countsEl) {
+      countsEl.textContent = countsText;
+      countsEl.style.color = '';
+      countsEl.style.fontWeight = '';
+    }
+    if (sizeEl) {
+      sizeEl.textContent = sizeText;
+      sizeEl.style.color = '';
+      sizeEl.style.fontWeight = '';
+    }
   }
 }
 
@@ -3231,6 +3654,7 @@ function applyColumnWidth(colKey, width) {
 function saveColumnWidth(colKey, width) {
   ColumnConfig.widths[colKey] = width;
   localStorage.setItem('cd_col_widths', JSON.stringify(ColumnConfig.widths));
+  queueSaveUserPreferencesToServer();
 }
 
 function autoFitColumn(paneIndex, colKey) {
@@ -3288,6 +3712,7 @@ function toggleColumnVisibility(colKey, visible) {
   for (let i = 0; i < 4; i++) {
     renderPaneTable(i);
   }
+  queueSaveUserPreferencesToServer();
 }
 
 function resetAllColumnWidths() {
@@ -3300,6 +3725,7 @@ function resetAllColumnWidths() {
   for (let i = 0; i < 4; i++) {
     renderPaneTable(i);
   }
+  queueSaveUserPreferencesToServer();
   showToast('Column widths and visibility reset to default', 'info');
 }
 
@@ -3395,6 +3821,7 @@ function setPaneViewMode(paneIndex, mode) {
   });
 
   renderPaneTable(paneIndex);
+  queueSaveUserPreferencesToServer();
 }
 
 function setPaneGridSize(paneIndex, size) {
@@ -3406,6 +3833,7 @@ function setPaneGridSize(paneIndex, size) {
   if (gridEl) {
     gridEl.className = `grid-gallery-container size-${size}`;
   }
+  queueSaveUserPreferencesToServer();
 }
 
 function togglePaneTree(paneIndex) {
@@ -3428,6 +3856,7 @@ function togglePaneTree(paneIndex) {
   if (pane.showTree) {
     loadPaneDirectoryTree(paneIndex);
   }
+  queueSaveUserPreferencesToServer();
 }
 
 async function loadPaneDirectoryTree(paneIndex) {
@@ -5352,18 +5781,19 @@ function initEditorDragResize() {
   const savedWidth = localStorage.getItem('cd_editor_w');
   const savedHeight = localStorage.getItem('cd_editor_h');
 
-  if (savedLeft && savedTop) {
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
     win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
     win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
   }
-  if (savedWidth) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(360, parseInt(savedWidth, 10)))}px`;
-  if (savedHeight) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(240, parseInt(savedHeight, 10)))}px`;
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(360, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(240, parseInt(savedHeight, 10)))}px`;
 
   let isDragging = false;
   let dragStartX = 0, dragStartY = 0;
   let winStartX = 0, winStartY = 0;
 
   header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
     if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
     if (win.classList.contains('maximized')) return;
     isDragging = true;
@@ -5534,10 +5964,10 @@ function initCalcDrag() {
   const savedLeft = localStorage.getItem('cd_calc_x');
   const savedTop = localStorage.getItem('cd_calc_y');
 
-  if (savedLeft && savedTop && window.innerWidth > 768) {
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
     win.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, parseInt(savedLeft, 10)))}px`;
     win.style.top = `${Math.min(window.innerHeight - 380, Math.max(35, parseInt(savedTop, 10)))}px`;
-  } else if (window.innerWidth > 768) {
+  } else if (window.innerWidth > 1024) {
     win.style.right = '40px';
     win.style.top = '100px';
   }
@@ -5547,6 +5977,7 @@ function initCalcDrag() {
   let winStartX = 0, winStartY = 0;
 
   header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
     if (e.target.closest('button') || e.target.closest('input')) return;
     isDragging = true;
     bringFloatingWindowToFront(win);
@@ -5919,10 +6350,31 @@ function openFloatingNoteDog(optionalNotePath) {
     win.style.display = 'flex';
     notedogState.isOpen = true;
     bringFloatingWindowToFront(win);
+    if (window.innerWidth <= 600) {
+      if (optionalNotePath) {
+        showNoteDogWorkspaceMobile();
+      } else {
+        showNoteDogSidebarMobile();
+      }
+    }
   }
   initNoteDogDrag();
   loadNoteDogHierarchy(optionalNotePath);
   if (window.lucide) lucide.createIcons();
+}
+
+function showNoteDogWorkspaceMobile() {
+  const win = document.getElementById('floating-notedog-window');
+  if (win) {
+    win.classList.add('mobile-workspace-active');
+  }
+}
+
+function showNoteDogSidebarMobile() {
+  const win = document.getElementById('floating-notedog-window');
+  if (win) {
+    win.classList.remove('mobile-workspace-active');
+  }
 }
 
 function closeFloatingNoteDog() {
@@ -6055,18 +6507,19 @@ function initNoteDogDrag() {
   const savedWidth = localStorage.getItem('cd_notedog_w');
   const savedHeight = localStorage.getItem('cd_notedog_h');
 
-  if (savedLeft && savedTop && window.innerWidth > 768) {
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
     win.style.left = `${Math.min(window.innerWidth - 400, Math.max(10, parseInt(savedLeft, 10)))}px`;
     win.style.top = `${Math.min(window.innerHeight - 300, Math.max(35, parseInt(savedTop, 10)))}px`;
   }
-  if (savedWidth) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(420, parseInt(savedWidth, 10)))}px`;
-  if (savedHeight) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(280, parseInt(savedHeight, 10)))}px`;
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(420, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(280, parseInt(savedHeight, 10)))}px`;
 
   let isDragging = false;
   let dragStartX = 0, dragStartY = 0;
   let winStartX = 0, winStartY = 0;
 
   header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
     if (e.target.closest('button') || e.target.closest('input') || notedogState.isMaximized) return;
     isDragging = true;
     bringFloatingWindowToFront(win);
@@ -6315,6 +6768,9 @@ function selectNoteDogNote(note) {
   }
   renderNoteDogSidebar();
   loadNoteDogNoteContent(note);
+  if (window.innerWidth <= 600) {
+    showNoteDogWorkspaceMobile();
+  }
 }
 
 async function loadNoteDogNoteContent(note) {
@@ -8636,8 +9092,6 @@ function updateLogoutOrExitButton() {
 // ---------------- TOOLS & CHEWTOYS LAUNCHPAD MENU CUSTOMIZER ----------------
 const DEFAULT_TOOLS_MENU = [
   { id: 'spotlight', label: 'Spot!', icon: 'assets/spot.webp', action: 'openSpotlightModal()', desc: 'Instant search across files, tools & themes (Ctrl+K)', visible: true },
-  { id: 'tree', label: 'Tree', icon: 'assets/amber-folder-tree.webp', action: 'toggleFolderTree()', desc: 'Collapsible directory navigation tree (Ctrl+T)', visible: true },
-  { id: 'branch', label: 'Flat', icon: 'assets/amber-git-branch.webp', action: 'toggleBranchView()', desc: 'Flatten recursive subfolders into single list (Ctrl+B)', visible: true },
   { id: 'notedog', label: 'NoteDog', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
   { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
   { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (\`)', visible: true },
@@ -9210,10 +9664,13 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 }
 
 function toggleGlobalDotfiles(show) {
+  App.showHiddenDefault = show;
+  localStorage.setItem('cd_show_hidden', show ? 'true' : 'false');
   App.panes.forEach(pane => {
     pane.showHidden = show;
   });
   refreshAllPanes();
+  queueSaveUserPreferencesToServer();
 }
 
 // ---------------- PARANOID DRY RUN ----------------
@@ -9364,6 +9821,7 @@ function getFileTemplates() {
 function saveFileTemplates(templates) {
   try {
     localStorage.setItem('cd_file_templates', JSON.stringify(templates));
+    queueSaveUserPreferencesToServer();
   } catch (e) {
     console.error('Failed to save cd_file_templates:', e);
   }
@@ -10542,7 +11000,7 @@ function showEmptySpaceContextMenu(x, y, paneIndex) {
 
   menu.innerHTML = `
     <div style="padding: 6px 12px; font-size: 11px; font-weight: 700; color: var(--accent); border-bottom: 1px solid var(--border); font-family: var(--font-mono); text-overflow: ellipsis; overflow: hidden; white-space: nowrap; display: flex; align-items: center; gap: 6px;">
-      <img src="assets/folder-closed.webp" style="width: 14px; height: 14px;">
+      ${formatCustomIconToHtml('', 'sm', true, 'var(--accent)')}
       <span>${escapeHtml(pane.path.split('/').pop() || pane.path || '/')}</span>
     </div>
     <div class="context-item" onclick="openSpotlightModal()"><i data-lucide="sparkles" style="width: 14px; color: var(--accent);"></i> Spotlight Quick-Switcher (Ctrl+K)...</div>
@@ -11347,6 +11805,7 @@ function switchLayout(layoutName) {
   });
 
   renderAllPanes();
+  queueSaveUserPreferencesToServer();
 }
 
 function updateActiveLayoutUI(layoutName) {
@@ -11400,7 +11859,7 @@ function openParanoidSettings() {
   switchSettingsTab('tab-security');
 }
 
-function applyBorderSettings(borderWidth, ringStyle) {
+function applyBorderSettings(borderWidth, ringStyle, skipSync = false) {
   if (borderWidth !== undefined && borderWidth !== null) {
     localStorage.setItem('cd_border_width', borderWidth);
   } else {
@@ -11431,6 +11890,10 @@ function applyBorderSettings(borderWidth, ringStyle) {
 
   const ringSelect = document.getElementById('setting-ring-style');
   if (ringSelect) ringSelect.value = ringStyle;
+
+  if (!skipSync) {
+    queueSaveUserPreferencesToServer();
+  }
 }
 
 function randomizeLoginBackground() {
@@ -11461,7 +11924,7 @@ function randomizeLoginBackground() {
   `;
 }
 
-function applyTheme(themeId) {
+function applyTheme(themeId, skipSync = false) {
   localStorage.setItem('cd_theme', themeId);
   const sel = document.getElementById('theme-selector');
   const selSettings = document.getElementById('settings-theme-selector');
@@ -11476,6 +11939,10 @@ function applyTheme(themeId) {
     if (card.id === `theme-card-${themeId}`) card.classList.add('active');
     else card.classList.remove('active');
   });
+
+  if (!skipSync) {
+    queueSaveUserPreferencesToServer();
+  }
 
   // 1. Check dynamic themes loaded from App.config.themes.themes (built-in + ~/.config/commanderdog/themes/)
   const customTheme = App.config?.themes?.themes?.find(t => t.id === themeId);
@@ -11676,6 +12143,7 @@ async function handleLoginSubmit() {
     if (pInput) pInput.value = '';
     await loadConfig();
     await loadSystemUsersGroups();
+    await loadUserPreferencesFromServer();
     applyUserHomeToPanes(true);
     renderAllPanes();
     restoreTerminalState();
@@ -11703,6 +12171,7 @@ function openSettingsModal() {
     dblclickCheckbox.onchange = (e) => {
       App.dblclickUpDir = e.target.checked;
       localStorage.setItem('cd_dblclick_up', e.target.checked);
+      queueSaveUserPreferencesToServer();
     };
   }
 
@@ -11713,6 +12182,7 @@ function openSettingsModal() {
       App.showParentDir = e.target.checked;
       localStorage.setItem('cd_show_parent_dir', e.target.checked);
       renderAllPanes();
+      queueSaveUserPreferencesToServer();
     };
   }
 
@@ -11722,6 +12192,7 @@ function openSettingsModal() {
     autoOpenTasksCheckbox.onchange = (e) => {
       App.autoOpenTasks = e.target.checked;
       localStorage.setItem('cd_auto_open_tasks', e.target.checked);
+      queueSaveUserPreferencesToServer();
     };
   }
 
@@ -11847,6 +12318,7 @@ function handleDndSettingChange() {
     App.dndParanoidPrompt = paranoidChk.checked;
     localStorage.setItem('cd_dnd_paranoid_prompt', paranoidChk.checked ? 'true' : 'false');
   }
+  queueSaveUserPreferencesToServer();
 }
 
 function renderIconSettingsTab() {
@@ -11863,6 +12335,7 @@ function changeGlobalIconTheme(theme) {
   App.iconTheme = theme;
   localStorage.setItem('cd_icon_theme', theme);
   renderAllPanes();
+  queueSaveUserPreferencesToServer();
   showToast(`Global icon theme set to: ${theme}`, 'success');
 }
 
@@ -11878,18 +12351,23 @@ function saveGlobalFolderIcon() {
     showToast('Global folder icon reset to default', 'info');
   }
   renderAllPanes();
+  queueSaveUserPreferencesToServer();
 }
 
 function resetGlobalFolderIcon() {
   const input = document.getElementById('setting-global-folder-icon');
   if (input) input.value = '';
-  saveGlobalFolderIcon();
+  App.globalFolderIcon = '';
+  localStorage.removeItem('cd_global_folder_icon');
+  renderAllPanes();
+  queueSaveUserPreferencesToServer();
+  showToast('Global folder icon reset to default Nerd Font glyph', 'info');
 }
 
 function selectGlobalFolderPreset(preset) {
   const input = document.getElementById('setting-global-folder-icon');
   if (input) {
-    input.value = preset === 'assets/folder-open.webp' ? '' : preset;
+    input.value = preset;
     saveGlobalFolderIcon();
   }
 }
@@ -11943,6 +12421,7 @@ function addCustomFileIconRule() {
   valInput.value = '';
   renderCustomIconsTable();
   renderAllPanes();
+  queueSaveUserPreferencesToServer();
   showToast(`Custom icon rule saved for .${ext}`, 'success');
 }
 
@@ -11952,6 +12431,7 @@ function removeCustomFileIconRule(ext) {
     localStorage.setItem('cd_custom_file_icons', JSON.stringify(App.customFileIcons));
     renderCustomIconsTable();
     renderAllPanes();
+    queueSaveUserPreferencesToServer();
     showToast(`Removed rule for .${ext}`, 'info');
   }
 }
@@ -11961,6 +12441,7 @@ function loadNerdFontPresets() {
   localStorage.setItem('cd_custom_file_icons', JSON.stringify(App.customFileIcons));
   renderCustomIconsTable();
   renderAllPanes();
+  queueSaveUserPreferencesToServer();
   showToast('Loaded complete Nerd Font developer preset suite!', 'success');
 }
 
@@ -11969,6 +12450,7 @@ function loadEmojiPresets() {
   localStorage.setItem('cd_custom_file_icons', JSON.stringify(App.customFileIcons));
   renderCustomIconsTable();
   renderAllPanes();
+  queueSaveUserPreferencesToServer();
   showToast('Loaded complete Emoji Suite icon preset!', 'success');
 }
 
@@ -11977,6 +12459,7 @@ function clearAllCustomFileIcons() {
   localStorage.removeItem('cd_custom_file_icons');
   renderCustomIconsTable();
   renderAllPanes();
+  queueSaveUserPreferencesToServer();
   showToast('Cleared all custom filetype icon rules', 'info');
 }
 
@@ -12308,7 +12791,7 @@ function triggerCopy() {
   };
 
   const summary = document.getElementById('deltacopy-source-summary');
-  if (summary) summary.innerHTML = paths.map(p => `<div style="display: flex; align-items: center; gap: 4px;"><img src="assets/folder-closed.webp" style="width: 12px; height: 12px;"> ${escapeHtml(p)}</div>`).join('');
+  if (summary) summary.innerHTML = paths.map(p => `<div style="display: flex; align-items: center; gap: 4px;">${formatCustomIconToHtml('', 'sm', true, 'var(--accent)')} ${escapeHtml(p)}</div>`).join('');
   const destInput = document.getElementById('deltacopy-dest-input');
   if (destInput) destInput.value = targetPane.path;
 
@@ -12928,6 +13411,8 @@ function setPaneColorPref(paneIdx, colorName) {
   }
   localStorage.setItem('cd_pane_colors', JSON.stringify(colors));
   applyPaneColors();
+  updatePaneTitles();
+  queueSaveUserPreferencesToServer();
 }
 
 function cyclePaneColor(paneIdx) {
@@ -13048,6 +13533,26 @@ function openPaneToolsMenu(e, paneIndex) {
   setTimeout(() => document.addEventListener('click', closeHandler), 10);
 }
 
+function handlePaneBadgeClick(e, paneIndex) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  // On phone / narrow mobile viewports (<= 600px), tapping the pane badge cycles to the other active pane
+  if (window.innerWidth <= 600) {
+    const visibleCount = Math.min(
+      App.panes.length,
+      App.layout === '1' ? 1 : (App.layout === '4' ? 4 : (App.layout.startsWith('3') ? 3 : 2))
+    );
+    if (visibleCount > 1) {
+      const nextPane = (paneIndex + 1) % visibleCount;
+      setActivePane(nextPane);
+      return;
+    }
+  }
+  openPaneSettingsMenu(e, paneIndex);
+}
+
 function openPaneSettingsMenu(e, paneIndex) {
   if (e) {
     e.preventDefault();
@@ -13084,6 +13589,24 @@ function openPaneSettingsMenu(e, paneIndex) {
   popup.id = 'pane-settings-popup';
   popup.className = 'pane-settings-dropdown active';
 
+  const visibleCount = Math.min(
+    App.panes.length,
+    App.layout === '1' ? 1 : (App.layout === '4' ? 4 : (App.layout.startsWith('3') ? 3 : 2))
+  );
+
+  const paneSwitchHtml = visibleCount > 1 ? `
+    <div style="display: flex; gap: 6px; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+      <span style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Switch Active Pane</span>
+      <div style="display: flex; gap: 4px;">
+        ${Array.from({ length: visibleCount }).map((_, pIdx) => `
+          <button type="button" class="btn btn-xs ${pIdx === paneIndex ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 8px; font-size: 10px; font-weight: 700;" onclick="setActivePane(${pIdx}); document.getElementById('pane-settings-popup')?.remove();">
+            Pane ${pIdx + 1}
+          </button>
+        `).join('')}
+      </div>
+    </div>
+  ` : '';
+
   popup.innerHTML = `
     <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
       <span style="display: flex; align-items: center; gap: 6px;">
@@ -13094,6 +13617,7 @@ function openPaneSettingsMenu(e, paneIndex) {
     </div>
     
     <div style="padding: 10px 12px; max-height: 440px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+      ${paneSwitchHtml}
       <!-- 1. Renaming -->
       <div>
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Pane Name / Label</div>
@@ -13146,6 +13670,23 @@ function openPaneSettingsMenu(e, paneIndex) {
             <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" onclick="applyBorderSettings(null, '${rKey}'); openPaneSettingsMenu(null, ${paneIndex});">${rName}</button>
           `).join('')}
         </div>
+      </div>
+
+      <!-- 4. Default Start Directory -->
+      <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Start Directory</div>
+        <div style="display: flex; gap: 6px; align-items: center;">
+          <input type="text" id="pane-setting-path-input-${paneIndex}" value="${escapeHtml(pane?.path || '/')}" placeholder="/" style="flex: 1; height: 26px; padding: 0 8px; font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main);" onkeydown="if(event.key==='Enter'){ applyPaneStartPath(${paneIndex}); }">
+          <button type="button" class="btn btn-sm btn-accent" style="height: 26px; padding: 0 8px; font-size: 10px;" title="Set as default start path for Pane ${paneIndex + 1}" onclick="applyPaneStartPath(${paneIndex})">Set Start</button>
+        </div>
+      </div>
+
+      <!-- 5. Cloud Workspace Persistence (Web/Server Mode) -->
+      <div class="web-only-setting server-only-setting" style="border-top: 1px solid var(--border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 10px; color: var(--text-dim);"><i data-lucide="cloud" style="width: 11px; height: 11px; vertical-align: -1px;"></i> Cross-Device Sync</span>
+        <button type="button" class="btn btn-xs btn-outline" style="font-size: 9.5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;" onclick="saveCurrentWorkspaceAsDefault(); openPaneSettingsMenu(null, ${paneIndex});">
+          Save All to Cloud
+        </button>
       </div>
     </div>
   `;
@@ -13205,6 +13746,23 @@ function resetPaneName(paneIndex) {
   updatePaneTitles();
   document.getElementById('pane-settings-popup')?.remove();
   showToast(`Pane ${paneIndex + 1} name reset to "${paneIndex + 1}"`, 'info');
+}
+
+function applyPaneStartPath(paneIndex) {
+  const input = document.getElementById(`pane-setting-path-input-${paneIndex}`);
+  if (!input) return;
+  const newPath = input.value.trim() || '/';
+  const pane = App.panes[paneIndex];
+  if (pane) {
+    pane.path = newPath;
+    pane.history = [newPath];
+    pane.historyIndex = 0;
+    localStorage.setItem(`cd_pane_path_${paneIndex}`, newPath);
+  }
+  queueSaveUserPreferencesToServer();
+  document.getElementById('pane-settings-popup')?.remove();
+  renderPane(paneIndex);
+  showToast(`Pane ${paneIndex + 1} start directory set to: ${newPath}`, 'success');
 }
 
 function openPaneColorPicker(e, paneIndex) {
@@ -13270,30 +13828,14 @@ function applyPaneColors() {
       }
     }
 
-    // Dynamically update mobile pane indicator tabs with custom color tints
-    document.querySelectorAll(`.mobile-pane-tab[data-pane-idx="${i}"]`).forEach(tab => {
-      PANE_COLOR_PALETTE.forEach(c => {
-        if (c !== 'default') tab.classList.remove(`pane-tab-color-${c}`);
-      });
-      if (isCustomHex) {
-        tab.style.borderColor = color;
-        tab.style.color = color;
-        tab.style.setProperty('--pane-custom-border', color);
-        tab.classList.add('pane-tab-color-custom');
+    const ghostEl = document.getElementById(`pane-ghost-${i}`);
+    if (ghostEl) {
+      if (activeHex && activeHex !== 'rgba(255,255,255,0.2)') {
+        ghostEl.style.color = activeHex;
       } else {
-        tab.style.borderColor = '';
-        tab.style.color = '';
-        tab.style.removeProperty('--pane-custom-border');
-        tab.classList.remove('pane-tab-color-custom');
-        if (color !== 'default') {
-          tab.classList.add(`pane-tab-color-${color}`);
-        }
+        ghostEl.style.color = 'var(--accent)';
       }
-      const dot = tab.querySelector('span');
-      if (dot) {
-        dot.style.background = activeHex;
-      }
-    });
+    }
 
     const selectEl = document.getElementById(`setting-pane-color-${i}`);
     if (selectEl) {
@@ -13768,6 +14310,7 @@ function toggleFKeyBar(show) {
   App.showFKeyBar = show;
   localStorage.setItem('cd_show_fkeys', show);
   applyFKeyBarState();
+  queueSaveUserPreferencesToServer();
 }
 
 function toggleWindowDecorations(show) {
@@ -13792,6 +14335,7 @@ function handleFontSizeChange(val) {
   App.fontSize = parseInt(val, 10);
   localStorage.setItem('cd_font_size', App.fontSize);
   applyFontSize(App.fontSize);
+  queueSaveUserPreferencesToServer();
 }
 
 function setFontSizePreset(val) {
@@ -15863,18 +16407,19 @@ function initImageViewerDrag() {
     modal.classList.add('floating-mode');
   }
 
-  if (savedLeft && savedTop && window.innerWidth > 768) {
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
     win.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, parseInt(savedLeft, 10)))}px`;
     win.style.top = `${Math.min(window.innerHeight - 200, Math.max(35, parseInt(savedTop, 10)))}px`;
   }
-  if (savedWidth) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(380, parseInt(savedWidth, 10)))}px`;
-  if (savedHeight) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(260, parseInt(savedHeight, 10)))}px`;
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(380, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(260, parseInt(savedHeight, 10)))}px`;
 
   let isDragging = false;
   let dragStartX = 0, dragStartY = 0;
   let winStartX = 0, winStartY = 0;
 
   toolbar.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
     if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input') || e.target.closest('.win-resize-handle') || win.classList.contains('fullscreen')) return;
 
     if (modal && !modal.classList.contains('floating-mode')) {
@@ -16624,18 +17169,19 @@ function initDocViewerDrag() {
     modal.classList.add('floating-mode');
   }
 
-  if (savedLeft && savedTop && window.innerWidth > 768) {
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
     win.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, parseInt(savedLeft, 10)))}px`;
     win.style.top = `${Math.min(window.innerHeight - 200, Math.max(35, parseInt(savedTop, 10)))}px`;
   }
-  if (savedWidth) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(400, parseInt(savedWidth, 10)))}px`;
-  if (savedHeight) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(250, parseInt(savedHeight, 10)))}px`;
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(400, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(250, parseInt(savedHeight, 10)))}px`;
 
   let isDragging = false;
   let dragStartX = 0, dragStartY = 0;
   let winStartX = 0, winStartY = 0;
 
   header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
     if (e.target.closest('button') || e.target.closest('a') || e.target.closest('input') || e.target.closest('select') || e.target.closest('.win-resize-handle') || win.classList.contains('fullscreen')) return;
 
     if (modal && !modal.classList.contains('floating-mode')) {
@@ -19119,6 +19665,34 @@ function jumpToSearchResult(filePath, isDir) {
 
 // ---------------- 🌲 FLAT / BRANCH VIEW (<kbd>Ctrl+B</kbd>) ----------------
 
+function updateBranchToggleState() {
+  const btn = document.getElementById('btn-toggle-branch');
+  const activePane = App.panes[App.activePaneIndex];
+  if (btn) {
+    if (activePane && activePane.isBranchView) {
+      btn.classList.add('active');
+      btn.title = 'Exit Flat Branch View (Ctrl+B)';
+    } else {
+      btn.classList.remove('active');
+      btn.title = 'Toggle Flat Branch View (Ctrl+B)';
+    }
+  }
+
+  // Synchronize active state on each pane's header branch button
+  App.panes.forEach((pane, idx) => {
+    const paneBtn = document.getElementById(`btn-branch-${idx}`);
+    if (paneBtn) {
+      if (pane && pane.isBranchView) {
+        paneBtn.classList.add('active');
+        paneBtn.title = 'Exit Flat Branch View (Ctrl+B)';
+      } else {
+        paneBtn.classList.remove('active');
+        paneBtn.title = 'Toggle Flat Branch View (Ctrl+B)';
+      }
+    }
+  });
+}
+
 function toggleBranchView(paneIndex) {
   const pIdx = (paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   const pane = App.panes[pIdx];
@@ -19130,6 +19704,8 @@ function toggleBranchView(paneIndex) {
 
   pane.isBranchView = !pane.isBranchView;
   pane.isBranchTruncated = false;
+
+  updateBranchToggleState();
 
   showToast(
     pane.isBranchView ? '🌲 Flat Branch View Enabled' : 'Standard Directory View',
@@ -19152,6 +19728,7 @@ function exitBranchView(paneIndex, targetPath) {
 
   pane.isBranchView = false;
   pane.isBranchTruncated = false;
+  updateBranchToggleState();
   const dest = targetPath || pane.path;
   loadPaneDirectory(pIdx, dest);
 }

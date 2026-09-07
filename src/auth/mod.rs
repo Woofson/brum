@@ -154,6 +154,15 @@ impl AuthManager {
             [],
         )?;
 
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS user_preferences (
+                username TEXT PRIMARY KEY,
+                preferences_json TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+
         // Safe migrations for newly added columns
         let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN email TEXT", []);
@@ -680,6 +689,40 @@ impl AuthManager {
         Ok(())
     }
 
+    // User Preferences Management (Cross-Device Sync)
+    pub fn get_user_preferences(&self, username: &str) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let mut stmt = conn.prepare("SELECT preferences_json FROM user_preferences WHERE username = ?1")?;
+        let mut rows = stmt.query(params![username])?;
+        if let Some(row) = rows.next()? {
+            let json_str: String = row.get(0)?;
+            Ok(Some(json_str))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn save_user_preferences(&self, username: &str, preferences_json: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO user_preferences (username, preferences_json, updated_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(username) DO UPDATE SET preferences_json = ?2, updated_at = ?3",
+            params![username, preferences_json, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn reset_user_preferences(&self, username: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        conn.execute(
+            "DELETE FROM user_preferences WHERE username = ?1",
+            params![username],
+        )?;
+        Ok(())
+    }
+
     // Security Settings
     pub fn get_security_settings(&self) -> Result<SecuritySettings, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
@@ -989,5 +1032,43 @@ mod tests {
 
         let busy_timeout: i64 = conn.query_row("PRAGMA busy_timeout", [], |r| r.get(0)).unwrap();
         assert_eq!(busy_timeout, 5000);
+    }
+
+    #[test]
+    fn test_user_preferences_persistence() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("test_prefs.db");
+        let auth = AuthManager::new(
+            &db_file.to_string_lossy(),
+            "secret-key-123456789012345678901234",
+            24,
+            "builtin",
+            "login",
+            "admin",
+            "admin",
+        ).unwrap();
+
+        // 1. Initial should be None
+        let initial = auth.get_user_preferences("admin").unwrap();
+        assert!(initial.is_none());
+
+        // 2. Save preferences JSON
+        let prefs_json = r#"{"pane_names":["DOWNLOADS","SERVER",null,null],"pane_colors":{"0":"emerald","1":"sky"},"default_layout":"layout-dual-vertical"}"#;
+        auth.save_user_preferences("admin", prefs_json).unwrap();
+
+        // 3. Retrieve preferences
+        let loaded = auth.get_user_preferences("admin").unwrap();
+        assert_eq!(loaded.as_deref(), Some(prefs_json));
+
+        // 4. Update preferences
+        let updated_json = r#"{"pane_names":["MEDIA","STORAGE"],"pane_colors":{"0":"purple"}}"#;
+        auth.save_user_preferences("admin", updated_json).unwrap();
+        let loaded_updated = auth.get_user_preferences("admin").unwrap();
+        assert_eq!(loaded_updated.as_deref(), Some(updated_json));
+
+        // 5. Reset preferences
+        auth.reset_user_preferences("admin").unwrap();
+        let reset_result = auth.get_user_preferences("admin").unwrap();
+        assert!(reset_result.is_none());
     }
 }

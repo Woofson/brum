@@ -1,11 +1,11 @@
 {
-  "version": "0.7.3",
+  "version": "0.7.6",
   "description": "Multi-Tab File Commander for Web & Native Desktop — By Woofson",
   "homepage": "https://github.com/woofson/commanderdog",
   "license": "MIT",
   "architecture": {
     "64bit": {
-      "url": "https://github.com/woofson/commanderdog/releases/download/v0.7.3/commanderdog-v0.7.3-x86_64-pc-windows-msvc.zip",
+      "url": "https://github.com/woofson/commanderdog/releases/download/v0.7.6/commanderdog-v0.7.6-x86_64-pc-windows-msvc.zip",
       "bin": [
         "commanderdog.exe",
         [
