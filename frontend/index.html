@@ -2988,7 +2988,7 @@
 
   <!-- ========================================== -->
   <!-- ========================================== -->
-  <!-- 📻 SOUNDDOG (AUTHENTIC WINAMP 2.X CLONE CHEWTOY) -->
+  <!-- 📻 ARFAMP (AUTHENTIC WINAMP 2.X CLONE CHEWTOY) -->
   <!-- ========================================== -->
   <audio id="sounddog-audio-element" preload="auto" crossorigin="anonymous" style="display: none;"></audio>
   <input type="file" id="sounddog-file-input" multiple accept="audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.opus,.wma" style="display: none;" onchange="handleSoundDogFilePicker(event)">
@@ -3002,13 +3002,13 @@
       <!-- Main Titlebar (Drag Handle & Shade Toggle) -->
       <div class="winamp-titlebar" id="sounddog-main-titlebar" ondblclick="toggleSoundDogMainWindowShade()">
         <div class="winamp-title-left">
-          <img src="assets/amber-media.webp" alt="Winamp" class="winamp-title-icon">
-          <span class="winamp-title-text" id="sounddog-main-title-text">SOUNDDOG WINAMP 2.91</span>
+          <img src="assets/amber-media.webp" alt="ARFAMP" class="winamp-title-icon">
+          <span class="winamp-title-text" id="sounddog-main-title-text">ARFAMP 2.91</span>
         </div>
         <div class="winamp-title-actions">
           <button type="button" class="winamp-title-btn winamp-btn-shade" id="btn-sounddog-main-shade" onclick="toggleSoundDogMainWindowShade()" title="Windowshade Mode (Alt+W / Double Click)">▲</button>
           <button type="button" class="winamp-title-btn winamp-btn-min desktop-only" onclick="minimizeSoundDog()" title="Minimize to Pill">_</button>
-          <button type="button" class="winamp-title-btn winamp-btn-close" onclick="closeSoundDog()" title="Close SoundDog (Alt+F4)">✕</button>
+          <button type="button" class="winamp-title-btn winamp-btn-close" onclick="closeSoundDog()" title="Close ARFAMP (Alt+F4)">✕</button>
         </div>
       </div>
 
@@ -3032,7 +3032,7 @@
           <div class="winamp-display-right">
             <!-- Scrolling Marquee Title -->
             <div class="winamp-marquee-wrap">
-              <div class="winamp-marquee-inner" id="winamp-marquee-text">*** 1. Woofsons Lab - SoundDog Winamp 2.91 Jukebox ***</div>
+              <div class="winamp-marquee-inner" id="winamp-marquee-text">*** 1. Woofsons Lab - ARFAMP 2.91 Jukebox ***</div>
             </div>
 
             <!-- Bitrate / Sample Rate / Channels HUD -->
@@ -3086,7 +3086,7 @@
 
       <!-- Main Windowshade Bar (Shown in Shade Mode) -->
       <div class="winamp-main-shade" id="sounddog-main-shade" style="display: none;" ondblclick="toggleSoundDogMainWindowShade()">
-        <span class="winamp-shade-title" id="sounddog-shade-title">SoundDog Jukebox</span>
+        <span class="winamp-shade-title" id="sounddog-shade-title">ARFAMP Jukebox</span>
         <span class="winamp-shade-time" id="sounddog-shade-time">00:00</span>
         <div class="winamp-shade-track" onclick="seekSoundDogFromEvent(event)">
           <div class="winamp-shade-progress" id="sounddog-shade-progress"></div>
@@ -3108,7 +3108,7 @@
       <!-- EQ Titlebar -->
       <div class="winamp-titlebar" id="sounddog-eq-titlebar" ondblclick="toggleSoundDogEqShade()">
         <div class="winamp-title-left">
-          <span class="winamp-title-text">SOUNDDOG EQUALIZER</span>
+          <span class="winamp-title-text">ARFAMP EQUALIZER</span>
         </div>
         <div class="winamp-title-actions">
           <button type="button" class="winamp-title-btn winamp-btn-shade" onclick="toggleSoundDogEqShade()" title="EQ Shade Mode">▲</button>
@@ -3220,7 +3220,7 @@
       <!-- Playlist Titlebar -->
       <div class="winamp-titlebar" id="sounddog-pl-titlebar" ondblclick="toggleSoundDogPlShade()">
         <div class="winamp-title-left">
-          <span class="winamp-title-text">SOUNDDOG PLAYLIST</span>
+          <span class="winamp-title-text">ARFAMP PLAYLIST</span>
         </div>
         <div class="winamp-title-actions">
           <button type="button" class="winamp-title-btn winamp-btn-shade" onclick="toggleSoundDogPlShade()" title="Playlist Shade Mode">▲</button>
@@ -3274,12 +3274,12 @@
     </div>
   </div>
 
-  <!-- SoundDog Minimized Pill -->
-  <div class="sounddog-pill" id="sounddog-pill" style="display: none;" onclick="restoreSoundDog()" title="Click to restore SoundDog">
+  <!-- ARFAMP Minimized Pill -->
+  <div class="sounddog-pill" id="sounddog-pill" style="display: none;" onclick="restoreSoundDog()" title="Click to restore ARFAMP">
     <div class="sounddog-pill-wave">
       <span></span><span></span><span></span><span></span>
     </div>
-    <span class="sounddog-pill-title" id="sounddog-pill-title">SoundDog Winamp</span>
+    <span class="sounddog-pill-title" id="sounddog-pill-title">ARFAMP</span>
     <button class="sounddog-pill-btn" onclick="event.stopPropagation(); toggleSoundDogPlay();" title="Play/Pause"><i data-lucide="play" id="sounddog-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
     <button class="sounddog-pill-btn" onclick="event.stopPropagation(); playNextSoundDogTrack();" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
   </div>
@@ -4779,7 +4779,7 @@
           <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">CommanderDog</div>
           <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Tab Web Commander - By Woofson</div>
           <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
-            <span id="about-version-badge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.7.8 (Desktop & Web)</span>
+            <span id="about-version-badge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.7.9 (Desktop & Web)</span>
             <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust + Axum + Tokio</span>
             <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3);">MIT Open Source</span>
           </div>

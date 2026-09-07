@@ -7,23 +7,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-## [0.7.9-rc1] - 2026-09-07
+## [0.7.9] - 2026-09-07
 
 ### ⚡ HTTP Range Request & Media Streaming Engine Fix
 - **HTTP `Range` Header Streaming (`206 Partial Content` & `416 Range Not Satisfiable`)**:
-  - **The 20-Second Audio Playback Stalling Bug Resolved**:
-    - HTML5 `<audio>` and `<video>` elements buffer an initial slice (~1MB or 20 seconds) and then pause or close the TCP socket to avoid full-file downloading.
-    - When playback reached ~20s, the browser requested subsequent chunks with `Range: bytes=<offset>-`.
-    - Because `/api/fs/download` previously ignored `Range` headers and returned `200 OK` from byte 0, browser decoders suffered stream decode errors and stopped playback.
-  - **Full RFC 7233 / 9110 Range Support**:
-    - Implemented `HttpRange::parse` supporting prefix ranges (`bytes=0-499`), open-ended ranges (`bytes=1000-`), suffix ranges (`bytes=-500`), and out-of-bounds validation.
-    - Added `build_local_file_range_response` with asynchronous file seeking and chunk extraction, preventing entire files from being loaded into memory for range slices.
-    - Added `build_bytes_range_response` for `vault://`, `smb://`, and `sftp://` media streams and public share downloads.
+  - **Continuous Media Playback Engine Fix**:
+    - Resolved the audio playback stalling issue occurring at ~20 seconds where HTML5 `<audio>`/`<video>` elements pause initial buffer chunks and request subsequent byte slices via `Range: bytes=<offset>-`.
+    - Fully implemented RFC 7233 / 9110 Range parsing with asynchronous chunk slicing (`build_local_file_range_response` and `build_bytes_range_response`) for local files, `vault://`, `smb://`, and `sftp://` media streams.
+
+### 🏷️ ARFAMP Official Rebranding
+- **Winamp / SoundDog ChewToy Rebranded to `ARFAMP`**:
+  - Rebranded the audio player & Winamp 2.x clone chewtoy to **`ARFAMP`** across the entire UI and documentation.
+  - Updated main player window titlebar (`ARFAMP 2.91`), equalizer title (`ARFAMP EQUALIZER`), and playlist title (`ARFAMP PLAYLIST`).
+  - Updated context menu actions to "Play in ARFAMP ▶", "Add to ARFAMP Queue ➕", and "Play Folder in ARFAMP".
+  - Updated Spotlight Search descriptors and Tools menu registry to `ARFAMP`.
+  - Updated default marquee scrolling ticker to `*** 1. Woofsons Lab - ARFAMP 2.91 Jukebox ***`.
+  - Updated minimized floating pill badge and title to `ARFAMP`.
+  - Updated playlist export default filename to `ARFAMP_Playlist_YYYY-MM-DD.m3u`.
 
 ## [0.7.8] - 2026-09-07
 
-### 📻 SoundDog: Authentic Winamp 2.x Clone & Studio Equalizer ChewToy
-- **18th Built-in Power ChewToy (`SoundDog`)**:
+### 📻 ARFAMP: Authentic Winamp 2.x Clone & Studio Equalizer ChewToy
+- **18th Built-in Power ChewToy (`ARFAMP`)**:
   - **Modular Winamp 2.x Multi-Window Architecture**:
     - **Classic 3-Module Layout**: Main Player Window, 10-Band Graphic Equalizer, and Playlist Editor.
     - **Window Shade Mode**: Individual windowshade collapsing for Main Window, EQ, and Playlist via titlebar button `▲`/`▼`, titlebar double-click, and global shortcut <kbd>Alt+W</kbd>.
@@ -39,15 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - **Full-Spectrum Background Audio Engine**: Continuous uninterrupted audio streaming and queue playback that persists across directory navigation, pane transitions, and background workflows.
   - **Dual-Mode Operational Architecture**: Draggable & resizable floating window (`42px` grab handle header with standard `28px` action controls) and in-pane docking into Panels 1–4 with automatic panel state persistence.
   - **Mini-Player Pill & Media Session API**: Minimized floating pill (`#sounddog-pill`) with animated soundwave indicator, and full integration with OS lock screen controls and hardware media keys (`navigator.mediaSession`).
-  - **File Commander & Context Menu Integration**: "Play in SoundDog ▶" and "Add to SoundDog Queue ➕" context menu options on audio files and directories, and double-click handler for all audio file extensions (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.webm`, `.weba`).
-  - **Dual-Mode Operational Architecture**: Draggable & resizable floating window (`42px` grab handle header with standard `28px` action controls) and in-pane docking into Panels 1–4 with automatic panel state persistence.
-  - **4-View Studio Switcher**:
-    - **Player View**: Spinning vinyl record & album art display, real-time 60 FPS Web Audio API FFT spectrum & oscilloscope visualizer canvas, full metadata bar (Artist, Album, Format, Bitrate, Sample Rate), and seek scrubber.
-    - **Queue & Jukebox View**: Live track queue with drag/drop reordering, quick track search/filter, multi-track enqueueing, and `.m3u` playlist export/import.
-    - **5-Band Graphic Equalizer (EQ)**: Studio biquad filter controls (60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz), Bass Boost slider, stereo balance panner, and 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
-    - **ID3 & Metadata Inspector**: Embedded ID3 tag reader (Title, Artist, Album, Genre, Year, Track#, Disc#, Bitrate) with embedded APIC cover art extraction.
-  - **Mini-Player Pill & Media Session API**: Minimized floating pill (`#sounddog-pill`) with animated soundwave indicator, and full integration with OS lock screen controls and hardware media keys (`navigator.mediaSession`).
-  - **File Commander & Context Menu Integration**: "Play in SoundDog ▶" and "Add to SoundDog Queue ➕" context menu options on audio files and directories, and double-click handler for all audio file extensions (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.webm`, `.weba`).
+  - **File Commander & Context Menu Integration**: "Play in ARFAMP ▶" and "Add to ARFAMP Queue ➕" context menu options on audio files and directories, and double-click handler for all audio file extensions (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.webm`, `.weba`).
 
 ## [0.7.7-rc7] - 2026-09-07
 

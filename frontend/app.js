@@ -9104,7 +9104,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'ConvertX', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDFDog', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
-  { id: 'sounddog', label: 'SoundDog', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & real-time equalizer', visible: true },
+  { id: 'sounddog', label: 'ARFAMP', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & real-time equalizer', visible: true },
   { id: 'tetradog', label: 'TetraDog', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade Tetris chewtoy with synchronized top scores', visible: true },
   { id: 'tasks', label: 'Task Manager', icon: 'assets/task.webp', action: 'openFloatingTaskManager()', desc: 'Active transfers, speeds & queue control', visible: true }
 ];
@@ -10357,11 +10357,11 @@ function showContextMenu(x, y) {
     <div class="context-item" onclick="triggerView()"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
     <div class="context-item" onclick="triggerEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
     ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
-      <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in SoundDog</div>
-      <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to SoundDog Queue</div>
+      <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in ARFAMP</div>
+      <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to ARFAMP Queue</div>
     ` : ''}
     ${App.contextItem && (App.contextItem.is_dir) ? `
-      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem.path)}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in SoundDog</div>
+      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem.path)}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in ARFAMP</div>
     ` : ''}
     <div class="context-item" onclick="triggerDownloadContextItem()"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
     <div class="context-item" onclick="triggerProperties()"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
@@ -20539,7 +20539,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'ConvertX', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDFDog', sub: 'PDF Power Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
-  { id: 'sounddog', title: 'SoundDog', sub: 'Audio player, jukebox, playlists & 5-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
+  { id: 'sounddog', title: 'ARFAMP', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
   { id: 'tetradog', title: 'TetraDog', sub: 'Classic arcade Tetris chewtoy with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
@@ -21848,14 +21848,14 @@ function mountDockedTool(paneIndex) {
       mountDockedTetraDog(paneIndex);
     }, 50);
   }
-  // 7. DOCKED SOUNDDOG (AUDIO PLAYER & JUKEBOX)
+  // 7. DOCKED ARFAMP (AUDIO PLAYER & JUKEBOX)
   else if (tool === 'sounddog') {
     mount.innerHTML = `
       <div class="docked-sounddog-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
         <div style="padding: 4px 8px; min-height: 32px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 6px;">
-            <img src="assets/amber-media.webp" alt="SoundDog" style="width: 14px; height: 14px; object-fit: contain;">
-            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">SoundDog</span>
+            <img src="assets/amber-media.webp" alt="ARFAMP" style="width: 14px; height: 14px; object-fit: contain;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">ARFAMP</span>
             <span class="sounddog-format-badge" id="docked-sounddog-badge-${paneIndex}">JUKEBOX</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
@@ -25063,7 +25063,7 @@ function mountDockedTetraDog(paneIndex) {
 }
 
 // ==========================================================================
-// 📻 SOUNDDOG: AUTHENTIC WINAMP 2.X CLONE CHEWTOY (10-BAND EQ & PLAYLIST)
+// 📻 ARFAMP: AUTHENTIC WINAMP 2.X CLONE CHEWTOY (10-BAND EQ & PLAYLIST)
 // ==========================================================================
 
 const sounddogState = {
@@ -26037,7 +26037,7 @@ function updateSoundDogHUD(track) {
 
   if (marquee) marquee.textContent = marqueeStr;
   if (shadeTitle) shadeTitle.textContent = `${idxNum}. ${displayTitle}`;
-  if (mainTitleText) mainTitleText.textContent = `WINAMP: ${displayTitle}`;
+  if (mainTitleText) mainTitleText.textContent = `ARFAMP: ${displayTitle}`;
   if (kbpsVal) kbpsVal.textContent = track.bitrate || '320';
   if (khzVal) khzVal.textContent = track.sampleRate || '44';
 
@@ -26046,8 +26046,8 @@ function updateSoundDogHUD(track) {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.title || track.name,
-        artist: track.artist || 'SoundDog',
-        album: track.album || 'Winamp Jukebox',
+        artist: track.artist || 'ARFAMP',
+        album: track.album || 'ARFAMP Jukebox',
         artwork: [{ src: track.cover || 'assets/amber-media.webp', sizes: '128x128', type: 'image/webp' }]
       });
 
@@ -26066,9 +26066,9 @@ function resetSoundDogHUD() {
   const ledDigits = document.getElementById('winamp-led-time');
   const ledMinus = document.getElementById('winamp-time-minus');
 
-  if (marquee) marquee.textContent = '*** SOUNDDOG WINAMP 2.91 JUKEBOX ***';
-  if (shadeTitle) shadeTitle.textContent = 'SoundDog Jukebox';
-  if (mainTitleText) mainTitleText.textContent = 'SOUNDDOG WINAMP 2.91';
+  if (marquee) marquee.textContent = '*** ARFAMP 2.91 JUKEBOX ***';
+  if (shadeTitle) shadeTitle.textContent = 'ARFAMP Jukebox';
+  if (mainTitleText) mainTitleText.textContent = 'ARFAMP 2.91';
   if (ledDigits) ledDigits.textContent = '00:00';
   if (ledMinus) ledMinus.style.visibility = 'hidden';
 
@@ -26086,7 +26086,7 @@ function updateSoundDogPill() {
     const cur = sounddogState.queue[sounddogState.currentIndex];
     pillTitle.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
   } else {
-    pillTitle.textContent = 'SoundDog Winamp';
+    pillTitle.textContent = 'ARFAMP';
   }
 }
 
@@ -26342,7 +26342,7 @@ function exportSoundDogM3U() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `SoundDog_Playlist_${new Date().toISOString().slice(0, 10)}.m3u`;
+  a.download = `ARFAMP_Playlist_${new Date().toISOString().slice(0, 10)}.m3u`;
   a.click();
   URL.revokeObjectURL(url);
   showToast('Playlist exported (.m3u)', 'success');

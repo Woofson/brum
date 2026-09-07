@@ -69,7 +69,7 @@
 
 ---
 
-## 9. 📻 SoundDog (Authentic Winamp 2.x Clone & 10-Band EQ ChewToy)
+## 9. 📻 ARFAMP (Authentic Winamp 2.x Clone & 10-Band EQ ChewToy)
 * **Modular Winamp 2.x Architecture**: Authentic 3-module snappable layout consisting of **Main Player Window**, **10-Band Graphic Equalizer**, and **Playlist Editor**.
 * **Windowshade Mode (Alt+W)**: Collapses windows into ultra-compact titlebar shade mode (via `▲`/`▼` button, double-clicking titlebar, or <kbd>Alt+W</kbd>) with live mini-scrubber, mini-timer, and quick controls.
 * **Green/Amber Fluorescent LED 7-Segment Timer**: Real-time LED display with click-to-toggle between *Time Elapsed* and *Time Remaining* (`-MM:SS`).
