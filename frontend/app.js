@@ -208,6 +208,24 @@ function applyUserHomeToPanes(force = false) {
   }
 }
 
+function isStandaloneMode() {
+  return App.isStandalone === true || 
+         App.config?.server?.standalone === true || 
+         App.systemStatus?.standalone === true || 
+         window.__TAURI__ !== undefined || 
+         window.__WRY__ !== undefined || 
+         document.body.classList.contains('standalone-mode');
+}
+
+function updateStandaloneUI() {
+  const isStandalone = isStandaloneMode();
+  document.body.classList.toggle('standalone-mode', isStandalone);
+  document.querySelectorAll('.desktop-only-setting, .standalone-only').forEach(el => {
+    el.style.display = isStandalone ? '' : 'none';
+  });
+  updateLogoutOrExitButton();
+}
+
 async function checkAuthAndLoad() {
   try {
     const sysResp = await fetch('/api/system/status');
@@ -215,6 +233,7 @@ async function checkAuthAndLoad() {
       const sysData = await sysResp.json();
       App.systemStatus = sysData;
       App.isStandalone = sysData.standalone;
+      updateStandaloneUI();
       if (sysData.standalone || !sysData.auth_enabled) {
         // Standalone desktop mode: auto-load local user without login prompt!
         const meResp = await fetch('/api/auth/me');
@@ -487,6 +506,9 @@ async function loadConfig() {
 
       // Configure Top Header Hostname Badge
       updateHostnameBadge();
+
+      // Configure Standalone Desktop Feature Isolation
+      updateStandaloneUI();
     }
   } catch (e) {
     console.error('Config fetch failed:', e);
@@ -3696,6 +3718,112 @@ async function executeOpenWith(filePath, command) {
   }
 }
 
+// ---------------- EXTERNAL DESKTOP PROGRAMS (STANDALONE ONLY) ----------------
+
+function applyExternalProgramPreset(type, cmd) {
+  if (type === 'editor') {
+    const el = document.getElementById('setting-ext-editor');
+    if (el) el.value = cmd;
+    localStorage.setItem('cd_external_editor', cmd);
+    showToast(`External editor configured: ${cmd}`, 'success');
+  } else if (type === 'viewer') {
+    const el = document.getElementById('setting-ext-viewer');
+    if (el) el.value = cmd;
+    localStorage.setItem('cd_external_viewer', cmd);
+    showToast(`External viewer configured: ${cmd}`, 'success');
+  } else if (type === 'terminal') {
+    const el = document.getElementById('setting-ext-terminal');
+    if (el) el.value = cmd;
+    localStorage.setItem('cd_external_terminal', cmd);
+    showToast(`External terminal configured: ${cmd}`, 'success');
+  }
+}
+
+function toggleUseExtEditor(checked) {
+  localStorage.setItem('cd_use_ext_editor_f4', checked ? 'true' : 'false');
+  showToast(checked ? 'F4 (Edit) will now launch external editor' : 'F4 (Edit) will launch built-in EditorDog', 'info');
+}
+
+function toggleUseExtViewer(checked) {
+  localStorage.setItem('cd_use_ext_viewer_f3', checked ? 'true' : 'false');
+  showToast(checked ? 'F3 (View) will now launch external viewer' : 'F3 (View) will launch built-in Viewer', 'info');
+}
+
+async function testExternalProgram(type) {
+  const pane = App.panes[App.activePaneIndex];
+  const item = App.contextItem || (pane?.entries ? pane.entries[pane.cursorIndex] : null);
+  const currentPath = item ? item.path : (pane?.path || '~');
+
+  if (type === 'editor') {
+    const cmd = document.getElementById('setting-ext-editor')?.value || localStorage.getItem('cd_external_editor') || 'code "%1"';
+    await executeOpenWith(currentPath, cmd);
+  } else if (type === 'viewer') {
+    const cmd = document.getElementById('setting-ext-viewer')?.value || localStorage.getItem('cd_external_viewer') || 'xdg-open "%1"';
+    await executeOpenWith(currentPath, cmd);
+  } else if (type === 'terminal') {
+    const cmd = document.getElementById('setting-ext-terminal')?.value || localStorage.getItem('cd_external_terminal') || 'x-terminal-emulator';
+    await executeOpenWith(currentPath, cmd);
+  }
+}
+
+async function openExternalTerminal(targetPath) {
+  const pane = App.panes[App.activePaneIndex];
+  const item = App.contextItem || (pane?.entries ? pane.entries[pane.cursorIndex] : null);
+  const path = targetPath || (item ? item.path : (pane?.path || '~'));
+  const cmd = localStorage.getItem('cd_external_terminal') || App.config?.desktop?.external_terminal || 'x-terminal-emulator';
+  await executeOpenWith(path, cmd);
+}
+
+function renderDesktopAppsTab() {
+  const extEditorInput = document.getElementById('setting-ext-editor');
+  if (extEditorInput) {
+    extEditorInput.value = localStorage.getItem('cd_external_editor') || App.config?.desktop?.external_editor || '';
+    extEditorInput.oninput = (e) => {
+      localStorage.setItem('cd_external_editor', e.target.value.trim());
+    };
+  }
+
+  const extViewerInput = document.getElementById('setting-ext-viewer');
+  if (extViewerInput) {
+    extViewerInput.value = localStorage.getItem('cd_external_viewer') || App.config?.desktop?.external_viewer || '';
+    extViewerInput.oninput = (e) => {
+      localStorage.setItem('cd_external_viewer', e.target.value.trim());
+    };
+  }
+
+  const extTerminalInput = document.getElementById('setting-ext-terminal');
+  if (extTerminalInput) {
+    extTerminalInput.value = localStorage.getItem('cd_external_terminal') || App.config?.desktop?.external_terminal || '';
+    extTerminalInput.oninput = (e) => {
+      localStorage.setItem('cd_external_terminal', e.target.value.trim());
+    };
+  }
+
+  const useExtEditorCheckbox = document.getElementById('setting-use-ext-editor-f4');
+  if (useExtEditorCheckbox) {
+    const saved = localStorage.getItem('cd_use_ext_editor_f4');
+    useExtEditorCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_editor_f4 === true);
+  }
+
+  const useExtViewerCheckbox = document.getElementById('setting-use-ext-viewer-f3');
+  if (useExtViewerCheckbox) {
+    const saved = localStorage.getItem('cd_use_ext_viewer_f3');
+    useExtViewerCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_viewer_f3 === true);
+  }
+
+  const extMinTrayCheckbox = document.getElementById('setting-ext-minimize-tray');
+  if (extMinTrayCheckbox) {
+    const saved = localStorage.getItem('cd_minimize_tray');
+    extMinTrayCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.minimize_to_tray !== false);
+  }
+
+  const extStartMinCheckbox = document.getElementById('setting-ext-start-minimized');
+  if (extStartMinCheckbox) {
+    const saved = localStorage.getItem('cd_start_minimized');
+    extStartMinCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.start_minimized === true);
+  }
+}
+
 // ---------------- CONTEXT MENU CUSTOMIZER & SHELL ACTIONS ----------------
 
 let ContextItemVisibility = JSON.parse(localStorage.getItem('cd_context_visibility') || '{"view":true,"edit":true,"openwith":true,"download":true,"share":true,"diff":true}');
@@ -3710,6 +3838,7 @@ if (!CustomShellActions) {
 function toggleContextItemVisibility(key, visible) {
   ContextItemVisibility[key] = visible;
   localStorage.setItem('cd_context_visibility', JSON.stringify(ContextItemVisibility));
+  showToast(`Context item "${key}" ${visible ? 'enabled' : 'hidden'}`, 'info');
 }
 
 function renderCustomActionsList() {
@@ -3717,7 +3846,7 @@ function renderCustomActionsList() {
   if (!list) return;
 
   if (CustomShellActions.length === 0) {
-    list.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; padding: 12px 0;">No custom shell actions defined yet. Click "New Shell Action" above.</div>';
+    list.innerHTML = '<div style="color: var(--text-muted); font-size: 12px; padding: 12px 0;">No custom actions configured yet. Click "New Shell Action" above.</div>';
     return;
   }
 
@@ -3728,8 +3857,8 @@ function renderCustomActionsList() {
         <div style="font-weight: 600; font-size: 12px;">${escapeHtml(a.label)}</div>
         <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(a.cmd)}</div>
       </div>
-      <button class="btn btn-icon btn-sm" onclick="editCustomShellAction(${idx})" title="Edit"><i data-lucide="edit-3" style="width: 13px;"></i></button>
-      <button class="btn btn-icon btn-sm" onclick="deleteCustomShellAction(${idx})" title="Delete"><i data-lucide="trash-2" style="width: 13px; color: var(--danger);"></i></button>
+      <button class="btn btn-icon btn-sm" onclick="editCustomAction(${idx})" title="Edit"><i data-lucide="edit-3" style="width: 13px;"></i></button>
+      <button class="btn btn-icon btn-sm" onclick="deleteCustomAction(${idx})" title="Delete"><i data-lucide="trash-2" style="width: 13px; color: var(--danger);"></i></button>
     </div>
   `).join('');
 
@@ -3744,7 +3873,7 @@ function showAddCustomActionPrompt() {
   document.getElementById('custom-action-form').style.display = 'block';
 }
 
-function editCustomShellAction(index) {
+function editCustomAction(index) {
   const a = CustomShellActions[index];
   if (!a) return;
   document.getElementById('custom-action-edit-id').value = String(index);
@@ -3765,7 +3894,7 @@ function saveCustomShellAction() {
   const cmd = document.getElementById('custom-action-input-cmd').value.trim();
 
   if (!label || !cmd) {
-    showToast('Please enter action label and command', 'error');
+    showToast('Please enter both label and command', 'error');
     return;
   }
 
@@ -3773,7 +3902,7 @@ function saveCustomShellAction() {
     id: 'action-' + Date.now(),
     label,
     icon,
-    cmd,
+    cmd
   };
 
   if (editId !== '') {
@@ -3785,23 +3914,23 @@ function saveCustomShellAction() {
   localStorage.setItem('cd_custom_shell_actions', JSON.stringify(CustomShellActions));
   hideCustomActionForm();
   renderCustomActionsList();
-  showToast('Custom shell action saved', 'success');
+  showToast('Custom action saved', 'success');
 }
 
-function deleteCustomShellAction(index) {
+function deleteCustomAction(index) {
   CustomShellActions.splice(index, 1);
   localStorage.setItem('cd_custom_shell_actions', JSON.stringify(CustomShellActions));
   renderCustomActionsList();
-  showToast('Action removed', 'info');
+  showToast('Action deleted', 'info');
 }
 
 async function executeCustomAction(cmd, targetPath) {
   const pane = App.panes[App.activePaneIndex];
-  const selection = pane && pane.selected.size > 0 ? Array.from(pane.selected) : [targetPath];
-  const targetPanePath = App.panes[(App.activePaneIndex + 1) % (App.paneCount || 2)]?.path || '';
+  const selection = pane && pane.selected && pane.selected.size > 0 ? Array.from(pane.selected) : null;
+  const targetPane = App.panes[App.activePaneIndex === 0 ? 1 : 0];
+  const targetPanePath = targetPane ? targetPane.path : null;
 
   try {
-    showToast(`Executing action: ${cmd.split(' ')[0]}...`, 'info');
     const res = await fetch('/api/system/run-custom-action', {
       method: 'POST',
       headers: {
@@ -3834,8 +3963,11 @@ function switchSettingsTab(tabId) {
   if (!modal) return;
 
   // Backward compatibility alias for merged tabs
-  if (tabId === 'tab-columns' || tabId === 'tab-desktop') {
+  if (tabId === 'tab-columns') {
     tabId = 'tab-general';
+  }
+  if (tabId === 'tab-desktop') {
+    tabId = 'tab-desktop-apps';
   }
 
   modal.querySelectorAll('.settings-tab-btn, .settings-nav-btn').forEach(btn => btn.classList.remove('active'));
@@ -3856,6 +3988,7 @@ function switchSettingsTab(tabId) {
 
   if (tabId === 'tab-general') updateColumnCheckboxes();
   if (tabId === 'tab-bookmarks') loadBookmarksList();
+  if (tabId === 'tab-desktop-apps') renderDesktopAppsTab();
   if (tabId === 'tab-openwith') renderOpenWithRules();
   if (tabId === 'tab-context') renderCustomActionsList();
   if (tabId === 'tab-icons') renderIconSettingsTab();
@@ -9751,14 +9884,16 @@ function showContextMenu(x, y) {
     </div>
     <div class="context-sep"></div>
 
-    <!-- Group 1: Open With, View, Edit, Properties -->
-    <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-      <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="external-link" style="width: 14px; color: var(--accent);"></i> Open with...</div>
-      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-      <div class="context-submenu">
-        ${openWithItems}
+    <!-- Group 1: Open With (Standalone only), View, Edit, Properties -->
+    ${isStandaloneMode() ? `
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="external-link" style="width: 14px; color: var(--accent);"></i> Open with...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${openWithItems}
+        </div>
       </div>
-    </div>
+    ` : ''}
     <div class="context-item" onclick="triggerView()"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
     <div class="context-item" onclick="triggerEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
     <div class="context-item" onclick="triggerDownloadContextItem()"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
@@ -9819,6 +9954,10 @@ function showContextMenu(x, y) {
       <div style="display:flex; align-items:center; gap:8px;"><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tools</div>
       <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
       <div class="context-submenu">
+        ${isStandaloneMode() ? `
+          <div class="context-item" onclick="openExternalTerminal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="terminal" style="width: 13px; color: var(--accent);"></i> Open in External Terminal</div>
+          <div class="context-sep"></div>
+        ` : ''}
         <div class="context-item" onclick="openSearchModal()"><img src="assets/search.webp" alt="Search" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Advanced Search (Ctrl+F)</div>
         <div class="context-item" onclick="triggerDiff()"><img src="assets/diff.webp" alt="Compare" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare / Diff (F9)</div>
         <div class="context-item" onclick="triggerBulkRename()"><i data-lucide="tags" style="width: 13px;"></i> Advanced Rename (Shift+F6)</div>
@@ -11682,6 +11821,10 @@ function openSettingsModal() {
     dndParanoidChk.checked = App.dndParanoidPrompt !== false;
   }
 
+  // Populate External Programs & Desktop Handlers (Standalone only)
+  renderDesktopAppsTab();
+  updateStandaloneUI();
+
   updateColumnCheckboxes();
   renderIconSettingsTab();
   showModal('settings-modal');
@@ -11860,6 +12003,18 @@ function triggerView() {
     loadPaneDirectory(App.activePaneIndex, item.path);
     return;
   }
+
+  // Standalone desktop mode: override F3 with external viewer if enabled
+  if (isStandaloneMode()) {
+    const saved = localStorage.getItem('cd_use_ext_viewer_f3');
+    const useExtViewer = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_viewer_f3 === true);
+    if (useExtViewer) {
+      const extCmd = localStorage.getItem('cd_external_viewer') || App.config?.desktop?.external_viewer || '';
+      executeOpenWith(item.path, extCmd.trim() ? extCmd : null);
+      return;
+    }
+  }
+
   if (isDocumentExtension(item.name)) {
     openDocumentViewer(item.path);
     return;
@@ -11887,6 +12042,18 @@ function triggerView() {
 function triggerEditor() {
   const pane = App.panes[App.activePaneIndex];
   const item = App.contextItem || pane.entries[pane.cursorIndex];
+
+  // Standalone desktop mode: override F4 with external editor if enabled
+  if (item && !item.is_dir && isStandaloneMode()) {
+    const saved = localStorage.getItem('cd_use_ext_editor_f4');
+    const useExtEditor = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_editor_f4 === true);
+    if (useExtEditor) {
+      const extCmd = localStorage.getItem('cd_external_editor') || App.config?.desktop?.external_editor || '';
+      executeOpenWith(item.path, extCmd.trim() ? extCmd : null);
+      return;
+    }
+  }
+
   if (item) {
     if (item.is_dir) {
       checkAndPromptConfdDirectory(item.path);

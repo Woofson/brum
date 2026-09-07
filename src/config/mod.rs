@@ -513,6 +513,16 @@ pub struct DesktopConfig {
     pub global_summon_hotkey: String, // "Super+C", "Ctrl+Alt+Space", etc.
     #[serde(default = "default_false")]
     pub start_minimized: bool,
+    #[serde(default)]
+    pub external_editor: Option<String>,
+    #[serde(default)]
+    pub external_viewer: Option<String>,
+    #[serde(default)]
+    pub external_terminal: Option<String>,
+    #[serde(default = "default_false")]
+    pub use_external_editor_f4: bool,
+    #[serde(default = "default_false")]
+    pub use_external_viewer_f3: bool,
 }
 
 impl Default for DesktopConfig {
@@ -522,6 +532,11 @@ impl Default for DesktopConfig {
             enable_tray: true,
             global_summon_hotkey: default_summon_hotkey(),
             start_minimized: false,
+            external_editor: None,
+            external_viewer: None,
+            external_terminal: None,
+            use_external_editor_f4: false,
+            use_external_viewer_f3: false,
         }
     }
 }
@@ -951,6 +966,8 @@ mod tests {
             [desktop]
             minimize_to_tray = true
             global_summon_hotkey = "Super+C"
+            external_editor = "code \"%1\""
+            use_external_editor_f4 = true
 
             [themes]
             default_theme = "catppuccin-mocha"
@@ -961,6 +978,8 @@ mod tests {
         assert_eq!(config.ui.window_decorations, false);
         assert_eq!(config.ui.show_global_refresh, false);
         assert_eq!(config.desktop.global_summon_hotkey, "Super+C");
+        assert_eq!(config.desktop.external_editor, Some("code \"%1\"".to_string()));
+        assert_eq!(config.desktop.use_external_editor_f4, true);
         assert_eq!(config.themes.default_theme, "catppuccin-mocha");
     }
 

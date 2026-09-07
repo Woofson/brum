@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.5-rc6] - 2026-09-07
+
+### 🖥️ Native Desktop External Program Integration & Web Feature Isolation
+- **External Programs Definition (Desktop Standalone Only)**:
+  - Added dedicated **"External Programs"** configuration tab in Settings (F10) for standalone desktop sessions (`App.isStandalone === true`).
+  - Configurable commands for **External Text & Code Editor (F4)**, **External Document / Media Viewer (F3)**, and **External Terminal Emulator** with quick 1-click presets (VS Code, VSCodium, Gedit, Kate, Sublime, Notepad++, Neovim GUI, VLC, MPV, EOG, Feh, Zathura, Alacritty, Kitty, GNOME Terminal, Konsole, WezTerm).
+  - Checkboxes to seamlessly override F4 (Edit) and F3 (Quick View) keyboard shortcuts and context clicks to directly launch user-defined desktop applications.
+  - Included dynamic command token interpolation (`%1` / `{file}`, `{dir}`, `{selection}`, `{target_pane}`) and test launch buttons for each program.
+- **Strict Web vs Desktop Feature Isolation**:
+  - Implemented `.desktop-only-setting` / `.standalone-only` CSS and JS isolation rules ensuring external program settings, "Open With" handlers, desktop windowing/tray preferences, and native terminal launchers are **strictly hidden in the web version** to eliminate out-of-context host executions for remote browser clients.
+- **Backend Working Directory & Command Parameter Handling**:
+  - Enhanced `/api/system/open-with` with automatic `{dir}` replacement and `current_dir` process spawning so launched external programs immediately open in the target item's folder.
+
 ## [0.7.5-rc5] - 2026-09-07
 
 ### 📱 Responsive Phone & Tablet Menu Clamping & Fullscreen Modal Adaptations

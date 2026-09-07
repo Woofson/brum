@@ -4008,14 +4008,23 @@ async fn handle_open_with(
     }
 
     let path_str = local_path.to_string_lossy().to_string();
+    let dir_str = if local_path.is_dir() {
+        path_str.clone()
+    } else {
+        local_path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| path_str.clone())
+    };
 
     if let Some(cmd) = payload.command {
         if !cmd.trim().is_empty() {
-            let replaced = cmd.replace("%1", &path_str).replace("{file}", &path_str);
+            let replaced = cmd
+                .replace("%1", &format!("\"{}\"", path_str))
+                .replace("{file}", &format!("\"{}\"", path_str))
+                .replace("{dir}", &format!("\"{}\"", dir_str));
             #[cfg(target_os = "windows")]
             {
                 let _ = std::process::Command::new("cmd")
                     .args(["/C", &replaced])
+                    .current_dir(&dir_str)
                     .spawn()
                     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to spawn process: {}", e)))?;
             }
@@ -4023,10 +4032,11 @@ async fn handle_open_with(
             {
                 let _ = std::process::Command::new("sh")
                     .args(["-c", &replaced])
+                    .current_dir(&dir_str)
                     .spawn()
                     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to spawn process: {}", e)))?;
             }
-            return Ok(Json(serde_json::json!({ "success": true, "command": replaced })));
+            return Ok(Json(serde_json::json!({ "success": true, "command": replaced, "working_dir": dir_str })));
         }
     }
 

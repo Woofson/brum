@@ -2,7 +2,7 @@
 
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
 > **Slogan**: *Multi-Tab File Commander for Web & Native Desktop — By Woofson*  
-> **Current Version**: `v0.7.5-rc5 (Desktop & Web)`  
+> **Current Version**: `v0.7.5-rc6 (Desktop & Web)`  
 > **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`).  
 > **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.7.3`), see [**`CHANGELOG.md`**](CHANGELOG.md).
 
