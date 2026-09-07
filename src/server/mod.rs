@@ -1228,6 +1228,7 @@ async fn handle_public_verify_share(
 
 async fn handle_public_download_share(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Query(query): Query<HashMap<String, String>>,
 ) -> Result<Response, (StatusCode, String)> {
@@ -1273,7 +1274,7 @@ async fn handle_public_download_share(
         ArchiveHandler::create_zip(&[share.path.clone()], &temp_path)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip creation failed: {}", e)))?;
 
-        let file_bytes = std::fs::read(&temp_path).map_err(|e| {
+        let file_bytes = tokio::fs::read(&temp_path).await.map_err(|e| {
             (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated zip: {}", e))
         })?;
 
@@ -1281,24 +1282,28 @@ async fn handle_public_download_share(
         let response = Response::builder()
             .header(header::CONTENT_TYPE, "application/zip")
             .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
+            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
             .body(Body::from(file_bytes))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
         return Ok(response);
     }
 
-    let file_bytes = std::fs::read(path).map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file: {}", e))
+    let metadata = tokio::fs::metadata(path).await.map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file metadata: {}", e))
     })?;
 
-    let mime = mime_guess::from_path(path).first_or_octet_stream().to_string();
-    let response = Response::builder()
-        .header(header::CONTENT_TYPE, mime)
-        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", share.name))
-        .body(Body::from(file_bytes))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
+    let mtime_sec = metadata.modified().ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_secs())
+        .unwrap_or(0);
+    let etag = format!("\"{:x}-{:x}\"", metadata.len(), mtime_sec);
 
-    Ok(response)
+    let mime = mime_guess::from_path(path).first_or_octet_stream().to_string();
+    let disposition = format!("attachment; filename=\"{}\"", share.name);
+    let range_header = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
+
+    build_local_file_range_response(path, metadata.len(), mime, disposition, etag, range_header).await
 }
 
 async fn handle_public_upload_share(
@@ -2648,6 +2653,210 @@ async fn handle_upload(
     Ok(Json(serde_json::json!({ "success": true, "uploaded": uploaded_files, "task_id": task_id })))
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct HttpRange {
+    pub start: u64,
+    pub end: u64, // inclusive
+}
+
+impl HttpRange {
+    pub fn parse(range_header: &str, total_len: u64) -> Option<Result<HttpRange, ()>> {
+        if total_len == 0 {
+            return Some(Err(()));
+        }
+
+        let range_str = range_header.trim();
+        if !range_str.starts_with("bytes=") {
+            return None;
+        }
+
+        let spec = &range_str["bytes=".len()..].trim();
+        let spec = spec.split(',').next()?.trim();
+
+        if let Some((start_str, end_str)) = spec.split_once('-') {
+            let start_str = start_str.trim();
+            let end_str = end_str.trim();
+
+            if start_str.is_empty() {
+                // Suffix range: bytes=-500 (last 500 bytes)
+                if let Ok(suffix_len) = end_str.parse::<u64>() {
+                    if suffix_len == 0 {
+                        return Some(Err(()));
+                    }
+                    let actual_len = suffix_len.min(total_len);
+                    let start = total_len - actual_len;
+                    let end = total_len - 1;
+                    return Some(Ok(HttpRange { start, end }));
+                }
+            } else if end_str.is_empty() {
+                // Prefix range: bytes=500-
+                if let Ok(start) = start_str.parse::<u64>() {
+                    if start >= total_len {
+                        return Some(Err(())); // 416 Range Not Satisfiable
+                    }
+                    let end = total_len - 1;
+                    return Some(Ok(HttpRange { start, end }));
+                }
+            } else {
+                // Explicit range: bytes=500-999
+                if let (Ok(start), Ok(end)) = (start_str.parse::<u64>(), end_str.parse::<u64>()) {
+                    if start > end || start >= total_len {
+                        return Some(Err(())); // 416
+                    }
+                    let end = end.min(total_len - 1);
+                    return Some(Ok(HttpRange { start, end }));
+                }
+            }
+        }
+
+        None
+    }
+}
+
+fn build_bytes_range_response(
+    file_bytes: Vec<u8>,
+    mime: String,
+    disposition: String,
+    etag: Option<String>,
+    range_header: Option<&str>,
+) -> Result<Response, (StatusCode, String)> {
+    let total_len = file_bytes.len() as u64;
+
+    if let Some(range_raw) = range_header {
+        if let Some(range_res) = HttpRange::parse(range_raw, total_len) {
+            match range_res {
+                Ok(range) => {
+                    let start = range.start as usize;
+                    let end = (range.end as usize).min(file_bytes.len().saturating_sub(1));
+                    let slice = if start <= end && start < file_bytes.len() {
+                        file_bytes[start..=end].to_vec()
+                    } else {
+                        Vec::new()
+                    };
+                    let slice_len = slice.len();
+
+                    let mut builder = Response::builder()
+                        .status(StatusCode::PARTIAL_CONTENT)
+                        .header(header::CONTENT_TYPE, mime)
+                        .header(header::CONTENT_DISPOSITION, disposition)
+                        .header(header::CONTENT_RANGE, format!("bytes {}-{}/{}", start, end, total_len))
+                        .header(header::CONTENT_LENGTH, slice_len.to_string())
+                        .header(header::ACCEPT_RANGES, "bytes");
+
+                    if let Some(et) = etag {
+                        builder = builder
+                            .header(header::ETAG, et)
+                            .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate");
+                    }
+
+                    return builder
+                        .body(Body::from(slice))
+                        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)));
+                }
+                Err(()) => {
+                    return Response::builder()
+                        .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                        .header(header::CONTENT_RANGE, format!("bytes */{}", total_len))
+                        .header(header::ACCEPT_RANGES, "bytes")
+                        .body(Body::empty())
+                        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)));
+                }
+            }
+        }
+    }
+
+    let mut builder = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, mime)
+        .header(header::CONTENT_DISPOSITION, disposition)
+        .header(header::CONTENT_LENGTH, total_len.to_string())
+        .header(header::ACCEPT_RANGES, "bytes");
+
+    if let Some(et) = etag {
+        builder = builder
+            .header(header::ETAG, et)
+            .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate");
+    }
+
+    builder
+        .body(Body::from(file_bytes))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))
+}
+
+async fn build_local_file_range_response(
+    path: &Path,
+    total_len: u64,
+    mime: String,
+    disposition: String,
+    etag: String,
+    range_header: Option<&str>,
+) -> Result<Response, (StatusCode, String)> {
+    use tokio::io::{AsyncReadExt, AsyncSeekExt};
+
+    if let Some(range_raw) = range_header {
+        if let Some(range_res) = HttpRange::parse(range_raw, total_len) {
+            match range_res {
+                Ok(range) => {
+                    let slice_len = range.end - range.start + 1;
+                    let mut file = tokio::fs::File::open(path).await.map_err(|e| {
+                        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open file: {}", e))
+                    })?;
+
+                    file.seek(std::io::SeekFrom::Start(range.start)).await.map_err(|e| {
+                        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to seek file: {}", e))
+                    })?;
+
+                    let mut buffer = vec![0u8; slice_len as usize];
+                    file.read_exact(&mut buffer).await.map_err(|e| {
+                        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file slice: {}", e))
+                    })?;
+
+                    let response = Response::builder()
+                        .status(StatusCode::PARTIAL_CONTENT)
+                        .header(header::CONTENT_TYPE, mime)
+                        .header(header::CONTENT_DISPOSITION, disposition)
+                        .header(header::CONTENT_RANGE, format!("bytes {}-{}/{}", range.start, range.end, total_len))
+                        .header(header::CONTENT_LENGTH, slice_len.to_string())
+                        .header(header::ACCEPT_RANGES, "bytes")
+                        .header(header::ETAG, etag)
+                        .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
+                        .body(Body::from(buffer))
+                        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
+
+                    return Ok(response);
+                }
+                Err(()) => {
+                    let response = Response::builder()
+                        .status(StatusCode::RANGE_NOT_SATISFIABLE)
+                        .header(header::CONTENT_RANGE, format!("bytes */{}", total_len))
+                        .header(header::ACCEPT_RANGES, "bytes")
+                        .body(Body::empty())
+                        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
+
+                    return Ok(response);
+                }
+            }
+        }
+    }
+
+    let file_bytes = tokio::fs::read(path).await.map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file: {}", e))
+    })?;
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, mime)
+        .header(header::CONTENT_DISPOSITION, disposition)
+        .header(header::CONTENT_LENGTH, total_len.to_string())
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::ETAG, etag)
+        .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
+        .body(Body::from(file_bytes))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
+
+    Ok(response)
+}
+
 async fn handle_download(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -2663,6 +2872,8 @@ async fn handle_download(
             }
         }
     }
+
+    let range_header = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
 
     let path_str = validate_path_access(&state, &modified_headers, raw_path, false)?;
 
@@ -2698,15 +2909,7 @@ async fn handle_download(
             format!("attachment; filename=\"{}\"", file_name)
         };
 
-        let response = Response::builder()
-            .header(header::CONTENT_TYPE, mime)
-            .header(header::CONTENT_DISPOSITION, disposition)
-            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-            .header(header::ACCEPT_RANGES, "bytes")
-            .body(Body::from(file_bytes))
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
-
-        return Ok(response);
+        return build_bytes_range_response(file_bytes, mime, disposition, None, range_header);
     } else if path_str.starts_with("smb://") {
         let params = crate::vfs::smb::SmbClient::parse_uri(&path_str, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SMB URI: {}", e)))?;
@@ -2727,15 +2930,7 @@ async fn handle_download(
             format!("attachment; filename=\"{}\"", file_name)
         };
 
-        let response = Response::builder()
-            .header(header::CONTENT_TYPE, mime)
-            .header(header::CONTENT_DISPOSITION, disposition)
-            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-            .header(header::ACCEPT_RANGES, "bytes")
-            .body(Body::from(file_bytes))
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
-
-        return Ok(response);
+        return build_bytes_range_response(file_bytes, mime, disposition, None, range_header);
     } else if path_str.starts_with("sftp://") {
         let params = SftpClient::parse_uri(&path_str, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
@@ -2756,15 +2951,7 @@ async fn handle_download(
             format!("attachment; filename=\"{}\"", file_name)
         };
 
-        let response = Response::builder()
-            .header(header::CONTENT_TYPE, mime)
-            .header(header::CONTENT_DISPOSITION, disposition)
-            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-            .header(header::ACCEPT_RANGES, "bytes")
-            .body(Body::from(file_bytes))
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
-
-        return Ok(response);
+        return build_bytes_range_response(file_bytes, mime, disposition, None, range_header);
     }
 
     let path = Path::new(&path_str);
@@ -2822,10 +3009,6 @@ async fn handle_download(
         }
     }
 
-    let file_bytes = tokio::fs::read(path).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file: {}", e))
-    })?;
-
     let file_name = path.file_name().unwrap_or_default().to_string_lossy();
     let mime = mime_guess::from_path(path).first_or_octet_stream().to_string();
     let is_media_type = mime.starts_with("image/")
@@ -2841,17 +3024,7 @@ async fn handle_download(
         format!("attachment; filename=\"{}\"", file_name)
     };
 
-    let response = Response::builder()
-        .header(header::CONTENT_TYPE, mime)
-        .header(header::CONTENT_DISPOSITION, disposition)
-        .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-        .header(header::ACCEPT_RANGES, "bytes")
-        .header(header::ETAG, etag)
-        .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
-        .body(Body::from(file_bytes))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
-
-    Ok(response)
+    build_local_file_range_response(path, metadata.len(), mime, disposition, etag, range_header).await
 }
 
 #[derive(Deserialize)]
@@ -4233,5 +4406,37 @@ mod tests {
         let cond_uri: axum::http::Uri = "/index.html".parse().unwrap();
         let cond_res = handle_static_asset(conditional_headers, cond_uri).await;
         assert_eq!(cond_res.status(), StatusCode::NOT_MODIFIED);
+    }
+
+    #[test]
+    fn test_http_range_parsing() {
+        let total = 10000;
+
+        // Valid prefix range: bytes=0-499
+        let r1 = HttpRange::parse("bytes=0-499", total).unwrap().unwrap();
+        assert_eq!(r1, HttpRange { start: 0, end: 499 });
+
+        // Valid open-ended range: bytes=1000-
+        let r2 = HttpRange::parse("bytes=1000-", total).unwrap().unwrap();
+        assert_eq!(r2, HttpRange { start: 1000, end: 9999 });
+
+        // Valid suffix range: bytes=-500 (last 500 bytes)
+        let r3 = HttpRange::parse("bytes=-500", total).unwrap().unwrap();
+        assert_eq!(r3, HttpRange { start: 9500, end: 9999 });
+
+        // Clamp end exceeding total length: bytes=9000-20000
+        let r4 = HttpRange::parse("bytes=9000-20000", total).unwrap().unwrap();
+        assert_eq!(r4, HttpRange { start: 9000, end: 9999 });
+
+        // Out of bounds range: bytes=10000-
+        let r5 = HttpRange::parse("bytes=10000-", total).unwrap();
+        assert!(r5.is_err());
+
+        // Inverted range: bytes=500-200
+        let r6 = HttpRange::parse("bytes=500-200", total).unwrap();
+        assert!(r6.is_err());
+
+        // Non-range header
+        assert!(HttpRange::parse("gzip, deflate", total).is_none());
     }
 }

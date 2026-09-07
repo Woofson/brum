@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.9-rc1] - 2026-09-07
+
+### ⚡ HTTP Range Request & Media Streaming Engine Fix
+- **HTTP `Range` Header Streaming (`206 Partial Content` & `416 Range Not Satisfiable`)**:
+  - **The 20-Second Audio Playback Stalling Bug Resolved**:
+    - HTML5 `<audio>` and `<video>` elements buffer an initial slice (~1MB or 20 seconds) and then pause or close the TCP socket to avoid full-file downloading.
+    - When playback reached ~20s, the browser requested subsequent chunks with `Range: bytes=<offset>-`.
+    - Because `/api/fs/download` previously ignored `Range` headers and returned `200 OK` from byte 0, browser decoders suffered stream decode errors and stopped playback.
+  - **Full RFC 7233 / 9110 Range Support**:
+    - Implemented `HttpRange::parse` supporting prefix ranges (`bytes=0-499`), open-ended ranges (`bytes=1000-`), suffix ranges (`bytes=-500`), and out-of-bounds validation.
+    - Added `build_local_file_range_response` with asynchronous file seeking and chunk extraction, preventing entire files from being loaded into memory for range slices.
+    - Added `build_bytes_range_response` for `vault://`, `smb://`, and `sftp://` media streams and public share downloads.
+
 ## [0.7.8] - 2026-09-07
 
 ### 📻 SoundDog: Authentic Winamp 2.x Clone & Studio Equalizer ChewToy
