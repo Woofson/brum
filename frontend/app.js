@@ -9104,6 +9104,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'ConvertX', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDFDog', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
+  { id: 'sounddog', label: 'SoundDog', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & real-time equalizer', visible: true },
   { id: 'tetradog', label: 'TetraDog', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade Tetris chewtoy with synchronized top scores', visible: true },
   { id: 'tasks', label: 'Task Manager', icon: 'assets/task.webp', action: 'openFloatingTaskManager()', desc: 'Active transfers, speeds & queue control', visible: true }
 ];
@@ -10355,6 +10356,13 @@ function showContextMenu(x, y) {
     ` : ''}
     <div class="context-item" onclick="triggerView()"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
     <div class="context-item" onclick="triggerEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
+    ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
+      <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in SoundDog</div>
+      <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to SoundDog Queue</div>
+    ` : ''}
+    ${App.contextItem && (App.contextItem.is_dir) ? `
+      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem.path)}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in SoundDog</div>
+    ` : ''}
     <div class="context-item" onclick="triggerDownloadContextItem()"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
     <div class="context-item" onclick="triggerProperties()"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
     <div class="context-sep"></div>
@@ -12504,7 +12512,7 @@ function triggerView() {
     return;
   }
   if (isAudioExtension(item.name)) {
-    openMediaPlayer(item.path, 'audio');
+    openSoundDog(item.path);
     return;
   }
   if (isVideoExtension(item.name)) {
@@ -17050,7 +17058,7 @@ function openFileByType(entry, paneIndex) {
   } else if (isPdfExtension(entry.name) || isDocumentExtension(entry.name)) {
     openDocumentViewer(entry.path);
   } else if (isAudioExtension(entry.name)) {
-    openMediaPlayer(entry.path, 'audio');
+    openSoundDog(entry.path);
   } else if (isVideoExtension(entry.name)) {
     openMediaPlayer(entry.path, 'video');
   } else if (isComicBookExtension(entry.name)) {
@@ -20531,6 +20539,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'ConvertX', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDFDog', sub: 'PDF Power Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
+  { id: 'sounddog', title: 'SoundDog', sub: 'Audio player, jukebox, playlists & 5-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
   { id: 'tetradog', title: 'TetraDog', sub: 'Classic arcade Tetris chewtoy with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
@@ -21385,6 +21394,10 @@ function dockTetraDogToActivePane() {
   dockToolToPane('tetradog', App.activePaneIndex);
 }
 
+function dockSoundDogToActivePane() {
+  dockToolToPane('sounddog', App.activePaneIndex);
+}
+
 function rebuildPaneDOM(paneIndex) {
   const oldPaneEl = document.getElementById(`pane-${paneIndex}`);
   const pane = App.panes[paneIndex];
@@ -21470,6 +21483,13 @@ function dockToolToPane(toolName, paneIndex) {
     const pill = document.getElementById('tetradog-pill');
     if (pill) pill.style.display = 'none';
   }
+  // 8. SoundDog: hide floating window & pill
+  else if (toolName === 'sounddog') {
+    const win = document.getElementById('floating-sounddog-window');
+    if (win) win.style.display = 'none';
+    const pill = document.getElementById('sounddog-pill');
+    if (pill) pill.style.display = 'none';
+  }
 
   rebuildPaneDOM(paneIndex);
   showToast(`Docked ${toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
@@ -21517,6 +21537,8 @@ function undockToolFromPane(paneIndex) {
     openGitManager(paneIndex, pane.path);
   } else if (tool === 'tetradog') {
     openTetraDog();
+  } else if (tool === 'sounddog') {
+    openSoundDog();
   }
 }
 
@@ -21824,6 +21846,28 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       mountDockedTetraDog(paneIndex);
+    }, 50);
+  }
+  // 7. DOCKED SOUNDDOG (AUDIO PLAYER & JUKEBOX)
+  else if (tool === 'sounddog') {
+    mount.innerHTML = `
+      <div class="docked-sounddog-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+        <div style="padding: 4px 8px; min-height: 32px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <img src="assets/amber-media.webp" alt="SoundDog" style="width: 14px; height: 14px; object-fit: contain;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">SoundDog</span>
+            <span class="sounddog-format-badge" id="docked-sounddog-badge-${paneIndex}">JUKEBOX</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button class="btn btn-xs btn-accent" onclick="toggleSoundDogPlay()"><i data-lucide="play" id="docked-sounddog-play-btn-${paneIndex}" style="width: 11px;"></i> Play</button>
+            <button class="btn btn-xs btn-outline" onclick="openFloatingSoundDog()"><i data-lucide="external-link" style="width: 11px;"></i></button>
+          </div>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #090a0f; padding: 6px;" id="docked-sounddog-host-${paneIndex}"></div>
+      </div>
+    `;
+    setTimeout(() => {
+      mountDockedSoundDog(paneIndex);
     }, 50);
   }
 
@@ -25017,3 +25061,1394 @@ function mountDockedTetraDog(paneIndex) {
   arena.style.display = 'flex';
   renderTetraCanvas();
 }
+
+// ==========================================================================
+// 📻 SOUNDDOG: AUTHENTIC WINAMP 2.X CLONE CHEWTOY (10-BAND EQ & PLAYLIST)
+// ==========================================================================
+
+const sounddogState = {
+  queue: [],              // Array of { path, name, title, artist, album, duration, size, cover, bitrate, sampleRate, year, genre, fileObj }
+  currentIndex: -1,
+  selectedPlIndex: -1,
+  isPlaying: false,
+  isShuffle: false,
+  repeatMode: localStorage.getItem('cd_sounddog_repeat') || 'all', // 'off', 'all', 'one'
+  volume: parseFloat(localStorage.getItem('cd_sounddog_volume') || '0.8'),
+  pan: 0,
+  isMuted: false,
+  playbackRate: 1.0,
+  timeMode: localStorage.getItem('cd_sounddog_timemode') || 'elapsed', // 'elapsed', 'remaining'
+  isShade: false,
+  eqShade: false,
+  plShade: false,
+  showEq: true,
+  showPl: true,
+  eqEnabled: true,
+  eqAuto: false,
+  vizMode: localStorage.getItem('cd_sounddog_viz') || 'bars', // 'bars', 'wave', 'glow', 'off'
+  eq: {
+    preset: localStorage.getItem('cd_sounddog_eq_preset') || 'flat',
+    bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // 60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000 Hz
+    preamp: 0
+  },
+  isMaximized: false,
+  initialized: false,
+  blobUrls: new Map(),
+  visPeakArray: new Array(24).fill(0),
+  visPeakDecay: new Array(24).fill(0)
+};
+
+let sounddogAudioCtx = null;
+let sounddogSourceNode = null;
+let sounddogAnalyserNode = null;
+let sounddogGainNode = null;
+let sounddogPreampNode = null;
+let sounddogPanNode = null;
+let sounddogEqFilters = [];
+let sounddogAnimFrame = null;
+let sounddogDragInitialized = false;
+
+const SOUNDDOG_EQ_FREQS = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000];
+
+const SOUNDDOG_EQ_PRESETS = {
+  flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+  bass_boost: [6.0, 5.0, 4.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0],
+  rock: [4.5, 3.0, 1.5, -1.0, -1.5, 1.0, 3.0, 4.5, 4.5, 4.5],
+  synthwave: [5.5, 4.0, 2.0, 0.0, -1.0, 1.5, 3.5, 4.5, 5.0, 5.0],
+  vocal: [-2.0, -1.0, 1.0, 3.5, 4.5, 3.5, 2.0, 0.5, -0.5, -2.0],
+  jazz: [3.5, 2.5, 1.5, 1.5, -1.0, -1.0, 0.0, 1.5, 2.5, 3.5],
+  classical: [4.0, 3.0, 2.0, 1.5, -1.0, -1.0, 0.0, 2.0, 3.5, 4.0],
+  pop: [-1.5, 1.5, 3.5, 4.5, 3.0, 0.0, -1.5, -1.5, -1.0, -1.0],
+  custom: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+};
+
+function getSoundDogAudioElement() {
+  return document.getElementById('sounddog-audio-element');
+}
+
+function initSoundDogAudioEngine() {
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl) return;
+
+  if (!sounddogAudioCtx) {
+    try {
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtxClass) {
+        sounddogAudioCtx = new AudioCtxClass();
+        sounddogSourceNode = sounddogAudioCtx.createMediaElementSource(audioEl);
+
+        // Preamp Gain Node (-6dB to +6dB)
+        sounddogPreampNode = sounddogAudioCtx.createGain();
+        sounddogPreampNode.gain.value = 1.0;
+
+        // 10-Band Biquad Graphic Equalizer (Winamp 2.x standard frequencies)
+        sounddogEqFilters = SOUNDDOG_EQ_FREQS.map(freq => {
+          const filter = sounddogAudioCtx.createBiquadFilter();
+          filter.type = 'peaking';
+          filter.frequency.value = freq;
+          filter.Q.value = 1.4;
+          filter.gain.value = 0;
+          return filter;
+        });
+
+        // Stereo Panner Node
+        if (sounddogAudioCtx.createStereoPanner) {
+          sounddogPanNode = sounddogAudioCtx.createStereoPanner();
+          sounddogPanNode.pan.value = sounddogState.pan || 0;
+        }
+
+        // Analyser Node for 60 FPS Winamp Visualizer
+        sounddogAnalyserNode = sounddogAudioCtx.createAnalyser();
+        sounddogAnalyserNode.fftSize = 256;
+        sounddogAnalyserNode.smoothingTimeConstant = 0.75;
+
+        // Master Volume Gain
+        sounddogGainNode = sounddogAudioCtx.createGain();
+        sounddogGainNode.gain.value = sounddogState.isMuted ? 0 : sounddogState.volume;
+
+        // Connect audio graph: source -> preamp -> 10 EQ filters -> panner -> analyser -> master gain -> destination
+        let currentNode = sounddogSourceNode;
+        currentNode.connect(sounddogPreampNode);
+        currentNode = sounddogPreampNode;
+
+        sounddogEqFilters.forEach(f => {
+          currentNode.connect(f);
+          currentNode = f;
+        });
+
+        if (sounddogPanNode) {
+          currentNode.connect(sounddogPanNode);
+          currentNode = sounddogPanNode;
+        }
+
+        currentNode.connect(sounddogAnalyserNode);
+        sounddogAnalyserNode.connect(sounddogGainNode);
+        sounddogGainNode.connect(sounddogAudioCtx.destination);
+      }
+    } catch (e) {
+      console.debug('SoundDog Web Audio API notice:', e);
+    }
+  }
+
+  // HTML5 Audio Element Events
+  audioEl.ontimeupdate = () => {
+    updateSoundDogScrubber();
+  };
+
+  audioEl.onprogress = () => {
+    updateSoundDogBuffer();
+  };
+
+  audioEl.onplay = () => {
+    sounddogState.isPlaying = true;
+    updateSoundDogPlaybackState(true);
+    startSoundDogVisualizer();
+  };
+
+  audioEl.onpause = () => {
+    sounddogState.isPlaying = false;
+    updateSoundDogPlaybackState(false);
+  };
+
+  audioEl.onended = () => {
+    if (sounddogState.repeatMode === 'one') {
+      audioEl.currentTime = 0;
+      audioEl.play().catch(() => {});
+    } else {
+      playNextSoundDogTrack();
+    }
+  };
+
+  audioEl.onerror = () => {
+    if (sounddogState.queue.length > 0 && sounddogState.currentIndex >= 0) {
+      const cur = sounddogState.queue[sounddogState.currentIndex];
+      showToast(`Playback error for: ${cur.name}`, 'warning');
+    }
+  };
+
+  // Restore saved volume, balance & EQ presets
+  setSoundDogVolume(sounddogState.volume);
+  if (sounddogState.pan) setSoundDogPan(sounddogState.pan);
+  if (sounddogState.eq.preset && SOUNDDOG_EQ_PRESETS[sounddogState.eq.preset]) {
+    applySoundDogEqPreset(sounddogState.eq.preset, false);
+  }
+
+  updateSoundDogRepeatButton();
+  updateSoundDogShuffleButton();
+  initSoundDogKeyboardShortcuts();
+}
+
+// ---------------- WINDOWING & WINAMP DRAG/RESIZE ----------------
+function openSoundDog(initialPath = null) {
+  closeToolsMenu();
+  const win = document.getElementById('floating-sounddog-window');
+  const pill = document.getElementById('sounddog-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  updateDynamicViewportHeight();
+  initSoundDogDragAndResize();
+
+  if (!sounddogState.initialized) {
+    initSoundDogAudioEngine();
+    sounddogState.initialized = true;
+  }
+
+  if (initialPath) {
+    addTracksToSoundDogQueue([initialPath], true);
+  } else if (sounddogState.queue.length === 0) {
+    populateSoundDogFromActivePane(false);
+  }
+
+  renderSoundDogQueue();
+  updateSoundDogQueueStats();
+
+  if (window.lucide) {
+    try { lucide.createIcons(); } catch (e) {}
+  }
+}
+
+function openFloatingSoundDog() {
+  openSoundDog();
+}
+
+function closeSoundDog() {
+  const win = document.getElementById('floating-sounddog-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('sounddog-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function minimizeSoundDog() {
+  const win = document.getElementById('floating-sounddog-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('sounddog-pill');
+  if (pill) {
+    pill.style.display = 'flex';
+    updateSoundDogPill();
+  }
+}
+
+function restoreSoundDog() {
+  openSoundDog();
+}
+
+function initSoundDogDragAndResize() {
+  if (sounddogDragInitialized) return;
+  sounddogDragInitialized = true;
+
+  const container = document.getElementById('floating-sounddog-window');
+  const headers = [
+    document.getElementById('sounddog-main-titlebar'),
+    document.getElementById('sounddog-eq-titlebar'),
+    document.getElementById('sounddog-pl-titlebar'),
+    document.getElementById('sounddog-main-shade'),
+    document.getElementById('sounddog-eq-shade'),
+    document.getElementById('sounddog-pl-shade')
+  ];
+
+  if (!container) return;
+
+  // Restore saved position
+  const savedLeft = localStorage.getItem('cd_sounddog_x');
+  const savedTop = localStorage.getItem('cd_sounddog_y');
+  if (savedLeft && savedTop && window.innerWidth > 768) {
+    container.style.left = `${Math.min(window.innerWidth - 120, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    container.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  headers.forEach(header => {
+    if (!header) return;
+    header.addEventListener('mousedown', (e) => {
+      if (window.innerWidth <= 768) return;
+      if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+      isDragging = true;
+      bringFloatingWindowToFront(container);
+      dragStartX = e.clientX;
+      dragStartY = e.clientY;
+      const rect = container.getBoundingClientRect();
+      winStartX = rect.left;
+      winStartY = rect.top;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'move';
+    });
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(30, Math.min(window.innerHeight - 60, winStartY + dy));
+    container.style.left = `${newX}px`;
+    container.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      const rect = container.getBoundingClientRect();
+      localStorage.setItem('cd_sounddog_x', Math.round(rect.left).toString());
+      localStorage.setItem('cd_sounddog_y', Math.round(rect.top).toString());
+    }
+  });
+
+  // Playlist Resize Corner
+  const resizeCorner = document.getElementById('sounddog-pl-resize-corner');
+  const queueScroll = document.getElementById('sounddog-queue-scroll');
+  if (resizeCorner && queueScroll) {
+    let isResizing = false;
+    let startY = 0, startScrollH = 0;
+    let startX = 0, startWinW = 0;
+
+    resizeCorner.addEventListener('mousedown', (e) => {
+      if (window.innerWidth <= 768) return;
+      e.preventDefault();
+      e.stopPropagation();
+      isResizing = true;
+      startY = e.clientY;
+      startX = e.clientX;
+      startScrollH = queueScroll.clientHeight;
+      startWinW = container.clientWidth;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'nwse-resize';
+
+      const onMouseMove = (me) => {
+        if (!isResizing) return;
+        const dy = me.clientY - startY;
+        const dx = me.clientX - startX;
+        const newScrollH = Math.max(70, Math.min(600, startScrollH + dy));
+        const newWinW = Math.max(300, Math.min(800, startWinW + dx));
+        queueScroll.style.height = `${newScrollH}px`;
+        container.style.width = `${newWinW}px`;
+      };
+
+      const onMouseUp = () => {
+        if (isResizing) {
+          isResizing = false;
+          document.body.style.userSelect = '';
+          document.body.style.cursor = '';
+          window.removeEventListener('mousemove', onMouseMove);
+          window.removeEventListener('mouseup', onMouseUp);
+        }
+      };
+
+      window.addEventListener('mousemove', onMouseMove);
+      window.addEventListener('mouseup', onMouseUp);
+    });
+  }
+
+  // Drag & Drop files directly onto SoundDog
+  container.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    container.classList.add('winamp-drag-over');
+  });
+
+  container.addEventListener('dragleave', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    container.classList.remove('winamp-drag-over');
+  });
+
+  container.addEventListener('drop', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    container.classList.remove('winamp-drag-over');
+
+    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      handleSoundDogDroppedFiles(e.dataTransfer.files);
+    }
+  });
+}
+
+// ---------------- WINDOWSHADE & SUB-WINDOW CONTROLS ----------------
+function toggleSoundDogMainWindowShade() {
+  sounddogState.isShade = !sounddogState.isShade;
+  const mainWin = document.getElementById('sounddog-main-win');
+  const normalBody = document.getElementById('sounddog-main-normal');
+  const shadeBar = document.getElementById('sounddog-main-shade');
+  const shadeBtn = document.getElementById('btn-sounddog-main-shade');
+
+  if (mainWin) mainWin.classList.toggle('shade-mode', sounddogState.isShade);
+  if (normalBody) normalBody.style.display = sounddogState.isShade ? 'none' : 'flex';
+  if (shadeBar) shadeBar.style.display = sounddogState.isShade ? 'flex' : 'none';
+  if (shadeBtn) shadeBtn.textContent = sounddogState.isShade ? '▼' : '▲';
+
+  if (sounddogState.isShade) updateSoundDogScrubber();
+}
+
+function toggleSoundDogEqShade() {
+  sounddogState.eqShade = !sounddogState.eqShade;
+  const normalBody = document.getElementById('sounddog-eq-normal');
+  const shadeBar = document.getElementById('sounddog-eq-shade');
+  if (normalBody) normalBody.style.display = sounddogState.eqShade ? 'none' : 'flex';
+  if (shadeBar) shadeBar.style.display = sounddogState.eqShade ? 'flex' : 'none';
+}
+
+function toggleSoundDogPlShade() {
+  sounddogState.plShade = !sounddogState.plShade;
+  const normalBody = document.getElementById('sounddog-pl-normal');
+  const shadeBar = document.getElementById('sounddog-pl-shade');
+  if (normalBody) normalBody.style.display = sounddogState.plShade ? 'none' : 'flex';
+  if (shadeBar) shadeBar.style.display = sounddogState.plShade ? 'flex' : 'none';
+  updateSoundDogQueueStats();
+}
+
+function toggleSoundDogEqWindow(forceShow) {
+  if (typeof forceShow === 'boolean') sounddogState.showEq = forceShow;
+  else sounddogState.showEq = !sounddogState.showEq;
+
+  const eqWin = document.getElementById('sounddog-eq-window');
+  const eqBtn = document.getElementById('btn-winamp-toggle-eq');
+
+  if (eqWin) eqWin.style.display = sounddogState.showEq ? 'flex' : 'none';
+  if (eqBtn) eqBtn.classList.toggle('active', sounddogState.showEq);
+}
+
+function toggleSoundDogPlWindow(forceShow) {
+  if (typeof forceShow === 'boolean') sounddogState.showPl = forceShow;
+  else sounddogState.showPl = !sounddogState.showPl;
+
+  const plWin = document.getElementById('sounddog-playlist-win');
+  const plBtn = document.getElementById('btn-winamp-toggle-pl');
+
+  if (plWin) plWin.style.display = sounddogState.showPl ? 'flex' : 'none';
+  if (plBtn) plBtn.classList.toggle('active', sounddogState.showPl);
+}
+
+function toggleSoundDogTimeMode() {
+  sounddogState.timeMode = (sounddogState.timeMode === 'elapsed') ? 'remaining' : 'elapsed';
+  localStorage.setItem('cd_sounddog_timemode', sounddogState.timeMode);
+  updateSoundDogScrubber();
+}
+
+function toggleSoundDogEqEnabled() {
+  sounddogState.eqEnabled = !sounddogState.eqEnabled;
+  const btn = document.getElementById('btn-winamp-eq-on');
+  if (btn) btn.classList.toggle('active', sounddogState.eqEnabled);
+
+  if (sounddogAudioCtx) {
+    sounddogEqFilters.forEach((f, idx) => {
+      const targetGain = sounddogState.eqEnabled ? sounddogState.eq.bands[idx] : 0;
+      f.gain.setValueAtTime(targetGain, sounddogAudioCtx.currentTime);
+    });
+  }
+}
+
+function toggleSoundDogEqAuto() {
+  sounddogState.eqAuto = !sounddogState.eqAuto;
+  const btn = document.getElementById('btn-winamp-eq-auto');
+  if (btn) btn.classList.toggle('active', sounddogState.eqAuto);
+}
+
+// ---------------- QUEUE & PLAYLIST MANAGEMENT ----------------
+function populateSoundDogFromActivePane(autoPlay = false) {
+  const pane = App.panes[App.activePaneIndex];
+  if (!pane || !pane.entries) return;
+
+  const audioEntries = pane.entries.filter(e => !e.is_dir && isAudioExtension(e.name));
+  if (audioEntries.length > 0) {
+    const paths = audioEntries.map(e => e.path);
+    addTracksToSoundDogQueue(paths, autoPlay);
+  }
+}
+
+function addCurrentPaneFolderToSoundDog() {
+  const pane = App.panes[App.activePaneIndex];
+  if (!pane || !pane.entries) return;
+
+  const audioEntries = pane.entries.filter(e => !e.is_dir && isAudioExtension(e.name));
+  if (audioEntries.length === 0) {
+    showToast('No audio files found in current panel', 'info');
+    return;
+  }
+
+  const paths = audioEntries.map(e => e.path);
+  addTracksToSoundDogQueue(paths, sounddogState.queue.length === 0);
+  showToast(`Added ${audioEntries.length} tracks to SoundDog playlist`, 'success');
+}
+
+function addTracksToSoundDogQueue(paths, autoPlayFirst = false) {
+  if (!paths || paths.length === 0) return;
+
+  const wasEmpty = sounddogState.queue.length === 0;
+  const newTracks = [];
+
+  paths.forEach(p => {
+    const exists = sounddogState.queue.some(t => t.path === p);
+    if (!exists) {
+      const fileName = p.split('/').pop() || p;
+      const cleanName = fileName.replace(/\.[^/.]+$/, '');
+      const parts = cleanName.split(' - ');
+      const artist = parts.length > 1 ? parts[0].trim() : '';
+      const title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : cleanName;
+
+      newTracks.push({
+        path: p,
+        name: fileName,
+        title: title,
+        artist: artist,
+        album: 'SoundDog Jukebox',
+        duration: 0,
+        size: 0,
+        cover: null,
+        bitrate: '320',
+        sampleRate: '44',
+        year: '',
+        genre: ''
+      });
+    }
+  });
+
+  sounddogState.queue.push(...newTracks);
+  renderSoundDogQueue();
+  updateSoundDogQueueStats();
+
+  if (wasEmpty || autoPlayFirst) {
+    const targetIdx = wasEmpty ? 0 : sounddogState.queue.length - newTracks.length;
+    loadSoundDogTrack(targetIdx, true);
+  }
+}
+
+function handleSoundDogDroppedFiles(fileList) {
+  const files = Array.from(fileList).filter(f => isAudioExtension(f.name) || f.type.startsWith('audio/'));
+  if (files.length === 0) {
+    showToast('No valid audio files dropped', 'info');
+    return;
+  }
+
+  const wasEmpty = sounddogState.queue.length === 0;
+  const newTracks = files.map(file => {
+    const blobUrl = URL.createObjectURL(file);
+    const cleanName = file.name.replace(/\.[^/.]+$/, '');
+    const parts = cleanName.split(' - ');
+    const artist = parts.length > 1 ? parts[0].trim() : '';
+    const title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : cleanName;
+
+    return {
+      path: blobUrl,
+      name: file.name,
+      title: title,
+      artist: artist,
+      album: 'Local File',
+      duration: 0,
+      size: file.size,
+      cover: null,
+      bitrate: '320',
+      sampleRate: '44',
+      fileObj: file
+    };
+  });
+
+  sounddogState.queue.push(...newTracks);
+  renderSoundDogQueue();
+  updateSoundDogQueueStats();
+
+  if (wasEmpty) {
+    loadSoundDogTrack(0, true);
+  }
+  showToast(`Loaded ${newTracks.length} dropped audio tracks`, 'success');
+}
+
+function triggerSoundDogOpenFiles() {
+  const input = document.getElementById('sounddog-file-input');
+  if (input) input.click();
+}
+
+function handleSoundDogFilePicker(e) {
+  if (e.target && e.target.files && e.target.files.length > 0) {
+    handleSoundDogDroppedFiles(e.target.files);
+    e.target.value = '';
+  }
+}
+
+function clearSoundDogQueue() {
+  const audioEl = getSoundDogAudioElement();
+  if (audioEl) {
+    audioEl.pause();
+    audioEl.src = '';
+  }
+  sounddogState.queue = [];
+  sounddogState.currentIndex = -1;
+  sounddogState.selectedPlIndex = -1;
+  sounddogState.isPlaying = false;
+  updateSoundDogPlaybackState(false);
+  resetSoundDogHUD();
+  renderSoundDogQueue();
+  updateSoundDogQueueStats();
+}
+
+function removeSoundDogTrack(index) {
+  if (index < 0 || index >= sounddogState.queue.length) return;
+
+  const isCurrent = index === sounddogState.currentIndex;
+  sounddogState.queue.splice(index, 1);
+
+  if (sounddogState.queue.length === 0) {
+    clearSoundDogQueue();
+    return;
+  }
+
+  if (isCurrent) {
+    const nextIdx = Math.min(index, sounddogState.queue.length - 1);
+    loadSoundDogTrack(nextIdx, sounddogState.isPlaying);
+  } else if (index < sounddogState.currentIndex) {
+    sounddogState.currentIndex--;
+  }
+
+  sounddogState.selectedPlIndex = Math.min(sounddogState.selectedPlIndex, sounddogState.queue.length - 1);
+  renderSoundDogQueue();
+  updateSoundDogQueueStats();
+}
+
+function removeSoundDogSelectedTrack() {
+  const targetIdx = sounddogState.selectedPlIndex >= 0 ? sounddogState.selectedPlIndex : sounddogState.currentIndex;
+  if (targetIdx >= 0) {
+    removeSoundDogTrack(targetIdx);
+  }
+}
+
+function randomizeSoundDogQueue() {
+  if (sounddogState.queue.length <= 1) return;
+
+  const currentTrack = sounddogState.currentIndex >= 0 ? sounddogState.queue[sounddogState.currentIndex] : null;
+
+  // Fisher-Yates Shuffle
+  for (let i = sounddogState.queue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [sounddogState.queue[i], sounddogState.queue[j]] = [sounddogState.queue[j], sounddogState.queue[i]];
+  }
+
+  if (currentTrack) {
+    sounddogState.currentIndex = sounddogState.queue.indexOf(currentTrack);
+  }
+
+  renderSoundDogQueue();
+  showToast('Playlist randomized', 'info');
+}
+
+function renderSoundDogQueue() {
+  const tbody = document.getElementById('sounddog-queue-tbody');
+  const emptyEl = document.getElementById('sounddog-queue-empty');
+  const filterInput = document.getElementById('sounddog-queue-filter');
+  const filterTerm = (filterInput?.value || '').toLowerCase().trim();
+
+  if (!tbody) return;
+
+  if (sounddogState.queue.length === 0) {
+    tbody.innerHTML = '';
+    if (emptyEl) emptyEl.style.display = 'flex';
+    return;
+  }
+
+  if (emptyEl) emptyEl.style.display = 'none';
+
+  let html = '';
+  sounddogState.queue.forEach((track, idx) => {
+    if (filterTerm) {
+      const match = (track.title || '').toLowerCase().includes(filterTerm) ||
+                    (track.artist || '').toLowerCase().includes(filterTerm) ||
+                    (track.name || '').toLowerCase().includes(filterTerm);
+      if (!match) return;
+    }
+
+    const isCurrent = idx === sounddogState.currentIndex;
+    const isSelected = idx === sounddogState.selectedPlIndex;
+    const durStr = track.duration > 0 ? formatMediaTime(track.duration) : '--:--';
+    const displayTitle = track.artist ? `${track.artist} - ${track.title}` : (track.title || track.name);
+
+    html += `
+      <div class="winamp-pl-row ${isCurrent ? 'playing' : ''} ${isSelected ? 'selected' : ''}" 
+           onclick="selectSoundDogPlTrack(${idx})" 
+           ondblclick="loadSoundDogTrack(${idx}, true)">
+        <span class="winamp-pl-num">${idx + 1}.</span>
+        <span class="winamp-pl-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</span>
+        <span class="winamp-pl-time">${durStr}</span>
+      </div>
+    `;
+  });
+
+  tbody.innerHTML = html;
+}
+
+function selectSoundDogPlTrack(index) {
+  sounddogState.selectedPlIndex = index;
+  renderSoundDogQueue();
+}
+
+function filterSoundDogQueue(term) {
+  renderSoundDogQueue();
+}
+
+function updateSoundDogQueueStats() {
+  const statsEl = document.getElementById('sounddog-queue-stats');
+  const shadeStats = document.getElementById('sounddog-pl-shade-summary');
+  const count = sounddogState.queue.length;
+  let totalSecs = 0;
+  sounddogState.queue.forEach(t => { if (t.duration) totalSecs += t.duration; });
+  const timeStr = formatMediaTime(totalSecs);
+  const text = `${count} ${count === 1 ? 'track' : 'tracks'} / ${timeStr}`;
+
+  if (statsEl) statsEl.textContent = text;
+  if (shadeStats) shadeStats.textContent = `PLAYLIST: ${text}`;
+}
+
+// ---------------- AUDIO PLAYBACK & TRACK LOADING ----------------
+async function loadSoundDogTrack(index, autoPlay = true) {
+  if (index < 0 || index >= sounddogState.queue.length) return;
+
+  sounddogState.currentIndex = index;
+  sounddogState.selectedPlIndex = index;
+  const track = sounddogState.queue[index];
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl) return;
+
+  if (sounddogAudioCtx && sounddogAudioCtx.state === 'suspended') {
+    try { await sounddogAudioCtx.resume(); } catch (e) {}
+  }
+
+  const streamUrl = track.fileObj ? track.path : getDownloadUrl(track.path, true);
+  audioEl.src = streamUrl;
+  audioEl.playbackRate = sounddogState.playbackRate;
+
+  updateSoundDogHUD(track);
+  renderSoundDogQueue();
+  updateSoundDogPill();
+  updateSoundDogDockedHUD();
+
+  if (autoPlay) {
+    audioEl.play().catch(e => {
+      console.debug('SoundDog playback notice:', e);
+    });
+  }
+
+  if (!track.fileObj) {
+    parseSoundDogMetadata(track);
+  }
+}
+
+function toggleSoundDogPlay() {
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl) return;
+
+  if (sounddogAudioCtx && sounddogAudioCtx.state === 'suspended') {
+    sounddogAudioCtx.resume().catch(() => {});
+  }
+
+  if (sounddogState.currentIndex === -1 && sounddogState.queue.length > 0) {
+    loadSoundDogTrack(0, true);
+    return;
+  }
+
+  if (audioEl.paused) {
+    audioEl.play().catch(() => {});
+  } else {
+    audioEl.pause();
+  }
+}
+
+function stopSoundDogPlay() {
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl) return;
+
+  audioEl.pause();
+  audioEl.currentTime = 0;
+  sounddogState.isPlaying = false;
+  updateSoundDogPlaybackState(false);
+  updateSoundDogScrubber();
+}
+
+function playNextSoundDogTrack() {
+  if (sounddogState.queue.length === 0) return;
+
+  let nextIdx = 0;
+  if (sounddogState.isShuffle) {
+    nextIdx = Math.floor(Math.random() * sounddogState.queue.length);
+    if (nextIdx === sounddogState.currentIndex && sounddogState.queue.length > 1) {
+      nextIdx = (nextIdx + 1) % sounddogState.queue.length;
+    }
+  } else {
+    if (sounddogState.currentIndex + 1 >= sounddogState.queue.length) {
+      if (sounddogState.repeatMode === 'off') {
+        stopSoundDogPlay();
+        return;
+      }
+      nextIdx = 0;
+    } else {
+      nextIdx = sounddogState.currentIndex + 1;
+    }
+  }
+
+  loadSoundDogTrack(nextIdx, true);
+}
+
+function playPrevSoundDogTrack() {
+  if (sounddogState.queue.length === 0) return;
+
+  const audioEl = getSoundDogAudioElement();
+  if (audioEl && audioEl.currentTime > 3) {
+    audioEl.currentTime = 0;
+    return;
+  }
+
+  let prevIdx = sounddogState.currentIndex - 1;
+  if (prevIdx < 0) {
+    prevIdx = sounddogState.queue.length - 1;
+  }
+  loadSoundDogTrack(prevIdx, true);
+}
+
+function seekSoundDogFromEvent(e) {
+  const audioEl = getSoundDogAudioElement();
+  const trackEl = e.currentTarget || document.getElementById('sounddog-scrubber-track');
+  if (!audioEl || !trackEl || !audioEl.duration) return;
+
+  const rect = trackEl.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const pct = Math.max(0, Math.min(1, clickX / rect.width));
+  audioEl.currentTime = pct * audioEl.duration;
+  updateSoundDogScrubber();
+}
+
+function seekSoundDogRelative(deltaSecs) {
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl || !audioEl.duration) return;
+  audioEl.currentTime = Math.max(0, Math.min(audioEl.duration, audioEl.currentTime + deltaSecs));
+  updateSoundDogScrubber();
+}
+
+function updateSoundDogScrubber() {
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl) return;
+
+  const cur = audioEl.currentTime || 0;
+  const dur = audioEl.duration || 0;
+  const pct = dur > 0 ? (cur / dur) * 100 : 0;
+
+  const progEl = document.getElementById('sounddog-scrubber-progress');
+  const thumbEl = document.getElementById('sounddog-scrubber-thumb');
+  const shadeProgEl = document.getElementById('sounddog-shade-progress');
+  const shadeTimeEl = document.getElementById('sounddog-shade-time');
+  const ledDigits = document.getElementById('winamp-led-time');
+  const ledMinus = document.getElementById('winamp-time-minus');
+
+  if (progEl) progEl.style.width = `${pct}%`;
+  if (thumbEl) thumbEl.style.left = `${pct}%`;
+  if (shadeProgEl) shadeProgEl.style.width = `${pct}%`;
+
+  if (sounddogState.timeMode === 'remaining') {
+    const rem = Math.max(0, dur - cur);
+    if (ledDigits) ledDigits.textContent = formatMediaTime(rem);
+    if (ledMinus) ledMinus.style.visibility = 'visible';
+    if (shadeTimeEl) shadeTimeEl.textContent = `-${formatMediaTime(rem)}`;
+  } else {
+    if (ledDigits) ledDigits.textContent = formatMediaTime(cur);
+    if (ledMinus) ledMinus.style.visibility = 'hidden';
+    if (shadeTimeEl) shadeTimeEl.textContent = formatMediaTime(cur);
+  }
+
+  if (dur > 0 && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
+    const track = sounddogState.queue[sounddogState.currentIndex];
+    if (!track.duration) {
+      track.duration = dur;
+      updateSoundDogQueueStats();
+      renderSoundDogQueue();
+    }
+  }
+}
+
+function updateSoundDogBuffer() {
+  // Scrubber buffering update if available
+}
+
+function setSoundDogVolume(val) {
+  const v = Math.max(0, Math.min(1, parseFloat(val)));
+  sounddogState.volume = v;
+  localStorage.setItem('cd_sounddog_volume', v.toString());
+
+  const audioEl = getSoundDogAudioElement();
+  if (audioEl) audioEl.volume = sounddogState.isMuted ? 0 : v;
+
+  if (sounddogGainNode && sounddogAudioCtx) {
+    sounddogGainNode.gain.setValueAtTime(sounddogState.isMuted ? 0 : v, sounddogAudioCtx.currentTime);
+  }
+
+  const slider = document.getElementById('winamp-vol-slider');
+  if (slider) slider.value = Math.round(v * 100).toString();
+}
+
+function setSoundDogPan(val) {
+  const p = Math.max(-1, Math.min(1, parseFloat(val)));
+  sounddogState.pan = p;
+
+  if (sounddogPanNode && sounddogAudioCtx) {
+    sounddogPanNode.pan.setValueAtTime(p, sounddogAudioCtx.currentTime);
+  }
+
+  const slider = document.getElementById('winamp-bal-slider');
+  if (slider) slider.value = p.toString();
+}
+
+function setSoundDogPreamp(val) {
+  const gainDb = parseFloat(val);
+  sounddogState.eq.preamp = gainDb;
+  const linearGain = Math.pow(10, gainDb / 20);
+
+  if (sounddogPreampNode && sounddogAudioCtx) {
+    sounddogPreampNode.gain.setValueAtTime(linearGain, sounddogAudioCtx.currentTime);
+  }
+
+  const lbl = document.getElementById('winamp-eq-preamp-db');
+  if (lbl) lbl.textContent = `${gainDb >= 0 ? '+' : ''}${gainDb.toFixed(0)}dB`;
+}
+
+function toggleSoundDogShuffle() {
+  sounddogState.isShuffle = !sounddogState.isShuffle;
+  updateSoundDogShuffleButton();
+  showToast(`Shuffle: ${sounddogState.isShuffle ? 'ON' : 'OFF'}`, 'info');
+}
+
+function updateSoundDogShuffleButton() {
+  const btn = document.getElementById('btn-winamp-shuf');
+  if (btn) btn.classList.toggle('active', sounddogState.isShuffle);
+}
+
+function toggleSoundDogRepeat() {
+  if (sounddogState.repeatMode === 'all') sounddogState.repeatMode = 'one';
+  else if (sounddogState.repeatMode === 'one') sounddogState.repeatMode = 'off';
+  else sounddogState.repeatMode = 'all';
+
+  localStorage.setItem('cd_sounddog_repeat', sounddogState.repeatMode);
+  updateSoundDogRepeatButton();
+  showToast(`Repeat: ${sounddogState.repeatMode.toUpperCase()}`, 'info');
+}
+
+function updateSoundDogRepeatButton() {
+  const btn = document.getElementById('btn-winamp-rep');
+  if (!btn) return;
+  const mode = sounddogState.repeatMode;
+  btn.classList.toggle('active', mode !== 'off');
+  btn.title = `Repeat Mode: ${mode.toUpperCase()} (R)`;
+}
+
+function updateSoundDogPlaybackState(isPlaying) {
+  const shadePlayIcon = document.getElementById('sounddog-shade-play-icon');
+  const pillPlayIcon = document.getElementById('sounddog-pill-play-icon');
+
+  if (shadePlayIcon) {
+    shadePlayIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+  }
+
+  if (pillPlayIcon) {
+    pillPlayIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+  }
+
+  if (window.lucide) {
+    try { lucide.createIcons(); } catch (e) {}
+  }
+
+  updateSoundDogDockedHUD();
+}
+
+function updateSoundDogHUD(track) {
+  if (!track) return;
+
+  const marquee = document.getElementById('winamp-marquee-text');
+  const shadeTitle = document.getElementById('sounddog-shade-title');
+  const mainTitleText = document.getElementById('sounddog-main-title-text');
+  const kbpsVal = document.getElementById('winamp-kbps-val');
+  const khzVal = document.getElementById('winamp-khz-val');
+
+  const idxNum = sounddogState.currentIndex + 1;
+  const displayTitle = track.artist ? `${track.artist} - ${track.title}` : (track.title || track.name);
+  const durStr = track.duration > 0 ? formatMediaTime(track.duration) : '--:--';
+  const marqueeStr = `*** ${idxNum}. ${displayTitle} (${durStr}) ***`;
+
+  if (marquee) marquee.textContent = marqueeStr;
+  if (shadeTitle) shadeTitle.textContent = `${idxNum}. ${displayTitle}`;
+  if (mainTitleText) mainTitleText.textContent = `WINAMP: ${displayTitle}`;
+  if (kbpsVal) kbpsVal.textContent = track.bitrate || '320';
+  if (khzVal) khzVal.textContent = track.sampleRate || '44';
+
+  // Media Session metadata for OS lockscreen & hardware keys
+  if ('mediaSession' in navigator) {
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: track.title || track.name,
+        artist: track.artist || 'SoundDog',
+        album: track.album || 'Winamp Jukebox',
+        artwork: [{ src: track.cover || 'assets/amber-media.webp', sizes: '128x128', type: 'image/webp' }]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => toggleSoundDogPlay());
+      navigator.mediaSession.setActionHandler('pause', () => toggleSoundDogPlay());
+      navigator.mediaSession.setActionHandler('previoustrack', () => playPrevSoundDogTrack());
+      navigator.mediaSession.setActionHandler('nexttrack', () => playNextSoundDogTrack());
+    } catch (e) {}
+  }
+}
+
+function resetSoundDogHUD() {
+  const marquee = document.getElementById('winamp-marquee-text');
+  const shadeTitle = document.getElementById('sounddog-shade-title');
+  const mainTitleText = document.getElementById('sounddog-main-title-text');
+  const ledDigits = document.getElementById('winamp-led-time');
+  const ledMinus = document.getElementById('winamp-time-minus');
+
+  if (marquee) marquee.textContent = '*** SOUNDDOG WINAMP 2.91 JUKEBOX ***';
+  if (shadeTitle) shadeTitle.textContent = 'SoundDog Jukebox';
+  if (mainTitleText) mainTitleText.textContent = 'SOUNDDOG WINAMP 2.91';
+  if (ledDigits) ledDigits.textContent = '00:00';
+  if (ledMinus) ledMinus.style.visibility = 'hidden';
+
+  const progEl = document.getElementById('sounddog-scrubber-progress');
+  const thumbEl = document.getElementById('sounddog-scrubber-thumb');
+  if (progEl) progEl.style.width = '0%';
+  if (thumbEl) thumbEl.style.left = '0%';
+}
+
+function updateSoundDogPill() {
+  const pillTitle = document.getElementById('sounddog-pill-title');
+  if (!pillTitle) return;
+
+  if (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
+    const cur = sounddogState.queue[sounddogState.currentIndex];
+    pillTitle.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
+  } else {
+    pillTitle.textContent = 'SoundDog Winamp';
+  }
+}
+
+function updateSoundDogDockedHUD() {
+  App.panes.forEach((p, idx) => {
+    if (p.dockedTool === 'sounddog') {
+      const btn = document.getElementById(`docked-sounddog-play-btn-${idx}`);
+      if (btn) {
+        btn.setAttribute('data-lucide', sounddogState.isPlaying ? 'pause' : 'play');
+        if (window.lucide) {
+          try { lucide.createIcons({ root: btn.parentElement }); } catch (e) {}
+        }
+      }
+    }
+  });
+}
+
+// ---------------- 60 FPS REAL-TIME WINAMP VISUALIZER ----------------
+function cycleSoundDogVizMode() {
+  const modes = ['bars', 'wave', 'glow', 'off'];
+  const curIdx = modes.indexOf(sounddogState.vizMode);
+  const nextMode = modes[(curIdx + 1) % modes.length];
+  sounddogState.vizMode = nextMode;
+  localStorage.setItem('cd_sounddog_viz', nextMode);
+  showToast(`Visualizer: ${nextMode.toUpperCase()}`, 'info');
+
+  if (nextMode === 'off') {
+    const canvas = document.getElementById('sounddog-visualizer-canvas');
+    if (canvas) {
+      const ctx = canvas.getContext('2d');
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+  } else {
+    startSoundDogVisualizer();
+  }
+}
+
+function startSoundDogVisualizer() {
+  if (sounddogAnimFrame) cancelAnimationFrame(sounddogAnimFrame);
+
+  const canvas = document.getElementById('sounddog-visualizer-canvas');
+  if (!canvas || sounddogState.vizMode === 'off') return;
+
+  const ctx = canvas.getContext('2d');
+  const bufferLength = sounddogAnalyserNode ? sounddogAnalyserNode.frequencyBinCount : 128;
+  const dataArray = new Uint8Array(bufferLength);
+
+  function renderVisualizer() {
+    if (!sounddogState.isPlaying || sounddogState.vizMode === 'off') {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      return;
+    }
+
+    sounddogAnimFrame = requestAnimationFrame(renderVisualizer);
+
+    const width = canvas.width;
+    const height = canvas.height;
+    ctx.clearRect(0, 0, width, height);
+
+    if (sounddogState.vizMode === 'bars') {
+      sounddogAnalyserNode.getByteFrequencyData(dataArray);
+      const barCount = 18;
+      const barWidth = 3;
+      const barGap = 1;
+      const step = Math.floor(bufferLength / barCount);
+
+      for (let i = 0; i < barCount; i++) {
+        const val = dataArray[i * step] / 255;
+        const barHeight = Math.max(1, Math.floor(val * (height - 1)));
+        const x = i * (barWidth + barGap) + 2;
+
+        // Falling Peak Indicator (classic Winamp behavior)
+        if (barHeight >= (sounddogState.visPeakArray[i] || 0)) {
+          sounddogState.visPeakArray[i] = barHeight;
+          sounddogState.visPeakDecay[i] = 0;
+        } else {
+          sounddogState.visPeakDecay[i] = (sounddogState.visPeakDecay[i] || 0) + 0.15;
+          sounddogState.visPeakArray[i] = Math.max(0, sounddogState.visPeakArray[i] - sounddogState.visPeakDecay[i]);
+        }
+
+        // Draw segmented LED bar
+        for (let segY = height - 1; segY >= height - barHeight; segY -= 2) {
+          const normY = (height - segY) / height;
+          if (normY > 0.8) ctx.fillStyle = '#ef4444'; // Red peak
+          else if (normY > 0.55) ctx.fillStyle = '#fbbf24'; // Amber
+          else ctx.fillStyle = '#22c55e'; // Phosphor Green
+
+          ctx.fillRect(x, segY, barWidth, 1.2);
+        }
+
+        // Draw falling peak cap
+        const peakY = height - Math.floor(sounddogState.visPeakArray[i] || 0);
+        if (peakY < height && peakY >= 0) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(x, peakY, barWidth, 1);
+        }
+      }
+    } else if (sounddogState.vizMode === 'wave') {
+      sounddogAnalyserNode.getByteTimeDomainData(dataArray);
+      ctx.lineWidth = 1.2;
+      ctx.strokeStyle = '#22c55e';
+      ctx.shadowColor = 'rgba(34, 197, 94, 0.8)';
+      ctx.shadowBlur = 4;
+
+      ctx.beginPath();
+      const sliceWidth = width / bufferLength;
+      let x = 0;
+
+      for (let i = 0; i < bufferLength; i++) {
+        const v = dataArray[i] / 128.0;
+        const y = (v * height) / 2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+        x += sliceWidth;
+      }
+
+      ctx.stroke();
+    } else if (sounddogState.vizMode === 'glow') {
+      sounddogAnalyserNode.getByteFrequencyData(dataArray);
+      let avg = 0;
+      for (let i = 0; i < 16; i++) avg += dataArray[i];
+      avg = (avg / 16) / 255;
+
+      const grad = ctx.createRadialGradient(width / 2, height / 2, 1, width / 2, height / 2, width / 2);
+      grad.addColorStop(0, `rgba(34, 197, 94, ${avg * 0.9})`);
+      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, width, height);
+    }
+  }
+
+  renderVisualizer();
+}
+
+// ---------------- 10-BAND GRAPHIC EQUALIZER CONTROLS ----------------
+function applySoundDogEqPreset(presetName, updateSelect = true) {
+  const gains = SOUNDDOG_EQ_PRESETS[presetName] || SOUNDDOG_EQ_PRESETS.flat;
+  sounddogState.eq.preset = presetName;
+  localStorage.setItem('cd_sounddog_eq_preset', presetName);
+
+  gains.forEach((gain, idx) => {
+    setSoundDogEqBand(idx, gain, false);
+  });
+
+  if (updateSelect) {
+    const sel = document.getElementById('sounddog-eq-preset-select');
+    if (sel) sel.value = presetName;
+  }
+}
+
+function setSoundDogEqBand(bandIdx, dbValue, isCustom = true) {
+  const val = parseFloat(dbValue);
+  sounddogState.eq.bands[bandIdx] = val;
+
+  if (sounddogEqFilters[bandIdx] && sounddogAudioCtx && sounddogState.eqEnabled) {
+    sounddogEqFilters[bandIdx].gain.setValueAtTime(val, sounddogAudioCtx.currentTime);
+  }
+
+  const slider = document.getElementById(`winamp-eq-band-${bandIdx}`);
+  const dbLabel = document.getElementById(`winamp-eq-db-${bandIdx}`);
+
+  if (slider) slider.value = val.toString();
+  if (dbLabel) dbLabel.textContent = `${val > 0 ? '+' : ''}${val.toFixed(0)}`;
+
+  if (isCustom) {
+    sounddogState.eq.preset = 'custom';
+    const sel = document.getElementById('sounddog-eq-preset-select');
+    if (sel) sel.value = 'custom';
+  }
+}
+
+// ---------------- ID3 METADATA PARSER ----------------
+async function parseSoundDogMetadata(track) {
+  if (!track || !track.path) return;
+
+  try {
+    const streamUrl = getDownloadUrl(track.path, true);
+    const resp = await fetch(streamUrl, {
+      headers: { 'Range': 'bytes=0-131071' }
+    });
+
+    if (resp.ok || resp.status === 206) {
+      const buffer = await resp.arrayBuffer();
+      const bytes = new Uint8Array(buffer);
+
+      if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
+        let offset = 10;
+        const tagSize = ((bytes[6] & 0x7f) << 21) | ((bytes[7] & 0x7f) << 14) | ((bytes[8] & 0x7f) << 7) | (bytes[9] & 0x7f);
+
+        while (offset < Math.min(bytes.length - 10, tagSize)) {
+          const frameId = String.fromCharCode(bytes[offset], bytes[offset+1], bytes[offset+2], bytes[offset+3]);
+          if (!/^[A-Z0-9]{4}$/.test(frameId)) break;
+
+          const frameSize = (bytes[offset+4] << 24) | (bytes[offset+5] << 16) | (bytes[offset+6] << 8) | bytes[offset+7];
+          if (frameSize <= 0 || offset + 10 + frameSize > bytes.length) break;
+
+          const frameData = bytes.slice(offset + 10, offset + 10 + frameSize);
+
+          if (frameId === 'TIT2') {
+            track.title = decodeId3String(frameData);
+          } else if (frameId === 'TPE1') {
+            track.artist = decodeId3String(frameData);
+          } else if (frameId === 'TALB') {
+            track.album = decodeId3String(frameData);
+          } else if (frameId === 'TYER' || frameId === 'TDRC') {
+            track.year = decodeId3String(frameData);
+          } else if (frameId === 'TCON') {
+            track.genre = decodeId3String(frameData);
+          }
+
+          offset += 10 + frameSize;
+        }
+      }
+    }
+  } catch (e) {
+    console.debug('SoundDog ID3 parse notice:', e);
+  }
+
+  if (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]?.path === track.path) {
+    updateSoundDogHUD(track);
+    renderSoundDogQueue();
+  }
+}
+
+function decodeId3String(bytes) {
+  if (!bytes || bytes.length === 0) return '';
+  const encoding = bytes[0];
+  const strBytes = bytes.slice(1);
+  try {
+    if (encoding === 0) return new TextDecoder('iso-8859-1').decode(strBytes).replace(/\0/g, '').trim();
+    if (encoding === 1) return new TextDecoder('utf-16').decode(strBytes).replace(/\0/g, '').trim();
+    if (encoding === 2) return new TextDecoder('utf-16be').decode(strBytes).replace(/\0/g, '').trim();
+    return new TextDecoder('utf-8').decode(strBytes).replace(/\0/g, '').trim();
+  } catch (e) {
+    return new TextDecoder().decode(strBytes).replace(/\0/g, '').trim();
+  }
+}
+
+function exportSoundDogM3U() {
+  if (sounddogState.queue.length === 0) {
+    showToast('Playlist is empty, nothing to export', 'info');
+    return;
+  }
+
+  let m3u = '#EXTM3U\n';
+  sounddogState.queue.forEach(t => {
+    m3u += `#EXTINF:${Math.round(t.duration || -1)},${t.artist ? `${t.artist} - ` : ''}${t.title || t.name}\n`;
+    m3u += `${t.path}\n`;
+  });
+
+  const blob = new Blob([m3u], { type: 'audio/x-mpegurl' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `SoundDog_Playlist_${new Date().toISOString().slice(0, 10)}.m3u`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('Playlist exported (.m3u)', 'success');
+}
+
+// ---------------- WINAMP 2.X AUTHENTIC KEYBOARD SHORTCUTS ----------------
+function initSoundDogKeyboardShortcuts() {
+  window.addEventListener('keydown', (e) => {
+    const win = document.getElementById('floating-sounddog-window');
+    const isSoundDogOpen = win && win.style.display !== 'none';
+    if (!isSoundDogOpen) return;
+
+    // Ignore if typing inside text fields
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
+
+    // Alt + Hotkeys
+    if (e.altKey) {
+      if (e.key === 'w' || e.key === 'W') {
+        e.preventDefault();
+        toggleSoundDogMainWindowShade();
+        return;
+      }
+      if (e.key === 'g' || e.key === 'G') {
+        e.preventDefault();
+        toggleSoundDogEqWindow();
+        return;
+      }
+      if (e.key === 'e' || e.key === 'E') {
+        e.preventDefault();
+        toggleSoundDogPlWindow();
+        return;
+      }
+    }
+
+    // Standard Winamp 2.x Playback Hotkeys (Z, X, C, V, B, L)
+    const key = e.key.toLowerCase();
+    switch (key) {
+      case 'z':
+        e.preventDefault();
+        playPrevSoundDogTrack();
+        break;
+      case 'x':
+        e.preventDefault();
+        if (sounddogState.currentIndex >= 0 && sounddogState.isPlaying) {
+          getSoundDogAudioElement()?.play().catch(() => {});
+        } else {
+          toggleSoundDogPlay();
+        }
+        break;
+      case 'c':
+        e.preventDefault();
+        toggleSoundDogPlay();
+        break;
+      case 'v':
+        e.preventDefault();
+        stopSoundDogPlay();
+        break;
+      case 'b':
+        e.preventDefault();
+        playNextSoundDogTrack();
+        break;
+      case 'l':
+        e.preventDefault();
+        triggerSoundDogOpenFiles();
+        break;
+      case 's':
+        e.preventDefault();
+        toggleSoundDogShuffle();
+        break;
+      case 'r':
+        e.preventDefault();
+        toggleSoundDogRepeat();
+        break;
+      case 'arrowleft':
+        e.preventDefault();
+        seekSoundDogRelative(-5);
+        break;
+      case 'arrowright':
+        e.preventDefault();
+        seekSoundDogRelative(5);
+        break;
+      case 'arrowup':
+        e.preventDefault();
+        setSoundDogVolume(sounddogState.volume + 0.05);
+        break;
+      case 'arrowdown':
+        e.preventDefault();
+        setSoundDogVolume(sounddogState.volume - 0.05);
+        break;
+      case 'delete':
+        e.preventDefault();
+        removeSoundDogSelectedTrack();
+        break;
+    }
+  });
+}
+
+// ---------------- DOCKED SOUNDDOG PANE ----------------
+function mountDockedSoundDog(paneIndex) {
+  const host = document.getElementById(`docked-sounddog-host-${paneIndex}`);
+  const mainWin = document.getElementById('sounddog-main-win');
+  if (!host || !mainWin) return;
+
+  host.appendChild(mainWin);
+  mainWin.style.display = 'flex';
+  updateSoundDogDockedHUD();
+}
+
+

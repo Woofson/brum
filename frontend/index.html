@@ -2986,6 +2986,304 @@
     <span class="tetradog-pill-score" id="tetradog-pill-score">0</span>
   </div>
 
+  <!-- ========================================== -->
+  <!-- ========================================== -->
+  <!-- 📻 SOUNDDOG (AUTHENTIC WINAMP 2.X CLONE CHEWTOY) -->
+  <!-- ========================================== -->
+  <audio id="sounddog-audio-element" preload="auto" crossorigin="anonymous" style="display: none;"></audio>
+  <input type="file" id="sounddog-file-input" multiple accept="audio/*,.mp3,.flac,.wav,.ogg,.m4a,.aac,.opus,.wma" style="display: none;" onchange="handleSoundDogFilePicker(event)">
+
+  <div class="floating-sounddog-window sounddog-winamp-container" id="floating-sounddog-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    
+    <!-- ========================================== -->
+    <!-- WINAMP MODULE 1: MAIN WINDOW -->
+    <!-- ========================================== -->
+    <div class="winamp-window winamp-main-window" id="sounddog-main-win">
+      <!-- Main Titlebar (Drag Handle & Shade Toggle) -->
+      <div class="winamp-titlebar" id="sounddog-main-titlebar" ondblclick="toggleSoundDogMainWindowShade()">
+        <div class="winamp-title-left">
+          <img src="assets/amber-media.webp" alt="Winamp" class="winamp-title-icon">
+          <span class="winamp-title-text" id="sounddog-main-title-text">SOUNDDOG WINAMP 2.91</span>
+        </div>
+        <div class="winamp-title-actions">
+          <button type="button" class="winamp-title-btn winamp-btn-shade" id="btn-sounddog-main-shade" onclick="toggleSoundDogMainWindowShade()" title="Windowshade Mode (Alt+W / Double Click)">▲</button>
+          <button type="button" class="winamp-title-btn winamp-btn-min desktop-only" onclick="minimizeSoundDog()" title="Minimize to Pill">_</button>
+          <button type="button" class="winamp-title-btn winamp-btn-close" onclick="closeSoundDog()" title="Close SoundDog (Alt+F4)">✕</button>
+        </div>
+      </div>
+
+      <!-- Main Normal Body -->
+      <div class="winamp-main-normal" id="sounddog-main-normal">
+        <!-- 1. Green/Amber LED Display Screen -->
+        <div class="winamp-display-screen">
+          <div class="winamp-display-left">
+            <!-- 7-Segment Digital Timer (Click to toggle Elapsed vs Remaining) -->
+            <div class="winamp-timer-box" id="winamp-timer-box" onclick="toggleSoundDogTimeMode()" title="Click to toggle Time Elapsed vs Remaining">
+              <span class="winamp-time-minus" id="winamp-time-minus" style="visibility: hidden;">-</span>
+              <span class="winamp-led-digits" id="winamp-led-time">00:00</span>
+            </div>
+
+            <!-- Real-time 60 FPS Visualizer (Click to cycle Spectrum / Oscilloscope / Off) -->
+            <div class="winamp-vis-box" id="winamp-vis-box" onclick="cycleSoundDogVizMode()" title="Click to switch Visualizer (Spectrum / Oscilloscope / Glow)">
+              <canvas id="sounddog-visualizer-canvas" width="76" height="16" class="winamp-vis-canvas"></canvas>
+            </div>
+          </div>
+
+          <div class="winamp-display-right">
+            <!-- Scrolling Marquee Title -->
+            <div class="winamp-marquee-wrap">
+              <div class="winamp-marquee-inner" id="winamp-marquee-text">*** 1. Woofsons Lab - SoundDog Winamp 2.91 Jukebox ***</div>
+            </div>
+
+            <!-- Bitrate / Sample Rate / Channels HUD -->
+            <div class="winamp-tech-readout">
+              <span class="winamp-tech-kbps"><span id="winamp-kbps-val">320</span> <small>KBPS</small></span>
+              <span class="winamp-tech-khz"><span id="winamp-khz-val">44</span> <small>KHZ</small></span>
+              <span class="winamp-tech-ch winamp-active-ch" id="winamp-ch-stereo">STEREO</span>
+              <span class="winamp-tech-ch" id="winamp-ch-mono">MONO</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Position Scrubber Bar -->
+        <div class="winamp-pos-bar-row">
+          <div class="winamp-pos-track" id="sounddog-scrubber-track" onclick="seekSoundDogFromEvent(event)">
+            <div class="winamp-pos-progress" id="sounddog-scrubber-progress"></div>
+            <div class="winamp-pos-thumb" id="sounddog-scrubber-thumb"></div>
+          </div>
+        </div>
+
+        <!-- 3. Faders & Clutterbar Row -->
+        <div class="winamp-middle-row">
+          <div class="winamp-fader-box" title="Volume">
+            <span class="winamp-fader-lbl">VOL</span>
+            <input type="range" class="winamp-fader-slider" id="winamp-vol-slider" min="0" max="100" value="80" oninput="setSoundDogVolume(this.value / 100)">
+          </div>
+
+          <div class="winamp-fader-box" title="Balance">
+            <span class="winamp-fader-lbl">BAL</span>
+            <input type="range" class="winamp-fader-slider" id="winamp-bal-slider" min="-1" max="1" step="0.05" value="0" oninput="setSoundDogPan(this.value)">
+          </div>
+
+          <div class="winamp-pill-toggles">
+            <button type="button" class="winamp-pill-btn active" id="btn-winamp-toggle-eq" onclick="toggleSoundDogEqWindow()" title="Toggle Equalizer (Alt+G)">EQ</button>
+            <button type="button" class="winamp-pill-btn active" id="btn-winamp-toggle-pl" onclick="toggleSoundDogPlWindow()" title="Toggle Playlist (Alt+E)">PL</button>
+            <button type="button" class="winamp-pill-btn" id="btn-winamp-shuf" onclick="toggleSoundDogShuffle()" title="Shuffle (S)">🔀</button>
+            <button type="button" class="winamp-pill-btn active" id="btn-winamp-rep" onclick="toggleSoundDogRepeat()" title="Repeat (R)">🔁</button>
+          </div>
+        </div>
+
+        <!-- 4. Classic Winamp Transport Bar -->
+        <div class="winamp-transport-bar">
+          <button type="button" class="winamp-trans-btn" id="btn-sounddog-prev" onclick="playPrevSoundDogTrack()" title="Previous (Z)"><i data-lucide="skip-back"></i></button>
+          <button type="button" class="winamp-trans-btn" id="btn-sounddog-play" onclick="toggleSoundDogPlay()" title="Play (X)"><i data-lucide="play"></i></button>
+          <button type="button" class="winamp-trans-btn" id="btn-sounddog-pause" onclick="toggleSoundDogPlay()" title="Pause (C)"><i data-lucide="pause"></i></button>
+          <button type="button" class="winamp-trans-btn" id="btn-sounddog-stop" onclick="stopSoundDogPlay()" title="Stop (V)"><i data-lucide="square"></i></button>
+          <button type="button" class="winamp-trans-btn" id="btn-sounddog-next" onclick="playNextSoundDogTrack()" title="Next (B)"><i data-lucide="skip-forward"></i></button>
+          <button type="button" class="winamp-trans-btn" id="btn-sounddog-eject" onclick="triggerSoundDogOpenFiles()" title="Open Audio Files (L)"><i data-lucide="eject"></i></button>
+        </div>
+      </div>
+
+      <!-- Main Windowshade Bar (Shown in Shade Mode) -->
+      <div class="winamp-main-shade" id="sounddog-main-shade" style="display: none;" ondblclick="toggleSoundDogMainWindowShade()">
+        <span class="winamp-shade-title" id="sounddog-shade-title">SoundDog Jukebox</span>
+        <span class="winamp-shade-time" id="sounddog-shade-time">00:00</span>
+        <div class="winamp-shade-track" onclick="seekSoundDogFromEvent(event)">
+          <div class="winamp-shade-progress" id="sounddog-shade-progress"></div>
+        </div>
+        <div class="winamp-shade-controls">
+          <button type="button" class="winamp-shade-mini-btn" onclick="playPrevSoundDogTrack()" title="Prev (Z)"><i data-lucide="skip-back"></i></button>
+          <button type="button" class="winamp-shade-mini-btn" onclick="toggleSoundDogPlay()" title="Play/Pause (X)"><i data-lucide="play" id="sounddog-shade-play-icon"></i></button>
+          <button type="button" class="winamp-shade-mini-btn" onclick="stopSoundDogPlay()" title="Stop (V)"><i data-lucide="square"></i></button>
+          <button type="button" class="winamp-shade-mini-btn" onclick="playNextSoundDogTrack()" title="Next (B)"><i data-lucide="skip-forward"></i></button>
+          <button type="button" class="winamp-shade-mini-btn" onclick="toggleSoundDogMainWindowShade()" title="Restore Full Window">▼</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- WINAMP MODULE 2: GRAPHIC EQUALIZER (10-BAND) -->
+    <!-- ========================================== -->
+    <div class="winamp-window winamp-eq-window" id="sounddog-eq-window">
+      <!-- EQ Titlebar -->
+      <div class="winamp-titlebar" id="sounddog-eq-titlebar" ondblclick="toggleSoundDogEqShade()">
+        <div class="winamp-title-left">
+          <span class="winamp-title-text">SOUNDDOG EQUALIZER</span>
+        </div>
+        <div class="winamp-title-actions">
+          <button type="button" class="winamp-title-btn winamp-btn-shade" onclick="toggleSoundDogEqShade()" title="EQ Shade Mode">▲</button>
+          <button type="button" class="winamp-title-btn winamp-btn-close" onclick="toggleSoundDogEqWindow(false)" title="Close Equalizer">✕</button>
+        </div>
+      </div>
+
+      <!-- EQ Normal Body -->
+      <div class="winamp-eq-normal" id="sounddog-eq-normal">
+        <div class="winamp-eq-header-row">
+          <div class="winamp-eq-switches">
+            <button type="button" class="winamp-eq-switch-btn active" id="btn-winamp-eq-on" onclick="toggleSoundDogEqEnabled()">ON</button>
+            <button type="button" class="winamp-eq-switch-btn" id="btn-winamp-eq-auto" onclick="toggleSoundDogEqAuto()">AUTO</button>
+          </div>
+          <div class="winamp-eq-presets-wrap">
+            <select class="winamp-eq-preset-select" id="sounddog-eq-preset-select" onchange="applySoundDogEqPreset(this.value)">
+              <option value="flat">PRESETS: Flat</option>
+              <option value="bass_boost">PRESETS: Bass Boost 🔥</option>
+              <option value="rock">PRESETS: Rock / Metal 🎸</option>
+              <option value="synthwave">PRESETS: Techno / Synth 🌆</option>
+              <option value="vocal">PRESETS: Vocal / Acoustic 🎙️</option>
+              <option value="jazz">PRESETS: Jazz & Warm 🎷</option>
+              <option value="classical">PRESETS: Classical 🎻</option>
+              <option value="pop">PRESETS: Pop & Dance ✨</option>
+              <option value="custom">PRESETS: Custom</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="winamp-eq-deck">
+          <!-- Preamp Fader -->
+          <div class="winamp-eq-fader-col winamp-eq-preamp-col">
+            <span class="winamp-eq-db" id="winamp-eq-preamp-db">+0dB</span>
+            <div class="winamp-eq-vtrack">
+              <input type="range" class="winamp-eq-vslider" id="winamp-eq-preamp-slider" min="-6" max="6" step="0.5" value="0" oninput="setSoundDogPreamp(this.value)" orient="vertical">
+            </div>
+            <span class="winamp-eq-freq-lbl">PRE</span>
+          </div>
+
+          <div class="winamp-eq-sep"></div>
+
+          <!-- 10-Band Sliders -->
+          <div class="winamp-eq-bands-row">
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-0">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-0" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(0, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">60</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-1">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-1" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(1, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">170</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-2">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-2" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(2, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">310</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-3">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-3" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(3, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">600</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-4">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-4" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(4, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">1K</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-5">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-5" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(5, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">3K</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-6">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-6" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(6, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">6K</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-7">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-7" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(7, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">12K</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-8">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-8" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(8, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">14K</span>
+            </div>
+            <div class="winamp-eq-fader-col">
+              <span class="winamp-eq-db" id="winamp-eq-db-9">0</span>
+              <div class="winamp-eq-vtrack"><input type="range" class="winamp-eq-vslider" id="winamp-eq-band-9" min="-12" max="12" step="0.5" value="0" oninput="setSoundDogEqBand(9, this.value)" orient="vertical"></div>
+              <span class="winamp-eq-freq-lbl">16K</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EQ Windowshade Bar -->
+      <div class="winamp-eq-shade" id="sounddog-eq-shade" style="display: none;" ondblclick="toggleSoundDogEqShade()">
+        <span class="winamp-shade-title">EQ: 10-Band Graphic</span>
+        <button type="button" class="winamp-shade-mini-btn" onclick="toggleSoundDogEqShade()" title="Restore Full EQ">▼</button>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- WINAMP MODULE 3: PLAYLIST EDITOR -->
+    <!-- ========================================== -->
+    <div class="winamp-window winamp-playlist-window" id="sounddog-playlist-win">
+      <!-- Playlist Titlebar -->
+      <div class="winamp-titlebar" id="sounddog-pl-titlebar" ondblclick="toggleSoundDogPlShade()">
+        <div class="winamp-title-left">
+          <span class="winamp-title-text">SOUNDDOG PLAYLIST</span>
+        </div>
+        <div class="winamp-title-actions">
+          <button type="button" class="winamp-title-btn winamp-btn-shade" onclick="toggleSoundDogPlShade()" title="Playlist Shade Mode">▲</button>
+          <button type="button" class="winamp-title-btn winamp-btn-close" onclick="toggleSoundDogPlWindow(false)" title="Close Playlist">✕</button>
+        </div>
+      </div>
+
+      <!-- Playlist Normal Body -->
+      <div class="winamp-pl-normal" id="sounddog-pl-normal">
+        <div class="winamp-pl-search-row">
+          <input type="text" class="winamp-pl-search-input" id="sounddog-queue-filter" placeholder="Filter / search tracks..." oninput="filterSoundDogQueue(this.value)">
+        </div>
+
+        <div class="winamp-pl-scroll" id="sounddog-queue-scroll">
+          <div class="winamp-pl-entries" id="sounddog-queue-tbody">
+            <!-- Rendered dynamically -->
+          </div>
+          <div class="winamp-pl-empty" id="sounddog-queue-empty" style="display: none;">
+            <p>*** PLAYLIST EMPTY ***</p>
+            <small>Double-click audio files in panels or click +DIR below</small>
+          </div>
+        </div>
+
+        <!-- Playlist Action Bar -->
+        <div class="winamp-pl-bottom-bar">
+          <div class="winamp-pl-btn-group">
+            <button type="button" class="winamp-pl-btn" onclick="triggerSoundDogOpenFiles()" title="Add File">+FILE</button>
+            <button type="button" class="winamp-pl-btn" onclick="addCurrentPaneFolderToSoundDog()" title="Add Folder from Active Pane">+DIR</button>
+            <button type="button" class="winamp-pl-btn" onclick="removeSoundDogSelectedTrack()" title="Remove Selected Track">-FILE</button>
+            <button type="button" class="winamp-pl-btn" onclick="clearSoundDogQueue()" title="Clear Playlist">-ALL</button>
+          </div>
+
+          <div class="winamp-pl-stats" id="sounddog-queue-stats">
+            0 tracks / 00:00
+          </div>
+
+          <div class="winamp-pl-btn-group">
+            <button type="button" class="winamp-pl-btn" onclick="randomizeSoundDogQueue()" title="Randomize / Shuffle Playlist">SHUF</button>
+            <button type="button" class="winamp-pl-btn" onclick="exportSoundDogM3U()" title="Export .M3U Playlist">LIST</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Playlist Windowshade Bar -->
+      <div class="winamp-pl-shade" id="sounddog-pl-shade" style="display: none;" ondblclick="toggleSoundDogPlShade()">
+        <span class="winamp-shade-title" id="sounddog-pl-shade-summary">PLAYLIST: 0 tracks</span>
+        <button type="button" class="winamp-shade-mini-btn" onclick="toggleSoundDogPlShade()" title="Restore Full Playlist">▼</button>
+      </div>
+
+      <div class="winamp-pl-resize-handle" id="sounddog-pl-resize-corner"></div>
+    </div>
+  </div>
+
+  <!-- SoundDog Minimized Pill -->
+  <div class="sounddog-pill" id="sounddog-pill" style="display: none;" onclick="restoreSoundDog()" title="Click to restore SoundDog">
+    <div class="sounddog-pill-wave">
+      <span></span><span></span><span></span><span></span>
+    </div>
+    <span class="sounddog-pill-title" id="sounddog-pill-title">SoundDog Winamp</span>
+    <button class="sounddog-pill-btn" onclick="event.stopPropagation(); toggleSoundDogPlay();" title="Play/Pause"><i data-lucide="play" id="sounddog-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
+    <button class="sounddog-pill-btn" onclick="event.stopPropagation(); playNextSoundDogTrack();" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
+  </div>
+
   <!-- Diff & Comparison Modal -->
   <div class="modal-overlay" id="diff-modal" style="z-index: 2840;">
     <div class="modal-box diff-modal-box" id="diff-modal-box">
@@ -4481,7 +4779,7 @@
           <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">CommanderDog</div>
           <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Tab Web Commander - By Woofson</div>
           <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
-            <span id="about-version-badge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.7.1 (Desktop & Web)</span>
+            <span id="about-version-badge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.7.8 (Desktop & Web)</span>
             <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust + Axum + Tokio</span>
             <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3);">MIT Open Source</span>
           </div>

@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.7.8] - 2026-09-07
+
+### 📻 SoundDog: Authentic Winamp 2.x Clone & Studio Equalizer ChewToy
+- **18th Built-in Power ChewToy (`SoundDog`)**:
+  - **Modular Winamp 2.x Multi-Window Architecture**:
+    - **Classic 3-Module Layout**: Main Player Window, 10-Band Graphic Equalizer, and Playlist Editor.
+    - **Window Shade Mode**: Individual windowshade collapsing for Main Window, EQ, and Playlist via titlebar button `▲`/`▼`, titlebar double-click, and global shortcut <kbd>Alt+W</kbd>.
+    - **Green/Amber Fluorescent LED 7-Segment Digital Timer**: Real-time timer display with interactive toggle between *Time Elapsed* and *Time Remaining* (`-MM:SS`).
+    - **Marquee Scrolling Track Ticker**: Amber LED track title ticker with bitrate (`KBPS`), sample rate (`KHZ`), and `STEREO`/`MONO` active channel indicators.
+    - **Real-Time 60 FPS Winamp Visualizer**: Canvas visualizer featuring 18-band segmented green/amber/red LED spectrum analyzer with falling peak caps, CRT phosphor oscilloscope waveform, and ambient glow.
+    - **10-Band Graphic Equalizer (EQ)**: Authentic Winamp center frequencies (`60Hz`, `170Hz`, `310Hz`, `600Hz`, `1kHz`, `3kHz`, `6kHz`, `12kHz`, `14kHz`, `16kHz`), Preamp fader (-6dB to +6dB), ON/AUTO switches, and presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
+    - **Playlist Editor**: Monospace numbered track list (`1. Artist - Title (MM:SS)`), filter search bar, selection tracking, drag & drop track loading, and action buttons (`+FILE`, `+DIR`, `-FILE`, `-ALL`, `SHUF`, `LIST` .m3u export).
+    - **Authentic Winamp Keyboard Shortcuts**:
+      - <kbd>Z</kbd> (Previous Track), <kbd>X</kbd> (Play), <kbd>C</kbd> (Pause / Unpause), <kbd>V</kbd> (Stop), <kbd>B</kbd> (Next Track), <kbd>L</kbd> (Open Files).
+      - <kbd>Alt+W</kbd> (Windowshade Mode), <kbd>Alt+G</kbd> (Toggle Equalizer), <kbd>Alt+E</kbd> (Toggle Playlist).
+      - <kbd>S</kbd> (Shuffle), <kbd>R</kbd> (Repeat), <kbd>←</kbd>/<kbd>→</kbd> (Seek ±5s), <kbd>↑</kbd>/<kbd>↓</kbd> (Volume ±5%), <kbd>Delete</kbd> (Remove Selected Track).
+  - **Full-Spectrum Background Audio Engine**: Continuous uninterrupted audio streaming and queue playback that persists across directory navigation, pane transitions, and background workflows.
+  - **Dual-Mode Operational Architecture**: Draggable & resizable floating window (`42px` grab handle header with standard `28px` action controls) and in-pane docking into Panels 1–4 with automatic panel state persistence.
+  - **Mini-Player Pill & Media Session API**: Minimized floating pill (`#sounddog-pill`) with animated soundwave indicator, and full integration with OS lock screen controls and hardware media keys (`navigator.mediaSession`).
+  - **File Commander & Context Menu Integration**: "Play in SoundDog ▶" and "Add to SoundDog Queue ➕" context menu options on audio files and directories, and double-click handler for all audio file extensions (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.webm`, `.weba`).
+  - **Dual-Mode Operational Architecture**: Draggable & resizable floating window (`42px` grab handle header with standard `28px` action controls) and in-pane docking into Panels 1–4 with automatic panel state persistence.
+  - **4-View Studio Switcher**:
+    - **Player View**: Spinning vinyl record & album art display, real-time 60 FPS Web Audio API FFT spectrum & oscilloscope visualizer canvas, full metadata bar (Artist, Album, Format, Bitrate, Sample Rate), and seek scrubber.
+    - **Queue & Jukebox View**: Live track queue with drag/drop reordering, quick track search/filter, multi-track enqueueing, and `.m3u` playlist export/import.
+    - **5-Band Graphic Equalizer (EQ)**: Studio biquad filter controls (60Hz, 230Hz, 910Hz, 3.6kHz, 14kHz), Bass Boost slider, stereo balance panner, and 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
+    - **ID3 & Metadata Inspector**: Embedded ID3 tag reader (Title, Artist, Album, Genre, Year, Track#, Disc#, Bitrate) with embedded APIC cover art extraction.
+  - **Mini-Player Pill & Media Session API**: Minimized floating pill (`#sounddog-pill`) with animated soundwave indicator, and full integration with OS lock screen controls and hardware media keys (`navigator.mediaSession`).
+  - **File Commander & Context Menu Integration**: "Play in SoundDog ▶" and "Add to SoundDog Queue ➕" context menu options on audio files and directories, and double-click handler for all audio file extensions (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.webm`, `.weba`).
+
 ## [0.7.7-rc7] - 2026-09-07
 
 ### 🐛 TetraDog Input Lifecycle & Window Visibility Specificity Fix

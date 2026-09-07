@@ -2,9 +2,9 @@
 
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
 > **Slogan**: *Multi-Tab File Commander for Web & Native Desktop — By Woofson*  
-> **Current Version**: `v0.7.7-rc7 (Desktop & Web)`  
+> **Current Version**: `v0.7.8 (Desktop & Web)`  
 > **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`).  
-> **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.7.3`), see [**`CHANGELOG.md`**](CHANGELOG.md).
+> **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.7.7`), see [**`CHANGELOG.md`**](CHANGELOG.md).
 
 ---
 
@@ -56,6 +56,10 @@
 │ Classic Arcade Tetris  │ TetraDog (Arcade ChewToy)   │ Authentic classic Tetris clone,     │
 │ & Desktop Distraction  │                             │ 60 FPS canvas engine, SRS/NES modes,│
 │                        │                             │ DAS/ARR tuning, high scores & audio │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Winamp / Foobar2000 /  │ SoundDog (Winamp 2.x Clone  │ 3-modular layout, windowshade mode, │
+│ Audacious / XMPlay     │ & 10-Band EQ ChewToy)       │ 10-band EQ, 60fps spectrum, .m3u PL │
+│ Clementine / MusicBee  │ & Jukebox ChewToy)          │ art, 5-band EQ, waveform visualizer │
 └────────────────────────┴─────────────────────────────┴─────────────────────────────────────┘
 ```
 
@@ -195,16 +199,31 @@ graph TD
     - Dual-mode architecture: Freely floating draggable/resizable window (`42px` drag handle header) or docked directly into Panel 1 / Panel 2.
     - Uniform `28px` stealth window action buttons (Pause, Restart, Leaderboard, Audio, Settings, Dock/Float, Close).
     - Retro theme palettes: `Woofsons Amber Charcoal` (default amber glow), `Game Boy Monochrome Green`, `NES 8-Bit Retro`, and `Arcade Cyberpunk`.
+- [x] **SoundDog (Authentic Winamp 2.x Clone & 10-Band EQ ChewToy)** (Shipped in `v0.7.8-rc2`):
+  - **Modular 3-Window Architecture**: Classic Winamp 2.x snappable layout (Main Player, 10-Band Equalizer, Playlist Editor) with independent and global Windowshade modes (<kbd>Alt+W</kbd>).
+  - **Fluorescent Green/Amber LED 7-Segment Timer**: Real-time LED digital timer with click-to-toggle between *Time Elapsed* and *Time Remaining* (`-MM:SS`).
+  - **Amber Marquee Scrolling Track Ticker & HUD**: Marquee track title ticker with `KBPS` bitrate, `KHZ` sample rate, and active `STEREO`/`MONO` indicator lights.
+  - **Real-Time 60 FPS Winamp Visualizer**: 18-band segmented green/amber/red LED spectrum analyzer with falling peak caps, CRT phosphor oscilloscope waveform, and ambient glow modes.
+  - **10-Band Graphic Equalizer (EQ)**: Studio biquad peaking filters (`60Hz`, `170Hz`, `310Hz`, `600Hz`, `1kHz`, `3kHz`, `6kHz`, `12kHz`, `14kHz`, `16kHz`), Preamp fader (-6dB to +6dB), ON/AUTO switches, and 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
+  - **Playlist Editor & M3U Export**: Monospace green-on-black numbered track list, quick filter search, drag & drop track enqueueing, resize handle, and action buttons (`+FILE`, `+DIR`, `-FILE`, `-ALL`, `SHUF`, `LIST` .m3u export).
+  - **Authentic Winamp Keyboard Shortcuts**: <kbd>Z</kbd> Prev, <kbd>X</kbd> Play, <kbd>C</kbd> Pause/Unpause, <kbd>V</kbd> Stop, <kbd>B</kbd> Next, <kbd>L</kbd> Open Files, <kbd>Alt+W</kbd> Shade, <kbd>Alt+G</kbd> EQ, <kbd>Alt+E</kbd> PL, <kbd>S</kbd> Shuffle, <kbd>R</kbd> Repeat, <kbd>←</kbd>/<kbd>→</kbd> Seek, <kbd>↑</kbd>/<kbd>↓</kbd> Volume, <kbd>Delete</kbd> Remove Track.
+  - **Future Skinning Roadmap**: Planned support for 1:1 pixel-accurate classic Winamp 2 / XMMS skin archives (`.wsz`, `.zip`) with bitmap sprite sheet loaders (`MAIN.BMP`, `CBAR.BMP`, `TITLEBAR.BMP`, `EQMAIN.BMP`, `PLEdit.BMP`, `NUMBERS.BMP`, `TEXT.BMP`).
 
 ---
 
 ## 4. 🔮 Upcoming Strategic Milestones
 
-### Milestone 1: Enterprise OIDC SSO & Collaborative Office (`v0.8.0`)
-- **Enterprise Identity Providers**: OpenID Connect (OIDC), OAuth2, SAML 2.0, Keycloak, Authentik, Okta, Azure AD.
+### Milestone 1: Multi-Cloud VFS, Embedded WebDAV Server & High-Impact Extensions (`v0.8.0`)
+- **Embedded WebDAV Server Mode**: Native WebDAV server daemon allowing external operating systems (Windows File Explorer, macOS Finder, Linux, mobile apps) to mount CommanderDog storage as local network drives.
+- **Multi-Cloud VFS Adapters**: Native connectors for Google Drive, Proton Drive, Hetzner Storage Box, and direct S3/MinIO browser streaming.
+- **HexDog & ArchiveDog ChewToys**: In-place multi-format archive explorer (`.zip`, `.tar.gz`, `.7z`, `.zstd`) and binary byte/hex inspector.
+- **SoundDog Classic Skin Loader (`.wsz`)**: Native unpacker and renderer for classic Winamp 2.x and XMMS skin archives.
+
+### Milestone 2: Enterprise Identity, OIDC / SSO & Collaborative Office (`v0.9.0`)
+- **Enterprise Identity Providers**: OpenID Connect (OIDC), OAuth2, SAML 2.0, Keycloak, Authentik, Authelia, Google, GitHub, Okta, Azure AD.
 - **Collaborative Document Editing**: In-browser real-time collaborative editing for markdown, code, and Office documents (`.docx`, `.xlsx`, `.pptx` via Collabora / OnlyOffice WOPI integration).
 
-### Milestone 2: High-Performance P2P Cluster & Distributed Virtual Storage (`v1.0.0`)
+### Milestone 3: High-Performance P2P Cluster & Distributed Virtual Storage (`v1.0.0`)
 - **Cluster Node Mesh**: Direct peer-to-peer authenticated node clustering with distributed metadata synchronization.
 - **Distributed Virtual Storage**: Multi-host unified mountpoints and automated cross-node replication.
 
@@ -232,6 +251,8 @@ graph TD
 | **`v0.7.1`** | Universal Floating Viewers, Live Tail Follow, Bundled Fonts & Themes | **Released** | [View Notes](CHANGELOG.md#071---2026-09-03) |
 | **`v0.7.2`** | Documentation Reorganization & Chewtoy UI/UX Refinements | **Released** | [View Notes](CHANGELOG.md#072---2026-09-04) |
 | **`v0.7.3`** | WebP Icon Suite, Visual Disk Treemap, NoteDog Encryption & Release Automation | **Released** | [View Notes](CHANGELOG.md#073---2026-09-04) |
-| **`v0.7.7`** | TetraDog (Classic Arcade Tetris ChewToy & Synchronized Leaderboard) | **In Progress** | — |
-| **`v0.8.0`** | Enterprise OIDC SSO, Collaborative Office (WOPI) & Automation | *Planned* | — |
+| **`v0.7.7`** | TetraDog (Classic Arcade Tetris ChewToy & Synchronized Leaderboard) | **Released** | [View Notes](CHANGELOG.md#077---2026-09-07) |
+| **`v0.7.8`** | SoundDog (Authentic Winamp 2.x Clone & Equalizer ChewToy) | **Released** | [View Notes](CHANGELOG.md#078---2026-09-07) |
+| **`v0.8.0`** | Multi-Cloud VFS, Embedded WebDAV Server & High-Impact Extensions | *Planned* | — |
+| **`v0.9.0`** | Enterprise OIDC / SSO, Collaborative Office (WOPI) & RBAC | *Planned* | — |
 | **`v1.0.0`** | High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |

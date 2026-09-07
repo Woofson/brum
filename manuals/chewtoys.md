@@ -66,3 +66,21 @@
 * **Full Guideline Mechanics**: Fair 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and lock delay.
 * **High Scores & Leaderboard**: Local and server-synchronized high score tracking (lines, scores, levels).
 * **Web Audio Synthesis**: Integrated 8-bit retro sound effect synthesizer with zero external audio assets.
+
+---
+
+## 9. 📻 SoundDog (Authentic Winamp 2.x Clone & 10-Band EQ ChewToy)
+* **Modular Winamp 2.x Architecture**: Authentic 3-module snappable layout consisting of **Main Player Window**, **10-Band Graphic Equalizer**, and **Playlist Editor**.
+* **Windowshade Mode (Alt+W)**: Collapses windows into ultra-compact titlebar shade mode (via `▲`/`▼` button, double-clicking titlebar, or <kbd>Alt+W</kbd>) with live mini-scrubber, mini-timer, and quick controls.
+* **Green/Amber Fluorescent LED 7-Segment Timer**: Real-time LED display with click-to-toggle between *Time Elapsed* and *Time Remaining* (`-MM:SS`).
+* **Scrolling Marquee Ticker & HUD**: Marquee track title ticker with `KBPS` bitrate, `KHZ` sample rate, and `STEREO`/`MONO` indicator lights.
+* **Real-Time 60 FPS Winamp Visualizer**: 18-band segmented green/amber/red LED spectrum analyzer with falling peak caps, CRT phosphor oscilloscope waveform, and ambient glow modes (click canvas or cycle modes).
+* **10-Band Studio Graphic Equalizer**: Authentic Winamp center frequencies (`60Hz`, `170Hz`, `310Hz`, `600Hz`, `1kHz`, `3kHz`, `6kHz`, `12kHz`, `14kHz`, `16kHz`), Preamp fader (-6dB to +6dB), ON/AUTO switches, and 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
+* **Full Playlist Editor**: Monospace green-on-black track list (`1. Artist - Title (MM:SS)`), filter search input, drag & drop track enqueueing, resize handle, and action buttons (`+FILE`, `+DIR`, `-FILE`, `-ALL`, `SHUF`, `LIST` .m3u export).
+* **Authentic Winamp Keyboard Shortcuts**:
+  * <kbd>Z</kbd> (Previous Track), <kbd>X</kbd> (Play), <kbd>C</kbd> (Pause / Unpause), <kbd>V</kbd> (Stop), <kbd>B</kbd> (Next Track), <kbd>L</kbd> (Open Files).
+  * <kbd>Alt+W</kbd> (Windowshade Mode), <kbd>Alt+G</kbd> (Toggle Equalizer), <kbd>Alt+E</kbd> (Toggle Playlist).
+  * <kbd>S</kbd> (Shuffle), <kbd>R</kbd> (Repeat), <kbd>←</kbd>/<kbd>→</kbd> (Seek ±5s), <kbd>↑</kbd>/<kbd>↓</kbd> (Volume ±5%), <kbd>Delete</kbd> (Remove Selected Track).
+* **Mini-Player Pill & Media Session API**: Minimized floating pill (`#sounddog-pill`) with animated soundwave indicator, and full integration with OS lock screen controls and hardware media keys (`navigator.mediaSession`).
+
+
