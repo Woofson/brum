@@ -4,7 +4,7 @@ CommanderDog provides orthodox keyboard-driven power navigation paired with intu
 
 ---
 
-## ⌨️ Primary Function Keys (<kbd>F1</kbd> – <kbd>F10</kbd>)
+## Primary Function Keys (<kbd>F1</kbd> – <kbd>F10</kbd>)
 
 | Key | Action | Description |
 | :--- | :--- | :--- |
@@ -23,7 +23,7 @@ CommanderDog provides orthodox keyboard-driven power navigation paired with intu
 
 ---
 
-## 🎛️ Navigation, Panels & Selection
+## Navigation, Panels & Selection
 
 | Shortcut | Action |
 | :--- | :--- |
@@ -40,7 +40,7 @@ CommanderDog provides orthodox keyboard-driven power navigation paired with intu
 
 ---
 
-## 📻 ARFAMP Winamp Shortcuts
+## ARFAMP Winamp Shortcuts
 
 | Key | Action |
 | :--- | :--- |
@@ -56,7 +56,7 @@ CommanderDog provides orthodox keyboard-driven power navigation paired with intu
 
 ---
 
-## 🖱️ Mouse & Touch Navigation
+## Mouse & Touch Navigation
 
 * **Double-Click Empty Space**: Double-click anywhere on empty panel background space to immediately jump up one directory level (`..`).
 * **Empty Space Right-Click**: Context menu to create files from templates, create directories, paste clipboard items, open terminal, or view disk usage.

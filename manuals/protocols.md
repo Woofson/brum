@@ -4,7 +4,7 @@ CommanderDog includes a zero-leakage, multi-protocol Virtual Filesystem (VFS) cl
 
 ---
 
-## 🌐 Supported Protocols & Endpoints
+## Supported Protocols & Endpoints
 
 | Protocol | URI Scheme | Description |
 | :--- | :--- | :--- |
@@ -21,7 +21,7 @@ CommanderDog includes a zero-leakage, multi-protocol Virtual Filesystem (VFS) cl
 
 ---
 
-## 🔒 Zero-Leakage Credential Architecture
+## Zero-Leakage Credential Architecture
 
 * **In-Memory Volatile Credentials**: Passwords, private keys, and API tokens are never saved into browser `localStorage`, session history, search bars, or DOM attributes.
 * **Global Mounts**: Administrators can configure global shares in the Admin Panel and assign access permissions to specific users. Assigned shares automatically populate in the user's **Favorites / Bookmarks** menu.

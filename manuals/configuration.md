@@ -4,7 +4,7 @@ CommanderDog loads configuration in a single sub-millisecond pass without direct
 
 ---
 
-## 📂 Configuration File Locations
+## Configuration File Locations
 
 CommanderDog discovers its configuration in the following order of precedence:
 1. **User Dotfiles**: `~/.config/commanderdog/config.toml` *(Highest priority)*
@@ -13,7 +13,7 @@ CommanderDog discovers its configuration in the following order of precedence:
 
 ---
 
-## ⚙️ Complete `config.toml` Reference
+## Complete `config.toml` Reference
 
 ```toml
 # ==============================================================================
@@ -104,7 +104,7 @@ allow_guest = false
 
 ---
 
-## 🔒 Filesystem Sandboxing & Storage Roots
+## Filesystem Sandboxing & Storage Roots
 
 By setting `allow_entire_system = false`, CommanderDog enforces strict sandboxing:
 * Users cannot navigate outside their configured storage roots or personal `$HOME`.
