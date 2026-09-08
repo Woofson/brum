@@ -5,6 +5,15 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc5] - 2026-09-08
+
+### Single-Line File Listing Optimization & Customizable Display Preferences
+- **Single-Line File Listing Default**: Re-established clean, space-optimized single-line rows across all viewports (Phone, Tablet, Desktop) with standardized 32px height, prominent MIME icons, and clear `filename.ext` alignment.
+- **Compact Date Formatting**: Introduced short, legible timestamp formatting (`MM-DD HH:mm` for current-year files, `YYYY-MM-DD` for older entries) enabled by default to conserve horizontal screen space.
+- **Togglable `<DIR>` Directory Indicators**: Directory sizes now default to clean blank entries, with an optional toggle to show classic `<DIR>` tags in the size column.
+- **Optional Phone Multi-Line Subtext**: Retained rich multi-line metadata subtext (permissions, owner, size, date) as a togglable user preference (`cd_file_list_multiline`) configurable in Settings and the column header context menu.
+- **Context Menu & Settings Integration**: Added display options toggles directly inside the table column chooser context menu and General Settings modal.
+
 ## [0.8.0-rc4] - 2026-09-08
 
 ### Responsive Viewports, Mobile Permissions Subtext & Standardized Form Controls

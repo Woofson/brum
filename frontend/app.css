@@ -5238,48 +5238,59 @@ body {
     border-color: var(--accent);
   }
 
-  /* Table styling on Phone Viewports (<600px) */
+  /* Table styling on Phone Viewports (<600px) - Single-Line Clean Default */
   .file-table {
     table-layout: fixed;
     width: 100%;
   }
 
-  .file-table thead {
-    display: none !important;
-  }
-
   .file-table th, .file-table td {
-    padding: 5px 6px;
-    font-size: 12px;
+    padding: 3px 5px !important;
+    font-size: 11.5px;
+    height: 32px;
+    vertical-align: middle !important;
   }
 
   .file-table th:nth-child(1), .file-table td:nth-child(1) {
-    width: 28px !important;
-    min-width: 28px !important;
-    max-width: 28px !important;
-    padding: 0 4px !important;
+    width: 26px !important;
+    min-width: 26px !important;
+    max-width: 26px !important;
+    padding: 0 3px !important;
   }
 
   .file-table th:nth-child(2), .file-table td:nth-child(2) {
     width: auto !important;
     overflow: hidden;
-  }
-
-  /* Hide individual desktop table columns on Phone in favor of unified rich mobile subtext */
-  .file-table th:nth-child(n+3),
-  .file-table td:nth-child(n+3) {
-    display: none !important;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .file-row {
-    height: auto !important;
-    min-height: 44px !important;
+    height: 32px !important;
+    min-height: 32px !important;
     cursor: pointer;
+  }
+
+  .file-cell-name {
+    font-size: 12px !important;
+  }
+
+  .file-cell-mono {
+    font-size: 10.5px !important;
+  }
+
+  /* Optional Multi-Line Subtext Mode (When enabled via preferences) */
+  .file-table-multiline thead {
+    display: none !important;
+  }
+
+  .file-table-multiline .file-row {
+    height: auto !important;
+    min-height: 42px !important;
     padding: 4px 0;
   }
 
-  /* Mobile File Row Subtext (Owner/Group, Permissions, Size & Date) */
-  .file-subtext-mobile {
+  .file-table-multiline .file-subtext-mobile {
     display: flex !important;
     align-items: center;
     gap: 4px;
@@ -5289,8 +5300,13 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    margin-top: 2px;
+    margin-top: 1px;
     line-height: 1.2;
+  }
+
+  .file-table-multiline th:nth-child(n+3),
+  .file-table-multiline td:nth-child(n+3) {
+    display: none !important;
   }
 
   .file-subtext-mobile .subtext-perms {

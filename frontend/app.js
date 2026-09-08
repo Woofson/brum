@@ -128,9 +128,12 @@ function getAllUserPreferences() {
     hostname_icon: localStorage.getItem('cd_hostname_icon') || 'server',
     hostname_size: localStorage.getItem('cd_hostname_size') || 'md',
 
-    // 4. Column Configuration
+    // 4. Column Configuration & Display Options
     col_widths: ColumnConfig?.widths || {},
     col_visibility: ColumnConfig?.visibility || {},
+    show_dir_tag: localStorage.getItem('cd_show_dir_tag') === '1',
+    compact_dates: localStorage.getItem('cd_compact_dates') !== '0',
+    file_list_multiline: localStorage.getItem('cd_file_list_multiline') === '1',
 
     // 5. General UI Toggles & Behavior
     show_hidden: App.showHiddenDefault,
@@ -287,6 +290,22 @@ function applyAllUserPreferences(prefs) {
   }
   if (typeof applyAllColumnWidths === 'function') {
     applyAllColumnWidths();
+  }
+
+  if (prefs.show_dir_tag !== undefined) {
+    localStorage.setItem('cd_show_dir_tag', prefs.show_dir_tag ? '1' : '0');
+    const dirEl = document.getElementById('setting-show-dir-tag');
+    if (dirEl) dirEl.checked = !!prefs.show_dir_tag;
+  }
+  if (prefs.compact_dates !== undefined) {
+    localStorage.setItem('cd_compact_dates', prefs.compact_dates ? '1' : '0');
+    const dateEl = document.getElementById('setting-compact-dates');
+    if (dateEl) dateEl.checked = !!prefs.compact_dates;
+  }
+  if (prefs.file_list_multiline !== undefined) {
+    localStorage.setItem('cd_file_list_multiline', prefs.file_list_multiline ? '1' : '0');
+    const multiEl = document.getElementById('setting-file-list-multiline');
+    if (multiEl) multiEl.checked = !!prefs.file_list_multiline;
   }
 
   // 11. General UI Toggles & Safety
@@ -2332,8 +2351,13 @@ function renderPaneTable(paneIndex) {
 
   const mode = pane.viewMode || 'details';
 
+  const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
+
   // Toggle visible container
-  if (tableEl) tableEl.style.display = (mode === 'details') ? '' : 'none';
+  if (tableEl) {
+    tableEl.style.display = (mode === 'details') ? '' : 'none';
+    tableEl.classList.toggle('file-table-multiline', isMultiLine);
+  }
   if (gridEl) gridEl.style.display = (mode === 'grid') ? 'grid' : 'none';
   if (compactEl) compactEl.style.display = (mode === 'compact') ? 'flex' : 'none';
 
@@ -2738,6 +2762,10 @@ function renderPaneTable(paneIndex) {
 
   } else {
     // Details Mode (Orthodox Table)
+    const showDirTag = localStorage.getItem('cd_show_dir_tag') === '1';
+    const compactDates = localStorage.getItem('cd_compact_dates') !== '0';
+    const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
+
     if (showParent) {
       const parentTr = document.createElement('tr');
       parentTr.className = 'file-row parent-dir-row';
@@ -2815,17 +2843,21 @@ function renderPaneTable(paneIndex) {
           </div>
         </td>
         <td class="file-cell file-cell-name">
+          ${isMultiLine ? `
           <div class="file-name-wrapper">
             <div class="file-name-title-row">
               <span class="file-name-text" style="font-weight: 700; color: var(--accent); font-size: 13px;">..</span>
             </div>
             <div class="file-subtext-mobile">
-              <span class="subtext-size" style="color: var(--accent);">&lt;UP&gt;</span>
+              <span class="subtext-size" style="color: var(--accent);">${showDirTag ? '&lt;UP&gt;' : '..'}</span>
             </div>
           </div>
+          ` : `
+          <span class="file-name-text" style="font-weight: 700; color: var(--accent); font-size: 13px;">..</span>
+          `}
         </td>
         ${ColumnConfig.visibility.ext ? '<td class="file-cell file-cell-mono">-</td>' : ''}
-        ${ColumnConfig.visibility.size ? '<td class="file-cell file-cell-mono file-cell-size" style="color: var(--accent); font-weight: 600;">&lt;UP&gt;</td>' : ''}
+        ${ColumnConfig.visibility.size ? `<td class="file-cell file-cell-mono file-cell-size" style="color: var(--accent); font-weight: 600;">${showDirTag ? '&lt;UP&gt;' : '-'}</td>` : ''}
         ${ColumnConfig.visibility.modified ? '<td class="file-cell file-cell-mono">-</td>' : ''}
         ${ColumnConfig.visibility.created ? '<td class="file-cell file-cell-mono">-</td>' : ''}
         ${ColumnConfig.visibility.mode ? '<td class="file-cell file-cell-mono">-</td>' : ''}
@@ -3034,6 +3066,7 @@ function renderPaneTable(paneIndex) {
       }
 
       const ext = entry.name.includes('.') ? entry.name.split('.').pop() : '';
+      const sizeDisplay = entry.is_dir ? (showDirTag ? '<DIR>' : '') : formatBytes(entry.size);
 
       tr.innerHTML = `
         <td class="file-cell file-cell-icon">
@@ -3042,23 +3075,27 @@ function renderPaneTable(paneIndex) {
           </div>
         </td>
         <td class="file-cell file-cell-name">
+          ${isMultiLine ? `
           <div class="file-name-wrapper">
             <div class="file-name-title-row">
               <span class="file-name-text">${escapeHtml(entry.name)}</span>${tagsHtml}
             </div>
             <div class="file-subtext-mobile">
-              <span class="subtext-size">${entry.is_dir ? '&lt;DIR&gt;' : formatBytes(entry.size)}</span>
+              <span class="subtext-size">${entry.is_dir ? (showDirTag ? '&lt;DIR&gt;' : 'DIR') : formatBytes(entry.size)}</span>
               <span class="subtext-sep">•</span>
               <span class="subtext-perms" title="Permissions">${escapeHtml(entry.permissions || entry.mode_octal || '-')}</span>
               ${entry.owner ? `<span class="subtext-sep">•</span><span class="subtext-owner">${escapeHtml(entry.owner)}${entry.group ? ':' + escapeHtml(entry.group) : ''}</span>` : ''}
-              ${entry.modified ? `<span class="subtext-sep">•</span><span class="subtext-date">${formatDate(entry.modified)}</span>` : ''}
+              ${entry.modified ? `<span class="subtext-sep">•</span><span class="subtext-date">${formatDate(entry.modified, true)}</span>` : ''}
             </div>
           </div>
+          ` : `
+          <span class="file-name-text">${escapeHtml(entry.name)}</span>${tagsHtml}
+          `}
         </td>
         ${ColumnConfig.visibility.ext ? `<td class="file-cell file-cell-mono">${entry.is_dir ? '' : escapeHtml(ext)}</td>` : ''}
-        ${ColumnConfig.visibility.size ? `<td class="file-cell file-cell-mono file-cell-size">${entry.is_dir ? '<DIR>' : formatBytes(entry.size)}</td>` : ''}
-        ${ColumnConfig.visibility.modified ? `<td class="file-cell file-cell-mono">${formatDate(entry.modified)}</td>` : ''}
-        ${ColumnConfig.visibility.created ? `<td class="file-cell file-cell-mono">${entry.created ? formatDate(entry.created) : '-'}</td>` : ''}
+        ${ColumnConfig.visibility.size ? `<td class="file-cell file-cell-mono file-cell-size">${sizeDisplay}</td>` : ''}
+        ${ColumnConfig.visibility.modified ? `<td class="file-cell file-cell-mono">${formatDate(entry.modified, compactDates)}</td>` : ''}
+        ${ColumnConfig.visibility.created ? `<td class="file-cell file-cell-mono">${entry.created ? formatDate(entry.created, compactDates) : '-'}</td>` : ''}
         ${ColumnConfig.visibility.mode ? `<td class="file-cell file-cell-mono" title="${entry.permissions}">${entry.mode_octal || entry.permissions}</td>` : ''}
         ${ColumnConfig.visibility.owner ? `<td class="file-cell file-cell-mono">${entry.owner || '-'}</td>` : ''}
         ${ColumnConfig.visibility.group ? `<td class="file-cell file-cell-mono">${entry.group || '-'}</td>` : ''}
@@ -3755,6 +3792,39 @@ function updateColumnCheckboxes() {
     const el = document.getElementById(`col-toggle-${k}`);
     if (el) el.checked = !!ColumnConfig.visibility[k];
   });
+
+  const dirEl = document.getElementById('setting-show-dir-tag');
+  if (dirEl) dirEl.checked = localStorage.getItem('cd_show_dir_tag') === '1';
+
+  const dateEl = document.getElementById('setting-compact-dates');
+  if (dateEl) dateEl.checked = localStorage.getItem('cd_compact_dates') !== '0';
+
+  const multiEl = document.getElementById('setting-file-list-multiline');
+  if (multiEl) multiEl.checked = localStorage.getItem('cd_file_list_multiline') === '1';
+}
+
+function toggleShowDirTag(show) {
+  localStorage.setItem('cd_show_dir_tag', show ? '1' : '0');
+  for (let i = 0; i < 4; i++) {
+    renderPaneTable(i);
+  }
+  queueSaveUserPreferencesToServer();
+}
+
+function toggleFileListMultiline(enable) {
+  localStorage.setItem('cd_file_list_multiline', enable ? '1' : '0');
+  for (let i = 0; i < 4; i++) {
+    renderPaneTable(i);
+  }
+  queueSaveUserPreferencesToServer();
+}
+
+function toggleCompactDates(enable) {
+  localStorage.setItem('cd_compact_dates', enable ? '1' : '0');
+  for (let i = 0; i < 4; i++) {
+    renderPaneTable(i);
+  }
+  queueSaveUserPreferencesToServer();
 }
 
 function openColumnHeaderContextMenu(e, paneIndex) {
@@ -3780,6 +3850,10 @@ function openColumnHeaderContextMenu(e, paneIndex) {
     { key: 'tags', label: 'Tags & Colors' },
   ];
 
+  const showDirTag = localStorage.getItem('cd_show_dir_tag') === '1';
+  const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
+  const isCompactDates = localStorage.getItem('cd_compact_dates') !== '0';
+
   let itemsHtml = `<div class="col-chooser-title">Table Columns</div>`;
   colDefinitions.forEach(col => {
     const isChecked = col.locked || !!ColumnConfig.visibility[col.key];
@@ -3793,7 +3867,21 @@ function openColumnHeaderContextMenu(e, paneIndex) {
   });
 
   itemsHtml += `
-    <div style="height: 1px; background: var(--border); margin: 4px 0;"></div>
+    <div style="height: 1px; background: var(--border); margin: 6px 0;"></div>
+    <div class="col-chooser-title" style="margin-top: 2px;">Display Options</div>
+    <label class="col-chooser-item" onclick="event.stopPropagation()">
+      <input type="checkbox" ${showDirTag ? 'checked' : ''} onchange="toggleShowDirTag(this.checked)">
+      <span>Show classic <code>&lt;DIR&gt;</code> tag</span>
+    </label>
+    <label class="col-chooser-item" onclick="event.stopPropagation()">
+      <input type="checkbox" ${isCompactDates ? 'checked' : ''} onchange="toggleCompactDates(this.checked)">
+      <span>Compact date format</span>
+    </label>
+    <label class="col-chooser-item" onclick="event.stopPropagation()">
+      <input type="checkbox" ${isMultiLine ? 'checked' : ''} onchange="toggleFileListMultiline(this.checked)">
+      <span>Multi-line subtext (Mobile)</span>
+    </label>
+    <div style="height: 1px; background: var(--border); margin: 6px 0;"></div>
     <div class="col-chooser-action-btn" onclick="autoFitAllColumns(${paneIndex}); document.getElementById('col-chooser-popover')?.remove();">
       <i data-lucide="move-horizontal" style="width: 13px;"></i> Auto-Fit All Columns
     </div>
@@ -14464,10 +14552,27 @@ function setupHistoryNavigation() {
   });
 }
 
-function formatDate(timestampSec) {
+function formatDate(timestampSec, compact = undefined) {
   if (!timestampSec) return '-';
   const d = new Date(timestampSec * 1000);
-  return d.toISOString().slice(0, 16).replace('T', ' ');
+  if (isNaN(d.getTime())) return '-';
+
+  const isCompact = (typeof compact === 'boolean') ? compact : (localStorage.getItem('cd_compact_dates') !== '0');
+  const pad = n => String(n).padStart(2, '0');
+  const now = new Date();
+  const year = d.getFullYear();
+  const month = pad(d.getMonth() + 1);
+  const day = pad(d.getDate());
+  const hours = pad(d.getHours());
+  const mins = pad(d.getMinutes());
+
+  if (isCompact) {
+    if (year === now.getFullYear()) {
+      return `${month}-${day} ${hours}:${mins}`;
+    }
+    return `${year}-${month}-${day}`;
+  }
+  return `${year}-${month}-${day} ${hours}:${mins}`;
 }
 
 function escapeHtml(str) {
