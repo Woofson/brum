@@ -1,11 +1,11 @@
 # <img src="assets/logo.png" alt="CommanderDog Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog
 
 <div align="center">
-  <img src="assets/CommanderDogWin.png" alt="CommanderDog Desktop Edition" width="800" />
+  <img src="assets/CommanderDog3.png" alt="CommanderDog Desktop Edition" width="800" />
   <p><em>Multi-Tab File Commander for Web & Native Desktop (Linux & Windows) — By Woofson</em></p>
   
   <p>
-    <a href="https://github.com/Woofson/commanderdog/releases/latest"><img src="https://img.shields.io/badge/version-v0.7.9-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
+    <a href="https://github.com/Woofson/commanderdog/releases/latest"><img src="https://img.shields.io/badge/version-v0.8.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
     <img src="https://img.shields.io/badge/rust-2021_edition-orange?style=flat-square" alt="Rust 2021" />
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License MIT" />
     <a href="https://aur.archlinux.org/packages/commanderdog"><img src="https://img.shields.io/badge/arch_aur-commanderdog-blue?style=flat-square" alt="Arch AUR" /></a>

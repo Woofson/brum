@@ -1,7 +1,7 @@
-# <img src="assets/logo.png" alt="CommanderDog Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog for Windows
+# <img src="../assets/logo.png" alt="CommanderDog Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog for Windows
 
 <div align="center">
-  <img src="assets/CommanderDogWin.png" alt="CommanderDog Windows Desktop Edition" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
+  <img src="../assets/CommanderDog3.png" alt="CommanderDog Windows Desktop Edition" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
 </div>
 
 > **Multi-Tab File Commander for Web & Native Windows Desktop**  
@@ -42,7 +42,7 @@ scoop install packaging\windows\scoop\commanderdog.json
 2. Run the installer to create Start Menu, Desktop shortcuts, and auto-configure file associations.
 
 ### D. Zero-Install Standalone Portable ZIP
-1. Download `commanderdog-v0.6.0-windows-x86_64.zip`.
+1. Download `commanderdog-v0.8.0-windows-x86_64.zip`.
 2. Extract anywhere (e.g. `C:\Tools\CommanderDog` or a USB drive).
 3. Double-click `CommanderDog.exe` — settings and database are saved portably in the same folder or `%APPDATA%\commanderdog\`.
 
@@ -92,7 +92,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 Build outputs will be generated in `dist\windows\`:
-- `dist\windows\commanderdog-v0.6.0-windows-x86_64.zip` (Portable Distribution)
+- `dist\windows\commanderdog-v0.8.0-windows-x86_64.zip` (Portable Distribution)
 - `dist\windows\SHA256SUMS.txt` (Integrity Hashes)
 - `src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe` (Installer)
 - `src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi` (MSI Package)
