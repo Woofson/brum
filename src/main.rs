@@ -28,7 +28,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 ╔═╗┌─┐┌┬┐┌┬┐┌─┐┌┐┌┌┬┐┌─┐┬─┐╔╦╗┌─┐┌─┐
 ║  │ │││││││├─┤│││ ││├┤ ├┬┘ ║║│ ││ ┬
 ╚═╝└─┘┴ ┴┴ ┴┴ ┴┘└┘─┴┘└─┘┴└─═╩╝└─┘└─┘
-        Multi-Tab Web Commander - By Woofson
+    by Woofson
     "#);
 
     let mut config = ConfigManager::load_all();

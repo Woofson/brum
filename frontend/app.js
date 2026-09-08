@@ -131,6 +131,7 @@ function getAllUserPreferences() {
     // 4. Column Configuration & Display Options
     col_widths: ColumnConfig?.widths || {},
     col_visibility: ColumnConfig?.visibility || {},
+    col_separators: localStorage.getItem('cd_col_separators') !== '0',
     show_dir_tag: localStorage.getItem('cd_show_dir_tag') === '1',
     compact_dates: localStorage.getItem('cd_compact_dates') !== '0',
     file_list_multiline: localStorage.getItem('cd_file_list_multiline') === '1',
@@ -292,6 +293,11 @@ function applyAllUserPreferences(prefs) {
     applyAllColumnWidths();
   }
 
+  if (prefs.col_separators !== undefined) {
+    localStorage.setItem('cd_col_separators', prefs.col_separators ? '1' : '0');
+    const sepEl = document.getElementById('setting-col-separators');
+    if (sepEl) sepEl.checked = !!prefs.col_separators;
+  }
   if (prefs.show_dir_tag !== undefined) {
     localStorage.setItem('cd_show_dir_tag', prefs.show_dir_tag ? '1' : '0');
     const dirEl = document.getElementById('setting-show-dir-tag');
@@ -2352,11 +2358,13 @@ function renderPaneTable(paneIndex) {
   const mode = pane.viewMode || 'details';
 
   const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
+  const showColSeparators = localStorage.getItem('cd_col_separators') !== '0';
 
   // Toggle visible container
   if (tableEl) {
     tableEl.style.display = (mode === 'details') ? '' : 'none';
     tableEl.classList.toggle('file-table-multiline', isMultiLine);
+    tableEl.classList.toggle('file-table-borderless', !showColSeparators);
   }
   if (gridEl) gridEl.style.display = (mode === 'grid') ? 'grid' : 'none';
   if (compactEl) compactEl.style.display = (mode === 'compact') ? 'flex' : 'none';
@@ -3872,6 +3880,9 @@ function updateColumnCheckboxes() {
     if (el) el.checked = !!ColumnConfig.visibility[k];
   });
 
+  const sepEl = document.getElementById('setting-col-separators');
+  if (sepEl) sepEl.checked = localStorage.getItem('cd_col_separators') !== '0';
+
   const dirEl = document.getElementById('setting-show-dir-tag');
   if (dirEl) dirEl.checked = localStorage.getItem('cd_show_dir_tag') === '1';
 
@@ -3880,6 +3891,14 @@ function updateColumnCheckboxes() {
 
   const multiEl = document.getElementById('setting-file-list-multiline');
   if (multiEl) multiEl.checked = localStorage.getItem('cd_file_list_multiline') === '1';
+}
+
+function toggleColSeparators(enable) {
+  localStorage.setItem('cd_col_separators', enable ? '1' : '0');
+  for (let i = 0; i < 4; i++) {
+    renderPaneTable(i);
+  }
+  queueSaveUserPreferencesToServer();
 }
 
 function toggleShowDirTag(show) {
@@ -3929,6 +3948,7 @@ function openColumnHeaderContextMenu(e, paneIndex) {
     { key: 'tags', label: 'Tags & Colors' },
   ];
 
+  const showColSeparators = localStorage.getItem('cd_col_separators') !== '0';
   const showDirTag = localStorage.getItem('cd_show_dir_tag') === '1';
   const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
   const isCompactDates = localStorage.getItem('cd_compact_dates') !== '0';
@@ -3948,6 +3968,10 @@ function openColumnHeaderContextMenu(e, paneIndex) {
   itemsHtml += `
     <div style="height: 1px; background: var(--border); margin: 6px 0;"></div>
     <div class="col-chooser-title" style="margin-top: 2px;">Display Options</div>
+    <label class="col-chooser-item" onclick="event.stopPropagation()">
+      <input type="checkbox" ${showColSeparators ? 'checked' : ''} onchange="toggleColSeparators(this.checked)">
+      <span>Discrete column separators</span>
+    </label>
     <label class="col-chooser-item" onclick="event.stopPropagation()">
       <input type="checkbox" ${showDirTag ? 'checked' : ''} onchange="toggleShowDirTag(this.checked)">
       <span>Show classic <code>&lt;DIR&gt;</code> tag</span>

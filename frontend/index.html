@@ -1103,12 +1103,16 @@
             <label>Listing Display Options:</label>
             <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
               <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="setting-show-dir-tag" onchange="toggleShowDirTag(this.checked)">
-                <span><b>Show classic &lt;DIR&gt; tag:</b> Display classic <code>&lt;DIR&gt;</code> in file size column for directories (leave unchecked for clean blank folder sizes)</span>
+                <input type="checkbox" id="setting-col-separators" checked onchange="toggleColSeparators(this.checked)">
+                <span><b>Discrete Column Separators:</b> Display subtle vertical dividers between table columns</span>
               </label>
               <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" id="setting-compact-dates" checked onchange="toggleCompactDates(this.checked)">
                 <span><b>Compact Date Format:</b> Use short, space-saving timestamps (e.g. <code>09-08 09:15</code> / <code>YYYY-MM-DD</code>)</span>
+              </label>
+              <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
+                <input type="checkbox" id="setting-show-dir-tag" onchange="toggleShowDirTag(this.checked)">
+                <span><b>Show classic &lt;DIR&gt; tag:</b> Display classic <code>&lt;DIR&gt;</code> in file size column for directories (leave unchecked for clean blank folder sizes)</span>
               </label>
               <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
                 <input type="checkbox" id="setting-file-list-multiline" onchange="toggleFileListMultiline(this.checked)">

@@ -44,6 +44,8 @@
   --bg-selected: rgba(245, 158, 11, 0.18);
   --border: #3f3f46;
   --border-focus: #f59e0b;
+  --border-col-divider: rgba(255, 255, 255, 0.05);
+  --border-col-header-divider: rgba(255, 255, 255, 0.10);
   --accent: #f59e0b;
   --accent-hover: #fbbf24;
   --accent-dark: #d97706;
@@ -76,6 +78,8 @@
   --bg-selected: rgba(245, 158, 11, 0.14);
   --border: #d4d4d8;
   --border-focus: #d97706;
+  --border-col-divider: rgba(0, 0, 0, 0.06);
+  --border-col-header-divider: rgba(0, 0, 0, 0.12);
   --accent: #d97706;
   --accent-hover: #b45309;
   --accent-dark: #92400e;
@@ -949,6 +953,11 @@ body {
   z-index: 10;
   user-select: none;
   -webkit-user-select: none;
+  box-sizing: border-box;
+}
+
+.file-table th:not(:last-child) {
+  border-right: 1px solid var(--border-col-header-divider);
 }
 
 .file-table th:hover {
@@ -996,6 +1005,17 @@ body {
   text-overflow: ellipsis;
   vertical-align: middle !important;
   line-height: normal;
+  box-sizing: border-box;
+}
+
+.file-cell:not(:last-child) {
+  border-right: 1px solid var(--border-col-divider);
+}
+
+/* Optional borderless modifier when column separators are explicitly disabled */
+.file-table-borderless th,
+.file-table-borderless .file-cell {
+  border-right: none !important;
 }
 
 .file-cell-icon {

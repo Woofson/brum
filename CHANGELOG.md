@@ -5,6 +5,13 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc8] - 2026-09-08
+
+### Discrete Column Separators & Theme-Aware Gridlines
+- **Discrete Column Separators**: Added subtle, theme-aware 1px vertical hairline dividers between table columns (`th:not(:last-child)` and `td.file-cell:not(:last-child)`) across all viewports to provide distinct visual separation when scanning file metadata.
+- **Theme-Aware Divider Tokens**: Introduced `--border-col-divider` and `--border-col-header-divider` tokens for *Woofsons Amber Charcoal* (Dark) and *Woofsons Amber Zink* (Light) themes with calibrated alpha blending.
+- **Togglable Column Gridlines Preference**: Added live toggle controls for column separators under [General Settings](file:///home/bolt/projects/commanderdog/frontend/index.html#L1105) and the column chooser header context menu, complete with local persistence and server sync.
+
 ## [0.8.0-rc7] - 2026-09-08
 
 ### Calvin S ASCII Banner & Touch Column Resizing Architecture
