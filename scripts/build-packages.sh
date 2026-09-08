@@ -18,6 +18,7 @@ echo "======================================================"
 echo "Compiling standalone release binary..."
 cargo build --release
 
+rm -rf "${DIST_DIR}"
 mkdir -p "${DIST_DIR}"
 
 # 2. Package Generic Tarball
@@ -114,9 +115,11 @@ tar -czf "${DIST_DIR}/commanderdog-${VERSION}-r0.${ARCH}.apk" -C "${APK_DIR}" .P
 
 # 5. Generate SHA-256 Checksums
 echo "🔒 Generating SHA-256 Checksums..."
-cd "${DIST_DIR}"
-sha256sum * > SHA256SUMS
-cd ..
+(
+    cd "${DIST_DIR}"
+    rm -f SHA256SUMS SHA256SUMS.txt
+    sha256sum * > SHA256SUMS
+)
 
 echo "======================================================"
 echo "✅ Build Complete! Release artifacts generated in ./dist/:"

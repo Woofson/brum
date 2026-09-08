@@ -74,7 +74,7 @@ echo "======================================================"
 # ------------------------------------------------------------------------------
 echo "🧹 Cleaning up temporary logs, scratch files, and build caches..."
 rm -f *.log *.tmp *.dump *.dmp parucommanderdog*.txt cd*.txt cdmousepointer*.txt commanderdog*.txt *.db *.db-journal *.sqlite*
-rm -rf /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/commanderdog-*
+rm -rf dist /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/commanderdog-*
 
 # ------------------------------------------------------------------------------
 # 2. PRE-FLIGHT SENSITIVE DATA & CREDENTIALS CHECK

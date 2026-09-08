@@ -120,11 +120,19 @@ jobs:
 
       - name: Package Linux Standalone Tarball
         run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
+            VERSION="${{ github.event.inputs.version }}"
+          fi
+          if [ -z "$VERSION" ]; then
+            VERSION="0.8.1"
+          fi
           mkdir -p dist/linux/commanderdog
           cp target/release/commanderdog dist/linux/commanderdog/
           cp config.toml LICENSE README.md dist/linux/commanderdog/
           cd dist/linux
-          tar -czvf commanderdog-linux-x86_64.tar.gz commanderdog/
+          tar -czvf "commanderdog-v${VERSION}-linux-x86_64.tar.gz" commanderdog/
           cp ../../target/debian/*.deb .
           sha256sum *.tar.gz *.deb > SHA256SUMS-linux.txt
 
