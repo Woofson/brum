@@ -3,6 +3,8 @@
 
 use commanderdog::config::ConfigManager;
 use commanderdog::start_background_server;
+use std::sync::atomic::{AtomicU16, Ordering};
+use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
@@ -14,7 +16,13 @@ fn main() {
     config.server.standalone = true;
     config.server.enable_auth = false;
     config.server.host = "127.0.0.1".to_string();
-    config.server.port = 0; // Ephemeral port allocation
+    if config.server.port == 0 {
+        config.server.port = 3140; // Default preferred port
+    }
+
+    let active_port = Arc::new(AtomicU16::new(config.server.port));
+    let active_port_server = active_port.clone();
+    let active_port_tray = active_port.clone();
 
     let window_decorations = config.ui.window_decorations;
     let minimize_to_tray = config.desktop.minimize_to_tray;
@@ -28,6 +36,7 @@ fn main() {
             tauri::async_runtime::spawn(async move {
                 match start_background_server(config).await {
                     Ok(port) => {
+                        active_port_server.store(port, Ordering::Relaxed);
                         let url = format!("http://127.0.0.1:{}", port);
                         println!("CommanderDog desktop backend bound to: {}", url);
 
@@ -95,7 +104,7 @@ fn main() {
             }
 
             let _tray = tray_builder
-                .on_menu_event(|app, event| match event.id.as_ref() {
+                .on_menu_event(move |app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {
                             let _ = window.show();
@@ -109,7 +118,8 @@ fn main() {
                         }
                     }
                     "browser" => {
-                        let _ = open::that("http://127.0.0.1:3140");
+                        let port = active_port_tray.load(Ordering::Relaxed);
+                        let _ = open::that(format!("http://127.0.0.1:{}", port));
                     }
                     "quit" => {
                         app.exit(0);

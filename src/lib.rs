@@ -53,7 +53,18 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<d
     };
 
     let addr_str = format!("{}:{}", bind_host, config.server.port);
-    let listener = tokio::net::TcpListener::bind(&addr_str).await?;
+    let listener = match tokio::net::TcpListener::bind(&addr_str).await {
+        Ok(l) => l,
+        Err(e) if config.server.port != 0 => {
+            tracing::warn!(
+                "Preferred port {} is unavailable ({}), falling back to dynamic port",
+                config.server.port,
+                e
+            );
+            tokio::net::TcpListener::bind(format!("{}:0", bind_host)).await?
+        }
+        Err(e) => return Err(Box::new(e)),
+    };
     let local_addr = listener.local_addr()?;
     let bound_port = local_addr.port();
     config.server.port = bound_port;
