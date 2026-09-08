@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0-rc1] - 2026-09-08
+
+### Header Layout, Icons & Responsive Viewport Enhancements
+- **Header Tools & Task Manager Order**: Swapped the header layout sequence so the ChewToys & Tools Launchpad menu precedes the Background Tasks & Transfers pill (#11).
+- **Modernized Upload Icon**: Replaced legacy cloud-upload icon (`upload-cloud`) with clean, streamlined tray upload indicator (`upload`) across desktop headers, context menus, pane toolbars, and mobile bottom action bars (#12).
+- **Responsive Branding Badge Visibility**: Refined header logo text visibility rules to automatically hide on Phone screens (<600px) to maximize toolbar space while displaying clearly on Tablet/Foldable screens (600px–1024px) and Desktop viewports (#7).
+
+### Mobile Bookmarks & NoteDog Docking Fixes
+- **Mobile Phone Bookmarks Manager Trigger**: Resolved issue where tapping Bookmarks in the mobile pane tools drawer failed due to hidden desktop button anchoring; implemented fixed popup viewport positioning, direct Bookmarks Manager trigger, and outside-touch auto-dismissal (#9).
+- **NoteDog Docked Selection Lag & Stale Content**: Fixed selection delay and stale content rendering in docked mode by making notebook/section/note selection handlers async and dynamically synchronizing all active docked pane textareas, previews, and header titles (#1).
+
 ## [0.7.9] - 2026-09-07
 
 ### ⚡ HTTP Range Request & Media Streaming Engine Fix

@@ -72,14 +72,7 @@
         <img src="assets/amber-frameless-search.webp" alt="Search" style="width: 16px; height: 16px; object-fit: contain;">
       </button>
 
-      <!-- 4. Task-List Header Button (Desktop & Mobile) -->
-      <button class="btn header-task-btn" id="btn-header-tasks" onclick="toggleFloatingTaskManager()" title="Background Tasks & Transfers (Click to toggle)">
-        <img src="assets/task.webp" id="header-task-icon" alt="Tasks" style="width: 15px; height: 15px; object-fit: contain; vertical-align: middle;">
-        <span class="header-task-badge" id="header-task-count">0</span>
-        <span class="header-task-speed" id="header-task-speed" style="display: none;">0 B/s</span>
-      </button>
-
-      <!-- 5. Application Tools Suite & Launchpad -->
+      <!-- 4. Application Tools Suite & Launchpad -->
       <div class="tools-dropdown-wrapper">
         <button class="btn btn-icon" id="btn-tools-menu" onclick="toggleToolsMenu(event)" title="ChewToys & Tools (Terminal, EditorDog, Calculator, Backup, Search)">
           <img src="assets/amber-frameless-apps.webp" alt="ChewToys & Tools" style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
@@ -102,6 +95,13 @@
           <div class="dropdown-item" onclick="openFloatingTaskManager()"><img src="assets/task.webp" alt="Task Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Task Manager</div>
         </div>
       </div>
+
+      <!-- 5. Task-List Header Button (Desktop & Mobile) -->
+      <button class="btn header-task-btn" id="btn-header-tasks" onclick="toggleFloatingTaskManager()" title="Background Tasks & Transfers (Click to toggle)">
+        <img src="assets/task.webp" id="header-task-icon" alt="Tasks" style="width: 15px; height: 15px; object-fit: contain; vertical-align: middle;">
+        <span class="header-task-badge" id="header-task-count">0</span>
+        <span class="header-task-speed" id="header-task-speed" style="display: none;">0 B/s</span>
+      </button>
 
       <!-- 6. User Profile & Admin Menu (Compact Avatar on Mobile, Full on Desktop) -->
       <div class="profile-dropdown-wrapper">
@@ -207,7 +207,7 @@
       <span>Move</span>
     </button>
     <button class="mob-cmd-btn" id="mob-btn-upload" onclick="triggerDeviceUpload()" title="Upload files from device">
-      <i data-lucide="upload-cloud"></i>
+      <i data-lucide="upload"></i>
       <span>Upload</span>
     </button>
     <button class="mob-cmd-btn" id="mob-btn-download" onclick="triggerDownload()" title="Download selected to device">

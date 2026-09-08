@@ -4884,6 +4884,11 @@ body {
 
   /* ---------------- NARROW MOBILE SCREENS (<= 600px, e.g. Folded Outer Phone Screen) ---------------- */
   @media (max-width: 600px) {
+    /* Header brand text hidden on Phone screens to preserve toolbar real-estate */
+    .app-header .logo-area .app-logo-text {
+      display: none !important;
+    }
+
     /* Panes Container: Force 1 active pane on narrow mobile */
     .panes-container,
     .panes-container.layout-single,
@@ -4917,6 +4922,11 @@ body {
 
   /* ---------------- FOLDABLE PHONES (UNFOLDED) & TABLETS (601px to 1024px) ---------------- */
   @media (min-width: 601px) and (max-width: 1024px) {
+    /* Header brand text visible on Tablet/Foldable screens */
+    .app-header .logo-area .app-logo-text {
+      display: inline-block !important;
+    }
+
     /* Dual Vertical Layout Active by default on Foldable Unfolded Screens */
     .panes-container,
     .panes-container.layout-dual-vertical,

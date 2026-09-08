@@ -1304,7 +1304,7 @@ function createPaneElement(pane, index) {
 
       <!-- Direct Device Upload Button (Desktop) -->
       <button class="btn btn-icon pane-upload-btn desktop-header-tool" onclick="event.stopPropagation(); setActivePane(${index}); triggerDeviceUpload(${index});" title="Upload Files from Device to this Directory">
-        <i data-lucide="upload-cloud"></i>
+        <i data-lucide="upload"></i>
       </button>
 
       <!-- Combined Pane Menu Button (Mobile & Foldable Viewports) -->
@@ -6719,15 +6719,18 @@ function selectNoteDogNotebook(nbName) {
   if (currentNb && currentNb.sections.length > 0) {
     notedogState.activeSection = currentNb.sections[0].name;
     if (currentNb.sections[0].notes.length > 0) {
-      selectNoteDogNote(currentNb.sections[0].notes[0]);
+      return selectNoteDogNote(currentNb.sections[0].notes[0]);
     } else {
       notedogState.activeNote = null;
+      notedogState.content = '';
     }
   } else {
     notedogState.activeSection = '';
     notedogState.activeNote = null;
+    notedogState.content = '';
   }
   renderNoteDogSidebar();
+  return Promise.resolve();
 }
 
 function selectNoteDogSection(secName) {
@@ -6735,15 +6738,17 @@ function selectNoteDogSection(secName) {
   const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook);
   const currentSec = currentNb?.sections.find(s => s.name === secName);
   if (currentSec && currentSec.notes.length > 0) {
-    selectNoteDogNote(currentSec.notes[0]);
+    return selectNoteDogNote(currentSec.notes[0]);
   } else {
     notedogState.activeNote = null;
+    notedogState.content = '';
   }
   renderNoteDogSidebar();
+  return Promise.resolve();
 }
 
 function selectNoteDogNoteByPath(path) {
-  if (!path) return;
+  if (!path) return Promise.resolve();
   let found = null;
   for (const nb of notedogState.notebooks) {
     for (const sec of nb.sections) {
@@ -6753,8 +6758,9 @@ function selectNoteDogNoteByPath(path) {
     if (found) break;
   }
   if (found) {
-    selectNoteDogNote(found);
+    return selectNoteDogNote(found);
   }
+  return Promise.resolve();
 }
 
 function selectNoteDogNote(note) {
@@ -6767,10 +6773,11 @@ function selectNoteDogNote(note) {
     notedogState.activeSection = note.secName;
   }
   renderNoteDogSidebar();
-  loadNoteDogNoteContent(note);
+  const loadPromise = loadNoteDogNoteContent(note);
   if (window.innerWidth <= 600) {
     showNoteDogWorkspaceMobile();
   }
+  return loadPromise;
 }
 
 async function loadNoteDogNoteContent(note) {
@@ -6794,6 +6801,20 @@ async function loadNoteDogNoteContent(note) {
     if (window.lucide) lucide.createIcons();
   }
 
+  const syncDockedInstances = (content) => {
+    App.panes.forEach((p, idx) => {
+      if (p.dockedTool === 'notedog') {
+        const dTa = document.getElementById(`docked-notedog-textarea-${idx}`);
+        if (dTa) dTa.value = content;
+        const dTitle = document.getElementById(`docked-notedog-title-${idx}`);
+        if (dTitle) dTitle.textContent = note.name || 'NoteDog';
+        renderDockedNoteDogPreview(idx, content);
+        const noteSel = document.getElementById(`docked-notedog-note-select-${idx}`);
+        if (noteSel && noteSel.value !== note.path) noteSel.value = note.path;
+      }
+    });
+  };
+
   if (isEnc) {
     const cached = notedogState.cachedPassphrases[note.path] || notedogState.cachedPassphrases[notedogState.activeSection] || notedogState.cachedPassphrases['__global'];
     if (cached) {
@@ -6812,6 +6833,7 @@ async function loadNoteDogNoteContent(note) {
           if (textarea) textarea.value = notedogState.content;
           syncNoteDogGutter();
           renderNoteDogPreview(notedogState.content);
+          syncDockedInstances(notedogState.content);
           return;
         }
       } catch (e) {
@@ -6834,6 +6856,7 @@ async function loadNoteDogNoteContent(note) {
     }
     if (textarea) textarea.value = '';
     if (preview) preview.innerHTML = '';
+    syncDockedInstances('');
   } else {
     // Plain note
     if (unlockCard) unlockCard.style.display = 'none';
@@ -6849,15 +6872,18 @@ async function loadNoteDogNoteContent(note) {
         if (textarea) textarea.value = content;
         syncNoteDogGutter();
         renderNoteDogPreview(content);
+        syncDockedInstances(content);
       } else {
         const errText = await resp.text();
         const errMsg = `Failed to load note content (${resp.status}): ${errText || 'Access Denied'}`;
         if (textarea) textarea.value = errMsg;
         if (preview) preview.innerHTML = `<div style="padding: 16px; color: var(--danger); font-family: var(--font-mono); font-size: 12px;">⚠️ ${escapeHtml(errMsg)}</div>`;
+        syncDockedInstances(errMsg);
       }
     } catch (err) {
       console.error('NoteDog read note failed:', err);
       if (textarea) textarea.value = `Failed to load note: ${err}`;
+      syncDockedInstances(`Failed to load note: ${err}`);
     }
   }
 }
@@ -7079,6 +7105,19 @@ function setNoteDogViewMode(mode) {
   if (wrapper) {
     wrapper.className = `notedog-panes-wrapper ${mode}-mode`;
   }
+  document.querySelectorAll('.docked-notedog-box .notedog-panes-wrapper').forEach(wrap => {
+    wrap.className = `notedog-panes-wrapper ${mode}-mode`;
+    const editPane = wrap.querySelector('.notedog-editor-pane');
+    const prevPane = wrap.querySelector('.notedog-preview-pane');
+    if (editPane) {
+      editPane.style.display = mode === 'preview' ? 'none' : 'block';
+      editPane.style.width = mode === 'edit' ? '100%' : '50%';
+    }
+    if (prevPane) {
+      prevPane.style.display = mode === 'edit' ? 'none' : 'block';
+      prevPane.style.width = mode === 'preview' ? '100%' : '50%';
+    }
+  });
   ['edit', 'split', 'preview'].forEach(m => {
     const btn = document.getElementById(`notedog-mode-${m}`);
     if (btn) btn.classList.toggle('active', m === mode);
@@ -7789,40 +7828,61 @@ function mountDockedNoteDog(paneIndex) {
   const mountBody = document.getElementById(`docked-notedog-body-${paneIndex}`);
   if (!mountBody) return;
 
+  const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook) || notedogState.notebooks[0];
+  const currentSec = (currentNb?.sections || []).find(s => s.name === notedogState.activeSection) || currentNb?.sections[0];
+  const currentNote = (currentSec?.notes || []).find(n => n.path === notedogState.activeNote?.path) || currentSec?.notes[0];
+
+  const mode = notedogState.viewMode || 'split';
+
   mountBody.innerHTML = `
     <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden;">
       <div style="padding: 4px 8px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; gap: 4px; align-items: center; font-size: 11px;">
-        <select id="docked-notedog-nb-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="selectNoteDogNotebook(this.value); mountDockedNoteDog(${paneIndex});">
-          ${notedogState.notebooks.map(nb => `<option value="${escapeHtml(nb.name)}" ${nb.name === notedogState.activeNotebook ? 'selected' : ''}>📚 ${escapeHtml(nb.name)}</option>`).join('')}
+        <select id="docked-notedog-nb-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="handleDockedNotebookChange(${paneIndex}, this.value)">
+          ${notedogState.notebooks.map(nb => `<option value="${escapeHtml(nb.name)}" ${nb.name === (currentNb?.name || '') ? 'selected' : ''}>📚 ${escapeHtml(nb.name)}</option>`).join('')}
         </select>
-        <select id="docked-notedog-sec-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="selectNoteDogSection(this.value); mountDockedNoteDog(${paneIndex});">
-          ${(notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook)?.sections || []).map(sec => `<option value="${escapeHtml(sec.name)}" ${sec.name === notedogState.activeSection ? 'selected' : ''}>📂 ${escapeHtml(sec.name)}</option>`).join('')}
+        <select id="docked-notedog-sec-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="handleDockedSectionChange(${paneIndex}, this.value)">
+          ${((currentNb?.sections) || []).map(sec => `<option value="${escapeHtml(sec.name)}" ${sec.name === (currentSec?.name || '') ? 'selected' : ''}>📂 ${escapeHtml(sec.name)}</option>`).join('')}
         </select>
         <select id="docked-notedog-note-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px; flex: 1;" onchange="handleDockedNoteSelect(${paneIndex}, this.value)">
-          ${((notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook)?.sections.find(s => s.name === notedogState.activeSection)?.notes) || []).map(n => `<option value="${escapeHtml(n.path)}" ${notedogState.activeNote && n.path === notedogState.activeNote.path ? 'selected' : ''}>📄 ${escapeHtml(n.name)}</option>`).join('')}
+          ${((currentSec?.notes) || []).map(n => `<option value="${escapeHtml(n.path)}" ${currentNote && n.path === currentNote.path ? 'selected' : ''}>📄 ${escapeHtml(n.name)}</option>`).join('')}
         </select>
       </div>
-      <div class="notedog-panes-wrapper split-mode" style="flex: 1; height: 100%;">
-        <div class="notedog-pane notedog-editor-pane" style="width: 50%; border-right: 1px solid var(--border);">
+      <div class="notedog-panes-wrapper ${mode}-mode" style="flex: 1; height: 100%;">
+        <div class="notedog-pane notedog-editor-pane" style="${mode === 'preview' ? 'display:none;' : (mode === 'edit' ? 'width:100%;' : 'width:50%;')} border-right: 1px solid var(--border); height: 100%;">
           <textarea id="docked-notedog-textarea-${paneIndex}" class="notedog-textarea" style="width: 100%; height: 100%;" oninput="syncDockedNoteDogInput(${paneIndex}, this.value)">${escapeHtml(notedogState.content || '')}</textarea>
         </div>
-        <div class="notedog-pane notedog-preview-pane" style="width: 50%; padding: 10px;">
+        <div class="notedog-pane notedog-preview-pane" style="${mode === 'edit' ? 'display:none;' : (mode === 'preview' ? 'width:100%;' : 'width:50%;')} padding: 10px; height: 100%; overflow-y: auto;">
           <div id="docked-notedog-preview-${paneIndex}" class="notedog-preview-content"></div>
         </div>
       </div>
     </div>
   `;
 
+  const titleEl = document.getElementById(`docked-notedog-title-${paneIndex}`);
+  if (titleEl) {
+    titleEl.textContent = currentNote?.name || notedogState.activeNote?.name || 'NoteDog';
+  }
+
   renderDockedNoteDogPreview(paneIndex, notedogState.content || '');
 }
 
-function handleDockedNoteSelect(paneIndex, notePath) {
+async function handleDockedNotebookChange(paneIndex, nbName) {
+  await selectNoteDogNotebook(nbName);
+  mountDockedNoteDog(paneIndex);
+}
+
+async function handleDockedSectionChange(paneIndex, secName) {
+  await selectNoteDogSection(secName);
+  mountDockedNoteDog(paneIndex);
+}
+
+async function handleDockedNoteSelect(paneIndex, notePath) {
   const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook);
   const currentSec = currentNb?.sections.find(s => s.name === notedogState.activeSection);
   const note = currentSec?.notes.find(n => n.path === notePath);
   if (note) {
-    selectNoteDogNote(note);
-    setTimeout(() => mountDockedNoteDog(paneIndex), 100);
+    await selectNoteDogNote(note);
+    mountDockedNoteDog(paneIndex);
   }
 }
 
@@ -9539,13 +9599,16 @@ function openAdminPanel() {
 }
 
 function openBookmarksManager() {
+  document.getElementById('pane-favorites-popup')?.remove();
+  document.getElementById('pane-tools-popup')?.remove();
   openSettingsModal();
   switchSettingsTab('tab-bookmarks');
 }
 
 async function openPaneFavoritesMenu(e, paneIndex) {
-  e.stopPropagation();
+  if (e && e.stopPropagation) e.stopPropagation();
   document.getElementById('pane-favorites-popup')?.remove();
+  document.getElementById('pane-tools-popup')?.remove();
 
   let globalMounts = [];
   let userBookmarks = [];
@@ -9584,15 +9647,18 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   popup.innerHTML = `
     <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span>⭐ Storage Roots & Bookmarks</span>
-      <span style="font-size: 10px; color: var(--text-dim); cursor: pointer;" onclick="openBookmarksManager()">Manage ⚙️</span>
+      <span>Storage Roots & Bookmarks</span>
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openBookmarksManager();">Manage</span>
+        <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-favorites-popup')?.remove();">✕</span>
+      </div>
     </div>
     <div style="padding: 4px 0; max-height: 380px; overflow-y: auto;">
       ${curPanePath.includes('://') ? `
         <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); disconnectPaneRemote(${paneIndex});" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
           <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i>
           <div>
-            <div style="font-weight: 700;">🔌 Disconnect Remote Connection</div>
+            <div style="font-weight: 700;">Disconnect Remote Connection</div>
             <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(sanitizeCredentials(curPanePath))}</div>
           </div>
         </div>
@@ -9635,7 +9701,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
       ${globalMounts.length > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">
-          <span>🌐 Network Mounts</span>
+          <span>Network Mounts</span>
           <span style="font-size: 9px; opacity: 0.8;">ADMIN</span>
         </div>
         ${globalMounts.map(m => `
@@ -9660,9 +9726,37 @@ async function openPaneFavoritesMenu(e, paneIndex) {
     </div>
   `;
 
-  const btn = document.getElementById(`btn-favorites-${paneIndex}`);
-  btn?.parentElement?.appendChild(popup);
+  const favBtn = document.getElementById(`btn-favorites-${paneIndex}`);
+  const toolsBtn = document.getElementById(`pane-tools-btn-${paneIndex}`);
+  const anchorBtn = (favBtn && favBtn.offsetParent !== null) ? favBtn : toolsBtn;
+
+  if (anchorBtn) {
+    const rect = anchorBtn.getBoundingClientRect();
+    popup.style.position = 'fixed';
+    popup.style.top = `${rect.bottom + 4}px`;
+    popup.style.right = `${Math.max(10, window.innerWidth - rect.right)}px`;
+    popup.style.zIndex = '999999';
+  } else {
+    popup.style.position = 'fixed';
+    popup.style.top = '60px';
+    popup.style.right = '10px';
+    popup.style.zIndex = '999999';
+  }
+
+  document.body.appendChild(popup);
   if (window.lucide) lucide.createIcons();
+
+  setTimeout(() => {
+    const closeFavHandler = (ev) => {
+      if (!popup.contains(ev.target) && !anchorBtn?.contains(ev.target)) {
+        popup.remove();
+        document.removeEventListener('click', closeFavHandler);
+        document.removeEventListener('touchstart', closeFavHandler);
+      }
+    };
+    document.addEventListener('click', closeFavHandler);
+    document.addEventListener('touchstart', closeFavHandler);
+  }, 10);
 }
 
 function toggleGlobalDotfiles(show) {
@@ -11014,7 +11108,7 @@ function showEmptySpaceContextMenu(x, y, paneIndex) {
     </div>
     <div class="context-item" onclick="openSpotlightModal()"><i data-lucide="sparkles" style="width: 14px; color: var(--accent);"></i> Spotlight Quick-Switcher (Ctrl+K)...</div>
     <div class="context-item" onclick="toggleBranchView(${paneIndex})"><i data-lucide="git-branch" style="width: 14px; color: var(--accent);"></i> Flat / Branch View (Ctrl+B)</div>
-    <div class="context-item" onclick="triggerDeviceUpload(${paneIndex})"><i data-lucide="upload-cloud" style="width: 14px; color: #38bdf8;"></i> Upload Files from Device...</div>
+    <div class="context-item" onclick="triggerDeviceUpload(${paneIndex})"><i data-lucide="upload" style="width: 14px; color: #38bdf8;"></i> Upload Files from Device...</div>
     <div class="context-item" onclick="triggerDeviceFolderUpload(${paneIndex})"><i data-lucide="folder-up" style="width: 14px; color: #38bdf8;"></i> Upload Folder from Device...</div>
     <div class="context-item" onclick="triggerDownloadCurrentDirectory(${paneIndex})"><i data-lucide="download" style="width: 14px;"></i> Download Directory (.zip)</div>
     <div class="context-item" onclick="triggerShareDirectory(${paneIndex})"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Directory / Guest Dropbox...</div>
@@ -13474,7 +13568,7 @@ function openPaneToolsMenu(e, paneIndex) {
         <i data-lucide="arrow-right-left" style="color: var(--accent);"></i> Transfer / Copy to Other Pane (F5)
       </div>
       <div class="dropdown-item" onclick="triggerDeviceUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="upload-cloud" style="color: #38bdf8;"></i> Upload Files from Device...
+        <i data-lucide="upload" style="color: #38bdf8;"></i> Upload Files from Device...
       </div>
       <div class="dropdown-item" onclick="triggerDeviceFolderUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="folder-up" style="color: #38bdf8;"></i> Upload Folder from Device...
@@ -13507,8 +13601,11 @@ function openPaneToolsMenu(e, paneIndex) {
       <div class="dropdown-item" onclick="openRemoteModal(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="network" style="color: #a855f7;"></i> Connect Remote Storage (SFTP/SMB/WebDAV)...
       </div>
-      <div class="dropdown-item" onclick="openPaneFavoritesMenu(event, ${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
         <i data-lucide="star" style="color: var(--accent);"></i> Bookmarks & Favorites...
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openBookmarksManager();">
+        <i data-lucide="bookmark" style="color: var(--accent);"></i> Bookmarks Manager...
       </div>
       <div class="dropdown-item" onclick="triggerDownloadCurrentDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="download"></i> Download Folder (.zip)
