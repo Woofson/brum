@@ -3,9 +3,9 @@
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
 > **Official Web**: [www.arf.ac](https://www.arf.ac)  
 > **Philosophy**: *No acronyms or slogans. Just a very good environment for file managing and orchestrating.*  
-> **Current Version**: `v0.8.0 (Desktop & Web)`  
+> **Current Version**: `v0.8.1 (Desktop & Web)`  
 > **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`, `arf-desktop`).  
-> **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.8.0`), see [**`CHANGELOG.md`**](CHANGELOG.md).
+> **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.8.1`), see [**`CHANGELOG.md`**](CHANGELOG.md).
 
 ---
 
@@ -387,5 +387,6 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 | **`v0.7.8`** | ARFAMP (Authentic Winamp 2.x Clone & Equalizer ChewToy) | **Released** | [View Notes](CHANGELOG.md#078---2026-09-07) |
 | **`v0.7.9`** | HTTP Range Audio Streaming Fix & ARFAMP Official Rebranding | **Released** | [View Notes](CHANGELOG.md#079---2026-09-07) |
 | **`v0.8.0`** | Windows Navigation Fix, Touch Columns, Theme Form System & Release Automation | **Released** | [View Notes](CHANGELOG.md#080---2026-09-08) |
+| **`v0.8.1`** | ChewToy Nomenclature, Context Menu Auto-Dismiss, Windows Desktop Icon & Local Profile Customization | **Released** | [View Notes](CHANGELOG.md#081---2026-09-08) |
 | **`v0.9.0`** | Enterprise OIDC / SSO, Collaborative Office (WOPI) & RBAC | *Planned* | — |
 | **`v1.0.0`** | Brum Official Rebrand, High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |
