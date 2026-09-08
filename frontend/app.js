@@ -1360,43 +1360,43 @@ function createPaneElement(pane, index) {
                 </th>
                 <th class="col-header col-name" id="col-header-${index}-name" onclick="sortPane(${index}, 'name')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Name</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'name')" ondblclick="autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'name')" ondblclick="autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-ext" id="col-header-${index}-ext" onclick="sortPane(${index}, 'ext')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Ext</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'ext')" ondblclick="autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'ext')" ondblclick="autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-size" id="col-header-${index}-size" style="width: 80px;" onclick="sortPane(${index}, 'size')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Size</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'size')" ondblclick="autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'size')" ondblclick="autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-modified" id="col-header-${index}-modified" style="width: 130px;" onclick="sortPane(${index}, 'modified')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Modified</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'modified')" ondblclick="autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'modified')" ondblclick="autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-created" id="col-header-${index}-created" style="width: 130px; display: none;" onclick="sortPane(${index}, 'created')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Created</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'created')" ondblclick="autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'created')" ondblclick="autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-mode" id="col-header-${index}-mode" style="width: 75px;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Mode</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'mode')" ondblclick="autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'mode')" ondblclick="autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-owner" id="col-header-${index}-owner" style="width: 85px;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Owner</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'owner')" ondblclick="autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'owner')" ondblclick="autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-group" id="col-header-${index}-group" style="width: 85px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Group</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'group')" ondblclick="autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'group')" ondblclick="autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-hash" id="col-header-${index}-hash" style="width: 100px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>SHA-256</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'hash')" ondblclick="autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'hash')" ondblclick="autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-tags" id="col-header-${index}-tags" style="width: 90px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Tags</span>
-                  <div class="col-resizer" onmousedown="initColResize(event, ${index}, 'tags')" ondblclick="autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'tags')" ondblclick="autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
               </tr>
             </thead>
@@ -2856,15 +2856,15 @@ function renderPaneTable(paneIndex) {
           <span class="file-name-text" style="font-weight: 700; color: var(--accent); font-size: 13px;">..</span>
           `}
         </td>
-        ${ColumnConfig.visibility.ext ? '<td class="file-cell file-cell-mono">-</td>' : ''}
+        ${ColumnConfig.visibility.ext ? '<td class="file-cell file-cell-mono file-cell-ext">-</td>' : ''}
         ${ColumnConfig.visibility.size ? `<td class="file-cell file-cell-mono file-cell-size" style="color: var(--accent); font-weight: 600;">${showDirTag ? '&lt;UP&gt;' : '-'}</td>` : ''}
-        ${ColumnConfig.visibility.modified ? '<td class="file-cell file-cell-mono">-</td>' : ''}
-        ${ColumnConfig.visibility.created ? '<td class="file-cell file-cell-mono">-</td>' : ''}
-        ${ColumnConfig.visibility.mode ? '<td class="file-cell file-cell-mono">-</td>' : ''}
-        ${ColumnConfig.visibility.owner ? '<td class="file-cell file-cell-mono">-</td>' : ''}
-        ${ColumnConfig.visibility.group ? '<td class="file-cell file-cell-mono">-</td>' : ''}
-        ${ColumnConfig.visibility.hash ? '<td class="file-cell file-cell-mono">-</td>' : ''}
-        ${ColumnConfig.visibility.tags ? '<td class="file-cell file-cell-mono">-</td>' : ''}
+        ${ColumnConfig.visibility.modified ? '<td class="file-cell file-cell-mono file-cell-modified">-</td>' : ''}
+        ${ColumnConfig.visibility.created ? '<td class="file-cell file-cell-mono file-cell-created">-</td>' : ''}
+        ${ColumnConfig.visibility.mode ? '<td class="file-cell file-cell-mono file-cell-mode">-</td>' : ''}
+        ${ColumnConfig.visibility.owner ? '<td class="file-cell file-cell-mono file-cell-owner">-</td>' : ''}
+        ${ColumnConfig.visibility.group ? '<td class="file-cell file-cell-mono file-cell-group">-</td>' : ''}
+        ${ColumnConfig.visibility.hash ? '<td class="file-cell file-cell-mono file-cell-hash">-</td>' : ''}
+        ${ColumnConfig.visibility.tags ? '<td class="file-cell file-cell-mono file-cell-tags">-</td>' : ''}
       `;
       tbody.appendChild(parentTr);
     }
@@ -3092,15 +3092,15 @@ function renderPaneTable(paneIndex) {
           <span class="file-name-text">${escapeHtml(entry.name)}</span>${tagsHtml}
           `}
         </td>
-        ${ColumnConfig.visibility.ext ? `<td class="file-cell file-cell-mono">${entry.is_dir ? '' : escapeHtml(ext)}</td>` : ''}
+        ${ColumnConfig.visibility.ext ? `<td class="file-cell file-cell-mono file-cell-ext">${entry.is_dir ? '' : escapeHtml(ext)}</td>` : ''}
         ${ColumnConfig.visibility.size ? `<td class="file-cell file-cell-mono file-cell-size">${sizeDisplay}</td>` : ''}
-        ${ColumnConfig.visibility.modified ? `<td class="file-cell file-cell-mono">${formatDate(entry.modified, compactDates)}</td>` : ''}
-        ${ColumnConfig.visibility.created ? `<td class="file-cell file-cell-mono">${entry.created ? formatDate(entry.created, compactDates) : '-'}</td>` : ''}
-        ${ColumnConfig.visibility.mode ? `<td class="file-cell file-cell-mono" title="${entry.permissions}">${entry.mode_octal || entry.permissions}</td>` : ''}
-        ${ColumnConfig.visibility.owner ? `<td class="file-cell file-cell-mono">${entry.owner || '-'}</td>` : ''}
-        ${ColumnConfig.visibility.group ? `<td class="file-cell file-cell-mono">${entry.group || '-'}</td>` : ''}
-        ${ColumnConfig.visibility.hash ? `<td class="file-cell file-cell-mono" style="font-size: 10px; color: var(--text-dim);">${entry.sha256 ? entry.sha256.slice(0, 8) + '...' : '-'}</td>` : ''}
-        ${ColumnConfig.visibility.tags ? `<td class="file-cell file-cell-mono">${tagInfo?.color_label ? `<span class="color-dot-mini color-${tagInfo.color_label}" style="vertical-align: middle;"></span> ` : ''}${tagInfo?.tags?.length ? tagInfo.tags.join(', ') : '-'}</td>` : ''}
+        ${ColumnConfig.visibility.modified ? `<td class="file-cell file-cell-mono file-cell-modified">${formatDate(entry.modified, compactDates)}</td>` : ''}
+        ${ColumnConfig.visibility.created ? `<td class="file-cell file-cell-mono file-cell-created">${entry.created ? formatDate(entry.created, compactDates) : '-'}</td>` : ''}
+        ${ColumnConfig.visibility.mode ? `<td class="file-cell file-cell-mono file-cell-mode" title="${entry.permissions}">${entry.mode_octal || entry.permissions}</td>` : ''}
+        ${ColumnConfig.visibility.owner ? `<td class="file-cell file-cell-mono file-cell-owner">${entry.owner || '-'}</td>` : ''}
+        ${ColumnConfig.visibility.group ? `<td class="file-cell file-cell-mono file-cell-group">${entry.group || '-'}</td>` : ''}
+        ${ColumnConfig.visibility.hash ? `<td class="file-cell file-cell-mono file-cell-hash" style="font-size: 10px; color: var(--text-dim);">${entry.sha256 ? entry.sha256.slice(0, 8) + '...' : '-'}</td>` : ''}
+        ${ColumnConfig.visibility.tags ? `<td class="file-cell file-cell-mono file-cell-tags">${tagInfo?.color_label ? `<span class="color-dot-mini color-${tagInfo.color_label}" style="vertical-align: middle;"></span> ` : ''}${tagInfo?.tags?.length ? tagInfo.tags.join(', ') : '-'}</td>` : ''}
       `;
 
       tbody.appendChild(tr);
@@ -3680,25 +3680,48 @@ function initColResize(e, paneIndex, colKey) {
   const th = document.getElementById(`col-header-${paneIndex}-${colKey}`);
   if (!th) return;
 
-  const startX = e.clientX;
+  const resizer = e.currentTarget || e.target;
+  if (resizer && resizer.setPointerCapture && e.pointerId !== undefined) {
+    try {
+      resizer.setPointerCapture(e.pointerId);
+    } catch (_) {}
+  }
+
+  const startX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
   const startWidth = th.offsetWidth;
   document.body.classList.add('is-col-resizing');
 
-  const onMouseMove = (moveEvent) => {
-    const diff = moveEvent.clientX - startX;
-    const newWidth = Math.max(35, startWidth + diff);
+  const onPointerMove = (moveEvent) => {
+    const currentX = (moveEvent.clientX !== undefined) ? moveEvent.clientX : (moveEvent.touches && moveEvent.touches[0] ? moveEvent.touches[0].clientX : startX);
+    const diff = currentX - startX;
+    const newWidth = Math.max(30, startWidth + diff);
     applyColumnWidth(colKey, newWidth);
   };
 
-  const onMouseUp = () => {
+  const onPointerUp = (upEvent) => {
     document.body.classList.remove('is-col-resizing');
-    window.removeEventListener('mousemove', onMouseMove);
-    window.removeEventListener('mouseup', onMouseUp);
+    if (resizer && resizer.releasePointerCapture && upEvent && upEvent.pointerId !== undefined) {
+      try {
+        resizer.releasePointerCapture(upEvent.pointerId);
+      } catch (_) {}
+    }
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp);
+    window.removeEventListener('pointercancel', onPointerUp);
+    window.removeEventListener('mousemove', onPointerMove);
+    window.removeEventListener('mouseup', onPointerUp);
+    window.removeEventListener('touchmove', onPointerMove);
+    window.removeEventListener('touchend', onPointerUp);
     saveColumnWidth(colKey, th.offsetWidth);
   };
 
-  window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', onMouseUp);
+  window.addEventListener('pointermove', onPointerMove, { passive: false });
+  window.addEventListener('pointerup', onPointerUp);
+  window.addEventListener('pointercancel', onPointerUp);
+  window.addEventListener('mousemove', onPointerMove);
+  window.addEventListener('mouseup', onPointerUp);
+  window.addEventListener('touchmove', onPointerMove, { passive: false });
+  window.addEventListener('touchend', onPointerUp);
 }
 
 function applyColumnWidth(colKey, width) {

@@ -5135,14 +5135,95 @@ body {
       display: none !important;
     }
 
-    /* Adaptive Tablet & Foldable Micro-Text & Touch Hierarchy */
-    .file-table th, .file-table td {
-      padding: 6px 5px !important;
-      font-size: 12px !important;
+    /* Adaptive Tablet & Foldable Micro-Text, Proportional Columns & Touch Hierarchy */
+    .file-table {
+      table-layout: fixed !important;
+      width: 100% !important;
     }
 
-    .file-cell-name {
+    .file-table th, .file-table td {
+      padding: 5px 6px !important;
+      font-size: 12px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
+      vertical-align: middle !important;
+    }
+
+    .file-table th.col-icon,
+    .file-table td.file-cell-icon {
+      width: 26px !important;
+      min-width: 26px !important;
+      max-width: 26px !important;
+      padding: 0 3px !important;
+      text-align: center;
+    }
+
+    /* Name column gets ~58-60% visibility priority on Tablet & Foldables */
+    .file-table th.col-name,
+    .file-table td.file-cell-name {
+      width: 58% !important;
+      min-width: 110px !important;
+      overflow: hidden !important;
+      text-overflow: ellipsis !important;
+      white-space: nowrap !important;
       font-size: 12.5px !important;
+    }
+
+    /* Secondary metadata columns share the remaining space */
+    .file-table th.col-size,
+    .file-table td.file-cell-size {
+      width: 12% !important;
+      min-width: 38px !important;
+      text-align: right !important;
+    }
+
+    .file-table th.col-modified,
+    .file-table td.file-cell-modified {
+      width: 18% !important;
+      min-width: 62px !important;
+    }
+
+    .file-table th.col-created,
+    .file-table td.file-cell-created {
+      width: 18% !important;
+      min-width: 62px !important;
+    }
+
+    .file-table th.col-mode,
+    .file-table td.file-cell-mode {
+      width: 10% !important;
+      min-width: 32px !important;
+    }
+
+    .file-table th.col-owner,
+    .file-table td.file-cell-owner {
+      width: 10% !important;
+      min-width: 32px !important;
+    }
+
+    .file-table th.col-ext,
+    .file-table td.file-cell-ext {
+      width: 8% !important;
+      min-width: 28px !important;
+    }
+
+    .file-table th.col-group,
+    .file-table td.file-cell-group {
+      width: 10% !important;
+      min-width: 32px !important;
+    }
+
+    .file-table th.col-hash,
+    .file-table td.file-cell-hash {
+      width: 14% !important;
+      min-width: 44px !important;
+    }
+
+    .file-table th.col-tags,
+    .file-table td.file-cell-tags {
+      width: 12% !important;
+      min-width: 38px !important;
     }
 
     .file-cell-mono {
@@ -5240,8 +5321,8 @@ body {
 
   /* Table styling on Phone Viewports (<600px) - Single-Line Clean Default */
   .file-table {
-    table-layout: fixed;
-    width: 100%;
+    table-layout: fixed !important;
+    width: 100% !important;
   }
 
   .file-table th, .file-table td {
@@ -5249,30 +5330,92 @@ body {
     font-size: 11.5px;
     height: 32px;
     vertical-align: middle !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
   }
 
-  .file-table th:nth-child(1), .file-table td:nth-child(1) {
+  /* Icon column: strict 26px */
+  .file-table th.col-icon,
+  .file-table td.file-cell-icon {
     width: 26px !important;
     min-width: 26px !important;
     max-width: 26px !important;
     padding: 0 3px !important;
+    text-align: center;
   }
 
-  .file-table th:nth-child(2), .file-table td:nth-child(2) {
-    width: auto !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+  /* Name column gets majority ~58-60% visibility */
+  .file-table th.col-name,
+  .file-table td.file-cell-name {
+    width: 58% !important;
+    min-width: 90px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+    font-size: 12px !important;
+  }
+
+  /* Secondary metadata columns share the remaining ~40% space */
+  .file-table th.col-size,
+  .file-table td.file-cell-size {
+    width: 12% !important;
+    min-width: 34px !important;
+    text-align: right !important;
+  }
+
+  .file-table th.col-modified,
+  .file-table td.file-cell-modified {
+    width: 18% !important;
+    min-width: 58px !important;
+  }
+
+  .file-table th.col-created,
+  .file-table td.file-cell-created {
+    width: 18% !important;
+    min-width: 58px !important;
+  }
+
+  .file-table th.col-mode,
+  .file-table td.file-cell-mode {
+    width: 10% !important;
+    min-width: 30px !important;
+  }
+
+  .file-table th.col-owner,
+  .file-table td.file-cell-owner {
+    width: 10% !important;
+    min-width: 30px !important;
+  }
+
+  .file-table th.col-ext,
+  .file-table td.file-cell-ext {
+    width: 8% !important;
+    min-width: 26px !important;
+  }
+
+  .file-table th.col-group,
+  .file-table td.file-cell-group {
+    width: 10% !important;
+    min-width: 30px !important;
+  }
+
+  .file-table th.col-hash,
+  .file-table td.file-cell-hash {
+    width: 14% !important;
+    min-width: 40px !important;
+  }
+
+  .file-table th.col-tags,
+  .file-table td.file-cell-tags {
+    width: 12% !important;
+    min-width: 36px !important;
   }
 
   .file-row {
     height: 32px !important;
     min-height: 32px !important;
     cursor: pointer;
-  }
-
-  .file-cell-name {
-    font-size: 12px !important;
   }
 
   .file-cell-mono {
@@ -5388,9 +5531,22 @@ body {
 
 /* Ultra-Narrow Mobile Screens (e.g. Galaxy Z Fold Outer Screen <= 420px) */
 @media (max-width: 480px) {
-  /* Hide Modified timestamp column completely on ultra-narrow screens */
-  .file-table th:nth-child(4), .file-table td:nth-child(4) {
-    display: none !important;
+  .file-table th.col-name,
+  .file-table td.file-cell-name {
+    width: 60% !important;
+    min-width: 80px !important;
+  }
+
+  .file-table th.col-size,
+  .file-table td.file-cell-size {
+    width: 14% !important;
+    min-width: 32px !important;
+  }
+
+  .file-table th.col-modified,
+  .file-table td.file-cell-modified {
+    width: 22% !important;
+    min-width: 54px !important;
   }
 
   .header .logo-area .app-logo-text,
@@ -9469,13 +9625,36 @@ body {
   width: 7px;
   cursor: col-resize;
   z-index: 10;
+  touch-action: none;
   transition: background 0.15s ease;
 }
 
+.col-resizer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: -8px;
+  width: 22px;
+  touch-action: none;
+  cursor: col-resize;
+}
+
 .col-resizer:hover,
+.col-resizer:active,
 .col-resizer.is-resizing {
   background: var(--accent);
   box-shadow: 0 0 6px var(--accent);
+}
+
+@media (pointer: coarse), (max-width: 1024px) {
+  .col-resizer {
+    width: 9px;
+  }
+  .col-resizer::after {
+    right: -12px;
+    width: 30px;
+  }
 }
 
 body.is-col-resizing {

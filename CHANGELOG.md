@@ -5,6 +5,13 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc6] - 2026-09-08
+
+### Responsive 60/40 File Table Columns & Touch-Friendly Resizing
+- **Proportional 60/40 Column Allocation on Phone & Tablet**: Allocated ~60% horizontal priority to the `Name` column on Phone (<600px) and Tablet/Foldable (601px–1024px) viewports, distributing remaining space proportionally across secondary columns (Size, Modified, Mode, Owner) to prevent long filenames from being squished.
+- **Touch-Friendly Pointer Event Column Resizers**: Migrated column resize handlers to Pointer Events (`onpointerdown` with `setPointerCapture`) and expanded touch hitboxes (`30px` on coarse pointers), enabling effortless finger/stylus column dragging on touchscreens.
+- **Semantic File Table Cell Classes**: Added dedicated semantic CSS classes (`file-cell-ext`, `file-cell-size`, `file-cell-modified`, `file-cell-created`, `file-cell-mode`, `file-cell-owner`, `file-cell-group`, `file-cell-hash`, `file-cell-tags`) across all table rows for precise viewport-level styling.
+
 ## [0.8.0-rc5] - 2026-09-08
 
 ### Single-Line File Listing Optimization & Customizable Display Preferences
