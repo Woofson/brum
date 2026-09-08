@@ -1,10 +1,11 @@
-# <img src="assets/logo.png" alt="CommanderDog Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog Product Roadmap & Active Backlog
+# <img src="assets/logo.png" alt="CommanderDog Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog / ARF! Product Roadmap & Active Backlog
 
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
-> **Slogan**: *Multi-Tab File Commander for Web & Native Desktop — By Woofson*  
+> **Official Web**: [www.arf.ac](https://www.arf.ac)  
+> **Philosophy**: *No acronyms or slogans. Just a very good environment for file managing and orchestrating.*  
 > **Current Version**: `v0.8.0 (Desktop & Web)`  
-> **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`).  
-> **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.7.7`), see [**`CHANGELOG.md`**](CHANGELOG.md).
+> **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`, `arf-desktop`).  
+> **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.8.0`), see [**`CHANGELOG.md`**](CHANGELOG.md).
 
 ---
 
@@ -14,9 +15,9 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────┐
-│ The CommanderDog "ChewToy" Replacement Matrix                                              │
+│ The ARF! "ChewToy" Replacement Matrix                                                      │
 ├────────────────────────┬─────────────────────────────┬─────────────────────────────────────┤
-│ Legacy / External App  │ CommanderDog Native ChewToy │ Replaced Capabilities               │
+│ Legacy / External App  │ Native ARF! ChewToy         │ Replaced Capabilities               │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ FileZilla & Mountain D │ Native Multi-Protocol VFS   │ SFTP/SSH, SMB/CIFS, NFS, WebDAV,    │
 │                        │                             │ Hetzner Storage Box, Proton Drive,  │
@@ -25,13 +26,13 @@
 │ rclone & rsync         │ DeltaCopy / RoboCopy        │ Differential delta streaming,       │
 │                        │ Engine & Background Tasks   │ bandwidth throttling & auto-retry   │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Bvckup 2 & SyncToy     │ Backup Studio (SyncToy)     │ 4 replication profiles, in-place    │
+│ Bvckup 2 & SyncToy     │ Backup (SyncToy Studio)     │ 4 replication profiles, in-place    │
 │                        │                             │ block deltas, snapshots & scheduler │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Syncthing              │ Live Syncthing Dashboard    │ Peer status, throughput charts,     │
+│ Syncthing              │ Syncthing Dashboard         │ Peer status, throughput charts,     │
 │                        │ & Direct Local/LAN Sync     │ folder scan triggers, P2P sync      │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ PuTTY & OpenSSH SCP    │ Slide-Up PTY Web Terminal   │ Embedded WebSocket pseudo-terminal  │
+│ PuTTY & OpenSSH SCP    │ Terminal (PTY Web Console)  │ Embedded WebSocket pseudo-terminal  │
 │                        │ (Bite!)                     │ (fish/zsh/bash/powershell) in path  │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ Total / Multi / MC /   │ 1-to-4 Multi-Tab Dynamic    │ Orthodox keyboard shortcuts, dual-  │
@@ -41,24 +42,27 @@
 │ Cryptomator / VeraCrypt│ AES-256-GCM Vaults          │ Zero-leakage in-memory containers   │
 │                        │ (.cdvault)                  │ (Argon2id + AES-GCM RAM-only VFS)   │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ VS Code / Sublime Text │ Edit (EditorDog)            │ Multi-tab syntax editor, live split │
+│                        │                             │ preview, template generator & diff  │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ HandBrake / FFmpeg GUI │ ConvertX Transcoder         │ Browser-native image/audio/video/   │
 │                        │                             │ document conversion engine          │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ PDFsam / Acrobat Split │ PDFDog (PDF Power Studio)   │ Pure-Rust visual merge, split,      │
+│ PDFsam / Acrobat Split │ PDF Studio (PDFDog)         │ Pure-Rust visual merge, split,      │
 │                        │                             │ page reordering & rotation grid     │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ FastStone / Feh Viewer │ High-DPI Image Viewer       │ Mouse wheel browse, focal zoom,     │
 │                        │                             │ slideshow, format conversion        │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Obsidian / Joplin      │ NoteDog Notes Studio        │ Hierarchical Markdown notebook,     │
+│ Obsidian / Joplin      │ Notes (NoteDog Studio)      │ Hierarchical Markdown notebook,     │
 │                        │                             │ checklists, revision diff history   │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Classic Arcade Tetris  │ TetraDog (Arcade ChewToy)   │ Authentic classic Tetris clone,     │
+│ Classic Arcade Tetris  │ Tetrarf (TetraDog Arcade)   │ Authentic classic Tetris clone,     │
 │ & Desktop Distraction  │                             │ 60 FPS canvas engine, SRS/NES modes,│
 │                        │                             │ DAS/ARR tuning, high scores & audio │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Winamp / Foobar2000 /  │ ARFAMP (Winamp 2.x Clone    │ 3-modular layout, windowshade mode, │
-│ Audacious / XMPlay     │ & 10-Band EQ ChewToy)       │ 10-band EQ, 60fps spectrum, .m3u PL │
+│ Winamp / Foobar2000 /  │ AMP (ARFAMP Winamp Clone)   │ 3-modular layout, windowshade mode, │
+│ Audacious / XMPlay     │                             │ 10-band EQ, 60fps spectrum, .m3u PL │
 └────────────────────────┴─────────────────────────────┴─────────────────────────────────────┘
 ```
 
@@ -88,9 +92,8 @@
 
 ```mermaid
 graph TD
-    A["v0.7.9 (Released: HTTP Range Streaming & ARFAMP)"] --> B["v0.8.0 (Current Sprint: NoteDog Polish, Responsive Viewports, UI Form System & Plugin Architecture)"]
-    B --> C["v0.9.0 (Next: Enterprise Identity OIDC SSO & Collaborative Office)"]
-    C --> D["v1.0.0 (Planned: High-Performance P2P Cluster & Distributed Virtual Storage)"]
+    A["v0.8.0 (Released: Windows VFS Fix, Touch Columns, Form Engine & Release Automation)"] --> B["v0.9.0 (Next: Enterprise Identity OIDC SSO & Collaborative Office)"]
+    B --> C["v1.0.0 (ARF! Full Rebranding, Distributed Virtual Storage & P2P Cluster)"]
 ```
 
 ### 🎯 Current Sprint Backlog (`v0.8.0`):
@@ -269,13 +272,63 @@ graph TD
 
 ---
 
-## 4. 🔮 Upcoming Strategic Milestones
+## 4. 🐕 ➔ ⚡ ARF! Rebranding & Ecosystem Migration Master Plan (Pre-v1.0 Planning)
 
-### Milestone 1: Multi-Cloud VFS, Embedded WebDAV Server & High-Impact Extensions (`v0.8.0`)
-- **Embedded WebDAV Server Mode**: Native WebDAV server daemon allowing external operating systems (Windows File Explorer, macOS Finder, Linux, mobile apps) to mount CommanderDog storage as local network drives.
+> **Status**: *Strategic Planning Phase Only — No Breaking Changes or Repositories Moved Yet.*  
+> **Goal**: Prepare seamless, zero-downtime transition from **CommanderDog** to **ARF!** across GitHub, package registries, binaries, Docker, and documentation ahead of the `v1.0.0` milestone.
+
+### 1. 🎯 Brand Identity & Philosophy
+* **Product Name**: **`ARF!`**
+* **Official Website**: **[www.arf.ac](https://www.arf.ac)**
+* **Brand Philosophy**: *No acronyms or slogans. Just a very good environment for file managing and orchestrating.*
+* **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac)).
+* **ChewToys Concept**: Built-in modules, tools, and plugins retain the official terminology **ChewToys**.
+
+### 2. 🧰 ChewToy Nomenclature Harmonization
+To streamline user experience and remove redundant branding prefixes, ChewToys will use clean, sharp, intuitive names:
+* `NoteDog` ➔ **`Notes`** (Hierarchical Markdown notebook, task checklists, encrypted `.md.enc` vaults)
+* `EditorDog` ➔ **`Edit`** (Multi-tab syntax highlighter, code editor, live Markdown/HTML split view)
+* `ARFAMP` ➔ **`AMP`** (Winamp 2.x clone, 10-band equalizer, spectrum analyzer, .m3u playlist manager)
+* `PDFDog` ➔ **`PDF Studio`** (Visual PDF merge, split, page reordering, rotation)
+* `TetraDog` ➔ **`Tetrarf`** (Authentic classic 60 FPS arcade block puzzle & synchronized leaderboard)
+* `Spot!` ➔ **`Spot!`** (Spotlight command palette & path quick-shifter `Ctrl+K`)
+* `Bite! / Terminal` ➔ **`Terminal`** (Slide-up PTY terminal console `'`)
+* `ConvertX` ➔ **`ConvertX`** (Universal browser-native media transcoder & converter)
+* `Diff / Compare` ➔ **`Compare`** (Side-by-side visual diff engine `F9`)
+* `Delta Backup` ➔ **`Backup`** (SyncToy / Bvckup 2 delta replication studio)
+* `Disk Usage` ➔ **`Stats`** (Visual treemap & disk consumption analyzer)
+* `Syncthing` ➔ **`Syncthing`** (Live Syncthing dashboard & LAN/P2P sync)
+
+### 3. 🌐 Repositories & Distribution Migration Strategy
+
+| Ecosystem / Channel | Legacy Target | New Target (`ARF!`) | Migration Strategy & Transition Path |
+| :--- | :--- | :--- | :--- |
+| **GitHub Repository** | `Woofson/commanderdog` | `Woofson/arf` | GitHub repository rename with automatic URL and git clone redirects; preserve issues and pull requests. |
+| **CLI / Server Binary** | `commanderdog` | `arf` | Primary binary renamed to `arf`; provide temporary symlink / transitional alias `commanderdog -> arf`. |
+| **Windows Desktop** | `CommanderDog.exe` | `ARF.exe` | Standalone executable and launcher updated to `ARF.exe` / `arf.exe`. |
+| **Docker / GHCR** | `ghcr.io/woofson/commanderdog` | `ghcr.io/woofson/arf` | Multi-arch Alpine image published to `ghcr.io/woofson/arf` (branded as `ARF!`); legacy repo redirected / aliased. |
+| **Rust Crates.io** | `commanderdog` (`arf-cmdr`) | `arf` / `arf-cmdr` | Crates namespace reservation with `arf-` prefix rule; `arf-desktop` for Tauri GUI wrapper. |
+| **Arch Linux (AUR)** | `commanderdog`<br>`commanderdog-bin` | `arf`<br>`arf-bin` | New AUR packages `arf` & `arf-bin` with `provides=('commanderdog')`, `conflicts=('commanderdog')`, `replaces=('commanderdog')`. |
+| **Windows WinGet** | `Woofson.CommanderDog` | `Woofson.ARF` | New package manifest `Woofson.ARF` with automatic upgrade path from `Woofson.CommanderDog`. |
+| **Windows Scoop** | `commanderdog.json` | `arf.json` | Updated bucket manifest `arf.json` with fallback shim in `packaging/windows/scoop/`. |
+| **Installers** | `CommanderDog_x64-setup.exe`<br>`CommanderDog_x64_en-US.msi` | `ARF_x64-setup.exe`<br>`ARF_x64_en-US.msi` | Updated NSIS setup and WiX MSI installers with `ARF!` branding and shortcuts. |
+| **Config & Data Paths** | `~/.config/commanderdog/`<br>`commanderdog.db` | `~/.config/arf/`<br>`arf.db` | Automatic migration check looking for legacy `~/.config/commanderdog/` and `commanderdog.db`. |
+
+### 4. 📋 Execution Checklist & Pre-Requisites (Milestone `v1.0.0`)
+- [ ] **Phase 1: Brand & Asset Alignment**: Prepare updated SVG/PNG/ICO vectors for `ARF!` without breaking existing visual assets.
+- [ ] **Phase 2: Configuration & Path Fallback Compatibility**: Implement backward-compatible path discovery (`~/.config/arf/` falling back to `~/.config/commanderdog/`).
+- [ ] **Phase 3: Package Registry Reservations**: Reserve and verify `arf` crate/package names across crates.io, AUR, Scoop, and Winget.
+- [ ] **Phase 4: Coordinated Repository Rename & Tagging**: Rename GitHub repository to `Woofson/arf`, update CI/CD release scripts, and cut official `v1.0.0` release.
+
+---
+
+## 5. 🔮 Upcoming Strategic Milestones
+
+### Milestone 1: Multi-Cloud VFS, Embedded WebDAV Server & High-Impact Extensions (`v0.8.0+`)
+- **Embedded WebDAV Server Mode**: Native WebDAV server daemon allowing external operating systems (Windows File Explorer, macOS Finder, Linux, mobile apps) to mount storage as local network drives.
 - **Multi-Cloud VFS Adapters**: Native connectors for Google Drive, Proton Drive, Hetzner Storage Box, and direct S3/MinIO browser streaming.
 - **HexDog & ArchiveDog ChewToys**: In-place multi-format archive explorer (`.zip`, `.tar.gz`, `.7z`, `.zstd`) and binary byte/hex inspector.
-- **ARFAMP Classic Skin Loader (`.wsz`)**: Native unpacker and renderer for classic Winamp 2.x and XMMS skin archives.
+- **Classic Skin Loader (`.wsz`)**: Native unpacker and renderer for classic Winamp 2.x and XMMS skin archives in AMP.
 - **ChewToy Modular Plugin Architecture (`.arf` / `.woof`)**: Dynamic external plugin packaging, manifest specification (`plugin.toml`), permission sandboxing, and Shell/Bash terminal bridge.
 - **User Profile Photos & Cross-Platform Native Avatar Fetcher**:
   - **Local & Standalone Profile Avatars**: Support custom profile picture / avatar uploads and cropping in local and single-user modes, persisted in SQLite user preferences.
@@ -288,13 +341,14 @@ graph TD
 - **Enterprise Identity Providers**: OpenID Connect (OIDC), OAuth2, SAML 2.0, Keycloak, Authentik, Authelia, Google, GitHub, Okta, Azure AD.
 - **Collaborative Document Editing**: In-browser real-time collaborative editing for markdown, code, and Office documents (`.docx`, `.xlsx`, `.pptx` via Collabora / OnlyOffice WOPI integration).
 
-### Milestone 3: High-Performance P2P Cluster & Distributed Virtual Storage (`v1.0.0`)
+### Milestone 3: ARF! Full Release, High-Performance P2P Cluster & Distributed Virtual Storage (`v1.0.0`)
+- **Ecosystem Migration Execution**: Finalize repository rename to `Woofson/arf`, publish `arf` binary and container packages to GHCR, crates.io, AUR, and WinGet.
 - **Cluster Node Mesh**: Direct peer-to-peer authenticated node clustering with distributed metadata synchronization.
 - **Distributed Virtual Storage**: Multi-host unified mountpoints and automated cross-node replication.
 
 ---
 
-## 5. 📊 Release Version Matrix
+## 6. 📊 Release Version Matrix
 
 | Version | Milestone Focus | Status | Changelog |
 | :--- | :--- | :--- | :--- |
@@ -319,6 +373,6 @@ graph TD
 | **`v0.7.7`** | TetraDog (Classic Arcade Tetris ChewToy & Synchronized Leaderboard) | **Released** | [View Notes](CHANGELOG.md#077---2026-09-07) |
 | **`v0.7.8`** | ARFAMP (Authentic Winamp 2.x Clone & Equalizer ChewToy) | **Released** | [View Notes](CHANGELOG.md#078---2026-09-07) |
 | **`v0.7.9`** | HTTP Range Audio Streaming Fix & ARFAMP Official Rebranding | **Released** | [View Notes](CHANGELOG.md#079---2026-09-07) |
-| **`v0.8.0`** | Multi-Cloud VFS, Embedded WebDAV Server & High-Impact Extensions | *Planned* | — |
+| **`v0.8.0`** | Windows Navigation Fix, Touch Columns, Theme Form System & Release Automation | **Released** | [View Notes](CHANGELOG.md#080---2026-09-08) |
 | **`v0.9.0`** | Enterprise OIDC / SSO, Collaborative Office (WOPI) & RBAC | *Planned* | — |
-| **`v1.0.0`** | High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |
+| **`v1.0.0`** | ARF! Official Rebrand, High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |
