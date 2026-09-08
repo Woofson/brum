@@ -1,4 +1,4 @@
-# <img src="assets/logo.png" alt="CommanderDog Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog / ARF! Product Roadmap & Active Backlog
+# <img src="assets/logo.png" alt="CommanderDog Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog / Brum Product Roadmap & Active Backlog
 
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
 > **Official Web**: [www.arf.ac](https://www.arf.ac)  
@@ -15,9 +15,9 @@
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────┐
-│ The ARF! "ChewToy" Replacement Matrix                                                      │
+│ The Brum "ChewToy" Replacement Matrix                                                      │
 ├────────────────────────┬─────────────────────────────┬─────────────────────────────────────┤
-│ Legacy / External App  │ Native ARF! ChewToy         │ Replaced Capabilities               │
+│ Legacy / External App  │ Native Brum ChewToy         │ Replaced Capabilities               │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ FileZilla & Mountain D │ Native Multi-Protocol VFS   │ SFTP/SSH, SMB/CIFS, NFS, WebDAV,    │
 │                        │                             │ Hetzner Storage Box, Proton Drive,  │
@@ -57,7 +57,7 @@
 │ Obsidian / Joplin      │ Notes (NoteDog Studio)      │ Hierarchical Markdown notebook,     │
 │                        │                             │ checklists, revision diff history   │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Classic Arcade Tetris  │ Tetrarf (TetraDog Arcade)   │ Authentic classic Tetris clone,     │
+│ Classic Arcade Tetris  │ Tetra (TetraDog Arcade)     │ Authentic classic Tetris clone,     │
 │ & Desktop Distraction  │                             │ 60 FPS canvas engine, SRS/NES modes,│
 │                        │                             │ DAS/ARR tuning, high scores & audio │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
@@ -97,7 +97,7 @@
 ```mermaid
 graph TD
     A["v0.8.0 (Released: Windows VFS Fix, Touch Columns, Form Engine & Release Automation)"] --> B["v0.9.0 (Next: Enterprise Identity OIDC SSO & Collaborative Office)"]
-    B --> C["v1.0.0 (ARF! Full Rebranding, Distributed Virtual Storage & P2P Cluster)"]
+    B --> C["v1.0.0 (Brum Full Rebranding, Distributed Virtual Storage & P2P Cluster)"]
 ```
 
 ### 🎯 Current Sprint Backlog (`v0.8.0`):
@@ -276,13 +276,13 @@ graph TD
 
 ---
 
-## 4. 🐕 ➔ ⚡ ARF! Rebranding & Ecosystem Migration Master Plan (Pre-v1.0 Planning)
+## 4. 🐕 ➔ ⚡ Brum Rebranding & Ecosystem Migration Master Plan (Pre-v1.0 Planning)
 
 > **Status**: *Strategic Planning Phase Only — No Breaking Changes or Repositories Moved Yet.*  
-> **Goal**: Prepare seamless, zero-downtime transition from **CommanderDog** to **ARF!** across GitHub, package registries, binaries, Docker, and documentation ahead of the `v1.0.0` milestone.
+> **Goal**: Prepare seamless, zero-downtime transition from **CommanderDog** to **Brum** across GitHub, package registries, binaries, Docker, and documentation ahead of the `v1.0.0` milestone.
 
 ### 1. 🎯 Brand Identity & Philosophy
-* **Product Name**: **`ARF!`**
+* **Product Name**: **`Brum`**
 * **Official Website**: **[www.arf.ac](https://www.arf.ac)**
 * **Brand Philosophy**: *No acronyms or slogans. Just a very good environment for file managing and orchestrating.*
 * **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac)).
@@ -294,7 +294,7 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 * `EditorDog` ➔ **`Edit`** (Multi-tab syntax highlighter, code editor, live Markdown/HTML split view)
 * `ARFAMP` ➔ **`AMP`** (Winamp 2.x clone, 10-band equalizer, spectrum analyzer, .m3u playlist manager)
 * `PDFDog` ➔ **`PDF Studio`** (Visual PDF merge, split, page reordering, rotation)
-* `TetraDog` ➔ **`Tetrarf`** (Authentic classic 60 FPS arcade block puzzle & synchronized leaderboard)
+* `TetraDog` ➔ **`Tetra`** (Authentic classic 60 FPS arcade block puzzle & synchronized leaderboard)
 * `Spot!` ➔ **`Spot!`** (Spotlight command palette & path quick-shifter `Ctrl+K`)
 * `Bite! / Terminal` ➔ **`Terminal`** (Slide-up PTY terminal console `'`)
 * `ConvertX` ➔ **`ConvertX`** (Universal browser-native media transcoder & converter)
@@ -306,24 +306,24 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 
 ### 3. 🌐 Repositories & Distribution Migration Strategy
 
-| Ecosystem / Channel | Legacy Target | New Target (`ARF!`) | Migration Strategy & Transition Path |
+| Ecosystem / Channel | Legacy Target | New Target (`Brum`) | Migration Strategy & Transition Path |
 | :--- | :--- | :--- | :--- |
-| **GitHub Repository** | `Woofson/commanderdog` | `Woofson/arf` | GitHub repository rename with automatic URL and git clone redirects; preserve issues and pull requests. |
-| **CLI / Server Binary** | `commanderdog` | `arf` | Primary binary renamed to `arf`; provide temporary symlink / transitional alias `commanderdog -> arf`. |
-| **Windows Desktop** | `CommanderDog.exe` | `ARF.exe` | Standalone executable and launcher updated to `ARF.exe` / `arf.exe`. |
-| **Docker / GHCR** | `ghcr.io/woofson/commanderdog` | `ghcr.io/woofson/arf` | Multi-arch Alpine image published to `ghcr.io/woofson/arf` (branded as `ARF!`); legacy repo redirected / aliased. |
-| **Rust Crates.io** | `commanderdog` (`arf-cmdr`) | `arf` / `arf-cmdr` | Crates namespace reservation with `arf-` prefix rule; `arf-desktop` for Tauri GUI wrapper. |
-| **Arch Linux (AUR)** | `commanderdog`<br>`commanderdog-bin` | `arf`<br>`arf-bin` | New AUR packages `arf` & `arf-bin` with `provides=('commanderdog')`, `conflicts=('commanderdog')`, `replaces=('commanderdog')`. |
-| **Windows WinGet** | `Woofson.CommanderDog` | `Woofson.ARF` | New package manifest `Woofson.ARF` with automatic upgrade path from `Woofson.CommanderDog`. |
-| **Windows Scoop** | `commanderdog.json` | `arf.json` | Updated bucket manifest `arf.json` with fallback shim in `packaging/windows/scoop/`. |
-| **Installers** | `CommanderDog_x64-setup.exe`<br>`CommanderDog_x64_en-US.msi` | `ARF_x64-setup.exe`<br>`ARF_x64_en-US.msi` | Updated NSIS setup and WiX MSI installers with `ARF!` branding and shortcuts. |
-| **Config & Data Paths** | `~/.config/commanderdog/`<br>`commanderdog.db` | `~/.config/arf/`<br>`arf.db` | Automatic migration check looking for legacy `~/.config/commanderdog/` and `commanderdog.db`. |
+| **GitHub Repository** | `Woofson/commanderdog` | `Woofson/brum` | GitHub repository rename with automatic URL and git clone redirects; preserve issues and pull requests. |
+| **CLI / Server Binary** | `commanderdog` | `brum` | Primary binary renamed to `brum`; provide temporary symlink / transitional alias `commanderdog -> brum`. |
+| **Windows Desktop** | `CommanderDog.exe` | `Brum.exe` | Standalone executable and launcher updated to `Brum.exe` / `brum.exe`. |
+| **Docker / GHCR** | `ghcr.io/woofson/commanderdog` | `ghcr.io/woofson/brum` | Multi-arch Alpine image published to `ghcr.io/woofson/brum` (branded as `Brum`); legacy repo redirected / aliased. |
+| **Rust Crates.io** | `commanderdog` (`arf-cmdr`) | `brum` / `brum-cmdr` | Crates namespace reservation with `brum-` / `arf-` prefix rule; `brum-desktop` for Tauri GUI wrapper. |
+| **Arch Linux (AUR)** | `commanderdog`<br>`commanderdog-bin` | `brum`<br>`brum-bin` | New AUR packages `brum` & `brum-bin` with `provides=('commanderdog')`, `conflicts=('commanderdog')`, `replaces=('commanderdog')`. |
+| **Windows WinGet** | `Woofson.CommanderDog` | `Woofson.Brum` | New package manifest `Woofson.Brum` with automatic upgrade path from `Woofson.CommanderDog`. |
+| **Windows Scoop** | `commanderdog.json` | `brum.json` | Updated bucket manifest `brum.json` with fallback shim in `packaging/windows/scoop/`. |
+| **Installers** | `CommanderDog_x64-setup.exe`<br>`CommanderDog_x64_en-US.msi` | `Brum_x64-setup.exe`<br>`Brum_x64_en-US.msi` | Updated NSIS setup and WiX MSI installers with `Brum` branding and shortcuts. |
+| **Config & Data Paths** | `~/.config/commanderdog/`<br>`commanderdog.db` | `~/.config/brum/`<br>`brum.db` | Automatic migration check looking for legacy `~/.config/commanderdog/` and `commanderdog.db`. |
 
 ### 4. 📋 Execution Checklist & Pre-Requisites (Milestone `v1.0.0`)
-- [ ] **Phase 1: Brand & Asset Alignment**: Prepare updated SVG/PNG/ICO vectors for `ARF!` without breaking existing visual assets.
-- [ ] **Phase 2: Configuration & Path Fallback Compatibility**: Implement backward-compatible path discovery (`~/.config/arf/` falling back to `~/.config/commanderdog/`).
-- [ ] **Phase 3: Package Registry Reservations**: Reserve and verify `arf` crate/package names across crates.io, AUR, Scoop, and Winget.
-- [ ] **Phase 4: Coordinated Repository Rename & Tagging**: Rename GitHub repository to `Woofson/arf`, update CI/CD release scripts, and cut official `v1.0.0` release.
+- [ ] **Phase 1: Brand & Asset Alignment**: Prepare updated SVG/PNG/ICO vectors for `Brum` without breaking existing visual assets.
+- [ ] **Phase 2: Configuration & Path Fallback Compatibility**: Implement backward-compatible path discovery (`~/.config/brum/` falling back to `~/.config/commanderdog/`).
+- [ ] **Phase 3: Package Registry Reservations**: Reserve and verify `brum` crate/package names across crates.io, AUR, Scoop, and Winget.
+- [ ] **Phase 4: Coordinated Repository Rename & Tagging**: Rename GitHub repository to `Woofson/brum`, update CI/CD release scripts, and cut official `v1.0.0` release.
 
 ---
 
@@ -331,7 +331,7 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 
 ### Milestone 1: Multi-Cloud VFS, Remote Gateway ChewToy & High-Impact Extensions (`v0.8.0+`)
 - **Remote Gateway ChewToy / Modular Plugin (`Remote` — incorporating RemoteDog)**:
-  - **Single-Binary Zero-Guacamole Architecture**: Incorporate the lightweight, sub-millisecond remote gateway from [`/home/bolt/projects/remotedog/`](file:///home/bolt/projects/remotedog/) directly into CommanderDog / ARF! as a native ChewToy and modular plugin.
+  - **Single-Binary Zero-Guacamole Architecture**: Incorporate the lightweight, sub-millisecond remote gateway from [`/home/bolt/projects/remotedog/`](file:///home/bolt/projects/remotedog/) directly into CommanderDog / Brum as a native ChewToy and modular plugin.
   - **Native Protocols & Hardware Acceleration**:
     - **RDP (Windows Remote Desktop)**: Pure-Rust `IronRDP` engine with Network Level Authentication (NLA / CredSSP), 64×64 dirty tile sub-rect diffing, and live dynamic resolution resizing (`MS-RDPEDISP`).
     - **VNC / RFB (3.8)**: Full RFB client with Raw and CopyRect tile decoding, DES auth, and full mouse/keyboard event mapping.
@@ -354,8 +354,8 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 - **Enterprise Identity Providers**: OpenID Connect (OIDC), OAuth2, SAML 2.0, Keycloak, Authentik, Authelia, Google, GitHub, Okta, Azure AD.
 - **Collaborative Document Editing**: In-browser real-time collaborative editing for markdown, code, and Office documents (`.docx`, `.xlsx`, `.pptx` via Collabora / OnlyOffice WOPI integration).
 
-### Milestone 3: ARF! Full Release, High-Performance P2P Cluster & Distributed Virtual Storage (`v1.0.0`)
-- **Ecosystem Migration Execution**: Finalize repository rename to `Woofson/arf`, publish `arf` binary and container packages to GHCR, crates.io, AUR, and WinGet.
+### Milestone 3: Brum Full Release, High-Performance P2P Cluster & Distributed Virtual Storage (`v1.0.0`)
+- **Ecosystem Migration Execution**: Finalize repository rename to `Woofson/brum`, publish `brum` binary and container packages to GHCR, crates.io, AUR, and WinGet.
 - **Cluster Node Mesh**: Direct peer-to-peer authenticated node clustering with distributed metadata synchronization.
 - **Distributed Virtual Storage**: Multi-host unified mountpoints and automated cross-node replication.
 
@@ -388,4 +388,4 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 | **`v0.7.9`** | HTTP Range Audio Streaming Fix & ARFAMP Official Rebranding | **Released** | [View Notes](CHANGELOG.md#079---2026-09-07) |
 | **`v0.8.0`** | Windows Navigation Fix, Touch Columns, Theme Form System & Release Automation | **Released** | [View Notes](CHANGELOG.md#080---2026-09-08) |
 | **`v0.9.0`** | Enterprise OIDC / SSO, Collaborative Office (WOPI) & RBAC | *Planned* | — |
-| **`v1.0.0`** | ARF! Official Rebrand, High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |
+| **`v1.0.0`** | Brum Official Rebrand, High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |
