@@ -5,7 +5,12 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
----
+## [0.8.0-rc3] - 2026-09-08
+
+### Integrated Terminal WebSocket Safety, Prompt Redraw & Viewport Fit
+- **WebSocket Connection Race Conditions**: Resolved race condition where rapid socket reconnection or drawer toggles caused `[WebSocket connection error]` by properly detaching previous event listeners before disposal and guarding connection states (#16).
+- **Prompt Duplication Fix**: Removed forced backend `PS1` and `PROMPT_COMMAND` overrides, calibrated initial PTY dimension exchange, debounced frontend terminal resize signals, and added backend size deduplication to prevent spurious `SIGWINCH` duplicate prompt redraws on launch.
+- **Docked Viewport Layout & Overflow**: Fixed bottom line cutoff and vertical overflow in docked pane mode by setting strict box-sizing, flex column layouts, and container constraints for `.terminal-body` (#16).
 
 ## [0.8.0-rc2] - 2026-09-08
 

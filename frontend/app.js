@@ -15170,10 +15170,14 @@ function initTerminalUI() {
       }
     });
 
+    let resizeDebounceTimer = null;
     termInstance.onResize(({ cols, rows }) => {
-      if (termWs && termWs.readyState === WebSocket.OPEN) {
-        termWs.send(JSON.stringify({ cols, rows, resize: true }));
-      }
+      if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+      resizeDebounceTimer = setTimeout(() => {
+        if (termWs && termWs.readyState === WebSocket.OPEN) {
+          termWs.send(JSON.stringify({ cols, rows, resize: true }));
+        }
+      }, 50);
     });
   }
 
@@ -15203,8 +15207,9 @@ function toggleTerminal(forceState) {
     if (termOutput && !drawer.contains(termOutput)) {
       drawer.appendChild(termOutput);
       termOutput.style.width = '100%';
-      termOutput.style.height = '';
-      termOutput.style.display = 'block';
+      termOutput.style.height = '100%';
+      termOutput.style.display = 'flex';
+      termOutput.style.flexDirection = 'column';
     }
 
     // If any pane had terminal docked, undock it because it is now in the drawer
@@ -15223,22 +15228,28 @@ function toggleTerminal(forceState) {
 
     initTerminalUI();
 
-    setTimeout(() => {
-      if (termFitAddon) {
-        try { termFitAddon.fit(); } catch (e) {}
-      }
-      if (termInstance) termInstance.focus();
-    }, 100);
-
-    if (!termWs || termWs.readyState !== WebSocket.OPEN) {
+    const isWsActive = termWs && (termWs.readyState === WebSocket.OPEN || termWs.readyState === WebSocket.CONNECTING);
+    if (!isWsActive) {
       connectTerminal(cwd);
+    } else {
+      setTimeout(() => {
+        if (termFitAddon) {
+          try { termFitAddon.fit(); } catch (e) {}
+        }
+        if (termInstance) termInstance.focus();
+      }, 50);
     }
   } else {
     localStorage.setItem('cd_terminal_open', '0');
     drawer.classList.remove('active');
     if (termWs) {
-      termWs.close();
+      const oldWs = termWs;
       termWs = null;
+      oldWs.onopen = null;
+      oldWs.onmessage = null;
+      oldWs.onerror = null;
+      oldWs.onclose = null;
+      try { oldWs.close(); } catch (_) {}
     }
   }
   if (window.lucide) lucide.createIcons();
@@ -15251,10 +15262,7 @@ function toggleTerminalFullscreen() {
   localStorage.setItem('cd_terminal_fullscreen', isFull ? '1' : '0');
   setTimeout(() => {
     if (termFitAddon) {
-      termFitAddon.fit();
-      if (termWs && termWs.readyState === WebSocket.OPEN && termInstance) {
-        termWs.send(JSON.stringify({ cols: termInstance.cols, rows: termInstance.rows, resize: true }));
-      }
+      try { termFitAddon.fit(); } catch (e) {}
     }
     if (termInstance) termInstance.focus();
   }, 100);
@@ -15310,30 +15318,38 @@ function getWsUrl(endpoint) {
 
 function connectTerminal(cwd) {
   if (termWs) {
-    try { termWs.close(); } catch (_) {}
+    const oldWs = termWs;
     termWs = null;
+    oldWs.onopen = null;
+    oldWs.onmessage = null;
+    oldWs.onerror = null;
+    oldWs.onclose = null;
+    try { oldWs.close(); } catch (_) {}
   }
 
-  const cols = termInstance ? termInstance.cols : 100;
-  const rows = termInstance ? termInstance.rows : 24;
+  if (termFitAddon) {
+    try { termFitAddon.fit(); } catch (e) {}
+  }
+
+  const cols = (termInstance && termInstance.cols > 0) ? termInstance.cols : 100;
+  const rows = (termInstance && termInstance.rows > 0) ? termInstance.rows : 24;
   const cleanCwd = (cwd && typeof cwd === 'string') ? cwd : '/';
   const url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}`;
 
   try {
-    termWs = new WebSocket(url);
-    termWs.binaryType = 'arraybuffer';
+    const thisWs = new WebSocket(url);
+    termWs = thisWs;
+    thisWs.binaryType = 'arraybuffer';
 
-    termWs.onopen = () => {
+    thisWs.onopen = () => {
+      if (termWs !== thisWs) return;
       if (termInstance) {
-        termInstance.writeln('\x1b[38;5;214mCommanderDog PTY Session Connected\x1b[0m [\x1b[38;5;244mcwd:\x1b[0m ' + cleanCwd + ']\r\n');
         termInstance.focus();
-        if (termFitAddon) {
-          try { termFitAddon.fit(); } catch (_) {}
-        }
       }
     };
 
-    termWs.onmessage = (e) => {
+    thisWs.onmessage = (e) => {
+      if (termWs !== thisWs) return;
       if (termInstance) {
         if (e.data instanceof ArrayBuffer) {
           termInstance.write(new Uint8Array(e.data));
@@ -15345,14 +15361,13 @@ function connectTerminal(cwd) {
       }
     };
 
-    termWs.onerror = (err) => {
+    thisWs.onerror = (err) => {
+      if (termWs !== thisWs) return;
       console.warn('Terminal WebSocket error:', err);
-      if (termInstance) {
-        termInstance.writeln('\r\n\x1b[38;5;196m[WebSocket connection error]\x1b[0m\r\n');
-      }
     };
 
-    termWs.onclose = () => {
+    thisWs.onclose = () => {
+      if (termWs !== thisWs) return;
       termWs = null;
       const dockedPaneIdx = App.panes.findIndex(p => p && p.dockedTool === 'terminal');
       if (dockedPaneIdx !== -1) {
@@ -21694,8 +21709,13 @@ function closeDockedTool(paneIndex) {
       drawer.appendChild(termOutput);
     }
     if (termWs) {
-      termWs.close();
+      const oldWs = termWs;
       termWs = null;
+      oldWs.onopen = null;
+      oldWs.onmessage = null;
+      oldWs.onerror = null;
+      oldWs.onclose = null;
+      try { oldWs.close(); } catch (_) {}
     }
   }
 
@@ -21781,13 +21801,15 @@ function mountDockedTool(paneIndex) {
       host.appendChild(termOutput);
       termOutput.style.width = '100%';
       termOutput.style.height = '100%';
-      termOutput.style.display = 'block';
+      termOutput.style.display = 'flex';
+      termOutput.style.flexDirection = 'column';
     }
 
     initTerminalUI();
 
     const cwd = (pane && !pane.path.includes('://')) ? pane.path : (getUserDefaultHomeDir() || '/');
-    if (!termWs || termWs.readyState !== WebSocket.OPEN) {
+    const isWsActive = termWs && (termWs.readyState === WebSocket.OPEN || termWs.readyState === WebSocket.CONNECTING);
+    if (!isWsActive) {
       connectTerminal(cwd);
     }
 
@@ -21800,9 +21822,6 @@ function mountDockedTool(paneIndex) {
         resizeTimer = setTimeout(() => {
           if (termFitAddon) {
             try { termFitAddon.fit(); } catch (e) {}
-            if (termWs && termWs.readyState === WebSocket.OPEN && termInstance) {
-              termWs.send(JSON.stringify({ cols: termInstance.cols, rows: termInstance.rows, resize: true }));
-            }
           }
         }, 50);
       });
@@ -21815,11 +21834,8 @@ function mountDockedTool(paneIndex) {
       }
       if (termInstance) {
         termInstance.focus();
-        if (termWs && termWs.readyState === WebSocket.OPEN) {
-          termWs.send(JSON.stringify({ cols: termInstance.cols, rows: termInstance.rows, resize: true }));
-        }
       }
-    }, 120);
+    }, 100);
   }
   // 3. DOCKED CALCULATOR (COMPLETE WITH CONVERTERS, STORAGE UNITS & HISTORY)
   else if (tool === 'calculator') {

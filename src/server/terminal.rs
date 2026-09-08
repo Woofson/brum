@@ -29,8 +29,8 @@ pub async fn handle_terminal_ws(
 
 async fn handle_terminal_socket(socket: WebSocket, query: TerminalQuery) {
     let pty_system = native_pty_system();
-    let cols = query.cols.unwrap_or(100);
-    let rows = query.rows.unwrap_or(24);
+    let cols = query.cols.unwrap_or(100).max(10);
+    let rows = query.rows.unwrap_or(24).max(2);
 
     let pair = match pty_system.openpty(PtySize {
         rows,
@@ -70,8 +70,6 @@ async fn handle_terminal_socket(socket: WebSocket, query: TerminalQuery) {
         cmd.env("LANG", "C.UTF-8");
         cmd.env("LC_ALL", "C.UTF-8");
         cmd.env("SHELL", &shell);
-        cmd.env("PROMPT_COMMAND", "");
-        cmd.env("PS1", r#"\[\033[01;33m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "#);
     }
 
     if let Some(ref cwd) = query.cwd {
@@ -172,6 +170,9 @@ struct TerminalResizePayload {
     let master_pty = Arc::new(parking_lot::Mutex::new(pair.master));
     let master_pty_clone = master_pty.clone();
 
+    let mut cur_cols = cols;
+    let mut cur_rows = rows;
+
     // Task forwarding WebSocket input -> PTY master writer
     let ws_to_pty = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_receiver.next().await {
@@ -180,12 +181,18 @@ struct TerminalResizePayload {
                     // Check for JSON control message (e.g. resize)
                     if text.starts_with('{') {
                         if let Ok(resize_cmd) = serde_json::from_str::<TerminalResizePayload>(&text) {
-                            let _ = master_pty_clone.lock().resize(PtySize {
-                                rows: resize_cmd.rows,
-                                cols: resize_cmd.cols,
-                                pixel_width: 0,
-                                pixel_height: 0,
-                            });
+                            let target_cols = resize_cmd.cols.max(10);
+                            let target_rows = resize_cmd.rows.max(2);
+                            if target_cols != cur_cols || target_rows != cur_rows {
+                                cur_cols = target_cols;
+                                cur_rows = target_rows;
+                                let _ = master_pty_clone.lock().resize(PtySize {
+                                    rows: target_rows,
+                                    cols: target_cols,
+                                    pixel_width: 0,
+                                    pixel_height: 0,
+                                });
+                            }
                             continue;
                         }
                     }
@@ -198,12 +205,18 @@ struct TerminalResizePayload {
                     if bytes.starts_with(b"{") {
                         if let Ok(text) = std::str::from_utf8(&bytes) {
                             if let Ok(resize_cmd) = serde_json::from_str::<TerminalResizePayload>(text) {
-                                let _ = master_pty_clone.lock().resize(PtySize {
-                                    rows: resize_cmd.rows,
-                                    cols: resize_cmd.cols,
-                                    pixel_width: 0,
-                                    pixel_height: 0,
-                                });
+                                let target_cols = resize_cmd.cols.max(10);
+                                let target_rows = resize_cmd.rows.max(2);
+                                if target_cols != cur_cols || target_rows != cur_rows {
+                                    cur_cols = target_cols;
+                                    cur_rows = target_rows;
+                                    let _ = master_pty_clone.lock().resize(PtySize {
+                                        rows: target_rows,
+                                        cols: target_cols,
+                                        pixel_width: 0,
+                                        pixel_height: 0,
+                                    });
+                                }
                                 continue;
                             }
                         }
