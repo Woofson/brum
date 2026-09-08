@@ -1,267 +1,92 @@
-# <img src="assets/logo.png" alt="CommanderDog Logo" height="36" valign="middle" /> CommanderDog
+# <img src="assets/logo.png" alt="CommanderDog Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> CommanderDog
 
 <div align="center">
-  <img src="assets/CommanderDogWin.png" alt="CommanderDog Windows Desktop Edition" width="800" />
-  <p><em>Multi-Tab File Commander for Web & Native Desktop (Windows & Linux) — By Woofson</em></p>
+  <img src="assets/CommanderDogWin.png" alt="CommanderDog Desktop Edition" width="800" />
+  <p><em>Multi-Tab File Commander for Web & Native Desktop (Linux & Windows) — By Woofson</em></p>
+  
+  <p>
+    <a href="https://github.com/Woofson/commanderdog/releases/latest"><img src="https://img.shields.io/badge/version-v0.7.9-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
+    <img src="https://img.shields.io/badge/rust-2021_edition-orange?style=flat-square" alt="Rust 2021" />
+    <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License MIT" />
+    <a href="https://aur.archlinux.org/packages/commanderdog"><img src="https://img.shields.io/badge/arch_aur-commanderdog-blue?style=flat-square" alt="Arch AUR" /></a>
+    <a href="https://ghcr.io/woofson/commanderdog"><img src="https://img.shields.io/badge/docker_ghcr-linux%2Famd64-cyan?style=flat-square" alt="Docker GHCR" /></a>
+  </p>
 </div>
 
 ---
 
-## Features
+## 🌟 Why CommanderDog?
 
-- **Dynamic 1-to-4 Toggleable Panes**: Switch seamlessly between Single, Dual-Vertical, Dual-Horizontal, Triple, and 2x2 Quad layouts (`Alt+1`–`4`).
-- **Leftmost Unified Pane Customization (`[ 1 ]`, `[ 2 ]`, ...)**:
-  - Clean non-redundant pane identifiers placed at the far left of each toolbar.
-  - 1-Click popover: In-place renaming, 9 color presets + custom hex color picker, border width (`1px`–`4px`), and active ring styles.
-- **Orthodox Commander Keybindings**: Full keyboard control (`Tab` switch pane, `F1` Help, `F2` Rename, `F3` Quick View, `F4` Dual-Pane Editor, `F5` Copy, `F6` Move, `F7` Mkdir, `F8` Delete/Trash, `F9`/`Ctrl+D` Diff, `F10` Settings, `Ctrl+Q` Quit/Close, `Insert`/`Space` multi-select, `Shift+F6` Bulk Rename, `Ctrl+C`/`X`/`V` Clipboard, `Ctrl+K` Spotlight).
-- **Enhanced Mouse & Touch Controls**:
-  - **Double-Click Empty Space Navigation**: Double-click anywhere on empty panel space to jump up one directory level.
-  - **Empty-Space Context Menu**: Right-click blank space to create new files/folders, paste clipboard items, open terminal, or analyze disk usage.
-  - **Mobile Touch Engine**: 450ms haptic long-press for context menu, swipe gestures, and auto-dismissing app dropdowns.
-- **Filesystem Sandboxing & Storage Roots (`[storage]`)**:
-  - Confine users and admins to explicit storage roots (`[[storage.roots]]`) and personal `$HOME` folders with `allow_entire_system = false`.
-  - Granular per-user allowed roots list and read-only volume protection.
-- **Transparent Encrypted Vaults (AES-256-GCM / Argon2id)**:
-  - Create self-contained, password-protected virtual filesystem containers (`.cdvault` / `.cdv`).
-  - Decrypts and encrypts files **on-the-fly in volatile RAM** with zero plaintext artifacts touching the disk.
-  - Automatic inactivity lock timers, 1-click breadcrumb lock, and seamless in-memory editing with EditorDog. See [**`manuals/vaults.md`**](manuals/vaults.md) for the full guide.
-- **Zero-Leakage In-Memory Credential Security**:
-  - Volatile in-memory authentication router (`resolveAuthUri`) prevents passwords from ever being stored in `localStorage`, URL history, search inputs, or DOM attributes.
-  - Automated URI sanitization across all displays, toasts, and backend endpoints.
-- **DeltaCopy / RoboCopy / TeraCopy Engine**:
-  - **Delta Skip**: Automatically skips identical unchanged files (size & modification timestamp match) for high-speed incremental transfers.
-  - **TeraCopy Checksum**: Optional bit-for-bit CRC32 / SHA-256 integrity verification post-transfer.
-  - **RoboCopy Retry**: Auto-retries busy/locked files up to 3 times with exponential backoff.
-  - **Resume Partial**: Automatically resumes interrupted file transfers.
-  - **Preserves Metadata**: Retains original timestamps (`mtime`) and Unix permissions (`chmod`).
-- **Real-Time Background Task Queue & Speed Monitor**:
-  - Floating transfer status pill in the bottom-right corner.
-  - Live throughput calculations (MB/s), dynamic ETA countdowns, animated progress bars, and cancellation controls.
-- **Pure-Rust PDF Split & Merger Studio**:
-  - Merge arbitrary PDF documents with visual reordering and bookmark outlines.
-  - Extract individual pages, custom page ranges (e.g. `1-3, 5, 8-10`), or N-page bundles.
-  - Visual page organizer grid with 90° rotation controls per page.
-- **Built-in Rich Image Viewer**:
-  - Supports `.png`, `.jpg`, `.jpeg`, `.webp`, `.svg`, `.gif`, `.bmp`, `.ico`, `.avif`, `.tiff`.
-  - Mouse wheel next/previous image cycling, `Ctrl`+wheel focal zoom, rotate 90°, flip, live resolution badges, and slideshow controls.
-- **Advanced Multi-File Bulk Renamer**:
-  - **Find & Replace**: Case-sensitive and full Regular Expressions (Regex) support.
-  - **Sequential Numbering**: Base name, start index, step, and custom digit padding (`001`).
-  - **Prefix & Suffix**: Prepend or append text without losing extensions.
-  - **Case Conversion**: `UPPERCASE`, `lowercase`, `Title Case`, `kebab-case`, `snake_case`.
-  - **Extension Management**: Batch normalize extensions.
-  - **Conflict Prevention**: Real-time side-by-side preview with collision warning.
-- **Slide-Up Native Web Terminal (PTY)**:
-  - Toggle with <kbd>Ctrl+`</kbd> or from the Tools menu.
-  - Native pseudo-terminal running `bash`/`sh` on Linux or `powershell`/`cmd.exe` on Windows over WebSockets, starting in the active pane's current directory.
-- **Protocols & Cloud Object Storage Manager**:
-  - **Local Filesystem** (with Zero-Dependency Dynamic PAM login)
-  - **SFTP / SSH**: Remote server support with automatic `$HOME` resolution and 1-click disconnect
-  - **Samba / Windows Shares (SMB / CIFS)**: Port 445 / 139 with domain & guest authentication (`smb://`)
-  - **NFS (Network File System)**: NFSv3 / NFSv4 automated export mounting & discovery (`nfs://`)
-  - **Hetzner Storage Box**: Dedicated fast preset (SFTP port 23 & WebDAV HTTPS)
-  - **WebDAV**: Nextcloud, ownCloud, Synology, Apache/Nginx
-  - **S3 Cloud Object Storage**: AWS S3, MinIO, Cloudflare R2, Backblaze B2, Hetzner S3 (SigV4 signing)
-  - **Proton Drive**: End-to-end encrypted (E2EE) storage via Proton CLI & FUSE bridges
-  - **Syncthing**: Live background sync dashboard, peer throughput, in-sync progress, and scan triggers
-  - **Virtual Archives**: Open `.zip`, `.tar.gz`, `.tar.bz2`, `.tar.xz`, `.7z` directly as virtual directories with 1-click close.
-- **Visual Unix Permissions & Ownership Manager**:
-  - 3x3 interactive `chmod` matrix (Read, Write, Execute for Owner, Group, Others) with live octal calculation.
-  - 1-Click presets (`0644`, `0755`, `0600`, `0700`, `0777`).
-  - Live system user and group dropdowns reading `/etc/passwd` and `/etc/group` for `chown`.
-  - Recursive (`-R`) permission application.
-- **Paranoid File Handling Mode**:
-  - Pre-flight dry run collision and disk space inspection.
-  - Post-transfer cryptographic SHA-256 integrity verification.
-  - Atomic writes & safe Trash bin recovery with customizable storage paths.
-- **Dedicated Administrator Control Panel & Granular RBAC**:
-  - Full separation between regular **User Settings & Themes (`F10`)** and the **Admin Control Panel**.
-  - Multi-user RBAC table: assign roles (`Admin`, `Standard User`, `Read-Only`), customize home directories, and grant/revoke individual protocol privileges (`Local`, `SMB/CIFS`, `NFS`, `S3`, `SFTP`, `WebDAV`, `Terminal`, `Syncthing`, `ConvertX`) and allowed storage roots.
-  - Seamless auto-synchronization of Linux PAM system users (`/etc/passwd`, `/etc/group` with `sudo`/`wheel` admin resolution).
-- **Global Network Mounts & Auto-Discovery in Favorites**:
-  - Administrators can mount global shares (Samba/CIFS, NFS, S3, SFTP, WebDAV) and assign access permissions to specific users or `All Users (*)`.
-  - Assigned mounts automatically appear in users' **Favorites / Bookmarks** menu for 1-click navigation.
-- **ConvertX Universal File Converter**:
-  - Convert images (WebP, PNG, JPEG, AVIF, BMP, TIFF), audio (MP3, WAV, AAC, FLAC, OGG), video (MP4, WebM, MKV, AVI, GIF), and documents (PDF, TXT, HTML, DOCX) directly within the browser with format quality sliders.
-- **Dual-Pane Text & Markdown Editor with Syntax Highlighting**:
-  - Built-in syntax highlighting for JavaScript, HTML, CSS, Rust, Python, Bash, Markdown, JSON, YAML, TOML, SQL, and Dockerfiles.
-  - Interactive **Find & Replace** engine with match counter, step navigation, and Replace All.
-  - Live Markdown preview with **Mermaid.js diagram rendering** (Flowcharts, sequences, Gantt charts, state diagrams).
-- **Advanced File & Folder Diff Engine**:
-  - Fast Folder Comparison (size & mtime mismatches, missing items).
-  - Selected files only diff and full deep cryptographic hash comparison.
-  - Side-by-side text diff with line-by-line additions, deletions, and inline token highlighting.
-- **Extensible Theme Engine & Palette Customizer**:
-  - 12 built-in themes: **Woofsons Amber Charcoal (Dark - Default)**, **Woofsons Amber Zink (Light)**, **Gruvbox Dark**, **Catppuccin Mocha**, **Catppuccin Latte (Light)**, **Tokyo Night**, **Monokai Pro**, **Solarized Dark**, **Ayu Dark**, **Nord Frost**, **Dracula Dark**, **Midnight Commander Blue**.
-  - **External TOML Themes**: Drop custom `.toml` themes into `~/.config/commanderdog/themes/` or `/etc/commanderdog/themes/`.
-  - **Web Custom Theme Creator**: Build, preview, and export custom themes directly within the Web UI.
-- **Unified Fast-Path XDG Configuration**:
-  - Single master `config.toml` loaded with sub-millisecond speed: `~/.config/commanderdog/config.toml` (or `/etc/commanderdog/config.toml`). Zero `conf.d` directory fragmentation.
-- **Native Desktop Window & Tiling WM Support**:
-  - Standalone native window mode via WebKitGTK / WebView2 (`commanderdog --standalone`).
-  - Seamless borderless / frameless mode for tiling window managers (Hyprland, Sway, i3) via `--no-decorations`.
-- **Docker, Proxmox & LXC Ready**: Standalone single binary with embedded web frontend, Arch AUR package (`commanderdog`), Docker images on GHCR (`ghcr.io/woofson/commanderdog`), Debian `.deb`, Alpine `.apk`, and Proxmox deployment guide (`manuals/lxc-proxmox.md`).
+* **⚡ Blazing Fast Orthodox File Manager**: 1-to-4 dynamic panels (`Alt+1`–`4`), orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), fast branch view, and sub-millisecond path traversal.
+* **🧸 18+ Built-in Power ChewToys**: Integrated utilities replacing 10+ standalone apps (NoteDog Notes, ARFAMP Winamp 2.x Jukebox, TetraDog Arcade, PDFDog Studio, ConvertX, Slide-Up PTY Terminal, and Delta Backup).
+* **🌐 Universal Remote VFS**: Direct zero-leakage client for SFTP/SSH, SMB/Windows Shares, NFS, S3 Cloud Storage, WebDAV, Proton Drive, and Hetzner Storage Box.
+* **🔒 Zero-Knowledge Encrypted Vaults**: Password-protected `.cdvault` containers with Argon2id + AES-256-GCM RAM-only virtual streaming (no plaintext ever touches disk).
+* **🖥️ Dual Mode**: Run as a standalone native desktop app (Windows & Linux with tiling WM support) or as a headless web server.
 
 ---
 
-## Quick Start
+## 🚀 Quick Start
 
-> 📦 For comprehensive native desktop, tiling window manager, Arch AUR, Windows, and Docker guides, see [**`INSTALL.md`**](INSTALL.md).
-
-### 1. Native Desktop Mode (Linux / Tiling WMs)
-```bash
-# Build native standalone desktop app
-cargo build --release --features gui
-
-# Run in borderless standalone mode (Hyprland / Sway / i3)
-./target/release/commanderdog -s --frameless
-```
-
-### 2. Headless Server & Web Commander
-```bash
-# Build release binary (no WebKit dependencies required)
-cargo build --release
-
-# Run CommanderDog server
-./target/release/commanderdog
-```
-
-Open your browser at **http://localhost:3140**  
-Default credentials:
-- **Username**: `admin`
-- **Password**: `commanderdog`  
-*(Or log in directly with any system account on the host!)*
-
----
-
-## Native Packages & AUR
-
-- **Arch Linux / CachyOS (AUR)**:
-  ```bash
-  yay -S commanderdog
-  # or
-  paru -S commanderdog
-  ```
-- **Debian / Ubuntu**: Install pre-built `.deb` (`sudo dpkg -i commanderdog_*.deb`).
-- **Proxmox VE / Linux LXC**: See the complete [**`manuals/lxc-proxmox.md`**](manuals/lxc-proxmox.md) guide or run `scripts/lxc-install.sh`.
-
----
-
-## Docker Setup
-
-### Docker Run (Quickest)
+### 🐳 Docker (Quickest)
 ```bash
 docker run -d \
   --name commanderdog \
   -p 3140:3140 \
   -v ./data:/data \
   -v /home:/mnt/home:rw \
-  -v /mnt/storage:/mnt/storage:rw \
   --restart unless-stopped \
   ghcr.io/woofson/commanderdog:latest
 ```
 
-### Docker Compose
+### 🏔️ Arch Linux / CachyOS (AUR)
 ```bash
-docker compose up -d
+yay -S commanderdog        # or: paru -S commanderdog
 ```
 
----
-
-## Reverse Proxies, Tailscale & NetBird
-
-CommanderDog is engineered to run seamlessly behind reverse proxies, mesh VPNs, and tunnels:
-- **[Tailscale Setup Guide](manuals/reverse-proxy.md#1-tailscale)**: MagicDNS HTTPS with `tailscale serve` or `tailscale funnel`.
-- **[NetBird Setup Guide](manuals/reverse-proxy.md#2-netbird)**: WireGuard peer-to-peer overlay network access.
-- **[Caddy 2 Guide](manuals/reverse-proxy.md#3-caddy-2-recommended)**: 3-line automatic TLS & WebSocket reverse proxy.
-- **[Nginx & NPM Guide](manuals/reverse-proxy.md#4-nginx)**: WebSocket upgrade, buffer tuning, and timeout configurations.
-- **[Traefik v2/v3 Guide](manuals/reverse-proxy.md#6-traefik-v2--v3)**: Docker compose labels and buffering middleware.
-- **[Cloudflare Tunnel Guide](manuals/reverse-proxy.md#7-cloudflare-tunnel-cloudflared)**: Zero-trust tunneling with WebSockets.
-- **[Proxmox LXC Guide](manuals/lxc-proxmox.md)**: 1-click Proxmox VE / Debian container deployment.
-
----
-
-## Configuration File Structure
-
-CommanderDog loads configuration in a single sub-millisecond pass from:
-- **`~/.config/commanderdog/config.toml`** *(Highest priority for personal dotfiles)*
-- **`/etc/commanderdog/config.toml`** *(System-wide fallback)*
-- **`~/.config/commanderdog/themes/*.toml`** *(Modular custom theme drops)*
-
-```toml
-# ~/.config/commanderdog/config.toml
-[server]
-host = "0.0.0.0"
-port = 3140
-
-[storage]
-allow_entire_system = false # Sandboxes users to allowed storage roots + $HOME
-
-[[storage.roots]]
-id = "storage"
-name = "Mass Storage"
-path = "/mnt/storage"
-read_only = false
-
-[ui]
-default_pane_count = 2
-default_layout = "dual-vertical" # single, dual-vertical, dual-horizontal, triple, quad
-show_hidden_files = true
-window_decorations = true        # Set false for borderless Hyprland integration
-show_global_refresh = false      # Minimal header
-
-[desktop]
-minimize_to_tray = true          # Minimize to tray on close
-enable_tray = true               # System tray icon
-global_summon_hotkey = "Super+C" # System-wide summon keybind
-
-[themes]
-default_theme = "amber-charcoal" # Active theme ID or custom theme from themes/
+### 🦀 Cargo / Local Build
+```bash
+cargo run --release        # Open http://localhost:3140 in your browser
 ```
 
----
-
-## Function Keys & Keybindings
-
-| Key | Action |
-| :--- | :--- |
-| **`Tab`** / **`Shift+Tab`** | Switch Active Pane |
-| **`F1`** | Help & Keybindings Modal |
-| **`F2`** | Rename Selected Entry |
-| **`F3`** | Quick View / Rich Image Viewer |
-| **`F4`** | Built-in Dual-Pane Editor & Markdown Viewer |
-| **`F5`** | DeltaCopy / Transfer Modal (TeraCopy / RoboCopy engine) |
-| **`F6`** | Move Selected Items to Target Pane |
-| **`Shift+F6`** / **`Ctrl+M`** | Advanced Multi-File Bulk Renamer |
-| **`F7`** | Create New Folder |
-| **`F8`** / **`Delete`** | Delete / Move to Trash |
-| **`F9`** / **`Ctrl+D`** | Folder & File Comparison (Diff) |
-| **`F10`** | Settings Hub (General, Desktop, Palette, Bookmarks, Keys) |
-| **`Ctrl+C`** / **`Ctrl+X`** / **`Ctrl+V`** | Copy, Cut, and Paste files across panels |
-| **<kbd>Ctrl+`</kbd>** | Toggle Slide-Up Native Web Terminal (PTY) |
-| **`Alt+1`** .. **`Alt+4`** | Jump to Pane 1, 2, 3, or 4 |
-| **`Insert`** / **`Space`** | Toggle Item Selection & Step Down |
-| **`Ctrl+A`** | Select All in Active Pane |
-| **`Ctrl+P`** | Toggle Paranoid File Handling Mode |
-| **`Ctrl+Q`** / **`Cmd+Q`** | Clean Exit / Quit CommanderDog |
+> **Default Login**: Username `admin`, Password `commanderdog` *(or log in directly with any Linux host system account via PAM)*.
 
 ---
 
-## Documentation & User Manuals
-All detailed operational runbooks, platform guides, and security documentation are located in [**`manuals/`**](manuals/README.md):
+## 🧸 Built-in "ChewToys" Suite
 
-- [**Power Tools & ChewToys Manual**](manuals/chewtoys.md) — Notes Studio, Bite! Terminal, Delta Backup, PDF Toolkit, Vaults.
-- [**Windows Native Desktop & Packaging Guide**](manuals/windows.md) — Winget, Scoop, NSIS Setup, MSI, and Portable ZIP.
-- [**Transparent Encrypted Vaults Guide (AES-256-GCM / Argon2id)**](manuals/vaults.md) — Create, unlock, edit, and secure encrypted containers.
-- [**Docker Deployment Guide**](manuals/docker.md) — Ultra-minimal Alpine Linux container setup.
-- [**LXC / Proxmox Guide**](manuals/lxc-proxmox.md) — Standalone Linux container deployment.
-- [**Reverse Proxy & Mesh VPN Guide**](manuals/reverse-proxy.md) — Tailscale, NetBird, Caddy 2, Nginx, Traefik, Cloudflare.
-- [**Themes & Palette Guide**](manuals/themes-and-palette.md) — Woofsons Amber design tokens and custom theme authoring.
-- [**Product Roadmap**](ROADMAP.md) — Architecture milestones & feature timeline.
-- [**Changelog**](CHANGELOG.md) — Release notes and version history.
+| ChewToy | Description | Replaced Utility |
+| :--- | :--- | :--- |
+| **📝 NoteDog** | Markdown notebook, interactive checklists, version snapshots, and encrypted notes | Obsidian / Joplin |
+| **📻 ARFAMP** | Authentic Winamp 2.x clone, windowshade mode, 10-band EQ, 60 FPS visualizer, .m3u PL | Winamp / XMPlay |
+| **⚡ Bite! Terminal** | Slide-Up WebSocket PTY terminal with bundled Nerd Fonts in active directory | PuTTY / Web SSH |
+| **🔄 Sync Studio** | Block-level binary delta replication (4 profiles), scheduler, and webhooks | Bvckup 2 / SyncToy |
+| **📄 PDFDog** | Pure-Rust visual PDF page reordering, splitting, 90° rotation, and merger | PDFsam / Acrobat |
+| **🎞️ ConvertX** | Browser-native image, audio, video, and document format transcoding | HandBrake / CloudConvert |
+| **🗄️ Vaults** | Zero-leakage AES-256-GCM in-memory encrypted virtual filesystem containers | Cryptomator / VeraCrypt |
+| **🕹️ TetraDog** | 60 FPS arcade canvas game, SRS rotation, DAS/ARR tuning & sync leaderboard | Desktop Distractions |
+| **🔍 DiffDog** | Side-by-side text/code diffs and cryptographic directory comparison matrix | Beyond Compare / WinMerge |
 
 ---
 
-## License
+## 📖 Documentation & User Manuals
 
-MIT © Bolt J Woofson
+All operational runbooks, platform guides, and security manuals are organized in [**`manuals/`**](manuals/README.md):
+
+* 🛠️ [**Power Tools & ChewToys Manual**](manuals/chewtoys.md) — Notes Studio, ARFAMP, Terminal, PDF Toolkit, Vaults.
+* ⌨️ [**Keyboard Shortcuts & Navigation**](manuals/shortcuts.md) — Orthodox <kbd>F1</kbd>–<kbd>F10</kbd> keys, ARFAMP keys, touch gestures.
+* ⚙️ [**Configuration Guide (`config.toml`)**](manuals/configuration.md) — Master config options, storage roots, sandboxing.
+* 🌐 [**Remote Protocols & VFS Guide**](manuals/protocols.md) — SFTP, SMB, NFS, WebDAV, S3, Proton Drive, Hetzner.
+* 🔒 [**Transparent Encrypted Vaults Guide**](manuals/vaults.md) — Argon2id + AES-256-GCM in-memory containers.
+* 🪟 [**Windows Desktop & Packaging**](manuals/windows.md) — Winget, Scoop, NSIS Setup, MSI, and Portable ZIP.
+* 📦 [**Docker Deployment Guide**](manuals/docker.md) — Compose, Portainer, and volume persistence.
+* 🐧 [**Proxmox VE & LXC Containers**](manuals/lxc-proxmox.md) — 1-click Debian LXC container setup.
+* 🛡️ [**Reverse Proxy & Mesh VPN Guide**](manuals/reverse-proxy.md) — Tailscale, NetBird, Caddy 2, Nginx, Traefik, Cloudflare.
+* 🎨 [**Themes & Palette Guide**](manuals/themes-and-palette.md) — Woofsons Amber design tokens and custom themes.
+* 🗺️ [**Product Roadmap**](ROADMAP.md) — Active milestones, sprint backlog, and architecture plans.
+* 📜 [**Changelog**](CHANGELOG.md) — Release notes and version history.
+
+---
+
+## 📜 License
+
+MIT License © [Bolt J Woofson](https://www.arf.ac) @ Woofsons Lab

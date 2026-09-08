@@ -5,18 +5,18 @@
 ---
 
 ## 1. 📝 NoteDog Notes Studio
-* **Hierarchy**: Tree-structured markdown notebook with subdirectories, drag-and-drop hierarchy, and full-text keyword indexing.
-* **Interactive Checklists**: Live `- [ ]` / `- [x]` interactive checklists with instant DOM state persistence.
-* **Revision Snapshots**: Automated version snapshot engine saved to `.notedog_versions/` with side-by-side diff previews and 1-click restore.
+* **Tree Hierarchy**: Markdown notebook with folder trees, drag-and-drop organization, and full-text search indexing.
+* **Interactive Checklists**: Live `- [ ]` / `- [x]` interactive checklists with instant state persistence.
+* **Revision Snapshots**: Automated snapshot history in `.notedog_versions/` with side-by-side diff previews and 1-click restore.
 * **Templates**: Built-in templates for Project Plans, SOPs, Daily Logs, and Meeting Minutes.
-* **Encryption Detection**: Seamless awareness for NoteDog TUI `.md.enc` encrypted notes.
+* **Encrypted Notes**: Seamless encryption and decryption support for `.md.enc` files.
 
 ---
 
 ## 2. ⚡ Bite! Slide-Up PTY Terminal
 * **Native WebSocket PTY**: Full pseudo-terminal session attached directly to the active pane's directory.
 * **Shell Support**: Automatically detects and loads your default shell (`fish`, `zsh`, `bash`, `powershell`, `cmd.exe`).
-* **Offline Nerd Fonts**: Bundled `JetBrainsMono Nerd Font` provides out-of-the-box support for `eza --icons`, `starship`, and powerline glyphs without missing boxes or tofu characters.
+* **Bundled Nerd Fonts**: Embedded `JetBrainsMono Nerd Font` provides out-of-the-box support for `eza --icons`, `starship`, and powerline glyphs without missing boxes or tofu characters.
 * **Dynamic Geometry**: Automatic `ResizeObserver` recalculates dimensions and synchronizes `{ cols, rows }` across pane and window resizes.
 
 ---
@@ -32,7 +32,7 @@
 
 ---
 
-## 4. 📄 PDF Power Studio
+## 4. 📄 PDF Power Studio (PDFDog)
 * **Pure-Rust Engine (`lopdf`)**:
   * Visual drag-and-drop page reordering and bookmark outlines.
   * Split by custom page ranges, extract single pages, or split into $N$-page bundles.
@@ -74,13 +74,37 @@
 * **Windowshade Mode (Alt+W)**: Collapses windows into ultra-compact titlebar shade mode (via `▲`/`▼` button, double-clicking titlebar, or <kbd>Alt+W</kbd>) with live mini-scrubber, mini-timer, and quick controls.
 * **Green/Amber Fluorescent LED 7-Segment Timer**: Real-time LED display with click-to-toggle between *Time Elapsed* and *Time Remaining* (`-MM:SS`).
 * **Scrolling Marquee Ticker & HUD**: Marquee track title ticker with `KBPS` bitrate, `KHZ` sample rate, and `STEREO`/`MONO` indicator lights.
-* **Real-Time 60 FPS Winamp Visualizer**: 18-band segmented green/amber/red LED spectrum analyzer with falling peak caps, CRT phosphor oscilloscope waveform, and ambient glow modes (click canvas or cycle modes).
+* **Real-Time 60 FPS Winamp Visualizer**: 18-band segmented green/amber/red LED spectrum analyzer with falling peak caps, CRT phosphor oscilloscope waveform, and ambient glow modes.
 * **10-Band Studio Graphic Equalizer**: Authentic Winamp center frequencies (`60Hz`, `170Hz`, `310Hz`, `600Hz`, `1kHz`, `3kHz`, `6kHz`, `12kHz`, `14kHz`, `16kHz`), Preamp fader (-6dB to +6dB), ON/AUTO switches, and 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
 * **Full Playlist Editor**: Monospace green-on-black track list (`1. Artist - Title (MM:SS)`), filter search input, drag & drop track enqueueing, resize handle, and action buttons (`+FILE`, `+DIR`, `-FILE`, `-ALL`, `SHUF`, `LIST` .m3u export).
-* **Authentic Winamp Keyboard Shortcuts**:
-  * <kbd>Z</kbd> (Previous Track), <kbd>X</kbd> (Play), <kbd>C</kbd> (Pause / Unpause), <kbd>V</kbd> (Stop), <kbd>B</kbd> (Next Track), <kbd>L</kbd> (Open Files).
-  * <kbd>Alt+W</kbd> (Windowshade Mode), <kbd>Alt+G</kbd> (Toggle Equalizer), <kbd>Alt+E</kbd> (Toggle Playlist).
-  * <kbd>S</kbd> (Shuffle), <kbd>R</kbd> (Repeat), <kbd>←</kbd>/<kbd>→</kbd> (Seek ±5s), <kbd>↑</kbd>/<kbd>↓</kbd> (Volume ±5%), <kbd>Delete</kbd> (Remove Selected Track).
-* **Mini-Player Pill & Media Session API**: Minimized floating pill (`#sounddog-pill`) with animated soundwave indicator, and full integration with OS lock screen controls and hardware media keys (`navigator.mediaSession`).
 
+---
 
+## 10. 🔍 DiffDog (File & Directory Comparison)
+* **Side-by-Side & Unified Diff**: Syntax-highlighted line diffs with character-level inline changes.
+* **Directory Comparison Matrix**: Fast file size & mtime checks, cryptographic SHA-256 deep hash comparisons, and 1-click sync actions.
+
+---
+
+## 11. 📊 Disk Usage & Storage Treemap
+* **Visual Treemap**: Interactive zoomable nested block treemap visualizing folder consumption.
+* **Fast Scan Engine**: Multi-threaded traversal with instant top disk hogs identification and direct cleanup actions.
+
+---
+
+## 12. ✍️ EditorDog (Code & Markdown Studio)
+* **Syntax Highlighting**: 15+ programming and config languages (Rust, JS, TS, Python, Go, Bash, HTML, CSS, Markdown, JSON, YAML, TOML, SQL, Dockerfile).
+* **Live Markdown & Mermaid Preview**: Real-time markdown rendering with interactive Mermaid.js diagrams, sequence charts, and flowchart generation.
+* **Find & Replace**: Regex and case-sensitive batch token replacement.
+
+---
+
+## 13. 🖼️ High-DPI Media & Image Viewer
+* **Wide Format Support**: `.png`, `.jpg`, `.jpeg`, `.webp`, `.svg`, `.gif`, `.bmp`, `.ico`, `.avif`, `.tiff`.
+* **Focal Zoom & Navigation**: Mouse-wheel folder cycling, `Ctrl`+wheel zoom, 90° rotation, slideshow mode, and video/audio playback.
+
+---
+
+## 14. 🏷️ Multi-File Bulk Renamer
+* **Advanced Patterns**: Find & replace, Regex capture groups, sequential numbering (`001`, `002`), prefix/suffix injection, and case conversions (`UPPER`, `lower`, `Title`, `snake_case`, `kebab-case`).
+* **Conflict Prevention**: Live side-by-side preview table highlighting collisions prior to execution.
