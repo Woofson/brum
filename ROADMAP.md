@@ -61,6 +61,10 @@
 │ & Desktop Distraction  │                             │ 60 FPS canvas engine, SRS/NES modes,│
 │                        │                             │ DAS/ARR tuning, high scores & audio │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Apache Guacamole /     │ Remote (RemoteDog Gateway)  │ Sub-ms in-browser RDP (IronRDP/NLA),│
+│ Remmina / mstsc / VNC  │                             │ VNC (RFB 3.8), SSH PTY, 1-4 grid,   │
+│                        │                             │ clipboard auto-sync & file staging  │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ Winamp / Foobar2000 /  │ AMP (ARFAMP Winamp Clone)   │ 3-modular layout, windowshade mode, │
 │ Audacious / XMPlay     │                             │ 10-band EQ, 60fps spectrum, .m3u PL │
 └────────────────────────┴─────────────────────────────┴─────────────────────────────────────┘
@@ -298,6 +302,7 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 * `Delta Backup` ➔ **`Backup`** (SyncToy / Bvckup 2 delta replication studio)
 * `Disk Usage` ➔ **`Stats`** (Visual treemap & disk consumption analyzer)
 * `Syncthing` ➔ **`Syncthing`** (Live Syncthing dashboard & LAN/P2P sync)
+* `RemoteDog` ➔ **`Remote`** (In-browser sub-millisecond RDP, VNC, SSH remote gateway & multi-pane grid)
 
 ### 3. 🌐 Repositories & Distribution Migration Strategy
 
@@ -324,7 +329,15 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 
 ## 5. 🔮 Upcoming Strategic Milestones
 
-### Milestone 1: Multi-Cloud VFS, Embedded WebDAV Server & High-Impact Extensions (`v0.8.0+`)
+### Milestone 1: Multi-Cloud VFS, Remote Gateway ChewToy & High-Impact Extensions (`v0.8.0+`)
+- **Remote Gateway ChewToy / Modular Plugin (`Remote` — incorporating RemoteDog)**:
+  - **Single-Binary Zero-Guacamole Architecture**: Incorporate the lightweight, sub-millisecond remote gateway from [`/home/bolt/projects/remotedog/`](file:///home/bolt/projects/remotedog/) directly into CommanderDog / ARF! as a native ChewToy and modular plugin.
+  - **Native Protocols & Hardware Acceleration**:
+    - **RDP (Windows Remote Desktop)**: Pure-Rust `IronRDP` engine with Network Level Authentication (NLA / CredSSP), 64×64 dirty tile sub-rect diffing, and live dynamic resolution resizing (`MS-RDPEDISP`).
+    - **VNC / RFB (3.8)**: Full RFB client with Raw and CopyRect tile decoding, DES auth, and full mouse/keyboard event mapping.
+    - **SSH & Remote Terminal**: Remote shell with PTY allocation and integrated SFTP file subsystem.
+  - **Multi-Pane Remote Grid (`Alt+1` to `Alt+4`)**: Dynamic 1-to-4 remote viewport layouts for monitoring and orchestrating multiple servers, workstations, or VMs simultaneously.
+  - **Bi-Directional Clipboard & File Staging**: Auto-clipboard synchronization (`navigator.clipboard` / RFB ClientCutText / ANSI OSC 52) and direct drag-and-drop file transfers between local panels and remote viewports.
 - **Embedded WebDAV Server Mode**: Native WebDAV server daemon allowing external operating systems (Windows File Explorer, macOS Finder, Linux, mobile apps) to mount storage as local network drives.
 - **Multi-Cloud VFS Adapters**: Native connectors for Google Drive, Proton Drive, Hetzner Storage Box, and direct S3/MinIO browser streaming.
 - **HexDog & ArchiveDog ChewToys**: In-place multi-format archive explorer (`.zip`, `.tar.gz`, `.7z`, `.zstd`) and binary byte/hex inspector.
