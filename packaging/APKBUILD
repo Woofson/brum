@@ -1,7 +1,7 @@
 # Contributor: Bolt J Woofson <bolt@boop.no>
 # Maintainer: Bolt J Woofson <bolt@boop.no>
 pkgname=commanderdog
-pkgver=0.7.9
+pkgver=0.8.0
 pkgrel=0
 pkgdesc="Multi-Tab Web Commander - By Woofson"
 url="https://github.com/Woofson/commanderdog"

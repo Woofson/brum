@@ -49,8 +49,8 @@ jobs:
         shell: pwsh
         run: |
           $Version = "${{ github.ref_name }}".TrimStart('v')
-          if ([string]::IsNullOrEmpty($Version)) { $Version = "${{ github.event.inputs.version }}" }
-          if ([string]::IsNullOrEmpty($Version)) { $Version = "0.7.0" }
+          if ([string]::IsNullOrEmpty($Version) -or $Version -eq "main") { $Version = "${{ github.event.inputs.version }}" }
+          if ([string]::IsNullOrEmpty($Version)) { $Version = "0.8.0" }
 
           $DistDir = "dist\windows"
           New-Item -ItemType Directory -Path "$DistDir\commanderdog" -Force | Out-Null
@@ -171,6 +171,8 @@ jobs:
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || (github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || 'v0.8.0') }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || (github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || 'v0.8.0') }}
           files: |
             release-assets/all/*.zip
             release-assets/all/*.exe
