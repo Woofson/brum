@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.1-rc1] - 2026-09-08
 
-### ChewToy Nomenclature Harmonization & Local Mode User Customization (fixes #14)
+### ChewToy Nomenclature, Context Menu Auto-Dismiss & Local Mode Profile Customization (fixes #14, fixes #17)
+- **Context Menu & Tools Auto-Dismiss Unified Behavior (fixes #17)**:
+  - Resolved issue where triggering file actions (Rename, Delete, Quick View, Edit, Copy/Move to pane, Archive, Custom actions) left the right-click context menu open on screen.
+  - Upgraded context click listener delegation so clicking actionable items inside nested submenus (New, Copy to, Move to, Archive, Tools) or top-level actions immediately dismisses the context menu while executing the requested action.
+  - Added automatic dismissal when selecting ChewToys and actions from the main tools launchpad dropdown menu (`closeToolsMenu()`).
 - **ChewToy UI Nomenclature Harmonization**: Harmonized user-facing ChewToy brand labels across the navigation launchpad, tools dropdown, Spotlight command palette (`Ctrl+K`), and window titlebars:
   - `NoteDog` ➔ **`Notes`**
   - `EditorDog` ➔ **`Edit`**
