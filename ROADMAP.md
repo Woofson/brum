@@ -343,6 +343,13 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 - **HexDog & ArchiveDog ChewToys**: In-place multi-format archive explorer (`.zip`, `.tar.gz`, `.7z`, `.zstd`) and binary byte/hex inspector.
 - **Classic Skin Loader (`.wsz`)**: Native unpacker and renderer for classic Winamp 2.x and XMMS skin archives in AMP.
 - **ChewToy Modular Plugin Architecture (`.arf` / `.woof`)**: Dynamic external plugin packaging, manifest specification (`plugin.toml`), permission sandboxing, and Shell/Bash terminal bridge.
+- **Windows Desktop Preferred Port & Localhost Web Access (`:3140`)**:
+  - Configure `CommanderDog.exe` desktop GUI launcher to bind to preferred port `3140` by default (falling back to dynamic port only if occupied).
+  - Synchronize the system tray *"Open in Web Browser"* action to point to the active bound port.
+  - Enable simultaneous access to `http://localhost:3140` in web browsers while the standalone desktop app is active.
+- **Windows Persistent File Logging & Event Log Integration**:
+  - Implement dedicated rotating file logging for desktop GUI mode in `%APPDATA%\CommanderDog\logs\commanderdog.log` to preserve startup diagnostics, bound port details, and error traces when running without an attached console.
+  - Integrate Windows Event Log / Event Viewer source for service daemons and system error reporting.
 - **User Profile Photos & Cross-Platform Native Avatar Fetcher**:
   - **Local & Standalone Profile Avatars**: Support custom profile picture / avatar uploads and cropping in local and single-user modes, persisted in SQLite user preferences.
   - **Native OS Avatar Auto-Detection**:
