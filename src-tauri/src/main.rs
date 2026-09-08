@@ -51,14 +51,11 @@ fn main() {
                             win_builder = win_builder.title_bar_style(tauri::TitleBarStyle::Overlay);
                         }
 
-                        if let Some(icon) = handle.default_window_icon() {
-                            if let Ok(builder) = win_builder.icon(icon.clone()) {
-                                win_builder = builder;
-                            }
-                        }
-
                         match win_builder.build() {
                             Ok(window) => {
+                                if let Some(icon) = handle.default_window_icon() {
+                                    let _ = window.set_icon(icon.clone());
+                                }
                                 let window_clone = window.clone();
                                 window.on_window_event(move |event| {
                                     if let WindowEvent::CloseRequested { api, .. } = event {

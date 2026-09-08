@@ -26,7 +26,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
-use base64::Engine;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -685,9 +684,11 @@ async fn handle_get_me(
             return Ok(Json(user));
         }
 
+        #[allow(unused_mut)]
         let mut avatar_url = None;
         #[cfg(unix)]
         {
+            use base64::Engine;
             if let Some(ref home) = dirs::home_dir() {
                 let face_path = home.join(".face");
                 let face_icon = home.join(".face.icon");
