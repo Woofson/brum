@@ -84,16 +84,55 @@
 
 ---
 
-## 3. 🚀 Active Sprint & Chewtoy Improvement Backlog (`v0.7.2`)
+## 3. 🚀 Active Sprint & Improvement Backlog (`v0.8.0`)
 
 ```mermaid
 graph TD
-    A["v0.7.1 (Released: Viewers, Fonts, Themes)"] --> B["v0.7.2 (Current: Manuals, Chewtoy Polish, EditorDog, NoteDog)"]
-    B --> C["v0.8.0 (Next: Enterprise OIDC SSO & Collaborative Office)"]
-    C --> D["v1.0.0 (Planned: High-Performance P2P Cluster & Distributed Storage)"]
+    A["v0.7.9 (Released: HTTP Range Streaming & ARFAMP)"] --> B["v0.8.0 (Current Sprint: NoteDog Polish, Responsive Viewports, UI Form System & Plugin Architecture)"]
+    B --> C["v0.9.0 (Next: Enterprise Identity OIDC SSO & Collaborative Office)"]
+    C --> D["v1.0.0 (Planned: High-Performance P2P Cluster & Distributed Virtual Storage)"]
 ```
 
-### Active Sprint Items (`v0.7.2`):
+### 🎯 Current Sprint Backlog (`v0.8.0`):
+
+#### 1. 🐕 NoteDog Chewtoy Polish & Docked Mode
+- [ ] **Docked Mode Note Dropdown Selection Fix**:
+  - Fix note dropdown selection in docked mode where changing notes lags or shows the previously selected note instead of the newly selected item.
+- [ ] **Docked True Dual-Edit (Side-by-Side Split Mode)**:
+  - Implement full side-by-side Markdown source editor + live preview split mode in docked panel views.
+- [ ] **Mobile & Tablet Sliding Collapsible Sidebar**:
+  - Add responsive sliding/drawer sidebar for note hierarchy on `Phone` and `Tablet` viewports to maximize writing canvas area.
+
+#### 2. 📱 Responsive Viewports, Micro-Text Scaling & Mobile/Tablet Ergonomics
+- [ ] **Tablet Dual-Panel Mode Toggle**:
+  - Make dual-panel mode optional/toggleable on `Tablet` viewport (allow 1-panel wide mode for tight screens).
+- [ ] **Adaptive Viewport Typography & Micro-Text Scaling**:
+  - Optimize info-text and secondary badge font sizes to be proportionally compact and legible on mobile and tablet screens.
+- [ ] **Top Header Responsive Branding**:
+  - Display CommanderDog branding badge on `Tablet` viewport while keeping it hidden on `Phone` to maximize path bar and panel space.
+- [ ] **Phone Pane Columns (Owner & Permissions)**:
+  - Add optional owner/group and UNIX permission (`rwxr-xr-x`) visibility in mobile phone panel item rows and details drawer.
+- [ ] **Mobile Bookmarks Manager Trigger Fix**:
+  - Fix Bookmarks manager modal/drawer tap triggering on phone viewport.
+
+#### 3. 🎨 Design System & Theme Engine Form Harmonization
+- [ ] **Standardized Form Control Components (`Woofsons Amber Charcoal` & `Amber Zink`)**:
+  - **Checkboxes & Radios**: Theme-aware custom styled checkboxes with active amber glow, smooth transitions, and distinct states across dark and light themes.
+  - **Input Fields**: Standardized padding, borders, focus outline ring (`var(--accent)`), and placeholder contrast across all modal forms and settings.
+  - **Dropdown Menus & Selects**: Harmonized custom select components with consistent height (`28px` / `32px`), chevron icons, hover states, and dropdown popup styling.
+- [ ] **Header Control Alignment & Icon Refinements**:
+  - Swap topbar order of **ChewToys Apps Menu** and **Task Manager Pill** for more ergonomic access.
+  - Replace cloud upload icon with sleek modern tray / upward arrow indicator (e.g. `arrow-up-to-line` / `upload`).
+
+#### 4. 🧩 ChewToy Plugin Architecture & Extensible Scripting Specification (`.arf` / `.woof`)
+- [ ] **ChewToy Modular Plugin System**:
+  - Architecture and specification for dynamic external plugins packaged as `.arf` or `.woof` bundles.
+  - Standard manifest format (`plugin.toml` / `manifest.json`), asset packaging, and permission sandboxing.
+  - Scripting engine integration (native Shell / Bash script bridge leveraging embedded pseudo-terminal, plus optional lightweight WASM / QuickJS runtime for cross-platform sandboxed execution).
+
+---
+
+### 📦 Completed Milestone Backlog History (`v0.7.2` – `v0.7.9`):
 - [x] **Documentation Reorganization & `manuals/` Structure (`v0.7.2-rc1`)**:
   - Reorganized loose root documentation into dedicated [`manuals/`](manuals/README.md).
   - Merged todos directly into `ROADMAP.md` as the unified source of truth.
@@ -217,6 +256,13 @@ graph TD
 - **Multi-Cloud VFS Adapters**: Native connectors for Google Drive, Proton Drive, Hetzner Storage Box, and direct S3/MinIO browser streaming.
 - **HexDog & ArchiveDog ChewToys**: In-place multi-format archive explorer (`.zip`, `.tar.gz`, `.7z`, `.zstd`) and binary byte/hex inspector.
 - **ARFAMP Classic Skin Loader (`.wsz`)**: Native unpacker and renderer for classic Winamp 2.x and XMMS skin archives.
+- **ChewToy Modular Plugin Architecture (`.arf` / `.woof`)**: Dynamic external plugin packaging, manifest specification (`plugin.toml`), permission sandboxing, and Shell/Bash terminal bridge.
+- **User Profile Photos & Cross-Platform Native Avatar Fetcher**:
+  - **Local & Standalone Profile Avatars**: Support custom profile picture / avatar uploads and cropping in local and single-user modes, persisted in SQLite user preferences.
+  - **Native OS Avatar Auto-Detection**:
+    - **Linux**: Automatic discovery and extraction of system user profile photos from AccountsService (`/var/lib/AccountsService/icons/<username>`), user home dotfiles (`~/.face`, `~/.face.icon`), or system icon paths.
+    - **Windows**: Automatic extraction from Windows Account Pictures directory (`%APPDATA%\Microsoft\Windows\AccountPictures` / `%PROGRAMDATA%\Microsoft\User Account Pictures`) or registry user tile properties.
+  - **Online Fallback Resolvers**: Optional Gravatar / Libravatar email hash lookup and upstream OAuth/OIDC profile avatar fallback.
 
 ### Milestone 2: Enterprise Identity, OIDC / SSO & Collaborative Office (`v0.9.0`)
 - **Enterprise Identity Providers**: OpenID Connect (OIDC), OAuth2, SAML 2.0, Keycloak, Authentik, Authelia, Google, GitHub, Okta, Azure AD.
