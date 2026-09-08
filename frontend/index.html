@@ -74,15 +74,15 @@
 
       <!-- 4. Application Tools Suite & Launchpad -->
       <div class="tools-dropdown-wrapper">
-        <button class="btn btn-icon" id="btn-tools-menu" onclick="toggleToolsMenu(event)" title="ChewToys & Tools (Terminal, EditorDog, Calculator, Backup, Search)">
+        <button class="btn btn-icon" id="btn-tools-menu" onclick="toggleToolsMenu(event)" title="ChewToys & Tools (Terminal, Edit, Calculator, Backup, Search)">
           <img src="assets/amber-frameless-apps.webp" alt="ChewToys & Tools" style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
         </button>
         <div class="tools-dropdown-menu" id="tools-dropdown-menu">
           <div class="dropdown-item" onclick="openSpotlightModal()"><img src="assets/spot.webp" alt="Spot!" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Spot! (Ctrl+K)</div>
-          <div class="dropdown-item" onclick="openFloatingNoteDog()"><img src="assets/note.webp" alt="NoteDog" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> NoteDog</div>
+          <div class="dropdown-item" onclick="openFloatingNoteDog()"><img src="assets/note.webp" alt="Notes" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Notes</div>
           <div class="dropdown-item" onclick="openFloatingCalculator()"><img src="assets/calc.webp" alt="Calculator" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Calculator</div>
           <div class="dropdown-item" onclick="toggleTerminal()"><img src="assets/term.webp" alt="Terminal" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Terminal (`)</div>
-          <div class="dropdown-item" onclick="openFloatingEditor()"><img src="assets/edit.webp" alt="EditorDog" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> EditorDog (F4)</div>
+          <div class="dropdown-item" onclick="openFloatingEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Edit (F4)</div>
           <div class="dropdown-item" onclick="triggerDiff()"><img src="assets/diff.webp" alt="Compare" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Compare (F9)</div>
           <div class="dropdown-item" onclick="openSearchModal()"><img src="assets/search.webp" alt="Search" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Search (Ctrl+F)</div>
           <div class="dropdown-item" onclick="openSharesManager()"><img src="assets/sharemgr.webp" alt="Share Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Share Manager</div>
@@ -90,8 +90,9 @@
           <div class="dropdown-item" onclick="openDiskUsageModal()"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Stats</div>
           <div class="dropdown-item" onclick="openSyncthingModal()"><img src="assets/syncthing.webp" alt="Syncthing" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Syncthing</div>
           <div class="dropdown-item" onclick="openConverterModal()"><img src="assets/convertx.webp" alt="ConvertX" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> ConvertX</div>
-          <div class="dropdown-item" onclick="openPdfToolModal()"><img src="assets/amber-pdftool.webp" alt="PDFDog" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> PDFDog</div>
-          <div class="dropdown-item" onclick="openTetraDog()"><img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> TetraDog</div>
+          <div class="dropdown-item" onclick="openPdfToolModal()"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> PDF Studio</div>
+          <div class="dropdown-item" onclick="openSoundDog()"><img src="assets/amber-media.webp" alt="AMP" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> AMP</div>
+          <div class="dropdown-item" onclick="openTetraDog()"><img src="assets/amber-tetris.webp" alt="Tetra" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Tetra</div>
           <div class="dropdown-item" onclick="openFloatingTaskManager()"><img src="assets/task.webp" alt="Task Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Task Manager</div>
         </div>
       </div>
@@ -2039,8 +2040,8 @@
     <div class="modal-header editor-header" id="editor-header">
       <div class="editor-header-left">
         <span class="editor-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
-          <img src="assets/edit.webp" alt="EditorDog" style="width: 16px; height: 16px; object-fit: contain;">
-          <span class="chewtoy-brand-text">EditorDog</span>
+          <img src="assets/edit.webp" alt="Edit" style="width: 16px; height: 16px; object-fit: contain;">
+          <span class="chewtoy-brand-text">Edit</span>
         </span>
 
         <!-- conf.d Section Quick Jump Selector (Visible for assembled configs) -->
@@ -2215,9 +2216,9 @@
   </div>
 
   <!-- Minimized Editor Floating Pill -->
-  <div class="editor-pill" id="editor-pill" style="display: none;" onclick="restoreFloatingEditor()" title="Click to restore EditorDog (F4)">
-    <img src="assets/edit.webp" alt="EditorDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
-    <span id="editor-pill-text">EditorDog (1 file)</span>
+  <div class="editor-pill" id="editor-pill" style="display: none;" onclick="restoreFloatingEditor()" title="Click to restore Edit (F4)">
+    <img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
+    <span id="editor-pill-text">Edit (1 file)</span>
     <span class="editor-pill-dirty" id="editor-pill-dirty" style="display: none;"></span>
   </div>
 
@@ -2337,8 +2338,8 @@
     <div class="modal-header notedog-header" id="notedog-header">
       <div class="notedog-header-left" style="display: flex; align-items: center; gap: 8px;">
         <span class="notedog-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
-          <img src="assets/note.webp" alt="NoteDog" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
-          <span class="chewtoy-brand-text">NoteDog</span>
+          <img src="assets/note.webp" alt="Notes" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
+          <span class="chewtoy-brand-text">Notes</span>
         </span>
       </div>
 
@@ -2598,8 +2599,8 @@
     <div class="modal-header tetradog-header" id="tetradog-header">
       <div class="tetradog-header-left" style="display: flex; align-items: center; gap: 8px;">
         <span class="tetradog-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
-          <img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
-          <span class="chewtoy-brand-text">TetraDog</span>
+          <img src="assets/amber-tetris.webp" alt="Tetra" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
+          <span class="chewtoy-brand-text">Tetra</span>
         </span>
       </div>
 
@@ -5602,8 +5603,8 @@
     <div class="modal-box" style="width: 680px; max-width: calc(100vw - 32px); max-height: 88vh; display: flex; flex-direction: column;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/amber-pdftool.webp" alt="PDFDog" style="width: 18px; height: 18px; object-fit: contain;">
-          <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 14px;">PDF Power Studio: Merge & Split</span>
+          <img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 18px; height: 18px; object-fit: contain;">
+          <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 14px;">PDF Studio: Merge & Split</span>
         </div>
         <button class="btn btn-icon modal-close-btn" onclick="closeModal('pdf-tool-modal')" title="Close PDF Studio (Esc)"><i data-lucide="x"></i></button>
       </div>

@@ -5,6 +5,21 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1-rc1] - 2026-09-08
+
+### ChewToy Nomenclature Harmonization & Local Mode User Customization (fixes #14)
+- **ChewToy UI Nomenclature Harmonization**: Harmonized user-facing ChewToy brand labels across the navigation launchpad, tools dropdown, Spotlight command palette (`Ctrl+K`), and window titlebars:
+  - `NoteDog` ➔ **`Notes`**
+  - `EditorDog` ➔ **`Edit`**
+  - `PDFDog` ➔ **`PDF Studio`**
+  - `ARFAMP` ➔ **`AMP`**
+  - `TetraDog` ➔ **`Tetra`**
+- **Local Mode Username & Avatar Customization (fixes #14)**:
+  - Enabled full display name/nickname, custom email, and avatar customization in standalone local mode.
+  - Added native OS avatar auto-detection on Linux checking for user dotfiles (`~/.face` and `~/.face.icon`).
+  - Added offline/local persistence fallback via `localStorage` (`cd_local_nickname`, `cd_local_avatar`, `cd_local_email`) ensuring immediate UI updates and profile persistence across refreshes.
+  - Updated `/api/auth/profile` and `/api/auth/me` endpoints to seamlessly handle standalone local user profile synchronization without requiring JWT bearer tokens.
+
 ## [0.8.0-rc9] - 2026-09-08
 
 ### Windows File/Folder Navigation, UNC Normalization & Case-Insensitive VFS (fixes #18)

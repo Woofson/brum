@@ -26,6 +26,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
+use base64::Engine;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::{Any, CorsLayer};
 use tower_http::trace::TraceLayer;
@@ -673,16 +674,43 @@ async fn handle_get_me(
     headers: HeaderMap,
 ) -> Result<Json<User>, (StatusCode, String)> {
     if !state.config.server.enable_auth || state.config.server.standalone {
-        let current_user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
+        let current_user = std::env::var("USER")
+            .or_else(|_| std::env::var("USERNAME"))
+            .unwrap_or_else(|_| "user".to_string());
         let home_dir = dirs::home_dir()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| "/".to_string());
+
+        if let Ok(Some(user)) = state.auth.get_user_by_username(&current_user) {
+            return Ok(Json(user));
+        }
+
+        let mut avatar_url = None;
+        #[cfg(unix)]
+        {
+            if let Some(ref home) = dirs::home_dir() {
+                let face_path = home.join(".face");
+                let face_icon = home.join(".face.icon");
+                if face_path.exists() {
+                    if let Ok(bytes) = std::fs::read(&face_path) {
+                        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
+                        avatar_url = Some(format!("data:{};base64,{}", mime, base64::engine::general_purpose::STANDARD.encode(&bytes)));
+                    }
+                } else if face_icon.exists() {
+                    if let Ok(bytes) = std::fs::read(&face_icon) {
+                        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
+                        avatar_url = Some(format!("data:{};base64,{}", mime, base64::engine::general_purpose::STANDARD.encode(&bytes)));
+                    }
+                }
+            }
+        }
+
         return Ok(Json(User {
             id: 1,
             username: current_user.clone(),
             nickname: Some(current_user),
             email: None,
-            avatar_url: None,
+            avatar_url,
             role: "admin".to_string(),
             home_dir,
             is_pam: false,
@@ -737,26 +765,42 @@ async fn handle_update_profile(
     headers: HeaderMap,
     Json(payload): Json<UpdateProfileRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let _ = state.auth.update_user_profile(
-            &claims.sub,
-            payload.nickname.as_deref(),
-            payload.email.as_deref(),
-            payload.avatar_url.as_deref(),
-        ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update profile: {}", e)))?;
-
-        if let Some(ref new_pass) = payload.new_password {
-            if !new_pass.trim().is_empty() {
-                let _ = state.auth.update_user_password(&claims.sub, new_pass)
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
-            }
+    let username = if !state.config.server.enable_auth || state.config.server.standalone {
+        let current_user = std::env::var("USER")
+            .or_else(|_| std::env::var("USERNAME"))
+            .unwrap_or_else(|_| "user".to_string());
+        if state.auth.get_user_by_username(&current_user).ok().flatten().is_none() {
+            let home_dir = dirs::home_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "/".to_string());
+            let _ = state.auth.create_user(&current_user, "local_no_password", "admin", &home_dir, Some("[\"*\"]"));
         }
+        current_user
+    } else {
+        let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+        if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
+            let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+            claims.sub
+        } else {
+            return Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()));
+        }
+    };
 
-        return Ok(Json(serde_json::json!({ "success": true, "message": "Profile updated successfully" })));
+    let _ = state.auth.update_user_profile(
+        &username,
+        payload.nickname.as_deref(),
+        payload.email.as_deref(),
+        payload.avatar_url.as_deref(),
+    ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update profile: {}", e)))?;
+
+    if let Some(ref new_pass) = payload.new_password {
+        if !new_pass.trim().is_empty() {
+            let _ = state.auth.update_user_password(&username, new_pass)
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
+        }
     }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+
+    Ok(Json(serde_json::json!({ "success": true, "message": "Profile updated successfully" })))
 }
 
 #[derive(Deserialize)]

@@ -9462,9 +9462,12 @@ function resetAvatarToDefault() {
 
 function updateHeaderProfile(user) {
   if (!user) return;
-  const uname = user.nickname || user.username || 'User';
-  const roleStr = (user.role || 'USER').toUpperCase();
-  const avatar = user.avatar_url || '👤';
+  const localNick = localStorage.getItem('cd_local_nickname');
+  const localAvatar = localStorage.getItem('cd_local_avatar');
+  const localEmail = localStorage.getItem('cd_local_email');
+  const uname = localNick || user.nickname || user.username || 'User';
+  const roleStr = (user.role || 'ADMIN').toUpperCase();
+  const avatar = localAvatar || user.avatar_url || '👤';
 
   const headerLabel = document.getElementById('header-username-label');
   const headerBadge = document.getElementById('header-role-badge');
@@ -9478,7 +9481,7 @@ function updateHeaderProfile(user) {
   const menuBadge = document.getElementById('menu-role-badge');
   const menuAvatar = document.getElementById('menu-avatar-large');
   if (menuName) menuName.textContent = uname;
-  if (menuEmail) menuEmail.textContent = user.email || `${user.username}@localhost`;
+  if (menuEmail) menuEmail.textContent = localEmail || user.email || `${user.username || 'user'}@localhost`;
   if (menuBadge) menuBadge.textContent = roleStr;
   if (menuAvatar) renderAvatarElement(menuAvatar, avatar);
 
@@ -9515,10 +9518,10 @@ function updateLogoutOrExitButton() {
 // ---------------- TOOLS & CHEWTOYS LAUNCHPAD MENU CUSTOMIZER ----------------
 const DEFAULT_TOOLS_MENU = [
   { id: 'spotlight', label: 'Spot!', icon: 'assets/spot.webp', action: 'openSpotlightModal()', desc: 'Instant search across files, tools & themes (Ctrl+K)', visible: true },
-  { id: 'notedog', label: 'NoteDog', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
+  { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
   { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
   { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (\`)', visible: true },
-  { id: 'editor', label: 'EditorDog', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
+  { id: 'editor', label: 'Edit', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
   { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal()', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
   { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager()', desc: 'Manage public share links and guest dropboxes', visible: true },
@@ -9526,9 +9529,9 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'du', label: 'Stats', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'ConvertX', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
-  { id: 'pdf', label: 'PDFDog', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
-  { id: 'sounddog', label: 'ARFAMP', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & real-time equalizer', visible: true },
-  { id: 'tetradog', label: 'TetraDog', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade Tetris chewtoy with synchronized top scores', visible: true },
+  { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
+  { id: 'sounddog', label: 'AMP', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & real-time equalizer', visible: true },
+  { id: 'tetradog', label: 'Tetra', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle chewtoy with synchronized top scores', visible: true },
   { id: 'tasks', label: 'Task Manager', icon: 'assets/task.webp', action: 'openFloatingTaskManager()', desc: 'Active transfers, speeds & queue control', visible: true }
 ];
 
@@ -9881,20 +9884,27 @@ function openUserProfileModal() {
   const editBadge = document.getElementById('profile-edit-role-badge');
   const editAuthType = document.getElementById('profile-edit-auth-type');
 
-  if (editAvatar) renderAvatarElement(editAvatar, user.avatar_url || '👤');
-  if (editUname) editUname.textContent = user.username || 'User';
-  if (editBadge) editBadge.textContent = (user.role || 'USER').toUpperCase();
-  if (editAuthType) editAuthType.textContent = user.is_pam ? 'PAM / Local Linux Account' : 'Internal Database Account';
+  const localNick = localStorage.getItem('cd_local_nickname');
+  const localAvatar = localStorage.getItem('cd_local_avatar');
+  const localEmail = localStorage.getItem('cd_local_email');
+
+  if (editAvatar) renderAvatarElement(editAvatar, localAvatar || user.avatar_url || '👤');
+  if (editUname) editUname.textContent = localNick || user.nickname || user.username || 'User';
+  if (editBadge) editBadge.textContent = (user.role || 'ADMIN').toUpperCase();
+  if (editAuthType) editAuthType.textContent = (App.isStandalone || !App.token) ? 'Local Standalone Mode' : (user.is_pam ? 'PAM / Local Linux Account' : 'Internal Database Account');
 
   const nickInput = document.getElementById('profile-input-nickname');
   const emailInput = document.getElementById('profile-input-email');
   const avatarInput = document.getElementById('profile-input-avatar');
   const passInput = document.getElementById('profile-input-password');
 
-  if (nickInput) nickInput.value = user.nickname || '';
-  if (emailInput) emailInput.value = user.email || '';
-  if (avatarInput) avatarInput.value = user.avatar_url || '';
+  if (nickInput) nickInput.value = localNick || user.nickname || '';
+  if (emailInput) emailInput.value = localEmail || user.email || '';
+  if (avatarInput) avatarInput.value = localAvatar || user.avatar_url || '';
   if (passInput) passInput.value = '';
+
+  const passSection = document.getElementById('profile-password-section');
+  if (passSection) passSection.style.display = (App.isStandalone || !App.token) ? 'none' : 'block';
 
   const statusMsg = document.getElementById('profile-status-msg');
   if (statusMsg) statusMsg.style.display = 'none';
@@ -9916,10 +9926,28 @@ async function saveUserProfile() {
     statusMsg.textContent = 'Saving profile...';
   }
 
+  // Persist locally in localStorage for standalone / immediate UI feedback
+  if (nickname) localStorage.setItem('cd_local_nickname', nickname);
+  else localStorage.removeItem('cd_local_nickname');
+  if (avatar_url) localStorage.setItem('cd_local_avatar', avatar_url);
+  else localStorage.removeItem('cd_local_avatar');
+  if (email) localStorage.setItem('cd_local_email', email);
+  else localStorage.removeItem('cd_local_email');
+
+  if (!App.user) App.user = {};
+  if (nickname) App.user.nickname = nickname;
+  if (avatar_url) App.user.avatar_url = avatar_url;
+  if (email) App.user.email = email;
+  updateHeaderProfile(App.user);
+
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (App.token) {
+      headers['Authorization'] = `Bearer ${App.token}`;
+    }
     const resp = await fetch('/api/auth/profile', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers,
       body: JSON.stringify({ nickname, email, avatar_url, new_password })
     });
 
@@ -9929,14 +9957,14 @@ async function saveUserProfile() {
         statusMsg.textContent = 'Profile updated successfully!';
       }
       // Re-fetch me
-      const meResp = await fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${App.token}` }
-      });
+      const meHeaders = {};
+      if (App.token) meHeaders['Authorization'] = `Bearer ${App.token}`;
+      const meResp = await fetch('/api/auth/me', { headers: meHeaders });
       if (meResp.ok) {
         App.user = await meResp.json();
         updateHeaderProfile(App.user);
       }
-      setTimeout(() => closeModal('profile-modal'), 1000);
+      setTimeout(() => closeModal('profile-modal'), 800);
     } else {
       if (statusMsg) {
         statusMsg.style.color = 'var(--danger)';
@@ -9945,9 +9973,10 @@ async function saveUserProfile() {
     }
   } catch (e) {
     if (statusMsg) {
-      statusMsg.style.color = 'var(--danger)';
-      statusMsg.textContent = `Error: ${e}`;
+      statusMsg.style.color = 'var(--success)';
+      statusMsg.textContent = 'Profile saved locally!';
     }
+    setTimeout(() => closeModal('profile-modal'), 800);
   }
 }
 
@@ -20986,13 +21015,13 @@ let spotlightSelectedIndex = 0;
 let spotlightItems = [];
 
 const SPOTLIGHT_STATIC_ACTIONS = [
-  { id: 'notedog', title: 'NoteDog', sub: 'Hierarchical notes, markdown editor, interactive checklists, templates & versions', icon: 'assets/note.webp', cat: 'actions', action: () => openFloatingNoteDog() },
+  { id: 'notedog', title: 'Notes', sub: 'Hierarchical notes, markdown editor, interactive checklists, templates & versions', icon: 'assets/note.webp', cat: 'actions', action: () => openFloatingNoteDog() },
   { id: 'calc', title: 'Calculator', sub: 'Interactive floating calculator with storage units & base conversions', icon: 'assets/calc.webp', cat: 'actions', action: () => openFloatingCalculator() },
   { id: 'branch', title: 'Flat', sub: 'Flatten all subdirectories into a single unified list (Ctrl+B)', icon: 'assets/amber-git-branch.webp', cat: 'actions', action: () => toggleBranchView() },
   { id: 'tree', title: 'Tree', sub: 'Collapsible directory navigation tree (Ctrl+T)', icon: 'assets/amber-folder-tree.webp', cat: 'actions', action: () => toggleFolderTree() },
   { id: 'tags', title: 'Color Labels & Custom Tags', sub: 'Assign color labels and custom tags to selected items', icon: 'tag', cat: 'actions', action: () => triggerEditTagsModal() },
   { id: 'term', title: 'Terminal', sub: 'Open integrated interactive terminal (` or F4)', icon: 'assets/term.webp', cat: 'actions', action: () => toggleTerminal() },
-  { id: 'edit', title: 'EditorDog', sub: 'Open floating EditorDog code & text editor (F4)', icon: 'assets/edit.webp', cat: 'actions', action: () => openFloatingEditor() },
+  { id: 'edit', title: 'Edit', sub: 'Open floating Edit code & text editor (F4)', icon: 'assets/edit.webp', cat: 'actions', action: () => openFloatingEditor() },
   { id: 'diff', title: 'Compare', sub: 'Compare files or directories side-by-side (F9)', icon: 'assets/diff.webp', cat: 'actions', action: () => triggerDiff() },
   { id: 'search', title: 'Search', sub: 'Search files and folders recursively (Ctrl+F)', icon: 'assets/search.webp', cat: 'actions', action: () => openSearchModal() },
   { id: 'shares', title: 'Share Manager', sub: 'Manage public share links and guest upload dropboxes', icon: 'assets/sharemgr.webp', cat: 'actions', action: () => openSharesManager() },
@@ -21000,9 +21029,9 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'du', title: 'Stats', sub: 'Disk Usage & Storage Treemap Analyzer: inspect space consumption', icon: 'assets/amber-piechart.webp', cat: 'actions', action: () => openDiskUsageModal() },
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'ConvertX', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
-  { id: 'pdf', title: 'PDFDog', sub: 'PDF Power Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
-  { id: 'sounddog', title: 'ARFAMP', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
-  { id: 'tetradog', title: 'TetraDog', sub: 'Classic arcade Tetris chewtoy with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
+  { id: 'pdf', title: 'PDF Studio', sub: 'PDF Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
+  { id: 'sounddog', title: 'AMP', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
+  { id: 'tetradog', title: 'Tetra', sub: 'Classic arcade block puzzle chewtoy with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
