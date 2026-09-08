@@ -51,6 +51,12 @@ fn main() {
                             win_builder = win_builder.title_bar_style(tauri::TitleBarStyle::Overlay);
                         }
 
+                        if let Some(icon) = handle.default_window_icon() {
+                            if let Ok(builder) = win_builder.icon(icon.clone()) {
+                                win_builder = builder;
+                            }
+                        }
+
                         match win_builder.build() {
                             Ok(window) => {
                                 let window_clone = window.clone();
@@ -82,10 +88,16 @@ fn main() {
             let quit_i = MenuItem::with_id(app, "quit", "❌ Quit CommanderDog", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &hide_i, &browser_i, &sep, &quit_i])?;
 
-            let _tray = TrayIconBuilder::new()
+            let mut tray_builder = TrayIconBuilder::new()
                 .menu(&menu)
                 .tooltip("CommanderDog - Multi-Tab File Commander")
-                .show_menu_on_left_click(false)
+                .show_menu_on_left_click(false);
+
+            if let Some(icon) = app.default_window_icon() {
+                tray_builder = tray_builder.icon(icon.clone());
+            }
+
+            let _tray = tray_builder
                 .on_menu_event(|app, event| match event.id.as_ref() {
                     "show" => {
                         if let Some(window) = app.get_webview_window("main") {

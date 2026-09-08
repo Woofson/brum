@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [0.8.1-rc1] - 2026-09-08
 
-### ChewToy Nomenclature, Context Menu Auto-Dismiss & Local Mode Profile Customization (fixes #14, fixes #17)
+### ChewToy Nomenclature, Context Menu Auto-Dismiss, Windows Desktop Icon & Local Profile Customization (fixes #14, fixes #17, fixes #20)
+- **Windows Standalone Taskbar & Tray Icon Fix (fixes #20)**:
+  - Resolved missing taskbar icon when running CommanderDog Desktop in standalone/portable mode on Windows.
+  - Explicitly assigned embedded default window icons to programmatic `WebviewWindowBuilder` instances and system tray builders during app initialization.
 - **Context Menu & Tools Auto-Dismiss Unified Behavior (fixes #17)**:
   - Resolved issue where triggering file actions (Rename, Delete, Quick View, Edit, Copy/Move to pane, Archive, Custom actions) left the right-click context menu open on screen.
   - Upgraded context click listener delegation so clicking actionable items inside nested submenus (New, Copy to, Move to, Archive, Tools) or top-level actions immediately dismisses the context menu while executing the requested action.
