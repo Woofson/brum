@@ -1,6 +1,6 @@
 [package]
 name = "commanderdog"
-version = "0.8.0-rc3"
+version = "0.8.0-rc4"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Tab Web Commander - By Woofson"

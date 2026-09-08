@@ -2815,7 +2815,14 @@ function renderPaneTable(paneIndex) {
           </div>
         </td>
         <td class="file-cell file-cell-name">
-          <span class="file-name-text" style="font-weight: 700; color: var(--accent); font-size: 13px;">..</span>
+          <div class="file-name-wrapper">
+            <div class="file-name-title-row">
+              <span class="file-name-text" style="font-weight: 700; color: var(--accent); font-size: 13px;">..</span>
+            </div>
+            <div class="file-subtext-mobile">
+              <span class="subtext-size" style="color: var(--accent);">&lt;UP&gt;</span>
+            </div>
+          </div>
         </td>
         ${ColumnConfig.visibility.ext ? '<td class="file-cell file-cell-mono">-</td>' : ''}
         ${ColumnConfig.visibility.size ? '<td class="file-cell file-cell-mono file-cell-size" style="color: var(--accent); font-weight: 600;">&lt;UP&gt;</td>' : ''}
@@ -2900,27 +2907,29 @@ function renderPaneTable(paneIndex) {
         isLongPress = false;
 
         touchTimer = setTimeout(() => {
-          if (isScrolling) return;
-          isLongPress = true;
-          setActivePane(paneIndex);
-          if (pane.selected.has(entry.path)) {
-            pane.selected.delete(entry.path);
-          } else {
-            pane.selected.add(entry.path);
+          if (!isScrolling) {
+            isLongPress = true;
+            if (navigator.vibrate) navigator.vibrate(40);
+            setActivePane(paneIndex);
+            if (!pane.selected.has(entry.path)) {
+              pane.selected.add(entry.path);
+              pane.anchorIndex = idx;
+              pane.cursorIndex = idx;
+              renderPaneTable(paneIndex);
+              updateMobileBottomBar();
+            }
+            App.contextItem = entry;
+            App.contextPaneIndex = paneIndex;
+            showContextMenu(touchStartX, touchStartY);
           }
-          pane.cursorIndex = idx;
-          pane.anchorIndex = idx;
-          renderPaneTable(paneIndex);
-          updateMobileBottomBar();
-          if (navigator.vibrate) navigator.vibrate(40);
-        }, 400);
+        }, 500);
       };
 
       tr.ontouchmove = (e) => {
         if (!e.touches || e.touches.length === 0) return;
         const dx = Math.abs(e.touches[0].clientX - touchStartX);
         const dy = Math.abs(e.touches[0].clientY - touchStartY);
-        if (dx > 5 || dy > 5) {
+        if (dx > 8 || dy > 8) {
           isScrolling = true;
           if (touchTimer) {
             clearTimeout(touchTimer);
@@ -2934,9 +2943,10 @@ function renderPaneTable(paneIndex) {
           clearTimeout(touchTimer);
           touchTimer = null;
         }
-        if (isLongPress || isScrolling) return;
-        const pressDuration = Date.now() - touchStartTime;
-        if (pressDuration < 350) {
+        if (isScrolling || isLongPress) return;
+
+        const duration = Date.now() - touchStartTime;
+        if (duration < 400) {
           e.preventDefault();
           setActivePane(paneIndex);
           if (pane.selected.size > 0) {
@@ -3032,7 +3042,18 @@ function renderPaneTable(paneIndex) {
           </div>
         </td>
         <td class="file-cell file-cell-name">
-          <span class="file-name-text">${escapeHtml(entry.name)}</span>${tagsHtml}
+          <div class="file-name-wrapper">
+            <div class="file-name-title-row">
+              <span class="file-name-text">${escapeHtml(entry.name)}</span>${tagsHtml}
+            </div>
+            <div class="file-subtext-mobile">
+              <span class="subtext-size">${entry.is_dir ? '&lt;DIR&gt;' : formatBytes(entry.size)}</span>
+              <span class="subtext-sep">•</span>
+              <span class="subtext-perms" title="Permissions">${escapeHtml(entry.permissions || entry.mode_octal || '-')}</span>
+              ${entry.owner ? `<span class="subtext-sep">•</span><span class="subtext-owner">${escapeHtml(entry.owner)}${entry.group ? ':' + escapeHtml(entry.group) : ''}</span>` : ''}
+              ${entry.modified ? `<span class="subtext-sep">•</span><span class="subtext-date">${formatDate(entry.modified)}</span>` : ''}
+            </div>
+          </div>
         </td>
         ${ColumnConfig.visibility.ext ? `<td class="file-cell file-cell-mono">${entry.is_dir ? '' : escapeHtml(ext)}</td>` : ''}
         ${ColumnConfig.visibility.size ? `<td class="file-cell file-cell-mono file-cell-size">${entry.is_dir ? '<DIR>' : formatBytes(entry.size)}</td>` : ''}

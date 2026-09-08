@@ -5,6 +5,14 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc4] - 2026-09-08
+
+### Responsive Viewports, Mobile Permissions Subtext & Standardized Form Controls
+- **Phone Viewport Permissions & Ownership Subtext**: Added mobile metadata subtext (`.file-subtext-mobile`) displaying file size, UNIX permissions (`rwxr-xr-x`), and owner/group (`user:group`) directly below file names on Phone viewports (<600px) (#8).
+- **Adaptive Micro-Text Typography Scaling**: Tuned font hierarchies, line heights, tag badges, breadcrumbs, and bottom action bar buttons for Phone touch viewports (<600px) and Tablet/Foldable screens (600px–1024px) (#5, #6).
+- **Theme Engine Standardized Form Controls**: Harmonized theme-aware form styling across *Woofsons Amber Charcoal* (Dark) and *Woofsons Amber Zink* (Light), featuring custom amber-accent tickboxes, radio buttons, focus rings, and custom SVG chevron dropdown selects (#10).
+- **Token-Efficient GitHub Backlog Triage Helper**: Added [`scripts/issues.sh`](file:///home/bolt/projects/commanderdog/scripts/issues.sh) CLI utility for compact, token-efficient issue queries and category digests.
+
 ## [0.8.0-rc3] - 2026-09-08
 
 ### Integrated Terminal WebSocket Safety, Prompt Redraw & Viewport Fit
