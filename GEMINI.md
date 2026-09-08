@@ -1,10 +1,10 @@
-# 🐕 CommanderDog Project Rules & Development Guidelines
+# CommanderDog Project Rules & Development Guidelines
 
-Welcome to the **CommanderDog** project repository. All agents and pair-programming sessions must strictly follow the rules and conventions below.
+Welcome to the **CommanderDog** project repository. All agents and pair-programming sessions must strictly adhere to the rules and conventions below.
 
 ---
 
-## 1. 🏷️ Versioning & Iteration Rules
+## 1. Versioning & Iteration Rules
 
 * **Iteration Release Candidates (`rc1-rc9`)**: Every time changes/iterations are made to the codebase between official releases, bump the release candidate postfix using SemVer `rc1` through `rc9` (e.g. `0.7.1-rc1`, `0.7.1-rc2`, `0.7.1-rc3`...) in `Cargo.toml`. When an official milestone release is finalized, drop the `-rc` suffix (e.g. `0.7.1`).
 * **Centralized Single Source of Truth**:
@@ -15,7 +15,7 @@ Welcome to the **CommanderDog** project repository. All agents and pair-programm
 
 ---
 
-## 2. ⚡ Rebuild vs Refresh Notifications
+## 2. Rebuild vs Refresh Notifications
 
 At the end of every response after making changes, **always clearly inform the user** whether:
 1. **Backend Recompile Needed**: When Rust code (`src/**/*.rs`), dependencies, or assets embedded into the binary have changed. Instruct the user to restart/rebuild with `cargo run` or `cargo build`.
@@ -23,24 +23,35 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 3. 🚀 Git Workflow & Release Channels
+## 3. Git Workflow, GitHub Issues & Roadmap Synchronization
 
+* **Routinely Work from GitHub Issues**:
+  * Treat GitHub Issues on `Woofson/commanderdog` as an integral part of the active development cycle.
+  * Regularly query, check, and update issues using the GitHub CLI (`gh issue list`, `gh issue view`, `gh issue create`, `gh issue comment`, `gh issue close`).
+  * When implementing features or fixing bugs, cross-reference the corresponding issue number in commit messages (e.g. `fix(notedog): resolve dropdown lag in docked mode (fixes #1)`).
+* **Documentation & Roadmap Alignment**:
+  * Before every git commit or push, ensure that `ROADMAP.md`, `CHANGELOG.md`, and all project documentation are fully synchronized, updated, and aligned with recent codebase changes and GitHub issues.
 * **Command: `"push to git"`**:
-  * Commit the modified files with a clean message and push to the remote Git repository.
+  * Commit modified files with a clean, conventional commit message and push to the remote Git repository.
   * **DO NOT trigger releases or publish packages.**
 * **Command: `"push and release"`**:
-  * Commit, tag, push, and execute release automation across **ALL** distribution channels:
-    1. **Docker / GHCR**: `ghcr.io/woofson/commanderdog`
-    2. **Arch Linux AUR**: `commanderdog` and `commanderdog-bin` PKGBUILDs.
-    3. **Crates.io**: `cargo publish` using the `arf-` prefix rule (`arf-cmdr`).
-    4. **Windows**: Scoop bucket and Winget package manifests (`packaging/windows/`).
-* **Documentation & Roadmap Alignment**:
-  * Before every git commit or push, ensure that `ROADMAP.md`, `CHANGELOG.md`, and all project documentation are fully synchronized, updated, and aligned with recent codebase changes.
-* **Crates.io Upload Ready**: Cargo is fully configured and ready for upload to crates.io with publishing prefix rules.
+  * Commit, tag, push, and execute release automation across **ALL** distribution channels via `scripts/release.sh`:
+    1. **GitHub Release & Tags**: Tagged release on GitHub.
+    2. **Arch Linux AUR**: `commanderdog` (source) and `commanderdog-bin` PKGBUILDs.
+    3. **Docker / GHCR**: `ghcr.io/woofson/commanderdog`.
+    4. **Crates.io**: `cargo publish` using the `arf-` prefix rule (`arf-cmdr`).
+    5. **Windows**: Scoop bucket and Winget package manifests (`packaging/windows/`).
 
 ---
 
-## 4. 🎨 Brand & Theme Nomenclature
+## 4. Professional Tone & Minimal Emoji Policy
+
+* **Minimal Emotes**: Keep emojis and emotes to a strict minimum in all responses, documentation, commit messages, and UI text.
+* **Professional Engineering Tone**: Maintain a sharp, direct, high-signal tone with subtle hints of brand identity where appropriate, avoiding over-the-top emoji spam in headings and bullet points.
+
+---
+
+## 5. Brand & Theme Nomenclature
 
 * **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac)).
 * **Publishing Prefix Rule**: All publishing packages, binaries, and crates must use the `arf-` or `arf_` prefix (e.g., `arf-cmdr` for CommanderDog/Shunt, `arf-remote` for RemoteDog).
@@ -50,19 +61,19 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 5. 🖥️ Viewport & UI Terminology
+## 6. Viewport & UI Terminology
 
 * **Viewport Terms**:
-  * `Phone` (mobile touch)
-  * `Tablet` (foldables / tablets touch)
-  * `PC` (desktop / laptop mouse & keyboard)
+  * `Phone`: Mobile touch screens (`<600px`). Requires single-pane focus, hidden branding badges, and minimal micro-text.
+  * `Tablet`: Foldables and tablet touch screens (`600px–1024px`). Requires adaptive single/dual panel options, sliding note drawers, and legible touch hierarchy.
+  * `PC`: Desktop & laptop mouse & keyboard (`>1024px`). Full multi-panel, resizable columns, and dockable ChewToys.
 * **Panels vs Tabs**:
   * File browsing areas are strictly termed **"Panels"** (e.g., Left Panel, Right Panel, Pane 1, Pane 2).
   * The word **"Tabs"** is strictly reserved for Settings modal tabs and Editor tabs.
 
 ---
 
-## 6. 🛠️ Universal Viewer & Terminal Standards
+## 7. Universal Viewer & Terminal Standards
 
 * **Universal Document & Text Viewer**:
   * Dynamic tools (`tail -f`, line count selector `-n`, word wrap, refresh, scroll to bottom) and window actions must be **right-aligned** in `.doc-viewer-header-right`.
@@ -74,7 +85,7 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 7. 🪟 ChewToy Design & Layout Language Specification
+## 8. ChewToy Design & Layout Language Specification
 
 Whenever creating a new ChewToy (built-in power tool), modal, or floating utility, or modifying existing ones, strictly adhere to the following UI/UX architecture:
 
@@ -99,4 +110,3 @@ Whenever creating a new ChewToy (built-in power tool), modal, or floating utilit
 ### 4. Tool & Terminal Lifecycle Protocols
 * Interactive CLI Chewtoys (e.g., Bite! Terminal) must cleanly handle EOF (`Ctrl+D`), `logout`, and `exit` to automatically close the docked drawer/window and reset PTY state.
 * ChewToys must gracefully remember user preferences (active layouts, selected views, column sizes) via `localStorage` or backend configuration.
-
