@@ -5,6 +5,15 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc9] - 2026-09-08
+
+### Windows File/Folder Navigation, UNC Normalization & Case-Insensitive VFS (fixes #18)
+- **Windows File & Folder Navigation**: Resolved issue where clicking or entering files/folders on Windows would fail (#18). Backend and frontend now properly resolve and navigate Windows drives, folders, and network shares.
+- **UNC & Verbatim Prefix Normalization**: Implemented `clean_path_buf` and `dunce_canonicalize` to automatically strip extended-length `\\?\` and `\\?\UNC\` verbatim prefixes from canonicalized paths, preventing access-control failures and broken breadcrumbs.
+- **Case-Insensitive Path Access Validation**: Upgraded backend `validate_path_access` and `path_starts_with_case_insensitive` to perform case-insensitive component matching for Windows drives and directories (e.g. `c:\` vs `C:\`), resolving spurious 403 Forbidden errors.
+- **Windows System Roots & Initial Pathing**: Updated default root path on Windows to point to the user's home directory or `C:\` instead of `/`. Tree folder view now dynamically loads Windows drives without displaying a broken `/` root item.
+- **Robust Cross-Platform Path Helpers**: Updated frontend `getBasename` and `getParentDirectory` to handle both `/` and `\` directory separators across all protocols (local, Windows drives, UNC, SFTP, SMB, vaults, archives).
+
 ## [0.8.0-rc8] - 2026-09-08
 
 ### Discrete Column Separators & Theme-Aware Gridlines

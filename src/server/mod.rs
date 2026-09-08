@@ -275,7 +275,9 @@ pub struct SystemStatusResponse {
 }
 
 async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatusResponse> {
-    let current_user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
+    let current_user = std::env::var("USERNAME")
+        .or_else(|_| std::env::var("USER"))
+        .unwrap_or_else(|_| "user".to_string());
     let home_dir = dirs::home_dir()
         .map(|p| p.to_string_lossy().to_string())
         .unwrap_or_else(|| "/".to_string());
@@ -312,7 +314,9 @@ fn extract_claims_or_local(
     headers: &HeaderMap,
 ) -> Result<crate::auth::Claims, (StatusCode, String)> {
     if !state.config.server.enable_auth || state.config.server.standalone {
-        let current_user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
+        let current_user = std::env::var("USERNAME")
+            .or_else(|_| std::env::var("USER"))
+            .unwrap_or_else(|_| "user".to_string());
         let home_dir = dirs::home_dir()
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| "/".to_string());
@@ -348,8 +352,9 @@ fn extract_claims_or_local(
 }
 
 pub fn normalize_path(path: &Path) -> PathBuf {
+    let clean = crate::vfs::local::clean_path_buf(path);
     let mut components = Vec::new();
-    for component in path.components() {
+    for component in clean.components() {
         match component {
             std::path::Component::Prefix(..) => {
                 components.clear();
@@ -378,6 +383,92 @@ pub fn normalize_path(path: &Path) -> PathBuf {
     components.into_iter().collect()
 }
 
+pub fn path_starts_with_case_insensitive(path: &Path, prefix: &Path) -> bool {
+    let path = crate::vfs::local::clean_path_buf(path);
+    let prefix = crate::vfs::local::clean_path_buf(prefix);
+
+    let path_comps: Vec<_> = path.components().collect();
+    let prefix_comps: Vec<_> = prefix.components().collect();
+
+    if prefix_comps.len() > path_comps.len() {
+        return false;
+    }
+
+    // Check if this is a Windows path (drive prefix or UNC prefix or Windows OS)
+    let is_windows_path = cfg!(windows)
+        || path_comps.first().map_or(false, |c| match c {
+            std::path::Component::Prefix(..) => true,
+            std::path::Component::Normal(n) => {
+                let s = n.to_string_lossy();
+                s.len() == 2 && s.as_bytes()[0].is_ascii_alphabetic() && s.as_bytes()[1] == b':'
+            }
+            _ => false,
+        })
+        || prefix_comps.first().map_or(false, |c| match c {
+            std::path::Component::Prefix(..) => true,
+            std::path::Component::Normal(n) => {
+                let s = n.to_string_lossy();
+                s.len() == 2 && s.as_bytes()[0].is_ascii_alphabetic() && s.as_bytes()[1] == b':'
+            }
+            _ => false,
+        });
+
+    for (p_comp, pre_comp) in path_comps.iter().zip(prefix_comps.iter()) {
+        match (p_comp, pre_comp) {
+            (std::path::Component::Prefix(p_prefix), std::path::Component::Prefix(pre_prefix)) => {
+                let p_kind = p_prefix.kind();
+                let pre_kind = pre_prefix.kind();
+                match (p_kind, pre_kind) {
+                    (std::path::Prefix::Disk(d1), std::path::Prefix::Disk(d2))
+                    | (std::path::Prefix::VerbatimDisk(d1), std::path::Prefix::Disk(d2))
+                    | (std::path::Prefix::Disk(d1), std::path::Prefix::VerbatimDisk(d2))
+                    | (std::path::Prefix::VerbatimDisk(d1), std::path::Prefix::VerbatimDisk(d2)) => {
+                        if !d1.eq_ignore_ascii_case(&d2) {
+                            return false;
+                        }
+                    }
+                    (std::path::Prefix::UNC(s1, sh1), std::path::Prefix::UNC(s2, sh2))
+                    | (std::path::Prefix::VerbatimUNC(s1, sh1), std::path::Prefix::UNC(s2, sh2))
+                    | (std::path::Prefix::UNC(s1, sh1), std::path::Prefix::VerbatimUNC(s2, sh2))
+                    | (std::path::Prefix::VerbatimUNC(s1, sh1), std::path::Prefix::VerbatimUNC(s2, sh2)) => {
+                        if !s1.to_string_lossy().eq_ignore_ascii_case(&s2.to_string_lossy())
+                            || !sh1.to_string_lossy().eq_ignore_ascii_case(&sh2.to_string_lossy())
+                        {
+                            return false;
+                        }
+                    }
+                    _ => {
+                        if p_prefix.as_os_str().to_string_lossy().to_ascii_lowercase()
+                            != pre_prefix.as_os_str().to_string_lossy().to_ascii_lowercase()
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            (std::path::Component::RootDir, std::path::Component::RootDir) => {}
+            (std::path::Component::Normal(p_str), std::path::Component::Normal(pre_str)) => {
+                if is_windows_path {
+                    if !p_str.to_string_lossy().eq_ignore_ascii_case(&pre_str.to_string_lossy()) {
+                        return false;
+                    }
+                } else {
+                    if p_str != pre_str {
+                        return false;
+                    }
+                }
+            }
+            _ => {
+                if p_comp != pre_comp {
+                    return false;
+                }
+            }
+        }
+    }
+
+    true
+}
+
 pub fn validate_path_access(
     state: &AppState,
     headers: &HeaderMap,
@@ -403,8 +494,35 @@ pub fn validate_path_access(
         user_home.clone()
     } else if let Some(stripped) = raw_path.strip_prefix("~/") {
         Path::new(user_home).join(stripped).to_string_lossy().to_string()
+    } else if let Some(stripped) = raw_path.strip_prefix(r"~\") {
+        Path::new(user_home).join(stripped).to_string_lossy().to_string()
     } else {
-        raw_path.to_string()
+        #[cfg(windows)]
+        {
+            if (raw_path == "/" || raw_path == "\\") && user_home != "/" {
+                user_home.clone()
+            } else if (raw_path.starts_with('/') || raw_path.starts_with('\\'))
+                && raw_path.len() >= 3
+                && raw_path.as_bytes()[1].is_ascii_alphabetic()
+                && raw_path.as_bytes()[2] == b':'
+            {
+                raw_path[1..].to_string()
+            } else {
+                raw_path.to_string()
+            }
+        }
+        #[cfg(not(windows))]
+        {
+            if (raw_path.starts_with('/') || raw_path.starts_with('\\'))
+                && raw_path.len() >= 3
+                && raw_path.as_bytes()[1].is_ascii_alphabetic()
+                && raw_path.as_bytes()[2] == b':'
+            {
+                raw_path[1..].to_string()
+            } else {
+                raw_path.to_string()
+            }
+        }
     };
 
     let normalized = normalize_path(Path::new(&expanded));
@@ -418,7 +536,7 @@ pub fn validate_path_access(
 
     // Always permit user within their designated home directory
     let norm_home = normalize_path(Path::new(user_home));
-    if normalized.starts_with(&norm_home) {
+    if path_starts_with_case_insensitive(&normalized, &norm_home) {
         return Ok(norm_str);
     }
 
@@ -429,7 +547,7 @@ pub fn validate_path_access(
 
         if role_ok && user_ok {
             let norm_root = normalize_path(Path::new(&root.path));
-            if normalized.starts_with(&norm_root) {
+            if path_starts_with_case_insensitive(&normalized, &norm_root) {
                 if is_write && root.read_only {
                     return Err((StatusCode::FORBIDDEN, format!("Storage root '{}' is configured as read-only", root.name)));
                 }
@@ -4390,6 +4508,48 @@ mod tests {
         assert_eq!(normalize_path(Path::new("/home/user/../user/docs")), Path::new("/home/user/docs"));
         assert_eq!(normalize_path(Path::new("/var/log/../../etc/passwd")), Path::new("/etc/passwd"));
         assert_eq!(normalize_path(Path::new("/")), Path::new("/"));
+        #[cfg(windows)]
+        {
+            assert_eq!(
+                normalize_path(Path::new(r"\\?\C:\Users\Bolt\Documents")),
+                Path::new(r"C:\Users\Bolt\Documents")
+            );
+            assert_eq!(
+                normalize_path(Path::new(r"\\?\UNC\server\share\data")),
+                Path::new(r"\\server\share\data")
+            );
+        }
+        #[cfg(not(windows))]
+        {
+            assert_eq!(
+                normalize_path(Path::new(r"\\?\C:\Users\Bolt\Documents")),
+                Path::new("C:/Users/Bolt/Documents")
+            );
+            assert_eq!(
+                normalize_path(Path::new(r"\\?\UNC\server\share\data")),
+                Path::new("//server/share/data")
+            );
+        }
+    }
+
+    #[test]
+    fn test_path_starts_with_case_insensitive() {
+        assert!(path_starts_with_case_insensitive(
+            Path::new("C:/Users/Bolt/Documents/file.txt"),
+            Path::new("c:/users/bolt")
+        ));
+        assert!(path_starts_with_case_insensitive(
+            Path::new(r"\\?\C:\Users\Bolt\Documents"),
+            Path::new(r"c:\users\bolt")
+        ));
+        assert!(path_starts_with_case_insensitive(
+            Path::new("/home/bolt/projects"),
+            Path::new("/home/bolt")
+        ));
+        assert!(!path_starts_with_case_insensitive(
+            Path::new("/home/other/projects"),
+            Path::new("/home/bolt")
+        ));
     }
 
     #[tokio::test]

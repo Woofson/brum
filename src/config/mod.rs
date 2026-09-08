@@ -93,7 +93,19 @@ impl Default for ServerConfig {
 
 fn default_host() -> String { "0.0.0.0".to_string() }
 fn default_port() -> u16 { 3140 }
-fn default_root_path() -> String { "/".to_string() }
+fn default_root_path() -> String {
+    #[cfg(windows)]
+    {
+        if let Some(home) = dirs::home_dir() {
+            return home.to_string_lossy().to_string();
+        }
+        "C:\\".to_string()
+    }
+    #[cfg(not(windows))]
+    {
+        "/".to_string()
+    }
+}
 fn default_upload_max_mb() -> usize { 10240 } // 10 GB
 fn default_true() -> bool { true }
 fn default_jwt_secret() -> String { "commanderdog-super-secret-jwt-key-2026".to_string() }

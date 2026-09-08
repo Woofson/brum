@@ -44,7 +44,97 @@ if (App.token) {
 
 function getBasename(path) {
   if (!path) return '';
-  return path.split('/').filter(Boolean).pop() || path;
+  const clean = String(path).replace(/[\\/]+$/, '');
+  return clean.split(/[\\/]/).filter(Boolean).pop() || clean;
+}
+
+function getParentDirectory(path) {
+  if (!path) return null;
+  const str = String(path);
+
+  // Archive protocol: archive:///path/to/archive.zip#sub/folder
+  if (str.startsWith('archive://')) {
+    const [arch, sub] = str.replace('archive://', '').split('#');
+    if (sub && (sub.includes('/') || sub.includes('\\'))) {
+      const subParts = sub.split(/[\\/]/).filter(Boolean);
+      subParts.pop();
+      return subParts.length > 0 ? `archive://${arch}#${subParts.join('/')}` : `archive://${arch}#`;
+    } else if (sub) {
+      return `archive://${arch}#`;
+    }
+    const cleanArch = arch.replace(/[\\/]+$/, '');
+    const archParts = cleanArch.split(/[\\/]/).filter(Boolean);
+    archParts.pop();
+    return archParts.length === 0 ? '/' : (arch.includes('\\') ? archParts.join('\\') : '/' + archParts.join('/'));
+  }
+
+  // Vault protocol: vault:///path/to/vault.sec#sub/folder
+  if (str.startsWith('vault://')) {
+    const [vaultFile, sub] = str.replace('vault://', '').split('#');
+    if (sub && (sub.includes('/') || sub.includes('\\'))) {
+      const subParts = sub.split(/[\\/]/).filter(Boolean);
+      subParts.pop();
+      return subParts.length > 0 ? `vault://${vaultFile}#${subParts.join('/')}` : `vault://${vaultFile}#`;
+    }
+    return `vault://${vaultFile}#`;
+  }
+
+  // Remote URI: sftp://, smb://, webdav://, proton://, nfs://
+  const protoMatch = str.match(/^([a-zA-Z0-9_-]+):\/\/(.*)$/);
+  if (protoMatch) {
+    const proto = protoMatch[1].toLowerCase();
+    const rest = protoMatch[2];
+    const parts = rest.split('/').filter(Boolean);
+    const minParts = proto === 'smb' ? 2 : 1;
+    if (parts.length > minParts) {
+      parts.pop();
+      return `${proto}://${parts.join('/')}`;
+    }
+    return `${proto}://${parts.join('/')}`;
+  }
+
+  // Strip \\?\ prefix or leading slash before Windows drive letter if present
+  let cleanPath = str;
+  if (cleanPath.startsWith('\\\\?\\UNC\\')) {
+    cleanPath = '\\\\' + cleanPath.slice(8);
+  } else if (cleanPath.startsWith('\\\\?\\')) {
+    cleanPath = cleanPath.slice(4);
+  } else if (cleanPath.match(/^\/[a-zA-Z]:/)) {
+    cleanPath = cleanPath.slice(1);
+  }
+
+  // Windows drive path e.g. C:\Users\Bolt, C:/Users/Bolt, C:\, C:/, C:
+  const winDriveMatch = cleanPath.match(/^([a-zA-Z]:)[\\/]?(.*)$/);
+  if (winDriveMatch) {
+    const drive = winDriveMatch[1].toUpperCase();
+    const rest = winDriveMatch[2];
+    const sep = str.includes('/') ? '/' : '\\';
+    const parts = rest.split(/[\\/]/).filter(Boolean);
+    if (parts.length <= 1) {
+      return `${drive}${sep}`;
+    }
+    parts.pop();
+    return `${drive}${sep}${parts.join(sep)}`;
+  }
+
+  // Windows UNC path e.g. \\server\share\subfolder
+  const uncMatch = cleanPath.match(/^(\\\\[^\\\/]+[\\\/][^\\\/]+)[\\/]?(.*)$/);
+  if (uncMatch) {
+    const root = uncMatch[1];
+    const rest = uncMatch[2];
+    const parts = rest.split(/[\\/]/).filter(Boolean);
+    if (parts.length <= 1) {
+      return root;
+    }
+    parts.pop();
+    return `${root}\\${parts.join('\\')}`;
+  }
+
+  // Standard POSIX / Unix path
+  const parts = cleanPath.split('/').filter(Boolean);
+  if (parts.length <= 1) return '/';
+  parts.pop();
+  return '/' + parts.join('/');
 }
 
 function formatBytes(bytes) {
@@ -2080,9 +2170,19 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     return sep;
   };
 
+  // Strip \\?\ prefix or leading slash before Windows drive letter if present
+  let cleanCrumbPath = pathStr || '/';
+  if (cleanCrumbPath.startsWith('\\\\?\\UNC\\')) {
+    cleanCrumbPath = '\\\\' + cleanCrumbPath.slice(8);
+  } else if (cleanCrumbPath.startsWith('\\\\?\\')) {
+    cleanCrumbPath = cleanCrumbPath.slice(4);
+  } else if (cleanCrumbPath.match(/^\/[a-zA-Z]:/)) {
+    cleanCrumbPath = cleanCrumbPath.slice(1);
+  }
+
   // Check if path is a Windows drive path (e.g. C:\ or C:/ or C:\Users\Bolt)
-  const winDriveMatch = pathStr.match(/^([a-zA-Z]:)[\\/]*(.*)$/);
-  const uncMatch = pathStr.match(/^(\\\\[^\\\/]+[\\\/][^\\\/]+)(.*)$/) || pathStr.match(/^(\/\/[^\/]+\/[^\/]+)(.*)$/);
+  const winDriveMatch = cleanCrumbPath.match(/^([a-zA-Z]:)[\\/]*(.*)$/);
+  const uncMatch = cleanCrumbPath.match(/^(\\\\[^\\\/]+[\\\/][^\\\/]+)(.*)$/) || cleanCrumbPath.match(/^(\/\/[^\/]+\/[^\/]+)(.*)$/);
 
   if (winDriveMatch) {
     const driveLetter = winDriveMatch[1].toUpperCase();
@@ -2837,9 +2937,7 @@ function renderPaneTable(paneIndex) {
           e.preventDefault();
           e.stopPropagation();
           parentTr.classList.remove('drag-over-row');
-          const parts = pane.path.split('/').filter(Boolean);
-          parts.pop();
-          const parent = parts.length === 0 ? '/' : '/' + parts.join('/');
+          const parent = pane.parentPath || getParentDirectory(pane.path) || '/';
           handlePaneDrop(e, paneIndex, parent);
         };
       }
@@ -4085,18 +4183,30 @@ async function loadPaneDirectoryTree(paneIndex) {
 
   const rootsContainer = document.getElementById(`pane-tree-roots-${paneIndex}`);
   const homePath = getUserDefaultHomeDir() || '~';
+  const isWindows = App.systemStatus?.os === 'windows' || Boolean(homePath && homePath.match(/^[a-zA-Z]:/));
 
   const roots = [
     { name: 'Home', path: homePath, icon: 'home' },
-    { name: 'Root', path: '/', icon: 'hard-drive' },
   ];
+
+  if (!isWindows) {
+    roots.push({ name: 'Root', path: '/', icon: 'hard-drive' });
+  }
 
   if (App.storageRoots && App.storageRoots.length > 0) {
     App.storageRoots.forEach(r => {
       if (r.path !== '/' && r.path !== homePath) {
-        roots.push({ name: r.name, path: r.path, icon: 'server' });
+        const icon = r.path.match(/^[a-zA-Z]:/) ? 'hard-drive' : 'server';
+        roots.push({ name: r.name, path: r.path, icon });
       }
     });
+  } else if (isWindows) {
+    // If no storage roots returned yet on Windows, fallback to primary drive
+    const driveMatch = homePath.match(/^([a-zA-Z]:\\?)/);
+    const primaryDrive = driveMatch ? driveMatch[1] : 'C:\\';
+    if (!roots.some(r => r.path.toUpperCase().startsWith(primaryDrive.toUpperCase()))) {
+      roots.push({ name: `Local Disk (${primaryDrive.substring(0, 2)})`, path: primaryDrive.endsWith('\\') ? primaryDrive : primaryDrive + '\\', icon: 'hard-drive' });
+    }
   }
 
   roots.forEach(root => {
@@ -14214,45 +14324,15 @@ function navPaneUp(index) {
 
   if (pane.path === '/' || pane.path === '') return;
 
-  if (pane.parentPath) {
+  if (pane.parentPath && pane.parentPath !== pane.path) {
     loadPaneDirectory(index, pane.parentPath);
     return;
   }
 
-  if (pane.path.startsWith('archive://')) {
-    const [arch, sub] = pane.path.replace('archive://', '').split('#');
-    if (sub && sub.includes('/')) {
-      const subParts = sub.split('/').filter(Boolean);
-      subParts.pop();
-      loadPaneDirectory(index, `archive://${arch}#${subParts.join('/')}`);
-    } else if (sub) {
-      loadPaneDirectory(index, `archive://${arch}#`);
-    } else {
-      const archParts = arch.split('/').filter(Boolean);
-      archParts.pop();
-      const p = archParts.length === 0 ? '/' : '/' + archParts.join('/');
-      loadPaneDirectory(index, p);
-    }
-    return;
+  const parent = getParentDirectory(pane.path);
+  if (parent && parent !== pane.path) {
+    loadPaneDirectory(index, parent);
   }
-
-  const protoMatch = pane.path.match(/^([a-zA-Z0-9_-]+):\/\/(.*)$/);
-  if (protoMatch) {
-    const proto = protoMatch[1].toLowerCase();
-    const rest = protoMatch[2];
-    const parts = rest.split('/').filter(Boolean);
-    const minParts = proto === 'smb' ? 2 : 1;
-    if (parts.length > minParts) {
-      parts.pop();
-      loadPaneDirectory(index, `${proto}://${parts.join('/')}`);
-    }
-    return;
-  }
-
-  const parts = pane.path.split('/').filter(Boolean);
-  parts.pop();
-  const parent = parts.length === 0 ? '/' : '/' + parts.join('/');
-  loadPaneDirectory(index, parent);
 }
 
 function refreshPane(index, selectItemName = null) {

@@ -132,7 +132,27 @@ graph TD
 
 ---
 
-### 📦 Completed Milestone Backlog History (`v0.7.2` – `v0.7.9`):
+### 📦 Completed Milestone Backlog History (`v0.7.2` – `v0.8.0`):
+- [x] **Windows File & Folder Navigation & Case-Insensitive VFS (`v0.8.0-rc9`)**:
+  - Resolved Windows directory entry and file opening failures by introducing `clean_path_buf` and `dunce_canonicalize` to strip extended length `\\?\` verbatim prefixes (#18).
+  - Implemented case-insensitive path comparison (`path_starts_with_case_insensitive`) for Windows drives and directories, fixing spurious 403 Forbidden errors.
+  - Added cross-platform path helpers (`getBasename`, `getParentDirectory`) in frontend and backend to seamlessly handle Windows drive roots (`C:\`), network UNC shares (`\\server\share`), and standard POSIX paths.
+  - Updated default Windows root path and folder tree roots to properly enumerate local disks and personal home directories.
+- [x] **Discrete Column Separators & Theme-Aware Gridlines (`v0.8.0-rc8`)**:
+  - Added subtle 1px vertical hairline dividers between table columns across all viewports with calibrated `--border-col-divider` theme tokens and live toggles.
+- [x] **Calvin S ASCII Banner & Touch Column Resizing (`v0.8.0-rc7`)**:
+  - Replaced CLI startup banner with fitted Calvin S box-drawing figlet font.
+  - Centered 34px touch hit zones on column boundaries with Pointer Events (`setPointerCapture`) and unclipped table headers.
+- [x] **Responsive 60/40 File Table Columns (`v0.8.0-rc6`)**:
+  - Allocated ~60% horizontal priority to the Name column on Phone and Tablet viewports, distributing remaining space across secondary columns.
+- [x] **Single-Line File Listing & Compact Dates (`v0.8.0-rc5`)**:
+  - Standardized clean 32px single-line table listing with compact timestamps and optional `<DIR>` directory tags.
+- [x] **Responsive Viewports & Theme Engine Form Harmonization (`v0.8.0-rc4`)**:
+  - Added mobile permissions subtext, micro-text typography scaling, and theme-aware custom form controls (#5, #6, #8, #10).
+- [x] **Integrated Terminal WebSocket Safety & Viewport Fit (`v0.8.0-rc3`)**:
+  - Resolved socket race conditions and prompt duplication in Bite! web terminal (#16).
+- [x] **NoteDog Docked Preview & Split Markdown Engine (`v0.8.0-rc2`)**:
+  - Unified Markdown preview engine and live bi-directional split view sync across floating and docked NoteDog (#2).
 - [x] **Documentation Reorganization & `manuals/` Structure (`v0.7.2-rc1`)**:
   - Reorganized loose root documentation into dedicated [`manuals/`](manuals/README.md).
   - Merged todos directly into `ROADMAP.md` as the unified source of truth.

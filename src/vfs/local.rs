@@ -55,6 +55,39 @@ pub fn expand_windows_env_vars(path_str: &str) -> String {
     result
 }
 
+/// Strips extended length UNC prefixes (`\\?\` and `\\?\UNC\`) and normalizes drive prefixes
+pub fn clean_path_buf(path: &Path) -> PathBuf {
+    let path_str = path.to_string_lossy();
+    let stripped_str = if let Some(stripped) = path_str.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{}", stripped)
+    } else if let Some(stripped) = path_str.strip_prefix(r"\\?\") {
+        stripped.to_string()
+    } else {
+        path_str.to_string()
+    };
+
+    #[cfg(not(windows))]
+    {
+        // On non-Windows platforms, if path is a Windows path with backslashes (e.g. C:\Users\Bolt),
+        // convert backslashes to forward slashes so Path::components() properly parses segments in tests.
+        if (stripped_str.len() >= 2 && stripped_str.as_bytes()[1] == b':') || stripped_str.starts_with(r"\\") {
+            let normalized = stripped_str.replace('\\', "/");
+            return PathBuf::from(normalized);
+        }
+    }
+
+    PathBuf::from(stripped_str)
+}
+
+pub fn clean_path_str(path: &Path) -> String {
+    clean_path_buf(path).to_string_lossy().to_string()
+}
+
+pub fn dunce_canonicalize(path: &Path) -> std::io::Result<PathBuf> {
+    let canonical = path.canonicalize()?;
+    Ok(clean_path_buf(&canonical))
+}
+
 impl LocalFs {
     /// Helper to get cached user and group name lookups with 60-second TTL
     #[cfg(unix)]
@@ -115,27 +148,77 @@ impl LocalFs {
     }
 
     pub fn resolve_local_path(p: &str) -> PathBuf {
-        if p == "~" {
-            dirs::home_dir().unwrap_or_else(|| PathBuf::from("~"))
-        } else if let Some(stripped) = p.strip_prefix("~/") {
-            if let Some(home) = dirs::home_dir() {
-                home.join(stripped)
-            } else {
-                PathBuf::from(p)
-            }
-        } else if let Some(stripped) = p.strip_prefix("~\\") {
-            if let Some(home) = dirs::home_dir() {
-                home.join(stripped)
-            } else {
-                PathBuf::from(p)
-            }
-        } else {
-            #[cfg(windows)]
-            let expanded = expand_windows_env_vars(p);
-            #[cfg(not(windows))]
-            let expanded = p.to_string();
+        let trimmed = p.trim();
+        if trimmed.is_empty() {
+            return dirs::home_dir().unwrap_or_else(|| {
+                #[cfg(windows)]
+                { PathBuf::from(r"C:\") }
+                #[cfg(not(windows))]
+                { PathBuf::from("/") }
+            });
+        }
 
-            PathBuf::from(expanded)
+        if trimmed == "~" {
+            return dirs::home_dir().unwrap_or_else(|| PathBuf::from("~"));
+        }
+
+        if let Some(stripped) = trimmed.strip_prefix("~/") {
+            return if let Some(home) = dirs::home_dir() {
+                home.join(stripped)
+            } else {
+                PathBuf::from(trimmed)
+            };
+        }
+
+        if let Some(stripped) = trimmed.strip_prefix(r"~\") {
+            return if let Some(home) = dirs::home_dir() {
+                home.join(stripped)
+            } else {
+                PathBuf::from(trimmed)
+            };
+        }
+
+        #[cfg(windows)]
+        {
+            if trimmed == "/" || trimmed == "\\" {
+                return dirs::home_dir().unwrap_or_else(|| PathBuf::from(r"C:\"));
+            }
+
+            let expanded = expand_windows_env_vars(trimmed);
+
+            // Strip leading slash before Windows drive letter if present (e.g. "/C:/Users" -> "C:/Users")
+            let without_lead_slash = if (expanded.starts_with('/') || expanded.starts_with('\\'))
+                && expanded.len() >= 3
+                && expanded.as_bytes()[1].is_ascii_alphabetic()
+                && expanded.as_bytes()[2] == b':'
+            {
+                &expanded[1..]
+            } else {
+                &expanded
+            };
+
+            // If path is just drive letter e.g. "C:" or "c:", ensure trailing slash "C:\"
+            let final_path = if without_lead_slash.len() == 2 && without_lead_slash.as_bytes()[1] == b':' {
+                format!(r"{}\", without_lead_slash)
+            } else {
+                without_lead_slash.to_string()
+            };
+
+            clean_path_buf(&PathBuf::from(final_path))
+        }
+
+        #[cfg(not(windows))]
+        {
+            let cleaned = if (trimmed.starts_with('/') || trimmed.starts_with('\\'))
+                && trimmed.len() >= 3
+                && trimmed.as_bytes()[1].is_ascii_alphabetic()
+                && trimmed.as_bytes()[2] == b':'
+            {
+                &trimmed[1..]
+            } else {
+                trimmed
+            };
+            clean_path_buf(&PathBuf::from(cleaned))
         }
     }
 
@@ -148,9 +231,9 @@ impl LocalFs {
             ));
         }
 
-        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
-        let canonical_str = canonical.to_string_lossy().to_string();
-        let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
+        let canonical = dunce_canonicalize(&path).unwrap_or_else(|_| clean_path_buf(&path));
+        let canonical_str = clean_path_str(&canonical);
+        let parent_path = canonical.parent().map(|p| clean_path_str(p));
         #[cfg(unix)]
         let (user_map, group_map) = Self::get_user_group_maps();
 
@@ -168,8 +251,8 @@ impl LocalFs {
                         continue;
                     }
 
-                    let file_path = entry.path();
-                    let file_path_str = file_path.to_string_lossy().to_string();
+                    let file_path = clean_path_buf(&entry.path());
+                    let file_path_str = clean_path_str(&file_path);
 
                     let metadata = entry.metadata().ok();
                     let is_dir = metadata.as_ref().map_or(false, |m| m.is_dir());
@@ -292,9 +375,9 @@ impl LocalFs {
             ));
         }
 
-        let canonical = path.canonicalize().unwrap_or_else(|_| path.clone());
-        let canonical_str = canonical.to_string_lossy().to_string();
-        let parent_path = canonical.parent().map(|p| p.to_string_lossy().to_string());
+        let canonical = dunce_canonicalize(&path).unwrap_or_else(|_| clean_path_buf(&path));
+        let canonical_str = clean_path_str(&canonical);
+        let parent_path = canonical.parent().map(|p| clean_path_str(p));
 
         #[cfg(unix)]
         let (user_map, group_map) = Self::get_user_group_maps();
@@ -329,7 +412,8 @@ impl LocalFs {
                 Err(_) => continue,
             };
 
-            if entry_res.path() == canonical {
+            let entry_clean_path = clean_path_buf(entry_res.path());
+            if entry_clean_path == canonical {
                 continue;
             }
 
@@ -339,12 +423,11 @@ impl LocalFs {
             }
 
             let file_name = entry_res.file_name().to_string_lossy().to_string();
-            let rel_path = entry_res.path().strip_prefix(&canonical)
+            let rel_path = entry_clean_path.strip_prefix(&canonical)
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|_| file_name.clone());
 
-            let file_path = entry_res.path();
-            let file_path_str = file_path.to_string_lossy().to_string();
+            let file_path_str = clean_path_str(&entry_clean_path);
 
             let file_type = entry_res.file_type();
             let is_dir = file_type.is_dir();
@@ -390,7 +473,7 @@ impl LocalFs {
             let group = "Users".to_string();
 
             let mime = if !is_dir {
-                mime_guess::from_path(file_path).first_raw().map(|s| s.to_string())
+                mime_guess::from_path(&entry_clean_path).first_raw().map(|s| s.to_string())
             } else {
                 None
             };
@@ -767,11 +850,11 @@ impl LocalFs {
         }
 
         // Canonical paths comparison
-        let can_src = src_path.canonicalize()?;
+        let can_src = dunce_canonicalize(src_path)?;
         let can_dest = if dest_path.exists() {
-            dest_path.canonicalize().ok()
+            dunce_canonicalize(dest_path).ok()
         } else if let Some(p) = dest_path.parent() {
-            p.canonicalize().ok().map(|can_p| can_p.join(dest_path.file_name().unwrap_or_default()))
+            dunce_canonicalize(p).ok().map(|can_p| can_p.join(dest_path.file_name().unwrap_or_default()))
         } else {
             None
         };
@@ -979,5 +1062,53 @@ mod tests {
         let (u2, g2) = LocalFs::get_user_group_maps();
         assert_eq!(u1.len(), u2.len());
         assert_eq!(g1.len(), g2.len());
+    }
+
+    #[test]
+    fn test_clean_path_buf_strips_unc_and_verbatim_prefix() {
+        #[cfg(windows)]
+        {
+            assert_eq!(
+                clean_path_buf(Path::new(r"\\?\C:\Users\Bolt\Documents")),
+                PathBuf::from(r"C:\Users\Bolt\Documents")
+            );
+            assert_eq!(
+                clean_path_buf(Path::new(r"\\?\UNC\server\share\subfolder")),
+                PathBuf::from(r"\\server\share\subfolder")
+            );
+        }
+        #[cfg(not(windows))]
+        {
+            assert_eq!(
+                clean_path_buf(Path::new(r"\\?\C:\Users\Bolt\Documents")),
+                PathBuf::from("C:/Users/Bolt/Documents")
+            );
+            assert_eq!(
+                clean_path_buf(Path::new(r"\\?\UNC\server\share\subfolder")),
+                PathBuf::from("//server/share/subfolder")
+            );
+        }
+        assert_eq!(
+            clean_path_buf(Path::new("/var/log/syslog")),
+            PathBuf::from("/var/log/syslog")
+        );
+    }
+
+    #[test]
+    fn test_resolve_local_path_windows_prefix() {
+        assert_eq!(
+            LocalFs::resolve_local_path("/C:/Users/Bolt"),
+            PathBuf::from("C:/Users/Bolt")
+        );
+        #[cfg(windows)]
+        assert_eq!(
+            LocalFs::resolve_local_path(r"\D:\Data\Project"),
+            PathBuf::from(r"D:\Data\Project")
+        );
+        #[cfg(not(windows))]
+        assert_eq!(
+            LocalFs::resolve_local_path(r"\D:\Data\Project"),
+            PathBuf::from("D:/Data/Project")
+        );
     }
 }

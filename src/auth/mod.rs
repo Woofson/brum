@@ -200,7 +200,14 @@ impl AuthManager {
         // Seed default admin user if database is empty
         if auth.count_users()? == 0 {
             info!("No users found in database. Creating default admin user: {}", default_admin_user);
-            auth.create_user(default_admin_user, default_admin_pass, "admin", "/", Some("[\"*\"]"))?;
+            #[cfg(windows)]
+            let def_home = dirs::home_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "C:\\".to_string());
+            #[cfg(not(windows))]
+            let def_home = "/".to_string();
+
+            auth.create_user(default_admin_user, default_admin_pass, "admin", &def_home, Some("[\"*\"]"))?;
         }
 
         Ok(auth)
