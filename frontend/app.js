@@ -1360,43 +1360,43 @@ function createPaneElement(pane, index) {
                 </th>
                 <th class="col-header col-name" id="col-header-${index}-name" onclick="sortPane(${index}, 'name')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Name</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'name')" ondblclick="autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'name')" ontouchstart="initColResize(event, ${index}, 'name')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-ext" id="col-header-${index}-ext" onclick="sortPane(${index}, 'ext')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Ext</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'ext')" ondblclick="autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'ext')" ontouchstart="initColResize(event, ${index}, 'ext')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-size" id="col-header-${index}-size" style="width: 80px;" onclick="sortPane(${index}, 'size')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Size</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'size')" ondblclick="autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'size')" ontouchstart="initColResize(event, ${index}, 'size')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-modified" id="col-header-${index}-modified" style="width: 130px;" onclick="sortPane(${index}, 'modified')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Modified</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'modified')" ondblclick="autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'modified')" ontouchstart="initColResize(event, ${index}, 'modified')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-created" id="col-header-${index}-created" style="width: 130px; display: none;" onclick="sortPane(${index}, 'created')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Created</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'created')" ondblclick="autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'created')" ontouchstart="initColResize(event, ${index}, 'created')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-mode" id="col-header-${index}-mode" style="width: 75px;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Mode</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'mode')" ondblclick="autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'mode')" ontouchstart="initColResize(event, ${index}, 'mode')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-owner" id="col-header-${index}-owner" style="width: 85px;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Owner</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'owner')" ondblclick="autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'owner')" ontouchstart="initColResize(event, ${index}, 'owner')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-group" id="col-header-${index}-group" style="width: 85px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Group</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'group')" ondblclick="autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'group')" ontouchstart="initColResize(event, ${index}, 'group')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-hash" id="col-header-${index}-hash" style="width: 100px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>SHA-256</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'hash')" ondblclick="autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'hash')" ontouchstart="initColResize(event, ${index}, 'hash')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
                 <th class="col-header col-tags" id="col-header-${index}-tags" style="width: 90px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Tags</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'tags')" ondblclick="autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'tags')" ontouchstart="initColResize(event, ${index}, 'tags')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
               </tr>
             </thead>
@@ -3674,61 +3674,95 @@ let ColumnConfig = {
 };
 
 function initColResize(e, paneIndex, colKey) {
-  e.preventDefault();
+  if (e.cancelable) e.preventDefault();
   e.stopPropagation();
 
   const th = document.getElementById(`col-header-${paneIndex}-${colKey}`);
   if (!th) return;
 
   const resizer = e.currentTarget || e.target;
-  if (resizer && resizer.setPointerCapture && e.pointerId !== undefined) {
-    try {
-      resizer.setPointerCapture(e.pointerId);
-    } catch (_) {}
+  if (resizer) {
+    resizer.classList.add('is-resizing');
+    if (resizer.setPointerCapture && e.pointerId !== undefined) {
+      try { resizer.setPointerCapture(e.pointerId); } catch (_) {}
+    }
   }
 
-  const startX = (e.clientX !== undefined) ? e.clientX : (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
-  const startWidth = th.offsetWidth;
+  const getClientX = (ev) => {
+    if (ev.clientX !== undefined && ev.clientX !== 0) return ev.clientX;
+    if (ev.touches && ev.touches.length > 0) return ev.touches[0].clientX;
+    if (ev.changedTouches && ev.changedTouches.length > 0) return ev.changedTouches[0].clientX;
+    return 0;
+  };
+
+  const startX = getClientX(e);
+  const startWidth = th.getBoundingClientRect().width || th.offsetWidth;
   document.body.classList.add('is-col-resizing');
 
   const onPointerMove = (moveEvent) => {
-    const currentX = (moveEvent.clientX !== undefined) ? moveEvent.clientX : (moveEvent.touches && moveEvent.touches[0] ? moveEvent.touches[0].clientX : startX);
+    if (moveEvent.cancelable) moveEvent.preventDefault();
+    moveEvent.stopPropagation();
+    const currentX = getClientX(moveEvent);
+    if (!currentX) return;
     const diff = currentX - startX;
-    const newWidth = Math.max(30, startWidth + diff);
+    const newWidth = Math.max(28, Math.round(startWidth + diff));
     applyColumnWidth(colKey, newWidth);
   };
 
   const onPointerUp = (upEvent) => {
+    if (upEvent && upEvent.cancelable) upEvent.preventDefault();
+    if (upEvent) upEvent.stopPropagation();
     document.body.classList.remove('is-col-resizing');
-    if (resizer && resizer.releasePointerCapture && upEvent && upEvent.pointerId !== undefined) {
-      try {
-        resizer.releasePointerCapture(upEvent.pointerId);
-      } catch (_) {}
+    if (resizer) {
+      resizer.classList.remove('is-resizing');
+      if (resizer.releasePointerCapture && upEvent && upEvent.pointerId !== undefined) {
+        try { resizer.releasePointerCapture(upEvent.pointerId); } catch (_) {}
+      }
     }
-    window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', onPointerUp);
-    window.removeEventListener('pointercancel', onPointerUp);
-    window.removeEventListener('mousemove', onPointerMove);
-    window.removeEventListener('mouseup', onPointerUp);
-    window.removeEventListener('touchmove', onPointerMove);
-    window.removeEventListener('touchend', onPointerUp);
-    saveColumnWidth(colKey, th.offsetWidth);
+    window.removeEventListener('pointermove', onPointerMove, { capture: true });
+    window.removeEventListener('pointerup', onPointerUp, { capture: true });
+    window.removeEventListener('pointercancel', onPointerUp, { capture: true });
+    window.removeEventListener('touchmove', onPointerMove, { capture: true });
+    window.removeEventListener('touchend', onPointerUp, { capture: true });
+    window.removeEventListener('touchcancel', onPointerUp, { capture: true });
+    window.removeEventListener('mousemove', onPointerMove, { capture: true });
+    window.removeEventListener('mouseup', onPointerUp, { capture: true });
+    document.removeEventListener('pointermove', onPointerMove, { capture: true });
+    document.removeEventListener('pointerup', onPointerUp, { capture: true });
+    document.removeEventListener('touchmove', onPointerMove, { capture: true });
+    document.removeEventListener('touchend', onPointerUp, { capture: true });
+
+    const finalWidth = Math.round(th.getBoundingClientRect().width || th.offsetWidth);
+    saveColumnWidth(colKey, finalWidth);
   };
 
-  window.addEventListener('pointermove', onPointerMove, { passive: false });
-  window.addEventListener('pointerup', onPointerUp);
-  window.addEventListener('pointercancel', onPointerUp);
-  window.addEventListener('mousemove', onPointerMove);
-  window.addEventListener('mouseup', onPointerUp);
-  window.addEventListener('touchmove', onPointerMove, { passive: false });
-  window.addEventListener('touchend', onPointerUp);
+  window.addEventListener('pointermove', onPointerMove, { capture: true, passive: false });
+  window.addEventListener('pointerup', onPointerUp, { capture: true, passive: false });
+  window.addEventListener('pointercancel', onPointerUp, { capture: true, passive: false });
+  window.addEventListener('touchmove', onPointerMove, { capture: true, passive: false });
+  window.addEventListener('touchend', onPointerUp, { capture: true, passive: false });
+  window.addEventListener('touchcancel', onPointerUp, { capture: true, passive: false });
+  window.addEventListener('mousemove', onPointerMove, { capture: true, passive: false });
+  window.addEventListener('mouseup', onPointerUp, { capture: true, passive: false });
+  document.addEventListener('pointermove', onPointerMove, { capture: true, passive: false });
+  document.addEventListener('pointerup', onPointerUp, { capture: true, passive: false });
+  document.addEventListener('touchmove', onPointerMove, { capture: true, passive: false });
+  document.addEventListener('touchend', onPointerUp, { capture: true, passive: false });
 }
 
 function applyColumnWidth(colKey, width) {
   ColumnConfig.widths[colKey] = width;
   for (let i = 0; i < 4; i++) {
+    const table = document.getElementById(`pane-table-${i}`);
+    if (table) {
+      table.style.setProperty(`--col-${colKey}-w`, `${width}px`);
+    }
     const th = document.getElementById(`col-header-${i}-${colKey}`);
-    if (th) th.style.width = `${width}px`;
+    if (th) {
+      th.style.setProperty('width', `${width}px`, 'important');
+      th.style.setProperty('min-width', `${Math.min(width, 28)}px`, 'important');
+      th.style.setProperty('max-width', `${width}px`, 'important');
+    }
   }
 }
 
@@ -3775,9 +3809,17 @@ function applyAllColumnWidths() {
   const vis = ColumnConfig.visibility;
 
   for (let i = 0; i < 4; i++) {
+    const table = document.getElementById(`pane-table-${i}`);
     for (const [colKey, w] of Object.entries(widths)) {
+      if (table && w) {
+        table.style.setProperty(`--col-${colKey}-w`, `${w}px`);
+      }
       const th = document.getElementById(`col-header-${i}-${colKey}`);
-      if (th && w) th.style.width = `${w}px`;
+      if (th && w) {
+        th.style.setProperty('width', `${w}px`, 'important');
+        th.style.setProperty('min-width', `${Math.min(w, 28)}px`, 'important');
+        th.style.setProperty('max-width', `${w}px`, 'important');
+      }
     }
     for (const [colKey, isVis] of Object.entries(vis)) {
       const th = document.getElementById(`col-header-${i}-${colKey}`);
@@ -3801,6 +3843,20 @@ function resetAllColumnWidths() {
   ColumnConfig.visibility = { name: true, ext: false, size: true, modified: true, created: false, mode: true, owner: true, group: false, hash: false, tags: false };
   localStorage.removeItem('cd_col_widths');
   localStorage.removeItem('cd_col_visibility');
+  for (let i = 0; i < 4; i++) {
+    const table = document.getElementById(`pane-table-${i}`);
+    if (table) {
+      ['name', 'ext', 'size', 'modified', 'created', 'mode', 'owner', 'group', 'hash', 'tags'].forEach(k => {
+        table.style.removeProperty(`--col-${k}-w`);
+      });
+    }
+    const ths = document.querySelectorAll(`#pane-table-${i} th`);
+    ths.forEach(th => {
+      th.style.removeProperty('width');
+      th.style.removeProperty('min-width');
+      th.style.removeProperty('max-width');
+    });
+  }
   applyAllColumnWidths();
   updateColumnCheckboxes();
   for (let i = 0; i < 4; i++) {

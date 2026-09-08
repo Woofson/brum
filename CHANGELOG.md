@@ -5,6 +5,14 @@ All notable changes to **CommanderDog** will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0-rc7] - 2026-09-08
+
+### Calvin S ASCII Banner & Touch Column Resizing Architecture
+- **Calvin S Figlet ASCII Banner**: Replaced the CLI startup banner with the fitted `Calvin S` unicode box-drawing figlet font for a compact, clean startup header.
+- **Unclipped Centered Touch Column Resizers**: Resolved touch column resizing by setting `overflow: visible` on table headers, positioning a `34px` touch hit zone centered directly on column boundaries (`z-index: 60`, `touch-action: none !important`), and adding an active vertical indicator line.
+- **Dynamic CSS Variable Column Sizing**: Connected table column widths to CSS custom properties (`--col-*-w`) and high-priority inline overrides so live touch and mouse resizing immediately updates widths without being blocked by media query constraints.
+- **Multi-Input Capture & Propagation Isolation**: Added touch/pointer event capture (`setPointerCapture`, capture-phase listeners, passive: false) and stopped propagation to prevent accidental column sorting while dragging on touchscreens.
+
 ## [0.8.0-rc6] - 2026-09-08
 
 ### Responsive 60/40 File Table Columns & Touch-Friendly Resizing
