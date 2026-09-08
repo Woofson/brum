@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.8.0-rc2] - 2026-09-08
+
+### NoteDog Docked Preview & Split Markdown Engine
+- **Full Markdown Preview in Docked Mode**: Unified the Markdown parsing engine across floating and docked NoteDog modes; docked preview now renders rich Markdown headings (`#`, `##`, `###`), fenced code blocks with syntax highlight and Mermaid diagrams, interactive task checkboxes (`- [ ]`, `- [x]`), blockquotes, bullet lists, tables, and color spans (#2).
+- **Split View Layout Alignment**: Ensured side-by-side split view mode (edit on left, live rendered Markdown preview on right) expands with flex container column and full width alignment across all docked panes (#2).
+- **Live Bi-Directional Input & View Mode Sync**: Synchronized real-time typing, view mode switching (`edit`, `split`, `preview`), and interactive checkbox clicks between floating and docked NoteDog instances.
+
 ## [0.8.0-rc1] - 2026-09-08
 
 ### Header Layout, Icons & Responsive Viewport Enhancements

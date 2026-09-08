@@ -6958,6 +6958,15 @@ function handleNoteDogInput() {
   syncNoteDogGutter();
   renderNoteDogPreview(notedogState.content);
 
+  // Sync docked NoteDog instances across all panes
+  App.panes.forEach((p, idx) => {
+    if (p.dockedTool === 'notedog') {
+      const dTa = document.getElementById(`docked-notedog-textarea-${idx}`);
+      if (dTa) dTa.value = notedogState.content;
+      renderDockedNoteDogPreview(idx, notedogState.content);
+    }
+  });
+
   // Debounced auto-save after 2.5s of typing pause
   if (notedogState.autoSaveTimer) clearTimeout(notedogState.autoSaveTimer);
   notedogState.autoSaveTimer = setTimeout(() => {
@@ -7110,27 +7119,27 @@ function setNoteDogViewMode(mode) {
     const editPane = wrap.querySelector('.notedog-editor-pane');
     const prevPane = wrap.querySelector('.notedog-preview-pane');
     if (editPane) {
-      editPane.style.display = mode === 'preview' ? 'none' : 'block';
+      editPane.style.display = mode === 'preview' ? 'none' : 'flex';
       editPane.style.width = mode === 'edit' ? '100%' : '50%';
     }
     if (prevPane) {
-      prevPane.style.display = mode === 'edit' ? 'none' : 'block';
+      prevPane.style.display = mode === 'edit' ? 'none' : 'flex';
       prevPane.style.width = mode === 'preview' ? '100%' : '50%';
     }
   });
   ['edit', 'split', 'preview'].forEach(m => {
     const btn = document.getElementById(`notedog-mode-${m}`);
     if (btn) btn.classList.toggle('active', m === mode);
+    App.panes.forEach((_, idx) => {
+      const dockedBtn = document.getElementById(`docked-notedog-mode-${m}-${idx}`);
+      if (dockedBtn) dockedBtn.classList.toggle('active', m === mode);
+    });
   });
 }
 
-function renderNoteDogPreview(text) {
-  const preview = document.getElementById('notedog-preview-content');
-  if (!preview) return;
-
+function generateNoteDogMarkdownHtml(text) {
   if (!text || !text.trim()) {
-    preview.innerHTML = '<div style="color: var(--text-dim); font-style: italic;">Empty note</div>';
-    return;
+    return '<div style="color: var(--text-dim); font-style: italic; padding: 6px;">Empty note</div>';
   }
 
   const lines = text.split('\n');
@@ -7216,7 +7225,14 @@ function renderNoteDogPreview(text) {
     }
   });
 
-  preview.innerHTML = html;
+  return html;
+}
+
+function renderNoteDogPreview(text) {
+  const preview = document.getElementById('notedog-preview-content');
+  if (preview) {
+    preview.innerHTML = generateNoteDogMarkdownHtml(text);
+  }
 }
 
 function formatNoteDogInlineMarkdown(str) {
@@ -7246,10 +7262,8 @@ function formatNoteDogInlineMarkdown(str) {
 }
 
 function toggleNoteDogTaskCheckbox(lineIndex) {
-  const textarea = document.getElementById('notedog-editor-textarea');
-  if (!textarea) return;
-
-  const lines = textarea.value.split('\n');
+  const content = notedogState.content || '';
+  const lines = content.split('\n');
   if (lineIndex < 0 || lineIndex >= lines.length) return;
 
   const line = lines[lineIndex];
@@ -7259,8 +7273,22 @@ function toggleNoteDogTaskCheckbox(lineIndex) {
     lines[lineIndex] = line.replace(/^(\s*)-\s*\[[xX]\]/, '$1- [ ]');
   }
 
-  textarea.value = lines.join('\n');
-  handleNoteDogInput();
+  const updated = lines.join('\n');
+  notedogState.content = updated;
+  notedogState.isDirty = true;
+
+  const mainTa = document.getElementById('notedog-editor-textarea');
+  if (mainTa) mainTa.value = updated;
+
+  renderNoteDogPreview(updated);
+  App.panes.forEach((p, idx) => {
+    if (p.dockedTool === 'notedog') {
+      const dTa = document.getElementById(`docked-notedog-textarea-${idx}`);
+      if (dTa) dTa.value = updated;
+      renderDockedNoteDogPreview(idx, updated);
+    }
+  });
+
   saveActiveNoteDogNote(true);
 }
 
@@ -7847,11 +7875,11 @@ function mountDockedNoteDog(paneIndex) {
           ${((currentSec?.notes) || []).map(n => `<option value="${escapeHtml(n.path)}" ${currentNote && n.path === currentNote.path ? 'selected' : ''}>📄 ${escapeHtml(n.name)}</option>`).join('')}
         </select>
       </div>
-      <div class="notedog-panes-wrapper ${mode}-mode" style="flex: 1; height: 100%;">
-        <div class="notedog-pane notedog-editor-pane" style="${mode === 'preview' ? 'display:none;' : (mode === 'edit' ? 'width:100%;' : 'width:50%;')} border-right: 1px solid var(--border); height: 100%;">
+      <div class="notedog-panes-wrapper ${mode}-mode" style="flex: 1; height: 100%; display: flex; overflow: hidden;">
+        <div class="notedog-pane notedog-editor-pane" style="${mode === 'preview' ? 'display:none;' : (mode === 'edit' ? 'width:100%; display:flex;' : 'width:50%; display:flex;')} border-right: 1px solid var(--border); height: 100%;">
           <textarea id="docked-notedog-textarea-${paneIndex}" class="notedog-textarea" style="width: 100%; height: 100%;" oninput="syncDockedNoteDogInput(${paneIndex}, this.value)">${escapeHtml(notedogState.content || '')}</textarea>
         </div>
-        <div class="notedog-pane notedog-preview-pane" style="${mode === 'edit' ? 'display:none;' : (mode === 'preview' ? 'width:100%;' : 'width:50%;')} padding: 10px; height: 100%; overflow-y: auto;">
+        <div class="notedog-pane notedog-preview-pane" style="${mode === 'edit' ? 'display:none;' : (mode === 'preview' ? 'width:100%; display:flex;' : 'width:50%; display:flex;')} padding: 12px 16px; height: 100%; overflow-y: auto;">
           <div id="docked-notedog-preview-${paneIndex}" class="notedog-preview-content"></div>
         </div>
       </div>
@@ -7863,7 +7891,13 @@ function mountDockedNoteDog(paneIndex) {
     titleEl.textContent = currentNote?.name || notedogState.activeNote?.name || 'NoteDog';
   }
 
+  ['edit', 'split', 'preview'].forEach(m => {
+    const dockedBtn = document.getElementById(`docked-notedog-mode-${m}-${paneIndex}`);
+    if (dockedBtn) dockedBtn.classList.toggle('active', m === mode);
+  });
+
   renderDockedNoteDogPreview(paneIndex, notedogState.content || '');
+  if (window.lucide) lucide.createIcons();
 }
 
 async function handleDockedNotebookChange(paneIndex, nbName) {
@@ -7891,13 +7925,20 @@ function syncDockedNoteDogInput(paneIndex, val) {
   notedogState.isDirty = true;
   const mainTextarea = document.getElementById('notedog-editor-textarea');
   if (mainTextarea) mainTextarea.value = val;
-  renderDockedNoteDogPreview(paneIndex, val);
+  renderNoteDogPreview(val);
+  App.panes.forEach((p, idx) => {
+    if (p.dockedTool === 'notedog') {
+      const dTa = document.getElementById(`docked-notedog-textarea-${idx}`);
+      if (dTa && idx !== paneIndex) dTa.value = val;
+      renderDockedNoteDogPreview(idx, val);
+    }
+  });
 }
 
 function renderDockedNoteDogPreview(paneIndex, text) {
   const preview = document.getElementById(`docked-notedog-preview-${paneIndex}`);
   if (preview) {
-    preview.innerHTML = formatNoteDogInlineMarkdown(text).replace(/\n/g, '<br>');
+    preview.innerHTML = generateNoteDogMarkdownHtml(text);
   }
 }
 
@@ -21685,9 +21726,9 @@ function mountDockedTool(paneIndex) {
             ${escapeHtml(notedogState.activeNote?.name || 'NoteDog')}
           </div>
           <div class="layout-btn-group" style="display: flex; gap: 2px;">
-            <button class="btn btn-icon notedog-mode-btn" onclick="setNoteDogViewMode('edit')" title="Editor Only"><i data-lucide="square"></i></button>
-            <button class="btn btn-icon notedog-mode-btn" onclick="setNoteDogViewMode('split')" title="Split View"><i data-lucide="columns-2"></i></button>
-            <button class="btn btn-icon notedog-mode-btn" onclick="setNoteDogViewMode('preview')" title="Preview"><i data-lucide="book-open"></i></button>
+            <button class="btn btn-icon notedog-mode-btn ${notedogState.viewMode === 'edit' ? 'active' : ''}" id="docked-notedog-mode-edit-${paneIndex}" onclick="setNoteDogViewMode('edit')" title="Editor Only"><i data-lucide="square"></i></button>
+            <button class="btn btn-icon notedog-mode-btn ${(!notedogState.viewMode || notedogState.viewMode === 'split') ? 'active' : ''}" id="docked-notedog-mode-split-${paneIndex}" onclick="setNoteDogViewMode('split')" title="Split View"><i data-lucide="columns-2"></i></button>
+            <button class="btn btn-icon notedog-mode-btn ${notedogState.viewMode === 'preview' ? 'active' : ''}" id="docked-notedog-mode-preview-${paneIndex}" onclick="setNoteDogViewMode('preview')" title="Preview"><i data-lucide="book-open"></i></button>
           </div>
         </div>
         <div style="flex: 1; display: flex; overflow: hidden; height: 100%;" id="docked-notedog-body-${paneIndex}">

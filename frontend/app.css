@@ -8238,12 +8238,16 @@ body {
   overflow-y: auto;
   padding: 16px 20px;
   user-select: text;
+  display: flex;
+  flex-direction: column;
 }
 
 .notedog-preview-content {
   line-height: 1.6;
   color: var(--text-primary);
   font-size: 13px;
+  width: 100%;
+  flex: 1;
 }
 
 .notedog-preview-content h1 {
