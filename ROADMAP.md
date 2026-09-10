@@ -92,76 +92,101 @@
 
 ---
 
-## 3. 🚀 Active Sprint & Improvement Backlog (`v0.8.2`)
+## 3. 🚀 Active Sprint & Improvement Backlog (`v0.8.3`)
 
 ```mermaid
 graph TD
-    A["v0.8.1 (Released: Nomenclature, Local Avatars & Context Polish)"] --> B["v0.8.2 (Critical Security Fix: Terminal PTY User Impersonation)"]
+    A["v0.8.2 (Released: Brum Rebrand, Bear Logo, Crate & AUR)"] --> B["v0.8.3 (Active: Places Hub, Dialog Ergonomics & Security Hardening)"]
     B --> C["v0.9.0 (Next: Enterprise Identity OIDC SSO & Collaborative Office)"]
-    C --> D["v1.0.0 (Brum Full Rebranding, Distributed Virtual Storage & P2P Cluster)"]
+    C --> D["v1.0.0 (Distributed Virtual Storage, Fleet Mesh & P2P Cluster)"]
 ```
 
-### 🎯 Current Sprint Backlog (`v0.8.2`):
+### 🎯 Current Sprint Backlog (`v0.8.3`):
 
-#### 1. 🚨 Critical Security: Terminal PTY User Impersonation & Privilege Escalation Fix (#21)
+#### 1. 🧭 Navigation: Unified "Places" Hub & Protocol Selector Refinements (#26)
+- [ ] **Unified "Places" Hub Dropdown**:
+  - Rename "Storage Roots & Bookmarks" to **"Places"**.
+  - Merge local bookmarks, authorized storage roots, and remote VFS shares (NFS, SMB/CIFS, SFTP, WebDAV, S3) into a single cohesive navigation hub.
+  - Simplify header labels: remove redundant "Authorized Storage Roots" header; shorten "Personal Home (/path)" to simply "Home".
+- [ ] **Protocol Dropdown Selector UX**:
+  - Restyle protocol dropdown selector with a distinct chevron indicator so it is clearly recognizable as an interactive dropdown.
+  - Relocate the protocol selector to the right of the breadcrumbs navigation bar.
+
+#### 2. 🪟 UI: Streamline Copy (F5), Move (F6), and Rename (F2) Dialog Ergonomics & Button Sizing (#27)
+- [ ] **Copy (F5) Modal & DeltaCopy Options**:
+  - Rename dialog title from "DeltaCopy & Transfer (RoboCopy / TeraCopy Engine)" to **"Copy (F5)"**.
+  - Rename section "Transfer Intelligence & Optimizations" to **"DeltaCopy Options:"**.
+  - Standardize option checkboxes:
+    - **Skip**: Skip unchanged files (matching size and modification timestamp).
+    - **Verification**: Verify bit-for-bit CRC32 checksums post-copy.
+    - **Retry**: Auto-retry up to 3 times on temporary lock or I/O busy.
+    - **Keep Metadata**: Retain original timestamps (mtime) and permissions.
+    - **Recursively**: Dive into subfolders.
+  - User Settings: Add configurable default action on <kbd>F5</kbd> (Standard Copy vs. DeltaCopy).
+- [ ] **Rename (F2) Modal**:
+  - Remove redundant "New Name / Destination" subtitle.
+- [ ] **Uniform Button Sizing Across Dialogs**:
+  - Enforce uniform `28px` height and consistent width/padding across all Copy (F5), Move (F6), and Rename (F2) action buttons.
+
+#### 3. 🚨 Critical Security: Terminal PTY User Impersonation & Privilege Escalation Fix (#21)
 - [ ] **Terminal PTY Privilege Escalation Prevention in Service Mode**:
-  - **Issue**: When CommanderDog runs as a background service daemon (e.g. systemd unit with `User=root`), opening the Bite! Web Terminal spawns `/bin/bash` with the daemon's process UID (root). Authenticated regular / non-root users are erroneously granted an unrestricted root shell.
+  - **Issue**: When Brum runs as a background service daemon (e.g. systemd unit with `User=root`), opening the Bite! Web Terminal spawns `/bin/bash` with the daemon's process UID (root). Authenticated regular / non-root users are erroneously granted an unrestricted root shell.
   - **Remediation & Architecture**:
     - **User Context Extraction**: Bind the authenticated session identity (JWT claims / PAM username) into the WebSocket terminal handler (`handle_terminal_ws`).
     - **POSIX User Privilege Dropping**: When running with elevated privileges (UID 0) on Linux/Unix, drop privileges to the logged-in user (`setresuid`, `setresgid`, `initgroups`) or spawn the login shell via `su - <user>` / `login -f <user>` / PAM session management.
     - **Virtual & DB Account Isolation**: For virtual/database accounts without a corresponding local OS account, prevent shell spawning or restrict execution to a locked chroot/jail.
     - **Role-Based Terminal Access Control (RBAC)**: Add configuration options (`[terminal] allow_roles = ["admin"]`, `[terminal] allow_virtual_users = false`) to enforce strict least-privilege policies.
 
-#### 2. 🐕 NoteDog Chewtoy Polish & Docked Mode
-- [ ] **Docked Mode Note Dropdown Selection Fix**:
-  - Fix note dropdown selection in docked mode where changing notes lags or shows the previously selected note instead of the newly selected item.
-- [ ] **Docked True Dual-Edit (Side-by-Side Split Mode)**:
-  - Implement full side-by-side Markdown source editor + live preview split mode in docked panel views.
-- [ ] **Mobile & Tablet Sliding Collapsible Sidebar**:
-  - Add responsive sliding/drawer sidebar for note hierarchy on `Phone` and `Tablet` viewports to maximize writing canvas area.
-
-#### 3. 📱 Responsive Viewports, Micro-Text Scaling & Mobile/Tablet Ergonomics
-- [ ] **Tablet Dual-Panel Mode Toggle**:
+#### 4. 📱 Responsive Viewports, Micro-Text Scaling & Mobile/Tablet Ergonomics
+- [ ] **Tablet Dual-Panel Mode Toggle (#4)**:
   - Make dual-panel mode optional/toggleable on `Tablet` viewport (allow 1-panel wide mode for tight screens).
-- [ ] **Adaptive Viewport Typography & Micro-Text Scaling**:
+- [ ] **Mobile & Tablet Sliding Collapsible Sidebar (#25)**:
+  - Add responsive sliding/drawer sidebar for note hierarchy on `Phone` and `Tablet` viewports to maximize writing canvas area.
+- [x] **Adaptive Viewport Typography & Micro-Text Scaling (#5, #6)**:
   - Optimize info-text and secondary badge font sizes to be proportionally compact and legible on mobile and tablet screens.
-- [ ] **Top Header Responsive Branding**:
-  - Display CommanderDog branding badge on `Tablet` viewport while keeping it hidden on `Phone` to maximize path bar and panel space.
-- [ ] **Phone Pane Columns (Owner & Permissions)**:
+- [x] **Top Header Responsive Branding (#7)**:
+  - Display Brum branding badge on `Tablet` viewport while keeping it hidden on `Phone` to maximize path bar and panel space.
+- [x] **Phone Pane Columns (Owner & Permissions) (#8)**:
   - Add optional owner/group and UNIX permission (`rwxr-xr-x`) visibility in mobile phone panel item rows and details drawer.
-- [ ] **Mobile Bookmarks Manager Trigger Fix**:
+- [x] **Mobile Bookmarks Manager Trigger Fix (#9)**:
   - Fix Bookmarks manager modal/drawer tap triggering on phone viewport.
 
-#### 4. 🎨 Design System & Theme Engine Form Harmonization
-- [ ] **Standardized Form Control Components (`Woofsons Amber Charcoal` & `Amber Zink`)**:
-  - **Checkboxes & Radios**: Theme-aware custom styled checkboxes with active amber glow, smooth transitions, and distinct states across dark and light themes.
-  - **Input Fields**: Standardized padding, borders, focus outline ring (`var(--accent)`), and placeholder contrast across all modal forms and settings.
-  - **Dropdown Menus & Selects**: Harmonized custom select components with consistent height (`28px` / `32px`), chevron icons, hover states, and dropdown popup styling.
-- [ ] **Header Control Alignment & Icon Refinements**:
-  - Swap topbar order of **ChewToys Apps Menu** and **Task Manager Pill** for more ergonomic access.
-  - Replace cloud upload icon with sleek modern tray / upward arrow indicator (e.g. `arrow-up-to-line` / `upload`).
+#### 5. 🎨 Design System & Theme Engine Form Harmonization
+- [x] **Standardized Form Control Components (#10)**:
+  - Checkboxes, radio inputs, and select elements standardized across `Woofsons Amber Charcoal` & `Amber Zink`.
+- [x] **Header Control Alignment & Icon Refinements (#11, #12)**:
+  - Swapped topbar order of Apps Menu and Task Manager Pill. Replaced cloud upload symbol with sleek tray indicator.
+- [x] **Larvikite & Kittelsen Theme Suites (v0.8.3-rc1)**:
+  - Integrated 8 official themes (Skumring, Demring, Trollnatt, Myrtåke, Bergtatt, Soria Moria, Pestanatt, Sotslette).
 
-#### 5. 🧩 ChewToy Plugin Architecture & Extensible Scripting Specification (`.arf` / `.woof`)
+#### 6. 🔲 Panel Rearrangement & Windows Native Capabilities
+- [ ] **UI: Drag & Drop Rearrangement of Panels (#15)**:
+  - Allow users to dynamically reorder panels via drag handles or keyboard shortcuts.
+- [ ] **Windows: Standardize Windows Native Platform Capabilities (#19)**:
+  - Leverage native Windows APIs for drive enumeration, recycle bin integration, and shell execution.
+
+#### 7. 🧩 ChewToy Plugin Architecture & Extensible Scripting Specification (`.arf` / `.woof`) (#13)
 - [ ] **ChewToy Modular Plugin System**:
   - Architecture and specification for dynamic external plugins packaged as `.arf` or `.woof` bundles.
   - Standard manifest format (`plugin.toml` / `manifest.json`), asset packaging, and permission sandboxing.
   - Scripting engine integration (native Shell / Bash script bridge leveraging embedded pseudo-terminal, plus optional lightweight WASM / QuickJS runtime for cross-platform sandboxed execution).
 
-#### 6. 📦 Linux Packaging & Debian FHS Conformance (#22)
+#### 8. 📦 Linux Packaging & Debian FHS Conformance (#22)
 - [ ] **Debian `.deb` Dependency Modernization & Standard Paths**:
-  - **Modernize Dependencies for Debian 13 (Trixie) & Ubuntu 24.04+**:
-    - Update `Depends` in `scripts/build-packages.sh` and `Cargo.toml` to specify `7zip | p7zip-full` instead of deprecated `p7zip-full`.
-    - Remove vendored/statically bundled libraries (`libsqlite3-0`, `libssh2-1`) from deb runtime dependencies to prevent issues with 64-bit time_t transitions (`libssh2-1t64`).
-  - **FHS-Compliant Package Paths**:
-    - Relocate installed binary from `/usr/local/bin/commanderdog` to `/usr/bin/commanderdog` (standard for package managers).
-    - Standardize systemd service unit to `/usr/lib/systemd/system/commanderdog.service`.
-  - **Maintainer Scripts (`postinst` / `prerm`)**:
-    - Automatically reload systemd daemon (`systemctl daemon-reload`) upon install/upgrade.
-    - Ensure default directories (`/etc/commanderdog`, `/data`, `/var/log/commanderdog`) exist with correct permissions.
-  - **Documentation & LXC Sandboxing Notes**:
-    - Document the harmless APT `_apt` privilege-drop sandbox notice when installing local `.deb` files directly from restricted home directories (`chmod a+r` or copy to `/tmp`).
+  - Update `Depends` in packaging to specify `7zip | p7zip-full`.
+  - Ensure standard FHS directories (`/etc/brum`, `/var/log/brum`, `/usr/bin/brum`) and systemd unit reload in maintainer scripts.
 
-#### 7. 📊 Multi-Drive Storage Overview & Mountpoint Disk Stats in Stats ChewToy (#23)
+#### 9. 📊 Multi-Drive Storage Overview & Mountpoint Disk Stats in Stats ChewToy (#23)
+- [ ] **Multi-Drive & Mounts Overview Dashboard (`Stats` ChewToy Extension)**:
+  - Unified filesystem and disk capacity meters across all mounted drives.
+  - 1-click "Open in Panel" and "Analyze Tree" parallel disk analyzer.
+  - Real-time disk space badges in the Places dropdown.
+
+#### 10. 🌐 Commander Fleet: Multi-Host Node Switcher, Cross-Pane Orchestration & Zero-Trust Hardening (#24)
+- [ ] **Dynamic Node Switcher & Remote Instance Profiles**:
+  - Local client storage for multiple Brum instances (`localhost:3140`, `goshawk:3140`, `https://nas.lan:3140`) with custom aliases, latency meters, and 1-click active server switching.
+- [ ] **Cross-Pane Multi-Node Operations (Dual-Panel Power Move)**:
+  - Per-pane independent node binding and cross-node streaming over chunked channels.
 - [ ] **Multi-Drive & Mounts Overview Dashboard (`Stats` ChewToy Extension)**:
   - **Unified Drives & Filesystems View**:
     - Add a dedicated "Drives / Mounts" view mode in the `Stats` ChewToy alongside `Treemap`, `Split`, and `List`.
