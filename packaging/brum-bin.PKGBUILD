@@ -10,7 +10,7 @@ provides=('brum')
 conflicts=('brum' 'commanderdog' 'commanderdog-bin')
 depends=('glibc' 'sqlite' 'libssh2' 'openssl' 'ca-certificates')
 source=("brum-v${pkgver}-linux-${arch}.tar.gz::https://github.com/Woofson/brum/releases/download/v${pkgver}/brum-v${pkgver}-linux-${arch}.tar.gz")
-sha256sums=('c0fbfdee528e379ae3a3ce71dd3b93e9f0bf764a4c5b45f4473db6c43087c7e0')
+sha256sums=('1b19fe81264085e300b2aa7ae36171fa7478780cb8fc9791211e7dfcd5b5e8c6')
 
 package() {
     cd "$srcdir/brum-v${pkgver}-linux-${arch}"

@@ -240,7 +240,7 @@ pkgbase = brum
 
 pkgname = brum
 SRCINFO_EOF
-        (cd "${AUR_SRC_DIR}" && git add PKGBUILD .SRCINFO && git commit -m "release: v${TARGET_VERSION}" && git push origin master)
+        (cd "${AUR_SRC_DIR}" && git add PKGBUILD .SRCINFO && git commit -m "release: v${TARGET_VERSION}" && git push origin HEAD:master)
         rm -rf "${AUR_SRC_DIR}"
         echo "✅ AUR 'brum' updated successfully!"
     else
@@ -272,7 +272,7 @@ pkgbase = brum-bin
 
 pkgname = brum-bin
 SRCINFO_BIN_EOF
-        (cd "${AUR_BIN_DIR}" && git add PKGBUILD .SRCINFO && git commit -m "release: v${TARGET_VERSION}" && git push origin master)
+        (cd "${AUR_BIN_DIR}" && git add PKGBUILD .SRCINFO && git commit -m "release: v${TARGET_VERSION}" && git push origin HEAD:master)
         rm -rf "${AUR_BIN_DIR}"
         echo "✅ AUR 'brum-bin' updated successfully!"
     else
