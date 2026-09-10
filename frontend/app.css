@@ -7167,13 +7167,13 @@ body {
   z-index: 99999;
   align-items: center;
   justify-content: flex-start;
-  padding: 40px 24px 40px max(40px, 12vw);
-  background-color: #0c0d10;
+  padding: 40px 24px 40px max(48px, 12vw);
+  background-color: #101014;
   background-image: 
-    radial-gradient(circle 650px at 72% 50%, rgba(245, 158, 11, 0.24) 0%, rgba(217, 119, 6, 0.12) 45%, rgba(120, 53, 15, 0.04) 70%, transparent 100%),
-    radial-gradient(ellipse 70% 55% at 15% 15%, rgba(245, 158, 11, 0.14) 0%, transparent 70%),
-    radial-gradient(ellipse 65% 50% at 85% 85%, rgba(217, 119, 6, 0.12) 0%, transparent 65%),
-    linear-gradient(140deg, #09090c 0%, #121217 50%, #151310 100%);
+    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 50%, transparent 75%),
+    radial-gradient(ellipse 80% 60% at 15% 15%, rgba(245, 158, 11, 0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 75% 55% at 85% 85%, rgba(217, 119, 6, 0.08) 0%, transparent 65%),
+    linear-gradient(140deg, #0a0a0d 0%, #121217 45%, #151310 100%);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   overflow: hidden;
@@ -10158,13 +10158,13 @@ body.is-col-resizing {
   display: none;
   align-items: center;
   justify-content: flex-start;
-  padding: 40px 24px 40px max(40px, 12vw);
-  background-color: #0c0d10;
+  padding: 40px 24px 40px max(48px, 12vw);
+  background-color: #101014;
   background-image: 
-    radial-gradient(circle 650px at 72% 50%, rgba(245, 158, 11, 0.24) 0%, rgba(217, 119, 6, 0.12) 45%, rgba(120, 53, 15, 0.04) 70%, transparent 100%),
-    radial-gradient(ellipse 70% 55% at 15% 15%, rgba(245, 158, 11, 0.14) 0%, transparent 70%),
-    radial-gradient(ellipse 65% 50% at 85% 85%, rgba(217, 119, 6, 0.12) 0%, transparent 65%),
-    linear-gradient(140deg, #09090c 0%, #121217 50%, #151310 100%);
+    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(245, 158, 11, 0.15) 0%, rgba(217, 119, 6, 0.08) 50%, transparent 75%),
+    radial-gradient(ellipse 80% 60% at 15% 15%, rgba(245, 158, 11, 0.10) 0%, transparent 65%),
+    radial-gradient(ellipse 75% 55% at 85% 85%, rgba(217, 119, 6, 0.08) 0%, transparent 65%),
+    linear-gradient(140deg, #0a0a0d 0%, #121217 45%, #151310 100%);
   backdrop-filter: blur(14px);
   -webkit-backdrop-filter: blur(14px);
   overflow: hidden;
@@ -10233,8 +10233,7 @@ body.is-col-resizing {
   inset: 0;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding-right: max(32px, 8vw);
+  justify-content: center;
   pointer-events: none;
   user-select: none;
   z-index: 5;
@@ -10242,25 +10241,25 @@ body.is-col-resizing {
 }
 
 .auth-watermark-img {
-  width: min(650px, 46vw);
-  height: min(650px, 80vh);
+  width: min(720px, 85vw);
+  height: min(720px, 85vh);
   max-width: 90%;
-  max-height: 85vh;
+  max-height: 90%;
   object-fit: contain;
-  opacity: 0.88;
-  filter: drop-shadow(0 0 50px rgba(245, 158, 11, 0.55)) drop-shadow(0 0 100px rgba(245, 158, 11, 0.3));
+  opacity: 0.85;
+  filter: drop-shadow(0 0 45px rgba(245, 158, 11, 0.45));
   transform-origin: center center;
   animation: authWatermarkFloat 10s ease-in-out infinite alternate;
 }
 
 @keyframes authWatermarkFloat {
   0% {
-    transform: scale(0.97) translateY(0) rotate(-1deg);
-    opacity: 0.82;
+    transform: scale(0.98) translateY(0);
+    opacity: 0.80;
   }
   100% {
-    transform: scale(1.03) translateY(-12px) rotate(1.5deg);
-    opacity: 0.95;
+    transform: scale(1.02) translateY(-8px);
+    opacity: 0.90;
   }
 }
 
@@ -10269,15 +10268,6 @@ body.is-col-resizing {
   .session-lock-screen {
     justify-content: center;
     padding: 24px;
-    background-image: 
-      radial-gradient(circle 500px at 50% 50%, rgba(245, 158, 11, 0.22) 0%, rgba(217, 119, 6, 0.12) 40%, rgba(120, 53, 15, 0.04) 70%, transparent 100%),
-      radial-gradient(ellipse 70% 55% at 15% 15%, rgba(245, 158, 11, 0.14) 0%, transparent 70%),
-      linear-gradient(140deg, #09090c 0%, #121217 50%, #151310 100%);
-  }
-
-  .auth-watermark-backdrop {
-    justify-content: center;
-    padding-right: 0;
   }
 
   .auth-watermark-img {
@@ -10304,7 +10294,7 @@ body.is-col-resizing {
     width: min(340px, 92vw);
     height: min(340px, 92vw);
     opacity: 0.65;
-    filter: drop-shadow(0 0 30px rgba(245, 158, 11, 0.45));
+    filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.35));
   }
 }
 

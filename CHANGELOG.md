@@ -5,6 +5,14 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc6] - 2026-09-10
+
+### Centered Splash & Normalized Background Illumination
+- **Centered Bear Watermark & Left Modals**:
+  - Re-centered the Brum bear splash (`.auth-watermark-backdrop`) directly in the center of the viewport with balanced floating motion.
+  - Retained left-aligned frosted glass authentication card layout on desktop viewports (`>900px`).
+  - Normalized background illumination across `#login-modal` and `.session-lock-screen` with balanced amber charcoal radial gradients.
+
 ## [0.8.3-rc5] - 2026-09-10
 
 ### Asymmetric Desktop Layout for Auth & Lock Screens
