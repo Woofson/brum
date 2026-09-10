@@ -1,5 +1,6 @@
 use super::{is_archive_file, DirectoryListing, FileContentResponse, FileEntry};
 use crate::vfs::checksum::calculate_sha256;
+#[cfg(unix)]
 use std::collections::HashMap;
 use std::fs::{self, File};
 use std::io::{Read, Write};
