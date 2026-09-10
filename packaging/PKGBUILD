@@ -10,7 +10,7 @@ depends=('glibc' 'sqlite' 'libssh2' 'openssl' 'ca-certificates' 'gtk3' 'webkit2g
 makedepends=('cargo' 'rust' 'pkgconf' 'gtk3' 'webkit2gtk-4.1')
 options=('!lto')
 source=("$pkgname-$pkgver-$pkgrel.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('8b1bb45694cfd43c31298cee794b50bc11bffd4bb623d1df58729aa0e04217a5')
+sha256sums=('3cbe65dafd349a1c22dd7a7c6ffc778539bc63a47381a36232237398d23a0d5e')
 
 prepare() {
     cd "$pkgname-$pkgver"
