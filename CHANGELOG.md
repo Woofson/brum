@@ -5,6 +5,14 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc5] - 2026-09-10
+
+### Asymmetric Desktop Layout for Auth & Lock Screens
+- **Side-by-Side Modern Auth Composition**:
+  - Re-architected desktop (`>900px`) login and lock screens to a left-aligned modal layout (`padding-left: max(40px, 12vw)`), giving the glowing bear watermark full unobstructed focus on the right side of the screen.
+  - Positioned watermark backdrop to the right with gentle drifting, rotation, and amber backlighting halo (`radial-gradient at 72% 50%`).
+  - Added responsive adaptivity for tablets and phones (`<=900px` / `<=600px`) with centered alignments.
+
 ## [0.8.3-rc4] - 2026-09-10
 
 ### Enhanced Translucency & Backlit Watermark Splash
