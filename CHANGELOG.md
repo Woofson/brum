@@ -5,6 +5,14 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc4] - 2026-09-10
+
+### Enhanced Translucency & Backlit Watermark Splash
+- **Luminous Backlighting & Enhanced Watermark Presence**:
+  - Boosted bear watermark opacity to `0.72` with vivid dual-layer amber drop shadows (`rgba(245, 158, 11, 0.55)` and `0.30`).
+  - Added centralized radial gradient illumination halo (`520px`) behind the watermark on both login and lock screen overlays.
+  - Increased card translucency (`rgba(16, 17, 22, 0.42)` with `blur(18px)`) and input glass transparency, allowing the amber silhouette and details of the bear to clearly show through the glass.
+
 ## [0.8.3-rc3] - 2026-09-10
 
 ### Frosted Glass Glassmorphism for Auth & Lock Screens
