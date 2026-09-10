@@ -14,6 +14,6 @@ Installers:
     InstallerType: nullsoft
     InstallerUrl: https://github.com/woofson/brum/releases/download/v0.8.2/Brum_0.8.2_x64-setup.exe
     InstallerSha256: 1b433cb715617d44624939052dc43f018e43d4016553af2c0969b22a12f04ca4
-    ProductCode: no.boop.brum
+    ProductCode: ac.arf.brum
 ManifestType: installer
 ManifestVersion: 1.6.0
