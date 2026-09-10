@@ -1,17 +1,17 @@
 # ==============================================================================
-# 🐕 CommanderDog Master Configuration File
-# Location: ~/.config/commanderdog/config.toml (or /etc/commanderdog/config.toml)
+# 🐕 Brum Master Configuration File
+# Location: ~/.config/brum/config.toml (or /etc/brum/config.toml)
 # ==============================================================================
 
 # --- Core Server Settings ---
 [server]
 host = "0.0.0.0"                 # "0.0.0.0" to listen on all network interfaces, "127.0.0.1" for local-only
-port = 3140                      # CommanderDog standard default port
+port = 3140                      # Brum standard default port
 root_path = "/"                  # Root filesystem path
 upload_max_size_mb = 10240       # Max file upload size in MB (10 GB)
 enable_auth = true               # Enable authentication (automatically disabled in --standalone mode)
 session_duration_hours = 72      # JWT session expiry duration in hours
-database_path = "commanderdog.db"# SQLite local metadata and session database
+database_path = "brum.db"        # SQLite local metadata and session database
 
 # --- Authentication & Access Control ---
 [auth]
@@ -19,7 +19,7 @@ mode = "mixed"                   # Options: "mixed" (PAM + Built-in), "builtin",
 pam_service = "login"            # Linux PAM service name
 allow_guest = false              # Allow anonymous guest access
 default_admin_user = "admin"     # Initial admin username
-default_admin_pass = "commanderdog" # Initial admin password
+default_admin_pass = "brum"      # Initial admin password
 
 # --- Storage Roots & Filesystem Sandboxing ---
 [storage]
@@ -58,12 +58,12 @@ show_global_refresh = false      # Minimal header (off by default; individual pa
 [desktop]
 minimize_to_tray = true          # Minimize window to system tray when closed instead of terminating
 enable_tray = true               # Enable system tray icon
-global_summon_hotkey = "Super+C" # System-wide shortcut to summon/focus CommanderDog (e.g. "Super+C", "Ctrl+Alt+Space")
+global_summon_hotkey = "Super+C" # System-wide shortcut to summon/focus Brum (e.g. "Super+C", "Ctrl+Alt+Space")
 start_minimized = false          # Launch directly to system tray on system boot / autostart
 
 # --- Color Themes & Aesthetics ---
 [themes]
-default_theme = "amber-charcoal" # Active theme ID (Built-in theme or custom theme from ~/.config/commanderdog/themes/)
+default_theme = "amber-charcoal" # Active theme ID (Built-in theme or custom theme from ~/.config/brum/themes/)
 
 [[themes.themes]]
 id = "amber-charcoal"

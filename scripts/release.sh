@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # ==============================================================================
-# CommanderDog - One-Command Cleanup, Version Bump, Build & Release Script
+# Brum - One-Command Cleanup, Version Bump, Build & Release Script
 # Automates:
 #  1. Cleanup of temporary logs, artifacts, and test files
 #  2. Semver version bump across Cargo, Tauri, Web, and Packaging configs
 #  3. Building release binary and distribution packages (.tar.gz, .deb, .apk)
 #  4. Git commit, tag, and push to GitHub (origin main --tags)
 #  5. Automatic source sha256 checksum calculation & PKGBUILD sync
-#  6. Automatic AUR sync for both `commanderdog` and `commanderdog-bin`
+#  6. Automatic AUR sync for both `brum` and `brum-bin`
 #
 # USAGE:
-#   ./scripts/release.sh               # Auto-bumps patch (e.g. 0.3.4 -> 0.3.5)
-#   ./scripts/release.sh 0.3.5         # Explicit version bump
-#   ./scripts/release.sh minor         # Bumps minor (e.g. 0.3.4 -> 0.4.0)
-#   ./scripts/release.sh major         # Bumps major (e.g. 0.3.4 -> 1.0.0)
+#   ./scripts/release.sh               # Auto-bumps patch (e.g. 0.8.2 -> 0.8.3)
+#   ./scripts/release.sh 0.8.3         # Explicit version bump
+#   ./scripts/release.sh minor         # Bumps minor (e.g. 0.8.2 -> 0.9.0)
+#   ./scripts/release.sh major         # Bumps major (e.g. 0.8.2 -> 1.0.0)
 #   ./scripts/release.sh --skip-aur    # Skips pushing to AUR
 # ==============================================================================
 
@@ -66,15 +66,15 @@ if [ -z "${TARGET_VERSION}" ]; then
 fi
 
 echo "======================================================"
-echo "🚀 CommanderDog Automated Release: v${CURRENT_VERSION} -> v${TARGET_VERSION}"
+echo "🚀 Brum Automated Release: v${CURRENT_VERSION} -> v${TARGET_VERSION}"
 echo "======================================================"
 
 # ------------------------------------------------------------------------------
 # 1. CLEANUP TEMPORARY FILES & SCRATCH ARTIFACTS
 # ------------------------------------------------------------------------------
 echo "🧹 Cleaning up temporary logs, scratch files, and build caches..."
-rm -f *.log *.tmp *.dump *.dmp parucommanderdog*.txt cd*.txt cdmousepointer*.txt commanderdog*.txt *.db *.db-journal *.sqlite*
-rm -rf dist /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/commanderdog-*
+rm -f *.log *.tmp *.dump *.dmp parubrum*.txt brum*.txt parucommanderdog*.txt commanderdog*.txt *.db *.db-journal *.sqlite*
+rm -rf dist /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/brum-* /tmp/commanderdog-*
 
 # ------------------------------------------------------------------------------
 # 2. PRE-FLIGHT SENSITIVE DATA & CREDENTIALS CHECK
@@ -125,10 +125,10 @@ if [ -f "packaging/PKGBUILD" ]; then
     sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/PKGBUILD
 fi
 
-# packaging/commanderdog-bin.PKGBUILD
-if [ -f "packaging/commanderdog-bin.PKGBUILD" ]; then
-    sed -i "s/^pkgver=.*/pkgver=${TARGET_VERSION}/" packaging/commanderdog-bin.PKGBUILD
-    sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/commanderdog-bin.PKGBUILD
+# packaging/brum-bin.PKGBUILD
+if [ -f "packaging/brum-bin.PKGBUILD" ]; then
+    sed -i "s/^pkgver=.*/pkgver=${TARGET_VERSION}/" packaging/brum-bin.PKGBUILD
+    sed -i "s/^pkgrel=.*/pkgrel=1/" packaging/brum-bin.PKGBUILD
 fi
 
 # packaging/APKBUILD
@@ -137,21 +137,21 @@ if [ -f "packaging/APKBUILD" ]; then
     sed -i "s/^pkgrel=.*/pkgrel=0/" packaging/APKBUILD
 fi
 
-# packaging/windows/scoop/commanderdog.json
-if [ -f "packaging/windows/scoop/commanderdog.json" ]; then
-    sed -i "s/\"version\": \".*\"/\"version\": \"${TARGET_VERSION}\"/" packaging/windows/scoop/commanderdog.json
-    sed -i "s/download\/v[^\/]*\//download\/v${TARGET_VERSION}\//g" packaging/windows/scoop/commanderdog.json
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+.*\.zip/v${TARGET_VERSION}.zip/g" packaging/windows/scoop/commanderdog.json
+# packaging/windows/scoop/brum.json
+if [ -f "packaging/windows/scoop/brum.json" ]; then
+    sed -i "s/\"version\": \".*\"/\"version\": \"${TARGET_VERSION}\"/" packaging/windows/scoop/brum.json
+    sed -i "s/download\/v[^\/]*\//download\/v${TARGET_VERSION}\//g" packaging/windows/scoop/brum.json
+    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+.*\.zip/v${TARGET_VERSION}.zip/g" packaging/windows/scoop/brum.json
 fi
 
 # packaging/windows/winget
-if [ -f "packaging/windows/winget/Woofson.CommanderDog.yaml" ]; then
-    sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.CommanderDog.yaml
+if [ -f "packaging/windows/winget/Woofson.Brum.yaml" ]; then
+    sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.Brum.yaml
 fi
-if [ -f "packaging/windows/winget/Woofson.CommanderDog.installer.yaml" ]; then
-    sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.CommanderDog.installer.yaml
-    sed -i "s/download\/v[^\/]*\//download\/v${TARGET_VERSION}\//g" packaging/windows/winget/Woofson.CommanderDog.installer.yaml
-    sed -i "s/CommanderDog_[0-9]\+\.[0-9]\+\.[0-9]\+[^_]*_/CommanderDog_${TARGET_VERSION}_/g" packaging/windows/winget/Woofson.CommanderDog.installer.yaml
+if [ -f "packaging/windows/winget/Woofson.Brum.installer.yaml" ]; then
+    sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.Brum.installer.yaml
+    sed -i "s/download\/v[^\/]*\//download\/v${TARGET_VERSION}\//g" packaging/windows/winget/Woofson.Brum.installer.yaml
+    sed -i "s/Brum_[0-9]\+\.[0-9]\+\.[0-9]\+[^_]*_/Brum_${TARGET_VERSION}_/g" packaging/windows/winget/Woofson.Brum.installer.yaml
 fi
 
 # ------------------------------------------------------------------------------
@@ -161,10 +161,10 @@ echo "📦 Compiling and building distribution packages..."
 bash "${SCRIPT_DIR}/build-packages.sh"
 
 # Extract binary sha256 for -bin package
-BIN_TARBALL="commanderdog-v${TARGET_VERSION}-linux-x86_64.tar.gz"
+BIN_TARBALL="brum-v${TARGET_VERSION}-linux-x86_64.tar.gz"
 BIN_SHA256=$(grep "${BIN_TARBALL}" dist/SHA256SUMS | awk '{print $1}')
-if [ -n "${BIN_SHA256}" ] && [ -f "packaging/commanderdog-bin.PKGBUILD" ]; then
-    sed -i "s/^sha256sums=('.*')/sha256sums=('${BIN_SHA256}')/" packaging/commanderdog-bin.PKGBUILD
+if [ -n "${BIN_SHA256}" ] && [ -f "packaging/brum-bin.PKGBUILD" ]; then
+    sed -i "s/^sha256sums=('.*')/sha256sums=('${BIN_SHA256}')/" packaging/brum-bin.PKGBUILD
 fi
 
 # ------------------------------------------------------------------------------
@@ -181,7 +181,7 @@ git push origin main --tags -f
 # ------------------------------------------------------------------------------
 echo "🔒 Calculating GitHub source tarball SHA-256 for AUR..."
 sleep 2
-SOURCE_URL="https://github.com/Woofson/commanderdog/archive/refs/tags/v${TARGET_VERSION}.tar.gz"
+SOURCE_URL="https://github.com/Woofson/brum/archive/refs/tags/v${TARGET_VERSION}.tar.gz"
 SOURCE_SHA256=""
 for attempt in {1..5}; do
     SOURCE_SHA256=$(curl -sL "${SOURCE_URL}" | sha256sum | awk '{print $1}')
@@ -195,7 +195,7 @@ done
 if [ -n "${SOURCE_SHA256}" ] && [ "${#SOURCE_SHA256}" -eq 64 ]; then
     echo "Source SHA-256: ${SOURCE_SHA256}"
     sed -i "s/^sha256sums=('.*')/sha256sums=('${SOURCE_SHA256}')/" packaging/PKGBUILD
-    git add packaging/PKGBUILD packaging/commanderdog-bin.PKGBUILD
+    git add packaging/PKGBUILD packaging/brum-bin.PKGBUILD
     git commit -m "chore(pkg): update source checksum for v${TARGET_VERSION}" || true
     git push origin main
 else
@@ -208,17 +208,17 @@ fi
 if [ "${SKIP_AUR}" = false ]; then
     echo "🏔️ Syncing to Arch User Repository (AUR)..."
 
-    # 6.1 commanderdog (source)
-    AUR_SRC_DIR="/tmp/aur-commanderdog-${TARGET_VERSION}"
+    # 6.1 brum (source)
+    AUR_SRC_DIR="/tmp/aur-brum-${TARGET_VERSION}"
     rm -rf "${AUR_SRC_DIR}"
-    if git clone aur@aur.archlinux.org:commanderdog.git "${AUR_SRC_DIR}"; then
+    if git clone aur@aur.archlinux.org:brum.git "${AUR_SRC_DIR}"; then
         cp packaging/PKGBUILD "${AUR_SRC_DIR}/PKGBUILD"
         cat << SRCINFO_EOF > "${AUR_SRC_DIR}/.SRCINFO"
-pkgbase = commanderdog
-	pkgdesc = Multi-Tab Web & Desktop File Commander - By Woofson
+pkgbase = brum
+	pkgdesc = Multi-Pane Web Environment (File Commander/Manager) - By Woofson
 	pkgver = ${TARGET_VERSION}
 	pkgrel = 1
-	url = https://github.com/Woofson/commanderdog
+	url = https://github.com/Woofson/brum
 	arch = x86_64
 	arch = aarch64
 	license = MIT
@@ -235,59 +235,60 @@ pkgbase = commanderdog
 	depends = gtk3
 	depends = webkit2gtk-4.1
 	options = !lto
-	source = commanderdog-${TARGET_VERSION}.tar.gz::https://github.com/Woofson/commanderdog/archive/refs/tags/v${TARGET_VERSION}.tar.gz
+	source = brum-${TARGET_VERSION}.tar.gz::https://github.com/Woofson/brum/archive/refs/tags/v${TARGET_VERSION}.tar.gz
 	sha256sums = ${SOURCE_SHA256}
 
-pkgname = commanderdog
+pkgname = brum
 SRCINFO_EOF
         (cd "${AUR_SRC_DIR}" && git add PKGBUILD .SRCINFO && git commit -m "release: v${TARGET_VERSION}" && git push origin master)
         rm -rf "${AUR_SRC_DIR}"
-        echo "✅ AUR 'commanderdog' updated successfully!"
+        echo "✅ AUR 'brum' updated successfully!"
     else
-        echo "⚠️ Skipping AUR 'commanderdog' (SSH access not configured or clone failed)"
+        echo "⚠️ Skipping AUR 'brum' (SSH access not configured or clone failed)"
     fi
 
-    # 6.2 commanderdog-bin (pre-compiled binary)
-    AUR_BIN_DIR="/tmp/aur-commanderdog-bin-${TARGET_VERSION}"
+    # 6.2 brum-bin (pre-compiled binary)
+    AUR_BIN_DIR="/tmp/aur-brum-bin-${TARGET_VERSION}"
     rm -rf "${AUR_BIN_DIR}"
-    if git clone aur@aur.archlinux.org:commanderdog-bin.git "${AUR_BIN_DIR}"; then
-        cp packaging/commanderdog-bin.PKGBUILD "${AUR_BIN_DIR}/PKGBUILD"
+    if git clone aur@aur.archlinux.org:brum-bin.git "${AUR_BIN_DIR}"; then
+        cp packaging/brum-bin.PKGBUILD "${AUR_BIN_DIR}/PKGBUILD"
         cat << SRCINFO_BIN_EOF > "${AUR_BIN_DIR}/.SRCINFO"
-pkgbase = commanderdog-bin
-	pkgdesc = Multi-Tab Web & Desktop File Commander - By Woofson (Pre-compiled standalone binary)
+pkgbase = brum-bin
+	pkgdesc = Multi-Pane Web Environment (File Commander/Manager) - By Woofson (Pre-compiled standalone binary)
 	pkgver = ${TARGET_VERSION}
 	pkgrel = 1
-	url = https://github.com/Woofson/commanderdog
+	url = https://github.com/Woofson/brum
 	arch = x86_64
 	license = MIT
-	provides = commanderdog
-	conflicts = commanderdog
+	provides = brum
+	conflicts = brum
 	depends = glibc
 	depends = sqlite
 	depends = libssh2
 	depends = openssl
 	depends = ca-certificates
-	source = commanderdog-v${TARGET_VERSION}-linux-x86_64.tar.gz::https://github.com/Woofson/commanderdog/releases/download/v${TARGET_VERSION}/commanderdog-v${TARGET_VERSION}-linux-x86_64.tar.gz
+	source = brum-v${TARGET_VERSION}-linux-x86_64.tar.gz::https://github.com/Woofson/brum/releases/download/v${TARGET_VERSION}/brum-v${TARGET_VERSION}-linux-x86_64.tar.gz
 	sha256sums = ${BIN_SHA256}
 
-pkgname = commanderdog-bin
+pkgname = brum-bin
 SRCINFO_BIN_EOF
         (cd "${AUR_BIN_DIR}" && git add PKGBUILD .SRCINFO && git commit -m "release: v${TARGET_VERSION}" && git push origin master)
         rm -rf "${AUR_BIN_DIR}"
-        echo "✅ AUR 'commanderdog-bin' updated successfully!"
+        echo "✅ AUR 'brum-bin' updated successfully!"
     else
-        echo "⚠️ Skipping AUR 'commanderdog-bin' (SSH access not configured or clone failed)"
+        echo "⚠️ Skipping AUR 'brum-bin' (SSH access not configured or clone failed)"
     fi
 fi
 
 # Final Cleanup
-rm -f parucommanderdog*.txt
-rm -rf /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/commanderdog-*
+rm -f parubrum*.txt parucommanderdog*.txt
+rm -rf /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/brum-* /tmp/commanderdog-*
 
 echo "======================================================"
-echo "🎉 SUCCESS: CommanderDog v${TARGET_VERSION} is released & published!"
-echo "   - GitHub: https://github.com/Woofson/commanderdog"
-echo "   - AUR Source: https://aur.archlinux.org/packages/commanderdog"
-echo "   - AUR Bin:    https://aur.archlinux.org/packages/commanderdog-bin"
+echo "🎉 SUCCESS: Brum v${TARGET_VERSION} is released & published!"
+echo "   - GitHub: https://github.com/Woofson/brum"
+echo "   - AUR Source: https://aur.archlinux.org/packages/brum"
+echo "   - AUR Bin:    https://aur.archlinux.org/packages/brum-bin"
 echo "   - Local Packages in: ./dist/"
 echo "======================================================"
+

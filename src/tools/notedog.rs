@@ -69,9 +69,9 @@ pub struct NoteTemplate {
     pub content: String,
 }
 
-/// Resolve the NoteDog notes root directory.
+/// Resolve the Notes root directory.
 /// 1. If `override_path` is provided, expand and use that.
-/// 2. If `config_folder` is configured in CommanderDog (e.g. `[notedog] notes_folder = "..."`), use that.
+/// 2. If `config_folder` is configured in Brum (e.g. `[notedog] notes_folder = "..."`), use that.
 /// 3. If `~/.config/notedog/notedog.toml` exists with `note_folder = "..."`, use that.
 /// 4. Default to `~/Notes`.
 pub fn get_notedog_root_dir(override_path: Option<&str>, config_folder: Option<&str>) -> PathBuf {
@@ -93,7 +93,7 @@ pub fn get_notedog_root_dir(override_path: Option<&str>, config_folder: Option<&
         }
     }
 
-    // 2. Check CommanderDog config.toml [notedog] notes_folder
+    // 2. Check Brum config.toml [notedog] notes_folder
     if let Some(cf) = config_folder {
         let trimmed = cf.trim();
         if !trimmed.is_empty() && trimmed != "~/Notes" {
@@ -109,15 +109,14 @@ pub fn get_notedog_root_dir(override_path: Option<&str>, config_folder: Option<&
         }
     }
 
-    // 3. Check config in ~/.config/notedog/notedog.toml
-    let config_path = home_dir.join(".config").join("notedog").join("notedog.toml");
-    if config_path.exists() {
-        if let Ok(content) = fs::read_to_string(&config_path) {
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with("note_folder") {
-                    if let Some((_, val)) = trimmed.split_once('=') {
-                        let mut folder = val.trim().trim_matches('"').trim_matches('\'').to_string();
+    // 3. Fallback to ~/.config/notedog/notedog.toml
+    if let Some(config_dir) = dirs::config_dir() {
+        let conf_file = config_dir.join("notedog/notedog.toml");
+        if conf_file.exists() {
+            if let Ok(c) = fs::read_to_string(conf_file) {
+                if let Ok(v) = c.parse::<toml::Value>() {
+                    if let Some(nf) = v.get("note_folder").and_then(|x| x.as_str()) {
+                        let mut folder = nf.trim().to_string();
                         if folder.starts_with("~/") {
                             folder = folder.replacen("~", &home_dir.to_string_lossy(), 1);
                         }
@@ -132,39 +131,23 @@ pub fn get_notedog_root_dir(override_path: Option<&str>, config_folder: Option<&
         }
     }
 
-    // 4. Default notes folder
-    let default_notes = if let Some(cf) = config_folder {
-        let mut folder = cf.trim().to_string();
-        if folder.starts_with("~/") {
-            folder = folder.replacen("~", &home_dir.to_string_lossy(), 1);
-        }
-        PathBuf::from(folder)
-    } else {
-        home_dir.join("Notes")
-    };
-
+    // 4. Default: ~/Notes
+    let default_notes = home_dir.join("Notes");
     if !default_notes.exists() {
         let _ = fs::create_dir_all(&default_notes);
-        ensure_starter_notes(&default_notes);
-    }
-    default_notes
-}
-
-/// Create starter notes if the root folder is completely empty
-pub fn ensure_starter_notes(root: &Path) {
-    let personal_general = root.join("Personal").join("General");
-    if !personal_general.exists() {
-        let _ = fs::create_dir_all(&personal_general);
-        let welcome_path = personal_general.join("01_Welcome.md");
+        // Create initial default welcome structure: Notes/Welcome/Getting-Started.md
+        let welcome_dir = default_notes.join("Welcome");
+        let _ = fs::create_dir_all(&welcome_dir);
+        let welcome_path = welcome_dir.join("Getting-Started.md");
         if !welcome_path.exists() {
-            let welcome_text = r##"# 🐶 Welcome to NoteDog!
+            let welcome_text = r##"# 🐶 Welcome to Notes Studio!
 
-NoteDog is a vibrant, modern **Notes & Markdown Studio** chewtoy seamlessly integrated into CommanderDog.
+Notes Studio is a vibrant, modern **Notes & Markdown Studio** chewtoy seamlessly integrated into Brum.
 
 ---
 
 ## 🎨 Color-Supported Markdown
-NoteDog supports rich inline color tags that render beautifully in live preview **and** stay 100% compatible with Obsidian, VSCode, and GitHub:
+Notes supports rich inline color tags that render beautifully in live preview **and** stay 100% compatible with Obsidian, VSCode, and GitHub:
 
 - Use standard HTML spans: <span style="color:#FF8C00">Warm Dark Orange</span> or <span style="color:#FFD700">Gold Accent</span>!
 - Or HTML font tags: <font color="#FFA500">Bright Amber Text</font>
@@ -176,7 +159,7 @@ NoteDog supports rich inline color tags that render beautifully in live preview 
 - [x] Interactive task tickboxes (click to check/uncheck in preview!)
 - [x] Mermaid & Flowchart diagram rendering
 - [x] Endless revision history with live diffs and instant rollback
-- [x] Shared themes and colors with CommanderDog
+- [x] Shared themes and colors with Brum
 
 ---
 
@@ -185,6 +168,7 @@ NoteDog supports rich inline color tags that render beautifully in live preview 
             let _ = fs::write(welcome_path, welcome_text);
         }
     }
+    default_notes
 }
 
 /// Scan the NoteDog hierarchy

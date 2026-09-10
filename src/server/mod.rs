@@ -664,7 +664,7 @@ async fn handle_system_exit(
 
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": "CommanderDog is exiting cleanly"
+        "message": "Brum is exiting cleanly"
     })))
 }
 
@@ -1428,7 +1428,7 @@ async fn handle_public_download_share(
 
     if path.is_dir() {
         let temp_zip = tempfile::Builder::new()
-            .prefix("commanderdog_share_")
+            .prefix("brum_share_")
             .suffix(".zip")
             .tempfile()
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
@@ -1520,7 +1520,7 @@ async fn handle_public_share_page(
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CommanderDog Share Portal</title>
+  <title>Brum Share Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
@@ -1669,8 +1669,8 @@ async fn handle_public_share_page(
     <div class="share-header">
       <div class="share-logo">📦</div>
       <div>
-        <div class="share-title">CommanderDog Public Share</div>
-        <div class="share-subtitle">Multi-Tab Web Commander - By Woofson</div>
+        <div class="share-title">Brum Public Share</div>
+        <div class="share-subtitle">Multi-Pane Web Environment (File Commander/Manager) - By Woofson</div>
       </div>
     </div>
 
@@ -1711,7 +1711,7 @@ async fn handle_public_share_page(
     </div>
 
     <div class="footer-text">
-      Powered by CommanderDog • High Performance Fast File Transport
+      Powered by Brum • High Performance Fast File Transport
     </div>
   </div>
 
@@ -3125,7 +3125,7 @@ async fn handle_download(
 
     if path.is_dir() {
         let temp_zip = tempfile::Builder::new()
-            .prefix("commanderdog_folder_")
+            .prefix("brum_folder_")
             .suffix(".zip")
             .tempfile()
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
@@ -3210,7 +3210,7 @@ async fn handle_download_batch(
     }
 
     let temp_zip = tempfile::Builder::new()
-        .prefix("commanderdog_batch_")
+        .prefix("brum_batch_")
         .suffix(".zip")
         .tempfile()
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
@@ -3229,7 +3229,7 @@ async fn handle_download_batch(
         let base = p.file_name().unwrap_or_default().to_string_lossy();
         format!("{}.zip", base)
     } else {
-        format!("commanderdog_download_{}.zip", timestamp)
+        format!("brum_download_{}.zip", timestamp)
     };
 
     let response = Response::builder()
@@ -3848,8 +3848,11 @@ struct SaveConfigFileRequest {
 
 fn resolve_active_config_path() -> PathBuf {
     let candidate_paths = vec![
+        dirs::config_dir().map(|d| d.join("brum").join("config.toml")),
         dirs::config_dir().map(|d| d.join("commanderdog").join("config.toml")),
+        Some(PathBuf::from("./brum.toml")),
         Some(PathBuf::from("./config.toml")),
+        Some(PathBuf::from("/etc/brum/config.toml")),
         Some(PathBuf::from("/etc/commanderdog/config.toml")),
     ];
 
@@ -3859,8 +3862,10 @@ fn resolve_active_config_path() -> PathBuf {
         }
     }
 
-    if let Some(user_config) = dirs::config_dir().map(|d| d.join("commanderdog").join("config.toml")) {
+    if let Some(user_config) = dirs::config_dir().map(|d| d.join("brum").join("config.toml")) {
         user_config
+    } else if let Some(legacy_config) = dirs::config_dir().map(|d| d.join("commanderdog").join("config.toml")) {
+        legacy_config
     } else {
         PathBuf::from("./config.toml")
     }
@@ -3878,16 +3883,17 @@ async fn handle_get_config_file(
     }
 
     let path = resolve_active_config_path();
-    let content = if path.is_file() {
-        fs::read_to_string(&path).unwrap_or_default()
-    } else {
-        toml::to_string_pretty(&*state.config).unwrap_or_default()
+    let is_writable = match fs::OpenOptions::new().write(true).open(&path) {
+        Ok(_) => true,
+        Err(_) => false,
     };
 
-    let is_writable = if let Some(parent) = path.parent() {
-        parent.exists()
-    } else {
-        true
+    let content = match fs::read_to_string(&path) {
+        Ok(c) => c,
+        Err(_) => {
+            // Return active config serialized as toml
+            toml::to_string_pretty(&*state.config).unwrap_or_default()
+        }
     };
 
     Ok(Json(ConfigFileResponse {
@@ -3905,14 +3911,14 @@ async fn handle_save_config_file(
     if !state.config.server.standalone {
         let claims = extract_claims_or_local(&state, &headers)?;
         if claims.role != "admin" && claims.role != "Admin" {
-            return Err((StatusCode::FORBIDDEN, "Only administrators can modify raw configuration".to_string()));
+            return Err((StatusCode::FORBIDDEN, "Only administrators can edit configuration".to_string()));
         }
     }
 
-    // 1. Pre-validate TOML syntax before saving to disk
-    if let Err(e) = toml::from_str::<AppConfig>(&payload.content) {
-        return Err((StatusCode::BAD_REQUEST, format!("Invalid TOML syntax: {}", e)));
-    }
+    // Validate TOML syntax before saving
+    let _: AppConfig = toml::from_str(&payload.content).map_err(|e| {
+        (StatusCode::BAD_REQUEST, format!("Invalid TOML syntax: {}", e))
+    })?;
 
     let path = resolve_active_config_path();
     if let Some(parent) = path.parent() {
@@ -3920,13 +3926,15 @@ async fn handle_save_config_file(
     }
 
     fs::write(&path, &payload.content).map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write config file to {}: {}", path.display(), e))
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write config file {}: {}", path.display(), e))
     })?;
+
+    tracing::info!("Configuration file saved to {}", path.display());
 
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": format!("Saved config successfully to {}", path.display()),
-        "path": path.to_string_lossy().to_string()
+        "path": path.to_string_lossy().to_string(),
+        "message": "Configuration saved successfully. Server restart required for some changes."
     })))
 }
 
@@ -3982,7 +3990,7 @@ async fn handle_system_restart(
 
     Ok(Json(serde_json::json!({
         "success": true,
-        "message": "CommanderDog server is restarting..."
+        "message": "Brum server is restarting..."
     })))
 }
 
@@ -4362,7 +4370,7 @@ async fn handle_get_autostart() -> Json<AutostartStatus> {
     #[cfg(target_os = "windows")]
     {
         let output = std::process::Command::new("reg")
-            .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "CommanderDog"])
+            .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "Brum"])
             .output();
         let enabled = output.map_or(false, |o| o.status.success());
         Json(AutostartStatus {
@@ -4374,7 +4382,7 @@ async fn handle_get_autostart() -> Json<AutostartStatus> {
     #[cfg(not(target_os = "windows"))]
     {
         let autostart_file = dirs::config_dir()
-            .map(|c| c.join("autostart/commanderdog.desktop"));
+            .map(|c| c.join("autostart/brum.desktop"));
         let enabled = autostart_file.as_ref().map_or(false, |p| p.exists());
         Json(AutostartStatus {
             enabled,
@@ -4395,13 +4403,16 @@ async fn handle_set_autostart(
     {
         if payload.enabled {
             let status = std::process::Command::new("reg")
-                .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "CommanderDog", "/t", "REG_SZ", "/d", &exec_cmd, "/f"])
+                .args(["add", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "Brum", "/t", "REG_SZ", "/d", &exec_cmd, "/f"])
                 .status()
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
             if !status.success() {
                 return Err((StatusCode::INTERNAL_SERVER_ERROR, "Failed to set Windows autostart registry key".to_string()));
             }
         } else {
+            let _ = std::process::Command::new("reg")
+                .args(["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "Brum", "/f"])
+                .status();
             let _ = std::process::Command::new("reg")
                 .args(["delete", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "CommanderDog", "/f"])
                 .status();
@@ -4411,16 +4422,25 @@ async fn handle_set_autostart(
     {
         if let Some(config_dir) = dirs::config_dir() {
             let auto_dir = config_dir.join("autostart");
-            let desktop_path = auto_dir.join("commanderdog.desktop");
+            let desktop_path = auto_dir.join("brum.desktop");
+            let legacy_path = auto_dir.join("commanderdog.desktop");
             if payload.enabled {
                 let _ = std::fs::create_dir_all(&auto_dir);
                 let content = format!(
-                    "[Desktop Entry]\nType=Application\nName=CommanderDog\nComment=Multi-Tab Web Commander\nExec={}\nIcon=commanderdog\nTerminal=false\nCategories=Utility;FileManager;\n",
+                    "[Desktop Entry]\nType=Application\nName=Brum\nComment=Multi-Pane Web Environment (File Commander/Manager)\nExec={}\nIcon=brum\nTerminal=false\nCategories=Utility;FileManager;\n",
                     exec_cmd
                 );
                 std::fs::write(&desktop_path, content).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-            } else if desktop_path.exists() {
-                let _ = std::fs::remove_file(&desktop_path);
+                if legacy_path.exists() {
+                    let _ = std::fs::remove_file(legacy_path);
+                }
+            } else {
+                if desktop_path.exists() {
+                    let _ = std::fs::remove_file(&desktop_path);
+                }
+                if legacy_path.exists() {
+                    let _ = std::fs::remove_file(&legacy_path);
+                }
             }
         }
     }

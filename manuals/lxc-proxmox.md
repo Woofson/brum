@@ -1,10 +1,10 @@
-# 🐕 CommanderDog — Proxmox VE & Linux LXC Deployment Guide
+# 🐕 Brum — Proxmox VE & Linux LXC Deployment Guide
 
-> Complete walkthrough for deploying **CommanderDog** in Proxmox VE LXC containers or standalone Linux containers (Debian / Ubuntu / Alpine).
+> Complete walkthrough for deploying **Brum** in Proxmox VE LXC containers or standalone Linux containers (Debian / Ubuntu / Alpine).
 
 ---
 
-## 🌟 Why CommanderDog in LXC?
+## 🌟 Why Brum in LXC?
 
 - ⚡ **Ultra-Low Resource Footprint**: Written in Rust, idling at just **~20–30 MB of RAM** with zero runtime bloat.
 - 📦 **Single Standalone Binary**: Web assets are embedded inside the executable via `rust-embed` — no Node.js or web server runtime required.
@@ -19,12 +19,12 @@
 Inside your Debian / Ubuntu LXC container terminal, run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Woofson/commanderdog/main/scripts/lxc-install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Woofson/brum/main/scripts/lxc-install.sh | bash
 ```
 
-Once installed, CommanderDog is running and enabled on boot:
+Once installed, Brum is running and enabled on boot:
 - **URL**: `http://<CONTAINER_IP>:3140`
-- **Default Credentials**: `admin` / `commanderdog` (Change after first login!)
+- **Default Credentials**: `admin` / `brum` (Change after first login!)
 
 ---
 
@@ -36,15 +36,15 @@ If you built or downloaded the `.deb` release package:
 # 1. Install prerequisites
 apt-get update && apt-get install -y ca-certificates libsqlite3-0 libssh2-1 tar bzip2 p7zip-full
 
-# 2. Install CommanderDog
-dpkg -i commanderdog_0.5.0_amd64.deb # or dpkg -i commanderdog_*_amd64.deb
+# 2. Install Brum
+dpkg -i brum_0.5.0_amd64.deb # or dpkg -i brum_*_amd64.deb
 
 # 3. Enable and Start Systemd Service
 systemctl daemon-reload
-systemctl enable --now commanderdog.service
+systemctl enable --now brum.service
 
 # 4. Check service status
-systemctl status commanderdog
+systemctl status brum
 ```
 
 ---
@@ -53,28 +53,28 @@ systemctl status commanderdog
 
 ```bash
 # 1. Download and extract release tarball
-wget https://github.com/Woofson/commanderdog/releases/latest/download/commanderdog-v0.2.14-linux-x86_64.tar.gz
-tar -xzf commanderdog-v0.2.14-linux-x86_64.tar.gz
-cd commanderdog-v0.2.14-linux-x86_64
+wget https://github.com/Woofson/brum/releases/latest/download/brum-v0.2.14-linux-x86_64.tar.gz
+tar -xzf brum-v0.2.14-linux-x86_64.tar.gz
+cd brum-v0.2.14-linux-x86_64
 
 # 2. Copy binary to system path
-install -m 755 commanderdog /usr/local/bin/commanderdog
+install -m 755 brum /usr/local/bin/brum
 
 # 3. Setup configuration hierarchy
-mkdir -p /etc/commanderdog /data
-cp config.toml /etc/commanderdog/config.toml
+mkdir -p /etc/brum /data
+cp config.toml /etc/brum/config.toml
 
 # 4. Install systemd service
-cp commanderdog.service /etc/systemd/system/commanderdog.service
+cp brum.service /etc/systemd/system/brum.service
 systemctl daemon-reload
-systemctl enable --now commanderdog.service
+systemctl enable --now brum.service
 ```
 
 ---
 
 ## 🗂️ Proxmox Storage Bind-Mounting (Host ➔ LXC)
 
-To give CommanderDog access to host disks, ZFS pools, or NAS shares, add bind mounts in your Proxmox host configuration (`/etc/pve/lxc/<CTID>.conf`).
+To give Brum access to host disks, ZFS pools, or NAS shares, add bind mounts in your Proxmox host configuration (`/etc/pve/lxc/<CTID>.conf`).
 
 ### 1. Privileged Container Bind Mount
 Edit `/etc/pve/lxc/<CTID>.conf` on the Proxmox Host:
@@ -114,7 +114,7 @@ pct reboot <CTID>
 
 ## ⚙️ Reverse Proxy Setup (Nginx, Caddy, Traefik)
 
-CommanderDog uses WebSockets for the **Integrated Terminal (`/api/ws/terminal`)**. Ensure your reverse proxy passes `Upgrade` headers.
+Brum uses WebSockets for the **Integrated Terminal (`/api/ws/terminal`)**. Ensure your reverse proxy passes `Upgrade` headers.
 
 ### Nginx Configuration
 
@@ -129,8 +129,8 @@ server {
     listen 443 ssl http2;
     server_name files.lan.local;
 
-    ssl_certificate /etc/ssl/certs/commanderdog.crt;
-    ssl_certificate_key /etc/ssl/private/commanderdog.key;
+    ssl_certificate /etc/ssl/certs/brum.crt;
+    ssl_certificate_key /etc/ssl/private/brum.key;
 
     client_max_body_size 10G;
 
@@ -163,7 +163,7 @@ files.lan.local {
 ## 👥 Multi-User Management in LXC
 
 ### Linux System Users (PAM Mode)
-If PAM authentication is enabled in `/etc/commanderdog/config.toml`, any Linux user created in the container can log in directly:
+If PAM authentication is enabled in `/etc/brum/config.toml`, any Linux user created in the container can log in directly:
 
 ```bash
 # Add Linux system user
@@ -180,22 +180,22 @@ You can also manage independent web users directly from the **Settings (`F10`) �
 
 | Command | Action |
 | :--- | :--- |
-| **`systemctl status commanderdog`** | View service status and health |
-| **`systemctl restart commanderdog`** | Restart CommanderDog daemon |
-| **`systemctl stop commanderdog`** | Stop the daemon |
-| **`journalctl -u commanderdog -f`** | Follow live application logs |
+| **`systemctl status brum`** | View service status and health |
+| **`systemctl restart brum`** | Restart Brum daemon |
+| **`systemctl stop brum`** | Stop the daemon |
+| **`journalctl -u brum -f`** | Follow live application logs |
 
 ### Upgrading to New Version
 ```bash
 # 1. Stop service
-systemctl stop commanderdog
+systemctl stop brum
 
 # 2. Replace binary
-cp new-commanderdog /usr/local/bin/commanderdog
-chmod +x /usr/local/bin/commanderdog
+cp new-brum /usr/local/bin/brum
+chmod +x /usr/local/bin/brum
 
 # 3. Start service
-systemctl start commanderdog
+systemctl start brum
 ```
 
 ---

@@ -1,17 +1,17 @@
 [package]
-name = "commanderdog"
-version = "0.8.1"
+name = "brum"
+version = "0.8.2"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
-description = "Multi-Tab Web Commander - By Woofson"
+description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
 license = "MIT"
 
 [lib]
-name = "commanderdog"
+name = "brum"
 path = "src/lib.rs"
 
 [[bin]]
-name = "commanderdog"
+name = "brum"
 path = "src/main.rs"
 
 [dependencies]
@@ -88,9 +88,9 @@ section = "utils"
 priority = "optional"
 depends = "$auto, ca-certificates, libsqlite3-0, libssh2-1, tar, bzip2, p7zip-full"
 assets = [
-    ["target/release/commanderdog", "usr/local/bin/commanderdog", "755"],
-    ["commanderdog.service", "lib/systemd/system/commanderdog.service", "644"],
-    ["config.toml", "etc/commanderdog/config.toml", "644"],
-    ["assets/commanderdog.png", "usr/share/pixmaps/commanderdog.png", "644"],
-    ["README.md", "usr/share/doc/commanderdog/README.md", "644"],
+    ["target/release/brum", "usr/local/bin/brum", "755"],
+    ["brum.service", "lib/systemd/system/brum.service", "644"],
+    ["config.toml", "etc/brum/config.toml", "644"],
+    ["assets/brum.png", "usr/share/pixmaps/brum.png", "644"],
+    ["README.md", "usr/share/doc/brum/README.md", "644"],
 ]

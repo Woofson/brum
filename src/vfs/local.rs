@@ -697,7 +697,7 @@ impl LocalFs {
             } else if let Some(home) = dirs::home_dir() {
                 home.join(".local/share/Trash/files")
             } else {
-                PathBuf::from("/tmp/commanderdog_trash")
+                PathBuf::from("/tmp/brum_trash")
             };
 
             let _ = fs::create_dir_all(&trash_base);

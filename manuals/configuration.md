@@ -1,15 +1,15 @@
-# <img src="../assets/logo.png" alt="CommanderDog Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Configuration Guide (`config.toml`)
+# <img src="../assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Configuration Guide (`config.toml`)
 
-CommanderDog loads configuration in a single sub-millisecond pass without directory fragmentation.
+Brum loads configuration in a single sub-millisecond pass without directory fragmentation.
 
 ---
 
 ## Configuration File Locations
 
-CommanderDog discovers its configuration in the following order of precedence:
-1. **User Dotfiles**: `~/.config/commanderdog/config.toml` *(Highest priority)*
-2. **System-Wide Fallback**: `/etc/commanderdog/config.toml`
-3. **Custom Themes**: `~/.config/commanderdog/themes/*.toml` (or `/etc/commanderdog/themes/*.toml`)
+Brum discovers its configuration in the following order of precedence:
+1. **User Dotfiles**: `~/.config/brum/config.toml` *(Highest priority)*
+2. **System-Wide Fallback**: `/etc/brum/config.toml`
+3. **Custom Themes**: `~/.config/brum/themes/*.toml` (or `/etc/brum/themes/*.toml`)
 
 ---
 
@@ -17,7 +17,7 @@ CommanderDog discovers its configuration in the following order of precedence:
 
 ```toml
 # ==============================================================================
-# CommanderDog Master Configuration
+# Brum Master Configuration
 # ==============================================================================
 
 [server]
@@ -26,7 +26,7 @@ host = "0.0.0.0"
 port = 3140
 
 # Server display identifier (shown in header badge when enabled)
-server_name = "CommanderDog Host"
+server_name = "Brum Host"
 
 # Public URL for reverse proxy / tunnel setups (optional)
 # public_url = "https://commander.example.com"
@@ -84,7 +84,7 @@ minimize_to_tray = true
 # Enable desktop system tray icon
 enable_tray = true
 
-# Global desktop hotkey to summon/hide CommanderDog
+# Global desktop hotkey to summon/hide Brum
 global_summon_hotkey = "Super+C"
 
 [themes]
@@ -106,7 +106,7 @@ allow_guest = false
 
 ## Filesystem Sandboxing & Storage Roots
 
-By setting `allow_entire_system = false`, CommanderDog enforces strict sandboxing:
+By setting `allow_entire_system = false`, Brum enforces strict sandboxing:
 * Users cannot navigate outside their configured storage roots or personal `$HOME`.
 * Directory traversal attacks (`../`) are safely rejected and sanitized at the kernel VFS layer.
 * Read-only flags (`read_only = true`) prevent accidental deletions, writes, or moves.

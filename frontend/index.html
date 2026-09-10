@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover, interactive-widget=resizes-content">
-  <title>CommanderDog - Multi-Tab Web Commander</title>
-  <link rel="icon" type="image/png" href="assets/logo.webp">
-  <link rel="apple-touch-icon" href="assets/logo.webp">
-  <link rel="shortcut icon" href="assets/commanderdog.ico">
+  <title>Brum - Multi-Pane Web Environment</title>
+  <link rel="icon" type="image/webp" href="assets/brum_commanderdog_legacy.webp">
+  <link rel="apple-touch-icon" href="assets/brum_commanderdog_legacy.webp">
+  <link rel="shortcut icon" href="assets/brum.ico">
   <link rel="stylesheet" href="app.css">
   <!-- Bundled Nerd Fonts Preload -->
   <link rel="preload" href="/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf" as="font" type="font/ttf" crossorigin>
@@ -35,8 +35,8 @@
   <!-- Top Application Header -->
   <header class="app-header">
     <div class="logo-area" style="display: flex; align-items: center; gap: 8px;">
-      <img src="assets/logo.webp" alt="CommanderDog" style="height: 22px; width: auto; object-fit: contain; vertical-align: middle;">
-      <span class="app-logo-text" style="font-weight: 700;">CommanderDog</span>
+      <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" style="height: 22px; width: auto; object-fit: contain; vertical-align: middle;">
+      <span class="app-logo-text" style="font-weight: 700;">Brum</span>
       <span class="header-hostname-badge" id="header-hostname-badge" onclick="copyHostnameBadge()" title="Host Environment (Click to copy)" style="display: none;">
         <i data-lucide="server"></i>
         <span id="header-hostname-text">localhost</span>
@@ -125,7 +125,7 @@
           </div>
           <div class="dropdown-item" id="menu-admin-panel-item" onclick="openAdminPanel()"><img src="assets/amber-frameless-admin.webp" alt="Admin" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Admin Control Panel</div>
           <div class="dropdown-item" onclick="openSettingsModal()"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Settings (F10)</div>
-          <div class="dropdown-item" onclick="openAboutModal()"><img src="assets/amber-frameless-info.webp" alt="About" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> About CommanderDog</div>
+          <div class="dropdown-item" onclick="openAboutModal()"><img src="assets/amber-frameless-info.webp" alt="About" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> About Brum</div>
           
           <!-- Bottom Action Buttons: Lock Session & Logout Icons -->
           <div class="profile-dropdown-footer">
@@ -616,7 +616,7 @@
         </div>
         <div style="flex: 1;"></div>
         <div style="font-size: 10px; color: var(--text-dim); display: flex; align-items: center; gap: 4px;">
-          <img src="assets/spot.webp" alt="Spot!" style="width: 12px; height: 12px; object-fit: contain;"> CommanderDog Spotlight
+          <img src="assets/spot.webp" alt="Spot!" style="width: 12px; height: 12px; object-fit: contain;"> Brum Spotlight
         </div>
       </div>
     </div>
@@ -1145,14 +1145,14 @@
               <div style="display: flex; flex-direction: column; gap: 8px;">
                 <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
                   <input type="checkbox" id="setting-minimize-tray" checked onchange="toggleMinimizeToTray(this.checked)">
-                  <span><b>Minimize to System Tray on Close:</b> Closing the window keeps CommanderDog running in the background tray</span>
+                  <span><b>Minimize to System Tray on Close:</b> Closing the window keeps Brum running in the background tray</span>
                 </label>
                 <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
                   <input type="checkbox" id="setting-start-minimized" onchange="toggleStartMinimized(this.checked)">
                   <span><b>Start Minimized:</b> Launch directly to system tray on system boot / autostart</span>
                 </label>
               </div>
-              <div class="form-hint">Can also be configured via <code>~/.config/commanderdog/config.toml</code>.</div>
+              <div class="form-hint">Can also be configured via <code>~/.config/brum/config.toml</code>.</div>
             </div>
 
             <div class="form-group">
@@ -1161,7 +1161,7 @@
                 <input type="text" id="setting-global-hotkey" class="pane-quick-filter" style="width: 220px; padding: 6px;" value="Super+C" readonly>
                 <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Default: Super+C</span>
               </div>
-              <div class="form-hint">Pressing this keybind anywhere in your operating system brings CommanderDog to the foreground instantly.</div>
+              <div class="form-hint">Pressing this keybind anywhere in your operating system brings Brum to the foreground instantly.</div>
             </div>
 
             <div class="form-group">
@@ -1170,7 +1170,7 @@
                 <input type="checkbox" id="setting-desktop-decorations" checked onchange="toggleWindowDecorations(this.checked)">
                 <span><b>Native Window Frame & Decorations:</b> Show OS titlebar and system border</span>
               </div>
-              <div class="form-hint">Uncheck for a clean frameless window that tiles seamlessly without header waste in Hyprland. Launch with <code>commanderdog --no-decorations</code>.</div>
+              <div class="form-hint">Uncheck for a clean frameless window that tiles seamlessly without header waste in Hyprland. Launch with <code>brum --no-decorations</code>.</div>
             </div>
           </div>
 
@@ -1415,8 +1415,8 @@
 
         <!-- Tab 2: Palette & Themes -->
         <div class="settings-tab-content" id="tab-palette">
-          <h4 style="color: var(--accent); margin-bottom: 8px;">🎨 CommanderDog Theme & Visual Palette</h4>
-          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">Choose your active color theme across CommanderDog panels, editor, and tools.</p>
+          <h4 style="color: var(--accent); margin-bottom: 8px;">🎨 Brum Theme & Visual Palette</h4>
+          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">Choose your active color theme across Brum panels, editor, and tools.</p>
           <div class="form-group">
             <label>Active Theme:</label>
             <select id="settings-theme-selector" class="pane-quick-filter" style="width: 100%; padding: 8px; font-size: 13px;" onchange="applyTheme(this.value)">
@@ -1440,7 +1440,7 @@
             <div id="theme-swatch-grid" class="theme-swatch-grid">
               <!-- Dynamically populated -->
             </div>
-            <div class="form-hint">Supports built-in themes and custom external themes from <code>~/.config/commanderdog/themes/</code>.</div>
+            <div class="form-hint">Supports built-in themes and custom external themes from <code>~/.config/brum/themes/</code>.</div>
           </div>
 
           <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; margin-bottom: 8px;">
@@ -1617,7 +1617,7 @@
             <tr><td><code>Insert / Space</code></td><td>Toggle Selection & Step Down</td></tr>
             <tr><td><code>Ctrl + A</code></td><td>Select All in Current Pane</td></tr>
             <tr><td><code>Ctrl + P</code></td><td>Toggle Paranoid File Handling Mode</td></tr>
-            <tr><td><code>Ctrl + Q</code></td><td>Quit / Clean Close CommanderDog</td></tr>
+            <tr><td><code>Ctrl + Q</code></td><td>Quit / Clean Close Brum</td></tr>
           </table>
         </div>
 
@@ -1785,10 +1785,10 @@
 
             <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
               <h4 style="color: var(--accent); margin-bottom: 8px; display:flex; align-items:center; gap:6px;"><i data-lucide="server" style="width:16px;"></i> Linux Network File System (NFS)</h4>
-              <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Automated export discovery via <code>showmount -e</code> and mounts to <code>/run/commanderdog/mounts/nfs/</code>.</p>
+              <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Automated export discovery via <code>showmount -e</code> and mounts to <code>/run/brum/mounts/nfs/</code>.</p>
               <div class="form-group">
                 <label>NFS Base Mountpoint:</label>
-                <input type="text" class="pane-quick-filter" style="width: 100%; padding: 6px;" value="/run/commanderdog/mounts/nfs" readonly>
+                <input type="text" class="pane-quick-filter" style="width: 100%; padding: 6px;" value="/run/brum/mounts/nfs" readonly>
               </div>
             </div>
           </div>
@@ -1908,7 +1908,7 @@
             <div>
               <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px;">
                 <span>📜 Master Configuration (<code>config.toml</code>)</span>
-                <span class="user-role-badge" id="admin-config-path-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">~/.config/commanderdog/config.toml</span>
+                <span class="user-role-badge" id="admin-config-path-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">~/.config/brum/config.toml</span>
               </div>
               <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
                 Directly view and edit server settings, layouts, keybinds, and defaults in TOML format.
@@ -1921,7 +1921,7 @@
               <button class="btn btn-sm" onclick="triggerServerReload()" title="Reload settings into running server memory">
                 <i data-lucide="refresh-cw"></i> Reload Config
               </button>
-              <button class="btn btn-sm btn-danger-action" onclick="triggerServerRestart()" title="Restart CommanderDog server process">
+              <button class="btn btn-sm btn-danger-action" onclick="triggerServerRestart()" title="Restart Brum server process">
                 <i data-lucide="power"></i> Restart Server
               </button>
               <button class="btn btn-sm btn-accent" onclick="saveMasterConfigFile()" id="btn-save-master-config">
@@ -2015,7 +2015,7 @@
           <!-- Files list -->
         </div>
         <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
-          How would you like CommanderDog to open these configuration files?
+          How would you like Brum to open these configuration files?
         </div>
         <div style="display: flex; gap: 8px; justify-content: flex-end;">
           <button class="btn" onclick="executeOpenConfdSeparateTabs()"><i data-lucide="folder-tree"></i> Open as Separate Tabs</button>
@@ -4078,7 +4078,7 @@
       <!-- Footer Bar -->
       <div class="modal-footer" style="padding: 8px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 11px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;">
-          <i data-lucide="info" style="width: 13px; height: 13px;"></i> Click any folder to drill down • Click "Open in Pane" to jump in CommanderDog
+          <i data-lucide="info" style="width: 13px; height: 13px;"></i> Click any folder to drill down • Click "Open in Pane" to jump in Brum
         </span>
         <button class="btn btn-accent btn-sm" onclick="closeModal('disk-usage-modal')">Close</button>
       </div>
@@ -4564,24 +4564,24 @@
   <div class="modal-overlay login-screen-overlay" id="login-modal">
     <!-- Top-Left Corner Branding Logo -->
     <div class="login-corner-brand">
-      <img src="assets/logo.webp" alt="CommanderDog" class="login-corner-logo">
-      <span class="login-corner-name">CommanderDog</span>
+      <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" class="login-corner-logo">
+      <span class="login-corner-name">Brum</span>
     </div>
 
     <!-- Lower-Right Version Badge -->
     <div class="login-corner-version">
-      <span class="login-version-badge">v0.7.1</span>
+      <span class="login-version-badge">v0.8.2</span>
     </div>
 
     <!-- Login Card -->
     <div class="login-card">
       <div class="login-card-header">
         <div class="login-brand-icon">
-          <img src="assets/logo.webp" alt="CommanderDog" class="login-brand-img">
+          <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" class="login-brand-img">
         </div>
         <div class="login-header-text">
           <h2 class="login-title">Hello friend.</h2>
-          <p class="login-subtitle">CommanderDog is ready when you are.</p>
+          <p class="login-subtitle">Brum is ready when you are.</p>
         </div>
       </div>
       <form id="login-form" onsubmit="event.preventDefault(); handleLoginSubmit();">
@@ -4714,7 +4714,7 @@
             <span>🛡️ Proton Drive E2EE Cloud Bridge</span>
           </div>
           <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;">
-            CommanderDog connects to your zero-knowledge Proton Drive storage using the official <code>proton-drive</code> CLI, community <code>proton-drive-cli</code>, or an <code>rclone</code> proton remote.
+            Brum connects to your zero-knowledge Proton Drive storage using the official <code>proton-drive</code> CLI, community <code>proton-drive-cli</code>, or an <code>rclone</code> proton remote.
           </p>
           <div id="proton-cli-status-badge" style="font-size: 11px; padding: 6px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); margin-bottom: 8px;">
             Detecting Proton Drive CLI status...
@@ -4785,24 +4785,24 @@
 
 
 
-  <!-- About CommanderDog Modal -->
+  <!-- About Brum Modal -->
   <div class="modal-overlay" id="about-modal">
     <div class="modal-box" style="width: 580px; max-height: 85vh;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/amber-frameless-info.webp" alt="CommanderDog" style="height: 18px; width: auto; object-fit: contain; vertical-align: middle;">
-          <span style="font-weight: 700; font-size: 14px;">About CommanderDog</span>
+          <img src="assets/amber-frameless-info.webp" alt="Brum" style="height: 18px; width: auto; object-fit: contain; vertical-align: middle;">
+          <span style="font-weight: 700; font-size: 14px;">About Brum</span>
         </div>
         <button class="btn btn-icon modal-close-btn" onclick="closeModal('about-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 20px; overflow-y: auto;">
         <!-- Banner & Version Header -->
         <div style="text-align: center; margin-bottom: 18px; padding: 16px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-          <img src="assets/logo.webp" alt="CommanderDog" style="height: 52px; width: auto; object-fit: contain; margin-bottom: 8px;">
-          <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">CommanderDog</div>
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Tab Web Commander - By Woofson</div>
+          <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" style="height: 52px; width: auto; object-fit: contain; margin-bottom: 8px;">
+          <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Pane Web Environment (File Commander/Manager) - By Woofson</div>
           <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
-            <span id="about-version-badge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.8.1 (Desktop & Web)</span>
+            <span id="about-version-badge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.8.2 (Desktop & Web)</span>
             <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust + Axum + Tokio</span>
             <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3);">MIT Open Source</span>
           </div>
@@ -4810,7 +4810,7 @@
 
         <!-- Description -->
         <p style="font-size: 12px; color: var(--text-main); line-height: 1.6; margin-bottom: 16px;">
-          <strong>CommanderDog</strong> brings the speed, keyboard ergonomics, and dual/quad-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the web browser — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and paranoid cryptographic data verification.
+          <strong>Brum</strong> brings the speed, keyboard ergonomics, and dual/quad-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the web browser — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and paranoid cryptographic data verification.
         </p>
 
         <!-- System & Runtime Details Card -->
@@ -4825,7 +4825,7 @@
             <div><span style="color: var(--text-muted);">Auth Engine:</span> <span>Linux PAM + SQLite RBAC</span></div>
             <div><span style="color: var(--text-muted);">Terminal:</span> <span>Native PTY (portable-pty)</span></div>
             <div><span style="color: var(--text-muted);">Frontend:</span> <span>Vanilla JS + Prism + Mermaid</span></div>
-            <div><span style="color: var(--text-muted);">Repository:</span> <a href="https://github.com/Woofson/commanderdog" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/Woofson/commanderdog</a></div>
+            <div><span style="color: var(--text-muted);">Repository:</span> <a href="https://github.com/Woofson/brum" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/Woofson/brum</a></div>
             <div><span style="color: var(--text-muted);">License:</span> <span>MIT License</span></div>
           </div>
         </div>
@@ -5211,7 +5211,7 @@
 
     <!-- Diagnostic Stream / Verbose Log (Log View) -->
     <div class="task-log-container" id="task-log-container" style="display: none;">
-      <pre class="task-log-console" id="task-log-console">// CommanderDog Transfer Diagnostic Stream...</pre>
+      <pre class="task-log-console" id="task-log-console">// Brum Transfer Diagnostic Stream...</pre>
     </div>
 
     <!-- Action Toolbar Footer -->
@@ -5268,13 +5268,13 @@
   <div id="session-lock-screen" class="session-lock-screen" style="display: none;">
     <!-- Top-Left Corner Branding Logo -->
     <div class="login-corner-brand">
-      <img src="assets/logo.webp" alt="CommanderDog" class="login-corner-logo">
-      <span class="login-corner-name">CommanderDog</span>
+      <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" class="login-corner-logo">
+      <span class="login-corner-name">Brum</span>
     </div>
 
     <!-- Lower-Right Version Badge -->
     <div class="login-corner-version">
-      <span class="login-version-badge">v0.7.1</span>
+      <span class="login-version-badge">v0.8.2</span>
     </div>
 
     <!-- Lock Screen Card -->
@@ -5282,7 +5282,7 @@
       <div class="lock-screen-header">
         <div class="lock-avatar-thumb" id="lock-avatar-thumb">👤</div>
         <div class="lock-header-text">
-          <div class="lock-user-label" id="lock-username-label">CommanderDog User</div>
+          <div class="lock-user-label" id="lock-username-label">Brum User</div>
           <div class="lock-sub-text">Session is locked!</div>
         </div>
       </div>

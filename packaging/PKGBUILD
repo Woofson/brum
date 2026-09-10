@@ -1,10 +1,10 @@
 # Maintainer: Bolt J Woofson <bolt@boop.no>
-pkgname=commanderdog
-pkgver=0.8.1
+pkgname=brum
+pkgver=0.8.2
 pkgrel=1
-pkgdesc="Multi-Tab Web & Desktop File Commander - By Woofson"
+pkgdesc="Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
 arch=('x86_64' 'aarch64')
-url="https://github.com/Woofson/commanderdog"
+url="https://github.com/Woofson/brum"
 license=('MIT')
 depends=('glibc' 'sqlite' 'libssh2' 'openssl' 'ca-certificates' 'gtk3' 'webkit2gtk-4.1')
 makedepends=('cargo' 'rust' 'pkgconf' 'gtk3' 'webkit2gtk-4.1')
@@ -30,13 +30,14 @@ build() {
 
 package() {
     cd "$pkgname-$pkgver"
-    install -Dm755 "target/release/commanderdog" "$pkgdir/usr/bin/commanderdog"
-    install -Dm644 "commanderdog.service" "$pkgdir/usr/lib/systemd/system/commanderdog.service"
-    install -Dm644 "commanderdog.desktop" "$pkgdir/usr/share/applications/commanderdog.desktop"
+    install -Dm755 "target/release/brum" "$pkgdir/usr/bin/brum"
+    install -Dm644 "brum.service" "$pkgdir/usr/lib/systemd/system/brum.service"
+    install -Dm644 "brum.desktop" "$pkgdir/usr/share/applications/brum.desktop"
     
-    install -Dm644 "config.toml" "$pkgdir/etc/commanderdog/config.toml"
+    install -Dm644 "config.toml" "$pkgdir/etc/brum/config.toml"
     
-    install -Dm644 "assets/commanderdog.png" "$pkgdir/usr/share/pixmaps/commanderdog.png"
+    install -Dm644 "assets/128/brum-128.webp" "$pkgdir/usr/share/pixmaps/brum.webp"
     install -Dm644 "LICENSE" "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
     install -Dm644 "README.md" "$pkgdir/usr/share/doc/$pkgname/README.md"
 }
+

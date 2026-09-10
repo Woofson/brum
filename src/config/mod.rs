@@ -108,18 +108,26 @@ fn default_root_path() -> String {
 }
 fn default_upload_max_mb() -> usize { 10240 } // 10 GB
 fn default_true() -> bool { true }
-fn default_jwt_secret() -> String { "commanderdog-super-secret-jwt-key-2026".to_string() }
+fn default_jwt_secret() -> String { "brum-super-secret-jwt-key-2026".to_string() }
 fn default_session_hours() -> u64 { 72 }
 fn default_db_path() -> String {
-    if let Ok(env_path) = std::env::var("CD_DATABASE_PATH") {
+    if let Ok(env_path) = std::env::var("BRUM_DATABASE_PATH").or_else(|_| std::env::var("CD_DATABASE_PATH")) {
         if !env_path.trim().is_empty() {
             return env_path;
         }
     }
     if Path::new("/data").is_dir() {
-        "/data/commanderdog.db".to_string()
+        if Path::new("/data/commanderdog.db").is_file() && !Path::new("/data/brum.db").is_file() {
+            "/data/commanderdog.db".to_string()
+        } else {
+            "/data/brum.db".to_string()
+        }
     } else {
-        "commanderdog.db".to_string()
+        if Path::new("commanderdog.db").is_file() && !Path::new("brum.db").is_file() {
+            "commanderdog.db".to_string()
+        } else {
+            "brum.db".to_string()
+        }
     }
 }
 
@@ -153,7 +161,7 @@ fn default_auth_mode() -> String { "mixed".to_string() }
 fn default_pam_service() -> String { "login".to_string() }
 fn default_false() -> bool { false }
 fn default_admin_username() -> String { "admin".to_string() }
-fn default_admin_password() -> String { "commanderdog".to_string() }
+fn default_admin_password() -> String { "brum".to_string() }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
@@ -719,23 +727,26 @@ pub struct ConfigManager;
 
 impl ConfigManager {
     /// Loads configuration with sub-millisecond fast-path resolution:
-    /// 1. User config: ~/.config/commanderdog/config.toml (or $XDG_CONFIG_HOME/commanderdog/config.toml)
-    /// 2. Working dir config: ./config.toml
-    /// 3. System-wide config: /etc/commanderdog/config.toml
+    /// 1. User config: ~/.config/brum/config.toml (or ~/.config/commanderdog/config.toml)
+    /// 2. Working dir config: ./config.toml / ./brum.toml
+    /// 3. System-wide config: /etc/brum/config.toml / /etc/commanderdog/config.toml
     /// 4. Embedded fallback defaults: AppConfig::default()
     ///
-    /// Also scans external theme directories (~/.config/commanderdog/themes/*.toml).
+    /// Also scans external theme directories (~/.config/brum/themes/*.toml).
     pub fn load_all() -> AppConfig {
         // Ensure user config and themes directory exists
-        if let Some(user_config_dir) = dirs::config_dir().map(|d| d.join("commanderdog")) {
+        if let Some(user_config_dir) = dirs::config_dir().map(|d| d.join("brum")) {
             let _ = fs::create_dir_all(user_config_dir.join("themes"));
         }
 
         // Fast-path candidate paths in strict priority order
         let candidate_paths = vec![
+            dirs::config_dir().map(|d| d.join("brum").join("config.toml")),
             dirs::config_dir().map(|d| d.join("commanderdog").join("config.toml")),
             Some(PathBuf::from("/data/config.toml")),
+            Some(PathBuf::from("./brum.toml")),
             Some(PathBuf::from("./config.toml")),
+            Some(PathBuf::from("/etc/brum/config.toml")),
             Some(PathBuf::from("/etc/commanderdog/config.toml")),
         ];
 
@@ -773,22 +784,22 @@ impl ConfigManager {
         Self::load_external_themes(&mut config);
 
         // Environment Variable Overrides for Docker & Cloud Deployments
-        if let Ok(p) = std::env::var("CD_PORT").or_else(|_| std::env::var("PORT")) {
+        if let Ok(p) = std::env::var("BRUM_PORT").or_else(|_| std::env::var("CD_PORT")).or_else(|_| std::env::var("PORT")) {
             if let Ok(port_num) = p.parse::<u16>() {
                 config.server.port = port_num;
             }
         }
-        if let Ok(h) = std::env::var("CD_BIND").or_else(|_| std::env::var("CD_HOST")).or_else(|_| std::env::var("HOST")) {
+        if let Ok(h) = std::env::var("BRUM_BIND").or_else(|_| std::env::var("BRUM_HOST")).or_else(|_| std::env::var("CD_BIND")).or_else(|_| std::env::var("CD_HOST")).or_else(|_| std::env::var("HOST")) {
             if !h.trim().is_empty() {
                 config.server.host = h.trim().to_string();
             }
         }
-        if let Ok(db) = std::env::var("CD_DATABASE_PATH").or_else(|_| std::env::var("DATABASE_PATH")) {
+        if let Ok(db) = std::env::var("BRUM_DATABASE_PATH").or_else(|_| std::env::var("CD_DATABASE_PATH")).or_else(|_| std::env::var("DATABASE_PATH")) {
             if !db.trim().is_empty() {
                 config.server.database_path = db.trim().to_string();
             }
         }
-        if let Ok(jwt) = std::env::var("CD_JWT_SECRET").or_else(|_| std::env::var("JWT_SECRET")) {
+        if let Ok(jwt) = std::env::var("BRUM_JWT_SECRET").or_else(|_| std::env::var("CD_JWT_SECRET")).or_else(|_| std::env::var("JWT_SECRET")) {
             if !jwt.trim().is_empty() {
                 config.server.jwt_secret = jwt.trim().to_string();
             }
@@ -813,11 +824,15 @@ impl ConfigManager {
 
     /// Scans external theme directories and loads theme definitions
     fn load_external_themes(config: &mut AppConfig) {
-        let theme_dirs = vec![
+        let mut theme_dirs = vec![
+            PathBuf::from("/etc/brum/themes"),
             PathBuf::from("/etc/commanderdog/themes"),
             PathBuf::from("./themes"),
-            dirs::config_dir().map(|d| d.join("commanderdog").join("themes")).unwrap_or_default(),
         ];
+        if let Some(d) = dirs::config_dir() {
+            theme_dirs.push(d.join("brum").join("themes"));
+            theme_dirs.push(d.join("commanderdog").join("themes"));
+        }
 
         let mut theme_files = Vec::new();
         for dir in theme_dirs {

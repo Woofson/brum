@@ -166,7 +166,7 @@ impl VaultManager {
         file.write_all(&(enc_manifest.len() as u64).to_le_bytes()).map_err(|e| e.to_string())?;
         file.write_all(&enc_manifest).map_err(|e| e.to_string())?;
 
-        info!("Created new CommanderDog encrypted vault at {:?}", file_path);
+        info!("Created new Brum encrypted vault at {:?}", file_path);
         Ok(())
     }
 

@@ -1,6 +1,6 @@
-# CommanderDog Documentation & Manuals Index
+# Brum Documentation & Manuals Index
 
-Welcome to the **CommanderDog** manual and documentation index.
+Welcome to the **Brum** manual and documentation index.
 
 ---
 
@@ -19,7 +19,7 @@ Welcome to the **CommanderDog** manual and documentation index.
 | Manual | Description |
 | :--- | :--- |
 | [**`INSTALL.md`**](../INSTALL.md) | Centralized install guide: Native Desktop (`--features gui`), Tiling WMs (`-s --frameless`), AUR, Windows, Docker |
-| [**`windows.md`**](windows.md) | Windows Desktop setup (`CommanderDog.exe`), Winget, Scoop, MSI/EXE installers, and WebView2 |
+| [**`windows.md`**](windows.md) | Windows Desktop setup (`Brum.exe`), Winget, Scoop, MSI/EXE installers, and WebView2 |
 | [**`docker.md`**](docker.md) | Multi-arch Docker & GHCR container deployment with Compose, Portainer, and volume persistence |
 | [**`lxc-proxmox.md`**](lxc-proxmox.md) | 1-click Proxmox VE & Debian LXC container setup, TurnKey Linux, and systemd service management |
 | [**`reverse-proxy.md`**](reverse-proxy.md) | Reverse proxy & tunneling runbooks: Tailscale, NetBird, Caddy 2, Nginx, Traefik, and Cloudflare Tunnels |

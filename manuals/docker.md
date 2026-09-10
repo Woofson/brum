@@ -1,33 +1,33 @@
-# 🐳 CommanderDog — Docker & Portainer Deployment Guide
+# 🐳 Brum — Docker & Portainer Deployment Guide
 
-> Complete walkthrough for deploying **CommanderDog** with **Docker**, **Docker Compose**, and **Portainer Stacks** with persistent database storage.
+> Complete walkthrough for deploying **Brum** with **Docker**, **Docker Compose**, and **Portainer Stacks** with persistent database storage.
 
 ---
 
-## 🌟 Why Run CommanderDog in Docker?
+## 🌟 Why Run Brum in Docker?
 
 - ⚡ **Ultra-Lightweight & Minimal**: Statically linked musl binary packaged on **Alpine Linux 3.20**, resulting in a tiny **~30 MB image footprint** and using only **~20 MB of RAM**.
 - 🔒 **Isolated & Secure**: Run in rootless/isolated containers with fine-grained host volume bind-mounts and `no-new-privileges: true`.
-- 🗄️ **Multi-Host Storage Management**: Mount `/mnt/storage`, `/mnt/nas`, USB drives, or NFS directly into CommanderDog.
+- 🗄️ **Multi-Host Storage Management**: Mount `/mnt/storage`, `/mnt/nas`, USB drives, or NFS directly into Brum.
 - 🔄 **Zero-Loss Upgrades**: Persistent `/data` volume keeps all SQLite databases, users, backup schedules, and configurations intact across image upgrades and container refreshes.
 
 ---
 
 ## 🚀 1. Quick Start via Docker CLI
 
-Run CommanderDog directly with persistent data and host storage:
+Run Brum directly with persistent data and host storage:
 
 ```bash
 docker run -d \
-  --name commanderdog \
+  --name brum \
   --restart unless-stopped \
   -p 3140:3140 \
   -e TZ=Europe/Oslo \
-  -e CD_DATABASE_PATH=/data/commanderdog.db \
-  -v commanderdog_data:/data \
+  -e CD_DATABASE_PATH=/data/brum.db \
+  -v brum_data:/data \
   -v /home:/mnt/home:rw \
   -v /mnt:/mnt/storage:rw \
-  ghcr.io/woofson/commanderdog:latest
+  ghcr.io/woofson/brum:latest
 ```
 
 > 💡 **Image Details**: All official Docker images (`:latest`, `:alpine`, `:v0.7.2-rc1`) are built natively on Alpine Linux 3.20 with static musl binaries. Debian images have been retired.
@@ -45,9 +45,9 @@ Open `http://<SERVER_IP>:3140` in your browser:
 version: '3.8'
 
 services:
-  commanderdog:
-    image: ghcr.io/woofson/commanderdog:latest
-    container_name: commanderdog
+  brum:
+    image: ghcr.io/woofson/brum:latest
+    container_name: brum
     restart: unless-stopped
     ports:
       - "3140:3140"
@@ -55,11 +55,11 @@ services:
       - TZ=Europe/Oslo
       - CD_PORT=3140
       - CD_BIND=0.0.0.0
-      - CD_DATABASE_PATH=/data/commanderdog.db
+      - CD_DATABASE_PATH=/data/brum.db
     volumes:
       # Data & Configuration persistence (database, custom themes, persistent profiles)
       - ./data:/data
-      - ./config.toml:/etc/commanderdog/config.toml:ro
+      - ./config.toml:/etc/brum/config.toml:ro
       
       # Host Storage / Shares (Adjust to your host paths)
       - /home:/mnt/home:rw
@@ -85,7 +85,7 @@ docker compose up -d
 ### Step 3: View Logs & Update
 ```bash
 # View live logs
-docker compose logs -f commanderdog
+docker compose logs -f brum
 
 # Upgrade to latest release without losing database or profiles
 docker compose pull
@@ -96,20 +96,20 @@ docker compose up -d --force-recreate
 
 ## 💾 3. Database Persistence & Container Migration
 
-CommanderDog automatically recognizes `/data` volumes:
-1. **Auto-Path Resolution**: When `/data` exists, the server automatically defaults to `/data/commanderdog.db` and scans `/data/config.toml`.
+Brum automatically recognizes `/data` volumes:
+1. **Auto-Path Resolution**: When `/data` exists, the server automatically defaults to `/data/brum.db` and scans `/data/config.toml`.
 2. **Environment Overrides**:
    | Variable | Default | Purpose |
    | :--- | :--- | :--- |
-   | `CD_DATABASE_PATH` | `/data/commanderdog.db` (in container) | SQLite database storage path |
+   | `CD_DATABASE_PATH` | `/data/brum.db` (in container) | SQLite database storage path |
    | `CD_PORT` | `3140` | Listening HTTP port |
    | `CD_BIND` | `0.0.0.0` | Listening network interface |
    | `CD_JWT_SECRET` | *(auto-generated)* | Signing key for auth tokens |
 
 3. **Migrating / Backing Up Existing Databases**:
 ```bash
-# Copy an existing commanderdog.db into your Docker volume
-cp commanderdog.db ./data/commanderdog.db
+# Copy an existing brum.db into your Docker volume
+cp brum.db ./data/brum.db
 
 # Recreate the container
 docker compose up -d --force-recreate
@@ -120,10 +120,10 @@ docker compose up -d --force-recreate
 ## 🎛️ 4. Deployment via Portainer Stacks
 
 1. Open **Portainer** $\rightarrow$ Navigate to your Environment $\rightarrow$ **Stacks** $\rightarrow$ **Add stack**.
-2. Name the stack: `commanderdog`.
+2. Name the stack: `brum`.
 3. Select **Web editor** and paste the `docker-compose.yml` above.
 4. Click **Deploy the stack**.
-5. Access CommanderDog on port `3140`.
+5. Access Brum on port `3140`.
 
 ---
 
@@ -131,8 +131,8 @@ docker compose up -d --force-recreate
 
 ### Caddy
 ```caddy
-commanderdog.example.com {
-    reverse_proxy commanderdog:3140
+brum.example.com {
+    reverse_proxy brum:3140
 }
 ```
 

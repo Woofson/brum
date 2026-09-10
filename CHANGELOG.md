@@ -1,9 +1,27 @@
 # 📜 Changelog
 
-All notable changes to **CommanderDog** will be documented in this file.
+All notable changes to **Brum** (formerly CommanderDog) will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.8.2] - 2026-09-10
+
+### Project Rebrand to Brum ("Multi-Pane Web Environment - By Woofson") & Dual-Mode Compatibility
+- **Complete Application Rebranding**:
+  - Rebranded the platform from CommanderDog to **Brum** ("Multi-Pane Web Environment (File Commander/Manager) - By Woofson").
+  - Updated centralized package name and version in [`Cargo.toml`](Cargo.toml) to `brum = "0.8.2-rc1"`.
+  - Rebranded frontend web interfaces, dialogs, lock screen, login screen, About modal, and Spotlight palette.
+- **Graceful Backward Compatibility**:
+  - Config directory resolution prioritizes `~/.config/brum/config.toml` and `/etc/brum/config.toml` with automatic fallback to legacy `~/.config/commanderdog/config.toml` and `/etc/commanderdog/config.toml`.
+  - Database resolution prioritizes `brum.db` with seamless fallback to existing `commanderdog.db` SQLite databases.
+  - Environment variable resolver supports `BRUM_*` keys while preserving fallback support for `CD_*` variables (`BRUM_PORT`/`CD_PORT`, `BRUM_BIND`/`CD_BIND`, `BRUM_DATABASE_PATH`/`CD_DATABASE_PATH`, etc.).
+  - Default initial admin credentials updated to username `admin` and password `brum` (with backward compatibility).
+- **Packaging, Services & Deployment Ecosystem**:
+  - Updated systemd unit file to `brum.service` and Linux desktop shortcut to `brum.desktop`.
+  - Updated Docker container specification and `docker-compose.yml` to `ghcr.io/woofson/brum`.
+  - Updated Arch Linux AUR PKGBUILDs (`brum`, `brum-bin`), Alpine Linux `APKBUILD`, Windows Scoop bucket (`brum.json`), and Windows WinGet package manifests.
+  - Updated release packaging scripts ([`scripts/build-packages.sh`](scripts/build-packages.sh), [`scripts/release.sh`](scripts/release.sh), [`scripts/lxc-install.sh`](scripts/lxc-install.sh)).
 
 ## [0.8.1] - 2026-09-08
 

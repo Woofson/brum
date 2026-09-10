@@ -1,8 +1,8 @@
-# 🔒 CommanderDog Transparent Encrypted Vaults Manual
+# 🔒 Brum Transparent Encrypted Vaults Manual
 
 > **Zero-Knowledge, RAM-Only Authenticated Encryption (AES-256-GCM & Argon2id)**
 
-CommanderDog Transparent Encrypted Vaults (`.cdvault` / `.cdv`) provide self-contained, password-protected virtual filesystem containers. Vaults decrypt files **on-the-fly entirely in volatile system RAM** without ever writing unencrypted temporary files or plaintext data to the physical disk.
+Brum Transparent Encrypted Vaults (`.cdvault` / `.cdv`) provide self-contained, password-protected virtual filesystem containers. Vaults decrypt files **on-the-fly entirely in volatile system RAM** without ever writing unencrypted temporary files or plaintext data to the physical disk.
 
 ---
 
@@ -41,7 +41,7 @@ graph TD
 
 ## 2. Creating an Encrypted Vault
 
-You can create an encrypted vault anywhere in CommanderDog (local storage, external drives, or remote mounts):
+You can create an encrypted vault anywhere in Brum (local storage, external drives, or remote mounts):
 
 ### Method A: Via Right-Click Context Menu
 1. Navigate to the desired parent folder in any directory pane.
@@ -53,7 +53,7 @@ You can create an encrypted vault anywhere in CommanderDog (local storage, exter
 5. Click **Create Encrypted Vault**.
 
 ### Method B: Via Spotlight Quick-Switcher (<kbd>Ctrl+K</kbd>)
-1. Press <kbd>Ctrl+K</kbd> anywhere in CommanderDog.
+1. Press <kbd>Ctrl+K</kbd> anywhere in Brum.
 2. Type `vault` or `create vault`.
 3. Press <kbd>Enter</kbd> to open the creation dialog.
 
@@ -75,13 +75,13 @@ Unlocked vaults are mounted seamlessly as a virtual filesystem under the `vault:
      * `4 Hours Inactivity`
      * `Until Session Ends / Manual Lock`
 4. Click **Unlock Vault** (or press <kbd>Enter</kbd>).
-5. CommanderDog derives the key using Argon2id, verifies the authentication tag, and navigates immediately into `vault:///path/to/my_vault.cdvault#`.
+5. Brum derives the key using Argon2id, verifies the authentication tag, and navigates immediately into `vault:///path/to/my_vault.cdvault#`.
 
 ---
 
 ## 4. In-Vault Operations & Transparent Editing
 
-Inside the vault, you have full access to CommanderDog's suite of power tools:
+Inside the vault, you have full access to Brum's suite of power tools:
 
 * **Navigating Subfolders**: Browse virtual directories transparently (e.g. `vault:///path/to/my.cdvault#finance/taxes/`).
 * **Live In-Memory Editing**: Open text files, Markdown, JSON, YAML, code, and config files with **EditorDog**. When pressing <kbd>Ctrl+S</kbd>, changes are encrypted in RAM with AES-256-GCM and written back atomically.
@@ -94,7 +94,7 @@ Inside the vault, you have full access to CommanderDog's suite of power tools:
 
 ## 5. Auto-Lock Timers & Memory Purging
 
-CommanderDog implements strict memory hygiene for open vault sessions:
+Brum implements strict memory hygiene for open vault sessions:
 
 1. **Inactivity Auto-Lock**:
    * Every access (read, write, list) updates the session's `last_accessed` timestamp.
@@ -103,17 +103,17 @@ CommanderDog implements strict memory hygiene for open vault sessions:
    * While browsing inside a vault, a red **[ 🔒 Lock ]** button appears in the breadcrumb bar next to the vault name.
    * Clicking **[ 🔒 Lock ]** purges the Master Key immediately and returns the pane to the parent directory.
 3. **Session Lock Integration**:
-   * Locking your overall CommanderDog session (<kbd>Ctrl+Alt+L</kbd>) immediately invalidates all active vault keys in memory.
+   * Locking your overall Brum session (<kbd>Ctrl+Alt+L</kbd>) immediately invalidates all active vault keys in memory.
 
 ---
 
 ## 6. Portable Cloud & Backup Workflows
 
-Because CommanderDog vaults are self-contained container files (`.cdvault`), they are 100% portable:
+Because Brum vaults are self-contained container files (`.cdvault`), they are 100% portable:
 
 * **USB & External Drives**: Copy your `.cdvault` container to any FAT32/exFAT/NTFS/ext4 drive.
 * **Cloud Storage & Offsite Backup**: Upload `.cdvault` containers to AWS S3, Cloudflare R2, MinIO, SFTP, SMB, or Proton Drive without revealing folder names or file contents to third-party cloud providers.
-* **Bit-for-Bit Verification**: Use CommanderDog's built-in SHA-256 hash calculator (<kbd>Shift+F7</kbd>) to verify container integrity before and after transfers.
+* **Bit-for-Bit Verification**: Use Brum's built-in SHA-256 hash calculator (<kbd>Shift+F7</kbd>) to verify container integrity before and after transfers.
 
 ---
 
@@ -178,4 +178,4 @@ Authorization: Bearer <TOKEN>
 
 ---
 
-*CommanderDog Transparent Encrypted Vaults — Engineered for Maximum Privacy & Simplicity.* 🐕🔒
+*Brum Transparent Encrypted Vaults — Engineered for Maximum Privacy & Simplicity.* 🐕🔒

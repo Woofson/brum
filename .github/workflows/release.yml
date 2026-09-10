@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release version (e.g. 0.7.0)'
+        description: 'Release version (e.g. 0.8.2)'
         required: true
-        default: '0.7.0'
+        default: '0.8.2'
 
 permissions:
   contents: write
@@ -37,7 +37,7 @@ jobs:
       - name: Install Tauri CLI
         run: cargo install tauri-cli --version "^2.0.0" --locked
 
-      - name: Build Core CommanderDog Windows CLI
+      - name: Build Core Brum Windows CLI
         run: cargo build --release --target x86_64-pc-windows-msvc
 
       - name: Build Tauri Desktop Standalone & Installers (MSI + NSIS EXE)
@@ -50,23 +50,23 @@ jobs:
         run: |
           $Version = "${{ github.ref_name }}".TrimStart('v')
           if ([string]::IsNullOrEmpty($Version) -or $Version -eq "main") { $Version = "${{ github.event.inputs.version }}" }
-          if ([string]::IsNullOrEmpty($Version)) { $Version = "0.8.0" }
+          if ([string]::IsNullOrEmpty($Version)) { $Version = "0.8.2" }
 
           $DistDir = "dist\windows"
-          New-Item -ItemType Directory -Path "$DistDir\commanderdog" -Force | Out-Null
+          New-Item -ItemType Directory -Path "$DistDir\brum" -Force | Out-Null
 
-          Copy-Item "target\x86_64-pc-windows-msvc\release\commanderdog.exe" "$DistDir\commanderdog\"
-          Copy-Item "target\x86_64-pc-windows-msvc\release\commanderdog-desktop.exe" "$DistDir\commanderdog\CommanderDog.exe" -ErrorAction SilentlyContinue
-          Copy-Item "src-tauri\target\x86_64-pc-windows-msvc\release\commanderdog-desktop.exe" "$DistDir\commanderdog\CommanderDog.exe" -ErrorAction SilentlyContinue
-          Copy-Item "config.toml" "$DistDir\commanderdog\"
-          Copy-Item "LICENSE" "$DistDir\commanderdog\"
-          Copy-Item "README.md" "$DistDir\commanderdog\"
-          Copy-Item "packaging\windows\register-context-menu.reg" "$DistDir\commanderdog\"
-          Copy-Item "packaging\windows\unregister-context-menu.reg" "$DistDir\commanderdog\"
-          Copy-Item "assets\commanderdog.ico" "$DistDir\commanderdog\" -ErrorAction SilentlyContinue
+          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\"
+          Copy-Item "target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
+          Copy-Item "src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
+          Copy-Item "config.toml" "$DistDir\brum\"
+          Copy-Item "LICENSE" "$DistDir\brum\"
+          Copy-Item "README.md" "$DistDir\brum\"
+          Copy-Item "packaging\windows\register-context-menu.reg" "$DistDir\brum\"
+          Copy-Item "packaging\windows\unregister-context-menu.reg" "$DistDir\brum\"
+          Copy-Item "assets\brum.ico" "$DistDir\brum\" -ErrorAction SilentlyContinue
 
-          $ZipName = "commanderdog-v${Version}-windows-x86_64.zip"
-          Compress-Archive -Path "$DistDir\commanderdog\*" -DestinationPath "$DistDir\$ZipName" -Force
+          $ZipName = "brum-v${Version}-windows-x86_64.zip"
+          Compress-Archive -Path "$DistDir\brum\*" -DestinationPath "$DistDir\$ZipName" -Force
 
           # Copy installers to dist
           Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe" -ErrorAction SilentlyContinue | Copy-Item -Destination $DistDir
@@ -81,7 +81,7 @@ jobs:
       - name: Upload Windows Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: commanderdog-windows-x64
+          name: brum-windows-x64
           path: |
             dist/windows/*.zip
             dist/windows/*.exe
@@ -126,20 +126,20 @@ jobs:
             VERSION="${{ github.event.inputs.version }}"
           fi
           if [ -z "$VERSION" ]; then
-            VERSION="0.8.1"
+            VERSION="0.8.2"
           fi
-          mkdir -p dist/linux/commanderdog
-          cp target/release/commanderdog dist/linux/commanderdog/
-          cp config.toml LICENSE README.md dist/linux/commanderdog/
+          mkdir -p dist/linux/brum
+          cp target/release/brum dist/linux/brum/
+          cp config.toml LICENSE README.md dist/linux/brum/
           cd dist/linux
-          tar -czvf "commanderdog-v${VERSION}-linux-x86_64.tar.gz" commanderdog/
+          tar -czvf "brum-v${VERSION}-linux-x86_64.tar.gz" brum/
           cp ../../target/debian/*.deb .
           sha256sum *.tar.gz *.deb > SHA256SUMS-linux.txt
 
       - name: Upload Linux Build Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: commanderdog-linux-x64
+          name: brum-linux-x64
           path: |
             dist/linux/*.tar.gz
             dist/linux/*.deb
@@ -160,13 +160,13 @@ jobs:
       - name: Download Windows Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: commanderdog-windows-x64
+          name: brum-windows-x64
           path: release-assets/windows
 
       - name: Download Linux Artifacts
         uses: actions/download-artifact@v4
         with:
-          name: commanderdog-linux-x64
+          name: brum-linux-x64
           path: release-assets/linux
 
       - name: Combine Checksums
@@ -179,8 +179,8 @@ jobs:
       - name: Publish to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || (github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || 'v0.8.0') }}
-          name: ${{ github.ref_type == 'tag' && github.ref_name || (github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || 'v0.8.0') }}
+          tag_name: ${{ github.ref_type == 'tag' && github.ref_name || (github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || 'v0.8.2') }}
+          name: ${{ github.ref_type == 'tag' && github.ref_name || (github.event.inputs.version != '' && format('v{0}', github.event.inputs.version) || 'v0.8.2') }}
           files: |
             release-assets/all/*.zip
             release-assets/all/*.exe
@@ -191,3 +191,4 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
+

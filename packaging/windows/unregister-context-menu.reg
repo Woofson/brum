@@ -1,9 +1,13 @@
 Windows Registry Editor Version 5.00
 
 ; ====================================================================
-; CommanderDog - Remove Windows Explorer Context Menu Integration
+; Brum - Remove Windows Explorer Context Menu Integration
 ; ====================================================================
 
+[-HKEY_CLASSES_ROOT\Directory\shell\Brum]
+[-HKEY_CLASSES_ROOT\Directory\Background\shell\Brum]
+[-HKEY_CLASSES_ROOT\Drive\shell\Brum]
 [-HKEY_CLASSES_ROOT\Directory\shell\CommanderDog]
 [-HKEY_CLASSES_ROOT\Directory\Background\shell\CommanderDog]
 [-HKEY_CLASSES_ROOT\Drive\shell\CommanderDog]
+

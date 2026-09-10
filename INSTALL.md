@@ -1,19 +1,19 @@
-# 📦 CommanderDog Installation & Build Guide
+# 📦 Brum Installation & Build Guide
 
-Welcome to the comprehensive installation and compilation manual for **CommanderDog**.
+Welcome to the comprehensive installation and compilation manual for **Brum** ("Multi-Pane Web Environment (File Commander/Manager) - By Woofson").
 
 ---
 
-## 📋 Quick Selection: How Do You Want to Run CommanderDog?
+## 📋 Quick Selection: How Do You Want to Run Brum?
 
 | Deployment Target | Build / Command | Output Mode |
 | :--- | :--- | :--- |
-| **Native Desktop (Tiling WM / Linux)** | `cargo build --release --features gui`<br>`./target/release/commanderdog -s --frameless` | Standalone native WebKit window (No browser, borderless) |
-| **Native Desktop (Standard Linux / Windowed)** | `cargo build --release --features gui`<br>`./target/release/commanderdog -s` | Standalone native desktop window with titlebar |
-| **Arch Linux / CachyOS (AUR)** | `yay -S commanderdog` | Pre-configured native desktop + CLI package |
-| **Windows Desktop** | `winget install Woofson.CommanderDog`<br>or `scoop install commanderdog` | Native Windows app (`CommanderDog.exe` with System Tray) |
-| **Headless Server (Web Commander)** | `cargo build --release`<br>`./target/release/commanderdog --server` | Pure background web service on `http://0.0.0.0:3140` |
-| **Docker / Proxmox Container** | `docker compose up -d` | Minimal container on Alpine Linux (`ghcr.io/woofson/commanderdog`) |
+| **Native Desktop (Tiling WM / Linux)** | `cargo build --release --features gui`<br>`./target/release/brum -s --frameless` | Standalone native WebKit window (No browser, borderless) |
+| **Native Desktop (Standard Linux / Windowed)** | `cargo build --release --features gui`<br>`./target/release/brum -s` | Standalone native desktop window with titlebar |
+| **Arch Linux / CachyOS (AUR)** | `yay -S brum` | Pre-configured native desktop + CLI package |
+| **Windows Desktop** | `winget install Woofson.Brum`<br>or `scoop install brum` | Native Windows app (`Brum.exe` with System Tray) |
+| **Headless Server (Web Environment)** | `cargo build --release`<br>`./target/release/brum --server` | Pure background web service on `http://0.0.0.0:3140` |
+| **Docker / Proxmox Container** | `docker compose up -d` | Minimal container on Alpine Linux (`ghcr.io/woofson/brum`) |
 
 ---
 
@@ -38,7 +38,7 @@ To compile the standalone binary with embedded WebKitGTK desktop windowing:
 cargo build --release --features gui
 
 # Binary is located at:
-./target/release/commanderdog
+./target/release/brum
 ```
 
 ### Launching on Tiling Window Managers (Hyprland, Sway, i3, bspwm)
@@ -46,56 +46,56 @@ For tiling window managers, launch with `-s` (standalone local user) and `--fram
 
 ```bash
 # Direct run
-./target/release/commanderdog -s --frameless
+./target/release/brum -s --frameless
 
 # Or install globally into ~/.cargo/bin/
 cargo install --path . --features gui
-commanderdog -s --frameless
+brum -s --frameless
 ```
 
 #### Hyprland Window Rule Example (`hyprland.conf`)
 ```ini
 # Floating or tiled window rules
-windowrulev2 = opacity 0.96 0.96, class:^(CommanderDog)$
-bind = $mainMod, E, exec, commanderdog -s --frameless
+windowrulev2 = opacity 0.96 0.96, class:^(Brum)$
+bind = $mainMod, E, exec, brum -s --frameless
 ```
 
 ---
 
 ## 2. 🐧 Arch Linux AUR Installation
 
-CommanderDog is available in the Arch User Repository with automated compilation of the native desktop GUI:
+Brum is available in the Arch User Repository with automated compilation of the native desktop GUI:
 
 ```bash
 # Using yay
-yay -S commanderdog
+yay -S brum
 
 # Using paru
-paru -S commanderdog
+paru -S brum
 
 # Binary pre-compiled release (instant install)
-yay -S commanderdog-bin
+yay -S brum-bin
 ```
 
 ---
 
 ## 3. 🪟 Windows Desktop Standalone
 
-Windows users can install CommanderDog via package managers or native installers:
+Windows users can install Brum via package managers or native installers:
 
 ### Via Winget
 ```powershell
-winget install Woofson.CommanderDog
+winget install Woofson.Brum
 ```
 
 ### Via Scoop
 ```powershell
 scoop bucket add woofson https://github.com/Woofson/scoop-bucket.git
-scoop install commanderdog
+scoop install brum
 ```
 
 ### Manual Release Installers
-Download standalone portable ZIP, NSIS setup `.exe`, or `.msi` from [GitHub Releases](https://github.com/Woofson/commanderdog/releases). For more details, see [**`manuals/windows.md`**](manuals/windows.md).
+Download standalone portable ZIP, NSIS setup `.exe`, or `.msi` from [GitHub Releases](https://github.com/Woofson/brum/releases). For more details, see [**`manuals/windows.md`**](manuals/windows.md).
 
 ---
 
@@ -108,7 +108,7 @@ If deploying as a headless network storage server or remote commander:
 cargo build --release
 
 # Run web service
-./target/release/commanderdog --server --port 3140 --host 0.0.0.0
+./target/release/brum --server --port 3140 --host 0.0.0.0
 ```
 
 ---
@@ -120,12 +120,12 @@ See the comprehensive [**`manuals/docker.md`**](manuals/docker.md) and [**`manua
 ```bash
 # Quick Docker run
 docker run -d \
-  --name commanderdog \
+  --name brum \
   -p 3140:3140 \
   -v /home:/mnt/home:rw \
   -v /mnt/storage:/mnt/storage:rw \
   --restart unless-stopped \
-  ghcr.io/woofson/commanderdog:latest
+  ghcr.io/woofson/brum:latest
 ```
 
 ---
@@ -141,4 +141,5 @@ docker run -d \
 | `-p`, `--port <PORT>` | Overrides server bind port (default: `3140` or `config.toml`) |
 | `--host <HOST>` | Overrides bind address (default: `0.0.0.0`) |
 | `--no-auth` | Disables authentication globally |
-| `-v`, `--version` | Displays current version (`0.7.4-rc1`) |
+| `-v`, `--version` | Displays current version (`0.8.2`) |
+

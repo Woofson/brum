@@ -1,7 +1,7 @@
-# 📋 CommanderDog Factory Acceptance Test (FAT) & Verification Matrix
+# 📋 Brum Factory Acceptance Test (FAT) & Verification Matrix
 
 > **Document Version**: `2.1.0`  
-> **Target Release**: `CommanderDog v0.7.0 (Desktop & Web)`  
+> **Target Release**: `Brum v0.7.0 (Desktop & Web)`  
 > **Author**: Bolt J. Woofson <bolt@boop.no>  
 > **Last Updated**: 2026-09-01  
 
@@ -9,11 +9,11 @@
 
 ## 🎯 Matrix Overview: Viewports & Input Modalities
 
-CommanderDog is architected to deliver an orthodox two-pane desktop file manager experience on wide displays with physical mouse and keyboard, while seamlessly transforming into an adaptive touch-first interface on phones and foldables.
+Brum is architected to deliver an orthodox two-pane desktop file manager experience on wide displays with physical mouse and keyboard, while seamlessly transforming into an adaptive touch-first interface on phones and foldables.
 
 ```
 ┌────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│ CommanderDog Viewport & Form-Factor Taxonomy                                                          │
+│ Brum Viewport & Form-Factor Taxonomy                                                          │
 ├──────────────────────┬─────────────────────────────┬───────────────────────────┬───────────────────────┤
 │ Form Factor Category │ Target Viewport Width       │ Primary Input Modalities  │ Layout & Architecture │
 ├──────────────────────┼─────────────────────────────┼───────────────────────────┼───────────────────────┤

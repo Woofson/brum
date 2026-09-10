@@ -1,0 +1,17 @@
+[Unit]
+Description=Brum - Multi-Pane Web Environment (File Commander/Manager)
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/etc/brum
+ExecStart=/usr/local/bin/brum
+Restart=always
+RestartSec=5
+Environment=RUST_LOG=brum=info,tower_http=info
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

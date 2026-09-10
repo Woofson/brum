@@ -63,7 +63,7 @@ impl NfsClient {
     /// Get local mount point for an NFS share
     pub fn get_mount_dir(params: &NfsParams) -> PathBuf {
         let sanitized = format!("{}_{}", params.host, params.export_path.replace('/', "_").trim_matches('_'));
-        PathBuf::from("/run/commanderdog/mounts/nfs").join(sanitized)
+        PathBuf::from("/run/brum/mounts/nfs").join(sanitized)
     }
 
     /// Ensure the NFS share is mounted locally

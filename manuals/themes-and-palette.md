@@ -1,6 +1,6 @@
 # 🐕 Woofson Design Specs — Golden Amber Palette
 
-The official unified color palette and design tokens for the **Woofson** suite of applications (`CommanderDog`, `NoteDog`, `DotDog`).
+The official unified color palette and design tokens for the **Woofson** suite of applications (`Brum`, `NoteDog`, `DotDog`).
 
 ---
 

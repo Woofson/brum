@@ -10,7 +10,7 @@ use server::{create_router, AppState};
 use std::sync::Arc;
 use tracing::info;
 
-/// Creates the shared AppState for CommanderDog
+/// Creates the shared AppState for Brum
 pub fn create_app_state(config: &AppConfig) -> Result<AppState, Box<dyn std::error::Error + Send + Sync>> {
     let auth_mgr = AuthManager::new(
         &config.server.database_path,
@@ -41,7 +41,7 @@ pub fn create_app_state(config: &AppConfig) -> Result<AppState, Box<dyn std::err
     })
 }
 
-/// Starts the CommanderDog HTTP server in a background task and returns the bound port
+/// Starts the Brum HTTP server in a background task and returns the bound port
 pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<dyn std::error::Error + Send + Sync>> {
     let state = create_app_state(&config)?;
     let app = create_router(state);
@@ -69,11 +69,11 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<d
     let bound_port = local_addr.port();
     config.server.port = bound_port;
 
-    info!("CommanderDog embedded server listening on http://{}", local_addr);
+    info!("Brum embedded server listening on http://{}", local_addr);
 
     tokio::spawn(async move {
         if let Err(e) = axum::serve(listener, app).await {
-            tracing::error!("CommanderDog server error: {}", e);
+            tracing::error!("Brum server error: {}", e);
         }
     });
 

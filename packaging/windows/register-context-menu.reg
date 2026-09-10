@@ -1,27 +1,28 @@
 Windows Registry Editor Version 5.00
 
 ; ====================================================================
-; CommanderDog - Windows Explorer Context Menu Integration
-; Adds "Open in CommanderDog" to Directory and Background right-click
+; Brum - Windows Explorer Context Menu Integration
+; Adds "Open in Brum" to Directory and Background right-click
 ; ====================================================================
 
-[HKEY_CLASSES_ROOT\Directory\shell\CommanderDog]
-@="Open in CommanderDog"
-"Icon"="\"%LOCALAPPDATA%\\Programs\\CommanderDog\\CommanderDog.exe\",0"
+[HKEY_CLASSES_ROOT\Directory\shell\Brum]
+@="Open in Brum"
+"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\",0"
 
-[HKEY_CLASSES_ROOT\Directory\shell\CommanderDog\command]
-@="\"%LOCALAPPDATA%\\Programs\\CommanderDog\\CommanderDog.exe\" \"%1\""
+[HKEY_CLASSES_ROOT\Directory\shell\Brum\command]
+@="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\" \"%1\""
 
-[HKEY_CLASSES_ROOT\Directory\Background\shell\CommanderDog]
-@="Open in CommanderDog"
-"Icon"="\"%LOCALAPPDATA%\\Programs\\CommanderDog\\CommanderDog.exe\",0"
+[HKEY_CLASSES_ROOT\Directory\Background\shell\Brum]
+@="Open in Brum"
+"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\",0"
 
-[HKEY_CLASSES_ROOT\Directory\Background\shell\CommanderDog\command]
-@="\"%LOCALAPPDATA%\\Programs\\CommanderDog\\CommanderDog.exe\" \"%V\""
+[HKEY_CLASSES_ROOT\Directory\Background\shell\Brum\command]
+@="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\" \"%V\""
 
-[HKEY_CLASSES_ROOT\Drive\shell\CommanderDog]
-@="Open in CommanderDog"
-"Icon"="\"%LOCALAPPDATA%\\Programs\\CommanderDog\\CommanderDog.exe\",0"
+[HKEY_CLASSES_ROOT\Drive\shell\Brum]
+@="Open in Brum"
+"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\",0"
 
-[HKEY_CLASSES_ROOT\Drive\shell\CommanderDog\command]
-@="\"%LOCALAPPDATA%\\Programs\\CommanderDog\\CommanderDog.exe\" \"%1\""
+[HKEY_CLASSES_ROOT\Drive\shell\Brum\command]
+@="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\" \"%1\""
+

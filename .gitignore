@@ -1,5 +1,5 @@
 # ==============================================================================
-# CommanderDog Git Ignore & Sensitive Information Filter
+# Brum Git Ignore & Sensitive Information Filter
 # ==============================================================================
 
 # --- Build Targets & Distribution Packages ---
@@ -25,6 +25,7 @@ src-tauri/target
 *.sqlite-journal
 *.sqlite-wal
 *.sqlite-shm
+brum.db*
 commanderdog.db*
 session.db*
 
@@ -60,6 +61,8 @@ service-account*.json
 *.temp
 core
 core.*
+parubrum*.txt
+brum*.txt
 parucommanderdog*.txt
 commanderdog*.txt
 cdmousepointer*.txt
@@ -67,6 +70,8 @@ cd*.txt
 *error*.txt
 *debug*.txt
 *output*.txt
+todo.txt
+.vscode/
 
 # --- Scratch & Cache Directories ---
 scratch/

@@ -320,6 +320,60 @@ dependencies = [
 ]
 
 [[package]]
+name = "brum"
+version = "0.8.2"
+dependencies = [
+ "aes-gcm",
+ "argon2",
+ "async-trait",
+ "axum",
+ "base64",
+ "bzip2 0.4.4",
+ "chacha20poly1305",
+ "chrono",
+ "crc32fast",
+ "dirs",
+ "filetime",
+ "flate2",
+ "futures-util",
+ "getrandom 0.2.17",
+ "hex",
+ "hmac",
+ "jsonwebtoken",
+ "libc",
+ "lopdf",
+ "mime_guess",
+ "open",
+ "openssl",
+ "parking_lot",
+ "portable-pty",
+ "rand 0.8.7",
+ "rayon",
+ "regex",
+ "reqwest",
+ "rusqlite",
+ "rust-embed",
+ "serde",
+ "serde_json",
+ "sha2 0.10.9",
+ "similar",
+ "ssh2",
+ "tao",
+ "tar",
+ "tempfile",
+ "tokio",
+ "toml 0.8.2",
+ "tower-http 0.5.2",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+ "walkdir",
+ "winres",
+ "wry",
+ "zip",
+]
+
+[[package]]
 name = "bstr"
 version = "1.13.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -537,60 +591,6 @@ checksum = "cfc320937d09e6de266b31b9afb480f197d7a861be86be7cb2ea7e5d1bfffc5e"
 dependencies = [
  "bytes",
  "memchr",
-]
-
-[[package]]
-name = "commanderdog"
-version = "0.8.1"
-dependencies = [
- "aes-gcm",
- "argon2",
- "async-trait",
- "axum",
- "base64",
- "bzip2 0.4.4",
- "chacha20poly1305",
- "chrono",
- "crc32fast",
- "dirs",
- "filetime",
- "flate2",
- "futures-util",
- "getrandom 0.2.17",
- "hex",
- "hmac",
- "jsonwebtoken",
- "libc",
- "lopdf",
- "mime_guess",
- "open",
- "openssl",
- "parking_lot",
- "portable-pty",
- "rand 0.8.7",
- "rayon",
- "regex",
- "reqwest",
- "rusqlite",
- "rust-embed",
- "serde",
- "serde_json",
- "sha2 0.10.9",
- "similar",
- "ssh2",
- "tao",
- "tar",
- "tempfile",
- "tokio",
- "toml 0.8.2",
- "tower-http 0.5.2",
- "tracing",
- "tracing-subscriber",
- "uuid",
- "walkdir",
- "winres",
- "wry",
- "zip",
 ]
 
 [[package]]

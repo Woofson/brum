@@ -5,7 +5,7 @@
 # ==============================================================================
 set -euo pipefail
 
-REPO="Woofson/commanderdog"
+REPO="Woofson/brum"
 
 usage() {
     cat <<USG

@@ -11,9 +11,9 @@ fn main() {
 
         if !is_desktop {
             let mut res = winres::WindowsResource::new();
-            res.set_icon("assets/commanderdog.ico");
-            res.set("ProductName", "CommanderDog");
-            res.set("FileDescription", "Multi-Tab Web Commander - By Woofson");
+            res.set_icon("assets/brum.ico");
+            res.set("ProductName", "Brum");
+            res.set("FileDescription", "Multi-Pane Web Environment (File Commander/Manager) - By Woofson");
             res.set("LegalCopyright", "Copyright (c) 2026 Bolt J Woofson");
             let _ = res.compile();
         }

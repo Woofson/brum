@@ -1,6 +1,6 @@
-# <img src="../assets/logo.png" alt="CommanderDog Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Remote Protocols & VFS Guide
+# <img src="../assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Remote Protocols & VFS Guide
 
-CommanderDog includes a zero-leakage, multi-protocol Virtual Filesystem (VFS) client engine directly integrated into the panel manager.
+Brum includes a zero-leakage, multi-protocol Virtual Filesystem (VFS) client engine directly integrated into the panel manager.
 
 ---
 

@@ -1,4 +1,4 @@
-// CommanderDog Multi-Tab Web Commander - By Woofson
+// Brum Multi-Pane Web Environment - By Woofson
 const App = {
   panes: [],
   activePaneIndex: 0,
@@ -1173,7 +1173,7 @@ function exportCustomThemeToml() {
   const bg_dark = document.getElementById('custom-theme-bg-dark')?.value || '#0b0f14';
   const bg_panel = document.getElementById('custom-theme-bg-panel')?.value || '#111822';
 
-  const toml = `# CommanderDog Theme Definition
+  const toml = `# Brum Theme Definition
 id = "${id}"
 name = "${name}"
 bg_dark = "${bg_dark}"
@@ -1191,7 +1191,7 @@ border = "${accent}"
   a.href = URL.createObjectURL(blob);
   a.download = `${id}.toml`;
   a.click();
-  showToast(`Exported ${id}.toml! You can drop this into ~/.config/commanderdog/themes/`, 'info');
+  showToast(`Exported ${id}.toml! You can drop this into ~/.config/brum/themes/`, 'info');
 }
 
 const defaultThemeList = [
@@ -2521,7 +2521,7 @@ function renderPaneTable(paneIndex) {
 
       let thumbHtml = '';
       if (!entry.is_dir && isImageFile(entry.name)) {
-        thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" onerror="this.src='assets/logo.webp'">`;
+        thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" onerror="this.src='assets/brum_commanderdog_legacy.webp'">`;
       } else {
         thumbHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg');
       }
@@ -5107,10 +5107,10 @@ async function triggerServerReload() {
 }
 
 async function triggerServerRestart() {
-  const confirmed = confirm('Are you sure you want to restart the CommanderDog server process? Active connections will momentarily reconnect.');
+  const confirmed = confirm('Are you sure you want to restart the Brum server process? Active connections will momentarily reconnect.');
   if (!confirmed) return;
 
-  showToast('Restarting CommanderDog server...', 'info');
+  showToast('Restarting Brum server...', 'info');
   try {
     await fetch('/api/system/restart', {
       method: 'POST',
@@ -5440,7 +5440,7 @@ function setupKeyboardNavigation() {
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'q' || e.key === 'Q')) {
         e.preventDefault();
-        confirmExitCommanderDog();
+        confirmExitBrum();
         return;
       }
       return;
@@ -5475,7 +5475,7 @@ function setupKeyboardNavigation() {
     if (e.ctrlKey || e.metaKey) {
       if (e.key === 'q' || e.key === 'Q') {
         e.preventDefault();
-        confirmExitCommanderDog();
+        confirmExitBrum();
         return;
       }
       if (e.altKey && (e.key === 'l' || e.key === 'L')) {
@@ -5915,7 +5915,7 @@ async function executeOpenConfdAssembled() {
     }
   }
 
-  let fullBuffer = `# =========================================================================\n# 🧩 COMMANDERDOG MODULAR CONFIG COMPILATION: ${confdFolderName}\n# Directory: ${pendingConfdDirPath}\n# Assembled: ${assembledParts.length} files in execution order\n# Edits are saved individually to each respective file on Ctrl+S.\n# =========================================================================\n\n`;
+  let fullBuffer = `# =========================================================================\n# 🧩 BRUM MODULAR CONFIG COMPILATION: ${confdFolderName}\n# Directory: ${pendingConfdDirPath}\n# Assembled: ${assembledParts.length} files in execution order\n# Edits are saved individually to each respective file on Ctrl+S.\n# =========================================================================\n\n`;
 
   for (const part of assembledParts) {
     fullBuffer += `# =========================================================================\n`;
@@ -9505,7 +9505,7 @@ function updateLogoutOrExitButton() {
   const logoutBtn = document.getElementById('btn-profile-logout');
   if (logoutBtn) {
     if (isStandalone) {
-      logoutBtn.title = 'Exit / Quit CommanderDog';
+      logoutBtn.title = 'Exit / Quit Brum';
       logoutBtn.innerHTML = '<i data-lucide="power" style="width: 14px; height: 14px;"></i> <span id="label-profile-logout">Exit</span>';
     } else {
       logoutBtn.title = 'Log Out';
@@ -10340,7 +10340,7 @@ function expandTemplateVariables(templateStr, filename, customTitle = null) {
   const month = String(now.getMonth() + 1).padStart(2, '0');
   const day = String(now.getDate()).padStart(2, '0');
   const user = App.currentUser || 'User';
-  const author = App.currentUser || 'CommanderDog User';
+  const author = App.currentUser || 'Brum User';
   const baseName = filename ? filename.replace(/\.[^/.]+$/, '') : 'document';
   const ext = filename && filename.includes('.') ? filename.split('.').pop() : '';
   const title = (customTitle && customTitle.trim()) ? customTitle.trim() : humanizeFilenameToTitle(filename);
@@ -11951,7 +11951,7 @@ function onBookmarkProtocolChange() {
   if (pathLabel && pathInput) {
     if (proto === 'web') {
       pathLabel.textContent = 'Web URL / Link:';
-      if (!pathInput.value || pathInput.value.startsWith('/')) pathInput.placeholder = 'https://github.com/Woofson/commanderdog';
+      if (!pathInput.value || pathInput.value.startsWith('/')) pathInput.placeholder = 'https://github.com/Woofson/brum';
     } else if (proto === 'smb') {
       pathLabel.textContent = 'SMB Share URI:';
       if (!pathInput.value.startsWith('smb://')) pathInput.placeholder = 'smb://192.168.1.100/share';
@@ -12048,7 +12048,7 @@ function lockSession() {
   const passIn = document.getElementById('unlock-password-input');
   const errMsg = document.getElementById('unlock-error-msg');
 
-  if (userLabel) userLabel.textContent = App.user?.nickname || App.user?.username || 'CommanderDog User';
+  if (userLabel) userLabel.textContent = App.user?.nickname || App.user?.username || 'Brum User';
   if (avatarEl) renderAvatarElement(avatarEl, App.user?.avatar_url || '👤');
   if (passIn) passIn.value = '';
   if (errMsg) errMsg.style.display = 'none';
@@ -12448,7 +12448,7 @@ function applyTheme(themeId, skipSync = false) {
     queueSaveUserPreferencesToServer();
   }
 
-  // 1. Check dynamic themes loaded from App.config.themes.themes (built-in + ~/.config/commanderdog/themes/)
+  // 1. Check dynamic themes loaded from App.config.themes.themes (built-in + ~/.config/brum/themes/)
   const customTheme = App.config?.themes?.themes?.find(t => t.id === themeId);
   if (customTheme) {
     root.style.setProperty('--bg-dark', customTheme.bg_dark);
@@ -13873,7 +13873,7 @@ async function downloadBatchArchive(paths) {
     a.style.display = 'none';
     a.href = url;
     const cd = resp.headers.get('content-disposition');
-    let filename = 'commanderdog_download.zip';
+    let filename = 'brum_download.zip';
     if (cd && cd.includes('filename=')) {
       const match = cd.match(/filename=["']?([^"';]+)["']?/);
       if (match && match[1]) filename = match[1];
@@ -16588,7 +16588,7 @@ function renderFloatingTaskManager(list) {
     });
 
     if (allLogs.length === 0) {
-      logConsole.textContent = '// CommanderDog Diagnostic Transfer Log...\n// No events logged yet.';
+      logConsole.textContent = '// Brum Diagnostic Transfer Log...\n// No events logged yet.';
     } else {
       const text = allLogs.join('\n');
       if (logConsole.textContent !== text) {
@@ -20863,19 +20863,19 @@ function refreshAllPanes() {
 function handleLogoutOrExit() {
   const isStandalone = App.config?.server?.standalone || window.__TAURI__ !== undefined;
   if (isStandalone) {
-    confirmExitCommanderDog();
+    confirmExitBrum();
   } else {
     logout();
   }
 }
 
-async function confirmExitCommanderDog() {
+async function confirmExitBrum() {
   const isStandalone = App.config?.server?.standalone || window.__TAURI__ !== undefined || window.__WRY__ !== undefined || document.body.classList.contains('standalone-mode');
 
   const confirmed = await showConfirmDialog({
-    title: 'Quit CommanderDog',
+    title: 'Quit Brum',
     subtitle: isStandalone ? 'Terminate native application' : 'Clean session shutdown',
-    message: 'Are you sure you want to quit CommanderDog and terminate the process?',
+    message: 'Are you sure you want to quit Brum and terminate the process?',
     icon: 'power',
     type: 'danger',
     confirmText: 'Quit Application',
@@ -20884,7 +20884,7 @@ async function confirmExitCommanderDog() {
   if (!confirmed) return;
 
   try {
-    showToast("Exiting CommanderDog...", "info");
+    showToast("Exiting Brum...", "info");
     await fetch('/api/system/exit', {
       method: 'POST',
       headers: {
@@ -20904,7 +20904,7 @@ async function confirmExitCommanderDog() {
     } catch (_) {}
     document.body.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; background: var(--bg-dark, #0b0f14); color: var(--text-main, #e1e7ec); font-family: sans-serif; text-align: center; padding: 20px;">
-        <h2 style="color: var(--accent, #f59e0b); margin-bottom: 8px;">🐕 CommanderDog Closed</h2>
+        <h2 style="color: var(--accent, #f59e0b); margin-bottom: 8px;">⚡ Brum Closed</h2>
         <p style="color: var(--text-muted, #7a889b); font-size: 13px;">The application process has been terminated cleanly. You can safely close this window.</p>
       </div>
     `;
@@ -21044,9 +21044,9 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
-  { id: 'about', title: 'About CommanderDog', sub: 'Version, architecture, developer info, and MIT license details', icon: 'assets/amber-frameless-info.webp', cat: 'actions', action: () => openAboutModal() },
+  { id: 'about', title: 'About Brum', sub: 'Version, architecture, developer info, and MIT license details', icon: 'assets/amber-frameless-info.webp', cat: 'actions', action: () => openAboutModal() },
   { id: 'profile', title: 'User Profile & Password', sub: 'Account credentials, session avatar, and security', icon: 'user', cat: 'actions', action: () => openUserProfileModal() },
-  { id: 'lock', title: 'Lock Session', sub: 'Lock CommanderDog immediately (Ctrl+Alt+L)', icon: 'lock', cat: 'actions', action: () => lockSession() },
+  { id: 'lock', title: 'Lock Session', sub: 'Lock Brum immediately (Ctrl+Alt+L)', icon: 'lock', cat: 'actions', action: () => lockSession() },
   { id: 'mkdir', title: 'New Folder', sub: 'Create a new directory in active pane (F7)', icon: 'folder-plus', cat: 'actions', action: () => triggerMkdir() },
   { id: 'newfile', title: 'New Text File', sub: 'Create a new empty text document', icon: 'file-plus', cat: 'actions', action: () => triggerNewFile() },
   { id: 'new-template', title: 'New File from Template...', sub: 'Create a new file using Markdown, HTML, Shell, Python or custom templates', icon: 'file-code-2', cat: 'actions', action: () => triggerCreateFromTemplate('markdown') },

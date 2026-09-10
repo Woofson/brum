@@ -1,15 +1,15 @@
 services:
-  commanderdog:
-    image: ghcr.io/woofson/commanderdog:latest
-    container_name: commanderdog
+  brum:
+    image: ghcr.io/woofson/brum:latest
+    container_name: brum
     restart: unless-stopped
     ports:
       - "3140:3140"
     environment:
       - TZ=UTC
-      - CD_PORT=3140
-      - CD_BIND=0.0.0.0
-      - CD_DATABASE_PATH=/data/commanderdog.db
+      - BRUM_PORT=3140
+      - BRUM_BIND=0.0.0.0
+      - BRUM_DATABASE_PATH=/data/brum.db
     volumes:
       # Data & Configuration persistence (database, runtime state, custom configs)
       - ./data:/data
@@ -28,3 +28,4 @@ services:
     
     security_opt:
       - no-new-privileges:true
+

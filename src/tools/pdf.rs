@@ -1,4 +1,4 @@
-// Pure-Rust PDF Split & Merger Tool - CommanderDog v0.7.0
+// Pure-Rust PDF Split & Merger Tool - Brum
 use lopdf::{Document, Object, ObjectId, dictionary};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;

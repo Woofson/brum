@@ -14,12 +14,12 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    commanderdog::setup_linux_desktop_env();
+    brum::setup_linux_desktop_env();
 
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "commanderdog=info,tower_http=info".into()),
+                .unwrap_or_else(|_| "brum=info,tower_http=info".into()),
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
@@ -80,7 +80,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     handle_service_command(&subcmd)?;
                     return Ok(());
                 } else {
-                    eprintln!("Usage: commanderdog service [install|uninstall|start|stop|status]");
+                    eprintln!("Usage: brum service [install|uninstall|start|stop|status]");
                     return Ok(());
                 }
             }
@@ -95,19 +95,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 config.ui.window_decorations = true;
             }
             "--version" | "-v" => {
-                println!("CommanderDog v{}", env!("CARGO_PKG_VERSION"));
+                println!("Brum v{}", env!("CARGO_PKG_VERSION"));
                 return Ok(());
             }
             "--help" | "-h" => {
-                println!("CommanderDog v{} - Multi-Tab Web Commander", env!("CARGO_PKG_VERSION"));
+                println!("Brum v{} - Multi-Pane Web Environment (File Commander/Manager)", env!("CARGO_PKG_VERSION"));
                 println!();
                 println!("USAGE:");
-                println!("    commanderdog [OPTIONS]");
-                println!("    commanderdog service [COMMAND]");
+                println!("    brum [OPTIONS]");
+                println!("    brum service [COMMAND]");
                 println!();
                 println!("OPTIONS:");
                 println!("    -s, --standalone    Run in standalone desktop mode (auto-authenticates as local user, opens browser/window)");
-                println!("    -o, --open          Automatically open CommanderDog in default web browser / webview");
+                println!("    -o, --open          Automatically open Brum in default web browser / webview");
                 println!("    -p, --port <PORT>   Override web server port (default: 3140 or config.toml setting)");
                 println!("        --host <HOST>   Override web server bind host (default: 0.0.0.0)");
                 println!("        --no-auth       Disable login authentication and run with local permissions");
@@ -119,7 +119,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    -h, --help          Print this help message");
                 println!();
                 println!("SERVICE COMMANDS:");
-                println!("    install             Register CommanderDog as Windows NT Service or systemd user service");
+                println!("    install             Register Brum as Windows NT Service or systemd user service");
                 println!("    uninstall           Remove registered background service");
                 println!("    start               Start background service");
                 println!("    stop                Stop running service");
@@ -131,7 +131,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         i += 1;
     }
 
-    info!("Starting CommanderDog v{} with active configuration...", env!("CARGO_PKG_VERSION"));
+    info!("Starting Brum v{} with active configuration...", env!("CARGO_PKG_VERSION"));
 
     let auth_mgr = AuthManager::new(
         &config.server.database_path,
@@ -164,7 +164,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let app = create_router(state);
 
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
-    info!("CommanderDog Web Server listening on http://{}", addr);
+    info!("Brum Web Server listening on http://{}", addr);
     if config.server.standalone || !config.server.enable_auth {
         let current_user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
         info!("MODE: Standalone Desktop Mode (Running with local credentials for '{}')", current_user);
@@ -189,15 +189,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if should_launch_gui && has_display {
         tokio::spawn(async move {
             if let Err(e) = axum::serve(listener, app).await {
-                tracing::error!("CommanderDog server error: {}", e);
+                tracing::error!("Brum server error: {}", e);
             }
         });
 
         #[cfg(feature = "gui")]
         {
             let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
-            info!("Launching CommanderDog native desktop window (decorations: {}): {}", dec_status, open_url);
-            run_native_gui(&open_url, "CommanderDog", config.ui.window_decorations)?;
+            info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, open_url);
+            run_native_gui(&open_url, "Brum", config.ui.window_decorations)?;
             return Ok(());
         }
         #[cfg(not(feature = "gui"))]
@@ -213,7 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             let u = open_url.clone();
             tokio::spawn(async move {
                 tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
-                info!("Opening CommanderDog in browser: {}", u);
+                info!("Opening Brum in browser: {}", u);
                 let _ = open::that(&u);
             });
         }
@@ -275,40 +275,40 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
     {
         match cmd {
             "install" => {
-                println!("Installing CommanderDog Windows Service via sc.exe...");
+                println!("Installing Brum Windows Service via sc.exe...");
                 let status = std::process::Command::new("sc.exe")
-                    .args(["create", "CommanderDog", "binPath=", &format!("\"{}\" --server", exe.display()), "start=", "auto", "DisplayName=", "CommanderDog Web Service"])
+                    .args(["create", "Brum", "binPath=", &format!("\"{}\" --server", exe.display()), "start=", "auto", "DisplayName=", "Brum Web Service"])
                     .status()?;
                 if status.success() {
-                    println!("Successfully registered CommanderDog Windows Service.");
+                    println!("Successfully registered Brum Windows Service.");
                 } else {
                     eprintln!("Failed to register service. Ensure you are running Command Prompt / PowerShell as Administrator.");
                 }
             }
             "uninstall" => {
-                println!("Removing CommanderDog Windows Service...");
-                let _ = std::process::Command::new("sc.exe").args(["stop", "CommanderDog"]).status();
-                let status = std::process::Command::new("sc.exe").args(["delete", "CommanderDog"]).status()?;
+                println!("Removing Brum Windows Service...");
+                let _ = std::process::Command::new("sc.exe").args(["stop", "Brum"]).status();
+                let status = std::process::Command::new("sc.exe").args(["delete", "Brum"]).status()?;
                 if status.success() {
-                    println!("Successfully removed CommanderDog Windows Service.");
+                    println!("Successfully removed Brum Windows Service.");
                 }
             }
             "start" => {
-                println!("Starting CommanderDog Windows Service...");
-                let status = std::process::Command::new("sc.exe").args(["start", "CommanderDog"]).status()?;
+                println!("Starting Brum Windows Service...");
+                let status = std::process::Command::new("sc.exe").args(["start", "Brum"]).status()?;
                 if status.success() {
                     println!("Service started.");
                 }
             }
             "stop" => {
-                println!("Stopping CommanderDog Windows Service...");
-                let status = std::process::Command::new("sc.exe").args(["stop", "CommanderDog"]).status()?;
+                println!("Stopping Brum Windows Service...");
+                let status = std::process::Command::new("sc.exe").args(["stop", "Brum"]).status()?;
                 if status.success() {
                     println!("Service stopped.");
                 }
             }
             "status" => {
-                let _ = std::process::Command::new("sc.exe").args(["query", "CommanderDog"]).status();
+                let _ = std::process::Command::new("sc.exe").args(["query", "Brum"]).status();
             }
             _ => eprintln!("Unknown service command: {}. Available: install, uninstall, start, stop, status", cmd),
         }
@@ -317,38 +317,38 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
     {
         match cmd {
             "install" => {
-                println!("Creating user systemd service ~/.config/systemd/user/commanderdog.service...");
+                println!("Creating user systemd service ~/.config/systemd/user/brum.service...");
                 if let Some(config_dir) = dirs::config_dir() {
                     let systemd_dir = config_dir.join("systemd/user");
                     std::fs::create_dir_all(&systemd_dir)?;
-                    let unit_path = systemd_dir.join("commanderdog.service");
+                    let unit_path = systemd_dir.join("brum.service");
                     let content = format!(
-                        "[Unit]\nDescription=CommanderDog Web Commander Server\nAfter=network.target\n\n[Service]\nExecStart=\"{}\" --server\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n",
+                        "[Unit]\nDescription=Brum Web Commander Server\nAfter=network.target\n\n[Service]\nExecStart=\"{}\" --server\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n",
                         exe.display()
                     );
                     std::fs::write(&unit_path, content)?;
                     println!("Created service unit at {}", unit_path.display());
-                    println!("To enable: systemctl --user daemon-reload && systemctl --user enable --now commanderdog");
+                    println!("To enable: systemctl --user daemon-reload && systemctl --user enable --now brum");
                 }
             }
             "uninstall" => {
                 if let Some(config_dir) = dirs::config_dir() {
-                    let unit_path = config_dir.join("systemd/user/commanderdog.service");
-                    let _ = std::process::Command::new("systemctl").args(["--user", "disable", "--now", "commanderdog"]).status();
+                    let unit_path = config_dir.join("systemd/user/brum.service");
+                    let _ = std::process::Command::new("systemctl").args(["--user", "disable", "--now", "brum"]).status();
                     if unit_path.exists() {
                         let _ = std::fs::remove_file(unit_path);
                     }
-                    println!("CommanderDog systemd service uninstalled.");
+                    println!("Brum systemd service uninstalled.");
                 }
             }
             "start" => {
-                let _ = std::process::Command::new("systemctl").args(["--user", "start", "commanderdog"]).status();
+                let _ = std::process::Command::new("systemctl").args(["--user", "start", "brum"]).status();
             }
             "stop" => {
-                let _ = std::process::Command::new("systemctl").args(["--user", "stop", "commanderdog"]).status();
+                let _ = std::process::Command::new("systemctl").args(["--user", "stop", "brum"]).status();
             }
             "status" => {
-                let _ = std::process::Command::new("systemctl").args(["--user", "status", "commanderdog"]).status();
+                let _ = std::process::Command::new("systemctl").args(["--user", "status", "brum"]).status();
             }
             _ => eprintln!("Unknown service command: {}. Available: install, uninstall, start, stop, status", cmd),
         }

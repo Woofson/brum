@@ -1,6 +1,6 @@
-# CommanderDog Power Tools & ChewToys Manual
+# Brum Power Tools & ChewToys Manual
 
-**CommanderDog** replaces a fragmented collection of separate desktop and command-line utilities with a unified, high-performance web and native interface. These integrated extensions are known as **"ChewToys"**.
+**Brum** replaces a fragmented collection of separate desktop and command-line utilities with a unified, high-performance web and native interface. These integrated extensions are known as **"ChewToys"**.
 
 ---
 

@@ -1,0 +1,11 @@
+[Desktop Entry]
+Name=Brum
+GenericName=Multi-Pane Web Environment
+Comment=Multi-Pane Web Environment (File Commander/Manager) by Woofson
+Exec=/usr/local/bin/brum --standalone
+Icon=brum
+Terminal=false
+Type=Application
+Categories=Utility;FileManager;System;
+Keywords=files;file manager;orthodox;commander;explorer;
+StartupWMClass=brum

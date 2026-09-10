@@ -1,6 +1,6 @@
-# <img src="../assets/logo.png" alt="CommanderDog Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Keyboard Shortcuts & Navigation Guide
+# <img src="../assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Keyboard Shortcuts & Navigation Guide
 
-CommanderDog provides orthodox keyboard-driven power navigation paired with intuitive mouse and touch gestures.
+Brum provides orthodox keyboard-driven power navigation paired with intuitive mouse and touch gestures.
 
 ---
 
@@ -36,7 +36,7 @@ CommanderDog provides orthodox keyboard-driven power navigation paired with intu
 | **`Ctrl+Shift+A`** | Invert selection |
 | **`Ctrl+C`** / **`Ctrl+X`** / **`Ctrl+V`** | Standard Clipboard Copy, Cut, and Paste across panels |
 | **`Ctrl+P`** | Toggle Paranoid File Handling Mode (checksum verification) |
-| **`Ctrl+Q`** / **`Cmd+Q`** | Clean Exit / Quit CommanderDog |
+| **`Ctrl+Q`** / **`Cmd+Q`** | Clean Exit / Quit Brum |
 
 ---
 

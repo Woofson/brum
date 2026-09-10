@@ -1,6 +1,6 @@
 # 🌐 Reverse Proxy & Mesh VPN Guide (Tailscale, NetBird, Caddy, Nginx, Traefik)
 
-CommanderDog is built from the ground up to run seamlessly behind **any reverse proxy**, **mesh VPN**, or **Cloudflare Tunnel** with zero configuration required.
+Brum is built from the ground up to run seamlessly behind **any reverse proxy**, **mesh VPN**, or **Cloudflare Tunnel** with zero configuration required.
 
 It supports:
 - ✅ **Automatic WebSockets over HTTPS (`wss://`)** for the interactive PTY terminal.
@@ -15,19 +15,19 @@ It supports:
 Tailscale provides encrypted peer-to-peer WireGuard connections and automatic TLS certificates via MagicDNS.
 
 ### Option A: Tailscale Serve (Private to Tailnet with Automatic HTTPS)
-Serve CommanderDog securely to devices on your private Tailscale network with a signed Let's Encrypt HTTPS certificate:
+Serve Brum securely to devices on your private Tailscale network with a signed Let's Encrypt HTTPS certificate:
 ```bash
-# Run CommanderDog in the background on port 3140
-commanderdog &
+# Run Brum in the background on port 3140
+brum &
 
 # Expose to your Tailnet over HTTPS
 tailscale serve --bg 3140
 ```
-Your CommanderDog instance is now available at:
+Your Brum instance is now available at:
 `https://<node-name>.<tailnet-name>.ts.net`
 
 ### Option B: Tailscale Funnel (Public Internet Access with HTTPS)
-Expose CommanderDog to the public Internet with full TLS and WebSocket proxying:
+Expose Brum to the public Internet with full TLS and WebSocket proxying:
 ```bash
 tailscale funnel --bg 3140
 ```
@@ -43,7 +43,7 @@ If you prefer direct IP connections over your Tailnet:
 NetBird provides fast peer-to-peer overlay networking over WireGuard.
 
 ### Direct Access
-CommanderDog listens on `0.0.0.0:3140` by default. Once your host is joined to NetBird, access CommanderDog directly from any peer machine:
+Brum listens on `0.0.0.0:3140` by default. Once your host is joined to NetBird, access Brum directly from any peer machine:
 `http://100.x.y.z:3140`
 
 ### With NetBird Routing Peer
@@ -57,7 +57,7 @@ Caddy provides **automatic HTTPS certificates**, HTTP/2, HTTP/3, and built-in We
 
 ### `/etc/caddy/Caddyfile`
 ```caddyfile
-commanderdog.yourdomain.com {
+brum.yourdomain.com {
     reverse_proxy localhost:3140
 }
 ```
@@ -73,7 +73,7 @@ sudo systemctl reload caddy
 
 When using Nginx, you **must** configure WebSocket upgrade headers and disable request buffering for large file uploads and real-time terminal streaming.
 
-### `/etc/nginx/sites-available/commanderdog`
+### `/etc/nginx/sites-available/brum`
 ```nginx
 map $http_upgrade $connection_upgrade {
     default upgrade;
@@ -123,7 +123,7 @@ server {
 
 Enable and reload Nginx:
 ```bash
-sudo ln -s /etc/nginx/sites-available/commanderdog /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/brum /etc/nginx/sites-enabled/
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
@@ -161,21 +161,21 @@ In the Nginx Proxy Manager Web UI:
 version: '3.8'
 
 services:
-  commanderdog:
-    image: ghcr.io/woofson/commanderdog:latest
-    container_name: commanderdog
+  brum:
+    image: ghcr.io/woofson/brum:latest
+    container_name: brum
     restart: unless-stopped
     volumes:
       - /:/host-root
-      - ./data:/etc/commanderdog
+      - ./data:/etc/brum
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.commanderdog.rule=Host(`files.yourdomain.com`)"
-      - "traefik.http.routers.commanderdog.entrypoints=websecure"
-      - "traefik.http.routers.commanderdog.tls.certresolver=letsencrypt"
-      - "traefik.http.services.commanderdog.loadbalancer.server.port=3140"
+      - "traefik.http.routers.brum.rule=Host(`files.yourdomain.com`)"
+      - "traefik.http.routers.brum.entrypoints=websecure"
+      - "traefik.http.routers.brum.tls.certresolver=letsencrypt"
+      - "traefik.http.services.brum.loadbalancer.server.port=3140"
       - "traefik.http.middlewares.cd-buffering.buffering.maxRequestBodyBytes=10485760000"
-      - "traefik.http.routers.commanderdog.middlewares=cd-buffering"
+      - "traefik.http.routers.brum.middlewares=cd-buffering"
 ```
 
 ---
@@ -206,7 +206,7 @@ Ensure `mod_proxy`, `mod_proxy_http`, and `mod_proxy_wstunnel` are enabled:
 sudo a2enmod proxy proxy_http proxy_wstunnel ssl
 ```
 
-### `/etc/apache2/sites-available/commanderdog.conf`
+### `/etc/apache2/sites-available/brum.conf`
 ```apache
 <VirtualHost *:443>
     ServerName files.yourdomain.com
