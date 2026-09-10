@@ -5,6 +5,14 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc2] - 2026-09-10
+
+### Visual & Brand Polish
+- **Auth & Lock Screen Ambient Watermark**:
+  - Integrated `assets/brum_clean.webp` ambient backdrop watermark and splash behind `#login-modal` and `#session-lock-screen`.
+  - Added subtle amber glow drop-shadow with floating animation and responsive scaling across mobile and desktop viewports.
+  - Synchronized high-resolution clean logo assets into `assets/` and embedded `frontend/assets/`.
+
 ## [0.8.3-rc1] - 2026-09-10
 
 ### Built-in Larvikite & Kittelsen Theme Suites

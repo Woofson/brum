@@ -3,7 +3,7 @@
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
 > **Official Web**: [www.arf.ac](https://www.arf.ac)  
 > **Philosophy**: *No acronyms or slogans. Just a very good environment for file managing and orchestrating.*  
-> **Current Version**: `v0.8.3-rc1 (Desktop & Web)`  
+> **Current Version**: `v0.8.3-rc2 (Desktop & Web)`  
 > **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`, `arf-desktop`).  
 > **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.8.2`), see [**`CHANGELOG.md`**](CHANGELOG.md).
 

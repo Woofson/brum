@@ -10216,6 +10216,51 @@ body.is-col-resizing {
   letter-spacing: 0.4px;
 }
 
+/* Ambient Watermark / Splash for Auth & Lock Screens */
+.auth-watermark-backdrop {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  user-select: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.auth-watermark-img {
+  width: min(720px, 85vw);
+  height: min(720px, 85vh);
+  max-width: 90%;
+  max-height: 90%;
+  object-fit: contain;
+  opacity: 0.11;
+  filter: drop-shadow(0 0 60px rgba(245, 158, 11, 0.3));
+  transform-origin: center center;
+  animation: authWatermarkFloat 10s ease-in-out infinite alternate;
+}
+
+@keyframes authWatermarkFloat {
+  0% {
+    transform: scale(0.98) translateY(0);
+    opacity: 0.09;
+  }
+  100% {
+    transform: scale(1.02) translateY(-6px);
+    opacity: 0.13;
+  }
+}
+
+@media (max-width: 600px) {
+  .auth-watermark-img {
+    width: min(380px, 90vw);
+    height: min(380px, 90vw);
+    opacity: 0.08;
+    filter: drop-shadow(0 0 30px rgba(245, 158, 11, 0.2));
+  }
+}
+
 /* Login Card */
 .login-card {
   width: 100%;
