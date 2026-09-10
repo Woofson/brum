@@ -1,7 +1,7 @@
 # <img src="../assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> Brum for Windows
 
 <div align="center">
-  <img src="../assets/Brum3.png" alt="Brum Windows Desktop Edition" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
+  <img src="../assets/CommanderDog3.png" alt="Brum Windows Desktop Edition" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
 </div>
 
 > **Multi-Tab File Commander for Web & Native Windows Desktop**  
