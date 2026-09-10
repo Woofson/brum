@@ -1,7 +1,7 @@
 [package]
-name = "commanderdog-desktop"
-version = "0.8.2"
-description = "CommanderDog Native Desktop App - Multi-Tab Web Commander"
+name = "brum-desktop"
+version = "0.8.3-rc1"
+description = "Brum Native Desktop App - Multi-Pane Web Environment"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 edition = "2021"
 
@@ -12,7 +12,7 @@ serde_json = "1.0"
 tokio = { version = "1", features = ["full"] }
 open = "5.3"
 tracing = "0.1"
-commanderdog = { path = "..", features = ["desktop-app"] }
+brum = { path = "..", features = ["desktop-app"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 libdbus-sys = { version = "0.2", features = ["vendored"] }

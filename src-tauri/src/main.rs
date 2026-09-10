@@ -1,8 +1,8 @@
 // Prevents additional console window on Windows in release, DO NOT REMOVE!!
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
-use commanderdog::config::ConfigManager;
-use commanderdog::start_background_server;
+use brum::config::ConfigManager;
+use brum::start_background_server;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
@@ -10,7 +10,7 @@ use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent}
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 fn main() {
-    commanderdog::setup_linux_desktop_env();
+    brum::setup_linux_desktop_env();
 
     let mut config = ConfigManager::load_all();
     config.server.standalone = true;
@@ -38,7 +38,7 @@ fn main() {
                     Ok(port) => {
                         active_port_server.store(port, Ordering::Relaxed);
                         let url = format!("http://127.0.0.1:{}", port);
-                        println!("CommanderDog desktop backend bound to: {}", url);
+                        println!("Brum desktop backend bound to: {}", url);
 
                         // Create the primary standalone window pointing to the local embedded server
                         #[allow(unused_mut)]
@@ -47,7 +47,7 @@ fn main() {
                             "main",
                             WebviewUrl::External(url.parse().unwrap()),
                         )
-                        .title("CommanderDog")
+                        .title("Brum")
                         .inner_size(1366.0, 840.0)
                         .min_inner_size(680.0, 480.0)
                         .resizable(true)
@@ -81,22 +81,22 @@ fn main() {
                         }
                     }
                     Err(e) => {
-                        eprintln!("Failed to start CommanderDog backend server: {}", e);
+                        eprintln!("Failed to start Brum backend server: {}", e);
                     }
                 }
             });
 
             // Configure System Tray
-            let show_i = MenuItem::with_id(app, "show", "🐕 Show CommanderDog", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "🐻 Show Brum", true, None::<&str>)?;
             let hide_i = MenuItem::with_id(app, "hide", "➖ Hide to Tray", true, None::<&str>)?;
             let browser_i = MenuItem::with_id(app, "browser", "🌐 Open in Web Browser", true, None::<&str>)?;
             let sep = PredefinedMenuItem::separator(app)?;
-            let quit_i = MenuItem::with_id(app, "quit", "❌ Quit CommanderDog", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(app, "quit", "❌ Quit Brum", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show_i, &hide_i, &browser_i, &sep, &quit_i])?;
 
             let mut tray_builder = TrayIconBuilder::new()
                 .menu(&menu)
-                .tooltip("CommanderDog - Multi-Tab File Commander")
+                .tooltip("Brum - Multi-Pane Web Environment")
                 .show_menu_on_left_click(false);
 
             if let Some(icon) = app.default_window_icon() {
@@ -150,5 +150,5 @@ fn main() {
             Ok(())
         })
         .run(tauri::generate_context!())
-        .expect("error while running commander dog desktop application");
+        .expect("error while running brum desktop application");
 }

@@ -1,8 +1,8 @@
 {
   "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/main/crates/tauri-cli/schema.json",
-  "productName": "CommanderDog",
-  "version": "0.8.2",
-  "identifier": "no.boop.commanderdog",
+  "productName": "Brum",
+  "version": "0.8.3-rc1",
+  "identifier": "no.boop.brum",
   "build": {
     "frontendDist": "../frontend"
   },
