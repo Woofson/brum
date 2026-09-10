@@ -7186,14 +7186,20 @@ body {
 .lock-screen-card {
   width: 100%;
   max-width: 390px;
-  background: #18181c;
-  border: 1px solid rgba(245, 158, 11, 0.24);
-  border-radius: 10px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), 0 0 32px rgba(245, 158, 11, 0.08);
+  background: rgba(22, 22, 27, 0.68);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-radius: 14px;
+  box-shadow: 
+    0 32px 80px rgba(0, 0, 0, 0.75), 
+    0 0 45px rgba(245, 158, 11, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.14),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
   overflow: hidden;
   position: relative;
   z-index: 20;
-  animation: loginCardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: loginCardPop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .lock-screen-header {
@@ -7201,8 +7207,8 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  border-bottom: 1px solid rgba(63, 63, 70, 0.4);
-  background: linear-gradient(180deg, rgba(32, 32, 36, 0.9) 0%, rgba(24, 24, 28, 0.9) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%);
 }
 
 .lock-avatar-thumb {
@@ -7211,15 +7217,17 @@ body {
   min-width: 48px;
   min-height: 48px;
   border-radius: 50%;
-  background: #121214;
+  background: rgba(18, 18, 22, 0.8);
   border: 2px solid var(--accent, #f59e0b);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 24px;
   line-height: 1;
   overflow: hidden;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 1px 1px rgba(255, 255, 255, 0.12);
   user-select: none;
   flex-shrink: 0;
 }
@@ -10209,11 +10217,14 @@ body.is-col-resizing {
   font-family: var(--font-mono, monospace);
   font-weight: 600;
   color: var(--accent, #f59e0b);
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.25);
+  background: rgba(245, 158, 11, 0.14);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid rgba(245, 158, 11, 0.3);
   padding: 3px 9px;
   border-radius: 12px;
   letter-spacing: 0.4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3), inset 0 1px 1px rgba(255, 255, 255, 0.1);
 }
 
 /* Ambient Watermark / Splash for Auth & Lock Screens */
@@ -10265,14 +10276,20 @@ body.is-col-resizing {
 .login-card {
   width: 100%;
   max-width: 380px;
-  background: #18181c;
-  border: 1px solid rgba(245, 158, 11, 0.24);
-  border-radius: 10px;
-  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7), 0 0 32px rgba(245, 158, 11, 0.08);
+  background: rgba(22, 22, 27, 0.68);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
+  border: 1px solid rgba(245, 158, 11, 0.32);
+  border-radius: 14px;
+  box-shadow: 
+    0 32px 80px rgba(0, 0, 0, 0.75), 
+    0 0 45px rgba(245, 158, 11, 0.12),
+    inset 0 1px 1px rgba(255, 255, 255, 0.14),
+    inset 0 -1px 1px rgba(0, 0, 0, 0.4);
   overflow: hidden;
   position: relative;
   z-index: 20;
-  animation: loginCardPop 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: loginCardPop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes loginCardPop {
@@ -10281,12 +10298,12 @@ body.is-col-resizing {
 }
 
 .login-card-header {
-  padding: 24px 24px 16px;
+  padding: 24px 24px 18px;
   display: flex;
   align-items: center;
   gap: 14px;
-  border-bottom: 1px solid rgba(63, 63, 70, 0.4);
-  background: linear-gradient(180deg, rgba(32, 32, 36, 0.9) 0%, rgba(24, 24, 28, 0.9) 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%);
 }
 
 .login-brand-icon {
@@ -10295,12 +10312,14 @@ body.is-col-resizing {
   min-width: 44px;
   min-height: 44px;
   border-radius: 10px;
-  background: rgba(245, 158, 11, 0.12);
-  border: 1px solid rgba(245, 158, 11, 0.3);
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.15);
   flex-shrink: 0;
 }
 
@@ -10365,29 +10384,32 @@ body.is-col-resizing {
   padding: 9px 12px;
   font-size: 13px;
   color: var(--text-main, #f4f4f5);
-  background-color: #111114;
-  border: 1px solid #3f3f46;
-  border-radius: 6px;
+  background-color: rgba(14, 14, 18, 0.62);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 7px;
   box-sizing: border-box;
   outline: none;
-  transition: all 0.15s ease;
+  transition: all 0.18s ease;
   user-select: text;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
 }
 
 .login-input::placeholder {
-  color: #71717a;
+  color: rgba(161, 161, 170, 0.6);
   font-size: 12px;
 }
 
 .login-input:hover {
-  border-color: #52525b;
-  background-color: #131317;
+  border-color: rgba(255, 255, 255, 0.22);
+  background-color: rgba(18, 18, 24, 0.72);
 }
 
 .login-input:focus {
   border-color: var(--accent, #f59e0b);
-  background-color: #15151a;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.22);
+  background-color: rgba(20, 20, 26, 0.85);
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.24), inset 0 1px 2px rgba(0, 0, 0, 0.25);
 }
 
 .login-error-msg {

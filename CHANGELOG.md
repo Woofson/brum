@@ -5,6 +5,14 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc3] - 2026-09-10
+
+### Frosted Glass Glassmorphism for Auth & Lock Screens
+- **Glassmorphic Authentication Architecture**:
+  - Implemented deep frosted glass styling across both `.login-card` and `.lock-screen-card` with `backdrop-filter: blur(28px) saturate(190%)` and semi-transparent charcoal amber surface blending (`rgba(22, 22, 27, 0.68)`).
+  - Designed translucent input fields with inner shadows, backdrop blur, and amber focus rings.
+  - Upgraded card headers, branding badge, and user avatar containers with luminous glass gradients and subtle specular highlights.
+
 ## [0.8.3-rc2] - 2026-09-10
 
 ### Visual & Brand Polish
