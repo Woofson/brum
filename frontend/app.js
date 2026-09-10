@@ -1206,7 +1206,15 @@ const defaultThemeList = [
   { id: 'ayu-dark', name: 'Ayu Dark', bg_dark: '#0b0e14', bg_panel: '#0f1419', accent: '#e6b450', text_main: '#e6e1cf' },
   { id: 'nord', name: 'Nord Frost', bg_dark: '#242933', bg_panel: '#2e3440', accent: '#88c0d0', text_main: '#eceff4' },
   { id: 'dracula', name: 'Dracula Dark', bg_dark: '#1e1f29', bg_panel: '#282a36', accent: '#bd93f9', text_main: '#f8f8f2' },
-  { id: 'midnight-blue', name: 'Midnight Commander Blue', bg_dark: '#000044', bg_panel: '#000088', accent: '#00ffff', text_main: '#ffffff' }
+  { id: 'midnight-blue', name: 'Midnight Commander Blue', bg_dark: '#000044', bg_panel: '#000088', accent: '#00ffff', text_main: '#ffffff' },
+  { id: 'skumring', name: 'Larvikite Skumring', bg_dark: '#0a0e14', bg_panel: '#111822', accent: '#38bdf8', text_main: '#e6edf3' },
+  { id: 'demring', name: 'Larvikite Demring', bg_dark: '#eef2f6', bg_panel: '#f7fafc', accent: '#0e7490', text_main: '#0f172a' },
+  { id: 'trollnatt', name: 'Larvikite Trollnatt', bg_dark: '#0b100d', bg_panel: '#121914', accent: '#4ade80', text_main: '#edf4ee' },
+  { id: 'myrtaake', name: 'Larvikite Myrtåke', bg_dark: '#edf2ee', bg_panel: '#f5f9f6', accent: '#15803d', text_main: '#0f1712' },
+  { id: 'bergtatt', name: 'Kittelsen Bergtatt', bg_dark: '#0a0c0f', bg_panel: '#11141a', accent: '#d9a042', text_main: '#e8e2d8' },
+  { id: 'soria-moria', name: 'Kittelsen Soria Moria', bg_dark: '#ebe5dc', bg_panel: '#f5f0e6', accent: '#b87a1f', text_main: '#1c1815' },
+  { id: 'pestanatt', name: 'Kittelsen Pestanatt', bg_dark: '#0b090a', bg_panel: '#141011', accent: '#dc2626', text_main: '#e6dede' },
+  { id: 'sotslette', name: 'Kittelsen Sotslette', bg_dark: '#ece6dc', bg_panel: '#f5f0e6', accent: '#991b1b', text_main: '#1c1517' }
 ];
 
 function populateThemeSelectors() {
@@ -12583,6 +12591,86 @@ function applyTheme(themeId, skipSync = false) {
     root.style.setProperty('--accent-hover', '#ffffff');
     root.style.setProperty('--text-main', '#ffffff');
     root.style.setProperty('--text-muted', '#a0a0ff');
+  } else if (themeId === 'skumring') {
+    root.style.setProperty('--bg-dark', '#0a0e14');
+    root.style.setProperty('--bg-panel', '#111822');
+    root.style.setProperty('--bg-header', '#1e2c3d');
+    root.style.setProperty('--bg-active', '#1e2c3d');
+    root.style.setProperty('--border', '#243347');
+    root.style.setProperty('--accent', '#38bdf8');
+    root.style.setProperty('--accent-hover', '#7dd3fc');
+    root.style.setProperty('--text-main', '#e6edf3');
+    root.style.setProperty('--text-muted', '#8b9bb4');
+  } else if (themeId === 'demring') {
+    root.style.setProperty('--bg-dark', '#eef2f6');
+    root.style.setProperty('--bg-panel', '#f7fafc');
+    root.style.setProperty('--bg-header', '#cbd5e1');
+    root.style.setProperty('--bg-active', '#cbd5e1');
+    root.style.setProperty('--border', '#cbd5e1');
+    root.style.setProperty('--accent', '#0e7490');
+    root.style.setProperty('--accent-hover', '#155e75');
+    root.style.setProperty('--text-main', '#0f172a');
+    root.style.setProperty('--text-muted', '#475569');
+  } else if (themeId === 'trollnatt') {
+    root.style.setProperty('--bg-dark', '#0b100d');
+    root.style.setProperty('--bg-panel', '#121914');
+    root.style.setProperty('--bg-header', '#222f26');
+    root.style.setProperty('--bg-active', '#222f26');
+    root.style.setProperty('--border', '#25342a');
+    root.style.setProperty('--accent', '#4ade80');
+    root.style.setProperty('--accent-hover', '#86efac');
+    root.style.setProperty('--text-main', '#edf4ee');
+    root.style.setProperty('--text-muted', '#93a797');
+  } else if (themeId === 'myrtaake') {
+    root.style.setProperty('--bg-dark', '#edf2ee');
+    root.style.setProperty('--bg-panel', '#f5f9f6');
+    root.style.setProperty('--bg-header', '#cad5cc');
+    root.style.setProperty('--bg-active', '#cad5cc');
+    root.style.setProperty('--border', '#cbd7cd');
+    root.style.setProperty('--accent', '#15803d');
+    root.style.setProperty('--accent-hover', '#166534');
+    root.style.setProperty('--text-main', '#0f1712');
+    root.style.setProperty('--text-muted', '#49594d');
+  } else if (themeId === 'bergtatt') {
+    root.style.setProperty('--bg-dark', '#0a0c0f');
+    root.style.setProperty('--bg-panel', '#11141a');
+    root.style.setProperty('--bg-header', '#222935');
+    root.style.setProperty('--bg-active', '#222935');
+    root.style.setProperty('--border', '#262e3d');
+    root.style.setProperty('--accent', '#d9a042');
+    root.style.setProperty('--accent-hover', '#f1b759');
+    root.style.setProperty('--text-main', '#e8e2d8');
+    root.style.setProperty('--text-muted', '#8e8d89');
+  } else if (themeId === 'soria-moria') {
+    root.style.setProperty('--bg-dark', '#ebe5dc');
+    root.style.setProperty('--bg-panel', '#f5f0e6');
+    root.style.setProperty('--bg-header', '#cbbead');
+    root.style.setProperty('--bg-active', '#cbbead');
+    root.style.setProperty('--border', '#c6bbaa');
+    root.style.setProperty('--accent', '#b87a1f');
+    root.style.setProperty('--accent-hover', '#8f5a0e');
+    root.style.setProperty('--text-main', '#1c1815');
+    root.style.setProperty('--text-muted', '#5d554a');
+  } else if (themeId === 'pestanatt') {
+    root.style.setProperty('--bg-dark', '#0b090a');
+    root.style.setProperty('--bg-panel', '#141011');
+    root.style.setProperty('--bg-header', '#261e20');
+    root.style.setProperty('--bg-active', '#261e20');
+    root.style.setProperty('--border', '#2b2023');
+    root.style.setProperty('--accent', '#dc2626');
+    root.style.setProperty('--accent-hover', '#ef4444');
+    root.style.setProperty('--text-main', '#e6dede');
+    root.style.setProperty('--text-muted', '#948285');
+  } else if (themeId === 'sotslette') {
+    root.style.setProperty('--bg-dark', '#ece6dc');
+    root.style.setProperty('--bg-panel', '#f5f0e6');
+    root.style.setProperty('--bg-header', '#cec3b2');
+    root.style.setProperty('--bg-active', '#cec3b2');
+    root.style.setProperty('--border', '#c7bcab');
+    root.style.setProperty('--accent', '#991b1b');
+    root.style.setProperty('--accent-hover', '#b91c1c');
+    root.style.setProperty('--text-main', '#1c1517');
+    root.style.setProperty('--text-muted', '#5c4f52');
   } else {
     // Woofson Amber Charcoal Default
     root.style.setProperty('--bg-dark', '#121214');
@@ -21063,7 +21151,15 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'theme-cyberpunk', title: 'Theme: Cyberpunk Neon', sub: 'Switch theme to Neon Cyberpunk', icon: 'palette', cat: 'actions', action: () => applyTheme('cyberpunk') },
   { id: 'theme-dracula', title: 'Theme: Dracula', sub: 'Switch theme to Gothic Dracula Dark', icon: 'palette', cat: 'actions', action: () => applyTheme('dracula') },
   { id: 'theme-monokai', title: 'Theme: Monokai Pro', sub: 'Switch theme to Monokai High Contrast', icon: 'palette', cat: 'actions', action: () => applyTheme('monokai') },
-  { id: 'theme-matrix', title: 'Theme: Matrix Terminal', sub: 'Switch theme to Phosphor Green Matrix', icon: 'palette', cat: 'actions', action: () => applyTheme('matrix') }
+  { id: 'theme-matrix', title: 'Theme: Matrix Terminal', sub: 'Switch theme to Phosphor Green Matrix', icon: 'palette', cat: 'actions', action: () => applyTheme('matrix') },
+  { id: 'theme-skumring', title: 'Theme: Larvikite Skumring', sub: 'Switch theme to Larvikite Skumring (Dark Cyan)', icon: 'palette', cat: 'actions', action: () => applyTheme('skumring') },
+  { id: 'theme-demring', title: 'Theme: Larvikite Demring', sub: 'Switch theme to Larvikite Demring (Light Cyan)', icon: 'palette', cat: 'actions', action: () => applyTheme('demring') },
+  { id: 'theme-trollnatt', title: 'Theme: Larvikite Trollnatt', sub: 'Switch theme to Larvikite Trollnatt (Dark Forest)', icon: 'palette', cat: 'actions', action: () => applyTheme('trollnatt') },
+  { id: 'theme-myrtaake', title: 'Theme: Larvikite Myrtåke', sub: 'Switch theme to Larvikite Myrtåke (Light Forest)', icon: 'palette', cat: 'actions', action: () => applyTheme('myrtaake') },
+  { id: 'theme-bergtatt', title: 'Theme: Kittelsen Bergtatt', sub: 'Switch theme to Kittelsen Bergtatt (Dark Amber/Gold)', icon: 'palette', cat: 'actions', action: () => applyTheme('bergtatt') },
+  { id: 'theme-soria-moria', title: 'Theme: Kittelsen Soria Moria', sub: 'Switch theme to Kittelsen Soria Moria (Parchment Gold)', icon: 'palette', cat: 'actions', action: () => applyTheme('soria-moria') },
+  { id: 'theme-pestanatt', title: 'Theme: Kittelsen Pestanatt', sub: 'Switch theme to Kittelsen Pestanatt (Dark Crimson)', icon: 'palette', cat: 'actions', action: () => applyTheme('pestanatt') },
+  { id: 'theme-sotslette', title: 'Theme: Kittelsen Sotslette', sub: 'Switch theme to Kittelsen Sotslette (Parchment Crimson)', icon: 'palette', cat: 'actions', action: () => applyTheme('sotslette') }
 ];
 
 function openSpotlightModal() {

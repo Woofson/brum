@@ -91,7 +91,9 @@ global_summon_hotkey = "Super+C"
 # Active default theme:
 # - "amber-charcoal" (Woofsons Amber Charcoal - Dark / Default)
 # - "zink" (Woofsons Amber Zink - Light)
-# - "gruvbox-dark", "catppuccin-mocha", "tokyo-night", "nord", "dracula", etc.
+# - "skumring", "demring", "trollnatt", "myrtaake" (Larvikite series)
+# - "bergtatt", "soria-moria", "pestanatt", "sotslette" (Kittelsen series)
+# - "gruvbox", "catppuccin-mocha", "tokyo-night", "nord", "dracula", etc.
 default_theme = "amber-charcoal"
 
 [auth]
