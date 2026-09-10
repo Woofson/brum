@@ -10176,10 +10176,10 @@ body.is-col-resizing {
 
 /* Corner Branding */
 .login-corner-brand {
+  display: none; /* Hidden on PC viewport */
   position: absolute;
   top: 24px;
   left: 28px;
-  display: flex;
   align-items: center;
   gap: 12px;
   user-select: none;
@@ -10199,6 +10199,15 @@ body.is-col-resizing {
   font-weight: 700;
   letter-spacing: 0.5px;
   color: var(--text-main, #f4f4f5);
+}
+
+/* Responsive Auth Text Switches */
+.auth-text-pc {
+  display: inline;
+}
+
+.auth-text-mobile {
+  display: none;
 }
 
 /* Lower-Right Corner Version */
@@ -10263,17 +10272,33 @@ body.is-col-resizing {
   }
 }
 
-@media (max-width: 900px) {
+/* Tablet and Phone Viewports (<=1024px) */
+@media (max-width: 1024px) {
   #login-modal.login-screen-overlay,
   .session-lock-screen {
     justify-content: center;
     padding: 24px;
   }
 
-  .auth-watermark-img {
-    width: min(480px, 88vw);
-    height: min(480px, 88vw);
-    opacity: 0.70;
+  .login-corner-brand {
+    display: flex !important;
+  }
+
+  .auth-watermark-backdrop {
+    display: none !important;
+  }
+
+  .auth-text-pc {
+    display: none !important;
+  }
+
+  .auth-text-mobile {
+    display: inline !important;
+  }
+
+  .login-card,
+  .lock-screen-card {
+    max-width: min(390px, 100%);
   }
 }
 
@@ -10289,12 +10314,6 @@ body.is-col-resizing {
   .login-card,
   .lock-screen-card {
     max-width: 100%;
-  }
-  .auth-watermark-img {
-    width: min(340px, 92vw);
-    height: min(340px, 92vw);
-    opacity: 0.65;
-    filter: drop-shadow(0 0 25px rgba(245, 158, 11, 0.35));
   }
 }
 
@@ -10333,26 +10352,21 @@ body.is-col-resizing {
 }
 
 .login-brand-icon {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  min-height: 44px;
-  border-radius: 10px;
-  background: rgba(245, 158, 11, 0.15);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4), inset 0 1px 1px rgba(255, 255, 255, 0.15);
   flex-shrink: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
 }
 
 .login-brand-img {
-  width: 30px;
-  height: 30px;
+  height: 34px;
+  width: auto;
   object-fit: contain;
+  filter: drop-shadow(0 2px 10px rgba(245, 158, 11, 0.45));
 }
 
 .login-header-text {

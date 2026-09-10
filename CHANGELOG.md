@@ -5,6 +5,15 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc7] - 2026-09-11
+
+### Responsive Auth Header Typography & Brand Refinements
+- **Login Modal Header & Logo Polish**:
+  - Removed enclosing square container and borders from the login modal bear logo (`.login-brand-icon`).
+  - Sized login bear logo to 34px (`.login-brand-img`) matching corner logo dimensions with clean amber drop-shadow.
+  - On PC viewport (`>1024px`): hidden top-left corner brand, rendered "Brum" title and "Brum brum.. - Is the noise of a happy teddybear!" subtitle, and displayed centered Brum-Splash.
+  - On Phone & Tablet viewports (`<=1024px`): retained top-left corner brand, hid background splash, and rendered classic "Hello friend." / "Brum is ready when you are." labels.
+
 ## [0.8.3-rc6] - 2026-09-10
 
 ### Centered Splash & Normalized Background Illumination
