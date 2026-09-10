@@ -5,6 +5,12 @@ edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
 license = "MIT"
+repository = "https://github.com/Woofson/brum"
+homepage = "https://github.com/Woofson/brum"
+documentation = "https://github.com/Woofson/brum#readme"
+readme = "README.md"
+keywords = ["file-manager", "commander", "web", "terminal", "vfs"]
+categories = ["command-line-utilities", "web-programming"]
 
 [lib]
 name = "brum"
