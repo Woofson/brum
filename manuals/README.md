@@ -1,5 +1,7 @@
 # Brum Documentation & Manuals Index
 
+> 📖 **Official GitHub Wiki**: All Brum manuals and guides are published and maintained live on the [**Brum GitHub Wiki**](https://github.com/Woofson/brum/wiki).
+
 Welcome to the **Brum** manual and documentation index.
 
 ---

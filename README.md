@@ -70,7 +70,7 @@ cargo run --release        # Open http://localhost:3140 in your browser
 
 ## Documentation & User Manuals
 
-All operational runbooks, platform guides, and security manuals are organized in [**`manuals/`**](manuals/README.md):
+All operational runbooks, platform guides, and security manuals are available on the [**Official GitHub Wiki**](https://github.com/Woofson/brum/wiki) and organized in [**`manuals/`**](manuals/README.md):
 
 * [**Power Tools & ChewToys Manual**](manuals/chewtoys.md) — Notes Studio, AMP, Terminal, PDF Toolkit, Vaults.
 * [**Keyboard Shortcuts & Navigation**](manuals/shortcuts.md) — Orthodox <kbd>F1</kbd>–<kbd>F10</kbd> keys, audio player keys, touch gestures.
