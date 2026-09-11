@@ -124,6 +124,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/sync/profiles/:id/toggle", post(handle_toggle_backup_profile))
         .route("/api/tools/sync/history", get(handle_get_backup_history))
         .route("/api/tools/disk-usage", get(handle_disk_usage))
+        .route("/api/tools/disks", get(handle_get_disks))
+        .route("/api/system/disks", get(handle_get_disks))
         .route("/api/tools/split", post(handle_split_file))
         .route("/api/tools/combine", post(handle_combine_files))
         .route("/api/tools/pdf/info", get(handle_pdf_info))
@@ -3750,6 +3752,21 @@ async fn handle_disk_usage(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Task join error: {}", e)))?
     .map(Json)
     .map_err(|e| (StatusCode::BAD_REQUEST, format!("Disk usage analysis failed: {}", e)))
+}
+
+async fn handle_get_disks(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::tools::disk_usage::DiskMountInfo>>, (StatusCode, String)> {
+    let _claims = extract_claims_or_local(&state, &headers)?;
+    let roots = state.config.storage.roots.clone();
+    let disks = tokio::task::spawn_blocking(move || {
+        crate::tools::disk_usage::get_system_disks(&roots)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Disk enumeration failed: {}", e)))?;
+
+    Ok(Json(disks))
 }
 
 async fn handle_search(

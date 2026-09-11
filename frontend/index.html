@@ -4413,22 +4413,23 @@
         <!-- Right-Aligned Layout & Window Controls (28px Uniform) -->
         <div style="display: flex; align-items: center; gap: 6px;">
           <!-- View Switcher -->
-          <div class="layout-btn-group" style="display: flex; gap: 2px; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
-            <button class="btn btn-icon btn-sm active" id="du-view-btn-split" onclick="setDiskUsageViewMode('split')" title="Split View: Treemap & Item List" style="width: 28px; height: 28px;"><i data-lucide="columns-2" style="width: 14px; height: 14px;"></i></button>
+          <div class="layout-btn-group" id="du-view-switcher" style="display: flex; gap: 2px; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
+            <button class="btn btn-icon btn-sm active" id="du-view-btn-mounts" onclick="setDiskUsageViewMode('mounts')" title="Drives & Mounted Storage Overview" style="width: 28px; height: 28px;"><i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i></button>
+            <button class="btn btn-icon btn-sm" id="du-view-btn-split" onclick="setDiskUsageViewMode('split')" title="Split View: Treemap & Item List" style="width: 28px; height: 28px;"><i data-lucide="columns-2" style="width: 14px; height: 14px;"></i></button>
             <button class="btn btn-icon btn-sm" id="du-view-btn-treemap" onclick="setDiskUsageViewMode('treemap')" title="Treemap Tiles View" style="width: 28px; height: 28px;"><i data-lucide="layout-grid" style="width: 14px; height: 14px;"></i></button>
             <button class="btn btn-icon btn-sm" id="du-view-btn-list" onclick="setDiskUsageViewMode('list')" title="Detailed List View" style="width: 28px; height: 28px;"><i data-lucide="list" style="width: 14px; height: 14px;"></i></button>
           </div>
 
           <div class="header-sep desktop-only"></div>
 
-          <button class="btn btn-icon btn-sm" id="du-rescan-btn" onclick="runDiskUsageScan(document.getElementById('du-path-input').value)" title="Rescan Current Directory" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm" id="du-rescan-btn" onclick="if(duViewMode==='mounts'){ loadSystemDisksOverview(true); } else { runDiskUsageScan(document.getElementById('du-path-input').value); }" title="Refresh / Rescan" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
           <button class="btn btn-icon btn-sm desktop-only" id="du-maximize-btn" onclick="toggleDiskUsageMaximize()" title="Toggle Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i></button>
           <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeModal('disk-usage-modal')" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
         </div>
       </div>
 
       <!-- Navigation & Breadcrumb Sub-Header (26px buttons) -->
-      <div class="du-top-bar">
+      <div class="du-top-bar" id="du-top-bar">
         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
           <!-- Jump Actions -->
           <button class="btn btn-xs" onclick="navigateDiskUsageParent()" title="Go to Parent Directory (Backspace / Alt+Up)" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
@@ -4470,15 +4471,15 @@
           <span class="du-stat-val" id="du-total-space">0 B</span>
         </div>
         <div class="du-stat-card">
-          <span class="du-stat-label">Files</span>
+          <span class="du-stat-label">Files / Drives</span>
           <span class="du-stat-val" id="du-total-files">0</span>
         </div>
         <div class="du-stat-card">
-          <span class="du-stat-label">Directories</span>
+          <span class="du-stat-label">Directories / Free</span>
           <span class="du-stat-val" id="du-total-dirs">0</span>
         </div>
         <div class="du-stat-card">
-          <span class="du-stat-label">Largest Item</span>
+          <span class="du-stat-label">Largest / Highest</span>
           <span class="du-stat-val" id="du-largest-stat" style="font-size: 12px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">-</span>
         </div>
       </div>
@@ -4486,10 +4487,27 @@
       <!-- Proportional Multi-Color Stack Bar -->
       <div id="du-multi-bar" class="du-multi-bar"></div>
 
-      <!-- Visual Content Body: Split between Treemap & Detailed List -->
+      <!-- Visual Content Body: Split between Mounts, Treemap & Detailed List -->
       <div class="du-content-body" id="du-content-body">
+        <!-- Multi-Drive / Mountpoints Storage Overview Section -->
+        <div id="du-mounts-section" style="display: block;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
+            <div style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i> Mounted Storage & Filesystems Overview (<span id="du-mounts-count">0</span> volumes)
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <button class="btn btn-xs btn-outline" onclick="loadSystemDisksOverview(true)" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;" title="Refresh Mounts">
+                <i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i> Refresh
+              </button>
+            </div>
+          </div>
+          <div id="du-mounts-cards" class="du-mounts-grid">
+            <!-- Rendered drive cards -->
+          </div>
+        </div>
+
         <!-- Treemap Visualizer Section -->
-        <div id="du-treemap-section">
+        <div id="du-treemap-section" style="display: none;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <div style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; display: flex; align-items: center; gap: 6px;">
               <i data-lucide="layout-grid" style="width: 13px; height: 13px;"></i> Proportional Storage Treemap (Click to Drill Down)
@@ -4500,7 +4518,7 @@
         </div>
 
         <!-- Breakdown List Section -->
-        <div id="du-list-section">
+        <div id="du-list-section" style="display: none;">
           <div style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
             <i data-lucide="folder-tree" style="width: 13px; height: 13px;"></i> Direct Subdirectories & Items (<span id="du-items-count">0</span>)
           </div>
@@ -4510,7 +4528,7 @@
         </div>
 
         <!-- Top 20 Largest Files Section -->
-        <div id="du-largest-section">
+        <div id="du-largest-section" style="display: none;">
           <div style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-top: 6px; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
             <i data-lucide="file-warning" style="width: 13px; height: 13px;"></i> Top 20 Heaviest Files Across Subtrees
           </div>

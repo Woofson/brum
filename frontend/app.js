@@ -2558,10 +2558,16 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
 
 async function fetchStorageRoots() {
   try {
-    const res = await fetch('/api/storage/roots', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
-    });
-    if (res.ok) {
+    const [res, disksRes] = await Promise.all([
+      fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } }),
+      (!window._systemDisks || window._systemDisks.length === 0) ? fetch('/api/tools/disks', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null) : Promise.resolve(null)
+    ]);
+    if (disksRes && disksRes.ok) {
+      const d = await disksRes.json();
+      window._systemDisks = d || [];
+      duSystemDisks = window._systemDisks;
+    }
+    if (res && res.ok) {
       return await res.json();
     }
   } catch (e) {
@@ -2608,7 +2614,7 @@ async function showBreadcrumbRootDropdown(event, paneIndex) {
     if (drives.length > 0) {
       const header = document.createElement('div');
       header.className = 'breadcrumb-popover-header';
-      header.textContent = 'Windows Drives';
+      header.textContent = 'Drives & Partitions';
       popover.appendChild(header);
 
       drives.forEach(d => {
@@ -2616,7 +2622,9 @@ async function showBreadcrumbRootDropdown(event, paneIndex) {
         item.className = 'breadcrumb-popover-item';
         const isActive = App.panes[paneIndex].path.toUpperCase().startsWith(d.path.toUpperCase());
         if (isActive) item.classList.add('active');
-        item.innerHTML = `<span style="font-size: 13px;">🪟</span> <span style="font-weight:600;">${escapeHtml(d.path)}</span> <span style="color:var(--text-muted); font-size:10.5px; margin-left:auto;">${escapeHtml(d.name.replace(/^Local Disk\s*\(/i, '').replace(/\)$/, ''))}</span>`;
+        const diskInfo = (window._systemDisks || []).find(it => it.mount_point.toUpperCase().startsWith(d.path.toUpperCase()));
+        const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono); margin-left: auto;">${diskInfo.formatted_available} free</span>` : '';
+        item.innerHTML = `<span style="font-size: 13px;">🪟</span> <span style="font-weight:600;">${escapeHtml(d.path)}</span> <span style="color:var(--text-muted); font-size:10px; margin-left: 4px;">${escapeHtml(d.name.replace(/^Local Disk\s*\(/i, '').replace(/\)$/, ''))}</span>${quotaBadge}`;
         item.onclick = () => {
           loadPaneDirectory(paneIndex, d.path);
           closeBreadcrumbPopovers();
@@ -2628,7 +2636,7 @@ async function showBreadcrumbRootDropdown(event, paneIndex) {
     if (storageRoots.length > 0) {
       const header = document.createElement('div');
       header.className = 'breadcrumb-popover-header';
-      header.textContent = 'Storage Roots & Folders';
+      header.textContent = 'Storage Roots & Mounts';
       popover.appendChild(header);
 
       storageRoots.forEach(r => {
@@ -2637,7 +2645,9 @@ async function showBreadcrumbRootDropdown(event, paneIndex) {
         const isActive = App.panes[paneIndex].path.startsWith(r.path);
         if (isActive) item.classList.add('active');
         const icon = r.id === 'home' ? '🏠' : '📁';
-        item.innerHTML = `<span style="font-size: 13px;">${icon}</span> <span style="font-weight:500;">${escapeHtml(r.name)}</span>`;
+        const diskInfo = (window._systemDisks || []).find(it => it.mount_point === r.path || (r.path === '/' && it.mount_point === '/'));
+        const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono); margin-left: auto;">${diskInfo.formatted_available} free</span>` : '';
+        item.innerHTML = `<span style="font-size: 13px;">${icon}</span> <span style="font-weight:500;">${escapeHtml(r.name)}</span>${quotaBadge}`;
         item.onclick = () => {
           loadPaneDirectory(paneIndex, r.path);
           closeBreadcrumbPopovers();
@@ -20710,15 +20720,156 @@ const DU_PALETTE = [
   { bg: 'linear-gradient(135deg, rgba(20, 184, 166, 0.28), rgba(13, 148, 136, 0.15))', border: '#14b8a6', bar: '#14b8a6', text: '#2dd4bf' }
 ];
 
-function openDiskUsageModal(path) {
-  const targetPath = path || App.panes[App.activePaneIndex]?.path || '/';
+let duSystemDisks = [];
+
+async function loadSystemDisksOverview(forceRefresh = false) {
+  const container = document.getElementById('du-mounts-cards');
+  const countEl = document.getElementById('du-mounts-count');
+  if (container && (!duSystemDisks || duSystemDisks.length === 0 || forceRefresh)) {
+    container.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--accent); grid-column: 1 / -1;"><i data-lucide="loader-2" class="spin" style="width: 20px; height: 20px;"></i><div style="margin-top: 6px; font-size: 11.5px;">Querying mounted filesystems & drives...</div></div>';
+    if (window.lucide) lucide.createIcons();
+  }
+
+  try {
+    const resp = await fetch('/api/tools/disks', {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const disks = await resp.json();
+    duSystemDisks = disks || [];
+    window._systemDisks = duSystemDisks;
+
+    renderSystemDisksOverview();
+  } catch (err) {
+    console.error('Failed to load system disks:', err);
+    if (container) {
+      container.innerHTML = `<div style="padding: 20px; text-align: center; color: #f87171; grid-column: 1 / -1;">Failed to load storage mounts: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+}
+
+function renderSystemDisksOverview() {
+  const container = document.getElementById('du-mounts-cards');
+  const countEl = document.getElementById('du-mounts-count');
+  if (countEl) countEl.textContent = duSystemDisks.length.toString();
+
+  if (!container) return;
+  if (!duSystemDisks || duSystemDisks.length === 0) {
+    container.innerHTML = '<div style="padding: 24px; text-align: center; color: var(--text-dim); grid-column: 1 / -1;">No mounted filesystems detected.</div>';
+    return;
+  }
+
+  // Calculate summary stats across all disks
+  let totalCap = 0;
+  let totalUsed = 0;
+  let totalFree = 0;
+
+  duSystemDisks.forEach(d => {
+    totalCap += d.total_bytes || 0;
+    totalUsed += d.used_bytes || 0;
+    totalFree += d.available_bytes || 0;
+  });
+
+  const totalSpaceEl = document.getElementById('du-total-space');
+  const totalFilesEl = document.getElementById('du-total-files');
+  const totalDirsEl = document.getElementById('du-total-dirs');
+  const largestStatEl = document.getElementById('du-largest-stat');
+
+  if (duViewMode === 'mounts') {
+    if (totalSpaceEl) totalSpaceEl.textContent = formatFileSize(totalCap);
+    if (totalFilesEl) totalFilesEl.textContent = `${duSystemDisks.length} Mounts`;
+    if (totalDirsEl) totalDirsEl.textContent = formatFileSize(totalFree) + ' Free';
+    if (largestStatEl) {
+      const highestUsed = [...duSystemDisks].sort((a, b) => (b.usage_percentage || 0) - (a.usage_percentage || 0))[0];
+      largestStatEl.textContent = highestUsed ? `${highestUsed.name} (${highestUsed.usage_percentage}%)` : '-';
+    }
+  }
+
+  container.innerHTML = duSystemDisks.map(disk => {
+    const pct = disk.usage_percentage || 0;
+    const fillClass = pct > 90 ? 'high' : (pct > 70 ? 'mid' : 'low');
+    const isZfs = disk.fs_type.toLowerCase().includes('zfs');
+    const isBtrfs = disk.fs_type.toLowerCase().includes('btrfs');
+    const isNetwork = ['nfs', 'smb', 'cifs', 'sshfs', 'fuse'].some(t => disk.fs_type.toLowerCase().includes(t));
+    const iconName = isNetwork ? 'cloud' : (isZfs || isBtrfs ? 'database' : 'hard-drive');
+
+    return `
+      <div class="du-mount-card">
+        <div class="du-mount-header">
+          <div class="du-mount-title-group">
+            <div class="du-mount-icon">
+              <i data-lucide="${iconName}" style="width: 15px; height: 15px;"></i>
+            </div>
+            <div style="min-width: 0; flex: 1;">
+              <div class="du-mount-title" title="${escapeHtml(disk.name)}">${escapeHtml(disk.name)}</div>
+              <div class="du-mount-path" title="${escapeHtml(disk.mount_point)} • Device: ${escapeHtml(disk.device)}">
+                ${escapeHtml(disk.mount_point)} <span style="opacity: 0.6;">(${escapeHtml(disk.device)})</span>
+              </div>
+            </div>
+          </div>
+          <div class="du-mount-badges">
+            <span class="du-mount-badge fstype">${escapeHtml(disk.fs_type)}</span>
+            <span class="du-mount-badge ${disk.is_read_only ? 'ro' : 'rw'}">${disk.is_read_only ? 'RO' : 'RW'}</span>
+          </div>
+        </div>
+
+        <div class="du-mount-meter-wrapper">
+          <div class="du-mount-meter-bar">
+            <div class="du-mount-meter-fill ${fillClass}" style="width: ${Math.min(100, Math.max(1, pct))}%;"></div>
+          </div>
+          <div class="du-mount-metrics">
+            <span><strong>${escapeHtml(disk.formatted_used)}</strong> used / ${escapeHtml(disk.formatted_total)}</span>
+            <span style="font-weight: 700; color: ${pct > 90 ? '#ef4444' : (pct > 70 ? 'var(--accent)' : '#10b981')};">
+              ${escapeHtml(disk.formatted_available)} free (${pct}%)
+            </span>
+          </div>
+        </div>
+
+        <div class="du-mount-actions">
+          <button type="button" class="btn btn-xs btn-outline" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="jumpToPaneFromDiskUsage('${escapeHtml(disk.mount_point)}')" title="Open this mount in active panel">
+            <i data-lucide="folder-open" style="width: 12px; height: 12px;"></i> Open in Panel
+          </button>
+          <button type="button" class="btn btn-xs btn-accent" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="scanMountpointTreemap('${escapeHtml(disk.mount_point)}')" title="Run parallel Rayon deep scan on this mount point">
+            <i data-lucide="layout-grid" style="width: 12px; height: 12px;"></i> Deep Scan
+          </button>
+          <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="openTerminalFromDiskUsage('${escapeHtml(disk.mount_point)}')" title="Open Terminal here">
+            <i data-lucide="terminal" style="width: 12px; height: 12px;"></i>
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function scanMountpointTreemap(mountPath) {
+  setDiskUsageViewMode('treemap');
+  const pathIn = document.getElementById('du-path-input');
+  if (pathIn) pathIn.value = mountPath;
+  runDiskUsageScan(mountPath);
+}
+
+function openDiskUsageModal(path, optionalMode) {
   showModal('disk-usage-modal');
-  runDiskUsageScan(targetPath);
+  loadSystemDisksOverview();
+
+  if (optionalMode === 'mounts' || (!path && duViewMode === 'mounts')) {
+    setDiskUsageViewMode('mounts');
+  } else {
+    const targetPath = path || App.panes[App.activePaneIndex]?.path || '/';
+    if (duViewMode === 'mounts') {
+      setDiskUsageViewMode('split');
+    } else {
+      setDiskUsageViewMode(duViewMode || 'split');
+    }
+    runDiskUsageScan(targetPath);
+  }
 }
 
 function setDiskUsageViewMode(mode) {
   duViewMode = mode;
-  ['split', 'treemap', 'list'].forEach(m => {
+  ['mounts', 'split', 'treemap', 'list'].forEach(m => {
     const btn = document.getElementById(`du-view-btn-${m}`);
     if (btn) {
       if (m === mode) btn.classList.add('active');
@@ -20726,13 +20877,23 @@ function setDiskUsageViewMode(mode) {
     }
   });
 
+  const mountsSec = document.getElementById('du-mounts-section');
   const treemapSec = document.getElementById('du-treemap-section');
   const listSec = document.getElementById('du-list-section');
   const largestSec = document.getElementById('du-largest-section');
+  const multiBar = document.getElementById('du-multi-bar');
+  const topBar = document.getElementById('du-top-bar');
 
+  if (mountsSec) mountsSec.style.display = (mode === 'mounts') ? 'block' : 'none';
   if (treemapSec) treemapSec.style.display = (mode === 'split' || mode === 'treemap') ? 'block' : 'none';
   if (listSec) listSec.style.display = (mode === 'split' || mode === 'list') ? 'block' : 'none';
   if (largestSec) largestSec.style.display = (mode === 'split' || mode === 'list') ? 'block' : 'none';
+  if (multiBar) multiBar.style.display = (mode === 'mounts') ? 'none' : 'flex';
+  if (topBar) topBar.style.display = (mode === 'mounts') ? 'none' : 'block';
+
+  if (mode === 'mounts') {
+    loadSystemDisksOverview();
+  }
 }
 
 function toggleDiskUsageMaximize() {
