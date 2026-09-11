@@ -29,6 +29,8 @@ pub struct AppConfig {
     pub syncthing: crate::tools::syncthing::SyncthingConfig,
     #[serde(default)]
     pub notedog: NoteDogConfig,
+    #[serde(default)]
+    pub terminal: TerminalConfig,
 }
 
 impl Default for AppConfig {
@@ -46,6 +48,7 @@ impl Default for AppConfig {
             bookmarks: default_bookmarks(),
             syncthing: crate::tools::syncthing::SyncthingConfig::default(),
             notedog: NoteDogConfig::default(),
+            terminal: TerminalConfig::default(),
         }
     }
 }
@@ -620,6 +623,42 @@ pub fn default_notes_folder() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_terminal_allow_roles")]
+    pub allow_roles: Vec<String>,
+    #[serde(default = "default_terminal_allow_virtual_users")]
+    pub allow_virtual_users: bool,
+    #[serde(default = "default_terminal_drop_privileges")]
+    pub drop_privileges: bool,
+    #[serde(default)]
+    pub default_shell: Option<String>,
+}
+
+impl Default for TerminalConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            allow_roles: default_terminal_allow_roles(),
+            allow_virtual_users: false,
+            drop_privileges: true,
+            default_shell: None,
+        }
+    }
+}
+
+fn default_terminal_allow_roles() -> Vec<String> {
+    vec!["admin".to_string(), "root".to_string()]
+}
+fn default_terminal_allow_virtual_users() -> bool {
+    false
+}
+fn default_terminal_drop_privileges() -> bool {
+    true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesktopConfig {
     #[serde(default = "default_true")]
     pub minimize_to_tray: bool,
@@ -1162,5 +1201,24 @@ mod tests {
         assert_eq!(config.open_with[0].extensions, vec!["mp4", "mkv"]);
         assert_eq!(config.custom_actions.len(), 1);
         assert_eq!(config.custom_actions[0].command, "git -C {dir} pull");
+    }
+
+    #[test]
+    fn test_terminal_config_parsing() {
+        let sample_toml = r#"
+            [terminal]
+            enabled = true
+            allow_roles = ["admin", "operator"]
+            allow_virtual_users = false
+            drop_privileges = true
+            default_shell = "/bin/bash"
+        "#;
+
+        let config: AppConfig = toml::from_str(sample_toml).unwrap();
+        assert_eq!(config.terminal.enabled, true);
+        assert_eq!(config.terminal.allow_roles, vec!["admin", "operator"]);
+        assert_eq!(config.terminal.allow_virtual_users, false);
+        assert_eq!(config.terminal.drop_privileges, true);
+        assert_eq!(config.terminal.default_shell, Some("/bin/bash".to_string()));
     }
 }

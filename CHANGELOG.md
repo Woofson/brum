@@ -5,6 +5,33 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc10] - 2026-09-11
+
+### Streamlined Dialog Ergonomics & Button Sizing Standards (Fixes #27)
+- **Dialog Header & Content Modernization**:
+  - Renamed `#deltacopy-modal` title to `Copy (F5)` with standardized header icon styling.
+  - Modernized DeltaCopy options box with `DeltaCopy Options:` header and streamlined option labels: **Skip** (Skip unchanged files), **Verification** (Verify bit-for-bit CRC32 checksum), **Retry** (Auto-retry up to 3 times), and **Keep Metadata** (Retain original timestamps and permissions).
+  - Streamlined `#custom-dest-modal` title to `Transfer / Move to Destination (F6)`.
+  - Removed redundant `"New Name / Destination:"` label in `#rename-modal` for cleaner focus and immediate editing.
+- **Configurable Default Copy Action**:
+  - Added user setting in **Settings -> General** for **Default Copy (F5) Action** (`DeltaCopy` vs `Standard Copy`).
+  - Automatically highlights and focuses the user's preferred action button when opening the Copy dialog, and maps the primary Enter key action to the selected default.
+- **Modal Action Button Sizing & Radius Standards**:
+  - Applied `.modal-action-btn` across all file operation dialogs (Copy F5, Move/Transfer F6, Rename F2, Mkdir F7) enforcing uniform `28px` height, `border-radius: var(--radius)` (`6px`), `14px` icons, and consistent hover/active feedback.
+
+## [0.8.3-rc9] - 2026-09-11
+
+### Terminal PTY Security & POSIX Privilege Dropping (Fixes #21)
+- **POSIX Privilege Dropping & User Switching**:
+  - Implemented automatic POSIX privilege dropping in Bite! Web Terminal: when running as a root daemon on Linux/Unix, non-root authenticated users spawn interactive shells through `su -l <username>`, dropping root privileges to match the user's UID, GID, and supplementary groups.
+  - Initialized full login shell environment and user home directory bindings upon PTY allocation.
+- **Terminal WebSocket Authentication & Token Verification**:
+  - Added token and claims verification on the `/api/ws/terminal` endpoint supporting Bearer headers, query string (`?token=...` / `?cd_token=...`), and session cookies.
+  - Forwarded active authentication tokens from frontend WebSocket initialization in `frontend/app.js`.
+- **RBAC & Virtual User Policy Configuration (`[terminal]`)**:
+  - Added `[terminal]` master configuration with `enabled`, `allow_roles`, `allow_virtual_users`, `drop_privileges`, and `default_shell`.
+  - Blocked virtual database accounts from spawning unrestricted root shells when running as root daemon unless explicitly authorized.
+
 ## [0.8.3-rc8] - 2026-09-11
 
 ### Roadmap Streamlining & Changelog CLI Compiler

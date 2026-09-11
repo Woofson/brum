@@ -236,6 +236,7 @@ function getAllUserPreferences() {
     task_verbosity: App.taskVerbosity,
     trash_enabled: App.trashEnabled,
     custom_trash_dir: App.customTrashDir,
+    default_copy_action: getDefaultCopyAction(),
 
     // 6. Drag & Drop
     dnd_default_action: App.dndDefaultAction,
@@ -447,6 +448,11 @@ function applyAllUserPreferences(prefs) {
   if (prefs.trash_enabled !== undefined) {
     App.trashEnabled = !!prefs.trash_enabled;
     localStorage.setItem('cd_trash_enabled', prefs.trash_enabled ? 'true' : 'false');
+  }
+  if (prefs.default_copy_action !== undefined) {
+    localStorage.setItem('brum_default_copy_action', prefs.default_copy_action);
+    const copyActionSel = document.getElementById('setting-default-copy-action');
+    if (copyActionSel) copyActionSel.value = prefs.default_copy_action;
   }
   if (prefs.custom_trash_dir !== undefined) {
     App.customTrashDir = prefs.custom_trash_dir;
@@ -12793,6 +12799,11 @@ function openSettingsModal() {
     dotfilesCheckbox.checked = App.panes[0]?.showHidden || false;
   }
 
+  const copyActionSel = document.getElementById('setting-default-copy-action');
+  if (copyActionSel) {
+    copyActionSel.value = getDefaultCopyAction();
+  }
+
   const themeSel = document.getElementById('settings-theme-selector');
   if (themeSel) {
     themeSel.value = localStorage.getItem('cd_theme') || 'amber-charcoal';
@@ -13368,6 +13379,17 @@ let pendingDeltaTransfer = {
   targetIdx: 0
 };
 
+function getDefaultCopyAction() {
+  return localStorage.getItem('brum_default_copy_action') || 'deltacopy';
+}
+
+function updateDefaultCopyAction(val) {
+  const cleanVal = (val === 'standard') ? 'standard' : 'deltacopy';
+  localStorage.setItem('brum_default_copy_action', cleanVal);
+  if (typeof queueSaveUserPreferencesToServer === 'function') queueSaveUserPreferencesToServer();
+  showToast(`Default F5 action set to ${cleanVal === 'standard' ? 'Standard Copy' : 'DeltaCopy'}`, 'info');
+}
+
 function triggerCopy() {
   const targetIdx = (App.activePaneIndex + 1) % getVisiblePaneCount();
   const sourcePane = App.panes[App.activePaneIndex];
@@ -13385,9 +13407,44 @@ function triggerCopy() {
   const summary = document.getElementById('deltacopy-source-summary');
   if (summary) summary.innerHTML = paths.map(p => `<div style="display: flex; align-items: center; gap: 4px;">${formatCustomIconToHtml('', 'sm', true, 'var(--accent)')} ${escapeHtml(p)}</div>`).join('');
   const destInput = document.getElementById('deltacopy-dest-input');
-  if (destInput) destInput.value = targetPane.path;
+  if (destInput) {
+    destInput.value = targetPane.path;
+    destInput.onkeydown = (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        if (getDefaultCopyAction() === 'standard') {
+          executeStandardCopy();
+        } else {
+          executeDeltaCopy();
+        }
+      }
+    };
+  }
+
+  // Highlight default action button based on user preference
+  const defaultAction = getDefaultCopyAction();
+  const btnStandard = document.getElementById('btn-copy-standard');
+  const btnDelta = document.getElementById('btn-copy-delta');
+  if (btnStandard && btnDelta) {
+    if (defaultAction === 'standard') {
+      btnStandard.className = 'btn btn-accent modal-action-btn';
+      btnDelta.className = 'btn modal-action-btn';
+    } else {
+      btnStandard.className = 'btn modal-action-btn';
+      btnDelta.className = 'btn btn-accent modal-action-btn';
+    }
+  }
 
   showModal('deltacopy-modal');
+  if (window.lucide && typeof lucide.createIcons === 'function') {
+    lucide.createIcons();
+  }
+  if (destInput) {
+    setTimeout(() => {
+      destInput.focus();
+      destInput.select();
+    }, 40);
+  }
 }
 
 async function executeDeltaCopy() {
@@ -15769,7 +15826,9 @@ function connectTerminal(cwd) {
   const cols = (termInstance && termInstance.cols > 0) ? termInstance.cols : 100;
   const rows = (termInstance && termInstance.rows > 0) ? termInstance.rows : 24;
   const cleanCwd = (cwd && typeof cwd === 'string') ? cwd : '/';
-  const url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}`;
+  const token = App.token || localStorage.getItem('cd_token') || '';
+  const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+  const url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
 
   try {
     const thisWs = new WebSocket(url);

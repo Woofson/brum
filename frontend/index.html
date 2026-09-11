@@ -844,6 +844,15 @@
             </select>
           </div>
 
+          <div class="form-group">
+            <label>Default Copy (F5) Action:</label>
+            <select id="setting-default-copy-action" class="pane-quick-filter" style="width: 280px;" onchange="updateDefaultCopyAction(this.value)">
+              <option value="deltacopy" selected>⚡ DeltaCopy (Optimized with Resume & Checksums)</option>
+              <option value="standard">Standard Copy (Direct Fast Transfer)</option>
+            </select>
+            <div class="form-hint">Choose which transfer engine is highlighted and primary when pressing F5.</div>
+          </div>
+
           <!-- Cross-Device Workspace Sync Card (Web/Server Mode) -->
           <div class="web-only-setting server-only-setting" style="margin-bottom: 14px; padding: 12px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 8px;">
             <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -4306,60 +4315,69 @@
     </div>
   </div>
 
-  <!-- DeltaCopy & TeraCopy Transfer Modal -->
+  <!-- Copy (F5) Modal & DeltaCopy -->
   <div class="modal-overlay" id="deltacopy-modal" style="z-index: 3200;">
-    <div class="modal-box" style="width: 540px;">
+    <div class="modal-box" style="width: 540px; max-width: 95vw;">
       <div class="modal-header">
-        <span style="color: var(--accent); font-weight: 700;">⚡ DeltaCopy & Transfer (RoboCopy / TeraCopy Engine)</span>
-        <button class="btn" onclick="closeModal('deltacopy-modal')"><i data-lucide="x"></i></button>
+        <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);">
+          <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
+          <span>Copy (F5)</span>
+        </span>
+        <button class="btn btn-icon modal-close-btn" onclick="closeModal('deltacopy-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
         <div class="form-group">
-          <label>Source Item(s):</label>
-          <div id="deltacopy-source-summary" style="font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); padding: 8px; border: 1px solid var(--border); border-radius: 4px; max-height: 80px; overflow-y: auto;"></div>
+          <label style="font-size: 11.5px; font-weight: 600;">Source Item(s):</label>
+          <div id="deltacopy-source-summary" style="font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); padding: 8px 10px; border: 1px solid var(--border); border-radius: var(--radius); max-height: 80px; overflow-y: auto;"></div>
         </div>
         <div class="form-group">
-          <label>Destination Directory:</label>
-          <input type="text" id="deltacopy-dest-input" class="pane-quick-filter" style="width: 100%; padding: 8px; font-family: var(--font-mono); font-size: 12px;">
+          <label style="font-size: 11.5px; font-weight: 600;">Destination Directory:</label>
+          <input type="text" id="deltacopy-dest-input" class="pane-quick-filter" style="width: 100%; padding: 8px 10px; font-family: var(--font-mono); font-size: 12px; border-radius: var(--radius);" autocomplete="off">
         </div>
 
-        <div style="background: rgba(245, 158, 11, 0.06); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 4px; padding: 10px; margin-top: 10px;">
-          <div style="font-weight: 600; font-size: 11px; color: var(--accent); margin-bottom: 6px;">⚡ Transfer Intelligence & Optimization</div>
-          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
-            <label style="cursor: pointer;"><input type="checkbox" id="delta-skip-identical" checked> <b>Delta Skip:</b> Skip unchanged files (matching size & modification timestamp)</label>
-            <label style="cursor: pointer;"><input type="checkbox" id="delta-verify-crc32" checked> <b>TeraCopy Verification:</b> Verify bit-for-bit CRC32 checksum post-copy</label>
-            <label style="cursor: pointer;"><input type="checkbox" id="delta-auto-retry" checked> <b>RoboCopy Retry:</b> Auto-retry up to 3 times on temporary lock or I/O busy</label>
-            <label style="cursor: pointer;"><input type="checkbox" id="delta-preserve-meta" checked> <b>Preserve Metadata:</b> Retain original timestamps (<code>mtime</code>) and permissions</label>
+        <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.22); border-radius: var(--radius); padding: 10px 12px; margin-top: 4px;">
+          <div style="font-weight: 600; font-size: 11.5px; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="zap" style="width: 13px; height: 13px;"></i>
+            <span>DeltaCopy Options:</span>
+          </div>
+          <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11.5px;">
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="delta-skip-identical" checked> <b>Skip:</b> Skip unchanged files (matching size & modification timestamp)</label>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="delta-verify-crc32" checked> <b>Verification:</b> Verify bit-for-bit CRC32 checksum post-copy</label>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="delta-auto-retry" checked> <b>Retry:</b> Auto-retry up to 3 times on temporary lock or I/O busy</label>
+            <label style="cursor: pointer; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="delta-preserve-meta" checked> <b>Keep Metadata:</b> Retain original timestamps (<code>mtime</code>) and permissions</label>
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeModal('deltacopy-modal')">Cancel</button>
-        <button class="btn" onclick="executeStandardCopy()">Standard Copy</button>
-        <button class="btn btn-accent" onclick="executeDeltaCopy()">⚡ Run DeltaCopy</button>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
+        <button class="btn modal-action-btn" onclick="closeModal('deltacopy-modal')">Cancel</button>
+        <button class="btn modal-action-btn" id="btn-copy-standard" onclick="executeStandardCopy()">Standard Copy</button>
+        <button class="btn btn-accent modal-action-btn" id="btn-copy-delta" onclick="executeDeltaCopy()"><i data-lucide="zap" style="width: 13px; height: 13px;"></i> Run DeltaCopy</button>
       </div>
     </div>
   </div>
 
   <!-- Custom Destination Transfer Modal -->
   <div class="modal-overlay" id="custom-dest-modal" style="z-index: 3200;">
-    <div class="modal-box" style="width: 460px;">
+    <div class="modal-box" style="width: 460px; max-width: 95vw;">
       <div class="modal-header">
-        <span id="custom-dest-title" style="display: flex; align-items: center; gap: 6px;"><span class="file-icon-custom-glyph icon-sm" style="color: var(--accent);"></span> Transfer to Custom Destination</span>
-        <button class="btn" onclick="closeModal('custom-dest-modal')"><i data-lucide="x"></i></button>
+        <span id="custom-dest-title" style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);">
+          <i data-lucide="folder-input" style="width: 16px; height: 16px;"></i>
+          <span>Transfer / Move to Destination (F6)</span>
+        </span>
+        <button class="btn btn-icon modal-close-btn" onclick="closeModal('custom-dest-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
-      <div class="modal-body">
+      <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
         <div class="form-group">
-          <label>Target Directory Path:</label>
-          <input type="text" id="custom-dest-input" class="pane-quick-filter" style="width: 100%; padding: 8px; font-family: var(--font-mono);" placeholder="/path/to/destination">
+          <label style="font-size: 11.5px; font-weight: 600;">Target Directory Path:</label>
+          <input type="text" id="custom-dest-input" class="pane-quick-filter" style="width: 100%; padding: 8px 10px; font-family: var(--font-mono); font-size: 12px; border-radius: var(--radius);" placeholder="/path/to/destination" autocomplete="off">
         </div>
-        <div style="margin-top: 8px;">
-          <label style="font-size: 11px; cursor: pointer;"><input type="checkbox" id="custom-dest-save-fav" checked> Save this location to Favorite Quick Destinations</label>
+        <div>
+          <label style="font-size: 11.5px; cursor: pointer; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="custom-dest-save-fav" checked> Save this location to Favorite Quick Destinations</label>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeModal('custom-dest-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-custom-dest-exec">Execute Transfer</button>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
+        <button class="btn modal-action-btn" onclick="closeModal('custom-dest-modal')">Cancel</button>
+        <button class="btn btn-accent modal-action-btn" id="btn-custom-dest-exec"><i data-lucide="check" style="width: 14px;"></i> Execute Transfer</button>
       </div>
     </div>
   </div>
@@ -4378,9 +4396,9 @@
         <label for="mkdir-input" style="font-size: 12px; color: var(--text-dim);">Folder Name / Relative Path:</label>
         <input type="text" id="mkdir-input" class="pane-quick-filter" placeholder="e.g. new-folder or docs/subfolder" style="width: 100%; padding: 8px 10px; font-size: 13px; font-family: var(--font-mono);" autocomplete="off" spellcheck="false">
       </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" onclick="closeModal('mkdir-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-confirm-mkdir"><i data-lucide="check" style="width: 14px;"></i> Create</button>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
+        <button class="btn modal-action-btn" onclick="closeModal('mkdir-modal')">Cancel</button>
+        <button class="btn btn-accent modal-action-btn" id="btn-confirm-mkdir"><i data-lucide="check" style="width: 14px;"></i> Create</button>
       </div>
     </div>
   </div>
@@ -4511,13 +4529,12 @@
         </span>
         <button class="btn btn-icon modal-close-btn" onclick="closeModal('rename-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
-      <div class="modal-body" style="display: flex; flex-direction: column; gap: 8px;">
-        <label for="rename-input" style="font-size: 12px; color: var(--text-dim);">New Name / Destination:</label>
-        <input type="text" id="rename-input" class="pane-quick-filter" style="width: 100%; padding: 8px 10px; font-size: 13px; font-family: var(--font-mono);" autocomplete="off" spellcheck="false">
+      <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 8px;">
+        <input type="text" id="rename-input" class="pane-quick-filter" style="width: 100%; padding: 8px 10px; font-size: 13px; font-family: var(--font-mono); border-radius: var(--radius);" autocomplete="off" spellcheck="false">
       </div>
-      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" onclick="closeModal('rename-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-confirm-rename"><i data-lucide="check" style="width: 14px;"></i> Rename</button>
+      <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
+        <button class="btn modal-action-btn" onclick="closeModal('rename-modal')">Cancel</button>
+        <button class="btn btn-accent modal-action-btn" id="btn-confirm-rename"><i data-lucide="check" style="width: 14px;"></i> Rename</button>
       </div>
     </div>
   </div>

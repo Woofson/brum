@@ -54,6 +54,14 @@ default_view_mode = "details"    # Options: "details", "compact", "grid"
 window_decorations = true        # Set to false for seamless borderless/frameless mode in Hyprland / tiling WMs
 show_global_refresh = false      # Minimal header (off by default; individual panes have dedicated refresh controls)
 
+# --- Web Terminal (Bite!) & PTY Security ---
+[terminal]
+enabled = true                      # Enable / disable the web terminal feature
+allow_roles = ["admin", "root"]     # Roles allowed to spawn terminal shells ("admin", "user", "*" for all)
+allow_virtual_users = false         # Allow virtual/DB accounts without a local POSIX user (disabled by default for security)
+drop_privileges = true              # Drop root privileges to match authenticated user when running as root daemon
+# default_shell = "/bin/bash"       # Override default shell executable
+
 # --- Standalone Desktop Window & System Tray ---
 [desktop]
 minimize_to_tray = true          # Minimize window to system tray when closed instead of terminating
