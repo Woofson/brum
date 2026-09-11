@@ -1632,8 +1632,9 @@ function createPaneElement(pane, index) {
       </div>
 
       <!-- Remote Protocol Selector (Desktop) -->
-      <button class="btn btn-icon pane-proto-btn desktop-header-tool" onclick="openRemoteModal(${index})" title="Remote Storage & Protocols (SFTP, SMB, NFS, WebDAV, S3)">
-        <i data-lucide="network"></i>
+      <button class="btn pane-proto-btn desktop-header-tool" onclick="openRemoteModal(${index})" title="Remote Storage & Protocols (SFTP, SMB, NFS, WebDAV, S3)" style="height: 26px; padding: 0 5px; display: inline-flex; align-items: center; gap: 2px;">
+        <i data-lucide="network" style="width: 13px; height: 13px;"></i>
+        <i data-lucide="chevron-down" style="width: 10px; height: 10px; opacity: 0.7;"></i>
       </button>
 
       <!-- Unified Places Hub (Desktop) -->
