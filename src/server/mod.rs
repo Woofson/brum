@@ -579,7 +579,7 @@ async fn handle_get_storage_roots(
     // 1. Personal Home Directory
     accessible.push(crate::config::StorageRoot {
         id: "home".to_string(),
-        name: format!("Personal Home ({})", user_home),
+        name: "Home".to_string(),
         path: user_home.clone(),
         read_only: is_readonly,
         allowed_roles: vec![],

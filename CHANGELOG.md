@@ -5,6 +5,94 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc18] - 2026-09-11
+
+### Foldable Screen Unfold Layout Transitions & Vertical Stacking Fix
+- **Foldable & Tablet Unfold Dual-Column Layout Synchronization**:
+  - Fixed an issue where transitioning/unfolding from an outer phone screen (`<= 600px`) to an inner dual/tablet screen (`601px` to `1024px`) could leave panes vertically stacked until a page reload if desktop layouts or pane rearrangements were performed on PC.
+  - Initialized responsive tracking variables on page load and attached `triggerResponsiveViewportUpdate()` to `window.visualViewport` resize, `window` resize, `orientationchange`, and `DOMContentLoaded`/`load` lifecycle hooks with debounce settling to reliably capture hardware unfolding animations.
+  - Reinforced `@media (min-width: 601px) and (max-width: 1024px)` CSS grid templates to strictly enforce side-by-side vertical columns (`grid-template-columns: 1fr 1fr; grid-template-rows: 1fr;`) and reset all child `.pane` positioning (`grid-column: auto; grid-row: auto;`), completely preventing desktop row-spans from bleeding into tablet and foldable viewports.
+
+## [0.8.3-rc17] - 2026-09-11
+
+### Tablet & Foldable Branding Visibility
+- **Restored Header Brand Text on Tablet & Foldable Viewports**:
+  - Re-enabled the brand title text (`.app-logo-text`, "Brum") on tablet and foldable viewports (`601px` to `1024px`) alongside the app logo icon and hostname environment badge.
+  - Preserved streamlined Phone viewport (`<= 600px`) header branding, displaying exclusively the logo icon and hostname badge to maximize available toolbar space for navigation and panel tools.
+
+## [0.8.3-rc16] - 2026-09-11
+
+### Phone Slide-to-Swap Gestures & Touch Engine Modernization
+- **Instant Touch-Slide Pane Swapping on Phone Viewports**:
+  - Implemented real-time slide detection during `touchmove` in `setupTouchGestures()`, instantly swapping active panels as soon as a horizontal drag exceeds the 38px gesture threshold.
+  - Added full gesture lifecycle support spanning `touchstart`, `touchmove`, `touchend`, and `touchcancel` with one-swap-per-gesture debouncing and haptic feedback (`navigator.vibrate`).
+  - Decoupled Phone pane DOM count from desktop layout settings so `getVisiblePaneCount()` always returns `effectiveMax` (default 2 panes) on phone viewports regardless of stored desktop layout presets.
+  - Configured `touch-action: pan-y !important;` on phone pane wrappers and tables to pass horizontal swipe gestures cleanly to the gesture engine while preserving smooth vertical scrolling.
+
+## [0.8.3-rc15] - 2026-09-11
+
+### Phone Swipe Navigation & Viewport Column Overflow Elimination
+- **Phone Multi-Pane Swipe Navigation Restored**:
+  - Restored multi-pane DOM lifecycle on Phone viewports (`<= 600px`), enabling 2 panels to exist in DOM by default while CSS cleanly shows the focused active panel full-screen.
+  - Upgraded `setupTouchGestures()` with window-level gesture capture, touch target boundary validation, and haptic feedback (`navigator.vibrate`) for seamless swipe transitions between panels.
+  - Linked `setActivePane()` with `updateMobileBottomBar()` to immediately update bottom bar indicators upon panel switches.
+- **Complete Horizontal Scroll Elimination on Phone & Tablet/Foldable**:
+  - Prevented desktop pixel widths (`--col-*-w` and inline styles) from overriding tablet and phone column constraints in `applyAllColumnWidths()`.
+  - Enforced `table-layout: fixed !important; width: 100% !important; overflow-x: hidden !important;` on `.file-table` across both Phone and Tablet viewports.
+  - On Tablet (`601px - 1024px`), Name column flexes dynamically to fill remaining pane width while secondary metadata columns use compact fixed widths, completely eliminating table overflow.
+  - Fixed `.pane-main-view` scroll containment to `overflow-x: hidden !important; touch-action: pan-y !important;` across all responsive breakpoints.
+
+## [0.8.3-rc14] - 2026-09-11
+
+### Decoupled Viewport Layout Architecture & Phone Column Fixes
+- **Decoupled Viewport Layout Persistence**:
+  - Decoupled panel layout state across **PC** (`cd_layout_pc` / `layout_pc`), **Tablet/Foldable** (`cd_layout_tablet` / `layout_tablet`), and **Phone** (`cd_layout_phone` / `layout_phone`) viewports.
+  - Users can now maintain a 3- or 4-pane configuration on desktop while tablets cleanly maintain a 2-pane dual-split and phones use single-pane focus without cross-device layout pollution.
+  - Viewport-specific layouts are seamlessly synced to cloud server preferences and automatically adapted upon responsive window resizing and device orientation changes.
+- **Phone Horizontal Scroll Shield**:
+  - Eliminated horizontal pane overflow on mobile/phone viewports caused by desktop-specific column pixel widths overriding responsive CSS.
+  - Updated `applyAllColumnWidths()` to bypass inline pixel widths on Phone viewports, enforcing streamlined fluid widths for Name, Size, and Date while suppressing desktop secondary columns.
+  - Applied CSS overflow shields (`overflow-x: hidden !important`) to all pane container hierarchy elements on `@media (max-width: 600px)`.
+
+## [0.8.3-rc13] - 2026-09-11
+
+### Phone Touch Customizer & Viewport Pane Constraints
+- **Touch Press-and-Hold Panel Customizer on Phone & Mobile**:
+  - Implemented dedicated touch press-and-hold (long press / 450ms) handler with vibration feedback on panel number badge buttons (`.pane-badge-btn`), opening the Pane Settings & Customizer popup cleanly without cycling panes.
+  - Added *"Pane Settings & Customizer..."* entry to the mobile/foldable Pane Tools (`...`) dropdown menu as an additional direct entry point.
+  - Added `-webkit-touch-callout: none` and `touch-action: manipulation` to prevent OS callout menus from interfering with long press interactions.
+- **Phone & Tablet Maximum Panes Viewport Constraint & Setting Override**:
+  - Constrained Phone and Tablet/Foldable viewports (`<= 1024px`) to a maximum of 2 panels by default in `getVisiblePaneCount()`.
+  - Added a user override setting in **Settings &rarr; General UI & Behavior**: *"Phone & Tablet Maximum Panels"* (`cd_phone_tablet_max_panes` / `phone_tablet_max_panes`) supporting 1 (Single Focus), 2 (Default Dual Mode), 3 (Triple Layout), or 4 (Full Quad Layout).
+  - Added responsive resize listener (`checkResponsivePaneCount`) to automatically adapt rendered panels upon window resizing and screen rotation across breakpoints.
+
+## [0.8.3-rc12] - 2026-09-11
+
+### Dynamic Panel Rearrangement & Reorder Settings (Fixes #15)
+- **Direct Drag-and-Drop Panel Reordering**:
+  - Implemented intuitive drag-and-drop rearrangement by dragging pane number badges (`1`, `2`, `3`, `4`) directly across the workspace grid.
+  - Added visual drop targeting (`.pane-reorder-target` with amber accent glow) and active drag indicators.
+  - Seamlessly swaps panel state, directory history, view modes, grid sizes, docked tools, custom names, border colors, and persistent `localStorage` / cloud settings.
+- **Configurable Panel Reordering Setting**:
+  - Added a user-configurable toggle in **Settings &rarr; General UI & Behavior**: *"Enable Drag-and-Drop Panel Rearrangement on Desktop Viewports"*.
+  - Synced preference across local storage and server cloud workspaces (`pane_reorder_enabled`).
+- **Pane Settings Menu Rearrangement Controls**:
+  - Added quick **"Move Left"**, **"Move Right"**, and **"Swap with Pane X"** action buttons inside the Pane Settings dropdown menu (`openPaneSettingsMenu`) for rapid keyboard/click reordering.
+
+## [0.8.3-rc11] - 2026-09-11
+
+### Unified "Places" Hub & Navigation Protocol Enhancements (Fixes #26)
+- **Unified Places Hub**:
+  - Re-architected and renamed the quick navigation menu to **"Places"**, merging local storage roots, user bookmarks, and remote VFS shares into a single comprehensive navigation dropdown.
+  - Sourced custom `nf-md-duck` Nerd Font icon for Places buttons and headers.
+  - Streamlined category headers, removing the redundant `"Authorized Storage Roots"` header in favor of a clean `"Storage Roots"` grouping.
+  - Added bottom action for quick connection to remote storage alongside current folder bookmarking.
+- **Protocol Dropdown Enhancements & Layout Rearrangement**:
+  - Moved the remote protocol / VFS launcher button out of `.pane-nav-btns` to the **right side of the path breadcrumbs bar** for improved ergonomics.
+  - Enhanced protocol dropdown selectors (`#remote-proto-select`, `#bm-select-protocol`, `#hetzner-mode`) with custom amber accent styling and clear chevron arrows.
+- **Storage Root Label Cleanups**:
+  - Shortened default personal home storage root label from `"Personal Home (/path)"` to simply `"Home"` in backend storage resolution and folder tree fallback builders.
+
 ## [0.8.3-rc10] - 2026-09-11
 
 ### Streamlined Dialog Ergonomics & Button Sizing Standards (Fixes #27)

@@ -1,8 +1,38 @@
 // Brum Multi-Pane Web Environment - By Woofson
+
+function getViewportType() {
+  if (window.innerWidth <= 600) return 'phone';
+  if (window.innerWidth <= 1024) return 'tablet';
+  return 'pc';
+}
+
+function getLayoutForViewport(vp) {
+  const vpType = vp || getViewportType();
+  if (vpType === 'phone') {
+    return localStorage.getItem('cd_layout_phone') || 'layout-dual-vertical';
+  }
+  if (vpType === 'tablet') {
+    return localStorage.getItem('cd_layout_tablet') || 'layout-dual-vertical';
+  }
+  return localStorage.getItem('cd_layout_pc') || localStorage.getItem('cd_layout') || 'layout-dual-vertical';
+}
+
+function setLayoutForViewport(layoutName, vp) {
+  const vpType = vp || getViewportType();
+  if (vpType === 'phone') {
+    localStorage.setItem('cd_layout_phone', layoutName);
+  } else if (vpType === 'tablet') {
+    localStorage.setItem('cd_layout_tablet', layoutName);
+  } else {
+    localStorage.setItem('cd_layout_pc', layoutName);
+    localStorage.setItem('cd_layout', layoutName);
+  }
+}
+
 const App = {
   panes: [],
   activePaneIndex: 0,
-  layout: localStorage.getItem('cd_layout') || 'layout-dual-vertical',
+  layout: getLayoutForViewport(),
   paranoidMode: true,
   token: localStorage.getItem('cd_token') || '',
   user: null,
@@ -34,6 +64,8 @@ const App = {
   dndDefaultAction: localStorage.getItem('cd_dnd_default_action') || 'ask',
   dndPromptMode: localStorage.getItem('cd_dnd_prompt_mode') || 'ask',
   dndParanoidPrompt: localStorage.getItem('cd_dnd_paranoid_prompt') !== 'false',
+  paneReorderEnabled: localStorage.getItem('cd_pane_reorder_enabled') !== 'false',
+  phoneTabletMaxPanes: parseInt(localStorage.getItem('cd_phone_tablet_max_panes') || '2', 10),
 };
 
 if (App.token) {
@@ -191,10 +223,13 @@ let _prefSyncDebounceTimer = null;
 
 function getAllUserPreferences() {
   return {
-    // 1. Panes & Layout
+    // 1. Panes & Viewport Layouts
     pane_names: App.panes.map(p => p.customName || null),
     pane_colors: getPaneColors(),
     default_layout: App.layout,
+    layout_pc: localStorage.getItem('cd_layout_pc') || localStorage.getItem('cd_layout') || 'layout-dual-vertical',
+    layout_tablet: localStorage.getItem('cd_layout_tablet') || 'layout-dual-vertical',
+    layout_phone: localStorage.getItem('cd_layout_phone') || 'layout-dual-vertical',
     pane_start_paths: App.panes.map(p => p.path || null),
     pane_viewmodes: App.panes.map(p => p.viewMode || 'details'),
     pane_gridsizes: App.panes.map(p => p.gridSize || 'md'),
@@ -238,7 +273,9 @@ function getAllUserPreferences() {
     custom_trash_dir: App.customTrashDir,
     default_copy_action: getDefaultCopyAction(),
 
-    // 6. Drag & Drop
+    // 6. Drag & Drop & Rearrangement & Max Panes
+    pane_reorder_enabled: App.paneReorderEnabled !== false,
+    phone_tablet_max_panes: App.phoneTabletMaxPanes || 2,
     dnd_default_action: App.dndDefaultAction,
     dnd_prompt_mode: App.dndPromptMode,
     dnd_paranoid_prompt: App.dndParanoidPrompt,
@@ -274,12 +311,23 @@ function applyAllUserPreferences(prefs) {
     localStorage.setItem('cd_pane_colors', JSON.stringify(prefs.pane_colors));
   }
 
-  // 3. Default Layout (on fresh session load)
-  if (prefs.default_layout && typeof prefs.default_layout === 'string') {
-    if (!sessionStorage.getItem('cd_session_layout_initialized')) {
-      sessionStorage.setItem('cd_session_layout_initialized', '1');
-      if (typeof switchLayout === 'function' && App.layout !== prefs.default_layout) {
-        switchLayout(prefs.default_layout);
+  // 3. Viewport-Decoupled Default Layouts (on fresh session load)
+  if (prefs.layout_pc) localStorage.setItem('cd_layout_pc', prefs.layout_pc);
+  if (prefs.layout_tablet) localStorage.setItem('cd_layout_tablet', prefs.layout_tablet);
+  if (prefs.layout_phone) localStorage.setItem('cd_layout_phone', prefs.layout_phone);
+  if (prefs.default_layout && !localStorage.getItem('cd_layout_pc')) {
+    localStorage.setItem('cd_layout_pc', prefs.default_layout);
+  }
+
+  const currentVp = getViewportType();
+  const targetLayout = getLayoutForViewport(currentVp);
+  if (!sessionStorage.getItem('cd_session_layout_initialized') || ((currentVp === 'phone' || currentVp === 'tablet') && App.layout !== targetLayout)) {
+    sessionStorage.setItem('cd_session_layout_initialized', '1');
+    if (App.layout !== targetLayout) {
+      App.layout = targetLayout;
+      updateActiveLayoutUI(targetLayout);
+      if (typeof renderAllPanes === 'function') {
+        renderAllPanes();
       }
     }
   }
@@ -459,7 +507,19 @@ function applyAllUserPreferences(prefs) {
     localStorage.setItem('cd_custom_trash_dir', prefs.custom_trash_dir);
   }
 
-  // 12. Drag & Drop
+  // 12. Drag & Drop & Panel Rearrangement & Max Panes
+  if (prefs.pane_reorder_enabled !== undefined) {
+    App.paneReorderEnabled = !!prefs.pane_reorder_enabled;
+    localStorage.setItem('cd_pane_reorder_enabled', prefs.pane_reorder_enabled ? 'true' : 'false');
+    const reorderCb = document.getElementById('setting-pane-reorder');
+    if (reorderCb) reorderCb.checked = App.paneReorderEnabled;
+  }
+  if (prefs.phone_tablet_max_panes !== undefined) {
+    App.phoneTabletMaxPanes = parseInt(prefs.phone_tablet_max_panes, 10) || 2;
+    localStorage.setItem('cd_phone_tablet_max_panes', App.phoneTabletMaxPanes.toString());
+    const maxSel = document.getElementById('setting-phone-tablet-max-panes');
+    if (maxSel) maxSel.value = App.phoneTabletMaxPanes.toString();
+  }
   if (prefs.dnd_default_action) {
     App.dndDefaultAction = prefs.dnd_default_action;
     localStorage.setItem('cd_dnd_default_action', prefs.dnd_default_action);
@@ -1334,9 +1394,19 @@ function createPaneElement(pane, index) {
   // Enable HTML5 Drag & Drop Target
   el.ondragover = (e) => {
     e.preventDefault();
+    if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) {
+      if (window._draggingPaneIndex !== index) {
+        e.dataTransfer.dropEffect = 'move';
+        el.classList.add('pane-reorder-target');
+      }
+      return;
+    }
     el.classList.add('drag-over');
   };
-  el.ondragleave = () => el.classList.remove('drag-over');
+  el.ondragleave = () => {
+    el.classList.remove('drag-over');
+    el.classList.remove('pane-reorder-target');
+  };
   el.ondrop = (e) => handlePaneDrop(e, index);
 
   const visibleCount = getVisiblePaneCount();
@@ -1356,6 +1426,8 @@ function createPaneElement(pane, index) {
   const paneTitle = pane.customName || `${index + 1}`;
   const currentColor = colors[index] || 'default';
   const activeHex = colorHexes[currentColor] || currentColor;
+  const isDraggableAttr = App.paneReorderEnabled !== false ? `draggable="true" ondragstart="handlePaneBadgeDragStart(event, ${index})" ondragend="handlePaneBadgeDragEnd(event, ${index})"` : '';
+  const badgeTitle = `Pane ${index + 1}: ${escapeHtml(paneTitle)} (${App.paneReorderEnabled !== false ? 'Drag: Reorder, ' : ''}Click / Long Press: Settings)`;
 
   if (pane.dockedTool) {
     const tool = pane.dockedTool;
@@ -1370,9 +1442,14 @@ function createPaneElement(pane, index) {
     el.innerHTML = `
       <div class="pane-header">
         <button class="pane-badge-btn" id="pane-badge-btn-${index}"
+                ${isDraggableAttr}
+                ontouchstart="handlePaneBadgeTouchStart(event, ${index})"
+                ontouchmove="handlePaneBadgeTouchMove(event, ${index})"
+                ontouchend="handlePaneBadgeTouchEnd(event, ${index})"
+                ontouchcancel="handlePaneBadgeTouchCancel(event, ${index})"
                 onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
                 oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
-                title="Pane ${index + 1}: ${escapeHtml(paneTitle)} (Click: Switch Pane / Settings)">
+                title="${badgeTitle}">
           <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${activeHex};"></span>
           <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
         </button>
@@ -1396,9 +1473,14 @@ function createPaneElement(pane, index) {
     <div class="pane-header">
       <!-- Leftmost Unified Pane Number & Settings Badge Button (Desktop, Laptop, Tablet, Foldable, Phone) -->
       <button class="pane-badge-btn" id="pane-badge-btn-${index}"
+              ${isDraggableAttr}
+              ontouchstart="handlePaneBadgeTouchStart(event, ${index})"
+              ontouchmove="handlePaneBadgeTouchMove(event, ${index})"
+              ontouchend="handlePaneBadgeTouchEnd(event, ${index})"
+              ontouchcancel="handlePaneBadgeTouchCancel(event, ${index})"
               onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
               oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
-              title="Pane ${index + 1}: ${escapeHtml(paneTitle)} (Click: Switch Pane / Settings)">
+              title="${badgeTitle}">
         <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${activeHex};"></span>
         <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
       </button>
@@ -1410,7 +1492,6 @@ function createPaneElement(pane, index) {
         <button class="btn btn-icon pane-filter-toggle-btn ${App.panes[index]?.showFilter ? 'active' : ''}" id="btn-filter-toggle-${index}" onclick="event.stopPropagation(); togglePaneFilter(${index})" title="Toggle Quick Filter (/ or Ctrl+F)"><i data-lucide="filter"></i></button>
         <button class="btn btn-icon pane-tree-btn desktop-header-tool ${App.panes[index]?.showTree ? 'active' : ''}" id="btn-tree-${index}" onclick="event.stopPropagation(); togglePaneTree(${index});" title="Toggle Folder Tree Sidebar"><i data-lucide="folder-tree"></i></button>
         <button class="btn btn-icon pane-branch-btn desktop-header-tool ${App.panes[index]?.isBranchView ? 'active' : ''}" id="btn-branch-${index}" onclick="event.stopPropagation(); toggleBranchView(${index});" title="Toggle Flat Branch View (Ctrl+B)"><i data-lucide="git-branch"></i></button>
-        <button onclick="openRemoteModal(${index})" class="desktop-header-tool" title="Connect Remote SFTP / WebDAV Server"><i data-lucide="network"></i></button>
       </div>
 
       <!-- Path bar & Breadcrumbs -->
@@ -1419,16 +1500,21 @@ function createPaneElement(pane, index) {
         <input type="text" class="pane-path-input" id="pane-input-${index}" onkeydown="handlePathKey(event, ${index})" onblur="disablePathInput(${index})">
       </div>
 
-      <!-- Favorites & Quick Bookmarks (Desktop) -->
+      <!-- Remote Protocol Selector (Desktop) -->
+      <button class="btn btn-icon pane-proto-btn desktop-header-tool" onclick="openRemoteModal(${index})" title="Remote Storage & Protocols (SFTP, SMB, NFS, WebDAV, S3)">
+        <i data-lucide="network"></i>
+      </button>
+
+      <!-- Unified Places Hub (Desktop) -->
       <div class="pane-favorites-wrapper desktop-header-tool">
-        <button class="btn btn-icon" id="btn-favorites-${index}" onclick="openPaneFavoritesMenu(event, ${index})" oncontextmenu="event.preventDefault(); openBookmarksManager();" title="Favorites & Bookmarks (Left-click: Quick Jump, Right-click: Manage)">
-          <i data-lucide="star" style="color: var(--accent);"></i>
+        <button class="btn btn-icon pane-places-btn" id="btn-favorites-${index}" onclick="openPaneFavoritesMenu(event, ${index})" oncontextmenu="event.preventDefault(); openBookmarksManager();" title="Places & Bookmarks (Left-click: Quick Jump, Right-click: Manage)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg>
         </button>
       </div>
 
       <!-- Foldable & Touch Cross-Pane Transfer Button (Desktop) -->
       <button class="btn btn-icon pane-quick-transfer-btn desktop-header-tool" onclick="event.stopPropagation(); setActivePane(${index}); triggerCopy();" title="Transfer / Copy to Other Pane (F5)">
-        <i data-lucide="arrow-right-left" style="color: var(--accent);"></i>
+        <i data-lucide="arrow-right-left"></i>
       </button>
 
       <!-- Direct Device Upload Button (Desktop) -->
@@ -1463,7 +1549,7 @@ function createPaneElement(pane, index) {
           <table class="file-table" id="pane-table-${index}">
             <thead>
               <tr id="pane-header-row-${index}" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                <th class="col-header col-icon" style="width: 28px; min-width: 28px; max-width: 28px; text-align: center; padding: 0 4px; vertical-align: middle;">
+                <th class="col-header col-icon" style="text-align: center; padding: 0 4px; vertical-align: middle;">
                   <button class="pane-col-config-btn" onclick="event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" oncontextmenu="event.preventDefault(); event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" title="Configure Table Columns & Auto-Fit">
                     <i data-lucide="sliders-horizontal"></i>
                   </button>
@@ -1476,35 +1562,35 @@ function createPaneElement(pane, index) {
                   <span>Ext</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'ext')" ontouchstart="initColResize(event, ${index}, 'ext')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-size" id="col-header-${index}-size" style="width: 80px;" onclick="sortPane(${index}, 'size')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-size" id="col-header-${index}-size" onclick="sortPane(${index}, 'size')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Size</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'size')" ontouchstart="initColResize(event, ${index}, 'size')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-modified" id="col-header-${index}-modified" style="width: 130px;" onclick="sortPane(${index}, 'modified')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-modified" id="col-header-${index}-modified" onclick="sortPane(${index}, 'modified')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Modified</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'modified')" ontouchstart="initColResize(event, ${index}, 'modified')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-created" id="col-header-${index}-created" style="width: 130px; display: none;" onclick="sortPane(${index}, 'created')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-created" id="col-header-${index}-created" style="display: none;" onclick="sortPane(${index}, 'created')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Created</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'created')" ontouchstart="initColResize(event, ${index}, 'created')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-mode" id="col-header-${index}-mode" style="width: 75px;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-mode" id="col-header-${index}-mode" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Mode</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'mode')" ontouchstart="initColResize(event, ${index}, 'mode')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-owner" id="col-header-${index}-owner" style="width: 85px;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-owner" id="col-header-${index}-owner" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Owner</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'owner')" ontouchstart="initColResize(event, ${index}, 'owner')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-group" id="col-header-${index}-group" style="width: 85px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-group" id="col-header-${index}-group" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Group</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'group')" ontouchstart="initColResize(event, ${index}, 'group')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-hash" id="col-header-${index}-hash" style="width: 100px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-hash" id="col-header-${index}-hash" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>SHA-256</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'hash')" ontouchstart="initColResize(event, ${index}, 'hash')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-tags" id="col-header-${index}-tags" style="width: 90px; display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
+                <th class="col-header col-tags" id="col-header-${index}-tags" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
                   <span>Tags</span>
                   <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'tags')" ontouchstart="initColResize(event, ${index}, 'tags')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
@@ -1750,13 +1836,21 @@ function initPaneMarqueeSelection(mainViewEl, paneIndex) {
 }
 
 function setActivePane(index) {
-  App.activePaneIndex = index;
+  const visibleCount = getVisiblePaneCount();
+  if (visibleCount > 0 && index >= visibleCount) {
+    index = visibleCount - 1;
+  }
+  App.activePaneIndex = Math.max(0, index);
+
   document.querySelectorAll('.pane').forEach((p, idx) => {
-    if (idx === index) p.classList.add('active');
+    if (idx === App.activePaneIndex) p.classList.add('active');
     else p.classList.remove('active');
   });
 
   updateBranchToggleState();
+  if (typeof updateMobileBottomBar === 'function') {
+    updateMobileBottomBar();
+  }
 }
 
 function togglePaneDotfiles(paneIndex) {
@@ -2557,6 +2651,7 @@ function renderPaneTable(paneIndex) {
         };
 
         card.ondragover = (e) => {
+          if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
           if (entry.is_dir) {
             e.preventDefault();
             e.stopPropagation();
@@ -2769,6 +2864,7 @@ function renderPaneTable(paneIndex) {
         };
 
         item.ondragover = (e) => {
+          if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
           if (entry.is_dir) {
             e.preventDefault();
             e.stopPropagation();
@@ -2942,6 +3038,7 @@ function renderPaneTable(paneIndex) {
 
       if (!isTouchDevice) {
         parentTr.ondragover = (e) => {
+          if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
           e.preventDefault();
           e.stopPropagation();
           parentTr.classList.add('drag-over-row');
@@ -3020,6 +3117,7 @@ function renderPaneTable(paneIndex) {
         };
 
         tr.ondragover = (e) => {
+          if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
           if (entry.is_dir) {
             e.preventDefault();
             e.stopPropagation();
@@ -3925,20 +4023,57 @@ function autoFitAllColumns(paneIndex) {
 }
 
 function applyAllColumnWidths() {
-  const widths = ColumnConfig.widths;
-  const vis = ColumnConfig.visibility;
+  const isPhone = window.innerWidth <= 600;
+  const isTablet = window.innerWidth > 600 && window.innerWidth <= 1024;
+  const widths = ColumnConfig.widths || {};
+  const vis = ColumnConfig.visibility || {};
 
   for (let i = 0; i < 4; i++) {
     const table = document.getElementById(`pane-table-${i}`);
+    
+    // On Phone (<= 600px) and Tablet/Foldable (601px - 1024px), do NOT apply fixed desktop pixel widths
+    if (isPhone || isTablet) {
+      if (table) {
+        ['name', 'ext', 'size', 'modified', 'created', 'mode', 'owner', 'group', 'hash', 'tags'].forEach(k => {
+          table.style.removeProperty(`--col-${k}-w`);
+        });
+      }
+      const ths = document.querySelectorAll(`#pane-table-${i} th`);
+      ths.forEach(th => {
+        th.style.removeProperty('width');
+        th.style.removeProperty('min-width');
+        th.style.removeProperty('max-width');
+      });
+
+      if (isPhone) {
+        // On Phone: only show icon, name, size, modified; explicitly hide secondary columns
+        const phoneVisibleCols = new Set(['icon', 'name', 'size', 'modified']);
+        ['icon', 'name', 'ext', 'size', 'modified', 'created', 'mode', 'owner', 'group', 'hash', 'tags'].forEach(colKey => {
+          const th = document.getElementById(`col-header-${i}-${colKey}`);
+          if (th) {
+            th.style.display = phoneVisibleCols.has(colKey) ? '' : 'none';
+          }
+        });
+      } else {
+        // On Tablet: apply user visibility toggles without fixed desktop pixel widths
+        for (const [colKey, isVis] of Object.entries(vis)) {
+          const th = document.getElementById(`col-header-${i}-${colKey}`);
+          if (th) th.style.display = isVis ? '' : 'none';
+        }
+      }
+      continue;
+    }
+
+    // Full PC / Desktop Viewport (> 1024px): apply user customized column widths
     for (const [colKey, w] of Object.entries(widths)) {
       if (table && w) {
         table.style.setProperty(`--col-${colKey}-w`, `${w}px`);
       }
       const th = document.getElementById(`col-header-${i}-${colKey}`);
       if (th && w) {
-        th.style.setProperty('width', `${w}px`, 'important');
-        th.style.setProperty('min-width', `${Math.min(w, 28)}px`, 'important');
-        th.style.setProperty('max-width', `${w}px`, 'important');
+        th.style.setProperty('width', `${w}px`);
+        th.style.setProperty('min-width', `${Math.min(w, 28)}px`);
+        th.style.setProperty('max-width', `${w}px`);
       }
     }
     for (const [colKey, isVis] of Object.entries(vis)) {
@@ -5208,6 +5343,20 @@ let pendingInterpaneTransfer = null;
 
 async function handlePaneDrop(e, targetPaneIndex, subfolderPath) {
   e.preventDefault();
+
+  // Pane Badge Drag & Drop Reordering
+  if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) {
+    const srcIdx = window._draggingPaneIndex;
+    window._draggingPaneIndex = null;
+    document.querySelectorAll('.pane-reorder-target').forEach(p => p.classList.remove('pane-reorder-target'));
+    document.getElementById('panes-grid')?.classList.remove('pane-reorder-active');
+    document.querySelectorAll('.dragging-pane-badge').forEach(b => b.classList.remove('dragging-pane-badge'));
+    if (srcIdx !== targetPaneIndex) {
+      swapPanes(srcIdx, targetPaneIndex);
+    }
+    return;
+  }
+
   const targetPane = App.panes[targetPaneIndex];
   const paneEl = document.getElementById(`pane-${targetPaneIndex}`);
   if (paneEl) paneEl.classList.remove('drag-over');
@@ -5675,10 +5824,29 @@ function setupKeyboardNavigation() {
 }
 
 function getVisiblePaneCount() {
-  if (App.layout === 'layout-single') return 1;
-  if (App.layout === 'layout-dual-vertical' || App.layout === 'layout-dual-horizontal') return 2;
-  if (App.layout === 'layout-triple' || App.layout === 'layout-triple-stacked') return 3;
-  return 4;
+  const vp = getViewportType();
+  const maxPanes = App.phoneTabletMaxPanes !== undefined && App.phoneTabletMaxPanes !== null
+    ? parseInt(App.phoneTabletMaxPanes, 10)
+    : parseInt(localStorage.getItem('cd_phone_tablet_max_panes') || '2', 10);
+  const effectiveMax = isNaN(maxPanes) ? 2 : Math.max(1, Math.min(4, maxPanes));
+
+  if (vp === 'phone') {
+    // Phone viewport renders effectiveMax (default 2) panels in DOM to slide/swipe between
+    return effectiveMax;
+  }
+
+  const currentLayout = App.layout || getLayoutForViewport(vp);
+  let layoutCount = 4;
+  if (currentLayout === 'layout-single') layoutCount = 1;
+  else if (currentLayout === 'layout-dual-vertical' || currentLayout === 'layout-dual-horizontal') layoutCount = 2;
+  else if (currentLayout === 'layout-triple' || currentLayout === 'layout-triple-stacked') layoutCount = 3;
+  else layoutCount = 4;
+
+  if (vp === 'tablet') {
+    return Math.min(layoutCount, effectiveMax);
+  }
+
+  return layoutCount;
 }
 
 // ---------------- DUAL-PANE EDITOR & CODE VIEWER (SYNTAX HIGHLIGHTING & FIND/REPLACE) ----------------
@@ -10053,7 +10221,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   popup.innerHTML = `
     <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span>Storage Roots & Bookmarks</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places</span>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openBookmarksManager();">Manage</span>
         <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-favorites-popup')?.remove();">✕</span>
@@ -10072,19 +10240,22 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       ` : ''}
 
       ${storageRoots.length > 0 ? `
-        <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Authorized Storage Roots</div>
-        ${storageRoots.map(r => `
-          <div class="dropdown-item" onclick="loadPaneDirectory(${paneIndex}, '${r.path}'); document.getElementById('pane-favorites-popup')?.remove();">
-            <i data-lucide="${r.id === 'home' ? 'home' : (r.id === 'system-root' ? 'hard-drive' : 'server')}"></i>
-            <div>
-              <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                <span>${escapeHtml(r.name)}</span>
-                ${r.read_only ? '<span class="badge" style="font-size: 8px; padding: 1px 4px; background: rgba(239,68,68,0.2); color: var(--danger);">READ ONLY</span>' : ''}
+        <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Storage Roots</div>
+        ${storageRoots.map(r => {
+          const displayName = (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'Home' : r.name;
+          return `
+            <div class="dropdown-item" onclick="loadPaneDirectory(${paneIndex}, '${r.path}'); document.getElementById('pane-favorites-popup')?.remove();">
+              <i data-lucide="${r.id === 'home' ? 'home' : (r.id === 'system-root' ? 'hard-drive' : 'server')}"></i>
+              <div>
+                <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                  <span>${escapeHtml(displayName)}</span>
+                  ${r.read_only ? '<span class="badge" style="font-size: 8px; padding: 1px 4px; background: rgba(239,68,68,0.2); color: var(--danger);">READ ONLY</span>' : ''}
+                </div>
+                <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(r.path)}</div>
               </div>
-              <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(r.path)}</div>
             </div>
-          </div>
-        `).join('')}
+          `;
+        }).join('')}
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : ''}
 
@@ -10107,7 +10278,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
       ${globalMounts.length > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between;">
-          <span>Network Mounts</span>
+          <span>Remote VFS Shares</span>
           <span style="font-size: 9px; opacity: 0.8;">ADMIN</span>
         </div>
         ${globalMounts.map(m => `
@@ -10128,6 +10299,10 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); addNewBookmark('${encodeURIComponent(curPanePath)}');" style="color: var(--accent);">
         <i data-lucide="bookmark-plus"></i>
         <div style="font-weight: 600;">+ Bookmark Current Folder</div>
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); openRemoteModal(${paneIndex});" style="color: var(--text-muted);">
+        <i data-lucide="network"></i>
+        <div style="font-weight: 500;">+ Connect Remote Storage...</div>
       </div>
     </div>
   `;
@@ -12302,7 +12477,7 @@ function setupEventListeners() {
 
 function switchLayout(layoutName) {
   App.layout = layoutName;
-  localStorage.setItem('cd_layout', layoutName);
+  setLayoutForViewport(layoutName);
   updateActiveLayoutUI(layoutName);
 
   const visibleCount = getVisiblePaneCount();
@@ -12323,6 +12498,7 @@ function switchLayout(layoutName) {
   });
 
   renderAllPanes();
+  applyAllColumnWidths();
   queueSaveUserPreferencesToServer();
 }
 
@@ -12893,6 +13069,16 @@ function openSettingsModal() {
   const dndParanoidChk = document.getElementById('setting-dnd-paranoid-prompt');
   if (dndParanoidChk) {
     dndParanoidChk.checked = App.dndParanoidPrompt !== false;
+  }
+
+  const paneReorderCheckbox = document.getElementById('setting-pane-reorder');
+  if (paneReorderCheckbox) {
+    paneReorderCheckbox.checked = App.paneReorderEnabled !== false;
+  }
+
+  const maxPanesSel = document.getElementById('setting-phone-tablet-max-panes');
+  if (maxPanesSel) {
+    maxPanesSel.value = (App.phoneTabletMaxPanes || 2).toString();
   }
 
   // Populate External Programs & Desktop Handlers (Standalone only)
@@ -14110,6 +14296,9 @@ function openPaneToolsMenu(e, paneIndex) {
       <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-tools-popup')?.remove();">✕</span>
     </div>
     <div style="padding: 4px 0; max-height: 440px; overflow-y: auto;">
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneSettingsMenu(event, ${paneIndex});">
+        <i data-lucide="sliders" style="color: var(--accent);"></i> Pane Settings & Customizer...
+      </div>
       <div class="dropdown-item" onclick="setActivePane(${paneIndex}); triggerCopy(); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="arrow-right-left" style="color: var(--accent);"></i> Transfer / Copy to Other Pane (F5)
       </div>
@@ -14148,7 +14337,7 @@ function openPaneToolsMenu(e, paneIndex) {
         <i data-lucide="network" style="color: #a855f7;"></i> Connect Remote Storage (SFTP/SMB/WebDAV)...
       </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
-        <i data-lucide="star" style="color: var(--accent);"></i> Bookmarks & Favorites...
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places & Bookmarks...
       </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openBookmarksManager();">
         <i data-lucide="bookmark" style="color: var(--accent);"></i> Bookmarks Manager...
@@ -14185,17 +14374,160 @@ function openPaneToolsMenu(e, paneIndex) {
   setTimeout(() => document.addEventListener('click', closeHandler), 10);
 }
 
+function handlePaneBadgeDragStart(e, index) {
+  if (App.paneReorderEnabled === false) {
+    e.preventDefault();
+    return;
+  }
+  window._draggingPaneIndex = index;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', `pane:${index}`);
+
+  const badgeBtn = document.getElementById(`pane-badge-btn-${index}`);
+  if (badgeBtn) badgeBtn.classList.add('dragging-pane-badge');
+
+  const grid = document.getElementById('panes-grid');
+  if (grid) grid.classList.add('pane-reorder-active');
+}
+
+function handlePaneBadgeDragEnd(e, index) {
+  window._draggingPaneIndex = null;
+  document.querySelectorAll('.dragging-pane-badge').forEach(b => b.classList.remove('dragging-pane-badge'));
+  document.querySelectorAll('.pane-reorder-target').forEach(p => p.classList.remove('pane-reorder-target'));
+  const grid = document.getElementById('panes-grid');
+  if (grid) grid.classList.remove('pane-reorder-active');
+}
+
+function togglePaneReordering(enabled) {
+  App.paneReorderEnabled = !!enabled;
+  localStorage.setItem('cd_pane_reorder_enabled', enabled ? 'true' : 'false');
+  queueSaveUserPreferencesToServer();
+  renderAllPanes();
+  showToast(enabled ? 'Panel drag-and-drop rearrangement enabled' : 'Panel drag-and-drop rearrangement disabled', 'info');
+}
+
+function swapPanes(srcIdx, targetIdx) {
+  if (srcIdx === targetIdx || srcIdx < 0 || targetIdx < 0 || srcIdx >= App.panes.length || targetIdx >= App.panes.length) {
+    return;
+  }
+
+  // 1. Swap in App.panes array
+  const tempPane = App.panes[srcIdx];
+  App.panes[srcIdx] = App.panes[targetIdx];
+  App.panes[targetIdx] = tempPane;
+
+  // Update their internal IDs
+  App.panes[srcIdx].id = srcIdx;
+  App.panes[targetIdx].id = targetIdx;
+
+  // 2. Swap localStorage persistent keys for paths, viewmode, gridsize, tree, docked
+  const keys = ['cd_pane_path', 'cd_pane_viewmode', 'cd_pane_gridsize', 'cd_pane_tree', 'cd_pane_docked'];
+  keys.forEach(prefix => {
+    const valSrc = localStorage.getItem(`${prefix}_${srcIdx}`);
+    const valTarget = localStorage.getItem(`${prefix}_${targetIdx}`);
+    if (valTarget !== null) localStorage.setItem(`${prefix}_${srcIdx}`, valTarget);
+    else localStorage.removeItem(`${prefix}_${srcIdx}`);
+    if (valSrc !== null) localStorage.setItem(`${prefix}_${targetIdx}`, valSrc);
+    else localStorage.removeItem(`${prefix}_${targetIdx}`);
+  });
+
+  // 3. Swap pane colors
+  const colors = getPaneColors();
+  const colorSrc = colors[srcIdx];
+  const colorTarget = colors[targetIdx];
+  if (colorTarget !== undefined) colors[srcIdx] = colorTarget;
+  else delete colors[srcIdx];
+  if (colorSrc !== undefined) colors[targetIdx] = colorSrc;
+  else delete colors[targetIdx];
+  localStorage.setItem('cd_pane_colors', JSON.stringify(colors));
+
+  // 4. Update custom names storage
+  savePaneCustomNames();
+
+  // 5. Update active pane index
+  if (App.activePaneIndex === srcIdx) {
+    App.activePaneIndex = targetIdx;
+  } else if (App.activePaneIndex === targetIdx) {
+    App.activePaneIndex = srcIdx;
+  }
+
+  // 6. Re-render UI and save cloud preferences
+  renderAllPanes();
+  updatePaneTitles();
+  queueSaveUserPreferencesToServer();
+
+  showToast(`Swapped Pane ${srcIdx + 1} with Pane ${targetIdx + 1}`, 'info');
+}
+
+let _paneBadgeTouchTimer = null;
+let _paneBadgeLongPressed = false;
+let _paneBadgeTouchStartX = 0;
+let _paneBadgeTouchStartY = 0;
+
+function handlePaneBadgeTouchStart(e, paneIndex) {
+  _paneBadgeLongPressed = false;
+  if (!e.touches || e.touches.length === 0) return;
+  _paneBadgeTouchStartX = e.touches[0].clientX;
+  _paneBadgeTouchStartY = e.touches[0].clientY;
+
+  clearTimeout(_paneBadgeTouchTimer);
+  _paneBadgeTouchTimer = setTimeout(() => {
+    _paneBadgeLongPressed = true;
+    if (navigator.vibrate) {
+      try { navigator.vibrate(40); } catch (ex) {}
+    }
+    openPaneSettingsMenu(null, paneIndex);
+  }, 450);
+}
+
+function handlePaneBadgeTouchMove(e, paneIndex) {
+  if (!_paneBadgeTouchTimer) return;
+  if (!e.touches || e.touches.length === 0) return;
+  const dx = Math.abs(e.touches[0].clientX - _paneBadgeTouchStartX);
+  const dy = Math.abs(e.touches[0].clientY - _paneBadgeTouchStartY);
+  if (dx > 10 || dy > 10) {
+    clearTimeout(_paneBadgeTouchTimer);
+    _paneBadgeTouchTimer = null;
+  }
+}
+
+function handlePaneBadgeTouchEnd(e, paneIndex) {
+  clearTimeout(_paneBadgeTouchTimer);
+  _paneBadgeTouchTimer = null;
+  if (_paneBadgeLongPressed) {
+    if (e && e.cancelable) e.preventDefault();
+    if (e) e.stopPropagation();
+    setTimeout(() => { _paneBadgeLongPressed = false; }, 150);
+  }
+}
+
+function handlePaneBadgeTouchCancel(e, paneIndex) {
+  clearTimeout(_paneBadgeTouchTimer);
+  _paneBadgeTouchTimer = null;
+  _paneBadgeLongPressed = false;
+}
+
+function updatePhoneTabletMaxPanes(val) {
+  const num = parseInt(val, 10) || 2;
+  App.phoneTabletMaxPanes = num;
+  localStorage.setItem('cd_phone_tablet_max_panes', num.toString());
+  queueSaveUserPreferencesToServer();
+  renderAllPanes();
+  showToast(`Phone/Tablet maximum panels set to ${num}`, 'info');
+}
+
 function handlePaneBadgeClick(e, paneIndex) {
   if (e) {
     e.preventDefault();
     e.stopPropagation();
   }
+  if (_paneBadgeLongPressed) {
+    _paneBadgeLongPressed = false;
+    return;
+  }
   // On phone / narrow mobile viewports (<= 600px), tapping the pane badge cycles to the other active pane
   if (window.innerWidth <= 600) {
-    const visibleCount = Math.min(
-      App.panes.length,
-      App.layout === '1' ? 1 : (App.layout === '4' ? 4 : (App.layout.startsWith('3') ? 3 : 2))
-    );
+    const visibleCount = getVisiblePaneCount();
     if (visibleCount > 1) {
       const nextPane = (paneIndex + 1) % visibleCount;
       setActivePane(nextPane);
@@ -14307,7 +14639,42 @@ function openPaneSettingsMenu(e, paneIndex) {
         </div>
       </div>
 
-      <!-- 3. Global Border Width & Ring Settings -->
+      ${visibleCount > 1 ? `
+        <!-- 3. Rearrange Panel Position -->
+        <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+          <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <span>Rearrange Position</span>
+            <span style="font-size: 9px; color: var(--text-dim);">Drag badge or click</span>
+          </div>
+          <div style="display: flex; gap: 6px; margin-bottom: ${visibleCount > 2 ? '6px' : '0'};">
+            <button type="button" class="btn btn-xs btn-outline" style="flex: 1; padding: 4px 6px; font-size: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; ${paneIndex === 0 ? 'opacity: 0.4; cursor: not-allowed;' : ''}"
+                    ${paneIndex === 0 ? 'disabled' : `onclick="swapPanes(${paneIndex}, ${paneIndex - 1}); openPaneSettingsMenu(null, ${paneIndex - 1});"`}>
+              <i data-lucide="arrow-left" style="width: 12px; height: 12px;"></i> Move Left
+            </button>
+            <button type="button" class="btn btn-xs btn-outline" style="flex: 1; padding: 4px 6px; font-size: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; ${paneIndex >= visibleCount - 1 ? 'opacity: 0.4; cursor: not-allowed;' : ''}"
+                    ${paneIndex >= visibleCount - 1 ? 'disabled' : `onclick="swapPanes(${paneIndex}, ${paneIndex + 1}); openPaneSettingsMenu(null, ${paneIndex + 1});"`}>
+              Move Right <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
+            </button>
+          </div>
+          ${visibleCount > 2 ? `
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <span style="font-size: 9.5px; color: var(--text-dim);">Swap with:</span>
+              <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                ${Array.from({ length: visibleCount }).map((_, pIdx) => {
+                  if (pIdx === paneIndex) return '';
+                  return `
+                    <button type="button" class="btn btn-xs btn-outline" style="padding: 2px 6px; font-size: 9.5px;" onclick="swapPanes(${paneIndex}, ${pIdx}); openPaneSettingsMenu(null, ${pIdx});">
+                      Pane ${pIdx + 1}
+                    </button>
+                  `;
+                }).join('')}
+              </div>
+            </div>
+          ` : ''}
+        </div>
+      ` : ''}
+
+      <!-- 4. Global Border Width & Ring Settings -->
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Border Width</div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
@@ -14324,7 +14691,7 @@ function openPaneSettingsMenu(e, paneIndex) {
         </div>
       </div>
 
-      <!-- 4. Default Start Directory -->
+      <!-- 5. Default Start Directory -->
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Start Directory</div>
         <div style="display: flex; gap: 6px; align-items: center;">
@@ -14333,7 +14700,7 @@ function openPaneSettingsMenu(e, paneIndex) {
         </div>
       </div>
 
-      <!-- 5. Cloud Workspace Persistence (Web/Server Mode) -->
+      <!-- 6. Cloud Workspace Persistence (Web/Server Mode) -->
       <div class="web-only-setting server-only-setting" style="border-top: 1px solid var(--border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 10px; color: var(--text-dim);"><i data-lucide="cloud" style="width: 11px; height: 11px; vertical-align: -1px;"></i> Cross-Device Sync</span>
         <button type="button" class="btn btn-xs btn-outline" style="font-size: 9.5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;" onclick="saveCurrentWorkspaceAsDefault(); openPaneSettingsMenu(null, ${paneIndex});">
@@ -20788,37 +21155,85 @@ function copyActionOutput() {
 // ---------------- TOUCH & MOBILE GESTURE ENGINE ----------------
 let swipeStartX = 0;
 let swipeStartY = 0;
+let swipeStartTime = 0;
+let swipeTriggered = false;
 
 function setupTouchGestures() {
-  const container = document.getElementById('panes-grid') || document.body;
-  if (!container) return;
-
-  container.addEventListener('touchstart', (e) => {
-    if (!e.touches || e.touches.length === 0) return;
+  function handleTouchStart(e) {
+    if (!e.touches || e.touches.length !== 1) return;
+    if (e.target.closest('.modal, .floating-window, .notedog-window, .calc-window, input, textarea, select, .pane-col-config-btn, .col-resizer, .pane-tree-resizer, .dropdown-menu, .context-menu')) {
+      swipeStartX = 0;
+      swipeStartY = 0;
+      swipeStartTime = 0;
+      swipeTriggered = true;
+      return;
+    }
     swipeStartX = e.touches[0].clientX;
     swipeStartY = e.touches[0].clientY;
-  }, { passive: true });
+    swipeStartTime = Date.now();
+    swipeTriggered = false;
+  }
 
-  container.addEventListener('touchend', (e) => {
-    if (window.innerWidth > 600) return; // In dual-pane mode (>= 600px, e.g. Foldables/Tablets) both panes are already visible side-by-side
-    if (!e.changedTouches || e.changedTouches.length === 0) return;
-    const dx = e.changedTouches[0].clientX - swipeStartX;
-    const dy = e.changedTouches[0].clientY - swipeStartY;
+  function handleTouchMove(e) {
+    if (window.innerWidth > 600) return; // Phone only
+    if (!e.touches || e.touches.length !== 1 || !swipeStartTime || swipeTriggered) return;
 
-    if (Math.abs(dx) > 45 && Math.abs(dy) < 70) {
+    const dx = e.touches[0].clientX - swipeStartX;
+    const dy = e.touches[0].clientY - swipeStartY;
+
+    // Trigger immediate pane slide as soon as finger moves > 38px horizontally
+    if (Math.abs(dx) > 38 && Math.abs(dx) > Math.abs(dy) * 1.15) {
       const visible = getVisiblePaneCount();
       if (visible <= 1) return;
+
+      swipeTriggered = true;
       if (dx < 0) {
-        // Swipe Left -> Next Pane
+        // Slide Left -> Next Pane
         const nextPane = (App.activePaneIndex + 1) % visible;
         setActivePane(nextPane);
+        if (navigator.vibrate) navigator.vibrate(25);
       } else {
-        // Swipe Right -> Prev Pane
+        // Slide Right -> Prev Pane
         const prevPane = (App.activePaneIndex - 1 + visible) % visible;
         setActivePane(prevPane);
+        if (navigator.vibrate) navigator.vibrate(25);
       }
     }
-  }, { passive: true });
+  }
+
+  function handleTouchEnd(e) {
+    if (window.innerWidth > 600) return;
+    if (!swipeTriggered && swipeStartTime && e.changedTouches && e.changedTouches.length > 0) {
+      if (Date.now() - swipeStartTime <= 800) {
+        const dx = e.changedTouches[0].clientX - swipeStartX;
+        const dy = e.changedTouches[0].clientY - swipeStartY;
+        if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy) * 1.1) {
+          const visible = getVisiblePaneCount();
+          if (visible > 1) {
+            swipeTriggered = true;
+            if (dx < 0) {
+              const nextPane = (App.activePaneIndex + 1) % visible;
+              setActivePane(nextPane);
+              if (navigator.vibrate) navigator.vibrate(25);
+            } else {
+              const prevPane = (App.activePaneIndex - 1 + visible) % visible;
+              setActivePane(prevPane);
+              if (navigator.vibrate) navigator.vibrate(25);
+            }
+          }
+        }
+      }
+    }
+    swipeStartX = 0;
+    swipeStartY = 0;
+    swipeStartTime = 0;
+    swipeTriggered = false;
+  }
+
+  window.addEventListener('touchstart', handleTouchStart, { passive: true });
+  window.addEventListener('touchmove', handleTouchMove, { passive: true });
+  window.addEventListener('touchend', handleTouchEnd, { passive: true });
+  window.addEventListener('touchcancel', handleTouchEnd, { passive: true });
 }
 
 // ---------------- SYNCTHING INTEGRATION ----------------
@@ -21153,16 +21568,87 @@ function updateDynamicViewportHeight() {
     document.documentElement.style.setProperty('--mobile-bottom-offset', '0px');
   }
 }
-window.addEventListener('resize', updateDynamicViewportHeight);
+let _lastViewportType = getViewportType();
+let _lastVisiblePaneCount = getVisiblePaneCount();
+let _responsiveDebounceTimer = null;
+
+function checkResponsiveViewportLayout(force = false) {
+  const currentVp = getViewportType();
+  const targetLayout = getLayoutForViewport(currentVp);
+  const targetCount = getVisiblePaneCount();
+  const container = document.getElementById('panes-grid');
+  const renderedPanes = container ? container.querySelectorAll(':scope > .pane') : [];
+  const renderedCount = renderedPanes.length;
+
+  let needsReRender = force === true;
+
+  // 1. Viewport category transition (phone <-> tablet <-> pc)
+  if (_lastViewportType !== currentVp) {
+    needsReRender = true;
+    if (App.layout !== targetLayout) {
+      App.layout = targetLayout;
+      updateActiveLayoutUI(targetLayout);
+    }
+  }
+
+  // 2. Tablet / Phone layout enforcement: ensure App.layout matches target layout
+  if ((currentVp === 'phone' || currentVp === 'tablet') && App.layout !== targetLayout) {
+    App.layout = targetLayout;
+    updateActiveLayoutUI(targetLayout);
+    needsReRender = true;
+  }
+
+  // 3. Rendered pane count mismatch in DOM
+  if (renderedCount > 0 && renderedCount !== targetCount) {
+    needsReRender = true;
+  }
+
+  // 4. Container class mismatch
+  if (container && !container.classList.contains(App.layout)) {
+    needsReRender = true;
+  }
+
+  _lastViewportType = currentVp;
+  _lastVisiblePaneCount = targetCount;
+
+  if (needsReRender && container) {
+    const visibleCount = getVisiblePaneCount();
+    if (App.activePaneIndex >= visibleCount) {
+      App.activePaneIndex = Math.max(0, visibleCount - 1);
+    }
+    renderAllPanes();
+    applyAllColumnWidths();
+  }
+}
+
+function triggerResponsiveViewportUpdate() {
+  updateDynamicViewportHeight();
+  checkResponsiveViewportLayout();
+  if (_responsiveDebounceTimer) clearTimeout(_responsiveDebounceTimer);
+  _responsiveDebounceTimer = setTimeout(() => {
+    updateDynamicViewportHeight();
+    checkResponsiveViewportLayout();
+  }, 120);
+}
+
+window.addEventListener('resize', triggerResponsiveViewportUpdate);
 window.addEventListener('orientationchange', () => {
-  setTimeout(updateDynamicViewportHeight, 100);
+  triggerResponsiveViewportUpdate();
+  setTimeout(triggerResponsiveViewportUpdate, 50);
+  setTimeout(triggerResponsiveViewportUpdate, 250);
 });
 if (window.visualViewport) {
-  window.visualViewport.addEventListener('resize', updateDynamicViewportHeight);
+  window.visualViewport.addEventListener('resize', triggerResponsiveViewportUpdate);
   window.visualViewport.addEventListener('scroll', updateDynamicViewportHeight);
 }
-document.addEventListener('DOMContentLoaded', updateDynamicViewportHeight);
-window.addEventListener('load', updateDynamicViewportHeight);
+document.addEventListener('DOMContentLoaded', () => {
+  updateDynamicViewportHeight();
+  checkResponsiveViewportLayout(true);
+});
+window.addEventListener('load', () => {
+  updateDynamicViewportHeight();
+  checkResponsiveViewportLayout(true);
+});
 
 // ---------------- GLOBAL SPOTLIGHT QUICK-SWITCHER ----------------
 let spotlightCurrentCat = 'all';
@@ -23322,7 +23808,7 @@ async function renderFolderTreeRoot() {
     if (!roots || roots.length === 0) {
       const userHome = getUserDefaultHomeDir();
       const fallbackRoot = (userHome && userHome !== '/')
-        ? { id: 'home', name: `Personal Home (${userHome})`, path: userHome, is_dir: true, is_home: true }
+        ? { id: 'home', name: 'Home', path: userHome, is_dir: true, is_home: true }
         : { id: 'root', name: 'Root Filesystem (/)', path: '/', is_dir: true };
       buildTreeNode(rootContainer, fallbackRoot, 0);
       return;
