@@ -4215,6 +4215,39 @@ async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Respon
         "no-cache"
     };
 
+    // 1. In development / when ./frontend directory exists on disk, prefer live disk reading for instant browser refresh
+    let local_file_path = Path::new("frontend").join(file_path);
+    if local_file_path.is_file() {
+        if let Ok(bytes) = fs::read(&local_file_path) {
+            use sha2::{Digest, Sha256};
+            let sha = Sha256::digest(&bytes);
+            let etag = format!("\"{}\"", hex::encode(sha));
+            if let Some(if_none_match) = headers.get(header::IF_NONE_MATCH) {
+                if let Ok(val) = if_none_match.to_str() {
+                    if val.trim() == etag {
+                        return Response::builder()
+                            .status(StatusCode::NOT_MODIFIED)
+                            .header(header::ETAG, etag)
+                            .header(header::CACHE_CONTROL, cache_control)
+                            .body(Body::empty())
+                            .unwrap_or_else(|_| StatusCode::NOT_MODIFIED.into_response());
+                    }
+                }
+            }
+
+            let mime = mime_guess::from_path(&local_file_path).first_or_octet_stream().to_string();
+            let data_len = bytes.len();
+            return Response::builder()
+                .header(header::CONTENT_TYPE, mime)
+                .header(header::CONTENT_LENGTH, data_len.to_string())
+                .header(header::ETAG, etag)
+                .header(header::CACHE_CONTROL, cache_control)
+                .body(Body::from(bytes))
+                .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Asset load error").into_response());
+        }
+    }
+
+    // 2. Fall back to embedded RustEmbed static assets (for standalone/installed binaries)
     match Asset::get(file_path) {
         Some(content) => {
             let etag = format!("\"{}\"", hex::encode(content.metadata.sha256_hash()));
@@ -4242,6 +4275,36 @@ async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Respon
                 .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Asset load error").into_response())
         }
         None => {
+            let local_index = Path::new("frontend").join("index.html");
+            if local_index.is_file() {
+                if let Ok(bytes) = fs::read(&local_index) {
+                    use sha2::{Digest, Sha256};
+                    let sha = Sha256::digest(&bytes);
+                    let etag = format!("\"{}\"", hex::encode(sha));
+                    if let Some(if_none_match) = headers.get(header::IF_NONE_MATCH) {
+                        if let Ok(val) = if_none_match.to_str() {
+                            if val.trim() == etag {
+                                return Response::builder()
+                                    .status(StatusCode::NOT_MODIFIED)
+                                    .header(header::ETAG, etag)
+                                    .header(header::CACHE_CONTROL, "no-cache")
+                                    .body(Body::empty())
+                                    .unwrap_or_else(|_| StatusCode::NOT_MODIFIED.into_response());
+                            }
+                        }
+                    }
+
+                    let data_len = bytes.len();
+                    return Response::builder()
+                        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+                        .header(header::CONTENT_LENGTH, data_len.to_string())
+                        .header(header::ETAG, etag)
+                        .header(header::CACHE_CONTROL, "no-cache")
+                        .body(Body::from(bytes))
+                        .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Index load error").into_response());
+                }
+            }
+
             if let Some(index) = Asset::get("index.html") {
                 let etag = format!("\"{}\"", hex::encode(index.metadata.sha256_hash()));
                 if let Some(if_none_match) = headers.get(header::IF_NONE_MATCH) {
