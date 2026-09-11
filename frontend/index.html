@@ -90,10 +90,27 @@
     <div class="logo-area" style="display: flex; align-items: center; gap: 8px;">
       <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" style="height: 22px; width: auto; object-fit: contain; vertical-align: middle;">
       <span class="app-logo-text" style="font-weight: 700;">Brum</span>
-      <span class="header-hostname-badge" id="header-hostname-badge" onclick="copyHostnameBadge()" title="Host Environment (Click to copy)" style="display: none;">
-        <i data-lucide="server"></i>
-        <span id="header-hostname-text">localhost</span>
-      </span>
+      <div class="fleet-switcher-wrapper" id="fleet-switcher-wrapper">
+        <span class="header-hostname-badge" id="header-hostname-badge" onclick="toggleFleetSwitcherDropdown(event)" title="Commander Fleet (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
+          <i data-lucide="server" id="header-hostname-icon"></i>
+          <span id="header-hostname-text">localhost</span>
+          <i data-lucide="chevron-down" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.7;"></i>
+        </span>
+        <!-- Dropdown Menu -->
+        <div class="fleet-switcher-dropdown" id="fleet-switcher-dropdown" style="display: none;" onclick="event.stopPropagation()">
+          <div class="fleet-dropdown-header">
+            <span class="fleet-dropdown-title"><i data-lucide="network" style="width: 13px; height: 13px; color: var(--accent);"></i> Commander Fleet</span>
+            <span class="fleet-dropdown-status" id="fleet-active-node-tag">Local Node</span>
+          </div>
+          <div class="fleet-dropdown-nodes" id="fleet-dropdown-nodes-list">
+            <!-- Dynamic Fleet Nodes rendered here -->
+          </div>
+          <div class="fleet-dropdown-actions">
+            <button type="button" class="fleet-dropdown-action-btn" onclick="openFleetAddModal()"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Add Node</button>
+            <button type="button" class="fleet-dropdown-action-btn" onclick="openFleetManagerModal()"><i data-lucide="settings" style="width: 12px; height: 12px;"></i> Manage Fleet</button>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Right-Aligned Tools & Controls (Desktop & Mobile) -->
@@ -138,6 +155,7 @@
           <div class="dropdown-item" onclick="openFloatingEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Edit (F4)</div>
           <div class="dropdown-item" onclick="triggerDiff()"><img src="assets/diff.webp" alt="Compare" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Compare (F9)</div>
           <div class="dropdown-item" onclick="openSearchModal()"><img src="assets/search.webp" alt="Search" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Search (Ctrl+F)</div>
+          <div class="dropdown-item" onclick="openFleetManagerModal()"><i data-lucide="network" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Fleet</div>
           <div class="dropdown-item" onclick="openSharesManager()"><img src="assets/sharemgr.webp" alt="Share Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Share Manager</div>
           <div class="dropdown-item" onclick="openSyncModal()"><img src="assets/sync.webp" alt="Backup" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Backup</div>
           <div class="dropdown-item" onclick="openDiskUsageModal()"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Stats</div>
@@ -4576,6 +4594,133 @@
           <i data-lucide="info" style="width: 13px; height: 13px;"></i> Click any folder to drill down • Click "Open in Pane" to jump in Brum
         </span>
         <button class="btn btn-accent btn-sm" onclick="closeModal('disk-usage-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Commander Fleet Manager Modal -->
+  <div class="modal-overlay" id="fleet-manager-modal" style="z-index: 2870;">
+    <div class="modal-box" style="width: 840px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <!-- Modal Header (42px standard) -->
+      <div class="modal-header" style="min-height: 42px; padding: 0 14px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: grab;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="network" style="width: 16px; height: 16px; color: var(--accent);"></i>
+          <span style="font-weight: 700; font-size: 13.5px; letter-spacing: 0.2px;">Commander Fleet Manager</span>
+          <span class="user-role-badge" id="fleet-node-count-badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent); font-size: 10.5px;">1 Node</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button type="button" class="btn btn-icon btn-sm" onclick="pingAllFleetNodes()" title="Ping All Nodes (Refresh Health)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
+          <button type="button" class="btn btn-icon btn-sm" onclick="resetFleetNodeForm()" title="New Node Profile" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="plus" style="width: 14px; height: 14px;"></i></button>
+          <button type="button" class="btn btn-icon btn-sm modal-close-btn" onclick="closeModal('fleet-manager-modal')" title="Close (Esc)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+        </div>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body" style="padding: 14px; overflow-y: auto;">
+        <div class="fleet-manager-grid">
+          <!-- Left Column: Nodes List -->
+          <div class="fleet-nodes-sidebar">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Registered Nodes</span>
+              <button type="button" class="btn btn-xs btn-outline" onclick="pingAllFleetNodes()" style="height: 22px; font-size: 10.5px; padding: 0 6px;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i> Ping All</button>
+            </div>
+            
+            <div class="fleet-nodes-list" id="fleet-manager-nodes-list">
+              <!-- Dynamically rendered fleet cards -->
+            </div>
+          </div>
+
+          <!-- Right Column: Node Inspector & Editor -->
+          <div class="fleet-node-editor" style="display: flex; flex-direction: column; gap: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="server-cog" style="width: 15px; height: 15px; color: var(--accent);"></i>
+                <span id="fleet-editor-title">Add New Fleet Node</span>
+              </h4>
+              <span id="fleet-editor-badge" class="fleet-tag-pill">New Node</span>
+            </div>
+
+            <input type="hidden" id="fleet-input-id" value="">
+
+            <div class="settings-grid-2col" style="gap: 10px;">
+              <div class="settings-field">
+                <label class="settings-field-label" for="fleet-input-name">Node Friendly Name:</label>
+                <input type="text" id="fleet-input-name" class="settings-input" placeholder="e.g. Proxmox Goshawk (LXC 104)">
+              </div>
+
+              <div class="settings-field">
+                <label class="settings-field-label" for="fleet-input-url">Endpoint URL (HTTP/HTTPS):</label>
+                <input type="text" id="fleet-input-url" class="settings-input" placeholder="e.g. https://goshawk.vpn:3140 or http://100.64.0.5:3140">
+              </div>
+            </div>
+
+            <div class="settings-field">
+              <label class="settings-field-label" for="fleet-input-token">Auth Token / API Secret:</label>
+              <div style="display: flex; gap: 6px;">
+                <input type="password" id="fleet-input-token" class="settings-input" placeholder="Bearer JWT token or service secret for remote node" style="flex: 1; font-family: var(--font-mono);">
+                <button type="button" class="btn btn-sm btn-outline" onclick="toggleFleetTokenVisibility()" title="Toggle Token Visibility" style="width: 32px; padding: 0;"><i data-lucide="eye" id="fleet-token-eye-icon" style="width: 13px; height: 13px;"></i></button>
+              </div>
+              <div class="settings-field-hint">Leave blank for unauthenticated or local node profiles.</div>
+            </div>
+
+            <div class="settings-grid-2col" style="gap: 10px;">
+              <div class="settings-field">
+                <label class="settings-field-label">Node Accent Color:</label>
+                <div class="fleet-color-radio-group" id="fleet-color-swatches">
+                  <div class="fleet-color-swatch active" data-color="amber" style="background: #f59e0b;" onclick="selectFleetColor('amber')" title="Amber"></div>
+                  <div class="fleet-color-swatch" data-color="emerald" style="background: #10b981;" onclick="selectFleetColor('emerald')" title="Emerald"></div>
+                  <div class="fleet-color-swatch" data-color="sky" style="background: #0284c7;" onclick="selectFleetColor('sky')" title="Sky Blue"></div>
+                  <div class="fleet-color-swatch" data-color="purple" style="background: #a855f7;" onclick="selectFleetColor('purple')" title="Purple"></div>
+                  <div class="fleet-color-swatch" data-color="rose" style="background: #f43f5e;" onclick="selectFleetColor('rose')" title="Rose"></div>
+                  <div class="fleet-color-swatch" data-color="cyan" style="background: #06b6d4;" onclick="selectFleetColor('cyan')" title="Cyan"></div>
+                  <div class="fleet-color-swatch" data-color="slate" style="background: #64748b;" onclick="selectFleetColor('slate')" title="Slate"></div>
+                </div>
+                <input type="hidden" id="fleet-input-color" value="amber">
+              </div>
+
+              <div class="settings-field">
+                <label class="settings-field-label" for="fleet-input-tags">Tags (comma-separated):</label>
+                <input type="text" id="fleet-input-tags" class="settings-input" placeholder="e.g. nas, proxmox, cloud, prod">
+              </div>
+            </div>
+
+            <!-- Live Test Connection Box -->
+            <div class="fleet-test-box" id="fleet-test-container">
+              <div class="fleet-test-header">
+                <span style="font-size: 11.5px; font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 5px;">
+                  <i data-lucide="activity" style="width: 13px; height: 13px; color: var(--accent);"></i> Connection Diagnostics
+                </span>
+                <button type="button" class="btn btn-xs btn-outline" id="btn-fleet-test" onclick="testFleetNodeConnection()" style="height: 24px; font-size: 11px; padding: 0 8px;">
+                  <i data-lucide="zap" style="width: 11px; height: 11px;"></i> Test Connection
+                </button>
+              </div>
+              <div class="fleet-test-results" id="fleet-test-results">
+                <span>Click "Test Connection" to query node health, version, and latency.</span>
+              </div>
+            </div>
+
+            <!-- Editor Action Buttons -->
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;">
+              <button type="button" class="btn btn-sm btn-outline" onclick="resetFleetNodeForm()">Clear Form</button>
+              <button type="button" class="btn btn-sm btn-accent" onclick="saveFleetNodeProfile()" style="display: inline-flex; align-items: center; gap: 5px;">
+                <i data-lucide="check" style="width: 13px; height: 13px;"></i> Save Node Profile
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="modal-footer" style="padding: 8px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;">
+          <i data-lucide="shield-check" style="width: 13px; height: 13px; color: #10b981;"></i> Zero-Trust Fleet Control • HTTPS/WSS & Mesh Overlays (Tailscale, NetBird, WireGuard)
+        </span>
+        <div style="display: flex; gap: 6px;">
+          <button class="btn btn-sm btn-outline" onclick="exportFleetNodesJson()" title="Export Fleet nodes to JSON">Export JSON</button>
+          <button class="btn btn-sm btn-outline" onclick="triggerImportFleetNodes()" title="Import Fleet nodes from JSON">Import JSON</button>
+          <input type="file" id="fleet-import-file" accept=".json" style="display: none;" onchange="handleFleetNodesImport(event)">
+          <button class="btn btn-accent btn-sm" onclick="closeModal('fleet-manager-modal')">Close</button>
+        </div>
       </div>
     </div>
   </div>

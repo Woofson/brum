@@ -1074,7 +1074,7 @@ function renderHostnameBadgeElement(badgeEl, textEl, cfg) {
   }
 
   // Update Icon
-  let iconEl = badgeEl.querySelector('i, svg');
+  let iconEl = badgeEl.querySelector('#header-hostname-icon') || badgeEl.querySelector('i:first-child, svg:first-child');
   if (cfg.icon === 'none') {
     if (iconEl) iconEl.style.display = 'none';
   } else {
@@ -1085,6 +1085,9 @@ function renderHostnameBadgeElement(badgeEl, textEl, cfg) {
     }
     iconEl.style.display = 'inline-block';
     iconEl.setAttribute('data-lucide', cfg.icon);
+    if (badgeEl.id === 'header-hostname-badge') {
+      iconEl.id = 'header-hostname-icon';
+    }
   }
 
   if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -10084,6 +10087,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'editor', label: 'Edit', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
   { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal()', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
+  { id: 'fleet', label: 'Fleet', icon: 'network', iconColor: 'var(--accent)', action: 'openFleetManagerModal()', desc: 'Commander Fleet: Multi-host node switcher & cluster diagnostics', visible: true },
   { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager()', desc: 'Manage public share links and guest dropboxes', visible: true },
   { id: 'sync', label: 'Backup', icon: 'assets/sync.webp', action: 'openSyncModal()', desc: 'Two-way sync, mirrors, snapshot archives & cron (SyncToy / Bvckup 2)', visible: true },
   { id: 'du', label: 'Stats', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
@@ -22329,6 +22333,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'edit', title: 'Edit', sub: 'Open floating Edit code & text editor (F4)', icon: 'assets/edit.webp', cat: 'actions', action: () => openFloatingEditor() },
   { id: 'diff', title: 'Compare', sub: 'Compare files or directories side-by-side (F9)', icon: 'assets/diff.webp', cat: 'actions', action: () => triggerDiff() },
   { id: 'search', title: 'Search', sub: 'Search files and folders recursively (Ctrl+F)', icon: 'assets/search.webp', cat: 'actions', action: () => openSearchModal() },
+  { id: 'fleet', title: 'Commander Fleet', sub: 'Multi-host node switcher, remote cluster manager & node diagnostics', icon: 'network', cat: 'actions', action: () => openFleetManagerModal() },
   { id: 'shares', title: 'Share Manager', sub: 'Manage public share links and guest upload dropboxes', icon: 'assets/sharemgr.webp', cat: 'actions', action: () => openSharesManager() },
   { id: 'sync', title: 'Backup', sub: 'Delta Backup & Sync Studio: Two-Way Sync, Mirror, Contribute & Versioning (SyncToy / Bvckup 2)', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
   { id: 'du', title: 'Stats', sub: 'Disk Usage & Storage Treemap Analyzer: inspect space consumption', icon: 'assets/amber-piechart.webp', cat: 'actions', action: () => openDiskUsageModal() },
@@ -22505,6 +22510,20 @@ function buildSpotlightItems() {
           cat: 'action',
           badge: 'Theme',
           handler: () => applyTheme(t.id)
+        });
+      });
+    }
+
+    if (typeof getAllFleetNodes === 'function') {
+      const fleetNodes = getAllFleetNodes();
+      fleetNodes.forEach(fn => {
+        pool.push({
+          title: `Fleet Node: ${fn.name}`,
+          sub: `Switch to ${fn.endpoint_url} • ${fn.status || 'node'} ${fn.latency_ms ? '(' + fn.latency_ms + 'ms)' : ''}`,
+          icon: 'network',
+          cat: 'action',
+          badge: 'Fleet',
+          handler: () => switchToFleetNode(fn.id)
         });
       });
     }
@@ -28255,5 +28274,804 @@ function mountDockedSoundDog(paneIndex) {
   mainWin.style.display = 'flex';
   updateSoundDogDockedHUD();
 }
+
+// ============================================================================
+// 🐶 COMMANDER FLEET: MULTI-HOST NODE SWITCHER & CLUSTER DIAGNOSTICS (#24)
+// ============================================================================
+
+const FLEET_STORAGE_KEY = 'cd_fleet_nodes';
+const FLEET_ACTIVE_KEY = 'cd_active_fleet_node_id';
+
+function loadFleetNodes() {
+  try {
+    const raw = localStorage.getItem(FLEET_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (e) {
+    console.error('Failed to load fleet nodes from storage:', e);
+    return [];
+  }
+}
+
+function saveFleetNodes(nodes) {
+  try {
+    localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(nodes || []));
+  } catch (e) {
+    console.error('Failed to save fleet nodes to storage:', e);
+  }
+}
+
+function getAllFleetNodes() {
+  return loadFleetNodes();
+}
+
+function getFleetNodeById(id) {
+  if (!id) return null;
+  const nodes = getAllFleetNodes();
+  return nodes.find(n => n.id === id) || null;
+}
+
+function getActiveFleetNodeId() {
+  return localStorage.getItem(FLEET_ACTIVE_KEY) || null;
+}
+
+function getActiveFleetNode() {
+  const activeId = getActiveFleetNodeId();
+  if (!activeId) return null;
+  return getFleetNodeById(activeId);
+}
+
+// Ping a single node's /api/health endpoint
+async function pingFleetNode(nodeId) {
+  let nodes = loadFleetNodes();
+  let node = nodes.find(n => n.id === nodeId);
+  if (!node && nodeId !== 'local') return null;
+
+  const endpoint = nodeId === 'local'
+    ? window.location.origin
+    : (node.endpoint_url || '').trim().replace(/\/+$/, '');
+
+  if (!endpoint) return null;
+
+  const url = `${endpoint}/api/health`;
+  const headers = {};
+  if (node && node.auth_token && node.auth_token.trim()) {
+    headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
+  } else if (nodeId === 'local' && App.token) {
+    headers['Authorization'] = `Bearer ${App.token}`;
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const t0 = performance.now();
+
+  try {
+    const resp = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timeoutId);
+    const latency = Math.round(performance.now() - t0);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (node) {
+        node.status = 'online';
+        node.latency_ms = latency;
+        node.version = data.version || null;
+        node.hostname = data.hostname || data.node_name || null;
+        node.os = data.os || null;
+        node.arch = data.arch || null;
+        node.last_seen = Date.now();
+        saveFleetNodes(nodes);
+      }
+      return { status: 'online', latency_ms: latency, data, node };
+    } else if (resp.status === 401 || resp.status === 403) {
+      if (node) {
+        node.status = 'unauthorized';
+        node.latency_ms = latency;
+        node.last_seen = Date.now();
+        saveFleetNodes(nodes);
+      }
+      return { status: 'unauthorized', latency_ms: latency, node };
+    } else {
+      if (node) {
+        node.status = 'offline';
+        node.latency_ms = null;
+        saveFleetNodes(nodes);
+      }
+      return { status: 'offline', latency_ms: null, node };
+    }
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (node) {
+      node.status = 'offline';
+      node.latency_ms = null;
+      saveFleetNodes(nodes);
+    }
+    return { status: 'offline', latency_ms: null, error: err.message, node };
+  } finally {
+    renderFleetSwitcherDropdown();
+    const managerModal = document.getElementById('fleet-manager-modal');
+    if (managerModal && managerModal.classList.contains('active')) {
+      renderFleetManagerList();
+    }
+  }
+}
+
+// Ping all registered fleet nodes concurrently
+async function pingAllFleetNodes() {
+  const nodes = loadFleetNodes();
+  const promises = nodes.map(n => pingFleetNode(n.id));
+  await Promise.allSettled(promises);
+  renderFleetSwitcherDropdown();
+  const managerModal = document.getElementById('fleet-manager-modal');
+  if (managerModal && managerModal.classList.contains('active')) {
+    renderFleetManagerList();
+  }
+}
+
+// Switch active node profile or navigate to node endpoint
+function switchToFleetNode(nodeId) {
+  if (!nodeId || nodeId === 'local') {
+    localStorage.removeItem(FLEET_ACTIVE_KEY);
+    showToast('Switched active profile to Local Host', 'success');
+    closeFleetSwitcherDropdown();
+    renderFleetSwitcherDropdown();
+    updateHostnameBadge();
+    return;
+  }
+
+  const node = getFleetNodeById(nodeId);
+  if (!node) {
+    showToast('Fleet node not found', 'error');
+    return;
+  }
+
+  localStorage.setItem(FLEET_ACTIVE_KEY, nodeId);
+  showToast(`Switched active fleet profile to ${node.name}`, 'success');
+  closeFleetSwitcherDropdown();
+  renderFleetSwitcherDropdown();
+
+  // If remote node URL is distinct from current origin, navigate to host
+  if (node.endpoint_url && !node.endpoint_url.startsWith(window.location.origin)) {
+    const cleanUrl = node.endpoint_url.replace(/\/+$/, '');
+    let target = cleanUrl;
+    if (node.auth_token && node.auth_token.trim()) {
+      target += `/#token=${encodeURIComponent(node.auth_token.trim())}`;
+    }
+    setTimeout(() => {
+      window.location.href = target;
+    }, 350);
+  }
+}
+
+// Dropdown UI
+function toggleFleetSwitcherDropdown(event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
+  }
+  const dropdown = document.getElementById('fleet-switcher-dropdown');
+  if (!dropdown) return;
+  const isShown = dropdown.style.display === 'block';
+  if (isShown) {
+    closeFleetSwitcherDropdown();
+  } else {
+    renderFleetSwitcherDropdown();
+    dropdown.style.display = 'block';
+    try {
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons({ root: dropdown });
+      }
+    } catch (_) {}
+    pingAllFleetNodes();
+  }
+}
+
+function closeFleetSwitcherDropdown() {
+  const dropdown = document.getElementById('fleet-switcher-dropdown');
+  if (dropdown) dropdown.style.display = 'none';
+}
+
+function renderFleetSwitcherDropdown() {
+  const container = document.getElementById('fleet-dropdown-nodes-list');
+  const activeTag = document.getElementById('fleet-active-node-tag');
+  if (!container) return;
+
+  const activeId = getActiveFleetNodeId();
+  const nodes = getAllFleetNodes();
+  const activeNode = activeId ? nodes.find(n => n.id === activeId) : null;
+
+  if (activeTag) {
+    activeTag.textContent = activeNode ? activeNode.name : 'Local Host';
+  }
+
+  let html = '';
+
+  // 1. Local Node
+  const isLocalActive = !activeId || activeId === 'local';
+  html += `
+    <div class="fleet-node-item ${isLocalActive ? 'active' : ''}" onclick="switchToFleetNode('local')">
+      <div class="fleet-node-left">
+        <i data-lucide="server" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
+        <div class="fleet-node-info">
+          <div class="fleet-node-name">Local Host ${isLocalActive ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}</div>
+          <div class="fleet-node-url">${escapeHtml(window.location.host || 'localhost')}</div>
+        </div>
+      </div>
+      <div class="fleet-node-right">
+        <span class="fleet-ping-dot green" title="Local node"></span>
+        <span class="fleet-node-latency">0ms</span>
+      </div>
+    </div>
+  `;
+
+  // 2. Registered Nodes
+  nodes.forEach(n => {
+    const isAct = n.id === activeId;
+    let dotClass = 'gray';
+    let latencyText = '—';
+    if (n.status === 'online') {
+      dotClass = (n.latency_ms && n.latency_ms < 120) ? 'green' : (n.latency_ms && n.latency_ms < 300 ? 'amber' : 'green');
+      latencyText = n.latency_ms ? `${n.latency_ms}ms` : 'online';
+    } else if (n.status === 'unauthorized') {
+      dotClass = 'amber';
+      latencyText = '401/403';
+    } else if (n.status === 'offline') {
+      dotClass = 'red';
+      latencyText = 'offline';
+    }
+
+    const colorHex = getFleetColorHex(n.color_accent);
+
+    html += `
+      <div class="fleet-node-item ${isAct ? 'active' : ''}" onclick="switchToFleetNode('${escapeHtml(n.id)}')">
+        <div class="fleet-node-left">
+          <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex}; flex-shrink: 0;"></i>
+          <div class="fleet-node-info">
+            <div class="fleet-node-name">${escapeHtml(n.name)} ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}</div>
+            <div class="fleet-node-url">${escapeHtml(n.endpoint_url || '')}</div>
+          </div>
+        </div>
+        <div class="fleet-node-right">
+          <span class="fleet-ping-dot ${dotClass}" title="${n.status || 'unknown'}"></span>
+          <span class="fleet-node-latency">${latencyText}</span>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  try {
+    if (window.lucide && typeof lucide.createIcons === 'function') {
+      lucide.createIcons({ root: container });
+    }
+  } catch (_) {}
+}
+
+function getFleetColorHex(name) {
+  switch (name) {
+    case 'emerald': return '#10b981';
+    case 'sky': return '#0284c7';
+    case 'purple': return '#a855f7';
+    case 'rose': return '#f43f5e';
+    case 'cyan': return '#06b6d4';
+    case 'slate': return '#64748b';
+    case 'amber':
+    default: return '#f59e0b';
+  }
+}
+
+// Fleet Manager Modal
+function openFleetManagerModal() {
+  closeFleetSwitcherDropdown();
+  renderFleetManagerList();
+  resetFleetNodeForm();
+  showModal('fleet-manager-modal');
+  pingAllFleetNodes();
+}
+
+function openFleetAddModal() {
+  openFleetManagerModal();
+  resetFleetNodeForm();
+  setTimeout(() => {
+    const input = document.getElementById('fleet-input-name');
+    if (input) input.focus();
+  }, 100);
+}
+
+function renderFleetManagerList() {
+  const container = document.getElementById('fleet-manager-nodes-list');
+  const countBadge = document.getElementById('fleet-node-count-badge');
+  if (!container) return;
+
+  const nodes = getAllFleetNodes();
+  const activeId = getActiveFleetNodeId();
+  const currentEditingId = document.getElementById('fleet-input-id')?.value || '';
+
+  if (countBadge) {
+    const totalCount = nodes.length + 1; // +1 for local host
+    countBadge.textContent = `${totalCount} Node${totalCount === 1 ? '' : 's'}`;
+  }
+
+  let html = '';
+
+  // Local Host Card
+  const isLocalActive = !activeId || activeId === 'local';
+  html += `
+    <div class="fleet-card ${isLocalActive ? 'active' : ''}" style="border-left: 3px solid #f59e0b;" onclick="resetFleetNodeForm()">
+      <div class="fleet-card-header">
+        <div class="fleet-card-name">
+          <i data-lucide="server" style="width: 14px; height: 14px; color: #f59e0b;"></i>
+          <span>Local Host</span>
+          <span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Local</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <span class="fleet-ping-dot green" title="Local node"></span>
+          <span style="font-size: 10.5px; font-family: var(--font-mono); color: var(--text-dim);">0ms</span>
+        </div>
+      </div>
+      <div class="fleet-card-url">${escapeHtml(window.location.origin || 'http://localhost:3140')}</div>
+      <div class="fleet-card-footer">
+        <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+          <span class="fleet-tag-pill">builtin</span>
+          <span class="fleet-tag-pill">origin</span>
+        </div>
+        <div style="display: flex; gap: 4px;">
+          ${!isLocalActive ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode('local');" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
+        </div>
+      </div>
+    </div>
+  `;
+
+  // Registered Node Cards
+  nodes.forEach(n => {
+    const isAct = n.id === activeId;
+    const isEditing = n.id === currentEditingId;
+    const colorHex = getFleetColorHex(n.color_accent);
+
+    let dotClass = 'gray';
+    let latencyText = '—';
+    if (n.status === 'online') {
+      dotClass = (n.latency_ms && n.latency_ms < 120) ? 'green' : (n.latency_ms && n.latency_ms < 300 ? 'amber' : 'green');
+      latencyText = n.latency_ms ? `${n.latency_ms}ms` : 'online';
+    } else if (n.status === 'unauthorized') {
+      dotClass = 'amber';
+      latencyText = '401/403';
+    } else if (n.status === 'offline') {
+      dotClass = 'red';
+      latencyText = 'offline';
+    }
+
+    const tagsHtml = (n.tags || []).map(t => `<span class="fleet-tag-pill">${escapeHtml(t)}</span>`).join('');
+
+    html += `
+      <div class="fleet-card ${isAct ? 'active' : ''}" style="border-left: 3px solid ${colorHex}; ${isEditing ? 'outline: 1.5px solid var(--accent);' : ''}" onclick="selectFleetNodeInManager('${escapeHtml(n.id)}')">
+        <div class="fleet-card-header">
+          <div class="fleet-card-name">
+            <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex};"></i>
+            <span>${escapeHtml(n.name)}</span>
+            ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Active</span>' : ''}
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span class="fleet-ping-dot ${dotClass}" title="${n.status || 'unknown'}"></span>
+            <span style="font-size: 10.5px; font-family: var(--font-mono); color: var(--text-dim);">${latencyText}</span>
+          </div>
+        </div>
+        <div class="fleet-card-url">${escapeHtml(n.endpoint_url || '')}</div>
+        <div class="fleet-card-footer">
+          <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+            ${tagsHtml || '<span class="fleet-tag-pill" style="opacity: 0.6;">no tags</span>'}
+          </div>
+          <div style="display: flex; gap: 4px;">
+            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); pingFleetNode('${escapeHtml(n.id)}')" title="Ping Node" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i></button>
+            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); deleteFleetNodeProfile('${escapeHtml(n.id)}', event)" title="Delete Node" style="height: 22px; width: 22px; padding: 0; color: #ef4444;"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i></button>
+            ${!isAct ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode('${escapeHtml(n.id)}');" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
+  try {
+    if (window.lucide && typeof lucide.createIcons === 'function') {
+      lucide.createIcons({ root: container });
+    }
+  } catch (_) {}
+}
+
+function selectFleetNodeInManager(id) {
+  const node = getFleetNodeById(id);
+  if (!node) return;
+
+  const idInput = document.getElementById('fleet-input-id');
+  const nameInput = document.getElementById('fleet-input-name');
+  const urlInput = document.getElementById('fleet-input-url');
+  const tokenInput = document.getElementById('fleet-input-token');
+  const colorInput = document.getElementById('fleet-input-color');
+  const tagsInput = document.getElementById('fleet-input-tags');
+
+  if (idInput) idInput.value = node.id || '';
+  if (nameInput) nameInput.value = node.name || '';
+  if (urlInput) urlInput.value = node.endpoint_url || '';
+  if (tokenInput) tokenInput.value = node.auth_token || '';
+  if (colorInput) colorInput.value = node.color_accent || 'amber';
+  if (tagsInput) tagsInput.value = (node.tags || []).join(', ');
+
+  const titleEl = document.getElementById('fleet-editor-title');
+  if (titleEl) titleEl.textContent = `Edit: ${node.name}`;
+  const badgeEl = document.getElementById('fleet-editor-badge');
+  if (badgeEl) badgeEl.textContent = 'Configured Node';
+
+  selectFleetColor(node.color_accent || 'amber');
+
+  const results = document.getElementById('fleet-test-results');
+  if (results) {
+    if (node.status === 'online') {
+      results.innerHTML = `<span style="color: #10b981;"><i data-lucide="check-circle-2" style="width: 12px; height: 12px;"></i> Last Seen Online: ${node.latency_ms || 0}ms latency (Host: ${escapeHtml(node.hostname || 'unknown')}, Brum v${escapeHtml(node.version || '?')})</span>`;
+    } else if (node.status === 'unauthorized') {
+      results.innerHTML = `<span style="color: #f59e0b;"><i data-lucide="alert-triangle" style="width: 12px; height: 12px;"></i> Node reached but returned 401/403 Unauthorized. Check token.</span>`;
+    } else if (node.status === 'offline') {
+      results.innerHTML = `<span style="color: #ef4444;"><i data-lucide="x-circle" style="width: 12px; height: 12px;"></i> Node unreachable or offline.</span>`;
+    } else {
+      results.innerHTML = `<span>Click "Test Connection" to query node health, version, and latency.</span>`;
+    }
+    try {
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons({ root: results });
+      }
+    } catch (_) {}
+  }
+
+  renderFleetManagerList();
+}
+
+function resetFleetNodeForm() {
+  const idInput = document.getElementById('fleet-input-id');
+  const nameInput = document.getElementById('fleet-input-name');
+  const urlInput = document.getElementById('fleet-input-url');
+  const tokenInput = document.getElementById('fleet-input-token');
+  const colorInput = document.getElementById('fleet-input-color');
+  const tagsInput = document.getElementById('fleet-input-tags');
+
+  if (idInput) idInput.value = '';
+  if (nameInput) nameInput.value = '';
+  if (urlInput) urlInput.value = '';
+  if (tokenInput) tokenInput.value = '';
+  if (colorInput) colorInput.value = 'amber';
+  if (tagsInput) tagsInput.value = '';
+
+  const titleEl = document.getElementById('fleet-editor-title');
+  if (titleEl) titleEl.textContent = 'Add New Fleet Node';
+  const badgeEl = document.getElementById('fleet-editor-badge');
+  if (badgeEl) badgeEl.textContent = 'New Node';
+
+  selectFleetColor('amber');
+
+  const results = document.getElementById('fleet-test-results');
+  if (results) {
+    results.innerHTML = `<span>Click "Test Connection" to query node health, version, and latency.</span>`;
+  }
+
+  renderFleetManagerList();
+}
+
+function selectFleetColor(color) {
+  const colorInput = document.getElementById('fleet-input-color');
+  if (colorInput) colorInput.value = color;
+  document.querySelectorAll('.fleet-color-swatch').forEach(sw => {
+    if (sw.getAttribute('data-color') === color) {
+      sw.classList.add('active');
+    } else {
+      sw.classList.remove('active');
+    }
+  });
+}
+
+function toggleFleetTokenVisibility() {
+  const input = document.getElementById('fleet-input-token');
+  const icon = document.getElementById('fleet-token-eye-icon');
+  if (!input) return;
+  if (input.type === 'password') {
+    input.type = 'text';
+    if (icon) icon.setAttribute('data-lucide', 'eye-off');
+  } else {
+    input.type = 'password';
+    if (icon) icon.setAttribute('data-lucide', 'eye');
+  }
+  try {
+    if (window.lucide && typeof lucide.createIcons === 'function') {
+      lucide.createIcons({ root: input.parentElement });
+    }
+  } catch (_) {}
+}
+
+async function testFleetNodeConnection() {
+  let url = (document.getElementById('fleet-input-url')?.value || '').trim();
+  const token = (document.getElementById('fleet-input-token')?.value || '').trim();
+  const results = document.getElementById('fleet-test-results');
+  const btn = document.getElementById('btn-fleet-test');
+
+  if (!url) {
+    showToast('Please enter an endpoint URL to test', 'error');
+    if (results) results.innerHTML = `<span style="color: #ef4444;">Missing endpoint URL.</span>`;
+    return;
+  }
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `http://${url}`;
+    const urlInput = document.getElementById('fleet-input-url');
+    if (urlInput) urlInput.value = url;
+  }
+
+  const endpoint = url.replace(/\/+$/, '');
+  const healthUrl = `${endpoint}/api/health`;
+
+  if (results) {
+    results.innerHTML = `<span style="color: var(--accent);"><i data-lucide="loader-2" class="spin" style="width: 12px; height: 12px;"></i> Probing node endpoint ${escapeHtml(healthUrl)}...</span>`;
+    try {
+      if (window.lucide && typeof lucide.createIcons === 'function') {
+        lucide.createIcons({ root: results });
+      }
+    } catch (_) {}
+  }
+  if (btn) btn.disabled = true;
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const t0 = performance.now();
+
+  try {
+    const headers = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const resp = await fetch(healthUrl, {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+    clearTimeout(timeoutId);
+    const latency = Math.round(performance.now() - t0);
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (results) {
+        results.innerHTML = `
+          <div style="display: flex; flex-direction: column; gap: 3px;">
+            <div style="color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Connected successfully (${latency}ms round-trip)
+            </div>
+            <div style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">
+              Host: <span style="color: var(--text-main);">${escapeHtml(data.hostname || data.node_name || 'unknown')}</span> • 
+              Version: <span style="color: var(--text-main);">v${escapeHtml(data.version || '?')}</span> • 
+              OS/Arch: <span style="color: var(--text-main);">${escapeHtml(data.os || '?')}/${escapeHtml(data.arch || '?')}</span> • 
+              Auth: <span style="color: var(--text-main);">${data.auth_enabled ? 'JWT/Active' : 'Open/None'}</span>
+            </div>
+          </div>
+        `;
+      }
+      showToast(`Node connection verified (${latency}ms)!`, 'success');
+    } else if (resp.status === 401 || resp.status === 403) {
+      if (results) {
+        results.innerHTML = `
+          <div style="color: #f59e0b; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+            <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i> HTTP ${resp.status} Unauthorized (${latency}ms)
+          </div>
+          <div style="font-size: 11px; color: var(--text-dim);">Node reached, but rejected authentication. Please provide a valid Bearer token.</div>
+        `;
+      }
+      showToast(`Node rejected authentication (HTTP ${resp.status})`, 'warning');
+    } else {
+      if (results) {
+        results.innerHTML = `<div style="color: #ef4444;"><i data-lucide="x-circle" style="width: 13px; height: 13px;"></i> HTTP error ${resp.status}: ${escapeHtml(resp.statusText)}</div>`;
+      }
+      showToast(`Node returned HTTP ${resp.status}`, 'error');
+    }
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (results) {
+      results.innerHTML = `<div style="color: #ef4444;"><i data-lucide="x-circle" style="width: 13px; height: 13px;"></i> Connection failed: ${escapeHtml(err.message || 'Network error / offline')}</div>`;
+    }
+    showToast(`Connection failed: ${err.message}`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+    try {
+      if (window.lucide && typeof lucide.createIcons === 'function' && results) {
+        lucide.createIcons({ root: results });
+      }
+    } catch (_) {}
+  }
+}
+
+function saveFleetNodeProfile() {
+  const idInput = document.getElementById('fleet-input-id')?.value || '';
+  let name = (document.getElementById('fleet-input-name')?.value || '').trim();
+  let url = (document.getElementById('fleet-input-url')?.value || '').trim();
+  const token = (document.getElementById('fleet-input-token')?.value || '').trim();
+  const color = document.getElementById('fleet-input-color')?.value || 'amber';
+  const tagsRaw = (document.getElementById('fleet-input-tags')?.value || '').trim();
+
+  if (!url) {
+    showToast('Endpoint URL is required', 'error');
+    return;
+  }
+
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `http://${url}`;
+  }
+  url = url.replace(/\/+$/, '');
+
+  if (!name) {
+    try {
+      const u = new URL(url);
+      name = u.hostname || url;
+    } catch (_) {
+      name = url;
+    }
+  }
+
+  const tags = tagsRaw.split(',').map(t => t.trim()).filter(Boolean);
+
+  let nodes = loadFleetNodes();
+
+  if (idInput) {
+    // Update existing
+    const existingIndex = nodes.findIndex(n => n.id === idInput);
+    if (existingIndex >= 0) {
+      nodes[existingIndex] = {
+        ...nodes[existingIndex],
+        name,
+        endpoint_url: url,
+        auth_token: token,
+        color_accent: color,
+        tags,
+        updated_at: Date.now()
+      };
+      saveFleetNodes(nodes);
+      showToast(`Updated node profile "${name}"`, 'success');
+      pingFleetNode(idInput);
+    }
+  } else {
+    // Create new
+    const newId = 'node_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
+    const newNode = {
+      id: newId,
+      name,
+      endpoint_url: url,
+      auth_token: token,
+      color_accent: color,
+      tags,
+      created_at: Date.now(),
+      status: 'unknown',
+      latency_ms: null,
+      version: null,
+      hostname: null,
+      os: null,
+      arch: null
+    };
+    nodes.push(newNode);
+    saveFleetNodes(nodes);
+    showToast(`Added fleet node "${name}"`, 'success');
+    pingFleetNode(newId);
+  }
+
+  resetFleetNodeForm();
+  renderFleetManagerList();
+  renderFleetSwitcherDropdown();
+}
+
+async function deleteFleetNodeProfile(id, event) {
+  if (event) event.stopPropagation();
+  const node = getFleetNodeById(id);
+  if (!node) return;
+
+  const confirmed = typeof showConfirmDialog === 'function'
+    ? await showConfirmDialog({
+        title: 'Delete Fleet Node',
+        subtitle: `Remove "${node.name}" from fleet`,
+        message: `Are you sure you want to remove node "${node.name}" (${node.endpoint_url}) from your Commander Fleet registry?`,
+        icon: 'trash-2',
+        type: 'danger',
+        confirmText: 'Delete Node'
+      })
+    : confirm(`Remove "${node.name}" from fleet?`);
+
+  if (!confirmed) return;
+
+  let nodes = loadFleetNodes().filter(n => n.id !== id);
+  saveFleetNodes(nodes);
+
+  if (getActiveFleetNodeId() === id) {
+    localStorage.removeItem(FLEET_ACTIVE_KEY);
+  }
+
+  showToast(`Node "${node.name}" deleted from fleet`, 'info');
+  resetFleetNodeForm();
+  renderFleetManagerList();
+  renderFleetSwitcherDropdown();
+}
+
+function exportFleetNodesJson() {
+  const nodes = loadFleetNodes();
+  const blob = new Blob([JSON.stringify(nodes, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `commanderdog-fleet-${new Date().toISOString().slice(0, 10)}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(a.href);
+  showToast('Fleet registry exported to JSON', 'success');
+}
+
+function triggerImportFleetNodes() {
+  const fileInput = document.getElementById('fleet-import-file');
+  if (fileInput) {
+    fileInput.value = '';
+    fileInput.click();
+  }
+}
+
+function handleFleetNodesImport(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    try {
+      const imported = JSON.parse(e.target.result);
+      if (!Array.isArray(imported)) {
+        throw new Error('Invalid format: root must be a JSON array of node objects');
+      }
+
+      let current = loadFleetNodes();
+      let addedCount = 0;
+      let updatedCount = 0;
+
+      imported.forEach(n => {
+        if (!n.endpoint_url) return;
+        const existingIdx = current.findIndex(c => c.id === n.id || c.endpoint_url === n.endpoint_url);
+        if (existingIdx >= 0) {
+          current[existingIdx] = { ...current[existingIdx], ...n };
+          updatedCount++;
+        } else {
+          current.push({
+            id: n.id || ('node_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36)),
+            name: n.name || n.endpoint_url,
+            endpoint_url: n.endpoint_url,
+            auth_token: n.auth_token || '',
+            color_accent: n.color_accent || 'amber',
+            tags: Array.isArray(n.tags) ? n.tags : [],
+            created_at: n.created_at || Date.now(),
+            status: 'unknown'
+          });
+          addedCount++;
+        }
+      });
+
+      saveFleetNodes(current);
+      renderFleetManagerList();
+      renderFleetSwitcherDropdown();
+      pingAllFleetNodes();
+      showToast(`Imported Fleet JSON: ${addedCount} added, ${updatedCount} updated`, 'success');
+    } catch (err) {
+      showToast(`Failed to parse fleet JSON: ${err.message}`, 'error');
+    }
+  };
+  reader.readAsText(file);
+}
+
+// Global click handler to dismiss fleet dropdown
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('#fleet-switcher-wrapper')) {
+    closeFleetSwitcherDropdown();
+  }
+});
 
 

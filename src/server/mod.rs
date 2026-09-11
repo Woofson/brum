@@ -52,6 +52,7 @@ pub fn create_router(state: AppState) -> Router {
 
     Router::new()
         // System & Platform Status
+        .route("/api/health", get(handle_health))
         .route("/api/system/status", get(handle_system_status))
         .route("/api/system/exit", post(handle_system_exit))
         .route("/api/system/restart", post(handle_system_restart))
@@ -274,6 +275,29 @@ pub struct SystemStatusResponse {
     pub hostname_style: Option<String>,
     pub hostname_icon: Option<String>,
     pub hostname_size: Option<String>,
+}
+
+async fn handle_health(State(state): State<AppState>) -> Json<serde_json::Value> {
+    let hostname = get_system_hostname();
+    let node_name = if !state.config.ui.hostname_badge.trim().is_empty() {
+        state.config.ui.hostname_badge.clone()
+    } else if !state.config.server.server_name.trim().is_empty() {
+        state.config.server.server_name.clone()
+    } else {
+        hostname.clone()
+    };
+
+    Json(serde_json::json!({
+        "status": "ok",
+        "version": env!("CARGO_PKG_VERSION"),
+        "hostname": hostname,
+        "node_name": node_name,
+        "os": std::env::consts::OS,
+        "arch": std::env::consts::ARCH,
+        "standalone": state.config.server.standalone,
+        "auth_enabled": state.config.server.enable_auth && !state.config.server.standalone,
+        "time": chrono::Utc::now().to_rfc3339()
+    }))
 }
 
 async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatusResponse> {
@@ -4754,4 +4778,46 @@ mod tests {
         // Non-range header
         assert!(HttpRange::parse("gzip, deflate", total).is_none());
     }
+
+    #[tokio::test]
+    async fn test_handle_health_endpoint() {
+        use crate::config::AppConfig;
+        use std::sync::Arc;
+
+        let config = AppConfig::default();
+        let auth = crate::auth::AuthManager::new(
+            &config.server.database_path,
+            &config.server.jwt_secret,
+            config.server.session_duration_hours,
+            &config.auth.mode,
+            &config.auth.pam_service,
+            &config.auth.default_admin_user,
+            &config.auth.default_admin_pass,
+        ).unwrap();
+        let db = auth.db();
+        let auth_arc = Arc::new(auth);
+        let task_mgr = Arc::new(crate::tools::tasks::TaskManager::new());
+        let tag_mgr = Arc::new(crate::tools::tags::TagManager::new(db.clone()).unwrap());
+        let vault_mgr = Arc::new(crate::vfs::vault::VaultManager::new());
+        let backup_mgr = Arc::new(crate::tools::sync::BackupManager::new(db).unwrap());
+
+        let state = AppState {
+            config: Arc::new(config),
+            auth: auth_arc,
+            tasks: task_mgr,
+            tags: tag_mgr,
+            vaults: vault_mgr,
+            backup: backup_mgr,
+        };
+
+        let res = handle_health(State(state)).await;
+        let val = res.0;
+        assert_eq!(val["status"], "ok");
+        assert_eq!(val["version"], env!("CARGO_PKG_VERSION"));
+        assert!(val["hostname"].is_string());
+        assert!(val["os"].is_string());
+        assert!(val["arch"].is_string());
+        assert!(val["time"].is_string());
+    }
 }
+
