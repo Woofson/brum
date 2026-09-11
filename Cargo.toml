@@ -11,6 +11,19 @@ documentation = "https://github.com/Woofson/brum#readme"
 readme = "README.md"
 keywords = ["file-manager", "commander", "web", "terminal", "vfs"]
 categories = ["command-line-utilities", "web-programming"]
+exclude = [
+    "src-tauri/**",
+    "packaging/**",
+    "scripts/**",
+    ".github/**",
+    "assets/**",
+    "manuals/**",
+    "frontend/assets/*.png",
+    "dist/**",
+    "*.tar.gz",
+    "*.deb",
+    "*.apk"
+]
 
 [lib]
 name = "brum"

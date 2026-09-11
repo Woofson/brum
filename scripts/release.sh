@@ -26,12 +26,16 @@ cd "${ROOT_DIR}"
 
 CURRENT_VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f2)
 SKIP_AUR=false
+SKIP_CRATES=false
 TARGET_VERSION=""
 
 for arg in "$@"; do
     case "$arg" in
         --skip-aur)
             SKIP_AUR=true
+            ;;
+        --skip-crates)
+            SKIP_CRATES=true
             ;;
         patch|minor|major)
             BUMP_TYPE="$arg"
@@ -280,6 +284,18 @@ SRCINFO_BIN_EOF
     fi
 fi
 
+# ------------------------------------------------------------------------------
+# 7. CRATES.IO AUTOMATIC PUBLISHING
+# ------------------------------------------------------------------------------
+if [ "${SKIP_CRATES}" = false ]; then
+    echo "📦 Publishing to Crates.io..."
+    if cargo publish; then
+        echo "✅ Crates.io package published successfully!"
+    else
+        echo "⚠️ Crates.io publish returned a non-zero exit (check if version already exists or token needed)."
+    fi
+fi
+
 # Final Cleanup
 rm -f parubrum*.txt parucommanderdog*.txt
 rm -rf /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/brum-* /tmp/commanderdog-*
@@ -289,6 +305,7 @@ echo "🎉 SUCCESS: Brum v${TARGET_VERSION} is released & published!"
 echo "   - GitHub: https://github.com/Woofson/brum"
 echo "   - AUR Source: https://aur.archlinux.org/packages/brum"
 echo "   - AUR Bin:    https://aur.archlinux.org/packages/brum-bin"
+echo "   - Crates.io:  https://crates.io/crates/brum"
 echo "   - Local Packages in: ./dist/"
 echo "======================================================"
 
