@@ -5,6 +5,21 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.4] - 2026-09-11
+
+### Settings & Admin Control Panel Modernization, Unified Places Hub & Responsive RBAC
+- **Modern Settings Design System (F10)** (Fixes #28):
+  - Unified all settings into modern `.settings-group-card` containers with uniform `14px` gaps, standardized `28px` inputs, selects (`.settings-select`), and toggle rows (`.settings-checkbox-row`).
+  - Moved the Hostname Badge customization into the Themes tab (`tab-palette`) with live interactive preview, corrected contrast on purple badges, and added custom hex pickers and sliders for text, background, border, glow, size, and icons.
+  - Modernized the dedicated **Admin Control Panel** (`admin-panel-modal`) with dedicated `.settings-group-card` containers for Remote Mounts, Syncthing Global, Security & Paranoid policies, and Master `config.toml`.
+  - Transformed User Accounts & RBAC permissions from a 5-column table into rich, responsive `.admin-user-card` components with user avatar, identity badges (`PAM / Linux` vs `Database`), active/disabled status chips, allowed storage root selector chips, and 11 protocol service permission chips.
+  - Added a first-class `About Brum` tab in Settings (`tab-about`) alongside the standalone About modal (`about-modal`), with system runtime diagnostics, OS/hostname detection, and updated developer attributions.
+  - Fixed an unclosed `admin-panel-modal` container div in the HTML tree, restoring correct top-level modal DOM isolation and high z-index stacking (`z-index: 3500`).
+- **Unified Places Hub & Navigation** (Fixes #26):
+  - Unified Saved Bookmarks, Authorized Storage Roots, and Remote VFS Shares into a single cohesive **Places** dropdown (`openPaneFavoritesMenu`).
+  - Simplified storage root labels to `Storage Roots` and `Home` (with absolute path on secondary line).
+  - Enhanced the remote protocol selector (`.pane-proto-btn`) with a distinct dropdown chevron indicator positioned to the right of path breadcrumbs.
+
 ## [0.8.3-rc21] - 2026-09-11
 
 ### Scope Discipline & Anti-Vibe-Coding Rules

@@ -1,7 +1,7 @@
 # Contributor: Bolt J Woofson <bolt@boop.no>
 # Maintainer: Bolt J Woofson <bolt@boop.no>
 pkgname=brum
-pkgver=0.8.2
+pkgver=0.8.4
 pkgrel=0
 pkgdesc="Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
 url="https://github.com/Woofson/brum"
