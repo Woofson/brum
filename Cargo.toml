@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "0.8.5-rc4"
+version = "0.8.5-rc5"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -83,6 +83,16 @@ tao = { version = "0.30", optional = true }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.59", features = [
+    "Win32_Foundation",
+    "Win32_Storage_FileSystem",
+    "Win32_UI_Shell",
+    "Win32_System_RestartManager",
+    "Win32_System_Threading",
+    "Win32_System_ProcessStatus",
+] }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"

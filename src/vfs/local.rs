@@ -6,15 +6,165 @@ use std::fs::{self, File};
 use std::io::{Read, Write};
 #[cfg(unix)]
 use std::os::unix::fs::MetadataExt;
+#[cfg(windows)]
+use std::os::windows::ffi::OsStrExt;
 use std::path::{Path, PathBuf};
 use std::time::UNIX_EPOCH;
 #[cfg(unix)]
 use std::time::{Duration, Instant};
 use tracing::info;
 
+#[cfg(windows)]
+use windows_sys::Win32::Foundation::{
+    ERROR_MORE_DATA, ERROR_SUCCESS, INVALID_FILE_ATTRIBUTES,
+};
+#[cfg(windows)]
+use windows_sys::Win32::Storage::FileSystem::{
+    GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_READONLY,
+};
+#[cfg(windows)]
+use windows_sys::Win32::System::RestartManager::{
+    RmEndSession, RmGetList, RmRegisterResources, RmStartSession, CCH_RM_SESSION_KEY,
+    RM_PROCESS_INFO,
+};
+#[cfg(windows)]
+use windows_sys::Win32::UI::Shell::{
+    SHFileOperationW, FOF_ALLOWUNDO, FOF_NOCONFIRMATION, FOF_NOERRORUI, FOF_SILENT, FO_DELETE,
+    SHFILEOPSTRUCTW,
+};
+
 #[cfg(unix)]
 static USER_GROUP_CACHE: parking_lot::RwLock<Option<(Instant, HashMap<u32, String>, HashMap<u32, String>)>> =
     parking_lot::RwLock::new(None);
+
+/// Query Windows Restart Manager API to detect which active processes (e.g. Explorer, Excel, antivirus) are locking a file or folder
+#[cfg(windows)]
+pub fn get_locking_processes(path: &Path) -> Vec<String> {
+    let mut processes = Vec::new();
+    let mut session_handle: u32 = 0;
+    let mut session_key = [0u16; CCH_RM_SESSION_KEY as usize + 1];
+
+    unsafe {
+        let res = RmStartSession(&mut session_handle, 0, session_key.as_mut_ptr());
+        if res != ERROR_SUCCESS {
+            return processes;
+        }
+
+        let wide_path: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let file_paths = [wide_path.as_ptr()];
+
+        let reg_res = RmRegisterResources(
+            session_handle,
+            1,
+            file_paths.as_ptr(),
+            0,
+            std::ptr::null(),
+            0,
+            std::ptr::null(),
+        );
+
+        if reg_res == ERROR_SUCCESS {
+            let mut proc_info_needed = 0u32;
+            let mut proc_info_count = 0u32;
+            let mut reboot_reasons = 0u32;
+
+            let list_res = RmGetList(
+                session_handle,
+                &mut proc_info_needed,
+                &mut proc_info_count,
+                std::ptr::null_mut(),
+                &mut reboot_reasons,
+            );
+
+            if (list_res == ERROR_SUCCESS || list_res == ERROR_MORE_DATA) && proc_info_needed > 0 {
+                let mut proc_info: Vec<RM_PROCESS_INFO> = vec![std::mem::zeroed(); proc_info_needed as usize];
+                proc_info_count = proc_info_needed;
+
+                let list_res2 = RmGetList(
+                    session_handle,
+                    &mut proc_info_needed,
+                    &mut proc_info_count,
+                    proc_info.as_mut_ptr(),
+                    &mut reboot_reasons,
+                );
+
+                if list_res2 == ERROR_SUCCESS {
+                    for info in proc_info.iter().take(proc_info_count as usize) {
+                        let app_name_len = info.strAppName.iter().position(|&c| c == 0).unwrap_or(info.strAppName.len());
+                        let app_name = String::from_utf16_lossy(&info.strAppName[..app_name_len]);
+                        let pid = info.Process.dwProcessId;
+                        if !app_name.is_empty() {
+                            processes.push(format!("{} (PID: {})", app_name, pid));
+                        } else {
+                            processes.push(format!("PID: {}", pid));
+                        }
+                    }
+                }
+            }
+        }
+
+        let _ = RmEndSession(session_handle);
+    }
+
+    processes
+}
+
+#[cfg(not(windows))]
+pub fn get_locking_processes(_path: &Path) -> Vec<String> {
+    Vec::new()
+}
+
+/// Clear Windows Read-Only file attribute to allow deletion of read-only files
+#[cfg(windows)]
+pub fn clear_readonly_attribute(path: &Path) {
+    let wide: Vec<u16> = path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    unsafe {
+        let attrs = GetFileAttributesW(wide.as_ptr());
+        if attrs != INVALID_FILE_ATTRIBUTES && (attrs & FILE_ATTRIBUTE_READONLY) != 0 {
+            let _ = SetFileAttributesW(wide.as_ptr(), attrs & !FILE_ATTRIBUTE_READONLY);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+pub fn clear_readonly_attribute(_path: &Path) {}
+
+/// Move file or directory to Windows Recycle Bin using native Win32 Shell API
+#[cfg(windows)]
+pub fn windows_native_trash(path: &Path) -> Result<(), std::io::Error> {
+    let mut wide_path: Vec<u16> = path.as_os_str().encode_wide().collect();
+    wide_path.push(0);
+    wide_path.push(0); // SHFileOperationW requires double null termination
+
+    let mut file_op = SHFILEOPSTRUCTW {
+        hwnd: 0 as _,
+        wFunc: FO_DELETE,
+        pFrom: wide_path.as_ptr(),
+        pTo: std::ptr::null(),
+        fFlags: (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI) as u16,
+        fAnyOperationsAborted: 0,
+        hNameMappings: std::ptr::null_mut(),
+        lpszProgressTitle: std::ptr::null(),
+    };
+
+    let res = unsafe { SHFileOperationW(&mut file_op) };
+    if res == 0 && file_op.fAnyOperationsAborted == 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::new(
+            std::io::ErrorKind::Other,
+            format!("Windows Recycle Bin error code: {}", res),
+        ))
+    }
+}
+
+#[cfg(not(windows))]
+pub fn windows_native_trash(_path: &Path) -> Result<(), std::io::Error> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "Windows Recycle Bin is only supported on Windows",
+    ))
+}
 
 pub struct LocalFs;
 
@@ -674,15 +824,52 @@ impl LocalFs {
     }
 
     pub fn rename_entry(from_str: &str, to_str: &str) -> Result<(), std::io::Error> {
+        Self::rename_entry_with_opts(from_str, to_str, true, true)
+    }
+
+    pub fn rename_entry_with_opts(
+        from_str: &str,
+        to_str: &str,
+        _use_native_ops: bool,
+        detect_locks: bool,
+    ) -> Result<(), std::io::Error> {
         let from_p = Self::resolve_local_path(from_str);
         let to_p = Self::resolve_local_path(to_str);
-        fs::rename(&from_p, &to_p)
+        match fs::rename(&from_p, &to_p) {
+            Ok(()) => Ok(()),
+            Err(e) => {
+                if detect_locks {
+                    let locks = get_locking_processes(&from_p);
+                    if !locks.is_empty() {
+                        return Err(std::io::Error::new(
+                            e.kind(),
+                            format!(
+                                "Cannot rename '{}': file is currently locked by {}",
+                                from_p.file_name().unwrap_or_default().to_string_lossy(),
+                                locks.join(", ")
+                            ),
+                        ));
+                    }
+                }
+                Err(e)
+            }
+        }
     }
 
     pub fn delete_entry(
         path_str: &str,
         use_trash: bool,
         custom_trash: Option<&str>,
+    ) -> Result<(), std::io::Error> {
+        Self::delete_entry_with_opts(path_str, use_trash, custom_trash, true, true)
+    }
+
+    pub fn delete_entry_with_opts(
+        path_str: &str,
+        use_trash: bool,
+        custom_trash: Option<&str>,
+        _use_native_ops: bool,
+        detect_locks: bool,
     ) -> Result<(), std::io::Error> {
         let path = Self::resolve_local_path(path_str);
         if !path.exists() && !path.is_symlink() {
@@ -693,6 +880,19 @@ impl LocalFs {
         }
 
         if use_trash {
+            #[cfg(windows)]
+            if _use_native_ops && custom_trash.is_none() {
+                match windows_native_trash(&path) {
+                    Ok(()) => {
+                        info!("Moved {} to Windows Recycle Bin", path_str);
+                        return Ok(());
+                    }
+                    Err(e) => {
+                        info!("Windows native Recycle Bin failed ({}), falling back to internal trash / delete", e);
+                    }
+                }
+            }
+
             let trash_base = if let Some(ct) = custom_trash {
                 PathBuf::from(ct)
             } else if let Some(home) = dirs::home_dir() {
@@ -725,7 +925,7 @@ impl LocalFs {
             }
         }
 
-        Self::force_remove_entry(&path)
+        Self::force_remove_entry_with_opts(&path, detect_locks)
     }
 
     /// Recursively moves an entry across filesystems (copy + delete source)
@@ -750,6 +950,10 @@ impl LocalFs {
 
     /// Forcefully remove a file, symlink, or directory (with permission adjustment & CLI fallback)
     pub fn force_remove_entry(path: &Path) -> Result<(), std::io::Error> {
+        Self::force_remove_entry_with_opts(path, true)
+    }
+
+    pub fn force_remove_entry_with_opts(path: &Path, detect_locks: bool) -> Result<(), std::io::Error> {
         // Handle symlinks (including broken symlinks)
         if path.is_symlink() {
             return fs::remove_file(path).or_else(|_| {
@@ -757,7 +961,12 @@ impl LocalFs {
                 {
                     std::fs::remove_dir(path)
                 }
-                #[cfg(not(unix))]
+                #[cfg(windows)]
+                {
+                    clear_readonly_attribute(path);
+                    std::fs::remove_dir(path)
+                }
+                #[cfg(not(any(unix, windows)))]
                 {
                     Err(std::io::Error::new(std::io::ErrorKind::Other, "Failed to remove symlink"))
                 }
@@ -776,6 +985,14 @@ impl LocalFs {
                 let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o777));
                 for entry in walkdir::WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
                     let _ = fs::set_permissions(entry.path(), fs::Permissions::from_mode(0o777));
+                }
+            }
+
+            #[cfg(windows)]
+            {
+                clear_readonly_attribute(path);
+                for entry in walkdir::WalkDir::new(path).into_iter().filter_map(|e| e.ok()) {
+                    clear_readonly_attribute(entry.path());
                 }
             }
 
@@ -805,6 +1022,36 @@ impl LocalFs {
                 }
             }
 
+            // If deletion still failed, check for lock detection on Windows or return rich error
+            if detect_locks {
+                let locks = get_locking_processes(path);
+                if !locks.is_empty() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        format!(
+                            "Cannot delete folder '{}': Locked by active process ({})",
+                            path.file_name().unwrap_or_default().to_string_lossy(),
+                            locks.join(", ")
+                        ),
+                    ));
+                }
+                // Check if any child item like Thumbs.db is locked
+                for entry in walkdir::WalkDir::new(path).max_depth(3).into_iter().filter_map(|e| e.ok()) {
+                    let child_locks = get_locking_processes(entry.path());
+                    if !child_locks.is_empty() {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::PermissionDenied,
+                            format!(
+                                "Cannot delete '{}': Locked file '{}' held open by {}",
+                                path.file_name().unwrap_or_default().to_string_lossy(),
+                                entry.file_name().to_string_lossy(),
+                                child_locks.join(", ")
+                            ),
+                        ));
+                    }
+                }
+            }
+
             fs::remove_dir_all(path)
         } else {
             if let Ok(()) = fs::remove_file(path) {
@@ -815,6 +1062,11 @@ impl LocalFs {
             {
                 use std::os::unix::fs::PermissionsExt;
                 let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o666));
+            }
+
+            #[cfg(windows)]
+            {
+                clear_readonly_attribute(path);
             }
 
             if let Ok(()) = fs::remove_file(path) {
@@ -832,6 +1084,20 @@ impl LocalFs {
                     if out.status.success() && !path.exists() {
                         return Ok(());
                     }
+                }
+            }
+
+            if detect_locks {
+                let locks = get_locking_processes(path);
+                if !locks.is_empty() {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        format!(
+                            "Cannot delete file '{}': Locked by active process ({})",
+                            path.file_name().unwrap_or_default().to_string_lossy(),
+                            locks.join(", ")
+                        ),
+                    ));
                 }
             }
 
@@ -1112,4 +1378,56 @@ mod tests {
             PathBuf::from("D:/Data/Project")
         );
     }
+
+    #[test]
+    fn test_windows_native_helpers_and_lock_detection() {
+        let tmp = tempdir().unwrap();
+        let test_file = tmp.path().join("lock_test.txt");
+        fs::write(&test_file, "lock test content").unwrap();
+
+        // Lock detection returns a Vec (empty if no locks or on non-Windows)
+        let locks = get_locking_processes(&test_file);
+        assert!(locks.is_empty() || !locks.is_empty());
+
+        // Read-only attribute clearance helper works without panic
+        clear_readonly_attribute(&test_file);
+
+        // Native trash helper
+        #[cfg(not(windows))]
+        {
+            let res = windows_native_trash(&test_file);
+            assert!(res.is_err(), "Native trash should report unsupported on non-Windows");
+        }
+    }
+
+    #[test]
+    fn test_delete_and_rename_with_options() {
+        let tmp = tempdir().unwrap();
+        let test_file = tmp.path().join("item_to_delete.txt");
+        fs::write(&test_file, "delete me").unwrap();
+
+        // Test rename with options
+        let renamed_file = tmp.path().join("item_renamed.txt");
+        let res_rename = LocalFs::rename_entry_with_opts(
+            &test_file.to_string_lossy(),
+            &renamed_file.to_string_lossy(),
+            true,
+            true,
+        );
+        assert!(res_rename.is_ok());
+        assert!(renamed_file.exists());
+        assert!(!test_file.exists());
+
+        // Test delete with options
+        let res_del = LocalFs::delete_entry_with_opts(
+            &renamed_file.to_string_lossy(),
+            false,
+            None,
+            true,
+            true,
+        );
+        assert!(res_del.is_ok());
+        assert!(!renamed_file.exists());
+    }
 }
+

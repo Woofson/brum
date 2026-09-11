@@ -534,6 +534,10 @@ pub struct ParanoidConfig {
     pub confirm_delete: bool,
     #[serde(default = "default_true")]
     pub confirm_overwrite: bool,
+    #[serde(default = "default_true")]
+    pub windows_native_file_ops: bool,
+    #[serde(default = "default_true")]
+    pub detect_locking_processes: bool,
 }
 
 impl Default for ParanoidConfig {
@@ -547,6 +551,8 @@ impl Default for ParanoidConfig {
             custom_trash_dir: None,
             confirm_delete: true,
             confirm_overwrite: true,
+            windows_native_file_ops: true,
+            detect_locking_processes: true,
         }
     }
 }

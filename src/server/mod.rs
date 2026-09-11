@@ -2172,6 +2172,8 @@ async fn handle_mkdir(
 struct RenameRequest {
     from: String,
     to: String,
+    windows_native_file_ops: Option<bool>,
+    detect_locking_processes: Option<bool>,
 }
 
 async fn handle_rename(
@@ -2181,6 +2183,8 @@ async fn handle_rename(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let from_path = validate_path_access(&state, &headers, &payload.from, true)?;
     let to_path = validate_path_access(&state, &headers, &payload.to, true)?;
+    let use_native_ops = payload.windows_native_file_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
+    let detect_locks = payload.detect_locking_processes.unwrap_or(state.config.paranoid.detect_locking_processes);
 
     if from_path.starts_with("smb://") {
         let params_from = crate::vfs::smb::SmbClient::parse_uri(&from_path, None, None)
@@ -2221,11 +2225,11 @@ async fn handle_rename(
         } else {
             std::path::PathBuf::from(&to_path)
         };
-        LocalFs::rename_entry(&local_from.to_string_lossy(), &local_to.to_string_lossy())
+        LocalFs::rename_entry_with_opts(&local_from.to_string_lossy(), &local_to.to_string_lossy(), use_native_ops, detect_locks)
             .map(|_| Json(serde_json::json!({ "success": true })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to rename NFS item: {}", e)))
     } else {
-        LocalFs::rename_entry(&from_path, &to_path)
+        LocalFs::rename_entry_with_opts(&from_path, &to_path, use_native_ops, detect_locks)
             .map(|_| Json(serde_json::json!({ "success": true })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to rename: {}", e)))
     }
@@ -2249,6 +2253,8 @@ async fn handle_batch_rename(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let mut renamed = 0;
     let mut errors = Vec::new();
+    let use_native_ops = state.config.paranoid.windows_native_file_ops;
+    let detect_locks = state.config.paranoid.detect_locking_processes;
 
     for item in payload.renames {
         if item.from != item.to {
@@ -2256,7 +2262,7 @@ async fn handle_batch_rename(
             let to_res = validate_path_access(&state, &headers, &item.to, true);
             match (from_res, to_res) {
                 (Ok(from_path), Ok(to_path)) => {
-                    match LocalFs::rename_entry(&from_path, &to_path) {
+                    match LocalFs::rename_entry_with_opts(&from_path, &to_path, use_native_ops, detect_locks) {
                         Ok(_) => renamed += 1,
                         Err(e) => errors.push(format!("{}: {}", item.from, e)),
                     }
@@ -2269,9 +2275,9 @@ async fn handle_batch_rename(
     }
 
     if errors.is_empty() {
-        Ok(Json(serde_json::json!({ "success": true, "renamed_count": renamed })))
+        Ok(Json(serde_json::json!({ "success": true, "renamed": renamed })))
     } else {
-        Err((StatusCode::MULTI_STATUS, format!("Encountered errors: {}", errors.join("; "))))
+        Err((StatusCode::MULTI_STATUS, format!("Batch rename errors: {}", errors.join("; "))))
     }
 }
 
@@ -2280,6 +2286,8 @@ struct DeleteRequest {
     paths: Vec<String>,
     use_trash: Option<bool>,
     custom_trash_dir: Option<String>,
+    windows_native_file_ops: Option<bool>,
+    detect_locking_processes: Option<bool>,
 }
 
 async fn handle_delete(
@@ -2289,6 +2297,8 @@ async fn handle_delete(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let use_trash = payload.use_trash.unwrap_or(state.config.paranoid.trash_enabled);
     let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let use_native_ops = payload.windows_native_file_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
+    let detect_locks = payload.detect_locking_processes.unwrap_or(state.config.paranoid.detect_locking_processes);
     let mut deleted = Vec::new();
     let mut errors = Vec::new();
 
@@ -2337,7 +2347,7 @@ async fn handle_delete(
                     match crate::vfs::nfs::NfsClient::ensure_mounted(&params) {
                         Ok(mount) => {
                             let local_target = mount.join(params.subpath.trim_start_matches('/'));
-                            match LocalFs::delete_entry(&local_target.to_string_lossy(), false, None) {
+                            match LocalFs::delete_entry_with_opts(&local_target.to_string_lossy(), false, None, use_native_ops, detect_locks) {
                                 Ok(_) => deleted.push(path.clone()),
                                 Err(e) => errors.push(format!("{}: {}", path, e)),
                             }
@@ -2348,7 +2358,7 @@ async fn handle_delete(
                 Err(e) => errors.push(format!("{}: {}", path, e)),
             }
         } else {
-            match LocalFs::delete_entry(&valid_path, use_trash, custom_trash) {
+            match LocalFs::delete_entry_with_opts(&valid_path, use_trash, custom_trash, use_native_ops, detect_locks) {
                 Ok(_) => deleted.push(path.clone()),
                 Err(e) => errors.push(format!("{}: {}", path, e)),
             }

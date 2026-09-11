@@ -1292,6 +1292,9 @@ async function loadConfig() {
       // Configure Trash Settings UI
       syncTrashSettingsUI();
 
+      // Configure Windows Native & Lock Detection UI
+      syncWindowsNativeOpsUI();
+
       // Configure Top Header Hostname Badge
       updateHostnameBadge();
 
@@ -1327,6 +1330,52 @@ function syncTrashSettingsUI() {
   const adminCustomEl = document.getElementById('setting-custom-trash-dir');
   if (userCustomEl) userCustomEl.value = App.customTrashDir;
   if (adminCustomEl) adminCustomEl.value = App.customTrashDir;
+}
+
+function syncWindowsNativeOpsUI() {
+  const savedNative = localStorage.getItem('cd_windows_native_ops');
+  if (savedNative !== null) {
+    App.windowsNativeOps = (savedNative === 'true');
+  } else if (App.windowsNativeOps === undefined) {
+    App.windowsNativeOps = (App.config?.paranoid?.windows_native_file_ops !== false);
+  }
+
+  const savedLocks = localStorage.getItem('cd_detect_file_locks');
+  if (savedLocks !== null) {
+    App.detectFileLocks = (savedLocks === 'true');
+  } else if (App.detectFileLocks === undefined) {
+    App.detectFileLocks = (App.config?.paranoid?.detect_locking_processes !== false);
+  }
+
+  const genNativeEl = document.getElementById('setting-windows-native-ops');
+  const adminNativeEl = document.getElementById('admin-setting-windows-native-ops');
+  if (genNativeEl) genNativeEl.checked = App.windowsNativeOps;
+  if (adminNativeEl) adminNativeEl.checked = App.windowsNativeOps;
+
+  const genLocksEl = document.getElementById('setting-detect-file-locks');
+  const adminLocksEl = document.getElementById('admin-setting-detect-file-locks');
+  if (genLocksEl) genLocksEl.checked = App.detectFileLocks;
+  if (adminLocksEl) adminLocksEl.checked = App.detectFileLocks;
+}
+
+function toggleWindowsNativeOpsSetting(enabled) {
+  App.windowsNativeOps = !!enabled;
+  localStorage.setItem('cd_windows_native_ops', App.windowsNativeOps ? 'true' : 'false');
+  syncWindowsNativeOpsUI();
+  if (typeof queueSaveUserPreferencesToServer === 'function') queueSaveUserPreferencesToServer();
+  showToast(App.windowsNativeOps 
+    ? 'Windows Native Shell & Recycle Bin enabled ($Recycle.Bin, SHFileOperation)' 
+    : 'Windows Native Shell disabled (using Brum internal POSIX engine)', 'info');
+}
+
+function toggleDetectFileLocksSetting(enabled) {
+  App.detectFileLocks = !!enabled;
+  localStorage.setItem('cd_detect_file_locks', App.detectFileLocks ? 'true' : 'false');
+  syncWindowsNativeOpsUI();
+  if (typeof queueSaveUserPreferencesToServer === 'function') queueSaveUserPreferencesToServer();
+  showToast(App.detectFileLocks 
+    ? 'Restart Manager lock detection enabled (pinpoints active applications locking files)' 
+    : 'Lock detection disabled', 'info');
 }
 
 function toggleTrashSetting(enabled) {
@@ -8581,7 +8630,12 @@ async function promptDeleteCurrentNote() {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${App.token}`
       },
-      body: JSON.stringify({ path: notedogState.activeNote.path })
+      body: JSON.stringify({ 
+        paths: [notedogState.activeNote.path],
+        use_trash: false,
+        windows_native_file_ops: App.windowsNativeOps,
+        detect_locking_processes: App.detectFileLocks
+      })
     });
     if (resp.ok) {
       notedogState.activeNote = null;
@@ -13898,7 +13952,12 @@ function triggerRename() {
       const resp = await fetch('/api/fs/rename', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-        body: JSON.stringify({ from: fromAuth, to: toAuth })
+        body: JSON.stringify({ 
+          from: fromAuth, 
+          to: toAuth,
+          windows_native_file_ops: App.windowsNativeOps,
+          detect_locking_processes: App.detectFileLocks
+        })
       });
       if (resp.ok) {
         showToast(`Renamed to "${newName}"`, 'success');
@@ -13961,7 +14020,13 @@ async function triggerDelete() {
       const resp = await fetch('/api/fs/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-        body: JSON.stringify({ paths: authPaths, use_trash: useTrash, custom_trash_dir: customTrash })
+        body: JSON.stringify({ 
+          paths: authPaths, 
+          use_trash: useTrash, 
+          custom_trash_dir: customTrash,
+          windows_native_file_ops: App.windowsNativeOps,
+          detect_locking_processes: App.detectFileLocks
+        })
       });
       if (resp.ok) {
         showToast(useTrash ? `Moved ${paths.length} item(s) to Trash` : `Permanently deleted ${paths.length} item(s)`, 'success');
@@ -18111,7 +18176,13 @@ async function imageViewerDeleteCurrent() {
       const resp = await fetch('/api/fs/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-        body: JSON.stringify({ paths: [authPath], use_trash: useTrash, custom_trash_dir: customTrash })
+        body: JSON.stringify({ 
+          paths: [authPath], 
+          use_trash: useTrash, 
+          custom_trash_dir: customTrash,
+          windows_native_file_ops: App.windowsNativeOps,
+          detect_locking_processes: App.detectFileLocks
+        })
       });
       if (resp.ok) {
         showToast(useTrash ? `Moved "${fileName}" to Trash` : `Permanently deleted "${fileName}"`, 'success');
@@ -19062,7 +19133,13 @@ async function docViewerDeleteCurrent() {
       const resp = await fetch('/api/fs/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-        body: JSON.stringify({ paths: [authPath], use_trash: useTrash, custom_trash_dir: customTrash })
+        body: JSON.stringify({ 
+          paths: [authPath], 
+          use_trash: useTrash, 
+          custom_trash_dir: customTrash,
+          windows_native_file_ops: App.windowsNativeOps,
+          detect_locking_processes: App.detectFileLocks
+        })
       });
       if (resp.ok) {
         showToast(useTrash ? `Moved "${fileName}" to Trash` : `Permanently deleted "${fileName}"`, 'success');

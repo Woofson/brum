@@ -1028,6 +1028,22 @@
                 </label>
 
                 <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
+                  <div>
+                    <strong>Windows Native Shell & Recycle Bin</strong>
+                    <div class="settings-field-hint">Use Windows native functions ($Recycle.Bin, SHFileOperation) instead of Brum's internal POSIX filesystem engine.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
+                  <div>
+                    <strong>Identify Locking Processes (Restart Manager)</strong>
+                    <div class="settings-field-hint">Inspect and report active applications/processes (e.g. Explorer, Excel, Thumbs.db) locking files on Windows.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
                   <input type="checkbox" id="setting-remember-paths" checked>
                   <div>
                     <strong>Remember last opened directories across sessions</strong>
@@ -2328,6 +2344,22 @@
                     <div>
                       <strong>Safe Trash Bin</strong>
                       <div class="settings-field-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
+                    </div>
+                  </label>
+
+                  <label class="settings-checkbox-row">
+                    <input type="checkbox" id="admin-setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
+                    <div>
+                      <strong>Windows Native Shell & Recycle Bin</strong>
+                      <div class="settings-field-hint">Use Windows Shell APIs ($Recycle.Bin, SHFileOperation) across Windows drives instead of POSIX trash.</div>
+                    </div>
+                  </label>
+
+                  <label class="settings-checkbox-row">
+                    <input type="checkbox" id="admin-setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
+                    <div>
+                      <strong>Windows Process Lock Inspection</strong>
+                      <div class="settings-field-hint">Use Windows Restart Manager to report specific locking process names and PIDs on access violations.</div>
                     </div>
                   </label>
                 </div>
