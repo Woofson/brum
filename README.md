@@ -81,8 +81,8 @@ All operational runbooks, platform guides, and security manuals are available on
 * [**Docker Deployment Guide**](manuals/docker.md) — Compose, Portainer, and volume persistence.
 * [**Proxmox VE & LXC Containers**](manuals/lxc-proxmox.md) — 1-click Debian LXC container setup.
 * [**Reverse Proxy & Mesh VPN Guide**](manuals/reverse-proxy.md) — Tailscale, NetBird, Caddy 2, Nginx, Traefik, Cloudflare.
-* [**Themes & Palette Guide**](manuals/themes-and-palette.md) — Woofsons Amber design tokens and custom themes.
-* [**Product Roadmap**](ROADMAP.md) — Active milestones, sprint backlog, and architecture plans.
+* [**GitHub Milestones & Roadmap**](https://github.com/Woofson/brum/milestones) — Active milestones, roadmap vision, and release targets.
+* [**GitHub Issues & Sprint Backlog**](https://github.com/Woofson/brum/issues) — Feature backlog, bug triage, and active sprint items.
 * [**Changelog**](CHANGELOG.md) — Release notes and version history.
 
 ---

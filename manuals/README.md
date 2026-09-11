@@ -35,6 +35,7 @@ Welcome to the **Brum** manual and documentation index.
 ---
 
 ## Project Links & Specifications
-* **Roadmap & Active Backlog**: [`../ROADMAP.md`](../ROADMAP.md)
+* **Milestones & Roadmap**: [GitHub Milestones](https://github.com/Woofson/brum/milestones)
+* **Sprint Backlog & Issues**: [GitHub Issues](https://github.com/Woofson/brum/issues)
 * **Release History & Changelog**: [`../CHANGELOG.md`](../CHANGELOG.md)
 * **Design Language & Guidelines**: [`../GEMINI.md`](../GEMINI.md)

@@ -2,6 +2,63 @@
 
 **Brum** replaces a fragmented collection of separate desktop and command-line utilities with a unified, high-performance web and native interface. These integrated extensions are known as **"ChewToys"**.
 
+```
+┌────────────────────────────────────────────────────────────────────────────────────────────┐
+│ The Brum "ChewToy" Replacement Matrix                                                      │
+├────────────────────────┬─────────────────────────────┬─────────────────────────────────────┤
+│ Legacy / External App  │ Native Brum ChewToy         │ Replaced Capabilities               │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ FileZilla & Mountain D │ Native Multi-Protocol VFS   │ SFTP/SSH, SMB/CIFS, NFS, WebDAV,    │
+│                        │                             │ Hetzner Storage Box, Proton Drive,  │
+│                        │                             │ Google Drive & S3 Object Storage    │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ rclone & rsync         │ DeltaCopy / RoboCopy        │ Differential delta streaming,       │
+│                        │ Engine & Background Tasks   │ bandwidth throttling & auto-retry   │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Bvckup 2 & SyncToy     │ Backup (SyncToy Studio)     │ 4 replication profiles, in-place    │
+│                        │                             │ block deltas, snapshots & scheduler │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Syncthing              │ Syncthing Dashboard         │ Peer status, throughput charts,     │
+│                        │ & Direct Local/LAN Sync     │ folder scan triggers, P2P sync      │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ PuTTY & OpenSSH SCP    │ Terminal (PTY Web Console)  │ Embedded WebSocket pseudo-terminal  │
+│                        │ (Bite!)                     │ (fish/zsh/bash/powershell) in path  │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Total / Multi / MC /   │ 1-to-4 Multi-Tab Dynamic    │ Orthodox keyboard shortcuts, dual-  │
+│ XYplorer / Directory O │ Panes & Orthodox Suite      │ pane power diff, batch rename,      │
+│                        │                             │ branch view, rich MIME icon suite   │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Cryptomator / VeraCrypt│ AES-256-GCM Vaults          │ Zero-leakage in-memory containers   │
+│                        │ (.cdvault)                  │ (Argon2id + AES-GCM RAM-only VFS)   │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ VS Code / Sublime Text │ Edit (EditorDog)            │ Multi-tab syntax editor, live split │
+│                        │                             │ preview, template generator & diff  │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ HandBrake / FFmpeg GUI │ ConvertX Transcoder         │ Browser-native image/audio/video/   │
+│                        │                             │ document conversion engine          │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ PDFsam / Acrobat Split │ PDF Studio (PDFDog)         │ Pure-Rust visual merge, split,      │
+│                        │                             │ page reordering & rotation grid     │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ FastStone / Feh Viewer │ High-DPI Image Viewer       │ Mouse wheel browse, focal zoom,     │
+│                        │                             │ slideshow, format conversion        │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Obsidian / Joplin      │ Notes (NoteDog Studio)      │ Hierarchical Markdown notebook,     │
+│                        │                             │ checklists, revision diff history   │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Classic Arcade Tetris  │ Tetra (TetraDog Arcade)     │ Authentic classic Tetris clone,     │
+│ & Desktop Distraction  │                             │ 60 FPS canvas engine, SRS/NES modes,│
+│                        │                             │ DAS/ARR tuning, high scores & audio │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Apache Guacamole /     │ Remote (RemoteDog Gateway)  │ Sub-ms in-browser RDP (IronRDP/NLA),│
+│ Remmina / mstsc / VNC  │                             │ VNC (RFB 3.8), SSH PTY, 1-4 grid,   │
+│                        │                             │ clipboard auto-sync & file staging  │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ Winamp / Foobar2000 /  │ AMP (ARFAMP Winamp Clone)   │ 3-modular layout, windowshade mode, │
+│ Audacious / XMPlay     │                             │ 10-band EQ, 60fps spectrum, .m3u PL │
+└────────────────────────┴─────────────────────────────┴─────────────────────────────────────┘
+```
+
 ---
 
 ## 1. NoteDog Notes Studio

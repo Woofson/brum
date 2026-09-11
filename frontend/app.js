@@ -66,7 +66,19 @@ const App = {
   dndParanoidPrompt: localStorage.getItem('cd_dnd_paranoid_prompt') !== 'false',
   paneReorderEnabled: localStorage.getItem('cd_pane_reorder_enabled') !== 'false',
   phoneTabletMaxPanes: parseInt(localStorage.getItem('cd_phone_tablet_max_panes') || '2', 10),
+  hapticFeedback: localStorage.getItem('cd_haptic_feedback') !== 'false',
 };
+
+function triggerHaptic(duration = 25) {
+  if (App.hapticFeedback === false || localStorage.getItem('cd_haptic_feedback') === 'false') {
+    return;
+  }
+  if (typeof navigator !== 'undefined' && navigator.vibrate) {
+    try {
+      navigator.vibrate(duration);
+    } catch (_) {}
+  }
+}
 
 if (App.token) {
   try {
@@ -272,6 +284,7 @@ function getAllUserPreferences() {
     trash_enabled: App.trashEnabled,
     custom_trash_dir: App.customTrashDir,
     default_copy_action: getDefaultCopyAction(),
+    haptic_feedback: App.hapticFeedback !== false && localStorage.getItem('cd_haptic_feedback') !== 'false',
 
     // 6. Drag & Drop & Rearrangement & Max Panes
     pane_reorder_enabled: App.paneReorderEnabled !== false,
@@ -505,6 +518,12 @@ function applyAllUserPreferences(prefs) {
   if (prefs.custom_trash_dir !== undefined) {
     App.customTrashDir = prefs.custom_trash_dir;
     localStorage.setItem('cd_custom_trash_dir', prefs.custom_trash_dir);
+  }
+  if (prefs.haptic_feedback !== undefined) {
+    App.hapticFeedback = !!prefs.haptic_feedback;
+    localStorage.setItem('cd_haptic_feedback', prefs.haptic_feedback ? 'true' : 'false');
+    const hapticCb = document.getElementById('setting-haptic-feedback');
+    if (hapticCb) hapticCb.checked = App.hapticFeedback;
   }
 
   // 12. Drag & Drop & Panel Rearrangement & Max Panes
@@ -1730,7 +1749,7 @@ function createPaneElement(pane, index) {
           const icon = indicator.querySelector('.pull-refresh-spinner');
           if (label) label.textContent = 'Refreshing...';
           if (icon) icon.classList.add('animate-spin');
-          if (navigator.vibrate) navigator.vibrate(30);
+          triggerHaptic(30);
         }
         setTimeout(() => {
           refreshPane(index);
@@ -2736,7 +2755,7 @@ function renderPaneTable(paneIndex) {
           pane.anchorIndex = idx;
           renderPaneTable(paneIndex);
           updateMobileBottomBar();
-          if (navigator.vibrate) navigator.vibrate(40);
+          triggerHaptic(40);
         }, 450);
       };
 
@@ -3195,7 +3214,7 @@ function renderPaneTable(paneIndex) {
         touchTimer = setTimeout(() => {
           if (!isScrolling) {
             isLongPress = true;
-            if (navigator.vibrate) navigator.vibrate(40);
+            triggerHaptic(40);
             setActivePane(paneIndex);
             if (!pane.selected.has(entry.path)) {
               pane.selected.add(entry.path);
@@ -13129,6 +13148,11 @@ function openSettingsModal() {
     paneReorderCheckbox.checked = App.paneReorderEnabled !== false;
   }
 
+  const hapticCheckbox = document.getElementById('setting-haptic-feedback');
+  if (hapticCheckbox) {
+    hapticCheckbox.checked = App.hapticFeedback !== false && localStorage.getItem('cd_haptic_feedback') !== 'false';
+  }
+
   const maxPanesSel = document.getElementById('setting-phone-tablet-max-panes');
   if (maxPanesSel) {
     maxPanesSel.value = (App.phoneTabletMaxPanes || 2).toString();
@@ -13141,6 +13165,16 @@ function openSettingsModal() {
   updateColumnCheckboxes();
   renderIconSettingsTab();
   showModal('settings-modal');
+}
+
+function toggleHapticFeedbackSetting(enabled) {
+  App.hapticFeedback = !!enabled;
+  localStorage.setItem('cd_haptic_feedback', enabled ? 'true' : 'false');
+  queueSaveUserPreferencesToServer();
+  if (enabled) {
+    triggerHaptic(35);
+  }
+  showToast(enabled ? 'Haptic touch feedback enabled' : 'Haptic touch feedback disabled', 'info');
 }
 
 function handleDndSettingChange() {
@@ -14526,9 +14560,7 @@ function handlePaneBadgeTouchStart(e, paneIndex) {
   clearTimeout(_paneBadgeTouchTimer);
   _paneBadgeTouchTimer = setTimeout(() => {
     _paneBadgeLongPressed = true;
-    if (navigator.vibrate) {
-      try { navigator.vibrate(40); } catch (ex) {}
-    }
+    triggerHaptic(40);
     openPaneSettingsMenu(null, paneIndex);
   }, 450);
 }
@@ -21244,12 +21276,12 @@ function setupTouchGestures() {
         // Slide Left -> Next Pane
         const nextPane = (App.activePaneIndex + 1) % visible;
         setActivePane(nextPane);
-        if (navigator.vibrate) navigator.vibrate(25);
+        triggerHaptic(25);
       } else {
         // Slide Right -> Prev Pane
         const prevPane = (App.activePaneIndex - 1 + visible) % visible;
         setActivePane(prevPane);
-        if (navigator.vibrate) navigator.vibrate(25);
+        triggerHaptic(25);
       }
     }
   }
@@ -21267,11 +21299,11 @@ function setupTouchGestures() {
             if (dx < 0) {
               const nextPane = (App.activePaneIndex + 1) % visible;
               setActivePane(nextPane);
-              if (navigator.vibrate) navigator.vibrate(25);
+              triggerHaptic(25);
             } else {
               const prevPane = (App.activePaneIndex - 1 + visible) % visible;
               setActivePane(prevPane);
-              if (navigator.vibrate) navigator.vibrate(25);
+              triggerHaptic(25);
             }
           }
         }

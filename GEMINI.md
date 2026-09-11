@@ -6,7 +6,7 @@ Welcome to the **CommanderDog** project repository. All agents and pair-programm
 
 ## 1. Versioning & Iteration Rules
 
-* **Iteration Release Candidates (`rc1-rc9`)**: Every time changes/iterations are made to the codebase between official releases, bump the release candidate postfix using SemVer `rc1` through `rc9` (e.g. `0.7.1-rc1`, `0.7.1-rc2`, `0.7.1-rc3`...) in `Cargo.toml`. When an official milestone release is finalized, drop the `-rc` suffix (e.g. `0.7.1`).
+* **Iteration Release Candidates (`rc1-rc99`)**: Every time changes/iterations are made to the codebase between official releases, bump the release candidate postfix using SemVer `rc1` through `rc99` (e.g. `0.8.3-rc1`, `0.8.3-rc2`...) in `Cargo.toml`. When an official milestone release is finalized, drop the `-rc` suffix (e.g. `0.8.3`).
 * **Centralized Single Source of Truth**:
   * The version number is defined exclusively in `Cargo.toml` (`[package] version = "..."`).
   * The Rust backend automatically embeds this compile-time via `env!("CARGO_PKG_VERSION")` and serves it via `/api/config` and `/api/system/status`.
@@ -31,7 +31,12 @@ At the end of every response after making changes, **always clearly inform the u
   * When implementing features or fixing bugs, cross-reference the corresponding issue number in commit messages (e.g. `fix(notedog): resolve dropdown lag in docked mode (fixes #1)`).
 * **Documentation & Changelog CLI Tooling**:
   * Use `scripts/changelog.sh` to compile changelog notes directly to stdout (`./scripts/changelog.sh` or `./scripts/changelog.sh git`).
-  * Before every git commit or push, ensure that `CHANGELOG.md` has the iteration entry and `Cargo.toml` is bumped.
+  * **Official Releases Only**: Update `CHANGELOG.md` exclusively when finalizing and tagging an official milestone release (e.g., `0.8.3`). Do **NOT** log day-to-day release candidate iterations (`rc1`–`rc99`) in `CHANGELOG.md` to conserve token bandwidth and reduce edit friction.
+  * Before every git commit or push, ensure that `Cargo.toml` is bumped to the next iteration candidate (`-rc`).
+* **Release Cadence & Throttling Rules**:
+  * **Daily Release Cap**: Do NOT push more than one official release (`"push and release"`) per day, unless resolving a critical/breaking emergency bug.
+  * **Weekly Token Cycle Releases**: Aim to build and release officially once per weekly token cycle, ideally at the beginning of each new cycle.
+  * **Day-to-Day Development**: Routine iterations, feature additions, and non-breaking bug fixes should use `"push to git"` with SemVer release candidate bumps (`rc1`–`rc99`) rather than publishing full official releases across package ecosystems.
 * **Command: `"push to git"`**:
   * Commit modified files with a clean, conventional commit message and push to the remote Git repository.
   * **DO NOT trigger releases or publish packages.**
@@ -45,14 +50,27 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 4. Professional Tone & Minimal Emoji Policy
+## 4. Scope Discipline, Anti-Vibe-Coding & Feature Planning Protocols
+
+* **Minimize Vibe-Coding & Feature Creep**:
+  * Proactively guard against unchecked vibe-coding, spontaneous feature creep, and unorganized scope bloat.
+  * When a new feature, power tool (ChewToy), or architectural enhancement is proposed:
+    1. **Clarify Roadmap & Issue Alignment**: Check active backlog priorities and ask if we should focus on existing open issues on `Woofson/brum` first.
+    2. **Offer Structured Triage Choices**: Prompt the user to decide between:
+       - **GitHub Issue Tracking & Planning**: File/update the issue on GitHub (`scripts/issues.sh` / `gh issue`), document specifications, outline UI/UX & backend requirements, and align with milestones before implementation.
+       - **Immediate Implementation (Vibe Coding)**: Scope lightly and build/iterate directly in the current session.
+       - **Existing Backlog First**: Postpone new features to resolve current bugs or active GitHub issues first.
+
+---
+
+## 5. Professional Tone & Minimal Emoji Policy
 
 * **Minimal Emotes**: Keep emojis and emotes to a strict minimum in all responses, documentation, commit messages, and UI text.
 * **Professional Engineering Tone**: Maintain a sharp, direct, high-signal tone with subtle hints of brand identity where appropriate, avoiding over-the-top emoji spam in headings and bullet points.
 
 ---
 
-## 5. Brand & Theme Nomenclature
+## 6. Brand & Theme Nomenclature
 
 * **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac)).
 * **Publishing Prefix Rule**: All publishing packages, binaries, and crates must use the `arf-` or `arf_` prefix (e.g., `arf-cmdr` for CommanderDog/Shunt, `arf-remote` for RemoteDog).
@@ -62,7 +80,7 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 6. Viewport & UI Terminology
+## 7. Viewport & UI Terminology
 
 * **Viewport Terms**:
   * `Phone`: Mobile touch screens (`<600px`). Requires single-pane focus, hidden branding badges, and minimal micro-text.
@@ -74,7 +92,7 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 7. Universal Viewer & Terminal Standards
+## 8. Universal Viewer & Terminal Standards
 
 * **Universal Document & Text Viewer**:
   * Dynamic tools (`tail -f`, line count selector `-n`, word wrap, refresh, scroll to bottom) and window actions must be **right-aligned** in `.doc-viewer-header-right`.
@@ -86,7 +104,7 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 8. ChewToy Design & Layout Language Specification
+## 9. ChewToy Design & Layout Language Specification
 
 Whenever creating a new ChewToy (built-in power tool), modal, or floating utility, or modifying existing ones, strictly adhere to the following UI/UX architecture:
 

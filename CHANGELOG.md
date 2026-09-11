@@ -5,6 +5,22 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc21] - 2026-09-11
+
+### Scope Discipline & Anti-Vibe-Coding Rules
+- **Anti-Vibe-Coding & Feature Triage Protocol**:
+  - Added Section 4 to `GEMINI.md` establishing mandatory triage protocols for newly proposed features to prevent feature creep.
+  - Mandated asking the user to choose between GitHub issue tracking/spec planning, immediate implementation (vibe-coding), or prioritizing existing backlog issues before introducing new features.
+
+## [0.8.3-rc20] - 2026-09-11
+
+### Configurable Haptic Touch Feedback
+- **User-Configurable Haptic Feedback Setting**:
+  - Added a dedicated "Haptic Touch Feedback" toggle in Settings modal under General / Confirmations & Safety.
+  - Implemented a centralized `triggerHaptic(duration)` dispatcher in `frontend/app.js` that checks user preferences before triggering `navigator.vibrate`, with silent error catching and graceful degradation on unsupported hardware.
+  - Replaced all direct vibration triggers across the frontend (swipe navigation, pull-to-refresh, table long-press selection, grid long-press menu, panel badge rearrangement) with `triggerHaptic`.
+  - Added full synchronization with user preferences (`getAllUserPreferences`, `applyAllUserPreferences`) and persistent local storage (`cd_haptic_feedback`).
+
 ## [0.8.3-rc19] - 2026-09-11
 
 ### Zero-Flash Authentication & Session Lock Security Shield
