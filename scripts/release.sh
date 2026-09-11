@@ -8,13 +8,15 @@
 #  4. Git commit, tag, and push to GitHub (origin main --tags)
 #  5. Automatic source sha256 checksum calculation & PKGBUILD sync
 #  6. Automatic AUR sync for both `brum` and `brum-bin`
+#  7. Automatic Crates.io publishing (`cargo publish`)
 #
 # USAGE:
-#   ./scripts/release.sh               # Auto-bumps patch (e.g. 0.8.2 -> 0.8.3)
-#   ./scripts/release.sh 0.8.3         # Explicit version bump
-#   ./scripts/release.sh minor         # Bumps minor (e.g. 0.8.2 -> 0.9.0)
-#   ./scripts/release.sh major         # Bumps major (e.g. 0.8.2 -> 1.0.0)
+#   ./scripts/release.sh               # Auto-bumps patch (e.g. 0.8.3 -> 0.8.4)
+#   ./scripts/release.sh 0.8.4         # Explicit version bump
+#   ./scripts/release.sh minor         # Bumps minor (e.g. 0.8.3 -> 0.9.0)
+#   ./scripts/release.sh major         # Bumps major (e.g. 0.8.3 -> 1.0.0)
 #   ./scripts/release.sh --skip-aur    # Skips pushing to AUR
+#   ./scripts/release.sh --skip-crates # Skips publishing to Crates.io
 # ==============================================================================
 
 set -euo pipefail
