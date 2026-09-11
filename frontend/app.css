@@ -14041,6 +14041,62 @@ body.standalone-mode .server-only-setting {
   gap: 5px;
 }
 
+/* ---------------- FLEET PER-PANE NODE SELECTOR & BADGES ---------------- */
+.pane-node-btn {
+  height: 26px !important;
+  padding: 0 7px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  color: var(--text-main);
+  border-radius: var(--radius);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
 
+.pane-node-btn:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+}
 
+.pane-node-btn.remote-active {
+  border-color: var(--accent);
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.2);
+}
 
+.pane-node-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.pane-node-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  color: var(--accent);
+  margin-right: 4px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.pane-node-chip:hover {
+  background: rgba(245, 158, 11, 0.25);
+  border-color: var(--accent);
+}

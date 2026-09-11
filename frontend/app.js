@@ -207,6 +207,7 @@ class PaneState {
     const defaultHome = getUserDefaultHomeDir();
     const saved = localStorage.getItem(`cd_pane_path_${id}`);
     this.path = (saved && saved !== '/') ? saved : (initialPath || defaultHome);
+    this.nodeId = localStorage.getItem(`cd_pane_node_${id}`) || 'local';
     this.entries = [];
     this.selected = new Set();
     this.cursorIndex = 0;
@@ -238,6 +239,7 @@ function getAllUserPreferences() {
     // 1. Panes & Viewport Layouts
     pane_names: App.panes.map(p => p.customName || null),
     pane_colors: getPaneColors(),
+    pane_nodes: App.panes.map(p => p.nodeId || 'local'),
     default_layout: App.layout,
     layout_pc: localStorage.getItem('cd_layout_pc') || localStorage.getItem('cd_layout') || 'layout-dual-vertical',
     layout_tablet: localStorage.getItem('cd_layout_tablet') || 'layout-dual-vertical',
@@ -326,6 +328,16 @@ function applyAllUserPreferences(prefs) {
   // 2. Pane Colors
   if (prefs.pane_colors !== undefined && prefs.pane_colors !== null && typeof prefs.pane_colors === 'object') {
     localStorage.setItem('cd_pane_colors', JSON.stringify(prefs.pane_colors));
+  }
+
+  // 2b. Pane Fleet Nodes
+  if (Array.isArray(prefs.pane_nodes)) {
+    prefs.pane_nodes.forEach((nodeId, i) => {
+      if (App.panes[i] && nodeId) {
+        App.panes[i].nodeId = nodeId;
+        localStorage.setItem(`cd_pane_node_${i}`, nodeId);
+      }
+    });
   }
 
   // 3. Viewport-Decoupled Default Layouts (on fresh session load)
@@ -832,6 +844,7 @@ function initPanes() {
   const defaultHome = getUserDefaultHomeDir();
   for (let i = 0; i < defaultCount; i++) {
     const p = new PaneState(i, defaultHome);
+    p.nodeId = localStorage.getItem(`cd_pane_node_${i}`) || 'local';
     p.viewMode = localStorage.getItem(`cd_pane_viewmode_${i}`) || 'details';
     p.gridSize = localStorage.getItem(`cd_pane_gridsize_${i}`) || 'md';
     p.showTree = localStorage.getItem(`cd_pane_tree_${i}`) === '1';
@@ -1737,6 +1750,13 @@ function createPaneElement(pane, index) {
         <input type="text" class="pane-path-input" id="pane-input-${index}" onkeydown="handlePathKey(event, ${index})" onblur="disablePathInput(${index})">
       </div>
 
+      <!-- Fleet Node Switcher Badge / Button -->
+      <button class="btn pane-node-btn desktop-header-tool" id="pane-node-btn-${index}" onclick="event.stopPropagation(); showPaneNodeDropdown(event, ${index})" title="Switch Node / Host for this Pane">
+        <span class="pane-node-dot" id="pane-node-dot-${index}" style="background: #10b981;"></span>
+        <span class="pane-node-name" id="pane-node-name-${index}">Local</span>
+        <i data-lucide="chevron-down" style="width: 10px; height: 10px; opacity: 0.7;"></i>
+      </button>
+
       <!-- Remote Protocol Selector (Desktop) -->
       <button class="btn pane-proto-btn desktop-header-tool" onclick="openRemoteModal(${index})" title="Remote Storage & Protocols (SFTP, SMB, NFS, WebDAV, S3)" style="height: 26px; padding: 0 5px; display: inline-flex; align-items: center; gap: 2px;">
         <i data-lucide="network" style="width: 13px; height: 13px;"></i>
@@ -2102,18 +2122,210 @@ function togglePaneDotfiles(paneIndex) {
   loadPaneDirectory(paneIndex, pane.path);
 }
 
+// ---------------- PER-PANE FLEET NODE HELPERS ----------------
+function getPaneNode(paneIndex) {
+  const pane = App.panes && App.panes[paneIndex];
+  const nodeId = pane ? (pane.nodeId || 'local') : 'local';
+  if (nodeId === 'local') {
+    return {
+      id: 'local',
+      name: 'Local Host',
+      endpoint_url: window.location.origin,
+      auth_token: App.token || '',
+      color_accent: 'amber',
+      status: 'online'
+    };
+  }
+  const node = typeof getFleetNodeById === 'function' ? getFleetNodeById(nodeId) : null;
+  if (!node) {
+    return {
+      id: 'local',
+      name: 'Local Host',
+      endpoint_url: window.location.origin,
+      auth_token: App.token || '',
+      color_accent: 'amber',
+      status: 'online'
+    };
+  }
+  return node;
+}
+
+function getPaneEndpoint(paneIndex) {
+  const node = getPaneNode(paneIndex);
+  if (!node || node.id === 'local' || !node.endpoint_url) {
+    return '';
+  }
+  return node.endpoint_url.trim().replace(/\/+$/, '');
+}
+
+function getPaneAuthHeaders(paneIndex, extraHeaders = {}) {
+  const node = getPaneNode(paneIndex);
+  const headers = { ...extraHeaders };
+  if (node && node.id !== 'local') {
+    if (node.auth_token && node.auth_token.trim()) {
+      headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
+    }
+  } else {
+    const token = App.token || localStorage.getItem('cd_token') || '';
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
+
+function switchPaneNode(paneIndex, nodeId, targetPath = null) {
+  const pane = App.panes && App.panes[paneIndex];
+  if (!pane) return;
+
+  pane.nodeId = nodeId || 'local';
+  localStorage.setItem(`cd_pane_node_${paneIndex}`, pane.nodeId);
+
+  updatePaneNodeBadge(paneIndex);
+
+  if (typeof queueSaveUserPreferencesToServer === 'function') {
+    queueSaveUserPreferencesToServer();
+  }
+
+  if (pane.nodeId === 'local') {
+    const defaultHome = getUserDefaultHomeDir();
+    const dest = targetPath || defaultHome || '/';
+    loadPaneDirectory(paneIndex, dest, true);
+    showToast(`Pane ${paneIndex + 1} switched to Local Host`, 'info');
+  } else {
+    const node = getPaneNode(paneIndex);
+    const dest = targetPath || '/';
+    loadPaneDirectory(paneIndex, dest, true);
+    showToast(`Pane ${paneIndex + 1} switched to Fleet Node "${node.name}"`, 'success');
+    if (typeof pingFleetNode === 'function') {
+      pingFleetNode(node.id);
+    }
+  }
+}
+
+function updatePaneNodeBadge(paneIndex) {
+  const node = getPaneNode(paneIndex);
+  const btn = document.getElementById(`pane-node-btn-${paneIndex}`);
+  const dot = document.getElementById(`pane-node-dot-${paneIndex}`);
+  const name = document.getElementById(`pane-node-name-${paneIndex}`);
+
+  if (!btn || !node) return;
+
+  if (node.id === 'local') {
+    btn.classList.remove('remote-active');
+    if (dot) dot.style.background = '#10b981';
+    if (name) name.textContent = 'Local';
+    btn.title = `Local Host (Active for Pane ${paneIndex + 1}) - Click to switch target node`;
+  } else {
+    btn.classList.add('remote-active');
+    let dotColor = '#94a3b8';
+    if (node.status === 'online') dotColor = '#10b981';
+    else if (node.status === 'unauthorized') dotColor = '#f59e0b';
+    else if (node.status === 'offline') dotColor = '#ef4444';
+    if (dot) dot.style.background = dotColor;
+    if (name) name.textContent = node.name || 'Remote';
+    btn.title = `Fleet Node: ${node.name} (${node.endpoint_url || ''}) - Click to switch target node`;
+  }
+}
+
+async function showPaneNodeDropdown(event, paneIndex) {
+  if (typeof closeBreadcrumbPopovers === 'function') closeBreadcrumbPopovers();
+  const trigger = event.currentTarget || event.target;
+  const rect = trigger.getBoundingClientRect();
+
+  const popover = document.createElement('div');
+  popover.className = 'breadcrumb-popover fleet-pane-popover';
+  popover.style.top = `${rect.bottom + 4}px`;
+  popover.style.left = `${Math.max(8, rect.left)}px`;
+  popover.style.minWidth = '230px';
+
+  const pane = App.panes && App.panes[paneIndex];
+  const currentNodeId = pane ? (pane.nodeId || 'local') : 'local';
+
+  const nodes = typeof getAllFleetNodes === 'function' ? getAllFleetNodes() : [];
+
+  let html = `
+    <div class="breadcrumb-popover-header" style="display: flex; align-items: center; justify-content: space-between;">
+      <span>Pane ${paneIndex + 1} Target Node</span>
+      <span style="font-size: 9px; opacity: 0.7; font-family: var(--font-mono);">${nodes.length + 1} Available</span>
+    </div>
+    <div class="breadcrumb-popover-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); closeBreadcrumbPopovers();">
+      <span class="pane-node-dot" style="background: #10b981;"></span>
+      <span style="font-weight: 600;">🖥️ Local Host</span>
+      <span style="font-size: 10px; color: var(--text-muted); margin-left: auto; font-family: var(--font-mono);">0 ms</span>
+      ${currentNodeId === 'local' ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+    </div>
+  `;
+
+  if (nodes.length > 0) {
+    html += `<div class="breadcrumb-popover-header" style="margin-top: 4px;">Commander Fleet Nodes</div>`;
+    nodes.forEach(n => {
+      const isAct = currentNodeId === n.id;
+      let dotColor = '#94a3b8';
+      if (n.status === 'online') dotColor = '#10b981';
+      else if (n.status === 'unauthorized') dotColor = '#f59e0b';
+      else if (n.status === 'offline') dotColor = '#ef4444';
+
+      const latencyStr = typeof n.latency_ms === 'number' ? `${n.latency_ms} ms` : (n.status || 'unknown');
+      const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
+
+      html += `
+        <div class="breadcrumb-popover-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); closeBreadcrumbPopovers();">
+          <span class="pane-node-dot" style="background: ${dotColor};"></span>
+          <div style="display: flex; flex-direction: column; overflow: hidden; margin-right: 6px;">
+            <span style="font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(n.name)}</span>
+            <span style="font-size: 9.5px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(cleanUrl)}</span>
+          </div>
+          <span style="font-size: 10px; color: var(--text-dim); margin-left: auto; font-family: var(--font-mono); white-space: nowrap;">${escapeHtml(latencyStr)}</span>
+          ${isAct ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+        </div>
+      `;
+    });
+  }
+
+  html += `
+    <div style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px;">
+      <div class="breadcrumb-popover-item" onclick="openFleetManagerModal(); closeBreadcrumbPopovers();" style="color: var(--accent); font-weight: 600;">
+        <i data-lucide="server" style="width: 12px; height: 12px; margin-right: 4px;"></i> Manage Fleet Nodes...
+      </div>
+      <div class="breadcrumb-popover-item" onclick="openApiTokensModal(); closeBreadcrumbPopovers();" style="color: var(--text-muted); font-size: 11px;">
+        <i data-lucide="key" style="width: 12px; height: 12px; margin-right: 4px;"></i> API & Fleet Tokens...
+      </div>
+    </div>
+  `;
+
+  popover.innerHTML = html;
+  document.body.appendChild(popover);
+  if (window.lucide) {
+    try { lucide.createIcons({ root: popover }); } catch (_) {}
+  }
+}
+
+function openApiTokensModal() {
+  if (typeof openAdminModal === 'function') {
+    openAdminModal();
+    if (typeof switchAdminTab === 'function') {
+      switchAdminTab('tokens');
+    }
+  } else if (typeof openCreateApiTokenModal === 'function') {
+    openCreateApiTokenModal();
+  }
+}
+
 async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false) {
+  const pane = App.panes[paneIndex];
+  if (!pane) return;
+
+  const isLocal = !pane.nodeId || pane.nodeId === 'local';
+
   if (targetPath === '~' || (typeof targetPath === 'string' && targetPath.startsWith('~/'))) {
-    const userHome = getUserDefaultHomeDir();
+    const userHome = isLocal ? getUserDefaultHomeDir() : '/';
     const resolvedHome = (userHome && userHome !== '~') ? userHome : '/';
     targetPath = targetPath === '~' ? resolvedHome : (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + targetPath.substring(2);
   }
 
   const cleanPath = sanitizeCredentials(targetPath);
   const authUrl = resolveAuthUri(targetPath);
-
-  const pane = App.panes[paneIndex];
-  if (!pane) return;
 
   // Abort any ongoing directory fetch for this pane
   if (pane._abortController) {
@@ -2137,7 +2349,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
 
   if (pushHistory && typeof window !== 'undefined' && window.history && typeof window.history.pushState === 'function') {
     try {
-      window.history.pushState({ type: 'dir', paneIndex, path: cleanPath }, '', '');
+      window.history.pushState({ type: 'dir', paneIndex, path: cleanPath, nodeId: pane.nodeId || 'local' }, '', '');
     } catch (_) {}
   }
 
@@ -2148,21 +2360,25 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
   }
 
   try {
+    const endpoint = getPaneEndpoint(paneIndex);
+    const headers = getPaneAuthHeaders(paneIndex);
     const flatParam = pane.isBranchView ? '&flat=true' : '';
-    const url = `/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=${pane.showHidden}${flatParam}`;
+    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=${pane.showHidden}${flatParam}`;
     const resp = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${App.token}` },
+      headers,
       signal: pane._abortController.signal
     });
 
     if (!resp.ok) {
       const errText = sanitizeCredentials(await resp.text());
       console.warn(`Failed to load ${cleanPath}:`, errText);
-      const userHome = getUserDefaultHomeDir();
-      if ((cleanPath === '/' || resp.status === 403) && userHome && userHome !== '/' && userHome !== cleanPath) {
-        console.info(`Auto-redirecting pane ${paneIndex} from ${cleanPath} to user home: ${userHome}`);
-        loadPaneDirectory(paneIndex, userHome, false);
-        return;
+      if (isLocal) {
+        const userHome = getUserDefaultHomeDir();
+        if ((cleanPath === '/' || resp.status === 403) && userHome && userHome !== '/' && userHome !== cleanPath) {
+          console.info(`Auto-redirecting pane ${paneIndex} from ${cleanPath} to user home: ${userHome}`);
+          loadPaneDirectory(paneIndex, userHome, false);
+          return;
+        }
       }
       showToast(`Failed to load directory: ${errText}`, 'error');
       return;
@@ -2233,6 +2449,40 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
   if (!container) return;
   container.innerHTML = '';
   pathStr = pathStr || '/';
+
+  // If pane is bound to a remote fleet node, prepend node chip indicator
+  const isRemoteNode = pane && pane.nodeId && pane.nodeId !== 'local';
+  if (isRemoteNode) {
+    const node = getPaneNode(paneIndex);
+    const nodeChip = document.createElement('button');
+    nodeChip.className = 'btn btn-xs pane-node-chip';
+    nodeChip.title = `Connected to Fleet Node: ${node.name} (${node.endpoint_url || ''}). Click to switch node.`;
+    nodeChip.innerHTML = `<i data-lucide="server" style="width: 11px; height: 11px;"></i> <span>${escapeHtml(node.name)}</span>`;
+    nodeChip.onclick = (e) => {
+      e.stopPropagation();
+      showPaneNodeDropdown(e, paneIndex);
+    };
+    container.appendChild(nodeChip);
+
+    const disconnectBtn = document.createElement('button');
+    disconnectBtn.className = 'btn btn-xs pane-disconnect-chip';
+    disconnectBtn.style.marginRight = '4px';
+    disconnectBtn.style.padding = '2px 5px';
+    disconnectBtn.style.borderRadius = '4px';
+    disconnectBtn.style.background = 'rgba(239, 68, 68, 0.15)';
+    disconnectBtn.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+    disconnectBtn.style.color = 'var(--danger, #ef4444)';
+    disconnectBtn.style.display = 'inline-flex';
+    disconnectBtn.style.alignItems = 'center';
+    disconnectBtn.style.cursor = 'pointer';
+    disconnectBtn.title = `Disconnect from ${node.name} and return to Local Host`;
+    disconnectBtn.innerHTML = '<i data-lucide="unplug" style="width: 10px; height: 10px;"></i>';
+    disconnectBtn.onclick = (e) => {
+      e.stopPropagation();
+      switchPaneNode(paneIndex, 'local');
+    };
+    container.appendChild(disconnectBtn);
+  }
 
   if (pane && pane.isBranchView) {
     const branchBadge = document.createElement('span');
@@ -2608,11 +2858,13 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
   if (window.lucide) lucide.createIcons();
 }
 
-async function fetchStorageRoots() {
+async function fetchStorageRoots(paneIndex = null) {
   try {
+    const endpoint = (paneIndex !== null && paneIndex !== undefined) ? getPaneEndpoint(paneIndex) : '';
+    const headers = (paneIndex !== null && paneIndex !== undefined) ? getPaneAuthHeaders(paneIndex) : { 'Authorization': `Bearer ${App.token}` };
     const [res, disksRes] = await Promise.all([
-      fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      (!window._systemDisks || window._systemDisks.length === 0) ? fetch('/api/tools/disks', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null) : Promise.resolve(null)
+      fetch(`${endpoint}/api/storage/roots`, { headers }),
+      (!window._systemDisks || window._systemDisks.length === 0) ? fetch(`${endpoint}/api/tools/disks`, { headers }).catch(() => null) : Promise.resolve(null)
     ]);
     if (disksRes && disksRes.ok) {
       const d = await disksRes.json();
@@ -2634,7 +2886,7 @@ function closeBreadcrumbPopovers() {
 }
 
 document.addEventListener('click', (e) => {
-  if (!e.target.closest('.breadcrumb-popover') && !e.target.closest('.crumb-root-dropdown-btn') && !e.target.closest('.crumb-sep-dropdown')) {
+  if (!e.target.closest('.breadcrumb-popover') && !e.target.closest('.crumb-root-dropdown-btn') && !e.target.closest('.crumb-sep-dropdown') && !e.target.closest('.pane-node-btn') && !e.target.closest('.pane-node-chip')) {
     closeBreadcrumbPopovers();
   }
 });
@@ -2652,7 +2904,7 @@ async function showBreadcrumbRootDropdown(event, paneIndex) {
   document.body.appendChild(popover);
 
   try {
-    const roots = await fetchStorageRoots();
+    const roots = await fetchStorageRoots(paneIndex);
     popover.innerHTML = '';
 
     if (roots.length === 0) {
@@ -2725,9 +2977,11 @@ async function showBreadcrumbSubfolderDropdown(event, paneIndex, parentDir) {
   document.body.appendChild(popover);
 
   try {
+    const endpoint = getPaneEndpoint(paneIndex);
+    const headers = getPaneAuthHeaders(paneIndex);
     const authUrl = resolveAuthUri(parentDir);
-    const res = await fetch(`/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=false`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+    const res = await fetch(`${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=false`, {
+      headers
     });
 
     if (!res.ok) {
@@ -6086,14 +6340,130 @@ async function trackTransferTask(taskId, action, sources, destination, onComplet
   setTimeout(check, intervals[0]);
 }
 
+async function executeCrossNodeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx) {
+  const srcIdx = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx]) ? sourcePaneIdx : App.activePaneIndex;
+  const destIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx]) ? refreshTargetPaneIdx : (srcIdx + 1) % getVisiblePaneCount();
+
+  const srcPane = App.panes[srcIdx];
+  const destPane = App.panes[destIdx];
+  if (!srcPane || !destPane || !sources || sources.length === 0) return;
+
+  const srcNode = getPaneNode(srcIdx);
+  const destNode = getPaneNode(destIdx);
+
+  const srcEndpoint = getPaneEndpoint(srcIdx);
+  const srcHeaders = getPaneAuthHeaders(srcIdx);
+
+  const destEndpoint = getPaneEndpoint(destIdx);
+  const destHeaders = getPaneAuthHeaders(destIdx);
+
+  const totalItems = sources.length;
+  showToast(`Starting cross-node ${action === 'move' ? 'Move' : 'Copy'} (${srcNode.name} ➔ ${destNode.name}): ${totalItems} item(s)...`, 'info');
+
+  const pill = document.getElementById('tasks-pill');
+  const pillText = document.getElementById('tasks-pill-text');
+  if (pill && pillText) {
+    pill.style.display = 'flex';
+    pillText.textContent = `Streaming ${action} ${srcNode.name} ➔ ${destNode.name}...`;
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (let i = 0; i < sources.length; i++) {
+    const srcPath = sources[i];
+    const fileName = srcPath.split('/').filter(Boolean).pop() || 'transferred_file';
+    if (pillText) {
+      pillText.textContent = `Streaming [${i + 1}/${totalItems}] ${fileName}...`;
+    }
+
+    try {
+      // 1. Download stream from Source Node
+      const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(srcPath)}`;
+      const downloadResp = await fetch(dlUrl, {
+        method: 'GET',
+        headers: srcHeaders
+      });
+
+      if (!downloadResp.ok) {
+        throw new Error(`Source download failed (${downloadResp.status}): ${await downloadResp.text()}`);
+      }
+
+      const blob = await downloadResp.blob();
+
+      // 2. Upload to Destination Node
+      const formData = new FormData();
+      formData.append('files', blob, fileName);
+
+      const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(destination)}`;
+      const uploadResp = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: destHeaders,
+        body: formData
+      });
+
+      if (!uploadResp.ok) {
+        throw new Error(`Target upload failed (${uploadResp.status}): ${await uploadResp.text()}`);
+      }
+
+      // 3. Delete from Source if Move operation
+      if (action === 'move') {
+        const delResp = await fetch(`${srcEndpoint}/api/fs/delete`, {
+          method: 'POST',
+          headers: getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' }),
+          body: JSON.stringify({
+            paths: [srcPath],
+            use_trash: false
+          })
+        });
+        if (!delResp.ok) {
+          console.warn(`Source deletion failed after move:`, await delResp.text());
+        }
+      }
+
+      successCount++;
+    } catch (err) {
+      console.error(`Cross-node transfer error for ${srcPath}:`, err);
+      failCount++;
+      showToast(`Transfer failed for ${fileName}: ${err.message}`, 'error');
+    }
+  }
+
+  if (pill) pill.style.display = 'none';
+
+  if (action === 'move' && srcPane.selected) {
+    srcPane.selected.clear();
+  }
+
+  refreshAllPanes();
+
+  if (failCount === 0) {
+    showToast(`Cross-node ${action === 'move' ? 'Move' : 'Copy'} completed: ${successCount} item(s) transferred to ${destNode.name}`, 'success');
+  } else {
+    showToast(`Cross-node transfer finished: ${successCount} succeeded, ${failCount} failed`, 'warning');
+  }
+}
+
 async function executeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx) {
   if (!sources || sources.length === 0) return;
-  const endpoint = action === 'move' ? '/api/fs/move' : '/api/fs/copy';
+  const srcIdx = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx]) ? sourcePaneIdx : App.activePaneIndex;
+  const destIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx]) ? refreshTargetPaneIdx : (srcIdx + 1) % getVisiblePaneCount();
+
+  const srcNode = getPaneNode(srcIdx);
+  const destNode = getPaneNode(destIdx);
+
+  // Cross-Node Transfer detected!
+  if (srcNode.id !== destNode.id) {
+    return executeCrossNodeTransfer(action, sources, destination, destIdx, srcIdx);
+  }
+
+  const endpoint = action === 'move' ? `${getPaneEndpoint(srcIdx)}/api/fs/move` : `${getPaneEndpoint(srcIdx)}/api/fs/copy`;
+  const headers = getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' });
 
   try {
     const resp = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: headers,
       body: JSON.stringify({ sources, destination, paranoid: App.paranoidMode })
     });
 
@@ -6102,9 +6472,7 @@ async function executeTransfer(action, sources, destination, refreshTargetPaneId
 
       // Immediately clear selection on source pane for move operations
       if (action === 'move') {
-        const srcPane = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx])
-          ? App.panes[sourcePaneIdx]
-          : App.panes[App.activePaneIndex];
+        const srcPane = App.panes[srcIdx];
         if (srcPane && srcPane.selected) {
           srcPane.selected.clear();
         }
@@ -6537,9 +6905,10 @@ function maximizeFloatingEditor() {
   win.classList.toggle('maximized');
 }
 
-async function openEditorWithFile(filePath) {
+async function openEditorWithFile(filePath, paneIndex = null) {
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   const cleanPath = sanitizeCredentials(filePath);
-  const existingTab = editorTabs.find(t => t.path === cleanPath || t.path === filePath);
+  const existingTab = editorTabs.find(t => (t.path === cleanPath || t.path === filePath) && (t.paneIndex === resolvedPaneIdx || t.paneIndex === undefined));
   if (existingTab) {
     switchActiveEditorTab(existingTab.id, 'left');
     const dockedIdx = App.panes.findIndex(p => p.dockedTool === 'editor');
@@ -6553,13 +6922,16 @@ async function openEditorWithFile(filePath) {
 
   try {
     const authPath = resolveAuthUri(filePath);
-    const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(authPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+    const endpoint = getPaneEndpoint(resolvedPaneIdx);
+    const authHeaders = getPaneAuthHeaders(resolvedPaneIdx);
+    const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(authPath)}`, {
+      headers: { ...authHeaders }
     });
 
     if (resp.ok) {
       const data = await resp.json();
-      createNewEditorTab(data.content, null, cleanPath, false, []);
+      const tab = createNewEditorTab(data.content, null, cleanPath, false, []);
+      tab.paneIndex = resolvedPaneIdx;
       
       const isMd = cleanPath.endsWith('.md') || cleanPath.endsWith('.markdown');
       handleEditorViewModeChange(isMd ? 'split-markdown' : 'single-editor');
@@ -9139,9 +9511,12 @@ async function saveActiveEditorTab() {
 
   try {
     const authPath = resolveAuthUri(tab.path);
-    const resp = await fetch('/api/fs/write', {
+    const paneIdx = (tab.paneIndex !== undefined && tab.paneIndex !== null) ? tab.paneIndex : App.activePaneIndex;
+    const endpoint = getPaneEndpoint(paneIdx);
+    const authHeaders = getPaneAuthHeaders(paneIdx);
+    const resp = await fetch(`${endpoint}/api/fs/write`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json', ...authHeaders },
       body: JSON.stringify({ path: authPath, content: tab.content, atomic: true })
     });
 
@@ -14028,15 +14403,15 @@ function triggerView() {
   }
 
   if (isDocumentExtension(item.name)) {
-    openDocumentViewer(item.path);
+    openDocumentViewer(item.path, App.activePaneIndex);
     return;
   }
   if (isAudioExtension(item.name)) {
-    openSoundDog(item.path);
+    openSoundDog(item.path, App.activePaneIndex);
     return;
   }
   if (isVideoExtension(item.name)) {
-    openMediaPlayer(item.path, 'video');
+    openMediaPlayer(item.path, 'video', App.activePaneIndex);
     return;
   }
   if (isComicBookExtension(item.name)) {
@@ -14044,11 +14419,11 @@ function triggerView() {
     return;
   }
   if (isImageExtension(item.name)) {
-    openImageViewer(item.path);
+    openImageViewer(item.path, App.activePaneIndex);
     return;
   }
 
-  openDocumentViewer(item.path);
+  openDocumentViewer(item.path, App.activePaneIndex);
 }
 
 function triggerEditor() {
@@ -14070,7 +14445,7 @@ function triggerEditor() {
     if (item.is_dir) {
       checkAndPromptConfdDirectory(item.path);
     } else {
-      openEditorWithFile(item.path);
+      openEditorWithFile(item.path, App.activePaneIndex);
     }
   } else {
     if (editorTabs.length === 0) createNewEditorTab();
@@ -14114,11 +14489,13 @@ function triggerMkdir() {
     }
     const newDir = `${pane.path.replace(/\/$/, '')}/${name}`;
     const authDir = resolveAuthUri(newDir);
+    const endpoint = getPaneEndpoint(App.activePaneIndex);
+    const headers = getPaneAuthHeaders(App.activePaneIndex, { 'Content-Type': 'application/json' });
     closeModal('mkdir-modal');
     try {
-      const resp = await fetch('/api/fs/mkdir', {
+      const resp = await fetch(`${endpoint}/api/fs/mkdir`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: headers,
         body: JSON.stringify({ path: authDir })
       });
       if (resp.ok) {
@@ -14209,11 +14586,13 @@ function triggerRename() {
     const toPath = `${pane.path.replace(/\/$/, '')}/${newName}`;
     const fromAuth = resolveAuthUri(item.path);
     const toAuth = resolveAuthUri(toPath);
+    const endpoint = getPaneEndpoint(targetPaneIdx);
+    const headers = getPaneAuthHeaders(targetPaneIdx, { 'Content-Type': 'application/json' });
     closeModal('rename-modal');
     try {
-      const resp = await fetch('/api/fs/rename', {
+      const resp = await fetch(`${endpoint}/api/fs/rename`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: headers,
         body: JSON.stringify({ 
           from: fromAuth, 
           to: toAuth,
@@ -14278,10 +14657,12 @@ async function triggerDelete() {
 
   if (confirmed) {
     try {
+      const endpoint = getPaneEndpoint(targetPaneIdx);
+      const headers = getPaneAuthHeaders(targetPaneIdx, { 'Content-Type': 'application/json' });
       const authPaths = paths.map(p => resolveAuthUri(p));
-      const resp = await fetch('/api/fs/delete', {
+      const resp = await fetch(`${endpoint}/api/fs/delete`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: headers,
         body: JSON.stringify({ 
           paths: authPaths, 
           use_trash: useTrash, 
@@ -14393,6 +14774,15 @@ async function executeDeltaCopy() {
 
   closeModal('deltacopy-modal');
 
+  const srcIdx = App.activePaneIndex;
+  const destIdx = (pendingDeltaTransfer && typeof pendingDeltaTransfer.targetIdx === 'number') ? pendingDeltaTransfer.targetIdx : (srcIdx + 1) % getVisiblePaneCount();
+  const srcNode = getPaneNode(srcIdx);
+  const destNode = getPaneNode(destIdx);
+
+  if (srcNode.id !== destNode.id) {
+    return executeCrossNodeTransfer('copy', pendingDeltaTransfer.sources, dest, destIdx, srcIdx);
+  }
+
   const payload = {
     sources: pendingDeltaTransfer.sources,
     destination: dest,
@@ -14409,9 +14799,12 @@ async function executeDeltaCopy() {
     }
   };
 
-  const resp = await fetch('/api/fs/deltacopy', {
+  const endpoint = getPaneEndpoint(srcIdx);
+  const headers = getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' });
+
+  const resp = await fetch(`${endpoint}/api/fs/deltacopy`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+    headers: headers,
     body: JSON.stringify(payload)
   });
 
@@ -14506,6 +14899,9 @@ async function handleDirectFileUpload(files) {
     formData.append('files', files[i]);
   }
 
+  const endpoint = getPaneEndpoint(paneIdx);
+  const headers = getPaneAuthHeaders(paneIdx);
+
   showToast(`Uploading ${fileCount} item(s) from device to ${pane.path}...`, 'info');
 
   const pill = document.getElementById('tasks-pill');
@@ -14516,10 +14912,10 @@ async function handleDirectFileUpload(files) {
   }
 
   try {
-    const resp = await fetch(`/api/fs/upload?destination=${encodeURIComponent(destPath)}`, {
+    const resp = await fetch(`${endpoint}/api/fs/upload?destination=${encodeURIComponent(destPath)}`, {
       method: 'POST',
       body: formData,
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: headers
     });
 
     if (resp.ok) {
@@ -14789,12 +15185,11 @@ async function executeCompressArchive() {
   showToast(`Creating ${format.toUpperCase()} archive in background...`, 'info');
 
   try {
-    const resp = await fetch('/api/fs/archive/create', {
+    const endpoint = getPaneEndpoint(App.activePaneIndex);
+    const headers = getPaneAuthHeaders(App.activePaneIndex, { 'Content-Type': 'application/json' });
+    const resp = await fetch(`${endpoint}/api/fs/archive/create`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
-      },
+      headers: headers,
       body: JSON.stringify({
         sources: pendingCompressSources,
         target_path: targetPath,
@@ -14863,12 +15258,11 @@ async function executeExtractArchive() {
   showToast(`Extracting ${pendingExtractItem.name}...`, 'info');
 
   try {
-    const resp = await fetch('/api/fs/archive/extract', {
+    const endpoint = getPaneEndpoint(App.activePaneIndex);
+    const headers = getPaneAuthHeaders(App.activePaneIndex, { 'Content-Type': 'application/json' });
+    const resp = await fetch(`${endpoint}/api/fs/archive/extract`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
-      },
+      headers: headers,
       body: JSON.stringify({
         archive_path: pendingExtractItem.path,
         target_dir: targetDir
@@ -15061,6 +15455,9 @@ function openPaneToolsMenu(e, paneIndex) {
       </div>
       <div class="dropdown-item" onclick="promptRenamePane(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="edit-3" style="color: var(--accent);"></i> Rename Pane Label...
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); showPaneNodeDropdown(event, ${paneIndex});">
+        <i data-lucide="server" style="color: var(--accent);"></i> Switch Target Node (Fleet)...
       </div>
       <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
       
@@ -17636,12 +18033,15 @@ function resolveAuthUri(path) {
   return path;
 }
 
-function getDownloadUrl(path, inline = false) {
+function getDownloadUrl(path, inline = false, paneIndex = null) {
   if (!path) return '';
   const resolved = resolveAuthUri(path);
-  let url = `/api/fs/download?path=${encodeURIComponent(resolved)}`;
+  const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(pIdx) : '';
+  const node = typeof getPaneNode === 'function' ? getPaneNode(pIdx) : null;
+  let url = `${endpoint}/api/fs/download?path=${encodeURIComponent(resolved)}`;
   if (inline) url += '&inline=true';
-  const token = App.token || localStorage.getItem('cd_token');
+  const token = (node && node.id !== 'local' && node.auth_token) ? node.auth_token.trim() : (App.token || localStorage.getItem('cd_token'));
   if (token) url += `&token=${encodeURIComponent(token)}`;
   return url;
 }
@@ -17943,7 +18343,7 @@ function isImageExtension(filename) {
   return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif', 'tiff'].includes(ext);
 }
 
-async function getImageBlobUrl(path) {
+async function getImageBlobUrl(path, paneIndex = null) {
   if (imageViewerBlobCache.has(path)) {
     const cached = imageViewerBlobCache.get(path);
     imageViewerBlobCache.delete(path);
@@ -17951,7 +18351,8 @@ async function getImageBlobUrl(path) {
     return cached.blobUrl;
   }
 
-  const url = getDownloadUrl(path, true);
+  const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentImageViewerPaneIndex;
+  const url = getDownloadUrl(path, true, pIdx);
   const resp = await fetch(url);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
   const blob = await resp.blob();
@@ -18265,9 +18666,12 @@ function toggleImageViewerFloating(forceFloating) {
   if (window.lucide) lucide.createIcons();
 }
 
-function openImageViewer(filePath) {
-  const pane = App.panes[App.activePaneIndex];
-  currentImageList = pane.entries.filter(e => !e.is_dir && isImageExtension(e.name)).map(e => e.path);
+let currentImageViewerPaneIndex = null;
+
+function openImageViewer(filePath, paneIndex = null) {
+  currentImageViewerPaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[currentImageViewerPaneIndex];
+  currentImageList = (pane && pane.entries) ? pane.entries.filter(e => !e.is_dir && isImageExtension(e.name)).map(e => e.path) : [filePath];
 
   if (currentImageList.length === 0) {
     currentImageList = [filePath];
@@ -18278,11 +18682,12 @@ function openImageViewer(filePath) {
 
   initImageViewerDrag();
   setupImageViewerEvents();
-  loadImageToViewer(currentImageList[currentImageIndex]);
+  loadImageToViewer(currentImageList[currentImageIndex], currentImageViewerPaneIndex);
   showModal('image-viewer-modal');
 }
 
-async function loadImageToViewer(path) {
+async function loadImageToViewer(path, paneIndex = null) {
+  const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentImageViewerPaneIndex;
   const imgEl = document.getElementById('img-viewer-element');
   const titleEl = document.getElementById('img-viewer-title');
   const metaEl = document.getElementById('img-viewer-meta');
@@ -18295,7 +18700,7 @@ async function loadImageToViewer(path) {
   if (counterEl) counterEl.textContent = `${currentImageIndex + 1} / ${currentImageList.length}`;
 
   const loadId = ++currentLoadingImageId;
-  const rawDlUrl = getDownloadUrl(path, false);
+  const rawDlUrl = getDownloadUrl(path, false, pIdx);
   const dlLink = document.getElementById('img-viewer-download-link');
   if (dlLink) dlLink.href = rawDlUrl;
 
@@ -18833,17 +19238,17 @@ function openFileByType(entry, paneIndex) {
     }
     loadPaneDirectory(paneIndex, entry.path);
   } else if (isPdfExtension(entry.name) || isDocumentExtension(entry.name)) {
-    openDocumentViewer(entry.path);
+    openDocumentViewer(entry.path, paneIndex);
   } else if (isAudioExtension(entry.name)) {
-    openSoundDog(entry.path);
+    openSoundDog(entry.path, paneIndex);
   } else if (isVideoExtension(entry.name)) {
-    openMediaPlayer(entry.path, 'video');
+    openMediaPlayer(entry.path, 'video', paneIndex);
   } else if (isComicBookExtension(entry.name)) {
     openBookReader(entry.path);
   } else if (isImageExtension(entry.name)) {
-    openImageViewer(entry.path);
+    openImageViewer(entry.path, paneIndex);
   } else {
-    openEditorWithFile(entry.path);
+    openEditorWithFile(entry.path, paneIndex);
   }
 }
 
@@ -19064,6 +19469,8 @@ function renderTextDocViewerControls() {
   if (window.lucide) lucide.createIcons();
 }
 
+let currentDocViewerPaneIndex = null;
+
 async function refreshDocViewerText() {
   if (!currentDocViewerPath) return;
   const contentEl = document.getElementById('doc-text-content');
@@ -19071,8 +19478,11 @@ async function refreshDocViewerText() {
   const ext = currentDocViewerPath.split('.').pop().toLowerCase();
 
   try {
-    const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(currentDocViewerPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+    const pIdx = (currentDocViewerPaneIndex !== null && currentDocViewerPaneIndex !== undefined) ? currentDocViewerPaneIndex : App.activePaneIndex;
+    const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(pIdx) : '';
+    const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(pIdx) : { 'Authorization': `Bearer ${App.token}` };
+    const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(currentDocViewerPath)}`, {
+      headers
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -19156,7 +19566,8 @@ function toggleViewerWordWrap() {
   showToast(`Word wrap: ${docViewerWordWrap ? 'ON' : 'OFF'}`, 'info');
 }
 
-async function openDocumentViewer(filePath) {
+async function openDocumentViewer(filePath, paneIndex = null) {
+  currentDocViewerPaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   currentDocViewerPath = filePath;
   currentDocViewerRawText = '';
   currentDocViewerMode = 'rendered';
@@ -19176,8 +19587,10 @@ async function openDocumentViewer(filePath) {
   const extEl = document.getElementById('doc-viewer-external');
 
   if (titleEl) titleEl.textContent = fileName;
-  const downloadUrl = getDownloadUrl(filePath, false);
-  const streamUrl = getDownloadUrl(filePath, true);
+  const downloadUrl = getDownloadUrl(filePath, false, currentDocViewerPaneIndex);
+  const streamUrl = getDownloadUrl(filePath, true, currentDocViewerPaneIndex);
+  const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(currentDocViewerPaneIndex) : '';
+  const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(currentDocViewerPaneIndex) : { 'Authorization': `Bearer ${App.token}` };
 
   if (dlEl) {
     dlEl.href = downloadUrl;
@@ -19230,8 +19643,44 @@ async function openDocumentViewer(filePath) {
     }
 
     try {
-      const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(filePath)}`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+      const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(filePath)}`, {
+        headers
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        currentDocViewerRawText = data.content || '';
+        if (mdPanel) {
+          mdPanel.innerHTML = renderMarkdownToHtml(currentDocViewerRawText);
+          postProcessMarkdownContainer(mdPanel);
+        }
+      }
+    } catch (e) {
+      if (mdPanel) mdPanel.innerHTML = `<div style="color: var(--danger); padding: 24px;">Failed to load markdown: ${escapeHtml(e.message)}</div>`;
+    }
+
+  } else if (['csv', 'tsv', 'tab'].includes(ext)) {
+    const delim = ext === 'tsv' || ext === 'tab' ? '\t' : ',';
+    if (metaEl) metaEl.textContent = `${ext.toUpperCase()} Data Sheet • Interactive Table`;
+    if (iconEl) iconEl.setAttribute('data-lucide', 'table');
+
+    if (controlsEl) {
+      controlsEl.innerHTML = `
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <input type="text" id="doc-csv-filter" placeholder="Filter rows..." style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; color: var(--text-main); width: 140px;" oninput="filterDocCsv(this.value)">
+          <span id="doc-csv-stats" style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">0 rows</span>
+        </div>
+      `;
+    }
+
+    const csvPanel = document.getElementById('doc-view-csv');
+    if (csvPanel) {
+      csvPanel.style.display = 'block';
+      csvPanel.innerHTML = '<div style="color: var(--text-muted); padding: 24px; text-align: center;">Parsing CSV table...</div>';
+    }
+
+    try {
+      const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(filePath)}`, {
+        headers
       });
       if (resp.ok) {
         const data = await resp.json();
@@ -19740,21 +20189,25 @@ let mediaPlaylistIndex = 0;
 let mediaIsPlaying = false;
 let mediaLoop = false;
 
-function openMediaPlayer(filePath, mediaType) {
-  const pane = App.panes[App.activePaneIndex];
-  mediaPlaylist = pane.entries
+let currentMediaPlayerPaneIndex = null;
+
+function openMediaPlayer(filePath, mediaType, paneIndex = null) {
+  currentMediaPlayerPaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[currentMediaPlayerPaneIndex];
+  mediaPlaylist = (pane && pane.entries) ? pane.entries
     .filter(e => !e.is_dir && (isAudioExtension(e.name) || isVideoExtension(e.name)))
-    .map(e => e.path);
+    .map(e => e.path) : [filePath];
 
   if (mediaPlaylist.length === 0) mediaPlaylist = [filePath];
   mediaPlaylistIndex = mediaPlaylist.indexOf(filePath);
   if (mediaPlaylistIndex === -1) mediaPlaylistIndex = 0;
 
-  loadMediaTrack(mediaPlaylist[mediaPlaylistIndex], mediaType);
+  loadMediaTrack(mediaPlaylist[mediaPlaylistIndex], mediaType, currentMediaPlayerPaneIndex);
   showModal('media-player-modal');
 }
 
-function loadMediaTrack(filePath, forcedType) {
+function loadMediaTrack(filePath, forcedType, paneIndex = null) {
+  const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentMediaPlayerPaneIndex;
   const fileName = filePath.split('/').pop() || filePath;
   const ext = fileName.split('.').pop().toLowerCase();
   const isVideo = forcedType === 'video' || isVideoExtension(fileName);
@@ -19773,7 +20226,7 @@ function loadMediaTrack(filePath, forcedType) {
   if (artistEl) artistEl.textContent = fileName.replace(/\.[^/.]+$/, '');
   if (pathEl) pathEl.textContent = sanitizeCredentials(filePath);
 
-  const streamUrl = getDownloadUrl(filePath, true);
+  const streamUrl = getDownloadUrl(filePath, true, pIdx);
 
   if (isVideo) {
     if (iconEl) iconEl.setAttribute('data-lucide', 'video');
@@ -27321,8 +27774,9 @@ function initSoundDogAudioEngine() {
 }
 
 // ---------------- WINDOWING & WINAMP DRAG/RESIZE ----------------
-function openSoundDog(initialPath = null) {
+function openSoundDog(initialPath = null, paneIndex = null) {
   closeToolsMenu();
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   const win = document.getElementById('floating-sounddog-window');
   const pill = document.getElementById('sounddog-pill');
   if (pill) pill.style.display = 'none';
@@ -27341,9 +27795,9 @@ function openSoundDog(initialPath = null) {
   }
 
   if (initialPath) {
-    addTracksToSoundDogQueue([initialPath], true);
+    addTracksToSoundDogQueue([initialPath], true, resolvedPaneIdx);
   } else if (sounddogState.queue.length === 0) {
-    populateSoundDogFromActivePane(false);
+    populateSoundDogFromActivePane(false, resolvedPaneIdx);
   }
 
   renderSoundDogQueue();
@@ -27595,19 +28049,21 @@ function toggleSoundDogEqAuto() {
 }
 
 // ---------------- QUEUE & PLAYLIST MANAGEMENT ----------------
-function populateSoundDogFromActivePane(autoPlay = false) {
-  const pane = App.panes[App.activePaneIndex];
+function populateSoundDogFromActivePane(autoPlay = false, paneIndex = null) {
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[resolvedPaneIdx];
   if (!pane || !pane.entries) return;
 
   const audioEntries = pane.entries.filter(e => !e.is_dir && isAudioExtension(e.name));
   if (audioEntries.length > 0) {
     const paths = audioEntries.map(e => e.path);
-    addTracksToSoundDogQueue(paths, autoPlay);
+    addTracksToSoundDogQueue(paths, autoPlay, resolvedPaneIdx);
   }
 }
 
-function addCurrentPaneFolderToSoundDog() {
-  const pane = App.panes[App.activePaneIndex];
+function addCurrentPaneFolderToSoundDog(paneIndex = null) {
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[resolvedPaneIdx];
   if (!pane || !pane.entries) return;
 
   const audioEntries = pane.entries.filter(e => !e.is_dir && isAudioExtension(e.name));
@@ -27617,18 +28073,19 @@ function addCurrentPaneFolderToSoundDog() {
   }
 
   const paths = audioEntries.map(e => e.path);
-  addTracksToSoundDogQueue(paths, sounddogState.queue.length === 0);
+  addTracksToSoundDogQueue(paths, sounddogState.queue.length === 0, resolvedPaneIdx);
   showToast(`Added ${audioEntries.length} tracks to SoundDog playlist`, 'success');
 }
 
-function addTracksToSoundDogQueue(paths, autoPlayFirst = false) {
+function addTracksToSoundDogQueue(paths, autoPlayFirst = false, paneIndex = null) {
   if (!paths || paths.length === 0) return;
 
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   const wasEmpty = sounddogState.queue.length === 0;
   const newTracks = [];
 
   paths.forEach(p => {
-    const exists = sounddogState.queue.some(t => t.path === p);
+    const exists = sounddogState.queue.some(t => t.path === p && (t.paneIndex === resolvedPaneIdx || t.paneIndex === undefined));
     if (!exists) {
       const fileName = p.split('/').pop() || p;
       const cleanName = fileName.replace(/\.[^/.]+$/, '');
@@ -27638,6 +28095,7 @@ function addTracksToSoundDogQueue(paths, autoPlayFirst = false) {
 
       newTracks.push({
         path: p,
+        paneIndex: resolvedPaneIdx,
         name: fileName,
         title: title,
         artist: artist,
@@ -27860,7 +28318,7 @@ async function loadSoundDogTrack(index, autoPlay = true) {
     try { await sounddogAudioCtx.resume(); } catch (e) {}
   }
 
-  const streamUrl = track.fileObj ? track.path : getDownloadUrl(track.path, true);
+  const streamUrl = track.fileObj ? track.path : getDownloadUrl(track.path, true, track.paneIndex);
   audioEl.src = streamUrl;
   audioEl.playbackRate = sounddogState.playbackRate;
 
@@ -28346,9 +28804,10 @@ async function parseSoundDogMetadata(track) {
   if (!track || !track.path) return;
 
   try {
-    const streamUrl = getDownloadUrl(track.path, true);
+    const streamUrl = getDownloadUrl(track.path, true, track.paneIndex);
+    const authHeaders = (track.paneIndex !== undefined && track.paneIndex !== null) ? getPaneAuthHeaders(track.paneIndex) : {};
     const resp = await fetch(streamUrl, {
-      headers: { 'Range': 'bytes=0-131071' }
+      headers: { 'Range': 'bytes=0-131071', ...authHeaders }
     });
 
     if (resp.ok || resp.status === 206) {
