@@ -1080,23 +1080,17 @@ function updateHostnameBadge() {
   // Header Badge
   renderHostnameBadgeElement(badge, textEl, cfg);
 
-  // Login Screen Hostname Title & Badge
+  // Login Screen Hostname Title
   const loginTitleEl = document.getElementById('login-hostname-title');
   if (loginTitleEl) {
     loginTitleEl.textContent = cfg.hostname || 'Brum';
   }
-  const loginBadge = document.getElementById('login-hostname-badge');
-  const loginBadgeText = document.getElementById('login-hostname-badge-text');
-  renderHostnameBadgeElement(loginBadge, loginBadgeText, cfg);
 
-  // Lock Screen Hostname Suffix & Badge
+  // Lock Screen Hostname Suffix
   const lockSuffix = document.getElementById('lock-hostname-suffix');
   if (lockSuffix) {
     lockSuffix.textContent = `@${cfg.hostname || 'localhost'}`;
   }
-  const lockBadge = document.getElementById('lock-hostname-badge');
-  const lockBadgeText = document.getElementById('lock-hostname-badge-text');
-  renderHostnameBadgeElement(lockBadge, lockBadgeText, cfg);
 
   if (badge && cfg.show) {
     const os = App.systemStatus?.os || 'linux';
