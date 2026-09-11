@@ -110,6 +110,7 @@ pub fn extract_terminal_claims(
             home_dir,
             is_pam: false,
             allowed_roots: Some("[\"*\"]".to_string()),
+            token_id: None,
             exp: 9999999999,
         });
     }

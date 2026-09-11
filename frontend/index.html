@@ -2110,6 +2110,7 @@
         <div class="settings-sidebar">
           <div class="settings-sidebar-group-title">Server Administration</div>
           <button class="settings-nav-btn active" onclick="switchAdminTab('admin-tab-users')"><i data-lucide="users"></i> Users & RBAC</button>
+          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-tokens')"><i data-lucide="key-round"></i> API & Fleet Tokens</button>
           <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-storage')"><i data-lucide="server"></i> Remote Storage & Mounts</button>
           <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-syncthing')"><i data-lucide="repeat"></i> Syncthing Global</button>
 
@@ -2138,6 +2139,28 @@
             <!-- Modern User Cards Container -->
             <div id="users-cards-container" style="display: flex; flex-direction: column; gap: 14px;">
               <!-- Populated dynamically via JS -->
+            </div>
+          </div>
+
+          <!-- Admin Tab: API & Fleet Service Tokens -->
+          <div class="settings-tab-content" id="admin-tab-tokens">
+            <div class="settings-card-header" style="margin-bottom: 14px;">
+              <div>
+                <h4 class="settings-section-title">
+                  <i data-lucide="key-round"></i> API Keys & Fleet Service Tokens
+                </h4>
+                <p class="settings-card-desc" style="margin-top: 2px;">
+                  Create and manage cryptographically signed long-lived Bearer tokens for Commander Fleet nodes, backup daemons, and automated scripts.
+                </p>
+              </div>
+              <button type="button" class="btn btn-accent btn-sm" onclick="openCreateApiTokenModal()" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                <i data-lucide="plus" style="width: 13px; height: 13px;"></i> Generate Token
+              </button>
+            </div>
+
+            <!-- API Tokens List Container -->
+            <div id="admin-api-tokens-list" style="display: flex; flex-direction: column; gap: 10px;">
+              <!-- Populated dynamically via loadAdminApiTokens() -->
             </div>
           </div>
 
@@ -4716,10 +4739,104 @@
           <i data-lucide="shield-check" style="width: 13px; height: 13px; color: #10b981;"></i> Zero-Trust Fleet Control • HTTPS/WSS & Mesh Overlays (Tailscale, NetBird, WireGuard)
         </span>
         <div style="display: flex; gap: 6px;">
+          <button class="btn btn-sm btn-outline" onclick="openCreateApiTokenModal()" title="Generate API / Fleet Token on this local host"><i data-lucide="key-round" style="width: 12px; height: 12px;"></i> Generate Local Token</button>
           <button class="btn btn-sm btn-outline" onclick="exportFleetNodesJson()" title="Export Fleet nodes to JSON">Export JSON</button>
           <button class="btn btn-sm btn-outline" onclick="triggerImportFleetNodes()" title="Import Fleet nodes from JSON">Import JSON</button>
           <input type="file" id="fleet-import-file" accept=".json" style="display: none;" onchange="handleFleetNodesImport(event)">
           <button class="btn btn-accent btn-sm" onclick="closeModal('fleet-manager-modal')">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- API & Fleet Token Generator Modal -->
+  <div class="modal-overlay" id="create-api-token-modal" style="z-index: 2880;">
+    <div class="modal-box" style="width: 540px; max-width: 95vw; display: flex; flex-direction: column;">
+      <!-- Header -->
+      <div class="modal-header" style="min-height: 42px; padding: 0 14px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: grab;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="key-round" style="width: 16px; height: 16px; color: var(--accent);"></i>
+          <span style="font-weight: 700; font-size: 13.5px;">Generate API &amp; Fleet Token</span>
+        </div>
+        <button type="button" class="btn btn-icon btn-sm modal-close-btn" onclick="closeModal('create-api-token-modal')" title="Close (Esc)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+      </div>
+
+      <!-- Body Form View -->
+      <div class="modal-body" id="token-generator-form-view" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
+        <div class="settings-field">
+          <label class="settings-field-label" for="token-input-name">Token Friendly Name / Description:</label>
+          <input type="text" id="token-input-name" class="settings-input" placeholder="e.g. Proxmox Goshawk (LXC 104) Fleet Token">
+          <div class="settings-field-hint">A recognizable name identifying the node, script, or automated service.</div>
+        </div>
+
+        <div class="settings-grid-2col" style="gap: 10px;">
+          <div class="settings-field">
+            <label class="settings-field-label" for="token-input-role">Assigned Role &amp; Permissions:</label>
+            <select id="token-input-role" class="settings-select">
+              <option value="admin">Administrator (Full Access)</option>
+              <option value="user" selected>Standard User (Full File Access)</option>
+              <option value="readonly">Read-Only (Browse &amp; Stream Only)</option>
+            </select>
+          </div>
+
+          <div class="settings-field">
+            <label class="settings-field-label" for="token-input-expiry">Token Expiration:</label>
+            <select id="token-input-expiry" class="settings-select">
+              <option value="0" selected>Never (Permanent Service Key)</option>
+              <option value="365">1 Year (365 Days)</option>
+              <option value="90">90 Days</option>
+              <option value="30">30 Days</option>
+              <option value="7">7 Days</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-field">
+          <label class="settings-field-label" for="token-input-roots">Restricted Storage Roots (Optional):</label>
+          <input type="text" id="token-input-roots" class="settings-input" placeholder="Leave empty for all paths (or e.g. /data, /storage)">
+          <div class="settings-field-hint">Comma-separated root paths. Leave empty for unrestricted filesystem access.</div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
+          <button type="button" class="btn btn-sm btn-outline" onclick="closeModal('create-api-token-modal')">Cancel</button>
+          <button type="button" class="btn btn-sm btn-accent" id="btn-generate-token-submit" onclick="submitCreateApiToken()" style="display: inline-flex; align-items: center; gap: 5px;">
+            <i data-lucide="sparkles" style="width: 13px; height: 13px;"></i> Generate Token
+          </button>
+        </div>
+      </div>
+
+      <!-- Body Reveal View (Once Generated) -->
+      <div class="modal-body" id="token-generator-reveal-view" style="padding: 16px; display: none; flex-direction: column; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 8px; color: #10b981; font-weight: 700; font-size: 13px;">
+          <i data-lucide="check-circle-2" style="width: 16px; height: 16px;"></i> API Token Generated Successfully!
+        </div>
+        <div style="font-size: 11.5px; color: var(--text-dim); line-height: 1.4;">
+          Make sure to copy your Bearer token now. For your security, you will not be able to view this full secret key again.
+        </div>
+
+        <div class="settings-field">
+          <label class="settings-field-label">Secret Bearer Token:</label>
+          <div style="display: flex; gap: 6px;">
+            <input type="text" id="token-reveal-secret" class="settings-input" readonly style="font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); color: var(--accent); user-select: all;" onclick="this.select()">
+            <button type="button" class="btn btn-sm btn-accent" onclick="copyGeneratedApiToken()" title="Copy Token to Clipboard" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">
+              <i data-lucide="copy" style="width: 13px; height: 13px;"></i> Copy
+            </button>
+          </div>
+        </div>
+
+        <!-- Quick Usage Commands -->
+        <div class="settings-group-card" style="padding: 10px; background: rgba(0,0,0,0.2); border: 1px solid var(--border); border-radius: var(--radius);">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-bottom: 6px; text-transform: uppercase;">Usage in Scripts &amp; cURL</div>
+          <code id="token-curl-example" style="display: block; font-size: 10.5px; color: var(--text-main); font-family: var(--font-mono); word-break: break-all; user-select: all; padding: 6px; background: var(--bg-main); border-radius: 4px;">
+            curl -H "Authorization: Bearer &lt;TOKEN&gt;" http://localhost:3140/api/health
+          </code>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
+          <button type="button" class="btn btn-sm btn-outline" onclick="copyAndUseTokenInFleetForm()" id="btn-use-in-fleet" style="display: none;">
+            <i data-lucide="network" style="width: 13px; height: 13px;"></i> Paste into Fleet Manager
+          </button>
+          <button type="button" class="btn btn-sm btn-accent" onclick="closeModal('create-api-token-modal')">Done</button>
         </div>
       </div>
     </div>

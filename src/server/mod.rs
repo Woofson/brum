@@ -65,6 +65,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/profile", post(handle_update_profile))
         .route("/api/auth/users", get(handle_list_users).post(handle_create_user))
         .route("/api/auth/users/:username", delete(handle_delete_user).post(handle_update_user_rbac))
+        .route("/api/auth/tokens", get(handle_list_api_tokens).post(handle_create_api_token))
+        .route("/api/auth/tokens/:id", delete(handle_revoke_api_token))
         // Transparent Encrypted Vaults API
         .route("/api/vault/create", post(handle_create_vault))
         .route("/api/vault/unlock", post(handle_unlock_vault))
@@ -352,6 +354,7 @@ fn extract_claims_or_local(
             home_dir,
             is_pam: false,
             allowed_roots: Some("[\"*\"]".to_string()),
+            token_id: None,
             exp: 9999999999,
         });
     }
@@ -1262,6 +1265,121 @@ async fn handle_update_security_settings(
         Ok(Json(serde_json::json!({ "success": true, "message": "Security settings saved" })))
     } else {
         Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    }
+}
+
+// ---------------- API & FLEET SERVICE TOKENS HANDLERS ----------------
+
+#[derive(Deserialize)]
+pub struct CreateApiTokenRequest {
+    pub name: String,
+    pub role: Option<String>,
+    pub expires_in_days: Option<i64>,
+    pub allowed_roots: Option<Vec<String>>,
+}
+
+async fn handle_list_api_tokens(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::auth::ApiTokenInfo>>, (StatusCode, String)> {
+    if !state.config.server.standalone && state.config.server.enable_auth {
+        let auth_header = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .ok_or((StatusCode::UNAUTHORIZED, "Missing authorization header".to_string()))?;
+
+        let token_str = auth_header
+            .strip_prefix("Bearer ")
+            .ok_or((StatusCode::UNAUTHORIZED, "Invalid authorization scheme".to_string()))?;
+
+        let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+
+        let username_filter = if claims.role == "admin" {
+            None
+        } else {
+            Some(claims.sub.as_str())
+        };
+
+        let tokens = state.auth.list_api_tokens(username_filter).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        Ok(Json(tokens))
+    } else {
+        let tokens = state.auth.list_api_tokens(None).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        Ok(Json(tokens))
+    }
+}
+
+async fn handle_create_api_token(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateApiTokenRequest>,
+) -> Result<Json<crate::auth::GeneratedApiToken>, (StatusCode, String)> {
+    let name = payload.name.trim();
+    if name.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Token name is required".to_string()));
+    }
+
+    let (username, default_role) = if !state.config.server.standalone && state.config.server.enable_auth {
+        let auth_header = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .ok_or((StatusCode::UNAUTHORIZED, "Missing authorization header".to_string()))?;
+
+        let token_str = auth_header
+            .strip_prefix("Bearer ")
+            .ok_or((StatusCode::UNAUTHORIZED, "Invalid authorization scheme".to_string()))?;
+
+        let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+        (claims.sub, claims.role)
+    } else {
+        ("admin".to_string(), "admin".to_string())
+    };
+
+    let role = payload.role.unwrap_or(default_role);
+    let allowed_roots = payload.allowed_roots.map(|r| serde_json::to_string(&r).unwrap_or_else(|_| "[\"*\"]".to_string()));
+
+    let res = state.auth.create_api_token(
+        &username,
+        name,
+        &role,
+        allowed_roots,
+        payload.expires_in_days,
+    ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(Json(res))
+}
+
+async fn handle_revoke_api_token(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(token_id): AxumPath<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let is_admin_or_owner = if !state.config.server.standalone && state.config.server.enable_auth {
+        let auth_header = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|h| h.to_str().ok())
+            .ok_or((StatusCode::UNAUTHORIZED, "Missing authorization header".to_string()))?;
+
+        let token_str = auth_header
+            .strip_prefix("Bearer ")
+            .ok_or((StatusCode::UNAUTHORIZED, "Invalid authorization scheme".to_string()))?;
+
+        let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+        if claims.role == "admin" {
+            None
+        } else {
+            Some(claims.sub)
+        }
+    } else {
+        None
+    };
+
+    let revoked = state.auth.revoke_api_token(&token_id, is_admin_or_owner.as_deref())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    if revoked {
+        Ok(Json(serde_json::json!({ "success": true, "message": "API token revoked" })))
+    } else {
+        Err((StatusCode::NOT_FOUND, "Token not found or unauthorized".to_string()))
     }
 }
 

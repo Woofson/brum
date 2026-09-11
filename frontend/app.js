@@ -5170,6 +5170,7 @@ function switchAdminTab(tabId) {
   document.getElementById(tabId)?.classList.add('active');
 
   if (tabId === 'admin-tab-users') loadUsersTable();
+  if (tabId === 'admin-tab-tokens') loadAdminApiTokens();
   if (tabId === 'admin-tab-storage') loadAdminGlobalMounts();
   if (tabId === 'admin-tab-config') loadMasterConfigEditor();
   if (tabId === 'admin-tab-security') loadAdminSecuritySettings();
@@ -5624,6 +5625,263 @@ function togglePasswordVisibility(inputId) {
   }
 }
 const togglePassVisibility = togglePasswordVisibility;
+
+// ---------------- API & FLEET SERVICE TOKENS ENGINE ----------------
+
+async function loadAdminApiTokens() {
+  const container = document.getElementById('admin-api-tokens-list');
+  if (!container) return;
+
+  container.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--text-dim); display:flex; flex-direction:column; align-items:center; gap:8px;"><i data-lucide="loader-2" class="spin" style="width: 20px; height: 20px;"></i><div>Loading API tokens...</div></div>';
+  if (window.lucide) lucide.createIcons({ root: container });
+
+  try {
+    const resp = await fetch('/api/auth/tokens', {
+      headers: { 'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}` }
+    });
+
+    if (!resp.ok) {
+      container.innerHTML = `<div class="settings-empty-state"><i data-lucide="alert-circle" style="color:#ef4444;"></i><p>Failed to load API tokens (HTTP ${resp.status})</p></div>`;
+      if (window.lucide) lucide.createIcons({ root: container });
+      return;
+    }
+
+    const tokens = await resp.json();
+    if (!tokens || tokens.length === 0) {
+      container.innerHTML = `
+        <div class="settings-empty-state" style="padding: 24px; text-align: center;">
+          <i data-lucide="key-round" style="width: 28px; height: 28px; color: var(--text-dim); margin-bottom: 8px;"></i>
+          <p style="margin: 0; font-size: 12.5px; color: var(--text-main);">No active API or fleet service tokens.</p>
+          <p style="margin: 4px 0 12px 0; font-size: 11px; color: var(--text-dim);">Generate a token to authenticate remote Commander Fleet nodes, headless daemons, or automation scripts.</p>
+          <button type="button" class="btn btn-accent btn-sm" onclick="openCreateApiTokenModal()"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Generate First Token</button>
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons({ root: container });
+      return;
+    }
+
+    let html = '';
+    const now = Math.floor(Date.now() / 1000);
+
+    tokens.forEach(tok => {
+      const isExpired = tok.expires_at && tok.expires_at > 0 && tok.expires_at < now;
+      let expiryLabel = 'Never (Permanent)';
+      let expiryColor = '#10b981';
+
+      if (tok.expires_at && tok.expires_at > 0) {
+        const expDate = new Date(tok.expires_at * 1000).toLocaleDateString();
+        if (isExpired) {
+          expiryLabel = `Expired on ${expDate}`;
+          expiryColor = '#ef4444';
+        } else {
+          expiryLabel = `Expires ${expDate}`;
+          expiryColor = 'var(--text-dim)';
+        }
+      }
+
+      const createdDate = new Date(tok.created_at * 1000).toLocaleDateString();
+      const lastUsedLabel = tok.last_used_at ? new Date(tok.last_used_at * 1000).toLocaleString() : 'Never';
+
+      let roleBadgeColor = 'rgba(245, 158, 11, 0.15)';
+      let roleTextColor = 'var(--accent)';
+      if (tok.role === 'admin') {
+        roleBadgeColor = 'rgba(239, 68, 68, 0.15)';
+        roleTextColor = '#ef4444';
+      } else if (tok.role === 'readonly') {
+        roleBadgeColor = 'rgba(100, 116, 139, 0.2)';
+        roleTextColor = 'var(--text-dim)';
+      }
+
+      html += `
+        <div class="settings-group-card" style="padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 12px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-card, rgba(0,0,0,0.15));">
+          <div style="display: flex; flex-direction: column; gap: 4px; min-width: 0;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-weight: 700; font-size: 13px; color: var(--text-main);">${escapeHtml(tok.name)}</span>
+              <span class="fleet-tag-pill" style="font-size: 9.5px; padding: 1px 6px; background: ${roleBadgeColor}; color: ${roleTextColor}; text-transform: uppercase;">${escapeHtml(tok.role)}</span>
+              <span style="font-size: 10.5px; color: ${expiryColor}; font-weight: 600;">${expiryLabel}</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px; font-size: 11px; color: var(--text-dim); flex-wrap: wrap;">
+              <span style="font-family: var(--font-mono); color: var(--text-main);"><i data-lucide="key" style="width: 11px; height: 11px; vertical-align: middle;"></i> ${escapeHtml(tok.token_prefix)}</span>
+              <span>Owner: <strong style="color: var(--text-main);">${escapeHtml(tok.username)}</strong></span>
+              <span>Created: ${createdDate}</span>
+              <span>Last Used: ${lastUsedLabel}</span>
+            </div>
+          </div>
+          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+            <button type="button" class="btn btn-xs btn-outline" onclick="revokeApiToken('${escapeHtml(tok.id)}', '${escapeHtml(tok.name)}')" title="Revoke Token" style="height: 26px; padding: 0 8px; color: #ef4444; display: inline-flex; align-items: center; gap: 4px;">
+              <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Revoke
+            </button>
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = html;
+    if (window.lucide) lucide.createIcons({ root: container });
+  } catch (err) {
+    container.innerHTML = `<div class="settings-empty-state"><i data-lucide="alert-circle" style="color:#ef4444;"></i><p>Network error: ${escapeHtml(err.message)}</p></div>`;
+    if (window.lucide) lucide.createIcons({ root: container });
+  }
+}
+
+function openCreateApiTokenModal() {
+  const formView = document.getElementById('token-generator-form-view');
+  const revealView = document.getElementById('token-generator-reveal-view');
+  if (formView) formView.style.display = 'flex';
+  if (revealView) revealView.style.display = 'none';
+
+  const nameInput = document.getElementById('token-input-name');
+  if (nameInput) {
+    nameInput.value = '';
+    setTimeout(() => nameInput.focus(), 80);
+  }
+
+  const roleInput = document.getElementById('token-input-role');
+  if (roleInput) roleInput.value = 'user';
+
+  const expiryInput = document.getElementById('token-input-expiry');
+  if (expiryInput) expiryInput.value = '0';
+
+  const rootsInput = document.getElementById('token-input-roots');
+  if (rootsInput) rootsInput.value = '';
+
+  const fleetBtn = document.getElementById('btn-use-in-fleet');
+  const fleetModal = document.getElementById('fleet-manager-modal');
+  if (fleetBtn) {
+    fleetBtn.style.display = (fleetModal && fleetModal.classList.contains('active')) ? 'inline-flex' : 'none';
+  }
+
+  showModal('create-api-token-modal');
+}
+
+async function submitCreateApiToken() {
+  const name = (document.getElementById('token-input-name')?.value || '').trim();
+  const role = document.getElementById('token-input-role')?.value || 'user';
+  const expiryDays = parseInt(document.getElementById('token-input-expiry')?.value || '0', 10);
+  const rootsRaw = (document.getElementById('token-input-roots')?.value || '').trim();
+  const btn = document.getElementById('btn-generate-token-submit');
+
+  if (!name) {
+    showToast('Please enter a friendly name for the token', 'error');
+    document.getElementById('token-input-name')?.focus();
+    return;
+  }
+
+  const allowedRoots = rootsRaw
+    ? rootsRaw.split(',').map(r => r.trim()).filter(Boolean)
+    : null;
+
+  if (btn) btn.disabled = true;
+
+  try {
+    const resp = await fetch('/api/auth/tokens', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}`
+      },
+      body: JSON.stringify({
+        name,
+        role,
+        expires_in_days: expiryDays > 0 ? expiryDays : null,
+        allowed_roots: allowedRoots
+      })
+    });
+
+    if (!resp.ok) {
+      const errText = await resp.text();
+      showToast(`Failed to generate token: ${errText}`, 'error');
+      return;
+    }
+
+    const data = await resp.json();
+    const rawSecret = data.token;
+
+    // Switch to Reveal View
+    const formView = document.getElementById('token-generator-form-view');
+    const revealView = document.getElementById('token-generator-reveal-view');
+    const secretInput = document.getElementById('token-reveal-secret');
+    const curlExample = document.getElementById('token-curl-example');
+
+    if (secretInput) secretInput.value = rawSecret;
+    if (curlExample) {
+      curlExample.textContent = `curl -H "Authorization: Bearer ${rawSecret}" ${window.location.origin}/api/health`;
+    }
+
+    if (formView) formView.style.display = 'none';
+    if (revealView) revealView.style.display = 'flex';
+    if (window.lucide) lucide.createIcons({ root: revealView });
+
+    loadAdminApiTokens();
+    showToast('API token generated successfully!', 'success');
+  } catch (err) {
+    showToast(`Error generating token: ${err.message}`, 'error');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+function copyGeneratedApiToken() {
+  const secretInput = document.getElementById('token-reveal-secret');
+  if (!secretInput || !secretInput.value) return;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(secretInput.value);
+  } else {
+    secretInput.select();
+    document.execCommand('copy');
+  }
+  showToast('Token copied to clipboard!', 'success');
+}
+
+function copyAndUseTokenInFleetForm() {
+  const secretInput = document.getElementById('token-reveal-secret');
+  if (!secretInput || !secretInput.value) return;
+
+  copyGeneratedApiToken();
+
+  const fleetTokenInput = document.getElementById('fleet-input-token');
+  if (fleetTokenInput) {
+    fleetTokenInput.value = secretInput.value;
+  }
+
+  closeModal('create-api-token-modal');
+  showToast('Token inserted into Fleet profile form!', 'success');
+}
+
+async function revokeApiToken(tokenId, tokenName) {
+  const confirmed = typeof showConfirmDialog === 'function'
+    ? await showConfirmDialog({
+        title: 'Revoke API Token',
+        subtitle: `Revoke token "${tokenName}"`,
+        message: `Are you sure you want to revoke token "${tokenName}"? Any remote node, daemon, or script using this token will be immediately disconnected.`,
+        icon: 'trash-2',
+        type: 'danger',
+        confirmText: 'Revoke Token'
+      })
+    : confirm(`Revoke API token "${tokenName}"?`);
+
+  if (!confirmed) return;
+
+  try {
+    const resp = await fetch(`/api/auth/tokens/${encodeURIComponent(tokenId)}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}`
+      }
+    });
+
+    if (resp.ok) {
+      showToast(`Token "${tokenName}" revoked`, 'info');
+      loadAdminApiTokens();
+    } else {
+      const err = await resp.text();
+      showToast(`Failed to revoke token: ${err}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Error revoking token: ${err.message}`, 'error');
+  }
+}
 
 // ---------------- TRANSFERS & DRAG-AND-DROP ----------------
 let pendingInterpaneTransfer = null;

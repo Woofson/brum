@@ -37,7 +37,26 @@ pub struct GlobalMount {
     pub created_at: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiTokenInfo {
+    pub id: String,
+    pub name: String,
+    pub username: String,
+    pub token_prefix: String,
+    pub role: String,
+    pub allowed_roots: String,
+    pub expires_at: Option<i64>,
+    pub created_at: i64,
+    pub last_used_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct GeneratedApiToken {
+    pub token: String,
+    pub info: ApiTokenInfo,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Claims {
     pub sub: String,
     pub role: String,
@@ -45,6 +64,8 @@ pub struct Claims {
     pub is_pam: bool,
     #[serde(default = "default_allowed_roots_claims")]
     pub allowed_roots: Option<String>,
+    #[serde(default)]
+    pub token_id: Option<String>,
     pub exp: i64,
 }
 
@@ -179,6 +200,22 @@ impl AuthManager {
         )?;
         let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetradog_scores ON tetradog_scores (score DESC)", []);
         let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetradog_user ON tetradog_scores (username)", []);
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS api_tokens (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                username TEXT NOT NULL,
+                token_prefix TEXT NOT NULL,
+                role TEXT NOT NULL,
+                allowed_roots TEXT DEFAULT '[\"*\"]',
+                expires_at INTEGER,
+                created_at INTEGER NOT NULL,
+                last_used_at INTEGER
+            )",
+            [],
+        )?;
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens (username)", []);
 
         // Safe migrations for newly added columns
         let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT", []);
@@ -528,6 +565,7 @@ impl AuthManager {
             home_dir: user.home_dir.clone(),
             is_pam: user.is_pam,
             allowed_roots: Some(user.allowed_roots.clone()),
+            token_id: None,
             exp: expiration,
         };
 
@@ -540,12 +578,190 @@ impl AuthManager {
         Ok(token)
     }
 
+    pub fn create_api_token(
+        &self,
+        username: &str,
+        name: &str,
+        role: &str,
+        allowed_roots: Option<String>,
+        expires_in_days: Option<i64>,
+    ) -> Result<GeneratedApiToken, Box<dyn std::error::Error + Send + Sync>> {
+        let token_id = format!("cdtok_{}", uuid::Uuid::new_v4().simple());
+        let now = Utc::now().timestamp();
+
+        let (exp_ts, exp_claim) = match expires_in_days {
+            Some(days) if days > 0 => {
+                let exp = Utc::now()
+                    .checked_add_signed(Duration::days(days))
+                    .expect("valid timestamp")
+                    .timestamp();
+                (Some(exp), exp)
+            }
+            _ => (None, 4_102_444_800), // Year 2099 far-future timestamp for non-expiring tokens
+        };
+
+        let roots = allowed_roots.unwrap_or_else(|| "[\"*\"]".to_string());
+
+        let claims = Claims {
+            sub: username.to_string(),
+            role: role.to_string(),
+            home_dir: "/".to_string(),
+            is_pam: false,
+            allowed_roots: Some(roots.clone()),
+            token_id: Some(token_id.clone()),
+            exp: exp_claim,
+        };
+
+        let raw_token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
+        )?;
+
+        let prefix = if raw_token.len() > 16 {
+            format!("{}...{}", &raw_token[..8], &raw_token[raw_token.len() - 6..])
+        } else {
+            "cdtok_***".to_string()
+        };
+
+        {
+            let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+            conn.execute(
+                "INSERT INTO api_tokens (id, name, username, token_prefix, role, allowed_roots, expires_at, created_at, last_used_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, NULL)",
+                params![
+                    token_id,
+                    name,
+                    username,
+                    prefix,
+                    role,
+                    roots,
+                    exp_ts,
+                    now
+                ],
+            )?;
+        }
+
+        let info = ApiTokenInfo {
+            id: token_id,
+            name: name.to_string(),
+            username: username.to_string(),
+            token_prefix: prefix,
+            role: role.to_string(),
+            allowed_roots: roots,
+            expires_at: exp_ts,
+            created_at: now,
+            last_used_at: None,
+        };
+
+        Ok(GeneratedApiToken {
+            token: raw_token,
+            info,
+        })
+    }
+
+    pub fn list_api_tokens(&self, username: Option<&str>) -> Result<Vec<ApiTokenInfo>, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let mut tokens = Vec::new();
+
+        if let Some(user) = username {
+            let mut stmt = conn.prepare(
+                "SELECT id, name, username, token_prefix, role, allowed_roots, expires_at, created_at, last_used_at
+                 FROM api_tokens WHERE username = ?1 ORDER BY created_at DESC"
+            )?;
+            let rows = stmt.query_map(params![user], |row| {
+                Ok(ApiTokenInfo {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    username: row.get(2)?,
+                    token_prefix: row.get(3)?,
+                    role: row.get(4)?,
+                    allowed_roots: row.get(5)?,
+                    expires_at: row.get(6)?,
+                    created_at: row.get(7)?,
+                    last_used_at: row.get(8)?,
+                })
+            })?;
+            for r in rows {
+                tokens.push(r?);
+            }
+        } else {
+            let mut stmt = conn.prepare(
+                "SELECT id, name, username, token_prefix, role, allowed_roots, expires_at, created_at, last_used_at
+                 FROM api_tokens ORDER BY created_at DESC"
+            )?;
+            let rows = stmt.query_map([], |row| {
+                Ok(ApiTokenInfo {
+                    id: row.get(0)?,
+                    name: row.get(1)?,
+                    username: row.get(2)?,
+                    token_prefix: row.get(3)?,
+                    role: row.get(4)?,
+                    allowed_roots: row.get(5)?,
+                    expires_at: row.get(6)?,
+                    created_at: row.get(7)?,
+                    last_used_at: row.get(8)?,
+                })
+            })?;
+            for r in rows {
+                tokens.push(r?);
+            }
+        }
+
+        Ok(tokens)
+    }
+
+    pub fn revoke_api_token(&self, token_id: &str, username: Option<&str>) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let rows_affected = if let Some(user) = username {
+            conn.execute(
+                "DELETE FROM api_tokens WHERE id = ?1 AND username = ?2",
+                params![token_id, user],
+            )?
+        } else {
+            conn.execute(
+                "DELETE FROM api_tokens WHERE id = ?1",
+                params![token_id],
+            )?
+        };
+
+        Ok(rows_affected > 0)
+    }
+
     pub fn verify_token(&self, token: &str) -> Result<Claims, Box<dyn std::error::Error + Send + Sync>> {
         let token_data = decode::<Claims>(
             token,
             &DecodingKey::from_secret(self.jwt_secret.as_bytes()),
             &Validation::default(),
         )?;
+
+        // If it's a persistent API token with a token_id, check DB to ensure it's not revoked / expired
+        if let Some(ref tid) = token_data.claims.token_id {
+            let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+            let token_row: Option<(Option<i64>, String)> = conn.query_row(
+                "SELECT expires_at, role FROM api_tokens WHERE id = ?1",
+                params![tid],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).optional()?;
+
+            match token_row {
+                Some((exp_opt, _)) => {
+                    if let Some(exp) = exp_opt {
+                        if exp > 0 && Utc::now().timestamp() > exp {
+                            return Err("API token expired".into());
+                        }
+                    }
+                    // Update last_used_at timestamp
+                    let _ = conn.execute(
+                        "UPDATE api_tokens SET last_used_at = ?1 WHERE id = ?2",
+                        params![Utc::now().timestamp(), tid],
+                    );
+                }
+                None => {
+                    return Err("API token has been revoked".into());
+                }
+            }
+        }
 
         Ok(token_data.claims)
     }
@@ -1094,5 +1310,53 @@ mod tests {
         auth.reset_user_preferences("admin").unwrap();
         let reset_result = auth.get_user_preferences("admin").unwrap();
         assert!(reset_result.is_none());
+    }
+
+    #[test]
+    fn test_api_token_lifecycle_and_revocation() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("test_tokens.db");
+        let auth = AuthManager::new(
+            &db_file.to_string_lossy(),
+            "secret-key-123456789012345678901234",
+            24,
+            "builtin",
+            "login",
+            "admin",
+            "admin",
+        ).unwrap();
+
+        // 1. Create API Token
+        let gen = auth.create_api_token(
+            "admin",
+            "Proxmox LXC 104",
+            "admin",
+            Some("[\"/data\", \"/backup\"]".to_string()),
+            Some(90),
+        ).unwrap();
+
+        assert!(gen.token.len() > 20);
+        assert_eq!(gen.info.name, "Proxmox LXC 104");
+        assert_eq!(gen.info.username, "admin");
+        assert_eq!(gen.info.role, "admin");
+
+        // 2. List API Tokens
+        let tokens = auth.list_api_tokens(Some("admin")).unwrap();
+        assert_eq!(tokens.len(), 1);
+        assert_eq!(tokens[0].id, gen.info.id);
+
+        // 3. Verify API Token
+        let claims = auth.verify_token(&gen.token).unwrap();
+        assert_eq!(claims.sub, "admin");
+        assert_eq!(claims.role, "admin");
+        assert_eq!(claims.token_id, Some(gen.info.id.clone()));
+
+        // 4. Revoke API Token
+        let revoked = auth.revoke_api_token(&gen.info.id, Some("admin")).unwrap();
+        assert!(revoked);
+
+        // 5. Verify Revoked Token Fails
+        let verify_res = auth.verify_token(&gen.token);
+        assert!(verify_res.is_err());
     }
 }

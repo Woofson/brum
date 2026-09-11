@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "0.8.5-rc6"
+version = "0.8.5-rc7"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
