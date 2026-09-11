@@ -1,11 +1,11 @@
-# <img src="assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> Brum Product Roadmap & Active Backlog
+# <img src="assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> Brum Product Roadmap & Architecture
 
 > **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac))  
 > **Official Web**: [www.arf.ac](https://www.arf.ac)  
 > **Philosophy**: *No acronyms or slogans. Just a very good environment for file managing and orchestrating.*  
-> **Current Version**: `v0.8.3-rc7 (Desktop & Web)`  
 > **Publishing Prefix Rule**: All crates, binaries, and packages use the `arf-` or `arf_` prefix (e.g. `arf-cmdr`, `arf-remote`, `arf-desktop`).  
-> **Release History**: For detailed release notes and changelogs of past versions (`v0.1.0` — `v0.8.2`), see [**`CHANGELOG.md`**](CHANGELOG.md).
+> **Single Source of Truth**: Active roadmap planning, sprint tasks, and bug triage are tracked exclusively on **[GitHub Issues](https://github.com/Woofson/brum/issues)** and **[Milestones](https://github.com/Woofson/brum/milestones)**.  
+> **Release History & Notes**: For full release notes and changelogs, see [**`CHANGELOG.md`**](CHANGELOG.md) or run `./scripts/changelog.sh`.
 
 ---
 
@@ -75,305 +75,81 @@
 ## 2. 🎨 Design Language & Viewport Standards
 
 ### Standardized Viewports
-* **`Phone`**: Mobile touch screens. Chewtoys open as overlay apps with minimal subtle headers.
-* **`Tablet`**: Foldables & tablets touch. Responsive multi-column layout with touch targets.
-* **`PC`**: Desktop / Laptop mouse & keyboard. Chewtoys are fully resizable and dockable into panels.
+* **`Phone`** (`<600px`): Mobile touch screens. Single-pane focus, hidden branding badges, minimal micro-text.
+* **`Tablet`** (`600px–1024px`): Foldables & tablet touch screens. Adaptive single/dual panel options, sliding note drawers, legible touch hierarchy.
+* **`PC`** (`>1024px`): Desktop & laptop mouse & keyboard. Full multi-panel, resizable columns, dockable ChewToys, and frosted glass auth screens.
 
-### UI & Chewtoy Design System
-* **Panels vs Tabs**: File browsing panes are strictly termed **"Panels"**; **"Tabs"** are strictly reserved for settings and editor tabs.
-* **Uniform Header Layout**:
-  * Main header: Left space is Branding + Hostname badge; middle-right is Tasks and Chewtoy Apps; most right is User Profile & Settings (<kbd>F10</kbd>).
-  * Action buttons across all tools and viewers share a uniform **`28px` height**, look, and feel.
-  * Window control buttons (Close, Minimize, Maximize, Dock/Float) are neat, subtle, and consistent across all tools.
-  * Full title bars serve as non-fiddly drag handles (`cursor: grab;`).
+### UI & ChewToy Design Specification
+* **Panels vs Tabs**: File browsing areas are strictly termed **"Panels"**; **"Tabs"** are strictly reserved for Settings modal tabs and Editor tabs.
+* **Primary Window & Modal Headers (`42px` min-height)**:
+  * Full-length drag handle (`cursor: grab;` / `:active { cursor: grabbing; }`).
+  * Uniform **`28px x 28px`** buttons, selects, and icon triggers with `border-radius: var(--radius)` (`6px`) and `14px` icons.
+  * Right-aligned icon-only layout switches with active amber accent glow (`rgba(245, 158, 11, 0.18)` + `var(--accent)`).
+  * Flat, stealthy window control buttons (Minimize, Maximize, Dock/Float, Close).
+* **Sub-Headers & Inner Workspace Toolbars (`26px` Standard)**:
+  * Uniform **`26px x 26px`** buttons with `13px` icons across all secondary action rows.
+* **Dual-Mode Architecture**:
+  * All built-in ChewToys natively support dual modes: **Floating Draggable Window** and **In-Pane Docking** (Panel 1 or Panel 2) with state persistence.
 * **Official Themes**:
   * **`Woofsons Amber Charcoal`** (Dark - Default)
   * **`Woofsons Amber Zink`** (Light)
 
 ---
 
-## 3. 🚀 Active Sprint & Improvement Backlog (`v0.8.3`)
+## 3. 🧭 Active Backlog & GitHub Issues (Single Source of Truth)
 
-```mermaid
-graph TD
-    A["v0.8.2 (Released: Brum Rebrand, Bear Logo, Crate & AUR)"] --> B["v0.8.3 (Active: Places Hub, Dialog Ergonomics & Security Hardening)"]
-    B --> C["v0.9.0 (Next: Enterprise Identity OIDC SSO & Collaborative Office)"]
-    C --> D["v1.0.0 (Distributed Virtual Storage, Fleet Mesh & P2P Cluster)"]
+To eliminate duplication, token waste, and sync drift, all active feature development, responsive refinements, and bug triage are managed directly through GitHub Issues and Milestones.
+
+* **GitHub Issue Tracker**: [https://github.com/Woofson/brum/issues](https://github.com/Woofson/brum/issues)
+* **GitHub Milestones**: [https://github.com/Woofson/brum/milestones](https://github.com/Woofson/brum/milestones)
+
+### Developer CLI Workflow
+
+Fast, token-efficient CLI scripts are provided for querying backlog and changelog state directly:
+
+```bash
+# Query active backlog and view issues
+./scripts/issues.sh list               # List all open issues with labels
+./scripts/issues.sh view <id>          # View issue description and requirements
+./scripts/issues.sh bugs               # Filter open bug reports
+./scripts/issues.sh viewports          # Filter phone/tablet/desktop responsive tasks
+./scripts/issues.sh chewtoys           # Filter ChewToy issues
+
+# Compile changelog and release notes to stdout
+./scripts/changelog.sh                 # Output latest release / iteration notes
+./scripts/changelog.sh -n 3            # Output last 3 releases
+./scripts/changelog.sh git             # Compile conventional changelog directly from git commits
+./scripts/changelog.sh releases        # List published GitHub releases via gh CLI
 ```
 
-### 🎯 Current Sprint Backlog (`v0.8.3`):
+### Active Issue Categories
 
-#### 1. 🧭 Navigation: Unified "Places" Hub & Protocol Selector Refinements (#26)
-- [ ] **Unified "Places" Hub Dropdown**:
-  - Rename "Storage Roots & Bookmarks" to **"Places"**.
-  - Merge local bookmarks, authorized storage roots, and remote VFS shares (NFS, SMB/CIFS, SFTP, WebDAV, S3) into a single cohesive navigation hub.
-  - Simplify header labels: remove redundant "Authorized Storage Roots" header; shorten "Personal Home (/path)" to simply "Home".
-- [ ] **Protocol Dropdown Selector UX**:
-  - Restyle protocol dropdown selector with a distinct chevron indicator so it is clearly recognizable as an interactive dropdown.
-  - Relocate the protocol selector to the right of the breadcrumbs navigation bar.
-
-#### 2. 🪟 UI: Streamline Copy (F5), Move (F6), and Rename (F2) Dialog Ergonomics & Button Sizing (#27)
-- [ ] **Copy (F5) Modal & DeltaCopy Options**:
-  - Rename dialog title from "DeltaCopy & Transfer (RoboCopy / TeraCopy Engine)" to **"Copy (F5)"**.
-  - Rename section "Transfer Intelligence & Optimizations" to **"DeltaCopy Options:"**.
-  - Standardize option checkboxes:
-    - **Skip**: Skip unchanged files (matching size and modification timestamp).
-    - **Verification**: Verify bit-for-bit CRC32 checksums post-copy.
-    - **Retry**: Auto-retry up to 3 times on temporary lock or I/O busy.
-    - **Keep Metadata**: Retain original timestamps (mtime) and permissions.
-    - **Recursively**: Dive into subfolders.
-  - User Settings: Add configurable default action on <kbd>F5</kbd> (Standard Copy vs. DeltaCopy).
-- [ ] **Rename (F2) Modal**:
-  - Remove redundant "New Name / Destination" subtitle.
-- [ ] **Uniform Button Sizing Across Dialogs**:
-  - Enforce uniform `28px` height and consistent width/padding across all Copy (F5), Move (F6), and Rename (F2) action buttons.
-
-#### 3. 🚨 Critical Security: Terminal PTY User Impersonation & Privilege Escalation Fix (#21)
-- [ ] **Terminal PTY Privilege Escalation Prevention in Service Mode**:
-  - **Issue**: When Brum runs as a background service daemon (e.g. systemd unit with `User=root`), opening the Bite! Web Terminal spawns `/bin/bash` with the daemon's process UID (root). Authenticated regular / non-root users are erroneously granted an unrestricted root shell.
-  - **Remediation & Architecture**:
-    - **User Context Extraction**: Bind the authenticated session identity (JWT claims / PAM username) into the WebSocket terminal handler (`handle_terminal_ws`).
-    - **POSIX User Privilege Dropping**: When running with elevated privileges (UID 0) on Linux/Unix, drop privileges to the logged-in user (`setresuid`, `setresgid`, `initgroups`) or spawn the login shell via `su - <user>` / `login -f <user>` / PAM session management.
-    - **Virtual & DB Account Isolation**: For virtual/database accounts without a corresponding local OS account, prevent shell spawning or restrict execution to a locked chroot/jail.
-    - **Role-Based Terminal Access Control (RBAC)**: Add configuration options (`[terminal] allow_roles = ["admin"]`, `[terminal] allow_virtual_users = false`) to enforce strict least-privilege policies.
-
-#### 4. 📱 Responsive Viewports, Micro-Text Scaling & Mobile/Tablet Ergonomics
-- [ ] **Tablet Dual-Panel Mode Toggle (#4)**:
-  - Make dual-panel mode optional/toggleable on `Tablet` viewport (allow 1-panel wide mode for tight screens).
-- [ ] **Mobile & Tablet Sliding Collapsible Sidebar (#25)**:
-  - Add responsive sliding/drawer sidebar for note hierarchy on `Phone` and `Tablet` viewports to maximize writing canvas area.
-- [x] **Adaptive Viewport Typography & Micro-Text Scaling (#5, #6)**:
-  - Optimize info-text and secondary badge font sizes to be proportionally compact and legible on mobile and tablet screens.
-- [x] **Top Header Responsive Branding (#7)**:
-  - Display Brum branding badge on `Tablet` viewport while keeping it hidden on `Phone` to maximize path bar and panel space.
-- [x] **Phone Pane Columns (Owner & Permissions) (#8)**:
-  - Add optional owner/group and UNIX permission (`rwxr-xr-x`) visibility in mobile phone panel item rows and details drawer.
-- [x] **Mobile Bookmarks Manager Trigger Fix (#9)**:
-  - Fix Bookmarks manager modal/drawer tap triggering on phone viewport.
-
-#### 5. 🎨 Design System & Theme Engine Form Harmonization
-- [x] **Standardized Form Control Components (#10)**:
-  - Checkboxes, radio inputs, and select elements standardized across `Woofsons Amber Charcoal` & `Amber Zink`.
-- [x] **Header Control Alignment & Icon Refinements (#11, #12)**:
-  - Swapped topbar order of Apps Menu and Task Manager Pill. Replaced cloud upload symbol with sleek tray indicator.
-- [x] **Larvikite & Kittelsen Theme Suites (v0.8.3-rc1)**:
-  - Integrated 8 official themes (Skumring, Demring, Trollnatt, Myrtåke, Bergtatt, Soria Moria, Pestanatt, Sotslette).
-
-#### 6. 🔲 Panel Rearrangement & Windows Native Capabilities
-- [ ] **UI: Drag & Drop Rearrangement of Panels (#15)**:
-  - Allow users to dynamically reorder panels via drag handles or keyboard shortcuts.
-- [ ] **Windows: Standardize Windows Native Platform Capabilities (#19)**:
-  - Leverage native Windows APIs for drive enumeration, recycle bin integration, and shell execution.
-
-#### 7. 🧩 ChewToy Plugin Architecture & Extensible Scripting Specification (`.arf` / `.woof`) (#13)
-- [ ] **ChewToy Modular Plugin System**:
-  - Architecture and specification for dynamic external plugins packaged as `.arf` or `.woof` bundles.
-  - Standard manifest format (`plugin.toml` / `manifest.json`), asset packaging, and permission sandboxing.
-  - Scripting engine integration (native Shell / Bash script bridge leveraging embedded pseudo-terminal, plus optional lightweight WASM / QuickJS runtime for cross-platform sandboxed execution).
-
-#### 8. 📦 Linux Packaging & Debian FHS Conformance (#22)
-- [ ] **Debian `.deb` Dependency Modernization & Standard Paths**:
-  - Update `Depends` in packaging to specify `7zip | p7zip-full`.
-  - Ensure standard FHS directories (`/etc/brum`, `/var/log/brum`, `/usr/bin/brum`) and systemd unit reload in maintainer scripts.
-
-#### 9. 📊 Multi-Drive Storage Overview & Mountpoint Disk Stats in Stats ChewToy (#23)
-- [ ] **Multi-Drive & Mounts Overview Dashboard (`Stats` ChewToy Extension)**:
-  - Unified filesystem and disk capacity meters across all mounted drives.
-  - 1-click "Open in Panel" and "Analyze Tree" parallel disk analyzer.
-  - Real-time disk space badges in the Places dropdown.
-
-#### 10. 🌐 Commander Fleet: Multi-Host Node Switcher, Cross-Pane Orchestration & Zero-Trust Hardening (#24)
-- [ ] **Dynamic Node Switcher & Remote Instance Profiles**:
-  - Local client storage for multiple Brum instances (`localhost:3140`, `goshawk:3140`, `https://nas.lan:3140`) with custom aliases, latency meters, and 1-click active server switching.
-- [ ] **Cross-Pane Multi-Node Operations (Dual-Panel Power Move)**:
-  - Per-pane independent node binding and cross-node streaming over chunked channels.
-- [ ] **Multi-Drive & Mounts Overview Dashboard (`Stats` ChewToy Extension)**:
-  - **Unified Drives & Filesystems View**:
-    - Add a dedicated "Drives / Mounts" view mode in the `Stats` ChewToy alongside `Treemap`, `Split`, and `List`.
-    - Backend API (`/api/system/disks` / `sysinfo`) returning structured filesystem tables across all mounted drives (POSIX: `/`, `/mnt/*`, `/data`, `/home`; Windows: `C:\`, `D:\`, SMB/NFS shares).
-    - Display Total Capacity, Used Space, Available/Free Space, Inodes/Files, and % Used with dynamic, color-coded capacity progress bars (standard amber glow, warning thresholds at >80%, critical alert at >90%).
-    - Inspect filesystem types (`ext4`, `zfs`, `btrfs`, `xfs`, `ntfs`, `apfs`, `nfs`, `cifs`), mount options (`ro`/`rw`), and storage root mappings.
-  - **Interactive Jump & Analysis Actions**:
-    - 1-click **"Open in Panel"** button to instantly navigate the active file panel to the selected drive root.
-    - 1-click **"Analyze Tree"** button to run the high-speed Rayon parallel disk analyzer directly on that specific volume.
-  - **Panel Storage Roots & Status Bar Quota Badges**:
-    - Integrate compact available disk space badges into the Storage Roots dropdown and panel footer, providing users and admins with real-time feedback on remaining capacity without requiring shell commands.
-
-#### 8. 🌐 Commander Fleet: Multi-Host Node Switcher, Cross-Pane Orchestration & Zero-Trust Hardening (#24)
-- [ ] **Dynamic Node Switcher & Remote Instance Profiles**:
-  - **Connection Profiles Store**: Local client storage for multiple CommanderDog / Brum instances (`localhost:3140`, `goshawk:3140`, `https://nas.lan:3140`) with custom aliases, host accent colors, and scoped auth tokens.
-  - **Header Node Switcher**: Quick dropdown attached to the top Hostname Badge showing latency/ping (`🟢 8ms`), disk space meters, and 1-click active server switching.
-  - **Spotlight Integration**: Fast jump via `<kbd>Ctrl+K</kbd>` (`> connect <host>` / `> switch <node>`).
-  - **Remote Environment Hydration**: Dynamically hydrates `/api/config`, `/api/system/status`, storage roots, disk usage, and host-specific theme indicators upon switching.
-- [ ] **Cross-Pane Multi-Node Operations (Dual-Panel Power Move)**:
-  - **Per-Pane Independent Node Binding**: Allow Panel 1 to bind to Node A (e.g. Local Workstation) and Panel 2 to bind to Node B (e.g. Remote Goshawk NAS / LXC).
-  - **Cross-Node File Streaming**: Streamlined <kbd>F5</kbd> Copy / <kbd>F6</kbd> Move between separate CommanderDog instances over authenticated chunked streaming pipelines.
-- [ ] **Pure Standalone Desktop Thick-Client Mode**:
-  - Enable desktop app (Tauri/native) to run purely as a lightweight UI client targeting remote headless daemons without requiring a local background service.
-- [ ] **Zero-Trust Hardening, Mesh VPN & Reverse Proxy Standards**:
-  - **Transport Security Enforcements**: Mandatory TLS / HTTPS / WSS for non-loopback connections, strict Content Security Policy (CSP), and CORS origin validation.
-  - **Mesh-VPN First-Class Integration**: Document and optimize binding for zero-exposure overlay networks (**NetBird**, **Tailscale**, **Headscale**, **WireGuard**) to eliminate direct public port forwarding.
-  - **Hardened Reverse Proxy Recipes**: Production configuration templates and documentation for **Caddy**, **Nginx Proxy Manager**, **Traefik**, and **Cloudflare Tunnels** with WebSocket upgrading (`Upgrade: websocket`), rate limiting, and Fail2ban integration.
-  - **Scoped API Tokens & Least-Privilege Access**: Persistent cryptographic tokens with fine-grained scoping (read-only, sandboxed storage root IDs, CIDR allowlists) and full audit logging of remote actions.
+| Issue | Category | Summary |
+| :--- | :--- | :--- |
+| **[#26](https://github.com/Woofson/brum/issues/26)** | Navigation | Unified "Places" Hub (Merge Bookmarks, Storage Roots & Remote VFS shares) |
+| **[#27](https://github.com/Woofson/brum/issues/27)** | UI & Ergonomics | Streamline Copy (F5), Move (F6), and Rename (F2) dialog ergonomics & button sizing |
+| **[#21](https://github.com/Woofson/brum/issues/21)** | Security | Terminal PTY POSIX privilege dropping for authenticated non-root users in service mode |
+| **[#23](https://github.com/Woofson/brum/issues/23)** | ChewToy | Multi-Drive Storage Overview & Mountpoint Disk Stats in Stats ChewToy |
+| **[#24](https://github.com/Woofson/brum/issues/24)** | Feature & Mesh | Commander Fleet (Multi-Host Node Switcher, Cross-Pane Transfers & Hardened Remote Access) |
+| **[#22](https://github.com/Woofson/brum/issues/22)** | Packaging | Modernize Debian `.deb` dependencies (`7zip`/`t64`) and standard FHS paths |
+| **[#19](https://github.com/Woofson/brum/issues/19)** | Windows | Windows native platform capabilities and drive integrations |
+| **[#15](https://github.com/Woofson/brum/issues/15)** | UI | Drag-and-drop rearrangement of dynamic panels |
+| **[#13](https://github.com/Woofson/brum/issues/13)** | Plugins | Modular ChewToy plugin architecture & scripting engine (`.arf` / `.woof`) |
+| **[#4](https://github.com/Woofson/brum/issues/4)** | Viewports | Optional single/dual panel mode toggle on Tablet & Foldables |
+| **[#25](https://github.com/Woofson/brum/issues/25)** | NoteDog | Mobile & Foldable sliding collapsible drawer sidebar |
 
 ---
 
-### 📦 Completed Milestone Backlog History (`v0.7.2` – `v0.8.0`):
-- [x] **Windows File & Folder Navigation & Case-Insensitive VFS (`v0.8.0-rc9`)**:
-  - Resolved Windows directory entry and file opening failures by introducing `clean_path_buf` and `dunce_canonicalize` to strip extended length `\\?\` verbatim prefixes (#18).
-  - Implemented case-insensitive path comparison (`path_starts_with_case_insensitive`) for Windows drives and directories, fixing spurious 403 Forbidden errors.
-  - Added cross-platform path helpers (`getBasename`, `getParentDirectory`) in frontend and backend to seamlessly handle Windows drive roots (`C:\`), network UNC shares (`\\server\share`), and standard POSIX paths.
-  - Updated default Windows root path and folder tree roots to properly enumerate local disks and personal home directories.
-- [x] **Discrete Column Separators & Theme-Aware Gridlines (`v0.8.0-rc8`)**:
-  - Added subtle 1px vertical hairline dividers between table columns across all viewports with calibrated `--border-col-divider` theme tokens and live toggles.
-- [x] **Calvin S ASCII Banner & Touch Column Resizing (`v0.8.0-rc7`)**:
-  - Replaced CLI startup banner with fitted Calvin S box-drawing figlet font.
-  - Centered 34px touch hit zones on column boundaries with Pointer Events (`setPointerCapture`) and unclipped table headers.
-- [x] **Responsive 60/40 File Table Columns (`v0.8.0-rc6`)**:
-  - Allocated ~60% horizontal priority to the Name column on Phone and Tablet viewports, distributing remaining space across secondary columns.
-- [x] **Single-Line File Listing & Compact Dates (`v0.8.0-rc5`)**:
-  - Standardized clean 32px single-line table listing with compact timestamps and optional `<DIR>` directory tags.
-- [x] **Responsive Viewports & Theme Engine Form Harmonization (`v0.8.0-rc4`)**:
-  - Added mobile permissions subtext, micro-text typography scaling, and theme-aware custom form controls (#5, #6, #8, #10).
-- [x] **Integrated Terminal WebSocket Safety & Viewport Fit (`v0.8.0-rc3`)**:
-  - Resolved socket race conditions and prompt duplication in Bite! web terminal (#16).
-- [x] **NoteDog Docked Preview & Split Markdown Engine (`v0.8.0-rc2`)**:
-  - Unified Markdown preview engine and live bi-directional split view sync across floating and docked NoteDog (#2).
-- [x] **Documentation Reorganization & `manuals/` Structure (`v0.7.2-rc1`)**:
-  - Reorganized loose root documentation into dedicated [`manuals/`](manuals/README.md).
-  - Merged todos directly into `ROADMAP.md` as the unified source of truth.
-- [x] **EditorDog Polish & Compact Canvas**:
-  - Compact Single-Header Layout: Removed redundant inner document pane sub-headers; tabs now connect directly to the editor canvas.
-  - Interactive Status Bar Language Selector: Moved syntax mode selector to the bottom status bar (`RUST ▾`, `JS / TS ▾`, `MARKDOWN ▾`, etc.) with auto-detection and 1-click override.
-  - Standardized Save, New, Find, and Save All buttons to uniform `28px` Chewtoy header styling.
-  - Replaced dropdown view/layout menu with right-aligned direct action toggle buttons (`Single`, `Dual Side`, `Dual Stack`, `Preview`).
-- [x] **Notes Chewtoy (NoteDog) Header & Layout (`v0.7.2-rc4`)**:
-  - Standardized NoteDog header to Chewtoy `28px` uniform height, rounded corners (`var(--radius)`), and full drag handle.
-  - Aligned view mode switcher (`Editor`, `Split`, `Preview`) to right-aligned icon-only buttons matching CommanderDog layout controls.
-  - Standardized note workspace sub-header buttons (`Save`, `Template`, `Delete`) to match panel toolbar button standards (`26px x 26px`).
-- [x] **Universal Chewtoys & Windows Header/Toolbar Standardization (`v0.7.2-rc5`, `v0.7.2-rc6`)**:
-  - Standardized all built-in Chewtoys and floating window headers (`Calculator`, `Image Viewer`, `Terminal`, `Task Manager`, `Diff Engine`, `Git Manager`, `Disk Usage`, `Sync Studio`, `ConvertX`, `PDF Studio`, `Deep Search`) to uniform `28px` square icon buttons with `border-radius: var(--radius)` (`6px`).
-  - Right-aligned icon-only layout switches and tool controls with active amber glow styling and flat, stealthy window control buttons (`panel-left-close`, `panel-left-open`, `minus`, `maximize-2`, `x`, `picture-in-picture`, `external-link`).
-  - Docked tool pane headers now use icon-only float buttons and 26px stealthy controls.
-  - Standardized all sub-headers and inner workspace toolbars (`26px x 26px`) across note workspace, git staging, diff filters, disk usage path bar, sync replication bar, and calculator units row.
-- [x] **Terminal Console (Bite!) Lifecycle & Exit Handling (`v0.7.2-rc6`)**:
-  - Handled `Ctrl+D` (EOF), shell `logout`, and `exit` commands to automatically close drawer / docked tool and cleanly reset the PTY terminal state.
-- [x] **ChewToy Design System & Layout Language Locking (`v0.7.2-rc7`)**:
-  - Locked ChewToy Design & Layout Language Specification permanently into `GEMINI.md` (Section 7) and `.agents/rules/` for all future agent interactions.
-  - Enforced 42px header bar with full drag handle, 28px square buttons, right-aligned icon-only layout groups, flat & stealthy window controls, 26px sub-headers, dual-mode docking, and lifecycle teardown protocols.
-- [x] **Top Header Hostname & Environment Badge (`v0.7.2-rc8`)**:
-  - Added dynamic hostname badge next to the logo in the top application header with platform info (OS/arch/user) and click-to-copy utility.
-  - Added UI & Backend configuration (`config.toml` `[ui] show_hostname_badge`, `[ui] hostname_badge`, `[server] server_name`) with in-browser custom environment overrides (e.g. `NAS-PROD`, `HOMELAB-01`).
-- [x] **Task Manager Polish & Auto-Dismiss (`v0.7.2-rc8`)**:
-  - Main header activity pill button retains full 32px height to balance the profile bar.
-  - Resolved stuck UI pills for fast background jobs; idle state now cleanly resets activity badge to 0 and immediately hides floating speed badges and pills.
-  - Added automatic completed tasks auto-pruning in backend and frontend.
-- [x] **Delta Backup & Sync Studio Templates & Visual Exclusion Builder (`v0.7.2-rc9`)**:
-  - **1-Click Profile Templates**: Added instant setup presets (`🪞 NAS Mirror`, `💻 Codebase Sync`, `📦 Snapshot Vault`, `📸 Media Backup`) across live diff studio and scheduled job creator.
-  - **Visual Exclusion Builder**: Interactive preset chips (`node_modules`, `.git`, `target/`, `.cache/`, `tmp/`, `*.tmp`, `.DS_Store`, `Thumbs.db`, `*.log`, `dist/`, `*.bak`) with dynamic custom wildcard tag adder and badge counter.
-  - **Backend Exclusion Filtering**: Integrated pattern matcher into source/destination analysis and replication execution engine.
-  - **SQLite Job Exclusions Persistence**: Updated `backup_profiles` schema with automated migration to persist exclusion patterns per job.
-- [x] **Compact Breadcrumbs & Sleek Panel Git Badges**:
-  - Tightened breadcrumb spacing (`gap: 2px;`), streamlined separator chips, and compacted storage root dropdown buttons.
-  - Minified panel git branch badge (9.5px, 17px height, 10px icons) for an uncluttered path navigation bar.
-- [x] **Universal "New ▶" Context Menu & File Template Engine**:
-  - Full-surface right-click access: "New ▶" submenu is accessible anywhere across all file rows, cards, compact items, and empty background space.
-  - Built-in rich templates for Plain Text (`.txt`), Markdown (`.md`), HTML5 (`.html`), CSS (`.css`), JavaScript (`.js`), TypeScript (`.ts`), Python (`.py`), Rust (`.rs`), Bash (`.sh`), JSON (`.json`), and YAML (`.yaml`).
-  - Dynamic variable expansion: `{{TITLE}}` (humanized title), `{{FILENAME}}`, `{{NAME}}`, `{{DATE}}` (`YYYY-MM-DD`), `{{TIME}}`, `{{USER}}`, `{{ISO_DATE}}`, `{{YEAR}}`, `{{MONTH}}`, `{{DAY}}`, `{{AUTHOR}}`.
-  - Interactive "Create from Template" dialog with real-time live preview code editor and instant EditorDog opening.
-  - Full "Templates" manager tab in Settings to create, edit, duplicate, test, or delete custom file templates, plus 1-click "Save Selected File as Template" action.
+## 4. 🐕 ➔ ⚡ Brum Rebranding & Ecosystem Migration Master Plan
 
-### ⚡ Performance, Resource Scaling & Usability Backlog:
-- [x] **Flat / Branch View (`Ctrl+B`) Performance & Seamless Revert Navigation** (Shipped in `v0.7.3-rc6`):
-  - **Resource Scaling & UI Freeze Prevention**: Bounded backend recursive traversal with `WalkDir` `filter_entry` hidden tree pruning, safety item threshold (`MAX_BRANCH_ENTRIES = 5,000`), and non-blocking `tokio::task::spawn_blocking` execution.
-  - **Direct Revert / Exit Mechanism**: Added prominent sticky `.pane-branch-banner`, cancelable `AbortController` scan indicator, clickable ancestor breadcrumb navigation, and multi-trigger exit pathways (Ctrl+B, parent `..` double-click, directory opening, tree navigation).
-- [x] **Streamlined Single-Item Rename Modal (`F2`)** (Shipped in `v0.7.3-rc8`):
-  - **Dedicated Quick-Rename Dialog**: Pressing `F2` opens a focused, lightweight rename modal with the input field auto-focused.
-  - **Smart Selection & Keyboard Ergonomics**: Automatically pre-selects the filename without its extension for instant typing; `Enter` confirms and executes the rename; `Esc` immediately cancels without modifying the file.
-- [x] **Streamlined New Folder Creation Modal (`F7`)** (Shipped in `v0.7.3-rc9`):
-  - **Dedicated Quick-Mkdir Dialog**: Pressing `F7` opens a focused, lightweight new folder modal with instant autofocus and input selection.
-  - **Keyboard Ergonomics & Context Resolution**: `Enter` confirms and executes creation via `/api/fs/mkdir`; `Esc` cancels immediately; accurate resolution of active vs context right-clicked panes with toast notifications.
-- [x] **New Graphical Icons Integration (`note.png`, `conf.png`, `chewtoy.png`)** (Shipped in `v0.7.3-rc7`):
-  - **NoteDog Visual Identity**: Integrate dedicated asset `assets/note.png` across NoteDog headers, Launchpad menu, and spotlight entries.
-  - **Settings & Config Identity**: Integrate dedicated asset `assets/conf.png` for Settings modal triggers, menu actions, and header buttons.
-  - **ChewToys Suite Launcher**: Update the Tools/ChewToys suite button and header icons with dedicated asset `assets/chewtoy.png`.
-- [x] **ChewToy Unified Shortened Nomenclature** (Shipped in `v0.7.3-rc7`):
-  - Standardize and harmonize the 17 built-in power utilities across all dropdown menus, tooltips, settings, and Spotlight search (`Ctrl+K`):
-    - `Spot!` (Spotlight Quick-Shifter `Ctrl+K`)
-    - `Task Manager` (Background Transfers & Queue)
-    - `Terminal` (Slide-Up PTY Web Terminal `'`)
-    - `EditorDog` (Multi-Tab Code Editor `F4`)
-    - `Calculator` (Floating Calculator & Converter)
-    - `Tree` (Folder Hierarchy Tree `Ctrl+T`)
-    - `Flat` (Flat / Branch View `Ctrl+B`)
-    - `NoteDog` (Notes & Markdown Studio)
-    - `Compare` (Side-by-Side Diff Engine `F9`)
-    - `Search` (Deep File Search `Ctrl+F`)
-    - `Share Manager` (Active Shares & Dropboxes)
-    - `Backup` (Delta Backup & Sync Studio - SyncToy / Bvckup2)
-    - `Stats` (Disk Usage & Treemap Analyzer)
-    - `Syncthing` (Live Syncthing Dashboard)
-    - `ConvertX` (Universal Transcoder & Converters)
-    - `PDFDog` (PDF Power Studio - Merge & Split)
-    - `TetraDog` (Classic Arcade Tetris & Leaderboard)
-- [x] **NoteDog Encrypted Notes & Cross-TUI Compatibility** (Shipped in `v0.7.3-rc8`):
-  - **Encrypted Notebooks & Sections**: Support unlocking, editing, and saving encrypted notes and notebook sections using ChaCha20-Poly1305 / Argon2id container standards (`.md.enc` format, `.encrypted` section markers).
-  - **NoteDog TUI Cross-Compatibility**: Full interoperability and symmetric decrypt/encrypt parity between the CommanderDog NoteDog ChewToy and the NoteDog TUI terminal client.
-- [x] **Disk Usage & Storage Treemap Analyzer Optimization (`Stats` ChewToy)** (Shipped in `v0.7.3-rc12`):
-  - **Parallel Rayon Walker & Bounded Memory Allocation**: Implemented multi-threaded parallel directory traversal with `rayon` par_iter and bounded top-20 heap tracking for zero-allocation safety.
-  - **Interactive Proportional Treemap & Multi-Color Distribution**: Added responsive proportional squarified/flex treemap tiles with category gradients, 1-click drill-down, and stacked multi-colored storage proportion bar.
-  - **Interactive Navigation & Breadcrumbs**: Added full breadcrumb path navigation chips, parent directory (`Up ..`) jump button, real-time live filter, quick panel jump, and terminal launcher.
-  - **ChewToy Standards Alignment**: Standardized 42px drag handle header, right-aligned 28px view switchers (`Split`, `Treemap`, `List`), maximize/restore toggle, and 26px sub-header toolbars.
-- [x] **TetraDog (Authentic Classic Tetris ChewToy & Leaderboard)** (Shipped in `v0.7.7-rc1`):
-  - **Frame-Accurate 60 FPS HTML5 Canvas Engine**: Zero-lag fixed-timestep game loop (`requestAnimationFrame`) engineered for ultra-responsive control and razor-sharp inputs during high-speed master gravity (Level 15+ up to 20G instant drop).
-  - **Competitive Input Ergonomics (DAS & ARR Tuning)**: Sub-millisecond keyboard event handling with customizable Delayed Auto Shift (DAS, ~133ms default) and Auto Repeat Rate (ARR, ~16ms/0ms instant repeat), customizable keybindings (Arrow keys, WASD, Numpad, Space hard drop, Shift/C hold), and responsive touch D-pad for Phone/Tablet viewports.
-  - **Authentic Mechanics & Guideline Parity**:
-    - **Fair 7-Bag Randomizer**: True 7-bag piece distribution preventing prolonged piece droughts.
-    - **Rotation & Wall Kicks**: Super Rotation System (SRS) with standard 5-point wall kicks, plus optional toggle for classic NES single-rotation.
-    - **Guideline Features**: Ghost piece projection, Hold queue (1-swap per turn), Lock Delay (0.5s with maneuver reset limit), and full/mini T-Spin detection.
-  - **Authentic Scoring System & Progressive Gravity**:
-    - Original scoring curve: Single (100×L), Double (300×L), Triple (500×L), Tetris 4-line clears (800×L), Back-to-Back bonuses, Hard/Soft drop points, and T-Spin bonuses.
-    - Progressive gravity scaling across Levels 1–20+ with progressive line clear level-up thresholds.
-  - **High Score Leaderboards**:
-    - **Local Scoreboard**: Persistent `localStorage` tracking personal Top 10 high scores, cleared lines, max level, and timestamps.
-    - **Server-Wide High Scores**: SQLite backend integration (`/api/chewtoys/tetradog/scores`) sharing instance-wide synchronized multi-user leaderboards with player aliases and rankings.
-  - **Zero-Dependency 8-Bit Web Audio Synthesizer**:
-    - Retro synthesized audio effects (movement bleeps, hard drop slam, line clear fanfare, level-up arpeggio, game over chime) using the browser Web Audio API oscillator with 1-click sound mute.
-  - **ChewToy Standards Compliance**:
-    - Dual-mode architecture: Freely floating draggable/resizable window (`42px` drag handle header) or docked directly into Panel 1 / Panel 2.
-    - Uniform `28px` stealth window action buttons (Pause, Restart, Leaderboard, Audio, Settings, Dock/Float, Close).
-    - Retro theme palettes: `Woofsons Amber Charcoal` (default amber glow), `Game Boy Monochrome Green`, `NES 8-Bit Retro`, and `Arcade Cyberpunk`.
-- [x] **ARFAMP (Authentic Winamp 2.x Clone & 10-Band EQ ChewToy)** (Shipped in `v0.7.8-rc2`):
-  - **Modular 3-Window Architecture**: Classic Winamp 2.x snappable layout (Main Player, 10-Band Equalizer, Playlist Editor) with independent and global Windowshade modes (<kbd>Alt+W</kbd>).
-  - **Fluorescent Green/Amber LED 7-Segment Timer**: Real-time LED digital timer with click-to-toggle between *Time Elapsed* and *Time Remaining* (`-MM:SS`).
-  - **Amber Marquee Scrolling Track Ticker & HUD**: Marquee track title ticker with `KBPS` bitrate, `KHZ` sample rate, and active `STEREO`/`MONO` indicator lights.
-  - **Real-Time 60 FPS Winamp Visualizer**: 18-band segmented green/amber/red LED spectrum analyzer with falling peak caps, CRT phosphor oscilloscope waveform, and ambient glow modes.
-  - **10-Band Graphic Equalizer (EQ)**: Studio biquad peaking filters (`60Hz`, `170Hz`, `310Hz`, `600Hz`, `1kHz`, `3kHz`, `6kHz`, `12kHz`, `14kHz`, `16kHz`), Preamp fader (-6dB to +6dB), ON/AUTO switches, and 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
-  - **Playlist Editor & M3U Export**: Monospace green-on-black numbered track list, quick filter search, drag & drop track enqueueing, resize handle, and action buttons (`+FILE`, `+DIR`, `-FILE`, `-ALL`, `SHUF`, `LIST` .m3u export).
-  - **Authentic Winamp Keyboard Shortcuts**: <kbd>Z</kbd> Prev, <kbd>X</kbd> Play, <kbd>C</kbd> Pause/Unpause, <kbd>V</kbd> Stop, <kbd>B</kbd> Next, <kbd>L</kbd> Open Files, <kbd>Alt+W</kbd> Shade, <kbd>Alt+G</kbd> EQ, <kbd>Alt+E</kbd> PL, <kbd>S</kbd> Shuffle, <kbd>R</kbd> Repeat, <kbd>←</kbd>/<kbd>→</kbd> Seek, <kbd>↑</kbd>/<kbd>↓</kbd> Volume, <kbd>Delete</kbd> Remove Track.
-  - **Future Skinning Roadmap**: Planned support for 1:1 pixel-accurate classic Winamp 2 / XMMS skin archives (`.wsz`, `.zip`) with bitmap sprite sheet loaders (`MAIN.BMP`, `CBAR.BMP`, `TITLEBAR.BMP`, `EQMAIN.BMP`, `PLEdit.BMP`, `NUMBERS.BMP`, `TEXT.BMP`).
+> **Goal**: Seamless, zero-downtime transition from **CommanderDog** to **Brum** across GitHub, package registries, binaries, Docker, and documentation ahead of `v1.0.0`.
 
----
-
-## 4. 🐕 ➔ ⚡ Brum Rebranding & Ecosystem Migration Master Plan (Pre-v1.0 Planning)
-
-> **Status**: *Strategic Planning Phase Only — No Breaking Changes or Repositories Moved Yet.*  
-> **Goal**: Prepare seamless, zero-downtime transition from **CommanderDog** to **Brum** across GitHub, package registries, binaries, Docker, and documentation ahead of the `v1.0.0` milestone.
-
-### 1. 🎯 Brand Identity & Philosophy
-* **Product Name**: **`Brum`**
-* **Official Website**: **[www.arf.ac](https://www.arf.ac)**
-* **Brand Philosophy**: *No acronyms or slogans. Just a very good environment for file managing and orchestrating.*
-* **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac)).
-* **ChewToys Concept**: Built-in modules, tools, and plugins retain the official terminology **ChewToys**.
-
-### 2. 🧰 ChewToy Nomenclature Harmonization
-To streamline user experience and remove redundant branding prefixes, ChewToys will use clean, sharp, intuitive names:
-* `NoteDog` ➔ **`Notes`** (Hierarchical Markdown notebook, task checklists, encrypted `.md.enc` vaults)
-* `EditorDog` ➔ **`Edit`** (Multi-tab syntax highlighter, code editor, live Markdown/HTML split view)
-* `ARFAMP` ➔ **`AMP`** (Winamp 2.x clone, 10-band equalizer, spectrum analyzer, .m3u playlist manager)
+### ChewToy Nomenclature Harmonization
+* `NoteDog` ➔ **`Notes`** (Hierarchical Markdown notebook, task checklists, encrypted vaults)
+* `EditorDog` ➔ **`Edit`** (Multi-tab syntax highlighter, code editor, live split preview)
+* `ARFAMP` ➔ **`AMP`** (Winamp 2.x clone, 10-band equalizer, spectrum visualizer, .m3u playlists)
 * `PDFDog` ➔ **`PDF Studio`** (Visual PDF merge, split, page reordering, rotation)
-* `TetraDog` ➔ **`Tetra`** (Authentic classic 60 FPS arcade block puzzle & synchronized leaderboard)
+* `TetraDog` ➔ **`Tetra`** (Authentic classic 60 FPS arcade block puzzle & leaderboard)
 * `Spot!` ➔ **`Spot!`** (Spotlight command palette & path quick-shifter `Ctrl+K`)
 * `Bite! / Terminal` ➔ **`Terminal`** (Slide-up PTY terminal console `'`)
 * `ConvertX` ➔ **`ConvertX`** (Universal browser-native media transcoder & converter)
@@ -381,69 +157,44 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 * `Delta Backup` ➔ **`Backup`** (SyncToy / Bvckup 2 delta replication studio)
 * `Disk Usage` ➔ **`Stats`** (Visual treemap & disk consumption analyzer)
 * `Syncthing` ➔ **`Syncthing`** (Live Syncthing dashboard & LAN/P2P sync)
-* `RemoteDog` ➔ **`Remote`** (In-browser sub-millisecond RDP, VNC, SSH remote gateway & multi-pane grid)
+* `RemoteDog` ➔ **`Remote`** (In-browser sub-ms RDP, VNC, SSH remote gateway & multi-pane grid)
 
-### 3. 🌐 Repositories & Distribution Migration Strategy
+### Ecosystem Distribution Matrix
 
 | Ecosystem / Channel | Legacy Target | New Target (`Brum`) | Migration Strategy & Transition Path |
 | :--- | :--- | :--- | :--- |
 | **GitHub Repository** | `Woofson/commanderdog` | `Woofson/brum` | GitHub repository rename with automatic URL and git clone redirects; preserve issues and pull requests. |
 | **CLI / Server Binary** | `commanderdog` | `brum` | Primary binary renamed to `brum`; provide temporary symlink / transitional alias `commanderdog -> brum`. |
 | **Windows Desktop** | `CommanderDog.exe` | `Brum.exe` | Standalone executable and launcher updated to `Brum.exe` / `brum.exe`. |
-| **Docker / GHCR** | `ghcr.io/woofson/commanderdog` | `ghcr.io/woofson/brum` | Multi-arch Alpine image published to `ghcr.io/woofson/brum` (branded as `Brum`); legacy repo redirected / aliased. |
-| **Rust Crates.io** | `commanderdog` (`arf-cmdr`) | `brum` / `brum-cmdr` | Crates namespace reservation with `brum-` / `arf-` prefix rule; `brum-desktop` for Tauri GUI wrapper. |
-| **Arch Linux (AUR)** | `commanderdog`<br>`commanderdog-bin` | `brum`<br>`brum-bin` | New AUR packages `brum` & `brum-bin` with `provides=('commanderdog')`, `conflicts=('commanderdog')`, `replaces=('commanderdog')`. |
-| **Windows WinGet** | `Woofson.CommanderDog` | `Woofson.Brum` | New package manifest `Woofson.Brum` with automatic upgrade path from `Woofson.CommanderDog`. |
+| **Docker / GHCR** | `ghcr.io/woofson/commanderdog` | `ghcr.io/woofson/brum` | Multi-arch Alpine image published to `ghcr.io/woofson/brum`; legacy repo redirected. |
+| **Rust Crates.io** | `commanderdog` (`arf-cmdr`) | `brum` / `brum-cmdr` | Crates namespace reservation with `brum-` / `arf-` prefix rule; `brum-desktop` for Tauri wrapper. |
+| **Arch Linux (AUR)** | `commanderdog`<br>`commanderdog-bin` | `brum`<br>`brum-bin` | AUR packages `brum` & `brum-bin` with `provides=('commanderdog')`, `conflicts=('commanderdog')`. |
+| **Windows WinGet** | `Woofson.CommanderDog` | `Woofson.Brum` | New package manifest `Woofson.Brum` with upgrade path from `Woofson.CommanderDog`. |
 | **Windows Scoop** | `commanderdog.json` | `brum.json` | Updated bucket manifest `brum.json` with fallback shim in `packaging/windows/scoop/`. |
-| **Installers** | `CommanderDog_x64-setup.exe`<br>`CommanderDog_x64_en-US.msi` | `Brum_x64-setup.exe`<br>`Brum_x64_en-US.msi` | Updated NSIS setup and WiX MSI installers with `Brum` branding and shortcuts. |
-| **Config & Data Paths** | `~/.config/commanderdog/`<br>`commanderdog.db` | `~/.config/brum/`<br>`brum.db` | Automatic migration check looking for legacy `~/.config/commanderdog/` and `commanderdog.db`. |
-
-### 4. 📋 Execution Checklist & Pre-Requisites (Milestone `v1.0.0`)
-- [ ] **Phase 1: Brand & Asset Alignment**: Prepare updated SVG/PNG/ICO vectors for `Brum` without breaking existing visual assets.
-- [ ] **Phase 2: Configuration & Path Fallback Compatibility**: Implement backward-compatible path discovery (`~/.config/brum/` falling back to `~/.config/commanderdog/`).
-- [ ] **Phase 3: Package Registry Reservations**: Reserve and verify `brum` crate/package names across crates.io, AUR, Scoop, and Winget.
-- [ ] **Phase 4: Coordinated Repository Rename & Tagging**: Rename GitHub repository to `Woofson/brum`, update CI/CD release scripts, and cut official `v1.0.0` release.
+| **Installers** | `CommanderDog_x64-setup.exe`<br>`CommanderDog_x64_en-US.msi` | `Brum_x64-setup.exe`<br>`Brum_x64_en-US.msi` | Updated NSIS setup and WiX MSI installers with `Brum` branding. |
+| **Config & Data Paths**| `~/.config/commanderdog/`<br>`commanderdog.db` | `~/.config/brum/`<br>`brum.db` | Automatic migration check looking for legacy `~/.config/commanderdog/` and `commanderdog.db`. |
 
 ---
 
-## 5. 🔮 Upcoming Strategic Milestones
+## 5. 🔮 Strategic Milestones
 
 ### Milestone 1: Multi-Cloud VFS, Remote Gateway ChewToy & High-Impact Extensions (`v0.8.0+`)
-- **Remote Gateway ChewToy / Modular Plugin (`Remote` — incorporating RemoteDog)**:
-  - **Single-Binary Zero-Guacamole Architecture**: Incorporate the lightweight, sub-millisecond remote gateway from [`/home/bolt/projects/remotedog/`](file:///home/bolt/projects/remotedog/) directly into CommanderDog / Brum as a native ChewToy and modular plugin.
-  - **Native Protocols & Hardware Acceleration**:
-    - **RDP (Windows Remote Desktop)**: Pure-Rust `IronRDP` engine with Network Level Authentication (NLA / CredSSP), 64×64 dirty tile sub-rect diffing, and live dynamic resolution resizing (`MS-RDPEDISP`).
-    - **VNC / RFB (3.8)**: Full RFB client with Raw and CopyRect tile decoding, DES auth, and full mouse/keyboard event mapping.
-    - **SSH & Remote Terminal**: Remote shell with PTY allocation and integrated SFTP file subsystem.
-  - **Multi-Pane Remote Grid (`Alt+1` to `Alt+4`)**: Dynamic 1-to-4 remote viewport layouts for monitoring and orchestrating multiple servers, workstations, or VMs simultaneously.
-  - **Bi-Directional Clipboard & File Staging**: Auto-clipboard synchronization (`navigator.clipboard` / RFB ClientCutText / ANSI OSC 52) and direct drag-and-drop file transfers between local panels and remote viewports.
-- **Embedded WebDAV Server Mode**: Native WebDAV server daemon allowing external operating systems (Windows File Explorer, macOS Finder, Linux, mobile apps) to mount storage as local network drives.
-- **Multi-Cloud VFS Adapters**: Native connectors for Google Drive, Proton Drive, Hetzner Storage Box, and direct S3/MinIO browser streaming.
-- **HexDog & ArchiveDog ChewToys**: In-place multi-format archive explorer (`.zip`, `.tar.gz`, `.7z`, `.zstd`) and binary byte/hex inspector.
-- **Classic Skin Loader (`.wsz`)**: Native unpacker and renderer for classic Winamp 2.x and XMMS skin archives in AMP.
-- **ChewToy Modular Plugin Architecture (`.arf` / `.woof`)**: Dynamic external plugin packaging, manifest specification (`plugin.toml`), permission sandboxing, and Shell/Bash terminal bridge.
-- **Windows Desktop Preferred Port & Localhost Web Access (`:3140`)**:
-  - Configure `CommanderDog.exe` desktop GUI launcher to bind to preferred port `3140` by default (falling back to dynamic port only if occupied).
-  - Synchronize the system tray *"Open in Web Browser"* action to point to the active bound port.
-  - Enable simultaneous access to `http://localhost:3140` in web browsers while the standalone desktop app is active.
-- **Windows Persistent File Logging & Event Log Integration**:
-  - Implement dedicated rotating file logging for desktop GUI mode in `%APPDATA%\CommanderDog\logs\commanderdog.log` to preserve startup diagnostics, bound port details, and error traces when running without an attached console.
-  - Integrate Windows Event Log / Event Viewer source for service daemons and system error reporting.
-- **User Profile Photos & Cross-Platform Native Avatar Fetcher**:
-  - **Local & Standalone Profile Avatars**: Support custom profile picture / avatar uploads and cropping in local and single-user modes, persisted in SQLite user preferences.
-  - **Native OS Avatar Auto-Detection**:
-    - **Linux**: Automatic discovery and extraction of system user profile photos from AccountsService (`/var/lib/AccountsService/icons/<username>`), user home dotfiles (`~/.face`, `~/.face.icon`), or system icon paths.
-    - **Windows**: Automatic extraction from Windows Account Pictures directory (`%APPDATA%\Microsoft\Windows\AccountPictures` / `%PROGRAMDATA%\Microsoft\User Account Pictures`) or registry user tile properties.
-  - **Online Fallback Resolvers**: Optional Gravatar / Libravatar email hash lookup and upstream OAuth/OIDC profile avatar fallback.
+* **Remote Gateway ChewToy / Modular Plugin (`Remote` — incorporating RemoteDog)**:
+  * Pure-Rust `IronRDP` with NLA/CredSSP, sub-rect dirty diffing, dynamic resizing (`MS-RDPEDISP`).
+  * Full RFB VNC client (3.8), remote SSH PTY shell with SFTP, and 1-to-4 multi-pane grid (`Alt+1` to `Alt+4`).
+  * Auto-clipboard synchronization and direct drag-and-drop file transfers between local panels and remote hosts.
+* **Embedded WebDAV Server Mode**: Native WebDAV server daemon allowing external operating systems to mount storage as local network drives.
+* **Multi-Cloud VFS Adapters**: Native connectors for Google Drive, Proton Drive, Hetzner Storage Box, and direct S3/MinIO browser streaming.
+* **Modular Plugin Architecture (`.arf` / `.woof`)**: Dynamic external plugin packaging, manifest specification (`plugin.toml`), and sandboxed shell bridge.
 
 ### Milestone 2: Enterprise Identity, OIDC / SSO & Collaborative Office (`v0.9.0`)
-- **Enterprise Identity Providers**: OpenID Connect (OIDC), OAuth2, SAML 2.0, Keycloak, Authentik, Authelia, Google, GitHub, Okta, Azure AD.
-- **Collaborative Document Editing**: In-browser real-time collaborative editing for markdown, code, and Office documents (`.docx`, `.xlsx`, `.pptx` via Collabora / OnlyOffice WOPI integration).
+* **Enterprise Identity Providers**: OpenID Connect (OIDC), OAuth2, SAML 2.0, Keycloak, Authentik, Authelia, Google, GitHub, Okta, Azure AD.
+* **Collaborative Document Editing**: In-browser real-time collaborative editing for markdown, code, and Office documents (`.docx`, `.xlsx`, `.pptx` via Collabora / OnlyOffice WOPI).
 
-### Milestone 3: Brum Full Release, High-Performance P2P Cluster & Distributed Virtual Storage (`v1.0.0`)
-- **Ecosystem Migration Execution**: Finalize repository rename to `Woofson/brum`, publish `brum` binary and container packages to GHCR, crates.io, AUR, and WinGet.
-- **Cluster Node Mesh**: Direct peer-to-peer authenticated node clustering with distributed metadata synchronization.
-- **Distributed Virtual Storage**: Multi-host unified mountpoints and automated cross-node replication.
+### Milestone 3: Brum Full Release, High-Performance P2P Cluster & Distributed Storage (`v1.0.0`)
+* **Ecosystem Migration Execution**: Finalize repository rename to `Woofson/brum`, publish `brum` binary and container packages to GHCR, crates.io, AUR, and WinGet.
+* **Cluster Node Mesh**: Direct peer-to-peer authenticated node clustering with distributed metadata synchronization.
+* **Distributed Virtual Storage**: Multi-host unified mountpoints and automated cross-node replication.
 
 ---
 
@@ -451,28 +202,20 @@ To streamline user experience and remove redundant branding prefixes, ChewToys w
 
 | Version | Milestone Focus | Status | Changelog |
 | :--- | :--- | :--- | :--- |
-| **`v0.3.0`** | In-Pane Tool Docking, ConvertX, Dual-Pane Editor | **Released** | [View Notes](CHANGELOG.md#030---2026-08-15) |
-| **`v0.3.5`** | Wayland Windowing, GDK Fix, AUR Automated Sync | **Released** | [View Notes](CHANGELOG.md#035---2026-08-18) |
-| **`v0.3.6`** | XDG Fast-Path Config, External TOML Themes, Web Theme Creator | **Released** | [View Notes](CHANGELOG.md#036---2026-08-20) |
-| **`v0.4.0`** | Multi-Part Splitter, Integrated Git Client, Auto-$HOME Startup | **Released** | [View Notes](CHANGELOG.md#040---2026-08-22) |
-| **`v0.4.1`** | Storage Roots, Sandboxing, Per-User Root RBAC, Alpine GHCR | **Released** | [View Notes](CHANGELOG.md#041---2026-08-24) |
-| **`v0.4.2`** | Multi-Tier SSH/SFTP Auth, Dynamic PAM Engine, $HOME Resolution | **Released** | [View Notes](CHANGELOG.md#042---2026-08-26) |
-| **`v0.5.0`** | Zero-Leakage Credentials, Leftmost Pane Customizer, Modern Navbar | **Released** | [View Notes](CHANGELOG.md#050---2026-08-28) |
-| **`v0.5.5`** | Transparent Encrypted Vaults (.cdvault), Cross-Mount Deletions | **Released** | [View Notes](CHANGELOG.md#055---2026-08-29) |
-| **`v0.6.0`** | Windows Native Build & Release (MSI, ZIP, Winget, Scoop, WebView2) | **Released** | [View Notes](CHANGELOG.md#060---2026-08-30) |
-| **`v0.6.5`** | PDF Split/Merger, Mouse-Wheel Image Navigation & Dynamic Statusbar | **Released** | [View Notes](CHANGELOG.md#065---2026-08-31) |
-| **`v0.6.6`** | Windows Service, Autostart Management & Rich Icon Suite | **Released** | [View Notes](CHANGELOG.md#066---2026-08-31) |
-| **`v0.6.7`** | Orthodox Context Menu, Properties Dialog, GFM & HTML Editor | **Released** | [View Notes](CHANGELOG.md#067---2026-09-01) |
-| **`v0.6.8`** | Resizable Columns, Custom Chooser, Multi-Size Grid & Tree Sidebar | **Released** | [View Notes](CHANGELOG.md#068---2026-09-01) |
-| **`v0.6.9`** | Bvckup 2 & SyncToy Delta Backup, Background Daemons & Automation | **Released** | [View Notes](CHANGELOG.md#069---2026-09-01) |
-| **`v0.7.0`** | NoteDog Notes Studio, Tags & Colors, Custom Workspaces | **Released** | [View Notes](CHANGELOG.md#070---2026-09-01) |
-| **`v0.7.1`** | Universal Floating Viewers, Live Tail Follow, Bundled Fonts & Themes | **Released** | [View Notes](CHANGELOG.md#071---2026-09-03) |
+| **`v0.8.3`** | Places Hub, Dialog Ergonomics, Frosted Auth Glass, Security Hardening | **In Progress** | [View Notes](CHANGELOG.md#083-rc8---2026-09-11) |
+| **`v0.8.2`** | Brum Rebranding, Bear Logo, Crate & AUR Distribution | **Released** | [View Notes](CHANGELOG.md#082---2026-09-08) |
+| **`v0.8.1`** | ChewToy Nomenclature, Context Menu Auto-Dismiss, Windows Icon | **Released** | [View Notes](CHANGELOG.md#081---2026-09-08) |
+| **`v0.8.0`** | Windows Navigation Fix, Touch Columns, Theme Form System | **Released** | [View Notes](CHANGELOG.md#080---2026-09-08) |
+| **`v0.7.9`** | HTTP Range Audio Streaming & ARFAMP Rebrand | **Released** | [View Notes](CHANGELOG.md#079---2026-09-07) |
+| **`v0.7.8`** | ARFAMP (Winamp 2.x Clone & 10-Band EQ ChewToy) | **Released** | [View Notes](CHANGELOG.md#078---2026-09-07) |
+| **`v0.7.7`** | TetraDog (Classic Arcade Tetris ChewToy & Leaderboard) | **Released** | [View Notes](CHANGELOG.md#077---2026-09-07) |
+| **`v0.7.3`** | Visual Disk Treemap, NoteDog Encryption & Release Automation | **Released** | [View Notes](CHANGELOG.md#073---2026-09-04) |
 | **`v0.7.2`** | Documentation Reorganization & Chewtoy UI/UX Refinements | **Released** | [View Notes](CHANGELOG.md#072---2026-09-04) |
-| **`v0.7.3`** | WebP Icon Suite, Visual Disk Treemap, NoteDog Encryption & Release Automation | **Released** | [View Notes](CHANGELOG.md#073---2026-09-04) |
-| **`v0.7.7`** | TetraDog (Classic Arcade Tetris ChewToy & Synchronized Leaderboard) | **Released** | [View Notes](CHANGELOG.md#077---2026-09-07) |
-| **`v0.7.8`** | ARFAMP (Authentic Winamp 2.x Clone & Equalizer ChewToy) | **Released** | [View Notes](CHANGELOG.md#078---2026-09-07) |
-| **`v0.7.9`** | HTTP Range Audio Streaming Fix & ARFAMP Official Rebranding | **Released** | [View Notes](CHANGELOG.md#079---2026-09-07) |
-| **`v0.8.0`** | Windows Navigation Fix, Touch Columns, Theme Form System & Release Automation | **Released** | [View Notes](CHANGELOG.md#080---2026-09-08) |
-| **`v0.8.1`** | ChewToy Nomenclature, Context Menu Auto-Dismiss, Windows Desktop Icon & Local Profile Customization | **Released** | [View Notes](CHANGELOG.md#081---2026-09-08) |
+| **`v0.7.1`** | Universal Floating Viewers, Live Tail Follow, Bundled Fonts & Themes | **Released** | [View Notes](CHANGELOG.md#071---2026-09-03) |
+| **`v0.7.0`** | NoteDog Notes Studio, Tags & Colors, Custom Workspaces | **Released** | [View Notes](CHANGELOG.md#070---2026-09-01) |
+| **`v0.6.0`** | Windows Native Build & Release (MSI, ZIP, Winget, Scoop, WebView2) | **Released** | [View Notes](CHANGELOG.md#060---2026-09-30) |
+| **`v0.5.0`** | Zero-Leakage Credentials, Leftmost Pane Customizer, Modern Navbar | **Released** | [View Notes](CHANGELOG.md#050---2026-08-28) |
+| **`v0.4.0`** | Multi-Part Splitter, Integrated Git Client, Auto-$HOME Startup | **Released** | [View Notes](CHANGELOG.md#040---2026-08-22) |
+| **`v0.3.0`** | In-Pane Tool Docking, ConvertX, Dual-Pane Editor | **Released** | [View Notes](CHANGELOG.md#030---2026-08-15) |
 | **`v0.9.0`** | Enterprise OIDC / SSO, Collaborative Office (WOPI) & RBAC | *Planned* | — |
-| **`v1.0.0`** | Brum Official Rebrand, High-Performance P2P Cluster & Distributed Virtual Storage | *Planned* | — |
+| **`v1.0.0`** | Brum Official Rebrand, High-Performance P2P Cluster & Distributed Storage | *Planned* | — |

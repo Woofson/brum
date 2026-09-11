@@ -5,6 +5,17 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc8] - 2026-09-11
+
+### Roadmap Streamlining & Changelog CLI Compiler
+- **Issue Tracker as Exclusive Roadmap**:
+  - Re-architected `ROADMAP.md` to establish GitHub Issues (`https://github.com/Woofson/brum/issues`) and Milestones as the exclusive single source of truth for active sprint tasks, feature backlogs, and bug triage.
+  - Eliminated redundant, volatile task tables from markdown documentation to prevent synchronization drift and token waste.
+  - Retained the permanent ChewToy replacement matrix, design language tokens, and multi-platform distribution strategy.
+- **Changelog Compiler CLI (`scripts/changelog.sh`)**:
+  - Created executable changelog compiler tool (`./scripts/changelog.sh`) to query, format, and stream release notes directly to stdout.
+  - Supported querying latest releases (`./scripts/changelog.sh`), historical batches (`-n <count>`), specific versions (`0.8.2`), conventional git changelogs (`./scripts/changelog.sh git [range]`), and GitHub releases.
+
 ## [0.8.3-rc7] - 2026-09-11
 
 ### Responsive Auth Header Typography & Brand Refinements

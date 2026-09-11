@@ -25,12 +25,13 @@ At the end of every response after making changes, **always clearly inform the u
 
 ## 3. Git Workflow, GitHub Issues & Roadmap Synchronization
 
-* **Routinely Work from GitHub Issues**:
-  * Treat GitHub Issues on `Woofson/commanderdog` as an integral part of the active development cycle.
-  * Regularly query, check, and update issues using the GitHub CLI (`gh issue list`, `gh issue view`, `gh issue create`, `gh issue comment`, `gh issue close`).
+* **GitHub Issues as Single Source of Truth for Roadmap**:
+  * Treat GitHub Issues on `Woofson/brum` as the exclusive single source of truth for the roadmap, active backlog, and sprint tracking.
+  * Regularly query, check, and update issues using `scripts/issues.sh` or the GitHub CLI (`gh issue list`, `gh issue view`, `gh issue create`, `gh issue comment`, `gh issue close`).
   * When implementing features or fixing bugs, cross-reference the corresponding issue number in commit messages (e.g. `fix(notedog): resolve dropdown lag in docked mode (fixes #1)`).
-* **Documentation & Roadmap Alignment**:
-  * Before every git commit or push, ensure that `ROADMAP.md`, `CHANGELOG.md`, and all project documentation are fully synchronized, updated, and aligned with recent codebase changes and GitHub issues.
+* **Documentation & Changelog CLI Tooling**:
+  * Use `scripts/changelog.sh` to compile changelog notes directly to stdout (`./scripts/changelog.sh` or `./scripts/changelog.sh git`).
+  * Before every git commit or push, ensure that `CHANGELOG.md` has the iteration entry and `Cargo.toml` is bumped.
 * **Command: `"push to git"`**:
   * Commit modified files with a clean, conventional commit message and push to the remote Git repository.
   * **DO NOT trigger releases or publish packages.**
