@@ -870,6 +870,8 @@ async function checkAuthAndLoad() {
     if (sysResp.ok) {
       const sysData = await sysResp.json();
       App.systemStatus = sysData;
+      if (sysData.version) applyAppVersion(sysData.version);
+      updateHostnameBadge();
       App.isStandalone = sysData.standalone;
       updateStandaloneUI();
       if (sysData.standalone) {
@@ -973,6 +975,8 @@ function applyAppVersion(ver) {
   if (!ver) return;
   App.version = ver;
   document.querySelectorAll('.login-version-badge').forEach(el => el.textContent = `v${ver}`);
+  document.querySelectorAll('.lock-version-badge, #lock-corner-version-badge').forEach(el => el.textContent = `Brum v${ver}`);
+  document.querySelectorAll('.login-app-version, #login-app-version').forEach(el => el.textContent = ver);
   document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(el => el.textContent = `v${ver} (Desktop & Web)`);
   const syncBadge = document.getElementById('sync-version-badge');
   if (syncBadge) syncBadge.textContent = `v${ver}`;
@@ -1021,11 +1025,51 @@ function getHostnameBadgeSettings() {
   return { show, hostname, customLabel, color, customText, customBg, customBorder, customGlow, style, icon, size };
 }
 
+function renderHostnameBadgeElement(badgeEl, textEl, cfg) {
+  if (!badgeEl) return;
+  if (!cfg.show) {
+    badgeEl.style.display = 'none';
+    return;
+  }
+  if (textEl) textEl.textContent = cfg.hostname;
+  badgeEl.style.display = 'inline-flex';
+  badgeEl.className = `header-hostname-badge color-${cfg.color} style-${cfg.style} size-${cfg.size}`;
+
+  if (cfg.color === 'custom') {
+    badgeEl.style.setProperty('--custom-badge-color', cfg.customText);
+    badgeEl.style.setProperty('--custom-badge-bg', cfg.customBg);
+    badgeEl.style.setProperty('--custom-badge-border', cfg.customBorder);
+    badgeEl.style.setProperty('--custom-badge-glow', cfg.customGlow);
+  } else {
+    badgeEl.style.removeProperty('--custom-badge-color');
+    badgeEl.style.removeProperty('--custom-badge-bg');
+    badgeEl.style.removeProperty('--custom-badge-border');
+    badgeEl.style.removeProperty('--custom-badge-glow');
+  }
+
+  // Update Icon
+  let iconEl = badgeEl.querySelector('i, svg');
+  if (cfg.icon === 'none') {
+    if (iconEl) iconEl.style.display = 'none';
+  } else {
+    if (!iconEl) {
+      iconEl = document.createElement('i');
+      if (textEl) badgeEl.insertBefore(iconEl, textEl);
+      else badgeEl.appendChild(iconEl);
+    }
+    iconEl.style.display = 'inline-block';
+    iconEl.setAttribute('data-lucide', cfg.icon);
+  }
+
+  if (typeof lucide !== 'undefined' && lucide.createIcons) {
+    lucide.createIcons({ root: badgeEl });
+  }
+}
+
 function updateHostnameBadge() {
   const badge = document.getElementById('header-hostname-badge');
   const textEl = document.getElementById('header-hostname-text');
   const logoArea = document.querySelector('.logo-area');
-  if (!badge) return;
 
   const cfg = getHostnameBadgeSettings();
 
@@ -1033,47 +1077,32 @@ function updateHostnameBadge() {
     logoArea.classList.toggle('has-hostname-badge', Boolean(cfg.show));
   }
 
-  if (!cfg.show) {
-    badge.style.display = 'none';
-    return;
+  // Header Badge
+  renderHostnameBadgeElement(badge, textEl, cfg);
+
+  // Login Screen Hostname Title & Badge
+  const loginTitleEl = document.getElementById('login-hostname-title');
+  if (loginTitleEl) {
+    loginTitleEl.textContent = cfg.hostname || 'Brum';
   }
+  const loginBadge = document.getElementById('login-hostname-badge');
+  const loginBadgeText = document.getElementById('login-hostname-badge-text');
+  renderHostnameBadgeElement(loginBadge, loginBadgeText, cfg);
 
-  if (textEl) textEl.textContent = cfg.hostname;
-  badge.style.display = 'inline-flex';
-  badge.className = `header-hostname-badge color-${cfg.color} style-${cfg.style} size-${cfg.size}`;
-
-  if (cfg.color === 'custom') {
-    badge.style.setProperty('--custom-badge-color', cfg.customText);
-    badge.style.setProperty('--custom-badge-bg', cfg.customBg);
-    badge.style.setProperty('--custom-badge-border', cfg.customBorder);
-    badge.style.setProperty('--custom-badge-glow', cfg.customGlow);
-  } else {
-    badge.style.removeProperty('--custom-badge-color');
-    badge.style.removeProperty('--custom-badge-bg');
-    badge.style.removeProperty('--custom-badge-border');
-    badge.style.removeProperty('--custom-badge-glow');
+  // Lock Screen Hostname Suffix & Badge
+  const lockSuffix = document.getElementById('lock-hostname-suffix');
+  if (lockSuffix) {
+    lockSuffix.textContent = `@${cfg.hostname || 'localhost'}`;
   }
+  const lockBadge = document.getElementById('lock-hostname-badge');
+  const lockBadgeText = document.getElementById('lock-hostname-badge-text');
+  renderHostnameBadgeElement(lockBadge, lockBadgeText, cfg);
 
-  // Update Icon
-  let iconEl = badge.querySelector('i, svg');
-  if (cfg.icon === 'none') {
-    if (iconEl) iconEl.style.display = 'none';
-  } else {
-    if (!iconEl) {
-      iconEl = document.createElement('i');
-      badge.insertBefore(iconEl, textEl);
-    }
-    iconEl.style.display = 'inline-block';
-    iconEl.setAttribute('data-lucide', cfg.icon);
-  }
-
-  const os = App.systemStatus?.os || 'linux';
-  const arch = App.systemStatus?.arch || 'x86_64';
-  const user = App.user?.username || App.systemStatus?.current_user || 'user';
-  badge.title = `Host: ${cfg.hostname} (${os}/${arch})\nUser: ${user}\nClick to copy host info`;
-
-  if (typeof lucide !== 'undefined' && lucide.createIcons) {
-    lucide.createIcons({ root: badge });
+  if (badge && cfg.show) {
+    const os = App.systemStatus?.os || 'linux';
+    const arch = App.systemStatus?.arch || 'x86_64';
+    const user = App.user?.username || App.systemStatus?.current_user || 'user';
+    badge.title = `Host: ${cfg.hostname} (${os}/${arch})\nUser: ${user}\nClick to copy host info`;
   }
 
   updateHostnameSettingsPreview();
@@ -12448,7 +12477,22 @@ function lockSession() {
   const uname = cachedUser?.nickname || cachedUser?.username || 'Brum User';
   const avatar = cachedUser?.avatar_url || '👤';
 
-  if (userLabel) userLabel.textContent = uname;
+  const userTextEl = document.getElementById('lock-username-text');
+  const hostSuffixEl = document.getElementById('lock-hostname-suffix');
+  const cfg = getHostnameBadgeSettings();
+  const hostStr = cfg.hostname || 'localhost';
+
+  if (userTextEl) {
+    userTextEl.textContent = uname;
+  } else if (userLabel) {
+    userLabel.textContent = uname;
+  }
+  if (hostSuffixEl) {
+    hostSuffixEl.textContent = `@${hostStr}`;
+  }
+
+  updateHostnameBadge();
+
   if (avatarEl) renderAvatarElement(avatarEl, avatar);
   if (passIn) passIn.value = '';
   if (errMsg) errMsg.style.display = 'none';

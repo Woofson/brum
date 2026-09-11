@@ -7727,6 +7727,18 @@ html.fkeys-disabled .bottom-fkey-bar,
    SESSION LOCK SCREEN & CREDENTIAL MODAL
    ========================================================================== */
 .session-lock-screen {
+  --bg-main: #101014;
+  --bg-body: #101014;
+  --bg-panel: #16161c;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  --border: rgba(255, 255, 255, 0.12);
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  color: #f4f4f5;
+  color-scheme: dark;
   display: none;
   position: fixed;
   inset: 0;
@@ -10771,6 +10783,18 @@ html.auth-ready .panes-container {
    LOGIN SCREEN & AMBER GRADIENT AUTHENTICATION MODAL
    ========================================================================== */
 #login-modal.login-screen-overlay {
+  --bg-main: #101014;
+  --bg-body: #101014;
+  --bg-panel: #16161c;
+  --bg-hover: rgba(255, 255, 255, 0.08);
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  --border: rgba(255, 255, 255, 0.12);
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  color: #f4f4f5;
+  color-scheme: dark;
   position: fixed;
   inset: 0;
   z-index: 99999;
@@ -10829,7 +10853,50 @@ html.auth-ready .panes-container {
   display: none;
 }
 
-/* Lower-Right Corner Version */
+/* Auth Anonymous Easter-Egg Stealth Link */
+.auth-stealth-link {
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: inherit !important;
+  font-weight: 700;
+  border: none !important;
+  outline: none !important;
+}
+
+.auth-stealth-link:hover,
+.auth-stealth-link:focus,
+.auth-stealth-link:active {
+  color: inherit !important;
+  text-decoration: none !important;
+  cursor: inherit !important;
+}
+
+/* Lock Username & Hostname Suffix */
+.lock-hostname-suffix {
+  font-weight: 400;
+  color: var(--text-muted, #a1a1aa);
+  margin-left: 2px;
+  font-size: 0.92em;
+}
+
+/* Card Header Top Row & Badges */
+.login-header-top-row,
+.lock-header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.login-card-badge,
+.lock-card-badge {
+  font-size: 10.5px;
+  padding: 2px 7px;
+  border-radius: 6px;
+  flex-shrink: 0;
+}
+
+/* Lower-Right Corner Version (Lock Screen) */
 .login-corner-version {
   position: absolute;
   bottom: 24px;
@@ -10840,7 +10907,8 @@ html.auth-ready .panes-container {
   z-index: 10;
 }
 
-.login-version-badge {
+.login-version-badge,
+.lock-version-badge {
   font-size: 11px;
   font-family: var(--font-mono, monospace);
   font-weight: 600;

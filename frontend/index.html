@@ -5016,11 +5016,6 @@
       <span class="login-corner-name">Brum</span>
     </div>
 
-    <!-- Lower-Right Version Badge -->
-    <div class="login-corner-version">
-      <span class="login-version-badge">v0.8.2</span>
-    </div>
-
     <!-- Ambient Splash / Watermark Background -->
     <div class="auth-watermark-backdrop" aria-hidden="true">
       <img src="assets/brum_clean.webp" alt="" class="auth-watermark-img">
@@ -5033,12 +5028,17 @@
           <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" class="login-brand-img">
         </div>
         <div class="login-header-text">
-          <h2 class="login-title">
-            <span class="auth-text-pc">Brum</span>
-            <span class="auth-text-mobile">Hello friend.</span>
-          </h2>
+          <div class="login-header-top-row">
+            <h2 class="login-title">
+              <span class="auth-text-pc" id="login-hostname-title">Brum</span>
+              <span class="auth-text-mobile">Hello friend.</span>
+            </h2>
+            <div id="login-hostname-badge" class="header-hostname-badge login-card-badge" style="display: none;">
+              <span id="login-hostname-badge-text"></span>
+            </div>
+          </div>
           <p class="login-subtitle">
-            <span class="auth-text-pc">Brum brum.. - Is the noise of a happy teddybear!</span>
+            <span class="auth-text-pc">Running <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" class="auth-stealth-link" title="Brum">Brum</a> version <span id="login-app-version" class="login-app-version">0.8.5-rc1</span>.</span>
             <span class="auth-text-mobile">Brum is ready when you are.</span>
           </p>
         </div>
@@ -5734,7 +5734,7 @@
 
     <!-- Lower-Right Version Badge -->
     <div class="login-corner-version">
-      <span class="login-version-badge">v0.8.2</span>
+      <span class="login-version-badge lock-version-badge" id="lock-corner-version-badge">Brum v0.8.5-rc1</span>
     </div>
 
     <!-- Ambient Splash / Watermark Background -->
@@ -5747,7 +5747,12 @@
       <div class="lock-screen-header">
         <div class="lock-avatar-thumb" id="lock-avatar-thumb">👤</div>
         <div class="lock-header-text">
-          <div class="lock-user-label" id="lock-username-label">Brum User</div>
+          <div class="lock-header-top-row">
+            <div class="lock-user-label" id="lock-username-label"><span id="lock-username-text">Brum User</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@localhost</span></div>
+            <div id="lock-hostname-badge" class="header-hostname-badge lock-card-badge" style="display: none;">
+              <span id="lock-hostname-badge-text"></span>
+            </div>
+          </div>
           <div class="lock-sub-text">Session is locked!</div>
         </div>
       </div>
