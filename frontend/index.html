@@ -4679,9 +4679,9 @@
 
             <div class="settings-field">
               <label class="settings-field-label" for="fleet-input-token">Auth Token / API Secret:</label>
-              <div style="display: flex; gap: 6px;">
-                <input type="password" id="fleet-input-token" class="settings-input" placeholder="Bearer JWT token or service secret for remote node" style="flex: 1; font-family: var(--font-mono);">
-                <button type="button" class="btn btn-sm btn-outline" onclick="toggleFleetTokenVisibility()" title="Toggle Token Visibility" style="width: 32px; padding: 0;"><i data-lucide="eye" id="fleet-token-eye-icon" style="width: 13px; height: 13px;"></i></button>
+              <div style="display: flex; gap: 6px; align-items: center;">
+                <input type="password" id="fleet-input-token" class="settings-input" placeholder="Bearer JWT token or service secret for remote node" style="flex: 1; font-family: var(--font-mono); height: 28px;">
+                <button type="button" class="btn btn-icon btn-sm btn-outline" id="btn-toggle-fleet-token" onclick="toggleFleetTokenVisibility()" title="Toggle Token Visibility" style="width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="eye" id="fleet-token-eye-icon" style="width: 14px; height: 14px; margin: 0;"></i></button>
               </div>
               <div class="settings-field-hint">Leave blank for unauthenticated or local node profiles.</div>
             </div>
@@ -4734,12 +4734,12 @@
       </div>
 
       <!-- Modal Footer -->
-      <div class="modal-footer" style="padding: 8px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 11px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;">
-          <i data-lucide="shield-check" style="width: 13px; height: 13px; color: #10b981;"></i> Zero-Trust Fleet Control • HTTPS/WSS & Mesh Overlays (Tailscale, NetBird, WireGuard)
+      <div class="modal-footer fleet-modal-footer">
+        <span class="fleet-footer-note">
+          <i data-lucide="shield-check" style="width: 13px; height: 13px; color: #10b981; flex-shrink: 0;"></i> Zero-Trust Fleet Control • HTTPS/WSS &amp; Mesh Overlays (Tailscale, NetBird, WireGuard)
         </span>
-        <div style="display: flex; gap: 6px;">
-          <button class="btn btn-sm btn-outline" onclick="openCreateApiTokenModal()" title="Generate API / Fleet Token on this local host"><i data-lucide="key-round" style="width: 12px; height: 12px;"></i> Generate Local Token</button>
+        <div class="fleet-footer-actions">
+          <button class="btn btn-sm btn-outline" onclick="openCreateApiTokenModal()" title="Generate API / Fleet Token on this local host"><i data-lucide="key-round" style="width: 12px; height: 12px;"></i> Generate Token</button>
           <button class="btn btn-sm btn-outline" onclick="exportFleetNodesJson()" title="Export Fleet nodes to JSON">Export JSON</button>
           <button class="btn btn-sm btn-outline" onclick="triggerImportFleetNodes()" title="Import Fleet nodes from JSON">Import JSON</button>
           <input type="file" id="fleet-import-file" accept=".json" style="display: none;" onchange="handleFleetNodesImport(event)">

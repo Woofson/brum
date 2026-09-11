@@ -29033,18 +29033,20 @@ function selectFleetColor(color) {
 
 function toggleFleetTokenVisibility() {
   const input = document.getElementById('fleet-input-token');
-  const icon = document.getElementById('fleet-token-eye-icon');
-  if (!input) return;
+  const btn = document.getElementById('btn-toggle-fleet-token') || input?.parentElement?.querySelector('button');
+  if (!input || !btn) return;
+
   if (input.type === 'password') {
     input.type = 'text';
-    if (icon) icon.setAttribute('data-lucide', 'eye-off');
+    btn.innerHTML = '<i data-lucide="eye-off" id="fleet-token-eye-icon" style="width: 14px; height: 14px; margin: 0;"></i>';
   } else {
     input.type = 'password';
-    if (icon) icon.setAttribute('data-lucide', 'eye');
+    btn.innerHTML = '<i data-lucide="eye" id="fleet-token-eye-icon" style="width: 14px; height: 14px; margin: 0;"></i>';
   }
+
   try {
     if (window.lucide && typeof lucide.createIcons === 'function') {
-      lucide.createIcons({ root: input.parentElement });
+      lucide.createIcons({ root: btn });
     }
   } catch (_) {}
 }
