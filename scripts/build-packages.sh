@@ -32,24 +32,28 @@ cp "./config.toml" "${TARBALL_DIR}/"
 cp "./brum.service" "${TARBALL_DIR}/"
 cp "./LICENSE" "${TARBALL_DIR}/"
 cp "./README.md" "${TARBALL_DIR}/"
-cp "./scripts/lxc-install.sh" "${TARBALL_DIR}/install.sh"
+if [ -f "./scripts/lxc-install.sh" ]; then
+    cp "./scripts/lxc-install.sh" "${TARBALL_DIR}/install.sh"
+    chmod +x "${TARBALL_DIR}/install.sh"
+fi
 
 echo "📦 Creating ${TARBALL_NAME}.tar.gz..."
 tar -czf "${DIST_DIR}/${TARBALL_NAME}.tar.gz" -C /tmp "${TARBALL_NAME}"
+rm -rf "${TARBALL_DIR}"
 
 # 3. Build Debian .deb Package
-DEB_DIR="/tmp/deb-pkg"
-rm -rf "${DEB_DIR}"
-mkdir -p "${DEB_DIR}/DEBIAN"
-mkdir -p "${DEB_DIR}/usr/local/bin"
-mkdir -p "${DEB_DIR}/etc/brum"
-mkdir -p "${DEB_DIR}/lib/systemd/system"
-mkdir -p "${DEB_DIR}/usr/share/pixmaps"
-mkdir -p "${DEB_DIR}/usr/share/doc/brum"
-
-cat << DEBEOF > "${DEB_DIR}/DEBIAN/control"
+if command -v cargo-deb >/dev/null 2>&1 || cargo deb --version >/dev/null 2>&1; then
+    echo "📦 Building Debian .deb package via cargo-deb..."
+    cargo deb --no-build
+    cp target/debian/brum_${VERSION}-1_*.deb "${DIST_DIR}/"
+elif command -v dpkg-deb >/dev/null 2>&1; then
+    echo "📦 Building Debian .deb package via dpkg-deb fallback..."
+    DEB_DIR="/tmp/deb-pkg"
+    rm -rf "${DEB_DIR}"
+    mkdir -p "${DEB_DIR}/DEBIAN" "${DEB_DIR}/usr/local/bin" "${DEB_DIR}/etc/brum" "${DEB_DIR}/lib/systemd/system" "${DEB_DIR}/usr/share/pixmaps" "${DEB_DIR}/usr/share/doc/brum"
+    cat << DEBEOF > "${DEB_DIR}/DEBIAN/control"
 Package: brum
-Version: ${VERSION}
+Version: ${VERSION}-1
 Section: utils
 Priority: optional
 Architecture: amd64
@@ -59,40 +63,36 @@ Description: Multi-Pane Web Environment (File Commander/Manager)
  Blending the orthodox speed of Total Commander / Midnight Commander
  with the modern responsiveness of Next Explorer.
 DEBEOF
-
-cp "./target/release/brum" "${DEB_DIR}/usr/local/bin/"
-cp "./config.toml" "${DEB_DIR}/etc/brum/config.toml"
-cp "./brum.service" "${DEB_DIR}/lib/systemd/system/"
-if [ -f "./assets/128/brum-128.webp" ]; then
-    cp "./assets/128/brum-128.webp" "${DEB_DIR}/usr/share/pixmaps/brum.webp"
-fi
-cp "./LICENSE" "${DEB_DIR}/usr/share/doc/brum/copyright"
-cp "./README.md" "${DEB_DIR}/usr/share/doc/brum/"
-
-chmod 755 "${DEB_DIR}/usr/local/bin/brum"
-chmod 755 "${DEB_DIR}/DEBIAN"
-
-if command -v dpkg-deb >/dev/null 2>&1; then
-    echo "📦 Building Debian .deb package..."
-    dpkg-deb --build "${DEB_DIR}" "${DIST_DIR}/brum_${VERSION}_amd64.deb"
+    cp "./target/release/brum" "${DEB_DIR}/usr/local/bin/"
+    cp "./config.toml" "${DEB_DIR}/etc/brum/config.toml"
+    cp "./brum.service" "${DEB_DIR}/lib/systemd/system/"
+    if [ -f "./assets/brum.png" ]; then
+        cp "./assets/brum.png" "${DEB_DIR}/usr/share/pixmaps/brum.png"
+    elif [ -f "./assets/128/brum-128.webp" ]; then
+        cp "./assets/128/brum-128.webp" "${DEB_DIR}/usr/share/pixmaps/brum.webp"
+    fi
+    cp "./LICENSE" "${DEB_DIR}/usr/share/doc/brum/copyright"
+    cp "./README.md" "${DEB_DIR}/usr/share/doc/brum/"
+    chmod 755 "${DEB_DIR}/usr/local/bin/brum" "${DEB_DIR}/DEBIAN"
+    dpkg-deb --build "${DEB_DIR}" "${DIST_DIR}/brum_${VERSION}-1_amd64.deb"
+    rm -rf "${DEB_DIR}"
 fi
 
 # 4. Build Alpine Linux (.apk) Package
 APK_DIR="/tmp/apk-pkg"
 rm -rf "${APK_DIR}"
-mkdir -p "${APK_DIR}/usr/local/bin"
-mkdir -p "${APK_DIR}/etc/brum"
-mkdir -p "${APK_DIR}/usr/share/pixmaps"
-mkdir -p "${APK_DIR}/usr/share/applications"
-mkdir -p "${APK_DIR}/usr/share/licenses/brum"
-mkdir -p "${APK_DIR}/usr/share/doc/brum"
+mkdir -p "${APK_DIR}/usr/local/bin" "${APK_DIR}/etc/brum" "${APK_DIR}/usr/share/pixmaps" "${APK_DIR}/usr/share/applications" "${APK_DIR}/usr/share/licenses/brum" "${APK_DIR}/usr/share/doc/brum"
 
 cp "./target/release/brum" "${APK_DIR}/usr/local/bin/"
 cp "./config.toml" "${APK_DIR}/etc/brum/config.toml"
-if [ -f "./assets/128/brum-128.webp" ]; then
+if [ -f "./assets/brum.png" ]; then
+    cp "./assets/brum.png" "${APK_DIR}/usr/share/pixmaps/brum.png"
+elif [ -f "./assets/128/brum-128.webp" ]; then
     cp "./assets/128/brum-128.webp" "${APK_DIR}/usr/share/pixmaps/brum.webp"
 fi
-cp "./brum.desktop" "${APK_DIR}/usr/share/applications/"
+if [ -f "./brum.desktop" ]; then
+    cp "./brum.desktop" "${APK_DIR}/usr/share/applications/"
+fi
 cp "./LICENSE" "${APK_DIR}/usr/share/licenses/brum/"
 cp "./README.md" "${APK_DIR}/usr/share/doc/brum/"
 
@@ -116,6 +116,7 @@ APKEOF
 
 echo "📦 Creating Alpine .apk package (brum-${VERSION}-r0.${ARCH}.apk)..."
 tar -czf "${DIST_DIR}/brum-${VERSION}-r0.${ARCH}.apk" -C "${APK_DIR}" .PKGINFO usr etc
+rm -rf "${APK_DIR}"
 
 # 5. Generate SHA-256 Checksums
 echo "🔒 Generating SHA-256 Checksums..."
@@ -123,6 +124,7 @@ echo "🔒 Generating SHA-256 Checksums..."
     cd "${DIST_DIR}"
     rm -f SHA256SUMS SHA256SUMS.txt
     sha256sum * > SHA256SUMS
+    cp SHA256SUMS SHA256SUMS.txt
 )
 
 echo "======================================================"

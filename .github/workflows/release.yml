@@ -112,29 +112,14 @@ jobs:
       - name: Install cargo-deb
         run: cargo install cargo-deb --locked
 
-      - name: Build Linux Release Binary
-        run: cargo build --release
+      - name: Build Linux Distribution Packages (.tar.gz, .deb, .apk)
+        run: bash scripts/build-packages.sh
 
-      - name: Build Debian Package (.deb)
-        run: cargo deb --no-build
-
-      - name: Package Linux Standalone Tarball
+      - name: Prepare Linux Build Artifacts
         run: |
-          VERSION="${{ github.ref_name }}"
-          VERSION="${VERSION#v}"
-          if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
-            VERSION="${{ github.event.inputs.version }}"
-          fi
-          if [ -z "$VERSION" ]; then
-            VERSION="0.8.2"
-          fi
-          mkdir -p dist/linux/brum
-          cp target/release/brum dist/linux/brum/
-          cp config.toml LICENSE README.md dist/linux/brum/
-          cd dist/linux
-          tar -czvf "brum-v${VERSION}-linux-x86_64.tar.gz" brum/
-          cp ../../target/debian/*.deb .
-          sha256sum *.tar.gz *.deb > SHA256SUMS-linux.txt
+          mkdir -p dist/linux
+          cp dist/*.tar.gz dist/*.deb dist/*.apk dist/SHA256SUMS.txt dist/linux/
+          mv dist/linux/SHA256SUMS.txt dist/linux/SHA256SUMS-linux.txt
 
       - name: Upload Linux Build Artifacts
         uses: actions/upload-artifact@v4
@@ -143,6 +128,7 @@ jobs:
           path: |
             dist/linux/*.tar.gz
             dist/linux/*.deb
+            dist/linux/*.apk
             dist/linux/SHA256SUMS-linux.txt
 
   # -------------------------------------------------------------
@@ -187,6 +173,7 @@ jobs:
             release-assets/all/*.msi
             release-assets/all/*.tar.gz
             release-assets/all/*.deb
+            release-assets/all/*.apk
             release-assets/all/SHA256SUMS.txt
           generate_release_notes: true
           draft: false

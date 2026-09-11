@@ -183,7 +183,7 @@ git tag -fa "v${TARGET_VERSION}" -m "Release v${TARGET_VERSION}"
 git push origin main --tags -f
 
 # ------------------------------------------------------------------------------
-# 5. FETCH SOURCE TARBALL SHA256 & SYNC PKGBUILD
+# 6. FETCH SOURCE TARBALL SHA256 & SYNC PKGBUILD
 # ------------------------------------------------------------------------------
 echo "🔒 Calculating GitHub source tarball SHA-256 for AUR..."
 sleep 2
@@ -209,12 +209,12 @@ else
 fi
 
 # ------------------------------------------------------------------------------
-# 6. AUR AUTOMATIC PUBLISHING
+# 7. AUR AUTOMATIC PUBLISHING
 # ------------------------------------------------------------------------------
 if [ "${SKIP_AUR}" = false ]; then
     echo "🏔️ Syncing to Arch User Repository (AUR)..."
 
-    # 6.1 brum (source)
+    # 7.1 brum (source)
     AUR_SRC_DIR="/tmp/aur-brum-${TARGET_VERSION}"
     rm -rf "${AUR_SRC_DIR}"
     if git clone aur@aur.archlinux.org:brum.git "${AUR_SRC_DIR}"; then
@@ -253,7 +253,7 @@ SRCINFO_EOF
         echo "⚠️ Skipping AUR 'brum' (SSH access not configured or clone failed)"
     fi
 
-    # 6.2 brum-bin (pre-compiled binary)
+    # 7.2 brum-bin (pre-compiled binary)
     AUR_BIN_DIR="/tmp/aur-brum-bin-${TARGET_VERSION}"
     rm -rf "${AUR_BIN_DIR}"
     if git clone aur@aur.archlinux.org:brum-bin.git "${AUR_BIN_DIR}"; then
@@ -287,7 +287,7 @@ SRCINFO_BIN_EOF
 fi
 
 # ------------------------------------------------------------------------------
-# 7. CRATES.IO AUTOMATIC PUBLISHING
+# 8. CRATES.IO AUTOMATIC PUBLISHING
 # ------------------------------------------------------------------------------
 if [ "${SKIP_CRATES}" = false ]; then
     echo "📦 Publishing to Crates.io..."
