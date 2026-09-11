@@ -34,10 +34,10 @@ If you built or downloaded the `.deb` release package:
 
 ```bash
 # 1. Install prerequisites
-apt-get update && apt-get install -y ca-certificates libsqlite3-0 libssh2-1 tar bzip2 p7zip-full
+apt-get update && apt-get install -y ca-certificates tar bzip2 7zip
 
 # 2. Install Brum
-dpkg -i brum_0.5.0_amd64.deb # or dpkg -i brum_*_amd64.deb
+dpkg -i brum_0.8.5_amd64.deb # or dpkg -i brum_*_amd64.deb
 
 # 3. Enable and Start Systemd Service
 systemctl daemon-reload
@@ -53,19 +53,20 @@ systemctl status brum
 
 ```bash
 # 1. Download and extract release tarball
-wget https://github.com/Woofson/brum/releases/latest/download/brum-v0.2.14-linux-x86_64.tar.gz
-tar -xzf brum-v0.2.14-linux-x86_64.tar.gz
-cd brum-v0.2.14-linux-x86_64
+wget https://github.com/Woofson/brum/releases/latest/download/brum-v0.8.5-linux-x86_64.tar.gz
+tar -xzf brum-v0.8.5-linux-x86_64.tar.gz
+cd brum-v0.8.5-linux-x86_64
 
 # 2. Copy binary to system path
-install -m 755 brum /usr/local/bin/brum
+install -m 755 brum /usr/bin/brum
+ln -sf /usr/bin/brum /usr/local/bin/brum
 
 # 3. Setup configuration hierarchy
 mkdir -p /etc/brum /data
 cp config.toml /etc/brum/config.toml
 
 # 4. Install systemd service
-cp brum.service /etc/systemd/system/brum.service
+cp brum.service /usr/lib/systemd/system/brum.service 2>/dev/null || cp brum.service /etc/systemd/system/brum.service
 systemctl daemon-reload
 systemctl enable --now brum.service
 ```

@@ -2,7 +2,7 @@
 Name=Brum
 GenericName=Multi-Pane Web Environment
 Comment=Multi-Pane Web Environment (File Commander/Manager) by Woofson
-Exec=/usr/local/bin/brum --standalone
+Exec=/usr/bin/brum --standalone
 Icon=brum
 Terminal=false
 Type=Application

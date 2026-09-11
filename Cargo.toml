@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "0.8.5-rc1"
+version = "0.8.5-rc2"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -105,10 +105,12 @@ engine, floating multi-tab power editor with Markdown & Mermaid, slide-up web te
 directory sync, and 11 customizable themes."""
 section = "utils"
 priority = "optional"
-depends = "$auto, ca-certificates, libsqlite3-0, libssh2-1, tar, bzip2, p7zip-full"
+depends = "$auto, ca-certificates, tar, bzip2, 7zip | p7zip-full"
+maintainer-scripts = "packaging/debian"
 assets = [
-    ["target/release/brum", "usr/local/bin/brum", "755"],
-    ["brum.service", "lib/systemd/system/brum.service", "644"],
+    ["target/release/brum", "usr/bin/brum", "755"],
+    ["brum.service", "usr/lib/systemd/system/brum.service", "644"],
+    ["brum.desktop", "usr/share/applications/brum.desktop", "644"],
     ["config.toml", "etc/brum/config.toml", "644"],
     ["assets/brum.png", "usr/share/pixmaps/brum.png", "644"],
     ["README.md", "usr/share/doc/brum/README.md", "644"],

@@ -7,7 +7,7 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/etc/brum
-ExecStart=/usr/local/bin/brum
+ExecStart=/usr/bin/brum
 Restart=always
 RestartSec=5
 Environment=RUST_LOG=brum=info,tower_http=info

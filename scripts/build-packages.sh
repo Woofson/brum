@@ -45,12 +45,12 @@ rm -rf "${TARBALL_DIR}"
 if command -v cargo-deb >/dev/null 2>&1 || cargo deb --version >/dev/null 2>&1; then
     echo "📦 Building Debian .deb package via cargo-deb..."
     cargo deb --no-build
-    cp target/debian/brum_${VERSION}-1_*.deb "${DIST_DIR}/"
+    cp target/debian/*.deb "${DIST_DIR}/"
 elif command -v dpkg-deb >/dev/null 2>&1; then
     echo "📦 Building Debian .deb package via dpkg-deb fallback..."
     DEB_DIR="/tmp/deb-pkg"
     rm -rf "${DEB_DIR}"
-    mkdir -p "${DEB_DIR}/DEBIAN" "${DEB_DIR}/usr/local/bin" "${DEB_DIR}/etc/brum" "${DEB_DIR}/lib/systemd/system" "${DEB_DIR}/usr/share/pixmaps" "${DEB_DIR}/usr/share/doc/brum"
+    mkdir -p "${DEB_DIR}/DEBIAN" "${DEB_DIR}/usr/bin" "${DEB_DIR}/etc/brum" "${DEB_DIR}/usr/lib/systemd/system" "${DEB_DIR}/usr/share/pixmaps" "${DEB_DIR}/usr/share/applications" "${DEB_DIR}/usr/share/doc/brum"
     cat << DEBEOF > "${DEB_DIR}/DEBIAN/control"
 Package: brum
 Version: ${VERSION}-1
@@ -58,14 +58,17 @@ Section: utils
 Priority: optional
 Architecture: amd64
 Maintainer: Bolt J Woofson <bolt@boop.no>
-Depends: ca-certificates, libsqlite3-0, libssh2-1, tar, bzip2, p7zip-full
+Depends: ca-certificates, tar, bzip2, 7zip | p7zip-full
 Description: Multi-Pane Web Environment (File Commander/Manager)
  Blending the orthodox speed of Total Commander / Midnight Commander
  with the modern responsiveness of Next Explorer.
 DEBEOF
-    cp "./target/release/brum" "${DEB_DIR}/usr/local/bin/"
+    cp "./target/release/brum" "${DEB_DIR}/usr/bin/"
     cp "./config.toml" "${DEB_DIR}/etc/brum/config.toml"
-    cp "./brum.service" "${DEB_DIR}/lib/systemd/system/"
+    cp "./brum.service" "${DEB_DIR}/usr/lib/systemd/system/"
+    if [ -f "./brum.desktop" ]; then
+        cp "./brum.desktop" "${DEB_DIR}/usr/share/applications/"
+    fi
     if [ -f "./assets/brum.png" ]; then
         cp "./assets/brum.png" "${DEB_DIR}/usr/share/pixmaps/brum.png"
     elif [ -f "./assets/128/brum-128.webp" ]; then
@@ -73,7 +76,11 @@ DEBEOF
     fi
     cp "./LICENSE" "${DEB_DIR}/usr/share/doc/brum/copyright"
     cp "./README.md" "${DEB_DIR}/usr/share/doc/brum/"
-    chmod 755 "${DEB_DIR}/usr/local/bin/brum" "${DEB_DIR}/DEBIAN"
+    if [ -d "./packaging/debian" ]; then
+        cp ./packaging/debian/* "${DEB_DIR}/DEBIAN/"
+        chmod 755 "${DEB_DIR}/DEBIAN"/*
+    fi
+    chmod 755 "${DEB_DIR}/usr/bin/brum" "${DEB_DIR}/DEBIAN"
     dpkg-deb --build "${DEB_DIR}" "${DIST_DIR}/brum_${VERSION}-1_amd64.deb"
     rm -rf "${DEB_DIR}"
 fi
@@ -81,9 +88,9 @@ fi
 # 4. Build Alpine Linux (.apk) Package
 APK_DIR="/tmp/apk-pkg"
 rm -rf "${APK_DIR}"
-mkdir -p "${APK_DIR}/usr/local/bin" "${APK_DIR}/etc/brum" "${APK_DIR}/usr/share/pixmaps" "${APK_DIR}/usr/share/applications" "${APK_DIR}/usr/share/licenses/brum" "${APK_DIR}/usr/share/doc/brum"
+mkdir -p "${APK_DIR}/usr/bin" "${APK_DIR}/etc/brum" "${APK_DIR}/usr/share/pixmaps" "${APK_DIR}/usr/share/applications" "${APK_DIR}/usr/share/licenses/brum" "${APK_DIR}/usr/share/doc/brum"
 
-cp "./target/release/brum" "${APK_DIR}/usr/local/bin/"
+cp "./target/release/brum" "${APK_DIR}/usr/bin/"
 cp "./config.toml" "${APK_DIR}/etc/brum/config.toml"
 if [ -f "./assets/brum.png" ]; then
     cp "./assets/brum.png" "${APK_DIR}/usr/share/pixmaps/brum.png"

@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "configure" ]; then
+    # Ensure default configuration and data directories exist
+    mkdir -p /etc/brum
+    mkdir -p /data
+
+    # Create fallback symlink /usr/local/bin/brum -> /usr/bin/brum for compatibility
+    if [ ! -e /usr/local/bin/brum ]; then
+        ln -sf /usr/bin/brum /usr/local/bin/brum 2>/dev/null || true
+    fi
+
+    # Reload systemd daemon if active
+    if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+fi
+
+exit 0

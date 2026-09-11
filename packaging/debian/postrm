@@ -1,0 +1,20 @@
+#!/bin/sh
+set -e
+
+if [ "$1" = "remove" ]; then
+    # Remove fallback symlink if it points to /usr/bin/brum
+    if [ -L /usr/local/bin/brum ] && [ "$(readlink /usr/local/bin/brum)" = "/usr/bin/brum" ]; then
+        rm -f /usr/local/bin/brum
+    fi
+    if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+fi
+
+if [ "$1" = "purge" ]; then
+    if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+        systemctl daemon-reload >/dev/null 2>&1 || true
+    fi
+fi
+
+exit 0

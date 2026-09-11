@@ -22,7 +22,7 @@ check() {
 }
 
 package() {
-    install -Dm755 target/release/brum "$pkgdir"/usr/local/bin/brum
+    install -Dm755 target/release/brum "$pkgdir"/usr/bin/brum
     install -Dm644 config.toml "$pkgdir"/etc/brum/config.toml
     install -Dm644 LICENSE "$pkgdir"/usr/share/licenses/$pkgname/LICENSE
     install -Dm644 README.md "$pkgdir"/usr/share/doc/$pkgname/README.md
