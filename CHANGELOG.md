@@ -5,6 +5,15 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.3-rc19] - 2026-09-11
+
+### Zero-Flash Authentication & Session Lock Security Shield
+- **Eliminated Flash of Protected UI (FOUC) on Reload/Refresh**:
+  - Implemented an immediate synchronous critical `<style>` and `<script>` shield in `<head>` that determines authentication and lock state on frame 0, instantly displaying `#login-modal` or `#session-lock-screen` before the body renders.
+  - Added strict CSS visibility and pointer-events shielding (`visibility: hidden !important; opacity: 0 !important;`) on application layout elements (`.app-header`, `.fkey-bar`, `.app-main-layout`, `#panes-grid`) until authentication and unlock verification succeed.
+  - Cached authenticated user profiles in `localStorage` (`cd_user_info`) to immediately pre-populate lock screen usernames and avatars on page reloads without network roundtrip delay.
+  - Deferred pane initialization and file listing in `checkResponsiveViewportLayout()` and `DOMContentLoaded` until credentials or unlock status are positively validated.
+
 ## [0.8.3-rc18] - 2026-09-11
 
 ### Foldable Screen Unfold Layout Transitions & Vertical Stacking Fix

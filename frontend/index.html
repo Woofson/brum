@@ -8,6 +8,53 @@
   <link rel="apple-touch-icon" href="assets/brum_commanderdog_legacy.webp">
   <link rel="shortcut icon" href="assets/brum.ico">
   <link rel="stylesheet" href="app.css">
+  <!-- Instant Auth & Lock Screen FOUC Shield (Zero-Flash Security) -->
+  <style>
+    html.auth-pending-login #login-modal,
+    html.auth-pending-lock #session-lock-screen {
+      display: flex !important;
+    }
+    html.auth-pending-login .app-header,
+    html.auth-pending-login .fkey-bar,
+    html.auth-pending-login .app-main-layout,
+    html.auth-pending-login .mobile-bottom-bar,
+    html.auth-pending-login .floating-window,
+    html.auth-pending-login .panes-container,
+    html.auth-pending-lock .app-header,
+    html.auth-pending-lock .fkey-bar,
+    html.auth-pending-lock .app-main-layout,
+    html.auth-pending-lock .mobile-bottom-bar,
+    html.auth-pending-lock .floating-window,
+    html.auth-pending-lock .panes-container,
+    html.auth-verifying .app-header,
+    html.auth-verifying .fkey-bar,
+    html.auth-verifying .app-main-layout,
+    html.auth-verifying .mobile-bottom-bar,
+    html.auth-verifying .floating-window,
+    html.auth-verifying .panes-container {
+      visibility: hidden !important;
+      opacity: 0 !important;
+      pointer-events: none !important;
+    }
+  </style>
+  <script>
+    (function() {
+      try {
+        var token = localStorage.getItem('cd_token');
+        var isLocked = localStorage.getItem('cd_is_locked') === 'true';
+        var isStandalone = localStorage.getItem('cd_standalone_mode') === 'true' || localStorage.getItem('cd_auth_disabled') === 'true';
+        if (isLocked) {
+          document.documentElement.classList.add('auth-pending-lock');
+        } else if (!token && !isStandalone) {
+          document.documentElement.classList.add('auth-pending-login');
+        } else {
+          document.documentElement.classList.add('auth-verifying');
+        }
+      } catch (_) {
+        document.documentElement.classList.add('auth-pending-login');
+      }
+    })();
+  </script>
   <!-- Bundled Nerd Fonts Preload -->
   <link rel="preload" href="/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/fonts/SymbolsNerdFontMono-Regular.ttf" as="font" type="font/ttf" crossorigin>
@@ -5321,7 +5368,7 @@
   </div>
 
   <!-- Full-Screen Session Lock Overlay -->
-  <div id="session-lock-screen" class="session-lock-screen" style="display: none;">
+  <div id="session-lock-screen" class="session-lock-screen">
     <!-- Top-Left Corner Branding Logo -->
     <div class="login-corner-brand">
       <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" class="login-corner-logo">

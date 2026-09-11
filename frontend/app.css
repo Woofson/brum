@@ -10350,6 +10350,59 @@ body.is-col-resizing {
 }
 
 /* ==========================================================================
+   AUTHENTICATION & LOCK SCREEN ZERO-FLASH SHIELDING (FOUC PREVENTION)
+   ========================================================================== */
+html.auth-pending-login #login-modal,
+html.auth-pending-lock #session-lock-screen {
+  display: flex !important;
+}
+
+html.auth-pending-login .app-header,
+html.auth-pending-login .fkey-bar,
+html.auth-pending-login .app-main-layout,
+html.auth-pending-login .mobile-bottom-bar,
+html.auth-pending-login .floating-window,
+html.auth-pending-login .panes-container,
+html.auth-pending-lock .app-header,
+html.auth-pending-lock .fkey-bar,
+html.auth-pending-lock .app-main-layout,
+html.auth-pending-lock .mobile-bottom-bar,
+html.auth-pending-lock .floating-window,
+html.auth-pending-lock .panes-container,
+html.auth-verifying .app-header,
+html.auth-verifying .fkey-bar,
+html.auth-verifying .app-main-layout,
+html.auth-verifying .mobile-bottom-bar,
+html.auth-verifying .floating-window,
+html.auth-verifying .panes-container {
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+html.auth-verifying::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 99998;
+  background-color: #101014;
+  background-image: 
+    radial-gradient(ellipse 70% 55% at 50% 50%, rgba(245, 158, 11, 0.12) 0%, rgba(217, 119, 6, 0.06) 50%, transparent 75%),
+    linear-gradient(140deg, #0a0a0d 0%, #121217 45%, #151310 100%);
+}
+
+html.auth-ready .app-header,
+html.auth-ready .fkey-bar,
+html.auth-ready .app-main-layout,
+html.auth-ready .mobile-bottom-bar,
+html.auth-ready .floating-window,
+html.auth-ready .panes-container {
+  visibility: visible !important;
+  opacity: 1 !important;
+  transition: opacity 0.12s ease;
+}
+
+/* ==========================================================================
    LOGIN SCREEN & AMBER GRADIENT AUTHENTICATION MODAL
    ========================================================================== */
 #login-modal.login-screen-overlay {

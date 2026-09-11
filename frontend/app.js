@@ -773,6 +773,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   initFolderTree();
   initTreeResizer();
   setupTabBarMouseWheel();
+  if (localStorage.getItem('cd_is_locked') === 'true') {
+    try {
+      const cached = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
+      if (cached) {
+        const userLabel = document.getElementById('lock-username-label');
+        const avatarEl = document.getElementById('lock-avatar-thumb');
+        if (userLabel) userLabel.textContent = cached.nickname || cached.username || 'Brum User';
+        if (avatarEl) renderAvatarElement(avatarEl, cached.avatar_url || '👤');
+      }
+    } catch (_) {}
+  }
   checkAuthAndLoad();
 });
 
@@ -834,12 +845,22 @@ async function checkAuthAndLoad() {
       App.systemStatus = sysData;
       App.isStandalone = sysData.standalone;
       updateStandaloneUI();
+      if (sysData.standalone) {
+        localStorage.setItem('cd_standalone_mode', 'true');
+      }
+      if (sysData.auth_enabled === false) {
+        localStorage.setItem('cd_auth_disabled', 'true');
+      } else {
+        localStorage.removeItem('cd_auth_disabled');
+      }
       if (sysData.standalone || !sysData.auth_enabled) {
         // Standalone desktop mode: auto-load local user without login prompt!
         const meResp = await fetch('/api/auth/me');
         if (meResp.ok) {
           App.user = await meResp.json();
           updateHeaderProfile(App.user);
+          document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+          document.documentElement.classList.add('auth-ready');
           hideModal('login-modal');
           await loadConfig();
           await loadSystemUsersGroups();
@@ -865,6 +886,14 @@ async function checkAuthAndLoad() {
       if (resp.ok) {
         App.user = await resp.json();
         updateHeaderProfile(App.user);
+        try {
+          localStorage.setItem('cd_user_info', JSON.stringify({
+            username: App.user.username,
+            nickname: App.user.nickname,
+            avatar_url: App.user.avatar_url
+          }));
+        } catch (_) {}
+
         hideModal('login-modal');
         await loadConfig();
         await loadSystemUsersGroups();
@@ -874,10 +903,14 @@ async function checkAuthAndLoad() {
 
         // If session was locked before browser refresh, keep session locked!
         if (localStorage.getItem('cd_is_locked') === 'true') {
+          document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
+          document.documentElement.classList.add('auth-pending-lock');
           lockSession();
           return;
         }
 
+        document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+        document.documentElement.classList.add('auth-ready');
         applyUserHomeToPanes();
         renderAllPanes();
         restoreTerminalState();
@@ -888,6 +921,9 @@ async function checkAuthAndLoad() {
     }
   }
 
+  // Not authenticated or token invalid
+  document.documentElement.classList.remove('auth-pending-lock', 'auth-verifying', 'auth-ready');
+  document.documentElement.classList.add('auth-pending-login');
   showModal('login-modal');
   setTimeout(() => {
     document.getElementById('login-username')?.focus();
@@ -12231,20 +12267,32 @@ let lastUserActivityTime = Date.now();
 function lockSession() {
   App.isLocked = true;
   localStorage.setItem('cd_is_locked', 'true');
+  document.documentElement.classList.remove('auth-pending-login', 'auth-verifying', 'auth-ready');
+  document.documentElement.classList.add('auth-pending-lock');
+
   const lockScreen = document.getElementById('session-lock-screen');
   const userLabel = document.getElementById('lock-username-label');
   const avatarEl = document.getElementById('lock-avatar-thumb');
   const passIn = document.getElementById('unlock-password-input');
   const errMsg = document.getElementById('unlock-error-msg');
 
-  if (userLabel) userLabel.textContent = App.user?.nickname || App.user?.username || 'Brum User';
-  if (avatarEl) renderAvatarElement(avatarEl, App.user?.avatar_url || '👤');
+  let cachedUser = App.user;
+  if (!cachedUser) {
+    try {
+      cachedUser = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
+    } catch (_) {}
+  }
+
+  const uname = cachedUser?.nickname || cachedUser?.username || 'Brum User';
+  const avatar = cachedUser?.avatar_url || '👤';
+
+  if (userLabel) userLabel.textContent = uname;
+  if (avatarEl) renderAvatarElement(avatarEl, avatar);
   if (passIn) passIn.value = '';
   if (errMsg) errMsg.style.display = 'none';
 
   if (lockScreen) {
     lockScreen.classList.add('active');
-    lockScreen.style.display = 'flex';
     if (window.lucide) lucide.createIcons({ root: lockScreen });
   }
   setTimeout(() => passIn?.focus(), 150);
@@ -12270,19 +12318,17 @@ async function submitUnlockSession() {
     if (resp.ok) {
       App.isLocked = false;
       localStorage.removeItem('cd_is_locked');
+      document.documentElement.classList.remove('auth-pending-lock', 'auth-pending-login', 'auth-verifying');
+      document.documentElement.classList.add('auth-ready');
       lastUserActivityTime = Date.now();
       const lockScreen = document.getElementById('session-lock-screen');
       if (lockScreen) {
         lockScreen.classList.remove('active');
-        lockScreen.style.display = 'none';
       }
       if (passIn) passIn.value = '';
 
-      // If panes are not yet rendered (e.g. page refreshed while locked), render them now
-      const container = document.getElementById('panes-grid');
-      if (container && container.children.length === 0) {
-        renderAllPanes();
-      }
+      applyUserHomeToPanes();
+      renderAllPanes();
 
       showToast('Session unlocked. Welcome back!', 'success');
     } else {
@@ -12909,9 +12955,16 @@ async function handleLoginSubmit() {
     localStorage.setItem('cd_token', data.token);
     try {
       document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
+      localStorage.setItem('cd_user_info', JSON.stringify({
+        username: data.user?.username,
+        nickname: data.user?.nickname,
+        avatar_url: data.user?.avatar_url
+      }));
     } catch (e) {}
     localStorage.removeItem('cd_is_locked');
     App.isLocked = false;
+    document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+    document.documentElement.classList.add('auth-ready');
     hideModal('login-modal');
     if (err) err.style.display = 'none';
     if (pInput) pInput.value = '';
@@ -21479,6 +21532,8 @@ function logout() {
   App.token = '';
   App.user = null;
   App.isLocked = false;
+  document.documentElement.classList.remove('auth-ready', 'auth-pending-lock', 'auth-verifying');
+  document.documentElement.classList.add('auth-pending-login');
   location.reload();
 }
 
@@ -21612,6 +21667,9 @@ function checkResponsiveViewportLayout(force = false) {
   _lastVisiblePaneCount = targetCount;
 
   if (needsReRender && container) {
+    if (App.isLocked || localStorage.getItem('cd_is_locked') === 'true' || (!App.token && !App.isStandalone && App.systemStatus?.auth_enabled !== false)) {
+      return;
+    }
     const visibleCount = getVisiblePaneCount();
     if (App.activePaneIndex >= visibleCount) {
       App.activePaneIndex = Math.max(0, visibleCount - 1);
@@ -21643,11 +21701,11 @@ if (window.visualViewport) {
 }
 document.addEventListener('DOMContentLoaded', () => {
   updateDynamicViewportHeight();
-  checkResponsiveViewportLayout(true);
+  checkResponsiveViewportLayout(false);
 });
 window.addEventListener('load', () => {
   updateDynamicViewportHeight();
-  checkResponsiveViewportLayout(true);
+  checkResponsiveViewportLayout(false);
 });
 
 // ---------------- GLOBAL SPOTLIGHT QUICK-SWITCHER ----------------
