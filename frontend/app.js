@@ -804,9 +804,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     try {
       const cached = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
       if (cached) {
+        const userTextEl = document.getElementById('lock-username-text');
+        const hostSuffixEl = document.getElementById('lock-hostname-suffix');
         const userLabel = document.getElementById('lock-username-label');
         const avatarEl = document.getElementById('lock-avatar-thumb');
-        if (userLabel) userLabel.textContent = cached.nickname || cached.username || 'Brum User';
+        const uname = cached.nickname || cached.username || 'Brum User';
+        const cfg = getHostnameBadgeSettings();
+        const hostStr = cfg.hostname || 'localhost';
+
+        if (userTextEl) {
+          userTextEl.textContent = uname;
+        } else if (userLabel) {
+          userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(hostStr) : hostStr}</span>`;
+        }
+        if (hostSuffixEl) {
+          hostSuffixEl.textContent = `@${hostStr}`;
+        }
         if (avatarEl) renderAvatarElement(avatarEl, cached.avatar_url || '👤');
       }
     } catch (_) {}
@@ -870,6 +883,12 @@ async function checkAuthAndLoad() {
     if (sysResp.ok) {
       const sysData = await sysResp.json();
       App.systemStatus = sysData;
+      if (sysData.hostname) {
+        localStorage.setItem('cd_cached_hostname', sysData.hostname);
+      }
+      if (sysData.custom_hostname) {
+        localStorage.setItem('cd_custom_hostname', sysData.custom_hostname);
+      }
       if (sysData.version) applyAppVersion(sysData.version);
       updateHostnameBadge();
       App.isStandalone = sysData.standalone;
@@ -965,6 +984,12 @@ async function fetchAppVersion() {
     if (res.ok) {
       const data = await res.json();
       App.systemStatus = data;
+      if (data.hostname) {
+        localStorage.setItem('cd_cached_hostname', data.hostname);
+      }
+      if (data.custom_hostname) {
+        localStorage.setItem('cd_custom_hostname', data.custom_hostname);
+      }
       if (data.version) applyAppVersion(data.version);
       updateHostnameBadge();
     }
@@ -1018,9 +1043,10 @@ function getHostnameBadgeSettings() {
     || App.systemStatus?.hostname_size
     || 'md';
 
+  const cachedHost = localStorage.getItem('cd_cached_hostname');
   const hostname = (customLabel && customLabel.trim().length > 0)
     ? customLabel.trim()
-    : (App.systemStatus?.hostname || 'localhost');
+    : (App.systemStatus?.hostname || cachedHost || 'localhost');
 
   return { show, hostname, customLabel, color, customText, customBg, customBorder, customGlow, style, icon, size };
 }
@@ -1086,9 +1112,14 @@ function updateHostnameBadge() {
     loginTitleEl.textContent = cfg.hostname || 'Brum';
   }
 
-  // Lock Screen Hostname Suffix
-  const lockSuffix = document.getElementById('lock-hostname-suffix');
-  if (lockSuffix) {
+  // Lock Screen Hostname Suffix (Ensure resilient span preservation)
+  let lockSuffix = document.getElementById('lock-hostname-suffix');
+  const userLabel = document.getElementById('lock-username-label');
+  if (!lockSuffix && userLabel) {
+    const userTextEl = document.getElementById('lock-username-text');
+    const uname = userTextEl?.textContent || userLabel.textContent || 'Brum User';
+    userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(cfg.hostname || 'localhost') : (cfg.hostname || 'localhost')}</span>`;
+  } else if (lockSuffix) {
     lockSuffix.textContent = `@${cfg.hostname || 'localhost'}`;
   }
 
@@ -12479,10 +12510,11 @@ function lockSession() {
   if (userTextEl) {
     userTextEl.textContent = uname;
   } else if (userLabel) {
-    userLabel.textContent = uname;
+    userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(hostStr) : hostStr}</span>`;
   }
-  if (hostSuffixEl) {
-    hostSuffixEl.textContent = `@${hostStr}`;
+  const activeHostSuffix = document.getElementById('lock-hostname-suffix');
+  if (activeHostSuffix) {
+    activeHostSuffix.textContent = `@${hostStr}`;
   }
 
   updateHostnameBadge();
