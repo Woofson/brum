@@ -8971,6 +8971,47 @@ html.fkeys-disabled .bottom-fkey-bar,
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
+}
+
+.floating-notedog-window.sidebar-collapsed .notedog-sidebar {
+  width: 0 !important;
+  min-width: 0 !important;
+  max-width: 0 !important;
+  border-right: none !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+.notedog-drawer-backdrop {
+  display: none;
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 45;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.notedog-drawer-btn {
+  transition: all 0.15s ease;
+}
+
+.notedog-drawer-btn.active,
+.floating-notedog-window.drawer-open #btn-notedog-drawer-toggle,
+.floating-notedog-window.drawer-open #btn-notedog-workspace-drawer {
+  background: rgba(245, 158, 11, 0.18) !important;
+  color: var(--accent) !important;
+  border-color: rgba(245, 158, 11, 0.4) !important;
+}
+
+@media (min-width: 1025px) {
+  .mobile-or-tablet-only {
+    display: none !important;
+  }
 }
 
 .notedog-tier {
@@ -9414,10 +9455,46 @@ html.fkeys-disabled .bottom-fkey-bar,
     z-index: 2800 !important;
   }
 
-  /* NoteDog sidebar on tablet viewports (601px - 1024px) */
-  .notedog-sidebar {
-    width: 220px !important;
-    min-width: 180px !important;
+  /* NoteDog sliding collapsible drawer on touch, foldable & tablet viewports (<= 1024px) */
+  .floating-notedog-window .notedog-body {
+    position: relative !important;
+    flex: 1 !important;
+    overflow: hidden !important;
+  }
+
+  .floating-notedog-window .notedog-workspace {
+    display: flex !important;
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .floating-notedog-window .notedog-sidebar {
+    position: absolute !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    height: 100% !important;
+    width: min(300px, 86vw) !important;
+    min-width: 0 !important;
+    max-width: 86vw !important;
+    z-index: 50 !important;
+    background: var(--bg-dark) !important;
+    border-right: 1px solid var(--border) !important;
+    box-shadow: 12px 0 32px rgba(0, 0, 0, 0.75) !important;
+    transform: translateX(-100%) !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    will-change: transform;
+  }
+
+  .floating-notedog-window.drawer-open .notedog-sidebar {
+    transform: translateX(0) !important;
+  }
+
+  .floating-notedog-window.drawer-open .notedog-drawer-backdrop {
+    display: block !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
   }
 
   /* Hide 2D window resize handles on touch devices */
@@ -9503,35 +9580,9 @@ html.fkeys-disabled .bottom-fkey-bar,
     margin: 0 4px !important;
   }
 
-  .floating-notedog-window .notedog-body {
-    position: relative;
-    flex: 1;
-    overflow: hidden;
-    height: calc(100% - 40px);
-  }
-
-  /* NoteDog Mobile Master-Detail navigation */
   .floating-notedog-window .notedog-sidebar {
-    width: 100% !important;
-    min-width: 100% !important;
-    max-width: 100% !important;
-    display: flex !important;
-    border-right: none !important;
-  }
-
-  .floating-notedog-window .notedog-workspace {
-    display: none !important;
-    width: 100% !important;
-    min-width: 100% !important;
-  }
-
-  .floating-notedog-window.mobile-workspace-active .notedog-sidebar {
-    display: none !important;
-  }
-
-  .floating-notedog-window.mobile-workspace-active .notedog-workspace {
-    display: flex !important;
-    width: 100% !important;
+    width: min(300px, 90vw) !important;
+    max-width: 90vw !important;
   }
 
   /* NoteDog Mobile Formatting Bar: horizontal swipe, no wrap, no off-screen spill */

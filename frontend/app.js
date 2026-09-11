@@ -7079,31 +7079,119 @@ function openFloatingNoteDog(optionalNotePath) {
     win.style.display = 'flex';
     notedogState.isOpen = true;
     bringFloatingWindowToFront(win);
-    if (window.innerWidth <= 600) {
-      if (optionalNotePath) {
-        showNoteDogWorkspaceMobile();
+    if (window.innerWidth <= 1024) {
+      if (optionalNotePath || notedogState.activeNote) {
+        closeNoteDogDrawer();
       } else {
-        showNoteDogSidebarMobile();
+        openNoteDogDrawer();
       }
+    } else {
+      const isCollapsed = localStorage.getItem('cd_notedog_sidebar_collapsed') === 'true';
+      win.classList.toggle('sidebar-collapsed', isCollapsed);
+      updateNoteDogDrawerButtons(!isCollapsed);
     }
   }
   initNoteDogDrag();
+  initNoteDogTouchGestures();
   loadNoteDogHierarchy(optionalNotePath);
   if (window.lucide) lucide.createIcons();
 }
 
-function showNoteDogWorkspaceMobile() {
+function toggleNoteDogDrawer() {
   const win = document.getElementById('floating-notedog-window');
-  if (win) {
-    win.classList.add('mobile-workspace-active');
+  if (!win) return;
+  if (window.innerWidth <= 1024) {
+    const isOpen = win.classList.toggle('drawer-open');
+    updateNoteDogDrawerButtons(isOpen);
+  } else {
+    const isCollapsed = win.classList.toggle('sidebar-collapsed');
+    localStorage.setItem('cd_notedog_sidebar_collapsed', isCollapsed ? 'true' : 'false');
+    updateNoteDogDrawerButtons(!isCollapsed);
   }
 }
 
-function showNoteDogSidebarMobile() {
+function openNoteDogDrawer() {
   const win = document.getElementById('floating-notedog-window');
-  if (win) {
-    win.classList.remove('mobile-workspace-active');
+  if (!win) return;
+  if (window.innerWidth <= 1024) {
+    win.classList.add('drawer-open');
+    updateNoteDogDrawerButtons(true);
+  } else {
+    win.classList.remove('sidebar-collapsed');
+    localStorage.setItem('cd_notedog_sidebar_collapsed', 'false');
+    updateNoteDogDrawerButtons(true);
   }
+}
+
+function closeNoteDogDrawer() {
+  const win = document.getElementById('floating-notedog-window');
+  if (!win) return;
+  if (window.innerWidth <= 1024) {
+    win.classList.remove('drawer-open');
+    updateNoteDogDrawerButtons(false);
+  }
+}
+
+function updateNoteDogDrawerButtons(isOpen) {
+  const btnToggle = document.getElementById('btn-notedog-drawer-toggle');
+  const btnWs = document.getElementById('btn-notedog-workspace-drawer');
+  [btnToggle, btnWs].forEach(b => {
+    if (b) {
+      b.classList.toggle('active', !!isOpen);
+      b.title = isOpen ? 'Hide Notes Explorer' : 'Show Notes Explorer (Sidebar)';
+    }
+  });
+}
+
+let _notedogTouchInitialized = false;
+function initNoteDogTouchGestures() {
+  if (_notedogTouchInitialized) return;
+  _notedogTouchInitialized = true;
+
+  const win = document.getElementById('floating-notedog-window');
+  if (!win) return;
+
+  let touchStartX = 0;
+  let touchStartY = 0;
+  let touchStartTime = 0;
+
+  win.addEventListener('touchstart', (e) => {
+    if (window.innerWidth > 1024) return;
+    if (!e.touches || e.touches.length === 0) return;
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  win.addEventListener('touchend', (e) => {
+    if (window.innerWidth > 1024) return;
+    if (!e.changedTouches || e.changedTouches.length === 0) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    const dx = touchEndX - touchStartX;
+    const dy = touchEndY - touchStartY;
+    const dt = Date.now() - touchStartTime;
+
+    // Horizontal swipe gesture detection (dx > 40px, dy < 60px, within 450ms)
+    if (Math.abs(dy) < 60 && dt < 450) {
+      const isDrawerOpen = win.classList.contains('drawer-open');
+      if (isDrawerOpen && dx < -40) {
+        // Swiping left closes the open drawer
+        closeNoteDogDrawer();
+      } else if (!isDrawerOpen && dx > 40 && touchStartX < 60) {
+        // Swiping right from left screen edge opens the drawer
+        openNoteDogDrawer();
+      }
+    }
+  }, { passive: true });
+}
+
+function showNoteDogWorkspaceMobile() {
+  closeNoteDogDrawer();
+}
+
+function showNoteDogSidebarMobile() {
+  openNoteDogDrawer();
 }
 
 function closeFloatingNoteDog() {
@@ -7503,8 +7591,9 @@ function selectNoteDogNote(note) {
   }
   renderNoteDogSidebar();
   const loadPromise = loadNoteDogNoteContent(note);
-  if (window.innerWidth <= 600) {
-    showNoteDogWorkspaceMobile();
+  // On Phone, Foldable and Tablet viewports (<= 1024px), auto-collapse the sliding drawer on note selection
+  if (window.innerWidth <= 1024) {
+    closeNoteDogDrawer();
   }
   return loadPromise;
 }
