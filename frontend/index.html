@@ -36,10 +36,16 @@
       opacity: 0 !important;
       pointer-events: none !important;
     }
+    html.fkeys-disabled .bottom-fkey-bar {
+      display: none !important;
+    }
   </style>
   <script>
     (function() {
       try {
+        if (localStorage.getItem('cd_show_fkeys') === 'false') {
+          document.documentElement.classList.add('fkeys-disabled');
+        }
         var token = localStorage.getItem('cd_token');
         var isLocked = localStorage.getItem('cd_is_locked') === 'true';
         var isStandalone = localStorage.getItem('cd_standalone_mode') === 'true' || localStorage.getItem('cd_auth_disabled') === 'true';
@@ -858,400 +864,405 @@
           <div class="settings-sidebar-group-title">System & Shortcuts</div>
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-bookmarks')"><i data-lucide="bookmark"></i> Bookmarks</button>
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-keys')"><i data-lucide="keyboard"></i> Keybindings</button>
+          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-about')"><img src="assets/amber-frameless-info.webp" alt="About" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> About Brum</button>
         </div>
 
         <div class="settings-content-area">
           <!-- Tab 1: General UI, View Modes & Desktop Preferences -->
           <div class="settings-tab-content active" id="tab-general">
           
-          <!-- Section 1: General UI & Behavior -->
-          <div class="settings-section-header" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-            <i data-lucide="sliders" style="color: var(--accent); width: 16px; height: 16px;"></i>
-            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent);">General UI & Behavior</h4>
-          </div>
-
-          <div class="form-group">
-            <label>Hidden Files & Dotfiles:</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="setting-show-hidden" onchange="toggleGlobalDotfiles(this.checked)">
-              <span>Show hidden files and dotfiles (e.g. <code>.bashrc</code>, <code>.git</code>) across all panels</span>
-            </div>
-            <div class="form-hint">Toggle visibility of dotfiles across all active directory panels.</div>
-          </div>
-
-          <div class="form-group">
-            <label>Default Layout:</label>
-            <select id="setting-default-layout" class="pane-quick-filter" style="width: 250px;">
-              <option value="layout-single">1 Single Pane</option>
-              <option value="layout-dual-vertical" selected>2 Panes (Dual Vertical)</option>
-              <option value="layout-dual-horizontal">2 Panes (Dual Horizontal)</option>
-              <option value="layout-triple">3 Panes (Triple Columns)</option>
-              <option value="layout-triple-stacked">3 Panes (1 Main + 2 Stacked)</option>
-              <option value="layout-quad">4 Panes (2x2 Quad Grid)</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Default Copy (F5) Action:</label>
-            <select id="setting-default-copy-action" class="pane-quick-filter" style="width: 280px;" onchange="updateDefaultCopyAction(this.value)">
-              <option value="deltacopy" selected>⚡ DeltaCopy (Optimized with Resume & Checksums)</option>
-              <option value="standard">Standard Copy (Direct Fast Transfer)</option>
-            </select>
-            <div class="form-hint">Choose which transfer engine is highlighted and primary when pressing F5.</div>
-          </div>
-
-          <div class="form-group">
-            <label>Panel Rearrangement:</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="setting-pane-reorder" onchange="togglePaneReordering(this.checked)" checked>
-              <span>Enable Drag-and-Drop Panel Rearrangement on Desktop Viewports</span>
-            </div>
-            <div class="form-hint">Allow dragging the panel number badge (1, 2, 3, 4) to swap and reorder panels.</div>
-          </div>
-
-          <div class="form-group">
-            <label for="setting-phone-tablet-max-panes">Phone & Tablet Maximum Panels:</label>
-            <select id="setting-phone-tablet-max-panes" onchange="updatePhoneTabletMaxPanes(this.value)">
-              <option value="2" selected>2 Panels (Default: Cap at Dual Panels for Mobile & Tablets)</option>
-              <option value="1">1 Panel (Single Panel Focus Only)</option>
-              <option value="3">3 Panels (Allow Triple Layout on Tablets/Foldables)</option>
-              <option value="4">4 Panels (Allow Full Quad Layout on Tablets/Foldables)</option>
-            </select>
-            <div class="form-hint">Cap the maximum number of visible panels when using touchscreens, phones, tablets, and foldable devices (&le; 1024px).</div>
-          </div>
-
-          <!-- Cross-Device Workspace Sync Card (Web/Server Mode) -->
-          <div class="web-only-setting server-only-setting" style="margin-bottom: 14px; padding: 12px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 8px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div style="display: flex; align-items: center; gap: 7px; font-weight: 700; font-size: 11.5px; color: var(--accent);">
-                <i data-lucide="cloud" style="width: 15px; height: 15px;"></i>
-                <span>Cross-Device Workspace Defaults (Server Mode)</span>
+            <!-- Card 1: Layout & Viewport Defaults -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="layout-grid"></i> Layout & Viewport Defaults
+                </h4>
               </div>
-              <span id="cross-device-sync-badge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">Cloud Sync Active</span>
-            </div>
-            <div style="font-size: 11px; color: var(--text-dim); line-height: 1.4;">
-              Your pane custom names, colors, active layout, and start directories persist across your phones, tablets, laptops, and desktop browsers.
-            </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
-              <button type="button" class="btn btn-sm btn-accent" onclick="saveCurrentWorkspaceAsDefault()" style="font-size: 10.5px; display: flex; align-items: center; gap: 5px; height: 26px; padding: 0 10px;">
-                <i data-lucide="save" style="width: 13px; height: 13px;"></i> Save Current Workspace as Default
-              </button>
-              <button type="button" class="btn btn-sm btn-outline" onclick="resetServerPreferences()" style="font-size: 10.5px; display: flex; align-items: center; gap: 5px; height: 26px; padding: 0 8px;">
-                <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i> Reset Server Defaults
-              </button>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Confirmations & Safety:</label>
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-confirm-delete" checked> Confirm before deleting files</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-confirm-overwrite" checked> Confirm before overwriting existing files</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-remember-paths" checked> Remember last opened directories across sessions</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-dblclick-up" checked> <b>Double-Click Navigation:</b> Double-click in empty panel space jumps up to parent directory</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-show-parent-dir" checked> <b>Parent Directory ("..") Row:</b> Show ".." parent entry at the top of file tables</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-haptic-feedback" checked onchange="toggleHapticFeedbackSetting(this.checked)"> <b>Haptic Touch Feedback:</b> Vibration feedback on touch swipes, row selections & pull-to-refresh</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-auto-open-tasks" checked> <b>Floating Transfer Window:</b> Automatically open floating transfer manager on background jobs</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-show-global-refresh" onchange="toggleGlobalRefreshButton(this.checked)"> <b>Global Header Refresh:</b> Show global "Refresh All" button in top header bar (off by default)</label>
-              <label style="font-weight: normal;"><input type="checkbox" id="setting-show-hostname-badge" checked onchange="toggleHostnameBadgeSetting(this.checked)"> <b>Hostname / Environment Badge:</b> Show host badge next to logo in header</label>
+              <p class="settings-card-desc">Configure default multi-panel arrangements and touchscreen panel limits.</p>
               
-              <!-- Hostname Badge Customizer Card -->
-              <div id="wrapper-custom-hostname" style="margin-left: 24px; margin-top: 4px; padding: 12px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 10px;">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;">
-                  <span style="font-size: 11px; font-weight: 700; color: var(--text-main);">Badge Customization & Styling:</span>
-                  <div style="display: flex; align-items: center; gap: 6px;">
-                    <span style="font-size: 10.5px; color: var(--text-dim);">Live Preview:</span>
-                    <span id="hostname-settings-preview-badge" class="header-hostname-badge color-amber style-subtle size-md" style="display: inline-flex;">
-                      <i data-lucide="server"></i>
-                      <span id="hostname-preview-text">localhost</span>
-                    </span>
-                  </div>
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-default-layout">Default Desktop Layout:</label>
+                  <select id="setting-default-layout" class="settings-select">
+                    <option value="layout-single">1 Single Pane</option>
+                    <option value="layout-dual-vertical" selected>2 Panes (Dual Vertical)</option>
+                    <option value="layout-dual-horizontal">2 Panes (Dual Horizontal)</option>
+                    <option value="layout-triple">3 Panes (Triple Columns)</option>
+                    <option value="layout-triple-stacked">3 Panes (1 Main + 2 Stacked)</option>
+                    <option value="layout-quad">4 Panes (2x2 Quad Grid)</option>
+                  </select>
                 </div>
 
-                <div>
-                  <label for="setting-custom-hostname-label" style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 2px;">Custom Environment / Hostname Label (Optional):</label>
-                  <input type="text" id="setting-custom-hostname-label" class="pane-quick-filter" style="width: 100%; padding: 4px 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="Leave empty for auto-detected system hostname" oninput="handleHostnameSettingChange()">
-                  <div class="form-hint" style="font-size: 10.5px; color: var(--text-dim); margin-top: 2px;">Customize the environment name shown in the top header (e.g. <code>NAS-PROD</code>, <code>HOMELAB-01</code>, <code>DEV-BOX</code>).</div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-phone-tablet-max-panes">Phone & Tablet Maximum Panels:</label>
+                  <select id="setting-phone-tablet-max-panes" class="settings-select" onchange="updatePhoneTabletMaxPanes(this.value)">
+                    <option value="2" selected>2 Panels (Default: Cap at Dual Panels for Mobile & Tablets)</option>
+                    <option value="1">1 Panel (Single Panel Focus Only)</option>
+                    <option value="3">3 Panels (Allow Triple Layout on Tablets/Foldables)</option>
+                    <option value="4">4 Panels (Allow Full Quad Layout on Tablets/Foldables)</option>
+                  </select>
                 </div>
+              </div>
 
-                <!-- Customization Grid: Color, Style, Icon, Size -->
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px;">
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-pane-reorder" onchange="togglePaneReordering(this.checked)" checked>
                   <div>
-                    <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">Badge Color:</label>
-                    <select id="setting-hostname-color" class="pane-quick-filter" style="width: 100%; font-size: 11px; padding: 4px 6px;" onchange="handleHostnameSettingChange()">
-                      <option value="amber">🔶 Amber (Default)</option>
-                      <option value="emerald">🟢 Emerald Green</option>
-                      <option value="sky">🔷 Sky Blue</option>
-                      <option value="purple">🟣 Purple</option>
-                      <option value="rose">🔴 Rose Red</option>
-                      <option value="orange">🟧 Orange</option>
-                      <option value="cyan">💠 Cyan</option>
-                      <option value="slate">⚪ Slate Grey</option>
-                    </select>
+                    <strong>Drag-and-Drop Panel Rearrangement</strong>
+                    <div class="settings-field-hint">Allow dragging the panel number badge (1, 2, 3, 4) in the header to swap and reorder panels.</div>
                   </div>
+                </label>
 
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-fkeys" onchange="toggleFKeyBar(this.checked)">
                   <div>
-                    <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">Visual Style:</label>
-                    <select id="setting-hostname-style" class="pane-quick-filter" style="width: 100%; font-size: 11px; padding: 4px 6px;" onchange="handleHostnameSettingChange()">
-                      <option value="subtle">Subtle Tint (Default)</option>
-                      <option value="solid">Solid Fill</option>
-                      <option value="outline">Outline Border</option>
-                      <option value="pill">Pill Capsule</option>
-                      <option value="glow">Neon Glow</option>
-                    </select>
+                    <strong>Bottom Function Key Bar (F1..F10)</strong>
+                    <div class="settings-field-hint">Display classic orthodox commander function key shortcuts at the bottom.</div>
                   </div>
-
-                  <div>
-                    <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">Badge Icon:</label>
-                    <select id="setting-hostname-icon" class="pane-quick-filter" style="width: 100%; font-size: 11px; padding: 4px 6px;" onchange="handleHostnameSettingChange()">
-                      <option value="server">🖥️ Server</option>
-                      <option value="hard-drive">💽 Hard Drive (NAS)</option>
-                      <option value="cpu">⚡ CPU / Compute</option>
-                      <option value="terminal">💻 Terminal / Dev</option>
-                      <option value="cloud">☁️ Cloud / VPS</option>
-                      <option value="shield">🛡️ Shield / Secure</option>
-                      <option value="box">📦 Container / Box</option>
-                      <option value="home">🏠 Homelab / Home</option>
-                      <option value="globe">🌐 Globe / Gateway</option>
-                      <option value="radio">📻 Radio / Remote</option>
-                      <option value="none">🚫 No Icon (Text Only)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 2px;">Badge Size:</label>
-                    <select id="setting-hostname-size" class="pane-quick-filter" style="width: 100%; font-size: 11px; padding: 4px 6px;" onchange="handleHostnameSettingChange()">
-                      <option value="sm">Small (Compact 18px)</option>
-                      <option value="md" selected>Medium (Standard 22px)</option>
-                      <option value="lg">Large (Prominent 26px)</option>
-                    </select>
-                  </div>
-                </div>
+                </label>
               </div>
             </div>
-          </div>
 
-          <!-- Drag-and-Drop & Transfer Defaults -->
-          <div class="form-group" style="padding-top: 10px; border-top: 1px dashed var(--border);">
-            <label style="display: flex; align-items: center; gap: 6px; font-weight: 700; color: var(--accent);">
-              <i data-lucide="move" style="width: 15px; height: 15px;"></i>
-              <span>Drag-and-Drop & Transfer Defaults:</span>
-            </label>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; margin-top: 8px;">
-              <div>
-                <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;">Default Drag-and-Drop Action:</label>
-                <select id="setting-dnd-default-action" class="pane-quick-filter" style="width: 100%;" onchange="handleDndSettingChange()">
-                  <option value="ask">❓ Ask Every Time (Prompt for Move / Copy)</option>
-                  <option value="move">📦 Move (Move files to destination)</option>
-                  <option value="copy">📋 Copy (Copy files to destination)</option>
-                </select>
-                <div class="form-hint" style="font-size: 10.5px; color: var(--text-dim); margin-top: 3px;">
-                  Keyboard overrides: <kbd>Shift</kbd> = Force Move, <kbd>Alt</kbd> / <kbd>Ctrl</kbd> = Force Copy.
+            <!-- Card 2: File Operations & Transfers -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="zap"></i> File Operations & Transfers
+                </h4>
+              </div>
+              <p class="settings-card-desc">Configure copy engine defaults, background job notifications, and drag-and-drop actions.</p>
+
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-default-copy-action">Default Copy (F5) Engine:</label>
+                  <select id="setting-default-copy-action" class="settings-select" onchange="updateDefaultCopyAction(this.value)">
+                    <option value="deltacopy" selected>⚡ DeltaCopy (Resume & Checksums)</option>
+                    <option value="standard">Standard Copy (Direct Transfer)</option>
+                  </select>
+                  <div class="settings-field-hint">Choose which transfer engine is highlighted and default on F5.</div>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-task-verbosity">Transfer Manager Display Detail:</label>
+                  <select id="setting-task-verbosity" class="settings-select" onchange="setTaskVerbosity(this.value)">
+                    <option value="detailed" selected>Detailed (TeraCopy Stream, Files & Hashes)</option>
+                    <option value="compact">Compact (Overall Progress & Speed Only)</option>
+                    <option value="log">Diagnostic Stream / Verbose Logs</option>
+                  </select>
+                  <div class="settings-field-hint">Choose between rich per-file streams or compact progress.</div>
                 </div>
               </div>
 
-              <div>
-                <label style="font-size: 11px; font-weight: 600; color: var(--text-muted); display: block; margin-bottom: 3px;">Confirmation Prompt (No Asking):</label>
-                <select id="setting-dnd-prompt-mode" class="pane-quick-filter" style="width: 100%;" onchange="handleDndSettingChange()">
-                  <option value="ask">💬 Always Ask / Show Confirmation Dialog</option>
-                  <option value="direct">⚡ Direct Execution (No Asking / Silent Action)</option>
-                </select>
-                <div class="form-hint" style="font-size: 10.5px; color: var(--text-dim); margin-top: 3px;">
-                  Direct execution performs the default action immediately upon mouse drop without displaying a confirmation modal.
+              <div class="settings-grid-2col" style="margin-top: 4px;">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-dnd-default-action">Default Drag-and-Drop Action:</label>
+                  <select id="setting-dnd-default-action" class="settings-select" onchange="handleDndSettingChange()">
+                    <option value="ask">❓ Ask Every Time (Prompt for Move / Copy)</option>
+                    <option value="move">📦 Move (Move items to destination)</option>
+                    <option value="copy">📋 Copy (Copy items to destination)</option>
+                  </select>
+                  <div class="settings-field-hint">Keyboard modifiers: <kbd>Shift</kbd> = Move, <kbd>Alt</kbd>/<kbd>Ctrl</kbd> = Copy.</div>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-dnd-prompt-mode">Drag-and-Drop Confirmation:</label>
+                  <select id="setting-dnd-prompt-mode" class="settings-select" onchange="handleDndSettingChange()">
+                    <option value="ask">💬 Always Ask / Show Confirmation Dialog</option>
+                    <option value="direct">⚡ Direct Execution (No Asking / Silent Action)</option>
+                  </select>
+                  <div class="settings-field-hint">Direct execution performs action immediately upon mouse drop.</div>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-dnd-paranoid-prompt" checked onchange="handleDndSettingChange()">
+                  <div>
+                    <strong>Paranoid Mode Prompt on Drag-and-Drop</strong>
+                    <div class="settings-field-hint">Show confirmation dialog before initiating paranoid SHA-256 verification transfers.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-auto-open-tasks" checked>
+                  <div>
+                    <strong>Floating Transfer Window</strong>
+                    <div class="settings-field-hint">Automatically open floating transfer manager when background jobs start.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Card 3: Navigation, Safety & Trash Bin -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="shield-check"></i> Navigation, Safety & Trash Bin
+                </h4>
+              </div>
+              <p class="settings-card-desc">Safety prompts, directory navigation preferences, and trash retention.</p>
+
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-hidden" onchange="toggleGlobalDotfiles(this.checked)">
+                  <div>
+                    <strong>Show Hidden Files & Dotfiles</strong>
+                    <div class="settings-field-hint">Display hidden files (e.g. <code>.bashrc</code>, <code>.git</code>) across all directory panels.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-confirm-delete" checked>
+                  <div>
+                    <strong>Confirm before deleting files</strong>
+                    <div class="settings-field-hint">Prompt for confirmation before moving files to trash or deleting.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-confirm-overwrite" checked>
+                  <div>
+                    <strong>Confirm before overwriting existing files</strong>
+                    <div class="settings-field-hint">Show overwrite warning dialog when files with the same name already exist.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-remember-paths" checked>
+                  <div>
+                    <strong>Remember last opened directories across sessions</strong>
+                    <div class="settings-field-hint">Restore pane directory paths on subsequent application launches.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-dblclick-up" checked>
+                  <div>
+                    <strong>Double-Click Navigation</strong>
+                    <div class="settings-field-hint">Double-click in empty panel space jumps up to parent directory.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-parent-dir" checked>
+                  <div>
+                    <strong>Parent Directory ("..") Row</strong>
+                    <div class="settings-field-hint">Show classic ".." parent entry at the top of file tables.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-haptic-feedback" checked onchange="toggleHapticFeedbackSetting(this.checked)">
+                  <div>
+                    <strong>Haptic Touch Feedback</strong>
+                    <div class="settings-field-hint">Vibration feedback on touch swipes, row selections & pull-to-refresh on mobile devices.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-global-refresh" onchange="toggleGlobalRefreshButton(this.checked)">
+                  <div>
+                    <strong>Global Header Refresh Button</strong>
+                    <div class="settings-field-hint">Show global "Refresh All" button in the top header bar (off by default).</div>
+                  </div>
+                </label>
+              </div>
+
+              <!-- Trash bin sub-section -->
+              <div style="padding-top: 10px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 8px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-user-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
+                  <div>
+                    <strong>Enable Safe Trash Bin</strong>
+                    <div class="settings-field-hint">Move deleted items to trash directory instead of immediate permanent deletion.</div>
+                  </div>
+                </label>
+
+                <div id="wrapper-custom-trash-dir" class="settings-field" style="margin-left: 28px;">
+                  <label class="settings-field-label" for="setting-user-custom-trash">Custom Trash Directory (Optional):</label>
+                  <input type="text" id="setting-user-custom-trash" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
+                  <div class="settings-field-hint">When a custom directory is set, deleted files are safely timestamped and preserved in that folder.</div>
                 </div>
               </div>
             </div>
 
-            <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 6px;">
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="setting-dnd-paranoid-prompt" checked onchange="handleDndSettingChange()">
-                <span><b>Paranoid Mode Prompt on Drag-and-Drop:</b> Show modal before paranoid SHA-256 verification (uncheck for "no asking" / direct background verification)</span>
-              </label>
-            </div>
-          </div>
+            <!-- Card 4: NoteDog Notes Directory -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="notebook-pen"></i> NoteDog Notes Directory
+                </h4>
+              </div>
+              <p class="settings-card-desc">Configure where NoteDog ChewToy and TUI store notebooks, markdown notes, and sections.</p>
 
-          <div class="form-group">
-            <label>🗑️ Trash Bin Configuration:</label>
-            <div style="display: flex; flex-direction: column; gap: 8px;">
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                <input type="checkbox" id="setting-user-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
-                <span><b>Enable Safe Trash Bin:</b> Move deleted items to trash instead of permanent deletion</span>
-              </label>
-              <div id="wrapper-custom-trash-dir" style="margin-left: 24px;">
-                <label for="setting-user-custom-trash" style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Custom Trash Directory (Optional):</label>
-                <input type="text" id="setting-user-custom-trash" class="pane-quick-filter" style="width: 100%; max-width: 480px; padding: 5px 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
-                <div class="form-hint">When disabled, files are permanently deleted. When a custom directory is set, deleted files are safely timestamped and preserved in that folder.</div>
+              <div class="settings-field">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="setting-notedog-folder" class="settings-input" style="flex: 1; font-family: var(--font-mono);" placeholder="~/Notes" onchange="saveNoteDogFolderSetting(this.value)">
+                  <button type="button" class="btn btn-sm btn-outline" onclick="browseNoteDogFolder()" title="Use active pane's current path as notes folder" style="height: 28px; white-space: nowrap; display: flex; align-items: center; gap: 5px;">
+                    <i data-lucide="folder-check" style="width: 13px; height: 13px;"></i> Use Active Pane
+                  </button>
+                </div>
+                <div class="settings-field-hint">Also synchronized with <code>config.toml</code> (<code>[notedog] notes_folder</code>) and NoteDog TUI (<code>~/.config/notedog/notedog.toml</code>).</div>
               </div>
             </div>
-          </div>
 
-          <!-- NoteDog Notes Directory Configuration -->
-          <div class="form-group">
-            <label>🐶 NoteDog Notes Directory:</label>
-            <div style="display: flex; flex-direction: column; gap: 6px;">
-              <div style="display: flex; gap: 6px; align-items: center; max-width: 540px;">
-                <input type="text" id="setting-notedog-folder" class="pane-quick-filter" style="flex: 1; padding: 5px 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="~/Notes" onchange="saveNoteDogFolderSetting(this.value)">
-                <button class="btn btn-xs btn-outline" onclick="browseNoteDogFolder()" title="Use active pane's current path as notes folder"><i data-lucide="folder-check" style="width: 12px;"></i> Use Active Pane</button>
+            <!-- Card 5: Columns & File List Display -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="columns-3"></i> Columns & File List Display
+                </h4>
+                <button type="button" class="btn btn-xs btn-outline" onclick="resetAllColumnWidths()" style="display: flex; align-items: center; gap: 4px; height: 26px;">
+                  <i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset Column Widths
+                </button>
               </div>
-              <div class="form-hint">Customize the directory where NoteDog loads and stores notebooks, sections, and notes. Also configurable in <code>config.toml</code> (<code>[notedog] notes_folder</code>) or NoteDog TUI (<code>~/.config/notedog/notedog.toml</code>).</div>
-            </div>
-          </div>
+              <p class="settings-card-desc">Customize default view modes, table column visibility, and row formatting.</p>
 
-          <div class="form-group">
-            <label>Transfer Manager & TeraCopy Display Detail:</label>
-            <select id="setting-task-verbosity" class="pane-quick-filter" style="width: 280px;" onchange="setTaskVerbosity(this.value)">
-              <option value="detailed" selected>Detailed (TeraCopy Stream, Files & Hashes)</option>
-              <option value="compact">Compact (Overall Progress & Speed Only)</option>
-              <option value="log">Diagnostic Stream / Verbose Logs</option>
-            </select>
-            <div class="form-hint">Choose between rich per-file TeraCopy streams or minimalist overall progress.</div>
-          </div>
-
-          <div class="form-group">
-            <label>Bottom Function Key Bar (F1..F10):</label>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="setting-show-fkeys" checked onchange="toggleFKeyBar(this.checked)">
-              <span>Show orthodox commander function key bar at the bottom</span>
-            </div>
-            <div class="form-hint">Uncheck to hide the bottom bar and give more vertical room to directory panels.</div>
-          </div>
-
-          <div class="form-group">
-            <label>Interface & File Manager Text Size:</label>
-            <div class="slider-container">
-              <input type="range" min="10" max="18" value="13" class="range-slider" id="setting-font-size-slider" oninput="handleFontSizeChange(this.value)">
-              <span class="slider-val-badge" id="setting-font-size-val">13px</span>
-            </div>
-            <div class="perm-preset-container" style="margin-top: 6px;">
-              <button class="perm-chip" onclick="setFontSizePreset(11)">Compact (11px)</button>
-              <button class="perm-chip" onclick="setFontSizePreset(13)">Standard (13px)</button>
-              <button class="perm-chip" onclick="setFontSizePreset(15)">Medium (15px)</button>
-              <button class="perm-chip" onclick="setFontSizePreset(17)">Large (17px)</button>
-            </div>
-            <div class="form-hint">Adjust text size smoothly across file tables, breadcrumbs, and panes.</div>
-          </div>
-
-          <!-- Section 2: Columns & View Modes (Merged) -->
-          <div class="settings-section-header" style="display: flex; align-items: center; gap: 8px; margin-top: 24px; margin-bottom: 12px; padding-top: 18px; border-top: 1px solid var(--border);">
-            <i data-lucide="columns-3" style="color: var(--accent); width: 16px; height: 16px;"></i>
-            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent);">Columns & View Modes</h4>
-          </div>
-          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 14px;">Customize default file view modes, resizable table column visibility, and widths.</p>
-
-          <div class="form-group">
-            <label>Default Panel View Mode:</label>
-            <div style="display: flex; gap: 10px; margin-top: 6px;">
-              <label class="radio-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="radio" name="setting-view-mode" value="details" checked onchange="setDefaultViewMode(this.value)">
-                <span><b>Details Table</b> (Orthodox table with Name, Size, Modified, Mode, Owner)</span>
-              </label>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 6px;">
-              <label class="radio-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="radio" name="setting-view-mode" value="grid" onchange="setDefaultViewMode(this.value)">
-                <span><b>Thumbnail Gallery / Grid</b> (Visual preview cards for photos, media & documents)</span>
-              </label>
-            </div>
-            <div style="display: flex; gap: 10px; margin-top: 6px;">
-              <label class="radio-label" style="display: flex; align-items: center; gap: 6px; cursor: pointer;">
-                <input type="radio" name="setting-view-mode" value="compact" onchange="setDefaultViewMode(this.value)">
-                <span><b>Compact Multi-Column List</b> (High-density multi-column filename browser)</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <label>Visible Table Columns (Details Mode):</label>
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 6px;" id="column-visibility-checkboxes">
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-name" checked disabled> <b>File Name</b> (Always Visible)</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-ext" onchange="toggleColumnVisibility('ext', this.checked)"> File Extension (.ext)</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-size" checked onchange="toggleColumnVisibility('size', this.checked)"> File Size</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-modified" checked onchange="toggleColumnVisibility('modified', this.checked)"> Date Modified</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-created" onchange="toggleColumnVisibility('created', this.checked)"> Date Created</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-mode" checked onchange="toggleColumnVisibility('mode', this.checked)"> Permissions / Mode (POSIX / Octal)</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-owner" checked onchange="toggleColumnVisibility('owner', this.checked)"> Owner</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-group" onchange="toggleColumnVisibility('group', this.checked)"> Group</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-hash" onchange="toggleColumnVisibility('hash', this.checked)"> SHA-256 Checksum</label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 6px;"><input type="checkbox" id="col-toggle-tags" onchange="toggleColumnVisibility('tags', this.checked)"> Tags & Colors</label>
-            </div>
-            <div class="form-hint" style="margin-top: 8px;">You can also drag column header borders in file panels to resize column widths dynamically, double-click dividers to auto-fit, or right-click any header to toggle columns.</div>
-          </div>
-
-          <div class="form-group">
-            <label>Listing Display Options:</label>
-            <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 6px;">
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="setting-col-separators" checked onchange="toggleColSeparators(this.checked)">
-                <span><b>Discrete Column Separators:</b> Display subtle vertical dividers between table columns</span>
-              </label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="setting-compact-dates" checked onchange="toggleCompactDates(this.checked)">
-                <span><b>Compact Date Format:</b> Use short, space-saving timestamps (e.g. <code>09-08 09:15</code> / <code>YYYY-MM-DD</code>)</span>
-              </label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="setting-show-dir-tag" onchange="toggleShowDirTag(this.checked)">
-                <span><b>Show classic &lt;DIR&gt; tag:</b> Display classic <code>&lt;DIR&gt;</code> in file size column for directories (leave unchecked for clean blank folder sizes)</span>
-              </label>
-              <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="setting-file-list-multiline" onchange="toggleFileListMultiline(this.checked)">
-                <span><b>Multi-Line Subtext on Phone Screens:</b> Wrap secondary metadata into a second subtext line on narrow phone screens (leave unchecked for single-line rows)</span>
-              </label>
-            </div>
-          </div>
-
-          <div class="form-group">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <label style="margin-bottom: 0;">Reset Column Widths:</label>
-                <div class="form-hint">Restore default column widths across all panes.</div>
+              <div class="settings-field">
+                <label class="settings-field-label">Default Panel View Mode:</label>
+                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
+                  <label class="settings-checkbox-row">
+                    <input type="radio" name="setting-view-mode" value="details" checked onchange="setDefaultViewMode(this.value)">
+                    <div>
+                      <strong>Details Table</strong>
+                      <div class="settings-field-hint">Orthodox table with Name, Ext, Size, Modified, Mode, Owner, Group, SHA-256.</div>
+                    </div>
+                  </label>
+                  <label class="settings-checkbox-row">
+                    <input type="radio" name="setting-view-mode" value="grid" onchange="setDefaultViewMode(this.value)">
+                    <div>
+                      <strong>Thumbnail Gallery / Grid</strong>
+                      <div class="settings-field-hint">Visual preview cards for photos, media & documents.</div>
+                    </div>
+                  </label>
+                  <label class="settings-checkbox-row">
+                    <input type="radio" name="setting-view-mode" value="compact" onchange="setDefaultViewMode(this.value)">
+                    <div>
+                      <strong>Compact Multi-Column List</strong>
+                      <div class="settings-field-hint">High-density multi-column filename browser.</div>
+                    </div>
+                  </label>
+                </div>
               </div>
-              <button class="btn btn-sm" onclick="resetAllColumnWidths()"><i data-lucide="rotate-ccw"></i> Reset Widths</button>
-            </div>
-          </div>
 
-          <!-- Section 3: Desktop, Windowing & System Tray (Merged) -->
-          <div class="desktop-only-setting">
-            <div class="settings-section-header" style="display: flex; align-items: center; gap: 8px; margin-top: 24px; margin-bottom: 12px; padding-top: 18px; border-top: 1px solid var(--border);">
-              <i data-lucide="monitor" style="color: var(--accent); width: 16px; height: 16px;"></i>
-              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent);">Desktop, Windowing & System Tray</h4>
-            </div>
-            <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">Configure native window behavior, system tray integration, and global hotkeys for Linux (Hyprland, X11, Wayland), macOS, and Windows.</p>
+              <div class="settings-field" style="margin-top: 6px;">
+                <label class="settings-field-label">Visible Table Columns (Details Mode):</label>
+                <div class="settings-grid-2col" style="margin-top: 4px;" id="column-visibility-checkboxes">
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-name" checked disabled> <strong>File Name</strong> (Always Visible)</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-ext" onchange="toggleColumnVisibility('ext', this.checked)"> File Extension (.ext)</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-size" checked onchange="toggleColumnVisibility('size', this.checked)"> File Size</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-modified" checked onchange="toggleColumnVisibility('modified', this.checked)"> Date Modified</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-created" onchange="toggleColumnVisibility('created', this.checked)"> Date Created</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-mode" checked onchange="toggleColumnVisibility('mode', this.checked)"> Permissions / Mode</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-owner" checked onchange="toggleColumnVisibility('owner', this.checked)"> Owner</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-group" onchange="toggleColumnVisibility('group', this.checked)"> Group</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-hash" onchange="toggleColumnVisibility('hash', this.checked)"> SHA-256 Checksum</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-tags" onchange="toggleColumnVisibility('tags', this.checked)"> Tags & Colors</label>
+                </div>
+              </div>
 
-            <div class="form-group">
-              <label>System Tray & Minimization:</label>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-col-separators" checked onchange="toggleColSeparators(this.checked)">
+                  <div>
+                    <strong>Discrete Column Separators</strong>
+                    <div class="settings-field-hint">Display subtle vertical dividers between table columns.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-compact-dates" checked onchange="toggleCompactDates(this.checked)">
+                  <div>
+                    <strong>Compact Date Format</strong>
+                    <div class="settings-field-hint">Use short, space-saving timestamps (e.g. <code>09-08 09:15</code> / <code>YYYY-MM-DD</code>).</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-dir-tag" onchange="toggleShowDirTag(this.checked)">
+                  <div>
+                    <strong>Show classic &lt;DIR&gt; tag</strong>
+                    <div class="settings-field-hint">Display classic <code>&lt;DIR&gt;</code> in file size column for directories (leave unchecked for clean blank folder sizes).</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-file-list-multiline" onchange="toggleFileListMultiline(this.checked)">
+                  <div>
+                    <strong>Multi-Line Subtext on Phone Screens</strong>
+                    <div class="settings-field-hint">Wrap secondary metadata into a second subtext line on narrow phone screens.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Card 6: Cross-Device Workspace Sync (Web/Server Mode) -->
+            <div class="settings-group-card web-only-setting server-only-setting">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="cloud"></i> Cross-Device Workspace Sync (Server Mode)
+                </h4>
+                <span id="cross-device-sync-badge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 4px;">Cloud Sync Active</span>
+              </div>
+              <p class="settings-card-desc">Your pane custom names, colors, active layout, and start directories persist across your phones, tablets, laptops, and desktop browsers.</p>
+              
+              <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
+                <button type="button" class="btn btn-sm btn-accent" onclick="saveCurrentWorkspaceAsDefault()" style="font-size: 11px; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px;">
+                  <i data-lucide="save" style="width: 13px; height: 13px;"></i> Save Current Workspace as Default
+                </button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="resetServerPreferences()" style="font-size: 11px; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px;">
+                  <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i> Reset Server Defaults
+                </button>
+              </div>
+            </div>
+
+            <!-- Card 7: Desktop, Windowing & System Tray (Desktop Standalone Only) -->
+            <div class="settings-group-card desktop-only-setting">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="monitor"></i> Desktop, Windowing & System Tray
+                </h4>
+                <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Desktop Standalone Only</span>
+              </div>
+              <p class="settings-card-desc">Configure native window behavior, system tray integration, and global hotkeys for Linux (Hyprland, X11, Wayland), macOS, and Windows.</p>
+
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row">
                   <input type="checkbox" id="setting-minimize-tray" checked onchange="toggleMinimizeToTray(this.checked)">
-                  <span><b>Minimize to System Tray on Close:</b> Closing the window keeps Brum running in the background tray</span>
+                  <div>
+                    <strong>Minimize to System Tray on Close</strong>
+                    <div class="settings-field-hint">Closing the window keeps Brum running in the background system tray.</div>
+                  </div>
                 </label>
-                <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
+
+                <label class="settings-checkbox-row">
                   <input type="checkbox" id="setting-start-minimized" onchange="toggleStartMinimized(this.checked)">
-                  <span><b>Start Minimized:</b> Launch directly to system tray on system boot / autostart</span>
+                  <div>
+                    <strong>Start Minimized</strong>
+                    <div class="settings-field-hint">Launch directly to system tray on system boot / autostart.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-desktop-decorations" checked onchange="toggleWindowDecorations(this.checked)">
+                  <div>
+                    <strong>Native Window Frame & Decorations</strong>
+                    <div class="settings-field-hint">Uncheck for a clean frameless window that tiles seamlessly without header waste in Hyprland. Launch with <code>brum --no-decorations</code>.</div>
+                  </div>
                 </label>
               </div>
-              <div class="form-hint">Can also be configured via <code>~/.config/brum/config.toml</code>.</div>
+
+              <div class="settings-field" style="margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
+                <label class="settings-field-label" for="setting-global-hotkey">Global Summon / Toggle Hotkey:</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="setting-global-hotkey" class="settings-input" style="width: 220px;" value="Super+C" readonly>
+                  <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Default: Super+C</span>
+                </div>
+                <div class="settings-field-hint">Pressing this keybind anywhere in your operating system brings Brum to the foreground instantly.</div>
+              </div>
             </div>
 
-            <div class="form-group">
-              <label>Global Summon / Toggle Hotkey:</label>
-              <div style="display: flex; gap: 8px; align-items: center;">
-                <input type="text" id="setting-global-hotkey" class="pane-quick-filter" style="width: 220px; padding: 6px;" value="Super+C" readonly>
-                <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Default: Super+C</span>
-              </div>
-              <div class="form-hint">Pressing this keybind anywhere in your operating system brings Brum to the foreground instantly.</div>
-            </div>
-
-            <div class="form-group">
-              <label>Native Window Frame & Decorations (Hyprland / Sway / i3):</label>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <input type="checkbox" id="setting-desktop-decorations" checked onchange="toggleWindowDecorations(this.checked)">
-                <span><b>Native Window Frame & Decorations:</b> Show OS titlebar and system border</span>
-              </div>
-              <div class="form-hint">Uncheck for a clean frameless window that tiles seamlessly without header waste in Hyprland. Launch with <code>brum --no-decorations</code>.</div>
-            </div>
           </div>
-
-        </div>
 
         <!-- Tab: External Programs & Desktop Handlers -->
         <div class="settings-tab-content desktop-only-setting" id="tab-desktop-apps" style="padding: 16px;">
@@ -1492,166 +1503,354 @@
 
         <!-- Tab 2: Palette & Themes -->
         <div class="settings-tab-content" id="tab-palette">
-          <h4 style="color: var(--accent); margin-bottom: 8px;">🎨 Brum Theme & Visual Palette</h4>
-          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">Choose your active color theme across Brum panels, editor, and tools.</p>
-          <div class="form-group">
-            <label>Active Theme:</label>
-            <select id="settings-theme-selector" class="pane-quick-filter" style="width: 100%; padding: 8px; font-size: 13px;" onchange="applyTheme(this.value)">
-              <option value="amber-charcoal">Woofsons Amber Charcoal</option>
-              <option value="zink">Woofsons Amber Zink</option>
-              <option value="gruvbox">Gruvbox Dark</option>
-              <option value="catppuccin-mocha">Catppuccin Mocha</option>
-              <option value="catppuccin-latte">Catppuccin Latte (Light)</option>
-              <option value="tokyo-night">Tokyo Night</option>
-              <option value="monokai">Monokai Pro</option>
-              <option value="solarized-dark">Solarized Dark</option>
-              <option value="ayu-dark">Ayu Dark</option>
-              <option value="nord">Nord Frost</option>
-              <option value="dracula">Dracula Dark</option>
-              <option value="midnight-blue">Midnight Commander Blue</option>
-              <option value="skumring">Larvikite Skumring</option>
-              <option value="demring">Larvikite Demring</option>
-              <option value="trollnatt">Larvikite Trollnatt</option>
-              <option value="myrtaake">Larvikite Myrtåke</option>
-              <option value="bergtatt">Kittelsen Bergtatt</option>
-              <option value="soria-moria">Kittelsen Soria Moria</option>
-              <option value="pestanatt">Kittelsen Pestanatt</option>
-              <option value="sotslette">Kittelsen Sotslette</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label>Visual Theme Swatches (Click to Apply):</label>
-            <div id="theme-swatch-grid" class="theme-swatch-grid">
-              <!-- Dynamically populated -->
+          
+          <!-- Card 1: Active Theme & Swatches -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="palette"></i> Brum Theme & Visual Palette
+              </h4>
+              <button type="button" class="btn btn-xs btn-outline" onclick="toggleCustomThemeCreator()" style="display: flex; align-items: center; gap: 4px; height: 26px;">
+                <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Custom Theme
+              </button>
             </div>
-            <div class="form-hint">Supports built-in themes and custom external themes from <code>~/.config/brum/themes/</code>.</div>
-          </div>
+            <p class="settings-card-desc">Choose your active color theme across Brum panels, editor, and tools.</p>
 
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px; margin-bottom: 8px;">
-            <h4 style="color: var(--accent); margin: 0; font-size: 13px;">✨ Web Custom Theme Creator & Importer</h4>
-            <button class="btn btn-sm" onclick="toggleCustomThemeCreator()" style="padding: 4px 8px; font-size: 11px;"><i data-lucide="plus"></i> New Theme</button>
-          </div>
-          <div id="custom-theme-creator" style="display: none; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-bottom: 16px;">
-            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 10px;">
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Theme Name:</label>
-                <input type="text" id="custom-theme-name" class="pane-quick-filter" style="width: 100%; padding: 6px;" placeholder="e.g. Cyber Sunset">
+            <div class="settings-field">
+              <label class="settings-field-label" for="settings-theme-selector">Active Theme:</label>
+              <select id="settings-theme-selector" class="settings-select" onchange="applyTheme(this.value)">
+                <option value="amber-charcoal">Woofsons Amber Charcoal</option>
+                <option value="zink">Woofsons Amber Zink</option>
+                <option value="gruvbox">Gruvbox Dark</option>
+                <option value="catppuccin-mocha">Catppuccin Mocha</option>
+                <option value="catppuccin-latte">Catppuccin Latte (Light)</option>
+                <option value="tokyo-night">Tokyo Night</option>
+                <option value="monokai">Monokai Pro</option>
+                <option value="solarized-dark">Solarized Dark</option>
+                <option value="ayu-dark">Ayu Dark</option>
+                <option value="nord">Nord Frost</option>
+                <option value="dracula">Dracula Dark</option>
+                <option value="midnight-blue">Midnight Commander Blue</option>
+                <option value="skumring">Larvikite Skumring</option>
+                <option value="demring">Larvikite Demring</option>
+                <option value="trollnatt">Larvikite Trollnatt</option>
+                <option value="myrtaake">Larvikite Myrtåke</option>
+                <option value="bergtatt">Kittelsen Bergtatt</option>
+                <option value="soria-moria">Kittelsen Soria Moria</option>
+                <option value="pestanatt">Kittelsen Pestanatt</option>
+                <option value="sotslette">Kittelsen Sotslette</option>
+              </select>
+            </div>
+
+            <div class="settings-field" style="margin-top: 6px;">
+              <label class="settings-field-label">Visual Theme Swatches (Click to Apply):</label>
+              <div id="theme-swatch-grid" class="theme-swatch-grid">
+                <!-- Dynamically populated -->
               </div>
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Accent Highlight:</label>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  <input type="color" id="custom-theme-accent" value="#00e5ff" style="width: 38px; height: 30px; border: 1px solid var(--border); background: transparent; cursor: pointer; border-radius: 4px;" oninput="document.getElementById('custom-theme-accent-txt').value = this.value">
-                  <input type="text" id="custom-theme-accent-txt" class="pane-quick-filter" value="#00e5ff" style="width: 100%; padding: 6px;" oninput="document.getElementById('custom-theme-accent').value = this.value">
+              <div class="settings-field-hint">Supports built-in themes and custom external themes from <code>~/.config/brum/themes/</code>.</div>
+            </div>
+
+            <!-- Custom Theme Creator Form -->
+            <div id="custom-theme-creator" style="display: none; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-top: 10px;">
+              <div style="font-size: 12px; font-weight: 700; color: var(--accent); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="sparkles" style="width: 14px; height: 14px;"></i> Create Custom Web Theme
+              </div>
+              <div class="settings-grid-2col" style="margin-bottom: 12px;">
+                <div class="settings-field">
+                  <label class="settings-field-label">Theme Name:</label>
+                  <input type="text" id="custom-theme-name" class="settings-input" placeholder="e.g. Cyber Sunset">
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label">Accent Highlight:</label>
+                  <div class="settings-color-swatch-input">
+                    <input type="color" id="custom-theme-accent" value="#00e5ff" oninput="document.getElementById('custom-theme-accent-txt').value = this.value">
+                    <input type="text" id="custom-theme-accent-txt" value="#00e5ff" oninput="document.getElementById('custom-theme-accent').value = this.value">
+                  </div>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label">Dark Background:</label>
+                  <div class="settings-color-swatch-input">
+                    <input type="color" id="custom-theme-bg-dark" value="#0b0f14" oninput="document.getElementById('custom-theme-bg-dark-txt').value = this.value">
+                    <input type="text" id="custom-theme-bg-dark-txt" value="#0b0f14" oninput="document.getElementById('custom-theme-bg-dark').value = this.value">
+                  </div>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label">Panel Background:</label>
+                  <div class="settings-color-swatch-input">
+                    <input type="color" id="custom-theme-bg-panel" value="#111822" oninput="document.getElementById('custom-theme-bg-panel-txt').value = this.value">
+                    <input type="text" id="custom-theme-bg-panel-txt" value="#111822" oninput="document.getElementById('custom-theme-bg-panel').value = this.value">
+                  </div>
                 </div>
               </div>
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Dark Background:</label>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  <input type="color" id="custom-theme-bg-dark" value="#0b0f14" style="width: 38px; height: 30px; border: 1px solid var(--border); background: transparent; cursor: pointer; border-radius: 4px;" oninput="document.getElementById('custom-theme-bg-dark-txt').value = this.value">
-                  <input type="text" id="custom-theme-bg-dark-txt" class="pane-quick-filter" value="#0b0f14" style="width: 100%; padding: 6px;" oninput="document.getElementById('custom-theme-bg-dark').value = this.value">
-                </div>
+              <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="btn btn-accent btn-sm" onclick="saveCustomBrowserTheme()"><i data-lucide="check"></i> Save & Apply</button>
+                <button type="button" class="btn btn-sm btn-outline" onclick="exportCustomThemeToml()"><i data-lucide="download"></i> Export TOML</button>
+                <button type="button" class="btn btn-sm" onclick="toggleCustomThemeCreator()">Cancel</button>
               </div>
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Panel Background:</label>
-                <div style="display: flex; gap: 6px; align-items: center;">
-                  <input type="color" id="custom-theme-bg-panel" value="#111822" style="width: 38px; height: 30px; border: 1px solid var(--border); background: transparent; cursor: pointer; border-radius: 4px;" oninput="document.getElementById('custom-theme-bg-panel-txt').value = this.value">
-                  <input type="text" id="custom-theme-bg-panel-txt" class="pane-quick-filter" value="#111822" style="width: 100%; padding: 6px;" oninput="document.getElementById('custom-theme-bg-panel').value = this.value">
-                </div>
-              </div>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-accent btn-sm" onclick="saveCustomBrowserTheme()"><i data-lucide="check"></i> Save & Apply</button>
-              <button class="btn btn-sm" onclick="exportCustomThemeToml()"><i data-lucide="download"></i> Export TOML</button>
-              <button class="btn btn-sm" onclick="toggleCustomThemeCreator()">Cancel</button>
             </div>
           </div>
 
-          <h4 style="color: var(--accent); margin-top: 16px; margin-bottom: 8px;">🖼️ Panel Border & Focus Ring Customization</h4>
-          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">Fine-tune panel border thickness and active focus highlight intensity.</p>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin-bottom: 16px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Panel Border Width:</label>
-              <select id="setting-border-width" class="pane-quick-filter" style="width: 100%; padding: 8px;" onchange="applyBorderSettings(this.value, null)">
-                <option value="0px">0px (Borderless / Minimal)</option>
-                <option value="0.5px">0.5px (Ultra Hairline)</option>
-                <option value="1px" selected>1px (Subtle Hairline - Default)</option>
-                <option value="1.5px">1.5px (Solid Border)</option>
-                <option value="2px">2px (Medium Accent)</option>
-                <option value="3px">3px (Retro Bold)</option>
-              </select>
+          <!-- Card 2: Interface & File Manager Text Scaling -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="type"></i> Interface & Text Scaling
+              </h4>
+              <span class="slider-val-badge" id="setting-font-size-val">13px</span>
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Active Pane Highlight Style:</label>
-              <select id="setting-ring-style" class="pane-quick-filter" style="width: 100%; padding: 8px;" onchange="applyBorderSettings(null, this.value)">
-                <option value="none">Border Color Only (No Extra Ring)</option>
-                <option value="subtle" selected>Subtle (1px Accent Ring)</option>
-                <option value="bold">Bold (2px Crisp Accent Ring)</option>
-                <option value="glow">Neon Glow (Aura Glow Highlight)</option>
-              </select>
+            <p class="settings-card-desc">Adjust text size smoothly across file tables, breadcrumbs, panes, and dialogs.</p>
+
+            <div class="settings-field">
+              <div class="slider-container">
+                <input type="range" min="10" max="18" value="13" class="range-slider" id="setting-font-size-slider" oninput="handleFontSizeChange(this.value)">
+              </div>
+              <div class="perm-preset-container" style="margin-top: 8px;">
+                <button type="button" class="perm-chip" onclick="setFontSizePreset(11)">Compact (11px)</button>
+                <button type="button" class="perm-chip" onclick="setFontSizePreset(13)">Standard (13px)</button>
+                <button type="button" class="perm-chip" onclick="setFontSizePreset(15)">Medium (15px)</button>
+                <button type="button" class="perm-chip" onclick="setFontSizePreset(17)">Large (17px)</button>
+              </div>
             </div>
           </div>
 
-          <h4 style="color: var(--accent); margin-bottom: 8px;">🎨 Custom Pane Border Identification Colors</h4>
-          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">Define custom identification border & badge highlight colors for each panel for instant visual orientation.</p>
-          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Pane 1 Identification Color:</label>
-              <select id="setting-pane-color-0" class="pane-quick-filter" style="width: 100%; padding: 6px;" onchange="setPaneColorPref(0, this.value)">
-                <option value="default">Default Theme Border</option>
-                <option value="amber">Amber (#f59e0b)</option>
-                <option value="emerald">Emerald Green (#10b981)</option>
-                <option value="sky">Sky Blue (#38bdf8)</option>
-                <option value="purple">Purple (#c084fc)</option>
-                <option value="rose">Rose Red (#f43f5e)</option>
-                <option value="indigo">Indigo (#6366f1)</option>
-                <option value="teal">Teal (#14b8a6)</option>
-                <option value="orange">Orange (#f97316)</option>
-              </select>
+          <!-- Card 3: Panel Border & Focus Ring Customization -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="frame"></i> Panel Border & Focus Highlight
+              </h4>
             </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Pane 2 Identification Color:</label>
-              <select id="setting-pane-color-1" class="pane-quick-filter" style="width: 100%; padding: 6px;" onchange="setPaneColorPref(1, this.value)">
-                <option value="default">Default Theme Border</option>
-                <option value="amber">Amber (#f59e0b)</option>
-                <option value="emerald">Emerald Green (#10b981)</option>
-                <option value="sky">Sky Blue (#38bdf8)</option>
-                <option value="purple">Purple (#c084fc)</option>
-                <option value="rose">Rose Red (#f43f5e)</option>
-                <option value="indigo">Indigo (#6366f1)</option>
-                <option value="teal">Teal (#14b8a6)</option>
-                <option value="orange">Orange (#f97316)</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Pane 3 Identification Color:</label>
-              <select id="setting-pane-color-2" class="pane-quick-filter" style="width: 100%; padding: 6px;" onchange="setPaneColorPref(2, this.value)">
-                <option value="default">Default Theme Border</option>
-                <option value="amber">Amber (#f59e0b)</option>
-                <option value="emerald">Emerald Green (#10b981)</option>
-                <option value="sky">Sky Blue (#38bdf8)</option>
-                <option value="purple">Purple (#c084fc)</option>
-                <option value="rose">Rose Red (#f43f5e)</option>
-                <option value="indigo">Indigo (#6366f1)</option>
-                <option value="teal">Teal (#14b8a6)</option>
-                <option value="orange">Orange (#f97316)</option>
-              </select>
-            </div>
-            <div class="form-group" style="margin-bottom: 0;">
-              <label>Pane 4 Identification Color:</label>
-              <select id="setting-pane-color-3" class="pane-quick-filter" style="width: 100%; padding: 6px;" onchange="setPaneColorPref(3, this.value)">
-                <option value="default">Default Theme Border</option>
-                <option value="amber">Amber (#f59e0b)</option>
-                <option value="emerald">Emerald Green (#10b981)</option>
-                <option value="sky">Sky Blue (#38bdf8)</option>
-                <option value="purple">Purple (#c084fc)</option>
-                <option value="rose">Rose Red (#f43f5e)</option>
-                <option value="indigo">Indigo (#6366f1)</option>
-                <option value="teal">Teal (#14b8a6)</option>
-                <option value="orange">Orange (#f97316)</option>
-              </select>
+            <p class="settings-card-desc">Fine-tune panel border thickness and active focused panel highlight intensity.</p>
+
+            <div class="settings-grid-2col">
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-border-width">Panel Border Width:</label>
+                <select id="setting-border-width" class="settings-select" onchange="applyBorderSettings(this.value, null)">
+                  <option value="0px">0px (Borderless / Minimal)</option>
+                  <option value="0.5px">0.5px (Ultra Hairline)</option>
+                  <option value="1px" selected>1px (Subtle Hairline - Default)</option>
+                  <option value="1.5px">1.5px (Solid Border)</option>
+                  <option value="2px">2px (Medium Accent)</option>
+                  <option value="3px">3px (Retro Bold)</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-ring-style">Active Focus Highlight Style:</label>
+                <select id="setting-ring-style" class="settings-select" onchange="applyBorderSettings(null, this.value)">
+                  <option value="none">Border Color Only (No Extra Ring)</option>
+                  <option value="subtle" selected>Subtle (1px Accent Ring)</option>
+                  <option value="bold">Bold (2px Crisp Accent Ring)</option>
+                  <option value="glow">Neon Glow (Aura Glow Highlight)</option>
+                </select>
+              </div>
             </div>
           </div>
+
+          <!-- Card 4: Custom Pane Border Identification Colors -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="layers"></i> Panel Identification Colors
+              </h4>
+            </div>
+            <p class="settings-card-desc">Define custom identification border and badge accent colors for each panel for instant visual orientation.</p>
+
+            <div class="settings-grid-2col">
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-pane-color-0">Pane 1 Color:</label>
+                <select id="setting-pane-color-0" class="settings-select" onchange="setPaneColorPref(0, this.value)">
+                  <option value="default">Default Theme Border</option>
+                  <option value="amber">Amber (#f59e0b)</option>
+                  <option value="emerald">Emerald Green (#10b981)</option>
+                  <option value="sky">Sky Blue (#38bdf8)</option>
+                  <option value="purple">Purple (#c084fc)</option>
+                  <option value="rose">Rose Red (#f43f5e)</option>
+                  <option value="indigo">Indigo (#6366f1)</option>
+                  <option value="teal">Teal (#14b8a6)</option>
+                  <option value="orange">Orange (#f97316)</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-pane-color-1">Pane 2 Color:</label>
+                <select id="setting-pane-color-1" class="settings-select" onchange="setPaneColorPref(1, this.value)">
+                  <option value="default">Default Theme Border</option>
+                  <option value="amber">Amber (#f59e0b)</option>
+                  <option value="emerald">Emerald Green (#10b981)</option>
+                  <option value="sky">Sky Blue (#38bdf8)</option>
+                  <option value="purple">Purple (#c084fc)</option>
+                  <option value="rose">Rose Red (#f43f5e)</option>
+                  <option value="indigo">Indigo (#6366f1)</option>
+                  <option value="teal">Teal (#14b8a6)</option>
+                  <option value="orange">Orange (#f97316)</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-pane-color-2">Pane 3 Color:</label>
+                <select id="setting-pane-color-2" class="settings-select" onchange="setPaneColorPref(2, this.value)">
+                  <option value="default">Default Theme Border</option>
+                  <option value="amber">Amber (#f59e0b)</option>
+                  <option value="emerald">Emerald Green (#10b981)</option>
+                  <option value="sky">Sky Blue (#38bdf8)</option>
+                  <option value="purple">Purple (#c084fc)</option>
+                  <option value="rose">Rose Red (#f43f5e)</option>
+                  <option value="indigo">Indigo (#6366f1)</option>
+                  <option value="teal">Teal (#14b8a6)</option>
+                  <option value="orange">Orange (#f97316)</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-pane-color-3">Pane 4 Color:</label>
+                <select id="setting-pane-color-3" class="settings-select" onchange="setPaneColorPref(3, this.value)">
+                  <option value="default">Default Theme Border</option>
+                  <option value="amber">Amber (#f59e0b)</option>
+                  <option value="emerald">Emerald Green (#10b981)</option>
+                  <option value="sky">Sky Blue (#38bdf8)</option>
+                  <option value="purple">Purple (#c084fc)</option>
+                  <option value="rose">Rose Red (#f43f5e)</option>
+                  <option value="indigo">Indigo (#6366f1)</option>
+                  <option value="teal">Teal (#14b8a6)</option>
+                  <option value="orange">Orange (#f97316)</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card 5: Hostname & Environment Badge Customizer (Migrated & Enhanced) -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="server"></i> Hostname & Environment Badge
+              </h4>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 11px; color: var(--text-dim);">Live Preview:</span>
+                <span id="hostname-settings-preview-badge" class="header-hostname-badge color-amber style-subtle size-md" style="display: inline-flex;">
+                  <i data-lucide="server"></i>
+                  <span id="hostname-preview-text">localhost</span>
+                </span>
+              </div>
+            </div>
+            <p class="settings-card-desc">Display and style a custom environment/host badge next to the logo in the top header (e.g. <code>NAS-PROD</code>, <code>HOMELAB</code>, <code>DEV-BOX</code>).</p>
+
+            <label class="settings-checkbox-row">
+              <input type="checkbox" id="setting-show-hostname-badge" checked onchange="toggleHostnameBadgeSetting(this.checked)">
+              <div>
+                <strong>Show Hostname Badge in Header</strong>
+                <div class="settings-field-hint">Display host status badge next to the Brum logo.</div>
+              </div>
+            </label>
+
+            <!-- Customizer controls container -->
+            <div id="wrapper-custom-hostname" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--border);">
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-custom-hostname-label">Custom Environment / Hostname Label (Optional):</label>
+                <input type="text" id="setting-custom-hostname-label" class="settings-input" style="font-family: var(--font-mono);" placeholder="Leave empty for auto-detected system hostname" oninput="handleHostnameSettingChange()">
+                <div class="settings-field-hint">Customize the label shown in the header badge (e.g. <code>NAS-PROD</code>, <code>HOMELAB-01</code>, <code>DEV-BOX</code>).</div>
+              </div>
+
+              <div class="settings-grid-auto">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-hostname-color">Badge Color:</label>
+                  <select id="setting-hostname-color" class="settings-select" onchange="handleHostnameSettingChange()">
+                    <option value="amber">🔶 Amber (Default)</option>
+                    <option value="emerald">🟢 Emerald Green</option>
+                    <option value="sky">🔷 Sky Blue</option>
+                    <option value="purple">🟣 Purple</option>
+                    <option value="rose">🔴 Rose Red</option>
+                    <option value="orange">🟧 Orange</option>
+                    <option value="cyan">💠 Cyan</option>
+                    <option value="slate">⚪ Slate Grey</option>
+                    <option value="custom">🎨 Custom Free-form Color...</option>
+                  </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-hostname-style">Visual Style:</label>
+                  <select id="setting-hostname-style" class="settings-select" onchange="handleHostnameSettingChange()">
+                    <option value="subtle">Subtle Tint (Default)</option>
+                    <option value="solid">Solid Fill</option>
+                    <option value="outline">Outline Border</option>
+                    <option value="pill">Pill Capsule</option>
+                    <option value="glow">Neon Glow</option>
+                  </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-hostname-icon">Badge Icon:</label>
+                  <select id="setting-hostname-icon" class="settings-select" onchange="handleHostnameSettingChange()">
+                    <option value="server">🖥️ Server</option>
+                    <option value="hard-drive">💽 Hard Drive (NAS)</option>
+                    <option value="cpu">⚡ CPU / Compute</option>
+                    <option value="terminal">💻 Terminal / Dev</option>
+                    <option value="cloud">☁️ Cloud / VPS</option>
+                    <option value="shield">🛡️ Shield / Secure</option>
+                    <option value="box">📦 Container / Box</option>
+                    <option value="home">🏠 Homelab / Home</option>
+                    <option value="globe">🌐 Globe / Gateway</option>
+                    <option value="radio">📻 Radio / Remote</option>
+                    <option value="none">🚫 No Icon (Text Only)</option>
+                  </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-hostname-size">Badge Size:</label>
+                  <select id="setting-hostname-size" class="settings-select" onchange="handleHostnameSettingChange()">
+                    <option value="sm">Small (Compact 18px)</option>
+                    <option value="md" selected>Medium (Standard 22px)</option>
+                    <option value="lg">Large (Prominent 26px)</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Custom Free-form Color Picker Sub-Card -->
+              <div id="hostname-custom-color-picker-row" style="display: none; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; flex-direction: column; gap: 10px;">
+                <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; justify-content: space-between;">
+                  <span style="display: flex; align-items: center; gap: 5px;"><i data-lucide="palette" style="width: 14px; height: 14px;"></i> Custom Badge Colors (Free-form Hex / RGBA)</span>
+                  <div style="display: flex; gap: 4px; flex-wrap: wrap;">
+                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#f59e0b', 'rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.35)', 'rgba(245, 158, 11, 0.4)')">Amber</button>
+                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#06b6d4', 'rgba(6, 182, 212, 0.15)', 'rgba(6, 182, 212, 0.35)', 'rgba(6, 182, 212, 0.4)')">Cyan</button>
+                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#10b981', 'rgba(16, 185, 129, 0.15)', 'rgba(16, 185, 129, 0.35)', 'rgba(16, 185, 129, 0.4)')">Emerald</button>
+                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#c084fc', 'rgba(192, 132, 252, 0.15)', 'rgba(192, 132, 252, 0.35)', 'rgba(192, 132, 252, 0.4)')">Purple</button>
+                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#f43f5e', 'rgba(244, 63, 94, 0.15)', 'rgba(244, 63, 94, 0.35)', 'rgba(244, 63, 94, 0.4)')">Rose</button>
+                  </div>
+                </div>
+
+                <div class="settings-grid-2col">
+                  <div class="settings-field">
+                    <label class="settings-field-label">Text & Icon Color:</label>
+                    <div class="settings-color-swatch-input">
+                      <input type="color" id="setting-hostname-custom-text-picker" value="#f59e0b" oninput="document.getElementById('setting-hostname-custom-text').value = this.value; handleHostnameSettingChange();">
+                      <input type="text" id="setting-hostname-custom-text" value="#f59e0b" placeholder="#f59e0b" oninput="handleHostnameSettingChange();">
+                    </div>
+                  </div>
+
+                  <div class="settings-field">
+                    <label class="settings-field-label">Background Color / Tint:</label>
+                    <div class="settings-color-swatch-input">
+                      <input type="color" id="setting-hostname-custom-bg-picker" value="#261b0b" oninput="document.getElementById('setting-hostname-custom-bg').value = this.value; handleHostnameSettingChange();">
+                      <input type="text" id="setting-hostname-custom-bg" value="rgba(245, 158, 11, 0.15)" placeholder="rgba(...) or #hex" oninput="handleHostnameSettingChange();">
+                    </div>
+                  </div>
+
+                  <div class="settings-field">
+                    <label class="settings-field-label">Border Color:</label>
+                    <div class="settings-color-swatch-input">
+                      <input type="color" id="setting-hostname-custom-border-picker" value="#f59e0b" oninput="document.getElementById('setting-hostname-custom-border').value = this.value; handleHostnameSettingChange();">
+                      <input type="text" id="setting-hostname-custom-border" value="rgba(245, 158, 11, 0.35)" placeholder="rgba(...) or #hex" oninput="handleHostnameSettingChange();">
+                    </div>
+                  </div>
+
+                  <div class="settings-field">
+                    <label class="settings-field-label">Glow / Neon Shadow:</label>
+                    <div class="settings-color-swatch-input">
+                      <input type="color" id="setting-hostname-custom-glow-picker" value="#f59e0b" oninput="document.getElementById('setting-hostname-custom-glow').value = this.value; handleHostnameSettingChange();">
+                      <input type="text" id="setting-hostname-custom-glow" value="rgba(245, 158, 11, 0.4)" placeholder="rgba(...) or #hex" oninput="handleHostnameSettingChange();">
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Tab: Bookmarks & Favorites -->
@@ -1785,6 +1984,76 @@
             </div>
           </div>
         </div>
+
+        <!-- Tab 10: About Brum & System Information -->
+        <div class="settings-tab-content" id="tab-about">
+          <!-- Hero Branding Card -->
+          <div class="settings-group-card" style="text-align: center; padding: 22px 16px;">
+            <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 10px;">
+            <div style="font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin: 4px 0 12px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
+            <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
+              <span class="badge about-version-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.8.3 (Desktop &amp; Web)</span>
+              <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust 2021 + Axum 0.7</span>
+              <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3);">MIT Open Source</span>
+            </div>
+          </div>
+
+          <!-- Description Card -->
+          <div class="settings-group-card">
+            <p style="font-size: 12px; color: var(--text-main); line-height: 1.6; margin: 0;">
+              <strong>Brum</strong> brings the speed, keyboard ergonomics, and multi-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the modern web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and paranoid cryptographic data verification.
+            </p>
+          </div>
+
+          <!-- Architecture Details Grid Card -->
+          <div class="settings-group-card">
+            <div class="settings-card-header" style="margin-bottom: 12px;">
+              <h4 class="settings-section-title">
+                <i data-lucide="cpu"></i> System &amp; Runtime Architecture
+              </h4>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; font-size: 11px;">
+              <div><span style="color: var(--text-muted);">Creator &amp; Lab:</span> <strong style="color: var(--text-main);">Bolt J Woofson @ Woofsons Lab</strong> (<a href="https://www.arf.ac" target="_blank" style="color: var(--accent); text-decoration: none;">www.arf.ac</a>)</div>
+              <div><span style="color: var(--text-muted);">Contact:</span> <a href="mailto:bolt@boop.no" style="color: var(--accent); text-decoration: none;">bolt@boop.no</a></div>
+              <div><span style="color: var(--text-muted);">Backend Core:</span> <span style="font-family: var(--font-mono);">Rust 2021 (Axum 0.7 + Tokio)</span></div>
+              <div><span style="color: var(--text-muted);">Operating System:</span> <strong class="about-sys-os" style="color: var(--text-main);">Linux</strong></div>
+              <div><span style="color: var(--text-muted);">Execution Mode:</span> <span class="about-sys-mode">Desktop &amp; Web</span></div>
+              <div><span style="color: var(--text-muted);">Terminal Engine:</span> <span>Native PTY (portable-pty) + Nerd Font</span></div>
+              <div><span style="color: var(--text-muted);">Auth &amp; Permissions:</span> <span>Linux PAM + SQLite RBAC</span></div>
+              <div><span style="color: var(--text-muted);">Frontend Stack:</span> <span>Vanilla JS + Prism + Lucide</span></div>
+              <div><span style="color: var(--text-muted);">Repository:</span> <a href="https://github.com/Woofson/brum" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/Woofson/brum</a></div>
+              <div><span style="color: var(--text-muted);">License:</span> <span>MIT Open Source License</span></div>
+            </div>
+          </div>
+
+          <!-- Key Capabilities Grid Card -->
+          <div class="settings-group-card">
+            <div class="settings-card-header" style="margin-bottom: 12px;">
+              <h4 class="settings-section-title">
+                <i data-lucide="sparkles"></i> Power Features &amp; ChewToys
+              </h4>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 11px;">
+              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
+                <strong style="color: var(--accent);">🗂️ 1-to-4 Dynamic Panes</strong>
+                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">Single, Dual, Triple &amp; Quad grid layouts</div>
+              </div>
+              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
+                <strong style="color: var(--accent);">🌐 Multi-Cloud &amp; Mounts</strong>
+                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">SMB/CIFS, NFS, S3, SFTP, WebDAV, Proton</div>
+              </div>
+              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
+                <strong style="color: var(--accent);">⚡ DeltaCopy &amp; TeraCopy</strong>
+                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">CRC32 / SHA-256 integrity verification</div>
+              </div>
+              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
+                <strong style="color: var(--accent);">🔄 ConvertX Converter</strong>
+                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">Universal Image, Audio, Video &amp; Doc conversions</div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -1817,208 +2086,294 @@
 
         <div class="settings-content-area">
           <!-- Admin Tab 1: User Management & RBAC Permissions -->
-          <div class="settings-tab-content active" id="admin-tab-users" style="padding: 0;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13px;">User Accounts & Granular Service Permissions</div>
-              <div style="font-size: 11px; color: var(--text-muted);">Manage internal and PAM accounts, assign Admin privileges, and grant or restrict service access per user.</div>
-            </div>
-            <button class="btn btn-accent" onclick="showAddUserPrompt()"><i data-lucide="user-plus"></i> New User</button>
-          </div>
-          <table class="admin-table">
-            <thead>
-              <tr><th>User Account</th><th>Role</th><th>Home Directory</th><th>Enabled Protocol & Service Access</th><th style="text-align: center; width: 120px;">Actions</th></tr>
-            </thead>
-            <tbody id="users-table-body"></tbody>
-          </table>
-        </div>
-
-        <!-- Admin Tab 2: Remote Storage & Mounts (Samba/CIFS, NFS, S3, SFTP, WebDAV) -->
-        <div class="settings-tab-content" id="admin-tab-storage" style="padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13px;">🪟 Global Storage, Network Shares & User Access</div>
-              <div style="font-size: 11px; color: var(--text-muted);">Configure network shares and assign which users can access them via their Favorites menu.</div>
-            </div>
-            <button class="btn btn-accent" onclick="openRemoteModal(App.activePaneIndex, true)"><i data-lucide="plus"></i> Add Global Mount</button>
-          </div>
-
-          <table class="admin-table">
-              <thead>
-                <tr>
-                  <th>Mount Name</th>
-                  <th>Protocol</th>
-                  <th>Target URI / Share Path</th>
-                  <th>Allowed Users</th>
-                  <th style="text-align: center; width: 120px;">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="admin-global-mounts-tbody">
-                <tr><td colspan="5" style="text-align: center; padding: 16px; color: var(--text-muted);">Loading global network mounts...</td></tr>
-              </tbody>
-            </table>
-
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
-            <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-              <h4 style="color: var(--accent); margin-bottom: 8px; display:flex; align-items:center; gap:6px;"><i data-lucide="share-2" style="width:16px;"></i> Samba / Windows Share (CIFS)</h4>
-              <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Native client using <code>smbclient</code> with Workgroup, Active Directory Domain, and guest authentication.</p>
-              <div class="form-group">
-                <label>Default Workgroup / Domain:</label>
-                <input type="text" class="pane-quick-filter" style="width: 100%; padding: 6px;" value="WORKGROUP" id="admin-default-smb-workgroup">
+          <div class="settings-tab-content active" id="admin-tab-users">
+            <div class="settings-card-header" style="margin-bottom: 14px;">
+              <div>
+                <h4 class="settings-section-title">
+                  <i data-lucide="users"></i> User Accounts & Granular Service Permissions
+                </h4>
+                <p class="settings-card-desc" style="margin-top: 2px;">
+                  Manage internal and PAM accounts, assign Admin privileges, and grant or restrict service access per user.
+                </p>
               </div>
-            </div>
-
-            <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-              <h4 style="color: var(--accent); margin-bottom: 8px; display:flex; align-items:center; gap:6px;"><i data-lucide="server" style="width:16px;"></i> Linux Network File System (NFS)</h4>
-              <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Automated export discovery via <code>showmount -e</code> and mounts to <code>/run/brum/mounts/nfs/</code>.</p>
-              <div class="form-group">
-                <label>NFS Base Mountpoint:</label>
-                <input type="text" class="pane-quick-filter" style="width: 100%; padding: 6px;" value="/run/brum/mounts/nfs" readonly>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Admin Tab 3: Syncthing Global Daemon -->
-        <div class="settings-tab-content" id="admin-tab-syncthing" style="padding: 16px;">
-          <div style="font-weight: 700; margin-bottom: 4px;">🔄 Global Syncthing Daemon Configuration</div>
-          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">
-            Configure the cluster Syncthing daemon used for continuous background sync across nodes.
-          </p>
-          <div class="form-group">
-            <label>Syncthing Daemon URL:</label>
-            <input type="text" id="setting-syncthing-url" class="pane-quick-filter" style="width: 100%; padding: 8px;" value="http://127.0.0.1:8384">
-          </div>
-          <div class="form-group">
-            <label>REST API Key:</label>
-            <div style="position: relative;">
-              <input type="password" id="setting-syncthing-key" class="pane-quick-filter" style="width: 100%; padding: 8px 32px 8px 8px;" placeholder="Leave empty for auto-discovery">
-              <button type="button" class="btn btn-icon" onclick="togglePasswordVisibility('setting-syncthing-key')" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; border: none;">
-                <i data-lucide="eye" style="width: 14px;"></i>
+              <button type="button" class="btn btn-accent btn-sm" onclick="showAddUserPrompt()" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                <i data-lucide="user-plus" style="width: 13px; height: 13px;"></i> New User
               </button>
             </div>
-          </div>
-          <div style="display: flex; gap: 8px; margin-top: 10px;">
-            <button class="btn btn-accent" onclick="testAndSaveSyncthingConfig()"><i data-lucide="activity"></i> Test Connection & Dashboard</button>
-          </div>
-          <div id="syncthing-settings-status" style="font-size: 11px; margin-top: 8px; display: none;"></div>
-        </div>
 
-        <!-- Admin Tab 4: Security & Paranoid Defaults -->
-        <div class="settings-tab-content" id="admin-tab-security" style="padding: 16px;">
-          <div style="font-weight: 700; margin-bottom: 4px;">🛡️ Global File Safety, Paranoid Integrity & Auto-Lock</div>
-          <p style="color: var(--text-muted); font-size: 11px; margin-bottom: 12px;">Configure default transaction rules, session timeout, auto-lock on workstation inactivity, and cryptographic validation.</p>
-          
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
-            <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-              <h4 style="color: var(--accent); margin-bottom: 10px; display:flex; align-items:center; gap:6px;"><i data-lucide="lock" style="width:16px;"></i> Session Auto-Lock & Inactivity</h4>
-              <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" id="setting-autolock-enabled" checked>
-                  <span style="font-weight: 600;">Enable Automatic Workstation Lock</span>
-                </label>
-                <div class="form-hint">Locks screen on idle inactivity without interrupting background transfers or closing open files.</div>
+            <!-- Modern User Cards Container -->
+            <div id="users-cards-container" style="display: flex; flex-direction: column; gap: 14px;">
+              <!-- Populated dynamically via JS -->
+            </div>
+          </div>
+
+          <!-- Admin Tab 2: Remote Storage & Mounts (Samba/CIFS, NFS, S3, SFTP, WebDAV) -->
+          <div class="settings-tab-content" id="admin-tab-storage">
+            <!-- Card 1: Global Storage Mounts -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <div>
+                  <h4 class="settings-section-title">
+                    <i data-lucide="server"></i> Global Storage, Network Shares & User Access
+                  </h4>
+                  <p class="settings-card-desc" style="margin-top: 2px;">
+                    Configure network shares and assign which users can access them via their Favorites menu.
+                  </p>
+                </div>
+                <button type="button" class="btn btn-accent btn-sm" onclick="openRemoteModal(App.activePaneIndex, true)" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                  <i data-lucide="plus" style="width: 13px; height: 13px;"></i> Add Global Mount
+                </button>
               </div>
-              <div class="form-group">
-                <label>Auto-Lock Inactivity Timer:</label>
-                <select id="setting-autolock-minutes" class="pane-quick-filter" style="width: 100%;">
-                  <option value="5">5 Minutes Inactivity</option>
-                  <option value="10">10 Minutes Inactivity</option>
-                  <option value="15" selected>15 Minutes Inactivity (Recommended)</option>
-                  <option value="30">30 Minutes Inactivity</option>
-                  <option value="60">1 Hour Inactivity</option>
-                  <option value="120">2 Hours Inactivity</option>
-                </select>
+
+              <div style="overflow-x: auto;">
+                <table class="admin-table" style="margin-top: 6px;">
+                  <thead>
+                    <tr>
+                      <th>Mount Name</th>
+                      <th>Protocol</th>
+                      <th>Target URI / Share Path</th>
+                      <th>Allowed Users</th>
+                      <th style="text-align: center; width: 120px;">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody id="admin-global-mounts-tbody">
+                    <tr><td colspan="5" style="text-align: center; padding: 16px; color: var(--text-muted);">Loading global network mounts...</td></tr>
+                  </tbody>
+                </table>
               </div>
-              <div class="form-group">
-                <label>Session Expiration / Max Token Age:</label>
-                <select id="setting-session-hours" class="pane-quick-filter" style="width: 100%;">
-                  <option value="1">1 Hour</option>
-                  <option value="4">4 Hours</option>
-                  <option value="8" selected>8 Hours (Work Day)</option>
-                  <option value="24">24 Hours</option>
-                  <option value="72">3 Days</option>
-                  <option value="168">7 Days</option>
-                </select>
-              </div>
-              <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" id="setting-autolock-prevent-tasks" checked>
-                  <span>Do not lock while background file transfers/copy tasks are running</span>
-                </label>
-              </div>
-              <button class="btn btn-accent btn-sm" onclick="saveAdminSecuritySettings()" style="margin-top: 8px;"><i data-lucide="check"></i> Save Auto-Lock Policies</button>
             </div>
 
-            <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px;">
-              <h4 style="color: var(--accent); margin-bottom: 10px; display:flex; align-items:center; gap:6px;"><i data-lucide="shield-check" style="width:16px;"></i> Paranoid Mode & Integrity</h4>
-              <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" id="setting-paranoid-enabled" checked>
-                  <span>Enable Paranoid File Handling Mode globally by default</span>
-                </label>
+            <!-- Card 2 & 3: Protocol Defaults in 2-column grid -->
+            <div class="settings-grid-2col">
+              <div class="settings-group-card" style="margin-bottom: 0;">
+                <div class="settings-card-header">
+                  <h4 class="settings-section-title">
+                    <i data-lucide="share-2"></i> Samba / Windows Share (CIFS)
+                  </h4>
+                </div>
+                <p class="settings-card-desc">Native client using <code>smbclient</code> with Workgroup, Active Directory Domain, and guest authentication.</p>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="admin-default-smb-workgroup">Default Workgroup / Domain:</label>
+                  <input type="text" class="settings-input" value="WORKGROUP" id="admin-default-smb-workgroup">
+                </div>
               </div>
-              <div class="form-group">
-                <label>Integrity Checksum Algorithm:</label>
-                <select id="setting-checksum-algo" class="pane-quick-filter" style="width: 100%;">
-                  <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
-                  <option value="md5">MD5 (Legacy Fast)</option>
-                  <option value="sha1">SHA-1</option>
-                </select>
-                <div class="form-hint">Files transferred in Paranoid mode have their checksum cryptographically verified upon write completion.</div>
-              </div>
-              <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" id="setting-atomic-writes" checked>
-                  <span>Atomic File Writes (via hidden temporary file rename)</span>
-                </label>
-              </div>
-              <div class="form-group">
-                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
-                  <input type="checkbox" id="setting-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
-                  <span>Safe Trash Bin (Move deleted items to XDG Trash)</span>
-                </label>
-                <div style="margin-top: 6px;">
-                  <label for="setting-custom-trash-dir" style="font-size: 11px; color: var(--text-muted); display: block; margin-bottom: 3px;">Server Custom Trash Directory (Optional):</label>
-                  <input type="text" id="setting-custom-trash-dir" class="pane-quick-filter" style="width: 100%; padding: 5px 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
+
+              <div class="settings-group-card" style="margin-bottom: 0;">
+                <div class="settings-card-header">
+                  <h4 class="settings-section-title">
+                    <i data-lucide="server"></i> Linux Network File System (NFS)
+                  </h4>
+                </div>
+                <p class="settings-card-desc">Automated export discovery via <code>showmount -e</code> and mounts to <code>/run/brum/mounts/nfs/</code>.</p>
+                <div class="settings-field">
+                  <label class="settings-field-label">NFS Base Mountpoint:</label>
+                  <input type="text" class="settings-input" value="/run/brum/mounts/nfs" readonly>
                 </div>
               </div>
             </div>
           </div>
-        </div>
 
-        <!-- Admin Tab 5: Master config.toml Editor -->
-        <div class="settings-tab-content" id="admin-tab-config" style="padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
-            <div>
-              <div style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px;">
-                <span>📜 Master Configuration (<code>config.toml</code>)</span>
-                <span class="user-role-badge" id="admin-config-path-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">~/.config/brum/config.toml</span>
+          <!-- Admin Tab 3: Syncthing Global Daemon -->
+          <div class="settings-tab-content" id="admin-tab-syncthing">
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="repeat"></i> Global Syncthing Daemon Configuration
+                </h4>
               </div>
-              <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">
-                Directly view and edit server settings, layouts, keybinds, and defaults in TOML format.
+              <p class="settings-card-desc">
+                Configure the cluster Syncthing daemon used for continuous background sync across nodes.
+              </p>
+
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-syncthing-url">Syncthing Daemon URL:</label>
+                  <input type="text" id="setting-syncthing-url" class="settings-input" value="http://127.0.0.1:8384">
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-syncthing-key">REST API Key:</label>
+                  <div style="position: relative; display: flex; align-items: center;">
+                    <input type="password" id="setting-syncthing-key" class="settings-input" style="padding-right: 32px;" placeholder="Leave empty for auto-discovery">
+                    <button type="button" class="btn btn-icon" onclick="togglePasswordVisibility('setting-syncthing-key')" style="position: absolute; right: 2px; width: 26px; height: 26px; background: transparent; border: none;">
+                      <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
+                    </button>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-              <button class="btn btn-sm" onclick="loadMasterConfigEditor()" title="Discard unsaved changes and fetch fresh config from disk">
-                <i data-lucide="rotate-cw"></i> Discard / Fetch
-              </button>
-              <button class="btn btn-sm" onclick="triggerServerReload()" title="Reload settings into running server memory">
-                <i data-lucide="refresh-cw"></i> Reload Config
-              </button>
-              <button class="btn btn-sm btn-danger-action" onclick="triggerServerRestart()" title="Restart Brum server process">
-                <i data-lucide="power"></i> Restart Server
-              </button>
-              <button class="btn btn-sm btn-accent" onclick="saveMasterConfigFile()" id="btn-save-master-config">
-                <i data-lucide="save"></i> Save config.toml
-              </button>
+
+              <div style="display: flex; gap: 8px; margin-top: 6px;">
+                <button type="button" class="btn btn-accent btn-sm" onclick="testAndSaveSyncthingConfig()" style="height: 28px; display: flex; align-items: center; gap: 5px;">
+                  <i data-lucide="activity" style="width: 13px; height: 13px;"></i> Test Connection & Dashboard
+                </button>
+              </div>
+              <div id="syncthing-settings-status" style="font-size: 11px; margin-top: 4px; display: none;"></div>
             </div>
           </div>
 
-          <div style="position: relative;">
-            <textarea id="admin-config-editor-textarea" spellcheck="false" style="width: 100%; height: 420px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border); border-radius: 6px; padding: 12px; line-height: 1.5; resize: vertical; box-sizing: border-box;"></textarea>
+          <!-- Admin Tab 4: Security & Paranoid Defaults -->
+          <div class="settings-tab-content" id="admin-tab-security">
+            <div class="settings-card-header" style="margin-bottom: 12px;">
+              <div>
+                <h4 class="settings-section-title">
+                  <i data-lucide="shield-check"></i> Global File Safety, Paranoid Integrity & Auto-Lock
+                </h4>
+                <p class="settings-card-desc" style="margin-top: 2px;">
+                  Configure default transaction rules, session timeout, auto-lock on workstation inactivity, and cryptographic validation.
+                </p>
+              </div>
+            </div>
+
+            <div class="settings-grid-2col">
+              <!-- Card 1: Session Auto-Lock & Inactivity -->
+              <div class="settings-group-card">
+                <div class="settings-card-header">
+                  <h4 class="settings-section-title">
+                    <i data-lucide="lock"></i> Session Auto-Lock & Inactivity
+                  </h4>
+                </div>
+                <p class="settings-card-desc">Locks screen on idle inactivity without interrupting background transfers or closing open files.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label class="settings-checkbox-row">
+                    <input type="checkbox" id="setting-autolock-enabled" checked>
+                    <div>
+                      <strong>Enable Automatic Workstation Lock</strong>
+                      <div class="settings-field-hint">Enforces password prompt on idle session timeout.</div>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-autolock-minutes">Auto-Lock Inactivity Timer:</label>
+                  <select id="setting-autolock-minutes" class="settings-select">
+                    <option value="5">5 Minutes Inactivity</option>
+                    <option value="10">10 Minutes Inactivity</option>
+                    <option value="15" selected>15 Minutes Inactivity (Recommended)</option>
+                    <option value="30">30 Minutes Inactivity</option>
+                    <option value="60">1 Hour Inactivity</option>
+                    <option value="120">2 Hours Inactivity</option>
+                  </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-session-hours">Session Expiration / Max Token Age:</label>
+                  <select id="setting-session-hours" class="settings-select">
+                    <option value="1">1 Hour</option>
+                    <option value="4">4 Hours</option>
+                    <option value="8" selected>8 Hours (Work Day)</option>
+                    <option value="24">24 Hours</option>
+                    <option value="72">3 Days</option>
+                    <option value="168">7 Days</option>
+                  </select>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label class="settings-checkbox-row">
+                    <input type="checkbox" id="setting-autolock-prevent-tasks" checked>
+                    <div>
+                      <strong>Prevent Lock during Active Transfers</strong>
+                      <div class="settings-field-hint">Do not lock while background file transfers/copy tasks are running.</div>
+                    </div>
+                  </label>
+                </div>
+
+                <div style="margin-top: 6px;">
+                  <button type="button" class="btn btn-accent btn-sm" onclick="saveAdminSecuritySettings()" style="height: 28px; display: flex; align-items: center; gap: 5px;">
+                    <i data-lucide="check" style="width: 13px; height: 13px;"></i> Save Auto-Lock Policies
+                  </button>
+                </div>
+              </div>
+
+              <!-- Card 2: Paranoid Mode & Integrity -->
+              <div class="settings-group-card">
+                <div class="settings-card-header">
+                  <h4 class="settings-section-title">
+                    <i data-lucide="shield-check"></i> Paranoid Mode & Integrity
+                  </h4>
+                </div>
+                <p class="settings-card-desc">Cryptographic validation and atomic file system operations.</p>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label class="settings-checkbox-row">
+                    <input type="checkbox" id="setting-paranoid-enabled" checked>
+                    <div>
+                      <strong>Enable Paranoid File Handling Globally</strong>
+                      <div class="settings-field-hint">Enforces strict validation on all file copy/move operations.</div>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-checksum-algo">Integrity Checksum Algorithm:</label>
+                  <select id="setting-checksum-algo" class="settings-select">
+                    <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
+                    <option value="md5">MD5 (Legacy Fast)</option>
+                    <option value="sha1">SHA-1</option>
+                  </select>
+                  <div class="settings-field-hint">Files transferred in Paranoid mode have their checksum verified upon completion.</div>
+                </div>
+
+                <div style="display: flex; flex-direction: column; gap: 4px;">
+                  <label class="settings-checkbox-row">
+                    <input type="checkbox" id="setting-atomic-writes" checked>
+                    <div>
+                      <strong>Atomic File Writes</strong>
+                      <div class="settings-field-hint">Write to hidden temporary file first, then atomically rename.</div>
+                    </div>
+                  </label>
+
+                  <label class="settings-checkbox-row">
+                    <input type="checkbox" id="setting-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
+                    <div>
+                      <strong>Safe Trash Bin</strong>
+                      <div class="settings-field-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
+                    </div>
+                  </label>
+                </div>
+
+                <div class="settings-field" style="margin-top: 4px;">
+                  <label class="settings-field-label" for="setting-custom-trash-dir">Server Custom Trash Directory (Optional):</label>
+                  <input type="text" id="setting-custom-trash-dir" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
+                </div>
+              </div>
+            </div>
           </div>
-          <div id="admin-config-status" style="margin-top: 8px; font-size: 12px; font-family: var(--font-mono); display: none;"></div>
+
+          <!-- Admin Tab 5: Master config.toml Editor -->
+          <div class="settings-tab-content" id="admin-tab-config">
+            <div class="settings-group-card">
+              <div class="settings-card-header" style="flex-wrap: wrap; gap: 10px;">
+                <div>
+                  <h4 class="settings-section-title">
+                    <i data-lucide="file-cog"></i> Master Server Configuration (<code>config.toml</code>)
+                    <span class="user-role-badge" id="admin-config-path-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); margin-left: 6px;">~/.config/brum/config.toml</span>
+                  </h4>
+                  <p class="settings-card-desc" style="margin-top: 2px;">
+                    Directly view and edit server settings, layouts, keybinds, and defaults in TOML format.
+                  </p>
+                </div>
+                <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                  <button type="button" class="btn btn-sm btn-outline" onclick="loadMasterConfigEditor()" title="Discard unsaved changes and fetch fresh config from disk" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i> Discard / Fetch
+                  </button>
+                  <button type="button" class="btn btn-sm btn-outline" onclick="triggerServerReload()" title="Reload settings into running server memory" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Reload Config
+                  </button>
+                  <button type="button" class="btn btn-sm btn-danger-action" onclick="triggerServerRestart()" title="Restart Brum server process" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="power" style="width: 12px; height: 12px;"></i> Restart Server
+                  </button>
+                  <button type="button" class="btn btn-sm btn-accent" onclick="saveMasterConfigFile()" id="btn-save-master-config" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="save" style="width: 12px; height: 12px;"></i> Save config.toml
+                  </button>
+                </div>
+              </div>
+
+              <div style="position: relative; margin-top: 6px;">
+                <textarea id="admin-config-editor-textarea" spellcheck="false" style="width: 100%; height: 420px; font-family: var(--font-mono); font-size: 12px; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; line-height: 1.5; resize: vertical; box-sizing: border-box; outline: none;"></textarea>
+              </div>
+              <div id="admin-config-status" style="margin-top: 8px; font-size: 12px; font-family: var(--font-mono); display: none;"></div>
+            </div>
           </div>
         </div>
       </div>
@@ -4891,7 +5246,7 @@
 
   <!-- About Brum Modal -->
   <div class="modal-overlay" id="about-modal">
-    <div class="modal-box" style="width: 580px; max-height: 85vh;">
+    <div class="modal-box" style="width: 580px; max-width: calc(100vw - 32px); max-height: 85vh;">
       <div class="modal-header">
         <div style="display: flex; align-items: center; gap: 8px;">
           <img src="assets/amber-frameless-info.webp" alt="Brum" style="height: 18px; width: auto; object-fit: contain; vertical-align: middle;">
@@ -4902,30 +5257,31 @@
       <div class="modal-body" style="padding: 20px; overflow-y: auto;">
         <!-- Banner & Version Header -->
         <div style="text-align: center; margin-bottom: 18px; padding: 16px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-          <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" style="height: 52px; width: auto; object-fit: contain; margin-bottom: 8px;">
+          <img src="assets/brum_commanderdog_legacy.webp" alt="Brum" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 8px;">
           <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Pane Web Environment (File Commander/Manager) - By Woofson</div>
+          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
           <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
-            <span id="about-version-badge" class="badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.8.2 (Desktop & Web)</span>
-            <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust + Axum + Tokio</span>
+            <span id="about-version-badge" class="badge about-version-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;">v0.8.3 (Desktop &amp; Web)</span>
+            <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust 2021 + Axum 0.7</span>
             <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3);">MIT Open Source</span>
           </div>
         </div>
 
         <!-- Description -->
         <p style="font-size: 12px; color: var(--text-main); line-height: 1.6; margin-bottom: 16px;">
-          <strong>Brum</strong> brings the speed, keyboard ergonomics, and dual/quad-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the web browser — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and paranoid cryptographic data verification.
+          <strong>Brum</strong> brings the speed, keyboard ergonomics, and dual/quad-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and paranoid cryptographic data verification.
         </p>
 
         <!-- System & Runtime Details Card -->
         <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px;">
           <div style="font-weight: 700; font-size: 11px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="cpu" style="width: 14px;"></i> System & Runtime Architecture
+            <i data-lucide="cpu" style="width: 14px;"></i> System &amp; Runtime Architecture
           </div>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px;">
-            <div><span style="color: var(--text-muted);">Author:</span> <strong style="color: var(--text-main);">Bolt J Woofson</strong></div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 11px;">
+            <div><span style="color: var(--text-muted);">Creator &amp; Lab:</span> <strong style="color: var(--text-main);">Bolt J Woofson @ Woofsons Lab</strong> (<a href="https://www.arf.ac" target="_blank" style="color: var(--accent); text-decoration: none;">www.arf.ac</a>)</div>
             <div><span style="color: var(--text-muted);">Contact:</span> <a href="mailto:bolt@boop.no" style="color: var(--accent); text-decoration: none;">bolt@boop.no</a></div>
             <div><span style="color: var(--text-muted);">Backend:</span> <span style="font-family: var(--font-mono);">Rust 2021 (Axum 0.7)</span></div>
+            <div><span style="color: var(--text-muted);">Operating System:</span> <strong class="about-sys-os" style="color: var(--text-main);">Linux</strong></div>
             <div><span style="color: var(--text-muted);">Auth Engine:</span> <span>Linux PAM + SQLite RBAC</span></div>
             <div><span style="color: var(--text-muted);">Terminal:</span> <span>Native PTY (portable-pty)</span></div>
             <div><span style="color: var(--text-muted);">Frontend:</span> <span>Vanilla JS + Prism + Mermaid</span></div>
@@ -4935,22 +5291,22 @@
         </div>
 
         <!-- Key Features Grid -->
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 11px; margin-bottom: 16px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 11px; margin-bottom: 16px;">
           <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
             <strong style="color: var(--accent);">🗂️ 1-to-4 Dynamic Panes</strong>
-            <div style="color: var(--text-dim); font-size: 10px;">Single, Dual, Triple & Quad grid layouts</div>
+            <div style="color: var(--text-dim); font-size: 10px;">Single, Dual, Triple &amp; Quad grid layouts</div>
           </div>
           <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
-            <strong style="color: var(--accent);">🌐 Multi-Cloud & Mounts</strong>
+            <strong style="color: var(--accent);">🌐 Multi-Cloud &amp; Mounts</strong>
             <div style="color: var(--text-dim); font-size: 10px;">SMB/CIFS, NFS, S3, SFTP, WebDAV, Proton</div>
           </div>
           <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
-            <strong style="color: var(--accent);">⚡ DeltaCopy & TeraCopy</strong>
+            <strong style="color: var(--accent);">⚡ DeltaCopy &amp; TeraCopy</strong>
             <div style="color: var(--text-dim); font-size: 10px;">Bit-for-bit CRC32/SHA-256 integrity verify</div>
           </div>
           <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
             <strong style="color: var(--accent);">🔄 ConvertX Converter</strong>
-            <div style="color: var(--text-dim); font-size: 10px;">Universal Image, Audio, Video & Document</div>
+            <div style="color: var(--text-dim); font-size: 10px;">Universal Image, Audio, Video &amp; Document</div>
           </div>
         </div>
       </div>

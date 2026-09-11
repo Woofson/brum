@@ -261,6 +261,10 @@ function getAllUserPreferences() {
     show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
     custom_hostname: localStorage.getItem('cd_custom_hostname') || '',
     hostname_color: localStorage.getItem('cd_hostname_color') || 'amber',
+    hostname_custom_text: localStorage.getItem('cd_hostname_custom_text') || '#f59e0b',
+    hostname_custom_bg: localStorage.getItem('cd_hostname_custom_bg') || 'rgba(245, 158, 11, 0.15)',
+    hostname_custom_border: localStorage.getItem('cd_hostname_custom_border') || 'rgba(245, 158, 11, 0.35)',
+    hostname_custom_glow: localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.4)',
     hostname_style: localStorage.getItem('cd_hostname_style') || 'subtle',
     hostname_icon: localStorage.getItem('cd_hostname_icon') || 'server',
     hostname_size: localStorage.getItem('cd_hostname_size') || 'md',
@@ -275,7 +279,7 @@ function getAllUserPreferences() {
 
     // 5. General UI Toggles & Behavior
     show_hidden: App.showHiddenDefault,
-    show_fkeys: App.showFKeyBar,
+    show_fkeys: App.showFKeyBar !== false && localStorage.getItem('cd_show_fkeys') !== 'false',
     show_parent_dir: App.showParentDir,
     show_global_refresh: localStorage.getItem('cd_show_global_refresh') === 'true',
     dblclick_up: App.dblclickUpDir,
@@ -425,6 +429,10 @@ function applyAllUserPreferences(prefs) {
     else localStorage.removeItem('cd_custom_hostname');
   }
   if (prefs.hostname_color) localStorage.setItem('cd_hostname_color', prefs.hostname_color);
+  if (prefs.hostname_custom_text) localStorage.setItem('cd_hostname_custom_text', prefs.hostname_custom_text);
+  if (prefs.hostname_custom_bg) localStorage.setItem('cd_hostname_custom_bg', prefs.hostname_custom_bg);
+  if (prefs.hostname_custom_border) localStorage.setItem('cd_hostname_custom_border', prefs.hostname_custom_border);
+  if (prefs.hostname_custom_glow) localStorage.setItem('cd_hostname_custom_glow', prefs.hostname_custom_glow);
   if (prefs.hostname_style) localStorage.setItem('cd_hostname_style', prefs.hostname_style);
   if (prefs.hostname_icon) localStorage.setItem('cd_hostname_icon', prefs.hostname_icon);
   if (prefs.hostname_size) localStorage.setItem('cd_hostname_size', prefs.hostname_size);
@@ -965,8 +973,7 @@ function applyAppVersion(ver) {
   if (!ver) return;
   App.version = ver;
   document.querySelectorAll('.login-version-badge').forEach(el => el.textContent = `v${ver}`);
-  const aboutBadge = document.getElementById('about-version-badge');
-  if (aboutBadge) aboutBadge.textContent = `v${ver} (Desktop & Web)`;
+  document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(el => el.textContent = `v${ver} (Desktop & Web)`);
   const syncBadge = document.getElementById('sync-version-badge');
   if (syncBadge) syncBadge.textContent = `v${ver}`;
 }
@@ -987,6 +994,11 @@ function getHostnameBadgeSettings() {
     || App.systemStatus?.hostname_color
     || 'amber';
 
+  const customText = localStorage.getItem('cd_hostname_custom_text') || '#f59e0b';
+  const customBg = localStorage.getItem('cd_hostname_custom_bg') || 'rgba(245, 158, 11, 0.15)';
+  const customBorder = localStorage.getItem('cd_hostname_custom_border') || 'rgba(245, 158, 11, 0.35)';
+  const customGlow = localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.4)';
+
   const style = localStorage.getItem('cd_hostname_style')
     || App.config?.ui?.hostname_style
     || App.systemStatus?.hostname_style
@@ -1006,7 +1018,7 @@ function getHostnameBadgeSettings() {
     ? customLabel.trim()
     : (App.systemStatus?.hostname || 'localhost');
 
-  return { show, hostname, customLabel, color, style, icon, size };
+  return { show, hostname, customLabel, color, customText, customBg, customBorder, customGlow, style, icon, size };
 }
 
 function updateHostnameBadge() {
@@ -1029,6 +1041,18 @@ function updateHostnameBadge() {
   if (textEl) textEl.textContent = cfg.hostname;
   badge.style.display = 'inline-flex';
   badge.className = `header-hostname-badge color-${cfg.color} style-${cfg.style} size-${cfg.size}`;
+
+  if (cfg.color === 'custom') {
+    badge.style.setProperty('--custom-badge-color', cfg.customText);
+    badge.style.setProperty('--custom-badge-bg', cfg.customBg);
+    badge.style.setProperty('--custom-badge-border', cfg.customBorder);
+    badge.style.setProperty('--custom-badge-glow', cfg.customGlow);
+  } else {
+    badge.style.removeProperty('--custom-badge-color');
+    badge.style.removeProperty('--custom-badge-bg');
+    badge.style.removeProperty('--custom-badge-border');
+    badge.style.removeProperty('--custom-badge-glow');
+  }
 
   // Update Icon
   let iconEl = badge.querySelector('i, svg');
@@ -1058,11 +1082,26 @@ function updateHostnameBadge() {
 function updateHostnameSettingsPreview() {
   const previewBadge = document.getElementById('hostname-settings-preview-badge');
   const previewText = document.getElementById('hostname-preview-text');
+  const customColorRow = document.getElementById('hostname-custom-color-picker-row');
   if (!previewBadge) return;
 
   const cfg = getHostnameBadgeSettings();
   if (previewText) previewText.textContent = cfg.hostname;
   previewBadge.className = `header-hostname-badge color-${cfg.color} style-${cfg.style} size-${cfg.size}`;
+
+  if (cfg.color === 'custom') {
+    previewBadge.style.setProperty('--custom-badge-color', cfg.customText);
+    previewBadge.style.setProperty('--custom-badge-bg', cfg.customBg);
+    previewBadge.style.setProperty('--custom-badge-border', cfg.customBorder);
+    previewBadge.style.setProperty('--custom-badge-glow', cfg.customGlow);
+    if (customColorRow) customColorRow.style.display = 'flex';
+  } else {
+    previewBadge.style.removeProperty('--custom-badge-color');
+    previewBadge.style.removeProperty('--custom-badge-bg');
+    previewBadge.style.removeProperty('--custom-badge-border');
+    previewBadge.style.removeProperty('--custom-badge-glow');
+    if (customColorRow) customColorRow.style.display = 'none';
+  }
 
   let iconEl = previewBadge.querySelector('i, svg');
   if (cfg.icon === 'none') {
@@ -1088,6 +1127,11 @@ function handleHostnameSettingChange() {
   const iconSelect = document.getElementById('setting-hostname-icon');
   const sizeSelect = document.getElementById('setting-hostname-size');
 
+  const customTextInput = document.getElementById('setting-hostname-custom-text');
+  const customBgInput = document.getElementById('setting-hostname-custom-bg');
+  const customBorderInput = document.getElementById('setting-hostname-custom-border');
+  const customGlowInput = document.getElementById('setting-hostname-custom-glow');
+
   if (labelInput) {
     const val = labelInput.value.trim();
     if (val) localStorage.setItem('cd_custom_hostname', val);
@@ -1099,8 +1143,38 @@ function handleHostnameSettingChange() {
   if (iconSelect) localStorage.setItem('cd_hostname_icon', iconSelect.value);
   if (sizeSelect) localStorage.setItem('cd_hostname_size', sizeSelect.value);
 
+  if (customTextInput && customTextInput.value) localStorage.setItem('cd_hostname_custom_text', customTextInput.value);
+  if (customBgInput && customBgInput.value) localStorage.setItem('cd_hostname_custom_bg', customBgInput.value);
+  if (customBorderInput && customBorderInput.value) localStorage.setItem('cd_hostname_custom_border', customBorderInput.value);
+  if (customGlowInput && customGlowInput.value) localStorage.setItem('cd_hostname_custom_glow', customGlowInput.value);
+
   updateHostnameBadge();
   queueSaveUserPreferencesToServer();
+}
+
+function applyCustomBadgePreset(text, bg, border, glow) {
+  const customTextInput = document.getElementById('setting-hostname-custom-text');
+  const customBgInput = document.getElementById('setting-hostname-custom-bg');
+  const customBorderInput = document.getElementById('setting-hostname-custom-border');
+  const customGlowInput = document.getElementById('setting-hostname-custom-glow');
+
+  const textPicker = document.getElementById('setting-hostname-custom-text-picker');
+  const borderPicker = document.getElementById('setting-hostname-custom-border-picker');
+  const glowPicker = document.getElementById('setting-hostname-custom-glow-picker');
+
+  if (customTextInput) customTextInput.value = text;
+  if (customBgInput) customBgInput.value = bg;
+  if (customBorderInput) customBorderInput.value = border;
+  if (customGlowInput) customGlowInput.value = glow;
+
+  if (textPicker && text.startsWith('#')) textPicker.value = text;
+  if (borderPicker && border.startsWith('#')) borderPicker.value = border;
+  if (glowPicker && glow.startsWith('#')) glowPicker.value = glow;
+
+  const colorSelect = document.getElementById('setting-hostname-color');
+  if (colorSelect) colorSelect.value = 'custom';
+
+  handleHostnameSettingChange();
 }
 
 function copyHostnameBadge() {
@@ -1115,6 +1189,8 @@ function copyHostnameBadge() {
 
 function toggleHostnameBadgeSetting(enabled) {
   localStorage.setItem('cd_show_hostname_badge', enabled);
+  const wrapper = document.getElementById('wrapper-custom-hostname');
+  if (wrapper) wrapper.style.display = enabled ? 'flex' : 'none';
   updateHostnameBadge();
   showToast(enabled ? 'Hostname badge enabled in top header' : 'Hostname badge hidden', 'info');
 }
@@ -4949,6 +5025,7 @@ function switchSettingsTab(tabId) {
   if (tabId === 'tab-icons') renderIconSettingsTab();
   if (tabId === 'tab-templates') renderFileTemplatesList();
   if (tabId === 'tab-tools') renderToolsSettingsTab();
+  if (tabId === 'tab-about') updateAboutModalContent();
 
   if (window.lucide && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
@@ -4986,8 +5063,10 @@ function switchAdminTab(tabId) {
 }
 
 async function loadUsersTable() {
-  const tbody = document.getElementById('users-table-body');
-  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding: 16px;">Loading user database & RBAC permissions...</td></tr>';
+  const container = document.getElementById('users-cards-container') || document.getElementById('users-table-body');
+  if (!container) return;
+  container.innerHTML = '<div style="text-align:center; padding: 24px; color: var(--text-dim); display:flex; flex-direction:column; align-items:center; gap:8px;"><i data-lucide="loader-2" class="spin" style="width: 20px; height: 20px;"></i><div>Loading user database &amp; RBAC permissions...</div></div>';
+  if (window.lucide) lucide.createIcons();
 
   try {
     const [usersRes, rootsRes] = await Promise.all([
@@ -4999,7 +5078,13 @@ async function loadUsersTable() {
       const users = await usersRes.json();
       const storageRoots = rootsRes.ok ? await rootsRes.json() : [];
 
-      tbody.innerHTML = users.map(u => {
+      if (!users || users.length === 0) {
+        container.innerHTML = '<div class="settings-empty-state"><i data-lucide="users"></i><p>No user accounts found.</p></div>';
+        if (window.lucide) lucide.createIcons();
+        return;
+      }
+
+      container.innerHTML = users.map(u => {
         let allowed = [];
         try {
           allowed = typeof u.allowed_services === 'string' ? JSON.parse(u.allowed_services) : (u.allowed_services || ['*']);
@@ -5035,49 +5120,68 @@ async function loadUsersTable() {
         const isDisabled = !!u.is_disabled;
 
         return `
-          <tr class="admin-user-row">
-            <td class="admin-user-cell">
-              <div style="font-weight: 700; font-size: 13px; color: var(--text-main); display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
-                <div class="profile-avatar-thumb" style="width: 22px; height: 22px;">
-                  ${u.avatar_url && (u.avatar_url.startsWith('data:image') || u.avatar_url.startsWith('http') || u.avatar_url.startsWith('/')) ? `<img src="${escapeHtml(u.avatar_url)}" alt="Avatar">` : escapeHtml(u.avatar_url || '👤')}
+          <div class="admin-user-card" id="user-card-${safeUname}">
+            <div class="admin-user-card-header">
+              <div class="admin-user-card-title-group">
+                <div class="profile-avatar-thumb" style="width: 32px; height: 32px; font-size: 14px; border-radius: 50%;">
+                  ${u.avatar_url && (u.avatar_url.startsWith('data:image') || u.avatar_url.startsWith('http') || u.avatar_url.startsWith('/')) ? `<img src="${escapeHtml(u.avatar_url)}" alt="Avatar" style="width:100%; height:100%; border-radius:50%; object-fit:cover;">` : escapeHtml(u.avatar_url || '👤')}
                 </div>
-                <span>${safeUname}</span>
-                ${u.is_pam ? '<span class="badge" style="font-size:9px; background:rgba(56,189,248,0.2); color:var(--info); border:1px solid rgba(56,189,248,0.35);">PAM / LINUX</span>' : '<span class="badge" style="font-size:9px; background:rgba(245,158,11,0.2); color:var(--accent); border:1px solid rgba(245,158,11,0.35);">DATABASE</span>'}
+                <div>
+                  <div class="admin-user-name-row">
+                    <span class="admin-user-name">${safeUname}</span>
+                    ${u.is_pam ? '<span class="badge" style="font-size:10px; background:rgba(56,189,248,0.15); color:var(--info); border:1px solid rgba(56,189,248,0.3);">PAM / Linux</span>' : '<span class="badge" style="font-size:10px; background:rgba(245,158,11,0.15); color:var(--accent); border:1px solid rgba(245,158,11,0.3);">Database</span>'}
+                  </div>
+                  <div class="admin-user-sub">${escapeHtml(u.email || (u.nickname ? `@${u.nickname}` : 'System user account'))}</div>
+                </div>
               </div>
-              <div style="font-size: 11px; color: var(--text-dim); padding-left: 30px;">${escapeHtml(u.email || (u.nickname ? `@${u.nickname}` : 'System user account'))}</div>
-              <div style="margin-top: 6px; padding-left: 30px;">
-                <label style="display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 11px;">
-                  <input type="checkbox" id="user-disabled-${safeUname}" ${isDisabled ? 'checked' : ''} onchange="handleUserDisabledToggle('${safeUname}', this.checked)">
-                  <span id="user-disabled-badge-${safeUname}" style="font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; color: ${isDisabled ? 'var(--danger)' : 'var(--success)'}; background: ${isDisabled ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)'}; border: 1px solid ${isDisabled ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)'};">
-                    ${isDisabled ? '⛔ Account Disabled' : '🟢 Active'}
-                  </span>
+
+              <div class="admin-user-header-actions">
+                <label class="admin-user-status-chip ${isDisabled ? 'disabled' : 'active'}" id="user-status-chip-${safeUname}" style="cursor: pointer;" title="Toggle Account Active/Disabled">
+                  <input type="checkbox" id="user-disabled-${safeUname}" ${isDisabled ? 'checked' : ''} onchange="handleUserDisabledToggle('${safeUname}', this.checked)" style="display:none;">
+                  <i data-lucide="${isDisabled ? 'shield-ban' : 'shield-check'}" style="width: 13px; height: 13px;"></i>
+                  <span id="user-disabled-badge-${safeUname}">${isDisabled ? 'Disabled' : 'Active'}</span>
                 </label>
+                <button type="button" class="btn btn-accent btn-sm" style="height: 28px; padding: 0 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="saveUserRbac('${safeUname}')" title="Save RBAC & Roots">
+                  <i data-lucide="save" style="width: 12px; height: 12px;"></i> Save
+                </button>
+                <button type="button" class="btn btn-danger btn-sm" style="height: 28px; padding: 0 8px; font-size: 11px; display: inline-flex; align-items: center;" onclick="deleteUserAccount('${safeUname}')" title="Delete User Account">
+                  <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
+                </button>
               </div>
-            </td>
-            <td class="admin-user-cell">
-              <select id="user-role-${safeUname}" class="pane-quick-filter" style="padding: 6px 8px; font-size: 11px; width: 100%;">
-                <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrator (Full Access)</option>
-                <option value="user" ${u.role === 'user' ? 'selected' : ''}>Standard User (Read/Write)</option>
-                <option value="readonly" ${u.role === 'readonly' ? 'selected' : ''}>Read-Only User</option>
-              </select>
-            </td>
-            <td class="admin-user-cell">
-              <input type="text" id="user-home-${safeUname}" class="pane-quick-filter" value="${escapeHtml(u.home_dir)}" style="width: 100%; padding: 6px 8px; font-size: 11px;">
-            </td>
-            <td class="admin-user-cell">
-              <div style="margin-bottom: 8px;">
-                <div style="font-size: 10px; font-weight: 700; color: var(--accent); margin-bottom: 4px; text-transform: uppercase;">Allowed Storage Roots</div>
-                <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px; max-height: 80px; overflow-y: auto;">
-                  <label style="display: flex; align-items: center; gap: 4px; font-weight: normal; font-size: 10px; cursor: pointer; color: var(--text-main); margin-bottom: 3px;">
-                    <input type="checkbox" class="user-root-cb-${safeUname}" value="*" ${hasAllRoots ? 'checked' : ''}>
+            </div>
+
+            <div class="admin-user-card-body">
+              <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
+                <div>
+                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Account Role</label>
+                  <select id="user-role-${safeUname}" class="pane-quick-filter" style="width: 100%; height: 28px; padding: 4px 8px; font-size: 11px;">
+                    <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrator (Full Access)</option>
+                    <option value="user" ${u.role === 'user' ? 'selected' : ''}>Standard User (Read/Write)</option>
+                    <option value="readonly" ${u.role === 'readonly' ? 'selected' : ''}>Read-Only User</option>
+                  </select>
+                </div>
+                <div>
+                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Home Directory Root</label>
+                  <input type="text" id="user-home-${safeUname}" class="pane-quick-filter" value="${escapeHtml(u.home_dir || '/')}" style="width: 100%; height: 28px; padding: 4px 8px; font-size: 11px;" placeholder="/home/username">
+                </div>
+              </div>
+
+              <div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <label style="font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">Allowed Storage Roots</label>
+                  <span style="font-size: 10px; color: var(--text-dim);">Accessible storage scopes</span>
+                </div>
+                <div class="admin-roots-selector-box">
+                  <label class="admin-chip-checkbox ${hasAllRoots ? 'checked' : ''}" id="chip-root-all-${safeUname}">
+                    <input type="checkbox" class="user-root-cb-${safeUname}" value="*" ${hasAllRoots ? 'checked' : ''} onchange="toggleAllRootsCheck('${safeUname}', this.checked)">
                     <span>⭐ All Storage Roots (*)</span>
                   </label>
                   ${storageRoots.filter(r => r.id !== 'system-root').map(r => {
                     const isChecked = hasAllRoots || allowedRoots.includes(r.id) || allowedRoots.includes(r.path);
                     return `
-                      <label style="display: flex; align-items: center; gap: 4px; font-weight: normal; font-size: 10px; cursor: pointer; color: ${isChecked ? 'var(--text-main)' : 'var(--text-muted)'}; margin-bottom: 2px;">
-                        <input type="checkbox" class="user-root-cb-${safeUname}" value="${escapeHtml(r.id)}" ${isChecked ? 'checked' : ''}>
-                        <span>${escapeHtml(r.name)} ${r.read_only ? '(RO)' : ''}</span>
+                      <label class="admin-chip-checkbox ${isChecked ? 'checked' : ''}" id="chip-root-${safeUname}-${escapeHtml(r.id)}">
+                        <input type="checkbox" class="user-root-cb-${safeUname}" value="${escapeHtml(r.id)}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.classList.toggle('checked', this.checked)">
+                        <span>${escapeHtml(r.name)} ${r.read_only ? '<small style="opacity:0.7;">(RO)</small>' : ''}</span>
                       </label>
                     `;
                   }).join('')}
@@ -5085,33 +5189,24 @@ async function loadUsersTable() {
               </div>
 
               <div>
-                <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; text-transform: uppercase;">Allowed Protocol Services</div>
-                <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;">
-                  <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; font-size: 10px;">
-                    ${services.map(svc => {
-                      const isChecked = hasAll || allowed.includes(svc);
-                      return `
-                        <label style="display: flex; align-items: center; gap: 4px; font-weight: normal; cursor: pointer; color: ${isChecked ? 'var(--text-main)' : 'var(--text-muted)'};">
-                          <input type="checkbox" id="svc-${safeUname}-${svc}" ${isChecked ? 'checked' : ''}>
-                          <span>${serviceLabels[svc]}</span>
-                        </label>
-                      `;
-                    }).join('')}
-                  </div>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <label style="font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;">Allowed Protocol Services &amp; Features</label>
+                  <span style="font-size: 10px; color: var(--text-dim);">Granular RBAC</span>
+                </div>
+                <div class="admin-services-grid">
+                  ${services.map(svc => {
+                    const isChecked = hasAll || allowed.includes(svc);
+                    return `
+                      <label class="admin-service-chip" style="${isChecked ? 'border-color: rgba(245, 158, 11, 0.35); color: var(--text-main);' : ''}">
+                        <input type="checkbox" id="svc-${safeUname}-${svc}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'rgba(245, 158, 11, 0.35)' : 'var(--border)'; this.parentElement.style.color = this.checked ? 'var(--text-main)' : 'var(--text-muted)';">
+                        <span>${serviceLabels[svc]}</span>
+                      </label>
+                    `;
+                  }).join('')}
                 </div>
               </div>
-            </td>
-            <td class="admin-user-cell" style="text-align: center;">
-              <div style="display: flex; gap: 6px; justify-content: center;">
-                <button class="btn btn-accent" style="padding: 6px 10px; font-size: 11px;" onclick="saveUserRbac('${safeUname}')" title="Save RBAC Permissions">
-                  <i data-lucide="save" style="width: 12px;"></i> Save
-                </button>
-                <button class="btn btn-danger" style="padding: 6px 8px; font-size: 11px;" onclick="deleteUserAccount('${safeUname}')" title="Delete User">
-                  <i data-lucide="trash-2" style="width: 12px;"></i>
-                </button>
-              </div>
-            </td>
-          </tr>
+            </div>
+          </div>
         `;
       }).join('');
       if (window.lucide) lucide.createIcons();
@@ -5123,12 +5218,32 @@ async function loadUsersTable() {
 
 function handleUserDisabledToggle(username, isChecked) {
   const badge = document.getElementById(`user-disabled-badge-${username}`);
-  if (badge) {
-    badge.textContent = isChecked ? '⛔ Account Disabled' : '🟢 Active';
-    badge.style.color = isChecked ? 'var(--danger)' : 'var(--success)';
-    badge.style.background = isChecked ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)';
-    badge.style.borderColor = isChecked ? 'rgba(239, 68, 68, 0.35)' : 'rgba(34, 197, 94, 0.35)';
+  const chip = document.getElementById(`user-status-chip-${username}`);
+  if (chip) {
+    chip.classList.toggle('disabled', isChecked);
+    chip.classList.toggle('active', !isChecked);
+    const icon = chip.querySelector('i');
+    if (icon) {
+      icon.setAttribute('data-lucide', isChecked ? 'shield-ban' : 'shield-check');
+      if (window.lucide) lucide.createIcons();
+    }
   }
+  if (badge) {
+    badge.textContent = isChecked ? 'Disabled' : 'Active';
+  }
+}
+
+function toggleAllRootsCheck(username, checked) {
+  const chipAll = document.getElementById(`chip-root-all-${username}`);
+  if (chipAll) chipAll.classList.toggle('checked', checked);
+  const rootCheckboxes = document.querySelectorAll(`.user-root-cb-${username}`);
+  rootCheckboxes.forEach(cb => {
+    if (cb.value !== '*') {
+      cb.checked = checked;
+      const parent = cb.closest('.admin-chip-checkbox');
+      if (parent) parent.classList.toggle('checked', checked);
+    }
+  });
 }
 
 async function saveUserRbac(username) {
@@ -10091,25 +10206,52 @@ document.addEventListener('click', (e) => {
   }
 });
 
-async function openAboutModal() {
+function openAboutModal() {
   document.getElementById('profile-dropdown-menu')?.classList.remove('active');
-  const verBadge = document.getElementById('about-version-badge');
-  if (verBadge) {
-    if (App.systemStatus && App.systemStatus.version) {
-      verBadge.textContent = `v${App.systemStatus.version} (Desktop & Web)`;
-    } else {
-      try {
-        const resp = await fetch('/api/system/status');
-        if (resp.ok) {
-          App.systemStatus = await resp.json();
-          if (App.systemStatus.version) {
-            verBadge.textContent = `v${App.systemStatus.version} (Desktop & Web)`;
-          }
-        }
-      } catch (_) {}
-    }
-  }
+  document.getElementById('tools-dropdown-menu')?.classList.remove('active');
+  hideContextMenu();
+  updateAboutModalContent();
   showModal('about-modal');
+  const modalEl = document.getElementById('about-modal');
+  if (modalEl) {
+    modalEl.style.zIndex = '3500';
+    modalEl.classList.add('active');
+  }
+}
+window.openAbout = openAboutModal;
+window.showAbout = openAboutModal;
+window.openAboutModal = openAboutModal;
+
+function updateAboutModalContent() {
+  const ver = App.version || (App.systemStatus && App.systemStatus.version) || '0.8.3';
+  document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(b => {
+    b.textContent = `v${ver} (Desktop & Web)`;
+  });
+
+  if (!App.systemStatus) {
+    fetch('/api/system/status')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => {
+        if (data) {
+          App.systemStatus = data;
+          if (data.version) applyAppVersion(data.version);
+          updateAboutSystemDetails(data);
+        }
+      })
+      .catch(() => {});
+  } else {
+    updateAboutSystemDetails(App.systemStatus);
+  }
+}
+
+function updateAboutSystemDetails(status) {
+  if (!status) return;
+  document.querySelectorAll('#about-sys-os, .about-sys-os').forEach(el => {
+    el.textContent = `${status.os || 'Linux'} (${status.hostname || 'localhost'})`;
+  });
+  document.querySelectorAll('#about-sys-mode, .about-sys-mode').forEach(el => {
+    el.textContent = status.standalone ? 'Desktop Standalone (Native / Hyprland)' : (status.auth_enabled ? 'Multi-User Server (PAM + SQLite)' : 'Standalone Web Mode');
+  });
 }
 
 function openUserProfileModal() {
@@ -13042,6 +13184,11 @@ function openSettingsModal() {
     };
   }
 
+  const fkeysCheckbox = document.getElementById('setting-show-fkeys');
+  if (fkeysCheckbox) {
+    fkeysCheckbox.checked = App.showFKeyBar !== false && localStorage.getItem('cd_show_fkeys') !== 'false';
+  }
+
   const dotfilesCheckbox = document.getElementById('setting-show-hidden');
   if (dotfilesCheckbox) {
     dotfilesCheckbox.checked = App.panes[0]?.showHidden || false;
@@ -13105,9 +13252,12 @@ function openSettingsModal() {
   const hostnameBadgeCheckbox = document.getElementById('setting-show-hostname-badge');
   if (hostnameBadgeCheckbox) {
     const saved = localStorage.getItem('cd_show_hostname_badge');
-    hostnameBadgeCheckbox.checked = saved !== null 
+    const isShown = saved !== null 
       ? (saved === 'true') 
       : (App.systemStatus?.show_hostname_badge !== false && App.config?.ui?.show_hostname_badge !== false);
+    hostnameBadgeCheckbox.checked = isShown;
+    const wrapper = document.getElementById('wrapper-custom-hostname');
+    if (wrapper) wrapper.style.display = isShown ? 'flex' : 'none';
   }
 
   const cfg = getHostnameBadgeSettings();
@@ -13121,6 +13271,23 @@ function openSettingsModal() {
   if (iconSelect) iconSelect.value = cfg.icon;
   const sizeSelect = document.getElementById('setting-hostname-size');
   if (sizeSelect) sizeSelect.value = cfg.size;
+
+  const customTextInput = document.getElementById('setting-hostname-custom-text');
+  if (customTextInput) customTextInput.value = cfg.customText;
+  const customBgInput = document.getElementById('setting-hostname-custom-bg');
+  if (customBgInput) customBgInput.value = cfg.customBg;
+  const customBorderInput = document.getElementById('setting-hostname-custom-border');
+  if (customBorderInput) customBorderInput.value = cfg.customBorder;
+  const customGlowInput = document.getElementById('setting-hostname-custom-glow');
+  if (customGlowInput) customGlowInput.value = cfg.customGlow;
+
+  const textPicker = document.getElementById('setting-hostname-custom-text-picker');
+  if (textPicker && cfg.customText?.startsWith('#')) textPicker.value = cfg.customText;
+  const borderPicker = document.getElementById('setting-hostname-custom-border-picker');
+  if (borderPicker && cfg.customBorder?.startsWith('#')) borderPicker.value = cfg.customBorder;
+  const glowPicker = document.getElementById('setting-hostname-custom-glow-picker');
+  if (glowPicker && cfg.customGlow?.startsWith('#')) glowPicker.value = cfg.customGlow;
+
   updateHostnameSettingsPreview();
 
   const notedogFolderInput = document.getElementById('setting-notedog-folder');
@@ -15398,10 +15565,11 @@ function escapeHtml(str) {
 }
 
 function toggleFKeyBar(show) {
-  App.showFKeyBar = show;
-  localStorage.setItem('cd_show_fkeys', show);
+  App.showFKeyBar = !!show;
+  localStorage.setItem('cd_show_fkeys', show ? 'true' : 'false');
   applyFKeyBarState();
   queueSaveUserPreferencesToServer();
+  showToast(show ? 'Bottom function key bar enabled' : 'Bottom function key bar hidden', 'info');
 }
 
 function toggleWindowDecorations(show) {
@@ -15413,13 +15581,20 @@ function toggleWindowDecorations(show) {
 }
 
 function applyFKeyBarState() {
+  const isEnabled = App.showFKeyBar !== false && localStorage.getItem('cd_show_fkeys') !== 'false';
+  App.showFKeyBar = isEnabled;
   const bar = document.querySelector('.bottom-fkey-bar');
   if (bar) {
-    if (App.showFKeyBar) bar.classList.remove('fkey-hidden');
-    else bar.classList.add('fkey-hidden');
+    if (isEnabled) {
+      bar.classList.remove('fkey-hidden');
+      document.documentElement.classList.remove('fkeys-disabled');
+    } else {
+      bar.classList.add('fkey-hidden');
+      document.documentElement.classList.add('fkeys-disabled');
+    }
   }
   const checkbox = document.getElementById('setting-show-fkeys');
-  if (checkbox) checkbox.checked = App.showFKeyBar;
+  if (checkbox) checkbox.checked = isEnabled;
 }
 
 function handleFontSizeChange(val) {
