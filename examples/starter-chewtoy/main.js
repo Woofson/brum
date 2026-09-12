@@ -1,4 +1,4 @@
-// 🐶 Starter ChewToy Client Logic & Host Bridge Integration
+// 🐶 Starter Chewtoy Client Logic & Host Bridge Integration
 
 /**
  * Universal window.Brum Host Bridge Client
@@ -93,7 +93,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (sdkStatus) sdkStatus.textContent = "● Connected to window.Brum";
 
     Brum.onReady((context) => {
-      currentContext = Object.assign(currentContext, context);
+      currentContext = Object.assign(currentContext, context || {});
       if (contextDisplay) {
         contextDisplay.textContent = JSON.stringify(currentContext, null, 2);
       }
@@ -101,7 +101,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 1. Toast Ping
     btnPing?.addEventListener("click", () => {
-      Brum.ui.notify("Hello from Starter ChewToy!", { type: "info" });
+      Brum.ui.notify("Hello from Starter Chewtoy!", { type: "info" });
     });
 
     // 2. Dock Actions
@@ -114,9 +114,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 3. List Active Directory
     btnListDir?.addEventListener("click", async () => {
-      const targetPath = currentContext.activePath || "/";
+      const targetPath = (currentContext.activePath && currentContext.activePath !== '/') ? currentContext.activePath : (Brum.fs.getActivePath() || '/');
       if (outputTitle) outputTitle.textContent = `📂 Directory Listing: ${targetPath}`;
-      if (outputDisplay) outputDisplay.textContent = "Querying directory listing from host...";
+      if (outputDisplay) outputDisplay.textContent = `Querying directory listing from ${targetPath}...`;
       try {
         const listing = await Brum.fs.listDir(targetPath);
         const entries = (listing.entries || listing || []).map(e => {
@@ -125,7 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return `${type}  ${e.name}${size}`;
         });
         if (outputDisplay) {
-          outputDisplay.textContent = `Total Entries: ${entries.length}\nPath: ${targetPath}\n\n` + entries.join("\n");
+          outputDisplay.textContent = `Total Entries: ${entries.length}\nPath: ${targetPath}\n\n` + (entries.length > 0 ? entries.join("\n") : "(Directory is empty)");
         }
         Brum.ui.notify(`Listed ${entries.length} items in ${targetPath}`, { type: "success" });
       } catch (err) {
@@ -137,9 +137,9 @@ document.addEventListener("DOMContentLoaded", () => {
     // 4. Read Selected File
     btnReadFile?.addEventListener("click", async () => {
       let targetFile = currentContext.selectedFiles?.[0];
+      const baseDir = (currentContext.activePath || "/").replace(/\/+$/, "");
       if (!targetFile) {
-        // Fallback: prompt or try reading a common file
-        targetFile = prompt("No file selected in active pane. Enter path to read:", `${currentContext.activePath}/Cargo.toml`);
+        targetFile = prompt("No file selected in active pane. Enter path to read:", `${baseDir}/Cargo.toml`);
       }
       if (!targetFile) return;
 
@@ -161,9 +161,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // 5. Write Test Note
     btnWriteFile?.addEventListener("click", async () => {
-      const folder = currentContext.activePath || "/tmp";
-      const targetPath = `${folder.replace(/\/$/, "")}/chewtoy-note.txt`;
-      const noteContent = `🐶 ChewToy Note\nGenerated at: ${new Date().toISOString()}\nHost Theme: ${currentContext.theme}\nActive Path: ${currentContext.activePath}\n`;
+      const folder = (currentContext.activePath || "/tmp").replace(/\/+$/, "") || "/tmp";
+      const targetPath = `${folder}/chewtoy-note.txt`;
+      const noteContent = `🐶 Chewtoy Note\nGenerated at: ${new Date().toISOString()}\nHost Theme: ${currentContext.theme}\nActive Path: ${currentContext.activePath}\n`;
 
       if (outputTitle) outputTitle.textContent = `✍️ Write Output: ${targetPath}`;
       if (outputDisplay) outputDisplay.textContent = `Writing test file to ${targetPath}...`;
@@ -183,7 +183,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // 6. Confirm Dialog
     btnConfirm?.addEventListener("click", async () => {
       try {
-        const res = await Brum.ui.showConfirm("Starter ChewToy", "Do you like the new .grr ChewToy extension system?");
+        const res = await Brum.ui.showConfirm("Starter Chewtoy", "Do you like the new .grr Chewtoy extension system?");
         if (outputTitle) outputTitle.textContent = "❓ Confirmation Dialog Result";
         if (outputDisplay) outputDisplay.textContent = `User confirmation response: ${res ? "Confirmed (OK)" : "Cancelled"}`;
         Brum.ui.notify(`Confirmation answer: ${res}`, { type: res ? "success" : "info" });

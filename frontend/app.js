@@ -16398,6 +16398,7 @@ function showModal(id) {
       randomizeLoginBackground();
     }
     el.classList.add('active');
+    el.style.display = 'flex';
     try {
       if (window.lucide && typeof lucide.createIcons === 'function') {
         lucide.createIcons({ root: el });
@@ -16415,12 +16416,22 @@ function showModal(id) {
 const openModal = showModal;
 
 function hideModal(id) {
-  document.getElementById(id)?.classList.remove('active');
+  const el = document.getElementById(id);
+  if (el) {
+    el.classList.remove('active');
+    el.style.display = 'none';
+  }
 }
 
 function closeModal(id) {
-  if (id) hideModal(id);
-  else document.querySelectorAll('.modal-overlay').forEach(m => m.classList.remove('active'));
+  if (id) {
+    hideModal(id);
+  } else {
+    document.querySelectorAll('.modal-overlay').forEach(m => {
+      m.classList.remove('active');
+      m.style.display = 'none';
+    });
+  }
 }
 
 // ---------------- UNIVERSAL CUSTOM DIALOG & TOAST SYSTEM ----------------
@@ -31176,10 +31187,11 @@ window.Brum = {
   fs: {
     readFile: async function(path, opts = {}) {
       const targetPath = typeof path === 'object' ? (path.path || path.name) : path;
+      const token = App.token || localStorage.getItem('cd_token') || '';
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const url = `/api/fs/read?path=${encodeURIComponent(targetPath)}${opts.maxBytes ? `&max_bytes=${opts.maxBytes}` : ''}`;
-      const resp = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
-      });
+      const resp = await fetch(url, { headers });
       if (!resp.ok) throw new Error(await resp.text());
       const data = await resp.json();
       return (data && data.content !== undefined) ? data.content : data;
@@ -31187,12 +31199,12 @@ window.Brum = {
 
     writeFile: async function(path, content) {
       const targetPath = typeof path === 'object' ? (path.path || path.name) : path;
+      const token = App.token || localStorage.getItem('cd_token') || '';
+      const headers = { 'Content-Type': 'application/json' };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
       const resp = await fetch('/api/fs/write', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${App.token}`
-        },
+        headers,
         body: JSON.stringify({
           path: targetPath,
           content: typeof content === 'string' ? content : String(content)
@@ -31203,26 +31215,22 @@ window.Brum = {
     },
 
     listDir: async function(path) {
-      const targetPath = path || (App.panes[App.activePaneIndex]?.currentPath || '/');
-      const resp = await fetch(`/api/fs/list?path=${encodeURIComponent(targetPath)}`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
-      });
+      const targetPath = path || (App.panes[App.activePaneIndex]?.path || App.panes[0]?.path || '/');
+      const token = App.token || localStorage.getItem('cd_token') || '';
+      const headers = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const resp = await fetch(`/api/fs/list?path=${encodeURIComponent(targetPath)}`, { headers });
       if (!resp.ok) throw new Error(await resp.text());
       return await resp.json();
     },
 
     getActivePath: function() {
-      const pane = App.panes[App.activePaneIndex];
-      return pane ? pane.currentPath : '/';
+      const pane = App.panes[App.activePaneIndex] || App.panes[0];
+      return pane ? pane.path : '/';
     },
 
     getSelectedFiles: function() {
-      const pane = App.panes[App.activePaneIndex];
-      if (!pane) return [];
-      return (pane.selectedIndices || []).map(idx => {
-        const item = pane.items[idx];
-        return item ? (item.path || item.name) : null;
-      }).filter(Boolean);
+      return getSelectedOrCursorPaths();
     }
   },
 
@@ -31360,7 +31368,7 @@ async function loadInstalledChewToys(forceRefresh = false) {
 }
 
 /**
- * Render installed ChewToys grid cards
+ * Render installed Chewtoys grid cards
  */
 function renderInstalledChewToys(plugins) {
   const container = document.getElementById('chewtoys-installed-grid');
@@ -31370,8 +31378,8 @@ function renderInstalledChewToys(plugins) {
     container.innerHTML = `
       <div style="grid-column: 1 / -1; padding: 36px 20px; text-align: center; color: var(--text-dim); background: var(--bg-dark); border: 1px dashed var(--border); border-radius: var(--radius);">
         <i data-lucide="puzzle" style="width: 32px; height: 32px; margin-bottom: 8px; color: var(--accent); opacity: 0.8;"></i>
-        <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">No ChewToys Installed</div>
-        <div style="font-size: 11.5px; opacity: 0.7; margin-top: 4px;">Drag and drop a <code>.grr</code> package above or click Install to add modular ChewToys.</div>
+        <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">No Chewtoys Installed</div>
+        <div style="font-size: 11.5px; opacity: 0.7; margin-top: 4px;">Drag and drop a <code>.grr</code> package above or click Install to add modular Chewtoys.</div>
       </div>
     `;
     if (window.lucide) lucide.createIcons();
@@ -31380,7 +31388,7 @@ function renderInstalledChewToys(plugins) {
 
   container.innerHTML = plugins.map(p => {
     const iconUrl = p.icon ? `/api/plugins/${encodeURIComponent(p.id)}/assets/${p.icon}` : 'assets/amber-frameless-apps.webp';
-    const isEnabled = !!p.enabled;
+    const isEnabled = p.is_enabled !== undefined ? !!p.is_enabled : (p.enabled !== undefined ? !!p.enabled : true);
     const permissions = Array.isArray(p.permissions) ? p.permissions : [];
 
     return `
@@ -31401,7 +31409,7 @@ function renderInstalledChewToys(plugins) {
           </div>
 
           <div class="chewtoy-card-desc">
-            ${escapeHtml(p.description || 'Modular ChewToy extension package.')}
+            ${escapeHtml(p.description || 'Modular Chewtoy extension package.')}
           </div>
 
           ${permissions.length > 0 ? `
@@ -31413,10 +31421,10 @@ function renderInstalledChewToys(plugins) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; margin-top: 4px;">
           <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="btn btn-xs btn-accent" onclick="openDynamicChewToy('${escapeHtml(p.id)}')" ${!isEnabled ? 'disabled style="opacity:0.5;"' : ''} style="display: inline-flex; align-items: center; gap: 4px;">
+            <button class="btn btn-xs btn-accent" onclick="openDynamicChewToy('${escapeHtml(p.id)}')" ${!isEnabled ? 'disabled style="opacity:0.5;"' : ''} style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
               <i data-lucide="play" style="width: 11px; height: 11px;"></i> Launch
             </button>
-            <button class="btn btn-xs btn-icon btn-danger" onclick="uninstallChewToy('${escapeHtml(p.id)}')" title="Uninstall ChewToy" style="width: 24px; height: 24px;">
+            <button class="btn btn-xs btn-icon btn-danger" onclick="uninstallChewToy('${escapeHtml(p.id)}')" title="Uninstall Chewtoy" style="width: 24px; height: 24px;">
               <i data-lucide="trash-2" style="width: 11px; height: 11px;"></i>
             </button>
           </div>
@@ -31596,13 +31604,13 @@ async function uninstallChewToy(id) {
 }
 
 /**
- * Open Floating Dynamic ChewToy Modal
+ * Open Floating Dynamic Chewtoy Window
  */
 function openDynamicChewToy(pluginId, context = null) {
   window.activeDynamicChewToyId = pluginId;
   const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, name: pluginId, version: '1.0.0', entry_point: 'index.html' };
 
-  // Close other blocking modals & menus
+  // Close blocking modals & menus
   if (typeof closeModal === 'function') {
     closeModal('settings-modal');
   }
@@ -31619,8 +31627,7 @@ function openDynamicChewToy(pluginId, context = null) {
   const iconEl = document.getElementById('dynamic-chewtoy-icon');
   const verEl = document.getElementById('dynamic-chewtoy-version');
   const frame = document.getElementById('dynamic-chewtoy-frame');
-  const modal = document.getElementById('dynamic-chewtoy-window');
-  const box = document.getElementById('dynamic-chewtoy-box');
+  const win = document.getElementById('dynamic-chewtoy-window');
 
   if (titleEl) titleEl.textContent = plugin.name || pluginId;
   if (iconEl) {
@@ -31629,12 +31636,10 @@ function openDynamicChewToy(pluginId, context = null) {
   }
   if (verEl) verEl.textContent = `v${plugin.version || '1.0.0'}`;
 
+  const activePanePath = App.panes[App.activePaneIndex]?.path || App.panes[0]?.path || '/';
   const hostContext = {
-    activePath: App.panes[App.activePaneIndex]?.currentPath || '/',
-    selectedFiles: (App.panes[App.activePaneIndex]?.selectedIndices || []).map(i => {
-      const item = App.panes[App.activePaneIndex]?.items[i];
-      return item ? (item.path || item.name) : null;
-    }).filter(Boolean),
+    activePath: activePanePath,
+    selectedFiles: getSelectedOrCursorPaths(),
     paneIndex: App.activePaneIndex,
     theme: App.theme || 'amber-charcoal',
     pluginId: pluginId,
@@ -31661,14 +31666,10 @@ function openDynamicChewToy(pluginId, context = null) {
     };
   }
 
-  if (modal) {
-    modal.classList.add('active');
-    modal.style.display = 'flex';
-    modal.style.zIndex = '2900';
-    if (box) {
-      box.style.zIndex = '2901';
-      bringFloatingWindowToFront(box);
-    }
+  if (win) {
+    win.classList.add('active');
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
   }
 
   initDynamicChewToyDrag();
@@ -31676,13 +31677,13 @@ function openDynamicChewToy(pluginId, context = null) {
 }
 
 /**
- * Close Floating Dynamic ChewToy Modal
+ * Close Floating Dynamic Chewtoy Window
  */
 function closeDynamicChewToy() {
-  const modal = document.getElementById('dynamic-chewtoy-window');
-  if (modal) {
-    modal.classList.remove('active');
-    modal.style.display = 'none';
+  const win = document.getElementById('dynamic-chewtoy-window');
+  if (win) {
+    win.classList.remove('active');
+    win.style.display = 'none';
   }
   const frame = document.getElementById('dynamic-chewtoy-frame');
   if (frame) {
@@ -31692,33 +31693,16 @@ function closeDynamicChewToy() {
 }
 
 /**
- * Maximize / Restore Dynamic ChewToy Window
+ * Maximize / Restore Dynamic Chewtoy Window
  */
 function toggleMaximizeDynamicChewToy() {
-  const box = document.getElementById('dynamic-chewtoy-box');
-  if (!box) return;
-  box.classList.toggle('maximized');
-  if (box.classList.contains('maximized')) {
-    box.dataset.origWidth = box.style.width;
-    box.dataset.origHeight = box.style.height;
-    box.dataset.origLeft = box.style.left;
-    box.dataset.origTop = box.style.top;
-    box.style.width = '100vw';
-    box.style.height = '100vh';
-    box.style.top = '0px';
-    box.style.left = '0px';
-    box.style.borderRadius = '0';
-  } else {
-    box.style.width = box.dataset.origWidth || '860px';
-    box.style.height = box.dataset.origHeight || '580px';
-    box.style.left = box.dataset.origLeft || '';
-    box.style.top = box.dataset.origTop || '';
-    box.style.borderRadius = 'var(--radius, 6px)';
-  }
+  const win = document.getElementById('dynamic-chewtoy-window');
+  if (!win) return;
+  win.classList.toggle('maximized');
 }
 
 /**
- * Dock currently open dynamic ChewToy into Pane 1 or 2
+ * Dock currently open dynamic Chewtoy into Pane 1 or 2
  */
 function dockActiveDynamicChewToy(paneNumber) {
   if (!window.activeDynamicChewToyId) return;
@@ -31729,15 +31713,15 @@ function dockActiveDynamicChewToy(paneNumber) {
 }
 
 /**
- * Initialize Draggable Header for Dynamic ChewToy Window
+ * Initialize Draggable Header for Dynamic Chewtoy Window
  */
 function initDynamicChewToyDrag() {
   if (dynamicChewToyDragInit) return;
   dynamicChewToyDragInit = true;
 
-  const box = document.getElementById('dynamic-chewtoy-box');
+  const win = document.getElementById('dynamic-chewtoy-window');
   const header = document.getElementById('dynamic-chewtoy-header');
-  if (!box || !header) return;
+  if (!win || !header) return;
 
   let isDragging = false;
   let dragStartX = 0, dragStartY = 0;
@@ -31745,12 +31729,12 @@ function initDynamicChewToyDrag() {
 
   header.addEventListener('mousedown', (e) => {
     if (window.innerWidth <= 1024) return;
-    if (e.target.closest('button') || e.target.closest('input') || box.classList.contains('maximized')) return;
+    if (e.target.closest('button') || e.target.closest('input') || win.classList.contains('maximized')) return;
     isDragging = true;
-    bringFloatingWindowToFront(box);
+    bringFloatingWindowToFront(win);
     dragStartX = e.clientX;
     dragStartY = e.clientY;
-    const rect = box.getBoundingClientRect();
+    const rect = win.getBoundingClientRect();
     winStartX = rect.left;
     winStartY = rect.top;
     document.body.style.userSelect = 'none';
@@ -31761,12 +31745,21 @@ function initDynamicChewToyDrag() {
     if (!isDragging) return;
     const dx = e.clientX - dragStartX;
     const dy = e.clientY - dragStartY;
-    const newLeft = Math.max(0, Math.min(window.innerWidth - box.offsetWidth, winStartX + dx));
-    const newTop = Math.max(0, Math.min(window.innerHeight - box.offsetHeight, winStartY + dy));
-    box.style.position = 'fixed';
-    box.style.left = `${newLeft}px`;
-    box.style.top = `${newTop}px`;
+    const newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, winStartX + dx));
+    const newTop = Math.max(0, Math.min(window.innerHeight - win.offsetHeight, winStartY + dy));
+    win.style.position = 'fixed';
+    win.style.left = `${newLeft}px`;
+    win.style.top = `${newTop}px`;
   });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      header.style.cursor = 'grab';
+    }
+  });
+}
 
   window.addEventListener('mouseup', () => {
     if (isDragging) {
