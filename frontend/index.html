@@ -3822,6 +3822,13 @@
           </select>
         </div>
 
+        <!-- Output Filename & Destination Preview -->
+        <div class="form-group" style="margin-top: 10px;">
+          <label for="convert-output-filename">Output Filename:</label>
+          <input type="text" id="convert-output-filename" class="pane-quick-filter" placeholder="e.g. video_converted.mp4" style="width: 100%; padding: 8px; font-family: var(--font-mono); font-size: 11px;" oninput="handleConvertOutputNameInput()">
+          <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px; font-family: var(--font-mono); word-break: break-all;" id="convert-output-preview-path">Destination: ...</div>
+        </div>
+
         <!-- Image Options -->
         <div id="convert-image-options">
           <div class="form-group">

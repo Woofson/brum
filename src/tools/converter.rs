@@ -48,13 +48,29 @@ impl ConvertEngine {
         let ext = src.extension().and_then(|e| e.to_str()).unwrap_or("").to_lowercase();
         let target_fmt = req.target_format.to_lowercase().trim_start_matches('.').to_string();
 
-        let out_path = if let Some(ref o) = req.output_path {
-            PathBuf::from(o)
+        let mut out_path = if let Some(ref o) = req.output_path {
+            let trimmed = o.trim();
+            if !trimmed.is_empty() {
+                PathBuf::from(trimmed)
+            } else {
+                let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("converted");
+                let parent = src.parent().unwrap_or_else(|| Path::new("."));
+                let suffix = if ext == target_fmt { "_converted" } else { "" };
+                parent.join(format!("{}{}.{}", stem, suffix, target_fmt))
+            }
         } else {
             let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("converted");
             let parent = src.parent().unwrap_or_else(|| Path::new("."));
-            parent.join(format!("{}.{}", stem, target_fmt))
+            let suffix = if ext == target_fmt { "_converted" } else { "" };
+            parent.join(format!("{}{}.{}", stem, suffix, target_fmt))
         };
+
+        // Safety guarantee: If out_path equals src, append _converted to prevent overwriting source in-place
+        if out_path == src {
+            let stem = src.file_stem().and_then(|s| s.to_str()).unwrap_or("converted");
+            let parent = src.parent().unwrap_or_else(|| Path::new("."));
+            out_path = parent.join(format!("{}_converted.{}", stem, target_fmt));
+        }
 
         // Determine conversion type
         let is_image_target = matches!(target_fmt.as_str(), "png" | "jpg" | "jpeg" | "webp" | "avif" | "gif" | "bmp" | "ico" | "tiff");

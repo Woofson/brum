@@ -10499,6 +10499,7 @@ async function openFileDiffView(fileL, fileR) {
 
 let activeConverterFile = '';
 let activeConverterPaneIndex = null;
+let activeConverterCustomName = false;
 
 function triggerConvertFile() {
   const pane = App.panes[App.activePaneIndex];
@@ -10513,6 +10514,7 @@ function triggerConvertFile() {
 function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   activeConverterPaneIndex = resolvedPaneIdx;
+  activeConverterCustomName = false;
   const pane = App.panes[resolvedPaneIdx];
   if (!filePath && pane && pane.entries && pane.entries[pane.cursorIndex]) {
     filePath = pane.entries[pane.cursorIndex].path;
@@ -10545,6 +10547,8 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
     handleTargetFormatChange(targetFormatEl.value);
   }
 
+  updateConvertOutputName(true);
+
   const cancelBtn = document.getElementById('btn-convert-cancel');
   const convertBtn = document.getElementById('btn-run-convert');
   const okBtn = document.getElementById('btn-convert-ok');
@@ -10562,10 +10566,40 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   showModal('converter-modal');
 }
 
+function updateConvertOutputName(forceReset = false) {
+  if (!activeConverterFile) return;
+  const fileName = activeConverterFile.split('/').pop() || '';
+  const lastDot = fileName.lastIndexOf('.');
+  const stem = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
+  const srcExt = lastDot !== -1 ? fileName.substring(lastDot + 1).toLowerCase() : '';
+  const targetFmt = (document.getElementById('convert-target-format')?.value || 'webp').toLowerCase().trim();
+
+  const outInput = document.getElementById('convert-output-filename');
+  const previewEl = document.getElementById('convert-output-preview-path');
+
+  if (forceReset || !activeConverterCustomName) {
+    const isSameFormat = srcExt === targetFmt;
+    const defaultName = isSameFormat ? `${stem}_converted.${targetFmt}` : `${stem}.${targetFmt}`;
+    if (outInput) outInput.value = defaultName;
+  }
+
+  const currentOutName = outInput ? outInput.value.trim() : `${stem}.${targetFmt}`;
+  const parentDir = activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'));
+  if (previewEl) {
+    previewEl.textContent = parentDir ? `Destination: ${parentDir}/${currentOutName}` : `Destination: ${currentOutName}`;
+  }
+}
+
+function handleConvertOutputNameInput() {
+  activeConverterCustomName = true;
+  updateConvertOutputName(false);
+}
+
 function handleTargetFormatChange(fmt) {
   const isImage = ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif', 'bmp', 'ico'].includes(fmt.toLowerCase());
   const imgOpts = document.getElementById('convert-image-options');
   if (imgOpts) imgOpts.style.display = isImage ? 'block' : 'none';
+  updateConvertOutputName(false);
 }
 
 async function executeFileConversion() {
@@ -10578,6 +10612,13 @@ async function executeFileConversion() {
   const quality = parseInt(document.getElementById('convert-quality-slider')?.value || '85', 10);
   const resizeW = parseInt(document.getElementById('convert-resize-w')?.value, 10) || null;
   const resizeH = parseInt(document.getElementById('convert-resize-h')?.value, 10) || null;
+
+  const customOutName = document.getElementById('convert-output-filename')?.value.trim();
+  let resolvedOutputPath = null;
+  if (customOutName) {
+    const parentDir = activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'));
+    resolvedOutputPath = parentDir ? `${parentDir}/${customOutName}` : customOutName;
+  }
 
   const statusMsg = document.getElementById('convert-status-msg');
   const cancelBtn = document.getElementById('btn-convert-cancel');
@@ -10606,6 +10647,7 @@ async function executeFileConversion() {
       body: JSON.stringify({
         source_path: activeConverterFile,
         target_format: targetFormat,
+        output_path: resolvedOutputPath,
         quality: quality,
         resize_width: resizeW,
         resize_height: resizeH
