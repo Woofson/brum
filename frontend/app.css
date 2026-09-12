@@ -14627,8 +14627,8 @@ body.standalone-mode .server-only-setting {
   height: min(600px, calc(100vh - 80px));
   max-width: 100vw;
   max-height: 100vh;
-  min-width: 420px;
-  min-height: 280px;
+  min-width: 300px;
+  min-height: 240px;
   background: var(--bg-panel, #1e1e24);
   border: 1px solid var(--border, #2e2e3a);
   border-radius: var(--radius-lg, 8px);

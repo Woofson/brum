@@ -688,6 +688,9 @@ pub struct PluginsConfig {
 fn default_plugins_system_dir() -> String {
     #[cfg(windows)]
     {
+        if std::path::Path::new("plugins").exists() {
+            return "plugins".to_string();
+        }
         if let Ok(app_data) = std::env::var("PROGRAMDATA") {
             return format!("{}\\Brum\\plugins", app_data);
         }
@@ -695,6 +698,12 @@ fn default_plugins_system_dir() -> String {
     }
     #[cfg(not(windows))]
     {
+        if std::path::Path::new("plugins").exists() {
+            return "plugins".to_string();
+        }
+        if std::path::Path::new("/usr/share/brum/plugins").exists() {
+            return "/usr/share/brum/plugins".to_string();
+        }
         "/etc/brum/plugins".to_string()
     }
 }

@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="calc-container">
+    <!-- Top Display Panel -->
+    <div class="calc-display-panel">
+      <div class="calc-expression-line" id="calc-expr-display">&nbsp;</div>
+      <div class="calc-result-row">
+        <input type="text" class="calc-result-input" id="calc-display-input" value="0" autocomplete="off" spellcheck="false" readonly />
+        <button class="btn btn-icon calc-copy-btn" id="btn-copy" title="Copy Result to Clipboard">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
+            <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Live Base & Byte Converter Bar -->
+    <div class="calc-converters-bar" id="calc-converters-bar">
+      <div class="calc-conv-item" title="Human-readable File Size"><span class="calc-conv-lbl">SIZE:</span> <span class="calc-conv-val" id="calc-conv-size">0 B</span></div>
+      <div class="calc-conv-item" title="Hexadecimal"><span class="calc-conv-lbl">HEX:</span> <span class="calc-conv-val" id="calc-conv-hex">0x0</span></div>
+      <div class="calc-conv-item" title="Octal (chmod mode)"><span class="calc-conv-lbl">OCT:</span> <span class="calc-conv-val" id="calc-conv-oct">0</span></div>
+      <div class="calc-conv-item" title="Binary"><span class="calc-conv-lbl">BIN:</span> <span class="calc-conv-val" id="calc-conv-bin">0b0</span></div>
+    </div>
+
+    <!-- Storage Units & Function Row -->
+    <div class="calc-units-row">
+      <button class="btn calc-unit-btn" data-unit="KB" title="Multiply by 1024 (KB)">KB</button>
+      <button class="btn calc-unit-btn" data-unit="MB" title="Multiply by 1024² (MB)">MB</button>
+      <button class="btn calc-unit-btn" data-unit="GB" title="Multiply by 1024³ (GB)">GB</button>
+      <button class="btn calc-unit-btn" data-unit="TB" title="Multiply by 1024⁴ (TB)">TB</button>
+      <button class="btn calc-unit-btn" data-func="sqrt(" title="Square Root">√</button>
+      <button class="btn calc-unit-btn" data-op="^" title="Exponent / Power">xʸ</button>
+    </div>
+
+    <!-- Keypad Grid -->
+    <div class="calc-keypad-grid">
+      <button class="btn calc-btn calc-btn-fn" id="btn-clear-all" title="Clear All (Escape)">C</button>
+      <button class="btn calc-btn calc-btn-fn" id="btn-clear-entry" title="Clear Entry">CE</button>
+      <button class="btn calc-btn calc-btn-fn" id="btn-backspace" title="Backspace">⌫</button>
+      <button class="btn calc-btn calc-btn-op" data-op="/">÷</button>
+
+      <button class="btn calc-btn calc-btn-fn" data-char="(">(</button>
+      <button class="btn calc-btn calc-btn-fn" data-char=")">)</button>
+      <button class="btn calc-btn calc-btn-fn" data-op="%">%</button>
+      <button class="btn calc-btn calc-btn-op" data-op="*">×</button>
+
+      <button class="btn calc-btn calc-btn-num" data-num="7">7</button>
+      <button class="btn calc-btn calc-btn-num" data-num="8">8</button>
+      <button class="btn calc-btn calc-btn-num" data-num="9">9</button>
+      <button class="btn calc-btn calc-btn-op" data-op="-">−</button>
+
+      <button class="btn calc-btn calc-btn-num" data-num="4">4</button>
+      <button class="btn calc-btn calc-btn-num" data-num="5">5</button>
+      <button class="btn calc-btn calc-btn-num" data-num="6">6</button>
+      <button class="btn calc-btn calc-btn-op" data-op="+">+</button>
+
+      <button class="btn calc-btn calc-btn-num" data-num="1">1</button>
+      <button class="btn calc-btn calc-btn-num" data-num="2">2</button>
+      <button class="btn calc-btn calc-btn-num" data-num="3">3</button>
+      <button class="btn calc-btn calc-btn-equals" id="btn-equals" title="Calculate (Enter)">=</button>
+
+      <button class="btn calc-btn calc-btn-fn" id="btn-toggle-sign">±</button>
+      <button class="btn calc-btn calc-btn-num" data-num="0">0</button>
+      <button class="btn calc-btn calc-btn-num" id="btn-dot">.</button>
+      <button class="btn calc-btn calc-btn-fn" id="btn-pi" title="Pi (3.14159...)">π</button>
+    </div>
+
+    <!-- History Drawer Toggle & Drawer -->
+    <div class="calc-history-bar">
+      <button class="btn btn-history-toggle" id="btn-history-toggle">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+        <span>History</span>
+      </button>
+      <span class="calc-keyboard-hint">Keyboard active</span>
+    </div>
+
+    <div class="calc-history-drawer" id="calc-history-drawer" style="display: none;">
+      <div class="calc-history-header">
+        <span>History Tape</span>
+        <button class="btn btn-xs" id="btn-clear-history">Clear</button>
+      </div>
+      <div class="calc-history-list" id="calc-history-list">
+        <div class="calc-history-empty">No calculations yet</div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

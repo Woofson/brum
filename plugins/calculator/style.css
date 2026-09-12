@@ -1,0 +1,331 @@
+:root {
+  --bg-primary: #121318;
+  --bg-secondary: #1a1b23;
+  --bg-dark: #0d0e12;
+  --bg-panel: #181920;
+  --accent: #f59e0b;
+  --accent-hover: #d97706;
+  --accent-glow: rgba(245, 158, 11, 0.18);
+  --border: rgba(255, 255, 255, 0.08);
+  --text-primary: #f3f4f6;
+  --text-secondary: #9ca3af;
+  --text-muted: #6b7280;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrainsMono Nerd Font", Menlo, Monaco, Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+  user-select: none;
+}
+
+body {
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.4;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.calc-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  padding: 10px;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* 1. Display Panel */
+.calc-display-panel {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.calc-expression-line {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+  min-height: 16px;
+  text-align: right;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calc-result-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.calc-result-input {
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-family: var(--font-mono);
+  font-size: 20px;
+  font-weight: 700;
+  text-align: right;
+  width: 100%;
+  outline: none;
+}
+
+.calc-copy-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.calc-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+/* 2. Base & Converter Bar */
+.calc-converters-bar {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+}
+
+.calc-conv-item {
+  display: flex;
+  justify-content: space-between;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calc-conv-lbl {
+  color: var(--accent);
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+.calc-conv-val {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 3. Storage Units & Function Row */
+.calc-units-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+}
+
+.calc-unit-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 600;
+  height: 24px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+
+.calc-unit-btn:hover {
+  background: var(--accent-glow);
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* 4. Main Keypad Grid */
+.calc-keypad-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 5px;
+  flex: 1;
+}
+
+.calc-btn {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  min-height: 34px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.12s ease;
+}
+
+.calc-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.calc-btn:active {
+  transform: scale(0.97);
+}
+
+.calc-btn-num {
+  font-family: var(--font-mono);
+  font-size: 15px;
+}
+
+.calc-btn-op {
+  color: var(--accent);
+  font-size: 16px;
+  background: rgba(245, 158, 11, 0.06);
+}
+
+.calc-btn-op:hover {
+  background: var(--accent-glow);
+}
+
+.calc-btn-fn {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+
+.calc-btn-equals {
+  background: var(--accent);
+  color: #000;
+  font-weight: 700;
+  font-size: 18px;
+  border-color: var(--accent);
+}
+
+.calc-btn-equals:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* 5. History Bar & Drawer */
+.calc-history-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 4px;
+  font-size: 11px;
+}
+
+.btn-history-toggle {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+
+.btn-history-toggle:hover {
+  color: var(--text-primary);
+}
+
+.calc-keyboard-hint {
+  color: var(--text-muted);
+  font-size: 10px;
+}
+
+.calc-history-drawer {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  max-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.calc-history-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 10.5px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 3px;
+}
+
+.calc-history-header button {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 10px;
+}
+
+.calc-history-header button:hover {
+  color: #ef4444;
+}
+
+.calc-history-item {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 4px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+}
+
+.calc-history-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.calc-history-expr {
+  color: var(--text-muted);
+  font-size: 9.5px;
+}
+
+.calc-history-val {
+  color: var(--accent);
+  font-weight: 600;
+  text-align: right;
+}
+
+.calc-history-empty {
+  color: var(--text-muted);
+  font-size: 10px;
+  text-align: center;
+  padding: 8px;
+}

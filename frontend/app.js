@@ -7405,6 +7405,11 @@ let calcDragInitialized = false;
 
 function openFloatingCalculator() {
   closeToolsMenu();
+  const isInstalled = (window.installedChewToys || []).some(p => p.id === 'calculator' && (p.is_enabled !== undefined ? p.is_enabled : (p.enabled !== undefined ? p.enabled : true)));
+  if (isInstalled) {
+    openDynamicChewToy('calculator');
+    return;
+  }
   const win = document.getElementById('floating-calculator-window');
   const pill = document.getElementById('calc-pill');
   if (pill) pill.style.display = 'none';
@@ -31667,6 +31672,17 @@ function openDynamicChewToy(pluginId, context = null) {
   }
 
   if (win) {
+    const ui = plugin.manifest?.ui || plugin.ui || {};
+    if (ui.default_width && window.innerWidth > 600) {
+      win.style.width = `${Math.min(window.innerWidth - 20, ui.default_width)}px`;
+    } else if (window.innerWidth > 600) {
+      win.style.width = 'min(880px, calc(100vw - 40px))';
+    }
+    if (ui.default_height && window.innerHeight > 400) {
+      win.style.height = `${Math.min(window.innerHeight - 60, ui.default_height)}px`;
+    } else if (window.innerHeight > 400) {
+      win.style.height = 'min(600px, calc(100vh - 80px))';
+    }
     win.classList.add('active');
     win.style.display = 'flex';
     bringFloatingWindowToFront(win);

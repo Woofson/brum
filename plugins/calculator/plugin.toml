@@ -1,0 +1,25 @@
+[plugin]
+id = "calculator"
+name = "Calculator"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Interactive calculator with storage unit multipliers, programmer bases, and live bitwise/byte conversions."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.svg"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 340
+default_height = 540
+min_width = 300
+min_height = 420
+
+[integrations]
+launchpad = true
+launchpad_label = "Calculator"
+shortcut = "Ctrl+Alt+C"
+
+[permissions]
+permissions = ["ui:notify"]
