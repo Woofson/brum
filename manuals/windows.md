@@ -76,7 +76,39 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ---
 
-## 5. Building from Source on Windows
+## 5. Multimedia & Transcoding Dependencies (ConvertX)
+
+Brum runs completely standalone out-of-the-box with zero mandatory runtime dependencies for file browsing, terminals, and encrypted vaults.
+
+To enable full audio/video and image transcoding capabilities in the built-in **ConvertX** ChewToy on Windows, install `ffmpeg` and `ImageMagick`:
+
+### 1-Command Installation via Package Managers
+
+#### Via Windows Package Manager (`winget`):
+```powershell
+winget install Gyan.FFmpeg ImageMagick.ImageMagick
+```
+
+#### Via Scoop:
+```powershell
+scoop install ffmpeg imagemagick
+```
+
+#### Via Chocolatey:
+```powershell
+choco install ffmpeg imagemagick
+```
+
+### Manual Installation & PATH Setup
+If installing manually without a package manager:
+1. Download official static builds from [gyan.dev/ffmpeg/builds](https://www.gyan.dev/ffmpeg/builds/) or [ffmpeg.org](https://ffmpeg.org/download.html).
+2. Download ImageMagick from [imagemagick.org](https://imagemagick.org/script/download.php#windows).
+3. Extract and add the directory containing `ffmpeg.exe` and `magick.exe` to your Windows System `PATH` environment variable.
+4. Restart Brum or open a new terminal session.
+
+---
+
+## 6. Building from Source on Windows
 
 ### Prerequisites
 - [Rust & Cargo](https://rustup.rs/) (`stable-x86_64-pc-windows-msvc`)
@@ -101,3 +133,4 @@ Build outputs will be generated in `dist\windows\`:
 
 ## License
 MIT License — Copyright (c) 2026 Bolt J Woofson <bolt@boop.no>
+

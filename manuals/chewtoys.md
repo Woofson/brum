@@ -98,9 +98,32 @@
 ---
 
 ## 5. ConvertX Transcoder
-* **Multi-Format Media Engine**:
-  * Browser-native and server-assisted image, audio, video, and document format conversion.
-  * Batch processing across selected files in active panels.
+ConvertX is Brum's integrated media conversion and audio/video transcoding suite. It allows users to convert video, audio, image, and document formats directly inside the browser or native desktop interface, without needing to install or manage separate command-line or GUI converter applications.
+
+* **Multi-Format Conversion Matrix**:
+  * **Video**: Transcode legacy, high-bitrate, or non-browser containers and codecs (e.g. `.avi`, `.mkv`, `.mov`, `.flv`, `.wmv`, `.mpg`, `.m4v`, `.ts`) to web-optimized formats (`.mp4` with H.264 + AAC, `.webm` with VP9 + Opus).
+  * **Audio**: Convert lossy and lossless audio files (`.flac`, `.wav`, `.aac`, `.m4a`, `.ogg`, `.wma`, `.opus`) to `.mp3`, `.ogg`, `.flac`, or `.wav`.
+  * **Images & Raster Graphics**: Convert and optimize `.png`, `.jpg`, `.jpeg`, `.webp`, `.avif`, `.gif`, `.bmp`, `.ico`, `.tiff` with custom quality, dimension, or color palette adjustments.
+  * **Documents & Text**: Batch convert markdown, text, HTML, and structured document formats.
+
+* **Non-Blocking Background Processing & Task Pill**:
+  * **Minimize to Task Pill**: When initiating a long video/audio transcode, click the minimize icon (<kbd>−</kbd>) or **"Run in Background"** to collapse the modal into a floating amber task pill (`#convertx-pill`) in the bottom-right corner.
+  * **Live Feedback**: The floating pill displays real-time execution animation and progress indicators while allowing you to freely browse files, edit notes, or play music simultaneously.
+  * **1-Click Restore**: Click the floating task pill at any time to reopen the full ConvertX modal and monitor live stdout/stderr metrics.
+
+* **Smart Destination & Collision Protection**:
+  * **Automatic Suffixing**: When converting to the same format or extension (e.g. converting `11052009.mp4` to a browser-compatible `.mp4`), ConvertX automatically appends `_converted` to avoid overwriting the source file.
+  * **User-Editable Filenames**: Complete freedom to rename the target file directly in the modal before starting.
+  * **Destination Preview**: Live path calculation showing exactly where the converted artifact will be saved.
+  * **Post-Conversion Summary**: Upon successful completion, the interface presents a clear summary box detailing source file, target file, and execution time, swapping action buttons to a clean `[OK]` dismissal.
+
+* **Remote Host & Fleet Node Server-Side Execution**:
+  * When browsing remote hosts (SFTP / SMB / NFS / SSH nodes), ConvertX executes conversion pipelines directly on the remote server where the data resides.
+  * Eliminates the need to download large multi-gigabyte video or archive files across the WAN just to transcode them.
+
+* **System Dependencies**:
+  * Video and audio transcoding rely on `ffmpeg` in the system `$PATH` (or `%PATH%` on Windows).
+  * Image conversions utilize pure-Rust decoders alongside `ImageMagick` (`magick`) for advanced formats and high-speed processing.
 
 ---
 
@@ -156,9 +179,14 @@
 
 ---
 
-## 13. High-DPI Media & Image Viewer
+## 13. High-DPI Media & Image Viewer & Audio/Video Player
 * **Wide Format Support**: `.png`, `.jpg`, `.jpeg`, `.webp`, `.svg`, `.gif`, `.bmp`, `.ico`, `.avif`, `.tiff`.
 * **Focal Zoom & Navigation**: Mouse-wheel folder cycling, `Ctrl`+wheel zoom, 90° rotation, slideshow mode, and video/audio playback.
+* **Zero-Copy Byte-Range Media Streaming**:
+  * Built-in HTTP/1.1 byte-range streaming (`206 Partial Content`, `Content-Range`, `Content-Encoding: identity`) enables instantaneous seek-and-scrub responsiveness across multi-gigabyte `.mp4`, `.webm`, `.mkv`, `.mp3`, `.flac`, and `.wav` media without waiting for full file downloads.
+* **Intelligent Codec Diagnostics**:
+  * Automatically detects container formats (e.g. `.mp4`, `.avi`, `.mpg`) containing legacy or unsupported video streams (such as MPEG-4 Part 2, MPEG-1/2, DivX/Xvid, WMV3) where only audio would otherwise be decoded by the browser.
+  * Proactively presents 1-click **"Convert with ConvertX"**, **"Open With..."**, or **"Download"** options, seamlessly closing the media player window to prevent UI clutter.
 
 ---
 

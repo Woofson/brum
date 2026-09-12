@@ -130,6 +130,26 @@ docker run -d \
 
 ---
 
+## 6. 🎬 Optional System Dependencies (ConvertX Transcoder)
+
+Brum is distributed as a single static binary with embedded web assets. Core file management, PTY terminal emulation, encrypted `.cdvault` vaults, and note management require **zero external runtime dependencies**.
+
+To unlock high-performance audio/video and image transcoding in **ConvertX**, install `ffmpeg` and `ImageMagick` on your host, container, or desktop:
+
+| Operating System | Package Manager / Install Command |
+| :--- | :--- |
+| **Debian / Ubuntu / Proxmox LXC** | `sudo apt-get install -y ffmpeg imagemagick` |
+| **Arch Linux / CachyOS / Manjaro** | `sudo pacman -S ffmpeg imagemagick` |
+| **Fedora / RHEL / Rocky Linux** | `sudo dnf install -y ffmpeg imagemagick` |
+| **Alpine Linux (Docker)** | `apk add --no-cache ffmpeg imagemagick` |
+| **Windows 10 / 11** | `winget install Gyan.FFmpeg ImageMagick.ImageMagick`<br>or `scoop install ffmpeg imagemagick` |
+| **macOS (Homebrew)** | `brew install ffmpeg imagemagick` |
+
+> [!NOTE]
+> When transcoding files on remote nodes (SFTP, SMB, SSH Fleet Nodes), Brum executes the conversion server-side on the host where the media resides, provided `ffmpeg` is available on that remote host.
+
+---
+
 ## ⚙️ CLI Flags Reference
 
 | Flag | Description |
@@ -141,5 +161,6 @@ docker run -d \
 | `-p`, `--port <PORT>` | Overrides server bind port (default: `3140` or `config.toml`) |
 | `--host <HOST>` | Overrides bind address (default: `0.0.0.0`) |
 | `--no-auth` | Disables authentication globally |
-| `-v`, `--version` | Displays current version (`0.8.2`) |
+| `-v`, `--version` | Displays current version |
+
 

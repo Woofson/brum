@@ -33,8 +33,8 @@ Once installed, Brum is running and enabled on boot:
 If you built or downloaded the `.deb` release package:
 
 ```bash
-# 1. Install prerequisites
-apt-get update && apt-get install -y ca-certificates tar bzip2 7zip
+# 1. Install prerequisites (including optional ffmpeg & imagemagick for ConvertX transcoding)
+apt-get update && apt-get install -y ca-certificates tar bzip2 7zip ffmpeg imagemagick
 
 # 2. Install Brum
 dpkg -i brum_0.8.5_amd64.deb # or dpkg -i brum_*_amd64.deb
