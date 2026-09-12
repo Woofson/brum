@@ -11022,10 +11022,20 @@ function resetToolsMenuToDefault() {
   }
 }
 
+function getChewtoyIconUrl(p) {
+  if (!p) return 'assets/amber-frameless-apps.webp';
+  const icon = p.icon || '';
+  if (!icon) return 'assets/amber-frameless-apps.webp';
+  if (icon.startsWith('/') || icon.startsWith('http') || icon.startsWith('assets/')) {
+    return icon;
+  }
+  return `/api/plugins/${encodeURIComponent(p.id)}/assets/${icon}`;
+}
+
 function renderToolIconHtml(icon, iconColor = '', size = 18) {
   if (!icon) return `<i data-lucide="wrench" style="width:${size}px; height:${size}px;"></i>`;
-  if (icon.endsWith('.png') || icon.endsWith('.webp') || icon.startsWith('assets/')) {
-    return `<img src="${icon}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; flex-shrink: 0; vertical-align: middle;">`;
+  if (icon.startsWith('/') || icon.startsWith('http') || icon.startsWith('assets/') || icon.endsWith('.png') || icon.endsWith('.webp') || icon.endsWith('.svg')) {
+    return `<img src="${escapeHtml(icon)}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; flex-shrink: 0; vertical-align: middle;" onerror="this.src='assets/amber-frameless-apps.webp'">`;
   }
   const colorStyle = iconColor ? `color: ${iconColor};` : '';
   return `<i data-lucide="${icon}" style="width: ${size}px; height: ${size}px; flex-shrink: 0; ${colorStyle}"></i>`;
@@ -11035,8 +11045,16 @@ function renderToolsMenu() {
   const menu = document.getElementById('tools-dropdown-menu');
   if (!menu) return;
 
+  const activeChewToys = (window.installedChewToys || []).filter(p => p.is_enabled !== false && p.enabled !== false);
+  const activeChewtoyIds = new Set(activeChewToys.map(p => p.id));
+
   const config = getToolsMenuConfig();
-  const visibleItems = config.filter(item => item.visible !== false);
+  const visibleItems = config.filter(item => {
+    if (item.visible === false) return false;
+    // Omit legacy built-ins when corresponding decoupled Chewtoy is installed & active
+    if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
+    return true;
+  });
 
   let html = '';
   visibleItems.forEach(item => {
@@ -11048,19 +11066,18 @@ function renderToolsMenu() {
     `;
   });
 
-  // Dynamic Installed ChewToys / Plugins (.grr)
-  const activeChewToys = (window.installedChewToys || []).filter(p => p.enabled !== false);
+  // Dynamic Installed Chewtoys / Plugins (.grr)
   if (activeChewToys.length > 0) {
     html += `<div class="dropdown-sep"></div>`;
     activeChewToys.forEach(p => {
-      const iconUrl = p.icon ? `/api/plugins/${encodeURIComponent(p.id)}/assets/${p.icon}` : 'assets/amber-frameless-apps.webp';
+      const iconUrl = getChewtoyIconUrl(p);
       html += `
         <div class="dropdown-item" onclick="openDynamicChewToy('${escapeHtml(p.id)}'); closeToolsMenu();" style="display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             ${renderToolIconHtml(iconUrl, '', 18)}
             <span>${escapeHtml(p.name || p.id)}</span>
           </div>
-          <span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(245,158,11,0.15); color: var(--accent); flex-shrink: 0; margin-left: 6px;">ChewToy</span>
+          <span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(245,158,11,0.15); color: var(--accent); flex-shrink: 0; margin-left: 6px;">Chewtoy</span>
         </div>
       `;
     });
@@ -24408,7 +24425,13 @@ function buildSpotlightItems() {
 
   // 1. Static Actions & Dynamic Themes
   if (spotlightCurrentCat === 'all' || spotlightCurrentCat === 'actions') {
-    pool.push(...SPOTLIGHT_STATIC_ACTIONS.map(a => ({
+    const activeChewToys = (window.installedChewToys || []).filter(p => p.is_enabled !== false && p.enabled !== false);
+    const activeChewtoyIds = new Set(activeChewToys.map(p => p.id));
+
+    pool.push(...SPOTLIGHT_STATIC_ACTIONS.filter(a => {
+      if (a.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
+      return true;
+    }).map(a => ({
       title: a.title,
       sub: a.sub,
       icon: a.icon,
@@ -24444,16 +24467,16 @@ function buildSpotlightItems() {
       });
     }
 
-    // Dynamic Installed ChewToys / Plugins (.grr)
-    if (window.installedChewToys && Array.isArray(window.installedChewToys)) {
-      window.installedChewToys.filter(p => p.enabled !== false).forEach(p => {
-        const iconUrl = p.icon ? `/api/plugins/${encodeURIComponent(p.id)}/assets/${p.icon}` : 'assets/amber-frameless-apps.webp';
+    // Dynamic Installed Chewtoys / Plugins (.grr)
+    if (activeChewToys.length > 0) {
+      activeChewToys.forEach(p => {
+        const iconUrl = getChewtoyIconUrl(p);
         pool.push({
-          title: `ChewToy: ${p.name || p.id}`,
+          title: p.name || p.id,
           sub: p.description || `Launch ${p.name || p.id} v${p.version || '1.0.0'}`,
           icon: iconUrl,
           cat: 'action',
-          badge: 'ChewToy',
+          badge: 'Chewtoy',
           handler: () => openDynamicChewToy(p.id)
         });
       });
@@ -31359,6 +31382,7 @@ async function loadInstalledChewToys(forceRefresh = false) {
       window.installedChewToys = plugins;
       if (badge) badge.textContent = String(window.installedChewToys.length);
       renderInstalledChewToys(window.installedChewToys);
+      if (typeof renderToolsMenu === 'function') renderToolsMenu();
     } else {
       if (container) {
         container.innerHTML = `<div style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--danger);">Failed to load ChewToys: ${escapeHtml(await resp.text())}</div>`;
@@ -31392,7 +31416,7 @@ function renderInstalledChewToys(plugins) {
   }
 
   container.innerHTML = plugins.map(p => {
-    const iconUrl = p.icon ? `/api/plugins/${encodeURIComponent(p.id)}/assets/${p.icon}` : 'assets/amber-frameless-apps.webp';
+    const iconUrl = getChewtoyIconUrl(p);
     const isEnabled = p.is_enabled !== undefined ? !!p.is_enabled : (p.enabled !== undefined ? !!p.enabled : true);
     const permissions = Array.isArray(p.permissions) ? p.permissions : [];
 
@@ -31636,7 +31660,7 @@ function openDynamicChewToy(pluginId, context = null) {
 
   if (titleEl) titleEl.textContent = plugin.name || pluginId;
   if (iconEl) {
-    iconEl.src = plugin.icon ? `/api/plugins/${encodeURIComponent(pluginId)}/assets/${plugin.icon}` : 'assets/amber-frameless-apps.webp';
+    iconEl.src = getChewtoyIconUrl(plugin);
     iconEl.onerror = () => { iconEl.src = 'assets/amber-frameless-apps.webp'; };
   }
   if (verEl) verEl.textContent = `v${plugin.version || '1.0.0'}`;

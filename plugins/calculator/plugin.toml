@@ -5,7 +5,7 @@ version = "1.0.0"
 author = "Bolt J Woofson <bolt@arf.ac>"
 description = "Interactive calculator with storage unit multipliers, programmer bases, and live bitwise/byte conversions."
 homepage = "https://www.arf.ac"
-icon = "assets/icon.svg"
+icon = "assets/icon.webp"
 category = "utilities"
 
 [ui]
