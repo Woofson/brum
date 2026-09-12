@@ -31675,44 +31675,88 @@ async function uninstallChewToy(id) {
 
 function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
   let win = document.getElementById(`dynamic-chewtoy-window-${pluginId}`);
-  if (!win) {
-    win = document.createElement('div');
-    win.className = 'floating-chewtoy-window dynamic-chewtoy-window';
-    win.id = `dynamic-chewtoy-window-${pluginId}`;
-    win.setAttribute('data-plugin-id', pluginId);
-    win.style.display = 'none';
-    win.onclick = function() {
+  if (win) return win;
+
+  // Check if static placeholder exists and is unused
+  const defaultWin = document.getElementById('dynamic-chewtoy-window');
+  if (defaultWin && (!defaultWin.getAttribute('data-plugin-id') || defaultWin.getAttribute('data-plugin-id') === pluginId)) {
+    defaultWin.id = `dynamic-chewtoy-window-${pluginId}`;
+    defaultWin.setAttribute('data-plugin-id', pluginId);
+    defaultWin.classList.add('dynamic-chewtoy-window');
+    defaultWin.onclick = function() {
       bringFloatingWindowToFront(this);
       window.activeDynamicChewToyId = pluginId;
     };
 
-    const iconUrl = getChewtoyIconUrl(plugin);
-    const title = plugin.name || pluginId;
-    const version = `v${plugin.version || '1.0.0'}`;
+    const titleEl = defaultWin.querySelector('#dynamic-chewtoy-title');
+    if (titleEl) titleEl.id = `dynamic-chewtoy-title-${pluginId}`;
 
-    win.innerHTML = `
-      <div class="dynamic-chewtoy-box" id="dynamic-chewtoy-box-${pluginId}">
-        <div class="modal-header dynamic-chewtoy-header" id="dynamic-chewtoy-header-${pluginId}" data-plugin-id="${pluginId}" style="height: 42px; min-height: 42px; cursor: grab; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg-dark);">
-          <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-            <img id="dynamic-chewtoy-icon-${pluginId}" src="${iconUrl}" onerror="this.src='assets/amber-frameless-apps.webp'" alt="${escapeHtml(title)}" style="width: 18px; height: 18px; object-fit: contain;">
-            <span id="dynamic-chewtoy-title-${pluginId}" class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(title)}</span>
-            <span id="dynamic-chewtoy-version-${pluginId}" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(version)}</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" onclick="dockActiveDynamicChewToy(undefined, '${pluginId}')" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-            <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize-${pluginId}" onclick="toggleMaximizeDynamicChewToy('${pluginId}')" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-            <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy('${pluginId}')" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
-          </div>
+    const iconEl = defaultWin.querySelector('#dynamic-chewtoy-icon');
+    if (iconEl) iconEl.id = `dynamic-chewtoy-icon-${pluginId}`;
+
+    const verEl = defaultWin.querySelector('#dynamic-chewtoy-version');
+    if (verEl) verEl.id = `dynamic-chewtoy-version-${pluginId}`;
+
+    const frameEl = defaultWin.querySelector('#dynamic-chewtoy-frame');
+    if (frameEl) frameEl.id = `dynamic-chewtoy-frame-${pluginId}`;
+
+    const dockBtn = defaultWin.querySelector('#btn-dynamic-chewtoy-dock');
+    if (dockBtn) {
+      dockBtn.id = `btn-dynamic-chewtoy-dock-${pluginId}`;
+      dockBtn.setAttribute('onclick', `dockActiveDynamicChewToy(undefined, '${pluginId}')`);
+    }
+
+    const maxBtn = defaultWin.querySelector('#btn-dynamic-chewtoy-maximize');
+    if (maxBtn) {
+      maxBtn.id = `btn-dynamic-chewtoy-maximize-${pluginId}`;
+      maxBtn.setAttribute('onclick', `toggleMaximizeDynamicChewToy('${pluginId}')`);
+    }
+
+    const closeBtn = defaultWin.querySelector('.modal-close-btn');
+    if (closeBtn) {
+      closeBtn.setAttribute('onclick', `closeDynamicChewToy('${pluginId}')`);
+    }
+
+    return defaultWin;
+  }
+
+  // Create new dedicated floating window for this plugin
+  win = document.createElement('div');
+  win.className = 'floating-chewtoy-window dynamic-chewtoy-window';
+  win.id = `dynamic-chewtoy-window-${pluginId}`;
+  win.setAttribute('data-plugin-id', pluginId);
+  win.style.display = 'none';
+  win.onclick = function() {
+    bringFloatingWindowToFront(this);
+    window.activeDynamicChewToyId = pluginId;
+  };
+
+  const iconUrl = getChewtoyIconUrl(plugin);
+  const title = plugin.name || pluginId;
+  const version = `v${plugin.version || '1.0.0'}`;
+
+  win.innerHTML = `
+    <div class="dynamic-chewtoy-box" id="dynamic-chewtoy-box-${pluginId}">
+      <div class="modal-header dynamic-chewtoy-header" id="dynamic-chewtoy-header-${pluginId}" data-plugin-id="${pluginId}" style="height: 42px; min-height: 42px; cursor: grab; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg-dark);">
+        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+          <img id="dynamic-chewtoy-icon-${pluginId}" src="${iconUrl}" onerror="this.src='assets/amber-frameless-apps.webp'" alt="${escapeHtml(title)}" style="width: 18px; height: 18px; object-fit: contain;">
+          <span id="dynamic-chewtoy-title-${pluginId}" class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(title)}</span>
+          <span id="dynamic-chewtoy-version-${pluginId}" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(version)}</span>
         </div>
-        <div class="dynamic-chewtoy-body" style="flex: 1; position: relative; overflow: hidden; background: var(--bg-panel);">
-          <iframe id="dynamic-chewtoy-frame-${pluginId}" style="width: 100%; height: 100%; border: none; display: block; outline: none;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" onclick="dockActiveDynamicChewToy(undefined, '${pluginId}')" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize-${pluginId}" onclick="toggleMaximizeDynamicChewToy('${pluginId}')" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+          <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy('${pluginId}')" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
         </div>
       </div>
-    `;
+      <div class="dynamic-chewtoy-body" style="flex: 1; position: relative; overflow: hidden; background: var(--bg-panel);">
+        <iframe id="dynamic-chewtoy-frame-${pluginId}" style="width: 100%; height: 100%; border: none; display: block; outline: none;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+      </div>
+    </div>
+  `;
 
-    document.body.appendChild(win);
-    if (window.lucide) lucide.createIcons();
-  }
+  document.body.appendChild(win);
+  if (window.lucide) lucide.createIcons();
   return win;
 }
 
