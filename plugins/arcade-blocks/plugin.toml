@@ -1,0 +1,25 @@
+[plugin]
+id = "arcade-blocks"
+name = "Arcade Blocks"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Classic arcade falling blocks puzzle game with marathon, sprint, and high-score leaderboards."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.webp"
+category = "games"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 720
+default_height = 580
+min_width = 440
+min_height = 380
+
+[integrations]
+launchpad = true
+launchpad_label = "Arcade Blocks"
+shortcut = "Ctrl+Alt+T"
+
+[permissions]
+permissions = ["ui:notify"]

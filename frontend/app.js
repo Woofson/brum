@@ -11053,6 +11053,7 @@ function renderToolsMenu() {
     if (item.visible === false) return false;
     // Omit legacy built-ins when corresponding decoupled Chewtoy is installed & active
     if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
+    if (item.id === 'tetradog' && activeChewtoyIds.has('arcade-blocks')) return false;
     return true;
   });
 
@@ -24430,6 +24431,7 @@ function buildSpotlightItems() {
 
     pool.push(...SPOTLIGHT_STATIC_ACTIONS.filter(a => {
       if (a.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
+      if (a.id === 'tetradog' && activeChewtoyIds.has('arcade-blocks')) return false;
       return true;
     }).map(a => ({
       title: a.title,
@@ -27445,6 +27447,11 @@ function playTetraSound(type) {
 // ---------------- WINDOWING & LIFECYCLE ----------------
 function openTetraDog() {
   closeToolsMenu();
+  const isInstalled = (window.installedChewToys || []).some(p => p.id === 'arcade-blocks' && (p.is_enabled !== undefined ? p.is_enabled : (p.enabled !== undefined ? p.enabled : true)));
+  if (isInstalled) {
+    openDynamicChewToy('arcade-blocks');
+    return;
+  }
   const win = document.getElementById('floating-tetradog-window');
   const pill = document.getElementById('tetradog-pill');
   if (pill) pill.style.display = 'none';

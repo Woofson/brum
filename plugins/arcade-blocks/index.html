@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Arcade Blocks</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="arcade-container">
+    <!-- Top Mode & Score Header -->
+    <div class="arcade-top-bar">
+      <div class="arcade-mode-selector">
+        <button class="arcade-tab active" data-view="game">Game</button>
+        <button class="arcade-tab" data-view="leaderboard">Scores</button>
+        <button class="arcade-tab" data-view="settings">Options</button>
+      </div>
+
+      <div class="arcade-quick-scores">
+        <div class="arcade-score-badge">
+          <span class="arcade-score-lbl">SCORE</span>
+          <span class="arcade-score-val" id="hud-score">0</span>
+        </div>
+        <div class="arcade-score-badge">
+          <span class="arcade-score-lbl">LEVEL</span>
+          <span class="arcade-score-val" id="hud-level">1</span>
+        </div>
+        <div class="arcade-score-badge">
+          <span class="arcade-score-lbl">LINES</span>
+          <span class="arcade-score-val" id="hud-lines">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 1: GAMEPLAY ARENA -->
+    <div class="arcade-view" id="view-game">
+      <div class="arcade-arena">
+        <!-- Left Side Column: Hold & Stats -->
+        <div class="arcade-side-col arcade-left-col">
+          <div class="arcade-card arcade-hold-card">
+            <div class="arcade-card-title">HOLD</div>
+            <div class="arcade-canvas-wrap">
+              <canvas id="hold-canvas" width="80" height="80"></canvas>
+            </div>
+            <div class="arcade-key-hint">C / Shift</div>
+          </div>
+
+          <div class="arcade-card arcade-stats-card">
+            <div class="arcade-card-title">STATS</div>
+            <div class="arcade-stat-row">
+              <span class="arcade-stat-lbl">Time</span>
+              <span class="arcade-stat-num" id="stat-time">0:00</span>
+            </div>
+            <div class="arcade-stat-row">
+              <span class="arcade-stat-lbl">Combo</span>
+              <span class="arcade-stat-num" id="stat-combo">0</span>
+            </div>
+            <div class="arcade-stat-row">
+              <span class="arcade-stat-lbl">B2B</span>
+              <span class="arcade-stat-num" id="stat-b2b">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Center Column: 10x20 Main Matrix Canvas -->
+        <div class="arcade-center-col">
+          <div class="arcade-canvas-box">
+            <canvas id="main-canvas" width="200" height="400"></canvas>
+            <div class="arcade-scanlines"></div>
+
+            <!-- Ready / Pause / Game Over Overlay -->
+            <div class="arcade-overlay" id="game-overlay" style="display: none;">
+              <div class="arcade-overlay-box">
+                <div class="arcade-overlay-title" id="overlay-title">GAME OVER</div>
+                <div class="arcade-overlay-sub" id="overlay-sub">Final Score: 0</div>
+                <div class="arcade-overlay-actions">
+                  <button class="btn btn-accent" id="btn-overlay-play">Play Again</button>
+                  <button class="btn" id="btn-overlay-scores">High Scores</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Side Column: Next Pieces -->
+        <div class="arcade-side-col arcade-right-col">
+          <div class="arcade-card arcade-next-card">
+            <div class="arcade-card-title">NEXT</div>
+            <div class="arcade-canvas-wrap">
+              <canvas id="next-canvas" width="80" height="200"></canvas>
+            </div>
+          </div>
+
+          <div class="arcade-card arcade-controls-card">
+            <button class="btn btn-accent btn-sm" id="btn-play-pause">Play</button>
+            <button class="btn btn-sm" id="btn-restart">Restart</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Touch / D-Pad Controller for Mobile/Touchscreens -->
+      <div class="arcade-touch-controller" id="touch-controller">
+        <div class="touch-dpad">
+          <button class="tbtn tbtn-up" data-act="hardDrop" title="Hard Drop">▲</button>
+          <button class="tbtn tbtn-left" data-act="left" title="Left">◀</button>
+          <div class="tbtn-center"></div>
+          <button class="tbtn tbtn-right" data-act="right" title="Right">▶</button>
+          <button class="tbtn tbtn-down" data-act="down" title="Soft Drop">▼</button>
+        </div>
+        <div class="touch-center">
+          <button class="touch-pill-btn" data-act="hold">HOLD</button>
+          <button class="touch-pill-btn" id="tbtn-touch-pause">PAUSE</button>
+        </div>
+        <div class="touch-actions">
+          <button class="touch-round-btn tbtn-b" data-act="rotateCCW">↺</button>
+          <button class="touch-round-btn tbtn-a" data-act="rotateCW">↻</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 2: HIGH SCORES -->
+    <div class="arcade-view" id="view-leaderboard" style="display: none;">
+      <div class="arcade-scores-container">
+        <div class="arcade-scores-header">
+          <span style="font-weight: 700; color: var(--accent);">Top High Scores</span>
+          <button class="btn btn-xs" id="btn-clear-scores">Clear All</button>
+        </div>
+        <div class="arcade-scores-list" id="leaderboard-list">
+          <div class="arcade-empty">No high scores recorded yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- VIEW 3: SETTINGS -->
+    <div class="arcade-view" id="view-settings" style="display: none;">
+      <div class="arcade-settings-list">
+        <div class="arcade-setting-item">
+          <div>
+            <div class="arcade-setting-lbl">Starting Level</div>
+            <div class="arcade-setting-sub">Gravity speed for new games</div>
+          </div>
+          <select id="cfg-start-level" class="arcade-select">
+            <option value="1">Level 1 (Relaxed)</option>
+            <option value="3">Level 3 (Brisk)</option>
+            <option value="5">Level 5 (Fast)</option>
+            <option value="8">Level 8 (Intense)</option>
+            <option value="10">Level 10 (Master)</option>
+          </select>
+        </div>
+
+        <div class="arcade-setting-item">
+          <div>
+            <div class="arcade-setting-lbl">Ghost Piece</div>
+            <div class="arcade-setting-sub">Show landing shadow projection</div>
+          </div>
+          <input type="checkbox" id="cfg-ghost" checked />
+        </div>
+
+        <div class="arcade-setting-item">
+          <div>
+            <div class="arcade-setting-lbl">Sound Effects</div>
+            <div class="arcade-setting-sub">Synthesized 8-bit audio effects</div>
+          </div>
+          <input type="checkbox" id="cfg-sound" checked />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
