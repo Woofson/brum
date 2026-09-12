@@ -31761,14 +31761,5 @@ function initDynamicChewToyDrag() {
   });
 }
 
-  window.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      document.body.style.userSelect = '';
-      header.style.cursor = 'grab';
-    }
-  });
-}
-
 
 
