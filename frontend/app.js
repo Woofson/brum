@@ -10728,7 +10728,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'converter', label: 'ConvertX', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
   { id: 'mediaplayer', label: 'Mediaplayer', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video & media player, subtitles, PiP & playlist', visible: true },
-  { id: 'sounddog', label: 'AMP', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & real-time equalizer', visible: true },
+  { id: 'sounddog', label: 'Audioplayer', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band studio equalizer', visible: true },
   { id: 'tetradog', label: 'Tetra', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle chewtoy with synchronized top scores', visible: true },
   { id: 'tasks', label: 'Task Manager', icon: 'assets/task.webp', action: 'openFloatingTaskManager()', desc: 'Active transfers, speeds & queue control', visible: true }
 ];
@@ -12075,11 +12075,11 @@ function showContextMenu(x, y) {
     <div class="context-item" onclick="triggerView(); hideContextMenu();"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
     <div class="context-item" onclick="triggerEditor(); hideContextMenu();"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
     ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
-      <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in AMP</div>
-      <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to AMP Queue</div>
+      <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in Audioplayer</div>
+      <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to Audioplayer Queue</div>
     ` : ''}
     ${App.contextItem && (App.contextItem.is_dir) ? `
-      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem.path)}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in AMP</div>
+      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem.path)}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
     ` : ''}
     <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
     <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
@@ -23897,7 +23897,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'convert', title: 'ConvertX', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDF Studio', sub: 'PDF Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
   { id: 'mediaplayer', title: 'Mediaplayer', sub: 'Universal video & media player, subtitles, PiP popout & playlist', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
-  { id: 'sounddog', title: 'AMP', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
+  { id: 'sounddog', title: 'Audioplayer', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
   { id: 'tetradog', title: 'Tetra', sub: 'Classic arcade block puzzle chewtoy with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
@@ -25246,22 +25246,22 @@ function mountDockedTool(paneIndex) {
       mountDockedTetraDog(paneIndex);
     }, 50);
   }
-  // 7. DOCKED ARFAMP (AUDIO PLAYER & JUKEBOX)
+  // 7. DOCKED AUDIOPLAYER (AUDIO PLAYER & JUKEBOX)
   else if (tool === 'sounddog') {
     mount.innerHTML = `
       <div class="docked-sounddog-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
         <div style="padding: 4px 8px; min-height: 32px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <img src="assets/amber-media.webp" alt="ARFAMP" style="width: 14px; height: 14px; object-fit: contain;">
-            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">ARFAMP</span>
-            <span class="sounddog-format-badge" id="docked-sounddog-badge-${paneIndex}">JUKEBOX</span>
+          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+            <img src="assets/amber-media.webp" alt="Audioplayer" style="width: 14px; height: 14px; object-fit: contain;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">Audioplayer</span>
+            <span class="badge" id="docked-sounddog-badge-${paneIndex}" style="font-size: 9px; text-transform: uppercase;">AUDIO</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
             <button class="btn btn-xs btn-accent" onclick="toggleSoundDogPlay()"><i data-lucide="play" id="docked-sounddog-play-btn-${paneIndex}" style="width: 11px;"></i> Play</button>
-            <button class="btn btn-xs btn-outline" onclick="openFloatingSoundDog()"><i data-lucide="external-link" style="width: 11px;"></i></button>
+            <button class="btn btn-xs btn-outline" onclick="undockToolFromPane(${paneIndex})" title="Float Audioplayer"><i data-lucide="external-link" style="width: 11px;"></i></button>
           </div>
         </div>
-        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #090a0f; padding: 6px;" id="docked-sounddog-host-${paneIndex}"></div>
+        <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg-dark); padding: 8px;" id="docked-sounddog-host-${paneIndex}"></div>
       </div>
     `;
     setTimeout(() => {
@@ -28485,28 +28485,23 @@ function mountDockedTetraDog(paneIndex) {
 }
 
 // ==========================================================================
-// 📻 ARFAMP: AUTHENTIC WINAMP 2.X CLONE CHEWTOY (10-BAND EQ & PLAYLIST)
+// 🎵 AUDIOPLAYER: MODERN UNIVERSAL AUDIO ENGINE CHEWTOY (FLOATING & DOCKED)
 // ==========================================================================
 
 const sounddogState = {
-  queue: [],              // Array of { path, name, title, artist, album, duration, size, cover, bitrate, sampleRate, year, genre, fileObj }
+  queue: [], // Array of { path, paneIndex, name, title, artist, album, duration, size, cover, bitrate, sampleRate, year, genre, fileObj }
   currentIndex: -1,
   selectedPlIndex: -1,
   isPlaying: false,
   isShuffle: false,
   repeatMode: localStorage.getItem('cd_sounddog_repeat') || 'all', // 'off', 'all', 'one'
   volume: parseFloat(localStorage.getItem('cd_sounddog_volume') || '0.8'),
-  pan: 0,
   isMuted: false,
   playbackRate: 1.0,
   timeMode: localStorage.getItem('cd_sounddog_timemode') || 'elapsed', // 'elapsed', 'remaining'
-  isShade: false,
-  eqShade: false,
-  plShade: false,
-  showEq: true,
-  showPl: true,
+  showEq: localStorage.getItem('cd_sounddog_show_eq') === '1',
+  showPl: localStorage.getItem('cd_sounddog_show_pl') !== '0',
   eqEnabled: true,
-  eqAuto: false,
   vizMode: localStorage.getItem('cd_sounddog_viz') || 'bars', // 'bars', 'wave', 'glow', 'off'
   eq: {
     preset: localStorage.getItem('cd_sounddog_eq_preset') || 'flat',
@@ -28524,8 +28519,6 @@ let sounddogAudioCtx = null;
 let sounddogSourceNode = null;
 let sounddogAnalyserNode = null;
 let sounddogGainNode = null;
-let sounddogPreampNode = null;
-let sounddogPanNode = null;
 let sounddogEqFilters = [];
 let sounddogAnimFrame = null;
 let sounddogDragInitialized = false;
@@ -28559,11 +28552,7 @@ function initSoundDogAudioEngine() {
         sounddogAudioCtx = new AudioCtxClass();
         sounddogSourceNode = sounddogAudioCtx.createMediaElementSource(audioEl);
 
-        // Preamp Gain Node (-6dB to +6dB)
-        sounddogPreampNode = sounddogAudioCtx.createGain();
-        sounddogPreampNode.gain.value = 1.0;
-
-        // 10-Band Biquad Graphic Equalizer (Winamp 2.x standard frequencies)
+        // 10-Band Biquad Graphic Equalizer
         sounddogEqFilters = SOUNDDOG_EQ_FREQS.map(freq => {
           const filter = sounddogAudioCtx.createBiquadFilter();
           filter.type = 'peaking';
@@ -28573,13 +28562,7 @@ function initSoundDogAudioEngine() {
           return filter;
         });
 
-        // Stereo Panner Node
-        if (sounddogAudioCtx.createStereoPanner) {
-          sounddogPanNode = sounddogAudioCtx.createStereoPanner();
-          sounddogPanNode.pan.value = sounddogState.pan || 0;
-        }
-
-        // Analyser Node for 60 FPS Winamp Visualizer
+        // Analyser Node for 60 FPS Visualizer
         sounddogAnalyserNode = sounddogAudioCtx.createAnalyser();
         sounddogAnalyserNode.fftSize = 256;
         sounddogAnalyserNode.smoothingTimeConstant = 0.75;
@@ -28588,27 +28571,19 @@ function initSoundDogAudioEngine() {
         sounddogGainNode = sounddogAudioCtx.createGain();
         sounddogGainNode.gain.value = sounddogState.isMuted ? 0 : sounddogState.volume;
 
-        // Connect audio graph: source -> preamp -> 10 EQ filters -> panner -> analyser -> master gain -> destination
+        // Connect audio graph: source -> 10 EQ filters -> analyser -> master gain -> destination
         let currentNode = sounddogSourceNode;
-        currentNode.connect(sounddogPreampNode);
-        currentNode = sounddogPreampNode;
-
         sounddogEqFilters.forEach(f => {
           currentNode.connect(f);
           currentNode = f;
         });
-
-        if (sounddogPanNode) {
-          currentNode.connect(sounddogPanNode);
-          currentNode = sounddogPanNode;
-        }
 
         currentNode.connect(sounddogAnalyserNode);
         sounddogAnalyserNode.connect(sounddogGainNode);
         sounddogGainNode.connect(sounddogAudioCtx.destination);
       }
     } catch (e) {
-      console.debug('SoundDog Web Audio API notice:', e);
+      console.debug('Audioplayer Web Audio API notice:', e);
     }
   }
 
@@ -28648,9 +28623,8 @@ function initSoundDogAudioEngine() {
     }
   };
 
-  // Restore saved volume, balance & EQ presets
+  // Restore saved volume & EQ presets
   setSoundDogVolume(sounddogState.volume);
-  if (sounddogState.pan) setSoundDogPan(sounddogState.pan);
   if (sounddogState.eq.preset && SOUNDDOG_EQ_PRESETS[sounddogState.eq.preset]) {
     applySoundDogEqPreset(sounddogState.eq.preset, false);
   }
@@ -28660,7 +28634,7 @@ function initSoundDogAudioEngine() {
   initSoundDogKeyboardShortcuts();
 }
 
-// ---------------- WINDOWING & WINAMP DRAG/RESIZE ----------------
+// ---------------- WINDOWING & DRAG/RESIZE ----------------
 function openSoundDog(initialPath = null, paneIndex = null) {
   closeToolsMenu();
   const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
@@ -28680,6 +28654,17 @@ function openSoundDog(initialPath = null, paneIndex = null) {
     initSoundDogAudioEngine();
     sounddogState.initialized = true;
   }
+
+  // Sync drawer visibility
+  const eqDrawer = document.getElementById('sounddog-eq-drawer');
+  const eqBtn = document.getElementById('btn-sounddog-eq-toggle');
+  if (eqDrawer) eqDrawer.style.display = sounddogState.showEq ? 'flex' : 'none';
+  if (eqBtn) eqBtn.classList.toggle('active', sounddogState.showEq);
+
+  const plDrawer = document.getElementById('sounddog-playlist-sidebar');
+  const plBtn = document.getElementById('btn-sounddog-playlist-toggle');
+  if (plDrawer) plDrawer.style.display = sounddogState.showPl ? 'flex' : 'none';
+  if (plBtn) plBtn.classList.toggle('active', sounddogState.showPl);
 
   if (initialPath) {
     addTracksToSoundDogQueue([initialPath], true, resolvedPaneIdx);
@@ -28706,7 +28691,7 @@ function closeSoundDog() {
   if (pill) pill.style.display = 'none';
 }
 
-function minimizeSoundDog() {
+function minimizeFloatingSoundDog() {
   const win = document.getElementById('floating-sounddog-window');
   if (win) win.style.display = 'none';
   const pill = document.getElementById('sounddog-pill');
@@ -28716,8 +28701,19 @@ function minimizeSoundDog() {
   }
 }
 
-function restoreSoundDog() {
+function restoreFloatingSoundDog() {
   openSoundDog();
+}
+
+function maximizeFloatingSoundDog() {
+  const win = document.getElementById('floating-sounddog-window');
+  if (!win) return;
+  sounddogState.isMaximized = !sounddogState.isMaximized;
+  win.classList.toggle('maximized', sounddogState.isMaximized);
+}
+
+function dockSoundDogToActivePane() {
+  dockToolToPane('sounddog', App.activePaneIndex);
 }
 
 function initSoundDogDragAndResize() {
@@ -28725,22 +28721,14 @@ function initSoundDogDragAndResize() {
   sounddogDragInitialized = true;
 
   const container = document.getElementById('floating-sounddog-window');
-  const headers = [
-    document.getElementById('sounddog-main-titlebar'),
-    document.getElementById('sounddog-eq-titlebar'),
-    document.getElementById('sounddog-pl-titlebar'),
-    document.getElementById('sounddog-main-shade'),
-    document.getElementById('sounddog-eq-shade'),
-    document.getElementById('sounddog-pl-shade')
-  ];
-
-  if (!container) return;
+  const header = document.getElementById('sounddog-header');
+  if (!container || !header) return;
 
   // Restore saved position
   const savedLeft = localStorage.getItem('cd_sounddog_x');
   const savedTop = localStorage.getItem('cd_sounddog_y');
   if (savedLeft && savedTop && window.innerWidth > 768) {
-    container.style.left = `${Math.min(window.innerWidth - 120, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    container.style.left = `${Math.min(window.innerWidth - 140, Math.max(0, parseInt(savedLeft, 10)))}px`;
     container.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
   }
 
@@ -28748,21 +28736,18 @@ function initSoundDogDragAndResize() {
   let dragStartX = 0, dragStartY = 0;
   let winStartX = 0, winStartY = 0;
 
-  headers.forEach(header => {
-    if (!header) return;
-    header.addEventListener('mousedown', (e) => {
-      if (window.innerWidth <= 768) return;
-      if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
-      isDragging = true;
-      bringFloatingWindowToFront(container);
-      dragStartX = e.clientX;
-      dragStartY = e.clientY;
-      const rect = container.getBoundingClientRect();
-      winStartX = rect.left;
-      winStartY = rect.top;
-      document.body.style.userSelect = 'none';
-      document.body.style.cursor = 'move';
-    });
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 768 || sounddogState.isMaximized) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(container);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = container.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
   });
 
   window.addEventListener('mousemove', (e) => {
@@ -28786,68 +28771,62 @@ function initSoundDogDragAndResize() {
     }
   });
 
-  // Playlist Resize Corner
-  const resizeCorner = document.getElementById('sounddog-pl-resize-corner');
-  const queueScroll = document.getElementById('sounddog-queue-scroll');
-  if (resizeCorner && queueScroll) {
-    let isResizing = false;
-    let startY = 0, startScrollH = 0;
-    let startX = 0, startWinW = 0;
+  // Window Edge and Corner Resizing
+  const resizeHandles = [
+    { el: document.getElementById('sounddog-resize-right'), dir: 'e' },
+    { el: document.getElementById('sounddog-resize-bottom'), dir: 's' },
+    { el: document.getElementById('sounddog-resize-corner'), dir: 'se' }
+  ];
 
-    resizeCorner.addEventListener('mousedown', (e) => {
-      if (window.innerWidth <= 768) return;
+  resizeHandles.forEach(({ el, dir }) => {
+    if (!el) return;
+    el.addEventListener('mousedown', (e) => {
+      if (window.innerWidth <= 768 || sounddogState.isMaximized) return;
       e.preventDefault();
       e.stopPropagation();
-      isResizing = true;
-      startY = e.clientY;
-      startX = e.clientX;
-      startScrollH = queueScroll.clientHeight;
-      startWinW = container.clientWidth;
-      document.body.style.userSelect = 'none';
-      document.body.style.cursor = 'nwse-resize';
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startW = container.offsetWidth;
+      const startH = container.offsetHeight;
 
       const onMouseMove = (me) => {
-        if (!isResizing) return;
-        const dy = me.clientY - startY;
-        const dx = me.clientX - startX;
-        const newScrollH = Math.max(70, Math.min(600, startScrollH + dy));
-        const newWinW = Math.max(300, Math.min(800, startWinW + dx));
-        queueScroll.style.height = `${newScrollH}px`;
-        container.style.width = `${newWinW}px`;
+        if (dir.includes('e')) {
+          const newW = Math.max(320, Math.min(window.innerWidth - 20, startW + (me.clientX - startX)));
+          container.style.width = `${newW}px`;
+        }
+        if (dir.includes('s')) {
+          const newH = Math.max(200, Math.min(window.innerHeight - 40, startH + (me.clientY - startY)));
+          container.style.height = `${newH}px`;
+        }
       };
 
       const onMouseUp = () => {
-        if (isResizing) {
-          isResizing = false;
-          document.body.style.userSelect = '';
-          document.body.style.cursor = '';
-          window.removeEventListener('mousemove', onMouseMove);
-          window.removeEventListener('mouseup', onMouseUp);
-        }
+        window.removeEventListener('mousemove', onMouseMove);
+        window.removeEventListener('mouseup', onMouseUp);
       };
 
       window.addEventListener('mousemove', onMouseMove);
       window.addEventListener('mouseup', onMouseUp);
     });
-  }
+  });
 
-  // Drag & Drop files directly onto SoundDog
+  // Drag & Drop files directly onto Audioplayer
   container.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    container.classList.add('winamp-drag-over');
+    container.classList.add('drag-over');
   });
 
   container.addEventListener('dragleave', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    container.classList.remove('winamp-drag-over');
+    container.classList.remove('drag-over');
   });
 
   container.addEventListener('drop', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    container.classList.remove('winamp-drag-over');
+    container.classList.remove('drag-over');
 
     if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
       handleSoundDogDroppedFiles(e.dataTransfer.files);
@@ -28855,84 +28834,192 @@ function initSoundDogDragAndResize() {
   });
 }
 
-// ---------------- WINDOWSHADE & SUB-WINDOW CONTROLS ----------------
-function toggleSoundDogMainWindowShade() {
-  sounddogState.isShade = !sounddogState.isShade;
-  const mainWin = document.getElementById('sounddog-main-win');
-  const normalBody = document.getElementById('sounddog-main-normal');
-  const shadeBar = document.getElementById('sounddog-main-shade');
-  const shadeBtn = document.getElementById('btn-sounddog-main-shade');
-
-  if (mainWin) mainWin.classList.toggle('shade-mode', sounddogState.isShade);
-  if (normalBody) normalBody.style.display = sounddogState.isShade ? 'none' : 'flex';
-  if (shadeBar) shadeBar.style.display = sounddogState.isShade ? 'flex' : 'none';
-  if (shadeBtn) shadeBtn.textContent = sounddogState.isShade ? '▼' : '▲';
-
-  if (sounddogState.isShade) updateSoundDogScrubber();
-}
-
-function toggleSoundDogEqShade() {
-  sounddogState.eqShade = !sounddogState.eqShade;
-  const normalBody = document.getElementById('sounddog-eq-normal');
-  const shadeBar = document.getElementById('sounddog-eq-shade');
-  if (normalBody) normalBody.style.display = sounddogState.eqShade ? 'none' : 'flex';
-  if (shadeBar) shadeBar.style.display = sounddogState.eqShade ? 'flex' : 'none';
-}
-
-function toggleSoundDogPlShade() {
-  sounddogState.plShade = !sounddogState.plShade;
-  const normalBody = document.getElementById('sounddog-pl-normal');
-  const shadeBar = document.getElementById('sounddog-pl-shade');
-  if (normalBody) normalBody.style.display = sounddogState.plShade ? 'none' : 'flex';
-  if (shadeBar) shadeBar.style.display = sounddogState.plShade ? 'flex' : 'none';
-  updateSoundDogQueueStats();
-}
-
-function toggleSoundDogEqWindow(forceShow) {
-  if (typeof forceShow === 'boolean') sounddogState.showEq = forceShow;
-  else sounddogState.showEq = !sounddogState.showEq;
-
-  const eqWin = document.getElementById('sounddog-eq-window');
-  const eqBtn = document.getElementById('btn-winamp-toggle-eq');
-
-  if (eqWin) eqWin.style.display = sounddogState.showEq ? 'flex' : 'none';
-  if (eqBtn) eqBtn.classList.toggle('active', sounddogState.showEq);
-}
-
-function toggleSoundDogPlWindow(forceShow) {
-  if (typeof forceShow === 'boolean') sounddogState.showPl = forceShow;
+// ---------------- DRAWER & CONTROLS TOGGLES ----------------
+function toggleSoundDogPlaylistDrawer(forceState) {
+  if (typeof forceState === 'boolean') sounddogState.showPl = forceState;
   else sounddogState.showPl = !sounddogState.showPl;
 
-  const plWin = document.getElementById('sounddog-playlist-win');
-  const plBtn = document.getElementById('btn-winamp-toggle-pl');
+  localStorage.setItem('cd_sounddog_show_pl', sounddogState.showPl ? '1' : '0');
 
-  if (plWin) plWin.style.display = sounddogState.showPl ? 'flex' : 'none';
-  if (plBtn) plBtn.classList.toggle('active', sounddogState.showPl);
+  const drawer = document.getElementById('sounddog-playlist-sidebar');
+  const btn = document.getElementById('btn-sounddog-playlist-toggle');
+  if (drawer) drawer.style.display = sounddogState.showPl ? 'flex' : 'none';
+  if (btn) btn.classList.toggle('active', sounddogState.showPl);
+}
+
+function toggleSoundDogEqDrawer(forceState) {
+  if (typeof forceState === 'boolean') sounddogState.showEq = forceState;
+  else sounddogState.showEq = !sounddogState.showEq;
+
+  localStorage.setItem('cd_sounddog_show_eq', sounddogState.showEq ? '1' : '0');
+
+  const drawer = document.getElementById('sounddog-eq-drawer');
+  const btn = document.getElementById('btn-sounddog-eq-toggle');
+  if (drawer) drawer.style.display = sounddogState.showEq ? 'flex' : 'none';
+  if (btn) btn.classList.toggle('active', sounddogState.showEq);
+}
+
+function cycleSoundDogRepeat() {
+  if (sounddogState.repeatMode === 'all') sounddogState.repeatMode = 'one';
+  else if (sounddogState.repeatMode === 'one') sounddogState.repeatMode = 'off';
+  else sounddogState.repeatMode = 'all';
+
+  localStorage.setItem('cd_sounddog_repeat', sounddogState.repeatMode);
+  updateSoundDogRepeatButton();
+  showToast(`Repeat: ${sounddogState.repeatMode.toUpperCase()}`, 'info');
+}
+
+function updateSoundDogRepeatButton() {
+  const btn = document.getElementById('btn-sounddog-repeat');
+  if (!btn) return;
+  const mode = sounddogState.repeatMode;
+  btn.classList.toggle('active', mode !== 'off');
+  btn.title = `Repeat Mode: ${mode.toUpperCase()} (R)`;
+}
+
+function toggleSoundDogShuffle() {
+  sounddogState.isShuffle = !sounddogState.isShuffle;
+  updateSoundDogShuffleButton();
+  showToast(`Shuffle: ${sounddogState.isShuffle ? 'ON' : 'OFF'}`, 'info');
+}
+
+function updateSoundDogShuffleButton() {
+  const btn = document.getElementById('btn-sounddog-shuffle');
+  if (btn) btn.classList.toggle('active', sounddogState.isShuffle);
+}
+
+function toggleSoundDogMute() {
+  sounddogState.isMuted = !sounddogState.isMuted;
+  const audioEl = getSoundDogAudioElement();
+  if (audioEl) audioEl.volume = sounddogState.isMuted ? 0 : sounddogState.volume;
+
+  if (sounddogGainNode && sounddogAudioCtx) {
+    sounddogGainNode.gain.setValueAtTime(sounddogState.isMuted ? 0 : sounddogState.volume, sounddogAudioCtx.currentTime);
+  }
+
+  const icon = document.getElementById('sounddog-volume-icon');
+  if (icon) {
+    icon.setAttribute('data-lucide', sounddogState.isMuted ? 'volume-x' : (sounddogState.volume > 0.5 ? 'volume-2' : 'volume-1'));
+    if (window.lucide) {
+      try { lucide.createIcons({ root: icon.parentElement }); } catch (e) {}
+    }
+  }
+}
+
+function setSoundDogVolume(val) {
+  const v = Math.max(0, Math.min(1, parseFloat(val)));
+  sounddogState.volume = v;
+  sounddogState.isMuted = false;
+  localStorage.setItem('cd_sounddog_volume', v.toString());
+
+  const audioEl = getSoundDogAudioElement();
+  if (audioEl) audioEl.volume = v;
+
+  if (sounddogGainNode && sounddogAudioCtx) {
+    sounddogGainNode.gain.setValueAtTime(v, sounddogAudioCtx.currentTime);
+  }
+
+  const slider = document.getElementById('sounddog-volume-slider');
+  if (slider && slider.value !== v.toString()) slider.value = v.toString();
+
+  const icon = document.getElementById('sounddog-volume-icon');
+  if (icon) {
+    icon.setAttribute('data-lucide', v === 0 ? 'volume-x' : (v > 0.5 ? 'volume-2' : 'volume-1'));
+    if (window.lucide) {
+      try { lucide.createIcons({ root: icon.parentElement }); } catch (e) {}
+    }
+  }
+}
+
+function skipSoundDog(secs) {
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl || !audioEl.duration) return;
+  audioEl.currentTime = Math.max(0, Math.min(audioEl.duration, audioEl.currentTime + secs));
+  updateSoundDogScrubber();
+}
+
+function handleSoundDogScrubberHover(e) {
+  const audioEl = getSoundDogAudioElement();
+  const trackEl = document.getElementById('sounddog-scrubber-track');
+  const tooltip = document.getElementById('sounddog-scrubber-tooltip');
+  if (!audioEl || !trackEl || !tooltip || !audioEl.duration) return;
+
+  const rect = trackEl.getBoundingClientRect();
+  const hoverX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+  const pct = hoverX / rect.width;
+  const hoverSecs = pct * audioEl.duration;
+
+  tooltip.textContent = formatMediaTime(hoverSecs);
+  tooltip.style.left = `${hoverX}px`;
+  tooltip.style.display = 'block';
+}
+
+function hideSoundDogScrubberTooltip() {
+  const tooltip = document.getElementById('sounddog-scrubber-tooltip');
+  if (tooltip) tooltip.style.display = 'none';
+}
+
+function seekSoundDogFromEvent(e) {
+  const audioEl = getSoundDogAudioElement();
+  const trackEl = e.currentTarget || document.getElementById('sounddog-scrubber-track');
+  if (!audioEl || !trackEl || !audioEl.duration) return;
+
+  const rect = trackEl.getBoundingClientRect();
+  const clickX = e.clientX - rect.left;
+  const pct = Math.max(0, Math.min(1, clickX / rect.width));
+  audioEl.currentTime = pct * audioEl.duration;
+  updateSoundDogScrubber();
+}
+
+function seekSoundDogRelative(deltaSecs) {
+  skipSoundDog(deltaSecs);
+}
+
+function updateSoundDogScrubber() {
+  const audioEl = getSoundDogAudioElement();
+  if (!audioEl) return;
+
+  const cur = audioEl.currentTime || 0;
+  const dur = audioEl.duration || 0;
+  const pct = dur > 0 ? (cur / dur) * 100 : 0;
+
+  const progEl = document.getElementById('sounddog-scrubber-progress');
+  const thumbEl = document.getElementById('sounddog-scrubber-thumb');
+  const timeCur = document.getElementById('sounddog-time-current');
+  const timeTot = document.getElementById('sounddog-time-total');
+  const timeBadge = document.getElementById('sounddog-track-time-badge');
+
+  if (progEl) progEl.style.width = `${pct}%`;
+  if (thumbEl) thumbEl.style.left = `${pct}%`;
+
+  if (sounddogState.timeMode === 'remaining' && dur > 0) {
+    const rem = Math.max(0, dur - cur);
+    if (timeCur) timeCur.textContent = `-${formatMediaTime(rem)}`;
+  } else {
+    if (timeCur) timeCur.textContent = formatMediaTime(cur);
+  }
+
+  if (timeTot) timeTot.textContent = dur > 0 ? formatMediaTime(dur) : '00:00';
+  if (timeBadge) timeBadge.textContent = dur > 0 ? formatMediaTime(dur) : '00:00';
+
+  if (dur > 0 && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
+    const track = sounddogState.queue[sounddogState.currentIndex];
+    if (!track.duration) {
+      track.duration = dur;
+      updateSoundDogQueueStats();
+      renderSoundDogQueue();
+    }
+  }
+}
+
+function updateSoundDogBuffer() {
+  // Scrubber buffering feedback
 }
 
 function toggleSoundDogTimeMode() {
   sounddogState.timeMode = (sounddogState.timeMode === 'elapsed') ? 'remaining' : 'elapsed';
   localStorage.setItem('cd_sounddog_timemode', sounddogState.timeMode);
   updateSoundDogScrubber();
-}
-
-function toggleSoundDogEqEnabled() {
-  sounddogState.eqEnabled = !sounddogState.eqEnabled;
-  const btn = document.getElementById('btn-winamp-eq-on');
-  if (btn) btn.classList.toggle('active', sounddogState.eqEnabled);
-
-  if (sounddogAudioCtx) {
-    sounddogEqFilters.forEach((f, idx) => {
-      const targetGain = sounddogState.eqEnabled ? sounddogState.eq.bands[idx] : 0;
-      f.gain.setValueAtTime(targetGain, sounddogAudioCtx.currentTime);
-    });
-  }
-}
-
-function toggleSoundDogEqAuto() {
-  sounddogState.eqAuto = !sounddogState.eqAuto;
-  const btn = document.getElementById('btn-winamp-eq-auto');
-  if (btn) btn.classList.toggle('active', sounddogState.eqAuto);
 }
 
 // ---------------- QUEUE & PLAYLIST MANAGEMENT ----------------
@@ -28961,7 +29048,32 @@ function addCurrentPaneFolderToSoundDog(paneIndex = null) {
 
   const paths = audioEntries.map(e => e.path);
   addTracksToSoundDogQueue(paths, sounddogState.queue.length === 0, resolvedPaneIdx);
-  showToast(`Added ${audioEntries.length} tracks to SoundDog playlist`, 'success');
+  showToast(`Added ${audioEntries.length} tracks to Audioplayer playlist`, 'success');
+}
+
+async function addDirectoryToSoundDog(dirPath, autoPlay = true, paneIndex = null) {
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  try {
+    const endpoint = getPaneEndpoint(resolvedPaneIdx);
+    const headers = getPaneAuthHeaders(resolvedPaneIdx);
+    const authUrl = resolveAuthUri(dirPath);
+    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=false`;
+    const resp = await fetch(url, { headers });
+    if (resp.ok) {
+      const data = await resp.json();
+      const entries = data.entries || [];
+      const audioFiles = entries.filter(e => !e.is_dir && isAudioExtension(e.name)).map(e => e.path);
+      if (audioFiles.length > 0) {
+        openSoundDog();
+        addTracksToSoundDogQueue(audioFiles, autoPlay, resolvedPaneIdx);
+        showToast(`Loaded ${audioFiles.length} tracks into Audioplayer`, 'success');
+      } else {
+        showToast('No audio tracks found in folder', 'info');
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load audio from directory:', e);
+  }
 }
 
 function addTracksToSoundDogQueue(paths, autoPlayFirst = false, paneIndex = null) {
@@ -28986,7 +29098,7 @@ function addTracksToSoundDogQueue(paths, autoPlayFirst = false, paneIndex = null
         name: fileName,
         title: title,
         artist: artist,
-        album: 'SoundDog Jukebox',
+        album: 'Audioplayer Jukebox',
         duration: 0,
         size: 0,
         cover: null,
@@ -29127,19 +29239,20 @@ function randomizeSoundDogQueue() {
 
 function renderSoundDogQueue() {
   const tbody = document.getElementById('sounddog-queue-tbody');
-  const emptyEl = document.getElementById('sounddog-queue-empty');
   const filterInput = document.getElementById('sounddog-queue-filter');
   const filterTerm = (filterInput?.value || '').toLowerCase().trim();
 
   if (!tbody) return;
 
   if (sounddogState.queue.length === 0) {
-    tbody.innerHTML = '';
-    if (emptyEl) emptyEl.style.display = 'flex';
+    tbody.innerHTML = `
+      <div class="audioplayer-playlist-empty">
+        <p style="font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Playlist is empty</p>
+        <small style="opacity: 0.7;">Double-click audio files in panels or click + to load</small>
+      </div>
+    `;
     return;
   }
-
-  if (emptyEl) emptyEl.style.display = 'none';
 
   let html = '';
   sounddogState.queue.forEach((track, idx) => {
@@ -29156,12 +29269,13 @@ function renderSoundDogQueue() {
     const displayTitle = track.artist ? `${track.artist} - ${track.title}` : (track.title || track.name);
 
     html += `
-      <div class="winamp-pl-row ${isCurrent ? 'playing' : ''} ${isSelected ? 'selected' : ''}" 
+      <div class="audioplayer-pl-row ${isCurrent ? 'playing' : ''} ${isSelected ? 'selected' : ''}" 
            onclick="selectSoundDogPlTrack(${idx})" 
            ondblclick="loadSoundDogTrack(${idx}, true)">
-        <span class="winamp-pl-num">${idx + 1}.</span>
-        <span class="winamp-pl-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</span>
-        <span class="winamp-pl-time">${durStr}</span>
+        <span class="audioplayer-pl-num">${idx + 1}.</span>
+        <span class="audioplayer-pl-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</span>
+        <span class="audioplayer-pl-time">${durStr}</span>
+        <button type="button" class="audioplayer-pl-remove" onclick="event.stopPropagation(); removeSoundDogTrack(${idx})" title="Remove Track">✕</button>
       </div>
     `;
   });
@@ -29179,16 +29293,9 @@ function filterSoundDogQueue(term) {
 }
 
 function updateSoundDogQueueStats() {
-  const statsEl = document.getElementById('sounddog-queue-stats');
-  const shadeStats = document.getElementById('sounddog-pl-shade-summary');
+  const countBadge = document.getElementById('sounddog-playlist-count');
   const count = sounddogState.queue.length;
-  let totalSecs = 0;
-  sounddogState.queue.forEach(t => { if (t.duration) totalSecs += t.duration; });
-  const timeStr = formatMediaTime(totalSecs);
-  const text = `${count} ${count === 1 ? 'track' : 'tracks'} / ${timeStr}`;
-
-  if (statsEl) statsEl.textContent = text;
-  if (shadeStats) shadeStats.textContent = `PLAYLIST: ${text}`;
+  if (countBadge) countBadge.textContent = count.toString();
 }
 
 // ---------------- AUDIO PLAYBACK & TRACK LOADING ----------------
@@ -29216,7 +29323,7 @@ async function loadSoundDogTrack(index, autoPlay = true) {
 
   if (autoPlay) {
     audioEl.play().catch(e => {
-      console.debug('SoundDog playback notice:', e);
+      console.debug('Audioplayer playback notice:', e);
     });
   }
 
@@ -29296,145 +29403,12 @@ function playPrevSoundDogTrack() {
   loadSoundDogTrack(prevIdx, true);
 }
 
-function seekSoundDogFromEvent(e) {
-  const audioEl = getSoundDogAudioElement();
-  const trackEl = e.currentTarget || document.getElementById('sounddog-scrubber-track');
-  if (!audioEl || !trackEl || !audioEl.duration) return;
-
-  const rect = trackEl.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const pct = Math.max(0, Math.min(1, clickX / rect.width));
-  audioEl.currentTime = pct * audioEl.duration;
-  updateSoundDogScrubber();
-}
-
-function seekSoundDogRelative(deltaSecs) {
-  const audioEl = getSoundDogAudioElement();
-  if (!audioEl || !audioEl.duration) return;
-  audioEl.currentTime = Math.max(0, Math.min(audioEl.duration, audioEl.currentTime + deltaSecs));
-  updateSoundDogScrubber();
-}
-
-function updateSoundDogScrubber() {
-  const audioEl = getSoundDogAudioElement();
-  if (!audioEl) return;
-
-  const cur = audioEl.currentTime || 0;
-  const dur = audioEl.duration || 0;
-  const pct = dur > 0 ? (cur / dur) * 100 : 0;
-
-  const progEl = document.getElementById('sounddog-scrubber-progress');
-  const thumbEl = document.getElementById('sounddog-scrubber-thumb');
-  const shadeProgEl = document.getElementById('sounddog-shade-progress');
-  const shadeTimeEl = document.getElementById('sounddog-shade-time');
-  const ledDigits = document.getElementById('winamp-led-time');
-  const ledMinus = document.getElementById('winamp-time-minus');
-
-  if (progEl) progEl.style.width = `${pct}%`;
-  if (thumbEl) thumbEl.style.left = `${pct}%`;
-  if (shadeProgEl) shadeProgEl.style.width = `${pct}%`;
-
-  if (sounddogState.timeMode === 'remaining') {
-    const rem = Math.max(0, dur - cur);
-    if (ledDigits) ledDigits.textContent = formatMediaTime(rem);
-    if (ledMinus) ledMinus.style.visibility = 'visible';
-    if (shadeTimeEl) shadeTimeEl.textContent = `-${formatMediaTime(rem)}`;
-  } else {
-    if (ledDigits) ledDigits.textContent = formatMediaTime(cur);
-    if (ledMinus) ledMinus.style.visibility = 'hidden';
-    if (shadeTimeEl) shadeTimeEl.textContent = formatMediaTime(cur);
-  }
-
-  if (dur > 0 && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
-    const track = sounddogState.queue[sounddogState.currentIndex];
-    if (!track.duration) {
-      track.duration = dur;
-      updateSoundDogQueueStats();
-      renderSoundDogQueue();
-    }
-  }
-}
-
-function updateSoundDogBuffer() {
-  // Scrubber buffering update if available
-}
-
-function setSoundDogVolume(val) {
-  const v = Math.max(0, Math.min(1, parseFloat(val)));
-  sounddogState.volume = v;
-  localStorage.setItem('cd_sounddog_volume', v.toString());
-
-  const audioEl = getSoundDogAudioElement();
-  if (audioEl) audioEl.volume = sounddogState.isMuted ? 0 : v;
-
-  if (sounddogGainNode && sounddogAudioCtx) {
-    sounddogGainNode.gain.setValueAtTime(sounddogState.isMuted ? 0 : v, sounddogAudioCtx.currentTime);
-  }
-
-  const slider = document.getElementById('winamp-vol-slider');
-  if (slider) slider.value = Math.round(v * 100).toString();
-}
-
-function setSoundDogPan(val) {
-  const p = Math.max(-1, Math.min(1, parseFloat(val)));
-  sounddogState.pan = p;
-
-  if (sounddogPanNode && sounddogAudioCtx) {
-    sounddogPanNode.pan.setValueAtTime(p, sounddogAudioCtx.currentTime);
-  }
-
-  const slider = document.getElementById('winamp-bal-slider');
-  if (slider) slider.value = p.toString();
-}
-
-function setSoundDogPreamp(val) {
-  const gainDb = parseFloat(val);
-  sounddogState.eq.preamp = gainDb;
-  const linearGain = Math.pow(10, gainDb / 20);
-
-  if (sounddogPreampNode && sounddogAudioCtx) {
-    sounddogPreampNode.gain.setValueAtTime(linearGain, sounddogAudioCtx.currentTime);
-  }
-
-  const lbl = document.getElementById('winamp-eq-preamp-db');
-  if (lbl) lbl.textContent = `${gainDb >= 0 ? '+' : ''}${gainDb.toFixed(0)}dB`;
-}
-
-function toggleSoundDogShuffle() {
-  sounddogState.isShuffle = !sounddogState.isShuffle;
-  updateSoundDogShuffleButton();
-  showToast(`Shuffle: ${sounddogState.isShuffle ? 'ON' : 'OFF'}`, 'info');
-}
-
-function updateSoundDogShuffleButton() {
-  const btn = document.getElementById('btn-winamp-shuf');
-  if (btn) btn.classList.toggle('active', sounddogState.isShuffle);
-}
-
-function toggleSoundDogRepeat() {
-  if (sounddogState.repeatMode === 'all') sounddogState.repeatMode = 'one';
-  else if (sounddogState.repeatMode === 'one') sounddogState.repeatMode = 'off';
-  else sounddogState.repeatMode = 'all';
-
-  localStorage.setItem('cd_sounddog_repeat', sounddogState.repeatMode);
-  updateSoundDogRepeatButton();
-  showToast(`Repeat: ${sounddogState.repeatMode.toUpperCase()}`, 'info');
-}
-
-function updateSoundDogRepeatButton() {
-  const btn = document.getElementById('btn-winamp-rep');
-  if (!btn) return;
-  const mode = sounddogState.repeatMode;
-  btn.classList.toggle('active', mode !== 'off');
-  btn.title = `Repeat Mode: ${mode.toUpperCase()} (R)`;
-}
-
 function updateSoundDogPlaybackState(isPlaying) {
-  const shadePlayIcon = document.getElementById('sounddog-shade-play-icon');
+  const playIcon = document.getElementById('sounddog-play-icon');
   const pillPlayIcon = document.getElementById('sounddog-pill-play-icon');
 
-  if (shadePlayIcon) {
-    shadePlayIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+  if (playIcon) {
+    playIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
   }
 
   if (pillPlayIcon) {
@@ -29451,30 +29425,31 @@ function updateSoundDogPlaybackState(isPlaying) {
 function updateSoundDogHUD(track) {
   if (!track) return;
 
-  const marquee = document.getElementById('winamp-marquee-text');
-  const shadeTitle = document.getElementById('sounddog-shade-title');
-  const mainTitleText = document.getElementById('sounddog-main-title-text');
-  const kbpsVal = document.getElementById('winamp-kbps-val');
-  const khzVal = document.getElementById('winamp-khz-val');
+  const headerTitle = document.getElementById('sounddog-header-title');
+  const trackTitle = document.getElementById('sounddog-track-title');
+  const trackArtist = document.getElementById('sounddog-track-artist');
+  const formatBadge = document.getElementById('sounddog-format-badge');
+  const kbpsPill = document.getElementById('sounddog-tech-bitrate');
+  const khzPill = document.getElementById('sounddog-tech-samplerate');
 
   const idxNum = sounddogState.currentIndex + 1;
   const displayTitle = track.artist ? `${track.artist} - ${track.title}` : (track.title || track.name);
-  const durStr = track.duration > 0 ? formatMediaTime(track.duration) : '--:--';
-  const marqueeStr = `*** ${idxNum}. ${displayTitle} (${durStr}) ***`;
+  const ext = (track.name.split('.').pop() || 'AUDIO').toUpperCase();
 
-  if (marquee) marquee.textContent = marqueeStr;
-  if (shadeTitle) shadeTitle.textContent = `${idxNum}. ${displayTitle}`;
-  if (mainTitleText) mainTitleText.textContent = `ARFAMP: ${displayTitle}`;
-  if (kbpsVal) kbpsVal.textContent = track.bitrate || '320';
-  if (khzVal) khzVal.textContent = track.sampleRate || '44';
+  if (headerTitle) headerTitle.textContent = `${idxNum}. ${displayTitle}`;
+  if (trackTitle) trackTitle.textContent = track.title || track.name;
+  if (trackArtist) trackArtist.textContent = track.artist || 'Audioplayer Jukebox';
+  if (formatBadge) formatBadge.textContent = ext;
+  if (kbpsPill) kbpsPill.textContent = `${track.bitrate || '320'} KBPS`;
+  if (khzPill) khzPill.textContent = `${track.sampleRate || '44.1'} KHZ`;
 
   // Media Session metadata for OS lockscreen & hardware keys
   if ('mediaSession' in navigator) {
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.title || track.name,
-        artist: track.artist || 'ARFAMP',
-        album: track.album || 'ARFAMP Jukebox',
+        artist: track.artist || 'Audioplayer',
+        album: track.album || 'Audioplayer Jukebox',
         artwork: [{ src: track.cover || 'assets/amber-media.webp', sizes: '128x128', type: 'image/webp' }]
       });
 
@@ -29487,17 +29462,19 @@ function updateSoundDogHUD(track) {
 }
 
 function resetSoundDogHUD() {
-  const marquee = document.getElementById('winamp-marquee-text');
-  const shadeTitle = document.getElementById('sounddog-shade-title');
-  const mainTitleText = document.getElementById('sounddog-main-title-text');
-  const ledDigits = document.getElementById('winamp-led-time');
-  const ledMinus = document.getElementById('winamp-time-minus');
+  const headerTitle = document.getElementById('sounddog-header-title');
+  const trackTitle = document.getElementById('sounddog-track-title');
+  const trackArtist = document.getElementById('sounddog-track-artist');
+  const timeCur = document.getElementById('sounddog-time-current');
+  const timeTot = document.getElementById('sounddog-time-total');
+  const timeBadge = document.getElementById('sounddog-track-time-badge');
 
-  if (marquee) marquee.textContent = '*** ARFAMP 2.91 JUKEBOX ***';
-  if (shadeTitle) shadeTitle.textContent = 'ARFAMP Jukebox';
-  if (mainTitleText) mainTitleText.textContent = 'ARFAMP 2.91';
-  if (ledDigits) ledDigits.textContent = '00:00';
-  if (ledMinus) ledMinus.style.visibility = 'hidden';
+  if (headerTitle) headerTitle.textContent = 'No audio loaded';
+  if (trackTitle) trackTitle.textContent = 'Audioplayer';
+  if (trackArtist) trackArtist.textContent = 'Woofsons Lab Jukebox';
+  if (timeCur) timeCur.textContent = '00:00';
+  if (timeTot) timeTot.textContent = '00:00';
+  if (timeBadge) timeBadge.textContent = '00:00';
 
   const progEl = document.getElementById('sounddog-scrubber-progress');
   const thumbEl = document.getElementById('sounddog-scrubber-thumb');
@@ -29513,7 +29490,7 @@ function updateSoundDogPill() {
     const cur = sounddogState.queue[sounddogState.currentIndex];
     pillTitle.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
   } else {
-    pillTitle.textContent = 'ARFAMP';
+    pillTitle.textContent = 'Audioplayer';
   }
 }
 
@@ -29527,11 +29504,16 @@ function updateSoundDogDockedHUD() {
           try { lucide.createIcons({ root: btn.parentElement }); } catch (e) {}
         }
       }
+      const titleEl = document.getElementById(`docked-sounddog-track-${idx}`);
+      if (titleEl && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
+        const cur = sounddogState.queue[sounddogState.currentIndex];
+        titleEl.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
+      }
     }
   });
 }
 
-// ---------------- 60 FPS REAL-TIME WINAMP VISUALIZER ----------------
+// ---------------- 60 FPS REAL-TIME VISUALIZER ----------------
 function cycleSoundDogVizMode() {
   const modes = ['bars', 'wave', 'glow', 'off'];
   const curIdx = modes.indexOf(sounddogState.vizMode);
@@ -29575,48 +29557,48 @@ function startSoundDogVisualizer() {
 
     if (sounddogState.vizMode === 'bars') {
       sounddogAnalyserNode.getByteFrequencyData(dataArray);
-      const barCount = 18;
-      const barWidth = 3;
-      const barGap = 1;
+      const barCount = 20;
+      const barWidth = Math.max(2, Math.floor((width - (barCount * 2)) / barCount));
+      const barGap = 2;
       const step = Math.floor(bufferLength / barCount);
 
       for (let i = 0; i < barCount; i++) {
         const val = dataArray[i * step] / 255;
-        const barHeight = Math.max(1, Math.floor(val * (height - 1)));
+        const barHeight = Math.max(1, Math.floor(val * (height - 2)));
         const x = i * (barWidth + barGap) + 2;
 
-        // Falling Peak Indicator (classic Winamp behavior)
+        // Falling Peak Indicator
         if (barHeight >= (sounddogState.visPeakArray[i] || 0)) {
           sounddogState.visPeakArray[i] = barHeight;
           sounddogState.visPeakDecay[i] = 0;
         } else {
-          sounddogState.visPeakDecay[i] = (sounddogState.visPeakDecay[i] || 0) + 0.15;
+          sounddogState.visPeakDecay[i] = (sounddogState.visPeakDecay[i] || 0) + 0.2;
           sounddogState.visPeakArray[i] = Math.max(0, sounddogState.visPeakArray[i] - sounddogState.visPeakDecay[i]);
         }
 
         // Draw segmented LED bar
-        for (let segY = height - 1; segY >= height - barHeight; segY -= 2) {
+        for (let segY = height - 1; segY >= height - barHeight; segY -= 3) {
           const normY = (height - segY) / height;
           if (normY > 0.8) ctx.fillStyle = '#ef4444'; // Red peak
           else if (normY > 0.55) ctx.fillStyle = '#fbbf24'; // Amber
-          else ctx.fillStyle = '#22c55e'; // Phosphor Green
+          else ctx.fillStyle = '#f59e0b'; // Amber Charcoal accent
 
-          ctx.fillRect(x, segY, barWidth, 1.2);
+          ctx.fillRect(x, segY, barWidth, 2);
         }
 
         // Draw falling peak cap
         const peakY = height - Math.floor(sounddogState.visPeakArray[i] || 0);
         if (peakY < height && peakY >= 0) {
           ctx.fillStyle = '#ffffff';
-          ctx.fillRect(x, peakY, barWidth, 1);
+          ctx.fillRect(x, peakY, barWidth, 1.5);
         }
       }
     } else if (sounddogState.vizMode === 'wave') {
       sounddogAnalyserNode.getByteTimeDomainData(dataArray);
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = '#22c55e';
-      ctx.shadowColor = 'rgba(34, 197, 94, 0.8)';
-      ctx.shadowBlur = 4;
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = '#f59e0b';
+      ctx.shadowColor = 'rgba(245, 158, 11, 0.8)';
+      ctx.shadowBlur = 6;
 
       ctx.beginPath();
       const sliceWidth = width / bufferLength;
@@ -29638,7 +29620,7 @@ function startSoundDogVisualizer() {
       avg = (avg / 16) / 255;
 
       const grad = ctx.createRadialGradient(width / 2, height / 2, 1, width / 2, height / 2, width / 2);
-      grad.addColorStop(0, `rgba(34, 197, 94, ${avg * 0.9})`);
+      grad.addColorStop(0, `rgba(245, 158, 11, ${avg * 0.9})`);
       grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
 
       ctx.fillStyle = grad;
@@ -29673,8 +29655,8 @@ function setSoundDogEqBand(bandIdx, dbValue, isCustom = true) {
     sounddogEqFilters[bandIdx].gain.setValueAtTime(val, sounddogAudioCtx.currentTime);
   }
 
-  const slider = document.getElementById(`winamp-eq-band-${bandIdx}`);
-  const dbLabel = document.getElementById(`winamp-eq-db-${bandIdx}`);
+  const slider = document.getElementById(`sounddog-eq-band-${bandIdx}`);
+  const dbLabel = document.getElementById(`sounddog-eq-db-${bandIdx}`);
 
   if (slider) slider.value = val.toString();
   if (dbLabel) dbLabel.textContent = `${val > 0 ? '+' : ''}${val.toFixed(0)}`;
@@ -29683,6 +29665,23 @@ function setSoundDogEqBand(bandIdx, dbValue, isCustom = true) {
     sounddogState.eq.preset = 'custom';
     const sel = document.getElementById('sounddog-eq-preset-select');
     if (sel) sel.value = 'custom';
+  }
+}
+
+function toggleSoundDogEqEnabled() {
+  sounddogState.eqEnabled = !sounddogState.eqEnabled;
+  const btn = document.getElementById('btn-sounddog-eq-power');
+  if (btn) {
+    btn.textContent = sounddogState.eqEnabled ? 'ON' : 'OFF';
+    btn.classList.toggle('btn-accent', sounddogState.eqEnabled);
+    btn.classList.toggle('btn-outline', !sounddogState.eqEnabled);
+  }
+
+  if (sounddogAudioCtx) {
+    sounddogEqFilters.forEach((f, idx) => {
+      const targetGain = sounddogState.eqEnabled ? sounddogState.eq.bands[idx] : 0;
+      f.gain.setValueAtTime(targetGain, sounddogAudioCtx.currentTime);
+    });
   }
 }
 
@@ -29731,7 +29730,7 @@ async function parseSoundDogMetadata(track) {
       }
     }
   } catch (e) {
-    console.debug('SoundDog ID3 parse notice:', e);
+    console.debug('Audioplayer ID3 parse notice:', e);
   }
 
   if (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]?.path === track.path) {
@@ -29770,13 +29769,13 @@ function exportSoundDogM3U() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `ARFAMP_Playlist_${new Date().toISOString().slice(0, 10)}.m3u`;
+  a.download = `Audioplayer_Playlist_${new Date().toISOString().slice(0, 10)}.m3u`;
   a.click();
   URL.revokeObjectURL(url);
   showToast('Playlist exported (.m3u)', 'success');
 }
 
-// ---------------- WINAMP 2.X AUTHENTIC KEYBOARD SHORTCUTS ----------------
+// ---------------- KEYBOARD SHORTCUTS ----------------
 function initSoundDogKeyboardShortcuts() {
   window.addEventListener('keydown', (e) => {
     const win = document.getElementById('floating-sounddog-window');
@@ -29788,41 +29787,25 @@ function initSoundDogKeyboardShortcuts() {
 
     // Alt + Hotkeys
     if (e.altKey) {
-      if (e.key === 'w' || e.key === 'W') {
+      if (e.key === 'p' || e.key === 'P') {
         e.preventDefault();
-        toggleSoundDogMainWindowShade();
-        return;
-      }
-      if (e.key === 'g' || e.key === 'G') {
-        e.preventDefault();
-        toggleSoundDogEqWindow();
-        return;
-      }
-      if (e.key === 'e' || e.key === 'E') {
-        e.preventDefault();
-        toggleSoundDogPlWindow();
+        toggleSoundDogPlaylistDrawer();
         return;
       }
     }
 
-    // Standard Winamp 2.x Playback Hotkeys (Z, X, C, V, B, L)
+    // Playback Hotkeys (Space, Z, X, C, V, B, L, S, R, E, M)
     const key = e.key.toLowerCase();
     switch (key) {
-      case 'z':
-        e.preventDefault();
-        playPrevSoundDogTrack();
-        break;
+      case ' ':
       case 'x':
-        e.preventDefault();
-        if (sounddogState.currentIndex >= 0 && sounddogState.isPlaying) {
-          getSoundDogAudioElement()?.play().catch(() => {});
-        } else {
-          toggleSoundDogPlay();
-        }
-        break;
       case 'c':
         e.preventDefault();
         toggleSoundDogPlay();
+        break;
+      case 'z':
+        e.preventDefault();
+        playPrevSoundDogTrack();
         break;
       case 'v':
         e.preventDefault();
@@ -29842,15 +29825,23 @@ function initSoundDogKeyboardShortcuts() {
         break;
       case 'r':
         e.preventDefault();
-        toggleSoundDogRepeat();
+        cycleSoundDogRepeat();
+        break;
+      case 'e':
+        e.preventDefault();
+        toggleSoundDogEqDrawer();
+        break;
+      case 'm':
+        e.preventDefault();
+        toggleSoundDogMute();
         break;
       case 'arrowleft':
         e.preventDefault();
-        seekSoundDogRelative(-5);
+        skipSoundDog(-10);
         break;
       case 'arrowright':
         e.preventDefault();
-        seekSoundDogRelative(5);
+        skipSoundDog(10);
         break;
       case 'arrowup':
         e.preventDefault();
@@ -29871,12 +29862,55 @@ function initSoundDogKeyboardShortcuts() {
 // ---------------- DOCKED SOUNDDOG PANE ----------------
 function mountDockedSoundDog(paneIndex) {
   const host = document.getElementById(`docked-sounddog-host-${paneIndex}`);
-  const mainWin = document.getElementById('sounddog-main-win');
-  if (!host || !mainWin) return;
+  if (!host) return;
 
-  host.appendChild(mainWin);
-  mainWin.style.display = 'flex';
-  updateSoundDogDockedHUD();
+  const currentTrack = (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) 
+    ? sounddogState.queue[sounddogState.currentIndex] 
+    : null;
+  const displayTitle = currentTrack 
+    ? (currentTrack.artist ? `${currentTrack.artist} - ${currentTrack.title}` : (currentTrack.title || currentTrack.name))
+    : 'No audio loaded';
+
+  host.innerHTML = `
+    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; gap: 8px;">
+      <!-- Docked Header / Now Playing -->
+      <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; display: flex; align-items: center; justify-content: space-between;">
+        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; margin-right: 8px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="docked-sounddog-track-${paneIndex}">
+            ${escapeHtml(displayTitle)}
+          </div>
+          <div style="font-size: 10px; color: var(--text-muted);">Audioplayer Docked</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button class="btn btn-icon btn-xs" onclick="playPrevSoundDogTrack()" title="Previous Track"><i data-lucide="skip-back" style="width: 12px;"></i></button>
+          <button class="btn btn-accent btn-xs" onclick="toggleSoundDogPlay()" title="Play / Pause"><i data-lucide="${sounddogState.isPlaying ? 'pause' : 'play'}" id="docked-sounddog-play-btn-${paneIndex}" style="width: 12px;"></i></button>
+          <button class="btn btn-icon btn-xs" onclick="playNextSoundDogTrack()" title="Next Track"><i data-lucide="skip-forward" style="width: 12px;"></i></button>
+          <button class="btn btn-icon btn-xs" onclick="stopSoundDogPlay()" title="Stop"><i data-lucide="square" style="width: 12px;"></i></button>
+        </div>
+      </div>
+
+      <!-- Compact Playlist View -->
+      <div style="flex: 1; overflow-y: auto; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; display: flex; flex-direction: column; gap: 2px;" id="docked-sounddog-queue-${paneIndex}">
+        ${sounddogState.queue.length === 0 ? `
+          <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 11px;">
+            Playlist empty. Double click audio files or load a folder.
+          </div>
+        ` : sounddogState.queue.map((t, idx) => `
+          <div class="audioplayer-pl-row ${idx === sounddogState.currentIndex ? 'playing' : ''}" 
+               onclick="loadSoundDogTrack(${idx}, true)" 
+               style="padding: 3px 6px; font-size: 10.5px;">
+            <span class="audioplayer-pl-num">${idx + 1}.</span>
+            <span class="audioplayer-pl-title">${escapeHtml(t.artist ? `${t.artist} - ${t.title}` : (t.title || t.name))}</span>
+            <span class="audioplayer-pl-time">${t.duration > 0 ? formatMediaTime(t.duration) : '--:--'}</span>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `;
+
+  if (window.lucide) {
+    try { lucide.createIcons({ root: host }); } catch (e) {}
+  }
 }
 
 // ============================================================================
