@@ -10498,20 +10498,23 @@ async function openFileDiffView(fileL, fileR) {
 // ---------------- CONVERTX FILE & IMAGE CONVERTER TOOL ----------------
 
 let activeConverterFile = '';
+let activeConverterPaneIndex = null;
 
 function triggerConvertFile() {
   const pane = App.panes[App.activePaneIndex];
   const item = App.contextItem || pane.entries[pane.cursorIndex];
   if (item && !item.is_dir) {
-    openConverterModal(item.path);
+    openConverterModal(item.path, null, App.activePaneIndex);
   } else {
-    openConverterModal('');
+    openConverterModal('', null, App.activePaneIndex);
   }
 }
 
-function openConverterModal(filePath, defaultFormat = null) {
-  const pane = App.panes[App.activePaneIndex];
-  if (!filePath && pane.entries[pane.cursorIndex]) {
+function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  activeConverterPaneIndex = resolvedPaneIdx;
+  const pane = App.panes[resolvedPaneIdx];
+  if (!filePath && pane && pane.entries && pane.entries[pane.cursorIndex]) {
     filePath = pane.entries[pane.cursorIndex].path;
   }
   activeConverterFile = filePath || '';
@@ -10521,8 +10524,11 @@ function openConverterModal(filePath, defaultFormat = null) {
   const pathEl = document.getElementById('convert-source-path');
   const sizeEl = document.getElementById('convert-source-size');
 
+  const node = typeof getPaneNode === 'function' ? getPaneNode(resolvedPaneIdx) : null;
+  const nodeLabel = (node && node.id !== 'local') ? `[Fleet: ${node.name}] ` : '';
+
   if (nameEl) nameEl.textContent = fileName;
-  if (pathEl) pathEl.textContent = filePath || 'Select a file in the pane to convert';
+  if (pathEl) pathEl.textContent = filePath ? `${nodeLabel}${filePath}` : 'Select a file in the pane to convert';
   if (sizeEl) sizeEl.textContent = '';
 
   const targetFormatEl = document.getElementById('convert-target-format');
@@ -10574,9 +10580,16 @@ async function executeFileConversion() {
   if (btn) btn.disabled = true;
 
   try {
-    const resp = await fetch('/api/tools/convert', {
+    const endpoint = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
+      ? getPaneEndpoint(activeConverterPaneIndex)
+      : '';
+    const headers = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
+      ? getPaneAuthHeaders(activeConverterPaneIndex, { 'Content-Type': 'application/json' })
+      : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` };
+
+    const resp = await fetch(`${endpoint}/api/tools/convert`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers,
       body: JSON.stringify({
         source_path: activeConverterFile,
         target_format: targetFormat,
@@ -20439,7 +20452,8 @@ function convertCurrentMediaToMp4() {
     showToast('No media track selected', 'warning');
     return;
   }
-  openConverterModal(curTrack.path, 'mp4');
+  const pIdx = (curTrack.paneIndex !== null && curTrack.paneIndex !== undefined) ? curTrack.paneIndex : currentMediaPlayerPaneIndex;
+  openConverterModal(curTrack.path, 'mp4', pIdx);
 }
 
 function openCurrentMediaWithSystemPlayer() {
