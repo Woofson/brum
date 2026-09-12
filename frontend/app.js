@@ -1687,7 +1687,7 @@ function createPaneElement(pane, index) {
     if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
       const pId = tool.replace(/^(plugin|chewtoy):/, '');
       const pInfo = (window.installedChewToys || []).find(p => p.id === pId);
-      const iconSrc = pInfo?.icon ? `/api/plugins/${encodeURIComponent(pId)}/assets/${pInfo.icon}` : 'assets/amber-frameless-apps.webp';
+      const iconSrc = getChewtoyIconUrl(pInfo);
       const name = pInfo?.name || pId;
       toolTitleHtml = `<img src="${escapeHtml(iconSrc)}" alt="${escapeHtml(name)}" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src='assets/amber-frameless-apps.webp'"> ${escapeHtml(name)}`;
     } else {
@@ -25380,31 +25380,16 @@ function mountDockedTool(paneIndex) {
   const mount = document.getElementById(`docked-tool-mount-${paneIndex}`);
   if (!mount) return;
 
-  // Dynamic Modular ChewToy Dock
+  // Dynamic Modular Chewtoy Dock
   if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, name: pluginId, entry_point: 'index.html' };
     const entry = plugin.entry_point || 'index.html';
     const iframeSrc = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
-    const iconUrl = getChewtoyIconUrl(plugin);
 
     mount.innerHTML = `
-      <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
-        <!-- Standard 26px Chewtoy Docked Header (Rule 9) -->
-        <div style="padding: 3px 8px; min-height: 28px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-            ${renderToolIconHtml(iconUrl, '', 14)}
-            <span style="font-size: 11.5px; font-weight: 700; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(plugin.name || pluginId)}</span>
-            <span class="badge" style="font-size: 9px; padding: 1px 4px; opacity: 0.8;">CHEWTOY</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-xs btn-outline" onclick="undockToolFromPane(${paneIndex})" title="Float Chewtoy" style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="external-link" style="width: 12px; height: 12px;"></i></button>
-            <button class="btn btn-xs btn-outline" onclick="closeDockedTool(${paneIndex})" title="Close Docked Chewtoy" style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
-          </div>
-        </div>
-        <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
-          <iframe id="docked-chewtoy-frame-${paneIndex}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
-        </div>
+      <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+        <iframe id="docked-chewtoy-frame-${paneIndex}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
       </div>
     `;
     const frame = document.getElementById(`docked-chewtoy-frame-${paneIndex}`);
@@ -25430,7 +25415,6 @@ function mountDockedTool(paneIndex) {
         } catch (_) {}
       });
     }
-    if (window.lucide) lucide.createIcons({ root: mount });
     return;
   }
 
