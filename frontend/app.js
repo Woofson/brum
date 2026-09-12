@@ -1045,6 +1045,9 @@ async function fetchAppVersion() {
 function applyAppVersion(ver) {
   if (!ver) return;
   App.version = ver;
+  try {
+    localStorage.setItem('cd_cached_version', ver);
+  } catch (_) {}
   document.querySelectorAll('.login-version-badge').forEach(el => el.textContent = `v${ver}`);
   document.querySelectorAll('.lock-version-badge, #lock-corner-version-badge').forEach(el => el.textContent = `Brum v${ver}`);
   document.querySelectorAll('.login-app-version, #login-app-version').forEach(el => el.textContent = ver);

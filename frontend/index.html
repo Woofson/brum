@@ -53,10 +53,9 @@
         }
         var token = localStorage.getItem('cd_token');
         var isLocked = localStorage.getItem('cd_is_locked') === 'true';
-        var isStandalone = localStorage.getItem('cd_standalone_mode') === 'true' || localStorage.getItem('cd_auth_disabled') === 'true';
         if (isLocked) {
           document.documentElement.classList.add('auth-pending-lock');
-        } else if (!token && !isStandalone) {
+        } else if (!token) {
           document.documentElement.classList.add('auth-pending-login');
         } else {
           document.documentElement.classList.add('auth-verifying');
@@ -64,6 +63,20 @@
       } catch (_) {
         document.documentElement.classList.add('auth-pending-login');
       }
+
+      // Immediate frame-0 version badge update from cache
+      document.addEventListener('DOMContentLoaded', function() {
+        try {
+          var v = localStorage.getItem('cd_cached_version');
+          if (v) {
+            document.querySelectorAll('.login-version-badge').forEach(function(el) { el.textContent = 'v' + v; });
+            document.querySelectorAll('.lock-version-badge, #lock-corner-version-badge').forEach(function(el) { el.textContent = 'Brum v' + v; });
+            document.querySelectorAll('.login-app-version, #login-app-version').forEach(function(el) { el.textContent = v; });
+            document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(function(el) { el.textContent = 'v' + v + ' (Desktop & Web)'; });
+          }
+        } catch (_) {}
+      });
+
       setTimeout(function() {
         if (document.documentElement.classList.contains('auth-verifying')) {
           document.documentElement.classList.remove('auth-verifying');
@@ -74,7 +87,7 @@
             document.documentElement.classList.add('auth-pending-login');
           }
         }
-      }, 3500);
+      }, 600);
     })();
   </script>
   <!-- Bundled Nerd Fonts Preload -->
