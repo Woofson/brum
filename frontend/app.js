@@ -10545,6 +10545,17 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
     handleTargetFormatChange(targetFormatEl.value);
   }
 
+  const cancelBtn = document.getElementById('btn-convert-cancel');
+  const convertBtn = document.getElementById('btn-run-convert');
+  const okBtn = document.getElementById('btn-convert-ok');
+
+  if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+  if (convertBtn) {
+    convertBtn.style.display = 'inline-flex';
+    convertBtn.disabled = false;
+  }
+  if (okBtn) okBtn.style.display = 'none';
+
   const statusMsg = document.getElementById('convert-status-msg');
   if (statusMsg) statusMsg.style.display = 'none';
 
@@ -10569,7 +10580,9 @@ async function executeFileConversion() {
   const resizeH = parseInt(document.getElementById('convert-resize-h')?.value, 10) || null;
 
   const statusMsg = document.getElementById('convert-status-msg');
-  const btn = document.getElementById('btn-run-convert');
+  const cancelBtn = document.getElementById('btn-convert-cancel');
+  const convertBtn = document.getElementById('btn-run-convert');
+  const okBtn = document.getElementById('btn-convert-ok');
 
   if (statusMsg) {
     statusMsg.style.display = 'block';
@@ -10577,7 +10590,7 @@ async function executeFileConversion() {
     statusMsg.innerHTML = '<i data-lucide="loader"></i> Converting file in progress...';
     if (window.lucide) lucide.createIcons();
   }
-  if (btn) btn.disabled = true;
+  if (convertBtn) convertBtn.disabled = true;
 
   try {
     const endpoint = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
@@ -10602,23 +10615,44 @@ async function executeFileConversion() {
     if (resp.ok) {
       const data = await resp.json();
       if (statusMsg) {
-        statusMsg.style.color = 'var(--success)';
-        statusMsg.innerHTML = `✅ ${escapeHtml(data.message)}<br><small style="color:var(--text-muted);">Output: ${escapeHtml(data.output_path)}</small>`;
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = 'var(--text-main)';
+        statusMsg.innerHTML = `
+          <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 6px; padding: 12px; margin-top: 10px;">
+            <div style="color: var(--success); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+              <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Conversion Complete
+            </div>
+            <div style="font-size: 11px; line-height: 1.6; color: var(--text-dim);">
+              <div><strong style="color: var(--text-main);">Output File:</strong> <span style="color: var(--accent); font-family: var(--font-mono); word-break: break-all;">${escapeHtml(data.output_path)}</span></div>
+              ${data.output_size ? `<div><strong style="color: var(--text-main);">Size:</strong> ${formatFileSize(data.output_size)}</div>` : ''}
+              <div style="margin-top: 4px; color: var(--text-muted);">${escapeHtml(data.message)}</div>
+            </div>
+          </div>
+        `;
+        if (window.lucide) lucide.createIcons();
       }
+
+      // Switch buttons to [OK]
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      if (convertBtn) convertBtn.style.display = 'none';
+      if (okBtn) okBtn.style.display = 'inline-flex';
+
       refreshAllPanes();
     } else {
       if (statusMsg) {
+        statusMsg.style.display = 'block';
         statusMsg.style.color = 'var(--danger)';
         statusMsg.textContent = `Conversion failed: ${await resp.text()}`;
       }
+      if (convertBtn) convertBtn.disabled = false;
     }
   } catch (e) {
     if (statusMsg) {
+      statusMsg.style.display = 'block';
       statusMsg.style.color = 'var(--danger)';
       statusMsg.textContent = `Error: ${e}`;
     }
-  } finally {
-    if (btn) btn.disabled = false;
+    if (convertBtn) convertBtn.disabled = false;
   }
 }
 

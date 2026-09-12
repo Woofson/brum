@@ -3846,9 +3846,10 @@
 
         <div id="convert-status-msg" style="font-size: 12px; margin-top: 10px; display: none;"></div>
       </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeModal('converter-modal')">Cancel</button>
+      <div class="modal-footer" id="convert-modal-footer">
+        <button class="btn" id="btn-convert-cancel" onclick="closeModal('converter-modal')">Cancel</button>
         <button class="btn btn-accent" id="btn-run-convert" onclick="executeFileConversion()"><i data-lucide="play"></i> Convert Now</button>
+        <button class="btn btn-accent" id="btn-convert-ok" style="display: none;" onclick="closeModal('converter-modal')"><i data-lucide="check"></i> OK</button>
       </div>
     </div>
   </div>
