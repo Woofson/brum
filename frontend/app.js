@@ -31292,22 +31292,23 @@ async function loadInstalledChewToys(forceRefresh = false) {
   const dropzone = document.getElementById('chewtoy-dropzone');
   const btnInstall = document.getElementById('btn-install-chewtoy');
 
-  // RBAC checks for installation permissions
-  const canInstall = !!(App.user?.can_install_plugins || App.user?.role === 'admin' || App.isStandalone);
-  if (dropzone) {
-    dropzone.style.display = canInstall ? 'block' : 'none';
-  }
-  if (btnInstall) {
-    btnInstall.style.display = canInstall ? 'flex' : 'none';
-  }
+  const token = App.token || localStorage.getItem('cd_token') || '';
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
-    const resp = await fetch('/api/plugins', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
-    });
+    const resp = await fetch('/api/plugins', { headers });
     if (resp.ok) {
-      const plugins = await resp.json();
-      window.installedChewToys = Array.isArray(plugins) ? plugins : [];
+      const data = await resp.json();
+      const plugins = Array.isArray(data) ? data : (data.plugins || []);
+      const canInstall = (data && data.can_install !== undefined)
+        ? data.can_install
+        : !!(App.user?.can_install_plugins || App.user?.role === 'admin' || App.isStandalone);
+
+      if (dropzone) dropzone.style.display = canInstall ? 'block' : 'none';
+      if (btnInstall) btnInstall.style.display = canInstall ? 'flex' : 'none';
+
+      window.installedChewToys = plugins;
       if (badge) badge.textContent = String(window.installedChewToys.length);
       renderInstalledChewToys(window.installedChewToys);
     } else {
@@ -31469,13 +31470,14 @@ async function installChewToyPackage(file) {
   if (dropzone) dropzone.style.opacity = '0.5';
   showToast(`Installing ChewToy '${name}'...`, 'info');
 
+  const token = App.token || localStorage.getItem('cd_token') || '';
+  const headers = { 'Content-Type': 'application/octet-stream' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   try {
     const resp = await fetch('/api/plugins/install', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/octet-stream',
-        'Authorization': `Bearer ${App.token}`
-      },
+      headers: headers,
       body: file
     });
 
@@ -31498,13 +31500,14 @@ async function installChewToyPackage(file) {
  * Toggle ChewToy enabled state
  */
 async function toggleChewToy(id, enabled) {
+  const token = App.token || localStorage.getItem('cd_token') || '';
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   try {
     const resp = await fetch(`/api/plugins/${encodeURIComponent(id)}/toggle`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
-      },
+      headers: headers,
       body: JSON.stringify({ enabled })
     });
 
@@ -31536,10 +31539,14 @@ async function uninstallChewToy(id) {
 
   if (!confirmed) return;
 
+  const token = App.token || localStorage.getItem('cd_token') || '';
+  const headers = {};
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
   try {
     const resp = await fetch(`/api/plugins/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: headers
     });
 
     if (resp.ok) {

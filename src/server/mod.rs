@@ -4847,7 +4847,7 @@ async fn handle_list_plugins(
     let mut allowed_plugins_json = "[\"*\"]".to_string();
     let mut blocked_plugins_json = "[]".to_string();
 
-    if state.config.server.standalone {
+    if state.config.server.standalone || !state.config.server.enable_auth {
         is_admin = true;
         can_install = true;
     } else {
@@ -4883,15 +4883,16 @@ async fn handle_list_plugins(
 async fn handle_install_plugin(
     State(state): State<AppState>,
     headers: HeaderMap,
-    mut multipart: Multipart,
+    body: axum::body::Bytes,
 ) -> Result<Json<crate::plugins::PluginInfo>, (StatusCode, String)> {
     let mut is_admin = false;
     let mut can_install = false;
     let mut username = "local".to_string();
 
-    if state.config.server.standalone {
+    if state.config.server.standalone || !state.config.server.enable_auth {
         is_admin = true;
         can_install = true;
+        username = "admin".to_string();
     } else {
         let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
         if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
@@ -4911,20 +4912,31 @@ async fn handle_install_plugin(
         return Err((StatusCode::FORBIDDEN, "Permission denied: you do not have permission to install plugins".to_string()));
     }
 
-    let mut file_bytes: Option<Vec<u8>> = None;
-
-    while let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
-        let name = field.name().unwrap_or("").to_string();
-        if name == "file" || name == "plugin" || name == "package" {
-            let data = field.bytes().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
-            file_bytes = Some(data.to_vec());
-            break;
-        }
+    let raw_bytes = body.to_vec();
+    if raw_bytes.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Empty payload received for plugin installation".to_string()));
     }
 
-    let bytes = file_bytes.ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing '.grr' file payload in multipart upload".to_string()))?;
+    // Handle direct ZIP payload or extract ZIP stream from multipart
+    let zip_bytes = if raw_bytes.starts_with(&[0x50, 0x4B]) {
+        raw_bytes
+    } else if let Some(pos) = raw_bytes.windows(4).position(|w| w == [0x50, 0x4B, 0x03, 0x04]) {
+        if let Some(eocd_pos) = raw_bytes.windows(4).rposition(|w| w == [0x50, 0x4B, 0x05, 0x06]) {
+            if eocd_pos + 22 <= raw_bytes.len() {
+                let comment_len = u16::from_le_bytes([raw_bytes[eocd_pos + 20], raw_bytes[eocd_pos + 21]]) as usize;
+                let end_pos = (eocd_pos + 22 + comment_len).min(raw_bytes.len());
+                raw_bytes[pos..end_pos].to_vec()
+            } else {
+                raw_bytes[pos..].to_vec()
+            }
+        } else {
+            raw_bytes[pos..].to_vec()
+        }
+    } else {
+        return Err((StatusCode::BAD_REQUEST, "Invalid package format: file is not a valid .grr (ZIP) archive".to_string()));
+    };
 
-    let installed = state.plugins.install_grr(&bytes, &username, is_admin)
+    let installed = state.plugins.install_grr(&zip_bytes, &username, is_admin)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Plugin installation failed: {}", e)))?;
 
     Ok(Json(installed))
@@ -4941,7 +4953,7 @@ async fn handle_toggle_plugin(
     AxumPath(id): AxumPath<String>,
     Json(payload): Json<TogglePluginRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if !state.config.server.standalone {
+    if !state.config.server.standalone && state.config.server.enable_auth {
         let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
         if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
             let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
@@ -4965,10 +4977,11 @@ async fn handle_delete_plugin(
     AxumPath(id): AxumPath<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let mut is_admin = false;
-    let mut username = "local".to_string();
+    let username;
 
-    if state.config.server.standalone {
+    if state.config.server.standalone || !state.config.server.enable_auth {
         is_admin = true;
+        username = "admin".to_string();
     } else {
         let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
         if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
@@ -5155,6 +5168,97 @@ mod tests {
         assert!(val["os"].is_string());
         assert!(val["arch"].is_string());
         assert!(val["time"].is_string());
+    }
+
+    #[tokio::test]
+    async fn test_handle_install_and_list_plugins() {
+        use crate::config::AppConfig;
+        use std::sync::Arc;
+
+        let temp = tempfile::tempdir().unwrap();
+        let db_path = temp.path().join("test_auth.db");
+        let mut config = AppConfig::default();
+        config.server.database_path = db_path.to_str().unwrap().to_string();
+        config.server.standalone = true;
+
+        let auth = crate::auth::AuthManager::new(
+            &config.server.database_path,
+            &config.server.jwt_secret,
+            config.server.session_duration_hours,
+            &config.auth.mode,
+            &config.auth.pam_service,
+            &config.auth.default_admin_user,
+            &config.auth.default_admin_pass,
+        ).unwrap();
+        let db = auth.db();
+        let auth_arc = Arc::new(auth);
+        let task_mgr = Arc::new(crate::tools::tasks::TaskManager::new());
+        let tag_mgr = Arc::new(crate::tools::tags::TagManager::new(db.clone()).unwrap());
+        let vault_mgr = Arc::new(crate::vfs::vault::VaultManager::new());
+        let backup_mgr = Arc::new(crate::tools::sync::BackupManager::new(db).unwrap());
+        let plugin_mgr = Arc::new(crate::plugins::PluginManager::new(
+            temp.path().join("system_plugins"),
+            temp.path().join("user_plugins"),
+            true,
+            "allow_all".to_string(),
+            vec!["*".to_string()],
+            vec![],
+        ));
+
+        let state = AppState {
+            config: Arc::new(config),
+            auth: auth_arc,
+            tasks: task_mgr,
+            tags: tag_mgr,
+            vaults: vault_mgr,
+            backup: backup_mgr,
+            plugins: plugin_mgr,
+        };
+
+        // Create a test .grr package
+        let src_dir = temp.path().join("test_src");
+        std::fs::create_dir_all(&src_dir).unwrap();
+        std::fs::write(src_dir.join("plugin.toml"), r#"
+[plugin]
+id = "test-chewtoy"
+name = "Test ChewToy"
+version = "1.0.0"
+description = "Test chewtoy package"
+"#).unwrap();
+        std::fs::write(src_dir.join("index.html"), "<h1>Test ChewToy</h1>").unwrap();
+
+        let grr_path = temp.path().join("test-chewtoy.grr");
+        crate::plugins::PluginManager::pack_grr(&src_dir, &grr_path).unwrap();
+        let grr_bytes = std::fs::read(&grr_path).unwrap();
+
+        // 1. Test POST /api/plugins/install with raw binary bytes in unauthenticated standalone/local mode
+        let headers = HeaderMap::new();
+        let install_res = handle_install_plugin(
+            State(state.clone()),
+            headers.clone(),
+            axum::body::Bytes::from(grr_bytes),
+        ).await.unwrap();
+
+        assert_eq!(install_res.0.id, "test-chewtoy");
+        assert_eq!(install_res.0.name, "Test ChewToy");
+
+        // 2. Test GET /api/plugins
+        let list_res = handle_list_plugins(
+            State(state.clone()),
+            headers.clone(),
+        ).await.unwrap();
+
+        assert_eq!(list_res.0.plugins.len(), 1);
+        assert_eq!(list_res.0.plugins[0].id, "test-chewtoy");
+        assert!(list_res.0.can_install);
+
+        // 3. Test GET /api/plugins/test-chewtoy/assets/index.html
+        let asset_res = handle_plugin_asset(
+            State(state.clone()),
+            AxumPath(("test-chewtoy".to_string(), "index.html".to_string())),
+        ).await.unwrap();
+
+        assert_eq!(asset_res.status(), StatusCode::OK);
     }
 }
 
