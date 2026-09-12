@@ -5801,65 +5801,171 @@
     </div>
   </div>
 
-  <!-- Audio & Video In-Browser Media Player Modal -->
-  <div class="modal-overlay" id="media-player-modal">
-    <div class="media-player-box">
-      <div class="modal-header" style="padding: 10px 14px; background: var(--bg-header); border-bottom: 1px solid var(--border);">
-        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-          <img id="media-player-icon" src="assets/media.webp" alt="Media Player" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
-          <span id="media-player-title" style="font-weight: 700; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">Track.mp3</span>
-          <span class="badge" id="media-player-badge" style="font-size: 9px; text-transform: uppercase;">MP3</span>
-        </div>
-        <button class="btn btn-icon" onclick="closeMediaPlayer()"><i data-lucide="x" style="width: 13px;"></i></button>
+  <!-- Universal Mediaplayer ChewToy (Floating & In-Pane Dockable) -->
+  <div class="floating-mediaplayer-window" id="floating-mediaplayer-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <!-- Desktop Resize Handles -->
+    <div class="win-resize-handle win-resize-top" id="mediaplayer-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="mediaplayer-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="mediaplayer-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="mediaplayer-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="mediaplayer-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- 1. Header Bar (42px Drag Handle) -->
+    <div class="modal-header mediaplayer-header" id="mediaplayer-header">
+      <div class="mediaplayer-header-left" style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+        <button type="button" class="btn btn-icon mediaplayer-drawer-btn" id="btn-mediaplayer-playlist-toggle" onclick="toggleMediaPlaylistDrawer()" title="Toggle Playlist Drawer (Alt+P)"><i data-lucide="list-video"></i></button>
+        <span class="mediaplayer-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          <img src="assets/media.webp" alt="Mediaplayer" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
+          <span class="chewtoy-brand-text">Mediaplayer</span>
+          <span class="badge" id="mediaplayer-badge" style="font-size: 9px; text-transform: uppercase;">MP4</span>
+        </span>
       </div>
 
-      <div class="media-player-display" id="media-display-container">
-        <video id="media-video-element" style="display: none;" playsinline></video>
-        <div class="media-audio-visualizer" id="media-audio-visualizer">
-          <div style="font-size: 48px; margin-bottom: 4px;">🎵</div>
-          <div style="font-size: 12px; font-weight: 600; color: var(--text-main);" id="media-audio-artist">Now Playing</div>
-          <div style="font-size: 10px; color: var(--text-dim);" id="media-audio-file-path">/path/to/file</div>
-        </div>
+      <div class="mediaplayer-header-center" style="flex: 1; max-width: 320px; margin: 0 8px; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+        <span id="mediaplayer-header-title" style="font-size: 11px; font-weight: 600; color: var(--text-main);">No media loaded</span>
       </div>
-      <audio id="media-audio-element" style="display: none;"></audio>
 
-      <div class="media-controls-bar">
-        <!-- Progress scrubber & time -->
-        <div style="display: flex; flex-direction: column; gap: 4px;">
-          <div class="media-scrubber-track" id="media-scrubber-track" onclick="seekMedia(event)">
-            <div class="media-scrubber-progress" id="media-scrubber-progress"></div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">
-            <span id="media-time-current">00:00</span>
-            <span id="media-time-total">00:00</span>
+      <div class="mediaplayer-header-actions" style="display: flex; align-items: center; gap: 4px;">
+        <!-- Detached Picture-in-Picture -->
+        <button class="btn btn-icon desktop-only" id="btn-mediaplayer-pip" onclick="toggleMediaPiP()" title="Picture-in-Picture (Detached Popout)"><i data-lucide="picture-in-picture-2"></i></button>
+
+        <!-- Subtitles Track Selector -->
+        <div class="dropdown-container" style="position: relative;">
+          <button class="btn btn-icon" id="btn-mediaplayer-subs" onclick="toggleMediaSubtitlesDropdown(event)" title="Subtitles & Captions (S)"><i data-lucide="captions"></i></button>
+          <div class="dropdown-menu mediaplayer-dropdown" id="mediaplayer-subtitles-dropdown" style="display: none; position: absolute; right: 0; top: 100%; margin-top: 4px; z-index: 2000; min-width: 160px;">
+            <div class="dropdown-header">Subtitles</div>
+            <div id="mediaplayer-subtitles-list"></div>
           </div>
         </div>
 
-        <!-- Buttons bar -->
-        <div style="display: flex; justify-content: space-between; align-items: center;">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-icon" onclick="navMediaPlaylist(-1)" title="Previous Track"><i data-lucide="skip-back" style="width: 14px;"></i></button>
-            <button class="btn btn-accent" id="btn-media-play-pause" onclick="toggleMediaPlay()" style="padding: 6px 14px;" title="Play / Pause"><i data-lucide="play" style="width: 14px;"></i></button>
-            <button class="btn btn-icon" onclick="navMediaPlaylist(1)" title="Next Track"><i data-lucide="skip-forward" style="width: 14px;"></i></button>
-            <button class="btn btn-icon" id="btn-media-loop" onclick="toggleMediaLoop()" title="Toggle Loop"><i data-lucide="repeat" style="width: 13px;"></i></button>
+        <!-- Aspect Ratio Quick Switcher -->
+        <button class="btn btn-icon desktop-only" id="btn-mediaplayer-aspect" onclick="cycleMediaAspectRatio()" title="Aspect Ratio (Fit / Fill / 16:9 / 4:3)"><i data-lucide="ratio"></i></button>
+
+        <!-- Speed Quick Switcher -->
+        <button class="btn btn-icon desktop-only" id="btn-mediaplayer-speed" onclick="cycleMediaSpeed()" title="Playback Speed"><span id="mediaplayer-speed-badge" style="font-size: 10px; font-weight: 700; font-family: var(--font-mono);">1.0x</span></button>
+
+        <!-- Fullscreen Button -->
+        <button class="btn btn-icon" id="btn-mediaplayer-fullscreen" onclick="toggleMediaFullscreen()" title="Toggle Fullscreen (F)"><i data-lucide="maximize"></i></button>
+
+        <div class="header-sep desktop-only"></div>
+
+        <!-- Window Controls -->
+        <button class="btn btn-icon desktop-only" onclick="dockMediaPlayerToActivePane()" title="Dock Mediaplayer into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingMediaPlayer()" title="Minimize to Pill"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="maximizeFloatingMediaPlayer()" title="Maximize Window"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeMediaPlayer()" title="Close Mediaplayer (Esc)"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- 2. Body Stage & Playlist Sidebar -->
+    <div class="mediaplayer-body" id="mediaplayer-body">
+      <!-- Main Media Stage -->
+      <div class="mediaplayer-stage" id="mediaplayer-stage">
+        <video id="mediaplayer-video-element" playsinline></video>
+        <audio id="mediaplayer-audio-element" style="display: none;"></audio>
+
+        <!-- Subtitles Overlay for Custom Rendered Captions -->
+        <div class="mediaplayer-subtitles-overlay" id="mediaplayer-subtitles-overlay" style="display: none;"></div>
+
+        <!-- Audio Mode Visualizer -->
+        <div class="mediaplayer-audio-visualizer" id="mediaplayer-audio-visualizer" style="display: none;">
+          <div class="mediaplayer-audio-bars">
+            <span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+          </div>
+          <div class="mediaplayer-audio-info">
+            <div id="mediaplayer-audio-title" style="font-size: 14px; font-weight: 700; color: var(--text-main);">Audio Track</div>
+            <div id="mediaplayer-audio-path" style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">/path/to/audio</div>
+          </div>
+        </div>
+
+        <!-- Big Center OSD Feedback Splash -->
+        <div class="mediaplayer-osd" id="mediaplayer-osd" style="display: none;">
+          <i data-lucide="play" id="mediaplayer-osd-icon"></i>
+          <span id="mediaplayer-osd-text"></span>
+        </div>
+
+        <!-- Floating Video Overlay Controls (Auto-hiding) -->
+        <div class="mediaplayer-overlay-controls" id="mediaplayer-overlay-controls">
+          <!-- Scrubber Progress Bar with Buffered + Hover Preview Tooltip -->
+          <div class="mediaplayer-scrubber-wrapper" onmousemove="handleMediaScrubberHover(event)" onmouseleave="hideMediaScrubberTooltip()">
+            <div class="mediaplayer-scrubber-track" id="mediaplayer-scrubber-track" onclick="seekMedia(event)">
+              <div class="mediaplayer-scrubber-buffer" id="mediaplayer-scrubber-buffer"></div>
+              <div class="mediaplayer-scrubber-progress" id="mediaplayer-scrubber-progress"></div>
+              <div class="mediaplayer-scrubber-thumb"></div>
+            </div>
+            <div class="mediaplayer-scrubber-tooltip" id="mediaplayer-scrubber-tooltip" style="display: none;">00:00</div>
           </div>
 
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <select id="media-playback-rate" class="pane-quick-filter" style="padding: 2px 4px; font-size: 10px; width: 60px;" onchange="changeMediaSpeed(this.value)">
-              <option value="0.5">0.5x</option>
-              <option value="1" selected>1.0x</option>
-              <option value="1.25">1.25x</option>
-              <option value="1.5">1.5x</option>
-              <option value="2">2.0x</option>
-            </select>
-            <div style="display: flex; align-items: center; gap: 4px; width: 90px;">
-              <i data-lucide="volume-2" style="width: 12px; color: var(--text-muted);"></i>
-              <input type="range" class="range-slider" id="media-volume-slider" min="0" max="1" step="0.05" value="1" oninput="changeMediaVolume(this.value)">
+          <!-- Bottom Control Bar -->
+          <div class="mediaplayer-controls-row">
+            <div class="mediaplayer-controls-left">
+              <button class="btn btn-icon btn-sm" onclick="navMediaPlaylist(-1)" title="Previous Track"><i data-lucide="skip-back"></i></button>
+              <button class="btn btn-icon btn-sm" onclick="skipMedia(-10)" title="Rewind 10s (Left Arrow / J)"><i data-lucide="rotate-ccw"></i></button>
+              <button class="btn btn-accent btn-sm mediaplayer-play-btn" id="btn-mediaplayer-play" onclick="toggleMediaPlay()" title="Play / Pause (Space / K)"><i data-lucide="play" id="mediaplayer-play-icon"></i></button>
+              <button class="btn btn-icon btn-sm" onclick="skipMedia(10)" title="Forward 10s (Right Arrow / L)"><i data-lucide="rotate-cw"></i></button>
+              <button class="btn btn-icon btn-sm" onclick="navMediaPlaylist(1)" title="Next Track"><i data-lucide="skip-forward"></i></button>
+              
+              <div class="mediaplayer-time-display">
+                <span id="mediaplayer-time-current">00:00</span>
+                <span style="opacity: 0.4;">/</span>
+                <span id="mediaplayer-time-total">00:00</span>
+              </div>
+            </div>
+
+            <div class="mediaplayer-controls-right">
+              <!-- Volume Group -->
+              <div class="mediaplayer-volume-group">
+                <button class="btn btn-icon btn-sm" onclick="toggleMediaMute()" title="Mute / Unmute (M)"><i data-lucide="volume-2" id="mediaplayer-volume-icon"></i></button>
+                <input type="range" class="range-slider mediaplayer-volume-slider" id="mediaplayer-volume-slider" min="0" max="1" step="0.05" value="1" oninput="changeMediaVolume(this.value)">
+              </div>
+
+              <!-- Loop Toggle -->
+              <button class="btn btn-icon btn-sm" id="btn-mediaplayer-loop" onclick="cycleMediaLoop()" title="Toggle Loop (Off / All / One)"><i data-lucide="repeat"></i></button>
+
+              <!-- Shuffle Toggle -->
+              <button class="btn btn-icon btn-sm" id="btn-mediaplayer-shuffle" onclick="toggleMediaShuffle()" title="Toggle Shuffle"><i data-lucide="shuffle"></i></button>
+
+              <!-- Detach PiP Button -->
+              <button class="btn btn-icon btn-sm desktop-only" onclick="toggleMediaPiP()" title="Picture-in-Picture (P)"><i data-lucide="picture-in-picture-2"></i></button>
+
+              <!-- Fullscreen Button -->
+              <button class="btn btn-icon btn-sm" onclick="toggleMediaFullscreen()" title="Fullscreen (F)"><i data-lucide="maximize"></i></button>
             </div>
           </div>
         </div>
       </div>
+
+      <!-- Collapsible Playlist Sidebar Drawer -->
+      <div class="mediaplayer-playlist-sidebar" id="mediaplayer-playlist-sidebar">
+        <div class="mediaplayer-playlist-header">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-weight: 700; font-size: 11px; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">Playlist</span>
+            <span class="badge" id="mediaplayer-playlist-count" style="font-size: 9px;">0</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 3px;">
+            <button class="btn btn-icon btn-xs" onclick="populateMediaPlaylistFromActivePane()" title="Load Audio/Video Files from Active Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
+            <button class="btn btn-icon btn-xs" onclick="clearMediaPlaylist()" title="Clear Playlist"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i></button>
+            <button class="btn btn-icon btn-xs mobile-or-tablet-only" onclick="toggleMediaPlaylistDrawer()" title="Close Playlist"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+          </div>
+        </div>
+
+        <div class="mediaplayer-playlist-filter-row">
+          <input type="text" id="mediaplayer-playlist-search" class="pane-quick-filter" placeholder="Filter playlist..." style="width: 100%; font-size: 10px; height: 24px;" oninput="filterMediaPlaylist(this.value)">
+        </div>
+
+        <div class="mediaplayer-playlist-list" id="mediaplayer-playlist-list"></div>
+      </div>
     </div>
+  </div>
+
+  <!-- Mediaplayer Minimized Pill -->
+  <div class="mediaplayer-pill" id="mediaplayer-pill" style="display: none;" onclick="restoreFloatingMediaPlayer()" title="Click to restore Mediaplayer">
+    <img src="assets/media.webp" alt="Media" style="width: 14px; height: 14px; object-fit: contain;">
+    <span class="mediaplayer-pill-title" id="mediaplayer-pill-title">Mediaplayer</span>
+    <button class="mediaplayer-pill-btn" onclick="event.stopPropagation(); toggleMediaPlay();" title="Play/Pause"><i data-lucide="play" id="mediaplayer-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
+    <button class="mediaplayer-pill-btn" onclick="event.stopPropagation(); navMediaPlaylist(1);" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
   </div>
 
   <!-- Comic Book (.cbz/.cbr) & EPUB In-Browser Reader Modal -->
