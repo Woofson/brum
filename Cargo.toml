@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "0.8.6-rc1"
+version = "0.8.6-rc2"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -125,4 +125,8 @@ assets = [
     ["config.toml", "etc/brum/config.toml", "644"],
     ["assets/brum.png", "usr/share/pixmaps/brum.png", "644"],
     ["README.md", "usr/share/doc/brum/README.md", "644"],
+    ["plugins/calculator.grr", "usr/share/brum/plugins/calculator.grr", "644"],
+    ["plugins/tetrion.grr", "usr/share/brum/plugins/tetrion.grr", "644"],
+    ["plugins/splitter.grr", "usr/share/brum/plugins/splitter.grr", "644"],
+    ["plugins/convertx.grr", "usr/share/brum/plugins/convertx.grr", "644"],
 ]

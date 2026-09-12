@@ -10616,11 +10616,18 @@ function triggerConvertFile() {
 
 function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
-  activeConverterPaneIndex = resolvedPaneIdx;
   const pane = App.panes[resolvedPaneIdx];
   if (!filePath && pane && pane.entries && pane.entries[pane.cursorIndex]) {
     filePath = pane.entries[pane.cursorIndex].path;
   }
+
+  const plugin = (window.installedChewToys || []).find(p => p.id === 'convertx');
+  if (plugin && plugin.enabled !== false) {
+    openDynamicChewToy('convertx', { filePath, defaultFormat, paneIndex: resolvedPaneIdx, selectedFiles: filePath ? [filePath] : [] });
+    return;
+  }
+
+  activeConverterPaneIndex = resolvedPaneIdx;
 
   // If conversion already running for this job, restore view
   if (isConvertInProgress && activeConvertJob && (!filePath || filePath === activeConvertJob.filePath)) {
@@ -26415,6 +26422,12 @@ async function loadGitStatusForDocked(paneIndex, repoPath) {
 // =========================================================================
 
 function openFileSplitterModal(filePath, sizeBytes) {
+  const plugin = (window.installedChewToys || []).find(p => p.id === 'splitter');
+  if (plugin && plugin.enabled !== false) {
+    openDynamicChewToy('splitter', { mode: 'split', selectedFiles: [filePath] });
+    return;
+  }
+
   const modal = document.getElementById('file-splitter-modal');
   if (!modal) return;
 
@@ -26485,6 +26498,12 @@ async function executeFileSplit() {
 }
 
 function openFileCombinerModal(partsList) {
+  const plugin = (window.installedChewToys || []).find(p => p.id === 'splitter');
+  if (plugin && plugin.enabled !== false) {
+    openDynamicChewToy('splitter', { mode: 'combine', selectedFiles: partsList });
+    return;
+  }
+
   const modal = document.getElementById('file-combiner-modal');
   if (!modal) return;
 

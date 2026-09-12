@@ -1,0 +1,25 @@
+[plugin]
+id = "splitter"
+name = "File Splitter & Combiner"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Multi-part file chunk splitter and checksum verifier/joiner (.001, .sha256)."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.webp"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 520
+default_height = 620
+min_width = 380
+min_height = 460
+
+[integrations]
+launchpad = true
+launchpad_label = "File Splitter"
+shortcut = "Ctrl+Alt+S"
+
+[permissions]
+permissions = ["fs:read", "fs:write", "ui:notify"]

@@ -32,6 +32,10 @@ cp "./config.toml" "${TARBALL_DIR}/"
 cp "./brum.service" "${TARBALL_DIR}/"
 cp "./LICENSE" "${TARBALL_DIR}/"
 cp "./README.md" "${TARBALL_DIR}/"
+if [ -d "./plugins" ]; then
+    mkdir -p "${TARBALL_DIR}/plugins"
+    cp ./plugins/*.grr "${TARBALL_DIR}/plugins/" 2>/dev/null || true
+fi
 if [ -f "./scripts/lxc-install.sh" ]; then
     cp "./scripts/lxc-install.sh" "${TARBALL_DIR}/install.sh"
     chmod +x "${TARBALL_DIR}/install.sh"
@@ -50,7 +54,7 @@ elif command -v dpkg-deb >/dev/null 2>&1; then
     echo "📦 Building Debian .deb package via dpkg-deb fallback..."
     DEB_DIR="/tmp/deb-pkg"
     rm -rf "${DEB_DIR}"
-    mkdir -p "${DEB_DIR}/DEBIAN" "${DEB_DIR}/usr/bin" "${DEB_DIR}/etc/brum" "${DEB_DIR}/usr/lib/systemd/system" "${DEB_DIR}/usr/share/pixmaps" "${DEB_DIR}/usr/share/applications" "${DEB_DIR}/usr/share/doc/brum"
+    mkdir -p "${DEB_DIR}/DEBIAN" "${DEB_DIR}/usr/bin" "${DEB_DIR}/etc/brum" "${DEB_DIR}/usr/lib/systemd/system" "${DEB_DIR}/usr/share/pixmaps" "${DEB_DIR}/usr/share/applications" "${DEB_DIR}/usr/share/doc/brum" "${DEB_DIR}/usr/share/brum/plugins"
     cat << DEBEOF > "${DEB_DIR}/DEBIAN/control"
 Package: brum
 Version: ${VERSION}-1
@@ -74,6 +78,9 @@ DEBEOF
     elif [ -f "./assets/128/brum-128.webp" ]; then
         cp "./assets/128/brum-128.webp" "${DEB_DIR}/usr/share/pixmaps/brum.webp"
     fi
+    if [ -d "./plugins" ]; then
+        cp ./plugins/*.grr "${DEB_DIR}/usr/share/brum/plugins/" 2>/dev/null || true
+    fi
     cp "./LICENSE" "${DEB_DIR}/usr/share/doc/brum/copyright"
     cp "./README.md" "${DEB_DIR}/usr/share/doc/brum/"
     if [ -d "./packaging/debian" ]; then
@@ -88,7 +95,7 @@ fi
 # 4. Build Alpine Linux (.apk) Package
 APK_DIR="/tmp/apk-pkg"
 rm -rf "${APK_DIR}"
-mkdir -p "${APK_DIR}/usr/bin" "${APK_DIR}/etc/brum" "${APK_DIR}/usr/share/pixmaps" "${APK_DIR}/usr/share/applications" "${APK_DIR}/usr/share/licenses/brum" "${APK_DIR}/usr/share/doc/brum"
+mkdir -p "${APK_DIR}/usr/bin" "${APK_DIR}/etc/brum" "${APK_DIR}/usr/share/pixmaps" "${APK_DIR}/usr/share/applications" "${APK_DIR}/usr/share/licenses/brum" "${APK_DIR}/usr/share/doc/brum" "${APK_DIR}/usr/share/brum/plugins"
 
 cp "./target/release/brum" "${APK_DIR}/usr/bin/"
 cp "./config.toml" "${APK_DIR}/etc/brum/config.toml"
@@ -96,6 +103,9 @@ if [ -f "./assets/brum.png" ]; then
     cp "./assets/brum.png" "${APK_DIR}/usr/share/pixmaps/brum.png"
 elif [ -f "./assets/128/brum-128.webp" ]; then
     cp "./assets/128/brum-128.webp" "${APK_DIR}/usr/share/pixmaps/brum.webp"
+fi
+if [ -d "./plugins" ]; then
+    cp ./plugins/*.grr "${APK_DIR}/usr/share/brum/plugins/" 2>/dev/null || true
 fi
 if [ -f "./brum.desktop" ]; then
     cp "./brum.desktop" "${APK_DIR}/usr/share/applications/"

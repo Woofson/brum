@@ -1,0 +1,25 @@
+[plugin]
+id = "convertx"
+name = "ConvertX Media & Document Transcoder"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Universal transcoder: batch convert images, audio, video, structured data, and documents."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.webp"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 540
+default_height = 640
+min_width = 380
+min_height = 460
+
+[integrations]
+launchpad = true
+launchpad_label = "ConvertX"
+shortcut = "Ctrl+Alt+C"
+
+[permissions]
+permissions = ["fs:read", "fs:write", "ui:notify"]

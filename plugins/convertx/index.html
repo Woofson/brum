@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>ConvertX Media & Document Transcoder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="convertx-header">
+    <div class="convertx-brand">
+      <img src="assets/icon.webp" alt="ConvertX" class="convertx-brand-icon" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'20\' height=\'20\' viewBox=\'0 0 24 24\' fill=\'none\' stroke=\'%23f59e0b\' stroke-width=\'2\'><path d=\'M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67\'/></svg>'" />
+      <span>ConvertX Transcoder</span>
+    </div>
+
+    <div class="convertx-header-actions">
+      <div class="category-filter-group">
+        <button type="button" class="category-btn active" id="cat-all" onclick="filterCategory('all')" title="Show All Formats">
+          <span>All</span>
+        </button>
+        <button type="button" class="category-btn" id="cat-images" onclick="filterCategory('images')" title="Image Formats">
+          <span>Images</span>
+        </button>
+        <button type="button" class="category-btn" id="cat-video" onclick="filterCategory('video')" title="Video Formats">
+          <span>Video</span>
+        </button>
+        <button type="button" class="category-btn" id="cat-audio" onclick="filterCategory('audio')" title="Audio Formats">
+          <span>Audio</span>
+        </button>
+        <button type="button" class="category-btn" id="cat-docs" onclick="filterCategory('docs')" title="Data & Documents">
+          <span>Docs</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="convertx-body">
+    <!-- Source File Card -->
+    <div class="convertx-card">
+      <div class="source-preview-box">
+        <div class="source-icon-wrap" id="source-type-icon">📄</div>
+        <div class="source-details">
+          <div class="source-name-row">
+            <span class="source-name" id="source-filename">No file selected</span>
+            <span class="source-size-badge" id="source-filesize">0 B</span>
+          </div>
+          <div class="source-path" id="source-path-label">Select a file in Brum or paste path below</div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label" for="input-source-path">
+          <span>Source File Path:</span>
+          <span style="font-size: 10px; color: var(--text-dim);">Live Selection</span>
+        </label>
+        <div class="input-with-btn">
+          <input type="text" id="input-source-path" class="form-input" placeholder="/path/to/source/file.png" oninput="handleManualPathChange(this.value)" />
+          <button type="button" class="btn-secondary" onclick="pickCurrentBrumSelection()" title="Sync with active selection in Brum">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span>Pick</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Conversion Target Settings Card -->
+    <div class="convertx-card">
+      <div class="form-group">
+        <label class="form-label" for="select-target-format">Target Conversion Format:</label>
+        <select id="select-target-format" class="form-select" onchange="handleFormatChange(this.value)">
+          <optgroup label="Images" id="optgroup-images">
+            <option value="webp" selected>WebP (Optimized Next-Gen - Recommended)</option>
+            <option value="png">PNG (Lossless High Quality)</option>
+            <option value="jpeg">JPEG / JPG (Compressed Photo)</option>
+            <option value="avif">AVIF (Ultra-Compressed Next-Gen)</option>
+            <option value="gif">GIF (Animated / Graphics)</option>
+            <option value="bmp">BMP (Raw Bitmap)</option>
+            <option value="ico">ICO (Windows Icon / Favicon)</option>
+            <option value="tiff">TIFF (High Dynamic Range Print)</option>
+          </optgroup>
+          <optgroup label="Video" id="optgroup-video">
+            <option value="mp4">MP4 (H.264 / AAC - Universal Web)</option>
+            <option value="webm">WebM (VP9 / Opus - Open Web)</option>
+            <option value="mkv">MKV (Matroska Multi-Track)</option>
+          </optgroup>
+          <optgroup label="Audio" id="optgroup-audio">
+            <option value="mp3">MP3 (Universal Audio 320k)</option>
+            <option value="wav">WAV (Lossless PCM)</option>
+            <option value="flac">FLAC (Lossless Compression)</option>
+            <option value="ogg">OGG (Vorbis Open Audio)</option>
+            <option value="m4a">M4A (Apple AAC Audio)</option>
+            <option value="aac">AAC (Advanced Audio Coding)</option>
+          </optgroup>
+          <optgroup label="Structured Data & Documents" id="optgroup-docs">
+            <option value="json">JSON (Structured JavaScript Object)</option>
+            <option value="yaml">YAML (Human-Readable Config)</option>
+            <option value="toml">TOML (Standard Config Format)</option>
+            <option value="csv">CSV (Comma-Separated Values)</option>
+            <option value="html">HTML (Markup Document)</option>
+            <option value="base64">Base64 (Data URI String)</option>
+          </optgroup>
+        </select>
+      </div>
+
+      <!-- Image Options -->
+      <div id="panel-image-options" style="display: flex; flex-direction: column; gap: 10px;">
+        <div class="form-group">
+          <label class="form-label">
+            <span>Compression Quality:</span>
+            <span class="slider-val-badge" id="quality-val-badge">85%</span>
+          </label>
+          <div class="slider-container">
+            <input type="range" min="10" max="100" value="85" class="range-slider" id="input-quality" oninput="updateQualityDisplay(this.value)" />
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Resize Dimensions (px):</label>
+          <div class="form-row-2col">
+            <input type="number" id="input-resize-w" class="form-input" placeholder="Width (Auto)" min="1" oninput="updateOutputNamePreview()" />
+            <input type="number" id="input-resize-h" class="form-input" placeholder="Height (Auto)" min="1" oninput="updateOutputNamePreview()" />
+          </div>
+          <div class="quick-presets-row">
+            <span class="preset-chip" onclick="applyDimensionPreset(null, null)">Auto</span>
+            <span class="preset-chip" onclick="applyDimensionPreset(1920, 1080)">1080p (1920x1080)</span>
+            <span class="preset-chip" onclick="applyDimensionPreset(1280, 720)">720p (1280x720)</span>
+            <span class="preset-chip" onclick="applyDimensionPreset(800, 600)">800x600</span>
+            <span class="preset-chip" onclick="applyDimensionPreset(512, 512)">512x512 Square</span>
+            <span class="preset-chip" onclick="applyDimensionPreset(256, 256)">256x256 Icon</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output Name & Destination Preview -->
+      <div class="form-group">
+        <label class="form-label" for="input-output-name">Output Filename:</label>
+        <input type="text" id="input-output-name" class="form-input" placeholder="image_converted.webp" oninput="handleCustomNameInput()" style="font-family: var(--font-mono); font-size: 11.5px;" />
+        <div class="path-preview-box" id="preview-dest-box">
+          Destination: <span class="dest-path" id="preview-dest-path">/path/to/destination.webp</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Card -->
+    <div class="progress-card" id="card-progress">
+      <div class="progress-header">
+        <span style="display: flex; align-items: center; gap: 6px;">
+          <svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+          <span id="progress-text">Transcoding file...</span>
+        </span>
+        <span id="progress-elapsed" style="font-family: var(--font-mono); font-size: 11px;">0.0s</span>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill indeterminate" id="progress-bar-fill"></div>
+      </div>
+    </div>
+
+    <!-- Result Card -->
+    <div class="result-card" id="card-result">
+      <div class="result-header">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        <span>Conversion Completed Successfully</span>
+      </div>
+      <div class="result-metrics">
+        <div class="metric-item">
+          <span class="metric-label">Source Size</span>
+          <span class="metric-value" id="res-source-size">0 B</span>
+        </div>
+        <div class="metric-item">
+          <span class="metric-label">Output Size</span>
+          <span class="metric-value saved" id="res-output-size">0 B</span>
+        </div>
+      </div>
+      <div class="result-msg" id="res-output-path">/path/to/output.webp</div>
+    </div>
+
+    <!-- Error Card -->
+    <div class="error-card" id="card-error"></div>
+  </div>
+
+  <div class="convertx-footer">
+    <button type="button" class="btn-secondary" id="btn-cancel" onclick="handleCancelOrClose()">Cancel</button>
+    <button type="button" class="btn-secondary" id="btn-background" style="display: none;" onclick="minimizeToBackground()">Run in Background</button>
+    <button type="button" class="btn-primary" id="btn-run" onclick="runConversion()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      <span>Convert Now</span>
+    </button>
+    <button type="button" class="btn-primary" id="btn-done" style="display: none;" onclick="handleDone()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+      <span>Done</span>
+    </button>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

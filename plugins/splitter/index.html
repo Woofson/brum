@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>File Splitter & Combiner</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="splitter-window">
+    <!-- 1. Header with Mode Toggle -->
+    <div class="splitter-header">
+      <div class="splitter-header-left">
+        <img src="assets/icon.webp" alt="Splitter" class="splitter-brand-icon" onerror="this.src='data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='%23f59e0b' stroke-width='2'><circle cx='6' cy='6' r='3'/><circle cx='6' cy='18' r='3'/><line x1='20' y1='4' x2='8.12' y2='15.88'/><line x1='14.47' y1='14.48' x2='20' y2='20'/><line x1='8.12' y1='8.12' x2='12' y2='12'/></svg>'" />
+        <span class="splitter-brand-text">File Splitter & Combiner</span>
+      </div>
+
+      <div class="splitter-header-actions">
+        <div class="layout-btn-group">
+          <button type="button" class="view-toggle-btn active" id="tab-split-btn" onclick="switchTab('split')" title="Split Large File into Chunks">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+            <span>Split</span>
+          </button>
+          <button type="button" class="view-toggle-btn" id="tab-combine-btn" onclick="switchTab('combine')" title="Join / Combine Multi-Part Files">
+            <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 6 4-4 4 4"/><path d="M12 2v10.3a4 4 0 0 1-1.172 2.872L4 22"/><path d="m20 22-5-5"/></svg>
+            <span>Combine</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. Body -->
+    <div class="splitter-body">
+      <!-- TAB 1: SPLIT FILE -->
+      <div class="splitter-view active" id="view-split">
+        <div class="splitter-card">
+          <div class="form-group">
+            <label class="form-label" for="split-source-path">
+              <span>Source File to Split:</span>
+              <span id="split-source-size-badge" style="color: var(--accent); font-family: var(--font-mono); font-size: 11px;">0 B</span>
+            </label>
+            <div class="input-with-btn">
+              <input type="text" id="split-source-path" class="form-input" placeholder="Select a file or enter path (e.g. /data/iso/image.iso)" />
+              <button type="button" class="btn-secondary" onclick="useActiveSelectionForSplit()" title="Pick currently selected file in Brum">
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>Pick</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="split-preset-select">Chunk Size Preset:</label>
+            <div style="display: flex; gap: 8px;">
+              <select id="split-preset-select" class="form-select" onchange="handlePresetChange(this.value)">
+                <option value="10">10 MB (Small Chunks)</option>
+                <option value="25">25 MB (Email Attachment)</option>
+                <option value="50">50 MB (Discord / Web Upload)</option>
+                <option value="100" selected>100 MB (Standard Parts)</option>
+                <option value="250">250 MB (Medium Archive)</option>
+                <option value="500">500 MB (Large ISO / Video)</option>
+                <option value="1024">1024 MB (1 GB Chunks)</option>
+                <option value="custom">Custom Size (MB)...</option>
+              </select>
+              <input type="number" id="split-custom-size" class="form-input" style="width: 110px; display: none;" min="1" placeholder="MB" value="100" oninput="updateCalculations()" />
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="split-dest-dir">Destination Folder:</label>
+            <input type="text" id="split-dest-dir" class="form-input" placeholder="Same directory as source file" />
+          </div>
+
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="split-generate-checksum" checked />
+              <span>Generate SHA-256 Checksum Manifest (<code>.sha256</code>)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Live Calculation Box -->
+        <div class="calc-summary-card" id="split-calc-card">
+          <div class="calc-row">
+            <span class="calc-label">Estimated Parts:</span>
+            <span class="calc-value" id="calc-part-count">1 part</span>
+          </div>
+          <div class="calc-row">
+            <span class="calc-label">Chunk Filename Pattern:</span>
+            <span class="calc-value" id="calc-pattern-preview" style="font-size: 11px;">file.001 ... file.001</span>
+          </div>
+        </div>
+
+        <div class="progress-box" id="split-progress-box">
+          <div class="status-text" id="split-status-text">
+            <svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span>Splitting file...</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill indeterminate" id="split-progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="result-banner" id="split-result-banner"></div>
+
+        <button type="button" class="btn-primary" id="btn-split-action" onclick="runFileSplit()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>
+          <span>Split File Now</span>
+        </button>
+      </div>
+
+      <!-- TAB 2: COMBINE / JOIN PARTS -->
+      <div class="splitter-view" id="view-combine">
+        <div class="splitter-card">
+          <div class="form-group">
+            <label class="form-label">
+              <span>Detected Parts to Combine:</span>
+              <button type="button" class="btn-secondary" style="height: 24px; padding: 0 8px; font-size: 10.5px;" onclick="scanCurrentPaneForParts()">Scan Active Pane</button>
+            </label>
+            <div class="parts-list-box" id="combine-parts-list">
+              <div style="color: var(--text-dim); text-align: center; padding: 12px;">No parts loaded. Select files in Brum or click Scan.</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="combine-dest-path">Destination Output File:</label>
+            <input type="text" id="combine-dest-path" class="form-input" placeholder="Output joined file path" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="combine-expected-sha">
+              <span>Expected SHA-256 Checksum (Optional):</span>
+              <span style="font-size: 10px; color: var(--text-dim);">Auto-loaded from .sha256 if present</span>
+            </label>
+            <input type="text" id="combine-expected-sha" class="form-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="Paste 64-char SHA-256 hash or leave empty" />
+          </div>
+        </div>
+
+        <div class="progress-box" id="combine-progress-box">
+          <div class="status-text" id="combine-status-text">
+            <svg class="spinner" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            <span>Joining and hashing parts...</span>
+          </div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar-fill indeterminate" id="combine-progress-fill"></div>
+          </div>
+        </div>
+
+        <div class="result-banner" id="combine-result-banner"></div>
+
+        <button type="button" class="btn-primary" id="btn-combine-action" onclick="runFileCombine()">
+          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m8 6 4-4 4 4"/><path d="M12 2v10.3a4 4 0 0 1-1.172 2.872L4 22"/><path d="m20 22-5-5"/></svg>
+          <span>Join & Verify Parts</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>
