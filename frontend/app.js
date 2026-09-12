@@ -10500,6 +10500,8 @@ async function openFileDiffView(fileL, fileR) {
 let activeConverterFile = '';
 let activeConverterPaneIndex = null;
 let activeConverterCustomName = false;
+let isConvertInProgress = false;
+let activeConvertJob = null;
 
 function triggerConvertFile() {
   const pane = App.panes[App.activePaneIndex];
@@ -10514,11 +10516,18 @@ function triggerConvertFile() {
 function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   activeConverterPaneIndex = resolvedPaneIdx;
-  activeConverterCustomName = false;
   const pane = App.panes[resolvedPaneIdx];
   if (!filePath && pane && pane.entries && pane.entries[pane.cursorIndex]) {
     filePath = pane.entries[pane.cursorIndex].path;
   }
+
+  // If conversion already running for this job, restore view
+  if (isConvertInProgress && activeConvertJob && (!filePath || filePath === activeConvertJob.filePath)) {
+    restoreConverterModal();
+    return;
+  }
+
+  activeConverterCustomName = false;
   activeConverterFile = filePath || '';
 
   const fileName = filePath ? filePath.split('/').pop() : 'No file selected';
@@ -10550,10 +10559,12 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   updateConvertOutputName(true);
 
   const cancelBtn = document.getElementById('btn-convert-cancel');
+  const bgBtn = document.getElementById('btn-convert-background');
   const convertBtn = document.getElementById('btn-run-convert');
   const okBtn = document.getElementById('btn-convert-ok');
 
   if (cancelBtn) cancelBtn.style.display = 'inline-flex';
+  if (bgBtn) bgBtn.style.display = 'none';
   if (convertBtn) {
     convertBtn.style.display = 'inline-flex';
     convertBtn.disabled = false;
@@ -10564,6 +10575,35 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   if (statusMsg) statusMsg.style.display = 'none';
 
   showModal('converter-modal');
+}
+
+function minimizeConverterModal() {
+  closeModal('converter-modal');
+  const pill = document.getElementById('convertx-pill');
+  const titleEl = document.getElementById('convertx-pill-title');
+  if (isConvertInProgress && activeConvertJob) {
+    if (titleEl) titleEl.textContent = `Converting ${activeConvertJob.fileName} ➔ ${activeConvertJob.targetFormat.toUpperCase()}`;
+    if (pill) pill.style.display = 'flex';
+    showToast('ConvertX running in background', 'info');
+  } else {
+    if (pill) pill.style.display = 'none';
+  }
+}
+
+function restoreConverterModal() {
+  const pill = document.getElementById('convertx-pill');
+  if (pill) pill.style.display = 'none';
+  showModal('converter-modal');
+}
+
+function closeConverterModal() {
+  if (isConvertInProgress) {
+    minimizeConverterModal();
+  } else {
+    closeModal('converter-modal');
+    const pill = document.getElementById('convertx-pill');
+    if (pill) pill.style.display = 'none';
+  }
 }
 
 function updateConvertOutputName(forceReset = false) {
@@ -10620,15 +10660,25 @@ async function executeFileConversion() {
     resolvedOutputPath = parentDir ? `${parentDir}/${customOutName}` : customOutName;
   }
 
+  isConvertInProgress = true;
+  const fileName = activeConverterFile.split('/').pop() || activeConverterFile;
+  activeConvertJob = {
+    filePath: activeConverterFile,
+    fileName,
+    targetFormat
+  };
+
   const statusMsg = document.getElementById('convert-status-msg');
   const cancelBtn = document.getElementById('btn-convert-cancel');
+  const bgBtn = document.getElementById('btn-convert-background');
   const convertBtn = document.getElementById('btn-run-convert');
   const okBtn = document.getElementById('btn-convert-ok');
 
+  if (bgBtn) bgBtn.style.display = 'inline-flex';
   if (statusMsg) {
     statusMsg.style.display = 'block';
     statusMsg.style.color = 'var(--accent)';
-    statusMsg.innerHTML = '<i data-lucide="loader"></i> Converting file in progress...';
+    statusMsg.innerHTML = '<i data-lucide="loader"></i> Converting file in progress... <button class="btn btn-xs" onclick="minimizeConverterModal()" style="margin-left: 8px;">Run in Background</button>';
     if (window.lucide) lucide.createIcons();
   }
   if (convertBtn) convertBtn.disabled = true;
@@ -10654,8 +10704,15 @@ async function executeFileConversion() {
       })
     });
 
+    isConvertInProgress = false;
+    const pill = document.getElementById('convertx-pill');
+    if (pill) pill.style.display = 'none';
+
     if (resp.ok) {
       const data = await resp.json();
+      const modal = document.getElementById('converter-modal');
+      const isModalOpen = modal && modal.classList.contains('active');
+
       if (statusMsg) {
         statusMsg.style.display = 'block';
         statusMsg.style.color = 'var(--text-main)';
@@ -10674,27 +10731,42 @@ async function executeFileConversion() {
         if (window.lucide) lucide.createIcons();
       }
 
+      if (!isModalOpen) {
+        showToast(`✅ Converted ${fileName} to ${targetFormat.toUpperCase()} (${data.output_size ? formatFileSize(data.output_size) : ''})`, 'success');
+      }
+
       // Switch buttons to [OK]
       if (cancelBtn) cancelBtn.style.display = 'none';
+      if (bgBtn) bgBtn.style.display = 'none';
       if (convertBtn) convertBtn.style.display = 'none';
       if (okBtn) okBtn.style.display = 'inline-flex';
 
       refreshAllPanes();
     } else {
+      const errText = await resp.text();
+      showToast(`Conversion failed: ${errText}`, 'error');
       if (statusMsg) {
         statusMsg.style.display = 'block';
         statusMsg.style.color = 'var(--danger)';
-        statusMsg.textContent = `Conversion failed: ${await resp.text()}`;
+        statusMsg.textContent = `Conversion failed: ${errText}`;
       }
       if (convertBtn) convertBtn.disabled = false;
+      if (bgBtn) bgBtn.style.display = 'none';
     }
   } catch (e) {
+    isConvertInProgress = false;
+    const pill = document.getElementById('convertx-pill');
+    if (pill) pill.style.display = 'none';
+    showToast(`Conversion error: ${e}`, 'error');
     if (statusMsg) {
       statusMsg.style.display = 'block';
       statusMsg.style.color = 'var(--danger)';
       statusMsg.textContent = `Error: ${e}`;
     }
     if (convertBtn) convertBtn.disabled = false;
+    if (bgBtn) bgBtn.style.display = 'none';
+  } finally {
+    activeConvertJob = null;
   }
 }
 
@@ -20550,6 +20622,7 @@ function convertCurrentMediaToMp4() {
     return;
   }
   const pIdx = (curTrack.paneIndex !== null && curTrack.paneIndex !== undefined) ? curTrack.paneIndex : currentMediaPlayerPaneIndex;
+  closeMediaPlayer();
   openConverterModal(curTrack.path, 'mp4', pIdx);
 }
 
@@ -20559,6 +20632,7 @@ function openCurrentMediaWithSystemPlayer() {
     showToast('No media track selected', 'warning');
     return;
   }
+  closeMediaPlayer();
   executeOpenWith(curTrack.path, null);
 }
 

@@ -3776,7 +3776,10 @@
           <img src="assets/convertx.webp" alt="ConvertX" style="width: 18px; height: 18px; object-fit: contain;">
           <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 14px;">ConvertX File & Image Converter</span>
         </div>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('converter-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button class="btn btn-icon desktop-only" id="btn-convert-minimize" onclick="minimizeConverterModal()" title="Run in Background / Minimize (-)"><i data-lucide="minus"></i></button>
+          <button class="btn btn-icon modal-close-btn" onclick="closeConverterModal()" title="Close (Esc)"><i data-lucide="x"></i></button>
+        </div>
       </div>
       <div class="modal-body">
         <div class="converter-preview-box">
@@ -3854,9 +3857,10 @@
         <div id="convert-status-msg" style="font-size: 12px; margin-top: 10px; display: none;"></div>
       </div>
       <div class="modal-footer" id="convert-modal-footer">
-        <button class="btn" id="btn-convert-cancel" onclick="closeModal('converter-modal')">Cancel</button>
+        <button class="btn" id="btn-convert-cancel" onclick="closeConverterModal()">Cancel</button>
+        <button class="btn" id="btn-convert-background" style="display: none;" onclick="minimizeConverterModal()"><i data-lucide="minimize-2"></i> Run in Background</button>
         <button class="btn btn-accent" id="btn-run-convert" onclick="executeFileConversion()"><i data-lucide="play"></i> Convert Now</button>
-        <button class="btn btn-accent" id="btn-convert-ok" style="display: none;" onclick="closeModal('converter-modal')"><i data-lucide="check"></i> OK</button>
+        <button class="btn btn-accent" id="btn-convert-ok" style="display: none;" onclick="closeConverterModal()"><i data-lucide="check"></i> OK</button>
       </div>
     </div>
   </div>
@@ -5939,6 +5943,13 @@
     <span class="mediaplayer-pill-title" id="mediaplayer-pill-title">Mediaplayer</span>
     <button class="mediaplayer-pill-btn" onclick="event.stopPropagation(); toggleMediaPlay();" title="Play/Pause"><i data-lucide="play" id="mediaplayer-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
     <button class="mediaplayer-pill-btn" onclick="event.stopPropagation(); navMediaPlaylist(1);" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
+  </div>
+
+  <!-- ConvertX Minimized Task Pill -->
+  <div class="convertx-pill" id="convertx-pill" style="display: none;" onclick="restoreConverterModal()" title="Click to restore ConvertX">
+    <img src="assets/convertx.webp" alt="ConvertX" style="width: 14px; height: 14px; object-fit: contain;">
+    <i data-lucide="loader" class="convertx-pill-spin" id="convertx-pill-icon" style="width: 13px; height: 13px;"></i>
+    <span class="convertx-pill-title" id="convertx-pill-title">Converting file...</span>
   </div>
 
   <!-- Comic Book (.cbz/.cbr) & EPUB In-Browser Reader Modal -->

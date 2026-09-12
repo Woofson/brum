@@ -14464,3 +14464,45 @@ body.standalone-mode .server-only-setting {
   background: #000;
 }
 
+/* ConvertX Minimized Task Pill */
+.convertx-pill {
+  position: fixed;
+  bottom: 42px;
+  left: 420px;
+  z-index: 1800;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg-card, #151820);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 5px 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.18s ease;
+  animation: slideUpPill 0.2s ease-out;
+}
+
+.convertx-pill:hover {
+  transform: translateY(-2px);
+  background: #1e222d;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 12px rgba(245, 158, 11, 0.3);
+}
+
+.convertx-pill-title {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.convertx-pill-spin {
+  animation: spin 1s linear infinite;
+  color: var(--accent);
+}
+
