@@ -798,7 +798,7 @@ function updatePaneTitles() {
 }
 
 // Initialization
-document.addEventListener('DOMContentLoaded', async () => {
+function bootApp() {
   try {
     initPanes();
     setupEventListeners();
@@ -847,7 +847,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   } finally {
     checkAuthAndLoad();
   }
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootApp);
+} else {
+  bootApp();
+}
 
 function initPanes() {
   const defaultCount = 4;
@@ -13630,21 +13636,63 @@ function lockSession() {
 async function submitUnlockSession() {
   const passIn = document.getElementById('unlock-password-input');
   const errMsg = document.getElementById('unlock-error-msg');
+  const submitBtn = document.getElementById('btn-submit-unlock');
   const pass = passIn?.value || '';
 
   if (!pass) return;
 
-  try {
-    const resp = await fetch('/api/auth/unlock', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${App.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ password: pass })
-    });
+  let cachedUser = App.user;
+  if (!cachedUser) {
+    try {
+      cachedUser = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
+    } catch (_) {}
+  }
+  const uname = cachedUser?.username || 'admin';
 
-    if (resp.ok) {
+  if (submitBtn) submitBtn.disabled = true;
+
+  try {
+    let unlocked = false;
+    // 1. If App.token exists, try unlocking with existing session
+    if (App.token) {
+      const resp = await fetch('/api/auth/unlock', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${App.token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ password: pass })
+      });
+      if (resp.ok) {
+        unlocked = true;
+      }
+    }
+
+    // 2. If not unlocked (token expired/invalid/missing), re-authenticate via /api/auth/login
+    if (!unlocked) {
+      const loginResp = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username: uname, password: pass })
+      });
+      if (loginResp.ok) {
+        const data = await loginResp.json();
+        App.token = data.token;
+        App.user = data.user;
+        localStorage.setItem('cd_token', data.token);
+        try {
+          document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
+          localStorage.setItem('cd_user_info', JSON.stringify({
+            username: data.user?.username,
+            nickname: data.user?.nickname,
+            avatar_url: data.user?.avatar_url
+          }));
+        } catch (_) {}
+        unlocked = true;
+      }
+    }
+
+    if (unlocked) {
       App.isLocked = false;
       localStorage.removeItem('cd_is_locked');
       document.documentElement.classList.remove('auth-pending-lock', 'auth-pending-login', 'auth-verifying');
@@ -13655,37 +13703,27 @@ async function submitUnlockSession() {
         lockScreen.classList.remove('active');
       }
       if (passIn) passIn.value = '';
+      if (errMsg) errMsg.style.display = 'none';
 
+      updateHeaderProfile(App.user);
       applyUserHomeToPanes();
       renderAllPanes();
 
       showToast('Session unlocked. Welcome back!', 'success');
     } else {
-      const errText = await resp.text();
-      const isTokenExpired = errText.toLowerCase().includes('token') || 
-                             errText.toLowerCase().includes('expired') || 
-                             errText.toLowerCase().includes('unauthorized') ||
-                             (resp.status === 401 && !errText.toLowerCase().includes('password'));
-
-      if (isTokenExpired) {
-        if (errMsg) {
-          errMsg.innerHTML = `⚠️ <strong>Session has expired.</strong> Please log in again to continue.<br><button type="button" class="btn btn-sm btn-accent" style="margin-top: 8px; width: 100%; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="logout()"><i data-lucide="log-in" style="width: 14px; height: 14px;"></i> Go to Login</button>`;
-          errMsg.style.display = 'block';
-          if (window.lucide) lucide.createIcons({ root: errMsg });
-        }
-      } else {
-        if (errMsg) {
-          errMsg.textContent = 'Invalid password. Please try again.';
-          errMsg.style.display = 'block';
-        }
-        passIn?.select();
+      if (errMsg) {
+        errMsg.textContent = 'Invalid password. Please try again.';
+        errMsg.style.display = 'block';
       }
+      passIn?.select();
     }
   } catch (e) {
     if (errMsg) {
       errMsg.textContent = 'Connection error during unlock.';
       errMsg.style.display = 'block';
     }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
@@ -14256,6 +14294,7 @@ async function handleLoginSubmit() {
   const uInput = document.getElementById('login-username');
   const pInput = document.getElementById('login-password');
   const err = document.getElementById('login-error');
+  const submitBtn = document.getElementById('login-submit-btn');
 
   const u = uInput?.value.trim() || '';
   const p = pInput?.value || '';
@@ -14270,48 +14309,64 @@ async function handleLoginSubmit() {
     return;
   }
 
-  const resp = await fetch('/api/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username: u, password: p })
-  });
+  if (submitBtn) submitBtn.disabled = true;
 
-  if (resp.ok) {
-    const data = await resp.json();
-    App.token = data.token;
-    App.user = data.user;
-    updateHeaderProfile(App.user);
-    localStorage.setItem('cd_token', data.token);
-    try {
-      document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
-      localStorage.setItem('cd_user_info', JSON.stringify({
-        username: data.user?.username,
-        nickname: data.user?.nickname,
-        avatar_url: data.user?.avatar_url
-      }));
-    } catch (e) {}
-    localStorage.removeItem('cd_is_locked');
-    App.isLocked = false;
-    document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
-    document.documentElement.classList.add('auth-ready');
-    hideModal('login-modal');
-    if (err) err.style.display = 'none';
-    if (pInput) pInput.value = '';
-    await loadConfig();
-    await loadSystemUsersGroups();
-    await loadUserPreferencesFromServer();
-    applyUserHomeToPanes(true);
-    renderAllPanes();
-    restoreTerminalState();
-  } else {
+  try {
+    const resp = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: u, password: p })
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      App.token = data.token;
+      App.user = data.user;
+      updateHeaderProfile(App.user);
+      localStorage.setItem('cd_token', data.token);
+      try {
+        document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
+        localStorage.setItem('cd_user_info', JSON.stringify({
+          username: data.user?.username,
+          nickname: data.user?.nickname,
+          avatar_url: data.user?.avatar_url
+        }));
+      } catch (e) {}
+      localStorage.removeItem('cd_is_locked');
+      App.isLocked = false;
+      document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+      document.documentElement.classList.add('auth-ready');
+      hideModal('login-modal');
+      if (err) err.style.display = 'none';
+      if (pInput) pInput.value = '';
+      await loadConfig();
+      await loadSystemUsersGroups();
+      await loadUserPreferencesFromServer();
+      applyUserHomeToPanes(true);
+      renderAllPanes();
+      restoreTerminalState();
+    } else {
+      let errMsg = 'Invalid credentials. Please try again.';
+      try {
+        const errJson = await resp.json();
+        if (errJson && errJson.message) errMsg = errJson.message;
+      } catch (_) {}
+      if (err) {
+        err.style.display = 'block';
+        err.textContent = errMsg;
+      }
+      if (pInput) {
+        pInput.value = '';
+        pInput.focus();
+      }
+    }
+  } catch (netErr) {
     if (err) {
       err.style.display = 'block';
-      err.textContent = 'Invalid credentials. Please try again.';
+      err.textContent = 'Connection to server failed. Please verify that Brum backend is running.';
     }
-    if (pInput) {
-      pInput.value = '';
-      pInput.focus();
-    }
+  } finally {
+    if (submitBtn) submitBtn.disabled = false;
   }
 }
 
@@ -31976,7 +32031,6 @@ function dockActiveDynamicChewToy(paneNumber, pluginId = null) {
 /**
  * Initialize Draggable Header for Dynamic Chewtoy Windows
  */
-let dynamicChewToyDragInit = false;
 function initDynamicChewToyDrag() {
   if (dynamicChewToyDragInit) return;
   dynamicChewToyDragInit = true;

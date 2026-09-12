@@ -526,59 +526,76 @@ impl AuthManager {
                                 allowed_plugins,
                                 blocked_plugins,
                             });
+                        } else {
+                            return Err("Invalid username or password".into());
                         }
+                    } else {
+                        return Err("Invalid password hash format".into());
                     }
                 }
             }
         }
 
-        // 2. If auth mode is mixed or pam, try PAM authentication
+        // 2. If auth mode is mixed or pam, try PAM authentication for system users
         if self.auth_mode == "pam" || self.auth_mode == "mixed" {
-            let mut services = vec![self.pam_service.as_str()];
-            for fallback in &["common-auth", "sudo", "other", "passwd", "login"] {
-                if !services.contains(fallback) {
-                    services.push(fallback);
+            #[cfg(unix)]
+            let is_system_user = unsafe {
+                if let Ok(c_user) = std::ffi::CString::new(username) {
+                    !libc::getpwnam(c_user.as_ptr()).is_null()
+                } else {
+                    false
                 }
-            }
+            };
+            #[cfg(not(unix))]
+            let is_system_user = false;
 
-            for svc in services {
-                if pam::authenticate(svc, username, password).is_ok() {
-                    let (home_dir, def_role) = get_linux_user_info(username);
-                    
-                    // Check if this PAM user already has a linked DB record
-                    if let Ok(Some(mut existing)) = self.get_user_by_username(username) {
-                        if existing.is_disabled {
-                            return Err("Account is disabled. Please contact an administrator.".into());
-                        }
-                        existing.is_pam = true;
-                        return Ok(existing);
+            if is_system_user {
+                let mut services = vec![self.pam_service.as_str()];
+                for fallback in &["common-auth", "sudo", "other", "passwd", "login"] {
+                    if !services.contains(fallback) {
+                        services.push(fallback);
                     }
+                }
 
-                    // Auto-link new PAM user to DB profile
-                    let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
-                    let now = Utc::now().to_rfc3339();
-                    let _ = conn.execute(
-                        "INSERT OR IGNORE INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, 'PAM_MANAGED', ?2, ?3, '[\"*\"]', '[\"*\"]', 0, '[\"*\"]', '[]', 1, 0, ?4)",
-                        params![username, def_role, home_dir, now],
-                    );
-                    let id = conn.last_insert_rowid();
+                for svc in services {
+                    if pam::authenticate(svc, username, password).is_ok() {
+                        let (home_dir, def_role) = get_linux_user_info(username);
+                        
+                        // Check if this PAM user already has a linked DB record
+                        if let Ok(Some(mut existing)) = self.get_user_by_username(username) {
+                            if existing.is_disabled {
+                                return Err("Account is disabled. Please contact an administrator.".into());
+                            }
+                            existing.is_pam = true;
+                            return Ok(existing);
+                        }
 
-                    return Ok(User {
-                        id,
-                        username: username.to_string(),
-                        nickname: Some(username.to_string()),
-                        email: None,
-                        avatar_url: None,
-                        role: def_role,
-                        home_dir,
-                        is_pam: true,
-                        is_disabled: false,
-                        allowed_services: "[\"*\"]".to_string(),
-                        allowed_roots: "[\"*\"]".to_string(),
-                        can_install_plugins: false,
-                        allowed_plugins: "[\"*\"]".to_string(),
-                        blocked_plugins: "[]".to_string(),
-                    });
+                        // Auto-link new PAM user to DB profile
+                        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+                        let now = Utc::now().to_rfc3339();
+                        let _ = conn.execute(
+                            "INSERT OR IGNORE INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, 'PAM_MANAGED', ?2, ?3, '[\"*\"]', '[\"*\"]', 0, '[\"*\"]', '[]', 1, 0, ?4)",
+                            params![username, def_role, home_dir, now],
+                        );
+                        let id = conn.last_insert_rowid();
+
+                        return Ok(User {
+                            id,
+                            username: username.to_string(),
+                            nickname: Some(username.to_string()),
+                            email: None,
+                            avatar_url: None,
+                            role: def_role,
+                            home_dir,
+                            is_pam: true,
+                            is_disabled: false,
+                            allowed_services: "[\"*\"]".to_string(),
+                            allowed_roots: "[\"*\"]".to_string(),
+                            can_install_plugins: false,
+                            allowed_plugins: "[\"*\"]".to_string(),
+                            blocked_plugins: "[]".to_string(),
+                        });
+                    }
                 }
             }
         }
