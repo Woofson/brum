@@ -13,6 +13,11 @@
     html.auth-pending-login #login-modal,
     html.auth-pending-lock #session-lock-screen {
       display: flex !important;
+      position: fixed !important;
+      inset: 0 !important;
+      z-index: 99999 !important;
+      opacity: 1 !important;
+      visibility: visible !important;
     }
     html.auth-pending-login .app-header,
     html.auth-pending-login .fkey-bar,
@@ -59,6 +64,17 @@
       } catch (_) {
         document.documentElement.classList.add('auth-pending-login');
       }
+      setTimeout(function() {
+        if (document.documentElement.classList.contains('auth-verifying')) {
+          document.documentElement.classList.remove('auth-verifying');
+          var isLocked = localStorage.getItem('cd_is_locked') === 'true';
+          if (isLocked) {
+            document.documentElement.classList.add('auth-pending-lock');
+          } else {
+            document.documentElement.classList.add('auth-pending-login');
+          }
+        }
+      }, 3500);
     })();
   </script>
   <!-- Bundled Nerd Fonts Preload -->

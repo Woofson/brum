@@ -69,6 +69,11 @@ const App = {
   hapticFeedback: localStorage.getItem('cd_haptic_feedback') !== 'false',
 };
 
+let ColumnConfig = {
+  widths: JSON.parse(localStorage.getItem('cd_col_widths') || '{}'),
+  visibility: JSON.parse(localStorage.getItem('cd_col_visibility') || '{"name":true,"ext":false,"size":true,"modified":true,"created":false,"mode":true,"owner":true,"group":false,"hash":false,"tags":false}'),
+};
+
 function triggerHaptic(duration = 25) {
   if (App.hapticFeedback === false || localStorage.getItem('cd_haptic_feedback') === 'false') {
     return;
@@ -794,49 +799,54 @@ function updatePaneTitles() {
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
-  initPanes();
-  setupEventListeners();
-  setupKeyboardNavigation();
-  setupHistoryNavigation();
-  applyFKeyBarState();
-  applyFontSize(App.fontSize);
-  applyBorderSettings();
-  applyAllColumnWidths();
-  renderToolsMenu();
-  const urlTheme = new URLSearchParams(window.location.search).get('theme');
-  applyTheme(urlTheme || localStorage.getItem('cd_theme') || 'amber-charcoal');
-  updateHostnameBadge();
-  fetchAppVersion();
-  startTasksPolling();
-  initInactivityTracker();
-  initFolderTree();
-  initTreeResizer();
-  setupTabBarMouseWheel();
-  if (localStorage.getItem('cd_is_locked') === 'true') {
-    try {
-      const cached = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
-      if (cached) {
-        const userTextEl = document.getElementById('lock-username-text');
-        const hostSuffixEl = document.getElementById('lock-hostname-suffix');
-        const userLabel = document.getElementById('lock-username-label');
-        const avatarEl = document.getElementById('lock-avatar-thumb');
-        const uname = cached.nickname || cached.username || 'Brum User';
-        const cfg = getHostnameBadgeSettings();
-        const hostStr = cfg.hostname || 'localhost';
+  try {
+    initPanes();
+    setupEventListeners();
+    setupKeyboardNavigation();
+    setupHistoryNavigation();
+    applyFKeyBarState();
+    applyFontSize(App.fontSize);
+    applyBorderSettings();
+    applyAllColumnWidths();
+    renderToolsMenu();
+    const urlTheme = new URLSearchParams(window.location.search).get('theme');
+    applyTheme(urlTheme || localStorage.getItem('cd_theme') || 'amber-charcoal');
+    updateHostnameBadge();
+    fetchAppVersion();
+    startTasksPolling();
+    initInactivityTracker();
+    initFolderTree();
+    initTreeResizer();
+    setupTabBarMouseWheel();
+    if (localStorage.getItem('cd_is_locked') === 'true') {
+      try {
+        const cached = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
+        if (cached) {
+          const userTextEl = document.getElementById('lock-username-text');
+          const hostSuffixEl = document.getElementById('lock-hostname-suffix');
+          const userLabel = document.getElementById('lock-username-label');
+          const avatarEl = document.getElementById('lock-avatar-thumb');
+          const uname = cached.nickname || cached.username || 'Brum User';
+          const cfg = getHostnameBadgeSettings();
+          const hostStr = cfg.hostname || 'localhost';
 
-        if (userTextEl) {
-          userTextEl.textContent = uname;
-        } else if (userLabel) {
-          userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(hostStr) : hostStr}</span>`;
+          if (userTextEl) {
+            userTextEl.textContent = uname;
+          } else if (userLabel) {
+            userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(hostStr) : hostStr}</span>`;
+          }
+          if (hostSuffixEl) {
+            hostSuffixEl.textContent = `@${hostStr}`;
+          }
+          if (avatarEl) renderAvatarElement(avatarEl, cached.avatar_url || '👤');
         }
-        if (hostSuffixEl) {
-          hostSuffixEl.textContent = `@${hostStr}`;
-        }
-        if (avatarEl) renderAvatarElement(avatarEl, cached.avatar_url || '👤');
-      }
-    } catch (_) {}
+      } catch (_) {}
+    }
+  } catch (initErr) {
+    console.error('Core UI initialization error:', initErr);
+  } finally {
+    checkAuthAndLoad();
   }
-  checkAuthAndLoad();
 });
 
 function initPanes() {
@@ -920,8 +930,6 @@ async function checkAuthAndLoad() {
         if (meResp.ok) {
           App.user = await meResp.json();
           updateHeaderProfile(App.user);
-          document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
-          document.documentElement.classList.add('auth-ready');
           hideModal('login-modal');
           await loadConfig();
           await loadSystemUsersGroups();
@@ -929,6 +937,17 @@ async function checkAuthAndLoad() {
           await loadAllFileTags();
           await loadUserPreferencesFromServer();
           await loadInstalledChewToys(false);
+
+          // Respect lock state even in standalone/local mode
+          if (localStorage.getItem('cd_is_locked') === 'true') {
+            document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
+            document.documentElement.classList.add('auth-pending-lock');
+            lockSession();
+            return;
+          }
+
+          document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+          document.documentElement.classList.add('auth-ready');
           applyUserHomeToPanes();
           renderAllPanes();
           restoreTerminalState();
@@ -991,6 +1010,18 @@ async function checkAuthAndLoad() {
   setTimeout(() => {
     document.getElementById('login-username')?.focus();
   }, 100);
+
+  // Final safety fallback: guarantee auth-verifying is always removed
+  if (document.documentElement.classList.contains('auth-verifying')) {
+    document.documentElement.classList.remove('auth-verifying');
+    if (localStorage.getItem('cd_is_locked') === 'true') {
+      document.documentElement.classList.add('auth-pending-lock');
+      lockSession();
+    } else {
+      document.documentElement.classList.add('auth-pending-login');
+      showModal('login-modal');
+    }
+  }
 }
 
 async function fetchAppVersion() {
@@ -4399,11 +4430,6 @@ document.getElementById('btn-save-permissions')?.addEventListener('click', async
 });
 
 // ---------------- RESIZABLE COLUMNS, VIEW MODES & DIRECTORY TREE ----------------
-
-let ColumnConfig = {
-  widths: JSON.parse(localStorage.getItem('cd_col_widths') || '{}'),
-  visibility: JSON.parse(localStorage.getItem('cd_col_visibility') || '{"name":true,"ext":false,"size":true,"modified":true,"created":false,"mode":true,"owner":true,"group":false,"hash":false,"tags":false}'),
-};
 
 function initColResize(e, paneIndex, colKey) {
   if (e.cancelable) e.preventDefault();
