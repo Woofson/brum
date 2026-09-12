@@ -2,167 +2,412 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Arcade Blocks</title>
   <link rel="stylesheet" href="style.css" />
+  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
-  <div class="arcade-container">
-    <!-- Top Mode & Score Header -->
-    <div class="arcade-top-bar">
-      <div class="arcade-mode-selector">
-        <button class="arcade-tab active" data-view="game">Game</button>
-        <button class="arcade-tab" data-view="leaderboard">Scores</button>
-        <button class="arcade-tab" data-view="settings">Options</button>
+  <div class="arcade-app-window" id="arcade-app-window">
+    <!-- 1. Arcade Header (42px standard toolbar) -->
+    <div class="arcade-header" id="arcade-header">
+      <div class="arcade-header-left">
+        <span class="arcade-header-brand">
+          <img src="assets/icon.webp" alt="Arcade Blocks" class="arcade-brand-icon">
+          <span class="arcade-brand-text">Arcade Blocks</span>
+        </span>
       </div>
 
-      <div class="arcade-quick-scores">
-        <div class="arcade-score-badge">
-          <span class="arcade-score-lbl">SCORE</span>
-          <span class="arcade-score-val" id="hud-score">0</span>
-        </div>
-        <div class="arcade-score-badge">
-          <span class="arcade-score-lbl">LEVEL</span>
-          <span class="arcade-score-val" id="hud-level">1</span>
-        </div>
-        <div class="arcade-score-badge">
-          <span class="arcade-score-lbl">LINES</span>
-          <span class="arcade-score-val" id="hud-lines">0</span>
+      <div class="arcade-header-actions">
+        <div class="layout-btn-group" id="arcade-view-toggle-group">
+          <button type="button" class="btn btn-icon arcade-view-btn active" id="btn-arcade-view-game" onclick="setArcadeView('game')" title="Arcade Game View"><i data-lucide="gamepad-2"></i></button>
+          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-leaderboard" onclick="setArcadeView('leaderboard')" title="High Scores & Leaderboard (All Users)"><i data-lucide="trophy"></i></button>
+          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-settings" onclick="setArcadeView('settings')" title="Arcade Blocks Settings & Controls"><i data-lucide="sliders"></i></button>
         </div>
       </div>
     </div>
 
-    <!-- VIEW 1: GAMEPLAY ARENA -->
-    <div class="arcade-view" id="view-game">
-      <div class="arcade-arena">
-        <!-- Left Side Column: Hold & Stats -->
-        <div class="arcade-side-col arcade-left-col">
-          <div class="arcade-card arcade-hold-card">
-            <div class="arcade-card-title">HOLD</div>
-            <div class="arcade-canvas-wrap">
-              <canvas id="hold-canvas" width="80" height="80"></canvas>
+    <!-- 2. Arcade Body Container -->
+    <div class="arcade-body" id="arcade-body">
+      <!-- VIEW 1: ARCADE GAME -->
+      <div class="arcade-view arcade-game-view" id="arcade-view-game">
+        <div class="arcade-arena">
+          <!-- Left Column: Hold & Stats (Desktop) -->
+          <div class="arcade-side-col arcade-left-col">
+            <div class="arcade-panel-card arcade-hold-card">
+              <div class="arcade-card-title">HOLD <span class="arcade-key-hint desktop-only">C / Shift</span></div>
+              <div class="arcade-canvas-wrap">
+                <canvas id="arcade-hold-canvas" width="90" height="90"></canvas>
+              </div>
             </div>
-            <div class="arcade-key-hint">C / Shift</div>
+
+            <div class="arcade-panel-card arcade-stats-card desktop-only-card">
+              <div class="arcade-mode-banner">
+                <span class="arcade-mode-badge" id="arcade-arena-mode-badge">MARATHON</span>
+              </div>
+              <div class="arcade-stat-row">
+                <span class="arcade-stat-label">TOP SCORE</span>
+                <span class="arcade-stat-number arcade-glow-gold" id="arcade-stat-hiscore">0</span>
+              </div>
+              <div class="arcade-stat-row">
+                <span class="arcade-stat-label">MODE</span>
+                <select id="arcade-mode-select" class="arcade-select" onchange="changeArcadeMode(this.value)">
+                  <option value="marathon">Marathon</option>
+                  <option value="sprint">Sprint (40L)</option>
+                  <option value="ultra">Ultra (3 Min)</option>
+                </select>
+              </div>
+              <div class="arcade-stat-row" id="arcade-timer-row" style="display: none;">
+                <span class="arcade-stat-label">TIME</span>
+                <span class="arcade-stat-number" id="arcade-stat-timer">00:00.0</span>
+              </div>
+            </div>
+
+            <div class="arcade-b2b-badge" id="arcade-b2b-badge" style="display: none;">
+              ⚡ BACK-TO-BACK
+            </div>
+            <div class="arcade-combo-badge" id="arcade-combo-badge" style="display: none;">
+              COMBO ×<span id="arcade-combo-count">0</span>
+            </div>
           </div>
 
-          <div class="arcade-card arcade-stats-card">
-            <div class="arcade-card-title">STATS</div>
-            <div class="arcade-stat-row">
-              <span class="arcade-stat-lbl">Time</span>
-              <span class="arcade-stat-num" id="stat-time">0:00</span>
+          <!-- Center Column: Board Canvas & Overlays -->
+          <div class="arcade-center-col">
+            <!-- Mobile Center Mode & Top Score Badge (Mobile Only) -->
+            <div class="arcade-mobile-center-hud mobile-only-flex">
+              <span class="arcade-mode-badge" id="arcade-mobile-mode-badge">MARATHON</span>
+              <div class="arcade-mob-stat-row">
+                <span class="arcade-mob-stat-lbl">TOP:</span>
+                <span class="arcade-mob-stat-val arcade-glow-gold" id="arcade-mob-hiscore">0</span>
+              </div>
             </div>
-            <div class="arcade-stat-row">
-              <span class="arcade-stat-lbl">Combo</span>
-              <span class="arcade-stat-num" id="stat-combo">0</span>
-            </div>
-            <div class="arcade-stat-row">
-              <span class="arcade-stat-lbl">B2B</span>
-              <span class="arcade-stat-num" id="stat-b2b">0</span>
-            </div>
-          </div>
-        </div>
 
-        <!-- Center Column: 10x20 Main Matrix Canvas -->
-        <div class="arcade-center-col">
-          <div class="arcade-canvas-box">
-            <canvas id="main-canvas" width="200" height="400"></canvas>
-            <div class="arcade-scanlines"></div>
+            <div class="arcade-canvas-container" id="arcade-canvas-container">
+              <canvas id="arcade-board-canvas" width="240" height="480" class="arcade-main-canvas"></canvas>
+              <div class="arcade-scanlines" id="arcade-scanlines"></div>
 
-            <!-- Ready / Pause / Game Over Overlay -->
-            <div class="arcade-overlay" id="game-overlay" style="display: none;">
-              <div class="arcade-overlay-box">
-                <div class="arcade-overlay-title" id="overlay-title">GAME OVER</div>
-                <div class="arcade-overlay-sub" id="overlay-sub">Final Score: 0</div>
-                <div class="arcade-overlay-actions">
-                  <button class="btn btn-accent" id="btn-overlay-play">Play Again</button>
-                  <button class="btn" id="btn-overlay-scores">High Scores</button>
+              <!-- Ready / Countdown Overlay -->
+              <div class="arcade-overlay" id="arcade-ready-overlay">
+                <div class="arcade-overlay-box">
+                  <div class="arcade-logo">ARCADE BLOCKS</div>
+                  <div class="arcade-sub">AUTHENTIC 60 FPS RETRO ARCADE</div>
+                  <div class="arcade-ready-action">
+                    <button class="btn btn-accent arcade-btn-lg" onclick="startArcadeGame()">
+                      <i data-lucide="play"></i> START GAME
+                    </button>
+                  </div>
+                  <div class="arcade-key-legend desktop-only">
+                    <div><kbd>←</kbd> <kbd>→</kbd> Move</div>
+                    <div><kbd>↑</kbd> / <kbd>X</kbd> Rotate CW</div>
+                    <div><kbd>Z</kbd> / <kbd>Ctrl</kbd> Rotate CCW</div>
+                    <div><kbd>↓</kbd> Soft Drop</div>
+                    <div><kbd>Space</kbd> Hard Drop</div>
+                    <div><kbd>C</kbd> / <kbd>Shift</kbd> Hold</div>
+                    <div><kbd>P</kbd> / <kbd>Esc</kbd> Pause</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Pause Overlay -->
+              <div class="arcade-overlay" id="arcade-pause-overlay" style="display: none;">
+                <div class="arcade-overlay-box">
+                  <div class="arcade-overlay-title">PAUSED</div>
+                  <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Press <kbd>P</kbd> or <kbd>Esc</kbd> to resume</div>
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-accent" onclick="resumeArcadeGame()"><i data-lucide="play"></i> Resume</button>
+                    <button class="btn" onclick="restartArcadeGame()"><i data-lucide="rotate-ccw"></i> Restart</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Game Over Overlay -->
+              <div class="arcade-overlay" id="arcade-gameover-overlay" style="display: none;">
+                <div class="arcade-overlay-box">
+                  <div class="arcade-overlay-title arcade-danger-glow" id="arcade-gameover-title">GAME OVER</div>
+                  <div class="arcade-go-stats">
+                    <div class="arcade-go-stat-item">
+                      <div class="arcade-go-label">FINAL SCORE</div>
+                      <div class="arcade-go-val arcade-accent-glow" id="arcade-go-score">0</div>
+                    </div>
+                    <div class="arcade-go-stat-item">
+                      <div class="arcade-go-label">LEVEL</div>
+                      <div class="arcade-go-val" id="arcade-go-level">1</div>
+                    </div>
+                    <div class="arcade-go-stat-item">
+                      <div class="arcade-go-label">LINES</div>
+                      <div class="arcade-go-val" id="arcade-go-lines">0</div>
+                    </div>
+                    <div class="arcade-go-stat-item">
+                      <div class="arcade-go-label">TIME</div>
+                      <div class="arcade-go-val" id="arcade-go-time">00:00</div>
+                    </div>
+                  </div>
+
+                  <div class="arcade-rank-banner" id="arcade-rank-banner" style="display: none;">
+                    🏆 <span id="arcade-rank-text">Achieved Rank #1!</span>
+                  </div>
+
+                  <div style="display: flex; gap: 8px; margin-top: 12px; width: 100%;">
+                    <button class="btn btn-accent" style="flex: 1;" onclick="restartArcadeGame()"><i data-lucide="rotate-ccw"></i> Play Again</button>
+                    <button class="btn" onclick="setArcadeView('leaderboard')"><i data-lucide="trophy"></i> High Scores</button>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+
+          <!-- Right Column: Next Pieces & Quick Actions -->
+          <div class="arcade-side-col arcade-right-col">
+            <div class="arcade-panel-card arcade-next-card">
+              <div class="arcade-card-title">NEXT</div>
+              <div class="arcade-canvas-wrap">
+                <canvas id="arcade-next-canvas" width="90" height="220"></canvas>
+              </div>
+            </div>
+
+            <div class="arcade-panel-card arcade-actions-card desktop-only-card">
+              <button class="btn btn-accent btn-sm" id="btn-arcade-start-pause" onclick="toggleArcadePlayPause()" style="width: 100%;">
+                <i data-lucide="play" id="icon-arcade-play-pause"></i> <span id="label-arcade-play-pause">Play</span>
+              </button>
+              <button class="btn btn-sm" onclick="restartArcadeGame()" style="width: 100%;">
+                <i data-lucide="rotate-ccw"></i> Restart
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- Right Side Column: Next Pieces -->
-        <div class="arcade-side-col arcade-right-col">
-          <div class="arcade-card arcade-next-card">
-            <div class="arcade-card-title">NEXT</div>
-            <div class="arcade-canvas-wrap">
-              <canvas id="next-canvas" width="80" height="200"></canvas>
+        <!-- Virtual NES-Style Thumb Controller for Mobile & Tablet Touch -->
+        <div class="arcade-nes-controller" id="arcade-nes-controller">
+          <!-- Left Zone: Authentic 4-Way Cross D-Pad -->
+          <div class="arcade-dpad-cross">
+            <button class="dpad-btn dpad-up" id="tbtn-up" data-action="hardDrop" title="Hard Drop (Slam Piece)">
+              <i data-lucide="chevrons-up"></i>
+            </button>
+            <button class="dpad-btn dpad-left" id="tbtn-left" data-action="left" title="Move Left">
+              <i data-lucide="arrow-left"></i>
+            </button>
+            <div class="dpad-center"></div>
+            <button class="dpad-btn dpad-right" id="tbtn-right" data-action="right" title="Move Right">
+              <i data-lucide="arrow-right"></i>
+            </button>
+            <button class="dpad-btn dpad-down" id="tbtn-down" data-action="down" title="Soft Drop (Drop Faster)">
+              <i data-lucide="arrow-down"></i>
+            </button>
+          </div>
+
+          <!-- Center Zone: SELECT (Hold) & START (Pause) -->
+          <div class="arcade-nes-center-btns">
+            <button class="nes-pill-btn" id="tbtn-hold" data-action="hold" title="Hold Piece">
+              <span class="nes-pill-label">HOLD</span>
+            </button>
+            <button class="nes-pill-btn" id="tbtn-pause" onclick="toggleArcadePlayPause()" title="Play / Pause">
+              <span class="nes-pill-label" id="tbtn-pause-label">PAUSE</span>
+            </button>
+          </div>
+
+          <!-- Right Zone: B and A Action Buttons (Angled NES Layout) -->
+          <div class="arcade-nes-actions">
+            <button class="nes-round-btn nes-btn-b" id="tbtn-rot-ccw" data-action="rotateCCW" title="Rotate CCW (B Button)">
+              <span class="nes-btn-name">B</span>
+              <span class="nes-btn-sub">↺</span>
+            </button>
+            <button class="nes-round-btn nes-btn-a" id="tbtn-rot-cw" data-action="rotateCW" title="Rotate CW (A Button)">
+              <span class="nes-btn-name">A</span>
+              <span class="nes-btn-sub">↻</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 2: LEADERBOARD & DB TOP SCORES -->
+      <div class="arcade-view arcade-leaderboard-view" id="arcade-view-leaderboard" style="display: none;">
+        <div class="arcade-lb-header-bar">
+          <div class="arcade-lb-mode-pills">
+            <button class="btn btn-xs arcade-lb-tab active" data-mode="marathon" onclick="loadArcadeLeaderboard('marathon')">Marathon</button>
+            <button class="btn btn-xs arcade-lb-tab" data-mode="sprint" onclick="loadArcadeLeaderboard('sprint')">Sprint (40L)</button>
+            <button class="btn btn-xs arcade-lb-tab" data-mode="ultra" onclick="loadArcadeLeaderboard('ultra')">Ultra (3 Min)</button>
+          </div>
+          <div class="arcade-lb-scope-toggle">
+            <label class="arcade-scope-btn"><input type="radio" name="arcade-scope" value="all" checked onchange="handleArcadeScopeChange(this.value)"> 🌐 All Users</label>
+            <label class="arcade-scope-btn"><input type="radio" name="arcade-scope" value="mine" onchange="handleArcadeScopeChange(this.value)"> 👤 My Best</label>
+            <button class="btn btn-icon btn-xs" onclick="refreshArcadeLeaderboard()" title="Refresh Scores"><i data-lucide="refresh-cw"></i></button>
+          </div>
+        </div>
+
+        <!-- User Stats Summary Banner -->
+        <div class="arcade-user-summary" id="arcade-user-summary">
+          <div class="arcade-summary-item">
+            <span class="arcade-summary-lbl">PERSONAL BEST</span>
+            <span class="arcade-summary-val arcade-glow-gold" id="arcade-sum-best">0</span>
+          </div>
+          <div class="arcade-summary-item">
+            <span class="arcade-summary-lbl">GLOBAL RANK</span>
+            <span class="arcade-summary-val" id="arcade-sum-rank">-</span>
+          </div>
+          <div class="arcade-summary-item">
+            <span class="arcade-summary-lbl">MAX LEVEL</span>
+            <span class="arcade-summary-val" id="arcade-sum-level">1</span>
+          </div>
+          <div class="arcade-summary-item">
+            <span class="arcade-summary-lbl">TOTAL LINES</span>
+            <span class="arcade-summary-val" id="arcade-sum-lines">0</span>
+          </div>
+          <div class="arcade-summary-item">
+            <span class="arcade-summary-lbl">GAMES PLAYED</span>
+            <span class="arcade-summary-val" id="arcade-sum-games">0</span>
+          </div>
+        </div>
+
+        <!-- Leaderboard Table Container -->
+        <div class="arcade-lb-table-wrap">
+          <table class="arcade-table">
+            <thead>
+              <tr>
+                <th style="width: 50px;">Rank</th>
+                <th>Player</th>
+                <th style="text-align: right;">Score</th>
+                <th style="text-align: right;">Level</th>
+                <th style="text-align: right;">Lines</th>
+                <th style="text-align: right;">Time</th>
+                <th style="text-align: right;">Date</th>
+              </tr>
+            </thead>
+            <tbody id="arcade-leaderboard-tbody">
+              <tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading top scores from database...</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Leaderboard Bottom Alias Bar -->
+        <div class="arcade-lb-footer">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label for="arcade-player-alias" style="font-size: 11px; color: var(--text-dim);">Player Alias:</label>
+            <input type="text" id="arcade-player-alias" class="arcade-input-sm" placeholder="Your Name" style="width: 140px; height: 26px; font-size: 11px;" onchange="saveArcadePlayerAlias(this.value)">
+            <button class="btn btn-xs btn-outline" onclick="saveArcadePlayerAlias(document.getElementById('arcade-player-alias').value)">Save</button>
+          </div>
+          <div>
+            <button class="btn btn-xs btn-danger-action" onclick="promptClearArcadeScores()" title="Reset high scores"><i data-lucide="trash-2" style="width: 11px;"></i> Clear Scores</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW 3: SETTINGS & CUSTOMIZATION -->
+      <div class="arcade-view arcade-settings-view" id="arcade-view-settings" style="display: none;">
+        <div class="arcade-settings-scroll">
+          <div class="arcade-settings-section">
+            <div class="arcade-section-title">🕹️ Gameplay & Controls</div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Starting Level</div>
+                <div class="arcade-setting-sub">Select starting gravity level (1 = standard, 10 = master speed)</div>
+              </div>
+              <select id="arcade-cfg-start-level" class="arcade-select" onchange="updateArcadeConfig('startLevel', parseInt(this.value, 10))">
+                <option value="1">Level 1 (Relaxed)</option>
+                <option value="3">Level 3 (Brisk)</option>
+                <option value="5">Level 5 (Fast)</option>
+                <option value="8">Level 8 (Intense)</option>
+                <option value="10">Level 10 (Master)</option>
+              </select>
+            </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Rotation System</div>
+                <div class="arcade-setting-sub">SRS (Super Rotation System with wall kicks) or NES Classic</div>
+              </div>
+              <select id="arcade-cfg-rotation" class="arcade-select" onchange="updateArcadeConfig('rotationSystem', this.value)">
+                <option value="srs">Super Rotation System (SRS)</option>
+                <option value="nes">Classic NES (Single Rotation)</option>
+              </select>
+            </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Ghost Piece Projection</div>
+                <div class="arcade-setting-sub">Project translucent landing shadow on the board</div>
+              </div>
+              <input type="checkbox" id="arcade-cfg-ghost" checked onchange="updateArcadeConfig('ghostPiece', this.checked)">
+            </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Delayed Auto Shift (DAS)</div>
+                <div class="arcade-setting-sub">Initial delay before rapid piece shifting (<span id="arcade-das-val">133</span>ms)</div>
+              </div>
+              <input type="range" min="60" max="250" step="5" value="133" id="arcade-cfg-das" oninput="document.getElementById('arcade-das-val').textContent=this.value; updateArcadeConfig('das', parseInt(this.value, 10))">
+            </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Auto Repeat Rate (ARR)</div>
+                <div class="arcade-setting-sub">Continuous shift speed (<span id="arcade-arr-val">16</span>ms)</div>
+              </div>
+              <input type="range" min="0" max="50" step="2" value="16" id="arcade-cfg-arr" oninput="document.getElementById('arcade-arr-val').textContent=this.value; updateArcadeConfig('arr', parseInt(this.value, 10))">
             </div>
           </div>
 
-          <div class="arcade-card arcade-controls-card">
-            <button class="btn btn-accent btn-sm" id="btn-play-pause">Play</button>
-            <button class="btn btn-sm" id="btn-restart">Restart</button>
+          <div class="arcade-settings-section">
+            <div class="arcade-section-title">🎨 Audio & Visual Style</div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Retro Theme Palette</div>
+                <div class="arcade-setting-sub">Color palette for board canvas and tetrominoes</div>
+              </div>
+              <select id="arcade-cfg-theme" class="arcade-select" onchange="setArcadeTheme(this.value)">
+                <option value="amber">Woofsons Amber Charcoal</option>
+                <option value="gameboy">Game Boy Monochrome Green</option>
+                <option value="nes">NES 8-Bit Vibrant</option>
+                <option value="cyberpunk">Arcade Cyberpunk</option>
+              </select>
+            </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">CRT Scanlines & Glow</div>
+                <div class="arcade-setting-sub">Subtle retro CRT screen scanline overlay</div>
+              </div>
+              <input type="checkbox" id="arcade-cfg-scanlines" checked onchange="updateArcadeConfig('scanlines', this.checked)">
+            </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">8-Bit Sound Effects</div>
+                <div class="arcade-setting-sub">Synthesized Web Audio sound effects</div>
+              </div>
+              <input type="checkbox" id="arcade-cfg-sound" checked onchange="updateArcadeConfig('soundEnabled', this.checked)">
+            </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Audio Volume (<span id="arcade-vol-val">60</span>%)</div>
+                <div class="arcade-setting-sub">Master volume level for synthesized audio</div>
+              </div>
+              <input type="range" min="0" max="100" step="5" value="60" id="arcade-cfg-volume" oninput="document.getElementById('arcade-vol-val').textContent=this.value; updateArcadeConfig('volume', parseInt(this.value, 10))">
+            </div>
           </div>
-        </div>
-      </div>
-
-      <!-- Touch / D-Pad Controller for Mobile/Touchscreens -->
-      <div class="arcade-touch-controller" id="touch-controller">
-        <div class="touch-dpad">
-          <button class="tbtn tbtn-up" data-act="hardDrop" title="Hard Drop">▲</button>
-          <button class="tbtn tbtn-left" data-act="left" title="Left">◀</button>
-          <div class="tbtn-center"></div>
-          <button class="tbtn tbtn-right" data-act="right" title="Right">▶</button>
-          <button class="tbtn tbtn-down" data-act="down" title="Soft Drop">▼</button>
-        </div>
-        <div class="touch-center">
-          <button class="touch-pill-btn" data-act="hold">HOLD</button>
-          <button class="touch-pill-btn" id="tbtn-touch-pause">PAUSE</button>
-        </div>
-        <div class="touch-actions">
-          <button class="touch-round-btn tbtn-b" data-act="rotateCCW">↺</button>
-          <button class="touch-round-btn tbtn-a" data-act="rotateCW">↻</button>
         </div>
       </div>
     </div>
 
-    <!-- VIEW 2: HIGH SCORES -->
-    <div class="arcade-view" id="view-leaderboard" style="display: none;">
-      <div class="arcade-scores-container">
-        <div class="arcade-scores-header">
-          <span style="font-weight: 700; color: var(--accent);">Top High Scores</span>
-          <button class="btn btn-xs" id="btn-clear-scores">Clear All</button>
+    <!-- 3. Arcade Bottom Status-Bar -->
+    <div class="arcade-statusbar" id="arcade-statusbar">
+      <div class="arcade-sb-left">
+        <button class="arcade-statusbar-sound-btn" id="btn-arcade-audio" onclick="toggleArcadeAudio()" title="Sound Effects (Click to Mute/Unmute)">
+          <i data-lucide="volume-2" id="icon-arcade-audio"></i>
+        </button>
+        <span class="arcade-sb-hint desktop-only">P / Esc: Pause</span>
+      </div>
+
+      <div class="arcade-sb-center">
+        <div class="arcade-sb-pill">
+          <span class="arcade-sb-label">SCORE</span>
+          <span class="arcade-sb-val" id="arcade-sb-score-val">0</span>
         </div>
-        <div class="arcade-scores-list" id="leaderboard-list">
-          <div class="arcade-empty">No high scores recorded yet</div>
+        <div class="arcade-sb-pill">
+          <span class="arcade-sb-label">LEVEL</span>
+          <span class="arcade-sb-val" id="arcade-sb-lvl-val">1</span>
+        </div>
+        <div class="arcade-sb-pill">
+          <span class="arcade-sb-label">LINES</span>
+          <span class="arcade-sb-val" id="arcade-sb-lines-val">0</span>
         </div>
       </div>
-    </div>
 
-    <!-- VIEW 3: SETTINGS -->
-    <div class="arcade-view" id="view-settings" style="display: none;">
-      <div class="arcade-settings-list">
-        <div class="arcade-setting-item">
-          <div>
-            <div class="arcade-setting-lbl">Starting Level</div>
-            <div class="arcade-setting-sub">Gravity speed for new games</div>
-          </div>
-          <select id="cfg-start-level" class="arcade-select">
-            <option value="1">Level 1 (Relaxed)</option>
-            <option value="3">Level 3 (Brisk)</option>
-            <option value="5">Level 5 (Fast)</option>
-            <option value="8">Level 8 (Intense)</option>
-            <option value="10">Level 10 (Master)</option>
-          </select>
-        </div>
-
-        <div class="arcade-setting-item">
-          <div>
-            <div class="arcade-setting-lbl">Ghost Piece</div>
-            <div class="arcade-setting-sub">Show landing shadow projection</div>
-          </div>
-          <input type="checkbox" id="cfg-ghost" checked />
-        </div>
-
-        <div class="arcade-setting-item">
-          <div>
-            <div class="arcade-setting-lbl">Sound Effects</div>
-            <div class="arcade-setting-sub">Synthesized 8-bit audio effects</div>
-          </div>
-          <input type="checkbox" id="cfg-sound" checked />
-        </div>
+      <div class="arcade-sb-right">
+        <span class="arcade-sb-engine">60 FPS • SRS</span>
       </div>
     </div>
   </div>
