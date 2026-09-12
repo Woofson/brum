@@ -58,11 +58,14 @@ impl ConvertEngine {
 
         // Determine conversion type
         let is_image_target = matches!(target_fmt.as_str(), "png" | "jpg" | "jpeg" | "webp" | "avif" | "gif" | "bmp" | "ico" | "tiff");
+        let is_media_target = matches!(target_fmt.as_str(), "mp4" | "webm" | "mkv" | "mp3" | "wav" | "flac" | "ogg" | "aac" | "m4a");
         let is_data_conversion = matches!(target_fmt.as_str(), "json" | "yaml" | "yml" | "toml" | "csv");
         let is_doc_conversion = matches!(target_fmt.as_str(), "html" | "md" | "txt" | "base64");
 
         if is_image_target {
             Self::convert_image(src, &out_path, &target_fmt, req)?;
+        } else if is_media_target {
+            Self::convert_media(src, &out_path, &target_fmt, req)?;
         } else if is_data_conversion {
             Self::convert_data(src, &out_path, &ext, &target_fmt)?;
         } else if is_doc_conversion {
@@ -128,6 +131,72 @@ impl ConvertEngine {
             // Fallback: Check if source and target are basic formats
             Err("No image converter (ImageMagick / ffmpeg) found on host. Install with: sudo apt install imagemagick or ffmpeg".to_string())
         }
+    }
+
+    /// Convert audio/video media formats using ffmpeg
+    fn convert_media(src: &Path, out: &Path, target_fmt: &str, req: &ConvertRequest) -> Result<(), String> {
+        let has_ffmpeg = Command::new("ffmpeg").arg("-version").output().map(|o| o.status.success()).unwrap_or(false);
+        if !has_ffmpeg {
+            return Err("ffmpeg is required for media conversion. Install with: sudo apt install ffmpeg".to_string());
+        }
+
+        let mut cmd = Command::new("ffmpeg");
+        cmd.arg("-y").arg("-i").arg(src);
+
+        // Apply scaling if requested
+        if let (Some(w), Some(h)) = (req.resize_width, req.resize_height) {
+            cmd.arg("-vf").arg(format!("scale={}:{}", w, h));
+        }
+
+        match target_fmt {
+            "mp4" => {
+                cmd.arg("-c:v").arg("libx264")
+                   .arg("-preset").arg("fast")
+                   .arg("-crf").arg("23")
+                   .arg("-c:a").arg("aac")
+                   .arg("-b:a").arg("192k")
+                   .arg("-movflags").arg("+faststart");
+            }
+            "webm" => {
+                cmd.arg("-c:v").arg("libvpx-vp9")
+                   .arg("-crf").arg("30")
+                   .arg("-b:v").arg("0")
+                   .arg("-c:a").arg("libopus");
+            }
+            "mkv" => {
+                cmd.arg("-c:v").arg("libx264")
+                   .arg("-preset").arg("fast")
+                   .arg("-c:a").arg("aac");
+            }
+            "mp3" => {
+                cmd.arg("-vn").arg("-c:a").arg("libmp3lame").arg("-q:a").arg("2");
+            }
+            "wav" => {
+                cmd.arg("-vn").arg("-c:a").arg("pcm_s16le");
+            }
+            "flac" => {
+                cmd.arg("-vn").arg("-c:a").arg("flac");
+            }
+            "ogg" => {
+                cmd.arg("-vn").arg("-c:a").arg("libvorbis").arg("-q:a").arg("4");
+            }
+            "aac" | "m4a" => {
+                cmd.arg("-vn").arg("-c:a").arg("aac").arg("-b:a").arg("192k");
+            }
+            _ => {}
+        }
+
+        cmd.arg(out);
+
+        let output = cmd.output().map_err(|e| format!("Failed to execute ffmpeg: {}", e))?;
+        if !output.status.success() {
+            let err = String::from_utf8_lossy(&output.stderr);
+            let lines: Vec<&str> = err.lines().collect();
+            let summary = lines.iter().rev().take(5).cloned().collect::<Vec<&str>>();
+            return Err(format!("Media conversion failed: {}", summary.join(" ")));
+        }
+
+        Ok(())
     }
 
     /// Convert structured data (JSON, YAML, TOML, CSV)

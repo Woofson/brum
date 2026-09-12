@@ -3800,6 +3800,18 @@
               <option value="bmp">BMP (Raw Bitmap)</option>
               <option value="ico">ICO (Favicon / Windows Icon)</option>
             </optgroup>
+            <optgroup label="Video (Web Universal)">
+              <option value="mp4">MP4 (H.264 / AAC - Web Universal)</option>
+              <option value="webm">WebM (VP9 / Opus)</option>
+              <option value="mkv">MKV (Matroska)</option>
+            </optgroup>
+            <optgroup label="Audio">
+              <option value="mp3">MP3 (Universal Audio)</option>
+              <option value="wav">WAV (Lossless PCM)</option>
+              <option value="flac">FLAC (Lossless Audio)</option>
+              <option value="ogg">OGG (Vorbis)</option>
+              <option value="m4a">M4A (AAC Audio)</option>
+            </optgroup>
             <optgroup label="Structured Data & Documents">
               <option value="json">JSON (Formatted)</option>
               <option value="yaml">YAML (Human Readable)</option>
@@ -5802,6 +5814,28 @@
           <div class="mediaplayer-audio-info">
             <div id="mediaplayer-audio-title" style="font-size: 14px; font-weight: 700; color: var(--text-main);">Audio Track</div>
             <div id="mediaplayer-audio-path" style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">/path/to/audio</div>
+          </div>
+        </div>
+
+        <!-- Media Error & Unsupported Codec Overlay -->
+        <div class="mediaplayer-error-overlay" id="mediaplayer-error-overlay" style="display: none;">
+          <div class="mediaplayer-error-box">
+            <div class="mediaplayer-error-icon"><i data-lucide="video-off"></i></div>
+            <div class="mediaplayer-error-title" id="mediaplayer-error-title">Cannot Decode Media Format</div>
+            <div class="mediaplayer-error-desc" id="mediaplayer-error-desc">The browser video engine cannot decode this container or codec natively.</div>
+            <div class="mediaplayer-error-filename" id="mediaplayer-error-filename">file.avi</div>
+            
+            <div class="mediaplayer-error-actions">
+              <button class="btn btn-accent btn-sm" id="btn-mediaplayer-convert" onclick="convertCurrentMediaToMp4()" title="Transcode to web-compatible MP4 with ConvertX">
+                <i data-lucide="refresh-cw"></i> Convert to Web MP4
+              </button>
+              <button class="btn btn-sm" id="btn-mediaplayer-open-system" onclick="openCurrentMediaWithSystemPlayer()" title="Open in VLC, MPV or default desktop media player">
+                <i data-lucide="external-link"></i> Open with Default Player
+              </button>
+              <button class="btn btn-sm" id="btn-mediaplayer-download" onclick="downloadCurrentMedia()" title="Download file to computer">
+                <i data-lucide="download"></i> Download
+              </button>
+            </div>
           </div>
         </div>
 

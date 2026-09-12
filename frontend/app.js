@@ -10509,7 +10509,7 @@ function triggerConvertFile() {
   }
 }
 
-function openConverterModal(filePath) {
+function openConverterModal(filePath, defaultFormat = null) {
   const pane = App.panes[App.activePaneIndex];
   if (!filePath && pane.entries[pane.cursorIndex]) {
     filePath = pane.entries[pane.cursorIndex].path;
@@ -10524,6 +10524,20 @@ function openConverterModal(filePath) {
   if (nameEl) nameEl.textContent = fileName;
   if (pathEl) pathEl.textContent = filePath || 'Select a file in the pane to convert';
   if (sizeEl) sizeEl.textContent = '';
+
+  const targetFormatEl = document.getElementById('convert-target-format');
+  if (targetFormatEl) {
+    if (defaultFormat) {
+      targetFormatEl.value = defaultFormat;
+    } else if (isVideoExtension(fileName)) {
+      targetFormatEl.value = 'mp4';
+    } else if (isAudioExtension(fileName)) {
+      targetFormatEl.value = 'mp3';
+    } else if (isImageExtension(fileName)) {
+      targetFormatEl.value = 'webp';
+    }
+    handleTargetFormatChange(targetFormatEl.value);
+  }
 
   const statusMsg = document.getElementById('convert-status-msg');
   if (statusMsg) statusMsg.style.display = 'none';
@@ -19046,13 +19060,13 @@ function isDocumentExtension(filename) {
 function isAudioExtension(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
-  return ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma', 'opus'].includes(ext);
+  return ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma', 'opus', 'aiff', 'alac', 'mid', 'midi'].includes(ext);
 }
 
 function isVideoExtension(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
-  return ['mp4', 'webm', 'mkv', 'avi', 'mov', 'm4v', 'ogv'].includes(ext);
+  return ['mp4', 'webm', 'mkv', 'avi', 'mov', 'm4v', 'ogv', 'mpg', 'mpeg', 'wmv', 'flv', 'ts', 'm2ts', 'vob', '3gp', 'divx', 'asf'].includes(ext);
 }
 
 function isComicBookExtension(filename) {
@@ -20307,6 +20321,9 @@ function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
 
   const streamUrl = getDownloadUrl(filePath, true, pIdx);
 
+  const errOverlay = document.getElementById('mediaplayer-error-overlay');
+  if (errOverlay) errOverlay.style.display = 'none';
+
   // Clear existing subtitles
   clearMediaSubtitles();
 
@@ -20386,6 +20403,68 @@ function attachMediaEvents() {
       updateMediaPlayButton(false);
     }
   };
+
+  el.onerror = () => {
+    const errOverlay = document.getElementById('mediaplayer-error-overlay');
+    const errTitle = document.getElementById('mediaplayer-error-title');
+    const errDesc = document.getElementById('mediaplayer-error-desc');
+    const errFilename = document.getElementById('mediaplayer-error-filename');
+
+    const curTrack = mediaplayerState.playlist[mediaplayerState.currentIndex] || { path: '', name: '' };
+    const curExt = (curTrack.name || curTrack.path || '').split('.').pop().toLowerCase();
+
+    if (errFilename) errFilename.textContent = curTrack.name || curTrack.path || 'Media File';
+
+    if (['avi', 'mpg', 'mpeg', 'wmv', 'flv', 'vob', '3gp', 'divx', 'asf'].includes(curExt)) {
+      if (errTitle) errTitle.textContent = `Unsupported Video Format (.${curExt.toUpperCase()})`;
+      if (errDesc) errDesc.textContent = `HTML5 browser engines cannot decode .${curExt.toUpperCase()} (DivX / MPEG / WMV) natively. You can convert it to Web MP4 with 1-click ConvertX, or launch your system media player (VLC/MPV).`;
+    } else {
+      if (errTitle) errTitle.textContent = 'Media Playback Error';
+      if (errDesc) errDesc.textContent = `The media stream or codec could not be decoded by the browser engine.`;
+    }
+
+    if (errOverlay) {
+      errOverlay.style.display = 'flex';
+      if (window.lucide) {
+        try { lucide.createIcons(); } catch (e) {}
+      }
+    }
+    updateMediaPlayButton(false);
+  };
+}
+
+function convertCurrentMediaToMp4() {
+  const curTrack = mediaplayerState.playlist[mediaplayerState.currentIndex];
+  if (!curTrack || !curTrack.path) {
+    showToast('No media track selected', 'warning');
+    return;
+  }
+  openConverterModal(curTrack.path, 'mp4');
+}
+
+function openCurrentMediaWithSystemPlayer() {
+  const curTrack = mediaplayerState.playlist[mediaplayerState.currentIndex];
+  if (!curTrack || !curTrack.path) {
+    showToast('No media track selected', 'warning');
+    return;
+  }
+  executeOpenWith(curTrack.path, null);
+}
+
+function downloadCurrentMedia() {
+  const curTrack = mediaplayerState.playlist[mediaplayerState.currentIndex];
+  if (!curTrack || !curTrack.path) {
+    showToast('No media track selected', 'warning');
+    return;
+  }
+  const pIdx = (curTrack.paneIndex !== null && curTrack.paneIndex !== undefined) ? curTrack.paneIndex : currentMediaPlayerPaneIndex;
+  const url = getDownloadUrl(curTrack.path, false, pIdx);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = curTrack.name || curTrack.path.split('/').pop();
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
 }
 
 function formatMediaTime(secs) {

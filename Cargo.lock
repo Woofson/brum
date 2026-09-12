@@ -321,7 +321,7 @@ dependencies = [
 
 [[package]]
 name = "brum"
-version = "0.8.5-rc12"
+version = "0.8.5-rc13"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -362,6 +362,7 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "tokio-util",
  "toml 0.8.2",
  "tower-http 0.5.2",
  "tracing",

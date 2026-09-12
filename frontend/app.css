@@ -14031,6 +14031,84 @@ body.standalone-mode .server-only-setting {
   white-space: pre-wrap;
 }
 
+/* Media Error & Unsupported Codec Overlay */
+.mediaplayer-error-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.94);
+  backdrop-filter: blur(12px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  z-index: 18;
+}
+
+.mediaplayer-error-box {
+  background: var(--bg-card, #1a1d24);
+  border: 1px solid var(--border, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius, 8px);
+  padding: 28px 24px;
+  max-width: 480px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+}
+
+.mediaplayer-error-icon {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ef4444;
+}
+
+.mediaplayer-error-icon svg {
+  width: 26px;
+  height: 26px;
+}
+
+.mediaplayer-error-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-main, #f3f4f6);
+}
+
+.mediaplayer-error-desc {
+  font-size: 13px;
+  color: var(--text-dim, #9ca3af);
+  line-height: 1.5;
+}
+
+.mediaplayer-error-filename {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent, #f59e0b);
+  background: rgba(245, 158, 11, 0.1);
+  padding: 4px 10px;
+  border-radius: 4px;
+  word-break: break-all;
+  border: 1px solid rgba(245, 158, 11, 0.2);
+}
+
+.mediaplayer-error-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  width: 100%;
+}
+
 /* Center Splash OSD */
 .mediaplayer-osd {
   position: absolute;

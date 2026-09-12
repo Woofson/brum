@@ -3058,7 +3058,8 @@ fn build_bytes_range_response(
                         .header(header::CONTENT_DISPOSITION, disposition)
                         .header(header::CONTENT_RANGE, format!("bytes {}-{}/{}", start, end, total_len))
                         .header(header::CONTENT_LENGTH, slice_len.to_string())
-                        .header(header::ACCEPT_RANGES, "bytes");
+                        .header(header::ACCEPT_RANGES, "bytes")
+                        .header(header::CONTENT_ENCODING, "identity");
 
                     if let Some(et) = etag {
                         builder = builder
@@ -3075,6 +3076,7 @@ fn build_bytes_range_response(
                         .status(StatusCode::RANGE_NOT_SATISFIABLE)
                         .header(header::CONTENT_RANGE, format!("bytes */{}", total_len))
                         .header(header::ACCEPT_RANGES, "bytes")
+                        .header(header::CONTENT_ENCODING, "identity")
                         .body(Body::empty())
                         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)));
                 }
@@ -3087,7 +3089,8 @@ fn build_bytes_range_response(
         .header(header::CONTENT_TYPE, mime)
         .header(header::CONTENT_DISPOSITION, disposition)
         .header(header::CONTENT_LENGTH, total_len.to_string())
-        .header(header::ACCEPT_RANGES, "bytes");
+        .header(header::ACCEPT_RANGES, "bytes")
+        .header(header::CONTENT_ENCODING, "identity");
 
     if let Some(et) = etag {
         builder = builder
@@ -3109,6 +3112,7 @@ async fn build_local_file_range_response(
     range_header: Option<&str>,
 ) -> Result<Response, (StatusCode, String)> {
     use tokio::io::{AsyncReadExt, AsyncSeekExt};
+    use tokio_util::io::ReaderStream;
 
     if let Some(range_raw) = range_header {
         if let Some(range_res) = HttpRange::parse(range_raw, total_len) {
@@ -3123,10 +3127,8 @@ async fn build_local_file_range_response(
                         (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to seek file: {}", e))
                     })?;
 
-                    let mut buffer = vec![0u8; slice_len as usize];
-                    file.read_exact(&mut buffer).await.map_err(|e| {
-                        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file slice: {}", e))
-                    })?;
+                    let stream = ReaderStream::new(file.take(slice_len));
+                    let body = Body::from_stream(stream);
 
                     let response = Response::builder()
                         .status(StatusCode::PARTIAL_CONTENT)
@@ -3137,7 +3139,8 @@ async fn build_local_file_range_response(
                         .header(header::ACCEPT_RANGES, "bytes")
                         .header(header::ETAG, etag)
                         .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
-                        .body(Body::from(buffer))
+                        .header(header::CONTENT_ENCODING, "identity")
+                        .body(body)
                         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
                     return Ok(response);
@@ -3147,6 +3150,7 @@ async fn build_local_file_range_response(
                         .status(StatusCode::RANGE_NOT_SATISFIABLE)
                         .header(header::CONTENT_RANGE, format!("bytes */{}", total_len))
                         .header(header::ACCEPT_RANGES, "bytes")
+                        .header(header::CONTENT_ENCODING, "identity")
                         .body(Body::empty())
                         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
@@ -3156,9 +3160,11 @@ async fn build_local_file_range_response(
         }
     }
 
-    let file_bytes = tokio::fs::read(path).await.map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file: {}", e))
+    let file = tokio::fs::File::open(path).await.map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open file: {}", e))
     })?;
+    let stream = ReaderStream::new(file);
+    let body = Body::from_stream(stream);
 
     let response = Response::builder()
         .status(StatusCode::OK)
@@ -3168,7 +3174,8 @@ async fn build_local_file_range_response(
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::ETAG, etag)
         .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
-        .body(Body::from(file_bytes))
+        .header(header::CONTENT_ENCODING, "identity")
+        .body(body)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
     Ok(response)

@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "0.8.5-rc12"
+version = "0.8.5-rc13"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -43,6 +43,7 @@ dirs = "5.0"
 libc = "0.2"
 axum = { version = "0.7", features = ["ws", "multipart"] }
 tokio = { version = "1", features = ["full"] }
+tokio-util = { version = "0.7", features = ["io"] }
 tower-http = { version = "0.5", features = ["cors", "trace", "compression-gzip", "compression-br", "compression-zstd"] }
 rust-embed = { version = "8", features = ["mime-guess"] }
 mime_guess = "2.0"
