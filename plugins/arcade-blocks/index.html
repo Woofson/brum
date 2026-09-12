@@ -4,10 +4,10 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Arcade Blocks</title>
-  <link rel="stylesheet" href="style.css?v=0.8.5-rc30" />
+  <link rel="stylesheet" href="style.css?v=0.8.5-rc32" />
 </head>
 <body>
-  <div class="arcade-app-window" id="arcade-app-window">
+  <div class="arcade-app-window" id="arcade-app-window" tabindex="0" onclick="window.focus();">
     <!-- 1. Arcade Header (42px standard toolbar) -->
     <div class="arcade-header" id="arcade-header">
       <div class="arcade-header-left">
@@ -357,6 +357,17 @@
               </div>
               <input type="range" min="0" max="50" step="2" value="16" id="arcade-cfg-arr" oninput="document.getElementById('arcade-arr-val').textContent=this.value; updateArcadeConfig('arr', parseInt(this.value, 10))">
             </div>
+            <div class="arcade-setting-row">
+              <div>
+                <div class="arcade-setting-title">Virtual Touch Controller</div>
+                <div class="arcade-setting-sub">On-screen NES D-pad and A/B buttons for touchscreens & mobile</div>
+              </div>
+              <select id="arcade-cfg-touch-ctrl" class="arcade-select" onchange="updateArcadeConfig('touchControls', this.value)">
+                <option value="auto">Auto (Touch & Mobile Only)</option>
+                <option value="hide">Always Hide (Keyboard Focus)</option>
+                <option value="show">Always Show (On-Screen)</option>
+              </select>
+            </div>
           </div>
 
           <div class="arcade-settings-section">
@@ -429,6 +440,6 @@
     </div>
   </div>
 
-  <script src="main.js?v=0.8.5-rc30"></script>
+  <script src="main.js?v=0.8.5-rc32"></script>
 </body>
 </html>

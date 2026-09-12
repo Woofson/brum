@@ -1140,138 +1140,156 @@ body {
   filter: saturate(1.3);
 }
 
-/* Responsive media queries */
-@media (max-width: 640px) {
-  .desktop-only-card,
-  .desktop-only {
-    display: none !important;
-  }
+/* ==========================================================================
+   VIEWPORT ARCHITECTURE & RESPONSIVE CONTROLS (PHONE, TABLET, PC)
+   ========================================================================== */
 
-  .mobile-only-flex {
+/* Explicit class-based override controls */
+.arcade-app-window.touch-controls-enabled .arcade-nes-controller {
+  display: flex !important;
+}
+
+.arcade-app-window.touch-controls-disabled .arcade-nes-controller {
+  display: none !important;
+}
+
+/* 1. Phone Viewport (< 600px) */
+.arcade-app-window.viewport-phone .desktop-only-card,
+.arcade-app-window.viewport-phone .desktop-only {
+  display: none !important;
+}
+
+.arcade-app-window.viewport-phone .mobile-only-flex {
+  display: flex !important;
+}
+
+.arcade-app-window.viewport-phone .arcade-header {
+  min-height: 38px;
+  height: 38px;
+  padding: 0 8px;
+}
+
+.arcade-app-window.viewport-phone .arcade-arena {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  padding: 2px 6px;
+  gap: 6px;
+  flex: 1;
+}
+
+.arcade-app-window.viewport-phone .arcade-side-col {
+  width: 52px;
+  gap: 4px;
+  align-items: center;
+}
+
+.arcade-app-window.viewport-phone .arcade-panel-card {
+  padding: 3px 2px;
+  width: 100%;
+}
+
+.arcade-app-window.viewport-phone .arcade-card-title {
+  font-size: 8px;
+  margin-bottom: 2px;
+}
+
+.arcade-app-window.viewport-phone #arcade-hold-canvas {
+  width: 44px !important;
+  height: 44px !important;
+}
+
+.arcade-app-window.viewport-phone #arcade-next-canvas {
+  width: 44px !important;
+  height: 96px !important;
+}
+
+.arcade-app-window.viewport-phone .arcade-center-col {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 240px;
+}
+
+.arcade-app-window.viewport-phone .arcade-canvas-container {
+  aspect-ratio: 1 / 2;
+  width: 100%;
+}
+
+.arcade-app-window.viewport-phone .arcade-main-canvas {
+  width: auto !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain;
+}
+
+.arcade-app-window.viewport-phone.touch-device:not(.touch-controls-disabled) .arcade-nes-controller {
+  display: flex !important;
+  padding: 4px 8px 6px 8px;
+}
+
+.arcade-app-window.viewport-phone .arcade-statusbar {
+  min-height: 26px;
+  height: 26px;
+  padding: 0 6px;
+}
+
+.arcade-app-window.viewport-phone .arcade-sb-center {
+  gap: 4px;
+}
+
+.arcade-app-window.viewport-phone .arcade-sb-pill {
+  padding: 1px 4px;
+  font-size: 9.5px;
+  gap: 3px;
+}
+
+.arcade-app-window.viewport-phone .arcade-sb-label {
+  font-size: 7px;
+}
+
+.arcade-app-window.viewport-phone .arcade-sb-val {
+  font-size: 9.5px;
+}
+
+.arcade-app-window.viewport-phone .arcade-sb-right {
+  display: none;
+}
+
+/* 2. Tablet Viewport (600px - 1024px) */
+.arcade-app-window.viewport-tablet .arcade-arena {
+  padding: 8px 10px;
+  gap: 10px;
+}
+
+.arcade-app-window.viewport-tablet .arcade-side-col {
+  width: 80px;
+}
+
+.arcade-app-window.viewport-tablet #arcade-hold-canvas {
+  width: 70px !important;
+  height: 70px !important;
+}
+
+.arcade-app-window.viewport-tablet #arcade-next-canvas {
+  width: 70px !important;
+  height: 170px !important;
+}
+
+.arcade-app-window.viewport-tablet.touch-device:not(.touch-controls-disabled) .arcade-nes-controller {
+  display: flex !important;
+}
+
+/* 3. Coarse Pointer (Physical Touchscreen) Fallback */
+@media (pointer: coarse) and (max-width: 600px) {
+  .arcade-app-window:not(.touch-controls-disabled) .arcade-nes-controller {
     display: flex !important;
-  }
-
-  .arcade-header {
-    min-height: 38px;
-    height: 38px;
-    padding: 0 8px;
-  }
-
-  .arcade-arena {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 2px 6px;
-    gap: 6px;
-  }
-
-  .arcade-side-col {
-    width: 52px;
-    gap: 4px;
-    align-items: center;
-  }
-
-  .arcade-panel-card {
-    padding: 3px 2px;
-    width: 100%;
-  }
-
-  .arcade-card-title {
-    font-size: 8px;
-    margin-bottom: 2px;
-  }
-
-  #arcade-hold-canvas {
-    width: 44px !important;
-    height: 44px !important;
-  }
-
-  #arcade-next-canvas {
-    width: 44px !important;
-    height: 96px !important;
-  }
-
-  .arcade-center-col {
-    flex: 1 1 auto;
-    min-width: 0;
-    max-width: 240px;
-  }
-
-  .arcade-canvas-container {
-    aspect-ratio: 1 / 2;
-    width: 100%;
-  }
-
-  .arcade-main-canvas {
-    width: auto !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
-    object-fit: contain;
-  }
-
-  .arcade-nes-controller {
-    display: flex !important;
-    padding: 4px 8px 6px 8px;
-  }
-
-  .arcade-statusbar {
-    min-height: 26px;
-    height: 26px;
-    padding: 0 6px;
-  }
-
-  .arcade-sb-center {
-    gap: 4px;
-  }
-
-  .arcade-sb-pill {
-    padding: 1px 4px;
-    font-size: 9.5px;
-    gap: 3px;
-  }
-
-  .arcade-sb-label {
-    font-size: 7px;
-  }
-
-  .arcade-sb-val {
-    font-size: 9.5px;
-  }
-
-  .arcade-sb-right {
-    display: none;
   }
 }
 
-@media (min-width: 641px) and (max-width: 1024px) {
-  .arcade-arena {
-    padding: 8px 10px;
-    gap: 10px;
-  }
-
-  .arcade-side-col {
-    width: 90px;
-  }
-
-  #arcade-hold-canvas {
-    width: 74px !important;
-    height: 74px !important;
-  }
-
-  #arcade-next-canvas {
-    width: 74px !important;
-    height: 180px !important;
-  }
-
-  .arcade-nes-controller {
-    display: flex !important;
-  }
-}
-
-@media (pointer: coarse) and (min-width: 1025px) {
-  .arcade-nes-controller {
+@media (pointer: coarse) and (min-width: 601px) and (max-width: 1024px) {
+  .arcade-app-window:not(.touch-controls-disabled) .arcade-nes-controller {
     display: flex !important;
   }
 }

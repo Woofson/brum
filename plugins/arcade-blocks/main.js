@@ -104,6 +104,7 @@ let arcadeState = {
     das: parseInt(localStorage.getItem('cd_arcade_das') || '133', 10),
     arr: parseInt(localStorage.getItem('cd_arcade_arr') || '16', 10),
     scanlines: localStorage.getItem('cd_arcade_scanlines') !== '0',
+    touchControls: localStorage.getItem('cd_arcade_touch_controls') || 'auto',
   },
   game: {
     boardWidth: 10,
@@ -392,6 +393,45 @@ function updateArcadeConfig(key, val) {
   } else if (key === 'volume') {
     arcadeState.volume = val;
     localStorage.setItem('cd_arcade_vol', val);
+  } else if (key === 'touchControls') {
+    arcadeState.config.touchControls = val;
+    localStorage.setItem('cd_arcade_touch_controls', val);
+    applyViewportAndControls();
+  }
+}
+
+function applyViewportAndControls() {
+  const win = document.getElementById('arcade-app-window');
+  if (!win) return;
+
+  const isTouch = (arcadeState.isTouch !== undefined)
+    ? arcadeState.isTouch
+    : (('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches);
+
+  const vp = arcadeState.viewport || (window.innerWidth < 600 ? 'phone' : (window.innerWidth <= 1024 ? 'tablet' : 'pc'));
+
+  win.classList.remove('viewport-phone', 'viewport-tablet', 'viewport-pc', 'touch-device');
+  win.classList.add(`viewport-${vp}`);
+  if (isTouch) win.classList.add('touch-device');
+
+  const setting = arcadeState.config.touchControls || 'auto';
+  win.classList.remove('touch-controls-enabled', 'touch-controls-disabled');
+  if (setting === 'show') {
+    win.classList.add('touch-controls-enabled');
+  } else if (setting === 'hide') {
+    win.classList.add('touch-controls-disabled');
+  } else {
+    // auto: show only if touch is active on phone or tablet
+    if (isTouch && (vp === 'phone' || vp === 'tablet')) {
+      win.classList.add('touch-controls-enabled');
+    } else {
+      win.classList.add('touch-controls-disabled');
+    }
+  }
+
+  const touchSelect = document.getElementById('arcade-cfg-touch-ctrl');
+  if (touchSelect && touchSelect.value !== setting) {
+    touchSelect.value = setting;
   }
 }
 
@@ -1231,72 +1271,75 @@ function formatArcadeTimer(ms) {
 }
 
 // ---------------- INPUT EVENT LISTENERS (KEYBOARD & TOUCH) ----------------
-function initArcadeInput() {
-  window.addEventListener('keydown', (e) => {
-    if (arcadeState.activeView !== 'game') return;
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+function handleArcadeKeyDown(key) {
+  if (arcadeState.activeView !== 'game') return;
+  const g = arcadeState.game;
 
-    const g = arcadeState.game;
+  if (key === 'p' || key === 'P' || key === 'Escape') {
+    toggleArcadePlayPause();
+    return;
+  }
 
-    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-      e.preventDefault();
-      toggleArcadePlayPause();
+  if (g.status === 'ready' || g.status === 'gameover') {
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'Enter', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C'].includes(key)) {
+      startArcadeGame();
       return;
     }
+  }
 
-    if (g.status === 'ready' || g.status === 'gameover') {
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'w', 'a', 's', 'd', 'z', 'x', 'c'].includes(e.key)) {
-        e.preventDefault();
-        startArcadeGame();
-        return;
-      }
+  if (g.status !== 'playing') return;
+
+  if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+    if (g.dasDir !== -1) {
+      g.dasDir = -1;
+      g.dasTimer = 0;
+      g.arrTimer = 0;
+      moveArcadePiece(-1, 0);
     }
-
-    if (g.status !== 'playing') return;
-
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-      e.preventDefault();
-      if (g.dasDir !== -1) {
-        g.dasDir = -1;
-        g.dasTimer = 0;
-        g.arrTimer = 0;
-        moveArcadePiece(-1, 0);
-      }
-    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-      e.preventDefault();
-      if (g.dasDir !== 1) {
-        g.dasDir = 1;
-        g.dasTimer = 0;
-        g.arrTimer = 0;
-        moveArcadePiece(1, 0);
-      }
-    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-      e.preventDefault();
-      g.softDropActive = true;
-    } else if (e.key === 'ArrowUp' || e.key === 'x' || e.key === 'X' || e.key === 'e' || e.key === 'E') {
-      e.preventDefault();
-      rotateArcadePiece(1);
-    } else if (e.key === 'z' || e.key === 'Z' || e.key === 'Control' || e.key === 'q' || e.key === 'Q') {
-      e.preventDefault();
-      rotateArcadePiece(-1);
-    } else if (e.key === ' ' || e.key === 'w' || e.key === 'W') {
-      e.preventDefault();
-      hardDropArcadePiece();
-    } else if (e.key === 'c' || e.key === 'C' || e.key === 'Shift') {
-      e.preventDefault();
-      holdArcadePiece();
+  } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+    if (g.dasDir !== 1) {
+      g.dasDir = 1;
+      g.dasTimer = 0;
+      g.arrTimer = 0;
+      moveArcadePiece(1, 0);
     }
+  } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+    g.softDropActive = true;
+  } else if (key === 'ArrowUp' || key === 'x' || key === 'X' || key === 'e' || key === 'E') {
+    rotateArcadePiece(1);
+  } else if (key === 'z' || key === 'Z' || key === 'Control' || key === 'q' || key === 'Q') {
+    rotateArcadePiece(-1);
+  } else if (key === ' ' || key === 'Space' || key === 'w' || key === 'W') {
+    hardDropArcadePiece();
+  } else if (key === 'c' || key === 'C' || key === 'Shift') {
+    holdArcadePiece();
+  }
+}
+
+function handleArcadeKeyUp(key) {
+  const g = arcadeState.game;
+  if (key === 'ArrowLeft' || key === 'a' || key === 'A') {
+    if (g.dasDir === -1) g.dasDir = 0;
+  } else if (key === 'ArrowRight' || key === 'd' || key === 'D') {
+    if (g.dasDir === 1) g.dasDir = 0;
+  } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
+    g.softDropActive = false;
+  }
+}
+
+function initArcadeInput() {
+  window.addEventListener('keydown', (e) => {
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
+
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space'].includes(e.key)) {
+      e.preventDefault();
+    }
+    handleArcadeKeyDown(e.key);
   });
 
   window.addEventListener('keyup', (e) => {
-    const g = arcadeState.game;
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-      if (g.dasDir === -1) g.dasDir = 0;
-    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-      if (g.dasDir === 1) g.dasDir = 0;
-    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-      g.softDropActive = false;
-    }
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
+    handleArcadeKeyUp(e.key);
   });
 
   const touchMap = {
@@ -1528,6 +1571,7 @@ function bootArcade() {
   if (arcadeState.initialized) return;
   arcadeState.initialized = true;
   applyArcadeTheme();
+  applyViewportAndControls();
   initArcadeInput();
   initArcadeGame();
 
@@ -1536,6 +1580,13 @@ function bootArcade() {
 
   // Load scores in background
   loadArcadeLeaderboard(arcadeState.game.mode, false);
+
+  // Focus arcade app container for immediate keyboard input
+  try {
+    window.focus();
+    const appWin = document.getElementById('arcade-app-window');
+    if (appWin) appWin.focus();
+  } catch (_) {}
 }
 
 // Support both instant execution (if DOM ready) and DOMContentLoaded event
@@ -1548,8 +1599,31 @@ if (document.readyState === 'loading') {
 // Host context bridge (Brum iframe postMessage listener)
 window.addEventListener('message', (event) => {
   if (!event.data || typeof event.data !== 'object') return;
+
+  // 1. Forwarded keyboard input from Brum parent window
+  if (event.data.type === 'BRUM_KEY') {
+    if (event.data.keyType === 'keydown') {
+      handleArcadeKeyDown(event.data.key);
+    } else if (event.data.keyType === 'keyup') {
+      handleArcadeKeyUp(event.data.key);
+    }
+    return;
+  }
+
+  // 2. Brum initialization & viewport context
   if (event.data.type === 'BRUM_READY' || event.data.type === 'BRUM_CONTEXT') {
     const ctx = event.data.context || {};
+    if (ctx.viewport) {
+      arcadeState.viewport = ctx.viewport;
+    }
+    if (ctx.isTouch !== undefined) {
+      arcadeState.isTouch = ctx.isTouch;
+    }
+    if (ctx.isDocked !== undefined) {
+      arcadeState.isDocked = ctx.isDocked;
+      const win = document.getElementById('arcade-app-window');
+      if (win) win.classList.toggle('docked-mode', !!ctx.isDocked);
+    }
     if (ctx.theme && !localStorage.getItem('cd_arcade_theme')) {
       const themeMap = {
         'amber-charcoal': 'amber',
@@ -1565,5 +1639,11 @@ window.addEventListener('message', (event) => {
         setArcadeTheme(matched);
       }
     }
+    applyViewportAndControls();
+    try {
+      window.focus();
+      const appWin = document.getElementById('arcade-app-window');
+      if (appWin) appWin.focus();
+    } catch (_) {}
   }
 });

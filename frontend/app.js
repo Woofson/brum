@@ -25400,13 +25400,17 @@ function mountDockedTool(paneIndex) {
         try {
           frame.contentWindow.Brum = window.Brum;
         } catch (_) {}
+        const viewport = window.innerWidth < 600 ? 'phone' : (window.innerWidth <= 1024 ? 'tablet' : 'pc');
+        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
         const context = {
           activePath: App.panes[paneIndex]?.path || '/',
           selectedFiles: (App.panes[paneIndex]?.selectedIndices || []).map(i => App.panes[paneIndex]?.items[i]?.path || App.panes[paneIndex]?.items[i]?.name).filter(Boolean),
           paneIndex: paneIndex,
           theme: App.theme || 'amber-charcoal',
           pluginId: pluginId,
-          isDocked: true
+          isDocked: true,
+          viewport: viewport,
+          isTouch: isTouch
         };
         brumLastContext = context;
         if (window.Brum && typeof window.Brum._dispatchReady === 'function') {
@@ -31674,6 +31678,8 @@ function openDynamicChewToy(pluginId, context = null) {
   if (verEl) verEl.textContent = `v${plugin.version || '1.0.0'}`;
 
   const activePanePath = App.panes[App.activePaneIndex]?.path || App.panes[0]?.path || '/';
+  const viewport = window.innerWidth < 600 ? 'phone' : (window.innerWidth <= 1024 ? 'tablet' : 'pc');
+  const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
   const hostContext = {
     activePath: activePanePath,
     selectedFiles: getSelectedOrCursorPaths(),
@@ -31681,6 +31687,8 @@ function openDynamicChewToy(pluginId, context = null) {
     theme: App.theme || 'amber-charcoal',
     pluginId: pluginId,
     isDocked: false,
+    viewport: viewport,
+    isTouch: isTouch,
     ...(context || {})
   };
 
@@ -31699,6 +31707,9 @@ function openDynamicChewToy(pluginId, context = null) {
       }
       try {
         frame.contentWindow.postMessage({ type: 'BRUM_READY', context: hostContext }, '*');
+      } catch (_) {}
+      try {
+        frame.contentWindow.focus();
       } catch (_) {}
     };
   }
@@ -31807,6 +31818,70 @@ function initDynamicChewToyDrag() {
       header.style.cursor = 'grab';
     }
   });
+
+  initDynamicChewToyKeyboardForwarding();
+}
+
+/**
+ * Forward keyboard events from parent window to active dynamic Chewtoy iframe
+ */
+let dynamicChewToyKeyForwardingInit = false;
+function initDynamicChewToyKeyboardForwarding() {
+  if (dynamicChewToyKeyForwardingInit) return;
+  dynamicChewToyKeyForwardingInit = true;
+
+  const forwardKey = (e) => {
+    // If user is typing in a form input/textarea, do not intercept
+    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
+
+    // 1. Floating Dynamic Chewtoy Window
+    const win = document.getElementById('dynamic-chewtoy-window');
+    const isFloatingOpen = win && win.style.display !== 'none' && win.classList.contains('active');
+    const frame = document.getElementById('dynamic-chewtoy-frame');
+
+    if (isFloatingOpen && frame && frame.contentWindow) {
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C', 'p', 'P', 'Escape'].includes(e.key)) {
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
+          e.preventDefault();
+        }
+        try {
+          frame.contentWindow.postMessage({
+            type: 'BRUM_KEY',
+            key: e.key,
+            code: e.code,
+            keyType: e.type
+          }, '*');
+        } catch (_) {}
+        return;
+      }
+    }
+
+    // 2. Docked Dynamic Chewtoy in Active Pane
+    if (Array.isArray(App.panes)) {
+      const activePane = App.panes[App.activePaneIndex];
+      if (activePane && activePane.dockedTool && (activePane.dockedTool.startsWith('plugin:') || activePane.dockedTool.startsWith('chewtoy:'))) {
+        const dFrame = document.getElementById(`docked-chewtoy-frame-${App.activePaneIndex}`);
+        if (dFrame && dFrame.contentWindow) {
+          if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C', 'p', 'P', 'Escape'].includes(e.key)) {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
+              e.preventDefault();
+            }
+            try {
+              dFrame.contentWindow.postMessage({
+                type: 'BRUM_KEY',
+                key: e.key,
+                code: e.code,
+                keyType: e.type
+              }, '*');
+            } catch (_) {}
+          }
+        }
+      }
+    }
+  };
+
+  window.addEventListener('keydown', forwardKey);
+  window.addEventListener('keyup', forwardKey);
 }
 
 
