@@ -452,6 +452,11 @@ function getArcadeGravityMs(level) {
 }
 
 function startArcadeGame() {
+  if (!arcadeState.initialized) {
+    applyArcadeTheme();
+    initArcadeInput();
+    arcadeState.initialized = true;
+  }
   initArcadeAudio();
   const g = arcadeState.game;
   g.boardWidth = 10;
@@ -1518,16 +1523,47 @@ async function promptClearArcadeScores() {
   }
 }
 
-// ---------------- INITIALIZATION ----------------
-window.addEventListener('DOMContentLoaded', () => {
+// ---------------- INITIALIZATION & HOST LIFECYCLE ----------------
+function bootArcade() {
+  if (arcadeState.initialized) return;
+  arcadeState.initialized = true;
   applyArcadeTheme();
   initArcadeInput();
   initArcadeGame();
-  arcadeState.initialized = true;
 
   // Auto-start immediately on load just like original Tetra!
   startArcadeGame();
 
   // Load scores in background
   loadArcadeLeaderboard(arcadeState.game.mode, false);
+}
+
+// Support both instant execution (if DOM ready) and DOMContentLoaded event
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootArcade);
+} else {
+  bootArcade();
+}
+
+// Host context bridge (Brum iframe postMessage listener)
+window.addEventListener('message', (event) => {
+  if (!event.data || typeof event.data !== 'object') return;
+  if (event.data.type === 'BRUM_READY' || event.data.type === 'BRUM_CONTEXT') {
+    const ctx = event.data.context || {};
+    if (ctx.theme && !localStorage.getItem('cd_arcade_theme')) {
+      const themeMap = {
+        'amber-charcoal': 'amber',
+        'charcoal': 'amber',
+        'zink': 'amber',
+        'amber-zink': 'amber',
+        'gameboy': 'gameboy',
+        'nes': 'nes',
+        'cyberpunk': 'cyberpunk'
+      };
+      const matched = themeMap[ctx.theme] || 'amber';
+      if (arcadeState.theme !== matched) {
+        setArcadeTheme(matched);
+      }
+    }
+  }
 });

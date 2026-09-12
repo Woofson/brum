@@ -5010,7 +5010,9 @@ async fn handle_plugin_asset(
 
     let response = Response::builder()
         .header(header::CONTENT_TYPE, mime)
-        .header(header::CACHE_CONTROL, "no-cache, must-revalidate")
+        .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
+        .header(header::PRAGMA, "no-cache")
+        .header(header::EXPIRES, "0")
         .header(header::CONTENT_SECURITY_POLICY, "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;")
         .body(Body::from(bytes))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
