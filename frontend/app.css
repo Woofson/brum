@@ -14506,3 +14506,118 @@ body.standalone-mode .server-only-setting {
   color: var(--accent);
 }
 
+/* ============================================================================
+   🧩 CHEWTOYS & PLUGINS EXTENSION MANAGER & DYNAMIC HOST (.grr)
+   ============================================================================ */
+
+.chewtoy-dropzone {
+  border: 2px dashed rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.04);
+  border-radius: var(--radius, 6px);
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  user-select: none;
+}
+
+.chewtoy-dropzone:hover,
+.chewtoy-dropzone.dragover {
+  border-color: var(--accent, #f59e0b);
+  background: rgba(245, 158, 11, 0.12);
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.15);
+}
+
+.chewtoy-dropzone-icon {
+  font-size: 26px;
+  color: var(--accent, #f59e0b);
+  margin-bottom: 6px;
+}
+
+.chewtoys-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 12px;
+}
+
+.chewtoy-card {
+  background: var(--bg-dark, #151820);
+  border: 1px solid var(--border, #282b36);
+  border-radius: var(--radius, 6px);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  transition: all 0.15s ease;
+}
+
+.chewtoy-card:hover {
+  border-color: rgba(245, 158, 11, 0.5);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.chewtoy-card-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.chewtoy-card-icon {
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  object-fit: contain;
+  border-radius: 4px;
+}
+
+.chewtoy-card-title {
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.chewtoy-card-desc {
+  font-size: 11.5px;
+  color: var(--text-dim, #9ca3af);
+  line-height: 1.4;
+  margin-top: 2px;
+}
+
+.chewtoy-perm-tag {
+  display: inline-block;
+  font-family: var(--font-mono, monospace);
+  font-size: 10px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #38bdf8;
+}
+
+.chewtoy-perm-tag.perm-pty {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+}
+
+.chewtoy-perm-tag.perm-fs {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #10b981;
+}
+
+/* Dynamic ChewToy Window Container */
+.dynamic-chewtoy-box {
+  background: var(--bg-panel, #1e1e24);
+  border: 1px solid var(--border, #2e2e3a);
+  border-radius: var(--radius, 6px);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.8);
+  overflow: hidden;
+}
+
+

@@ -928,6 +928,7 @@ async function checkAuthAndLoad() {
           await loadAdminSecuritySettings();
           await loadAllFileTags();
           await loadUserPreferencesFromServer();
+          await loadInstalledChewToys(false);
           applyUserHomeToPanes();
           renderAllPanes();
           restoreTerminalState();
@@ -961,6 +962,7 @@ async function checkAuthAndLoad() {
         await loadAdminSecuritySettings();
         await loadAllFileTags();
         await loadUserPreferencesFromServer();
+        await loadInstalledChewToys(false);
 
         // If session was locked before browser refresh, keep session locked!
         if (localStorage.getItem('cd_is_locked') === 'true') {
@@ -1681,14 +1683,24 @@ function createPaneElement(pane, index) {
 
   if (pane.dockedTool) {
     const tool = pane.dockedTool;
-    const toolTitles = {
-      'editor': '<img src="assets/edit.webp" alt="EditorDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> EditorDog',
-      'notedog': '<img src="assets/note.webp" alt="NoteDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> NoteDog',
-      'terminal': '<img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Terminal Console',
-      'calculator': '<img src="assets/calc.webp" alt="Calculator" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Calculator',
-      'git': '🌲 Git Manager',
-      'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue'
-    };
+    let toolTitleHtml = '';
+    if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
+      const pId = tool.replace(/^(plugin|chewtoy):/, '');
+      const pInfo = (window.installedChewToys || []).find(p => p.id === pId);
+      const iconSrc = pInfo?.icon ? `/api/plugins/${encodeURIComponent(pId)}/assets/${pInfo.icon}` : 'assets/amber-frameless-apps.webp';
+      const name = pInfo?.name || pId;
+      toolTitleHtml = `<img src="${escapeHtml(iconSrc)}" alt="${escapeHtml(name)}" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src='assets/amber-frameless-apps.webp'"> ${escapeHtml(name)}`;
+    } else {
+      const toolTitles = {
+        'editor': '<img src="assets/edit.webp" alt="EditorDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> EditorDog',
+        'notedog': '<img src="assets/note.webp" alt="NoteDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> NoteDog',
+        'terminal': '<img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Terminal Console',
+        'calculator': '<img src="assets/calc.webp" alt="Calculator" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Calculator',
+        'git': '🌲 Git Manager',
+        'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue'
+      };
+      toolTitleHtml = toolTitles[tool] || 'Docked Tool';
+    }
     el.innerHTML = `
       <div class="pane-header">
         <button class="pane-badge-btn" id="pane-badge-btn-${index}"
@@ -1704,7 +1716,7 @@ function createPaneElement(pane, index) {
           <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
         </button>
         <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
-          <span style="font-weight: 700; font-size: 12px; color: var(--accent);">${toolTitles[tool] || 'Docked Tool'}</span>
+          <span style="font-weight: 700; font-size: 12px; color: var(--accent);">${toolTitleHtml}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
           <button class="btn btn-icon btn-panel-control" onclick="event.stopPropagation(); undockToolFromPane(${index})" title="Undock to Floating Window (Float)"><i data-lucide="external-link"></i></button>
@@ -5396,6 +5408,7 @@ function switchSettingsTab(tabId) {
   if (tabId === 'tab-icons') renderIconSettingsTab();
   if (tabId === 'tab-templates') renderFileTemplatesList();
   if (tabId === 'tab-tools') renderToolsSettingsTab();
+  if (tabId === 'tab-plugins') loadInstalledChewToys();
   if (tabId === 'tab-about') updateAboutModalContent();
 
   if (window.lucide && typeof lucide.createIcons === 'function') {
@@ -5472,6 +5485,20 @@ async function loadUsersTable() {
           allowedRoots = ['*'];
         }
         const hasAllRoots = allowedRoots.includes('*');
+
+        let allowedPlugins = ['*'];
+        try {
+          allowedPlugins = typeof u.allowed_plugins === 'string' ? JSON.parse(u.allowed_plugins) : (u.allowed_plugins || ['*']);
+        } catch (_) {
+          allowedPlugins = ['*'];
+        }
+        let blockedPlugins = [];
+        try {
+          blockedPlugins = typeof u.blocked_plugins === 'string' ? JSON.parse(u.blocked_plugins) : (u.blocked_plugins || []);
+        } catch (_) {
+          blockedPlugins = [];
+        }
+        const canInstallPlugins = !!u.can_install_plugins;
 
         const services = ['local', 'smb', 'nfs', 's3', 'sftp', 'webdav', 'terminal', 'syncthing', 'converters', 'upload', 'download'];
         const serviceLabels = {
@@ -5577,6 +5604,29 @@ async function loadUsersTable() {
                   }).join('')}
                 </div>
               </div>
+
+              <div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                  <label style="font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">ChewToys &amp; Plugins Governance (.grr)</label>
+                  <span style="font-size: 10px; color: var(--text-dim);">Whitelist / Blacklist</span>
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <label class="admin-service-chip" style="width: fit-content; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; ${canInstallPlugins ? 'border-color: rgba(245, 158, 11, 0.35); color: var(--text-main);' : ''}">
+                    <input type="checkbox" id="user-plugin-install-${safeUname}" ${canInstallPlugins ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'rgba(245, 158, 11, 0.35)' : 'var(--border)'; this.parentElement.style.color = this.checked ? 'var(--text-main)' : 'var(--text-muted)';">
+                    <span>Allow installing custom ChewToys (.grr)</span>
+                  </label>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
+                    <div>
+                      <label style="display: block; font-size: 10px; font-weight: 600; color: var(--text-dim); margin-bottom: 3px;">Allowed ChewToys (* for all)</label>
+                      <input type="text" id="user-plugin-allowed-${safeUname}" class="pane-quick-filter" value="${escapeHtml(Array.isArray(allowedPlugins) ? allowedPlugins.join(', ') : allowedPlugins)}" style="width: 100%; height: 26px; padding: 2px 8px; font-size: 11px;" placeholder="* or id1, id2">
+                    </div>
+                    <div>
+                      <label style="display: block; font-size: 10px; font-weight: 600; color: var(--text-dim); margin-bottom: 3px;">Blocked ChewToys (Blacklist)</label>
+                      <input type="text" id="user-plugin-blocked-${safeUname}" class="pane-quick-filter" value="${escapeHtml(Array.isArray(blockedPlugins) ? blockedPlugins.join(', ') : blockedPlugins)}" style="width: 100%; height: 26px; padding: 2px 8px; font-size: 11px;" placeholder="None or id1, id2">
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         `;
@@ -5642,6 +5692,14 @@ async function saveUserRbac(username) {
     allowed_roots.push(cb.value);
   });
 
+  const canInstallCb = document.getElementById(`user-plugin-install-${username}`);
+  const allowedInput = document.getElementById(`user-plugin-allowed-${username}`);
+  const blockedInput = document.getElementById(`user-plugin-blocked-${username}`);
+
+  const can_install_plugins = canInstallCb ? canInstallCb.checked : false;
+  const allowed_plugins = allowedInput ? allowedInput.value.split(',').map(s => s.trim()).filter(Boolean) : ['*'];
+  const blocked_plugins = blockedInput ? blockedInput.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+
   try {
     const resp = await fetch(`/api/auth/users/${encodeURIComponent(username)}`, {
       method: 'POST',
@@ -5651,12 +5709,15 @@ async function saveUserRbac(username) {
         allowed_services: allowed_services,
         allowed_roots: allowed_roots.length > 0 ? allowed_roots : ['*'],
         home_dir: home_dir,
+        can_install_plugins: can_install_plugins,
+        allowed_plugins: allowed_plugins.length > 0 ? allowed_plugins : ['*'],
+        blocked_plugins: blocked_plugins,
         is_disabled: is_disabled
       })
     });
 
     if (resp.ok) {
-      showToast(`RBAC & storage roots for '${username}' saved!`, 'success');
+      showToast(`RBAC, storage roots & plugins permissions for '${username}' saved!`, 'success');
       loadUsersTable();
     } else {
       showToast(`Failed to save RBAC: ${await resp.text()}`, 'error');
@@ -25141,6 +25202,10 @@ function dockToolToPane(toolName, paneIndex) {
     const pill = document.getElementById('mediaplayer-pill');
     if (pill) pill.style.display = 'none';
   }
+  // 10. Dynamic Modular ChewToy: hide floating dynamic window
+  else if (toolName.startsWith('plugin:') || toolName.startsWith('chewtoy:')) {
+    closeDynamicChewToy();
+  }
 
   rebuildPaneDOM(paneIndex);
   showToast(`Docked ${toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
@@ -25192,6 +25257,9 @@ function undockToolFromPane(paneIndex) {
     openSoundDog();
   } else if (tool === 'mediaplayer') {
     openMediaPlayer();
+  } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
+    const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
+    openDynamicChewToy(pluginId);
   }
 }
 
@@ -25238,6 +25306,42 @@ function mountDockedTool(paneIndex) {
   const tool = pane.dockedTool;
   const mount = document.getElementById(`docked-tool-mount-${paneIndex}`);
   if (!mount) return;
+
+  // Dynamic Modular ChewToy Dock
+  if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
+    const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
+    const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, entry_point: 'index.html' };
+    const entry = plugin.entry_point || 'index.html';
+    const iframeSrc = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
+    mount.innerHTML = `
+      <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+        <iframe id="docked-chewtoy-frame-${paneIndex}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+      </div>
+    `;
+    const frame = document.getElementById(`docked-chewtoy-frame-${paneIndex}`);
+    if (frame) {
+      frame.addEventListener('load', () => {
+        try {
+          frame.contentWindow.Brum = window.Brum;
+        } catch (_) {}
+        const context = {
+          activePath: App.panes[paneIndex]?.currentPath || '/',
+          selectedFiles: (App.panes[paneIndex]?.selectedIndices || []).map(i => App.panes[paneIndex]?.items[i]?.path || App.panes[paneIndex]?.items[i]?.name).filter(Boolean),
+          paneIndex: paneIndex,
+          theme: App.theme || 'amber-charcoal',
+          pluginId: pluginId,
+          isDocked: true
+        };
+        if (window.Brum && typeof window.Brum._dispatchReady === 'function') {
+          window.Brum._dispatchReady(context);
+        }
+        try {
+          frame.contentWindow.postMessage({ type: 'BRUM_READY', context }, '*');
+        } catch (_) {}
+      });
+    }
+    return;
+  }
 
   // 0. DOCKED NOTEDOG NOTES & MARKDOWN STUDIO
   if (tool === 'notedog') {
@@ -30977,5 +31081,640 @@ document.addEventListener('click', (e) => {
     closeFleetSwitcherDropdown();
   }
 });
+
+// ============================================================================
+// 🧩 MODULAR CHEWTOYS & EXTENSIONS ENGINE (.grr) & window.Brum SDK
+// ============================================================================
+
+window.installedChewToys = [];
+window.activeDynamicChewToyId = null;
+let dynamicChewToyDragInit = false;
+let brumSdkReadyCallbacks = [];
+let brumLastContext = null;
+
+/**
+ * Universal window.Brum Host Bridge SDK
+ * Enables sandboxed ChewToys to query filesystem, UI, and host window state.
+ */
+window.Brum = {
+  version: (typeof App !== 'undefined' && App.version) ? App.version : '0.8.5',
+
+  onReady: function(callback) {
+    if (typeof callback === 'function') {
+      if (brumLastContext) {
+        setTimeout(() => callback(brumLastContext), 0);
+      } else {
+        brumSdkReadyCallbacks.push(callback);
+      }
+    }
+  },
+
+  _dispatchReady: function(context) {
+    brumLastContext = context;
+    brumSdkReadyCallbacks.forEach(cb => {
+      try { cb(context); } catch (err) { console.error('Brum SDK onReady error:', err); }
+    });
+  },
+
+  plugins: {
+    list: async function() {
+      const resp = await fetch('/api/plugins', {
+        headers: { 'Authorization': `Bearer ${App.token}` }
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      return await resp.json();
+    },
+    install: function(file) {
+      return installChewToyPackage(file);
+    },
+    toggle: function(id, enabled) {
+      return toggleChewToy(id, enabled);
+    },
+    uninstall: function(id) {
+      return uninstallChewToy(id);
+    },
+    open: function(id, context) {
+      return openDynamicChewToy(id, context);
+    }
+  },
+
+  fs: {
+    readFile: async function(path, opts = {}) {
+      const targetPath = typeof path === 'object' ? (path.path || path.name) : path;
+      const url = `/api/fs/read?path=${encodeURIComponent(targetPath)}${opts.maxBytes ? `&max_bytes=${opts.maxBytes}` : ''}`;
+      const resp = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${App.token}` }
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json();
+      return (data && data.content !== undefined) ? data.content : data;
+    },
+
+    writeFile: async function(path, content) {
+      const targetPath = typeof path === 'object' ? (path.path || path.name) : path;
+      const resp = await fetch('/api/fs/write', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${App.token}`
+        },
+        body: JSON.stringify({
+          path: targetPath,
+          content: typeof content === 'string' ? content : String(content)
+        })
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      return await resp.json();
+    },
+
+    listDir: async function(path) {
+      const targetPath = path || (App.panes[App.activePaneIndex]?.currentPath || '/');
+      const resp = await fetch(`/api/fs/list?path=${encodeURIComponent(targetPath)}`, {
+        headers: { 'Authorization': `Bearer ${App.token}` }
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      return await resp.json();
+    },
+
+    getActivePath: function() {
+      const pane = App.panes[App.activePaneIndex];
+      return pane ? pane.currentPath : '/';
+    },
+
+    getSelectedFiles: function() {
+      const pane = App.panes[App.activePaneIndex];
+      if (!pane) return [];
+      return (pane.selectedIndices || []).map(idx => {
+        const item = pane.items[idx];
+        return item ? (item.path || item.name) : null;
+      }).filter(Boolean);
+    }
+  },
+
+  ui: {
+    notify: function(message, opts = {}) {
+      const type = typeof opts === 'string' ? opts : (opts?.type || 'info');
+      showToast(message, type);
+    },
+
+    getTheme: function() {
+      const isDark = !document.body.classList.contains('theme-light') && !document.body.classList.contains('theme-zink');
+      return {
+        id: App.theme || 'amber-charcoal',
+        isDark: isDark,
+        accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f59e0b'
+      };
+    },
+
+    showConfirm: async function(title, message) {
+      if (typeof showConfirmDialog === 'function') {
+        return await showConfirmDialog({ title, message });
+      }
+      return window.confirm(`${title}\n\n${message}`);
+    }
+  },
+
+  window: {
+    dockTo: function(paneNumber) {
+      dockActiveDynamicChewToy(paneNumber);
+    },
+
+    float: function() {
+      const dockedIdx = App.panes.findIndex(p => p.dockedTool && (p.dockedTool.startsWith('plugin:') || p.dockedTool.startsWith('chewtoy:')));
+      if (dockedIdx !== -1) {
+        undockToolFromPane(dockedIdx);
+      }
+    },
+
+    close: function() {
+      closeDynamicChewToy();
+      const dockedIdx = App.panes.findIndex(p => p.dockedTool && (p.dockedTool.startsWith('plugin:') || p.dockedTool.startsWith('chewtoy:')));
+      if (dockedIdx !== -1) {
+        closeDockedTool(dockedIdx);
+      }
+    },
+
+    setTitle: function(title) {
+      const titleEl = document.getElementById('dynamic-chewtoy-title');
+      if (titleEl) titleEl.textContent = title;
+    }
+  },
+
+  auth: {
+    getUser: function() {
+      const canInst = !!(App.user?.can_install_plugins || App.user?.role === 'admin' || App.isStandalone);
+      return {
+        username: App.user?.username || 'user',
+        nickname: App.user?.nickname || App.user?.username || 'user',
+        role: App.user?.role || 'user',
+        canInstall: canInst
+      };
+    },
+
+    getToken: function() {
+      return App.token;
+    }
+  }
+};
+
+// Listen for PostMessage bridge commands from ChewToy iframes
+window.addEventListener('message', async (e) => {
+  if (!e.data || e.data.type !== 'BRUM_REQ') return;
+  const { reqId, action, payload } = e.data;
+  try {
+    let result = null;
+    if (action === 'fs.readFile') result = await window.Brum.fs.readFile(payload.path, payload.opts);
+    else if (action === 'fs.writeFile') result = await window.Brum.fs.writeFile(payload.path, payload.content);
+    else if (action === 'fs.listDir') result = await window.Brum.fs.listDir(payload.path);
+    else if (action === 'fs.getActivePath') result = window.Brum.fs.getActivePath();
+    else if (action === 'fs.getSelectedFiles') result = window.Brum.fs.getSelectedFiles();
+    else if (action === 'ui.notify') { window.Brum.ui.notify(payload.message, payload.opts); result = true; }
+    else if (action === 'ui.getTheme') result = window.Brum.ui.getTheme();
+    else if (action === 'ui.showConfirm') result = await window.Brum.ui.showConfirm(payload.title, payload.message);
+    else if (action === 'window.dockTo') { window.Brum.window.dockTo(payload.pane); result = true; }
+    else if (action === 'window.float') { window.Brum.window.float(); result = true; }
+    else if (action === 'window.close') { window.Brum.window.close(); result = true; }
+    else if (action === 'window.setTitle') { window.Brum.window.setTitle(payload.title); result = true; }
+    else if (action === 'auth.getUser') result = window.Brum.auth.getUser();
+
+    e.source?.postMessage({ type: 'BRUM_RES', reqId, result, error: null }, '*');
+  } catch (err) {
+    e.source?.postMessage({ type: 'BRUM_RES', reqId, result: null, error: err.message || String(err) }, '*');
+  }
+});
+
+/**
+ * Load installed ChewToys from backend API and render into Settings
+ */
+async function loadInstalledChewToys(forceRefresh = false) {
+  const container = document.getElementById('chewtoys-installed-grid');
+  const badge = document.getElementById('chewtoys-count-badge');
+  const dropzone = document.getElementById('chewtoy-dropzone');
+  const btnInstall = document.getElementById('btn-install-chewtoy');
+
+  // RBAC checks for installation permissions
+  const canInstall = !!(App.user?.can_install_plugins || App.user?.role === 'admin' || App.isStandalone);
+  if (dropzone) {
+    dropzone.style.display = canInstall ? 'block' : 'none';
+  }
+  if (btnInstall) {
+    btnInstall.style.display = canInstall ? 'flex' : 'none';
+  }
+
+  try {
+    const resp = await fetch('/api/plugins', {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (resp.ok) {
+      const plugins = await resp.json();
+      window.installedChewToys = Array.isArray(plugins) ? plugins : [];
+      if (badge) badge.textContent = String(window.installedChewToys.length);
+      renderInstalledChewToys(window.installedChewToys);
+    } else {
+      if (container) {
+        container.innerHTML = `<div style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--danger);">Failed to load ChewToys: ${escapeHtml(await resp.text())}</div>`;
+      }
+    }
+  } catch (err) {
+    console.error('loadInstalledChewToys error:', err);
+    if (container) {
+      container.innerHTML = `<div style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--danger);">Error loading ChewToys: ${escapeHtml(err.message)}</div>`;
+    }
+  }
+}
+
+/**
+ * Render installed ChewToys grid cards
+ */
+function renderInstalledChewToys(plugins) {
+  const container = document.getElementById('chewtoys-installed-grid');
+  if (!container) return;
+
+  if (!plugins || plugins.length === 0) {
+    container.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 36px 20px; text-align: center; color: var(--text-dim); background: var(--bg-dark); border: 1px dashed var(--border); border-radius: var(--radius);">
+        <i data-lucide="puzzle" style="width: 32px; height: 32px; margin-bottom: 8px; color: var(--accent); opacity: 0.8;"></i>
+        <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">No ChewToys Installed</div>
+        <div style="font-size: 11.5px; opacity: 0.7; margin-top: 4px;">Drag and drop a <code>.grr</code> package above or click Install to add modular ChewToys.</div>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  container.innerHTML = plugins.map(p => {
+    const iconUrl = p.icon ? `/api/plugins/${encodeURIComponent(p.id)}/assets/${p.icon}` : 'assets/amber-frameless-apps.webp';
+    const isEnabled = !!p.enabled;
+    const permissions = Array.isArray(p.permissions) ? p.permissions : [];
+
+    return `
+      <div class="chewtoy-card" id="chewtoy-card-${escapeHtml(p.id)}" style="${!isEnabled ? 'opacity: 0.75;' : ''}">
+        <div>
+          <div class="chewtoy-card-header">
+            <img src="${escapeHtml(iconUrl)}" alt="Icon" class="chewtoy-card-icon" onerror="this.src='assets/amber-frameless-apps.webp'">
+            <div style="flex: 1; min-width: 0;">
+              <div class="chewtoy-card-title">
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(p.name || p.id)}</span>
+                <span class="badge" style="font-size: 10px; padding: 1px 5px; background: rgba(245,158,11,0.15); color: var(--accent);">v${escapeHtml(p.version || '1.0.0')}</span>
+                ${p.category ? `<span class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(p.category)}</span>` : ''}
+              </div>
+              <div style="font-size: 10.5px; color: var(--text-dim); margin-top: 2px;">
+                ${escapeHtml(p.author || 'Custom Developer')}
+              </div>
+            </div>
+          </div>
+
+          <div class="chewtoy-card-desc">
+            ${escapeHtml(p.description || 'Modular ChewToy extension package.')}
+          </div>
+
+          ${permissions.length > 0 ? `
+            <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px;">
+              ${permissions.map(perm => `<span class="chewtoy-perm-tag ${perm.includes('pty') ? 'perm-pty' : (perm.includes('fs') ? 'perm-fs' : '')}">${escapeHtml(perm)}</span>`).join('')}
+            </div>
+          ` : ''}
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; margin-top: 4px;">
+          <div style="display: flex; gap: 6px; align-items: center;">
+            <button class="btn btn-xs btn-accent" onclick="openDynamicChewToy('${escapeHtml(p.id)}')" ${!isEnabled ? 'disabled style="opacity:0.5;"' : ''} style="display: inline-flex; align-items: center; gap: 4px;">
+              <i data-lucide="play" style="width: 11px; height: 11px;"></i> Launch
+            </button>
+            <button class="btn btn-xs btn-icon btn-danger" onclick="uninstallChewToy('${escapeHtml(p.id)}')" title="Uninstall ChewToy" style="width: 24px; height: 24px;">
+              <i data-lucide="trash-2" style="width: 11px; height: 11px;"></i>
+            </button>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span style="font-size: 10.5px; color: var(--text-dim);">${isEnabled ? 'Enabled' : 'Disabled'}</span>
+            <label class="admin-chip-checkbox ${isEnabled ? 'checked' : ''}" style="margin: 0; padding: 2px 8px; cursor: pointer;" title="Toggle Enabled / Disabled">
+              <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleChewToy('${escapeHtml(p.id)}', this.checked)" style="display: none;">
+              <span style="font-size: 10px; font-weight: 700;">${isEnabled ? 'ON' : 'OFF'}</span>
+            </label>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+/**
+ * Filter installed ChewToys
+ */
+function filterInstalledChewToys(query) {
+  const q = (query || '').toLowerCase().trim();
+  if (!q) {
+    renderInstalledChewToys(window.installedChewToys);
+    return;
+  }
+  const filtered = (window.installedChewToys || []).filter(p => {
+    return (p.name || '').toLowerCase().includes(q) ||
+           (p.id || '').toLowerCase().includes(q) ||
+           (p.description || '').toLowerCase().includes(q) ||
+           (p.author || '').toLowerCase().includes(q) ||
+           (p.category || '').toLowerCase().includes(q);
+  });
+  renderInstalledChewToys(filtered);
+}
+
+/**
+ * Drag & Drop handlers for ChewToy .grr packages
+ */
+function handleChewToyDragOver(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const dropzone = document.getElementById('chewtoy-dropzone');
+  if (dropzone) dropzone.classList.add('dragover');
+}
+
+function handleChewToyDragLeave(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const dropzone = document.getElementById('chewtoy-dropzone');
+  if (dropzone) dropzone.classList.remove('dragover');
+}
+
+function handleChewToyDrop(e) {
+  e.preventDefault();
+  e.stopPropagation();
+  const dropzone = document.getElementById('chewtoy-dropzone');
+  if (dropzone) dropzone.classList.remove('dragover');
+
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    installChewToyPackage(e.dataTransfer.files[0]);
+  }
+}
+
+function handleChewToyFileSelect(e) {
+  if (e.target && e.target.files && e.target.files.length > 0) {
+    installChewToyPackage(e.target.files[0]);
+    e.target.value = '';
+  }
+}
+
+/**
+ * Upload & install .grr ChewToy archive
+ */
+async function installChewToyPackage(file) {
+  if (!file) return;
+  const name = file.name || '';
+  if (!name.toLowerCase().endsWith('.grr') && !name.toLowerCase().endsWith('.zip')) {
+    showToast('Invalid package. Only .grr or .zip ChewToy packages are supported.', 'warning');
+    return;
+  }
+
+  const dropzone = document.getElementById('chewtoy-dropzone');
+  if (dropzone) dropzone.style.opacity = '0.5';
+  showToast(`Installing ChewToy '${name}'...`, 'info');
+
+  try {
+    const resp = await fetch('/api/plugins/install', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: file
+    });
+
+    if (resp.ok) {
+      const plugin = await resp.json();
+      showToast(`Installed ChewToy: ${plugin.name || plugin.id} (v${plugin.version || '1.0.0'})!`, 'success');
+      await loadInstalledChewToys(true);
+    } else {
+      const err = await resp.text();
+      showToast(`Failed to install ChewToy: ${err}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Install error: ${err.message || err}`, 'error');
+  } finally {
+    if (dropzone) dropzone.style.opacity = '1';
+  }
+}
+
+/**
+ * Toggle ChewToy enabled state
+ */
+async function toggleChewToy(id, enabled) {
+  try {
+    const resp = await fetch(`/api/plugins/${encodeURIComponent(id)}/toggle`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ enabled })
+    });
+
+    if (resp.ok) {
+      showToast(`${enabled ? 'Enabled' : 'Disabled'} ChewToy '${id}'`, 'info');
+      await loadInstalledChewToys(true);
+    } else {
+      showToast(`Failed to toggle ChewToy: ${await resp.text()}`, 'error');
+    }
+  } catch (e) {
+    showToast(`Toggle error: ${e.message || e}`, 'error');
+  }
+}
+
+/**
+ * Uninstall ChewToy package
+ */
+async function uninstallChewToy(id) {
+  const confirmed = typeof showConfirmDialog === 'function'
+    ? await showConfirmDialog({
+        title: 'Uninstall ChewToy',
+        subtitle: `Remove '${id}' from Brum`,
+        message: `Are you sure you want to uninstall the ChewToy '${id}'? This will permanently delete its package and installed files.`,
+        type: 'danger',
+        confirmText: 'Uninstall',
+        cancelText: 'Cancel'
+      })
+    : window.confirm(`Uninstall ChewToy '${id}'?`);
+
+  if (!confirmed) return;
+
+  try {
+    const resp = await fetch(`/api/plugins/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+
+    if (resp.ok) {
+      showToast(`ChewToy '${id}' uninstalled successfully`, 'success');
+      await loadInstalledChewToys(true);
+    } else {
+      showToast(`Failed to uninstall: ${await resp.text()}`, 'error');
+    }
+  } catch (e) {
+    showToast(`Uninstall error: ${e.message || e}`, 'error');
+  }
+}
+
+/**
+ * Open Floating Dynamic ChewToy Modal
+ */
+function openDynamicChewToy(pluginId, context = null) {
+  window.activeDynamicChewToyId = pluginId;
+  const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, name: pluginId, version: '1.0.0', entry_point: 'index.html' };
+
+  const titleEl = document.getElementById('dynamic-chewtoy-title');
+  const iconEl = document.getElementById('dynamic-chewtoy-icon');
+  const verEl = document.getElementById('dynamic-chewtoy-version');
+  const frame = document.getElementById('dynamic-chewtoy-frame');
+  const modal = document.getElementById('dynamic-chewtoy-window');
+  const box = document.getElementById('dynamic-chewtoy-box');
+
+  if (titleEl) titleEl.textContent = plugin.name || pluginId;
+  if (iconEl) {
+    iconEl.src = plugin.icon ? `/api/plugins/${encodeURIComponent(pluginId)}/assets/${plugin.icon}` : 'assets/amber-frameless-apps.webp';
+    iconEl.onerror = () => { iconEl.src = 'assets/amber-frameless-apps.webp'; };
+  }
+  if (verEl) verEl.textContent = `v${plugin.version || '1.0.0'}`;
+
+  const hostContext = {
+    activePath: App.panes[App.activePaneIndex]?.currentPath || '/',
+    selectedFiles: (App.panes[App.activePaneIndex]?.selectedIndices || []).map(i => {
+      const item = App.panes[App.activePaneIndex]?.items[i];
+      return item ? (item.path || item.name) : null;
+    }).filter(Boolean),
+    paneIndex: App.activePaneIndex,
+    theme: App.theme || 'amber-charcoal',
+    pluginId: pluginId,
+    isDocked: false,
+    ...(context || {})
+  };
+
+  if (frame) {
+    const entry = plugin.entry_point || 'index.html';
+    const frameUrl = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
+    frame.src = frameUrl;
+    frame.onload = () => {
+      try {
+        frame.contentWindow.Brum = window.Brum;
+      } catch (_) {}
+      if (window.Brum && typeof window.Brum._dispatchReady === 'function') {
+        window.Brum._dispatchReady(hostContext);
+      }
+      try {
+        frame.contentWindow.postMessage({ type: 'BRUM_READY', context: hostContext }, '*');
+      } catch (_) {}
+    };
+  }
+
+  if (modal) {
+    modal.classList.add('active');
+    modal.style.display = 'flex';
+    if (box) bringFloatingWindowToFront(box);
+  }
+
+  initDynamicChewToyDrag();
+  if (window.lucide) lucide.createIcons();
+}
+
+/**
+ * Close Floating Dynamic ChewToy Modal
+ */
+function closeDynamicChewToy() {
+  const modal = document.getElementById('dynamic-chewtoy-window');
+  if (modal) {
+    modal.classList.remove('active');
+    modal.style.display = 'none';
+  }
+  const frame = document.getElementById('dynamic-chewtoy-frame');
+  if (frame) {
+    frame.src = 'about:blank';
+  }
+  window.activeDynamicChewToyId = null;
+}
+
+/**
+ * Maximize / Restore Dynamic ChewToy Window
+ */
+function toggleMaximizeDynamicChewToy() {
+  const box = document.getElementById('dynamic-chewtoy-box');
+  if (!box) return;
+  box.classList.toggle('maximized');
+  if (box.classList.contains('maximized')) {
+    box.dataset.origWidth = box.style.width;
+    box.dataset.origHeight = box.style.height;
+    box.dataset.origLeft = box.style.left;
+    box.dataset.origTop = box.style.top;
+    box.style.width = '100vw';
+    box.style.height = '100vh';
+    box.style.top = '0px';
+    box.style.left = '0px';
+    box.style.borderRadius = '0';
+  } else {
+    box.style.width = box.dataset.origWidth || '860px';
+    box.style.height = box.dataset.origHeight || '580px';
+    box.style.left = box.dataset.origLeft || '';
+    box.style.top = box.dataset.origTop || '';
+    box.style.borderRadius = 'var(--radius, 6px)';
+  }
+}
+
+/**
+ * Dock currently open dynamic ChewToy into Pane 1 or 2
+ */
+function dockActiveDynamicChewToy(paneNumber) {
+  if (!window.activeDynamicChewToyId) return;
+  const pId = window.activeDynamicChewToyId;
+  const paneIdx = (paneNumber || 1) - 1;
+  closeDynamicChewToy();
+  dockToolToPane('plugin:' + pId, paneIdx);
+}
+
+/**
+ * Initialize Draggable Header for Dynamic ChewToy Window
+ */
+function initDynamicChewToyDrag() {
+  if (dynamicChewToyDragInit) return;
+  dynamicChewToyDragInit = true;
+
+  const box = document.getElementById('dynamic-chewtoy-box');
+  const header = document.getElementById('dynamic-chewtoy-header');
+  if (!box || !header) return;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('input') || box.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(box);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = box.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    header.style.cursor = 'grabbing';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newLeft = Math.max(0, Math.min(window.innerWidth - box.offsetWidth, winStartX + dx));
+    const newTop = Math.max(0, Math.min(window.innerHeight - box.offsetHeight, winStartY + dy));
+    box.style.position = 'fixed';
+    box.style.left = `${newLeft}px`;
+    box.style.top = `${newTop}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      header.style.cursor = 'grab';
+    }
+  });
+}
+
 
 
