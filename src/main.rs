@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod config;
+pub mod plugins;
 pub mod server;
 pub mod tools;
 pub mod vfs;
@@ -147,6 +148,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let tag_mgr = tools::tags::TagManager::new(auth_mgr.db())?;
     let vault_mgr = vfs::vault::VaultManager::new();
     let backup_mgr = tools::sync::BackupManager::new(auth_mgr.db())?;
+    let plugin_mgr = plugins::PluginManager::new(
+        std::path::PathBuf::from(&config.plugins.directory),
+        std::path::PathBuf::from(&config.plugins.user_directory),
+        config.plugins.allow_user_installs,
+        config.plugins.default_policy.clone(),
+        config.plugins.global_whitelist.clone(),
+        config.plugins.global_blacklist.clone(),
+    );
 
     let backup_mgr_arc = Arc::new(backup_mgr);
     let task_mgr_arc = Arc::new(task_mgr);
@@ -159,6 +168,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tags: Arc::new(tag_mgr),
         vaults: Arc::new(vault_mgr),
         backup: backup_mgr_arc,
+        plugins: Arc::new(plugin_mgr),
     };
 
     let app = create_router(state);

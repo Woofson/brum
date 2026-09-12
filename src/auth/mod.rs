@@ -24,6 +24,9 @@ pub struct User {
     pub is_disabled: bool,
     pub allowed_services: String, // JSON array e.g. ["*"] or ["local","smb","s3","upload","download"]
     pub allowed_roots: String,    // JSON array e.g. ["*"] or ["data","storage","home"]
+    pub can_install_plugins: bool,
+    pub allowed_plugins: String,  // JSON array e.g. ["*"]
+    pub blocked_plugins: String,  // JSON array e.g. []
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -116,6 +119,9 @@ impl AuthManager {
                 avatar_url TEXT,
                 allowed_services TEXT DEFAULT '[\"*\"]',
                 allowed_roots TEXT DEFAULT '[\"*\"]',
+                can_install_plugins INTEGER DEFAULT 0,
+                allowed_plugins TEXT DEFAULT '[\"*\"]',
+                blocked_plugins TEXT DEFAULT '[]',
                 is_pam INTEGER DEFAULT 0,
                 is_disabled INTEGER DEFAULT 0,
                 created_at TEXT NOT NULL
@@ -225,6 +231,9 @@ impl AuthManager {
         let _ = conn.execute("ALTER TABLE users ADD COLUMN allowed_roots TEXT DEFAULT '[\"*\"]'", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN is_pam INTEGER DEFAULT 0", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN is_disabled INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN can_install_plugins INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN allowed_plugins TEXT DEFAULT '[\"*\"]'", []);
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN blocked_plugins TEXT DEFAULT '[]'", []);
 
         let auth = Self {
             db: Arc::new(Mutex::new(conn)),
@@ -281,7 +290,7 @@ impl AuthManager {
         let roots_json = allowed_roots.unwrap_or("[\"*\"]");
 
         conn.execute(
-            "INSERT INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, is_pam, is_disabled, created_at) VALUES (?1, ?2, ?3, ?4, '[\"*\"]', ?5, 0, 0, ?6)",
+            "INSERT INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, ?2, ?3, ?4, '[\"*\"]', ?5, 0, '[\"*\"]', '[]', 0, 0, ?6)",
             params![username, password_hash, role, home_dir, roots_json, now],
         )?;
 
@@ -299,13 +308,16 @@ impl AuthManager {
             is_disabled: false,
             allowed_services: "[\"*\"]".to_string(),
             allowed_roots: roots_json.to_string(),
+            can_install_plugins: false,
+            allowed_plugins: "[\"*\"]".to_string(),
+            blocked_plugins: "[]".to_string(),
         })
     }
 
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let mut stmt = conn.prepare(
-            "SELECT id, username, nickname, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots FROM users WHERE username = ?1"
+            "SELECT id, username, nickname, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins FROM users WHERE username = ?1"
         )?;
 
         let user = stmt.query_row(params![username], |row| {
@@ -321,6 +333,9 @@ impl AuthManager {
                 is_disabled: row.get::<_, i64>(8)? != 0,
                 allowed_services: row.get::<_, Option<String>>(9)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 allowed_roots: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "[\"*\"]".to_string()),
+                can_install_plugins: row.get::<_, Option<i64>>(11)?.unwrap_or(0) != 0,
+                allowed_plugins: row.get::<_, Option<String>>(12)?.unwrap_or_else(|| "[\"*\"]".to_string()),
+                blocked_plugins: row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "[]".to_string()),
             })
         }).optional()?;
 
@@ -330,7 +345,7 @@ impl AuthManager {
     pub fn list_users(&self) -> Result<Vec<User>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let mut stmt = conn.prepare(
-            "SELECT id, username, nickname, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots FROM users ORDER BY username ASC"
+            "SELECT id, username, nickname, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins FROM users ORDER BY username ASC"
         )?;
         let rows = stmt.query_map([], |row| {
             Ok(User {
@@ -345,6 +360,9 @@ impl AuthManager {
                 is_disabled: row.get::<_, i64>(8)? != 0,
                 allowed_services: row.get::<_, Option<String>>(9)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 allowed_roots: row.get::<_, Option<String>>(10)?.unwrap_or_else(|| "[\"*\"]".to_string()),
+                can_install_plugins: row.get::<_, Option<i64>>(11)?.unwrap_or(0) != 0,
+                allowed_plugins: row.get::<_, Option<String>>(12)?.unwrap_or_else(|| "[\"*\"]".to_string()),
+                blocked_plugins: row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "[]".to_string()),
             })
         })?;
 
@@ -418,21 +436,27 @@ impl AuthManager {
         allowed_services: &str,
         allowed_roots: Option<&str>,
         home_dir: Option<&str>,
+        can_install_plugins: Option<bool>,
+        allowed_plugins: Option<&str>,
+        blocked_plugins: Option<&str>,
         is_disabled: bool,
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let dis_int = if is_disabled { 1 } else { 0 };
         let roots_str = allowed_roots.unwrap_or("[\"*\"]");
+        let can_inst_int = if can_install_plugins.unwrap_or(false) { 1 } else { 0 };
+        let allowed_plugs_str = allowed_plugins.unwrap_or("[\"*\"]");
+        let blocked_plugs_str = blocked_plugins.unwrap_or("[]");
 
         let affected = if let Some(hd) = home_dir {
             conn.execute(
-                "UPDATE users SET role = ?1, allowed_services = ?2, allowed_roots = ?3, home_dir = ?4, is_disabled = ?5 WHERE username = ?6",
-                params![role, allowed_services, roots_str, hd, dis_int, username],
+                "UPDATE users SET role = ?1, allowed_services = ?2, allowed_roots = ?3, home_dir = ?4, can_install_plugins = ?5, allowed_plugins = ?6, blocked_plugins = ?7, is_disabled = ?8 WHERE username = ?9",
+                params![role, allowed_services, roots_str, hd, can_inst_int, allowed_plugs_str, blocked_plugs_str, dis_int, username],
             )?
         } else {
             conn.execute(
-                "UPDATE users SET role = ?1, allowed_services = ?2, allowed_roots = ?3, is_disabled = ?4 WHERE username = ?5",
-                params![role, allowed_services, roots_str, dis_int, username],
+                "UPDATE users SET role = ?1, allowed_services = ?2, allowed_roots = ?3, can_install_plugins = ?4, allowed_plugins = ?5, blocked_plugins = ?6, is_disabled = ?7 WHERE username = ?8",
+                params![role, allowed_services, roots_str, can_inst_int, allowed_plugs_str, blocked_plugs_str, dis_int, username],
             )?
         };
         Ok(affected > 0)
@@ -454,7 +478,7 @@ impl AuthManager {
             let user_res = {
                 let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
                 let mut stmt = conn.prepare(
-                    "SELECT id, username, password_hash, role, home_dir, nickname, email, avatar_url, allowed_services, allowed_roots, is_pam, is_disabled FROM users WHERE username = ?1"
+                    "SELECT id, username, password_hash, role, home_dir, nickname, email, avatar_url, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled FROM users WHERE username = ?1"
                 )?;
                 stmt.query_row(params![username], |row| {
                     Ok((
@@ -468,13 +492,16 @@ impl AuthManager {
                         row.get::<_, Option<String>>(7)?,
                         row.get::<_, Option<String>>(8)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                         row.get::<_, Option<String>>(9)?.unwrap_or_else(|| "[\"*\"]".to_string()),
-                        row.get::<_, i64>(10)? != 0,
-                        row.get::<_, i64>(11)? != 0,
+                        row.get::<_, Option<i64>>(10)?.unwrap_or(0) != 0,
+                        row.get::<_, Option<String>>(11)?.unwrap_or_else(|| "[\"*\"]".to_string()),
+                        row.get::<_, Option<String>>(12)?.unwrap_or_else(|| "[]".to_string()),
+                        row.get::<_, i64>(13)? != 0,
+                        row.get::<_, i64>(14)? != 0,
                     ))
                 }).optional()?
             };
 
-            if let Some((id, uname, hash_str, role, home_dir, nickname, email, avatar_url, allowed_services, allowed_roots, is_pam, is_disabled)) = user_res {
+            if let Some((id, uname, hash_str, role, home_dir, nickname, email, avatar_url, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled)) = user_res {
                 if is_disabled {
                     return Err("Account is disabled. Please contact an administrator.".into());
                 }
@@ -495,6 +522,9 @@ impl AuthManager {
                                 is_disabled,
                                 allowed_services,
                                 allowed_roots,
+                                can_install_plugins,
+                                allowed_plugins,
+                                blocked_plugins,
                             });
                         }
                     }
@@ -528,7 +558,7 @@ impl AuthManager {
                     let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
                     let now = Utc::now().to_rfc3339();
                     let _ = conn.execute(
-                        "INSERT OR IGNORE INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, is_pam, is_disabled, created_at) VALUES (?1, 'PAM_MANAGED', ?2, ?3, '[\"*\"]', '[\"*\"]', 1, 0, ?4)",
+                        "INSERT OR IGNORE INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, 'PAM_MANAGED', ?2, ?3, '[\"*\"]', '[\"*\"]', 0, '[\"*\"]', '[]', 1, 0, ?4)",
                         params![username, def_role, home_dir, now],
                     );
                     let id = conn.last_insert_rowid();
@@ -545,6 +575,9 @@ impl AuthManager {
                         is_disabled: false,
                         allowed_services: "[\"*\"]".to_string(),
                         allowed_roots: "[\"*\"]".to_string(),
+                        can_install_plugins: false,
+                        allowed_plugins: "[\"*\"]".to_string(),
+                        blocked_plugins: "[]".to_string(),
                     });
                 }
             }

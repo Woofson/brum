@@ -1,0 +1,35 @@
+[plugin]
+id = "starter-chewtoy"
+name = "Starter ChewToy"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Boilerplate starter template for building custom Brum ChewToys."
+homepage = "https://github.com/Woofson/brum"
+icon = "assets/icon.svg"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 800
+default_height = 550
+min_width = 400
+min_height = 300
+
+[integrations]
+launchpad = true
+launchpad_label = "Starter ChewToy"
+file_extensions = ["*.txt", "*.md", "*.json"]
+context_menu_label = "Inspect with Starter ChewToy"
+shortcut = "Ctrl+Shift+U"
+
+[permissions]
+permissions = [
+    "fs:read",
+    "fs:write",
+    "ui:notify"
+]
+
+[backend]
+entrypoint = "backend/run.sh"
+script_type = "shell"

@@ -628,6 +628,14 @@ mod tests {
         let tag_mgr = Arc::new(crate::tools::tags::TagManager::new(db.clone()).unwrap());
         let vault_mgr = Arc::new(crate::vfs::vault::VaultManager::new());
         let backup_mgr = Arc::new(crate::tools::sync::BackupManager::new(db).unwrap());
+        let plugin_mgr = Arc::new(crate::plugins::PluginManager::new(
+            std::path::PathBuf::from("/tmp/system_plugins"),
+            std::path::PathBuf::from("/tmp/user_plugins"),
+            false,
+            "allow_all".to_string(),
+            vec!["*".to_string()],
+            vec![],
+        ));
 
         AppState {
             config: Arc::new(config),
@@ -636,6 +644,7 @@ mod tests {
             tags: tag_mgr,
             vaults: vault_mgr,
             backup: backup_mgr,
+            plugins: plugin_mgr,
         }
     }
 
@@ -680,6 +689,9 @@ mod tests {
             is_disabled: false,
             allowed_services: "[\"*\"]".to_string(),
             allowed_roots: "[\"*\"]".to_string(),
+            can_install_plugins: true,
+            allowed_plugins: "[\"*\"]".to_string(),
+            blocked_plugins: "[]".to_string(),
         };
         let token = state.auth.generate_token(&user).unwrap();
 

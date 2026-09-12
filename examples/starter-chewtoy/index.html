@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Starter ChewToy</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="starter-chewtoy-container">
+    <!-- 42px Grab Header -->
+    <header class="starter-header">
+      <div class="starter-title">
+        <img src="assets/icon.svg" width="16" height="16" alt="Icon" />
+        <span>Starter ChewToy</span>
+      </div>
+      <div style="display: flex; gap: 6px;">
+        <button class="starter-btn" id="btn-ping">🔔 Send Notification</button>
+        <button class="starter-btn btn-primary" id="btn-read">📂 Read Selected</button>
+      </div>
+    </header>
+
+    <!-- Content Workspace -->
+    <main class="starter-body">
+      <div class="starter-card">
+        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: var(--accent);">ChewToy Host Context</h3>
+        <p style="margin: 0 0 8px 0; font-size: 12.5px; opacity: 0.85;">
+          This ChewToy is communicating with Brum using the <code>window.Brum</code> JavaScript SDK.
+        </p>
+        <div class="starter-code" id="context-display">Waiting for host context...</div>
+      </div>
+
+      <div class="starter-card">
+        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: var(--accent);">File Content Inspector</h3>
+        <div class="starter-code" id="file-content" style="min-height: 80px; color: #a3e635;">No file inspected yet.</div>
+      </div>
+    </main>
+  </div>
+
+  <script src="main.js"></script>
+</body>
+</html>

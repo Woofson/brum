@@ -42,6 +42,7 @@ pub struct AppState {
     pub tags: Arc<crate::tools::tags::TagManager>,
     pub vaults: Arc<crate::vfs::vault::VaultManager>,
     pub backup: Arc<crate::tools::sync::BackupManager>,
+    pub plugins: Arc<crate::plugins::PluginManager>,
 }
 
 pub fn create_router(state: AppState) -> Router {
@@ -154,6 +155,12 @@ pub fn create_router(state: AppState) -> Router {
         // TetraDog Classic Arcade ChewToy & Leaderboard API
         .route("/api/tools/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score).delete(handle_tetradog_clear_scores))
         .route("/api/chewtoys/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score))
+        // ChewToy Plugins Architecture & Add-ons API
+        .route("/api/plugins", get(handle_list_plugins))
+        .route("/api/plugins/install", post(handle_install_plugin))
+        .route("/api/plugins/:id/toggle", post(handle_toggle_plugin))
+        .route("/api/plugins/:id", delete(handle_delete_plugin))
+        .route("/api/plugins/:id/assets/*subpath", get(handle_plugin_asset))
         // Git Client & Version Control API
         .route("/api/git/status", get(handle_git_status))
         .route("/api/git/diff", get(handle_git_diff))
@@ -747,6 +754,9 @@ async fn handle_get_me(
             is_disabled: false,
             allowed_services: "[\"*\"]".to_string(),
             allowed_roots: "[\"*\"]".to_string(),
+            can_install_plugins: true,
+            allowed_plugins: "[\"*\"]".to_string(),
+            blocked_plugins: "[]".to_string(),
         }));
     }
 
@@ -761,6 +771,7 @@ async fn handle_get_me(
                 if let Ok(synced_user) = state.auth.sync_pam_user_to_db(&claims.sub, &claims.role, &claims.home_dir) {
                     return Ok(Json(synced_user));
                 }
+                let is_admin = claims.role == "admin";
                 Ok(Json(User {
                     id: 0,
                     username: claims.sub,
@@ -773,6 +784,9 @@ async fn handle_get_me(
                     is_disabled: false,
                     allowed_services: "[\"*\"]".to_string(),
                     allowed_roots: claims.allowed_roots.unwrap_or_else(|| "[\"*\"]".to_string()),
+                    can_install_plugins: is_admin,
+                    allowed_plugins: "[\"*\"]".to_string(),
+                    blocked_plugins: "[]".to_string(),
                 }))
             }
             Err(_) => Err((StatusCode::UNAUTHORIZED, "Invalid token".to_string())),
@@ -840,6 +854,12 @@ struct UpdateUserRbacRequest {
     allowed_roots: Option<Vec<String>>,
     home_dir: Option<String>,
     #[serde(default)]
+    can_install_plugins: Option<bool>,
+    #[serde(default)]
+    allowed_plugins: Option<Vec<String>>,
+    #[serde(default)]
+    blocked_plugins: Option<Vec<String>>,
+    #[serde(default)]
     is_disabled: Option<bool>,
 }
 
@@ -858,6 +878,8 @@ async fn handle_update_user_rbac(
 
         let services_json = serde_json::to_string(&payload.allowed_services).unwrap_or_else(|_| "[\"*\"]".to_string());
         let roots_json = payload.allowed_roots.map(|r| serde_json::to_string(&r).unwrap_or_else(|_| "[\"*\"]".to_string()));
+        let allowed_plugins_json = payload.allowed_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[\"*\"]".to_string()));
+        let blocked_plugins_json = payload.blocked_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[]".to_string()));
 
         let updated = state.auth.update_user_rbac(
             &username,
@@ -865,6 +887,9 @@ async fn handle_update_user_rbac(
             &services_json,
             roots_json.as_deref(),
             payload.home_dir.as_deref(),
+            payload.can_install_plugins,
+            allowed_plugins_json.as_deref(),
+            blocked_plugins_json.as_deref(),
             payload.is_disabled.unwrap_or(false),
         )
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update user RBAC: {}", e)))?;
@@ -4802,6 +4827,184 @@ async fn handle_run_custom_action(
     })))
 }
 
+// ============================================================================
+// 🧩 ChewToy Plugins Architecture & Add-ons Handlers
+// ============================================================================
+
+#[derive(Serialize)]
+struct ListPluginsResponse {
+    plugins: Vec<crate::plugins::PluginInfo>,
+    can_install: bool,
+    allow_user_installs: bool,
+}
+
+async fn handle_list_plugins(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<ListPluginsResponse>, (StatusCode, String)> {
+    let mut is_admin = false;
+    let mut can_install = false;
+    let mut allowed_plugins_json = "[\"*\"]".to_string();
+    let mut blocked_plugins_json = "[]".to_string();
+
+    if state.config.server.standalone {
+        is_admin = true;
+        can_install = true;
+    } else {
+        let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+        if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
+            if let Ok(claims) = state.auth.verify_token(token_str) {
+                if claims.role == "admin" {
+                    is_admin = true;
+                    can_install = true;
+                } else if let Ok(Some(user)) = state.auth.get_user_by_username(&claims.sub) {
+                    can_install = user.can_install_plugins || state.config.plugins.allow_user_installs;
+                    allowed_plugins_json = user.allowed_plugins;
+                    blocked_plugins_json = user.blocked_plugins;
+                }
+            }
+        }
+    }
+
+    let all_plugins = state.plugins.scan_plugins()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to scan plugins: {}", e)))?;
+
+    let filtered = all_plugins.into_iter()
+        .filter(|p| state.plugins.is_allowed_for_user(&p.id, is_admin, &allowed_plugins_json, &blocked_plugins_json))
+        .collect();
+
+    Ok(Json(ListPluginsResponse {
+        plugins: filtered,
+        can_install,
+        allow_user_installs: state.config.plugins.allow_user_installs,
+    }))
+}
+
+async fn handle_install_plugin(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    mut multipart: Multipart,
+) -> Result<Json<crate::plugins::PluginInfo>, (StatusCode, String)> {
+    let mut is_admin = false;
+    let mut can_install = false;
+    let mut username = "local".to_string();
+
+    if state.config.server.standalone {
+        is_admin = true;
+        can_install = true;
+    } else {
+        let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+        if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
+            if let Ok(claims) = state.auth.verify_token(token_str) {
+                username = claims.sub.clone();
+                if claims.role == "admin" {
+                    is_admin = true;
+                    can_install = true;
+                } else if let Ok(Some(user)) = state.auth.get_user_by_username(&claims.sub) {
+                    can_install = user.can_install_plugins || state.config.plugins.allow_user_installs;
+                }
+            }
+        }
+    }
+
+    if !can_install && !is_admin {
+        return Err((StatusCode::FORBIDDEN, "Permission denied: you do not have permission to install plugins".to_string()));
+    }
+
+    let mut file_bytes: Option<Vec<u8>> = None;
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
+        let name = field.name().unwrap_or("").to_string();
+        if name == "file" || name == "plugin" || name == "package" {
+            let data = field.bytes().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+            file_bytes = Some(data.to_vec());
+            break;
+        }
+    }
+
+    let bytes = file_bytes.ok_or_else(|| (StatusCode::BAD_REQUEST, "Missing '.grr' file payload in multipart upload".to_string()))?;
+
+    let installed = state.plugins.install_grr(&bytes, &username, is_admin)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Plugin installation failed: {}", e)))?;
+
+    Ok(Json(installed))
+}
+
+#[derive(Deserialize)]
+struct TogglePluginRequest {
+    enabled: bool,
+}
+
+async fn handle_toggle_plugin(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+    Json(payload): Json<TogglePluginRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !state.config.server.standalone {
+        let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+        if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
+            let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+            if claims.role != "admin" {
+                return Err((StatusCode::FORBIDDEN, "Only administrators can enable or disable plugins globally".to_string()));
+            }
+        } else {
+            return Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()));
+        }
+    }
+
+    let result = state.plugins.toggle_plugin(&id, payload.enabled)
+        .map_err(|e| (StatusCode::NOT_FOUND, e))?;
+
+    Ok(Json(serde_json::json!({ "success": true, "enabled": result })))
+}
+
+async fn handle_delete_plugin(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let mut is_admin = false;
+    let mut username = "local".to_string();
+
+    if state.config.server.standalone {
+        is_admin = true;
+    } else {
+        let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+        if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
+            let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+            username = claims.sub.clone();
+            if claims.role == "admin" {
+                is_admin = true;
+            }
+        } else {
+            return Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()));
+        }
+    }
+
+    state.plugins.uninstall_plugin(&id, &username, is_admin)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({ "success": true, "uninstalled": id })))
+}
+
+async fn handle_plugin_asset(
+    State(state): State<AppState>,
+    AxumPath((id, subpath)): AxumPath<(String, String)>,
+) -> Result<Response, (StatusCode, String)> {
+    let (bytes, mime) = state.plugins.get_asset(&id, &subpath)
+        .map_err(|e| (StatusCode::NOT_FOUND, e))?;
+
+    let response = Response::builder()
+        .header(header::CONTENT_TYPE, mime)
+        .header(header::CACHE_CONTROL, "public, max-age=3600")
+        .header(header::CONTENT_SECURITY_POLICY, "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;")
+        .body(Body::from(bytes))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(response)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4925,6 +5128,14 @@ mod tests {
         let tag_mgr = Arc::new(crate::tools::tags::TagManager::new(db.clone()).unwrap());
         let vault_mgr = Arc::new(crate::vfs::vault::VaultManager::new());
         let backup_mgr = Arc::new(crate::tools::sync::BackupManager::new(db).unwrap());
+        let plugin_mgr = Arc::new(crate::plugins::PluginManager::new(
+            std::path::PathBuf::from("/tmp/system_plugins"),
+            std::path::PathBuf::from("/tmp/user_plugins"),
+            false,
+            "allow_all".to_string(),
+            vec!["*".to_string()],
+            vec![],
+        ));
 
         let state = AppState {
             config: Arc::new(config),
@@ -4933,6 +5144,7 @@ mod tests {
             tags: tag_mgr,
             vaults: vault_mgr,
             backup: backup_mgr,
+            plugins: plugin_mgr,
         };
 
         let res = handle_health(State(state)).await;

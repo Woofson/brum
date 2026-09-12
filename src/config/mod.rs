@@ -31,6 +31,8 @@ pub struct AppConfig {
     pub notedog: NoteDogConfig,
     #[serde(default)]
     pub terminal: TerminalConfig,
+    #[serde(default)]
+    pub plugins: PluginsConfig,
 }
 
 impl Default for AppConfig {
@@ -49,6 +51,7 @@ impl Default for AppConfig {
             syncthing: crate::tools::syncthing::SyncthingConfig::default(),
             notedog: NoteDogConfig::default(),
             terminal: TerminalConfig::default(),
+            plugins: PluginsConfig::default(),
         }
     }
 }
@@ -662,6 +665,79 @@ fn default_terminal_allow_virtual_users() -> bool {
 }
 fn default_terminal_drop_privileges() -> bool {
     true
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PluginsConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default = "default_plugins_system_dir")]
+    pub directory: String,
+    #[serde(default = "default_plugins_user_dir")]
+    pub user_directory: String,
+    #[serde(default = "default_false")]
+    pub allow_user_installs: bool,
+    #[serde(default = "default_plugin_policy")]
+    pub default_policy: String, // "allow_all", "whitelist", "blacklist"
+    #[serde(default = "default_global_whitelist")]
+    pub global_whitelist: Vec<String>,
+    #[serde(default = "default_global_blacklist")]
+    pub global_blacklist: Vec<String>,
+}
+
+fn default_plugins_system_dir() -> String {
+    #[cfg(windows)]
+    {
+        if let Ok(app_data) = std::env::var("PROGRAMDATA") {
+            return format!("{}\\Brum\\plugins", app_data);
+        }
+        "C:\\ProgramData\\Brum\\plugins".to_string()
+    }
+    #[cfg(not(windows))]
+    {
+        "/etc/brum/plugins".to_string()
+    }
+}
+
+fn default_plugins_user_dir() -> String {
+    #[cfg(windows)]
+    {
+        if let Some(app_data) = dirs::config_dir() {
+            return app_data.join("brum").join("plugins").to_string_lossy().to_string();
+        }
+        "C:\\Users\\Default\\AppData\\Roaming\\brum\\plugins".to_string()
+    }
+    #[cfg(not(windows))]
+    {
+        if let Some(home) = dirs::home_dir() {
+            return home.join(".config/brum/plugins").to_string_lossy().to_string();
+        }
+        "/data/plugins".to_string()
+    }
+}
+
+fn default_plugin_policy() -> String {
+    "allow_all".to_string()
+}
+fn default_global_whitelist() -> Vec<String> {
+    vec!["*".to_string()]
+}
+fn default_global_blacklist() -> Vec<String> {
+    vec![]
+}
+
+impl Default for PluginsConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            directory: default_plugins_system_dir(),
+            user_directory: default_plugins_user_dir(),
+            allow_user_installs: false,
+            default_policy: default_plugin_policy(),
+            global_whitelist: default_global_whitelist(),
+            global_blacklist: default_global_blacklist(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

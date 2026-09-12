@@ -12,6 +12,7 @@ Welcome to the **Brum** manual and documentation index.
 | Manual | Description |
 | :--- | :--- |
 | [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for all built-in ChewToys (NoteDog, ARFAMP, TetraDog, PDFDog, Bite! Terminal, ConvertX, DiffDog, Disk Usage) |
+| [**`plugin-development.md`**](plugin-development.md) | Modular ChewToy & Plugin development guide: `.grr` package standard, `plugin.toml`, `window.Brum` SDK & Admin RBAC |
 | [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, ARFAMP keys, and mouse/touch navigation |
 | [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, UI options, desktop settings) |
 | [**`protocols.md`**](protocols.md) | Remote VFS protocols guide (SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
