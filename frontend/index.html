@@ -3921,29 +3921,6 @@
     </div>
   </div>
 
-  <!-- 🧩 Universal Dynamic Chewtoy Host Window (.grr) -->
-  <div class="floating-chewtoy-window" id="dynamic-chewtoy-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
-    <div class="dynamic-chewtoy-box" id="dynamic-chewtoy-box">
-      <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
-      <div class="modal-header dynamic-chewtoy-header" id="dynamic-chewtoy-header" style="height: 42px; min-height: 42px; cursor: grab; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg-dark);">
-        <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-          <img id="dynamic-chewtoy-icon" src="assets/amber-frameless-apps.webp" alt="Icon" style="width: 18px; height: 18px; object-fit: contain;">
-          <span id="dynamic-chewtoy-title" class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">Chewtoy</span>
-          <span id="dynamic-chewtoy-version" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">v1.0.0</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock" onclick="dockActiveDynamicChewToy()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize" onclick="toggleMaximizeDynamicChewToy()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-          <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
-        </div>
-      </div>
-      <!-- Sandboxed iframe / container -->
-      <div class="dynamic-chewtoy-body" style="flex: 1; position: relative; overflow: hidden; background: var(--bg-panel);">
-        <iframe id="dynamic-chewtoy-frame" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
-      </div>
-    </div>
-  </div>
-
   <!-- Rich Image Viewer Modal -->
   <div class="modal-overlay" id="image-viewer-modal">
     <div class="modal-box image-viewer-box" id="image-viewer-box">

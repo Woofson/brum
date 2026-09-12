@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>Arcade Blocks</title>
-  <link rel="stylesheet" href="style.css?v=0.8.5-rc33" />
+  <title>Tetrion</title>
+  <link rel="stylesheet" href="style.css?v=0.8.5-rc34" />
 </head>
 <body>
   <div class="arcade-app-window" id="arcade-app-window" tabindex="0" onclick="window.focus();">
@@ -12,20 +12,20 @@
     <div class="arcade-header" id="arcade-header">
       <div class="arcade-header-left">
         <span class="arcade-header-brand">
-          <img src="assets/icon.webp" alt="Arcade Blocks" class="arcade-brand-icon">
-          <span class="arcade-brand-text">Arcade Blocks</span>
+          <img src="assets/icon.webp" alt="Tetrion" class="arcade-brand-icon">
+          <span class="arcade-brand-text">Tetrion</span>
         </span>
       </div>
 
       <div class="arcade-header-actions">
         <div class="layout-btn-group" id="arcade-view-toggle-group">
-          <button type="button" class="btn btn-icon arcade-view-btn active" id="btn-arcade-view-game" onclick="setArcadeView('game')" title="Arcade Game View">
+          <button type="button" class="btn btn-icon arcade-view-btn active" id="btn-arcade-view-game" onclick="setArcadeView('game')" title="Tetrion Game View">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="6"/></svg>
           </button>
           <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-leaderboard" onclick="setArcadeView('leaderboard')" title="High Scores & Leaderboard (All Users)">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
           </button>
-          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-settings" onclick="setArcadeView('settings')" title="Arcade Blocks Settings & Controls">
+          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-settings" onclick="setArcadeView('settings')" title="Tetrion Settings & Controls">
             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
           </button>
         </div>
@@ -94,8 +94,8 @@
               <!-- Ready / Countdown Overlay -->
               <div class="arcade-overlay" id="arcade-ready-overlay">
                 <div class="arcade-overlay-box">
-                  <div class="arcade-logo">ARCADE BLOCKS</div>
-                  <div class="arcade-sub">AUTHENTIC 60 FPS RETRO ARCADE</div>
+                  <div class="arcade-logo">TETRION</div>
+                  <div class="arcade-sub">RETRO FALLING BLOCKS CHEWTOY</div>
                   <div class="arcade-ready-action">
                     <button class="btn btn-accent arcade-btn-lg" onclick="startArcadeGame()">
                       <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="6 3 20 12 6 21 6 3"/></svg> START GAME
@@ -440,6 +440,6 @@
     </div>
   </div>
 
-  <script src="main.js?v=0.8.5-rc33"></script>
+  <script src="main.js?v=0.8.5-rc34"></script>
 </body>
 </html>

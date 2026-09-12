@@ -1,9 +1,9 @@
 [plugin]
-id = "arcade-blocks"
-name = "Arcade Blocks"
+id = "tetrion"
+name = "Tetrion"
 version = "1.0.0"
 author = "Bolt J Woofson <bolt@arf.ac>"
-description = "Classic arcade falling blocks puzzle game with marathon, sprint, and high-score leaderboards."
+description = "Classic retro falling blocks puzzle Chewtoy with marathon, sprint, and high-score leaderboards."
 homepage = "https://www.arf.ac"
 icon = "assets/icon.webp"
 category = "games"
@@ -18,7 +18,7 @@ min_height = 480
 
 [integrations]
 launchpad = true
-launchpad_label = "Arcade Blocks"
+launchpad_label = "Tetrion"
 shortcut = "Ctrl+Alt+T"
 
 [permissions]

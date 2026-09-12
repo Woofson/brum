@@ -1,5 +1,5 @@
 // ==========================================================================
-// 🕹️ ARCADE BLOCKS: 60 FPS RETRO ARCADE PUZZLE CHEWTOY
+// 🕹️ TETRION: 60 FPS RETRO ARCADE PUZZLE CHEWTOY
 // ==========================================================================
 
 const ARCADE_PIECES = {

@@ -14662,4 +14662,15 @@ body.standalone-mode .server-only-setting {
   overflow: hidden;
 }
 
+.floating-chewtoy-window:focus,
+.floating-chewtoy-window:focus-visible,
+.dynamic-chewtoy-box:focus,
+.dynamic-chewtoy-box:focus-visible,
+.dynamic-chewtoy-body iframe,
+.dynamic-chewtoy-body iframe:focus,
+.dynamic-chewtoy-body iframe:focus-visible {
+  outline: none !important;
+  border: none !important;
+}
+
 

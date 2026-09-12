@@ -11053,7 +11053,7 @@ function renderToolsMenu() {
     if (item.visible === false) return false;
     // Omit legacy built-ins when corresponding decoupled Chewtoy is installed & active
     if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-    if (item.id === 'tetradog' && activeChewtoyIds.has('arcade-blocks')) return false;
+    if (item.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
     return true;
   });
 
@@ -24431,7 +24431,7 @@ function buildSpotlightItems() {
 
     pool.push(...SPOTLIGHT_STATIC_ACTIONS.filter(a => {
       if (a.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-      if (a.id === 'tetradog' && activeChewtoyIds.has('arcade-blocks')) return false;
+      if (a.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
       return true;
     }).map(a => ({
       title: a.title,
@@ -25277,9 +25277,10 @@ function dockToolToPane(toolName, paneIndex) {
     const pill = document.getElementById('mediaplayer-pill');
     if (pill) pill.style.display = 'none';
   }
-  // 10. Dynamic Modular ChewToy: hide floating dynamic window
+  // 10. Dynamic Modular ChewToy: hide floating dynamic window for this plugin
   else if (toolName.startsWith('plugin:') || toolName.startsWith('chewtoy:')) {
-    closeDynamicChewToy();
+    const pluginId = toolName.replace(/^(plugin|chewtoy):/, '');
+    closeDynamicChewToy(pluginId);
   }
 
   rebuildPaneDOM(paneIndex);
@@ -27451,9 +27452,9 @@ function playTetraSound(type) {
 // ---------------- WINDOWING & LIFECYCLE ----------------
 function openTetraDog() {
   closeToolsMenu();
-  const isInstalled = (window.installedChewToys || []).some(p => p.id === 'arcade-blocks' && (p.is_enabled !== undefined ? p.is_enabled : (p.enabled !== undefined ? p.enabled : true)));
-  if (isInstalled) {
-    openDynamicChewToy('arcade-blocks');
+  const tetrionPlugin = (window.installedChewToys || []).find(p => (p.id === 'tetrion' || p.id === 'arcade-blocks') && (p.is_enabled !== undefined ? p.is_enabled : (p.enabled !== undefined ? p.enabled : true)));
+  if (tetrionPlugin) {
+    openDynamicChewToy(tetrionPlugin.id);
     return;
   }
   const win = document.getElementById('floating-tetradog-window');
@@ -31318,8 +31319,10 @@ window.Brum = {
     },
 
     setTitle: function(title) {
-      const titleEl = document.getElementById('dynamic-chewtoy-title');
-      if (titleEl) titleEl.textContent = title;
+      if (window.activeDynamicChewToyId) {
+        const titleEl = document.getElementById(`dynamic-chewtoy-title-${window.activeDynamicChewToyId}`) || document.getElementById('dynamic-chewtoy-title');
+        if (titleEl) titleEl.textContent = title;
+      }
     }
   },
 
@@ -31354,10 +31357,32 @@ window.addEventListener('message', async (e) => {
     else if (action === 'ui.notify') { window.Brum.ui.notify(payload.message, payload.opts); result = true; }
     else if (action === 'ui.getTheme') result = window.Brum.ui.getTheme();
     else if (action === 'ui.showConfirm') result = await window.Brum.ui.showConfirm(payload.title, payload.message);
-    else if (action === 'window.dockTo') { window.Brum.window.dockTo(payload.pane); result = true; }
+    else if (action === 'window.dockTo') {
+      const frameEl = Array.from(document.querySelectorAll('iframe')).find(f => f.contentWindow === e.source);
+      const winEl = frameEl ? frameEl.closest('.floating-chewtoy-window') : null;
+      const pId = winEl ? winEl.getAttribute('data-plugin-id') : window.activeDynamicChewToyId;
+      dockActiveDynamicChewToy(payload.pane, pId);
+      result = true;
+    }
     else if (action === 'window.float') { window.Brum.window.float(); result = true; }
-    else if (action === 'window.close') { window.Brum.window.close(); result = true; }
-    else if (action === 'window.setTitle') { window.Brum.window.setTitle(payload.title); result = true; }
+    else if (action === 'window.close') {
+      const frameEl = Array.from(document.querySelectorAll('iframe')).find(f => f.contentWindow === e.source);
+      const winEl = frameEl ? frameEl.closest('.floating-chewtoy-window') : null;
+      const pId = winEl ? winEl.getAttribute('data-plugin-id') : window.activeDynamicChewToyId;
+      closeDynamicChewToy(pId);
+      result = true;
+    }
+    else if (action === 'window.setTitle') {
+      const frameEl = Array.from(document.querySelectorAll('iframe')).find(f => f.contentWindow === e.source);
+      const winEl = frameEl ? frameEl.closest('.floating-chewtoy-window') : null;
+      if (winEl) {
+        const titleEl = winEl.querySelector('.chewtoy-brand-text');
+        if (titleEl) titleEl.textContent = payload.title;
+      } else {
+        window.Brum.window.setTitle(payload.title);
+      }
+      result = true;
+    }
     else if (action === 'auth.getUser') result = window.Brum.auth.getUser();
 
     e.source?.postMessage({ type: 'BRUM_RES', reqId, result, error: null }, '*');
@@ -31645,6 +31670,53 @@ async function uninstallChewToy(id) {
 }
 
 /**
+ * Dynamic Multi-Instance Chewtoy Host Window Manager (.grr)
+ */
+
+function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
+  let win = document.getElementById(`dynamic-chewtoy-window-${pluginId}`);
+  if (!win) {
+    win = document.createElement('div');
+    win.className = 'floating-chewtoy-window dynamic-chewtoy-window';
+    win.id = `dynamic-chewtoy-window-${pluginId}`;
+    win.setAttribute('data-plugin-id', pluginId);
+    win.style.display = 'none';
+    win.onclick = function() {
+      bringFloatingWindowToFront(this);
+      window.activeDynamicChewToyId = pluginId;
+    };
+
+    const iconUrl = getChewtoyIconUrl(plugin);
+    const title = plugin.name || pluginId;
+    const version = `v${plugin.version || '1.0.0'}`;
+
+    win.innerHTML = `
+      <div class="dynamic-chewtoy-box" id="dynamic-chewtoy-box-${pluginId}">
+        <div class="modal-header dynamic-chewtoy-header" id="dynamic-chewtoy-header-${pluginId}" data-plugin-id="${pluginId}" style="height: 42px; min-height: 42px; cursor: grab; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg-dark);">
+          <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+            <img id="dynamic-chewtoy-icon-${pluginId}" src="${iconUrl}" onerror="this.src='assets/amber-frameless-apps.webp'" alt="${escapeHtml(title)}" style="width: 18px; height: 18px; object-fit: contain;">
+            <span id="dynamic-chewtoy-title-${pluginId}" class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(title)}</span>
+            <span id="dynamic-chewtoy-version-${pluginId}" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(version)}</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" onclick="dockActiveDynamicChewToy(undefined, '${pluginId}')" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+            <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize-${pluginId}" onclick="toggleMaximizeDynamicChewToy('${pluginId}')" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+            <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy('${pluginId}')" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+          </div>
+        </div>
+        <div class="dynamic-chewtoy-body" style="flex: 1; position: relative; overflow: hidden; background: var(--bg-panel);">
+          <iframe id="dynamic-chewtoy-frame-${pluginId}" style="width: 100%; height: 100%; border: none; display: block; outline: none;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(win);
+    if (window.lucide) lucide.createIcons();
+  }
+  return win;
+}
+
+/**
  * Open Floating Dynamic Chewtoy Window
  */
 function openDynamicChewToy(pluginId, context = null) {
@@ -31664,11 +31736,11 @@ function openDynamicChewToy(pluginId, context = null) {
     spotlightM.style.display = 'none';
   }
 
-  const titleEl = document.getElementById('dynamic-chewtoy-title');
-  const iconEl = document.getElementById('dynamic-chewtoy-icon');
-  const verEl = document.getElementById('dynamic-chewtoy-version');
-  const frame = document.getElementById('dynamic-chewtoy-frame');
-  const win = document.getElementById('dynamic-chewtoy-window');
+  const win = getOrCreateDynamicChewToyWindow(pluginId, plugin);
+  const titleEl = document.getElementById(`dynamic-chewtoy-title-${pluginId}`);
+  const iconEl = document.getElementById(`dynamic-chewtoy-icon-${pluginId}`);
+  const verEl = document.getElementById(`dynamic-chewtoy-version-${pluginId}`);
+  const frame = document.getElementById(`dynamic-chewtoy-frame-${pluginId}`);
 
   if (titleEl) titleEl.textContent = plugin.name || pluginId;
   if (iconEl) {
@@ -31694,11 +31766,29 @@ function openDynamicChewToy(pluginId, context = null) {
 
   brumLastContext = hostContext;
 
+  const entry = plugin.entry_point || 'index.html';
+  const targetFrameUrl = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
+
   if (frame) {
-    const entry = plugin.entry_point || 'index.html';
-    const frameUrl = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}?_t=${Date.now()}`;
-    frame.src = frameUrl;
-    frame.onload = () => {
+    const isFrameLoaded = frame.src && frame.src.includes(`/api/plugins/${encodeURIComponent(pluginId)}/assets/`);
+    if (!isFrameLoaded) {
+      frame.src = `${targetFrameUrl}?_t=${Date.now()}`;
+      frame.onload = () => {
+        try {
+          frame.contentWindow.Brum = window.Brum;
+        } catch (_) {}
+        if (window.Brum && typeof window.Brum._dispatchReady === 'function') {
+          window.Brum._dispatchReady(hostContext);
+        }
+        try {
+          frame.contentWindow.postMessage({ type: 'BRUM_READY', context: hostContext }, '*');
+        } catch (_) {}
+        try {
+          frame.contentWindow.focus();
+        } catch (_) {}
+      };
+    } else {
+      // Frame already running - update context and focus
       try {
         frame.contentWindow.Brum = window.Brum;
       } catch (_) {}
@@ -31711,20 +31801,28 @@ function openDynamicChewToy(pluginId, context = null) {
       try {
         frame.contentWindow.focus();
       } catch (_) {}
-    };
+    }
   }
 
   if (win) {
     const ui = plugin.manifest?.ui || plugin.ui || {};
     if (window.innerWidth > 1024) {
-      const targetW = ui.default_width ? Math.min(window.innerWidth - 40, ui.default_width) : Math.min(880, window.innerWidth - 40);
-      const targetH = ui.default_height ? Math.min(window.innerHeight - 60, ui.default_height) : Math.min(680, window.innerHeight - 60);
-      win.style.width = `${targetW}px`;
-      win.style.height = `${targetH}px`;
-      const left = Math.max(20, Math.floor((window.innerWidth - targetW) / 2));
-      const top = Math.max(45, Math.floor((window.innerHeight - targetH) / 2));
-      win.style.left = `${left}px`;
-      win.style.top = `${top}px`;
+      const isAlreadyVisible = win.style.display !== 'none' && win.classList.contains('active');
+      if (!isAlreadyVisible) {
+        const targetW = ui.default_width ? Math.min(window.innerWidth - 40, ui.default_width) : Math.min(880, window.innerWidth - 40);
+        const targetH = ui.default_height ? Math.min(window.innerHeight - 60, ui.default_height) : Math.min(680, window.innerHeight - 60);
+        win.style.width = `${targetW}px`;
+        win.style.height = `${targetH}px`;
+
+        // Cascade offset if other dynamic windows are open
+        const otherFloatingWins = Array.from(document.querySelectorAll('.floating-chewtoy-window.active')).filter(w => w !== win && w.style.display !== 'none');
+        const staggerOffset = (otherFloatingWins.length * 30) % 150;
+
+        const left = Math.max(20, Math.min(window.innerWidth - targetW - 20, Math.floor((window.innerWidth - targetW) / 2) + staggerOffset));
+        const top = Math.max(45, Math.min(window.innerHeight - targetH - 20, Math.floor((window.innerHeight - targetH) / 2) + staggerOffset));
+        win.style.left = `${left}px`;
+        win.style.top = `${top}px`;
+      }
     } else {
       // Mobile and Tablet: clear inline dimensions to let CSS fullscreen handle layout
       win.style.width = '';
@@ -31744,59 +31842,91 @@ function openDynamicChewToy(pluginId, context = null) {
 /**
  * Close Floating Dynamic Chewtoy Window
  */
-function closeDynamicChewToy() {
-  const win = document.getElementById('dynamic-chewtoy-window');
+function closeDynamicChewToy(pluginId = null) {
+  let win = null;
+  if (pluginId) {
+    win = document.getElementById(`dynamic-chewtoy-window-${pluginId}`) || document.getElementById('dynamic-chewtoy-window');
+  } else if (window.activeDynamicChewToyId) {
+    win = document.getElementById(`dynamic-chewtoy-window-${window.activeDynamicChewToyId}`) || document.getElementById('dynamic-chewtoy-window');
+  } else {
+    const wins = Array.from(document.querySelectorAll('.floating-chewtoy-window.active')).filter(w => w.style.display !== 'none');
+    if (wins.length) {
+      wins.sort((a, b) => (parseInt(b.style.zIndex || 0, 10) - parseInt(a.style.zIndex || 0, 10)));
+      win = wins[0];
+    }
+  }
+
   if (win) {
     win.classList.remove('active');
     win.style.display = 'none';
+    const frame = win.querySelector('iframe');
+    if (frame) {
+      frame.src = 'about:blank';
+    }
+    const closedId = win.getAttribute('data-plugin-id');
+    if (closedId && window.activeDynamicChewToyId === closedId) {
+      const remainingWins = Array.from(document.querySelectorAll('.floating-chewtoy-window.active')).filter(w => w.style.display !== 'none');
+      if (remainingWins.length) {
+        remainingWins.sort((a, b) => (parseInt(b.style.zIndex || 0, 10) - parseInt(a.style.zIndex || 0, 10)));
+        window.activeDynamicChewToyId = remainingWins[0].getAttribute('data-plugin-id') || null;
+      } else {
+        window.activeDynamicChewToyId = null;
+      }
+    }
   }
-  const frame = document.getElementById('dynamic-chewtoy-frame');
-  if (frame) {
-    frame.src = 'about:blank';
-  }
-  window.activeDynamicChewToyId = null;
 }
 
 /**
  * Maximize / Restore Dynamic Chewtoy Window
  */
-function toggleMaximizeDynamicChewToy() {
-  const win = document.getElementById('dynamic-chewtoy-window');
-  if (!win) return;
-  win.classList.toggle('maximized');
+function toggleMaximizeDynamicChewToy(pluginId = null) {
+  let win = null;
+  if (pluginId) {
+    win = document.getElementById(`dynamic-chewtoy-window-${pluginId}`) || document.getElementById('dynamic-chewtoy-window');
+  } else if (window.activeDynamicChewToyId) {
+    win = document.getElementById(`dynamic-chewtoy-window-${window.activeDynamicChewToyId}`) || document.getElementById('dynamic-chewtoy-window');
+  }
+  if (win) win.classList.toggle('maximized');
 }
 
 /**
  * Dock currently open dynamic Chewtoy into Pane 1 or 2
  */
-function dockActiveDynamicChewToy(paneNumber) {
-  if (!window.activeDynamicChewToyId) return;
-  const pId = window.activeDynamicChewToyId;
+function dockActiveDynamicChewToy(paneNumber, pluginId = null) {
+  const pId = pluginId || window.activeDynamicChewToyId;
+  if (!pId) return;
   const paneIdx = (paneNumber !== undefined && paneNumber !== null) ? paneNumber - 1 : (App.activePaneIndex ?? 0);
-  closeDynamicChewToy();
+  closeDynamicChewToy(pId);
   dockToolToPane('plugin:' + pId, paneIdx);
 }
 
 /**
- * Initialize Draggable Header for Dynamic Chewtoy Window
+ * Initialize Draggable Header for Dynamic Chewtoy Windows
  */
+let dynamicChewToyDragInit = false;
 function initDynamicChewToyDrag() {
   if (dynamicChewToyDragInit) return;
   dynamicChewToyDragInit = true;
 
-  const win = document.getElementById('dynamic-chewtoy-window');
-  const header = document.getElementById('dynamic-chewtoy-header');
-  if (!win || !header) return;
-
   let isDragging = false;
+  let dragTargetWin = null;
   let dragStartX = 0, dragStartY = 0;
   let winStartX = 0, winStartY = 0;
 
-  header.addEventListener('mousedown', (e) => {
+  document.addEventListener('mousedown', (e) => {
     if (window.innerWidth <= 1024) return;
-    if (e.target.closest('button') || e.target.closest('input') || win.classList.contains('maximized')) return;
+    const header = e.target.closest('.dynamic-chewtoy-header');
+    if (!header) return;
+    const win = header.closest('.floating-chewtoy-window');
+    if (!win) return;
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || win.classList.contains('maximized')) return;
+
     isDragging = true;
+    dragTargetWin = win;
     bringFloatingWindowToFront(win);
+    const pId = win.getAttribute('data-plugin-id');
+    if (pId) window.activeDynamicChewToyId = pId;
+
     dragStartX = e.clientX;
     dragStartY = e.clientY;
     const rect = win.getBoundingClientRect();
@@ -31807,21 +31937,25 @@ function initDynamicChewToyDrag() {
   });
 
   window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
+    if (!isDragging || !dragTargetWin) return;
     const dx = e.clientX - dragStartX;
     const dy = e.clientY - dragStartY;
-    const newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, winStartX + dx));
-    const newTop = Math.max(0, Math.min(window.innerHeight - win.offsetHeight, winStartY + dy));
-    win.style.position = 'fixed';
-    win.style.left = `${newLeft}px`;
-    win.style.top = `${newTop}px`;
+    const newLeft = Math.max(0, Math.min(window.innerWidth - dragTargetWin.offsetWidth, winStartX + dx));
+    const newTop = Math.max(0, Math.min(window.innerHeight - dragTargetWin.offsetHeight, winStartY + dy));
+    dragTargetWin.style.position = 'fixed';
+    dragTargetWin.style.left = `${newLeft}px`;
+    dragTargetWin.style.top = `${newTop}px`;
   });
 
   window.addEventListener('mouseup', () => {
     if (isDragging) {
       isDragging = false;
       document.body.style.userSelect = '';
-      header.style.cursor = 'grab';
+      if (dragTargetWin) {
+        const header = dragTargetWin.querySelector('.dynamic-chewtoy-header');
+        if (header) header.style.cursor = 'grab';
+      }
+      dragTargetWin = null;
     }
   });
 
@@ -31840,25 +31974,29 @@ function initDynamicChewToyKeyboardForwarding() {
     // If user is typing in a form input/textarea, do not intercept
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
 
-    // 1. Floating Dynamic Chewtoy Window
-    const win = document.getElementById('dynamic-chewtoy-window');
-    const isFloatingOpen = win && win.style.display !== 'none' && win.classList.contains('active');
-    const frame = document.getElementById('dynamic-chewtoy-frame');
+    // 1. Floating Dynamic Chewtoy Windows (Topmost visible window)
+    const activeWins = Array.from(document.querySelectorAll('.floating-chewtoy-window.active'))
+      .filter(w => w.style.display !== 'none');
 
-    if (isFloatingOpen && frame && frame.contentWindow) {
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C', 'p', 'P', 'Escape'].includes(e.key)) {
-        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
-          e.preventDefault();
+    if (activeWins.length > 0) {
+      activeWins.sort((a, b) => (parseInt(b.style.zIndex || 0, 10) - parseInt(a.style.zIndex || 0, 10)));
+      const topWin = activeWins[0];
+      const frame = topWin.querySelector('iframe');
+      if (frame && frame.contentWindow) {
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C', 'p', 'P', 'Escape'].includes(e.key)) {
+          if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
+            e.preventDefault();
+          }
+          try {
+            frame.contentWindow.postMessage({
+              type: 'BRUM_KEY',
+              key: e.key,
+              code: e.code,
+              keyType: e.type
+            }, '*');
+          } catch (_) {}
+          return;
         }
-        try {
-          frame.contentWindow.postMessage({
-            type: 'BRUM_KEY',
-            key: e.key,
-            code: e.code,
-            keyType: e.type
-          }, '*');
-        } catch (_) {}
-        return;
       }
     }
 

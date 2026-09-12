@@ -26,6 +26,25 @@
   user-select: none;
 }
 
+*:focus,
+*:focus-visible,
+*:focus-within {
+  outline: none !important;
+}
+
+.arcade-app-window,
+.arcade-app-window:focus,
+.arcade-app-window:focus-visible,
+.arcade-canvas-container,
+.arcade-canvas-container:focus,
+.arcade-canvas-container:focus-visible,
+canvas,
+canvas:focus,
+canvas:focus-visible {
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+}
+
 body {
   background: var(--bg-panel);
   color: var(--text-main);
