@@ -1525,9 +1525,8 @@ window.addEventListener('DOMContentLoaded', () => {
   initArcadeGame();
   arcadeState.initialized = true;
 
-  if (window.lucide) {
-    try { lucide.createIcons(); } catch (e) {}
-  }
+  // Auto-start immediately on load just like original Tetra!
+  startArcadeGame();
 
   // Load scores in background
   loadArcadeLeaderboard(arcadeState.game.mode, false);

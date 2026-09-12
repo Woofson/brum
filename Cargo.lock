@@ -321,7 +321,7 @@ dependencies = [
 
 [[package]]
 name = "brum"
-version = "0.8.5-rc26"
+version = "0.8.5-rc30"
 dependencies = [
  "aes-gcm",
  "argon2",
