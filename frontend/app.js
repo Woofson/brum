@@ -25383,12 +25383,28 @@ function mountDockedTool(paneIndex) {
   // Dynamic Modular ChewToy Dock
   if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
-    const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, entry_point: 'index.html' };
+    const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, name: pluginId, entry_point: 'index.html' };
     const entry = plugin.entry_point || 'index.html';
     const iframeSrc = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
+    const iconUrl = getChewtoyIconUrl(plugin);
+
     mount.innerHTML = `
-      <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
-        <iframe id="docked-chewtoy-frame-${paneIndex}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+      <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+        <!-- Standard 26px Chewtoy Docked Header (Rule 9) -->
+        <div style="padding: 3px 8px; min-height: 28px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
+            ${renderToolIconHtml(iconUrl, '', 14)}
+            <span style="font-size: 11.5px; font-weight: 700; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(plugin.name || pluginId)}</span>
+            <span class="badge" style="font-size: 9px; padding: 1px 4px; opacity: 0.8;">CHEWTOY</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button class="btn btn-xs btn-outline" onclick="undockToolFromPane(${paneIndex})" title="Float Chewtoy" style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="external-link" style="width: 12px; height: 12px;"></i></button>
+            <button class="btn btn-xs btn-outline" onclick="closeDockedTool(${paneIndex})" title="Close Docked Chewtoy" style="width: 24px; height: 24px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+          </div>
+        </div>
+        <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+          <iframe id="docked-chewtoy-frame-${paneIndex}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+        </div>
       </div>
     `;
     const frame = document.getElementById(`docked-chewtoy-frame-${paneIndex}`);
@@ -25398,7 +25414,7 @@ function mountDockedTool(paneIndex) {
           frame.contentWindow.Brum = window.Brum;
         } catch (_) {}
         const context = {
-          activePath: App.panes[paneIndex]?.currentPath || '/',
+          activePath: App.panes[paneIndex]?.path || '/',
           selectedFiles: (App.panes[paneIndex]?.selectedIndices || []).map(i => App.panes[paneIndex]?.items[i]?.path || App.panes[paneIndex]?.items[i]?.name).filter(Boolean),
           paneIndex: paneIndex,
           theme: App.theme || 'amber-charcoal',
@@ -25414,6 +25430,7 @@ function mountDockedTool(paneIndex) {
         } catch (_) {}
       });
     }
+    if (window.lucide) lucide.createIcons({ root: mount });
     return;
   }
 
@@ -31747,7 +31764,7 @@ function toggleMaximizeDynamicChewToy() {
 function dockActiveDynamicChewToy(paneNumber) {
   if (!window.activeDynamicChewToyId) return;
   const pId = window.activeDynamicChewToyId;
-  const paneIdx = (paneNumber || 1) - 1;
+  const paneIdx = (paneNumber !== undefined && paneNumber !== null) ? paneNumber - 1 : (App.activePaneIndex ?? 0);
   closeDynamicChewToy();
   dockToolToPane('plugin:' + pId, paneIdx);
 }
