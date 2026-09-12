@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Arcade Blocks</title>
   <link rel="stylesheet" href="style.css" />
-  <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body>
   <div class="arcade-app-window" id="arcade-app-window">
@@ -20,9 +19,15 @@
 
       <div class="arcade-header-actions">
         <div class="layout-btn-group" id="arcade-view-toggle-group">
-          <button type="button" class="btn btn-icon arcade-view-btn active" id="btn-arcade-view-game" onclick="setArcadeView('game')" title="Arcade Game View"><i data-lucide="gamepad-2"></i></button>
-          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-leaderboard" onclick="setArcadeView('leaderboard')" title="High Scores & Leaderboard (All Users)"><i data-lucide="trophy"></i></button>
-          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-settings" onclick="setArcadeView('settings')" title="Arcade Blocks Settings & Controls"><i data-lucide="sliders"></i></button>
+          <button type="button" class="btn btn-icon arcade-view-btn active" id="btn-arcade-view-game" onclick="setArcadeView('game')" title="Arcade Game View">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" x2="10" y1="12" y2="12"/><line x1="8" x2="8" y1="10" y2="14"/><line x1="15" x2="15.01" y1="13" y2="13"/><line x1="18" x2="18.01" y1="11" y2="11"/><rect width="20" height="12" x="2" y="6" rx="6"/></svg>
+          </button>
+          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-leaderboard" onclick="setArcadeView('leaderboard')" title="High Scores & Leaderboard (All Users)">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
+          </button>
+          <button type="button" class="btn btn-icon arcade-view-btn" id="btn-arcade-view-settings" onclick="setArcadeView('settings')" title="Arcade Blocks Settings & Controls">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" x2="4" y1="21" y2="14"/><line x1="4" x2="4" y1="10" y2="3"/><line x1="12" x2="12" y1="21" y2="12"/><line x1="12" x2="12" y1="8" y2="3"/><line x1="20" x2="20" y1="21" y2="16"/><line x1="20" x2="20" y1="12" y2="3"/><line x1="1" x2="7" y1="14" y2="14"/><line x1="9" x2="15" y1="8" y2="8"/><line x1="17" x2="23" y1="16" y2="16"/></svg>
+          </button>
         </div>
       </div>
     </div>
@@ -93,7 +98,7 @@
                   <div class="arcade-sub">AUTHENTIC 60 FPS RETRO ARCADE</div>
                   <div class="arcade-ready-action">
                     <button class="btn btn-accent arcade-btn-lg" onclick="startArcadeGame()">
-                      <i data-lucide="play"></i> START GAME
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 4px;"><polygon points="6 3 20 12 6 21 6 3"/></svg> START GAME
                     </button>
                   </div>
                   <div class="arcade-key-legend desktop-only">
@@ -114,8 +119,12 @@
                   <div class="arcade-overlay-title">PAUSED</div>
                   <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Press <kbd>P</kbd> or <kbd>Esc</kbd> to resume</div>
                   <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-accent" onclick="resumeArcadeGame()"><i data-lucide="play"></i> Resume</button>
-                    <button class="btn" onclick="restartArcadeGame()"><i data-lucide="rotate-ccw"></i> Restart</button>
+                    <button class="btn btn-accent" onclick="resumeArcadeGame()">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg> Resume
+                    </button>
+                    <button class="btn" onclick="restartArcadeGame()">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restart
+                    </button>
                   </div>
                 </div>
               </div>
@@ -148,8 +157,12 @@
                   </div>
 
                   <div style="display: flex; gap: 8px; margin-top: 12px; width: 100%;">
-                    <button class="btn btn-accent" style="flex: 1;" onclick="restartArcadeGame()"><i data-lucide="rotate-ccw"></i> Play Again</button>
-                    <button class="btn" onclick="setArcadeView('leaderboard')"><i data-lucide="trophy"></i> High Scores</button>
+                    <button class="btn btn-accent" style="flex: 1;" onclick="restartArcadeGame()">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Play Again
+                    </button>
+                    <button class="btn" onclick="setArcadeView('leaderboard')">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg> High Scores
+                    </button>
                   </div>
                 </div>
               </div>
@@ -167,10 +180,10 @@
 
             <div class="arcade-panel-card arcade-actions-card desktop-only-card">
               <button class="btn btn-accent btn-sm" id="btn-arcade-start-pause" onclick="toggleArcadePlayPause()" style="width: 100%;">
-                <i data-lucide="play" id="icon-arcade-play-pause"></i> <span id="label-arcade-play-pause">Play</span>
+                <span id="icon-arcade-play-pause"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="6 3 20 12 6 21 6 3"/></svg></span> <span id="label-arcade-play-pause">Play</span>
               </button>
               <button class="btn btn-sm" onclick="restartArcadeGame()" style="width: 100%;">
-                <i data-lucide="rotate-ccw"></i> Restart
+                <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg> Restart
               </button>
             </div>
           </div>
@@ -181,17 +194,17 @@
           <!-- Left Zone: Authentic 4-Way Cross D-Pad -->
           <div class="arcade-dpad-cross">
             <button class="dpad-btn dpad-up" id="tbtn-up" data-action="hardDrop" title="Hard Drop (Slam Piece)">
-              <i data-lucide="chevrons-up"></i>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m17 11-5-5-5 5"/><path d="m17 18-5-5-5 5"/></svg>
             </button>
             <button class="dpad-btn dpad-left" id="tbtn-left" data-action="left" title="Move Left">
-              <i data-lucide="arrow-left"></i>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m12 19-7-7 7-7"/><path d="M19 12H5"/></svg>
             </button>
             <div class="dpad-center"></div>
             <button class="dpad-btn dpad-right" id="tbtn-right" data-action="right" title="Move Right">
-              <i data-lucide="arrow-right"></i>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </button>
             <button class="dpad-btn dpad-down" id="tbtn-down" data-action="down" title="Soft Drop (Drop Faster)">
-              <i data-lucide="arrow-down"></i>
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="m19 12-7 7-7-7"/></svg>
             </button>
           </div>
 
@@ -230,7 +243,9 @@
           <div class="arcade-lb-scope-toggle">
             <label class="arcade-scope-btn"><input type="radio" name="arcade-scope" value="all" checked onchange="handleArcadeScopeChange(this.value)"> 🌐 All Users</label>
             <label class="arcade-scope-btn"><input type="radio" name="arcade-scope" value="mine" onchange="handleArcadeScopeChange(this.value)"> 👤 My Best</label>
-            <button class="btn btn-icon btn-xs" onclick="refreshArcadeLeaderboard()" title="Refresh Scores"><i data-lucide="refresh-cw"></i></button>
+            <button class="btn btn-icon btn-xs" onclick="refreshArcadeLeaderboard()" title="Refresh Scores">
+              <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+            </button>
           </div>
         </div>
 
@@ -286,7 +301,9 @@
             <button class="btn btn-xs btn-outline" onclick="saveArcadePlayerAlias(document.getElementById('arcade-player-alias').value)">Save</button>
           </div>
           <div>
-            <button class="btn btn-xs btn-danger-action" onclick="promptClearArcadeScores()" title="Reset high scores"><i data-lucide="trash-2" style="width: 11px;"></i> Clear Scores</button>
+            <button class="btn btn-xs btn-danger-action" onclick="promptClearArcadeScores()" title="Reset high scores">
+              <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 2px;"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg> Clear Scores
+            </button>
           </div>
         </div>
       </div>
@@ -386,7 +403,7 @@
     <div class="arcade-statusbar" id="arcade-statusbar">
       <div class="arcade-sb-left">
         <button class="arcade-statusbar-sound-btn" id="btn-arcade-audio" onclick="toggleArcadeAudio()" title="Sound Effects (Click to Mute/Unmute)">
-          <i data-lucide="volume-2" id="icon-arcade-audio"></i>
+          <span id="icon-arcade-audio"><svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg></span>
         </button>
         <span class="arcade-sb-hint desktop-only">P / Esc: Pause</span>
       </div>

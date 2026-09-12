@@ -25387,7 +25387,7 @@ function mountDockedTool(paneIndex) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, name: pluginId, entry_point: 'index.html' };
     const entry = plugin.entry_point || 'index.html';
-    const iframeSrc = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
+    const iframeSrc = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}?_t=${Date.now()}`;
 
     mount.innerHTML = `
       <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
@@ -31688,7 +31688,7 @@ function openDynamicChewToy(pluginId, context = null) {
 
   if (frame) {
     const entry = plugin.entry_point || 'index.html';
-    const frameUrl = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
+    const frameUrl = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}?_t=${Date.now()}`;
     frame.src = frameUrl;
     frame.onload = () => {
       try {
