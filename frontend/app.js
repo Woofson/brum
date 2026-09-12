@@ -20451,6 +20451,27 @@ function attachMediaEvents() {
     }
   };
 
+  el.onloadedmetadata = () => {
+    if (el.tagName === 'VIDEO' && el.videoWidth === 0 && el.videoHeight === 0 && el.duration > 0) {
+      const errOverlay = document.getElementById('mediaplayer-error-overlay');
+      const errTitle = document.getElementById('mediaplayer-error-title');
+      const errDesc = document.getElementById('mediaplayer-error-desc');
+      const errFilename = document.getElementById('mediaplayer-error-filename');
+
+      const curTrack = mediaplayerState.playlist[mediaplayerState.currentIndex] || { path: '', name: '' };
+      if (errFilename) errFilename.textContent = curTrack.name || curTrack.path || 'Media File';
+      if (errTitle) errTitle.textContent = 'Audio Plays, but Video Codec is Unsupported';
+      if (errDesc) errDesc.textContent = 'The AAC audio track is playing, but your browser cannot decode the legacy video stream (MPEG-4 Part 2 / mp4v). Click Convert to Web MP4 to transcode with ConvertX, or open in VLC/MPV.';
+
+      if (errOverlay) {
+        errOverlay.style.display = 'flex';
+        if (window.lucide) {
+          try { lucide.createIcons(); } catch (e) {}
+        }
+      }
+    }
+  };
+
   el.onerror = () => {
     const errOverlay = document.getElementById('mediaplayer-error-overlay');
     const errTitle = document.getElementById('mediaplayer-error-title');
