@@ -11043,6 +11043,24 @@ function renderToolsMenu() {
     `;
   });
 
+  // Dynamic Installed ChewToys / Plugins (.grr)
+  const activeChewToys = (window.installedChewToys || []).filter(p => p.enabled !== false);
+  if (activeChewToys.length > 0) {
+    html += `<div class="dropdown-sep"></div>`;
+    activeChewToys.forEach(p => {
+      const iconUrl = p.icon ? `/api/plugins/${encodeURIComponent(p.id)}/assets/${p.icon}` : 'assets/amber-frameless-apps.webp';
+      html += `
+        <div class="dropdown-item" onclick="openDynamicChewToy('${escapeHtml(p.id)}'); closeToolsMenu();" style="display: flex; align-items: center; justify-content: space-between;">
+          <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${renderToolIconHtml(iconUrl, '', 18)}
+            <span>${escapeHtml(p.name || p.id)}</span>
+          </div>
+          <span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(245,158,11,0.15); color: var(--accent); flex-shrink: 0; margin-left: 6px;">ChewToy</span>
+        </div>
+      `;
+    });
+  }
+
   html += `
     <div class="dropdown-sep"></div>
     <div class="dropdown-item" onclick="openToolsMenuCustomizer(event); closeToolsMenu();" style="color: var(--accent); font-size: 11px; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
@@ -24409,6 +24427,21 @@ function buildSpotlightItems() {
         });
       });
     }
+
+    // Dynamic Installed ChewToys / Plugins (.grr)
+    if (window.installedChewToys && Array.isArray(window.installedChewToys)) {
+      window.installedChewToys.filter(p => p.enabled !== false).forEach(p => {
+        const iconUrl = p.icon ? `/api/plugins/${encodeURIComponent(p.id)}/assets/${p.icon}` : 'assets/amber-frameless-apps.webp';
+        pool.push({
+          title: `ChewToy: ${p.name || p.id}`,
+          sub: p.description || `Launch ${p.name || p.id} v${p.version || '1.0.0'}`,
+          icon: iconUrl,
+          cat: 'action',
+          badge: 'ChewToy',
+          handler: () => openDynamicChewToy(p.id)
+        });
+      });
+    }
   }
 
   // 2. Standard & Open Paths
@@ -24553,10 +24586,11 @@ function renderSpotlightResults() {
 
   container.innerHTML = spotlightItems.map((it, idx) => {
     const isSelected = idx === spotlightSelectedIndex;
+    const isImgIcon = it.icon && (it.icon.includes('.png') || it.icon.includes('.webp') || it.icon.includes('.svg') || it.icon.startsWith('/api/') || it.icon.startsWith('assets/'));
     return `
       <div class="spotlight-item ${isSelected ? 'selected' : ''}" data-index="${idx}" onclick="executeSpotlightIndex(${idx})">
         <div class="spotlight-item-icon">
-          ${it.icon && it.icon.includes('.png') ? `<img src="${it.icon}" alt="" style="width: 16px; height: 16px; object-fit: contain;">` : `<i data-lucide="${it.icon || 'file'}"></i>`}
+          ${isImgIcon ? `<img src="${it.icon}" alt="" style="width: 16px; height: 16px; object-fit: contain;">` : `<i data-lucide="${it.icon || 'file'}"></i>`}
         </div>
         <div class="spotlight-item-content">
           <div class="spotlight-item-title">${escapeHtml(it.title)}</div>
@@ -25332,6 +25366,7 @@ function mountDockedTool(paneIndex) {
           pluginId: pluginId,
           isDocked: true
         };
+        brumLastContext = context;
         if (window.Brum && typeof window.Brum._dispatchReady === 'function') {
           window.Brum._dispatchReady(context);
         }
@@ -31567,6 +31602,19 @@ function openDynamicChewToy(pluginId, context = null) {
   window.activeDynamicChewToyId = pluginId;
   const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, name: pluginId, version: '1.0.0', entry_point: 'index.html' };
 
+  // Close other blocking modals & menus
+  if (typeof closeModal === 'function') {
+    closeModal('settings-modal');
+  }
+  if (typeof closeToolsMenu === 'function') {
+    closeToolsMenu();
+  }
+  const spotlightM = document.getElementById('spotlight-modal');
+  if (spotlightM) {
+    spotlightM.classList.remove('active');
+    spotlightM.style.display = 'none';
+  }
+
   const titleEl = document.getElementById('dynamic-chewtoy-title');
   const iconEl = document.getElementById('dynamic-chewtoy-icon');
   const verEl = document.getElementById('dynamic-chewtoy-version');
@@ -31594,6 +31642,8 @@ function openDynamicChewToy(pluginId, context = null) {
     ...(context || {})
   };
 
+  brumLastContext = hostContext;
+
   if (frame) {
     const entry = plugin.entry_point || 'index.html';
     const frameUrl = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
@@ -31614,7 +31664,11 @@ function openDynamicChewToy(pluginId, context = null) {
   if (modal) {
     modal.classList.add('active');
     modal.style.display = 'flex';
-    if (box) bringFloatingWindowToFront(box);
+    modal.style.zIndex = '2900';
+    if (box) {
+      box.style.zIndex = '2901';
+      bringFloatingWindowToFront(box);
+    }
   }
 
   initDynamicChewToyDrag();

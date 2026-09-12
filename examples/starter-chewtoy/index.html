@@ -8,31 +8,54 @@
 </head>
 <body>
   <div class="starter-chewtoy-container">
-    <!-- 42px Grab Header -->
+    <!-- 42px Grab Header (Rule 9 standard) -->
     <header class="starter-header">
       <div class="starter-title">
         <img src="assets/icon.svg" width="16" height="16" alt="Icon" />
         <span>Starter ChewToy</span>
+        <span class="starter-badge">v1.0.0</span>
       </div>
-      <div style="display: flex; gap: 6px;">
-        <button class="starter-btn" id="btn-ping">🔔 Send Notification</button>
-        <button class="starter-btn btn-primary" id="btn-read">📂 Read Selected</button>
+      <div class="starter-actions">
+        <button class="starter-btn" id="btn-ping" title="Send notification to host Brum UI">🔔 Send Toast</button>
+        <button class="starter-btn" id="btn-dock1" title="Dock into Left Panel (Pane 1)">◧ Dock Left</button>
+        <button class="starter-btn" id="btn-dock2" title="Dock into Right Panel (Pane 2)">◨ Dock Right</button>
       </div>
     </header>
 
     <!-- Content Workspace -->
     <main class="starter-body">
+      <!-- Top Overview & Context Card -->
       <div class="starter-card">
-        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: var(--accent);">ChewToy Host Context</h3>
-        <p style="margin: 0 0 8px 0; font-size: 12.5px; opacity: 0.85;">
-          This ChewToy is communicating with Brum using the <code>window.Brum</code> JavaScript SDK.
+        <div class="starter-card-header">
+          <span class="starter-card-title">🐶 Host Bridge Context</span>
+          <span id="sdk-status" class="status-indicator">Connected to window.Brum</span>
+        </div>
+        <p class="starter-desc">
+          Live environment properties passed dynamically from the active Brum file manager instance:
         </p>
         <div class="starter-code" id="context-display">Waiting for host context...</div>
       </div>
 
+      <!-- Interactive Actions Row -->
       <div class="starter-card">
-        <h3 style="margin: 0 0 8px 0; font-size: 14px; color: var(--accent);">File Content Inspector</h3>
-        <div class="starter-code" id="file-content" style="min-height: 80px; color: #a3e635;">No file inspected yet.</div>
+        <div class="starter-card-header">
+          <span class="starter-card-title">⚡ Interactive ChewToy Features</span>
+        </div>
+        <div class="starter-btn-row">
+          <button class="starter-btn btn-accent" id="btn-list-dir">📂 List Active Directory</button>
+          <button class="starter-btn btn-primary" id="btn-read-file">📄 Read Selected File</button>
+          <button class="starter-btn" id="btn-write-file">✍️ Write Test Note (chewtoy-note.txt)</button>
+          <button class="starter-btn" id="btn-confirm-dialog">❓ Ask Host Confirmation</button>
+        </div>
+      </div>
+
+      <!-- Results & Inspector Display -->
+      <div class="starter-card starter-card-flex">
+        <div class="starter-card-header">
+          <span class="starter-card-title" id="output-title">📄 Output & Inspector</span>
+          <button class="starter-btn btn-xs" id="btn-clear-output">Clear</button>
+        </div>
+        <div class="starter-code starter-output" id="output-display">Click any action above to test filesystem integration...</div>
       </div>
     </main>
   </div>
