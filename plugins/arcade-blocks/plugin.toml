@@ -11,10 +11,10 @@ category = "games"
 [ui]
 modes = ["floating", "docked"]
 default_mode = "floating"
-default_width = 720
-default_height = 580
-min_width = 440
-min_height = 380
+default_width = 540
+default_height = 680
+min_width = 380
+min_height = 480
 
 [integrations]
 launchpad = true

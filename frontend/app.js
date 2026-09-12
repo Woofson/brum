@@ -31716,15 +31716,21 @@ function openDynamicChewToy(pluginId, context = null) {
 
   if (win) {
     const ui = plugin.manifest?.ui || plugin.ui || {};
-    if (ui.default_width && window.innerWidth > 600) {
-      win.style.width = `${Math.min(window.innerWidth - 20, ui.default_width)}px`;
-    } else if (window.innerWidth > 600) {
-      win.style.width = 'min(880px, calc(100vw - 40px))';
-    }
-    if (ui.default_height && window.innerHeight > 400) {
-      win.style.height = `${Math.min(window.innerHeight - 60, ui.default_height)}px`;
-    } else if (window.innerHeight > 400) {
-      win.style.height = 'min(600px, calc(100vh - 80px))';
+    if (window.innerWidth > 1024) {
+      const targetW = ui.default_width ? Math.min(window.innerWidth - 40, ui.default_width) : Math.min(880, window.innerWidth - 40);
+      const targetH = ui.default_height ? Math.min(window.innerHeight - 60, ui.default_height) : Math.min(680, window.innerHeight - 60);
+      win.style.width = `${targetW}px`;
+      win.style.height = `${targetH}px`;
+      const left = Math.max(20, Math.floor((window.innerWidth - targetW) / 2));
+      const top = Math.max(45, Math.floor((window.innerHeight - targetH) / 2));
+      win.style.left = `${left}px`;
+      win.style.top = `${top}px`;
+    } else {
+      // Mobile and Tablet: clear inline dimensions to let CSS fullscreen handle layout
+      win.style.width = '';
+      win.style.height = '';
+      win.style.left = '';
+      win.style.top = '';
     }
     win.classList.add('active');
     win.style.display = 'flex';

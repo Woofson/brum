@@ -9595,6 +9595,8 @@ html.fkeys-disabled .bottom-fkey-bar,
   .floating-editor-window,
   .floating-tetradog-window,
   .floating-sounddog-window,
+  .floating-chewtoy-window,
+  #dynamic-chewtoy-window,
   #doc-viewer-modal.floating-mode .doc-viewer-box,
   #image-viewer-modal.floating-mode .image-viewer-box {
     position: fixed !important;
@@ -12594,7 +12596,9 @@ body.standalone-mode .server-only-setting {
     cursor: pointer !important;
   }
 
-  .floating-tetradog-window {
+  .floating-tetradog-window,
+  .floating-chewtoy-window,
+  #dynamic-chewtoy-window {
     top: 0 !important;
     left: 0 !important;
     right: 0 !important;
