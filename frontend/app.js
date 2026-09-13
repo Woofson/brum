@@ -20655,7 +20655,11 @@ const mediaplayerState = {
   loopMode: localStorage.getItem('cd_media_loop') || 'none', // 'none' | 'all' | 'one'
   isShuffle: localStorage.getItem('cd_media_shuffle') === 'true',
   aspectRatio: localStorage.getItem('cd_media_aspect') || 'contain', // 'contain' | 'cover' | 'fill' | '16-9' | '4-3'
-  isPlaylistOpen: localStorage.getItem('cd_media_pl_open') !== 'false',
+  isPlaylistOpen: (() => {
+    const isMobileOrTablet = typeof window !== 'undefined' && window.innerWidth <= 1024;
+    const saved = localStorage.getItem('cd_media_pl_open');
+    return saved !== null ? (saved === 'true') : (!isMobileOrTablet);
+  })(),
   isPiP: false,
   isFullscreen: false,
   subtitles: [],
@@ -20734,6 +20738,13 @@ function openMediaPlayer(filePath = null, mediaType = null, paneIndex = null) {
   } else if (mediaplayerState.playlist.length === 0) {
     populateMediaPlaylistFromActivePane();
   }
+
+  // Ensure playlist collapsed state is applied on phone / tablet viewports (<= 1024px)
+  if (win) {
+    win.classList.toggle('playlist-collapsed', !mediaplayerState.isPlaylistOpen);
+  }
+  const plBtn = document.getElementById('btn-mediaplayer-playlist-toggle');
+  if (plBtn) plBtn.classList.toggle('active', !!mediaplayerState.isPlaylistOpen);
 
   renderMediaPlaylist();
   updateMediaLoopButton();
@@ -21214,6 +21225,8 @@ function toggleMediaPlaylistDrawer() {
   mediaplayerState.isPlaylistOpen = !mediaplayerState.isPlaylistOpen;
   localStorage.setItem('cd_media_pl_open', mediaplayerState.isPlaylistOpen ? 'true' : 'false');
   win.classList.toggle('playlist-collapsed', !mediaplayerState.isPlaylistOpen);
+  const plBtn = document.getElementById('btn-mediaplayer-playlist-toggle');
+  if (plBtn) plBtn.classList.toggle('active', !!mediaplayerState.isPlaylistOpen);
 }
 
 function populateMediaPlaylistFromActivePane() {
@@ -29359,7 +29372,11 @@ const sounddogState = {
   playbackRate: 1.0,
   timeMode: localStorage.getItem('cd_sounddog_timemode') || 'elapsed', // 'elapsed', 'remaining'
   showEq: localStorage.getItem('cd_sounddog_show_eq') === '1',
-  showPl: localStorage.getItem('cd_sounddog_show_pl') !== '0',
+  showPl: (() => {
+    const isMobileOrTablet = typeof window !== 'undefined' && window.innerWidth <= 1024;
+    const saved = localStorage.getItem('cd_sounddog_show_pl');
+    return saved !== null ? (saved === '1') : (!isMobileOrTablet);
+  })(),
   eqEnabled: true,
   vizMode: localStorage.getItem('cd_sounddog_viz') || 'bars', // 'bars', 'wave', 'glow', 'off'
   eq: {
@@ -29936,6 +29953,12 @@ function openSoundDog(initialPath = null, paneIndex = null) {
   if (!sounddogState.initialized) {
     initSoundDogAudioEngine();
     sounddogState.initialized = true;
+  }
+
+  // Ensure playlist drawer is closed by default on phone & tablet viewports (<= 1024px) unless explicitly opened
+  const isCompactViewport = window.innerWidth <= 1024;
+  if (isCompactViewport && localStorage.getItem('cd_sounddog_show_pl') === null) {
+    sounddogState.showPl = false;
   }
 
   // Sync drawer visibility
