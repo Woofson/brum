@@ -33,7 +33,7 @@ impl ArchiveHandler {
 
         let clean_subpath = subpath_filter.trim_matches('/');
 
-        if lower_name.ends_with(".zip") || lower_name.ends_with(".cbz") || lower_name.ends_with(".epub") {
+        if lower_name.ends_with(".zip") || lower_name.ends_with(".grr") || lower_name.ends_with(".cbz") || lower_name.ends_with(".epub") {
             let file = File::open(path)?;
             let mut zip = ZipArchive::new(BufReader::new(file))
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -88,10 +88,12 @@ impl ArchiveHandler {
                     is_archive: false,
                 });
             }
-        } else if lower_name.ends_with(".tar.gz") || lower_name.ends_with(".tgz") || lower_name.ends_with(".tar") {
+        } else if lower_name.ends_with(".tar.gz") || lower_name.ends_with(".tgz") || lower_name.ends_with(".tar.bz2") || lower_name.ends_with(".tbz2") || lower_name.ends_with(".tar") {
             let file = File::open(path)?;
             let reader: Box<dyn Read> = if lower_name.ends_with(".tar.gz") || lower_name.ends_with(".tgz") {
                 Box::new(GzDecoder::new(file))
+            } else if lower_name.ends_with(".tar.bz2") || lower_name.ends_with(".tbz2") {
+                Box::new(bzip2::read::BzDecoder::new(file))
             } else {
                 Box::new(file)
             };
@@ -187,7 +189,7 @@ impl ArchiveHandler {
         let lower = archive_path_str.to_lowercase();
         let clean_inner = inner_path.trim_matches('/');
 
-        if lower.ends_with(".zip") || lower.ends_with(".cbz") || lower.ends_with(".epub") {
+        if lower.ends_with(".zip") || lower.ends_with(".grr") || lower.ends_with(".cbz") || lower.ends_with(".epub") {
             let file = File::open(path)?;
             let mut zip = ZipArchive::new(BufReader::new(file))
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
@@ -230,6 +232,62 @@ impl ArchiveHandler {
                             })
                         }
                     };
+                }
+            }
+        } else if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") || lower.ends_with(".tar.bz2") || lower.ends_with(".tbz2") || lower.ends_with(".tar") {
+            let file = File::open(path)?;
+            let reader: Box<dyn Read> = if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
+                Box::new(GzDecoder::new(file))
+            } else if lower.ends_with(".tar.bz2") || lower.ends_with(".tbz2") {
+                Box::new(bzip2::read::BzDecoder::new(file))
+            } else {
+                Box::new(file)
+            };
+
+            let mut tar = TarArchive::new(reader);
+            if let Ok(entries_iter) = tar.entries() {
+                for entry_res in entries_iter {
+                    if let Ok(mut entry) = entry_res {
+                        if let Ok(path_buf) = entry.path() {
+                            let raw_name = path_buf.to_string_lossy().to_string();
+                            if raw_name.trim_matches('/') == clean_inner {
+                                let mut buffer = Vec::new();
+                                let size = entry.header().size().unwrap_or(0);
+                                if max_bytes > 0 {
+                                    let mut handle = (&mut entry).take(max_bytes as u64);
+                                    handle.read_to_end(&mut buffer)?;
+                                } else {
+                                    entry.read_to_end(&mut buffer)?;
+                                }
+
+                                let mime_type = mime_guess::from_path(clean_inner).first_or_octet_stream().to_string();
+                                let name = Path::new(clean_inner).file_name().unwrap_or_default().to_string_lossy().to_string();
+
+                                return match String::from_utf8(buffer.clone()) {
+                                    Ok(text) => Ok(FileContentResponse {
+                                        path: format!("archive://{}#{}", archive_path_str, clean_inner),
+                                        name,
+                                        content: text,
+                                        is_binary: false,
+                                        size,
+                                        mime_type,
+                                    }),
+                                    Err(_) => {
+                                        use base64::Engine;
+                                        let b64 = base64::engine::general_purpose::STANDARD.encode(&buffer);
+                                        Ok(FileContentResponse {
+                                            path: format!("archive://{}#{}", archive_path_str, clean_inner),
+                                            name,
+                                            content: b64,
+                                            is_binary: true,
+                                            size,
+                                            mime_type,
+                                        })
+                                    }
+                                };
+                            }
+                        }
+                    }
                 }
             }
         }

@@ -85,9 +85,42 @@ impl VfsTransfer {
         let is_dest_sftp = dest_dir.starts_with("sftp://");
         let is_src_nfs = src.starts_with("nfs://");
         let is_dest_nfs = dest_dir.starts_with("nfs://");
+        let is_src_archive = src.starts_with("archive://");
         let mut verified_hash: Option<String> = None;
 
-        if is_src_sftp && !is_dest_sftp {
+        if is_src_archive {
+            let rest = src.strip_prefix("archive://").unwrap();
+            let (archive_file, subpath) = match rest.split_once('#') {
+                Some((a, s)) => (a, s),
+                None => (rest, ""),
+            };
+            let file_res = crate::vfs::archive::ArchiveHandler::read_archive_entry(archive_file, subpath, 0)
+                .map_err(|e| format!("Failed to read archive entry: {}", e))?;
+
+            use base64::Engine;
+            let file_bytes = if file_res.is_binary {
+                base64::engine::general_purpose::STANDARD.decode(&file_res.content).unwrap_or_default()
+            } else {
+                file_res.content.into_bytes()
+            };
+
+            let dest_path = Path::new(dest_dir);
+            let target = if dest_path.is_dir() {
+                dest_path.join(&file_res.name)
+            } else {
+                dest_path.to_path_buf()
+            };
+
+            if let Some(parent) = target.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+
+            fs::write(&target, &file_bytes).map_err(|e| format!("Failed to write extracted file: {}", e))?;
+            if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
+                verified_hash = Some(format!("Extracted SHA-256: {}", h));
+            }
+            return Ok(verified_hash);
+        } else if is_src_sftp && !is_dest_sftp {
             // SFTP -> Local
             let src_params = crate::vfs::sftp::SftpClient::parse_uri(src, None, None)?;
             let file_name = src_params.remote_path.rsplit('/').next().unwrap_or(&src_params.remote_path).to_string();

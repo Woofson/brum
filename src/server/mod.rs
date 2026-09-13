@@ -3286,6 +3286,38 @@ async fn handle_download(
         };
 
         return build_bytes_range_response(file_bytes, mime, disposition, None, range_header);
+    } else if path_str.starts_with("archive://") {
+        let rest = path_str.strip_prefix("archive://").unwrap();
+        let (archive_file, subpath) = match rest.split_once('#') {
+            Some((a, s)) => (a, s),
+            None => (rest, ""),
+        };
+        let file_res = ArchiveHandler::read_archive_entry(archive_file, subpath, 0)
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read archive entry: {}", e)))?;
+
+        use base64::Engine;
+        let file_bytes = if file_res.is_binary {
+            base64::engine::general_purpose::STANDARD.decode(&file_res.content).unwrap_or_default()
+        } else {
+            file_res.content.into_bytes()
+        };
+
+        let file_name = file_res.name;
+        let mime = file_res.mime_type;
+        let is_media_type = mime.starts_with("image/")
+            || mime.starts_with("video/")
+            || mime.starts_with("audio/")
+            || mime == "application/pdf"
+            || mime.starts_with("text/");
+        let is_inline = query.get("inline").map(|v| v == "true" || v == "1").unwrap_or(is_media_type);
+
+        let disposition = if is_inline {
+            format!("inline; filename=\"{}\"", file_name)
+        } else {
+            format!("attachment; filename=\"{}\"", file_name)
+        };
+
+        return build_bytes_range_response(file_bytes, mime, disposition, None, range_header);
     } else if path_str.starts_with("smb://") {
         let params = crate::vfs::smb::SmbClient::parse_uri(&path_str, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SMB URI: {}", e)))?;

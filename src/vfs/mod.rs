@@ -61,6 +61,9 @@ pub struct FileContentResponse {
 pub fn is_archive_file(path_or_name: &str) -> bool {
     let lower = path_or_name.to_lowercase();
     lower.ends_with(".zip")
+        || lower.ends_with(".grr")
+        || lower.ends_with(".cbz")
+        || lower.ends_with(".epub")
         || lower.ends_with(".tar.gz")
         || lower.ends_with(".tgz")
         || lower.ends_with(".tar.bz2")
