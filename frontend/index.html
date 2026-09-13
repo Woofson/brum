@@ -85,40 +85,41 @@
         } catch (_) {}
       });
 
+      // Safety watchdog: Only fallback if authentication verification takes > 10s
       setTimeout(function() {
         if (document.documentElement.classList.contains('auth-verifying')) {
           document.documentElement.classList.remove('auth-verifying');
           var isLocked = localStorage.getItem('cd_is_locked') === 'true';
           if (isLocked) {
             document.documentElement.classList.add('auth-pending-lock');
-          } else {
+          } else if (!localStorage.getItem('cd_token')) {
             document.documentElement.classList.add('auth-pending-login');
           }
         }
-      }, 600);
+      }, 10000);
     })();
   </script>
   <!-- Bundled Nerd Fonts Preload -->
   <link rel="preload" href="/assets/fonts/JetBrainsMonoNerdFont-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <link rel="preload" href="/assets/fonts/SymbolsNerdFontMono-Regular.ttf" as="font" type="font/ttf" crossorigin>
   <!-- Lucide Icons CDN -->
-  <script src="https://unpkg.com/lucide@latest"></script>
+  <script src="https://unpkg.com/lucide@latest" defer></script>
   <!-- Mermaid.js CDN for Markdown Diagrams -->
-  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js" defer></script>
   <!-- Marked.js CDN for Full GitHub-Flavored Markdown & HTML support -->
-  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js" defer></script>
   <!-- Prism.js for Syntax Highlighting -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/themes/prism-tomorrow.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/prism.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1.29.0/plugins/autoloader/prism-autoloader.min.js" defer></script>
   <!-- Xterm.js for Full Native Terminal Emulation -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/css/xterm.min.css" />
-  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/@xterm/addon-web-links@0.11.0/lib/addon-web-links.min.js" defer></script>
   <!-- Leaflet.js CDN for Interactive GPS Maps -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
 </head>
 <body>
 

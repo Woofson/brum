@@ -907,45 +907,38 @@ function updateStandaloneUI() {
 }
 
 async function checkAuthAndLoad() {
+  const token = App.token || localStorage.getItem('cd_token');
+  const isLocked = localStorage.getItem('cd_is_locked') === 'true';
+
   try {
-    const sysResp = await fetch('/api/system/status');
-    if (sysResp.ok) {
+    // Parallelize system status and token verification
+    const [sysResp, meResp] = await Promise.all([
+      fetch('/api/system/status').catch(() => null),
+      token ? fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => null) : Promise.resolve(null)
+    ]);
+
+    if (sysResp && sysResp.ok) {
       const sysData = await sysResp.json();
       App.systemStatus = sysData;
-      if (sysData.hostname) {
-        localStorage.setItem('cd_cached_hostname', sysData.hostname);
-      }
-      if (sysData.custom_hostname) {
-        localStorage.setItem('cd_custom_hostname', sysData.custom_hostname);
-      }
+      if (sysData.hostname) localStorage.setItem('cd_cached_hostname', sysData.hostname);
+      if (sysData.custom_hostname) localStorage.setItem('cd_custom_hostname', sysData.custom_hostname);
       if (sysData.version) applyAppVersion(sysData.version);
       updateHostnameBadge();
       App.isStandalone = sysData.standalone;
       updateStandaloneUI();
-      if (sysData.standalone) {
-        localStorage.setItem('cd_standalone_mode', 'true');
-      }
-      if (sysData.auth_enabled === false) {
-        localStorage.setItem('cd_auth_disabled', 'true');
-      } else {
-        localStorage.removeItem('cd_auth_disabled');
-      }
-      if (sysData.standalone || !sysData.auth_enabled) {
-        // Standalone desktop mode: auto-load local user without login prompt!
-        const meResp = await fetch('/api/auth/me');
-        if (meResp.ok) {
-          App.user = await meResp.json();
+      if (sysData.standalone) localStorage.setItem('cd_standalone_mode', 'true');
+      if (sysData.auth_enabled === false) localStorage.setItem('cd_auth_disabled', 'true');
+      else localStorage.removeItem('cd_auth_disabled');
+
+      // Standalone mode or disabled auth:
+      if ((sysData.standalone || !sysData.auth_enabled) && (!meResp || !meResp.ok)) {
+        const localMe = await fetch('/api/auth/me').catch(() => null);
+        if (localMe && localMe.ok) {
+          App.user = await localMe.json();
           updateHeaderProfile(App.user);
           hideModal('login-modal');
-          await loadConfig();
-          await loadSystemUsersGroups();
-          await loadAdminSecuritySettings();
-          await loadAllFileTags();
-          await loadUserPreferencesFromServer();
-          await loadInstalledChewToys(false);
 
-          // Respect lock state even in standalone/local mode
-          if (localStorage.getItem('cd_is_locked') === 'true') {
+          if (isLocked) {
             document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
             document.documentElement.classList.add('auth-pending-lock');
             lockSession();
@@ -957,57 +950,63 @@ async function checkAuthAndLoad() {
           applyUserHomeToPanes();
           renderAllPanes();
           restoreTerminalState();
+
+          // Non-blocking background hydration
+          Promise.allSettled([
+            loadConfig(),
+            loadSystemUsersGroups(),
+            loadAdminSecuritySettings(),
+            loadAllFileTags(),
+            loadUserPreferencesFromServer(),
+            loadInstalledChewToys(false)
+          ]);
           return;
         }
       }
     }
-  } catch (e) {
-    // Proceed to standard token check
-  }
 
-  if (App.token) {
-    try {
-      const resp = await fetch('/api/auth/me', {
-        headers: { 'Authorization': `Bearer ${App.token}` }
-      });
-      if (resp.ok) {
-        App.user = await resp.json();
-        updateHeaderProfile(App.user);
-        try {
-          localStorage.setItem('cd_user_info', JSON.stringify({
-            username: App.user.username,
-            nickname: App.user.nickname,
-            avatar_url: App.user.avatar_url
-          }));
-          localStorage.setItem('cd_last_username', App.user.username);
-        } catch (_) {}
+    if (meResp && meResp.ok) {
+      App.user = await meResp.json();
+      updateHeaderProfile(App.user);
+      try {
+        localStorage.setItem('cd_user_info', JSON.stringify({
+          username: App.user.username,
+          nickname: App.user.nickname,
+          avatar_url: App.user.avatar_url
+        }));
+        localStorage.setItem('cd_last_username', App.user.username);
+      } catch (_) {}
 
-        hideModal('login-modal');
-        await loadConfig();
-        await loadSystemUsersGroups();
-        await loadAdminSecuritySettings();
-        await loadAllFileTags();
-        await loadUserPreferencesFromServer();
-        await loadInstalledChewToys(false);
+      hideModal('login-modal');
 
-        // If session was locked before browser refresh, keep session locked!
-        if (localStorage.getItem('cd_is_locked') === 'true') {
-          document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
-          document.documentElement.classList.add('auth-pending-lock');
-          lockSession();
-          return;
-        }
-
-        document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
-        document.documentElement.classList.add('auth-ready');
-        applyUserHomeToPanes();
-        renderAllPanes();
-        restoreTerminalState();
+      // If session was locked before browser refresh, keep session locked!
+      if (isLocked) {
+        document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
+        document.documentElement.classList.add('auth-pending-lock');
+        lockSession();
         return;
       }
-    } catch (e) {
-      console.warn('Auth check failed:', e);
+
+      // INSTANT UI DISPLAY: Remove all auth shields & render panes immediately!
+      document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+      document.documentElement.classList.add('auth-ready');
+      applyUserHomeToPanes();
+      renderAllPanes();
+      restoreTerminalState();
+
+      // Non-blocking background data hydration
+      Promise.allSettled([
+        loadConfig(),
+        loadSystemUsersGroups(),
+        loadAdminSecuritySettings(),
+        loadAllFileTags(),
+        loadUserPreferencesFromServer(),
+        loadInstalledChewToys(false)
+      ]);
+      return;
     }
+  } catch (e) {
+    console.warn('Auth check error:', e);
   }
 
   // Not authenticated or token invalid
@@ -1017,18 +1016,6 @@ async function checkAuthAndLoad() {
   setTimeout(() => {
     document.getElementById('login-username')?.focus();
   }, 100);
-
-  // Final safety fallback: guarantee auth-verifying is always removed
-  if (document.documentElement.classList.contains('auth-verifying')) {
-    document.documentElement.classList.remove('auth-verifying');
-    if (localStorage.getItem('cd_is_locked') === 'true') {
-      document.documentElement.classList.add('auth-pending-lock');
-      lockSession();
-    } else {
-      document.documentElement.classList.add('auth-pending-login');
-      showModal('login-modal');
-    }
-  }
 }
 
 async function fetchAppVersion() {
