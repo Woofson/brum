@@ -9609,6 +9609,7 @@ html.fkeys-disabled .bottom-fkey-bar,
   .floating-editor-window,
   .floating-tetradog-window,
   .floating-sounddog-window,
+  .floating-mediaplayer-window,
   .floating-chewtoy-window,
   #dynamic-chewtoy-window,
   #doc-viewer-modal.floating-mode .doc-viewer-box,
@@ -9697,6 +9698,10 @@ html.fkeys-disabled .bottom-fkey-bar,
   .notedog-header-drag-handle,
   .editor-header-drag-handle,
   .calc-header-drag-handle,
+  .mediaplayer-header,
+  .mediaplayer-header-drag-handle,
+  .sounddog-header,
+  .sounddog-header-drag-handle,
   .du-modal-header,
   .image-viewer-title-group {
     cursor: default !important;
@@ -14423,58 +14428,69 @@ body.standalone-mode .server-only-setting {
   font-weight: 700;
 }
 
-/* Minimized Pill */
+/* Minimized Mediaplayer Pill */
 .mediaplayer-pill {
   position: fixed;
-  bottom: 42px;
-  left: 230px;
-  z-index: 1800;
+  bottom: 12px;
+  left: 200px;
+  height: 32px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border: 1px solid var(--accent);
+  border-radius: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6), 0 0 10px rgba(245, 158, 11, 0.3);
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #151820;
-  border: 1px solid var(--accent);
-  border-radius: 20px;
-  padding: 5px 12px;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-main);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+  z-index: 2890;
   cursor: pointer;
   user-select: none;
+  animation: slideUpPill 0.2s ease-out;
   transition: all 0.18s ease;
 }
 
 .mediaplayer-pill:hover {
   transform: translateY(-2px);
   background: #1e222d;
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 12px rgba(245, 158, 11, 0.3);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 12px rgba(245, 158, 11, 0.4);
 }
 
 .mediaplayer-pill-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-main);
   max-width: 140px;
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .mediaplayer-pill-btn {
-  background: transparent;
-  border: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--border);
   color: var(--text-main);
-  cursor: pointer;
-  padding: 2px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  cursor: pointer;
+  padding: 0;
   transition: all 0.12s ease;
 }
 
 .mediaplayer-pill-btn:hover {
-  color: var(--accent);
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--accent);
+  color: #0b0c10;
+}
+
+@media (max-width: 1024px) {
+  .mediaplayer-pill {
+    bottom: 54px;
+    left: 12px;
+    max-width: calc(100vw - 24px);
+  }
 }
 
 /* Docked In-Pane Mediaplayer */
