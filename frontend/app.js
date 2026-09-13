@@ -748,6 +748,7 @@ function getAllUserPreferences() {
     quick_destinations: App.quickDestinations,
     custom_templates: JSON.parse(localStorage.getItem('cd_custom_templates') || '[]'),
     custom_tools_menu: JSON.parse(localStorage.getItem('cd_custom_tools_menu') || 'null'),
+    fleet_nodes: typeof loadFleetNodes === 'function' ? loadFleetNodes() : [],
 
     // 8. EditorDog & DiffDog & Viewer
     editor_theme: localStorage.getItem('cd_editor_theme') || 'default',
@@ -783,6 +784,34 @@ function applyAllUserPreferences(prefs) {
         localStorage.setItem(`cd_pane_node_${i}`, nodeId);
       }
     });
+  }
+
+  // 2c. Fleet Registry
+  if (Array.isArray(prefs.fleet_nodes) && prefs.fleet_nodes.length > 0) {
+    const localNodes = typeof loadFleetNodes === 'function' ? loadFleetNodes() : [];
+    if (!localNodes || localNodes.length === 0) {
+      localStorage.setItem('cd_fleet_nodes', JSON.stringify(prefs.fleet_nodes));
+    } else {
+      const merged = [...localNodes];
+      prefs.fleet_nodes.forEach(srvNode => {
+        const idx = merged.findIndex(l => l.id === srvNode.id || (srvNode.endpoint_url && l.endpoint_url === srvNode.endpoint_url));
+        if (idx >= 0) {
+          if ((srvNode.updated_at || 0) > (merged[idx].updated_at || 0)) {
+            merged[idx] = { ...merged[idx], ...srvNode };
+          }
+        } else {
+          merged.push(srvNode);
+        }
+      });
+      localStorage.setItem('cd_fleet_nodes', JSON.stringify(merged));
+    }
+    if (typeof renderFleetSwitcherDropdown === 'function') {
+      renderFleetSwitcherDropdown();
+    }
+    const managerModal = document.getElementById('fleet-manager-modal');
+    if (managerModal && managerModal.classList.contains('active') && typeof renderFleetManagerList === 'function') {
+      renderFleetManagerList();
+    }
   }
 
   // 3. Viewport-Decoupled Default Layouts (on fresh session load)
@@ -32073,9 +32102,12 @@ function loadFleetNodes() {
   }
 }
 
-function saveFleetNodes(nodes) {
+function saveFleetNodes(nodes, skipServerSync = false) {
   try {
     localStorage.setItem(FLEET_STORAGE_KEY, JSON.stringify(nodes || []));
+    if (!skipServerSync && typeof queueSaveUserPreferencesToServer === 'function') {
+      queueSaveUserPreferencesToServer();
+    }
   } catch (e) {
     console.error('Failed to save fleet nodes to storage:', e);
   }
@@ -32145,7 +32177,7 @@ async function pingFleetNode(nodeId) {
         node.os = data.os || null;
         node.arch = data.arch || null;
         node.last_seen = Date.now();
-        saveFleetNodes(nodes);
+        saveFleetNodes(nodes, true);
       }
       return { status: 'online', latency_ms: latency, data, node };
     } else if (resp.status === 401 || resp.status === 403) {
@@ -32153,14 +32185,14 @@ async function pingFleetNode(nodeId) {
         node.status = 'unauthorized';
         node.latency_ms = latency;
         node.last_seen = Date.now();
-        saveFleetNodes(nodes);
+        saveFleetNodes(nodes, true);
       }
       return { status: 'unauthorized', latency_ms: latency, node };
     } else {
       if (node) {
         node.status = 'offline';
         node.latency_ms = null;
-        saveFleetNodes(nodes);
+        saveFleetNodes(nodes, true);
       }
       return { status: 'offline', latency_ms: null, node };
     }
@@ -32169,7 +32201,7 @@ async function pingFleetNode(nodeId) {
     if (node) {
       node.status = 'offline';
       node.latency_ms = null;
-      saveFleetNodes(nodes);
+      saveFleetNodes(nodes, true);
     }
     return { status: 'offline', latency_ms: null, error: err.message, node };
   } finally {
