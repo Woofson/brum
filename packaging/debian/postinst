@@ -11,6 +11,22 @@ if [ "$1" = "configure" ]; then
         ln -sf /usr/bin/brum /usr/local/bin/brum 2>/dev/null || true
     fi
 
+    # Configure PAM service for brum if /etc/pam.d exists and /etc/pam.d/brum is missing
+    if [ -d /etc/pam.d ] && [ ! -f /etc/pam.d/brum ]; then
+        if [ -f /etc/pam.d/common-auth ]; then
+            cat << 'PAMEOF' > /etc/pam.d/brum
+# PAM configuration for Brum (Debian/Ubuntu)
+@include common-auth
+@include common-account
+@include common-session
+PAMEOF
+        elif [ -f /etc/pam.d/login ]; then
+            cp /etc/pam.d/login /etc/pam.d/brum 2>/dev/null || true
+        elif [ -f /etc/pam.d/passwd ]; then
+            cp /etc/pam.d/passwd /etc/pam.d/brum 2>/dev/null || true
+        fi
+    fi
+
     # Reload systemd daemon if active
     if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
         systemctl daemon-reload >/dev/null 2>&1 || true

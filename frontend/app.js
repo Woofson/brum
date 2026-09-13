@@ -979,6 +979,7 @@ async function checkAuthAndLoad() {
             nickname: App.user.nickname,
             avatar_url: App.user.avatar_url
           }));
+          localStorage.setItem('cd_last_username', App.user.username);
         } catch (_) {}
 
         hideModal('login-modal');
@@ -2150,7 +2151,12 @@ function setActivePane(index) {
   if (visibleCount > 0 && index >= visibleCount) {
     index = visibleCount - 1;
   }
+  const prevIndex = App.activePaneIndex;
   App.activePaneIndex = Math.max(0, index);
+
+  if (prevIndex !== App.activePaneIndex) {
+    triggerHaptic(20);
+  }
 
   document.querySelectorAll('.pane').forEach((p, idx) => {
     if (idx === App.activePaneIndex) p.classList.add('active');
@@ -10996,14 +11002,12 @@ function updateLogoutOrExitButton() {
 
 // ---------------- TOOLS & CHEWTOYS LAUNCHPAD MENU CUSTOMIZER ----------------
 const DEFAULT_TOOLS_MENU = [
-  { id: 'spotlight', label: 'Spot!', icon: 'assets/spot.webp', action: 'openSpotlightModal()', desc: 'Instant search across files, tools & themes (Ctrl+K)', visible: true },
   { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
   { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
-  { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (\`)', visible: true },
+  { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
   { id: 'editor', label: 'Edit', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
   { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal()', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
-  { id: 'fleet', label: 'Fleet', icon: 'network', iconColor: 'var(--accent)', action: 'openFleetManagerModal()', desc: 'Commander Fleet: Multi-host node switcher & cluster diagnostics', visible: true },
   { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager()', desc: 'Manage public share links and guest dropboxes', visible: true },
   { id: 'sync', label: 'Backup', icon: 'assets/sync.webp', action: 'openSyncModal()', desc: 'Two-way sync, mirrors, snapshot archives & cron (SyncToy / Bvckup 2)', visible: true },
   { id: 'du', label: 'Stats', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
@@ -11012,8 +11016,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
   { id: 'mediaplayer', label: 'Mediaplayer', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video & media player, subtitles, PiP & playlist', visible: true },
   { id: 'sounddog', label: 'Audioplayer', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band studio equalizer', visible: true },
-  { id: 'tetradog', label: 'Tetra', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle chewtoy with synchronized top scores', visible: true },
-  { id: 'tasks', label: 'Task Manager', icon: 'assets/task.webp', action: 'openFloatingTaskManager()', desc: 'Active transfers, speeds & queue control', visible: true }
+  { id: 'tetradog', label: 'Tetra', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle chewtoy with synchronized top scores', visible: true }
 ];
 
 function getToolsMenuConfig() {
@@ -11096,6 +11099,8 @@ function renderToolsMenu() {
     // Omit legacy built-ins when corresponding decoupled Chewtoy is installed & active
     if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
     if (item.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
+    if (item.id === 'converter' && activeChewtoyIds.has('convertx')) return false;
+    if (item.id === 'pdf' && activeChewtoyIds.has('pdfstudio')) return false;
     return true;
   });
 
@@ -11126,17 +11131,6 @@ function renderToolsMenu() {
     });
   }
 
-  html += `
-    <div class="dropdown-sep"></div>
-    <div class="dropdown-item" onclick="openToolsMenuCustomizer(event); closeToolsMenu();" style="color: var(--accent); font-size: 11px; padding: 6px 12px; display: flex; justify-content: space-between; align-items: center;">
-      <span style="display: flex; align-items: center; gap: 8px;">
-        <i data-lucide="sliders-horizontal" style="width: 14px; height: 14px;"></i>
-        <span>Customize Tools Menu...</span>
-      </span>
-      <span style="font-size: 10px; opacity: 0.7;">⚙️</span>
-    </div>
-  `;
-
   menu.innerHTML = html;
   if (window.lucide) {
     lucide.createIcons({ root: menu });
@@ -11157,7 +11151,16 @@ function renderToolsSettingsTab() {
   const counter = document.getElementById('tools-visible-counter');
   if (!container) return;
 
-  const config = getToolsMenuConfig();
+  const activeChewToys = (window.installedChewToys || []).filter(p => p.is_enabled !== false && p.enabled !== false);
+  const activeChewtoyIds = new Set(activeChewToys.map(p => p.id));
+
+  const config = getToolsMenuConfig().filter(item => {
+    if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
+    if (item.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
+    if (item.id === 'converter' && activeChewtoyIds.has('convertx')) return false;
+    if (item.id === 'pdf' && activeChewtoyIds.has('pdfstudio')) return false;
+    return true;
+  });
   const visibleCount = config.filter(item => item.visible !== false).length;
   if (counter) {
     counter.textContent = `${visibleCount} / ${config.length} Visible`;
@@ -13609,7 +13612,8 @@ function lockSession() {
     } catch (_) {}
   }
 
-  const uname = cachedUser?.nickname || cachedUser?.username || 'Brum User';
+  const lastUser = localStorage.getItem('cd_last_username') || '';
+  const uname = cachedUser?.nickname || cachedUser?.username || lastUser || 'Brum User';
   const avatar = cachedUser?.avatar_url || '👤';
 
   const userTextEl = document.getElementById('lock-username-text');
@@ -13654,29 +13658,56 @@ async function submitUnlockSession() {
       cachedUser = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
     } catch (_) {}
   }
-  const uname = cachedUser?.username || 'admin';
+  const domUsername = document.getElementById('lock-username-text')?.textContent?.trim();
+  const lastUsername = localStorage.getItem('cd_last_username') || '';
+  const uname = cachedUser?.username || domUsername || lastUsername || 'admin';
 
-  if (submitBtn) submitBtn.disabled = true;
+  if (errMsg) errMsg.style.display = 'none';
+
+  const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i data-lucide="loader" class="spinner" style="width: 14px; height: 14px;"></i> <span>Unlocking...</span>';
+    if (window.lucide) lucide.createIcons({ root: submitBtn });
+  }
 
   try {
     let unlocked = false;
-    // 1. If App.token exists, try unlocking with existing session
+    const authHeaders = { 'Content-Type': 'application/json' };
     if (App.token) {
-      const resp = await fetch('/api/auth/unlock', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${App.token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ password: pass })
-      });
-      if (resp.ok) {
-        unlocked = true;
-      }
+      authHeaders['Authorization'] = `Bearer ${App.token}`;
     }
 
-    // 2. If not unlocked (token expired/invalid/missing), re-authenticate via /api/auth/login
-    if (!unlocked) {
+    // 1. Direct unified unlock endpoint (fast path: accepts active or expired token, or username)
+    const resp = await fetch('/api/auth/unlock', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ password: pass, username: uname })
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.token) {
+        App.token = data.token;
+        localStorage.setItem('cd_token', data.token);
+        try {
+          document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
+        } catch (_) {}
+      }
+      if (data.user) {
+        App.user = data.user;
+        try {
+          localStorage.setItem('cd_user_info', JSON.stringify({
+            username: data.user.username,
+            nickname: data.user.nickname,
+            avatar_url: data.user.avatar_url
+          }));
+          localStorage.setItem('cd_last_username', data.user.username);
+        } catch (_) {}
+      }
+      unlocked = true;
+    } else if (resp.status === 404 || resp.status === 400) {
+      // 2. Fallback to /api/auth/login if /api/auth/unlock endpoint is not available
       const loginResp = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -13694,6 +13725,7 @@ async function submitUnlockSession() {
             nickname: data.user?.nickname,
             avatar_url: data.user?.avatar_url
           }));
+          localStorage.setItem('cd_last_username', data.user?.username);
         } catch (_) {}
         unlocked = true;
       }
@@ -13730,7 +13762,11 @@ async function submitUnlockSession() {
       errMsg.style.display = 'block';
     }
   } finally {
-    if (submitBtn) submitBtn.disabled = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = origBtnHtml || '<i data-lucide="unlock" style="width: 14px; height: 14px;"></i> <span>Unlock Session</span>';
+      if (window.lucide) lucide.createIcons({ root: submitBtn });
+    }
   }
 }
 
@@ -14338,6 +14374,9 @@ async function handleLoginSubmit() {
           nickname: data.user?.nickname,
           avatar_url: data.user?.avatar_url
         }));
+        if (data.user?.username) {
+          localStorage.setItem('cd_last_username', data.user.username);
+        }
       } catch (e) {}
       localStorage.removeItem('cd_is_locked');
       App.isLocked = false;
@@ -15824,6 +15863,12 @@ function openPaneToolsMenu(e, paneIndex) {
       </div>
       <div class="dropdown-item" onclick="promptRenamePane(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="edit-3" style="color: var(--accent);"></i> Rename Pane Label...
+      </div>
+      <div class="dropdown-item" onclick="togglePaneTree(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="folder-tree" style="color: var(--accent);"></i> Toggle Folder Tree Sidebar (${App.panes[paneIndex]?.showTree ? 'Hide' : 'Show'})
+      </div>
+      <div class="dropdown-item" onclick="toggleBranchView(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="git-branch" style="color: var(--accent);"></i> Toggle Flat Branch View (${App.panes[paneIndex]?.isBranchView ? 'Disable' : 'Enable'})
       </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); showPaneNodeDropdown(event, ${paneIndex});">
         <i data-lucide="server" style="color: var(--accent);"></i> Switch Target Node (Fleet)...
@@ -24523,6 +24568,8 @@ function buildSpotlightItems() {
     pool.push(...SPOTLIGHT_STATIC_ACTIONS.filter(a => {
       if (a.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
       if (a.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
+      if (a.id === 'convert' && activeChewtoyIds.has('convertx')) return false;
+      if (a.id === 'pdf' && activeChewtoyIds.has('pdfstudio')) return false;
       return true;
     }).map(a => ({
       title: a.title,
@@ -26893,6 +26940,30 @@ let currentPdfOrganizerPages = []; // [{ page_num: 1, rotation: 0 }]
 let activePdfTab = 'merge';
 
 function openPdfToolModal(initialPdf = null, tab = 'merge') {
+  const plugin = (window.installedChewToys || []).find(p => p.id === 'pdfstudio');
+  if (plugin && plugin.enabled !== false) {
+    const pane = App.panes ? App.panes[App.activePaneIndex] : null;
+    let selectedFiles = [];
+    if (initialPdf) {
+      selectedFiles = [initialPdf];
+    } else if (pane) {
+      selectedFiles = Array.from(pane.selected || []).filter(p => isPdfExtension(p));
+      if (selectedFiles.length === 0) {
+        const item = pane.entries ? pane.entries[pane.cursorIndex] : null;
+        if (item && isPdfExtension(item.path)) {
+          selectedFiles.push(item.path);
+        }
+      }
+    }
+    openDynamicChewToy('pdfstudio', {
+      tab: tab,
+      initialPdf: initialPdf,
+      selectedFiles: selectedFiles,
+      activePath: pane ? pane.path : '/'
+    });
+    return;
+  }
+
   const modal = document.getElementById('pdf-tool-modal');
   if (!modal) return;
 

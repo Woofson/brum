@@ -42,6 +42,22 @@ if [ -f "./target/release/brum" ]; then
     fi
 fi
 
+# Configure PAM service for brum if /etc/pam.d exists and /etc/pam.d/brum is missing
+if [ -d /etc/pam.d ] && [ ! -f /etc/pam.d/brum ]; then
+    if [ -f /etc/pam.d/common-auth ]; then
+        cat << 'PAMEOF' > /etc/pam.d/brum
+# PAM configuration for Brum (Debian/Ubuntu)
+@include common-auth
+@include common-account
+@include common-session
+PAMEOF
+    elif [ -f /etc/pam.d/login ]; then
+        cp /etc/pam.d/login /etc/pam.d/brum 2>/dev/null || true
+    elif [ -f /etc/pam.d/passwd ]; then
+        cp /etc/pam.d/passwd /etc/pam.d/brum 2>/dev/null || true
+    fi
+fi
+
 # 4. Enable and start systemd service
 if command -v systemctl >/dev/null 2>&1; then
     echo "⚙️ Enabling and starting systemd service..."

@@ -1,0 +1,27 @@
+[plugin]
+id = "pdfstudio"
+name = "PDF Studio"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Pure-Rust PDF workstation: visual merge, split, reorder, rotate, and inspect PDF documents."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.webp"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 680
+default_height = 640
+min_width = 380
+min_height = 460
+
+[integrations]
+launchpad = true
+launchpad_label = "PDF Studio"
+shortcut = "Ctrl+Alt+P"
+file_extensions = ["pdf"]
+context_menu_label = "PDF Studio (Merge & Split)"
+
+[permissions]
+permissions = ["fs:read", "fs:write", "ui:notify"]

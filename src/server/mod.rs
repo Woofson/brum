@@ -1064,6 +1064,7 @@ struct CreateBookmarkRequest {
 #[derive(Deserialize)]
 struct UnlockRequest {
     password: String,
+    username: Option<String>,
 }
 
 async fn handle_unlock_session(
@@ -1072,14 +1073,30 @@ async fn handle_unlock_session(
     Json(payload): Json<UnlockRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
+    let mut username = payload.username.clone();
+
+    // 1. If authorization token is present, extract claims (allowing expired token during lock)
     if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        match state.auth.authenticate(&claims.sub, &payload.password) {
-            Ok(_) => Ok(Json(serde_json::json!({ "success": true, "message": "Session unlocked" }))),
+        if let Ok(claims) = state.auth.verify_token_allow_expired(token_str) {
+            username = Some(claims.sub);
+        }
+    }
+
+    if let Some(uname) = username {
+        match state.auth.authenticate(&uname, &payload.password) {
+            Ok(user) => {
+                let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+                Ok(Json(serde_json::json!({
+                    "success": true,
+                    "message": "Session unlocked",
+                    "token": new_token,
+                    "user": user
+                })))
+            }
             Err(e) => Err((StatusCode::UNAUTHORIZED, e.to_string())),
         }
     } else {
-        Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+        Err((StatusCode::UNAUTHORIZED, "Missing username or authorization token".to_string()))
     }
 }
 

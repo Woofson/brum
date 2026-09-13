@@ -83,6 +83,7 @@ pub struct AuthManager {
     auth_mode: String,
     #[allow(dead_code)]
     pam_service: String,
+    cached_pam_service: Arc<std::sync::RwLock<Option<String>>>,
 }
 
 impl AuthManager {
@@ -241,6 +242,7 @@ impl AuthManager {
             session_hours,
             auth_mode: auth_mode.to_string(),
             pam_service: pam_service.to_string(),
+            cached_pam_service: Arc::new(std::sync::RwLock::new(None)),
         };
 
         // Seed default admin user if database is empty
@@ -550,15 +552,41 @@ impl AuthManager {
             let is_system_user = false;
 
             if is_system_user {
-                let mut services = vec![self.pam_service.as_str()];
-                for fallback in &["common-auth", "sudo", "other", "passwd", "login"] {
-                    if !services.contains(fallback) {
-                        services.push(fallback);
+                let mut services: Vec<String> = Vec::new();
+
+                // 1. If we have a verified working PAM service cached in memory, prioritize it
+                if let Ok(guard) = self.cached_pam_service.read() {
+                    if let Some(ref cached) = *guard {
+                        services.push(cached.clone());
+                    }
+                }
+
+                // 2. Add configured pam_service if not already tried and if exists
+                if !services.contains(&self.pam_service) {
+                    let path = format!("/etc/pam.d/{}", self.pam_service);
+                    if std::path::Path::new(&path).exists() || services.is_empty() {
+                        services.push(self.pam_service.clone());
+                    }
+                }
+
+                // 3. Fallback candidates prioritizing standalone services present in /etc/pam.d/
+                for candidate in &["login", "passwd", "common-auth", "sudo", "other"] {
+                    let cand_str = candidate.to_string();
+                    if !services.contains(&cand_str) {
+                        let path = format!("/etc/pam.d/{}", candidate);
+                        if std::path::Path::new(&path).exists() {
+                            services.push(cand_str);
+                        }
                     }
                 }
 
                 for svc in services {
-                    if pam::authenticate(svc, username, password).is_ok() {
+                    if pam::authenticate(&svc, username, password).is_ok() {
+                        // Cache the verified working PAM service for instantaneous future unlocks
+                        if let Ok(mut guard) = self.cached_pam_service.write() {
+                            *guard = Some(svc.clone());
+                        }
+
                         let (home_dir, def_role) = get_linux_user_info(username);
                         
                         // Check if this PAM user already has a linked DB record
@@ -810,6 +838,32 @@ impl AuthManager {
                 None => {
                     return Err("API token has been revoked".into());
                 }
+            }
+        }
+
+        Ok(token_data.claims)
+    }
+
+    pub fn verify_token_allow_expired(&self, token: &str) -> Result<Claims, Box<dyn std::error::Error + Send + Sync>> {
+        let mut validation = Validation::default();
+        validation.validate_exp = false;
+        let token_data = decode::<Claims>(
+            token,
+            &DecodingKey::from_secret(self.jwt_secret.as_bytes()),
+            &validation,
+        )?;
+
+        // If it's a persistent API token with a token_id, check DB to ensure it's not revoked
+        if let Some(ref tid) = token_data.claims.token_id {
+            let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+            let token_row: Option<(Option<i64>, String)> = conn.query_row(
+                "SELECT expires_at, role FROM api_tokens WHERE id = ?1",
+                params![tid],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            ).optional()?;
+
+            if token_row.is_none() {
+                return Err("API token has been revoked".into());
             }
         }
 
@@ -1408,5 +1462,30 @@ mod tests {
         // 5. Verify Revoked Token Fails
         let verify_res = auth.verify_token(&gen.token);
         assert!(verify_res.is_err());
+    }
+
+    #[test]
+    fn test_verify_token_allow_expired_for_session_unlock() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("test_unlock.db");
+        let auth = AuthManager::new(
+            &db_file.to_string_lossy(),
+            "secret-key-123456789012345678901234",
+            24,
+            "builtin",
+            "login",
+            "admin",
+            "admin",
+        ).unwrap();
+
+        let user = auth.get_user_by_username("admin").unwrap().unwrap();
+        let token = auth.generate_token(&user).unwrap();
+
+        // 1. Valid token succeeds with both verify_token and verify_token_allow_expired
+        let claims = auth.verify_token(&token).unwrap();
+        assert_eq!(claims.sub, "admin");
+
+        let claims_allow_exp = auth.verify_token_allow_expired(&token).unwrap();
+        assert_eq!(claims_allow_exp.sub, "admin");
     }
 }
