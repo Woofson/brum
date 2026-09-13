@@ -26319,6 +26319,40 @@ function closeDockedTool(paneIndex) {
     }
   }
 
+  if (tool === 'tageditor') {
+    const win = document.getElementById('floating-tageditor-window');
+    const body = document.getElementById('tageditor-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
+
+  if (tool === 'logviewer') {
+    const win = document.getElementById('floating-logviewer-window');
+    const toolbar = document.querySelector('.logviewer-toolbar');
+    const body = document.getElementById('logviewer-console');
+    if (win) {
+      if (toolbar && !win.contains(toolbar)) win.appendChild(toolbar);
+      if (body && !win.contains(body)) win.appendChild(body);
+    }
+  }
+
+  if (tool === 'renamer') {
+    const win = document.getElementById('floating-renamer-window');
+    const body = document.getElementById('renamer-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
+
+  if (tool === 'hexeditor') {
+    const win = document.getElementById('floating-hexeditor-window');
+    const body = document.getElementById('hexeditor-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
+
   if (tool === 'mediaplayer') {
     const dockedVid = document.getElementById(`docked-mediaplayer-video-${paneIndex}`);
     if (dockedVid) {
@@ -33796,9 +33830,20 @@ function openBatchRenamer(files = null, paneIndex = null) {
   const pane = App.panes[renamerActivePaneIndex];
   
   const win = document.getElementById('floating-renamer-window');
+  const body = document.getElementById('renamer-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
   const pill = document.getElementById('renamer-pill');
   if (pill) pill.style.display = 'none';
   if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
     win.style.display = 'flex';
     bringFloatingWindowToFront(win);
   }
@@ -34348,9 +34393,20 @@ function initHexEditorDragResize() {
 
 async function openHexEditor(filePath = null) {
   const win = document.getElementById('floating-hexeditor-window');
+  const body = document.getElementById('hexeditor-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
   const pill = document.getElementById('hexeditor-pill');
   if (pill) pill.style.display = 'none';
   if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
     win.style.display = 'flex';
     bringFloatingWindowToFront(win);
   }
@@ -34859,6 +34915,12 @@ function openDuplicateFinder(targetPath = null, paneIndex = null) {
   const pill = document.getElementById('duplicates-pill');
   if (pill) pill.style.display = 'none';
   if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
     win.style.display = 'flex';
     bringFloatingWindowToFront(win);
   }
@@ -35345,9 +35407,20 @@ function openTagEditor(files = null, paneIndex = null) {
   const pane = App.panes[tagEditorActivePaneIndex];
 
   const win = document.getElementById('floating-tageditor-window');
+  const body = document.getElementById('tageditor-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
   const pill = document.getElementById('tageditor-pill');
   if (pill) pill.style.display = 'none';
   if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
     win.style.display = 'flex';
     bringFloatingWindowToFront(win);
   }
@@ -35701,16 +35774,9 @@ async function applyBatchAutoTrackNumbers() {
 
 function mountDockedTagEditor(paneIndex) {
   const host = document.getElementById(`docked-tageditor-host-${paneIndex}`);
-  const floatingBody = document.querySelector('.floating-tageditor-window .tageditor-body');
-  if (host && floatingBody) {
-    host.innerHTML = `
-      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-tag-mount-${paneIndex}"></div>
-    `;
-    const innerMount = document.getElementById(`docked-tag-mount-${paneIndex}`);
-    if (innerMount) {
-      innerMount.innerHTML = floatingBody.innerHTML;
-      if (window.lucide) lucide.createIcons({ root: innerMount });
-    }
+  const body = document.getElementById('tageditor-body');
+  if (host && body) {
+    host.appendChild(body);
   }
 }
 
@@ -35808,9 +35874,22 @@ function openLogViewer(filePath = null, paneIndex = null) {
   logViewerState.filePath = targetLog || '/var/log/syslog';
 
   const win = document.getElementById('floating-logviewer-window');
+  const toolbar = document.querySelector('.logviewer-toolbar');
+  const consoleEl = document.getElementById('logviewer-console');
+  if (win) {
+    if (toolbar && !win.contains(toolbar)) win.appendChild(toolbar);
+    if (consoleEl && !win.contains(consoleEl)) win.appendChild(consoleEl);
+  }
+
   const pill = document.getElementById('logviewer-pill');
   if (pill) pill.style.display = 'none';
   if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
     win.style.display = 'flex';
     bringFloatingWindowToFront(win);
   }
@@ -35987,15 +36066,12 @@ function toggleLogViewerInvert() {
 
 function mountDockedLogViewer(paneIndex) {
   const host = document.getElementById(`docked-logviewer-host-${paneIndex}`);
-  const floatingBody = document.querySelector('.floating-logviewer-window .logviewer-console');
-  if (host && floatingBody) {
-    host.innerHTML = `
-      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: #0d1117;" id="docked-log-mount-${paneIndex}"></div>
-    `;
-    const innerMount = document.getElementById(`docked-log-mount-${paneIndex}`);
-    if (innerMount) {
-      fetchLogViewerTail();
-    }
+  const toolbar = document.querySelector('.logviewer-toolbar');
+  const consoleEl = document.getElementById('logviewer-console');
+  if (host && consoleEl) {
+    if (toolbar) host.appendChild(toolbar);
+    host.appendChild(consoleEl);
+    fetchLogViewerTail();
   }
 }
 

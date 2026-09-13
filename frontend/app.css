@@ -14888,11 +14888,11 @@ body.standalone-mode .server-only-setting {
   position: fixed;
   top: 75px;
   left: calc(50vw - 360px);
-  width: 720px;
-  height: 560px;
-  min-width: 440px;
-  min-height: 380px;
-  max-width: calc(100vw - 20px);
+  width: min(720px, calc(100vw - 24px));
+  height: min(560px, calc(100vh - 85px));
+  min-width: 320px;
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
   max-height: calc(100vh - 40px);
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -15150,11 +15150,11 @@ body.standalone-mode .server-only-setting {
   position: fixed;
   top: 65px;
   left: calc(50vw - 420px);
-  width: 840px;
-  height: 600px;
-  min-width: 480px;
-  min-height: 400px;
-  max-width: calc(100vw - 20px);
+  width: min(840px, calc(100vw - 24px));
+  height: min(600px, calc(100vh - 85px));
+  min-width: 320px;
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
   max-height: calc(100vh - 40px);
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -15354,24 +15354,6 @@ body.standalone-mode .server-only-setting {
   flex-shrink: 0;
 }
 
-@media (max-width: 768px) {
-  .floating-renamer-window,
-  .floating-hexeditor-window,
-  .floating-duplicates-window,
-  .floating-tageditor-window,
-  .floating-logviewer-window {
-    top: 36px !important;
-    left: 0 !important;
-    width: 100vw !important;
-    height: calc(100vh - 36px) !important;
-    border-radius: 0 !important;
-  }
-  .hexeditor-inspector-panel,
-  .tageditor-preview-col {
-    display: none;
-  }
-}
-
 /* ==========================================================================
    🔍 FLOATING DUPLICATE FINDER CORE FUNCTION
    ========================================================================== */
@@ -15379,11 +15361,11 @@ body.standalone-mode .server-only-setting {
   position: fixed;
   top: 75px;
   left: calc(50vw - 400px);
-  width: 800px;
-  height: 600px;
-  min-width: 460px;
-  min-height: 400px;
-  max-width: calc(100vw - 20px);
+  width: min(800px, calc(100vw - 24px));
+  height: min(600px, calc(100vh - 85px));
+  min-width: 320px;
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
   max-height: calc(100vh - 40px);
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -15604,11 +15586,11 @@ body.standalone-mode .server-only-setting {
   position: fixed;
   top: 75px;
   left: calc(50vw - 420px);
-  width: 840px;
-  height: 580px;
-  min-width: 500px;
-  min-height: 400px;
-  max-width: calc(100vw - 20px);
+  width: min(840px, calc(100vw - 24px));
+  height: min(580px, calc(100vh - 85px));
+  min-width: 320px;
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
   max-height: calc(100vh - 40px);
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -15705,11 +15687,11 @@ body.standalone-mode .server-only-setting {
   position: fixed;
   top: 75px;
   left: calc(50vw - 440px);
-  width: 880px;
-  height: 600px;
-  min-width: 480px;
-  min-height: 400px;
-  max-width: calc(100vw - 20px);
+  width: min(880px, calc(100vw - 24px));
+  height: min(600px, calc(100vh - 85px));
+  min-width: 320px;
+  min-height: 320px;
+  max-width: calc(100vw - 16px);
   max-height: calc(100vh - 40px);
   background: var(--bg-panel);
   border: 1px solid var(--border);
@@ -15833,6 +15815,195 @@ body.standalone-mode .server-only-setting {
 
 .log-text {
   flex: 1;
+}
+
+/* ==========================================================================
+   📱 ADAPTIVE VIEWPORT RESPONSIVENESS (Phone <600px, Tablet 600-1024px, PC >1024px)
+   ========================================================================== */
+
+/* 1. Tablet Viewports (601px - 1024px) */
+@media (max-width: 1024px) {
+  .floating-renamer-window,
+  .floating-hexeditor-window,
+  .floating-duplicates-window,
+  .floating-tageditor-window,
+  .floating-logviewer-window {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    top: 48px !important;
+    height: calc(100vh - 65px) !important;
+    max-height: calc(100vh - 65px) !important;
+    min-width: 0 !important;
+  }
+
+  .tageditor-file-list-col {
+    width: 200px;
+    min-width: 160px;
+  }
+}
+
+/* 2. Narrow Screens & Phone Viewports (<= 768px / <= 600px) */
+@media (max-width: 768px) {
+  .floating-renamer-window,
+  .floating-hexeditor-window,
+  .floating-duplicates-window,
+  .floating-tageditor-window,
+  .floating-logviewer-window {
+    top: 36px !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: calc(100vh - 36px) !important;
+    max-width: 100vw !important;
+    max-height: calc(100vh - 36px) !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    border-bottom: none !important;
+  }
+
+  .floating-renamer-window .win-resize-handle,
+  .floating-hexeditor-window .win-resize-handle,
+  .floating-duplicates-window .win-resize-handle,
+  .floating-tageditor-window .win-resize-handle,
+  .floating-logviewer-window .win-resize-handle {
+    display: none !important;
+  }
+
+  /* Tag Editor Mobile Responsive Stacking */
+  .tageditor-body {
+    flex-direction: column !important;
+  }
+
+  .tageditor-file-list-col {
+    width: 100% !important;
+    min-width: 100% !important;
+    max-height: 120px !important;
+    border-right: none !important;
+    border-bottom: 1px solid var(--border) !important;
+    flex-shrink: 0 !important;
+  }
+
+  .tageditor-main-col {
+    padding: 8px !important;
+    gap: 8px !important;
+  }
+
+  .tageditor-form-grid {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  .tageditor-art-box {
+    width: 80px !important;
+    height: 80px !important;
+  }
+
+  /* Hex Editor Mobile */
+  .hexeditor-inspector-panel {
+    display: none;
+  }
+
+  .hexeditor-inspector-panel.mobile-active {
+    display: flex !important;
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100% !important;
+    max-height: 45%;
+    z-index: 10;
+    border-left: none !important;
+    border-top: 1px solid var(--border) !important;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.6);
+  }
+
+  /* Duplicate Finder Mobile */
+  .dup-controls-bar {
+    padding: 6px 8px !important;
+    gap: 6px !important;
+  }
+
+  .dup-criteria-row {
+    gap: 6px !important;
+  }
+
+  .dup-criteria-row #btn-start-dup-scan {
+    width: 100% !important;
+    margin-left: 0 !important;
+    margin-top: 2px !important;
+  }
+
+  .dup-footer-bar {
+    height: auto !important;
+    min-height: 42px !important;
+    padding: 6px 8px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+
+  .dup-footer-bar > div {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  /* Batch Renamer Mobile */
+  .renamer-rules-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .renamer-footer-bar {
+    height: auto !important;
+    min-height: 42px !important;
+    padding: 6px 8px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 6px !important;
+  }
+
+  .renamer-footer-bar > div {
+    width: 100% !important;
+    justify-content: space-between !important;
+  }
+
+  /* Log Viewer Mobile */
+  .logviewer-toolbar {
+    padding: 6px 8px !important;
+    gap: 6px !important;
+  }
+
+  .logviewer-console {
+    padding: 4px 6px !important;
+    font-size: 10.5px !important;
+  }
+
+  .log-line {
+    gap: 4px !important;
+    padding: 2px 2px !important;
+  }
+
+  .log-line-num {
+    width: 32px !important;
+    font-size: 9.5px !important;
+  }
+
+  .log-timestamp {
+    font-size: 9.5px !important;
+  }
+
+  /* Responsive Pills Row on Mobile */
+  .renamer-pill,
+  .hexeditor-pill,
+  .duplicates-pill,
+  .tageditor-pill,
+  .logviewer-pill {
+    right: auto !important;
+    left: 8px !important;
+    bottom: 8px !important;
+    max-width: calc(100vw - 16px);
+  }
 }
 
 
