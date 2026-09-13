@@ -2935,7 +2935,6 @@
     <!-- 1. Top Header (Draggable) -->
     <div class="modal-header notedog-header" id="notedog-header">
       <div class="notedog-header-left" style="display: flex; align-items: center; gap: 6px;">
-        <button type="button" class="btn btn-icon notedog-drawer-btn" id="btn-notedog-drawer-toggle" onclick="toggleNoteDogDrawer()" title="Toggle Notes Explorer (Sidebar)"><i data-lucide="panel-left"></i></button>
         <span class="notedog-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
           <img src="assets/note.webp" alt="Notes" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
           <span class="chewtoy-brand-text">Notes</span>
@@ -2948,6 +2947,9 @@
       </div>
 
       <div class="notedog-header-actions" style="display: flex; align-items: center; gap: 4px;">
+        <!-- Notes Explorer Drawer Toggle -->
+        <button type="button" class="btn btn-icon notedog-drawer-btn" id="btn-notedog-drawer-toggle" onclick="toggleNoteDogDrawer()" title="Toggle Notes Explorer (Sidebar)"><i data-lucide="panel-left"></i></button>
+
         <!-- 1. Layout Switcher (Desktop Only, Icon-Only, Right-Aligned) -->
         <div class="layout-btn-group desktop-only" id="notedog-layout-btn-group">
           <button type="button" class="btn btn-icon notedog-mode-btn" id="notedog-mode-edit" onclick="setNoteDogViewMode('edit')" title="Editor Only View (1)"><i data-lucide="square"></i></button>
@@ -3633,10 +3635,9 @@
     <!-- 1. Header Bar (42px Drag Handle) -->
     <div class="modal-header audioplayer-header" id="sounddog-header">
       <div class="audioplayer-header-left" style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-        <button type="button" class="btn btn-icon audioplayer-drawer-btn" id="btn-sounddog-playlist-toggle" onclick="toggleSoundDogPlaylistDrawer()" title="Toggle Playlist Drawer (Alt+P)"><i data-lucide="list-music"></i></button>
         <span class="audioplayer-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          <img src="assets/amber-media.webp" alt="Audioplayer" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
-          <span class="chewtoy-brand-text">Audioplayer</span>
+          <img src="assets/amber-media.webp" alt="Audio Player" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
+          <span class="chewtoy-brand-text">Audio Player</span>
           <span class="badge" id="sounddog-format-badge" style="font-size: 9px; text-transform: uppercase;">MP3</span>
         </span>
       </div>
@@ -3646,6 +3647,9 @@
       </div>
 
       <div class="audioplayer-header-actions" style="display: flex; align-items: center; gap: 4px;">
+        <!-- Playlist Drawer Toggle Button -->
+        <button type="button" class="btn btn-icon audioplayer-drawer-btn" id="btn-sounddog-playlist-toggle" onclick="toggleSoundDogPlaylistDrawer()" title="Toggle Playlist Drawer (Alt+P)"><i data-lucide="list-music"></i></button>
+
         <!-- EQ Toggle Button -->
         <button class="btn btn-icon" id="btn-sounddog-eq-toggle" onclick="toggleSoundDogEqDrawer()" title="Toggle 10-Band Studio Equalizer (E)"><i data-lucide="sliders"></i></button>
 
@@ -6100,10 +6104,9 @@
     <!-- 1. Header Bar (42px Drag Handle) -->
     <div class="modal-header mediaplayer-header" id="mediaplayer-header">
       <div class="mediaplayer-header-left" style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
-        <button type="button" class="btn btn-icon mediaplayer-drawer-btn" id="btn-mediaplayer-playlist-toggle" onclick="toggleMediaPlaylistDrawer()" title="Toggle Playlist Drawer (Alt+P)"><i data-lucide="list-video"></i></button>
         <span class="mediaplayer-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-          <img src="assets/media.webp" alt="Mediaplayer" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
-          <span class="chewtoy-brand-text">Mediaplayer</span>
+          <img src="assets/media.webp" alt="Media Player" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
+          <span class="chewtoy-brand-text">Media Player</span>
           <span class="badge" id="mediaplayer-badge" style="font-size: 9px; text-transform: uppercase;">MP4</span>
         </span>
       </div>
@@ -6113,6 +6116,9 @@
       </div>
 
       <div class="mediaplayer-header-actions" style="display: flex; align-items: center; gap: 4px;">
+        <!-- Playlist Drawer Toggle Button -->
+        <button type="button" class="btn btn-icon mediaplayer-drawer-btn" id="btn-mediaplayer-playlist-toggle" onclick="toggleMediaPlaylistDrawer()" title="Toggle Playlist Drawer (Alt+P)"><i data-lucide="list-video"></i></button>
+
         <!-- Detached Picture-in-Picture -->
         <button class="btn btn-icon desktop-only" id="btn-mediaplayer-pip" onclick="toggleMediaPiP()" title="Picture-in-Picture (Detached Popout)"><i data-lucide="picture-in-picture-2"></i></button>
 

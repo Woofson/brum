@@ -1733,17 +1733,17 @@ function createPaneElement(pane, index) {
       toolTitleHtml = `<img src="${escapeHtml(iconSrc)}" alt="${escapeHtml(name)}" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src='assets/amber-frameless-apps.webp'"> ${escapeHtml(name)}`;
     } else {
       const toolTitles = {
-        'editor': '<img src="assets/edit.webp" alt="EditorDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> EditorDog',
-        'notedog': '<img src="assets/note.webp" alt="NoteDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> NoteDog',
+        'editor': '<img src="assets/edit.webp" alt="Editor" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Editor',
+        'notedog': '<img src="assets/note.webp" alt="Notes" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Notes',
         'terminal': '<img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Terminal Console',
         'calculator': '<img src="assets/calc.webp" alt="Calculator" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Calculator',
         'renamer': '<i data-lucide="file-signature" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Batch Renamer',
         'hexeditor': '<i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Hex Editor',
         'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src=\'assets/amber-frameless-apps.webp\'"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
-        'tetradog': '<img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> TetraDog',
-        'sounddog': '<img src="assets/amber-media.webp" alt="SoundDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> SoundDog',
-        'mediaplayer': '<img src="assets/media.webp" alt="MediaPlayer" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> MediaPlayer'
+        'tetradog': '<img src="assets/amber-tetris.webp" alt="Tetris" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetris',
+        'sounddog': '<img src="assets/amber-media.webp" alt="Audio Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Audio Player',
+        'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
     }
