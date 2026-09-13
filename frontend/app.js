@@ -10660,12 +10660,6 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
     filePath = pane.entries[pane.cursorIndex].path;
   }
 
-  const plugin = (window.installedChewToys || []).find(p => p.id === 'convertx');
-  if (plugin && plugin.enabled !== false) {
-    openDynamicChewToy('convertx', { filePath, defaultFormat, paneIndex: resolvedPaneIdx, selectedFiles: filePath ? [filePath] : [] });
-    return;
-  }
-
   activeConverterPaneIndex = resolvedPaneIdx;
 
   // If conversion already running for this job, restore view
@@ -11033,25 +11027,26 @@ function updateLogoutOrExitButton() {
   }
 }
 
-// ---------------- TOOLS & CHEWTOYS LAUNCHPAD MENU CUSTOMIZER ----------------
+// ---------------- TOOLS & LAUNCHPAD MENU CUSTOMIZER ----------------
 const DEFAULT_TOOLS_MENU = [
   { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
   { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
   { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
   { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
+  { id: 'splitter', label: 'File Splitter', icon: 'scissors', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
   { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
-  { id: 'editor', label: 'Edit', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
+  { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
   { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal()', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
   { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager()', desc: 'Manage public share links and guest dropboxes', visible: true },
-  { id: 'sync', label: 'Backup', icon: 'assets/sync.webp', action: 'openSyncModal()', desc: 'Two-way sync, mirrors, snapshot archives & cron (SyncToy / Bvckup 2)', visible: true },
-  { id: 'du', label: 'Stats', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
+  { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal()', desc: 'Two-way sync, mirrors, snapshot archives & replication', visible: true },
+  { id: 'du', label: 'Disk Usage', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
-  { id: 'converter', label: 'ConvertX', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
-  { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs (PDF Power Studio)', visible: true },
-  { id: 'mediaplayer', label: 'Mediaplayer', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video & media player, subtitles, PiP & playlist', visible: true },
-  { id: 'sounddog', label: 'Audioplayer', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band studio equalizer', visible: true },
-  { id: 'tetradog', label: 'Tetra', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle chewtoy with synchronized top scores', visible: true }
+  { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
+  { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
+  { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video player, subtitles, PiP & playlist', visible: true },
+  { id: 'sounddog', label: 'Audio Player', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band equalizer', visible: true },
+  { id: 'tetradog', label: 'Tetris', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
 ];
 
 function getToolsMenuConfig() {
@@ -11134,8 +11129,6 @@ function renderToolsMenu() {
     // Omit legacy built-ins when corresponding decoupled Chewtoy is installed & active
     if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
     if (item.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
-    if (item.id === 'converter' && activeChewtoyIds.has('convertx')) return false;
-    if (item.id === 'pdf' && activeChewtoyIds.has('pdfstudio')) return false;
     return true;
   });
 
@@ -11192,8 +11185,6 @@ function renderToolsSettingsTab() {
   const config = getToolsMenuConfig().filter(item => {
     if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
     if (item.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
-    if (item.id === 'converter' && activeChewtoyIds.has('convertx')) return false;
-    if (item.id === 'pdf' && activeChewtoyIds.has('pdfstudio')) return false;
     return true;
   });
   const visibleCount = config.filter(item => item.visible !== false).length;
@@ -24489,25 +24480,26 @@ let spotlightAsyncLoading = false;
 const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'renamer', title: 'Batch Renamer', sub: 'Multi-file pattern replacement, sequential renamer & live diff preview (Ctrl+M)', icon: 'file-signature', cat: 'actions', action: () => openBatchRenamer() },
   { id: 'hexeditor', title: 'Hex Editor', sub: 'Binary hexadecimal viewer, byte patching & checksum calculator', icon: 'binary', cat: 'actions', action: () => openHexEditor() },
+  { id: 'splitter', title: 'File Splitter & Combiner', sub: 'Split large files into chunks (.001, .002) and verify/combine with SHA-256', icon: 'scissors', cat: 'actions', action: () => openFileSplitterModal() },
   { id: 'notedog', title: 'Notes', sub: 'Hierarchical notes, markdown editor, interactive checklists, templates & versions', icon: 'assets/note.webp', cat: 'actions', action: () => openFloatingNoteDog() },
   { id: 'calc', title: 'Calculator', sub: 'Interactive floating calculator with storage units & base conversions', icon: 'assets/calc.webp', cat: 'actions', action: () => openFloatingCalculator() },
   { id: 'branch', title: 'Flat', sub: 'Flatten all subdirectories into a single unified list (Ctrl+B)', icon: 'assets/amber-git-branch.webp', cat: 'actions', action: () => toggleBranchView() },
   { id: 'tree', title: 'Tree', sub: 'Collapsible directory navigation tree (Ctrl+T)', icon: 'assets/amber-folder-tree.webp', cat: 'actions', action: () => toggleFolderTree() },
   { id: 'tags', title: 'Color Labels & Custom Tags', sub: 'Assign color labels and custom tags to selected items', icon: 'tag', cat: 'actions', action: () => triggerEditTagsModal() },
   { id: 'term', title: 'Terminal', sub: 'Open integrated interactive terminal (` or F4)', icon: 'assets/term.webp', cat: 'actions', action: () => toggleTerminal() },
-  { id: 'edit', title: 'Edit', sub: 'Open floating Edit code & text editor (F4)', icon: 'assets/edit.webp', cat: 'actions', action: () => openFloatingEditor() },
+  { id: 'edit', title: 'Editor', sub: 'Open floating Edit code & text editor (F4)', icon: 'assets/edit.webp', cat: 'actions', action: () => openFloatingEditor() },
   { id: 'diff', title: 'Compare', sub: 'Compare files or directories side-by-side (F9)', icon: 'assets/diff.webp', cat: 'actions', action: () => triggerDiff() },
   { id: 'search', title: 'Search', sub: 'Search files and folders recursively (Ctrl+F)', icon: 'assets/search.webp', cat: 'actions', action: () => openSearchModal() },
   { id: 'fleet', title: 'Commander Fleet', sub: 'Multi-host node switcher, remote cluster manager & node diagnostics', icon: 'network', cat: 'actions', action: () => openFleetManagerModal() },
   { id: 'shares', title: 'Share Manager', sub: 'Manage public share links and guest upload dropboxes', icon: 'assets/sharemgr.webp', cat: 'actions', action: () => openSharesManager() },
-  { id: 'sync', title: 'Backup', sub: 'Delta Backup & Sync Studio: Two-Way Sync, Mirror, Contribute & Versioning (SyncToy / Bvckup 2)', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
-  { id: 'du', title: 'Stats', sub: 'Disk Usage & Storage Treemap Analyzer: inspect space consumption', icon: 'assets/amber-piechart.webp', cat: 'actions', action: () => openDiskUsageModal() },
+  { id: 'sync', title: 'Backup & Sync', sub: 'Delta Backup & Sync Studio: Two-Way Sync, Mirror, Contribute & Versioning (SyncToy / Bvckup 2)', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
+  { id: 'du', title: 'Disk Usage', sub: 'Disk Usage & Storage Treemap Analyzer: inspect space consumption', icon: 'assets/amber-piechart.webp', cat: 'actions', action: () => openDiskUsageModal() },
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
-  { id: 'convert', title: 'ConvertX', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
+  { id: 'convert', title: 'Format Converter', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDF Studio', sub: 'PDF Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
-  { id: 'mediaplayer', title: 'Mediaplayer', sub: 'Universal video & media player, subtitles, PiP popout & playlist', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
-  { id: 'sounddog', title: 'Audioplayer', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
-  { id: 'tetradog', title: 'Tetra', sub: 'Classic arcade block puzzle chewtoy with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
+  { id: 'mediaplayer', title: 'Media Player', sub: 'Universal video & media player, subtitles, PiP popout & playlist', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
+  { id: 'sounddog', title: 'Audio Player', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
+  { id: 'tetradog', title: 'Tetris', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
@@ -24800,8 +24792,6 @@ function buildSpotlightItems() {
     pool.push(...SPOTLIGHT_STATIC_ACTIONS.filter(a => {
       if (a.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
       if (a.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
-      if (a.id === 'convert' && activeChewtoyIds.has('convertx')) return false;
-      if (a.id === 'pdf' && activeChewtoyIds.has('pdfstudio')) return false;
       return true;
     }).map(a => ({
       title: a.title,
@@ -26745,12 +26735,6 @@ async function loadGitStatusForDocked(paneIndex, repoPath) {
 // =========================================================================
 
 function openFileSplitterModal(filePath, sizeBytes) {
-  const plugin = (window.installedChewToys || []).find(p => p.id === 'splitter');
-  if (plugin && plugin.enabled !== false) {
-    openDynamicChewToy('splitter', { mode: 'split', selectedFiles: [filePath] });
-    return;
-  }
-
   const modal = document.getElementById('file-splitter-modal');
   if (!modal) return;
 
@@ -26821,12 +26805,6 @@ async function executeFileSplit() {
 }
 
 function openFileCombinerModal(partsList) {
-  const plugin = (window.installedChewToys || []).find(p => p.id === 'splitter');
-  if (plugin && plugin.enabled !== false) {
-    openDynamicChewToy('splitter', { mode: 'combine', selectedFiles: partsList });
-    return;
-  }
-
   const modal = document.getElementById('file-combiner-modal');
   if (!modal) return;
 
@@ -27216,30 +27194,6 @@ let currentPdfOrganizerPages = []; // [{ page_num: 1, rotation: 0 }]
 let activePdfTab = 'merge';
 
 function openPdfToolModal(initialPdf = null, tab = 'merge') {
-  const plugin = (window.installedChewToys || []).find(p => p.id === 'pdfstudio');
-  if (plugin && plugin.enabled !== false) {
-    const pane = App.panes ? App.panes[App.activePaneIndex] : null;
-    let selectedFiles = [];
-    if (initialPdf) {
-      selectedFiles = [initialPdf];
-    } else if (pane) {
-      selectedFiles = Array.from(pane.selected || []).filter(p => isPdfExtension(p));
-      if (selectedFiles.length === 0) {
-        const item = pane.entries ? pane.entries[pane.cursorIndex] : null;
-        if (item && isPdfExtension(item.path)) {
-          selectedFiles.push(item.path);
-        }
-      }
-    }
-    openDynamicChewToy('pdfstudio', {
-      tab: tab,
-      initialPdf: initialPdf,
-      selectedFiles: selectedFiles,
-      activePath: pane ? pane.path : '/'
-    });
-    return;
-  }
-
   const modal = document.getElementById('pdf-tool-modal');
   if (!modal) return;
 

@@ -54,7 +54,7 @@ At the end of every response after making changes, **always clearly inform the u
 
 * **Minimize Vibe-Coding & Feature Creep**:
   * Proactively guard against unchecked vibe-coding, spontaneous feature creep, and unorganized scope bloat.
-  * When a new feature, power tool (ChewToy), or architectural enhancement is proposed:
+  * When a new feature, Core Function, or architectural enhancement is proposed:
     1. **Clarify Roadmap & Issue Alignment**: Check active backlog priorities and ask if we should focus on existing open issues on `Woofson/brum` first.
     2. **Offer Structured Triage Choices**: Prompt the user to decide between:
        - **GitHub Issue Tracking & Planning**: File/update the issue on GitHub (`scripts/issues.sh` / `gh issue`), document specifications, outline UI/UX & backend requirements, and align with milestones before implementation.
@@ -70,13 +70,22 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 6. Brand & Theme Nomenclature
+## 6. Brand, Naming & Terminology Specifications
 
 * **Creator & Lab**: Bolt J Woofson @ Woofsons Lab ([www.arf.ac](https://www.arf.ac)).
 * **Publishing Prefix Rule**: All publishing packages, binaries, and crates must use the `arf-` or `arf_` prefix (e.g., `arf-cmdr` for CommanderDog/Shunt, `arf-remote` for RemoteDog).
 * **Official Theme Names**:
   * **Dark Theme**: Strictly named **`Woofsons Amber Charcoal`** (ID: `amber-charcoal` / `charcoal`).
   * **Light Theme**: Strictly named **`Woofsons Amber Zink`** (ID: `zink`).
+* **Chewtoys (Casing Rule)**:
+  * Strictly written as **`Chewtoys`** (plural) or **`Chewtoy`** (singular). Never camel-cased as `ChewToys` or `ChewToy`.
+  * **Moniker Scope**: The name "Chewtoys" is strictly reserved for external/modular `.grr` plugin packages and the plugin store.
+* **Core Functions vs Chewtoys**:
+  * **Core Functions**: Native built-in power tools (Batch Renamer, Hex Editor, Splitter & Combiner, PDF Studio, Format Converter, Notes, Audio Player, Video Player, Disk Usage, Git Manager, Diff Viewer, Sync & Replication, Terminal). These run natively inside Brum's core DOM and backend with zero iframe overhead.
+  * **Chewtoys**: Modular `.grr` plugin packages (e.g. `calculator.grr`, `tetrion.grr`, `starter-chewtoy.grr`) loaded inside isolated sandboxes.
+* **No `*DOG` Gimmick Naming**:
+  * Do NOT create or name tools with gimmick `*DOG` suffixes (e.g., avoid `NoteDog`, `SoundDog`, `Tetradog`).
+  * Use clean, standard, professional engineering names: **Notes**, **Audio Player**, **Media Player**, **Tetrion**, **Terminal**, **Batch Renamer**, **Hex Editor**, etc.
 
 ---
 
@@ -85,7 +94,7 @@ At the end of every response after making changes, **always clearly inform the u
 * **Viewport Terms**:
   * `Phone`: Mobile touch screens (`<600px`). Requires single-pane focus, hidden branding badges, and minimal micro-text.
   * `Tablet`: Foldables and tablet touch screens (`600px–1024px`). Requires adaptive single/dual panel options, sliding note drawers, and legible touch hierarchy.
-  * `PC`: Desktop & laptop mouse & keyboard (`>1024px`). Full multi-panel, resizable columns, and dockable ChewToys.
+  * `PC`: Desktop & laptop mouse & keyboard (`>1024px`). Full multi-panel, resizable columns, and dockable tools.
 * **Panels vs Tabs**:
   * File browsing areas are strictly termed **"Panels"** (e.g., Left Panel, Right Panel, Pane 1, Pane 2).
   * The word **"Tabs"** is strictly reserved for Settings modal tabs and Editor tabs.
@@ -104,9 +113,9 @@ At the end of every response after making changes, **always clearly inform the u
 
 ---
 
-## 9. ChewToy Design & Layout Language Specification
+## 9. Window & Docked Tool Design Language Specification
 
-Whenever creating a new ChewToy (built-in power tool), modal, or floating utility, or modifying existing ones, strictly adhere to the following UI/UX architecture:
+Whenever creating or modifying windows, modals, or docked tools, strictly adhere to the following UI/UX architecture:
 
 ### 1. Primary Window & Modal Headers (`42px` min-height)
 * **Full-Length Drag Handle**: The entire header bar must serve as an easy, non-fiddly drag handle (`cursor: grab;` with `:active { cursor: grabbing; }`).
@@ -118,14 +127,14 @@ Whenever creating a new ChewToy (built-in power tool), modal, or floating utilit
   * Close Hover: Subtle calming red feedback (`rgba(239, 68, 68, 0.2); color: #ef4444;`)
 
 ### 2. Sub-Headers, Inner Toolbars & Workspace Actions (`26px` Standard)
-* **Uniform 26px Sizing**: All secondary toolbars, workspace action bars (e.g. NoteDog workspace, Diff filters, Git staging bar, Disk Usage path row), and panel sub-headers must use **`26px x 26px`** buttons with `border-radius: var(--radius)` (`6px`) and `13px` icons.
-* **Docked Tool Headers**: In-pane docked Chewtoys must use icon-only float/undock buttons (`external-link` / `26px`) without the text label `"Float"`.
+* **Uniform 26px Sizing**: All secondary toolbars, workspace action bars (e.g. Notes workspace, Diff filters, Git staging bar, Disk Usage path row), and panel sub-headers must use **`26px x 26px`** buttons with `border-radius: var(--radius)` (`6px`) and `13px` icons.
+* **Docked Tool Headers**: In-pane docked tools must use icon-only float/undock buttons (`external-link` / `26px`) without the text label `"Float"`.
 
 ### 3. Dual-Mode Architecture (Floating + In-Pane Docking)
-* Every ChewToy must natively support dual operational modes:
+* Every Core Function and floating utility must natively support dual operational modes:
   1. **Floating Window Mode**: Freely draggable, resizable, minimizable, and maximizable.
   2. **In-Pane Docking Mode**: Dockable directly into Panel 1 or Panel 2 with automatic panel state persistence.
 
 ### 4. Tool & Terminal Lifecycle Protocols
-* Interactive CLI Chewtoys (e.g., Bite! Terminal) must cleanly handle EOF (`Ctrl+D`), `logout`, and `exit` to automatically close the docked drawer/window and reset PTY state.
-* ChewToys must gracefully remember user preferences (active layouts, selected views, column sizes) via `localStorage` or backend configuration.
+* Interactive CLI tools (e.g., Bite! Terminal) must cleanly handle EOF (`Ctrl+D`), `logout`, and `exit` to automatically close the docked drawer/window and reset PTY state.
+* Tools must gracefully remember user preferences (active layouts, selected views, column sizes) via `localStorage` or backend configuration.
