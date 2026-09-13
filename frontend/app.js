@@ -2178,7 +2178,10 @@ function createPaneElement(pane, index) {
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
         'tetradog': '<img src="assets/amber-tetris.webp" alt="Tetris" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetris',
         'sounddog': '<img src="assets/amber-media.webp" alt="Audio Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Audio Player',
-        'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player'
+        'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
+        'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
+        'tageditor': '<i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Tag Editor',
+        'logviewer': '<i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Log Viewer'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
     }
@@ -11523,6 +11526,9 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
+  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
+  { id: 'tageditor', label: 'Tag Editor', icon: 'tag', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
+  { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
   { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video player, subtitles, PiP & playlist', visible: true },
   { id: 'sounddog', label: 'Audio Player', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band equalizer', visible: true },
   { id: 'tetradog', label: 'Tetris', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
@@ -13043,6 +13049,10 @@ function showContextMenu(x, y) {
         <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
         <div class="context-item" onclick="openDiskUsageModal(); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)</div>
         <div class="context-item" onclick="triggerGitManager(); hideContextMenu();"><i data-lucide="git-branch" style="width: 13px;"></i> Git Manager & Diff</div>
+        <div class="context-item" onclick="openDuplicateFinder(); hideContextMenu();"><i data-lucide="copy-check" style="width: 13px; color: var(--accent);"></i> Duplicate Finder...</div>
+        <div class="context-item" onclick="openTagEditor(); hideContextMenu();"><i data-lucide="tag" style="width: 13px; color: var(--accent);"></i> Tag Editor & EXIF...</div>
+        <div class="context-item" onclick="openHexEditor(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="binary" style="width: 13px; color: var(--accent);"></i> Hex Editor...</div>
+        <div class="context-item" onclick="openLogViewer(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="scroll-text" style="width: 13px; color: var(--accent);"></i> Log Viewer...</div>
       </div>
     </div>
 
@@ -25064,6 +25074,9 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'Format Converter', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDF Studio', sub: 'PDF Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
+  { id: 'duplicates', title: 'Duplicate Finder', sub: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', icon: 'copy-check', cat: 'actions', action: () => openDuplicateFinder() },
+  { id: 'tageditor', title: 'Tag Editor', sub: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', icon: 'tag', cat: 'actions', action: () => openTagEditor() },
+  { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
   { id: 'mediaplayer', title: 'Media Player', sub: 'Universal video & media player, subtitles, PiP popout & playlist', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
   { id: 'sounddog', title: 'Audio Player', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
   { id: 'tetradog', title: 'Tetris', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
@@ -26711,6 +26724,33 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       mountDockedHexEditor(paneIndex);
+    }, 50);
+  }
+  // 11. DOCKED DUPLICATE FINDER
+  else if (tool === 'duplicates') {
+    mount.innerHTML = `
+      <div class="docked-duplicates-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-duplicates-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedDuplicateFinder(paneIndex);
+    }, 50);
+  }
+  // 12. DOCKED TAG EDITOR
+  else if (tool === 'tageditor') {
+    mount.innerHTML = `
+      <div class="docked-tageditor-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-tageditor-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedTagEditor(paneIndex);
+    }, 50);
+  }
+  // 13. DOCKED LOG VIEWER
+  else if (tool === 'logviewer') {
+    mount.innerHTML = `
+      <div class="docked-logviewer-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-logviewer-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedLogViewer(paneIndex);
     }, 50);
   }
 
@@ -34701,6 +34741,1196 @@ function mountDockedHexEditor(paneIndex) {
     const innerMount = document.getElementById(`docked-hex-mount-${paneIndex}`);
     if (innerMount) {
       renderHexEditorView(innerMount);
+    }
+  }
+}
+
+// ==========================================================================
+// 🔍 NATIVE DUPLICATE FINDER CORE FUNCTION (#40)
+// ==========================================================================
+let duplicatesDragInit = false;
+let duplicateFinderActivePaneIndex = 0;
+let duplicateFinderState = {
+  scanning: false,
+  path: '',
+  totalScanned: 0,
+  totalWastedBytes: 0,
+  groups: [],
+  selectedPaths: new Set()
+};
+
+function initDuplicatesDragResize() {
+  if (duplicatesDragInit) return;
+  duplicatesDragInit = true;
+
+  const win = document.getElementById('floating-duplicates-window');
+  const header = document.getElementById('duplicates-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_dup_x');
+  const savedTop = localStorage.getItem('cd_dup_y');
+  const savedWidth = localStorage.getItem('cd_dup_w');
+  const savedHeight = localStorage.getItem('cd_dup_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(480, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(400, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newX}px`;
+    win.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_dup_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_dup_y', parseInt(win.style.top, 10));
+    }
+  });
+}
+
+function openDuplicateFinder(targetPath = null, paneIndex = null) {
+  duplicateFinderActivePaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[duplicateFinderActivePaneIndex];
+  const scanPath = targetPath || pane?.path || '/';
+
+  duplicateFinderState.path = scanPath;
+
+  const win = document.getElementById('floating-duplicates-window');
+  const pill = document.getElementById('duplicates-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  initDuplicatesDragResize();
+
+  const sourceInfo = document.getElementById('dup-source-info');
+  if (sourceInfo) {
+    sourceInfo.textContent = `Target: ${sanitizeCredentials(scanPath)}`;
+    sourceInfo.title = scanPath;
+  }
+
+  if (duplicateFinderState.groups.length === 0) {
+    startDuplicateScan();
+  } else {
+    renderDuplicateGroups();
+  }
+}
+
+function closeFloatingDuplicateFinder() {
+  const win = document.getElementById('floating-duplicates-window');
+  if (win) win.style.display = 'none';
+}
+
+function minimizeFloatingDuplicateFinder() {
+  const win = document.getElementById('floating-duplicates-window');
+  const pill = document.getElementById('duplicates-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingDuplicateFinder() {
+  openDuplicateFinder(duplicateFinderState.path);
+}
+
+function toggleMaximizeDuplicateFinder() {
+  const win = document.getElementById('floating-duplicates-window');
+  if (win) win.classList.toggle('maximized');
+}
+
+function dockDuplicateFinderToActivePane() {
+  closeFloatingDuplicateFinder();
+  App.panes[App.activePaneIndex].dockedTool = 'duplicates';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'duplicates');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+async function startDuplicateScan() {
+  const path = duplicateFinderState.path || App.panes[App.activePaneIndex]?.path || '/';
+  const includeHidden = !!document.getElementById('dup-include-hidden')?.checked;
+  const container = document.getElementById('duplicates-groups-container');
+
+  duplicateFinderState.scanning = true;
+  duplicateFinderState.selectedPaths.clear();
+
+  if (container) {
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim); gap: 10px;">
+        <i data-lucide="loader-2" class="spin" style="width: 32px; height: 32px; color: var(--accent);"></i>
+        <span style="font-size: 12px; font-weight: 600;">Scanning files & computing SHA-256 hashes...</span>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons({ root: container });
+  }
+
+  const scanBtn = document.getElementById('btn-start-dup-scan');
+  if (scanBtn) {
+    scanBtn.disabled = true;
+    scanBtn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width: 12px; height: 12px;"></i> Scanning...';
+    if (window.lucide) lucide.createIcons({ root: scanBtn });
+  }
+
+  try {
+    const res = await fetch('/api/tools/duplicates/scan', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({
+        path: path,
+        min_size: 1,
+        include_hidden: includeHidden
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      duplicateFinderState.groups = data.duplicate_groups || [];
+      duplicateFinderState.totalScanned = data.total_files_scanned || 0;
+      duplicateFinderState.totalWastedBytes = data.total_wasted_bytes || 0;
+
+      autoSelectDuplicates('keep_newest');
+      renderDuplicateGroups();
+      showToast(`Scanned ${duplicateFinderState.totalScanned} files. Found ${duplicateFinderState.groups.length} duplicate groups (${formatBytes(duplicateFinderState.totalWastedBytes)} wasted)`, 'info');
+    } else {
+      showToast('Scan failed: ' + sanitizeCredentials(await res.text()), 'error');
+      if (container) {
+        container.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger);">Failed to scan duplicates.</div>`;
+      }
+    }
+  } catch (e) {
+    showToast('Scan error: ' + sanitizeCredentials(String(e)), 'error');
+  } finally {
+    duplicateFinderState.scanning = false;
+    if (scanBtn) {
+      scanBtn.disabled = false;
+      scanBtn.innerHTML = '<i data-lucide="search" style="width: 12px; height: 12px;"></i> Scan Duplicates';
+      if (window.lucide) lucide.createIcons({ root: scanBtn });
+    }
+  }
+}
+
+function autoSelectDuplicates(strategy) {
+  duplicateFinderState.selectedPaths.clear();
+
+  duplicateFinderState.groups.forEach(group => {
+    if (!group.files || group.files.length <= 1) return;
+
+    if (strategy === 'deselect_all') {
+      return;
+    } else if (strategy === 'keep_newest') {
+      let newest = group.files[0];
+      group.files.forEach(f => {
+        if (f.modified_secs > newest.modified_secs) newest = f;
+      });
+      group.files.forEach(f => {
+        if (f.path !== newest.path) duplicateFinderState.selectedPaths.add(f.path);
+      });
+    } else if (strategy === 'keep_oldest') {
+      let oldest = group.files[0];
+      group.files.forEach(f => {
+        if (f.modified_secs < oldest.modified_secs) oldest = f;
+      });
+      group.files.forEach(f => {
+        if (f.path !== oldest.path) duplicateFinderState.selectedPaths.add(f.path);
+      });
+    } else if (strategy === 'keep_shortest') {
+      let shortest = group.files[0];
+      group.files.forEach(f => {
+        if (f.path.length < shortest.path.length) shortest = f;
+      });
+      group.files.forEach(f => {
+        if (f.path !== shortest.path) duplicateFinderState.selectedPaths.add(f.path);
+      });
+    } else if (strategy === 'all_duplicates') {
+      for (let i = 1; i < group.files.length; i++) {
+        duplicateFinderState.selectedPaths.add(group.files[i].path);
+      }
+    }
+  });
+
+  updateDuplicateCheckboxes();
+  updateDuplicateFooter();
+}
+
+function toggleDuplicateFile(path) {
+  if (duplicateFinderState.selectedPaths.has(path)) {
+    duplicateFinderState.selectedPaths.delete(path);
+  } else {
+    duplicateFinderState.selectedPaths.add(path);
+  }
+  updateDuplicateCheckboxes();
+  updateDuplicateFooter();
+}
+
+function updateDuplicateCheckboxes() {
+  document.querySelectorAll('.dup-file-checkbox').forEach(cb => {
+    const p = cb.getAttribute('data-path');
+    if (p) {
+      cb.checked = duplicateFinderState.selectedPaths.has(p);
+      const row = cb.closest('.dup-file-row');
+      if (row) {
+        if (cb.checked) row.classList.add('selected');
+        else row.classList.remove('selected');
+      }
+    }
+  });
+}
+
+function updateDuplicateFooter() {
+  const count = duplicateFinderState.selectedPaths.size;
+  let wastedSelectedBytes = 0;
+
+  duplicateFinderState.groups.forEach(g => {
+    (g.files || []).forEach(f => {
+      if (duplicateFinderState.selectedPaths.has(f.path)) {
+        wastedSelectedBytes += f.size || g.size || 0;
+      }
+    });
+  });
+
+  const summaryEl = document.getElementById('dup-status-summary');
+  const cleanBtn = document.getElementById('btn-execute-dup-clean');
+
+  if (summaryEl) {
+    if (count > 0) {
+      summaryEl.textContent = `${count} files selected (${formatBytes(wastedSelectedBytes)} to be freed)`;
+      summaryEl.style.color = 'var(--accent)';
+    } else {
+      summaryEl.textContent = `${duplicateFinderState.groups.length} duplicate groups (${formatBytes(duplicateFinderState.totalWastedBytes)} wasted)`;
+      summaryEl.style.color = 'var(--text-main)';
+    }
+  }
+
+  if (cleanBtn) {
+    cleanBtn.disabled = (count === 0);
+  }
+}
+
+function renderDuplicateGroups(container = null) {
+  const target = container || document.getElementById('duplicates-groups-container');
+  if (!target) return;
+
+  if (duplicateFinderState.groups.length === 0) {
+    target.innerHTML = `
+      <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim); gap: 8px;">
+        <i data-lucide="check-circle" style="width: 32px; height: 32px; color: #10b981; opacity: 0.8;"></i>
+        <span style="font-size: 12px; font-weight: 600;">No duplicate files found in target directory</span>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons({ root: target });
+    updateDuplicateFooter();
+    return;
+  }
+
+  const html = duplicateFinderState.groups.map((group, gIdx) => {
+    const wastedInGroup = (group.files.length - 1) * group.size;
+    const shortHash = (group.hash || '').substring(0, 12);
+
+    const fileRows = group.files.map((file, fIdx) => {
+      const isSelected = duplicateFinderState.selectedPaths.has(file.path);
+      const isImage = /\.(jpe?g|png|webp|gif|bmp|svg)$/i.test(file.name);
+      const mdate = new Date(file.modified_secs * 1000).toLocaleString();
+      const encodedPath = encodeURIComponent(file.path);
+
+      let thumbHtml = '';
+      if (isImage) {
+        thumbHtml = `<img src="/api/fs/preview?path=${encodedPath}" loading="lazy" style="width: 24px; height: 24px; object-fit: cover; border-radius: 3px; border: 1px solid var(--border); flex-shrink: 0;" onerror="this.style.display='none'">`;
+      } else {
+        thumbHtml = `<i data-lucide="file" style="width: 15px; height: 15px; color: var(--text-dim); flex-shrink: 0;"></i>`;
+      }
+
+      return `
+        <div class="dup-file-row ${isSelected ? 'selected' : ''}" onclick="toggleDuplicateFile('${escapeHtml(file.path)}')">
+          <input type="checkbox" class="dup-file-checkbox" data-path="${escapeHtml(file.path)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleDuplicateFile('${escapeHtml(file.path)}')">
+          ${thumbHtml}
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
+            <div style="font-size: 11.5px; font-weight: 600; color: var(--text-main); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">${escapeHtml(file.name)}</div>
+            <div style="font-size: 10px; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="${escapeHtml(file.path)}">${escapeHtml(file.path)}</div>
+          </div>
+          <span style="font-size: 10px; color: var(--text-dim); white-space: nowrap;">${mdate}</span>
+          <div style="display: flex; gap: 4px; align-items: center;" onclick="event.stopPropagation()">
+            <button class="btn btn-icon btn-xs" onclick="openContainingFolder('${escapeHtml(file.path)}')" title="Open Containing Folder"><i data-lucide="folder" style="width: 11px; height: 11px;"></i></button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    return `
+      <div class="dup-group-card">
+        <div class="dup-group-header">
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <span class="badge" style="font-weight: 700; font-size: 11px;">${formatBytes(group.size)}</span>
+            <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim);">${group.files.length} identical copies</span>
+            <span class="badge" style="font-size: 9.5px; opacity: 0.7; font-family: var(--font-mono);">SHA-256: ${shortHash}...</span>
+          </div>
+          <span style="font-size: 10.5px; color: var(--accent); font-weight: 600;">+${formatBytes(wastedInGroup)} wasted</span>
+        </div>
+        <div class="dup-group-files">
+          ${fileRows}
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  target.innerHTML = html;
+  if (window.lucide) lucide.createIcons({ root: target });
+  updateDuplicateFooter();
+}
+
+function openContainingFolder(filePath) {
+  const dirPath = filePath.substring(0, filePath.lastIndexOf('/')) || '/';
+  const pane = App.panes[App.activePaneIndex];
+  if (pane) {
+    navigateToPath(App.activePaneIndex, dirPath);
+  }
+}
+
+async function executeDuplicateClean() {
+  const selected = Array.from(duplicateFinderState.selectedPaths);
+  if (selected.length === 0) {
+    showToast('No duplicate files selected', 'warning');
+    return;
+  }
+
+  const action = document.getElementById('dup-action-select')?.value || 'trash';
+  const isTrash = action === 'trash';
+  const confirmMsg = isTrash
+    ? `Move ${selected.length} duplicate file${selected.length === 1 ? '' : 's'} to Trash?`
+    : `Permanently delete ${selected.length} duplicate file${selected.length === 1 ? '' : 's'}? THIS CANNOT BE UNDONE.`;
+
+  if (!confirm(confirmMsg)) return;
+
+  const cleanBtn = document.getElementById('btn-execute-dup-clean');
+  if (cleanBtn) {
+    cleanBtn.disabled = true;
+    cleanBtn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width: 12px; height: 12px;"></i> Cleaning...';
+  }
+
+  try {
+    const res = await fetch('/api/tools/duplicates/clean', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({
+        paths: selected,
+        move_to_trash: isTrash,
+        permanent: !isTrash
+      })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      const cleanedSet = new Set(selected);
+
+      // Prune cleaned files from state
+      duplicateFinderState.groups.forEach(group => {
+        group.files = group.files.filter(f => !cleanedSet.has(f.path));
+      });
+      duplicateFinderState.groups = duplicateFinderState.groups.filter(g => g.files.length > 1);
+      duplicateFinderState.selectedPaths.clear();
+
+      // Recalculate wasted bytes
+      duplicateFinderState.totalWastedBytes = duplicateFinderState.groups.reduce((acc, g) => acc + (g.files.length - 1) * g.size, 0);
+
+      renderDuplicateGroups();
+      showToast(`Cleaned ${data.deleted_files} files successfully! Freed ${formatBytes(data.freed_bytes)}.`, 'success');
+      refreshAllPanes();
+    } else {
+      showToast('Clean failed: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Clean error: ' + sanitizeCredentials(String(e)), 'error');
+  } finally {
+    if (cleanBtn) {
+      cleanBtn.disabled = false;
+      cleanBtn.innerHTML = '<i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clean Selected';
+      if (window.lucide) lucide.createIcons({ root: cleanBtn });
+    }
+  }
+}
+
+function mountDockedDuplicateFinder(paneIndex) {
+  const host = document.getElementById(`docked-duplicates-host-${paneIndex}`);
+  const floatingBody = document.querySelector('.floating-duplicates-window .duplicates-body');
+  if (host && floatingBody) {
+    host.innerHTML = `
+      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-dup-mount-${paneIndex}"></div>
+    `;
+    const innerMount = document.getElementById(`docked-dup-mount-${paneIndex}`);
+    if (innerMount) {
+      renderDuplicateGroups(innerMount);
+    }
+  }
+}
+
+// ==========================================================================
+// 🏷️ NATIVE TAG & METADATA EDITOR CORE FUNCTION (#39)
+// ==========================================================================
+let tagEditorDragInit = false;
+let tagEditorActivePaneIndex = 0;
+let tagEditorState = {
+  files: [],
+  activeFileIndex: -1,
+  coverArtBase64: null,
+  coverArtMime: null,
+  removeCoverArt: false,
+  isDirty: false
+};
+
+function initTagEditorDragResize() {
+  if (tagEditorDragInit) return;
+  tagEditorDragInit = true;
+
+  const win = document.getElementById('floating-tageditor-window');
+  const header = document.getElementById('tageditor-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_tag_x');
+  const savedTop = localStorage.getItem('cd_tag_y');
+  const savedWidth = localStorage.getItem('cd_tag_w');
+  const savedHeight = localStorage.getItem('cd_tag_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(500, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(420, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newX}px`;
+    win.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_tag_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_tag_y', parseInt(win.style.top, 10));
+    }
+  });
+}
+
+function openTagEditor(files = null, paneIndex = null) {
+  tagEditorActivePaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[tagEditorActivePaneIndex];
+
+  const win = document.getElementById('floating-tageditor-window');
+  const pill = document.getElementById('tageditor-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  initTagEditorDragResize();
+
+  // Populate files
+  if (Array.isArray(files) && files.length > 0) {
+    tagEditorState.files = files.map(f => typeof f === 'string' ? { path: f, name: f.split('/').filter(Boolean).pop() || f } : f);
+  } else if (pane && pane.selected && pane.selected.size > 0) {
+    tagEditorState.files = Array.from(pane.selected).map(p => {
+      const entry = (pane.entries || []).find(e => e.path === p);
+      return {
+        path: p,
+        name: entry ? entry.name : (p.split('/').filter(Boolean).pop() || p)
+      };
+    });
+  } else if (pane && Array.isArray(pane.entries) && pane.entries.length > 0) {
+    const isTagCandidate = (n) => /\.(mp3|flac|ogg|m4a|wav|aac|jpe?g|png|webp|avif)$/i.test(n);
+    tagEditorState.files = pane.entries.filter(e => !e.is_dir && isTagCandidate(e.name)).map(e => ({
+      path: e.path,
+      name: e.name
+    }));
+    if (tagEditorState.files.length === 0) {
+      tagEditorState.files = pane.entries.filter(e => !e.is_dir).slice(0, 50).map(e => ({ path: e.path, name: e.name }));
+    }
+  } else {
+    tagEditorState.files = [];
+  }
+
+  renderTagEditorFileList();
+  if (tagEditorState.files.length > 0) {
+    loadTagEditorFile(0);
+  } else {
+    resetTagEditorForm();
+  }
+}
+
+function closeFloatingTagEditor() {
+  const win = document.getElementById('floating-tageditor-window');
+  if (win) win.style.display = 'none';
+}
+
+function minimizeFloatingTagEditor() {
+  const win = document.getElementById('floating-tageditor-window');
+  const pill = document.getElementById('tageditor-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingTagEditor() {
+  openTagEditor(tagEditorState.files);
+}
+
+function toggleMaximizeTagEditor() {
+  const win = document.getElementById('floating-tageditor-window');
+  if (win) win.classList.toggle('maximized');
+}
+
+function dockTagEditorToActivePane() {
+  closeFloatingTagEditor();
+  App.panes[App.activePaneIndex].dockedTool = 'tageditor';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'tageditor');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+function reloadTagEditorFiles() {
+  openTagEditor(null, tagEditorActivePaneIndex);
+}
+
+function renderTagEditorFileList() {
+  const listEl = document.getElementById('tageditor-file-list');
+  const countEl = document.getElementById('tageditor-file-count');
+  if (countEl) countEl.textContent = tagEditorState.files.length;
+  if (!listEl) return;
+
+  if (tagEditorState.files.length === 0) {
+    listEl.innerHTML = `<div style="padding: 12px; text-align: center; color: var(--text-dim); font-size: 11px;">No audio or image files found</div>`;
+    return;
+  }
+
+  listEl.innerHTML = tagEditorState.files.map((f, idx) => {
+    const isAudio = /\.(mp3|flac|ogg|m4a|wav|aac)$/i.test(f.name);
+    const icon = isAudio ? 'music' : 'image';
+    const activeCls = idx === tagEditorState.activeFileIndex ? 'active' : '';
+
+    return `
+      <div class="tageditor-file-item ${activeCls}" onclick="loadTagEditorFile(${idx})">
+        <i data-lucide="${icon}" style="width: 13px; height: 13px; color: var(--accent); flex-shrink: 0;"></i>
+        <span style="font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(f.name)}</span>
+      </div>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons({ root: listEl });
+}
+
+async function loadTagEditorFile(index) {
+  if (index < 0 || index >= tagEditorState.files.length) return;
+  tagEditorState.activeFileIndex = index;
+  renderTagEditorFileList();
+
+  const file = tagEditorState.files[index];
+  const badge = document.getElementById('tageditor-active-file-badge');
+  if (badge) badge.textContent = sanitizeCredentials(file.name);
+
+  try {
+    const res = await fetch(`/api/tools/metadata/read?path=${encodeURIComponent(file.path)}`, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      populateTagEditorForm(data);
+    } else {
+      showToast('Failed to read metadata: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Metadata read error: ' + sanitizeCredentials(String(e)), 'error');
+  }
+}
+
+function populateTagEditorForm(data) {
+  document.getElementById('tag-title-input').value = data.title || '';
+  document.getElementById('tag-artist-input').value = data.artist || '';
+  document.getElementById('tag-album-input').value = data.album || '';
+  document.getElementById('tag-album-artist-input').value = data.album_artist || '';
+  document.getElementById('tag-year-input').value = data.year || '';
+  document.getElementById('tag-track-num-input').value = data.track_number || '';
+  document.getElementById('tag-track-tot-input').value = data.track_total || '';
+  document.getElementById('tag-genre-input').value = data.genre || '';
+  document.getElementById('tag-comment-input').value = data.comment || '';
+
+  const artPreview = document.getElementById('tageditor-art-preview');
+  const artPlaceholder = document.getElementById('tageditor-art-placeholder');
+  const removeBtn = document.getElementById('btn-remove-cover-art');
+
+  tagEditorState.coverArtBase64 = null;
+  tagEditorState.coverArtMime = null;
+  tagEditorState.removeCoverArt = false;
+
+  if (data.has_cover_art && data.cover_art_base64) {
+    const mime = data.cover_art_mime || 'image/jpeg';
+    tagEditorState.coverArtBase64 = data.cover_art_base64;
+    tagEditorState.coverArtMime = mime;
+    if (artPreview) {
+      artPreview.src = `data:${mime};base64,${data.cover_art_base64}`;
+      artPreview.style.display = 'block';
+    }
+    if (artPlaceholder) artPlaceholder.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = 'inline-block';
+  } else {
+    if (artPreview) {
+      artPreview.src = '';
+      artPreview.style.display = 'none';
+    }
+    if (artPlaceholder) artPlaceholder.style.display = 'flex';
+    if (removeBtn) removeBtn.style.display = 'none';
+  }
+}
+
+function resetTagEditorForm() {
+  document.getElementById('tag-title-input').value = '';
+  document.getElementById('tag-artist-input').value = '';
+  document.getElementById('tag-album-input').value = '';
+  document.getElementById('tag-album-artist-input').value = '';
+  document.getElementById('tag-year-input').value = '';
+  document.getElementById('tag-track-num-input').value = '';
+  document.getElementById('tag-track-tot-input').value = '';
+  document.getElementById('tag-genre-input').value = '';
+  document.getElementById('tag-comment-input').value = '';
+
+  const artPreview = document.getElementById('tageditor-art-preview');
+  const artPlaceholder = document.getElementById('tageditor-art-placeholder');
+  const removeBtn = document.getElementById('btn-remove-cover-art');
+
+  if (artPreview) {
+    artPreview.src = '';
+    artPreview.style.display = 'none';
+  }
+  if (artPlaceholder) artPlaceholder.style.display = 'flex';
+  if (removeBtn) removeBtn.style.display = 'none';
+}
+
+function handleTagCoverArtSelected(e) {
+  const file = e.target.files && e.target.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = (event) => {
+    const dataUrl = event.target.result;
+    const base64 = dataUrl.split(',')[1];
+    const mime = file.type || 'image/jpeg';
+
+    tagEditorState.coverArtBase64 = base64;
+    tagEditorState.coverArtMime = mime;
+    tagEditorState.removeCoverArt = false;
+
+    const artPreview = document.getElementById('tageditor-art-preview');
+    const artPlaceholder = document.getElementById('tageditor-art-placeholder');
+    const removeBtn = document.getElementById('btn-remove-cover-art');
+
+    if (artPreview) {
+      artPreview.src = dataUrl;
+      artPreview.style.display = 'block';
+    }
+    if (artPlaceholder) artPlaceholder.style.display = 'none';
+    if (removeBtn) removeBtn.style.display = 'inline-block';
+  };
+  reader.readAsDataURL(file);
+}
+
+function removeTagCoverArt() {
+  tagEditorState.coverArtBase64 = null;
+  tagEditorState.coverArtMime = null;
+  tagEditorState.removeCoverArt = true;
+
+  const artPreview = document.getElementById('tageditor-art-preview');
+  const artPlaceholder = document.getElementById('tageditor-art-placeholder');
+  const removeBtn = document.getElementById('btn-remove-cover-art');
+
+  if (artPreview) {
+    artPreview.src = '';
+    artPreview.style.display = 'none';
+  }
+  if (artPlaceholder) artPlaceholder.style.display = 'flex';
+  if (removeBtn) removeBtn.style.display = 'none';
+}
+
+async function saveTagEditorChanges() {
+  if (tagEditorState.activeFileIndex < 0 || tagEditorState.activeFileIndex >= tagEditorState.files.length) {
+    showToast('No active file selected to save', 'warning');
+    return;
+  }
+
+  const file = tagEditorState.files[tagEditorState.activeFileIndex];
+  const payload = {
+    path: file.path,
+    title: document.getElementById('tag-title-input').value || null,
+    artist: document.getElementById('tag-artist-input').value || null,
+    album: document.getElementById('tag-album-input').value || null,
+    album_artist: document.getElementById('tag-album-artist-input').value || null,
+    year: document.getElementById('tag-year-input').value ? parseInt(document.getElementById('tag-year-input').value, 10) : null,
+    track_number: document.getElementById('tag-track-num-input').value ? parseInt(document.getElementById('tag-track-num-input').value, 10) : null,
+    track_total: document.getElementById('tag-track-tot-input').value ? parseInt(document.getElementById('tag-track-tot-input').value, 10) : null,
+    genre: document.getElementById('tag-genre-input').value || null,
+    comment: document.getElementById('tag-comment-input').value || null,
+    cover_art_base64: tagEditorState.coverArtBase64 || null,
+    remove_cover_art: tagEditorState.removeCoverArt
+  };
+
+  try {
+    const res = await fetch('/api/tools/metadata/update', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.ok) {
+      showToast('Saved metadata tags successfully!', 'success');
+      refreshAllPanes();
+    } else {
+      showToast('Save metadata failed: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Save error: ' + sanitizeCredentials(String(e)), 'error');
+  }
+}
+
+async function applyBatchTagField(fieldName) {
+  if (tagEditorState.files.length === 0) return;
+
+  let value = null;
+  if (fieldName === 'artist') value = document.getElementById('tag-artist-input').value;
+  else if (fieldName === 'album') value = document.getElementById('tag-album-input').value;
+  else if (fieldName === 'album_artist') value = document.getElementById('tag-album-artist-input').value;
+  else if (fieldName === 'year') value = parseInt(document.getElementById('tag-year-input').value, 10) || null;
+  else if (fieldName === 'genre') value = document.getElementById('tag-genre-input').value;
+
+  if (!value) {
+    showToast(`Enter a ${fieldName} before applying to all files`, 'warning');
+    return;
+  }
+
+  const updates = tagEditorState.files.map(f => {
+    const req = { path: f.path };
+    req[fieldName] = value;
+    return req;
+  });
+
+  try {
+    const res = await fetch('/api/tools/metadata/batch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ updates })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Applied ${fieldName} across ${data.updated_files} files!`, 'success');
+      refreshAllPanes();
+    } else {
+      showToast('Batch apply failed: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Batch error: ' + sanitizeCredentials(String(e)), 'error');
+  }
+}
+
+async function applyBatchAutoTrackNumbers() {
+  if (tagEditorState.files.length === 0) return;
+  const total = tagEditorState.files.length;
+
+  const updates = tagEditorState.files.map((f, idx) => ({
+    path: f.path,
+    track_number: idx + 1,
+    track_total: total
+  }));
+
+  try {
+    const res = await fetch('/api/tools/metadata/batch', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ updates })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Auto-numbered ${data.updated_files} tracks sequentially (1..${total})`, 'success');
+      loadTagEditorFile(tagEditorState.activeFileIndex);
+      refreshAllPanes();
+    } else {
+      showToast('Auto-number failed: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Auto-number error: ' + sanitizeCredentials(String(e)), 'error');
+  }
+}
+
+function mountDockedTagEditor(paneIndex) {
+  const host = document.getElementById(`docked-tageditor-host-${paneIndex}`);
+  const floatingBody = document.querySelector('.floating-tageditor-window .tageditor-body');
+  if (host && floatingBody) {
+    host.innerHTML = `
+      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-tag-mount-${paneIndex}"></div>
+    `;
+    const innerMount = document.getElementById(`docked-tag-mount-${paneIndex}`);
+    if (innerMount) {
+      innerMount.innerHTML = floatingBody.innerHTML;
+      if (window.lucide) lucide.createIcons({ root: innerMount });
+    }
+  }
+}
+
+// ==========================================================================
+// 📜 NATIVE LOG VIEWER CORE FUNCTION (#35)
+// ==========================================================================
+let logViewerDragInit = false;
+let logViewerActivePaneIndex = 0;
+let logViewerState = {
+  filePath: '',
+  lines: 500,
+  filter: '',
+  level: 'ALL',
+  invert: false,
+  isFollowing: false,
+  followTimer: null,
+  filterDebounceTimer: null
+};
+
+function initLogViewerDragResize() {
+  if (logViewerDragInit) return;
+  logViewerDragInit = true;
+
+  const win = document.getElementById('floating-logviewer-window');
+  const header = document.getElementById('logviewer-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_log_x');
+  const savedTop = localStorage.getItem('cd_log_y');
+  const savedWidth = localStorage.getItem('cd_log_w');
+  const savedHeight = localStorage.getItem('cd_log_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(500, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(400, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newX}px`;
+    win.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_log_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_log_y', parseInt(win.style.top, 10));
+    }
+  });
+}
+
+function openLogViewer(filePath = null, paneIndex = null) {
+  logViewerActivePaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[logViewerActivePaneIndex];
+
+  let targetLog = filePath;
+  if (!targetLog) {
+    if (pane && pane.selected && pane.selected.size > 0) {
+      targetLog = Array.from(pane.selected)[0];
+    } else if (pane && Array.isArray(pane.entries)) {
+      const logEntry = pane.entries.find(e => !e.is_dir && /\.(log|out|err|txt)$/i.test(e.name));
+      if (logEntry) targetLog = logEntry.path;
+      else if (pane.entries.length > 0) targetLog = pane.entries.find(e => !e.is_dir)?.path;
+    }
+  }
+
+  logViewerState.filePath = targetLog || '/var/log/syslog';
+
+  const win = document.getElementById('floating-logviewer-window');
+  const pill = document.getElementById('logviewer-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  initLogViewerDragResize();
+
+  const fileBadge = document.getElementById('logviewer-file-badge');
+  if (fileBadge) {
+    const fileName = logViewerState.filePath.split('/').filter(Boolean).pop() || logViewerState.filePath;
+    fileBadge.textContent = sanitizeCredentials(fileName);
+    fileBadge.title = logViewerState.filePath;
+  }
+
+  fetchLogViewerTail();
+}
+
+function closeFloatingLogViewer() {
+  if (logViewerState.followTimer) {
+    clearInterval(logViewerState.followTimer);
+    logViewerState.followTimer = null;
+    logViewerState.isFollowing = false;
+  }
+  const win = document.getElementById('floating-logviewer-window');
+  if (win) win.style.display = 'none';
+}
+
+function minimizeFloatingLogViewer() {
+  const win = document.getElementById('floating-logviewer-window');
+  const pill = document.getElementById('logviewer-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingLogViewer() {
+  openLogViewer(logViewerState.filePath);
+}
+
+function toggleMaximizeLogViewer() {
+  const win = document.getElementById('floating-logviewer-window');
+  if (win) win.classList.toggle('maximized');
+}
+
+function dockLogViewerToActivePane() {
+  closeFloatingLogViewer();
+  App.panes[App.activePaneIndex].dockedTool = 'logviewer';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'logviewer');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+async function fetchLogViewerTail() {
+  const path = logViewerState.filePath;
+  if (!path) return;
+
+  const linesSelect = document.getElementById('logviewer-lines-select');
+  if (linesSelect) logViewerState.lines = parseInt(linesSelect.value, 10) || 500;
+
+  const url = `/api/tools/logviewer/tail?path=${encodeURIComponent(path)}&lines=${logViewerState.lines}&filter=${encodeURIComponent(logViewerState.filter || '')}&level=${encodeURIComponent(logViewerState.level || 'ALL')}&invert=${logViewerState.invert}`;
+
+  try {
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      renderLogViewerConsole(data);
+    } else {
+      const consoleEl = document.getElementById('logviewer-console');
+      if (consoleEl) {
+        consoleEl.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger);">Failed to read log file: ${escapeHtml(await res.text())}</div>`;
+      }
+    }
+  } catch (e) {
+    const consoleEl = document.getElementById('logviewer-console');
+    if (consoleEl) {
+      consoleEl.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--danger);">Log reader error: ${escapeHtml(String(e))}</div>`;
+    }
+  }
+}
+
+function renderLogViewerConsole(data) {
+  const consoleEl = document.getElementById('logviewer-console');
+  if (!consoleEl) return;
+
+  const errBadge = document.getElementById('log-count-err');
+  const warnBadge = document.getElementById('log-count-warn');
+  if (errBadge) errBadge.textContent = data.level_counts?.error || 0;
+  if (warnBadge) warnBadge.textContent = data.level_counts?.warn || 0;
+
+  if (!data.lines || data.lines.length === 0) {
+    consoleEl.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-dim);">No matching log entries found</div>`;
+    return;
+  }
+
+  const linesHtml = data.lines.map(line => {
+    const lvl = (line.level || 'INFO').toUpperCase();
+    const badgeCls = `log-badge log-badge-${lvl.toLowerCase()}`;
+    const tsHtml = line.timestamp ? `<span class="log-timestamp">${escapeHtml(line.timestamp)}</span>` : '';
+
+    return `
+      <div class="log-line">
+        <span class="log-line-num">${line.line_number}</span>
+        <span class="${badgeCls}">${lvl}</span>
+        ${tsHtml}
+        <span class="log-text">${escapeHtml(line.message || line.raw)}</span>
+      </div>
+    `;
+  }).join('');
+
+  consoleEl.innerHTML = linesHtml;
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+function toggleLogFollow() {
+  const btn = document.getElementById('btn-log-follow');
+  if (logViewerState.isFollowing) {
+    logViewerState.isFollowing = false;
+    if (logViewerState.followTimer) {
+      clearInterval(logViewerState.followTimer);
+      logViewerState.followTimer = null;
+    }
+    if (btn) {
+      btn.classList.remove('btn-accent');
+      btn.innerHTML = '<i data-lucide="play" style="width: 11px; height: 11px;"></i> Follow';
+      if (window.lucide) lucide.createIcons({ root: btn });
+    }
+  } else {
+    logViewerState.isFollowing = true;
+    logViewerState.followTimer = setInterval(() => {
+      fetchLogViewerTail();
+    }, 1500);
+    if (btn) {
+      btn.classList.add('btn-accent');
+      btn.innerHTML = '<i data-lucide="pause" style="width: 11px; height: 11px;"></i> Following...';
+      if (window.lucide) lucide.createIcons({ root: btn });
+    }
+  }
+}
+
+function setLogLevelFilter(level) {
+  logViewerState.level = level;
+
+  document.querySelectorAll('.log-level-btn').forEach(btn => btn.classList.remove('active'));
+  if (level === 'ALL') document.getElementById('btn-log-lvl-all')?.classList.add('active');
+  else if (level === 'ERROR') document.getElementById('btn-log-lvl-err')?.classList.add('active');
+  else if (level === 'WARN') document.getElementById('btn-log-lvl-warn')?.classList.add('active');
+
+  fetchLogViewerTail();
+}
+
+function handleLogViewerFilterInput() {
+  if (logViewerState.filterDebounceTimer) clearTimeout(logViewerState.filterDebounceTimer);
+  logViewerState.filterDebounceTimer = setTimeout(() => {
+    const input = document.getElementById('logviewer-filter-input');
+    if (input) {
+      logViewerState.filter = input.value.trim();
+      fetchLogViewerTail();
+    }
+  }, 250);
+}
+
+function toggleLogViewerInvert() {
+  logViewerState.invert = !logViewerState.invert;
+  const btn = document.getElementById('btn-logviewer-invert');
+  if (btn) {
+    if (logViewerState.invert) btn.classList.add('btn-accent');
+    else btn.classList.remove('btn-accent');
+  }
+  fetchLogViewerTail();
+}
+
+function mountDockedLogViewer(paneIndex) {
+  const host = document.getElementById(`docked-logviewer-host-${paneIndex}`);
+  const floatingBody = document.querySelector('.floating-logviewer-window .logviewer-console');
+  if (host && floatingBody) {
+    host.innerHTML = `
+      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: #0d1117;" id="docked-log-mount-${paneIndex}"></div>
+    `;
+    const innerMount = document.getElementById(`docked-log-mount-${paneIndex}`);
+    if (innerMount) {
+      fetchLogViewerTail();
     }
   }
 }

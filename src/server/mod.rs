@@ -139,6 +139,12 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/syncthing/status", get(handle_syncthing_status))
         .route("/api/tools/syncthing/scan", post(handle_syncthing_scan))
         .route("/api/tools/search", post(handle_search))
+        .route("/api/tools/duplicates/scan", post(handle_duplicates_scan))
+        .route("/api/tools/duplicates/clean", post(handle_duplicates_clean))
+        .route("/api/tools/metadata/read", get(handle_metadata_read))
+        .route("/api/tools/metadata/update", post(handle_metadata_update))
+        .route("/api/tools/metadata/batch", post(handle_metadata_batch))
+        .route("/api/tools/logviewer/tail", get(handle_logviewer_tail))
         .route("/api/actions/run", post(handle_run_action))
         // NoteDog Notes & Markdown Studio Chewtoy
         .route("/api/tools/notedog/info", get(handle_notedog_info))
@@ -4018,6 +4024,53 @@ async fn handle_search(
     crate::tools::search::SearchEngine::search(payload)
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Search failed: {}", e)))
+}
+
+async fn handle_duplicates_scan(
+    Json(payload): Json<crate::tools::duplicates::DuplicateScanRequest>,
+) -> Json<crate::tools::duplicates::DuplicateScanResponse> {
+    Json(crate::tools::duplicates::scan_duplicates(payload))
+}
+
+async fn handle_duplicates_clean(
+    Json(payload): Json<crate::tools::duplicates::DuplicateCleanRequest>,
+) -> Json<crate::tools::duplicates::DuplicateCleanResponse> {
+    Json(crate::tools::duplicates::clean_duplicates(payload))
+}
+
+#[derive(Deserialize)]
+struct ReadMetadataQuery {
+    path: String,
+}
+
+async fn handle_metadata_read(
+    Query(query): Query<ReadMetadataQuery>,
+) -> Result<Json<crate::tools::metadata::FileMetadataResponse>, (StatusCode, String)> {
+    crate::tools::metadata::read_file_metadata(&query.path)
+        .map(Json)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))
+}
+
+async fn handle_metadata_update(
+    Json(payload): Json<crate::tools::metadata::UpdateMetadataRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    crate::tools::metadata::update_file_metadata(payload)
+        .map(|_| Json(serde_json::json!({ "success": true })))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
+}
+
+async fn handle_metadata_batch(
+    Json(payload): Json<crate::tools::metadata::BatchMetadataRequest>,
+) -> Json<crate::tools::metadata::BatchMetadataResponse> {
+    Json(crate::tools::metadata::batch_update_metadata(payload))
+}
+
+async fn handle_logviewer_tail(
+    Query(payload): Query<crate::tools::logviewer::LogTailRequest>,
+) -> Result<Json<crate::tools::logviewer::LogTailResponse>, (StatusCode, String)> {
+    crate::tools::logviewer::tail_log_file(payload)
+        .map(Json)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))
 }
 
 async fn handle_run_action(

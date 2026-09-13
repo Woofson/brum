@@ -15091,7 +15091,10 @@ body.standalone-mode .server-only-setting {
 }
 
 .renamer-pill,
-.hexeditor-pill {
+.hexeditor-pill,
+.duplicates-pill,
+.tageditor-pill,
+.logviewer-pill {
   position: fixed;
   bottom: 8px;
   z-index: 2900;
@@ -15119,8 +15122,23 @@ body.standalone-mode .server-only-setting {
   right: 440px;
 }
 
+.duplicates-pill {
+  right: 560px;
+}
+
+.tageditor-pill {
+  right: 680px;
+}
+
+.logviewer-pill {
+  right: 800px;
+}
+
 .renamer-pill:hover,
-.hexeditor-pill:hover {
+.hexeditor-pill:hover,
+.duplicates-pill:hover,
+.tageditor-pill:hover,
+.logviewer-pill:hover {
   transform: translateY(-2px);
   border-color: var(--accent);
 }
@@ -15338,16 +15356,399 @@ body.standalone-mode .server-only-setting {
 
 @media (max-width: 768px) {
   .floating-renamer-window,
-  .floating-hexeditor-window {
+  .floating-hexeditor-window,
+  .floating-duplicates-window,
+  .floating-tageditor-window,
+  .floating-logviewer-window {
     top: 36px !important;
     left: 0 !important;
     width: 100vw !important;
     height: calc(100vh - 36px) !important;
     border-radius: 0 !important;
   }
-  .hexeditor-inspector-panel {
+  .hexeditor-inspector-panel,
+  .tageditor-preview-col {
     display: none;
   }
+}
+
+/* ==========================================================================
+   🔍 FLOATING DUPLICATE FINDER CORE FUNCTION
+   ========================================================================== */
+.floating-duplicates-window {
+  position: fixed;
+  top: 75px;
+  left: calc(50vw - 400px);
+  width: 800px;
+  height: 600px;
+  min-width: 460px;
+  min-height: 400px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 40px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 2860;
+  overflow: hidden;
+  font-family: var(--font-sans), sans-serif;
+  user-select: none;
+}
+
+.floating-duplicates-window.maximized {
+  top: 36px !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 36px) !important;
+  border-radius: 0 !important;
+}
+
+.duplicates-header {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+}
+
+.duplicates-header:active {
+  cursor: grabbing;
+}
+
+.duplicates-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.dup-controls-bar {
+  padding: 8px 10px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.dup-options-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.dup-presets-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  padding: 4px 0 0 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.dup-group-card {
+  margin: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-card);
+  overflow: hidden;
+}
+
+.dup-group-header {
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.03);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.dup-group-files {
+  display: flex;
+  flex-direction: column;
+}
+
+.dup-file-row {
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+  font-size: 12px;
+  transition: background 0.1s ease;
+}
+
+.dup-file-row:last-child {
+  border-bottom: none;
+}
+
+.dup-file-row.flagged-delete {
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.dup-file-row:hover {
+  background: var(--bg-hover);
+}
+
+.dup-footer-bar {
+  height: 42px;
+  min-height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+/* ==========================================================================
+   🏷️ FLOATING TAG EDITOR CORE FUNCTION
+   ========================================================================== */
+.floating-tageditor-window {
+  position: fixed;
+  top: 75px;
+  left: calc(50vw - 420px);
+  width: 840px;
+  height: 580px;
+  min-width: 500px;
+  min-height: 400px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 40px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 2860;
+  overflow: hidden;
+  font-family: var(--font-sans), sans-serif;
+  user-select: none;
+}
+
+.floating-tageditor-window.maximized {
+  top: 36px !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 36px) !important;
+  border-radius: 0 !important;
+}
+
+.tageditor-header {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+}
+
+.tageditor-header:active {
+  cursor: grabbing;
+}
+
+.tageditor-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.tageditor-file-list-col {
+  width: 240px;
+  min-width: 180px;
+  border-right: 1px solid var(--border);
+  background: var(--bg-dark);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.tageditor-main-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 12px;
+  gap: 12px;
+}
+
+.tageditor-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 12px;
+}
+
+.tageditor-art-box {
+  width: 110px;
+  height: 110px;
+  border: 1px dashed var(--border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+}
+
+.tageditor-art-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ==========================================================================
+   📜 FLOATING LOG VIEWER CORE FUNCTION
+   ========================================================================== */
+.floating-logviewer-window {
+  position: fixed;
+  top: 75px;
+  left: calc(50vw - 440px);
+  width: 880px;
+  height: 600px;
+  min-width: 480px;
+  min-height: 400px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 40px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 2860;
+  overflow: hidden;
+  font-family: var(--font-sans), sans-serif;
+  user-select: none;
+}
+
+.floating-logviewer-window.maximized {
+  top: 36px !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 36px) !important;
+  border-radius: 0 !important;
+}
+
+.logviewer-header {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+}
+
+.logviewer-header:active {
+  cursor: grabbing;
+}
+
+.logviewer-toolbar {
+  padding: 6px 10px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.logviewer-console {
+  flex: 1;
+  background: #0d1117;
+  color: #c9d1d9;
+  font-family: var(--font-mono), monospace;
+  font-size: 11.5px;
+  line-height: 1.45;
+  overflow: auto;
+  padding: 8px;
+  user-select: text;
+}
+
+.log-line {
+  display: flex;
+  gap: 8px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-line:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.log-line-num {
+  color: var(--text-dim);
+  width: 48px;
+  text-align: right;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.log-badge {
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.log-badge-fatal, .log-badge-error {
+  background: rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+
+.log-badge-warn {
+  background: rgba(245, 158, 11, 0.2);
+  color: #f59e0b;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.log-badge-info {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+}
+
+.log-badge-debug, .log-badge-trace {
+  background: rgba(148, 163, 184, 0.15);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.log-timestamp {
+  color: #8b949e;
+  font-size: 10.5px;
+  flex-shrink: 0;
+}
+
+.log-text {
+  flex: 1;
 }
 
 

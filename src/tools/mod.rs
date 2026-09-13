@@ -14,3 +14,6 @@ pub mod tags;
 pub mod tasks;
 pub mod notedog;
 pub mod tetradog;
+pub mod duplicates;
+pub mod metadata;
+pub mod logviewer;

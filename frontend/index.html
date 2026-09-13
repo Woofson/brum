@@ -4229,6 +4229,230 @@
     </div>
   </div>
 
+  <!-- 🔍 Floating Duplicate Finder Core Function Window -->
+  <div class="floating-duplicates-window" id="floating-duplicates-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="duplicates-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="duplicates-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="duplicates-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="duplicates-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="duplicates-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="modal-header duplicates-header" id="duplicates-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="duplicates-drag-handle">
+        <i data-lucide="copy-check" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Duplicate Finder</span>
+        <span class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">SHA-256</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-icon desktop-only" id="btn-duplicates-dock" onclick="dockDuplicateFinderToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-duplicates-maximize" onclick="toggleMaximizeDuplicateFinder()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingDuplicateFinder()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingDuplicateFinder()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <div class="duplicates-body" id="duplicates-body">
+      <div class="dup-controls-bar">
+        <div class="dup-options-row">
+          <span id="dup-source-info" style="font-size: 11px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Target directory...</span>
+          <label class="renamer-checkbox-label"><input type="checkbox" id="dup-include-hidden"> Hidden Files</label>
+          <button class="btn btn-sm btn-accent" id="btn-start-dup-scan" onclick="startDuplicateScan()"><i data-lucide="search" style="width: 12px; height: 12px;"></i> Scan Duplicates</button>
+        </div>
+        <div class="dup-presets-bar">
+          <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim); margin-right: 4px;">Auto-Select:</span>
+          <button class="btn btn-xs" onclick="autoSelectDuplicates('keep_newest')">Keep Newest</button>
+          <button class="btn btn-xs" onclick="autoSelectDuplicates('keep_oldest')">Keep Oldest</button>
+          <button class="btn btn-xs" onclick="autoSelectDuplicates('keep_shortest')">Keep Shortest Path</button>
+          <button class="btn btn-xs" onclick="autoSelectDuplicates('all_duplicates')">Select All Duplicates</button>
+          <button class="btn btn-xs btn-outline" onclick="autoSelectDuplicates('deselect_all')">Deselect All</button>
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding: 6px 0;" id="duplicates-groups-container">
+        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim); gap: 8px;">
+          <i data-lucide="copy-check" style="width: 32px; height: 32px; opacity: 0.4;"></i>
+          <span style="font-size: 12px;">Click "Scan Duplicates" to search for identical files</span>
+        </div>
+      </div>
+
+      <div class="dup-footer-bar">
+        <div id="dup-status-summary" style="font-size: 11.5px; font-weight: 600; color: var(--text-main);">0 files selected</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <select id="dup-action-select" class="pane-quick-filter renamer-select" style="height: 28px;">
+            <option value="trash" selected>Move to Trash (.local/share/Trash)</option>
+            <option value="delete">Delete Permanently</option>
+          </select>
+          <button class="btn btn-sm btn-danger" id="btn-execute-dup-clean" onclick="executeDuplicateClean()" disabled><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clean Selected</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🏷️ Floating Tag Editor Core Function Window -->
+  <div class="floating-tageditor-window" id="floating-tageditor-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="tageditor-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="tageditor-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="tageditor-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="tageditor-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="tageditor-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="modal-header tageditor-header" id="tageditor-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="tageditor-drag-handle">
+        <i data-lucide="tag" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Tag Editor</span>
+        <span id="tageditor-active-file-badge" class="badge" style="font-size: 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No file</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-xs btn-accent" onclick="saveTagEditorChanges()" title="Save Tags (Ctrl+S)" style="height: 28px; padding: 0 8px;"><i data-lucide="save" style="width: 12px; height: 12px;"></i> Save</button>
+        <button class="btn btn-icon desktop-only" id="btn-tageditor-dock" onclick="dockTagEditorToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-tageditor-maximize" onclick="toggleMaximizeTagEditor()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingTagEditor()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingTagEditor()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <div class="tageditor-body" id="tageditor-body">
+      <div class="tageditor-file-list-col">
+        <div style="padding: 6px 8px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 10.5px; font-weight: 600; color: var(--text-muted);">Files (<span id="tageditor-file-count">0</span>)</span>
+          <button class="btn btn-xs" onclick="reloadTagEditorFiles()" title="Reload"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i></button>
+        </div>
+        <div style="flex: 1; overflow-y: auto;" id="tageditor-file-list"></div>
+      </div>
+
+      <div class="tageditor-main-col">
+        <div style="display: flex; gap: 14px; align-items: flex-start;">
+          <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+            <div class="tageditor-art-box" id="tageditor-art-box" onclick="document.getElementById('tageditor-art-file').click()" title="Click to upload album artwork">
+              <img id="tageditor-art-preview" class="tageditor-art-img" style="display: none;" src="" alt="Album Art">
+              <div id="tageditor-art-placeholder" style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-dim); font-size: 10px;">
+                <i data-lucide="image" style="width: 24px; height: 24px;"></i>
+                <span>Cover Art</span>
+              </div>
+            </div>
+            <input type="file" id="tageditor-art-file" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="handleTagCoverArtSelected(event)">
+            <button class="btn btn-xs" id="btn-remove-cover-art" onclick="removeTagCoverArt()" style="display: none; font-size: 10px; height: 20px;">Remove</button>
+          </div>
+
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
+            <div class="renamer-rule-col">
+              <label class="renamer-field-label">Track Title</label>
+              <input type="text" id="tag-title-input" class="pane-quick-filter" placeholder="Title...">
+            </div>
+            <div class="renamer-rule-col">
+              <label class="renamer-field-label">Artist / Performer</label>
+              <input type="text" id="tag-artist-input" class="pane-quick-filter" placeholder="Artist...">
+            </div>
+            <div class="renamer-rule-col">
+              <label class="renamer-field-label">Album</label>
+              <input type="text" id="tag-album-input" class="pane-quick-filter" placeholder="Album...">
+            </div>
+          </div>
+        </div>
+
+        <div class="tageditor-form-grid">
+          <div class="renamer-rule-col">
+            <label class="renamer-field-label">Album Artist</label>
+            <input type="text" id="tag-album-artist-input" class="pane-quick-filter" placeholder="Album Artist...">
+          </div>
+          <div class="renamer-rule-col">
+            <label class="renamer-field-label">Year / Date</label>
+            <input type="text" id="tag-year-input" class="pane-quick-filter" placeholder="e.g. 2024...">
+          </div>
+          <div class="renamer-rule-col">
+            <label class="renamer-field-label">Track # / Total</label>
+            <div style="display: flex; gap: 4px;">
+              <input type="number" id="tag-track-num-input" class="pane-quick-filter" placeholder="1" min="1" style="width: 60px;">
+              <span style="display: flex; align-items: center; color: var(--text-dim);">/</span>
+              <input type="number" id="tag-track-tot-input" class="pane-quick-filter" placeholder="12" min="1" style="width: 60px;">
+            </div>
+          </div>
+          <div class="renamer-rule-col">
+            <label class="renamer-field-label">Genre</label>
+            <input type="text" id="tag-genre-input" class="pane-quick-filter" placeholder="e.g. Rock, Electronic...">
+          </div>
+        </div>
+
+        <div class="renamer-rule-col">
+          <label class="renamer-field-label">Comment / Notes</label>
+          <input type="text" id="tag-comment-input" class="pane-quick-filter" placeholder="Comment...">
+        </div>
+
+        <div style="padding: 8px 10px; background: var(--bg-header); border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
+          <span style="font-size: 11px; font-weight: 600; color: var(--text-main);">Batch Actions across all loaded files:</span>
+          <div style="display: flex; gap: 6px;">
+            <button class="btn btn-xs" onclick="applyBatchAutoTrackNumbers()"><i data-lucide="hash" style="width: 11px; height: 11px;"></i> Auto-Number (1..N)</button>
+            <button class="btn btn-xs" onclick="applyBatchTagField('artist')">Apply Artist to All</button>
+            <button class="btn btn-xs" onclick="applyBatchTagField('album')">Apply Album to All</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 📜 Floating Log Viewer Core Function Window -->
+  <div class="floating-logviewer-window" id="floating-logviewer-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="logviewer-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="logviewer-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="logviewer-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="logviewer-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="logviewer-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="modal-header logviewer-header" id="logviewer-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="logviewer-drag-handle">
+        <i data-lucide="scroll-text" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Log Viewer</span>
+        <span id="logviewer-file-badge" class="badge" style="font-size: 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No file</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-icon desktop-only" id="btn-logviewer-dock" onclick="dockLogViewerToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-logviewer-maximize" onclick="toggleMaximizeLogViewer()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingLogViewer()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingLogViewer()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <div class="logviewer-toolbar">
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 10.5px; color: var(--text-muted);">Lines:</span>
+        <select id="logviewer-lines-select" class="pane-quick-filter renamer-select" onchange="fetchLogViewerTail()" style="height: 26px;">
+          <option value="100">100</option>
+          <option value="250">250</option>
+          <option value="500" selected>500</option>
+          <option value="1000">1000</option>
+          <option value="2000">2000</option>
+          <option value="5000">5000</option>
+        </select>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 140px;">
+        <input type="text" id="logviewer-filter-input" class="pane-quick-filter" placeholder="Filter regex / text..." style="height: 26px; font-size: 11px; flex: 1;" oninput="handleLogViewerFilterInput()">
+        <button class="btn btn-xs" id="btn-logviewer-invert" onclick="toggleLogViewerInvert()" title="Invert Filter Match" style="height: 26px;">!</button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-xs log-level-btn active" id="btn-log-lvl-all" onclick="setLogLevelFilter('ALL')" style="height: 26px;">All</button>
+        <button class="btn btn-xs log-level-btn" id="btn-log-lvl-err" onclick="setLogLevelFilter('ERROR')" style="height: 26px; color: #ef4444;">Errors (<span id="log-count-err">0</span>)</button>
+        <button class="btn btn-xs log-level-btn" id="btn-log-lvl-warn" onclick="setLogLevelFilter('WARN')" style="height: 26px; color: #f59e0b;">Warn (<span id="log-count-warn">0</span>)</button>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+        <button class="btn btn-xs" id="btn-log-follow" onclick="toggleLogFollow()" style="height: 26px;" title="Follow log stream in real time"><i data-lucide="play" style="width: 11px; height: 11px;"></i> Follow</button>
+        <button class="btn btn-xs" onclick="fetchLogViewerTail()" style="height: 26px;" title="Refresh (R)"><i data-lucide="rotate-cw" style="width: 11px; height: 11px;"></i></button>
+      </div>
+    </div>
+
+    <div class="logviewer-console" id="logviewer-console">
+      <!-- Live formatted log lines -->
+    </div>
+  </div>
+
   <!-- Rich Image Viewer Modal -->
   <div class="modal-overlay" id="image-viewer-modal">
     <div class="modal-box image-viewer-box" id="image-viewer-box">
@@ -6315,6 +6539,24 @@
   <div class="hexeditor-pill" id="hexeditor-pill" style="display: none;" onclick="restoreFloatingHexEditor()" title="Click to restore Hex Editor">
     <i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="hexeditor-pill-title" id="hexeditor-pill-title">Hex Editor</span>
+  </div>
+
+  <!-- Duplicate Finder Minimized Task Pill -->
+  <div class="duplicates-pill" id="duplicates-pill" style="display: none;" onclick="restoreFloatingDuplicateFinder()" title="Click to restore Duplicate Finder">
+    <i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span class="duplicates-pill-title" id="duplicates-pill-title">Duplicate Finder</span>
+  </div>
+
+  <!-- Tag Editor Minimized Task Pill -->
+  <div class="tageditor-pill" id="tageditor-pill" style="display: none;" onclick="restoreFloatingTagEditor()" title="Click to restore Tag Editor">
+    <i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span class="tageditor-pill-title" id="tageditor-pill-title">Tag Editor</span>
+  </div>
+
+  <!-- Log Viewer Minimized Task Pill -->
+  <div class="logviewer-pill" id="logviewer-pill" style="display: none;" onclick="restoreFloatingLogViewer()" title="Click to restore Log Viewer">
+    <i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span class="logviewer-pill-title" id="logviewer-pill-title">Log Viewer</span>
   </div>
 
   <!-- Comic Book (.cbz/.cbr) & EPUB In-Browser Reader Modal -->
