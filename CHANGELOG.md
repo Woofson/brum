@@ -5,6 +5,25 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.7] - 2026-09-13
+
+### Native Core Functions Suite, Duplicate Finder, Fleet Persistence & Dual Multi-Tab VFS
+- **Native Core Functions Suite** (Fixes #34, #35, #36, #39, #40, #48):
+  - **Batch Renamer**: Integrated powerful pattern substitutions, prefix/suffix appending, numbering, case transformations, and real-time live preview before commit.
+  - **Hex Editor**: Added high-performance binary inspector with hexadecimal/ASCII dual-pane byte visualization, search, jump to offset, and in-place editing.
+  - **Duplicate Finder**: Native multi-threaded hash engine (Blake3, MD5, SHA1, SHA256) with configurable pre-scan path selection, size/extension filters, side-by-side duplicate groups, auto-selection rules (keep oldest/newest/deepest), and safe batch trash/deletion.
+  - **File Tag & Color Label Editor**: Tag manager for assigning custom tags, color labels (red, orange, yellow, green, blue, purple), and metadata filters.
+  - **System Log Viewer**: Real-time log visualizer with dynamic search, log level filtering (INFO, WARN, ERROR, DEBUG), follow/tail mode, and export.
+  - **Responsive Design System**: Standardized all Core Functions across Phone, Tablet, and PC viewports with 42px headers, 26–28px controls, grab handle headers, and collapsible filter sidebars.
+- **Commander Fleet Server-Backed Persistence** (Fixes #24):
+  - Synchronized registered Fleet nodes, auth tokens, tags, and cluster profiles into Brum's SQLite backend profile store (`/api/user/preferences`).
+  - Seamlessly syncs Fleet nodes across browsers, incognito sessions, and multiple devices.
+- **Dual-Panel Multi-Tab VFS & Transparent Archives** (Fixes #37, #38):
+  - Added multi-tab navigation per panel with configurable viewport modes (`pc_only`, `all`, `disabled`).
+  - Implemented transparent archive browsing for zip, tar, tar.gz, tar.bz2, and 7z archives.
+- **Zero-Flash Authentication & Security Shield**:
+  - Eliminated UI flashing on reload with synchronous frame-0 auth evaluation and cached profile hydration.
+
 ## [0.8.4] - 2026-09-11
 
 ### Settings & Admin Control Panel Modernization, Unified Places Hub & Responsive RBAC
