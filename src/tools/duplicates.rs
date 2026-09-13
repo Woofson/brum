@@ -37,6 +37,10 @@ pub struct DuplicateScanRequest {
     pub max_size: Option<u64>,
     pub check_images_similarity: Option<bool>,
     pub include_hidden: Option<bool>,
+    #[serde(default)]
+    pub file_type: Option<String>,
+    #[serde(default)]
+    pub extensions: Option<Vec<String>>,
 }
 
 #[derive(Debug, Serialize)]
@@ -141,6 +145,41 @@ fn read_image_dimensions(path: &Path) -> (Option<u32>, Option<u32>, bool) {
     (None, None, true)
 }
 
+fn match_extension_filter(path: &Path, req: &DuplicateScanRequest) -> bool {
+    let ext = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(|e| e.to_lowercase());
+
+    if let Some(ref exts) = req.extensions {
+        if !exts.is_empty() {
+            let e = ext.as_deref().unwrap_or("");
+            return exts.iter().any(|target| target.trim_start_matches('.').eq_ignore_ascii_case(e));
+        }
+    }
+
+    if let Some(ref ft) = req.file_type {
+        let ft_str = ft.trim().to_lowercase();
+        if ft_str == "all" || ft_str.is_empty() {
+            return true;
+        }
+        let e = match ext.as_deref() {
+            Some(val) => val,
+            None => return false,
+        };
+        match ft_str.as_str() {
+            "images" | "image" => matches!(e, "jpg" | "jpeg" | "png" | "webp" | "gif" | "bmp" | "svg" | "ico" | "tiff" | "heic" | "avif"),
+            "audio" => matches!(e, "mp3" | "wav" | "flac" | "aac" | "ogg" | "m4a" | "wma" | "opus" | "aiff"),
+            "video" | "videos" => matches!(e, "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "3gp"),
+            "documents" | "docs" | "document" => matches!(e, "pdf" | "doc" | "docx" | "xls" | "xlsx" | "ppt" | "pptx" | "txt" | "md" | "rtf" | "odt" | "ods" | "odp" | "csv" | "json" | "xml" | "yaml" | "yml"),
+            "archives" | "archive" => matches!(e, "zip" | "tar" | "gz" | "bz2" | "xz" | "7z" | "rar" | "zst" | "iso" | "tgz"),
+            _ => true,
+        }
+    } else {
+        true
+    }
+}
+
 /// Executes duplicate file scan across requested directories
 pub fn scan_duplicates(req: DuplicateScanRequest) -> DuplicateScanResponse {
     let min_size = req.min_size.unwrap_or(1);
@@ -185,6 +224,9 @@ pub fn scan_duplicates(req: DuplicateScanRequest) -> DuplicateScanResponse {
         }) {
             if let Ok(e) = entry {
                 if e.file_type().is_file() {
+                    if !match_extension_filter(e.path(), &req) {
+                        continue;
+                    }
                     scanned_count += 1;
                     if let Ok(meta) = e.metadata() {
                         let size = meta.len();
@@ -413,6 +455,49 @@ pub mod tests {
         assert_eq!(clean_res.failed_files.len(), 0);
         assert!(!file2.exists());
         assert!(file1.exists());
+    }
+
+    #[test]
+    fn test_duplicate_scan_with_filters() {
+        let dir = tempdir().unwrap();
+        let file1 = dir.path().join("img1.png");
+        let file2 = dir.path().join("img2.png");
+        let file3 = dir.path().join("doc1.pdf");
+        let file4 = dir.path().join("doc2.pdf");
+
+        fs::write(&file1, b"image payload 12345678").unwrap();
+        fs::write(&file2, b"image payload 12345678").unwrap();
+        fs::write(&file3, b"doc payload 87654321").unwrap();
+        fs::write(&file4, b"doc payload 87654321").unwrap();
+
+        // Scan only images
+        let img_req = DuplicateScanRequest {
+            path: Some(dir.path().to_string_lossy().to_string()),
+            file_type: Some("images".to_string()),
+            ..Default::default()
+        };
+        let img_res = scan_duplicates(img_req);
+        assert_eq!(img_res.groups.len(), 1);
+        assert_eq!(img_res.groups[0].files[0].name.ends_with(".png"), true);
+
+        // Scan only documents
+        let doc_req = DuplicateScanRequest {
+            path: Some(dir.path().to_string_lossy().to_string()),
+            file_type: Some("documents".to_string()),
+            ..Default::default()
+        };
+        let doc_res = scan_duplicates(doc_req);
+        assert_eq!(doc_res.groups.len(), 1);
+        assert_eq!(doc_res.groups[0].files[0].name.ends_with(".pdf"), true);
+
+        // Scan with min_size filter
+        let size_req = DuplicateScanRequest {
+            path: Some(dir.path().to_string_lossy().to_string()),
+            min_size: Some(100),
+            ..Default::default()
+        };
+        let size_res = scan_duplicates(size_req);
+        assert_eq!(size_res.groups.len(), 0);
     }
 }
 

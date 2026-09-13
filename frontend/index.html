@@ -4255,11 +4255,48 @@
 
     <div class="duplicates-body" id="duplicates-body">
       <div class="dup-controls-bar">
-        <div class="dup-options-row">
-          <span id="dup-source-info" style="font-size: 11px; color: var(--text-muted); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Target directory...</span>
-          <label class="renamer-checkbox-label"><input type="checkbox" id="dup-include-hidden"> Hidden Files</label>
-          <button class="btn btn-sm btn-accent" id="btn-start-dup-scan" onclick="startDuplicateScan()"><i data-lucide="search" style="width: 12px; height: 12px;"></i> Scan Duplicates</button>
+        <!-- Path Definition Row -->
+        <div class="dup-path-row">
+          <div class="dup-path-input-wrap">
+            <i data-lucide="folder" class="dup-path-icon"></i>
+            <input type="text" id="dup-path-input" class="dup-path-input" placeholder="Directory path to scan (e.g. /home/user/downloads)..." spellcheck="false" autocomplete="off" onkeydown="if(event.key==='Enter') startDuplicateScan()">
+          </div>
+          <button class="btn btn-xs" id="btn-dup-use-pane" onclick="setDuplicateFinderPathToActivePane()" title="Use directory of active pane"><i data-lucide="folder-symlink" style="width: 12px; height: 12px;"></i> Active Pane</button>
         </div>
+
+        <!-- Filter Criteria & Find Action Row -->
+        <div class="dup-criteria-row">
+          <div class="dup-criterion-item">
+            <label class="dup-label" for="dup-min-size-select">Min Size:</label>
+            <select id="dup-min-size-select" class="dup-select">
+              <option value="0">All Sizes (≥ 1 B)</option>
+              <option value="1024">≥ 1 KB</option>
+              <option value="102400">≥ 100 KB</option>
+              <option value="1048576" selected>≥ 1 MB</option>
+              <option value="10485760">≥ 10 MB</option>
+              <option value="104857600">≥ 100 MB</option>
+              <option value="1073741824">≥ 1 GB</option>
+            </select>
+          </div>
+
+          <div class="dup-criterion-item">
+            <label class="dup-label" for="dup-file-type-select">File Type:</label>
+            <select id="dup-file-type-select" class="dup-select">
+              <option value="all" selected>All Files</option>
+              <option value="images">Images (.jpg, .png, .webp...)</option>
+              <option value="videos">Videos (.mp4, .mkv, .mov...)</option>
+              <option value="audio">Audio (.mp3, .flac, .wav...)</option>
+              <option value="documents">Documents (.pdf, .docx, .txt...)</option>
+              <option value="archives">Archives (.zip, .tar, .7z...)</option>
+            </select>
+          </div>
+
+          <label class="renamer-checkbox-label" style="font-size: 11px; margin-left: 2px;" title="Include dotfiles and hidden folders"><input type="checkbox" id="dup-include-hidden"> Hidden Files</label>
+
+          <button class="btn btn-sm btn-accent" id="btn-start-dup-scan" onclick="startDuplicateScan()" style="margin-left: auto; height: 26px; padding: 0 12px; font-weight: 600;"><i data-lucide="search" style="width: 13px; height: 13px;"></i> Find Duplicates</button>
+        </div>
+
+        <!-- Presets Row -->
         <div class="dup-presets-bar">
           <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim); margin-right: 4px;">Auto-Select:</span>
           <button class="btn btn-xs" onclick="autoSelectDuplicates('keep_newest')">Keep Newest</button>
@@ -4271,9 +4308,12 @@
       </div>
 
       <div style="flex: 1; overflow-y: auto; padding: 6px 0;" id="duplicates-groups-container">
-        <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim); gap: 8px;">
-          <i data-lucide="copy-check" style="width: 32px; height: 32px; opacity: 0.4;"></i>
-          <span style="font-size: 12px;">Click "Scan Duplicates" to search for identical files</span>
+        <div class="dup-empty-state">
+          <i data-lucide="copy-check" style="width: 38px; height: 38px; opacity: 0.35; color: var(--accent);"></i>
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-main);">Configure Scan Path & Filters</div>
+          <div style="font-size: 11.5px; color: var(--text-muted); max-width: 340px; text-align: center; line-height: 1.4;">
+            Specify the directory path and criteria filters above, then click <strong>Find Duplicates</strong> to scan.
+          </div>
         </div>
       </div>
 

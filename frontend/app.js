@@ -26292,6 +26292,12 @@ function undockToolFromPane(paneIndex) {
     openBatchRenamer();
   } else if (tool === 'hexeditor') {
     openHexEditor();
+  } else if (tool === 'duplicates') {
+    openDuplicateFinder(duplicateFinderState.path);
+  } else if (tool === 'tageditor') {
+    openTagEditor();
+  } else if (tool === 'logviewer') {
+    openLogViewer();
   } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     openDynamicChewToy(pluginId);
@@ -26304,6 +26310,14 @@ function closeDockedTool(paneIndex) {
   const tool = pane.dockedTool;
   pane.dockedTool = null;
   localStorage.removeItem(`cd_pane_docked_${paneIndex}`);
+
+  if (tool === 'duplicates') {
+    const win = document.getElementById('floating-duplicates-window');
+    const body = document.getElementById('duplicates-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
 
   if (tool === 'mediaplayer') {
     const dockedVid = document.getElementById(`docked-mediaplayer-video-${paneIndex}`);
@@ -34819,6 +34833,16 @@ function initDuplicatesDragResize() {
   });
 }
 
+function setDuplicateFinderPathToActivePane() {
+  const activePane = App.panes[App.activePaneIndex];
+  const p = activePane?.path || '/';
+  const input = document.getElementById('dup-path-input');
+  if (input) {
+    input.value = p;
+  }
+  duplicateFinderState.path = p;
+}
+
 function openDuplicateFinder(targetPath = null, paneIndex = null) {
   duplicateFinderActivePaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   const pane = App.panes[duplicateFinderActivePaneIndex];
@@ -34827,6 +34851,11 @@ function openDuplicateFinder(targetPath = null, paneIndex = null) {
   duplicateFinderState.path = scanPath;
 
   const win = document.getElementById('floating-duplicates-window');
+  const body = document.getElementById('duplicates-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
   const pill = document.getElementById('duplicates-pill');
   if (pill) pill.style.display = 'none';
   if (win) {
@@ -34835,16 +34864,28 @@ function openDuplicateFinder(targetPath = null, paneIndex = null) {
   }
   initDuplicatesDragResize();
 
-  const sourceInfo = document.getElementById('dup-source-info');
-  if (sourceInfo) {
-    sourceInfo.textContent = `Target: ${sanitizeCredentials(scanPath)}`;
-    sourceInfo.title = scanPath;
+  const pathInput = document.getElementById('dup-path-input');
+  if (pathInput) {
+    pathInput.value = scanPath;
   }
 
-  if (duplicateFinderState.groups.length === 0) {
-    startDuplicateScan();
-  } else {
+  if (duplicateFinderState.groups.length > 0) {
     renderDuplicateGroups();
+  } else {
+    const container = document.getElementById('duplicates-groups-container');
+    if (container) {
+      container.innerHTML = `
+        <div class="dup-empty-state">
+          <i data-lucide="copy-check" style="width: 38px; height: 38px; opacity: 0.35; color: var(--accent);"></i>
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-main);">Configure Scan Path & Filters</div>
+          <div style="font-size: 11.5px; color: var(--text-muted); max-width: 340px; text-align: center; line-height: 1.4;">
+            Specify the directory path and criteria filters above, then click <strong>Find Duplicates</strong> to scan.
+          </div>
+        </div>
+      `;
+      if (window.lucide) lucide.createIcons({ root: container });
+      updateDuplicateFooter();
+    }
   }
 }
 
@@ -34881,7 +34922,16 @@ function dockDuplicateFinderToActivePane() {
 }
 
 async function startDuplicateScan() {
-  const path = duplicateFinderState.path || App.panes[App.activePaneIndex]?.path || '/';
+  const pathInput = document.getElementById('dup-path-input');
+  const path = (pathInput && pathInput.value.trim()) ? pathInput.value.trim() : (duplicateFinderState.path || App.panes[App.activePaneIndex]?.path || '/');
+  duplicateFinderState.path = path;
+
+  const minSizeSelect = document.getElementById('dup-min-size-select');
+  const minSize = minSizeSelect ? parseInt(minSizeSelect.value, 10) || 0 : 0;
+
+  const fileTypeSelect = document.getElementById('dup-file-type-select');
+  const fileType = fileTypeSelect ? fileTypeSelect.value : 'all';
+
   const includeHidden = !!document.getElementById('dup-include-hidden')?.checked;
   const container = document.getElementById('duplicates-groups-container');
 
@@ -34892,7 +34942,7 @@ async function startDuplicateScan() {
     container.innerHTML = `
       <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--text-dim); gap: 10px;">
         <i data-lucide="loader-2" class="spin" style="width: 32px; height: 32px; color: var(--accent);"></i>
-        <span style="font-size: 12px; font-weight: 600;">Scanning files & computing SHA-256 hashes...</span>
+        <span style="font-size: 12px; font-weight: 600;">Scanning directory & computing SHA-256 hashes...</span>
       </div>
     `;
     if (window.lucide) lucide.createIcons({ root: container });
@@ -34901,7 +34951,7 @@ async function startDuplicateScan() {
   const scanBtn = document.getElementById('btn-start-dup-scan');
   if (scanBtn) {
     scanBtn.disabled = true;
-    scanBtn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width: 12px; height: 12px;"></i> Scanning...';
+    scanBtn.innerHTML = '<i data-lucide="loader-2" class="spin" style="width: 12px; height: 12px;"></i> Finding...';
     if (window.lucide) lucide.createIcons({ root: scanBtn });
   }
 
@@ -34915,7 +34965,8 @@ async function startDuplicateScan() {
       body: JSON.stringify({
         path: path,
         paths: [path],
-        min_size: 1,
+        min_size: minSize,
+        file_type: fileType,
         include_hidden: includeHidden
       })
     });
@@ -34941,7 +34992,7 @@ async function startDuplicateScan() {
     duplicateFinderState.scanning = false;
     if (scanBtn) {
       scanBtn.disabled = false;
-      scanBtn.innerHTML = '<i data-lucide="search" style="width: 12px; height: 12px;"></i> Scan Duplicates';
+      scanBtn.innerHTML = '<i data-lucide="search" style="width: 13px; height: 13px;"></i> Find Duplicates';
       if (window.lucide) lucide.createIcons({ root: scanBtn });
     }
   }
@@ -35204,14 +35255,13 @@ async function executeDuplicateClean() {
 
 function mountDockedDuplicateFinder(paneIndex) {
   const host = document.getElementById(`docked-duplicates-host-${paneIndex}`);
-  const floatingBody = document.querySelector('.floating-duplicates-window .duplicates-body');
-  if (host && floatingBody) {
-    host.innerHTML = `
-      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-dup-mount-${paneIndex}"></div>
-    `;
-    const innerMount = document.getElementById(`docked-dup-mount-${paneIndex}`);
-    if (innerMount) {
-      renderDuplicateGroups(innerMount);
+  const body = document.getElementById('duplicates-body');
+  if (host && body) {
+    host.appendChild(body);
+    const pathInput = document.getElementById('dup-path-input');
+    if (pathInput && (!pathInput.value || pathInput.value === '/')) {
+      pathInput.value = App.panes[paneIndex]?.path || '/';
+      duplicateFinderState.path = pathInput.value;
     }
   }
 }
