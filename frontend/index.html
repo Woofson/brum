@@ -962,6 +962,16 @@
                     <option value="4">4 Panels (Allow Full Quad Layout on Tablets/Foldables)</option>
                   </select>
                 </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-pane-tabs-mode">Multi-Tab Panels (Tab Strips):</label>
+                  <select id="setting-pane-tabs-mode" class="settings-select" onchange="updatePaneTabsMode(this.value)">
+                    <option value="pc_only" selected>PC &amp; Desktop Only (&gt;1024px)</option>
+                    <option value="always">All Viewports (PC, Tablet &amp; Phone)</option>
+                    <option value="pc_tablet">PC &amp; Tablet (&ge;600px)</option>
+                    <option value="disabled">Disabled (Single Tab per Panel)</option>
+                  </select>
+                </div>
               </div>
 
               <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">

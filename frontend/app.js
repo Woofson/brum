@@ -66,6 +66,7 @@ const App = {
   dndParanoidPrompt: localStorage.getItem('cd_dnd_paranoid_prompt') !== 'false',
   paneReorderEnabled: localStorage.getItem('cd_pane_reorder_enabled') !== 'false',
   phoneTabletMaxPanes: parseInt(localStorage.getItem('cd_phone_tablet_max_panes') || '2', 10),
+  paneTabsMode: localStorage.getItem('cd_pane_tabs_mode') || 'pc_only',
   hapticFeedback: localStorage.getItem('cd_haptic_feedback') !== 'false',
 };
 
@@ -536,13 +537,50 @@ function openPaneTabContextMenu(e, paneIndex, tabIndex) {
   setTimeout(() => document.addEventListener('pointerdown', closeMenu), 50);
 }
 
+function isPaneTabsEnabled() {
+  const mode = localStorage.getItem('cd_pane_tabs_mode') || 'pc_only';
+  if (mode === 'disabled') return false;
+  if (mode === 'always') return true;
+  const width = window.innerWidth;
+  if (mode === 'pc_tablet') {
+    return width >= 600;
+  }
+  // 'pc_only' (> 1024px)
+  return width > 1024;
+}
+
+function updatePaneTabsMode(mode) {
+  App.paneTabsMode = mode;
+  localStorage.setItem('cd_pane_tabs_mode', mode);
+  updateAllPaneTabsVisibility();
+  queueSaveUserPreferencesToServer();
+  const label = mode === 'pc_only' ? 'PC & Desktop Only (>1024px)' : mode === 'always' ? 'All Viewports' : mode === 'pc_tablet' ? 'PC & Tablet (>=600px)' : 'Disabled';
+  showToast(`Multi-tab panels mode set to: ${label}`, 'success');
+}
+
+function updateAllPaneTabsVisibility() {
+  const visible = isPaneTabsEnabled();
+  const visibleCount = getVisiblePaneCount();
+  for (let i = 0; i < visibleCount; i++) {
+    const pane = App.panes[i];
+    const strip = document.getElementById(`pane-tab-strip-${i}`);
+    if (strip) {
+      if (!visible || (pane && pane.dockedTool)) {
+        strip.style.display = 'none';
+      } else {
+        renderPaneTabs(i);
+      }
+    }
+  }
+}
+
 function renderPaneTabs(paneIndex) {
   const pane = App.panes[paneIndex];
   if (!pane) return;
   const stripEl = document.getElementById(`pane-tab-strip-${paneIndex}`);
   if (!stripEl) return;
 
-  if (pane.dockedTool) {
+  if (pane.dockedTool || !isPaneTabsEnabled()) {
     stripEl.style.display = 'none';
     return;
   }
@@ -698,9 +736,10 @@ function getAllUserPreferences() {
     default_copy_action: getDefaultCopyAction(),
     haptic_feedback: App.hapticFeedback !== false && localStorage.getItem('cd_haptic_feedback') !== 'false',
 
-    // 6. Drag & Drop & Rearrangement & Max Panes
+    // 6. Drag & Drop & Rearrangement & Max Panes & Tabs
     pane_reorder_enabled: App.paneReorderEnabled !== false,
     phone_tablet_max_panes: App.phoneTabletMaxPanes || 2,
+    pane_tabs_mode: localStorage.getItem('cd_pane_tabs_mode') || 'pc_only',
     dnd_default_action: App.dndDefaultAction,
     dnd_prompt_mode: App.dndPromptMode,
     dnd_paranoid_prompt: App.dndParanoidPrompt,
@@ -964,6 +1003,13 @@ function applyAllUserPreferences(prefs) {
     localStorage.setItem('cd_phone_tablet_max_panes', App.phoneTabletMaxPanes.toString());
     const maxSel = document.getElementById('setting-phone-tablet-max-panes');
     if (maxSel) maxSel.value = App.phoneTabletMaxPanes.toString();
+  }
+  if (prefs.pane_tabs_mode !== undefined) {
+    App.paneTabsMode = prefs.pane_tabs_mode;
+    localStorage.setItem('cd_pane_tabs_mode', prefs.pane_tabs_mode);
+    const tabModeSel = document.getElementById('setting-pane-tabs-mode');
+    if (tabModeSel) tabModeSel.value = prefs.pane_tabs_mode;
+    if (typeof updateAllPaneTabsVisibility === 'function') updateAllPaneTabsVisibility();
   }
   if (prefs.dnd_default_action) {
     App.dndDefaultAction = prefs.dnd_default_action;
@@ -14965,6 +15011,11 @@ function openSettingsModal() {
     fkeysCheckbox.checked = App.showFKeyBar !== false && localStorage.getItem('cd_show_fkeys') !== 'false';
   }
 
+  const paneTabsModeSel = document.getElementById('setting-pane-tabs-mode');
+  if (paneTabsModeSel) {
+    paneTabsModeSel.value = localStorage.getItem('cd_pane_tabs_mode') || 'pc_only';
+  }
+
   const dotfilesCheckbox = document.getElementById('setting-show-hidden');
   if (dotfilesCheckbox) {
     dotfilesCheckbox.checked = App.panes[0]?.showHidden || false;
@@ -24956,10 +25007,12 @@ function checkResponsiveViewportLayout(force = false) {
 function triggerResponsiveViewportUpdate() {
   updateDynamicViewportHeight();
   checkResponsiveViewportLayout();
+  if (typeof updateAllPaneTabsVisibility === 'function') updateAllPaneTabsVisibility();
   if (_responsiveDebounceTimer) clearTimeout(_responsiveDebounceTimer);
   _responsiveDebounceTimer = setTimeout(() => {
     updateDynamicViewportHeight();
     checkResponsiveViewportLayout();
+    if (typeof updateAllPaneTabsVisibility === 'function') updateAllPaneTabsVisibility();
   }, 120);
 }
 
