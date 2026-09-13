@@ -10,14 +10,18 @@ pub struct LogEntry {
     pub level: String, // "FATAL", "ERROR", "WARN", "INFO", "DEBUG", "TRACE", "PLAIN"
     pub timestamp: Option<String>,
     pub text: String,
+    pub raw: String,
+    pub message: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct LogTailRequest {
     pub path: String,
     pub lines: Option<usize>,
     pub filter: Option<String>,
+    #[serde(default, alias = "invert")]
     pub invert_filter: Option<bool>,
+    #[serde(default, alias = "level")]
     pub level_filter: Option<String>, // "ALL", "ERROR", "WARN", "INFO", etc.
 }
 
@@ -28,14 +32,18 @@ pub struct LogTailResponse {
     pub total_lines_read: usize,
     pub matched_lines: usize,
     pub counts: LogLevelCounts,
+    pub level_counts: LogLevelCounts,
     pub entries: Vec<LogEntry>,
+    pub lines: Vec<LogEntry>,
 }
 
-#[derive(Debug, Serialize, Default)]
+#[derive(Debug, Serialize, Default, Clone)]
 pub struct LogLevelCounts {
     pub total: usize,
     pub errors: usize,
+    pub error: usize,
     pub warnings: usize,
+    pub warn: usize,
     pub info: usize,
     pub debug: usize,
 }
@@ -177,18 +185,25 @@ pub fn tail_log_file(req: LogTailRequest) -> Result<LogTailResponse, String> {
             line_number: *ln,
             level: level.to_string(),
             timestamp,
+            raw: text.clone(),
+            message: text.clone(),
             text: text.clone(),
         });
     }
 
     let matched_lines = entries.len();
+    let mut final_counts = counts.clone();
+    final_counts.error = final_counts.errors;
+    final_counts.warn = final_counts.warnings;
 
     Ok(LogTailResponse {
         file_path: req.path,
         file_size,
         total_lines_read: total_read,
         matched_lines,
-        counts,
+        level_counts: final_counts.clone(),
+        counts: final_counts,
+        lines: entries.clone(),
         entries,
     })
 }

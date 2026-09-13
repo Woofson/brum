@@ -12,6 +12,7 @@ pub struct DuplicateFileItem {
     pub name: String,
     pub size: u64,
     pub modified: u64,
+    pub modified_secs: u64,
     pub width: Option<u32>,
     pub height: Option<u32>,
     pub is_image: bool,
@@ -22,12 +23,16 @@ pub struct DuplicateFileItem {
 pub struct DuplicateGroup {
     pub hash: String,
     pub total_size: u64,
+    pub size: u64,
     pub files: Vec<DuplicateFileItem>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct DuplicateScanRequest {
-    pub paths: Vec<String>,
+    #[serde(default)]
+    pub path: Option<String>,
+    #[serde(default)]
+    pub paths: Option<Vec<String>>,
     pub min_size: Option<u64>,
     pub max_size: Option<u64>,
     pub check_images_similarity: Option<bool>,
@@ -40,13 +45,21 @@ pub struct DuplicateScanResponse {
     pub total_duplicate_groups: usize,
     pub total_duplicate_files: usize,
     pub reclaimable_bytes: u64,
+    pub total_wasted_bytes: u64,
     pub groups: Vec<DuplicateGroup>,
+    pub duplicate_groups: Vec<DuplicateGroup>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct DuplicateCleanRequest {
-    pub files: Vec<String>,
-    pub action: String, // "trash" or "delete"
+    #[serde(default, alias = "paths")]
+    pub files: Option<Vec<String>>,
+    #[serde(default)]
+    pub action: Option<String>, // "trash" or "delete"
+    #[serde(default)]
+    pub move_to_trash: Option<bool>,
+    #[serde(default)]
+    pub permanent: Option<bool>,
     pub custom_trash_dir: Option<String>,
 }
 
@@ -54,6 +67,8 @@ pub struct DuplicateCleanRequest {
 pub struct DuplicateCleanResponse {
     pub cleaned_count: usize,
     pub reclaimed_bytes: u64,
+    pub freed_bytes: u64,
+    pub deleted_files: usize,
     pub failed_files: Vec<String>,
 }
 
@@ -132,10 +147,27 @@ pub fn scan_duplicates(req: DuplicateScanRequest) -> DuplicateScanResponse {
     let max_size = req.max_size.unwrap_or(u64::MAX);
     let include_hidden = req.include_hidden.unwrap_or(false);
 
+    let mut scan_paths = Vec::new();
+    if let Some(ref p) = req.path {
+        if !p.trim().is_empty() {
+            scan_paths.push(p.clone());
+        }
+    }
+    if let Some(ref ps) = req.paths {
+        for p in ps {
+            if !p.trim().is_empty() && !scan_paths.contains(p) {
+                scan_paths.push(p.clone());
+            }
+        }
+    }
+    if scan_paths.is_empty() {
+        scan_paths.push("/".to_string());
+    }
+
     let mut all_files: Vec<(PathBuf, u64, u64)> = Vec::new();
     let mut scanned_count = 0;
 
-    for root_str in req.paths {
+    for root_str in scan_paths {
         let root = Path::new(&root_str);
         if !root.exists() {
             continue;
@@ -208,6 +240,7 @@ pub fn scan_duplicates(req: DuplicateScanRequest) -> DuplicateScanResponse {
                         name,
                         size,
                         modified,
+                        modified_secs: modified,
                         width,
                         height,
                         is_image,
@@ -233,6 +266,7 @@ pub fn scan_duplicates(req: DuplicateScanRequest) -> DuplicateScanResponse {
             groups.push(DuplicateGroup {
                 hash,
                 total_size,
+                size: total_size,
                 files,
             });
         }
@@ -245,6 +279,8 @@ pub fn scan_duplicates(req: DuplicateScanRequest) -> DuplicateScanResponse {
         total_duplicate_groups: groups.len(),
         total_duplicate_files: total_dup_files,
         reclaimable_bytes,
+        total_wasted_bytes: reclaimable_bytes,
+        duplicate_groups: groups.clone(),
         groups,
     }
 }
@@ -254,6 +290,16 @@ pub fn clean_duplicates(req: DuplicateCleanRequest) -> DuplicateCleanResponse {
     let mut cleaned_count = 0;
     let mut reclaimed_bytes = 0;
     let mut failed_files = Vec::new();
+
+    let is_trash = if let Some(m) = req.move_to_trash {
+        m
+    } else if let Some(ref a) = req.action {
+        a == "trash"
+    } else if let Some(p) = req.permanent {
+        !p
+    } else {
+        true
+    };
 
     let trash_dir = req
         .custom_trash_dir
@@ -265,11 +311,13 @@ pub fn clean_duplicates(req: DuplicateCleanRequest) -> DuplicateCleanResponse {
                 .join(".local/share/Trash/files")
         });
 
-    if req.action == "trash" && !trash_dir.exists() {
+    if is_trash && !trash_dir.exists() {
         let _ = fs::create_dir_all(&trash_dir);
     }
 
-    for file_str in req.files {
+    let files_to_clean = req.files.unwrap_or_default();
+
+    for file_str in files_to_clean {
         let path = Path::new(&file_str);
         if !path.exists() || !path.is_file() {
             failed_files.push(file_str);
@@ -278,7 +326,7 @@ pub fn clean_duplicates(req: DuplicateCleanRequest) -> DuplicateCleanResponse {
 
         let file_size = fs::metadata(path).map(|m| m.len()).unwrap_or(0);
 
-        if req.action == "trash" {
+        if is_trash {
             let file_name = path.file_name().unwrap_or_default();
             let mut target = trash_dir.join(file_name);
             let mut counter = 1;
@@ -320,6 +368,8 @@ pub fn clean_duplicates(req: DuplicateCleanRequest) -> DuplicateCleanResponse {
     DuplicateCleanResponse {
         cleaned_count,
         reclaimed_bytes,
+        freed_bytes: reclaimed_bytes,
+        deleted_files: cleaned_count,
         failed_files,
     }
 }
@@ -341,11 +391,10 @@ pub mod tests {
         fs::write(&file3, b"unique content").unwrap();
 
         let req = DuplicateScanRequest {
-            paths: vec![dir.path().to_string_lossy().to_string()],
+            path: Some(dir.path().to_string_lossy().to_string()),
             min_size: Some(1),
-            max_size: None,
             include_hidden: Some(false),
-            check_images_similarity: None,
+            ..Default::default()
         };
 
         let res = scan_duplicates(req);
@@ -354,9 +403,9 @@ pub mod tests {
         assert!(res.reclaimable_bytes > 0);
 
         let clean_req = DuplicateCleanRequest {
-            files: vec![file2.to_string_lossy().to_string()],
-            action: "delete".to_string(),
-            custom_trash_dir: None,
+            files: Some(vec![file2.to_string_lossy().to_string()]),
+            action: Some("delete".to_string()),
+            ..Default::default()
         };
 
         let clean_res = clean_duplicates(clean_req);

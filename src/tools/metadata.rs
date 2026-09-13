@@ -47,18 +47,46 @@ pub struct FileMetadataResponse {
     pub file_type: String, // "audio", "image", "other"
     pub audio: Option<AudioMetadata>,
     pub photo: Option<PhotoMetadata>,
+    // Flat convenience aliases
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub album_artist: Option<String>,
+    pub year: Option<String>,
+    pub track_number: Option<u32>,
+    pub track_total: Option<u32>,
+    pub genre: Option<String>,
+    pub comment: Option<String>,
+    pub has_cover_art: bool,
+    pub cover_art_mime: Option<String>,
+    pub cover_art_base64: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct UpdateMetadataRequest {
     pub path: String,
     pub audio: Option<AudioMetadata>,
     pub photo: Option<PhotoMetadata>,
+    // Flat fields fallback
+    pub title: Option<String>,
+    pub artist: Option<String>,
+    pub album: Option<String>,
+    pub album_artist: Option<String>,
+    pub year: Option<serde_json::Value>,
+    pub track_number: Option<u32>,
+    pub track_total: Option<u32>,
+    pub genre: Option<String>,
+    pub comment: Option<String>,
+    pub cover_art_base64: Option<String>,
+    pub remove_cover_art: Option<bool>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, Default, Clone)]
 pub struct BatchMetadataRequest {
-    pub files: Vec<String>,
+    #[serde(default)]
+    pub files: Option<Vec<String>>,
+    #[serde(default)]
+    pub updates: Option<Vec<UpdateMetadataRequest>>,
     pub artist: Option<String>,
     pub album: Option<String>,
     pub album_artist: Option<String>,
@@ -71,7 +99,9 @@ pub struct BatchMetadataRequest {
 #[derive(Debug, Serialize)]
 pub struct BatchMetadataResponse {
     pub updated_count: usize,
-    pub failed_files: Vec<String>,
+    pub updated_files: usize,
+    pub failed_files: usize,
+    pub errors: Vec<String>,
 }
 
 /// Reads ID3v1 tags from the last 128 bytes of an MP3 file
@@ -412,6 +442,19 @@ pub fn read_file_metadata(file_path: &str) -> Result<FileMetadataResponse, Strin
         photo = Some(read_photo_metadata(path));
     }
 
+    let title = audio.as_ref().and_then(|a| a.title.clone());
+    let artist = audio.as_ref().and_then(|a| a.artist.clone());
+    let album = audio.as_ref().and_then(|a| a.album.clone());
+    let album_artist = audio.as_ref().and_then(|a| a.album_artist.clone());
+    let year = audio.as_ref().and_then(|a| a.year.clone());
+    let track_number = audio.as_ref().and_then(|a| a.track_number);
+    let track_total = audio.as_ref().and_then(|a| a.track_total);
+    let genre = audio.as_ref().and_then(|a| a.genre.clone());
+    let comment = audio.as_ref().and_then(|a| a.comment.clone());
+    let has_cover_art = audio.as_ref().map(|a| a.has_cover_art).unwrap_or(false);
+    let cover_art_mime = audio.as_ref().and_then(|a| a.cover_art_mime.clone());
+    let cover_art_base64 = audio.as_ref().and_then(|a| a.cover_art_base64.clone());
+
     Ok(FileMetadataResponse {
         path: file_path.to_string(),
         name,
@@ -419,11 +462,23 @@ pub fn read_file_metadata(file_path: &str) -> Result<FileMetadataResponse, Strin
         file_type,
         audio,
         photo,
+        title,
+        artist,
+        album,
+        album_artist,
+        year,
+        track_number,
+        track_total,
+        genre,
+        comment,
+        has_cover_art,
+        cover_art_mime,
+        cover_art_base64,
     })
 }
 
 /// Writes updated ID3v2 tags to an MP3 file
-pub fn update_file_metadata(req: UpdateMetadataRequest) -> Result<(), String> {
+pub fn update_file_metadata(mut req: UpdateMetadataRequest) -> Result<(), String> {
     let path = Path::new(&req.path);
     if !path.exists() {
         return Err("File does not exist".to_string());
@@ -437,6 +492,38 @@ pub fn update_file_metadata(req: UpdateMetadataRequest) -> Result<(), String> {
 
     if ext != "mp3" {
         return Ok(()); // Basic update handles MP3 ID3 tags
+    }
+
+    // Build audio struct from flat fields if req.audio is None
+    if req.audio.is_none() {
+        let year_str = req.year.as_ref().and_then(|v| match v {
+            serde_json::Value::Number(n) => Some(n.to_string()),
+            serde_json::Value::String(s) => Some(s.clone()),
+            _ => None,
+        });
+
+        let has_art = req.cover_art_base64.is_some();
+        let cover_b64 = if req.remove_cover_art.unwrap_or(false) {
+            None
+        } else {
+            req.cover_art_base64.clone()
+        };
+
+        req.audio = Some(AudioMetadata {
+            title: req.title.clone(),
+            artist: req.artist.clone(),
+            album: req.album.clone(),
+            album_artist: req.album_artist.clone(),
+            year: year_str,
+            track_number: req.track_number,
+            track_total: req.track_total,
+            genre: req.genre.clone(),
+            comment: req.comment.clone(),
+            has_cover_art: has_art && cover_b64.is_some(),
+            cover_art_mime: Some("image/jpeg".to_string()),
+            cover_art_base64: cover_b64,
+            ..Default::default()
+        });
     }
 
     let audio = match req.audio {
@@ -555,10 +642,35 @@ pub fn update_file_metadata(req: UpdateMetadataRequest) -> Result<(), String> {
 pub fn batch_update_metadata(req: BatchMetadataRequest) -> BatchMetadataResponse {
     let mut updated_count = 0;
     let mut failed_files = Vec::new();
+    let mut errors = Vec::new();
+
+    // If explicit updates list is given
+    if let Some(updates) = req.updates {
+        for update_req in updates {
+            let path_str = update_req.path.clone();
+            match update_file_metadata(update_req) {
+                Ok(_) => updated_count += 1,
+                Err(e) => {
+                    errors.push(format!("{}: {}", path_str, e));
+                    failed_files.push(path_str);
+                }
+            }
+        }
+
+        let failed_count = failed_files.len();
+        return BatchMetadataResponse {
+            updated_count,
+            updated_files: updated_count,
+            failed_files: failed_count,
+            errors,
+        };
+    }
+
     let auto_num = req.auto_track_numbers.unwrap_or(false);
     let mut track_counter = req.start_track_number.unwrap_or(1);
+    let files = req.files.unwrap_or_default();
 
-    for file_str in req.files {
+    for file_str in files {
         let path = Path::new(&file_str);
         if !path.exists() {
             failed_files.push(file_str);
@@ -592,15 +704,22 @@ pub fn batch_update_metadata(req: BatchMetadataRequest) -> BatchMetadataResponse
             path: file_str.clone(),
             audio: Some(audio),
             photo: None,
+            ..Default::default()
         }) {
             Ok(_) => updated_count += 1,
-            Err(_) => failed_files.push(file_str),
+            Err(e) => {
+                errors.push(format!("{}: {}", file_str, e));
+                failed_files.push(file_str);
+            }
         }
     }
 
+    let failed_count = failed_files.len();
     BatchMetadataResponse {
         updated_count,
-        failed_files,
+        updated_files: updated_count,
+        failed_files: failed_count,
+        errors,
     }
 }
 
@@ -624,15 +743,13 @@ pub mod tests {
                 title: Some("Brum Song".to_string()),
                 artist: Some("Bolt J Woofson".to_string()),
                 album: Some("Woofsons Hits".to_string()),
-                album_artist: None,
                 year: Some("2026".to_string()),
                 genre: Some("Electronic".to_string()),
                 track_number: Some(7),
-                track_total: None,
                 comment: Some("Test comment".to_string()),
                 ..Default::default()
             }),
-            photo: None,
+            ..Default::default()
         };
 
         update_file_metadata(req).unwrap();

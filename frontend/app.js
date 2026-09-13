@@ -34914,6 +34914,7 @@ async function startDuplicateScan() {
       },
       body: JSON.stringify({
         path: path,
+        paths: [path],
         min_size: 1,
         include_hidden: includeHidden
       })
@@ -34921,9 +34922,9 @@ async function startDuplicateScan() {
 
     if (res.ok) {
       const data = await res.json();
-      duplicateFinderState.groups = data.duplicate_groups || [];
+      duplicateFinderState.groups = data.groups || data.duplicate_groups || [];
       duplicateFinderState.totalScanned = data.total_files_scanned || 0;
-      duplicateFinderState.totalWastedBytes = data.total_wasted_bytes || 0;
+      duplicateFinderState.totalWastedBytes = data.reclaimable_bytes || data.total_wasted_bytes || 0;
 
       autoSelectDuplicates('keep_newest');
       renderDuplicateGroups();
@@ -34957,7 +34958,9 @@ function autoSelectDuplicates(strategy) {
     } else if (strategy === 'keep_newest') {
       let newest = group.files[0];
       group.files.forEach(f => {
-        if (f.modified_secs > newest.modified_secs) newest = f;
+        const m = f.modified_secs || f.modified || 0;
+        const nm = newest.modified_secs || newest.modified || 0;
+        if (m > nm) newest = f;
       });
       group.files.forEach(f => {
         if (f.path !== newest.path) duplicateFinderState.selectedPaths.add(f.path);
@@ -34965,7 +34968,9 @@ function autoSelectDuplicates(strategy) {
     } else if (strategy === 'keep_oldest') {
       let oldest = group.files[0];
       group.files.forEach(f => {
-        if (f.modified_secs < oldest.modified_secs) oldest = f;
+        const m = f.modified_secs || f.modified || 0;
+        const om = oldest.modified_secs || oldest.modified || 0;
+        if (m < om) oldest = f;
       });
       group.files.forEach(f => {
         if (f.path !== oldest.path) duplicateFinderState.selectedPaths.add(f.path);
@@ -35020,7 +35025,7 @@ function updateDuplicateFooter() {
   duplicateFinderState.groups.forEach(g => {
     (g.files || []).forEach(f => {
       if (duplicateFinderState.selectedPaths.has(f.path)) {
-        wastedSelectedBytes += f.size || g.size || 0;
+        wastedSelectedBytes += f.size || g.size || g.total_size || 0;
       }
     });
   });
@@ -35060,13 +35065,15 @@ function renderDuplicateGroups(container = null) {
   }
 
   const html = duplicateFinderState.groups.map((group, gIdx) => {
-    const wastedInGroup = (group.files.length - 1) * group.size;
+    const groupSize = group.size || group.total_size || (group.files?.[0]?.size || 0);
+    const wastedInGroup = (group.files.length - 1) * groupSize;
     const shortHash = (group.hash || '').substring(0, 12);
 
     const fileRows = group.files.map((file, fIdx) => {
       const isSelected = duplicateFinderState.selectedPaths.has(file.path);
-      const isImage = /\.(jpe?g|png|webp|gif|bmp|svg)$/i.test(file.name);
-      const mdate = new Date(file.modified_secs * 1000).toLocaleString();
+      const isImage = file.is_image || /\.(jpe?g|png|webp|gif|bmp|svg)$/i.test(file.name);
+      const modSecs = file.modified_secs || file.modified || 0;
+      const mdate = modSecs > 0 ? new Date(modSecs * 1000).toLocaleString() : '-';
       const encodedPath = encodeURIComponent(file.path);
 
       let thumbHtml = '';
@@ -35096,7 +35103,7 @@ function renderDuplicateGroups(container = null) {
       <div class="dup-group-card">
         <div class="dup-group-header">
           <div style="display: flex; align-items: center; gap: 6px;">
-            <span class="badge" style="font-weight: 700; font-size: 11px;">${formatBytes(group.size)}</span>
+            <span class="badge" style="font-weight: 700; font-size: 11px;">${formatBytes(groupSize)}</span>
             <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim);">${group.files.length} identical copies</span>
             <span class="badge" style="font-size: 9.5px; opacity: 0.7; font-family: var(--font-mono);">SHA-256: ${shortHash}...</span>
           </div>
@@ -35151,7 +35158,9 @@ async function executeDuplicateClean() {
         'Authorization': `Bearer ${App.token}`
       },
       body: JSON.stringify({
+        files: selected,
         paths: selected,
+        action: isTrash ? 'trash' : 'delete',
         move_to_trash: isTrash,
         permanent: !isTrash
       })
@@ -35169,10 +35178,15 @@ async function executeDuplicateClean() {
       duplicateFinderState.selectedPaths.clear();
 
       // Recalculate wasted bytes
-      duplicateFinderState.totalWastedBytes = duplicateFinderState.groups.reduce((acc, g) => acc + (g.files.length - 1) * g.size, 0);
+      duplicateFinderState.totalWastedBytes = duplicateFinderState.groups.reduce((acc, g) => {
+        const sz = g.size || g.total_size || (g.files?.[0]?.size || 0);
+        return acc + (g.files.length - 1) * sz;
+      }, 0);
 
       renderDuplicateGroups();
-      showToast(`Cleaned ${data.deleted_files} files successfully! Freed ${formatBytes(data.freed_bytes)}.`, 'success');
+      const freed = data.freed_bytes || data.reclaimed_bytes || 0;
+      const count = data.deleted_files || data.cleaned_count || selected.length;
+      showToast(`Cleaned ${count} files successfully! Freed ${formatBytes(freed)}.`, 'success');
       refreshAllPanes();
     } else {
       showToast('Clean failed: ' + sanitizeCredentials(await res.text()), 'error');
