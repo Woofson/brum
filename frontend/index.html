@@ -689,7 +689,7 @@
       <!-- Search Input Header -->
       <div class="spotlight-input-wrapper">
         <img src="assets/spot.webp" alt="Spot!" class="spotlight-search-icon" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
-        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Type a path, folder, bookmark, or action (e.g. 'down', 'term', '/var')..." autocomplete="off" spellcheck="false" oninput="handleSpotlightInput(this.value)" onkeydown="handleSpotlightKey(event)">
+        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Search actions, files, /text to grep, re:pattern, or path..." autocomplete="off" spellcheck="false" oninput="handleSpotlightInput(this.value)" onkeydown="handleSpotlightKey(event)">
         <button class="btn btn-icon spotlight-clear-btn" id="spotlight-clear-btn" onclick="clearSpotlightInput()" style="display: none;" title="Clear">
           <i data-lucide="x" style="width: 13px; height: 13px;"></i>
         </button>
@@ -703,6 +703,8 @@
         <button class="spotlight-cat-btn active" id="spotlight-cat-all" onclick="filterSpotlightCategory('all')">All</button>
         <button class="spotlight-cat-btn" id="spotlight-cat-actions" onclick="filterSpotlightCategory('actions')"><i data-lucide="zap"></i> Actions</button>
         <button class="spotlight-cat-btn" id="spotlight-cat-paths" onclick="filterSpotlightCategory('paths')"><i data-lucide="folder"></i> Paths</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-files" onclick="filterSpotlightCategory('files')"><i data-lucide="file-code"></i> Files</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-grep" onclick="filterSpotlightCategory('grep')"><i data-lucide="search"></i> In-File Grep</button>
         <button class="spotlight-cat-btn" id="spotlight-cat-bookmarks" onclick="filterSpotlightCategory('bookmarks')"><i data-lucide="star"></i> Bookmarks</button>
         <button class="spotlight-cat-btn" id="spotlight-cat-recent" onclick="filterSpotlightCategory('recent')"><i data-lucide="history"></i> Recent</button>
       </div>
@@ -3981,6 +3983,237 @@
     </div>
   </div>
 
+  <!-- 🏷️ Floating Batch Renamer Chewtoy Window (Ctrl+M) -->
+  <div class="floating-renamer-window" id="floating-renamer-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="renamer-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="renamer-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="renamer-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="renamer-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="renamer-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
+    <div class="modal-header renamer-header" id="renamer-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="renamer-drag-handle">
+        <i data-lucide="file-signature" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Batch Renamer</span>
+        <span class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">Ctrl+M</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-icon desktop-only" id="btn-renamer-dock" onclick="dockRenamerToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-renamer-maximize" onclick="toggleMaximizeRenamer()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingRenamer()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingRenamer()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- Renamer Workspace Body -->
+    <div class="renamer-body" id="renamer-body">
+      <!-- 1. Source & Rules Config Panel -->
+      <div class="renamer-config-panel">
+        <div class="renamer-source-bar">
+          <span id="renamer-source-info" style="font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Loading items...</span>
+          <div style="display: flex; gap: 4px; flex-shrink: 0;">
+            <button class="btn btn-xs" onclick="reloadRenamerFiles()" title="Reload selection from active pane"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Selected</button>
+            <button class="btn btn-xs" onclick="loadRenamerDirectory()" title="Load all files in active directory"><i data-lucide="folder" style="width: 11px; height: 11px;"></i> All Files</button>
+          </div>
+        </div>
+
+        <!-- Rules Form Grid -->
+        <div class="renamer-rules-grid">
+          <div class="renamer-rule-col">
+            <label class="renamer-field-label">Find / Search Pattern</label>
+            <div class="renamer-input-wrap">
+              <input type="text" id="renamer-find-input" class="pane-quick-filter" placeholder="Find text or regex (e.g. IMG_(\d+))..." oninput="updateRenamerPreview()">
+            </div>
+          </div>
+          <div class="renamer-rule-col">
+            <label class="renamer-field-label">Replace With</label>
+            <div class="renamer-input-wrap">
+              <input type="text" id="renamer-replace-input" class="pane-quick-filter" placeholder="Replace string or $1, [001]..." oninput="updateRenamerPreview()">
+            </div>
+          </div>
+        </div>
+
+        <!-- Options & Case Transformation Row -->
+        <div class="renamer-options-row">
+          <label class="renamer-checkbox-label" title="Use Regular Expressions in Find/Replace">
+            <input type="checkbox" id="renamer-regex-check" onchange="updateRenamerPreview()"> Regex
+          </label>
+          <label class="renamer-checkbox-label" title="Case Sensitive Matching">
+            <input type="checkbox" id="renamer-case-check" onchange="updateRenamerPreview()"> Match Case
+          </label>
+          <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+            <span style="font-size: 10.5px; color: var(--text-muted);">Case:</span>
+            <select id="renamer-casing-select" class="pane-quick-filter renamer-select" onchange="updateRenamerPreview()">
+              <option value="none">Preserve</option>
+              <option value="lower">lowercase</option>
+              <option value="upper">UPPERCASE</option>
+              <option value="title">Title Case</option>
+              <option value="camel">camelCase</option>
+              <option value="snake">snake_case</option>
+              <option value="kebab">kebab-case</option>
+              <option value="sentence">Sentence case</option>
+            </select>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span style="font-size: 10.5px; color: var(--text-muted);">Ext:</span>
+            <select id="renamer-ext-select" class="pane-quick-filter renamer-select" onchange="updateRenamerPreview()">
+              <option value="none">Preserve</option>
+              <option value="lower">lowercase (.jpg)</option>
+              <option value="upper">UPPERCASE (.JPG)</option>
+              <option value="strip">Strip extension</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Dynamic Tokens & Counter Helper Bar -->
+        <div class="renamer-tokens-bar">
+          <span style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); flex-shrink: 0;">Tokens:</span>
+          <div class="renamer-tokens-chips">
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[N]')">[N] Counter</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[01]')">[01]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[001]')">[001]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[0001]')">[0001]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[NAME]')">[NAME]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[EXT]')">[EXT]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[YYYY]')">[YYYY]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[MM]')">[MM]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[DD]')">[DD]</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0;">
+            <span style="font-size: 10px; color: var(--text-dim);">Start:</span>
+            <input type="number" id="renamer-counter-start" class="pane-quick-filter" value="1" min="0" style="width: 48px; height: 22px; padding: 0 4px; font-size: 11px;" oninput="updateRenamerPreview()">
+            <span style="font-size: 10px; color: var(--text-dim);">Step:</span>
+            <input type="number" id="renamer-counter-step" class="pane-quick-filter" value="1" min="1" style="width: 42px; height: 22px; padding: 0 4px; font-size: 11px;" oninput="updateRenamerPreview()">
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Live Dual-Column Preview Table -->
+      <div class="renamer-preview-container" id="renamer-preview-container">
+        <table class="renamer-table" id="renamer-table">
+          <thead>
+            <tr>
+              <th style="width: 32px; text-align: center;"><input type="checkbox" id="renamer-select-all" checked onchange="toggleAllRenamerItems(this.checked)"></th>
+              <th>Original Filename</th>
+              <th style="width: 24px; text-align: center;">➔</th>
+              <th>New Filename</th>
+              <th style="width: 80px; text-align: center;">Status</th>
+            </tr>
+          </thead>
+          <tbody id="renamer-table-body">
+            <!-- Dynamically generated rows -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3. Footer Action Bar -->
+      <div class="renamer-footer-bar">
+        <div id="renamer-status-summary" style="font-size: 11px; font-weight: 600; color: var(--text-main);">0 items</div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn btn-sm btn-outline" onclick="resetRenamerRules()" title="Reset All Rules"><i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset</button>
+          <button class="btn btn-sm btn-outline" id="renamer-undo-btn" onclick="undoBatchRename()" disabled title="Undo Last Batch Rename"><i data-lucide="undo" style="width: 12px; height: 12px;"></i> Undo (<span id="renamer-undo-count">0</span>)</button>
+          <button class="btn btn-sm btn-accent" id="renamer-execute-btn" onclick="executeBatchRename()"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Execute Rename</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 🔬 Floating Hex Editor Chewtoy Window -->
+  <div class="floating-hexeditor-window" id="floating-hexeditor-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="hexeditor-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="hexeditor-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="hexeditor-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="hexeditor-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="hexeditor-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
+    <div class="modal-header hexeditor-header" id="hexeditor-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="hexeditor-drag-handle">
+        <i data-lucide="binary" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Hex Editor</span>
+        <span id="hexeditor-file-badge" class="badge" style="font-size: 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No file</span>
+        <span id="hexeditor-dirty-badge" class="badge badge-accent" style="display: none; font-size: 9px; padding: 1px 4px;">MODIFIED</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-xs btn-accent" id="hexeditor-save-btn" onclick="saveHexEditorChanges()" title="Save / Patch File (Ctrl+S)" style="height: 28px; padding: 0 8px;"><i data-lucide="save" style="width: 12px; height: 12px;"></i> Save</button>
+        <button class="btn btn-icon" id="hexeditor-inspector-toggle" onclick="toggleHexInspector()" title="Toggle Data Inspector" style="width: 28px; height: 28px;"><i data-lucide="sidebar"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-hexeditor-dock" onclick="dockHexEditorToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-hexeditor-maximize" onclick="toggleMaximizeHexEditor()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingHexEditor()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingHexEditor()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- Hex Editor Sub-Toolbar (Rule 9: 26px uniform sizing) -->
+    <div class="hexeditor-toolbar">
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 10.5px; color: var(--text-muted);">Bytes/Row:</span>
+        <select id="hexeditor-bytes-per-row" class="pane-quick-filter renamer-select" onchange="renderHexEditorView()" style="height: 26px;">
+          <option value="8">8</option>
+          <option value="16" selected>16</option>
+          <option value="32">32</option>
+        </select>
+        <span style="font-size: 10.5px; color: var(--text-muted); margin-left: 4px;">Endian:</span>
+        <select id="hexeditor-endian-select" class="pane-quick-filter renamer-select" onchange="updateHexInspector()" style="height: 26px;">
+          <option value="le" selected>Little Endian (LE)</option>
+          <option value="be">Big Endian (BE)</option>
+        </select>
+      </div>
+
+      <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
+        <input type="text" id="hexeditor-goto-input" class="pane-quick-filter" placeholder="Goto 0x00..." style="width: 75px; height: 26px; font-size: 11px;" onkeydown="if(event.key==='Enter') jumpHexOffset()">
+        <button class="btn btn-xs" onclick="jumpHexOffset()" style="height: 26px;">Go</button>
+        <div class="header-sep"></div>
+        <input type="text" id="hexeditor-search-input" class="pane-quick-filter" placeholder="Search hex/text..." style="width: 110px; height: 26px; font-size: 11px;" onkeydown="if(event.key==='Enter') searchHexBytes()">
+        <button class="btn btn-xs" onclick="searchHexBytes()" style="height: 26px;"><i data-lucide="search" style="width: 11px; height: 11px;"></i></button>
+      </div>
+    </div>
+
+    <!-- Hex Editor Main Body (Split Grid + Inspector) -->
+    <div class="hexeditor-body">
+      <!-- Virtualized / Paginated Hex View Grid -->
+      <div class="hexeditor-grid-container" id="hexeditor-grid-container" tabindex="0" onkeydown="handleHexGridKey(event)">
+        <!-- Rendered via JS -->
+      </div>
+
+      <!-- Right Inspector Sidebar -->
+      <div class="hexeditor-inspector-panel" id="hexeditor-inspector-panel">
+        <div class="hex-inspector-section-title">Byte Inspector</div>
+        <div class="hex-inspector-grid">
+          <div class="hex-insp-label">Offset:</div><div class="hex-insp-val" id="hex-insp-offset">0x0 (0)</div>
+          <div class="hex-insp-label">Int8:</div><div class="hex-insp-val" id="hex-insp-int8">0</div>
+          <div class="hex-insp-label">UInt8:</div><div class="hex-insp-val" id="hex-insp-uint8">0</div>
+          <div class="hex-insp-label">Int16:</div><div class="hex-insp-val" id="hex-insp-int16">0</div>
+          <div class="hex-insp-label">UInt16:</div><div class="hex-insp-val" id="hex-insp-uint16">0</div>
+          <div class="hex-insp-label">Int32:</div><div class="hex-insp-val" id="hex-insp-int32">0</div>
+          <div class="hex-insp-label">UInt32:</div><div class="hex-insp-val" id="hex-insp-uint32">0</div>
+          <div class="hex-insp-label">Float32:</div><div class="hex-insp-val" id="hex-insp-float32">0.0</div>
+          <div class="hex-insp-label">Float64:</div><div class="hex-insp-val" id="hex-insp-float64">0.0</div>
+          <div class="hex-insp-label">Binary:</div><div class="hex-insp-val font-mono" id="hex-insp-binary" style="font-size: 10px;">00000000</div>
+        </div>
+
+        <div class="hex-inspector-section-title" style="margin-top: 10px;">File Checksums</div>
+        <div class="hex-inspector-grid">
+          <div class="hex-insp-label">SHA-256:</div><div class="hex-insp-val font-mono text-truncate" id="hex-hash-sha256" title="Click to copy" onclick="copyTextToClipboard(this.textContent)">-</div>
+          <div class="hex-insp-label">CRC32:</div><div class="hex-insp-val font-mono" id="hex-hash-crc32" title="Click to copy" onclick="copyTextToClipboard(this.textContent)">-</div>
+          <div class="hex-insp-label">Size:</div><div class="hex-insp-val" id="hex-file-size">0 B</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hex Editor Statusbar -->
+    <div class="hexeditor-statusbar">
+      <div id="hex-status-offset" style="font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted);">Offset: 0x00000000 (0)</div>
+      <div id="hex-status-mode" style="font-size: 10px; color: var(--text-dim); text-transform: uppercase;">Direct Hex Edit Mode</div>
+      <div id="hex-status-modified" style="font-size: 10.5px; font-weight: 600; color: var(--accent);">0 bytes patched</div>
+    </div>
+  </div>
+
   <!-- Rich Image Viewer Modal -->
   <div class="modal-overlay" id="image-viewer-modal">
     <div class="modal-box image-viewer-box" id="image-viewer-box">
@@ -6053,6 +6286,18 @@
     <img src="assets/convertx.webp" alt="ConvertX" style="width: 14px; height: 14px; object-fit: contain;">
     <i data-lucide="loader" class="convertx-pill-spin" id="convertx-pill-icon" style="width: 13px; height: 13px;"></i>
     <span class="convertx-pill-title" id="convertx-pill-title">Converting file...</span>
+  </div>
+
+  <!-- Batch Renamer Minimized Task Pill -->
+  <div class="renamer-pill" id="renamer-pill" style="display: none;" onclick="restoreFloatingRenamer()" title="Click to restore Batch Renamer (Ctrl+M)">
+    <i data-lucide="file-signature" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span class="renamer-pill-title" id="renamer-pill-title">Batch Renamer</span>
+  </div>
+
+  <!-- Hex Editor Minimized Task Pill -->
+  <div class="hexeditor-pill" id="hexeditor-pill" style="display: none;" onclick="restoreFloatingHexEditor()" title="Click to restore Hex Editor">
+    <i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span class="hexeditor-pill-title" id="hexeditor-pill-title">Hex Editor</span>
   </div>
 
   <!-- Comic Book (.cbz/.cbr) & EPUB In-Browser Reader Modal -->

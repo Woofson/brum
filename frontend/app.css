@@ -14703,4 +14703,509 @@ body.standalone-mode .server-only-setting {
   border: none !important;
 }
 
+/* ==========================================================================
+   🔍 SPOT! GREP SNIPPETS & FILE RESULTS
+   ========================================================================== */
+.spotlight-grep-snippet {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.4;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 6px;
+  margin-top: 4px;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spotlight-grep-snippet mark {
+  background: rgba(245, 158, 11, 0.35);
+  color: var(--accent);
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 600;
+}
+
+.spotlight-line-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--accent);
+  margin-right: 4px;
+  opacity: 0.9;
+}
+
+/* ==========================================================================
+   🏷️ FLOATING BATCH RENAMER CHEWTOY (Ctrl+M)
+   ========================================================================== */
+.floating-renamer-window {
+  position: fixed;
+  top: 75px;
+  left: calc(50vw - 360px);
+  width: 720px;
+  height: 560px;
+  min-width: 440px;
+  min-height: 380px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 40px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 2860;
+  overflow: hidden;
+  font-family: var(--font-sans), sans-serif;
+  user-select: none;
+}
+
+.floating-renamer-window.maximized {
+  top: 36px !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 36px) !important;
+  border-radius: 0 !important;
+}
+
+.renamer-header {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+}
+
+.renamer-header:active {
+  cursor: grabbing;
+}
+
+.renamer-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.renamer-config-panel {
+  padding: 10px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.renamer-source-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.renamer-rules-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.renamer-rule-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.renamer-field-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.renamer-options-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.renamer-checkbox-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--text-main);
+  cursor: pointer;
+}
+
+.renamer-select {
+  height: 24px;
+  padding: 0 6px;
+  font-size: 11px;
+}
+
+.renamer-tokens-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 4px;
+  border-top: 1px dashed var(--border);
+}
+
+.renamer-tokens-chips {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  overflow-x: auto;
+}
+
+.renamer-token-chip {
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: var(--font-mono);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  color: var(--accent);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.renamer-token-chip:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent);
+}
+
+.renamer-preview-container {
+  flex: 1;
+  overflow-y: auto;
+  background: var(--bg-panel);
+}
+
+.renamer-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.renamer-table th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-dark);
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  z-index: 2;
+}
+
+.renamer-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.renamer-table tr:hover {
+  background: var(--bg-hover);
+}
+
+.renamer-table tr.renamer-row-modified td.renamer-col-new {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.renamer-table tr.renamer-row-conflict {
+  background: rgba(239, 68, 68, 0.12);
+}
+
+.renamer-table tr.renamer-row-conflict td.renamer-col-new {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.renamer-footer-bar {
+  padding: 8px 12px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+}
+
+.renamer-pill,
+.hexeditor-pill {
+  position: fixed;
+  bottom: 8px;
+  z-index: 2900;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full, 9999px);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  user-select: none;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.renamer-pill {
+  right: 320px;
+}
+
+.hexeditor-pill {
+  right: 440px;
+}
+
+.renamer-pill:hover,
+.hexeditor-pill:hover {
+  transform: translateY(-2px);
+  border-color: var(--accent);
+}
+
+/* ==========================================================================
+   🔬 FLOATING HEX EDITOR CHEWTOY
+   ========================================================================== */
+.floating-hexeditor-window {
+  position: fixed;
+  top: 65px;
+  left: calc(50vw - 420px);
+  width: 840px;
+  height: 600px;
+  min-width: 480px;
+  min-height: 400px;
+  max-width: calc(100vw - 20px);
+  max-height: calc(100vh - 40px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 2865;
+  overflow: hidden;
+  font-family: var(--font-sans), sans-serif;
+  user-select: none;
+}
+
+.floating-hexeditor-window.maximized {
+  top: 36px !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: calc(100vh - 36px) !important;
+  border-radius: 0 !important;
+}
+
+.hexeditor-header {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+}
+
+.hexeditor-header:active {
+  cursor: grabbing;
+}
+
+.hexeditor-toolbar {
+  height: 36px;
+  min-height: 36px;
+  padding: 0 10px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.hexeditor-body {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  background: var(--bg-panel);
+}
+
+.hexeditor-grid-container {
+  flex: 1;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  padding: 8px 10px;
+  background: var(--bg-panel);
+  outline: none;
+  user-select: text;
+}
+
+.hex-row {
+  display: flex;
+  align-items: center;
+  line-height: 20px;
+  height: 20px;
+  gap: 12px;
+}
+
+.hex-row:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hex-offset {
+  color: var(--text-dim);
+  width: 75px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.hex-bytes {
+  display: flex;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.hex-byte {
+  width: 18px;
+  text-align: center;
+  cursor: pointer;
+  border-radius: 2px;
+  color: var(--text-main);
+  padding: 0 1px;
+}
+
+.hex-byte:hover {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--accent);
+}
+
+.hex-byte.selected {
+  background: var(--accent);
+  color: #000;
+  font-weight: 700;
+}
+
+.hex-byte.modified {
+  color: #ef4444;
+  font-weight: 700;
+  text-decoration: underline;
+}
+
+.hex-ascii {
+  display: flex;
+  gap: 1px;
+  color: var(--text-muted);
+  border-left: 1px solid var(--border);
+  padding-left: 10px;
+}
+
+.hex-ascii-char {
+  width: 8.5px;
+  text-align: center;
+  cursor: pointer;
+}
+
+.hex-ascii-char.selected {
+  background: var(--accent);
+  color: #000;
+  font-weight: 700;
+}
+
+.hex-ascii-char.modified {
+  color: #ef4444;
+  font-weight: 700;
+}
+
+.hexeditor-inspector-panel {
+  width: 220px;
+  background: var(--bg-dark);
+  border-left: 1px solid var(--border);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+}
+
+.hex-inspector-section-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.hex-inspector-grid {
+  display: grid;
+  grid-template-columns: 60px 1fr;
+  gap: 4px 6px;
+  font-size: 11px;
+  margin-bottom: 8px;
+}
+
+.hex-insp-label {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.hex-insp-val {
+  color: var(--text-main);
+  font-family: var(--font-mono);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hexeditor-statusbar {
+  height: 26px;
+  min-height: 26px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .floating-renamer-window,
+  .floating-hexeditor-window {
+    top: 36px !important;
+    left: 0 !important;
+    width: 100vw !important;
+    height: calc(100vh - 36px) !important;
+    border-radius: 0 !important;
+  }
+  .hexeditor-inspector-panel {
+    display: none;
+  }
+}
+
 

@@ -11,6 +11,7 @@ pub struct SearchRequest {
     pub path: String,
     pub name_pattern: Option<String>,
     pub content_query: Option<String>,
+    pub is_regex: Option<bool>,
     pub case_sensitive: Option<bool>,
     pub min_size_bytes: Option<u64>,
     pub max_size_bytes: Option<u64>,
@@ -41,13 +42,24 @@ impl SearchEngine {
 
         let max_results = req.max_results.unwrap_or(300);
         let case_sens = req.case_sensitive.unwrap_or(false);
+        let is_regex_flag = req.is_regex.unwrap_or(false);
 
-        let name_regex = if let Some(ref pat) = req.name_pattern {
+        let name_regex = if let Some(ref raw_pat) = req.name_pattern {
+            let pat = if let Some(stripped) = raw_pat.strip_prefix("re:") {
+                stripped.trim()
+            } else if let Some(stripped) = raw_pat.strip_prefix('>') {
+                stripped.trim()
+            } else {
+                raw_pat.as_str()
+            };
+
             if !pat.is_empty() {
-                let re_str = if pat.contains('*') || pat.contains('?') {
+                let re_str = if is_regex_flag || raw_pat.starts_with("re:") || raw_pat.starts_with('>') {
+                    pat.to_string()
+                } else if pat.contains('*') || pat.contains('?') {
                     format!("^{}$", pat.replace('.', "\\.").replace('*', ".*").replace('?', "."))
                 } else {
-                    pat.clone()
+                    regex::escape(pat)
                 };
                 RegexBuilder::new(&re_str)
                     .case_insensitive(!case_sens)
@@ -60,7 +72,15 @@ impl SearchEngine {
             None
         };
 
-        let content_regex = if let Some(ref cq) = req.content_query {
+        let content_regex = if let Some(ref raw_cq) = req.content_query {
+            let cq = if let Some(stripped) = raw_cq.strip_prefix("grep:") {
+                stripped.trim()
+            } else if let Some(stripped) = raw_cq.strip_prefix('/') {
+                stripped.trim()
+            } else {
+                raw_cq.as_str()
+            };
+
             if !cq.is_empty() {
                 RegexBuilder::new(cq)
                     .case_insensitive(!case_sens)
@@ -135,12 +155,18 @@ impl SearchEngine {
                 if let Ok(f) = File::open(entry.path()) {
                     let reader = BufReader::new(f);
                     for (line_num, line_res) in reader.lines().enumerate() {
-                        if matched_lines.len() >= 3 {
+                        if matched_lines.len() >= 5 {
                             break;
                         }
                         if let Ok(line) = line_res {
                             if c_re.is_match(&line) {
-                                matched_lines.push(format!("L{}: {}", line_num + 1, line.trim()));
+                                let trimmed = line.trim();
+                                let snippet = if trimmed.len() > 160 {
+                                    format!("{}...", &trimmed[..157])
+                                } else {
+                                    trimmed.to_string()
+                                };
+                                matched_lines.push(format!("L{}: {}", line_num + 1, snippet));
                             }
                         }
                     }

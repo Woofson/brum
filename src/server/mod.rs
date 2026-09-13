@@ -2265,6 +2265,7 @@ struct WriteFileRequest {
     path: String,
     content: String,
     atomic: Option<bool>,
+    is_base64: Option<bool>,
 }
 
 async fn handle_write_file(
@@ -2274,30 +2275,39 @@ async fn handle_write_file(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let target_path = validate_path_access(&state, &headers, &payload.path, true)?;
 
+    let raw_bytes: Vec<u8> = if payload.is_base64.unwrap_or(false) {
+        use base64::Engine;
+        base64::engine::general_purpose::STANDARD
+            .decode(&payload.content)
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid base64 payload: {}", e)))?
+    } else {
+        payload.content.into_bytes()
+    };
+
     if target_path.starts_with("vault://") {
         let rest = target_path.strip_prefix("vault://").unwrap();
         let (vault_file, subpath) = match rest.split_once('#') {
             Some((v, s)) => (v, s),
             None => (rest, ""),
         };
-        state.vaults.write_vault_file(vault_file, subpath, payload.content.as_bytes())
+        state.vaults.write_vault_file(vault_file, subpath, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
     } else if target_path.starts_with("smb://") {
         let params = crate::vfs::smb::SmbClient::parse_uri(&target_path, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SMB URI: {}", e)))?;
-        crate::vfs::smb::SmbClient::write_file(&params, payload.content.as_bytes())
+        crate::vfs::smb::SmbClient::write_file(&params, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save SMB file: {}", e)))
     } else if target_path.starts_with("sftp://") {
         let params = SftpClient::parse_uri(&target_path, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
-        SftpClient::write_file(&params, payload.content.as_bytes())
+        SftpClient::write_file(&params, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save SFTP file: {}", e)))
     } else {
         let atomic = payload.atomic.unwrap_or(state.config.paranoid.atomic_writes);
-        LocalFs::write_file(&target_path, payload.content.as_bytes(), atomic)
+        LocalFs::write_file(&target_path, &raw_bytes, atomic)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save file: {}", e)))
     }

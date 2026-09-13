@@ -1737,6 +1737,8 @@ function createPaneElement(pane, index) {
         'notedog': '<img src="assets/note.webp" alt="NoteDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> NoteDog',
         'terminal': '<img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Terminal Console',
         'calculator': '<img src="assets/calc.webp" alt="Calculator" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Calculator',
+        'renamer': '<i data-lucide="file-signature" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Batch Renamer',
+        'hexeditor': '<i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Hex Editor',
         'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src=\'assets/amber-frameless-apps.webp\'"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
         'tetradog': '<img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> TetraDog',
@@ -6689,6 +6691,11 @@ function setupKeyboardNavigation() {
         toggleFolderTree();
         return;
       }
+      if (e.key === 'm' || e.key === 'M') {
+        e.preventDefault();
+        openBatchRenamer();
+        return;
+      }
     }
 
     // Modal-specific file action and navigation overrides
@@ -7010,7 +7017,24 @@ function maximizeFloatingEditor() {
   win.classList.toggle('maximized');
 }
 
-async function openEditorWithFile(filePath, paneIndex = null) {
+function jumpEditorToLine(lineNum, targetPane = 'left') {
+  const textarea = document.getElementById(`editor-text-${targetPane}`);
+  if (!textarea || !lineNum) return;
+  const target = parseInt(lineNum, 10);
+  if (isNaN(target) || target < 1) return;
+  const lines = textarea.value.split('\n');
+  let pos = 0;
+  for (let i = 0; i < Math.min(target - 1, lines.length); i++) {
+    pos += lines[i].length + 1;
+  }
+  const end = pos + (lines[target - 1] ? lines[target - 1].length : 0);
+  textarea.focus();
+  textarea.setSelectionRange(pos, end);
+  textarea.scrollTop = Math.max(0, (target - 5) * 19);
+  if (typeof syncGutterScroll === 'function') syncGutterScroll(targetPane);
+}
+
+async function openEditorWithFile(filePath, paneIndex = null, lineNumber = null) {
   const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   const cleanPath = sanitizeCredentials(filePath);
   const existingTab = editorTabs.find(t => (t.path === cleanPath || t.path === filePath) && (t.paneIndex === resolvedPaneIdx || t.paneIndex === undefined));
@@ -7021,6 +7045,9 @@ async function openEditorWithFile(filePath, paneIndex = null) {
       renderDockedPaneTool(dockedIdx);
     } else {
       openFloatingEditor();
+    }
+    if (lineNumber) {
+      setTimeout(() => jumpEditorToLine(lineNumber, 'left'), 60);
     }
     return;
   }
@@ -7046,6 +7073,9 @@ async function openEditorWithFile(filePath, paneIndex = null) {
         renderDockedPaneTool(dockedIdx);
       } else {
         openFloatingEditor();
+      }
+      if (lineNumber) {
+        setTimeout(() => jumpEditorToLine(lineNumber, 'left'), 60);
       }
     } else {
       showToast('Failed to read file: ' + sanitizeCredentials(await resp.text()), 'error');
@@ -11007,6 +11037,8 @@ function updateLogoutOrExitButton() {
 const DEFAULT_TOOLS_MENU = [
   { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
   { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
+  { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
+  { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
   { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
   { id: 'editor', label: 'Edit', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
@@ -12399,6 +12431,7 @@ function showContextMenu(x, y) {
     ` : ''}
     <div class="context-item" onclick="triggerView(); hideContextMenu();"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
     <div class="context-item" onclick="triggerEditor(); hideContextMenu();"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
+    <div class="context-item" onclick="openHexEditor('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="binary" style="width: 14px; color: var(--accent);"></i> Open in Hex Editor...</div>
     ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
       <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in Audioplayer</div>
       <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to Audioplayer Queue</div>
@@ -12440,6 +12473,7 @@ function showContextMenu(x, y) {
     <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
     <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste (Ctrl+V)</div>
     <div class="context-item" onclick="triggerRename(); hideContextMenu();"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
+    <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
     <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
     <div class="context-sep"></div>
 
@@ -24448,8 +24482,13 @@ let spotlightCurrentCat = 'all';
 let spotlightQuery = '';
 let spotlightSelectedIndex = 0;
 let spotlightItems = [];
+let spotlightAsyncDebounceTimer = null;
+let spotlightAsyncAbortCtrl = null;
+let spotlightAsyncLoading = false;
 
 const SPOTLIGHT_STATIC_ACTIONS = [
+  { id: 'renamer', title: 'Batch Renamer', sub: 'Multi-file pattern replacement, sequential renamer & live diff preview (Ctrl+M)', icon: 'file-signature', cat: 'actions', action: () => openBatchRenamer() },
+  { id: 'hexeditor', title: 'Hex Editor', sub: 'Binary hexadecimal viewer, byte patching & checksum calculator', icon: 'binary', cat: 'actions', action: () => openHexEditor() },
   { id: 'notedog', title: 'Notes', sub: 'Hierarchical notes, markdown editor, interactive checklists, templates & versions', icon: 'assets/note.webp', cat: 'actions', action: () => openFloatingNoteDog() },
   { id: 'calc', title: 'Calculator', sub: 'Interactive floating calculator with storage units & base conversions', icon: 'assets/calc.webp', cat: 'actions', action: () => openFloatingCalculator() },
   { id: 'branch', title: 'Flat', sub: 'Flatten all subdirectories into a single unified list (Ctrl+B)', icon: 'assets/amber-git-branch.webp', cat: 'actions', action: () => toggleBranchView() },
@@ -24509,6 +24548,7 @@ function openSpotlightModal() {
   spotlightQuery = '';
   spotlightCurrentCat = 'all';
   spotlightSelectedIndex = 0;
+  spotlightAsyncLoading = false;
   
   const input = document.getElementById('spotlight-input');
   if (input) input.value = '';
@@ -24527,6 +24567,10 @@ function openSpotlightModal() {
 function closeSpotlightModal() {
   const modal = document.getElementById('spotlight-modal');
   if (modal) modal.style.display = 'none';
+  if (spotlightAsyncAbortCtrl) {
+    try { spotlightAsyncAbortCtrl.abort(); } catch (_) {}
+    spotlightAsyncAbortCtrl = null;
+  }
 }
 
 function toggleSpotlightModal() {
@@ -24553,10 +24597,11 @@ function filterSpotlightCategory(cat) {
   spotlightSelectedIndex = 0;
   buildSpotlightItems();
   renderSpotlightResults();
+  triggerSpotlightAsyncSearch();
 }
 
 function updateSpotlightCatButtons() {
-  const cats = ['all', 'actions', 'paths', 'bookmarks', 'recent'];
+  const cats = ['all', 'actions', 'paths', 'files', 'grep', 'bookmarks', 'recent'];
   cats.forEach(c => {
     const btn = document.getElementById(`spotlight-cat-${c}`);
     if (btn) {
@@ -24567,12 +24612,142 @@ function updateSpotlightCatButtons() {
 }
 
 function handleSpotlightInput(val) {
-  spotlightQuery = (val || '').trim();
+  const raw = val || '';
+  let query = raw.trim();
+
+  // Prefix routing
+  if (query.startsWith('@')) {
+    spotlightCurrentCat = 'actions';
+    query = query.slice(1).trim();
+  } else if (query.startsWith('grep:')) {
+    spotlightCurrentCat = 'grep';
+    query = query.slice(5).trim();
+  } else if (query.startsWith('/') && !query.startsWith('/home') && !query.startsWith('/etc') && !query.startsWith('/var') && !query.startsWith('/tmp') && !query.startsWith('/usr') && query.length > 1 && !query.includes('/')) {
+    // Single leading slash like "/search term" triggers grep
+    spotlightCurrentCat = 'grep';
+    query = query.slice(1).trim();
+  } else if (query.startsWith('re:') || query.startsWith('>')) {
+    spotlightCurrentCat = 'files';
+  }
+
+  spotlightQuery = query;
+  updateSpotlightCatButtons();
+
   const clearBtn = document.getElementById('spotlight-clear-btn');
-  if (clearBtn) clearBtn.style.display = spotlightQuery ? 'inline-flex' : 'none';
+  if (clearBtn) clearBtn.style.display = raw ? 'inline-flex' : 'none';
   spotlightSelectedIndex = 0;
   buildSpotlightItems();
   renderSpotlightResults();
+  triggerSpotlightAsyncSearch();
+}
+
+function triggerSpotlightAsyncSearch() {
+  if (spotlightAsyncDebounceTimer) {
+    clearTimeout(spotlightAsyncDebounceTimer);
+  }
+  if (spotlightAsyncAbortCtrl) {
+    try { spotlightAsyncAbortCtrl.abort(); } catch (_) {}
+    spotlightAsyncAbortCtrl = null;
+  }
+
+  const q = spotlightQuery;
+  const cat = spotlightCurrentCat;
+  if (!q || q.length < 2 || (cat !== 'all' && cat !== 'files' && cat !== 'grep')) {
+    return;
+  }
+
+  spotlightAsyncDebounceTimer = setTimeout(async () => {
+    try {
+      spotlightAsyncAbortCtrl = new AbortController();
+      spotlightAsyncLoading = true;
+      const activePath = App.panes[App.activePaneIndex]?.path || `/home/${App.user?.username || 'bolt'}`;
+      
+      const isGrep = cat === 'grep' || q.startsWith('grep:') || (q.startsWith('/') && !q.includes('/'));
+      const cleanQ = isGrep ? q.replace(/^(grep:|\/)/, '').trim() : q;
+      const isRegex = cleanQ.startsWith('re:') || cleanQ.startsWith('>');
+      const searchPat = isRegex ? cleanQ.replace(/^(re:|>)/, '').trim() : cleanQ;
+
+      const payload = {
+        path: activePath,
+        content_query: isGrep ? cleanQ : undefined,
+        name_pattern: !isGrep ? searchPat : undefined,
+        is_regex: isRegex,
+        max_results: 40
+      };
+
+      const res = await fetch('/api/tools/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${App.token}`
+        },
+        body: JSON.stringify(payload),
+        signal: spotlightAsyncAbortCtrl.signal
+      });
+
+      if (res.ok) {
+        const results = await res.json();
+        const asyncItems = [];
+
+        results.forEach(r => {
+          if (isGrep && r.matched_lines && r.matched_lines.length > 0) {
+            r.matched_lines.forEach(ml => {
+              const lineMatch = ml.match(/^L(\d+):\s*(.*)$/);
+              const lineNum = lineMatch ? lineMatch[1] : null;
+              const lineText = lineMatch ? lineMatch[2] : ml;
+              
+              asyncItems.push({
+                title: `${r.name} ${lineNum ? `(Line ${lineNum})` : ''}`,
+                sub: r.path,
+                icon: isCodeExtension(r.name) ? 'file-code' : 'file-text',
+                cat: 'grep',
+                badge: lineNum ? `L${lineNum}` : 'Grep',
+                grepSnippet: lineText,
+                grepQuery: cleanQ,
+                handler: () => {
+                  recordRecentHistory({ title: r.name, path: r.path, is_dir: false, icon: 'file-text' });
+                  openEditorWithFile(r.path, null, lineNum);
+                }
+              });
+            });
+          } else {
+            asyncItems.push({
+              title: r.name,
+              sub: r.path,
+              icon: r.is_dir ? 'folder' : (isCodeExtension(r.name) ? 'file-code' : 'file-text'),
+              cat: 'file',
+              badge: r.is_dir ? 'Folder' : formatBytes(r.size),
+              handler: () => {
+                recordRecentHistory({ title: r.name, path: r.path, is_dir: r.is_dir, icon: r.is_dir ? 'folder' : 'file-text' });
+                if (r.is_dir) {
+                  navigatePane(App.activePaneIndex, r.path);
+                } else if (isImageExtension(r.path)) {
+                  openImageViewer(r.path);
+                } else {
+                  openEditorWithFile(r.path);
+                }
+              }
+            });
+          }
+        });
+
+        // Merge async results
+        if (cat === 'grep' || cat === 'files') {
+          spotlightItems = asyncItems;
+        } else {
+          // In 'all' category, append up to 20 async items
+          spotlightItems = [...spotlightItems.filter(i => i.cat !== 'grep' && i.cat !== 'file'), ...asyncItems.slice(0, 20)];
+        }
+        renderSpotlightResults();
+      }
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.warn('Spotlight search error:', e);
+      }
+    } finally {
+      spotlightAsyncLoading = false;
+    }
+  }, 220);
 }
 
 function recordRecentHistory(item) {
@@ -24814,7 +24989,7 @@ function renderSpotlightResults() {
       <div style="text-align: center; padding: 32px 16px; color: var(--text-muted);">
         <div style="font-size: 28px; margin-bottom: 8px;">🔍</div>
         <div style="font-size: 13px; font-weight: 600; color: var(--text-main);">No matching results found</div>
-        <div style="font-size: 11px; margin-top: 4px;">Try typing a path (e.g. <code>/etc</code>, <code>/var/log</code>) or a command name.</div>
+        <div style="font-size: 11px; margin-top: 4px;">Try typing a path (e.g. <code>/etc</code>), action, or <code>/text</code> to grep in-file content.</div>
       </div>
     `;
     return;
@@ -24823,6 +24998,20 @@ function renderSpotlightResults() {
   container.innerHTML = spotlightItems.map((it, idx) => {
     const isSelected = idx === spotlightSelectedIndex;
     const isImgIcon = it.icon && (it.icon.includes('.png') || it.icon.includes('.webp') || it.icon.includes('.svg') || it.icon.startsWith('/api/') || it.icon.startsWith('assets/'));
+    
+    // Highlight grep query matches in snippet
+    let snippetHtml = '';
+    if (it.grepSnippet) {
+      let highlightedSnippet = escapeHtml(it.grepSnippet);
+      if (it.grepQuery) {
+        try {
+          const re = new RegExp(`(${escapeRegex(it.grepQuery)})`, 'gi');
+          highlightedSnippet = highlightedSnippet.replace(re, '<mark>$1</mark>');
+        } catch (_) {}
+      }
+      snippetHtml = `<div class="spotlight-grep-snippet">${snippetHtml ? '' : ''}${highlightedSnippet}</div>`;
+    }
+
     return `
       <div class="spotlight-item ${isSelected ? 'selected' : ''}" data-index="${idx}" onclick="executeSpotlightIndex(${idx})">
         <div class="spotlight-item-icon">
@@ -24831,6 +25020,7 @@ function renderSpotlightResults() {
         <div class="spotlight-item-content">
           <div class="spotlight-item-title">${escapeHtml(it.title)}</div>
           ${it.sub ? `<div class="spotlight-item-sub">${escapeHtml(it.sub)}</div>` : ''}
+          ${snippetHtml}
         </div>
         ${it.badge ? `<span class="spotlight-item-badge">${escapeHtml(it.badge)}</span>` : ''}
       </div>
@@ -25528,6 +25718,10 @@ function undockToolFromPane(paneIndex) {
     openSoundDog();
   } else if (tool === 'mediaplayer') {
     openMediaPlayer();
+  } else if (tool === 'renamer') {
+    openBatchRenamer();
+  } else if (tool === 'hexeditor') {
+    openHexEditor();
   } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     openDynamicChewToy(pluginId);
@@ -25942,6 +26136,24 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       mountDockedMediaPlayer(paneIndex);
+    }, 50);
+  }
+  // 9. DOCKED BATCH RENAMER
+  else if (tool === 'renamer') {
+    mount.innerHTML = `
+      <div class="docked-renamer-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-renamer-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedRenamer(paneIndex);
+    }, 50);
+  }
+  // 10. DOCKED HEX EDITOR
+  else if (tool === 'hexeditor') {
+    mount.innerHTML = `
+      <div class="docked-hexeditor-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-hexeditor-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedHexEditor(paneIndex);
     }, 50);
   }
 
@@ -32924,6 +33136,1042 @@ function initDynamicChewToyKeyboardForwarding() {
 
   window.addEventListener('keydown', forwardKey);
   window.addEventListener('keyup', forwardKey);
+}
+
+// ==========================================================================
+// 🏷️ CHEWTOY: BATCH RENAMER ENGINE (Ctrl+M)
+// ==========================================================================
+let renamerItems = [];
+let renamerUndoStack = [];
+let renamerActivePaneIndex = 0;
+let renamerDragInit = false;
+
+function initRenamerDragResize() {
+  if (renamerDragInit) return;
+  renamerDragInit = true;
+
+  const win = document.getElementById('floating-renamer-window');
+  const header = document.getElementById('renamer-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_renamer_x');
+  const savedTop = localStorage.getItem('cd_renamer_y');
+  const savedWidth = localStorage.getItem('cd_renamer_w');
+  const savedHeight = localStorage.getItem('cd_renamer_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(440, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(380, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newX}px`;
+    win.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_renamer_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_renamer_y', parseInt(win.style.top, 10));
+    }
+  });
+}
+
+function openBatchRenamer(files = null, paneIndex = null) {
+  renamerActivePaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[renamerActivePaneIndex];
+  
+  const win = document.getElementById('floating-renamer-window');
+  const pill = document.getElementById('renamer-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  initRenamerDragResize();
+
+  // Populate files
+  if (Array.isArray(files) && files.length > 0) {
+    renamerItems = files.map(f => {
+      const p = typeof f === 'string' ? f : f.path;
+      const name = p.split('/').filter(Boolean).pop() || p;
+      return {
+        path: p,
+        name: name,
+        is_dir: f.is_dir || false,
+        newName: name,
+        isChecked: true,
+        hasConflict: false
+      };
+    });
+  } else if (pane && pane.selected && pane.selected.size > 0) {
+    renamerItems = Array.from(pane.selected).map(p => {
+      const entry = (pane.entries || []).find(e => e.path === p);
+      const name = entry ? entry.name : (p.split('/').filter(Boolean).pop() || p);
+      return {
+        path: p,
+        name: name,
+        is_dir: entry ? entry.is_dir : false,
+        newName: name,
+        isChecked: true,
+        hasConflict: false
+      };
+    });
+  } else if (pane && Array.isArray(pane.entries) && pane.entries.length > 0) {
+    renamerItems = pane.entries.filter(e => e.name !== '..').map(e => ({
+      path: e.path,
+      name: e.name,
+      is_dir: e.is_dir,
+      newName: e.name,
+      isChecked: true,
+      hasConflict: false
+    }));
+  } else {
+    renamerItems = [];
+  }
+
+  const sourceInfo = document.getElementById('renamer-source-info');
+  if (sourceInfo) {
+    const curPath = sanitizeCredentials(pane?.path || '/');
+    sourceInfo.textContent = `${renamerItems.length} items from ${curPath}`;
+    sourceInfo.title = curPath;
+  }
+
+  updateRenamerPreview();
+}
+
+function closeFloatingRenamer() {
+  const win = document.getElementById('floating-renamer-window');
+  if (win) win.style.display = 'none';
+}
+
+function minimizeFloatingRenamer() {
+  const win = document.getElementById('floating-renamer-window');
+  const pill = document.getElementById('renamer-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingRenamer() {
+  openBatchRenamer();
+}
+
+function toggleMaximizeRenamer() {
+  const win = document.getElementById('floating-renamer-window');
+  if (win) win.classList.toggle('maximized');
+}
+
+function dockRenamerToActivePane() {
+  closeFloatingRenamer();
+  App.panes[App.activePaneIndex].dockedTool = 'renamer';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'renamer');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+function reloadRenamerFiles() {
+  const pane = App.panes[renamerActivePaneIndex];
+  if (pane && pane.selected && pane.selected.size > 0) {
+    renamerItems = Array.from(pane.selected).map(p => {
+      const entry = (pane.entries || []).find(e => e.path === p);
+      const name = entry ? entry.name : (p.split('/').filter(Boolean).pop() || p);
+      return {
+        path: p,
+        name: name,
+        is_dir: entry ? entry.is_dir : false,
+        newName: name,
+        isChecked: true,
+        hasConflict: false
+      };
+    });
+  } else {
+    loadRenamerDirectory();
+    return;
+  }
+
+  const sourceInfo = document.getElementById('renamer-source-info');
+  if (sourceInfo) {
+    sourceInfo.textContent = `${renamerItems.length} selected items from ${sanitizeCredentials(pane?.path || '/')}`;
+  }
+  updateRenamerPreview();
+}
+
+function loadRenamerDirectory() {
+  const pane = App.panes[renamerActivePaneIndex];
+  if (pane && Array.isArray(pane.entries)) {
+    renamerItems = pane.entries.filter(e => e.name !== '..').map(e => ({
+      path: e.path,
+      name: e.name,
+      is_dir: e.is_dir,
+      newName: e.name,
+      isChecked: true,
+      hasConflict: false
+    }));
+  }
+  const sourceInfo = document.getElementById('renamer-source-info');
+  if (sourceInfo) {
+    sourceInfo.textContent = `${renamerItems.length} directory files from ${sanitizeCredentials(pane?.path || '/')}`;
+  }
+  updateRenamerPreview();
+}
+
+function insertRenamerToken(token) {
+  const replaceInput = document.getElementById('renamer-replace-input');
+  if (!replaceInput) return;
+  const start = replaceInput.selectionStart || replaceInput.value.length;
+  const end = replaceInput.selectionEnd || replaceInput.value.length;
+  const val = replaceInput.value;
+  replaceInput.value = val.substring(0, start) + token + val.substring(end);
+  replaceInput.selectionStart = replaceInput.selectionEnd = start + token.length;
+  replaceInput.focus();
+  updateRenamerPreview();
+}
+
+function resetRenamerRules() {
+  const findInput = document.getElementById('renamer-find-input');
+  const replaceInput = document.getElementById('renamer-replace-input');
+  const regexCheck = document.getElementById('renamer-regex-check');
+  const caseCheck = document.getElementById('renamer-case-check');
+  const casingSelect = document.getElementById('renamer-casing-select');
+  const extSelect = document.getElementById('renamer-ext-select');
+  const startInput = document.getElementById('renamer-counter-start');
+  const stepInput = document.getElementById('renamer-counter-step');
+
+  if (findInput) findInput.value = '';
+  if (replaceInput) replaceInput.value = '';
+  if (regexCheck) regexCheck.checked = false;
+  if (caseCheck) caseCheck.checked = false;
+  if (casingSelect) casingSelect.value = 'none';
+  if (extSelect) extSelect.value = 'none';
+  if (startInput) startInput.value = '1';
+  if (stepInput) stepInput.value = '1';
+
+  updateRenamerPreview();
+}
+
+function toggleAllRenamerItems(checked) {
+  renamerItems.forEach(i => i.isChecked = checked);
+  updateRenamerPreview();
+}
+
+function toggleRenamerItem(idx, checked) {
+  if (renamerItems[idx]) {
+    renamerItems[idx].isChecked = checked;
+    updateRenamerPreview();
+  }
+}
+
+function applyCasingTransform(str, mode) {
+  if (!str || mode === 'none') return str;
+  switch (mode) {
+    case 'lower': return str.toLowerCase();
+    case 'upper': return str.toUpperCase();
+    case 'title':
+      return str.replace(/\b[a-z]/g, l => l.toUpperCase());
+    case 'camel':
+      return str.replace(/[-_ ]+(\w)/g, (_, c) => c.toUpperCase()).replace(/^[A-Z]/, c => c.toLowerCase());
+    case 'snake':
+      return str.replace(/([a-z])([A-Z])/g, '$1_$2').replace(/[-\s]+/g, '_').toLowerCase();
+    case 'kebab':
+      return str.replace(/([a-z])([A-Z])/g, '$1-$2').replace(/[_\s]+/g, '-').toLowerCase();
+    case 'sentence':
+      return str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    default: return str;
+  }
+}
+
+function updateRenamerPreview() {
+  const findVal = (document.getElementById('renamer-find-input')?.value || '');
+  const replaceVal = (document.getElementById('renamer-replace-input')?.value || '');
+  const isRegex = document.getElementById('renamer-regex-check')?.checked || false;
+  const isCase = document.getElementById('renamer-case-check')?.checked || false;
+  const casingMode = document.getElementById('renamer-casing-select')?.value || 'none';
+  const extMode = document.getElementById('renamer-ext-select')?.value || 'none';
+  const counterStart = parseInt(document.getElementById('renamer-counter-start')?.value || '1', 10) || 1;
+  const counterStep = parseInt(document.getElementById('renamer-counter-step')?.value || '1', 10) || 1;
+
+  let compiledRegex = null;
+  if (isRegex && findVal) {
+    try {
+      compiledRegex = new RegExp(findVal, isCase ? 'g' : 'gi');
+    } catch (_) {}
+  }
+
+  const now = new Date();
+  const yyyy = String(now.getFullYear());
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const hh = String(now.getHours()).padStart(2, '0');
+  const min = String(now.getMinutes()).padStart(2, '0');
+  const ss = String(now.getSeconds()).padStart(2, '0');
+
+  let activeCounter = counterStart;
+  const targetNameFrequency = new Map();
+
+  // First pass: generate names
+  renamerItems.forEach((item) => {
+    if (!item.isChecked) {
+      item.newName = item.name;
+      item.hasConflict = false;
+      return;
+    }
+
+    const origName = item.name;
+    const lastDot = origName.lastIndexOf('.');
+    let baseName = (lastDot > 0 && !item.is_dir) ? origName.substring(0, lastDot) : origName;
+    let ext = (lastDot > 0 && !item.is_dir) ? origName.substring(lastDot + 1) : '';
+
+    let transformedBase = baseName;
+
+    // 1. Find & Replace
+    if (findVal) {
+      if (isRegex && compiledRegex) {
+        transformedBase = transformedBase.replace(compiledRegex, replaceVal);
+      } else {
+        const flag = isCase ? 'g' : 'gi';
+        const escapedFind = escapeRegex(findVal);
+        transformedBase = transformedBase.replace(new RegExp(escapedFind, flag), replaceVal);
+      }
+    } else if (replaceVal) {
+      transformedBase = replaceVal;
+    }
+
+    // 2. Token Substitutions
+    const countNum = activeCounter;
+    transformedBase = transformedBase
+      .replace(/\[N\]/g, String(countNum))
+      .replace(/\[01\]/g, String(countNum).padStart(2, '0'))
+      .replace(/\[001\]/g, String(countNum).padStart(3, '0'))
+      .replace(/\[0001\]/g, String(countNum).padStart(4, '0'))
+      .replace(/\[NAME\]/g, baseName)
+      .replace(/\[EXT\]/g, ext)
+      .replace(/\[YYYY\]/g, yyyy)
+      .replace(/\[MM\]/g, mm)
+      .replace(/\[DD\]/g, dd)
+      .replace(/\[hh\]/g, hh)
+      .replace(/\[mm\]/g, min)
+      .replace(/\[ss\]/g, ss);
+
+    // 3. Case Transformation
+    transformedBase = applyCasingTransform(transformedBase, casingMode);
+
+    // 4. Extension Transformation
+    let newExt = ext;
+    if (ext) {
+      if (extMode === 'lower') newExt = ext.toLowerCase();
+      else if (extMode === 'upper') newExt = ext.toUpperCase();
+      else if (extMode === 'strip') newExt = '';
+    }
+
+    const finalName = (newExt && !item.is_dir) ? `${transformedBase}.${newExt}` : transformedBase;
+    item.newName = finalName || origName;
+    activeCounter += counterStep;
+
+    const count = targetNameFrequency.get(item.newName) || 0;
+    targetNameFrequency.set(item.newName, count + 1);
+  });
+
+  // Second pass: check collisions
+  let modifiedCount = 0;
+  let conflictCount = 0;
+
+  renamerItems.forEach((item) => {
+    if (!item.isChecked) {
+      item.hasConflict = false;
+      return;
+    }
+    const freq = targetNameFrequency.get(item.newName) || 0;
+    if (freq > 1 || !item.newName) {
+      item.hasConflict = true;
+      conflictCount++;
+    } else {
+      item.hasConflict = false;
+    }
+
+    if (item.newName !== item.name) {
+      modifiedCount++;
+    }
+  });
+
+  // Render Table
+  const tbody = document.getElementById('renamer-table-body');
+  if (tbody) {
+    if (renamerItems.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 24px; color: var(--text-muted);">No items to rename. Select files in the active pane and click "Reload Selected".</td></tr>`;
+    } else {
+      tbody.innerHTML = renamerItems.map((it, idx) => {
+        const isModified = it.newName !== it.name;
+        const rowClass = it.hasConflict ? 'renamer-row-conflict' : (isModified ? 'renamer-row-modified' : '');
+        let statusBadge = '<span class="badge" style="font-size: 9px; opacity: 0.6;">Unchanged</span>';
+        if (!it.isChecked) {
+          statusBadge = '<span class="badge" style="font-size: 9px; opacity: 0.4;">Skipped</span>';
+        } else if (it.hasConflict) {
+          statusBadge = '<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; font-size: 9px;">COLLISION</span>';
+        } else if (isModified) {
+          statusBadge = '<span class="badge badge-accent" style="font-size: 9px;">Ready</span>';
+        }
+
+        return `
+          <tr class="${rowClass}">
+            <td style="text-align: center;"><input type="checkbox" ${it.isChecked ? 'checked' : ''} onchange="toggleRenamerItem(${idx}, this.checked)"></td>
+            <td title="${escapeHtml(it.name)}" style="max-width: 200px;"><i data-lucide="${it.is_dir ? 'folder' : 'file'}" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 4px;"></i> ${escapeHtml(it.name)}</td>
+            <td style="text-align: center; color: var(--text-dim);">➔</td>
+            <td class="renamer-col-new" title="${escapeHtml(it.newName)}" style="max-width: 220px;">${escapeHtml(it.newName)}</td>
+            <td style="text-align: center;">${statusBadge}</td>
+          </tr>
+        `;
+      }).join('');
+      if (window.lucide) lucide.createIcons({ root: tbody });
+    }
+  }
+
+  // Update Summary
+  const summaryEl = document.getElementById('renamer-status-summary');
+  if (summaryEl) {
+    if (conflictCount > 0) {
+      summaryEl.innerHTML = `<span style="color: #ef4444;">⚠️ ${conflictCount} naming collision${conflictCount === 1 ? '' : 's'} detected!</span>`;
+    } else {
+      summaryEl.textContent = `${renamerItems.length} items • ${modifiedCount} to rename`;
+    }
+  }
+
+  const execBtn = document.getElementById('renamer-execute-btn');
+  if (execBtn) {
+    execBtn.disabled = modifiedCount === 0 || conflictCount > 0;
+  }
+}
+
+async function executeBatchRename() {
+  const toRename = renamerItems.filter(i => i.isChecked && i.name !== i.newName && !i.hasConflict);
+  if (toRename.length === 0) {
+    showToast('No valid renames to execute', 'info');
+    return;
+  }
+
+  const renamesPayload = toRename.map(i => {
+    const lastSlash = i.path.lastIndexOf('/');
+    const dir = lastSlash >= 0 ? i.path.substring(0, lastSlash + 1) : '';
+    const newPath = dir + i.newName;
+    return {
+      from: i.path,
+      to: newPath
+    };
+  });
+
+  try {
+    const res = await fetch('/api/fs/batch-rename', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ renames: renamesPayload })
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      showToast(`Batch Renamed ${data.renamed || renamesPayload.length} files successfully!`, 'success');
+      
+      // Push inverse operations to undo stack
+      renamerUndoStack.push(renamesPayload.map(r => ({ from: r.to, to: r.from })));
+      const undoBtn = document.getElementById('renamer-undo-btn');
+      const undoCount = document.getElementById('renamer-undo-count');
+      if (undoBtn) undoBtn.disabled = false;
+      if (undoCount) undoCount.textContent = renamerUndoStack.length;
+
+      refreshAllPanes();
+      reloadRenamerFiles();
+    } else {
+      showToast('Batch rename failed: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Batch rename error: ' + sanitizeCredentials(String(e)), 'error');
+  }
+}
+
+async function undoBatchRename() {
+  if (renamerUndoStack.length === 0) return;
+  const lastBatch = renamerUndoStack.pop();
+  
+  const undoBtn = document.getElementById('renamer-undo-btn');
+  const undoCount = document.getElementById('renamer-undo-count');
+  if (undoBtn) undoBtn.disabled = renamerUndoStack.length === 0;
+  if (undoCount) undoCount.textContent = renamerUndoStack.length;
+
+  try {
+    const res = await fetch('/api/fs/batch-rename', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ renames: lastBatch })
+    });
+
+    if (res.ok) {
+      showToast(`Reverted ${lastBatch.length} file renames`, 'info');
+      refreshAllPanes();
+      reloadRenamerFiles();
+    } else {
+      showToast('Undo rename failed: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Undo error: ' + sanitizeCredentials(String(e)), 'error');
+  }
+}
+
+function mountDockedRenamer(paneIndex) {
+  const host = document.getElementById(`docked-renamer-host-${paneIndex}`);
+  const floatingBody = document.getElementById('renamer-body');
+  if (host && floatingBody) {
+    host.appendChild(floatingBody);
+    reloadRenamerFiles();
+  }
+}
+
+// ==========================================================================
+// 🔬 CHEWTOY: HEX EDITOR ENGINE
+// ==========================================================================
+let hexEditorState = {
+  filePath: null,
+  fileName: 'Untitled',
+  buffer: null,
+  originalBuffer: null,
+  modifiedIndices: new Set(),
+  activeOffset: 0,
+  bytesPerRow: 16,
+  endian: 'le',
+  isEditMode: true,
+  inspectorVisible: true,
+  isDocked: false
+};
+let hexEditorDragInit = false;
+
+// Precomputed CRC32 Table
+const crc32Table = (function() {
+  let c;
+  const table = [];
+  for (let n = 0; n < 256; n++) {
+    c = n;
+    for (let k = 0; k < 8; k++) {
+      c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+    }
+    table[n] = c;
+  }
+  return table;
+})();
+
+function calculateBufferCRC32(bytes) {
+  let crc = 0 ^ (-1);
+  for (let i = 0; i < bytes.length; i++) {
+    crc = (crc >>> 8) ^ crc32Table[(crc ^ bytes[i]) & 0xFF];
+  }
+  return ((crc ^ (-1)) >>> 0).toString(16).padStart(8, '0');
+}
+
+function initHexEditorDragResize() {
+  if (hexEditorDragInit) return;
+  hexEditorDragInit = true;
+
+  const win = document.getElementById('floating-hexeditor-window');
+  const header = document.getElementById('hexeditor-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_hex_x');
+  const savedTop = localStorage.getItem('cd_hex_y');
+  const savedWidth = localStorage.getItem('cd_hex_w');
+  const savedHeight = localStorage.getItem('cd_hex_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(480, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(400, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newX}px`;
+    win.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_hex_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_hex_y', parseInt(win.style.top, 10));
+    }
+  });
+}
+
+async function openHexEditor(filePath = null) {
+  const win = document.getElementById('floating-hexeditor-window');
+  const pill = document.getElementById('hexeditor-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  initHexEditorDragResize();
+
+  const targetPath = filePath || (App.panes[App.activePaneIndex]?.entries[App.panes[App.activePaneIndex]?.cursorIndex]?.path);
+  if (targetPath) {
+    hexEditorState.filePath = targetPath;
+    hexEditorState.fileName = targetPath.split('/').filter(Boolean).pop() || targetPath;
+    const badge = document.getElementById('hexeditor-file-badge');
+    if (badge) badge.textContent = sanitizeCredentials(hexEditorState.fileName);
+
+    try {
+      const res = await fetch(`/api/fs/read?path=${encodeURIComponent(targetPath)}&max_bytes=2000000`, {
+        headers: { 'Authorization': `Bearer ${App.token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        let bytes;
+        if (data.is_binary) {
+          const binaryString = atob(data.content);
+          bytes = new Uint8Array(binaryString.length);
+          for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+          }
+        } else {
+          bytes = new TextEncoder().encode(data.content);
+        }
+
+        hexEditorState.buffer = bytes;
+        hexEditorState.originalBuffer = new Uint8Array(bytes);
+        hexEditorState.modifiedIndices.clear();
+        hexEditorState.activeOffset = 0;
+
+        renderHexEditorView();
+        computeHexHashes();
+      } else {
+        showToast('Failed to load binary file: ' + sanitizeCredentials(await res.text()), 'error');
+      }
+    } catch (e) {
+      showToast('Hex read error: ' + sanitizeCredentials(String(e)), 'error');
+    }
+  } else {
+    // Default dummy buffer if opened without file
+    if (!hexEditorState.buffer) {
+      hexEditorState.buffer = new Uint8Array(128);
+      hexEditorState.originalBuffer = new Uint8Array(128);
+      hexEditorState.modifiedIndices.clear();
+      renderHexEditorView();
+    }
+  }
+}
+
+function closeFloatingHexEditor() {
+  const win = document.getElementById('floating-hexeditor-window');
+  if (win) win.style.display = 'none';
+}
+
+function minimizeFloatingHexEditor() {
+  const win = document.getElementById('floating-hexeditor-window');
+  const pill = document.getElementById('hexeditor-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingHexEditor() {
+  openHexEditor(hexEditorState.filePath);
+}
+
+function toggleMaximizeHexEditor() {
+  const win = document.getElementById('floating-hexeditor-window');
+  if (win) win.classList.toggle('maximized');
+}
+
+function dockHexEditorToActivePane() {
+  closeFloatingHexEditor();
+  App.panes[App.activePaneIndex].dockedTool = 'hexeditor';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'hexeditor');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+function renderHexEditorView(targetMount = null) {
+  const container = targetMount || document.getElementById('hexeditor-grid-container');
+  if (!container || !hexEditorState.buffer) return;
+
+  const bytes = hexEditorState.buffer;
+  const bytesPerRow = parseInt(document.getElementById('hexeditor-bytes-per-row')?.value || '16', 10) || 16;
+  hexEditorState.bytesPerRow = bytesPerRow;
+
+  const rows = [];
+  const totalRows = Math.ceil(bytes.length / bytesPerRow);
+
+  for (let r = 0; r < totalRows; r++) {
+    const rowOffset = r * bytesPerRow;
+    const hexParts = [];
+    const asciiParts = [];
+
+    for (let c = 0; c < bytesPerRow; c++) {
+      const byteOffset = rowOffset + c;
+      if (byteOffset < bytes.length) {
+        const b = bytes[byteOffset];
+        const hexStr = b.toString(16).toUpperCase().padStart(2, '0');
+        const isSelected = byteOffset === hexEditorState.activeOffset;
+        const isModified = hexEditorState.modifiedIndices.has(byteOffset);
+        
+        let hexCls = 'hex-byte';
+        if (isSelected) hexCls += ' selected';
+        if (isModified) hexCls += ' modified';
+
+        hexParts.push(`<span class="${hexCls}" data-offset="${byteOffset}" onclick="selectHexByte(${byteOffset})">${hexStr}</span>`);
+
+        const char = (b >= 32 && b <= 126) ? String.fromCharCode(b) : '·';
+        let ascCls = 'hex-ascii-char';
+        if (isSelected) ascCls += ' selected';
+        if (isModified) ascCls += ' modified';
+
+        asciiParts.push(`<span class="${ascCls}" data-offset="${byteOffset}" onclick="selectHexByte(${byteOffset})">${escapeHtml(char)}</span>`);
+      } else {
+        hexParts.push(`<span class="hex-byte" style="opacity: 0.2;">--</span>`);
+        asciiParts.push(`<span class="hex-ascii-char" style="opacity: 0.2;"> </span>`);
+      }
+    }
+
+    const offsetHex = rowOffset.toString(16).toUpperCase().padStart(8, '0');
+    rows.push(`
+      <div class="hex-row">
+        <span class="hex-offset">${offsetHex}:</span>
+        <div class="hex-bytes">${hexParts.join('')}</div>
+        <div class="hex-ascii">${asciiParts.join('')}</div>
+      </div>
+    `);
+  }
+
+  container.innerHTML = rows.join('');
+  updateHexInspector();
+
+  const dirtyBadge = document.getElementById('hexeditor-dirty-badge');
+  const modStatus = document.getElementById('hex-status-modified');
+  const modCount = hexEditorState.modifiedIndices.size;
+  if (dirtyBadge) dirtyBadge.style.display = modCount > 0 ? 'inline-block' : 'none';
+  if (modStatus) modStatus.textContent = `${modCount} byte${modCount === 1 ? '' : 's'} patched`;
+}
+
+function selectHexByte(offset) {
+  if (!hexEditorState.buffer || offset < 0 || offset >= hexEditorState.buffer.length) return;
+  hexEditorState.activeOffset = offset;
+  
+  // Quick DOM class update for snappy performance
+  document.querySelectorAll('.hex-byte.selected, .hex-ascii-char.selected').forEach(el => el.classList.remove('selected'));
+  document.querySelectorAll(`[data-offset="${offset}"]`).forEach(el => el.classList.add('selected'));
+
+  updateHexInspector();
+}
+
+function updateHexInspector() {
+  if (!hexEditorState.buffer) return;
+  const offset = hexEditorState.activeOffset;
+  const bytes = hexEditorState.buffer;
+  const endian = document.getElementById('hexeditor-endian-select')?.value || 'le';
+  const isLe = endian === 'le';
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+
+  const offEl = document.getElementById('hex-insp-offset');
+  const statusOff = document.getElementById('hex-status-offset');
+  if (offEl) offEl.textContent = `0x${offset.toString(16).toUpperCase()} (${offset})`;
+  if (statusOff) statusOff.textContent = `Offset: 0x${offset.toString(16).toUpperCase().padStart(8, '0')} (${offset})`;
+
+  if (offset < bytes.length) {
+    const u8 = bytes[offset];
+    document.getElementById('hex-insp-uint8').textContent = u8;
+    document.getElementById('hex-insp-int8').textContent = view.getInt8(offset);
+    document.getElementById('hex-insp-binary').textContent = u8.toString(2).padStart(8, '0');
+
+    if (offset + 1 < bytes.length) {
+      document.getElementById('hex-insp-uint16').textContent = view.getUint16(offset, isLe);
+      document.getElementById('hex-insp-int16').textContent = view.getInt16(offset, isLe);
+    } else {
+      document.getElementById('hex-insp-uint16').textContent = '-';
+      document.getElementById('hex-insp-int16').textContent = '-';
+    }
+
+    if (offset + 3 < bytes.length) {
+      document.getElementById('hex-insp-uint32').textContent = view.getUint32(offset, isLe);
+      document.getElementById('hex-insp-int32').textContent = view.getInt32(offset, isLe);
+      document.getElementById('hex-insp-float32').textContent = view.getFloat32(offset, isLe).toExponential(3);
+    } else {
+      document.getElementById('hex-insp-uint32').textContent = '-';
+      document.getElementById('hex-insp-int32').textContent = '-';
+      document.getElementById('hex-insp-float32').textContent = '-';
+    }
+
+    if (offset + 7 < bytes.length) {
+      document.getElementById('hex-insp-float64').textContent = view.getFloat64(offset, isLe).toExponential(3);
+    } else {
+      document.getElementById('hex-insp-float64').textContent = '-';
+    }
+  }
+
+  const sizeEl = document.getElementById('hex-file-size');
+  if (sizeEl) sizeEl.textContent = formatBytes(bytes.length);
+}
+
+async function computeHexHashes() {
+  if (!hexEditorState.buffer) return;
+  const bytes = hexEditorState.buffer;
+
+  // CRC32
+  const crc = calculateBufferCRC32(bytes);
+  const crcEl = document.getElementById('hex-hash-crc32');
+  if (crcEl) crcEl.textContent = `0x${crc.toUpperCase()}`;
+
+  // SHA-256 via Web Crypto
+  try {
+    const hashBuf = await crypto.subtle.digest('SHA-256', bytes);
+    const hashArray = Array.from(new Uint8Array(hashBuf));
+    const hexSha = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    const shaEl = document.getElementById('hex-hash-sha256');
+    if (shaEl) shaEl.textContent = hexSha;
+  } catch (_) {}
+}
+
+function handleHexGridKey(e) {
+  if (!hexEditorState.buffer) return;
+  const bpr = hexEditorState.bytesPerRow || 16;
+  const max = hexEditorState.buffer.length - 1;
+
+  if (e.key === 'ArrowRight') {
+    e.preventDefault();
+    selectHexByte(Math.min(max, hexEditorState.activeOffset + 1));
+  } else if (e.key === 'ArrowLeft') {
+    e.preventDefault();
+    selectHexByte(Math.max(0, hexEditorState.activeOffset - 1));
+  } else if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    selectHexByte(Math.min(max, hexEditorState.activeOffset + bpr));
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    selectHexByte(Math.max(0, hexEditorState.activeOffset - bpr));
+  } else if (/^[0-9a-fA-F]$/.test(e.key)) {
+    e.preventDefault();
+    const curByte = hexEditorState.buffer[hexEditorState.activeOffset];
+    const newNibble = parseInt(e.key, 16);
+    // Edit lower nibble then advance
+    const newByte = ((curByte & 0x0F) << 4) | newNibble;
+    hexEditorState.buffer[hexEditorState.activeOffset] = newByte;
+    hexEditorState.modifiedIndices.add(hexEditorState.activeOffset);
+
+    renderHexEditorView();
+    selectHexByte(Math.min(max, hexEditorState.activeOffset + 1));
+  }
+}
+
+function jumpHexOffset() {
+  const input = document.getElementById('hexeditor-goto-input');
+  if (!input || !hexEditorState.buffer) return;
+  let val = input.value.trim();
+  let target = 0;
+  if (val.startsWith('0x') || val.startsWith('0X')) {
+    target = parseInt(val, 16);
+  } else {
+    target = parseInt(val, 10);
+  }
+
+  if (!isNaN(target) && target >= 0) {
+    const clamped = Math.min(hexEditorState.buffer.length - 1, target);
+    selectHexByte(clamped);
+    const targetEl = document.querySelector(`.hex-byte[data-offset="${clamped}"]`);
+    if (targetEl) targetEl.scrollIntoView({ block: 'center' });
+  }
+}
+
+function searchHexBytes() {
+  const input = document.getElementById('hexeditor-search-input');
+  if (!input || !hexEditorState.buffer) return;
+  const q = input.value.trim();
+  if (!q) return;
+
+  const bytes = hexEditorState.buffer;
+  let searchBytes = [];
+
+  if (q.includes(' ') || /^[0-9a-fA-F]{2,}$/.test(q)) {
+    // Hex search
+    const clean = q.replace(/\s+/g, '');
+    for (let i = 0; i < clean.length; i += 2) {
+      searchBytes.push(parseInt(clean.substr(i, 2), 16));
+    }
+  } else {
+    // Text search
+    searchBytes = Array.from(new TextEncoder().encode(q));
+  }
+
+  if (searchBytes.length === 0) return;
+
+  let foundOffset = -1;
+  const startOffset = hexEditorState.activeOffset + 1;
+
+  for (let i = startOffset; i <= bytes.length - searchBytes.length; i++) {
+    let match = true;
+    for (let j = 0; j < searchBytes.length; j++) {
+      if (bytes[i + j] !== searchBytes[j]) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      foundOffset = i;
+      break;
+    }
+  }
+
+  if (foundOffset === -1 && startOffset > 0) {
+    // Wrap around search from beginning
+    for (let i = 0; i < startOffset; i++) {
+      let match = true;
+      for (let j = 0; j < searchBytes.length; j++) {
+        if (bytes[i + j] !== searchBytes[j]) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        foundOffset = i;
+        break;
+      }
+    }
+  }
+
+  if (foundOffset !== -1) {
+    selectHexByte(foundOffset);
+    const targetEl = document.querySelector(`.hex-byte[data-offset="${foundOffset}"]`);
+    if (targetEl) targetEl.scrollIntoView({ block: 'center' });
+    showToast(`Found match at offset 0x${foundOffset.toString(16).toUpperCase()}`, 'info');
+  } else {
+    showToast('Pattern not found', 'warning');
+  }
+}
+
+function toggleHexInspector() {
+  const panel = document.getElementById('hexeditor-inspector-panel');
+  if (panel) {
+    panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
+  }
+}
+
+async function saveHexEditorChanges() {
+  if (!hexEditorState.filePath || !hexEditorState.buffer) {
+    showToast('No active file to save', 'warning');
+    return;
+  }
+  if (hexEditorState.modifiedIndices.size === 0) {
+    showToast('No modifications to save', 'info');
+    return;
+  }
+
+  const bytes = hexEditorState.buffer;
+  let binaryString = '';
+  for (let i = 0; i < bytes.length; i++) {
+    binaryString += String.fromCharCode(bytes[i]);
+  }
+  const base64Content = btoa(binaryString);
+
+  try {
+    const res = await fetch('/api/fs/write', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({
+        path: hexEditorState.filePath,
+        content: base64Content,
+        is_base64: true
+      })
+    });
+
+    if (res.ok) {
+      hexEditorState.modifiedIndices.clear();
+      hexEditorState.originalBuffer = new Uint8Array(bytes);
+      renderHexEditorView();
+      computeHexHashes();
+      showToast('Saved modified binary file successfully!', 'success');
+      refreshAllPanes();
+    } else {
+      showToast('Save failed: ' + sanitizeCredentials(await res.text()), 'error');
+    }
+  } catch (e) {
+    showToast('Save error: ' + sanitizeCredentials(String(e)), 'error');
+  }
+}
+
+function mountDockedHexEditor(paneIndex) {
+  const host = document.getElementById(`docked-hexeditor-host-${paneIndex}`);
+  const floatingBody = document.querySelector('.floating-hexeditor-window .hexeditor-body');
+  if (host && floatingBody) {
+    host.innerHTML = `
+      <div style="flex: 1; display: flex; flex-direction: column; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-hex-mount-${paneIndex}"></div>
+    `;
+    const innerMount = document.getElementById(`docked-hex-mount-${paneIndex}`);
+    if (innerMount) {
+      renderHexEditorView(innerMount);
+    }
+  }
 }
 
 

@@ -28,12 +28,30 @@ pub fn calculate_sha256<P: AsRef<Path>>(path: P) -> Result<String, std::io::Erro
     Ok(hex::encode(hasher.finalize()))
 }
 
+pub fn calculate_crc32<P: AsRef<Path>>(path: P) -> Result<String, std::io::Error> {
+    let file = File::open(path)?;
+    let mut reader = BufReader::new(file);
+    let mut hasher = crc32fast::Hasher::new();
+    let mut buffer = [0u8; 65536];
+
+    loop {
+        let bytes_read = reader.read(&mut buffer)?;
+        if bytes_read == 0 {
+            break;
+        }
+        hasher.update(&buffer[..bytes_read]);
+    }
+
+    Ok(format!("{:08x}", hasher.finalize()))
+}
+
 pub fn calculate_checksum<P: AsRef<Path>>(path: P, algorithm: &str) -> Result<ChecksumResult, std::io::Error> {
     let p = path.as_ref();
     let meta = std::fs::metadata(p)?;
     let size = meta.len();
 
     let hash_str = match algorithm.to_lowercase().as_str() {
+        "crc32" => calculate_crc32(p)?,
         "sha256" | _ => calculate_sha256(p)?,
     };
 
