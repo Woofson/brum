@@ -3802,7 +3802,8 @@ html.fkeys-disabled .bottom-fkey-bar,
   flex-direction: column;
 }
 
-.desktop-header-tool {
+.desktop-header-tool,
+.desktop-only-tool {
   display: inline-flex;
 }
 
@@ -3811,7 +3812,10 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 @media (max-width: 1024px) {
-  .desktop-header-tool {
+  .desktop-header-tool,
+  .desktop-only-tool,
+  .pane-nav-btns.desktop-only-tool,
+  .pane-nav-btns {
     display: none !important;
   }
   .mobile-foldable-tool {
@@ -5847,56 +5851,50 @@ html.fkeys-disabled .bottom-fkey-bar,
     box-sizing: border-box !important;
   }
 
-  .pane-nav-btns {
-    display: flex !important;
-    gap: 2px !important;
-    flex-shrink: 0 !important;
-  }
-
-  .pane-nav-btns button {
-    width: 26px !important;
-    height: 26px !important;
-    padding: 0 !important;
-    box-sizing: border-box !important;
+  .pane-nav-btns.desktop-only-tool,
+  .pane-nav-btns,
+  .desktop-header-tool {
+    display: none !important;
   }
 
   .pane-path-bar {
-    flex: 1 1 0 !important;
-    min-width: 40px !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    width: 100% !important;
     height: 26px !important;
     font-size: 11px !important;
     overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
   }
 
   .pane-breadcrumbs {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    overflow-x: auto !important;
     white-space: nowrap !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+  }
+
+  .pane-breadcrumbs::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .pane-favorites-wrapper {
+    display: inline-flex !important;
+    flex-shrink: 0 !important;
+  }
+
+  .pane-tools-wrapper {
+    display: inline-flex !important;
+    flex-shrink: 0 !important;
   }
 
   .pane-quick-filter {
     width: 90px !important;
     height: 24px !important;
     font-size: 11px !important;
-  }
-
-  /* Quick Cross-Pane Transfer Button */
-  .pane-quick-transfer-btn {
-    display: inline-flex !important;
-    align-items: center;
-    justify-content: center;
-    padding: 4px 6px !important;
-    background: var(--bg-panel);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    color: var(--accent);
-    cursor: pointer;
-    transition: all 0.15s ease;
-  }
-
-  .pane-quick-transfer-btn:active {
-    background: var(--accent-subtle);
-    border-color: var(--accent);
   }
 
   /* Table styling on Phone Viewports (<600px) - Single-Line Clean Default */

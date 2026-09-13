@@ -1780,7 +1780,8 @@ function createPaneElement(pane, index) {
         <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
       </button>
 
-      <div class="pane-nav-btns">
+      <!-- Desktop Navigation & Tool Buttons (Hidden on touch viewports <= 1024px) -->
+      <div class="pane-nav-btns desktop-only-tool">
         <button onclick="navPaneHistory(${index}, -1)" title="Back"><i data-lucide="arrow-left"></i></button>
         <button onclick="navPaneHistory(${index}, 1)" title="Forward"><i data-lucide="arrow-right"></i></button>
         <button onclick="navPaneUp(${index})" title="Parent Directory (Backspace)"><i data-lucide="arrow-up"></i></button>
@@ -1789,45 +1790,32 @@ function createPaneElement(pane, index) {
         <button class="btn btn-icon pane-branch-btn desktop-header-tool ${App.panes[index]?.isBranchView ? 'active' : ''}" id="btn-branch-${index}" onclick="event.stopPropagation(); toggleBranchView(${index});" title="Toggle Flat Branch View (Ctrl+B)"><i data-lucide="git-branch"></i></button>
       </div>
 
-      <!-- Path bar & Breadcrumbs -->
+      <!-- Path bar & Breadcrumbs (Expanded with flexible width and touch scrolling) -->
       <div class="pane-path-bar" onclick="enablePathInput(${index})">
         <div class="pane-breadcrumbs" id="pane-crumbs-${index}"></div>
         <input type="text" class="pane-path-input" id="pane-input-${index}" onkeydown="handlePathKey(event, ${index})" onblur="disablePathInput(${index})">
       </div>
 
-      <!-- Fleet Node Switcher Badge / Button -->
-      <button class="btn pane-node-btn desktop-header-tool" id="pane-node-btn-${index}" onclick="event.stopPropagation(); showPaneNodeDropdown(event, ${index})" title="Switch Node / Host for this Pane">
-        <span class="pane-node-dot" id="pane-node-dot-${index}" style="background: #10b981;"></span>
-        <span class="pane-node-name" id="pane-node-name-${index}">Local</span>
-        <i data-lucide="chevron-down" style="width: 10px; height: 10px; opacity: 0.7;"></i>
-      </button>
-
-      <!-- Remote Protocol Selector (Desktop) -->
-      <button class="btn pane-proto-btn desktop-header-tool" onclick="openRemoteModal(${index})" title="Remote Storage & Protocols (SFTP, SMB, NFS, WebDAV, S3)" style="height: 26px; padding: 0 5px; display: inline-flex; align-items: center; gap: 2px;">
-        <i data-lucide="network" style="width: 13px; height: 13px;"></i>
-        <i data-lucide="chevron-down" style="width: 10px; height: 10px; opacity: 0.7;"></i>
-      </button>
-
-      <!-- Unified Places Hub (Desktop) -->
-      <div class="pane-favorites-wrapper desktop-header-tool">
-        <button class="btn btn-icon pane-places-btn" id="btn-favorites-${index}" onclick="openPaneFavoritesMenu(event, ${index})" oncontextmenu="event.preventDefault(); openBookmarksManager();" title="Places & Bookmarks (Left-click: Quick Jump, Right-click: Manage)">
+      <!-- Unified Places Hub (Visible on ALL viewports: Phone, Tablet, Foldable, Desktop) -->
+      <div class="pane-favorites-wrapper">
+        <button class="btn btn-icon pane-places-btn" id="btn-favorites-${index}" onclick="openPaneFavoritesMenu(event, ${index})" oncontextmenu="event.preventDefault(); openBookmarksManager();" title="Places, Bookmarks & Fleet Nodes (Left-click: Quick Jump, Right-click: Manage)">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg>
         </button>
       </div>
 
-      <!-- Foldable & Touch Cross-Pane Transfer Button (Desktop) -->
+      <!-- Cross-Pane Transfer Button (Desktop Only) -->
       <button class="btn btn-icon pane-quick-transfer-btn desktop-header-tool" onclick="event.stopPropagation(); setActivePane(${index}); triggerCopy();" title="Transfer / Copy to Other Pane (F5)">
         <i data-lucide="arrow-right-left"></i>
       </button>
 
-      <!-- Direct Device Upload Button (Desktop) -->
+      <!-- Direct Device Upload Button (Desktop Only) -->
       <button class="btn btn-icon pane-upload-btn desktop-header-tool" onclick="event.stopPropagation(); setActivePane(${index}); triggerDeviceUpload(${index});" title="Upload Files from Device to this Directory">
         <i data-lucide="upload"></i>
       </button>
 
-      <!-- Combined Pane Menu Button (Mobile & Foldable Viewports) -->
-      <div class="pane-tools-wrapper mobile-foldable-tool">
-        <button class="btn btn-icon pane-tools-btn" id="pane-tools-btn-${index}" onclick="openPaneToolsMenu(event, ${index})" title="Pane Tools (Transfer, Upload, Color, etc.)">
+      <!-- Combined Pane Menu Button (Visible on ALL viewports, providing overflow for mobile/foldable) -->
+      <div class="pane-tools-wrapper">
+        <button class="btn btn-icon pane-tools-btn" id="pane-tools-btn-${index}" onclick="openPaneToolsMenu(event, ${index})" title="Pane Actions & Tools">
           <i data-lucide="more-vertical"></i>
         </button>
       </div>
@@ -2510,7 +2498,7 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     nodeChip.innerHTML = `<i data-lucide="server" style="width: 11px; height: 11px;"></i> <span>${escapeHtml(node.name)}</span>`;
     nodeChip.onclick = (e) => {
       e.stopPropagation();
-      showPaneNodeDropdown(e, paneIndex);
+      openPaneFavoritesMenu(e, paneIndex);
     };
     container.appendChild(nodeChip);
 
@@ -2906,6 +2894,9 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     container.appendChild(c);
   });
   if (window.lucide) lucide.createIcons();
+  setTimeout(() => {
+    if (container) container.scrollLeft = container.scrollWidth;
+  }, 0);
 }
 
 async function fetchStorageRoots(paneIndex = null) {
@@ -11592,6 +11583,9 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   };
 
   const curPanePath = App.panes[paneIndex]?.path || '/';
+  const fleetNodes = typeof getAllFleetNodes === 'function' ? getAllFleetNodes() : [];
+  const currentPane = App.panes && App.panes[paneIndex];
+  const currentNodeId = currentPane ? (currentPane.nodeId || 'local') : 'local';
 
   const popup = document.createElement('div');
   popup.id = 'pane-favorites-popup';
@@ -11599,13 +11593,13 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   popup.innerHTML = `
     <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span style="display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places & Fleet</span>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openBookmarksManager();">Manage</span>
+        <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openBookmarksManager();">Bookmarks</span>
         <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-favorites-popup')?.remove();">✕</span>
       </div>
     </div>
-    <div style="padding: 4px 0; max-height: 380px; overflow-y: auto;">
+    <div style="padding: 4px 0; max-height: 420px; overflow-y: auto;">
       ${curPanePath.includes('://') ? `
         <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); disconnectPaneRemote(${paneIndex});" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
           <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i>
@@ -11616,6 +11610,45 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         </div>
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : ''}
+
+      <!-- Commander Fleet Nodes -->
+      <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+        <span>Commander Fleet</span>
+        <span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openFleetManagerModal();">Manage</span>
+      </div>
+      <div class="dropdown-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); document.getElementById('pane-favorites-popup')?.remove();">
+        <span class="pane-node-dot" style="background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>🖥️ Local Host</span>
+            ${currentNodeId === 'local' ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">0 ms · Local Brum</div>
+        </div>
+      </div>
+      ${fleetNodes.map(n => {
+        const isAct = currentNodeId === n.id;
+        let dotColor = '#94a3b8';
+        if (n.status === 'online') dotColor = '#10b981';
+        else if (n.status === 'unauthorized') dotColor = '#f59e0b';
+        else if (n.status === 'offline') dotColor = '#ef4444';
+        const latencyStr = typeof n.latency_ms === 'number' ? `${n.latency_ms} ms` : (n.status || 'unknown');
+        const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
+        return `
+          <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); document.getElementById('pane-favorites-popup')?.remove();">
+            <span class="pane-node-dot" style="background: ${dotColor}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(n.name)}</span>
+                <span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(latencyStr)}</span>
+              </div>
+              <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(cleanUrl)}</div>
+            </div>
+            ${isAct ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+          </div>
+        `;
+      }).join('')}
+      <div class="context-sep" style="margin: 4px 0;"></div>
 
       ${storageRoots.length > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Storage Roots</div>
@@ -11680,7 +11713,11 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); openRemoteModal(${paneIndex});" style="color: var(--text-muted);">
         <i data-lucide="network"></i>
-        <div style="font-weight: 500;">+ Connect Remote Storage...</div>
+        <div style="font-weight: 500;">+ Connect Remote Storage (SFTP/SMB)...</div>
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); openFleetManagerModal();" style="color: var(--text-muted);">
+        <i data-lucide="server"></i>
+        <div style="font-weight: 500;">+ Manage Commander Fleet...</div>
       </div>
     </div>
   `;
@@ -11693,7 +11730,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
     const rect = anchorBtn.getBoundingClientRect();
     popup.style.position = 'fixed';
     popup.style.top = `${rect.bottom + 4}px`;
-    popup.style.right = `${Math.max(10, window.innerWidth - rect.right)}px`;
+    popup.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
     popup.style.zIndex = '999999';
   } else {
     popup.style.position = 'fixed';
@@ -15864,6 +15901,9 @@ function openPaneToolsMenu(e, paneIndex) {
       <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-tools-popup')?.remove();">✕</span>
     </div>
     <div style="padding: 4px 0; max-height: 440px; overflow-y: auto;">
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); togglePaneFilter(${paneIndex});">
+        <i data-lucide="filter" style="color: var(--accent);"></i> Toggle Quick Filter (/ or Ctrl+F)
+      </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneSettingsMenu(event, ${paneIndex});">
         <i data-lucide="sliders" style="color: var(--accent);"></i> Pane Settings & Customizer...
       </div>
@@ -15885,8 +15925,8 @@ function openPaneToolsMenu(e, paneIndex) {
       <div class="dropdown-item" onclick="toggleBranchView(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="git-branch" style="color: var(--accent);"></i> Toggle Flat Branch View (${App.panes[paneIndex]?.isBranchView ? 'Disable' : 'Enable'})
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); showPaneNodeDropdown(event, ${paneIndex});">
-        <i data-lucide="server" style="color: var(--accent);"></i> Switch Target Node (Fleet)...
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places, Bookmarks & Fleet...
       </div>
       <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
       
