@@ -560,6 +560,9 @@ default_height = 500
 [integrations]
 launchpad = true
 launchpad_label = "Hex Studio"
+file_extensions = ["*.bin", "*.dat", "*.so"]
+context_menu_label = "Inspect in Hex Editor"
+shortcut = "Ctrl+Shift+H"
 
 [permissions]
 permissions = ["fs:read"]
@@ -587,11 +590,15 @@ permissions = ["fs:read"]
         let installed = mgr.install_grr(&grr_bytes, "test_admin", true).unwrap();
         assert_eq!(installed.id, "hexdog");
         assert_eq!(installed.name, "HexDog Hex Studio");
+        assert_eq!(installed.manifest.integrations.file_extensions, vec!["*.bin", "*.dat", "*.so"]);
+        assert_eq!(installed.manifest.integrations.context_menu_label.as_deref(), Some("Inspect in Hex Editor"));
+        assert_eq!(installed.manifest.integrations.shortcut.as_deref(), Some("Ctrl+Shift+H"));
 
         // Verify scan
         let plugins = mgr.scan_plugins().unwrap();
         assert_eq!(plugins.len(), 1);
         assert_eq!(plugins[0].id, "hexdog");
+        assert_eq!(plugins[0].manifest.integrations.shortcut.as_deref(), Some("Ctrl+Shift+H"));
 
         // Verify asset retrieval
         let (html, mime) = mgr.get_asset("hexdog", "index.html").unwrap();

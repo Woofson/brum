@@ -7075,6 +7075,73 @@ async function executeTransfer(action, sources, destination, refreshTargetPaneId
 
 // ---------------- KEYBOARD NAVIGATION & SHORTCUTS ----------------
 
+/**
+ * Parse a human-readable shortcut string (e.g. "Ctrl+Shift+H", "Ctrl+Alt+C") into token structure
+ */
+function parseKeyboardShortcut(shortcutStr) {
+  if (!shortcutStr || typeof shortcutStr !== 'string') return null;
+  const tokens = shortcutStr.trim().split('+').map(t => t.trim().toLowerCase()).filter(Boolean);
+  if (tokens.length === 0) return null;
+
+  let ctrl = false;
+  let alt = false;
+  let shift = false;
+  let meta = false;
+  let mainKey = '';
+
+  for (const token of tokens) {
+    if (token === 'ctrl' || token === 'control') {
+      ctrl = true;
+    } else if (token === 'alt' || token === 'option') {
+      alt = true;
+    } else if (token === 'shift') {
+      shift = true;
+    } else if (token === 'meta' || token === 'cmd' || token === 'command' || token === 'win' || token === 'super') {
+      meta = true;
+    } else {
+      mainKey = token;
+    }
+  }
+
+  if (!mainKey) return null;
+  return { ctrl, alt, shift, meta, key: mainKey };
+}
+
+/**
+ * Match a KeyboardEvent against a declared shortcut string
+ */
+function matchKeyboardShortcut(e, shortcutStr) {
+  const parsed = parseKeyboardShortcut(shortcutStr);
+  if (!parsed) return false;
+
+  // Modifiers matching
+  if (parsed.ctrl && parsed.meta) {
+    if (!e.ctrlKey || !e.metaKey) return false;
+  } else if (parsed.ctrl) {
+    if (!e.ctrlKey && !e.metaKey) return false;
+  } else if (parsed.meta) {
+    if (!e.metaKey) return false;
+  } else {
+    if (e.ctrlKey || e.metaKey) return false;
+  }
+
+  if (parsed.alt !== !!e.altKey) return false;
+  if (parsed.shift !== !!e.shiftKey) return false;
+
+  const eventKey = (e.key || '').toLowerCase();
+  const eventCode = (e.code || '').toLowerCase();
+  const targetKey = parsed.key;
+
+  if (eventKey === targetKey) return true;
+  if (targetKey === 'space' && (eventKey === ' ' || eventCode === 'space')) return true;
+  if (targetKey === 'esc' && (eventKey === 'escape' || eventCode === 'escape')) return true;
+  if (eventCode === `key${targetKey}`) return true;
+  if (eventCode === `digit${targetKey}`) return true;
+  if (eventCode === targetKey) return true;
+
+  return false;
+}
+
 function setupKeyboardNavigation() {
   document.addEventListener('keydown', (e) => {
     // Global Spotlight Trigger (Ctrl+K, Cmd+K, Ctrl+P)
@@ -7121,6 +7188,17 @@ function setupKeyboardNavigation() {
         closeModal();
       }
       return;
+    }
+
+    // Dynamic ChewToys & Plugins Global Keyboard Shortcuts Dispatcher (.grr)
+    const activeChewToys = (window.installedChewToys || []).filter(p => p.is_enabled !== false && p.enabled !== false);
+    for (const plugin of activeChewToys) {
+      const shortcut = plugin.manifest?.integrations?.shortcut || plugin.integrations?.shortcut;
+      if (shortcut && matchKeyboardShortcut(e, shortcut)) {
+        e.preventDefault();
+        toggleDynamicChewToy(plugin.id);
+        return;
+      }
     }
 
     if (e.ctrlKey || e.metaKey) {
@@ -12841,6 +12919,68 @@ function adjustSubmenuPosition(itemEl) {
   }
 }
 
+/**
+ * Match a file name or directory against ChewToy declared file_extensions patterns
+ */
+function matchesChewToyFileExtension(patterns, filename, isDir = false) {
+  if (!patterns || !Array.isArray(patterns) || patterns.length === 0) return false;
+  if (!filename && !isDir) return false;
+
+  const nameLower = (filename || '').toLowerCase();
+
+  return patterns.some(pattern => {
+    if (!pattern || typeof pattern !== 'string') return false;
+    let pat = pattern.trim().toLowerCase();
+    if (!pat) return false;
+
+    if (pat === '*' || pat === '*.*') return true;
+    if (pat === 'dir' || pat === 'directory' || pat === 'folder' || pat === 'dirs') return isDir;
+    if (isDir) return false;
+
+    if (pat.startsWith('*.')) pat = pat.slice(2);
+    else if (pat.startsWith('.')) pat = pat.slice(1);
+
+    if (pat.includes('.')) {
+      return nameLower.endsWith('.' + pat);
+    }
+    const ext = nameLower.includes('.') ? nameLower.split('.').pop() : '';
+    return ext === pat || nameLower === pat;
+  });
+}
+
+/**
+ * Render dynamic context menu actions for active installed ChewToys matching current item
+ */
+function renderChewToyContextMenuItems(contextItem) {
+  if (!contextItem) return '';
+  const activeChewToys = (window.installedChewToys || []).filter(p => p.is_enabled !== false && p.enabled !== false);
+  if (activeChewToys.length === 0) return '';
+
+  let html = '';
+  activeChewToys.forEach(p => {
+    const integrations = p.manifest?.integrations || p.integrations;
+    if (!integrations) return;
+    const fileExts = integrations.file_extensions;
+    if (!fileExts || !Array.isArray(fileExts) || fileExts.length === 0) return;
+
+    if (matchesChewToyFileExtension(fileExts, contextItem.name, contextItem.is_dir)) {
+      const label = integrations.context_menu_label || `Open in ${p.name || p.id}`;
+      const iconUrl = getChewtoyIconUrl(p);
+      const targetPath = escapeHtml(contextItem.path || '');
+      const pluginId = escapeHtml(p.id);
+
+      html += `
+        <div class="context-item" onclick="openDynamicChewToy('${pluginId}', { targetFile: '${targetPath}', selectedFiles: getSelectedOrCursorPaths() }); hideContextMenu();">
+          <img src="${escapeHtml(iconUrl)}" alt="" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src='assets/amber-frameless-apps.webp'">
+          ${escapeHtml(label)}
+        </div>
+      `;
+    }
+  });
+
+  return html;
+}
+
 function showContextMenu(x, y) {
   const menu = document.getElementById('context-menu');
   if (!menu) return;
@@ -12990,6 +13130,7 @@ function showContextMenu(x, y) {
     ${App.contextItem && (App.contextItem.is_dir) ? `
       <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem.path)}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
     ` : ''}
+    ${renderChewToyContextMenuItems(App.contextItem)}
     <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
     <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
     <div class="context-sep"></div>
@@ -25442,12 +25583,13 @@ function buildSpotlightItems() {
     if (activeChewToys.length > 0) {
       activeChewToys.forEach(p => {
         const iconUrl = getChewtoyIconUrl(p);
+        const shortcut = p.manifest?.integrations?.shortcut || p.integrations?.shortcut;
         pool.push({
           title: p.name || p.id,
-          sub: p.description || `Launch ${p.name || p.id} v${p.version || '1.0.0'}`,
+          sub: (shortcut ? `[${shortcut}] ` : '') + (p.description || `Launch ${p.name || p.id} v${p.version || '1.0.0'}`),
           icon: iconUrl,
           cat: 'action',
-          badge: 'Chewtoy',
+          badge: shortcut || 'Chewtoy',
           handler: () => openDynamicChewToy(p.id)
         });
       });
@@ -32933,13 +33075,22 @@ window.Brum = {
       return installChewToyPackage(file);
     },
     toggle: function(id, enabled) {
+      if (enabled === undefined) {
+        return toggleDynamicChewToy(id);
+      }
       return toggleChewToy(id, enabled);
+    },
+    toggleWindow: function(id, context) {
+      return toggleDynamicChewToy(id, context);
     },
     uninstall: function(id) {
       return uninstallChewToy(id);
     },
     open: function(id, context) {
       return openDynamicChewToy(id, context);
+    },
+    close: function(id) {
+      return closeDynamicChewToy(id);
     }
   },
 
@@ -32989,7 +33140,18 @@ window.Brum = {
     },
 
     getSelectedFiles: function() {
+      if (brumLastContext && Array.isArray(brumLastContext.selectedFiles) && brumLastContext.selectedFiles.length > 0) {
+        return brumLastContext.selectedFiles;
+      }
       return getSelectedOrCursorPaths();
+    },
+
+    getTargetFile: function() {
+      if (brumLastContext && brumLastContext.targetFile) {
+        return brumLastContext.targetFile;
+      }
+      const files = window.Brum.fs.getSelectedFiles();
+      return (files && files.length > 0) ? files[0] : null;
     }
   },
 
@@ -33072,6 +33234,7 @@ window.addEventListener('message', async (e) => {
     else if (action === 'fs.listDir') result = await window.Brum.fs.listDir(payload.path);
     else if (action === 'fs.getActivePath') result = window.Brum.fs.getActivePath();
     else if (action === 'fs.getSelectedFiles') result = window.Brum.fs.getSelectedFiles();
+    else if (action === 'fs.getTargetFile') result = window.Brum.fs.getTargetFile();
     else if (action === 'ui.notify') { window.Brum.ui.notify(payload.message, payload.opts); result = true; }
     else if (action === 'ui.getTheme') result = window.Brum.ui.getTheme();
     else if (action === 'ui.showConfirm') result = await window.Brum.ui.showConfirm(payload.title, payload.message);
@@ -33173,7 +33336,11 @@ function renderInstalledChewToys(plugins) {
   container.innerHTML = plugins.map(p => {
     const iconUrl = getChewtoyIconUrl(p);
     const isEnabled = p.is_enabled !== undefined ? !!p.is_enabled : (p.enabled !== undefined ? !!p.enabled : true);
-    const permissions = Array.isArray(p.permissions) ? p.permissions : [];
+    const permissions = Array.isArray(p.permissions) ? p.permissions : (p.manifest?.permissions?.permissions || []);
+    const integrations = p.manifest?.integrations || p.integrations || {};
+    const shortcut = integrations.shortcut || null;
+    const fileExts = Array.isArray(integrations.file_extensions) ? integrations.file_extensions : [];
+    const contextLabel = integrations.context_menu_label || null;
 
     return `
       <div class="chewtoy-card" id="chewtoy-card-${escapeHtml(p.id)}" style="${!isEnabled ? 'opacity: 0.75;' : ''}">
@@ -33185,6 +33352,7 @@ function renderInstalledChewToys(plugins) {
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(p.name || p.id)}</span>
                 <span class="badge" style="font-size: 10px; padding: 1px 5px; background: rgba(245,158,11,0.15); color: var(--accent);">v${escapeHtml(p.version || '1.0.0')}</span>
                 ${p.category ? `<span class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(p.category)}</span>` : ''}
+                ${shortcut ? `<span class="badge" style="font-size: 10px; padding: 1px 5px; background: rgba(59,130,246,0.15); color: #60a5fa;" title="Global Shortcut: ${escapeHtml(shortcut)}"><i data-lucide="keyboard" style="width: 10px; height: 10px; margin-right: 2px;"></i>${escapeHtml(shortcut)}</span>` : ''}
               </div>
               <div style="font-size: 10.5px; color: var(--text-dim); margin-top: 2px;">
                 ${escapeHtml(p.author || 'Custom Developer')}
@@ -33195,6 +33363,12 @@ function renderInstalledChewToys(plugins) {
           <div class="chewtoy-card-desc">
             ${escapeHtml(p.description || 'Modular Chewtoy extension package.')}
           </div>
+
+          ${fileExts.length > 0 ? `
+            <div style="font-size: 10.5px; color: var(--text-dim); margin-top: 6px; display: flex; align-items: center; gap: 5px; flex-wrap: wrap;">
+              <span class="badge" style="font-size: 9.5px; padding: 1px 5px; background: rgba(34,197,94,0.15); color: #4ade80;" title="Context Menu: ${escapeHtml(contextLabel || 'Open in ' + (p.name || p.id))}"><i data-lucide="file-check" style="width: 10px; height: 10px; margin-right: 2px;"></i>${escapeHtml(fileExts.join(', '))}</span>
+            </div>
+          ` : ''}
 
           ${permissions.length > 0 ? `
             <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px;">
@@ -33514,9 +33688,12 @@ function openDynamicChewToy(pluginId, context = null) {
   const activePanePath = App.panes[App.activePaneIndex]?.path || App.panes[0]?.path || '/';
   const viewport = window.innerWidth < 600 ? 'phone' : (window.innerWidth <= 1024 ? 'tablet' : 'pc');
   const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || window.matchMedia('(pointer: coarse)').matches;
+  const targetFile = (context && context.targetFile) ? context.targetFile : (App.contextItem ? App.contextItem.path : null);
+  const selectedFiles = (context && context.selectedFiles) ? context.selectedFiles : getSelectedOrCursorPaths();
   const hostContext = {
     activePath: activePanePath,
-    selectedFiles: getSelectedOrCursorPaths(),
+    targetFile: targetFile,
+    selectedFiles: selectedFiles,
     paneIndex: App.activePaneIndex,
     theme: App.theme || 'amber-charcoal',
     pluginId: pluginId,
@@ -33558,6 +33735,7 @@ function openDynamicChewToy(pluginId, context = null) {
         window.Brum._dispatchReady(hostContext);
       }
       try {
+        frame.contentWindow.postMessage({ type: 'BRUM_CONTEXT_UPDATE', context: hostContext }, '*');
         frame.contentWindow.postMessage({ type: 'BRUM_READY', context: hostContext }, '*');
       } catch (_) {}
       try {
@@ -33635,6 +33813,36 @@ function closeDynamicChewToy(pluginId = null) {
         window.activeDynamicChewToyId = null;
       }
     }
+  }
+}
+
+/**
+ * Toggle Floating / Docked Dynamic Chewtoy Window
+ */
+function toggleDynamicChewToy(pluginId, context = null) {
+  if (!pluginId) return;
+
+  // 1. Check if docked in any pane
+  const dockedPaneIndex = App.panes.findIndex(p => p.dockedTool === 'plugin:' + pluginId || p.dockedTool === 'chewtoy:' + pluginId);
+  if (dockedPaneIndex !== -1) {
+    closeDockedTool(dockedPaneIndex);
+    return;
+  }
+
+  // 2. Check if open and visible in floating window
+  const win = document.getElementById(`dynamic-chewtoy-window-${pluginId}`) || document.getElementById('dynamic-chewtoy-window');
+  if (win && win.classList.contains('active') && win.style.display !== 'none' && (!win.getAttribute('data-plugin-id') || win.getAttribute('data-plugin-id') === pluginId)) {
+    closeDynamicChewToy(pluginId);
+    return;
+  }
+
+  // 3. Otherwise open according to default_mode
+  const plugin = (window.installedChewToys || []).find(p => p.id === pluginId);
+  const defaultMode = plugin?.manifest?.ui?.default_mode || plugin?.ui?.default_mode || 'floating';
+  if (defaultMode === 'docked') {
+    dockToolToPane('plugin:' + pluginId, App.activePaneIndex ?? 0);
+  } else {
+    openDynamicChewToy(pluginId, context);
   }
 }
 
