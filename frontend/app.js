@@ -13904,11 +13904,13 @@ function showContextMenu(x, y) {
   const targetPane = App.panes[App.contextPaneIndex ?? App.activePaneIndex];
   const isContextSelected = App.contextItem && targetPane?.selected?.has(App.contextItem.path);
   const selectedCount = (isContextSelected && targetPane?.selected?.size > 1) ? targetPane.selected.size : 1;
-  const headerText = selectedCount > 1 ? `⚡ ${selectedCount} items selected` : `${escapeHtml(App.contextItem?.name || 'File Actions')}`;
-
+  const isDir = App.contextItem ? !!App.contextItem.is_dir : false;
   const filename = App.contextItem?.name || '';
   const ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
   const matchingRules = OpenWithRules.filter(r => r.exts.includes('*') || r.exts.map(e => e.toLowerCase()).includes(ext));
+
+  const clipInfo = App.clipboard ? `(${App.clipboard.paths.length} item${App.clipboard.paths.length > 1 ? 's' : ''})` : '';
+  const oppositeIdx = visibleCount > 1 ? (currentIdx + 1) % visibleCount : null;
 
   let openWithItems = '';
   if (matchingRules.length > 0) {
@@ -13954,12 +13956,324 @@ function showContextMenu(x, y) {
   };
   const activeColorHex = curColor && colorMap[curColor] ? colorMap[curColor] : null;
 
+  // Header icon & label
+  let headerIconHtml = '';
+  let headerLabel = '';
+
+  if (selectedCount > 1) {
+    headerIconHtml = '<i data-lucide="layers" style="width: 14px; color: var(--accent);"></i>';
+    headerLabel = `⚡ ${selectedCount} items selected`;
+  } else if (isDir) {
+    headerIconHtml = formatCustomIconToHtml('', 'sm', true, 'var(--accent)');
+    headerLabel = escapeHtml(App.contextItem?.name || 'Folder Actions');
+  } else {
+    headerIconHtml = renderFileIconHtml(App.contextItem?.name || '', false, App.contextItem?.is_archive, App.contextItem?.path || '', 'sm');
+    headerLabel = escapeHtml(App.contextItem?.name || 'File Actions');
+  }
+
+  // --- BUILD CONTEXT MENU BODY ---
+  let bodyHtml = '';
+
+  // Case A: Multi-selection Context Menu
+  if (selectedCount > 1) {
+    bodyHtml = `
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${copyPaneItems ? `<div class="submenu-header">Active Panes</div>${copyPaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favCopyItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('copy'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+          <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width:13px;"></i> + Bookmark Current Path</div>
+        </div>
+      </div>
+
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${movePaneItems ? `<div class="submenu-header">Active Panes</div>${movePaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favMoveItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('move'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+        </div>
+      </div>
+
+      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
+      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
+      <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste (Ctrl+V)</div>
+      <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
+      <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
+      <div class="context-sep"></div>
+
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archive Selection</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
+          <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
+          <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
+          <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
+        </div>
+      </div>
+      <div class="context-sep"></div>
+      <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Selection...</div>
+      <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
+    `;
+  }
+  // Case B: Dedicated Folder Context Menu
+  else if (isDir) {
+    bodyHtml = `
+      <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, '${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="folder-open" style="width: 14px; color: var(--accent);"></i> Open Folder</div>
+      <div class="context-item" onclick="createPaneTab(${App.contextPaneIndex ?? App.activePaneIndex}, '${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="plus-square" style="width: 14px;"></i> Open in New Tab</div>
+      ${oppositeIdx !== null ? `
+        <div class="context-item" onclick="loadPaneDirectory(${oppositeIdx}, '${escapeHtml(App.contextItem?.path || '')}'); showToast('Opened in Pane ${oppositeIdx + 1}', 'info'); hideContextMenu();"><i data-lucide="columns-2" style="width: 14px;"></i> Open in Opposite Pane (Pane ${oppositeIdx + 1})</div>
+      ` : ''}
+      <div class="context-item" onclick="openTerminalInPath('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
+      <div class="context-item" onclick="openSearchModal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Search in Folder (Ctrl+F)</div>
+      <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Folder / Guest Dropbox...</div>
+      <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
+      <div class="context-item" onclick="openDiskUsageModal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
+      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem?.path || '')}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
+      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem?.path || '')}', false); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add Folder to Queue</div>
+      <div class="context-item" onclick="toggleBranchView(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="git-branch" style="width: 14px; color: var(--accent);"></i> Flat / Branch View (Ctrl+B)</div>
+      <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Download Folder (.zip)</div>
+      <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
+      <div class="context-sep"></div>
+
+      <!-- New Submenu -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="triggerMkdir(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px; color: var(--accent);"></i> New Folder... (F7)</div>
+          <div class="context-item" onclick="triggerNewFile(); hideContextMenu();"><i data-lucide="file-plus" style="width: 13px;"></i> Blank File...</div>
+          <div class="context-sep"></div>
+          <div class="submenu-header">Templates</div>
+          ${generateTemplateSubmenuItems()}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCreateTemplateModal(); hideContextMenu();"><i data-lucide="file-code-2" style="width: 13px;"></i> + Create Template...</div>
+          <div class="context-item" onclick="openSettings(); switchSettingsTab('tab-templates'); hideContextMenu();"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Manage Templates...</div>
+        </div>
+      </div>
+      <div class="context-sep"></div>
+
+      <!-- Transfer & Folder Actions -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${copyPaneItems ? `<div class="submenu-header">Active Panes</div>${copyPaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favCopyItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('copy'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+          <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width:13px;"></i> + Bookmark Current Path</div>
+        </div>
+      </div>
+
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${movePaneItems ? `<div class="submenu-header">Active Panes</div>${movePaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favMoveItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('move'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+        </div>
+      </div>
+
+      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
+      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
+      <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste ${clipInfo} (Ctrl+V)</div>
+      <div class="context-item" onclick="triggerRename(); hideContextMenu();"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
+      <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
+      <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
+      <div class="context-sep"></div>
+
+      <!-- Archive Submenu -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archive Folder</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
+          <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
+          <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
+          <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
+        </div>
+      </div>
+      <div class="context-sep"></div>
+
+      <!-- Folder Tools -->
+      <div class="context-item" onclick="triggerDirPermissions(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="lock" style="width: 14px;"></i> Directory Permissions & Ownership</div>
+      <div class="context-item" onclick="runPredefinedAction('du -sh &quot;{dir}&quot;', 'Folder Disk Usage'); hideContextMenu();"><i data-lucide="hard-drive" style="width: 14px;"></i> Check Disk Usage (du -sh)</div>
+      <div class="context-item" onclick="triggerGitManager(); hideContextMenu();"><i data-lucide="git-branch" style="width: 14px;"></i> Git Manager & Diff</div>
+      <div class="context-item" onclick="openRemoteModal(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="network" style="width: 14px;"></i> Mount Remote Storage Here...</div>
+      <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width: 14px;"></i> Bookmark Current Path</div>
+      <div class="context-item" onclick="openSharesManager(); hideContextMenu();"><img src="assets/sharemgr.webp" alt="Sharing" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center (Manage Shares)...</div>
+    `;
+  }
+  // Case C: Dedicated File Context Menu
+  else {
+    bodyHtml = `
+      ${isStandaloneMode() ? `
+        <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+          <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="external-link" style="width: 14px; color: var(--accent);"></i> Open with...</div>
+          <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+          <div class="context-submenu">
+            ${openWithItems}
+          </div>
+        </div>
+      ` : ''}
+      <div class="context-item" onclick="triggerView(); hideContextMenu();"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
+      <div class="context-item" onclick="triggerEditor(); hideContextMenu();"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
+      <div class="context-item" onclick="openHexEditor('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="binary" style="width: 14px; color: var(--accent);"></i> Open in Hex Editor...</div>
+      ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
+        <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in Audioplayer</div>
+        <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to Audioplayer Queue</div>
+      ` : ''}
+      ${App.contextItem && App.contextItem.name.toLowerCase().endsWith('.pdf') ? `
+        <div class="context-item" onclick="openPdfToolModal('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> PDF Studio (Merge & Split)</div>
+      ` : ''}
+      ${renderChewToyContextMenuItems(App.contextItem)}
+      <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
+      <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share File / Advanced Sharing...</div>
+      <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
+      <div class="context-sep"></div>
+
+      <!-- New Submenu -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="triggerMkdir(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px; color: var(--accent);"></i> New Folder... (F7)</div>
+          <div class="context-item" onclick="triggerNewFile(); hideContextMenu();"><i data-lucide="file-plus" style="width: 13px;"></i> Blank File...</div>
+          <div class="context-sep"></div>
+          <div class="submenu-header">Templates</div>
+          ${generateTemplateSubmenuItems()}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="saveContextItemAsTemplate(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width: 13px; color: var(--accent);"></i> Save File as Template...</div>
+          <div class="context-item" onclick="openCreateTemplateModal(); hideContextMenu();"><i data-lucide="file-code-2" style="width: 13px;"></i> + Create Template...</div>
+          <div class="context-item" onclick="openSettings(); switchSettingsTab('tab-templates'); hideContextMenu();"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Manage Templates...</div>
+        </div>
+      </div>
+      <div class="context-sep"></div>
+
+      <!-- Transfer & File Operations -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${copyPaneItems ? `<div class="submenu-header">Active Panes</div>${copyPaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favCopyItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('copy'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+          <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width:13px;"></i> + Bookmark Current Path</div>
+        </div>
+      </div>
+
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${movePaneItems ? `<div class="submenu-header">Active Panes</div>${movePaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favMoveItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('move'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+        </div>
+      </div>
+
+      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
+      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
+      <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste (Ctrl+V)</div>
+      <div class="context-item" onclick="triggerRename(); hideContextMenu();"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
+      <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
+      <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
+      <div class="context-sep"></div>
+
+      <!-- Archive Submenu -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archive</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
+          <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
+          <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
+          <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
+          <div class="context-item" onclick="triggerExtract(); hideContextMenu();"><i data-lucide="folder-archive" style="width: 13px;"></i> Extract Here</div>
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
+        </div>
+      </div>
+      <div class="context-sep"></div>
+
+      <!-- Tools Submenu -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tools</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${isStandaloneMode() ? `
+            <div class="context-item" onclick="openExternalTerminal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="terminal" style="width: 13px; color: var(--accent);"></i> Open in External Terminal</div>
+            <div class="context-sep"></div>
+          ` : ''}
+          <div class="context-item" onclick="openSearchModal(); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Advanced Search (Ctrl+F)</div>
+          <div class="context-item" onclick="triggerDiff(); hideContextMenu();"><img src="assets/diff.webp" alt="Compare" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare / Diff (F9)</div>
+          <div class="context-item" onclick="triggerBulkRename(); hideContextMenu();"><i data-lucide="tags" style="width: 13px;"></i> Advanced Rename (Shift+F6)</div>
+          <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+            <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="terminal-square" style="width: 13px; color: var(--accent);"></i> Custom Script Actions</div>
+            <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+            <div class="context-submenu">
+              <div class="submenu-header">User Actions</div>
+              ${userCustomActions}
+              <div class="context-sep"></div>
+              <div class="submenu-header">Shell Actions</div>
+              <div class="context-item" onclick="runPredefinedAction('chmod +x &quot;{file}&quot;', 'Make Executable (chmod +x)'); hideContextMenu();"><i data-lucide="shield" style="width:13px;"></i> Make Executable (chmod +x)</div>
+              <div class="context-item" onclick="runPredefinedAction('stat &quot;{file}&quot;', 'File Stat Info'); hideContextMenu();"><i data-lucide="info" style="width:13px;"></i> Inspect Stat (stat)</div>
+              <div class="context-item" onclick="runPredefinedAction('du -sh &quot;{file}&quot;', 'Disk Usage'); hideContextMenu();"><i data-lucide="hard-drive" style="width:13px;"></i> Check Disk Usage (du -sh)</div>
+              <div class="context-item" onclick="runPredefinedAction('git -C &quot;{dir}&quot; log -n 10 --oneline --graph', 'Git Log'); hideContextMenu();"><i data-lucide="git-branch" style="width:13px;"></i> Git Recent Log (git log)</div>
+              <div class="context-item" onclick="runPredefinedAction('md5sum &quot;{file}&quot;', 'MD5 Hash'); hideContextMenu();"><i data-lucide="hash" style="width:13px;"></i> Calculate MD5 Hash</div>
+              <div class="context-item" onclick="runPredefinedAction('wc -l &quot;{file}&quot;', 'Line Count'); hideContextMenu();"><i data-lucide="list-ordered" style="width:13px;"></i> Count Lines (wc -l)</div>
+            </div>
+          </div>
+          <div class="context-item" onclick="openPdfToolModal(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> PDF Studio (Merge & Split)</div>
+          <div class="context-item" onclick="triggerFileSplit(); hideContextMenu();"><i data-lucide="scissors" style="width: 13px;"></i> Split Large File...</div>
+          <div class="context-item" onclick="triggerFileCombine(); hideContextMenu();"><i data-lucide="merge" style="width: 13px;"></i> Combine Part Files (.001, .002)...</div>
+          <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
+          <div class="context-item" onclick="openDiskUsageModal(); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)</div>
+          <div class="context-item" onclick="triggerGitManager(); hideContextMenu();"><i data-lucide="git-branch" style="width: 13px;"></i> Git Manager & Diff</div>
+          <div class="context-item" onclick="openDuplicateFinder(); hideContextMenu();"><i data-lucide="copy-check" style="width: 13px; color: var(--accent);"></i> Duplicate Finder...</div>
+          <div class="context-item" onclick="openTagEditor(); hideContextMenu();"><i data-lucide="tag" style="width: 13px; color: var(--accent);"></i> Tag Editor & EXIF...</div>
+          <div class="context-item" onclick="openHexEditor(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="binary" style="width: 13px; color: var(--accent);"></i> Hex Editor...</div>
+          <div class="context-item" onclick="openLogViewer(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="scroll-text" style="width: 13px; color: var(--accent);"></i> Log Viewer...</div>
+          <div class="context-item" onclick="openSharesManager(); hideContextMenu();"><img src="assets/sharemgr.webp" alt="Sharing" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center (Manage Shares)...</div>
+        </div>
+      </div>
+
+      ${App.contextItem && isVaultFile(App.contextItem.name) ? `
+        <div class="context-sep"></div>
+        <div class="context-item" onclick="handleVaultOpen('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><i data-lucide="key" style="width: 14px; color: var(--accent);"></i> Unlock / Open Vault...</div>
+        <div class="context-item" onclick="disconnectPaneRemote(App.activePaneIndex); hideContextMenu();"><i data-lucide="lock" style="width: 14px; color: var(--danger);"></i> Lock Vault</div>
+      ` : ''}
+    `;
+  }
+
   menu.innerHTML = `
-    <!-- Top Header: Filename on left, Small Color Dot & Tag icon on right -->
+    <!-- Top Header: Filename/Folder on left, Small Color Dot & Tag icon on right -->
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.15);">
-      <span style="font-weight: 700; font-size: 11px; font-family: var(--font-mono); color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 170px;" title="${escapeHtml(App.contextItem?.name || '')}">
-        ${headerText}
-      </span>
+      <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 175px;" title="${escapeHtml(App.contextItem?.name || '')}">
+        ${headerIconHtml}
+        <span style="font-weight: 700; font-size: 11px; font-family: var(--font-mono); color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+          ${headerLabel}
+        </span>
+      </div>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span id="ctx-btn-color" onclick="toggleContextColorPalette(event)" title="Set Color Label" style="width: 12px; height: 12px; min-width: 12px; min-height: 12px; max-width: 12px; max-height: 12px; aspect-ratio: 1 / 1; border-radius: 50%; border: 1.5px solid ${activeColorHex || 'var(--border)'}; background: ${activeColorHex || 'rgba(255,255,255,0.15)'}; display: inline-block; flex-shrink: 0; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; box-shadow: ${activeColorHex ? `0 0 5px ${activeColorHex}` : 'none'};" onmouseenter="this.style.transform='scale(1.25)'" onmouseleave="this.style.transform='scale(1)'"></span>
         <i data-lucide="tag" id="ctx-icon-tag" onclick="triggerEditTagsModal(); hideContextMenu();" title="${hasTags ? `Custom Tags (${escapeHtml(curTags.map(t => '#' + t).join(', '))})` : 'Custom Tags (None assigned)'}" style="width: 13px; height: 13px; color: ${hasTags ? '#22c55e' : 'var(--text-muted)'}; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; opacity: ${hasTags ? '1' : '0.55'}; filter: ${hasTags ? 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.75))' : 'none'}; transition: opacity 0.15s, transform 0.15s, filter 0.15s;" onmouseenter="this.style.opacity='1'; this.style.transform='scale(1.2)';" onmouseleave="this.style.opacity='${hasTags ? '1' : '0.55'}'; this.style.transform='scale(1)';"></i>
@@ -13982,145 +14296,7 @@ function showContextMenu(x, y) {
       </button>
     </div>
 
-    <!-- New File / Folder / Templates Submenu (Always Accessible Anywhere) -->
-    <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-      <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New</div>
-      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-      <div class="context-submenu">
-        <div class="context-item" onclick="triggerMkdir(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px; color: var(--accent);"></i> New Folder... (F7)</div>
-        <div class="context-item" onclick="triggerNewFile(); hideContextMenu();"><i data-lucide="file-plus" style="width: 13px;"></i> Blank File...</div>
-        <div class="context-sep"></div>
-        <div class="submenu-header">Templates</div>
-        ${generateTemplateSubmenuItems()}
-        <div class="context-sep"></div>
-        <div class="context-item" onclick="saveContextItemAsTemplate(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width: 13px; color: var(--accent);"></i> Save File as Template...</div>
-        <div class="context-item" onclick="openCreateTemplateModal(); hideContextMenu();"><i data-lucide="file-code-2" style="width: 13px;"></i> + Create Template...</div>
-        <div class="context-item" onclick="openSettings(); switchSettingsTab('tab-templates'); hideContextMenu();"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Manage Templates...</div>
-      </div>
-    </div>
-    <div class="context-sep"></div>
-
-    <!-- Group 1: Open With (Standalone only), View, Edit, Properties -->
-    ${isStandaloneMode() ? `
-      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="external-link" style="width: 14px; color: var(--accent);"></i> Open with...</div>
-        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-        <div class="context-submenu">
-          ${openWithItems}
-        </div>
-      </div>
-    ` : ''}
-    <div class="context-item" onclick="triggerView(); hideContextMenu();"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
-    <div class="context-item" onclick="triggerEditor(); hideContextMenu();"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
-    <div class="context-item" onclick="openHexEditor('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="binary" style="width: 14px; color: var(--accent);"></i> Open in Hex Editor...</div>
-    ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
-      <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in Audioplayer</div>
-      <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to Audioplayer Queue</div>
-    ` : ''}
-    ${App.contextItem && (App.contextItem.is_dir) ? `
-      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem.path)}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
-    ` : ''}
-    ${renderChewToyContextMenuItems(App.contextItem)}
-    <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
-    <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
-    <div class="context-sep"></div>
-
-    <!-- Group 2: Copy to, Move to, Copy, Cut, Paste, Rename, Delete -->
-    <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-      <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
-      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-      <div class="context-submenu">
-        ${copyPaneItems ? `<div class="submenu-header">Active Panes</div>${copyPaneItems}<div class="context-sep"></div>` : ''}
-        <div class="submenu-header">Favorite Destinations</div>
-        ${favCopyItems}
-        <div class="context-sep"></div>
-        <div class="context-item" onclick="openCustomDestModal('copy'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
-        <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width:13px;"></i> + Bookmark Current Path</div>
-      </div>
-    </div>
-
-    <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-      <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
-      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-      <div class="context-submenu">
-        ${movePaneItems ? `<div class="submenu-header">Active Panes</div>${movePaneItems}<div class="context-sep"></div>` : ''}
-        <div class="submenu-header">Favorite Destinations</div>
-        ${favMoveItems}
-        <div class="context-sep"></div>
-        <div class="context-item" onclick="openCustomDestModal('move'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
-      </div>
-    </div>
-
-    <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
-    <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
-    <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste (Ctrl+V)</div>
-    <div class="context-item" onclick="triggerRename(); hideContextMenu();"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
-    <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
-    <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
-    <div class="context-sep"></div>
-
-    <!-- Group 3: Archive Submenu -->
-    <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-      <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archive</div>
-      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-      <div class="context-submenu">
-        <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
-        <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
-        <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
-        <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
-        <div class="context-item" onclick="triggerExtract(); hideContextMenu();"><i data-lucide="folder-archive" style="width: 13px;"></i> Extract Here</div>
-        <div class="context-sep"></div>
-        <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
-      </div>
-    </div>
-    <div class="context-sep"></div>
-
-    <!-- Group 4: Tools Submenu -->
-    <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-      <div style="display:flex; align-items:center; gap:8px;"><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tools</div>
-      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-      <div class="context-submenu">
-        ${isStandaloneMode() ? `
-          <div class="context-item" onclick="openExternalTerminal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="terminal" style="width: 13px; color: var(--accent);"></i> Open in External Terminal</div>
-          <div class="context-sep"></div>
-        ` : ''}
-        <div class="context-item" onclick="openSearchModal(); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Advanced Search (Ctrl+F)</div>
-        <div class="context-item" onclick="triggerDiff(); hideContextMenu();"><img src="assets/diff.webp" alt="Compare" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare / Diff (F9)</div>
-        <div class="context-item" onclick="triggerBulkRename(); hideContextMenu();"><i data-lucide="tags" style="width: 13px;"></i> Advanced Rename (Shift+F6)</div>
-        <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-          <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="terminal-square" style="width: 13px; color: var(--accent);"></i> Custom Script Actions</div>
-          <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-          <div class="context-submenu">
-            <div class="submenu-header">User Actions</div>
-            ${userCustomActions}
-            <div class="context-sep"></div>
-            <div class="submenu-header">Shell Actions</div>
-            <div class="context-item" onclick="runPredefinedAction('chmod +x &quot;{file}&quot;', 'Make Executable (chmod +x)'); hideContextMenu();"><i data-lucide="shield" style="width:13px;"></i> Make Executable (chmod +x)</div>
-            <div class="context-item" onclick="runPredefinedAction('stat &quot;{file}&quot;', 'File Stat Info'); hideContextMenu();"><i data-lucide="info" style="width:13px;"></i> Inspect Stat (stat)</div>
-            <div class="context-item" onclick="runPredefinedAction('du -sh &quot;{file}&quot;', 'Disk Usage'); hideContextMenu();"><i data-lucide="hard-drive" style="width:13px;"></i> Check Disk Usage (du -sh)</div>
-            <div class="context-item" onclick="runPredefinedAction('git -C &quot;{dir}&quot; log -n 10 --oneline --graph', 'Git Log'); hideContextMenu();"><i data-lucide="git-branch" style="width:13px;"></i> Git Recent Log (git log)</div>
-            <div class="context-item" onclick="runPredefinedAction('md5sum &quot;{file}&quot;', 'MD5 Hash'); hideContextMenu();"><i data-lucide="hash" style="width:13px;"></i> Calculate MD5 Hash</div>
-            <div class="context-item" onclick="runPredefinedAction('wc -l &quot;{file}&quot;', 'Line Count'); hideContextMenu();"><i data-lucide="list-ordered" style="width:13px;"></i> Count Lines (wc -l)</div>
-          </div>
-        </div>
-        <div class="context-item" onclick="openPdfToolModal(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> PDF Studio (Merge & Split)</div>
-        <div class="context-item" onclick="triggerFileSplit(); hideContextMenu();"><i data-lucide="scissors" style="width: 13px;"></i> Split Large File...</div>
-        <div class="context-item" onclick="triggerFileCombine(); hideContextMenu();"><i data-lucide="merge" style="width: 13px;"></i> Combine Part Files (.001, .002)...</div>
-        <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
-        <div class="context-item" onclick="openDiskUsageModal(); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)</div>
-        <div class="context-item" onclick="triggerGitManager(); hideContextMenu();"><i data-lucide="git-branch" style="width: 13px;"></i> Git Manager & Diff</div>
-        <div class="context-item" onclick="openDuplicateFinder(); hideContextMenu();"><i data-lucide="copy-check" style="width: 13px; color: var(--accent);"></i> Duplicate Finder...</div>
-        <div class="context-item" onclick="openTagEditor(); hideContextMenu();"><i data-lucide="tag" style="width: 13px; color: var(--accent);"></i> Tag Editor & EXIF...</div>
-        <div class="context-item" onclick="openHexEditor(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="binary" style="width: 13px; color: var(--accent);"></i> Hex Editor...</div>
-        <div class="context-item" onclick="openLogViewer(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="scroll-text" style="width: 13px; color: var(--accent);"></i> Log Viewer...</div>
-      </div>
-    </div>
-
-    ${App.contextItem && isVaultFile(App.contextItem.name) ? `
-      <div class="context-sep"></div>
-      <div class="context-item" onclick="handleVaultOpen('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><i data-lucide="key" style="width: 14px; color: var(--accent);"></i> Unlock / Open Vault...</div>
-      <div class="context-item" onclick="disconnectPaneRemote(App.activePaneIndex); hideContextMenu();"><i data-lucide="lock" style="width: 14px; color: var(--danger);"></i> Lock Vault</div>
-    ` : ''}
+    ${bodyHtml}
   `;
 
   if (window.lucide) lucide.createIcons();
@@ -14681,6 +14857,7 @@ function showEmptySpaceContextMenu(x, y, paneIndex) {
     <div class="context-item" onclick="triggerDeviceFolderUpload(${paneIndex}); hideContextMenu();"><i data-lucide="folder-up" style="width: 14px; color: #38bdf8;"></i> Upload Folder from Device...</div>
     <div class="context-item" onclick="triggerDownloadCurrentDirectory(${paneIndex}); hideContextMenu();"><i data-lucide="download" style="width: 14px;"></i> Download Directory (.zip)</div>
     <div class="context-item" onclick="triggerShareDirectory(${paneIndex}); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Directory / Guest Dropbox...</div>
+    <div class="context-item" onclick="openSharesManager(); hideContextMenu();"><img src="assets/sharemgr.webp" alt="Sharing" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center (Manage Shares)...</div>
     <div class="context-sep"></div>
     <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
       <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New</div>
@@ -16559,7 +16736,7 @@ function triggerMkdir() {
   if (confirmBtn) confirmBtn.onclick = executeMkdir;
 }
 
-function triggerRename() {
+function triggerRename(forceModal = false) {
   const targetPaneIdx = (App.contextPaneIndex !== null && App.contextPaneIndex !== undefined) ? App.contextPaneIndex : App.activePaneIndex;
   const pane = App.panes[targetPaneIdx];
   if (!pane) {
@@ -16589,6 +16766,155 @@ function triggerRename() {
     return;
   }
 
+  const isTouch = window.innerWidth <= 768 || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+  if (!forceModal && !isTouch) {
+    const started = startInPlaceRename(targetPaneIdx, item);
+    if (started) return;
+  }
+
+  openRenameModal(targetPaneIdx, item);
+}
+
+function startInPlaceRename(targetPaneIdx, item) {
+  const pane = App.panes[targetPaneIdx];
+  if (!pane) return false;
+
+  const paneEl = document.getElementById(`pane-${targetPaneIdx}`);
+  if (!paneEl) return false;
+
+  const escapedPath = (window.CSS && CSS.escape) ? CSS.escape(item.path) : item.path.replace(/(["\\])/g, '\\$1');
+
+  // Search for the element in table, grid, or compact view
+  let targetRow = paneEl.querySelector(`tr.file-row[data-path="${escapedPath}"]`);
+  let nameEl = null;
+
+  if (targetRow) {
+    nameEl = targetRow.querySelector('.file-name-text');
+  } else {
+    const card = paneEl.querySelector(`.grid-gallery-card[data-path="${escapedPath}"]`);
+    if (card) {
+      nameEl = card.querySelector('.grid-gallery-title') || card.querySelector('div[title]');
+    } else {
+      const compact = paneEl.querySelector(`.compact-list-item[data-path="${escapedPath}"]`);
+      if (compact) {
+        nameEl = compact.querySelector('span:last-child');
+      }
+    }
+  }
+
+  if (!nameEl) return false;
+
+  // Prevent duplicate input if already renaming
+  if (nameEl.querySelector('.inplace-rename-input')) return true;
+
+  const originalName = item.name;
+  const originalHtml = nameEl.innerHTML;
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.className = 'inplace-rename-input';
+  input.value = originalName;
+
+  nameEl.innerHTML = '';
+  nameEl.appendChild(input);
+
+  let committed = false;
+
+  const cancel = () => {
+    if (committed) return;
+    committed = true;
+    nameEl.innerHTML = originalHtml;
+  };
+
+  const commit = async () => {
+    if (committed) return;
+    const newName = input.value.trim();
+    if (!newName || newName === originalName) {
+      cancel();
+      return;
+    }
+    committed = true;
+
+    const toPath = `${pane.path.replace(/\/$/, '')}/${newName}`;
+    const fromAuth = resolveAuthUri(item.path);
+    const toAuth = resolveAuthUri(toPath);
+    const endpoint = getPaneEndpoint(targetPaneIdx);
+    const headers = getPaneAuthHeaders(targetPaneIdx, { 'Content-Type': 'application/json' });
+
+    try {
+      const resp = await fetch(`${endpoint}/api/fs/rename`, {
+        method: 'POST',
+        headers: headers,
+        body: JSON.stringify({ 
+          from: fromAuth, 
+          to: toAuth,
+          windows_native_file_ops: App.windowsNativeOps,
+          detect_locking_processes: App.detectFileLocks
+        })
+      });
+
+      if (resp.ok) {
+        showToast(`Renamed to "${newName}"`, 'success');
+        if (App.panes && Array.isArray(App.panes)) {
+          App.panes.forEach(p => {
+            if (p && p.selected && p.selected.has(item.path)) {
+              p.selected.delete(item.path);
+              p.selected.add(toPath);
+            }
+          });
+        }
+        refreshAllPanes();
+      } else {
+        const err = await resp.text();
+        showToast(`Rename failed: ${sanitizeCredentials(err)}`, 'error');
+        cancel();
+        refreshAllPanes();
+      }
+    } catch (e) {
+      showToast(`Rename error: ${e.message}`, 'error');
+      cancel();
+      refreshAllPanes();
+    }
+  };
+
+  input.addEventListener('keydown', (e) => {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      input.blur();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      cancel();
+    }
+  });
+
+  input.addEventListener('blur', () => {
+    commit();
+  });
+
+  input.addEventListener('click', (e) => e.stopPropagation());
+  input.addEventListener('dblclick', (e) => e.stopPropagation());
+  input.addEventListener('contextmenu', (e) => e.stopPropagation());
+
+  setTimeout(() => {
+    input.focus();
+    if (item.is_dir) {
+      input.select();
+    } else {
+      const lastDot = originalName.lastIndexOf('.');
+      if (lastDot > 0) {
+        input.setSelectionRange(0, lastDot);
+      } else {
+        input.select();
+      }
+    }
+  }, 25);
+
+  return true;
+}
+
+function openRenameModal(targetPaneIdx, item) {
+  const pane = App.panes[targetPaneIdx];
   const input = document.getElementById('rename-input');
   if (!input) {
     console.error('rename-input not found');
