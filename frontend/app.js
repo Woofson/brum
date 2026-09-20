@@ -65,6 +65,7 @@ const App = {
   dndPromptMode: localStorage.getItem('cd_dnd_prompt_mode') || 'ask',
   dndParanoidPrompt: localStorage.getItem('cd_dnd_paranoid_prompt') !== 'false',
   paneReorderEnabled: localStorage.getItem('cd_pane_reorder_enabled') !== 'false',
+  activateOnHover: localStorage.getItem('cd_activate_on_hover') === '1' || localStorage.getItem('cd_activate_on_hover') === 'true',
   phoneTabletMaxPanes: parseInt(localStorage.getItem('cd_phone_tablet_max_panes') || '2', 10),
   paneTabsMode: localStorage.getItem('cd_pane_tabs_mode') || 'pc_only',
   hapticFeedback: localStorage.getItem('cd_haptic_feedback') !== 'false',
@@ -738,6 +739,7 @@ function getAllUserPreferences() {
 
     // 6. Drag & Drop & Rearrangement & Max Panes & Tabs
     pane_reorder_enabled: App.paneReorderEnabled !== false,
+    activate_on_hover: App.activateOnHover === true,
     phone_tablet_max_panes: App.phoneTabletMaxPanes || 2,
     pane_tabs_mode: localStorage.getItem('cd_pane_tabs_mode') || 'pc_only',
     dnd_default_action: App.dndDefaultAction,
@@ -1026,6 +1028,12 @@ function applyAllUserPreferences(prefs) {
     localStorage.setItem('cd_pane_reorder_enabled', prefs.pane_reorder_enabled ? 'true' : 'false');
     const reorderCb = document.getElementById('setting-pane-reorder');
     if (reorderCb) reorderCb.checked = App.paneReorderEnabled;
+  }
+  if (prefs.activate_on_hover !== undefined) {
+    App.activateOnHover = !!prefs.activate_on_hover;
+    localStorage.setItem('cd_activate_on_hover', prefs.activate_on_hover ? '1' : '0');
+    const hoverCb = document.getElementById('setting-activate-on-hover');
+    if (hoverCb) hoverCb.checked = App.activateOnHover;
   }
   if (prefs.phone_tablet_max_panes !== undefined) {
     App.phoneTabletMaxPanes = parseInt(prefs.phone_tablet_max_panes, 10) || 2;
@@ -2153,6 +2161,26 @@ function createPaneElement(pane, index) {
       }
     }
   };
+
+  // Hover activation (Focus follows mouse)
+  el.onmouseenter = () => {
+    if (App.activateOnHover && App.activePaneIndex !== index) {
+      if (!window._draggingPaneIndex && !window._isResizingSplitter && !window._isResizingCol && !window._isResizingTree) {
+        setActivePane(index);
+      }
+    }
+  };
+
+  // Forward wheel events anywhere over the pane (header, breadcrumbs, columns, footer) to main view
+  el.addEventListener('wheel', (e) => {
+    if (e.target.closest('.pane-tree-sidebar, .pane-tabs-scroll, textarea, input, select, .dropdown-menu, .context-menu, .docked-core-container, .viewer-container')) return;
+    const mainView = el.querySelector('.pane-main-view');
+    if (!mainView) return;
+    if (!e.target.closest('.pane-main-view')) {
+      if (e.deltaY) mainView.scrollTop += e.deltaY;
+      if (e.deltaX) mainView.scrollLeft += e.deltaX;
+    }
+  }, { passive: true });
 
   // Enable HTML5 Drag & Drop Target
   el.ondragover = (e) => {
@@ -17426,6 +17454,11 @@ function openSettingsModal() {
     paneReorderCheckbox.checked = App.paneReorderEnabled !== false;
   }
 
+  const activateOnHoverCheckbox = document.getElementById('setting-activate-on-hover');
+  if (activateOnHoverCheckbox) {
+    activateOnHoverCheckbox.checked = !!App.activateOnHover;
+  }
+
   const hapticCheckbox = document.getElementById('setting-haptic-feedback');
   if (hapticCheckbox) {
     hapticCheckbox.checked = App.hapticFeedback !== false && localStorage.getItem('cd_haptic_feedback') !== 'false';
@@ -19279,6 +19312,13 @@ function togglePaneReordering(enabled) {
   queueSaveUserPreferencesToServer();
   renderAllPanes();
   showToast(enabled ? 'Panel drag-and-drop rearrangement enabled' : 'Panel drag-and-drop rearrangement disabled', 'info');
+}
+
+function toggleActivateOnHover(enabled) {
+  App.activateOnHover = !!enabled;
+  localStorage.setItem('cd_activate_on_hover', enabled ? '1' : '0');
+  queueSaveUserPreferencesToServer();
+  showToast(enabled ? 'Panel activation on hover enabled' : 'Panel activation on hover disabled', 'info');
 }
 
 function swapPanes(srcIdx, targetIdx) {
