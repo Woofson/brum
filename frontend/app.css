@@ -318,7 +318,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 12px;
+  padding: 0 18px;
   flex-shrink: 0;
   width: 100%;
   max-width: 100%;
@@ -583,6 +583,9 @@ body {
   align-items: center;
   gap: 8px;
   margin-left: auto;
+  flex-shrink: 0;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .desktop-only {
@@ -6583,6 +6586,19 @@ html.fkeys-disabled .bottom-fkey-bar,
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
+  max-width: 170px;
+  min-width: 0;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+#header-username-label {
+  display: inline-block;
+  max-width: 100px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
 }
 
 .profile-avatar-thumb {
