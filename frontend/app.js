@@ -1225,11 +1225,17 @@ function savePaneCustomNames() {
   queueSaveUserPreferencesToServer();
 }
 
-function promptRenamePane(index) {
+async function promptRenamePane(index) {
   const pane = App.panes[index];
   if (!pane) return;
-  const currentName = pane.customName || `${index + 1}`;
-  const newName = prompt(`Enter custom name for Pane ${index + 1} (leave empty for default "${index + 1}"):`, pane.customName || '');
+  const newName = await showPromptDialog({
+    title: `Rename Pane ${index + 1}`,
+    subtitle: 'Customize pane tab name (leave empty for default)',
+    message: 'Enter pane name:',
+    defaultValue: pane.customName || '',
+    placeholder: `e.g. Workspace, Downloads, ${index + 1}`,
+    confirmText: 'Rename'
+  });
   if (newName !== null) {
     pane.customName = newName.trim() || null;
     savePaneCustomNames();
@@ -8575,9 +8581,16 @@ function browseNoteDogFolder() {
   }
 }
 
-function promptChangeNoteDogFolder() {
+async function promptChangeNoteDogFolder() {
   const current = notedogState.customFolder || notedogState.rootFolder || '~/Notes';
-  const newPath = prompt('Change NoteDog Notes Folder location:\n(e.g. ~/Notes, /mnt/storage/Notes, or ~/Documents/Notes)', current);
+  const newPath = await showPromptDialog({
+    title: 'Change Notes Folder Location',
+    subtitle: 'Configure root directory for filesystem notes',
+    message: 'Enter folder path:',
+    defaultValue: current,
+    placeholder: 'e.g. ~/Notes, /mnt/storage/Notes',
+    confirmText: 'Save'
+  });
   if (newPath === null) return;
   saveNoteDogFolderSetting(newPath);
 }
@@ -9195,7 +9208,13 @@ function renderDatabaseNoteTags(note) {
 
 async function promptAddNoteTag() {
   if (!notedogState.activeDbNote) return;
-  const tag = prompt('Enter new tag name (e.g. design, todo, reference):');
+  const tag = await showPromptDialog({
+    title: 'Add Note Tag',
+    subtitle: 'Attach a tag for filtering',
+    message: 'Enter tag name:',
+    placeholder: 'e.g. design, todo, reference',
+    confirmText: 'Add Tag'
+  });
   if (!tag || !tag.trim()) return;
   const cleanTag = tag.trim().replace(/^#/, '');
 
@@ -9279,7 +9298,14 @@ async function setNoteColor(color) {
 
 async function promptChangeNoteCategory() {
   if (!notedogState.activeDbNote) return;
-  const newCat = prompt('Change note category:\n(e.g. General, Work, Personal, Projects)', notedogState.activeDbNote.category || 'General');
+  const newCat = await showPromptDialog({
+    title: 'Change Note Category',
+    subtitle: 'Move note to a different category',
+    message: 'Enter category name:',
+    defaultValue: notedogState.activeDbNote.category || 'General',
+    placeholder: 'e.g. General, Work, Personal, Projects',
+    confirmText: 'Move'
+  });
   if (newCat === null) return;
   const clean = newCat.trim() || 'General';
   notedogState.activeDbNote.category = clean;
@@ -9291,7 +9317,14 @@ async function promptChangeNoteCategory() {
 
 async function promptChangeNoteSection() {
   if (!notedogState.activeDbNote) return;
-  const newSec = prompt('Change note section in category:\n(e.g. Default, Ideas, Snippets, Archive)', notedogState.activeDbNote.section || 'Default');
+  const newSec = await showPromptDialog({
+    title: 'Change Note Section',
+    subtitle: 'Move note to a section within category',
+    message: 'Enter section name:',
+    defaultValue: notedogState.activeDbNote.section || 'Default',
+    placeholder: 'e.g. Default, Ideas, Snippets, Archive',
+    confirmText: 'Move'
+  });
   if (newSec === null) return;
   const clean = newSec.trim() || 'Default';
   notedogState.activeDbNote.section = clean;
@@ -9301,9 +9334,15 @@ async function promptChangeNoteSection() {
   showToast(`Moved note to section "${clean}"`, 'success');
 }
 
-function promptCreateNotebookOrCategory() {
+async function promptCreateNotebookOrCategory() {
   if (notedogState.storageMode === 'database') {
-    const cat = prompt('Enter new Category name:\n(e.g. Personal, Research, Snippets)');
+    const cat = await showPromptDialog({
+      title: 'New Category',
+      subtitle: 'Create a new category for notes',
+      message: 'Enter new category name:',
+      placeholder: 'e.g. Personal, Research, Snippets',
+      confirmText: 'Create'
+    });
     if (!cat || !cat.trim()) return;
     const clean = cat.trim();
     if (!notedogState.categories.includes(clean)) {
@@ -10507,7 +10546,13 @@ function insertNoteDogTimestamp() {
 }
 
 async function promptCreateNotebook() {
-  const name = prompt('Enter new Notebook name (e.g. Personal, Projects, Ideas):');
+  const name = await showPromptDialog({
+    title: 'New Notebook',
+    subtitle: 'Create a new notebook folder in Notes',
+    message: 'Enter new Notebook name:',
+    placeholder: 'e.g. Personal, Projects, Ideas',
+    confirmText: 'Create'
+  });
   if (!name || !name.trim()) return;
   const nbName = name.trim();
 
@@ -10531,11 +10576,36 @@ async function promptCreateNotebook() {
 }
 
 async function promptCreateSection() {
+  if (notedogState.storageMode === 'database') {
+    const name = await showPromptDialog({
+      title: 'New Section',
+      subtitle: `Add section to category "${notedogState.activeCategory || 'General'}"`,
+      message: 'Enter new Section name:',
+      placeholder: 'e.g. Ideas, Tasks, Drafts',
+      confirmText: 'Create'
+    });
+    if (!name || !name.trim()) return;
+    const secName = name.trim();
+    if (!notedogState.sections.includes(secName)) {
+      notedogState.sections.push(secName);
+    }
+    notedogState.activeDbSection = secName;
+    renderDatabaseSidebar();
+    showToast(`Created Section "${secName}"`, 'success');
+    return;
+  }
+
   if (!notedogState.activeNotebook) {
     showToast('Please select or create a notebook first', 'info');
     return;
   }
-  const name = prompt(`Enter new Section name for Notebook "${notedogState.activeNotebook}":`);
+  const name = await showPromptDialog({
+    title: 'New Section',
+    subtitle: `Add section to Notebook "${notedogState.activeNotebook}"`,
+    message: 'Enter new Section name:',
+    placeholder: 'e.g. Ideas, Tasks, Drafts',
+    confirmText: 'Create'
+  });
   if (!name || !name.trim()) return;
   const secName = name.trim();
 
@@ -10629,34 +10699,41 @@ function toggleNoteDogCreateEncryptedFields() {
 }
 
 function promptCreateNote(isEncrypted = false) {
-  if (notedogState.storageMode === 'database') {
-    const title = prompt('Enter note title:', 'Untitled Note');
-    if (title === null) return;
-    const cleanTitle = title.trim() || 'Untitled Note';
-    createDatabaseNote(cleanTitle, `# ${cleanTitle}\n\n`);
-    return;
-  }
+  const isDb = notedogState.storageMode === 'database';
 
-  if (!notedogState.activeNotebook || !notedogState.activeSection) {
+  if (!isDb && (!notedogState.activeNotebook || !notedogState.activeSection)) {
     showToast('Please select a Notebook and Section first', 'info');
     return;
   }
 
-  const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook);
+  const currentNb = !isDb ? notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook) : null;
   const currentSec = currentNb?.sections.find(s => s.name === notedogState.activeSection);
-  const shouldEnc = isEncrypted || (currentSec && currentSec.is_encrypted) || (currentNb && currentNb.is_encrypted);
+  const shouldEnc = !isDb && (isEncrypted || (currentSec && currentSec.is_encrypted) || (currentNb && currentNb.is_encrypted));
 
   const titleInput = document.getElementById('notedog-create-title-input');
+  const encLabel = document.getElementById('notedog-create-is-encrypted-label') || document.getElementById('notedog-create-is-encrypted')?.closest('label');
   const encCheck = document.getElementById('notedog-create-is-encrypted');
+  const passGroup = document.getElementById('notedog-create-pass-group');
   const passInput = document.getElementById('notedog-create-pass');
   const errEl = document.getElementById('notedog-create-error');
+  const modalTitle = document.getElementById('notedog-create-modal-title');
+
+  if (modalTitle) {
+    modalTitle.textContent = isDb ? 'Create New Note' : 'Create New Note';
+  }
 
   if (titleInput) titleInput.value = '';
+  if (encLabel) encLabel.style.display = isDb ? 'none' : 'flex';
   if (encCheck) encCheck.checked = !!shouldEnc;
-  if (passInput) passInput.value = notedogState.cachedPassphrases[notedogState.activeSection] || notedogState.cachedPassphrases['__global'] || '';
+  if (passInput) passInput.value = !isDb ? (notedogState.cachedPassphrases[notedogState.activeSection] || notedogState.cachedPassphrases['__global'] || '') : '';
   if (errEl) errEl.style.display = 'none';
 
-  toggleNoteDogCreateEncryptedFields();
+  if (isDb) {
+    if (passGroup) passGroup.style.display = 'none';
+  } else {
+    toggleNoteDogCreateEncryptedFields();
+  }
+
   showModal('notedog-create-note-modal');
 
   setTimeout(() => { if (titleInput) titleInput.focus(); }, 50);
@@ -10669,6 +10746,13 @@ function promptCreateNote(isEncrypted = false) {
         if (errEl) { errEl.textContent = 'Please enter a note title'; errEl.style.display = 'block'; }
         return;
       }
+
+      if (notedogState.storageMode === 'database') {
+        closeModal('notedog-create-note-modal');
+        await createDatabaseNote(title, `# ${title}\n\n`);
+        return;
+      }
+
       const isEnc = encCheck ? encCheck.checked : false;
       const pass = passInput ? passInput.value : '';
 
