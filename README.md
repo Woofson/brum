@@ -1,7 +1,7 @@
 # <img src="assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Brum
 
 <div align="center">
-  <img src="assets/CommanderDog3.png" alt="Brum Web & Desktop Environment" width="800" />
+  <img src="assets/brum2.png" alt="Brum Web & Desktop Environment" width="800" />
   <p><em>Multi-Pane Web Environment (File Commander/Manager) — By Woofson</em></p>
   
     <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v0.8.7-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
