@@ -172,15 +172,40 @@ impl AuthManager {
                 name TEXT NOT NULL,
                 is_dir INTEGER NOT NULL DEFAULT 0,
                 allow_upload INTEGER NOT NULL DEFAULT 0,
+                allow_view INTEGER NOT NULL DEFAULT 1,
+                allow_download INTEGER NOT NULL DEFAULT 1,
                 password_hash TEXT,
                 expires_at TEXT,
                 created_by TEXT NOT NULL,
                 created_at TEXT NOT NULL,
                 download_count INTEGER NOT NULL DEFAULT 0,
-                max_downloads INTEGER NOT NULL DEFAULT 0
+                max_downloads INTEGER NOT NULL DEFAULT 0,
+                allowed_emails TEXT,
+                require_email INTEGER NOT NULL DEFAULT 0,
+                watermark_enabled INTEGER NOT NULL DEFAULT 0,
+                watermark_text TEXT,
+                status TEXT NOT NULL DEFAULT 'active'
             )",
             [],
         )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS share_access_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                share_id INTEGER NOT NULL,
+                token TEXT NOT NULL,
+                visitor_email TEXT,
+                ip_address TEXT NOT NULL,
+                user_agent TEXT,
+                action TEXT NOT NULL,
+                target_file TEXT,
+                accessed_at TEXT NOT NULL,
+                FOREIGN KEY(share_id) REFERENCES shares(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_share_logs_token ON share_access_logs (token)", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_share_logs_share_id ON share_access_logs (share_id)", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS user_preferences (
@@ -235,6 +260,14 @@ impl AuthManager {
         let _ = conn.execute("ALTER TABLE users ADD COLUMN can_install_plugins INTEGER DEFAULT 0", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN allowed_plugins TEXT DEFAULT '[\"*\"]'", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN blocked_plugins TEXT DEFAULT '[]'", []);
+
+        let _ = conn.execute("ALTER TABLE shares ADD COLUMN allow_view INTEGER DEFAULT 1", []);
+        let _ = conn.execute("ALTER TABLE shares ADD COLUMN allow_download INTEGER DEFAULT 1", []);
+        let _ = conn.execute("ALTER TABLE shares ADD COLUMN allowed_emails TEXT", []);
+        let _ = conn.execute("ALTER TABLE shares ADD COLUMN require_email INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE shares ADD COLUMN watermark_enabled INTEGER DEFAULT 0", []);
+        let _ = conn.execute("ALTER TABLE shares ADD COLUMN watermark_text TEXT", []);
+        let _ = conn.execute("ALTER TABLE shares ADD COLUMN status TEXT DEFAULT 'active'", []);
 
         let auth = Self {
             db: Arc::new(Mutex::new(conn)),
@@ -1092,7 +1125,7 @@ impl AuthManager {
         Ok(())
     }
 
-    // ---------------- LINK SHARING & DROPBOX ----------------
+    // ---------------- LINK SHARING & ADVANCED SHARING CENTER ----------------
     pub fn create_share(
         &self,
         username: &str,
@@ -1100,9 +1133,15 @@ impl AuthManager {
         name: &str,
         is_dir: bool,
         allow_upload: bool,
+        allow_view: bool,
+        allow_download: bool,
         password: Option<&str>,
         expires_at: Option<&str>,
         max_downloads: u64,
+        allowed_emails: Option<&str>,
+        require_email: bool,
+        watermark_enabled: bool,
+        watermark_text: Option<&str>,
     ) -> Result<ShareItem, Box<dyn std::error::Error + Send + Sync>> {
         let token = uuid::Uuid::new_v4().to_string().replace('-', "")[..16].to_string();
         let now = Utc::now().to_rfc3339();
@@ -1128,19 +1167,25 @@ impl AuthManager {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
 
         conn.execute(
-            "INSERT INTO shares (token, path, name, is_dir, allow_upload, password_hash, expires_at, created_by, created_at, download_count, max_downloads)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, 0, ?10)",
+            "INSERT INTO shares (token, path, name, is_dir, allow_upload, allow_view, allow_download, password_hash, expires_at, created_by, created_at, download_count, max_downloads, allowed_emails, require_email, watermark_enabled, watermark_text, status)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, 0, ?12, ?13, ?14, ?15, ?16, 'active')",
             params![
                 token,
                 path,
                 name,
                 if is_dir { 1 } else { 0 },
                 if allow_upload { 1 } else { 0 },
+                if allow_view { 1 } else { 0 },
+                if allow_download { 1 } else { 0 },
                 password_hash,
                 expires_at,
                 username,
                 now,
                 max_downloads as i64,
+                allowed_emails,
+                if require_email { 1 } else { 0 },
+                if watermark_enabled { 1 } else { 0 },
+                watermark_text,
             ],
         )?;
 
@@ -1153,6 +1198,8 @@ impl AuthManager {
             name: name.to_string(),
             is_dir,
             allow_upload,
+            allow_view,
+            allow_download,
             has_password,
             password_hash: None,
             expires_at: expires_at.map(|s| s.to_string()),
@@ -1160,17 +1207,186 @@ impl AuthManager {
             created_at: now,
             download_count: 0,
             max_downloads,
+            allowed_emails: allowed_emails.map(|s| s.to_string()),
+            require_email,
+            watermark_enabled,
+            watermark_text: watermark_text.map(|s| s.to_string()),
+            status: "active".to_string(),
+            total_visits: 0,
+            total_previews: 0,
         })
+    }
+
+    pub fn update_share(
+        &self,
+        id: i64,
+        username: &str,
+        is_admin: bool,
+        name: &str,
+        allow_upload: bool,
+        allow_view: bool,
+        allow_download: bool,
+        new_password: Option<Option<&str>>,
+        expires_at: Option<Option<&str>>,
+        max_downloads: u64,
+        allowed_emails: Option<&str>,
+        require_email: bool,
+        watermark_enabled: bool,
+        watermark_text: Option<&str>,
+        status: Option<&str>,
+    ) -> Result<ShareItem, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+
+        let existing = if is_admin {
+            self.get_share_by_id_internal(&conn, id)?
+        } else {
+            let item = self.get_share_by_id_internal(&conn, id)?;
+            if let Some(ref s) = item {
+                if s.created_by != username {
+                    return Err("Access denied".into());
+                }
+            }
+            item
+        }.ok_or("Share not found")?;
+
+        let password_hash = match new_password {
+            Some(Some(pass)) if !pass.trim().is_empty() => {
+                let salt = SaltString::generate(&mut OsRng);
+                let argon2 = Argon2::default();
+                Some(Some(
+                    argon2
+                        .hash_password(pass.as_bytes(), &salt)
+                        .map_err(|e| format!("Password hashing failed: {}", e))?
+                        .to_string(),
+                ))
+            }
+            Some(None) => Some(None),
+            Some(Some(_)) => Some(None),
+            None => None,
+        };
+
+        let resolved_exp = match expires_at {
+            Some(opt) => opt.map(|s| s.to_string()),
+            None => existing.expires_at.clone(),
+        };
+
+        let resolved_status = status.unwrap_or(&existing.status);
+
+        if let Some(pass_opt) = password_hash {
+            conn.execute(
+                "UPDATE shares SET name = ?1, allow_upload = ?2, allow_view = ?3, allow_download = ?4, password_hash = ?5, expires_at = ?6, max_downloads = ?7, allowed_emails = ?8, require_email = ?9, watermark_enabled = ?10, watermark_text = ?11, status = ?12 WHERE id = ?13",
+                params![
+                    name,
+                    if allow_upload { 1 } else { 0 },
+                    if allow_view { 1 } else { 0 },
+                    if allow_download { 1 } else { 0 },
+                    pass_opt,
+                    resolved_exp,
+                    max_downloads as i64,
+                    allowed_emails,
+                    if require_email { 1 } else { 0 },
+                    if watermark_enabled { 1 } else { 0 },
+                    watermark_text,
+                    resolved_status,
+                    id,
+                ],
+            )?;
+        } else {
+            conn.execute(
+                "UPDATE shares SET name = ?1, allow_upload = ?2, allow_view = ?3, allow_download = ?4, expires_at = ?5, max_downloads = ?6, allowed_emails = ?7, require_email = ?8, watermark_enabled = ?9, watermark_text = ?10, status = ?11 WHERE id = ?12",
+                params![
+                    name,
+                    if allow_upload { 1 } else { 0 },
+                    if allow_view { 1 } else { 0 },
+                    if allow_download { 1 } else { 0 },
+                    resolved_exp,
+                    max_downloads as i64,
+                    allowed_emails,
+                    if require_email { 1 } else { 0 },
+                    if watermark_enabled { 1 } else { 0 },
+                    watermark_text,
+                    resolved_status,
+                    id,
+                ],
+            )?;
+        }
+
+        self.get_share_by_id(id)?.ok_or("Failed to fetch updated share".into())
+    }
+
+    fn get_share_by_id_internal(&self, conn: &Connection, id: i64) -> Result<Option<ShareItem>, Box<dyn std::error::Error + Send + Sync>> {
+        let mut stmt = conn.prepare("SELECT id, token, path, name, is_dir, allow_upload, allow_view, allow_download, password_hash, expires_at, created_by, created_at, download_count, max_downloads, allowed_emails, require_email, watermark_enabled, watermark_text, status FROM shares WHERE id = ?1")?;
+        let mut rows = stmt.query(params![id])?;
+
+        if let Some(r) = rows.next()? {
+            let pass_hash: Option<String> = r.get(8)?;
+            Ok(Some(ShareItem {
+                id: r.get(0)?,
+                token: r.get(1)?,
+                path: r.get(2)?,
+                name: r.get(3)?,
+                is_dir: r.get::<_, i64>(4)? == 1,
+                allow_upload: r.get::<_, i64>(5)? == 1,
+                allow_view: r.get::<_, Option<i64>>(6)?.unwrap_or(1) == 1,
+                allow_download: r.get::<_, Option<i64>>(7)?.unwrap_or(1) == 1,
+                has_password: pass_hash.is_some(),
+                password_hash: pass_hash,
+                expires_at: r.get(9)?,
+                created_by: r.get(10)?,
+                created_at: r.get(11)?,
+                download_count: r.get::<_, i64>(12)? as u64,
+                max_downloads: r.get::<_, i64>(13)? as u64,
+                allowed_emails: r.get(14)?,
+                require_email: r.get::<_, Option<i64>>(15)?.unwrap_or(0) == 1,
+                watermark_enabled: r.get::<_, Option<i64>>(16)?.unwrap_or(0) == 1,
+                watermark_text: r.get(17)?,
+                status: r.get::<_, Option<String>>(18)?.unwrap_or_else(|| "active".to_string()),
+                total_visits: 0,
+                total_previews: 0,
+            }))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn get_share_by_id(&self, id: i64) -> Result<Option<ShareItem>, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let mut item = self.get_share_by_id_internal(&conn, id)?;
+        if let Some(ref mut s) = item {
+            let mut v_stmt = conn.prepare("SELECT COUNT(1) FROM share_access_logs WHERE share_id = ?1 AND action = 'visit'")?;
+            let visits: i64 = v_stmt.query_row(params![id], |r| r.get(0)).unwrap_or(0);
+            let mut p_stmt = conn.prepare("SELECT COUNT(1) FROM share_access_logs WHERE share_id = ?1 AND action = 'preview'")?;
+            let previews: i64 = p_stmt.query_row(params![id], |r| r.get(0)).unwrap_or(0);
+            s.total_visits = visits as u64;
+            s.total_previews = previews as u64;
+        }
+        Ok(item)
     }
 
     pub fn list_shares(&self, username: &str, is_admin: bool) -> Result<Vec<ShareItem>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let mut list = Vec::new();
 
+        let query = if is_admin {
+            "SELECT s.id, s.token, s.path, s.name, s.is_dir, s.allow_upload, s.allow_view, s.allow_download,
+                    s.password_hash, s.expires_at, s.created_by, s.created_at, s.download_count, s.max_downloads,
+                    s.allowed_emails, s.require_email, s.watermark_enabled, s.watermark_text, s.status,
+                    (SELECT COUNT(1) FROM share_access_logs l WHERE l.share_id = s.id AND l.action = 'visit') as visits,
+                    (SELECT COUNT(1) FROM share_access_logs l WHERE l.share_id = s.id AND l.action = 'preview') as previews
+             FROM shares s ORDER BY s.id DESC"
+        } else {
+            "SELECT s.id, s.token, s.path, s.name, s.is_dir, s.allow_upload, s.allow_view, s.allow_download,
+                    s.password_hash, s.expires_at, s.created_by, s.created_at, s.download_count, s.max_downloads,
+                    s.allowed_emails, s.require_email, s.watermark_enabled, s.watermark_text, s.status,
+                    (SELECT COUNT(1) FROM share_access_logs l WHERE l.share_id = s.id AND l.action = 'visit') as visits,
+                    (SELECT COUNT(1) FROM share_access_logs l WHERE l.share_id = s.id AND l.action = 'preview') as previews
+             FROM shares s WHERE s.created_by = ?1 ORDER BY s.id DESC"
+        };
+
         if is_admin {
-            let mut stmt = conn.prepare("SELECT id, token, path, name, is_dir, allow_upload, password_hash, expires_at, created_by, created_at, download_count, max_downloads FROM shares ORDER BY id DESC")?;
+            let mut stmt = conn.prepare(query)?;
             let rows = stmt.query_map([], |r| {
-                let pass_hash: Option<String> = r.get(6)?;
+                let pass_hash: Option<String> = r.get(8)?;
                 Ok(ShareItem {
                     id: r.get(0)?,
                     token: r.get(1)?,
@@ -1178,22 +1394,31 @@ impl AuthManager {
                     name: r.get(3)?,
                     is_dir: r.get::<_, i64>(4)? == 1,
                     allow_upload: r.get::<_, i64>(5)? == 1,
+                    allow_view: r.get::<_, Option<i64>>(6)?.unwrap_or(1) == 1,
+                    allow_download: r.get::<_, Option<i64>>(7)?.unwrap_or(1) == 1,
                     has_password: pass_hash.is_some(),
                     password_hash: None,
-                    expires_at: r.get(7)?,
-                    created_by: r.get(8)?,
-                    created_at: r.get(9)?,
-                    download_count: r.get::<_, i64>(10)? as u64,
-                    max_downloads: r.get::<_, i64>(11)? as u64,
+                    expires_at: r.get(9)?,
+                    created_by: r.get(10)?,
+                    created_at: r.get(11)?,
+                    download_count: r.get::<_, i64>(12)? as u64,
+                    max_downloads: r.get::<_, i64>(13)? as u64,
+                    allowed_emails: r.get(14)?,
+                    require_email: r.get::<_, Option<i64>>(15)?.unwrap_or(0) == 1,
+                    watermark_enabled: r.get::<_, Option<i64>>(16)?.unwrap_or(0) == 1,
+                    watermark_text: r.get(17)?,
+                    status: r.get::<_, Option<String>>(18)?.unwrap_or_else(|| "active".to_string()),
+                    total_visits: r.get::<_, Option<i64>>(19)?.unwrap_or(0) as u64,
+                    total_previews: r.get::<_, Option<i64>>(20)?.unwrap_or(0) as u64,
                 })
             })?;
             for r in rows {
                 list.push(r?);
             }
         } else {
-            let mut stmt = conn.prepare("SELECT id, token, path, name, is_dir, allow_upload, password_hash, expires_at, created_by, created_at, download_count, max_downloads FROM shares WHERE created_by = ?1 ORDER BY id DESC")?;
+            let mut stmt = conn.prepare(query)?;
             let rows = stmt.query_map(params![username], |r| {
-                let pass_hash: Option<String> = r.get(6)?;
+                let pass_hash: Option<String> = r.get(8)?;
                 Ok(ShareItem {
                     id: r.get(0)?,
                     token: r.get(1)?,
@@ -1201,13 +1426,22 @@ impl AuthManager {
                     name: r.get(3)?,
                     is_dir: r.get::<_, i64>(4)? == 1,
                     allow_upload: r.get::<_, i64>(5)? == 1,
+                    allow_view: r.get::<_, Option<i64>>(6)?.unwrap_or(1) == 1,
+                    allow_download: r.get::<_, Option<i64>>(7)?.unwrap_or(1) == 1,
                     has_password: pass_hash.is_some(),
                     password_hash: None,
-                    expires_at: r.get(7)?,
-                    created_by: r.get(8)?,
-                    created_at: r.get(9)?,
-                    download_count: r.get::<_, i64>(10)? as u64,
-                    max_downloads: r.get::<_, i64>(11)? as u64,
+                    expires_at: r.get(9)?,
+                    created_by: r.get(10)?,
+                    created_at: r.get(11)?,
+                    download_count: r.get::<_, i64>(12)? as u64,
+                    max_downloads: r.get::<_, i64>(13)? as u64,
+                    allowed_emails: r.get(14)?,
+                    require_email: r.get::<_, Option<i64>>(15)?.unwrap_or(0) == 1,
+                    watermark_enabled: r.get::<_, Option<i64>>(16)?.unwrap_or(0) == 1,
+                    watermark_text: r.get(17)?,
+                    status: r.get::<_, Option<String>>(18)?.unwrap_or_else(|| "active".to_string()),
+                    total_visits: r.get::<_, Option<i64>>(19)?.unwrap_or(0) as u64,
+                    total_previews: r.get::<_, Option<i64>>(20)?.unwrap_or(0) as u64,
                 })
             })?;
             for r in rows {
@@ -1220,11 +1454,11 @@ impl AuthManager {
 
     pub fn get_share_by_token(&self, token: &str) -> Result<Option<ShareItem>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
-        let mut stmt = conn.prepare("SELECT id, token, path, name, is_dir, allow_upload, password_hash, expires_at, created_by, created_at, download_count, max_downloads FROM shares WHERE token = ?1")?;
+        let mut stmt = conn.prepare("SELECT id, token, path, name, is_dir, allow_upload, allow_view, allow_download, password_hash, expires_at, created_by, created_at, download_count, max_downloads, allowed_emails, require_email, watermark_enabled, watermark_text, status FROM shares WHERE token = ?1")?;
         let mut rows = stmt.query(params![token])?;
 
         if let Some(r) = rows.next()? {
-            let pass_hash: Option<String> = r.get(6)?;
+            let pass_hash: Option<String> = r.get(8)?;
             Ok(Some(ShareItem {
                 id: r.get(0)?,
                 token: r.get(1)?,
@@ -1232,13 +1466,22 @@ impl AuthManager {
                 name: r.get(3)?,
                 is_dir: r.get::<_, i64>(4)? == 1,
                 allow_upload: r.get::<_, i64>(5)? == 1,
+                allow_view: r.get::<_, Option<i64>>(6)?.unwrap_or(1) == 1,
+                allow_download: r.get::<_, Option<i64>>(7)?.unwrap_or(1) == 1,
                 has_password: pass_hash.is_some(),
                 password_hash: pass_hash,
-                expires_at: r.get(7)?,
-                created_by: r.get(8)?,
-                created_at: r.get(9)?,
-                download_count: r.get::<_, i64>(10)? as u64,
-                max_downloads: r.get::<_, i64>(11)? as u64,
+                expires_at: r.get(9)?,
+                created_by: r.get(10)?,
+                created_at: r.get(11)?,
+                download_count: r.get::<_, i64>(12)? as u64,
+                max_downloads: r.get::<_, i64>(13)? as u64,
+                allowed_emails: r.get(14)?,
+                require_email: r.get::<_, Option<i64>>(15)?.unwrap_or(0) == 1,
+                watermark_enabled: r.get::<_, Option<i64>>(16)?.unwrap_or(0) == 1,
+                watermark_text: r.get(17)?,
+                status: r.get::<_, Option<String>>(18)?.unwrap_or_else(|| "active".to_string()),
+                total_visits: 0,
+                total_previews: 0,
             }))
         } else {
             Ok(None)
@@ -1255,10 +1498,114 @@ impl AuthManager {
         Ok(())
     }
 
+    pub fn revoke_share(&self, id: i64, username: &str, is_admin: bool, revoke: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let status = if revoke { "revoked" } else { "active" };
+        if is_admin {
+            conn.execute("UPDATE shares SET status = ?1 WHERE id = ?2", params![status, id])?;
+        } else {
+            conn.execute("UPDATE shares SET status = ?1 WHERE id = ?2 AND created_by = ?3", params![status, id, username])?;
+        }
+        Ok(())
+    }
+
     pub fn increment_share_downloads(&self, token: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         conn.execute("UPDATE shares SET download_count = download_count + 1 WHERE token = ?1", params![token])?;
         Ok(())
+    }
+
+    pub fn log_share_access(
+        &self,
+        share_id: i64,
+        token: &str,
+        visitor_email: Option<&str>,
+        ip_address: &str,
+        user_agent: Option<&str>,
+        action: &str,
+        target_file: Option<&str>,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO share_access_logs (share_id, token, visitor_email, ip_address, user_agent, action, target_file, accessed_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![share_id, token, visitor_email, ip_address, user_agent, action, target_file, now],
+        )?;
+        Ok(())
+    }
+
+    pub fn get_share_logs(
+        &self,
+        share_id: i64,
+        username: &str,
+        is_admin: bool,
+    ) -> Result<Vec<ShareAccessLog>, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let mut owner_check = if is_admin {
+            conn.prepare("SELECT id FROM shares WHERE id = ?1")?
+        } else {
+            conn.prepare("SELECT id FROM shares WHERE id = ?1 AND created_by = ?2")?
+        };
+        let mut check_rows = if is_admin {
+            owner_check.query(params![share_id])?
+        } else {
+            owner_check.query(params![share_id, username])?
+        };
+        if check_rows.next()?.is_none() {
+            return Err("Share not found or access denied".into());
+        }
+
+        let mut stmt = conn.prepare(
+            "SELECT id, share_id, token, visitor_email, ip_address, user_agent, action, target_file, accessed_at
+             FROM share_access_logs WHERE share_id = ?1 ORDER BY id DESC LIMIT 500"
+        )?;
+        let rows = stmt.query_map(params![share_id], |r| {
+            Ok(ShareAccessLog {
+                id: r.get(0)?,
+                share_id: r.get(1)?,
+                token: r.get(2)?,
+                visitor_email: r.get(3)?,
+                ip_address: r.get(4)?,
+                user_agent: r.get(5)?,
+                action: r.get(6)?,
+                target_file: r.get(7)?,
+                accessed_at: r.get(8)?,
+            })
+        })?;
+        let mut list = Vec::new();
+        for r in rows {
+            list.push(r?);
+        }
+        Ok(list)
+    }
+
+    pub fn verify_share_email(&self, token: &str, email: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(share) = self.get_share_by_token(token)? {
+            if !share.require_email {
+                return Ok(true);
+            }
+            if let Some(ref allowed) = share.allowed_emails {
+                let email_clean = email.trim().to_lowercase();
+                if email_clean.is_empty() {
+                    return Ok(false);
+                }
+                if let Ok(emails_vec) = serde_json::from_str::<Vec<String>>(allowed) {
+                    return Ok(emails_vec.iter().any(|e| {
+                        let t = e.trim().to_lowercase();
+                        t == email_clean || t == "*"
+                    }));
+                }
+                let split_matches = allowed.split(|c| c == ',' || c == ';' || c == '\n' || c == ' ')
+                    .map(|s| s.trim().to_lowercase())
+                    .filter(|s| !s.is_empty())
+                    .any(|e| e == email_clean || e == "*");
+                return Ok(split_matches);
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     pub fn verify_share_password(&self, token: &str, password: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
@@ -1283,6 +1630,8 @@ pub struct ShareItem {
     pub name: String,
     pub is_dir: bool,
     pub allow_upload: bool,
+    pub allow_view: bool,
+    pub allow_download: bool,
     pub has_password: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub password_hash: Option<String>,
@@ -1291,6 +1640,28 @@ pub struct ShareItem {
     pub created_at: String,
     pub download_count: u64,
     pub max_downloads: u64,
+    pub allowed_emails: Option<String>,
+    pub require_email: bool,
+    pub watermark_enabled: bool,
+    pub watermark_text: Option<String>,
+    pub status: String,
+    #[serde(default)]
+    pub total_visits: u64,
+    #[serde(default)]
+    pub total_previews: u64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ShareAccessLog {
+    pub id: i64,
+    pub share_id: i64,
+    pub token: String,
+    pub visitor_email: Option<String>,
+    pub ip_address: String,
+    pub user_agent: Option<String>,
+    pub action: String,
+    pub target_file: Option<String>,
+    pub accessed_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1487,5 +1858,83 @@ mod tests {
 
         let claims_allow_exp = auth.verify_token_allow_expired(&token).unwrap();
         assert_eq!(claims_allow_exp.sub, "admin");
+    }
+
+    #[test]
+    fn test_advanced_sharing_center_lifecycle() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("test_shares.db");
+        let auth = AuthManager::new(
+            &db_file.to_string_lossy(),
+            "secret-key-123456789012345678901234",
+            24,
+            "builtin",
+            "login",
+            "admin",
+            "admin",
+        ).unwrap();
+
+        // 1. Create Showcase Share
+        let share = auth.create_share(
+            "admin",
+            "/home/user/designs",
+            "Architectural Showcase 2026",
+            true,
+            false,
+            true,
+            false,
+            Some("Secret123"),
+            None,
+            10,
+            Some("client@studio.com, partner@agency.ac"),
+            true,
+            true,
+            Some("CONFIDENTIAL • {email} • {date}"),
+        ).unwrap();
+
+        assert_eq!(share.name, "Architectural Showcase 2026");
+        assert!(share.allow_view);
+        assert!(!share.allow_download);
+        assert!(share.watermark_enabled);
+        assert!(share.require_email);
+        assert!(share.has_password);
+        assert_eq!(share.status, "active");
+
+        // 2. Email verification gate
+        assert!(auth.verify_share_email(&share.token, "client@studio.com").unwrap());
+        assert!(auth.verify_share_email(&share.token, "partner@agency.ac").unwrap());
+        assert!(!auth.verify_share_email(&share.token, "intruder@domain.com").unwrap());
+
+        // 3. Password verification gate
+        assert!(auth.verify_share_password(&share.token, "Secret123").unwrap());
+        assert!(!auth.verify_share_password(&share.token, "WrongPass").unwrap());
+
+        // 4. Access Logging
+        auth.log_share_access(share.id, &share.token, Some("client@studio.com"), "192.168.1.50", Some("Mozilla/5.0"), "visit", None).unwrap();
+        auth.log_share_access(share.id, &share.token, Some("client@studio.com"), "192.168.1.50", Some("Mozilla/5.0"), "preview", Some("floorplan.png")).unwrap();
+
+        let logs = auth.get_share_logs(share.id, "admin", true).unwrap();
+        assert_eq!(logs.len(), 2);
+        assert_eq!(logs[0].action, "preview");
+        assert_eq!(logs[0].target_file, Some("floorplan.png".to_string()));
+        assert_eq!(logs[1].action, "visit");
+
+        // 5. Aggregate metrics
+        let fetched = auth.get_share_by_id(share.id).unwrap().unwrap();
+        assert_eq!(fetched.total_visits, 1);
+        assert_eq!(fetched.total_previews, 1);
+
+        // 6. Revocation
+        auth.revoke_share(share.id, "admin", true, true).unwrap();
+        let revoked = auth.get_share_by_id(share.id).unwrap().unwrap();
+        assert_eq!(revoked.status, "revoked");
+
+        auth.revoke_share(share.id, "admin", true, false).unwrap();
+        let reactivated = auth.get_share_by_id(share.id).unwrap().unwrap();
+        assert_eq!(reactivated.status, "active");
+
+        // 7. Delete
+        auth.delete_share(share.id, "admin", true).unwrap();
+        assert!(auth.get_share_by_id(share.id).unwrap().is_none());
     }
 }

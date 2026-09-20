@@ -2210,7 +2210,8 @@ function createPaneElement(pane, index) {
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
         'tageditor': '<i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Tag Editor',
-        'logviewer': '<i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Log Viewer'
+        'logviewer': '<i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Log Viewer',
+        'shares': '<img src="assets/sharemgr.webp" alt="Sharing Center" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
     }
@@ -16097,8 +16098,22 @@ function triggerShareDirectory(paneIndex) {
   triggerShare();
 }
 
-// ---------------- LINK SHARING & GUEST DROPBOX ----------------
+// ---------------- ADVANCED SHARING & SHOWCASE CENTER ----------------
 let pendingShareItem = null;
+let allLoadedShares = [];
+
+function handleShareModeChange() {
+  const mode = document.querySelector('input[name="share-mode"]:checked')?.value || 'full';
+  const watermarkToggle = document.getElementById('share-watermark-toggle');
+  const watermarkBox = document.getElementById('share-watermark-text-box');
+  
+  if (mode === 'showcase') {
+    if (watermarkToggle && !watermarkToggle.checked) {
+      watermarkToggle.checked = true;
+      if (watermarkBox) watermarkBox.style.display = 'block';
+    }
+  }
+}
 
 function triggerShare() {
   const pane = App.panes[App.activePaneIndex];
@@ -16111,18 +16126,24 @@ function triggerShare() {
   pendingShareItem = item;
   document.getElementById('share-item-name').textContent = item.name;
   document.getElementById('share-item-path').textContent = item.path;
+  document.getElementById('share-item-icon').textContent = item.is_dir ? '📁' : '📄';
+  document.getElementById('share-custom-title').value = item.name;
   document.getElementById('share-password-input').value = '';
   document.getElementById('share-max-downloads').value = '0';
   document.getElementById('share-expiry-select').value = '24';
+  document.getElementById('share-require-email').checked = false;
+  document.getElementById('share-emails-box').style.display = 'none';
+  document.getElementById('share-allowed-emails').value = '';
+  document.getElementById('share-watermark-toggle').checked = false;
+  document.getElementById('share-watermark-text-box').style.display = 'none';
+  document.getElementById('share-watermark-text').value = 'CONFIDENTIAL • {email} • {date}';
   
-  const dropboxToggleGroup = document.getElementById('share-dropbox-toggle-group');
-  const allowUploadCheckbox = document.getElementById('share-allow-upload');
-  if (item.is_dir) {
-    if (dropboxToggleGroup) dropboxToggleGroup.style.display = 'block';
-    if (allowUploadCheckbox) allowUploadCheckbox.checked = false;
-  } else {
-    if (dropboxToggleGroup) dropboxToggleGroup.style.display = 'none';
-    if (allowUploadCheckbox) allowUploadCheckbox.checked = false;
+  const modeFullRadio = document.getElementById('share-mode-full');
+  if (modeFullRadio) modeFullRadio.checked = true;
+
+  const dropboxCard = document.getElementById('mode-card-dropbox');
+  if (dropboxCard) {
+    dropboxCard.style.display = item.is_dir ? 'flex' : 'none';
   }
 
   document.getElementById('share-result-box').style.display = 'none';
@@ -16132,10 +16153,21 @@ function triggerShare() {
 async function executeCreateShare() {
   if (!pendingShareItem) return;
 
+  const mode = document.querySelector('input[name="share-mode"]:checked')?.value || 'full';
+  const customTitle = document.getElementById('share-custom-title').value.trim() || pendingShareItem.name;
   const expiryHours = parseInt(document.getElementById('share-expiry-select').value, 10);
   const password = document.getElementById('share-password-input').value.trim();
   const maxDownloads = parseInt(document.getElementById('share-max-downloads').value, 10) || 0;
-  const allowUpload = pendingShareItem.is_dir && document.getElementById('share-allow-upload').checked;
+  
+  const allowView = true;
+  const allowDownload = mode !== 'showcase';
+  const allowUpload = mode === 'dropbox';
+
+  const requireEmail = document.getElementById('share-require-email').checked;
+  const allowedEmails = requireEmail ? document.getElementById('share-allowed-emails').value.trim() : null;
+
+  const watermarkEnabled = document.getElementById('share-watermark-toggle').checked;
+  const watermarkText = watermarkEnabled ? document.getElementById('share-watermark-text').value.trim() : null;
 
   try {
     const resp = await fetch('/api/shares', {
@@ -16146,12 +16178,18 @@ async function executeCreateShare() {
       },
       body: JSON.stringify({
         path: pendingShareItem.path,
-        name: pendingShareItem.name,
+        name: customTitle,
         is_dir: pendingShareItem.is_dir,
         allow_upload: allowUpload,
+        allow_view: allowView,
+        allow_download: allowDownload,
         password: password ? password : null,
         expires_in_hours: expiryHours > 0 ? expiryHours : null,
-        max_downloads: maxDownloads
+        max_downloads: maxDownloads,
+        allowed_emails: allowedEmails || null,
+        require_email: requireEmail,
+        watermark_enabled: watermarkEnabled,
+        watermark_text: watermarkText || null
       })
     });
 
@@ -16167,7 +16205,8 @@ async function executeCreateShare() {
     document.getElementById('share-result-open-btn').href = fullUrl;
     document.getElementById('share-result-box').style.display = 'block';
     
-    showToast('Share link created successfully!', 'success');
+    showToast(mode === 'showcase' ? 'Showcase link created!' : 'Share link created successfully!', 'success');
+    loadActiveShares();
   } catch (err) {
     showToast('Error creating share: ' + err, 'error');
   }
@@ -16190,9 +16229,9 @@ function openSharesManager() {
 
 async function loadActiveShares() {
   const tbody = document.getElementById('shares-table-tbody');
-  if (!tbody) return;
-
-  tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:16px;">Loading active shares...</td></tr>';
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">Loading active shares...</td></tr>';
+  }
 
   try {
     const resp = await fetch('/api/shares', {
@@ -16200,47 +16239,197 @@ async function loadActiveShares() {
     });
 
     if (!resp.ok) {
-      tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:16px;">Failed to load shares: ${await resp.text()}</td></tr>`;
+      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--danger); padding:20px;">Failed to load shares: ${await resp.text()}</td></tr>`;
       return;
     }
 
-    const shares = await resp.json();
-    if (!shares || shares.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--text-muted); padding:20px;">No active link shares found. Create one from any file/folder right-click menu!</td></tr>';
-      return;
-    }
+    allLoadedShares = await resp.json() || [];
+    
+    // Update KPI counters
+    const activeCount = allLoadedShares.filter(s => s.status === 'active').length;
+    const totalVisits = allLoadedShares.reduce((acc, s) => acc + (s.total_visits || 0), 0);
+    const totalPreviews = allLoadedShares.reduce((acc, s) => acc + (s.total_previews || 0), 0);
+    const totalDownloads = allLoadedShares.reduce((acc, s) => acc + (s.download_count || 0), 0);
 
-    tbody.innerHTML = shares.map(s => {
-      const typeIcon = s.is_dir ? (s.allow_upload ? '📥' : '📁') : '📄';
-      const expiryStr = s.expires_at ? new Date(s.expires_at).toLocaleString() : 'Permanent';
-      const fullUrl = `${window.location.origin}/share/${s.token}`;
-      return `
-        <tr class="file-row">
-          <td style="font-size:16px; text-align:center;">${typeIcon}</td>
-          <td>
-            <div style="font-weight:600;">${escapeHtml(s.name)}</div>
-            <div style="font-size:11px; color:var(--text-muted); font-family:var(--font-mono);">${escapeHtml(s.path)}</div>
-          </td>
-          <td style="font-size:11px; color:var(--text-muted);">${expiryStr}</td>
-          <td style="text-align:center; font-weight:700;">${s.download_count}</td>
-          <td style="text-align:center;">${s.allow_upload ? '<span style="color:#10b981; font-weight:700;">Yes</span>' : '<span style="color:var(--text-muted);">No</span>'}</td>
-          <td style="text-align:right;">
-            <button class="btn btn-icon" onclick="navigator.clipboard.writeText('${fullUrl}'); showToast('Share URL copied!', 'success');" title="Copy Public URL"><i data-lucide="copy" style="width:13px;"></i></button>
-            <a href="${fullUrl}" target="_blank" class="btn btn-icon" title="Open Link"><i data-lucide="external-link" style="width:13px;"></i></a>
-            <button class="btn btn-icon" onclick="revokeShare(${s.id})" title="Revoke Share" style="color:var(--danger);"><i data-lucide="trash-2" style="width:13px;"></i></button>
-          </td>
-        </tr>
-      `;
-    }).join('');
+    const kpiActive = document.getElementById('kpi-shares-active');
+    if (kpiActive) kpiActive.textContent = activeCount;
+    const kpiVisits = document.getElementById('kpi-shares-visits');
+    if (kpiVisits) kpiVisits.textContent = totalVisits;
+    const kpiPreviews = document.getElementById('kpi-shares-previews');
+    if (kpiPreviews) kpiPreviews.textContent = totalPreviews;
+    const kpiDownloads = document.getElementById('kpi-shares-downloads');
+    if (kpiDownloads) kpiDownloads.textContent = totalDownloads;
+    const countBadge = document.getElementById('shares-count-badge');
+    if (countBadge) countBadge.textContent = `${activeCount} Active`;
 
-    if (window.lucide) lucide.createIcons();
+    handleSharesFilterChange();
+    renderDockedSharesList();
   } catch (err) {
-    tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; color:var(--danger); padding:16px;">Network error loading shares</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align:center; color:var(--danger); padding:20px;">Network error loading shares</td></tr>`;
   }
 }
 
-async function revokeShare(id) {
-  if (!confirm('Are you sure you want to revoke this public share link? Anyone using it will immediately lose access.')) return;
+function handleSharesFilterChange() {
+  const search = (document.getElementById('shares-search-input')?.value || '').toLowerCase().trim();
+  const statusFilter = document.getElementById('shares-status-filter')?.value || 'active';
+
+  let filtered = allLoadedShares.filter(s => {
+    // Search query match
+    const matchSearch = !search || s.name.toLowerCase().includes(search) || s.path.toLowerCase().includes(search);
+    if (!matchSearch) return false;
+
+    // Status / Mode filter
+    if (statusFilter === 'active') return s.status === 'active';
+    if (statusFilter === 'showcase') return !s.allow_download;
+    if (statusFilter === 'dropbox') return s.allow_upload;
+    if (statusFilter === 'revoked') return s.status === 'revoked';
+    return true; // 'all'
+  });
+
+  renderSharesTable(filtered);
+}
+
+function renderSharesTable(shares) {
+  const tbody = document.getElementById('shares-table-tbody');
+  if (!tbody) return;
+
+  if (!shares || shares.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-muted); padding:24px;">No matching shares found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = shares.map(s => {
+    let modeIcon = s.is_dir ? '📁' : '📄';
+    let modeTitle = 'Standard Share';
+    if (!s.allow_download) {
+      modeIcon = '🖼️';
+      modeTitle = 'Showcase Mode (View Only)';
+    } else if (s.allow_upload) {
+      modeIcon = '📥';
+      modeTitle = 'Guest Dropbox';
+    }
+
+    // Access Gates
+    const gates = [];
+    if (s.has_password) gates.push('<span title="Password Protected" style="color:var(--accent);">🔒 Pass</span>');
+    if (s.require_email) gates.push('<span title="Email Whitelist Restricted" style="color:#60a5fa;">🛡️ Email</span>');
+    if (s.watermark_enabled) gates.push('<span title="Dynamic Watermark" style="color:#10b981;">💧 Watermark</span>');
+    const gatesHtml = gates.length > 0 ? gates.join(' ') : '<span style="color:var(--text-dim);">Public</span>';
+
+    // Status Badge
+    let statusHtml = '<span class="badge badge-showcase">Active</span>';
+    if (s.status === 'revoked') {
+      statusHtml = '<span class="badge" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3);">Revoked</span>';
+    } else if (s.expires_at && new Date(s.expires_at) < new Date()) {
+      statusHtml = '<span class="badge" style="background:rgba(234,179,8,0.15); color:#eab308; border:1px solid rgba(234,179,8,0.3);">Expired</span>';
+    } else if (s.max_downloads > 0 && s.download_count >= s.max_downloads) {
+      statusHtml = '<span class="badge" style="background:rgba(156,163,175,0.15); color:#9ca3af; border:1px solid rgba(156,163,175,0.3);">Limit</span>';
+    }
+
+    const expiryStr = s.expires_at ? new Date(s.expires_at).toLocaleDateString() : 'Never';
+    const fullUrl = `${window.location.origin}/share/${s.token}`;
+
+    const activityStats = `
+      <div style="font-size:11px; display:flex; gap:8px; justify-content:center;">
+        <span title="Visits" style="color:#60a5fa;">👁️ ${s.total_visits || 0}</span>
+        <span title="Previews" style="color:#10b981;">🖼️ ${s.total_previews || 0}</span>
+        <span title="Downloads" style="color:var(--accent);">⬇️ ${s.download_count || 0}</span>
+      </div>
+    `;
+
+    const isRevoked = s.status === 'revoked';
+
+    return `
+      <tr class="file-row">
+        <td style="font-size:18px; text-align:center;" title="${modeTitle}">${modeIcon}</td>
+        <td>
+          <div style="font-weight:700; font-size:12px; color:var(--text-main);">${escapeHtml(s.name)}</div>
+          <div style="font-size:10px; color:var(--text-muted); font-family:var(--font-mono);">${escapeHtml(s.path)}</div>
+        </td>
+        <td style="font-size:11px;">${gatesHtml}</td>
+        <td>${statusHtml}</td>
+        <td style="font-size:11px; color:var(--text-muted);">${expiryStr}</td>
+        <td style="text-align:center;">${activityStats}</td>
+        <td style="text-align:right; white-space:nowrap;">
+          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="navigator.clipboard.writeText('${fullUrl}'); showToast('Share URL copied!', 'success');" title="Copy Public URL"><i data-lucide="copy" style="width:12px;"></i></button>
+          <a href="${fullUrl}" target="_blank" class="btn btn-icon" style="width:26px; height:26px; text-decoration:none;" title="Open Share Link"><i data-lucide="external-link" style="width:12px;"></i></a>
+          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="openShareLogs(${s.id}, '${escapeHtml(s.name)}')" title="Visitor Audit Trail"><i data-lucide="activity" style="width:12px; color:#60a5fa;"></i></button>
+          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="toggleRevokeShare(${s.id}, ${isRevoked})" title="${isRevoked ? 'Reactivate Share' : 'Revoke Share'}" style="color:${isRevoked ? '#10b981' : '#f59e0b'};"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:12px;"></i></button>
+          <button class="btn btn-icon btn-danger-hover" style="width:26px; height:26px;" onclick="deleteSharePermanent(${s.id})" title="Delete Share Permanently" style="color:var(--danger);"><i data-lucide="trash-2" style="width:12px;"></i></button>
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function renderDockedSharesList() {
+  App.panes.forEach((pane, idx) => {
+    if (pane && pane.dockedTool === 'shares') {
+      const mount = document.getElementById(`docked-shares-list-${idx}`);
+      if (!mount) return;
+
+      if (!allLoadedShares || allLoadedShares.length === 0) {
+        mount.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px; font-size:11px;">No active shares. Click "+ New" to share a file or folder.</div>';
+        return;
+      }
+
+      mount.innerHTML = allLoadedShares.map(s => {
+        const fullUrl = `${window.location.origin}/share/${s.token}`;
+        const isRevoked = s.status === 'revoked';
+        const modeIcon = s.is_dir ? '📁' : '📄';
+
+        return `
+          <div style="background:var(--bg-panel); border:1px solid var(--border); border-radius:6px; padding:8px 10px; margin-bottom:6px; display:flex; align-items:center; justify-content:space-between; gap:8px;">
+            <div style="display:flex; align-items:center; gap:8px; min-width:0; flex:1;">
+              <span style="font-size:16px;">${modeIcon}</span>
+              <div style="min-width:0; flex:1;">
+                <div style="font-weight:600; font-size:11px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; color:var(--text-main);">${escapeHtml(s.name)}</div>
+                <div style="font-size:9px; color:var(--text-muted); font-family:var(--font-mono); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${escapeHtml(s.path)}</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:3px;">
+              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="navigator.clipboard.writeText('${fullUrl}'); showToast('Share URL copied!', 'success');" title="Copy URL"><i data-lucide="copy" style="width:11px;"></i></button>
+              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="openShareLogs(${s.id}, '${escapeHtml(s.name)}')" title="Audit Trail"><i data-lucide="activity" style="width:11px; color:#60a5fa;"></i></button>
+              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="toggleRevokeShare(${s.id}, ${isRevoked})" title="${isRevoked ? 'Reactivate' : 'Revoke'}"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:11px;"></i></button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      if (window.lucide) lucide.createIcons();
+    }
+  });
+}
+
+async function toggleRevokeShare(id, isRevoked) {
+  const actionName = isRevoked ? 'reactivate' : 'revoke';
+  if (!confirm(`Are you sure you want to ${actionName} this public share link?`)) return;
+
+  try {
+    const resp = await fetch(`/api/shares/${id}/revoke`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ revoke: !isRevoked })
+    });
+
+    if (resp.ok) {
+      showToast(`Share link ${isRevoked ? 'reactivated' : 'revoked'} successfully!`, 'info');
+      loadActiveShares();
+    } else {
+      showToast('Failed to update share: ' + await resp.text(), 'error');
+    }
+  } catch (err) {
+    showToast('Error updating share: ' + err, 'error');
+  }
+}
+
+async function deleteSharePermanent(id) {
+  if (!confirm('Are you sure you want to permanently delete this share record and its audit history?')) return;
 
   try {
     const resp = await fetch(`/api/shares/${id}`, {
@@ -16249,13 +16438,71 @@ async function revokeShare(id) {
     });
 
     if (resp.ok) {
-      showToast('Share link revoked successfully', 'info');
+      showToast('Share deleted permanently', 'info');
       loadActiveShares();
     } else {
-      showToast('Failed to revoke share: ' + await resp.text(), 'error');
+      showToast('Failed to delete share: ' + await resp.text(), 'error');
     }
   } catch (err) {
-    showToast('Error revoking share: ' + err, 'error');
+    showToast('Error deleting share: ' + err, 'error');
+  }
+}
+
+async function openShareLogs(id, name) {
+  const titleEl = document.getElementById('share-logs-title');
+  if (titleEl) titleEl.textContent = name;
+  const tbody = document.getElementById('share-logs-tbody');
+  if (tbody) {
+    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:20px;">Loading access logs...</td></tr>';
+  }
+
+  showModal('share-logs-modal');
+
+  try {
+    const resp = await fetch(`/api/shares/${id}/logs`, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+
+    if (!resp.ok) {
+      if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--danger); padding:16px;">Failed to load logs: ${await resp.text()}</td></tr>`;
+      return;
+    }
+
+    const logs = await resp.json() || [];
+    if (logs.length === 0) {
+      if (tbody) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; color:var(--text-muted); padding:24px;">No visitor interactions logged yet for this share.</td></tr>';
+      return;
+    }
+
+    if (tbody) {
+      tbody.innerHTML = logs.map(l => {
+        let actionBadge = `<span class="badge" style="background:rgba(59,130,246,0.15); color:#60a5fa;">Visit</span>`;
+        if (l.action === 'preview') actionBadge = `<span class="badge" style="background:rgba(16,185,129,0.15); color:#10b981;">Preview</span>`;
+        else if (l.action === 'download') actionBadge = `<span class="badge" style="background:rgba(245,158,11,0.15); color:var(--accent);">Download</span>`;
+        else if (l.action === 'upload') actionBadge = `<span class="badge" style="background:rgba(168,85,247,0.15); color:#c084fc;">Upload</span>`;
+
+        const visitorInfo = l.visitor_email
+          ? `<div><strong>${escapeHtml(l.visitor_email)}</strong></div><div style="font-size:10px; color:var(--text-muted); font-family:var(--font-mono);">${escapeHtml(l.ip_address)}</div>`
+          : `<span style="font-family:var(--font-mono); font-size:11px;">${escapeHtml(l.ip_address)}</span>`;
+
+        const targetFileStr = l.target_file ? escapeHtml(l.target_file) : '<span style="color:var(--text-dim);">-</span>';
+        const uaStr = l.user_agent ? `<div style="font-size:10px; color:var(--text-muted); max-width:240px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml(l.user_agent)}">${escapeHtml(l.user_agent)}</div>` : '-';
+
+        return `
+          <tr class="file-row">
+            <td style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${new Date(l.accessed_at).toLocaleString()}</td>
+            <td>${actionBadge}</td>
+            <td>${visitorInfo}</td>
+            <td style="font-size:11px; font-weight:600;">${targetFileStr}</td>
+            <td>${uaStr}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    if (window.lucide) lucide.createIcons();
+  } catch (err) {
+    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align:center; color:var(--danger); padding:16px;">Network error loading audit logs</td></tr>`;
   }
 }
 
@@ -26408,6 +26655,10 @@ function dockToolToPane(toolName, paneIndex) {
     const pluginId = toolName.replace(/^(plugin|chewtoy):/, '');
     closeDynamicChewToy(pluginId);
   }
+  // 11. Sharing Center: close shares modal if open
+  else if (toolName === 'shares') {
+    closeModal('shares-manager-modal');
+  }
 
   rebuildPaneDOM(paneIndex);
   showToast(`Docked ${toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
@@ -26970,6 +27221,28 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       mountDockedLogViewer(paneIndex);
+    }, 50);
+  }
+  // 14. DOCKED SHARING CENTER
+  else if (tool === 'shares') {
+    mount.innerHTML = `
+      <div class="docked-shares-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel); padding: 10px; gap: 8px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-dark); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
+          <span style="font-weight: 700; font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+            <img src="assets/sharemgr.webp" alt="Shares" style="width: 13px; height: 13px; object-fit: contain;"> Active Public Shares
+          </span>
+          <div style="display: flex; gap: 4px;">
+            <button class="btn btn-xs btn-accent" onclick="triggerShare()"><i data-lucide="plus" style="width:11px;"></i> New</button>
+            <button class="btn btn-xs btn-outline" onclick="loadActiveShares()" title="Refresh"><i data-lucide="rotate-cw" style="width:11px;"></i></button>
+          </div>
+        </div>
+        <div id="docked-shares-list-${paneIndex}" style="flex: 1; overflow-y: auto; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); padding: 6px;">
+          <div style="text-align:center; color:var(--text-muted); padding:16px; font-size:11px;">Loading active shares...</div>
+        </div>
+      </div>
+    `;
+    setTimeout(() => {
+      loadActiveShares();
     }, 50);
   }
 

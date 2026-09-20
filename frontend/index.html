@@ -734,95 +734,253 @@
     </div>
   </div>
 
-  <!-- Share Creator Modal (Public Link & Guest Dropbox) -->
+  <!-- Advanced Share Creator & Showcase Modal -->
   <div class="modal-overlay" id="share-create-modal">
-    <div class="modal-box" style="width: 520px;">
-      <div class="modal-header">
-        <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);"><img src="assets/sharemgr.webp" alt="Share" style="width: 16px; height: 16px; object-fit: contain;"> Share Link & Guest Upload Dropbox</span>
-        <button class="btn" onclick="closeModal('share-create-modal')"><i data-lucide="x"></i></button>
+    <div class="modal-box" style="width: 560px; max-width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="min-height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+        <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);">
+          <img src="assets/sharemgr.webp" alt="Share" style="width: 16px; height: 16px; object-fit: contain;">
+          <span id="share-modal-heading">Advanced Sharing & Showcase Center</span>
+        </span>
+        <button class="btn btn-icon modal-close-btn" style="width: 28px; height: 28px;" onclick="closeModal('share-create-modal')" title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
       </div>
-      <div class="modal-body">
-        <div style="background: var(--bg-header); border: 1px solid var(--border); padding: 12px; border-radius: 6px; margin-bottom: 14px;">
-          <div style="font-weight: 700; font-size: 13px;" id="share-item-name">item_name</div>
-          <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 2px;" id="share-item-path">/path/to/item</div>
+      <div class="modal-body" style="padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
+        <!-- Target Item Summary -->
+        <div style="background: var(--bg-header); border: 1px solid var(--border); padding: 10px 14px; border-radius: 6px; display: flex; align-items: center; gap: 12px;">
+          <span id="share-item-icon" style="font-size: 24px;">📁</span>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 700; font-size: 13px; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="share-item-name">item_name</div>
+            <div style="font-size: 11px; color: var(--text-muted); font-family: var(--font-mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="share-item-path">/path/to/item</div>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label>Link Expiration:</label>
-          <select id="share-expiry-select" class="pane-quick-filter" style="width: 100%; padding: 8px;">
-            <option value="1">1 Hour</option>
-            <option value="24" selected>24 Hours (1 Day)</option>
-            <option value="168">7 Days (1 Week)</option>
-            <option value="720">30 Days (1 Month)</option>
-            <option value="0">Never Expire (Permanent)</option>
-          </select>
+        <!-- Mode & Permissions Selector -->
+        <div>
+          <label style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; display: block;">Share Mode & Permissions:</label>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
+            <label class="share-mode-card" id="mode-card-full" style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="radio" name="share-mode" id="share-mode-full" value="full" checked onchange="handleShareModeChange()">
+                <span style="font-weight: 700; font-size: 12px; color: var(--text-main);">Full Share</span>
+              </div>
+              <span style="font-size: 10px; color: var(--text-muted);">View & Download enabled</span>
+            </label>
+
+            <label class="share-mode-card" id="mode-card-showcase" style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="radio" name="share-mode" id="share-mode-showcase" value="showcase" onchange="handleShareModeChange()">
+                <span style="font-weight: 700; font-size: 12px; color: #10b981;">Showcase Mode</span>
+              </div>
+              <span style="font-size: 10px; color: var(--text-muted);">View-Only (No Download)</span>
+            </label>
+
+            <label class="share-mode-card" id="mode-card-dropbox" style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px;">
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <input type="radio" name="share-mode" id="share-mode-dropbox" value="dropbox" onchange="handleShareModeChange()">
+                <span style="font-weight: 700; font-size: 12px; color: #60a5fa;">Guest Dropbox</span>
+              </div>
+              <span style="font-size: 10px; color: var(--text-muted);">Upload dropzone</span>
+            </label>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label>Password Protection (Optional):</label>
-          <input type="password" id="share-password-input" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="Leave empty for public access...">
+        <!-- Custom Name & Expiration -->
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 11px; font-weight: 600; color: var(--text-muted);">Custom Share Title:</label>
+            <input type="text" id="share-custom-title" class="pane-quick-filter" style="width: 100%; padding: 6px 10px; font-size: 12px;" placeholder="Optional title...">
+          </div>
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 11px; font-weight: 600; color: var(--text-muted);">Link Expiration:</label>
+            <select id="share-expiry-select" class="pane-quick-filter" style="width: 100%; padding: 6px 10px; font-size: 12px;">
+              <option value="1">1 Hour</option>
+              <option value="6">6 Hours</option>
+              <option value="24" selected>24 Hours (1 Day)</option>
+              <option value="168">7 Days (1 Week)</option>
+              <option value="720">30 Days (1 Month)</option>
+              <option value="0">Never Expire (Permanent)</option>
+            </select>
+          </div>
         </div>
 
-        <div class="form-group">
-          <label>Max Downloads Limit (Optional):</label>
-          <input type="number" id="share-max-downloads" class="pane-quick-filter" style="width: 100%; padding: 8px;" min="0" value="0" placeholder="0 = Unlimited downloads">
+        <!-- Access Gates & Security -->
+        <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">🛡️ Access Security & Whitelist</div>
+          
+          <div class="form-group" style="margin-bottom: 0;">
+            <label style="font-size: 11px; color: var(--text-muted);">Password Protection (Optional):</label>
+            <input type="password" id="share-password-input" class="pane-quick-filter" style="width: 100%; padding: 6px 10px; font-size: 12px;" placeholder="Leave empty for open access...">
+          </div>
+
+          <div>
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); font-weight: 600;">
+              <input type="checkbox" id="share-require-email" onchange="document.getElementById('share-emails-box').style.display = this.checked ? 'block' : 'none'">
+              <span>Require Guest Email Whitelist (Restricted Access)</span>
+            </label>
+            <div id="share-emails-box" style="display: none; margin-top: 6px;">
+              <input type="text" id="share-allowed-emails" class="pane-quick-filter" style="width: 100%; padding: 6px 10px; font-size: 11px; font-family: var(--font-mono);" placeholder="client@agency.com, * @acme.corp (comma-separated)">
+              <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Only visitors with matching emails will be granted access.</div>
+            </div>
+          </div>
         </div>
 
-        <div id="share-dropbox-toggle-group" style="margin-top: 10px; display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); padding: 10px; border-radius: 6px;">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; color: var(--accent); font-weight: 600;">
-            <input type="checkbox" id="share-allow-upload">
-            <span>📥 Enable Guest Upload Dropbox (Allow anyone with link to upload files here)</span>
+        <!-- Anti-Leak Dynamic Watermarking -->
+        <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">💧 Anti-Leak Dynamic Watermarking</div>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); font-weight: 600;">
+            <input type="checkbox" id="share-watermark-toggle" onchange="document.getElementById('share-watermark-text-box').style.display = this.checked ? 'block' : 'none'">
+            <span>Enable Diagonal Watermark on Previews & Documents</span>
           </label>
+          <div id="share-watermark-text-box" style="display: none;">
+            <input type="text" id="share-watermark-text" class="pane-quick-filter" style="width: 100%; padding: 6px 10px; font-size: 11px;" value="CONFIDENTIAL • {email} • {date}" placeholder="Pattern: CONFIDENTIAL • {email} • {date}">
+            <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Tags <code>{email}</code> and <code>{date}</code> will be dynamically replaced on guest inspection.</div>
+          </div>
         </div>
 
-        <!-- Generated Link Display Section -->
-        <div id="share-result-box" style="display: none; margin-top: 14px; background: var(--bg-dark); border: 1px solid var(--border); padding: 12px; border-radius: 6px;">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">Shareable Public URL:</div>
+        <!-- Limits -->
+        <div class="form-group" style="margin-bottom: 0;">
+          <label style="font-size: 11px; color: var(--text-muted);">Max Downloads Limit (0 = Unlimited):</label>
+          <input type="number" id="share-max-downloads" class="pane-quick-filter" style="width: 100%; padding: 6px 10px; font-size: 12px;" min="0" value="0" placeholder="0">
+        </div>
+
+        <!-- Generated Link Result Box -->
+        <div id="share-result-box" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.3); padding: 12px; border-radius: 6px;">
+          <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px;">Share Link Generated Successfully:</div>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="share-result-url" readonly class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); font-size: 12px; padding: 6px 8px; color: var(--accent);">
-            <button class="btn btn-accent" onclick="copyShareUrl()"><i data-lucide="copy" style="width: 14px;"></i> Copy</button>
-            <a id="share-result-open-btn" target="_blank" class="btn" style="text-decoration: none; padding: 6px 10px;"><i data-lucide="external-link" style="width: 14px;"></i></a>
+            <button class="btn btn-accent" style="height: 28px; padding: 0 10px;" onclick="copyShareUrl()"><i data-lucide="copy" style="width: 13px;"></i> Copy</button>
+            <a id="share-result-open-btn" target="_blank" class="btn btn-outline" style="height: 28px; padding: 0 10px; text-decoration: none;" title="Open in New Tab"><i data-lucide="external-link" style="width: 13px;"></i></a>
           </div>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeModal('share-create-modal')">Close</button>
-        <button class="btn btn-accent" id="btn-generate-share" onclick="executeCreateShare()"><i data-lucide="link"></i> Generate Share Link</button>
+      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" onclick="closeModal('share-create-modal')">Close</button>
+        <button class="btn btn-accent" id="btn-generate-share" style="height: 28px; font-size: 12px;" onclick="executeCreateShare()"><i data-lucide="link" style="width: 13px;"></i> Save & Generate Link</button>
       </div>
     </div>
   </div>
 
-  <!-- Shares Manager Dashboard Modal -->
+  <!-- Sharing Center Dashboard Modal -->
   <div class="modal-overlay" id="shares-manager-modal">
-    <div class="modal-box" style="width: 750px; max-height: 80vh;">
-      <div class="modal-header">
-        <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);"><img src="assets/sharemgr.webp" alt="Shares" style="width: 16px; height: 16px; object-fit: contain;"> Active Public Shares & Guest Dropboxes</span>
-        <button class="btn" onclick="closeModal('shares-manager-modal')"><i data-lucide="x"></i></button>
+    <div class="modal-box" style="width: 900px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="min-height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="assets/sharemgr.webp" alt="Shares" style="width: 16px; height: 16px; object-fit: contain;">
+          <span style="font-weight: 700; color: var(--accent); font-size: 14px;">Sharing Center</span>
+          <span class="badge badge-showcase" id="shares-count-badge" style="margin-left: 4px;">0 Active</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn btn-icon btn-panel-control modal-close-btn" style="width: 28px; height: 28px;" onclick="closeModal('shares-manager-modal')" title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
+        </div>
       </div>
-      <div class="modal-body" style="padding: 12px;">
-        <div style="overflow-x: auto;">
+      <div class="modal-body" style="padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+        <!-- KPI Row -->
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;">
+          <div style="background: var(--bg-header); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 20px;">📦</div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">ACTIVE SHARES</div>
+              <div style="font-size: 16px; font-weight: 700; color: var(--text-main);" id="kpi-shares-active">0</div>
+            </div>
+          </div>
+          <div style="background: var(--bg-header); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 20px;">👁️</div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">TOTAL VISITS</div>
+              <div style="font-size: 16px; font-weight: 700; color: #60a5fa;" id="kpi-shares-visits">0</div>
+            </div>
+          </div>
+          <div style="background: var(--bg-header); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 20px;">🖼️</div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">FILE PREVIEWS</div>
+              <div style="font-size: 16px; font-weight: 700; color: #10b981;" id="kpi-shares-previews">0</div>
+            </div>
+          </div>
+          <div style="background: var(--bg-header); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 20px;">⬇️</div>
+            <div>
+              <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">TOTAL DOWNLOADS</div>
+              <div style="font-size: 16px; font-weight: 700; color: var(--accent);" id="kpi-shares-downloads">0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+          <input type="text" id="shares-search-input" class="pane-quick-filter" style="padding: 6px 10px; font-size: 12px; min-width: 220px; flex: 1;" placeholder="🔍 Filter shares by name or path..." oninput="handleSharesFilterChange()">
+          <select id="shares-status-filter" class="pane-quick-filter" style="padding: 6px 10px; font-size: 12px; width: 150px;" onchange="handleSharesFilterChange()">
+            <option value="all">All Statuses</option>
+            <option value="active" selected>Active Only</option>
+            <option value="showcase">Showcase Mode</option>
+            <option value="dropbox">Guest Dropboxes</option>
+            <option value="revoked">Revoked</option>
+          </select>
+          <button class="btn btn-accent" style="height: 28px; font-size: 12px;" onclick="triggerShare()"><i data-lucide="plus" style="width: 13px;"></i> New Share</button>
+          <button class="btn btn-outline btn-icon" style="width: 28px; height: 28px;" onclick="loadActiveShares()" title="Refresh Shares"><i data-lucide="rotate-cw" style="width: 13px;"></i></button>
+        </div>
+
+        <!-- Shares List / Table -->
+        <div style="overflow-x: auto; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border);">
           <table class="file-table" style="width: 100%;">
             <thead>
               <tr>
-                <th style="width: 30px;">Type</th>
+                <th style="width: 32px; text-align: center;">Mode</th>
                 <th>Name / Shared Path</th>
-                <th style="width: 90px;">Expires</th>
-                <th style="width: 70px; text-align: center;">Downloads</th>
-                <th style="width: 60px; text-align: center;">Dropbox</th>
-                <th style="width: 120px; text-align: right;">Actions</th>
+                <th style="width: 120px;">Access Gates</th>
+                <th style="width: 90px;">Status</th>
+                <th style="width: 100px;">Expires</th>
+                <th style="width: 110px; text-align: center;">Activity</th>
+                <th style="width: 130px; text-align: right;">Actions</th>
               </tr>
             </thead>
             <tbody id="shares-table-tbody">
               <tr>
-                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading active shares...</td>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">Loading active shares...</td>
               </tr>
             </tbody>
           </table>
         </div>
       </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="loadActiveShares()"><i data-lucide="refresh-cw"></i> Refresh</button>
-        <button class="btn" onclick="closeModal('shares-manager-modal')">Close</button>
+      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: flex-end;">
+        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" onclick="closeModal('shares-manager-modal')">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Access Logs & Visitor Analytics Modal -->
+  <div class="modal-overlay" id="share-logs-modal">
+    <div class="modal-box" style="width: 780px; max-width: 95vw; max-height: 85vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="min-height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="activity" style="width: 16px; height: 16px; color: var(--accent);"></i>
+          <span style="font-weight: 700; color: var(--accent); font-size: 13px;">Visitor Audit Trail:</span>
+          <span id="share-logs-title" style="font-size: 13px; color: var(--text-main); font-weight: 600;">Share Name</span>
+        </div>
+        <button class="btn btn-icon modal-close-btn" style="width: 28px; height: 28px;" onclick="closeModal('share-logs-modal')" title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+        <div style="overflow-x: auto; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border);">
+          <table class="file-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th style="width: 130px;">Time</th>
+                <th style="width: 80px;">Action</th>
+                <th>Visitor / IP</th>
+                <th>Target File</th>
+                <th>User Agent / Browser</th>
+              </tr>
+            </thead>
+            <tbody id="share-logs-tbody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 20px;">Loading access logs...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: flex-end;">
+        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" onclick="closeModal('share-logs-modal')">Close</button>
       </div>
     </div>
   </div>
