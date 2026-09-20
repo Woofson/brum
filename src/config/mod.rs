@@ -646,6 +646,8 @@ pub struct UiConfig {
     pub hostname_icon: String,  // "server", "hard-drive", "cpu", "terminal", "cloud", "shield", "box", "home", "globe", "radio", "none"
     #[serde(default)]
     pub hostname_size: String,  // "sm", "md", "lg"
+    #[serde(default)]
+    pub window_title: String,   // Custom document / window title (empty = default "Brum - Multi-Pane Web Environment")
 }
 
 impl Default for UiConfig {
@@ -663,6 +665,7 @@ impl Default for UiConfig {
             hostname_style: "subtle".to_string(),
             hostname_icon: "server".to_string(),
             hostname_size: "md".to_string(),
+            window_title: String::new(),
         }
     }
 }

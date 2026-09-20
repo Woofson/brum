@@ -2151,6 +2151,25 @@
             </div>
           </div>
 
+          <!-- Card 6: Browser Window & Instance Title -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="layout"></i> Browser Window & Instance Title
+              </h4>
+            </div>
+            <p class="settings-card-desc">Customize the window and browser tab title. Brum dynamically updates the title with the playing track when audio or media playback is active.</p>
+
+            <div class="settings-field">
+              <label class="settings-field-label" for="setting-custom-window-title">Custom Window / Document Title (Optional):</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="setting-custom-window-title" class="settings-input" style="flex: 1;" placeholder="Brum - Multi-Pane Web Environment" oninput="handleWindowTitleSettingChange()">
+                <button type="button" class="btn btn-sm btn-outline" style="white-space: nowrap;" onclick="resetWindowTitleSetting()">Reset Default</button>
+              </div>
+              <div class="settings-field-hint">Leave empty to use the default <code>Brum - Multi-Pane Web Environment</code> or server configuration.</div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Tab: Bookmarks & Favorites -->

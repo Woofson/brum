@@ -402,6 +402,7 @@ pub struct SystemStatusResponse {
     pub hostname_style: Option<String>,
     pub hostname_icon: Option<String>,
     pub hostname_size: Option<String>,
+    pub window_title: Option<String>,
 }
 
 async fn handle_health(State(state): State<AppState>) -> Json<serde_json::Value> {
@@ -443,6 +444,12 @@ async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatu
         None
     };
 
+    let window_title = if !state.config.ui.window_title.trim().is_empty() {
+        Some(state.config.ui.window_title.clone())
+    } else {
+        None
+    };
+
     Json(SystemStatusResponse {
         version: env!("CARGO_PKG_VERSION").to_string(),
         standalone: state.config.server.standalone,
@@ -458,6 +465,7 @@ async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatu
         hostname_style: if !state.config.ui.hostname_style.trim().is_empty() { Some(state.config.ui.hostname_style.clone()) } else { None },
         hostname_icon: if !state.config.ui.hostname_icon.trim().is_empty() { Some(state.config.ui.hostname_icon.clone()) } else { None },
         hostname_size: if !state.config.ui.hostname_size.trim().is_empty() { Some(state.config.ui.hostname_size.clone()) } else { None },
+        window_title,
     })
 }
 

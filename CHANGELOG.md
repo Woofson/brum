@@ -5,6 +5,25 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.11] - 2026-09-21
+
+### Custom Window Title, Dropdown Consistency & Commander Fleet Symmetrical Telemetry
+- **Custom Window & Document Title**:
+  - Added `--title <TITLE>` CLI argument and `ui.window_title` configuration setting.
+  - Added "Browser Window & Instance Title" configuration card in Settings with live preview.
+  - Enabled dynamic document title updates with live audio playback (`▶ Track - Artist | BaseTitle`) and media player state.
+- **Pane Dropdowns & Keyboard Navigation**:
+  - Implemented single-popup toggle behavior across Pane Tools, Pane Settings, Places & Fleet, and Column Chooser.
+  - Added touch event listeners (`touchstart`) for mobile and tablet touchscreens.
+  - Enhanced global Escape key handler to cleanly dismiss active dropdown popups before modals or file selection.
+- **Harmonized Icon & Sizing System**:
+  - Standardized all dropdown action icons to uniform 14px sizing with `var(--accent)` amber styling.
+  - Replaced raw inline SVGs with Lucide `compass` and `shield-check` icons.
+  - Unified danger styling (`var(--danger, #ef4444)`) for remote disconnect actions.
+- **Commander Fleet Hostname & Latency Alignment**:
+  - Dynamically displays system hostname across Places & Fleet ("Duck"-menu), node selectors, Fleet Switcher, and Fleet Manager modal.
+  - Structured Fleet rows into a symmetrical 3-part layout with left status dot, 2-line name/endpoint descriptor, and right-aligned monospace latency pill badge with fixed checkmark alignment.
+
 ## [0.8.9] - 2026-09-20
 
 ### Zero-Install Client Local VFS & Windows Release Fix

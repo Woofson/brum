@@ -704,9 +704,10 @@ function getAllUserPreferences() {
     global_folder_icon: localStorage.getItem('cd_global_folder_icon') || '',
     custom_file_icons: JSON.parse(localStorage.getItem('cd_custom_file_icons') || '{}'),
 
-    // 3. Hostname Badge
+    // 3. Hostname Badge & Window Title
     show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
     custom_hostname: localStorage.getItem('cd_custom_hostname') || '',
+    custom_app_title: localStorage.getItem('cd_custom_app_title') || '',
     hostname_color: localStorage.getItem('cd_hostname_color') || 'amber',
     hostname_custom_text: localStorage.getItem('cd_hostname_custom_text') || '#f59e0b',
     hostname_custom_bg: localStorage.getItem('cd_hostname_custom_bg') || 'rgba(245, 158, 11, 0.15)',
@@ -908,13 +909,18 @@ function applyAllUserPreferences(prefs) {
     }
   }
 
-  // 9. Hostname Badge Customizer
+  // 9. Hostname Badge Customizer & Window Title
   if (prefs.show_hostname_badge !== undefined) {
     localStorage.setItem('cd_show_hostname_badge', prefs.show_hostname_badge ? 'true' : 'false');
   }
   if (prefs.custom_hostname !== undefined) {
     if (prefs.custom_hostname) localStorage.setItem('cd_custom_hostname', prefs.custom_hostname);
     else localStorage.removeItem('cd_custom_hostname');
+  }
+  if (prefs.custom_app_title !== undefined) {
+    if (prefs.custom_app_title) localStorage.setItem('cd_custom_app_title', prefs.custom_app_title);
+    else localStorage.removeItem('cd_custom_app_title');
+    if (typeof updateAppDocumentTitle === 'function') updateAppDocumentTitle();
   }
   if (prefs.hostname_color) localStorage.setItem('cd_hostname_color', prefs.hostname_color);
   if (prefs.hostname_custom_text) localStorage.setItem('cd_hostname_custom_text', prefs.hostname_custom_text);
@@ -1566,6 +1572,65 @@ function applyAppVersion(ver) {
   document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(el => el.textContent = `v${ver} (Desktop & Web)`);
   const syncBadge = document.getElementById('sync-version-badge');
   if (syncBadge) syncBadge.textContent = `v${ver}`;
+  updateAppDocumentTitle();
+}
+
+function getAppBaseTitle() {
+  const customTitle = localStorage.getItem('cd_custom_app_title')
+    || App.config?.ui?.window_title
+    || App.systemStatus?.window_title;
+  return (customTitle && customTitle.trim().length > 0)
+    ? customTitle.trim()
+    : 'Brum - Multi-Pane Web Environment';
+}
+
+function updateAppDocumentTitle() {
+  const baseTitle = getAppBaseTitle();
+
+  // 1. Audio Player Now-Playing
+  if (typeof sounddogState !== 'undefined' && sounddogState.isPlaying && sounddogState.queue && sounddogState.queue[sounddogState.currentIndex]) {
+    const track = sounddogState.queue[sounddogState.currentIndex];
+    const trackTitle = track.title || track.name || 'Audio Track';
+    const artist = track.artist ? ` - ${track.artist}` : '';
+    document.title = `▶ ${trackTitle}${artist} | ${baseTitle}`;
+    return;
+  }
+
+  // 2. Media Player (Video) Now-Playing
+  if (typeof mediaplayerState !== 'undefined' && mediaplayerState.isPlaying && mediaplayerState.playlist && mediaplayerState.playlist[mediaplayerState.currentIndex]) {
+    const media = mediaplayerState.playlist[mediaplayerState.currentIndex];
+    const mediaTitle = media.title || media.name || 'Media';
+    document.title = `▶ ${mediaTitle} | ${baseTitle}`;
+    return;
+  }
+
+  document.title = baseTitle;
+}
+
+function handleWindowTitleSettingChange() {
+  const input = document.getElementById('setting-custom-window-title');
+  if (!input) return;
+  const val = input.value.trim();
+  if (val) {
+    localStorage.setItem('cd_custom_app_title', val);
+  } else {
+    localStorage.removeItem('cd_custom_app_title');
+  }
+  updateAppDocumentTitle();
+  if (typeof queueSaveUserPreferencesToServer === 'function') {
+    queueSaveUserPreferencesToServer();
+  }
+}
+
+function resetWindowTitleSetting() {
+  const input = document.getElementById('setting-custom-window-title');
+  if (input) input.value = '';
+  localStorage.removeItem('cd_custom_app_title');
+  updateAppDocumentTitle();
+  if (typeof queueSaveUserPreferencesToServer === 'function') {
+    queueSaveUserPreferencesToServer();
+  }
+  showToast('Window title reset to default', 'info');
 }
 
 function getHostnameBadgeSettings() {
@@ -1610,6 +1675,14 @@ function getHostnameBadgeSettings() {
     : (App.systemStatus?.hostname || cachedHost || 'localhost');
 
   return { show, hostname, customLabel, color, customText, customBg, customBorder, customGlow, style, icon, size };
+}
+
+function getLocalHostDisplayName() {
+  const hostSettings = typeof getHostnameBadgeSettings === 'function' ? getHostnameBadgeSettings() : null;
+  if (hostSettings && hostSettings.hostname && hostSettings.hostname.trim()) {
+    return hostSettings.hostname.trim();
+  }
+  return App.systemStatus?.hostname || localStorage.getItem('cd_cached_hostname') || 'localhost';
 }
 
 function renderHostnameBadgeElement(badgeEl, textEl, cfg) {
@@ -2713,7 +2786,7 @@ function getPaneNode(paneIndex) {
   if (nodeId === 'local') {
     return {
       id: 'local',
-      name: 'Local Host',
+      name: getLocalHostDisplayName(),
       endpoint_url: window.location.origin,
       auth_token: App.token || '',
       color_accent: 'amber',
@@ -2724,7 +2797,7 @@ function getPaneNode(paneIndex) {
   if (!node) {
     return {
       id: 'local',
-      name: 'Local Host',
+      name: getLocalHostDisplayName(),
       endpoint_url: window.location.origin,
       auth_token: App.token || '',
       color_accent: 'amber',
@@ -2833,11 +2906,20 @@ async function showPaneNodeDropdown(event, paneIndex) {
       <span>Pane ${paneIndex + 1} Target Node</span>
       <span style="font-size: 9px; opacity: 0.7; font-family: var(--font-mono);">${nodes.length + 1} Available</span>
     </div>
-    <div class="breadcrumb-popover-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); closeBreadcrumbPopovers();">
-      <span class="pane-node-dot" style="background: #10b981;"></span>
-      <span style="font-weight: 600;">🖥️ Local Host</span>
-      <span style="font-size: 10px; color: var(--text-muted); margin-left: auto; font-family: var(--font-mono);">0 ms</span>
-      ${currentNodeId === 'local' ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+    <div class="breadcrumb-popover-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); closeBreadcrumbPopovers();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+        <span class="pane-node-dot" style="background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+        <div style="min-width: 0; flex: 1;">
+          <div style="font-weight: 600; font-size: 12px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+            ${escapeHtml(getLocalHostDisplayName())}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Local Brum</div>
+        </div>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+        <span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono); background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; white-space: nowrap;">0 ms</span>
+        ${currentNodeId === 'local' ? '<span style="color: var(--accent); font-size: 12px; font-weight: 700; width: 12px; text-align: center;">✓</span>' : '<span style="width: 12px;"></span>'}
+      </div>
     </div>
   `;
 
@@ -2854,14 +2936,24 @@ async function showPaneNodeDropdown(event, paneIndex) {
       const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
 
       html += `
-        <div class="breadcrumb-popover-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); closeBreadcrumbPopovers();">
-          <span class="pane-node-dot" style="background: ${dotColor};"></span>
-          <div style="display: flex; flex-direction: column; overflow: hidden; margin-right: 6px;">
-            <span style="font-weight: 600; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(n.name)}</span>
-            <span style="font-size: 9.5px; color: var(--text-muted); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(cleanUrl)}</span>
+        <div class="breadcrumb-popover-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); closeBreadcrumbPopovers();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+            <span class="pane-node-dot" style="background: ${dotColor}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+            <div style="min-width: 0; flex: 1;">
+              <div style="font-weight: 600; font-size: 12px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${escapeHtml(n.name)}
+              </div>
+              <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                ${escapeHtml(cleanUrl)}
+              </div>
+            </div>
           </div>
-          <span style="font-size: 10px; color: var(--text-dim); margin-left: auto; font-family: var(--font-mono); white-space: nowrap;">${escapeHtml(latencyStr)}</span>
-          ${isAct ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+          <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+            <span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono); background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; white-space: nowrap;">
+              ${escapeHtml(latencyStr)}
+            </span>
+            ${isAct ? '<span style="color: var(--accent); font-size: 12px; font-weight: 700; width: 12px; text-align: center;">✓</span>' : '<span style="width: 12px;"></span>'}
+          </div>
         </div>
       `;
     });
@@ -4138,19 +4230,28 @@ function closeBreadcrumbPopovers() {
   document.querySelectorAll('.breadcrumb-popover').forEach(p => p.remove());
 }
 
-document.addEventListener('click', (e) => {
+const handleBreadcrumbOutside = (e) => {
   if (!e.target.closest('.breadcrumb-popover') && !e.target.closest('.crumb-root-dropdown-btn') && !e.target.closest('.crumb-sep-dropdown') && !e.target.closest('.pane-node-btn') && !e.target.closest('.pane-node-chip')) {
     closeBreadcrumbPopovers();
   }
-});
+};
+document.addEventListener('click', handleBreadcrumbOutside);
+document.addEventListener('touchstart', handleBreadcrumbOutside);
 
 async function showBreadcrumbRootDropdown(event, paneIndex) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const triggerKey = `crumb-root-${paneIndex}`;
+  const existing = document.querySelector('.breadcrumb-popover');
+  const wasOpen = existing && existing.dataset.triggerKey === triggerKey;
   closeBreadcrumbPopovers();
+  if (wasOpen) return;
+
   const trigger = event.currentTarget;
   const rect = trigger.getBoundingClientRect();
 
   const popover = document.createElement('div');
   popover.className = 'breadcrumb-popover';
+  popover.dataset.triggerKey = triggerKey;
   popover.style.top = `${rect.bottom + 4}px`;
   popover.style.left = `${Math.max(8, rect.left)}px`;
   popover.innerHTML = '<div style="padding: 6px 8px; color: var(--text-muted); font-size: 11px;">Loading storage roots & drives...</div>';
@@ -4218,12 +4319,19 @@ async function showBreadcrumbRootDropdown(event, paneIndex) {
 }
 
 async function showBreadcrumbSubfolderDropdown(event, paneIndex, parentDir) {
+  if (event && event.stopPropagation) event.stopPropagation();
+  const triggerKey = `crumb-sub-${paneIndex}-${parentDir}`;
+  const existing = document.querySelector('.breadcrumb-popover');
+  const wasOpen = existing && existing.dataset.triggerKey === triggerKey;
   closeBreadcrumbPopovers();
+  if (wasOpen) return;
+
   const trigger = event.currentTarget;
   const rect = trigger.getBoundingClientRect();
 
   const popover = document.createElement('div');
   popover.className = 'breadcrumb-popover';
+  popover.dataset.triggerKey = triggerKey;
   popover.style.top = `${rect.bottom + 4}px`;
   popover.style.left = `${Math.max(8, rect.left - 20)}px`;
   popover.innerHTML = '<div style="padding: 6px 8px; color: var(--text-muted); font-size: 11px;">Loading subfolders...</div>';
@@ -6033,13 +6141,19 @@ function toggleCompactDates(enable) {
 }
 
 function openColumnHeaderContextMenu(e, paneIndex) {
-  e.preventDefault();
-  e.stopPropagation();
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
 
-  document.getElementById('col-chooser-popover')?.remove();
+  const existing = document.getElementById('col-chooser-popover');
+  const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  if (wasOpenForThisPane) return;
 
   const pop = document.createElement('div');
   pop.id = 'col-chooser-popover';
+  pop.dataset.paneIndex = String(paneIndex);
   pop.className = 'col-chooser-popover';
 
   const colDefinitions = [
@@ -6120,9 +6234,13 @@ function openColumnHeaderContextMenu(e, paneIndex) {
     if (!pop.contains(ev.target)) {
       pop.remove();
       document.removeEventListener('click', dismissPopover);
+      document.removeEventListener('touchstart', dismissPopover);
     }
   };
-  setTimeout(() => document.addEventListener('click', dismissPopover), 10);
+  setTimeout(() => {
+    document.addEventListener('click', dismissPopover);
+    document.addEventListener('touchstart', dismissPopover);
+  }, 10);
 }
 
 function setPaneViewMode(paneIndex, mode) {
@@ -8012,6 +8130,7 @@ function setupKeyboardNavigation() {
       if (e.key === 'Escape') {
         hideContextMenu();
         closeModal();
+        document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'q' || e.key === 'Q')) {
         e.preventDefault();
@@ -8023,6 +8142,11 @@ function setupKeyboardNavigation() {
 
     if (e.key === 'Escape') {
       let handled = false;
+      const popups = document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover');
+      if (popups.length > 0) {
+        popups.forEach(p => p.remove());
+        handled = true;
+      }
       const ctxMenu = document.getElementById('context-menu');
       if (ctxMenu && ctxMenu.style.display === 'block') {
         hideContextMenu();
@@ -14085,8 +14209,10 @@ function openBookmarksManager() {
 
 async function openPaneFavoritesMenu(e, paneIndex) {
   if (e && e.stopPropagation) e.stopPropagation();
-  document.getElementById('pane-favorites-popup')?.remove();
-  document.getElementById('pane-tools-popup')?.remove();
+  const existing = document.getElementById('pane-favorites-popup');
+  const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  if (wasOpenForThisPane) return;
 
   let globalMounts = [];
   let userBookmarks = [];
@@ -14127,6 +14253,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   const popup = document.createElement('div');
   popup.id = 'pane-favorites-popup';
+  popup.dataset.paneIndex = String(paneIndex);
   popup.className = 'pane-favorites-dropdown active';
 
   popup.innerHTML = `
@@ -14154,14 +14281,19 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         <span>Commander Fleet</span>
         <span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openFleetManagerModal();">Manage</span>
       </div>
-      <div class="dropdown-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); document.getElementById('pane-favorites-popup')?.remove();">
-        <span class="pane-node-dot" style="background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
-        <div style="flex: 1; min-width: 0;">
-          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
-            <span>🖥️ Local Host</span>
-            ${currentNodeId === 'local' ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
+      <div class="dropdown-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); document.getElementById('pane-favorites-popup')?.remove();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+          <span class="pane-node-dot" style="background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+          <div style="min-width: 0; flex: 1;">
+            <div style="font-weight: 600; font-size: 12px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              ${escapeHtml(getLocalHostDisplayName())}
+            </div>
+            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Local Brum</div>
           </div>
-          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">0 ms · Local Brum</div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono); background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; white-space: nowrap;">0 ms</span>
+          ${currentNodeId === 'local' ? '<span style="color: var(--accent); font-size: 12px; font-weight: 700; width: 12px; text-align: center;">✓</span>' : '<span style="width: 12px;"></span>'}
         </div>
       </div>
       ${fleetNodes.map(n => {
@@ -14173,16 +14305,24 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         const latencyStr = typeof n.latency_ms === 'number' ? `${n.latency_ms} ms` : (n.status || 'unknown');
         const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
         return `
-          <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); document.getElementById('pane-favorites-popup')?.remove();">
-            <span class="pane-node-dot" style="background: ${dotColor}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
-            <div style="flex: 1; min-width: 0;">
-              <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
-                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(n.name)}</span>
-                <span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(latencyStr)}</span>
+          <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); document.getElementById('pane-favorites-popup')?.remove();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+              <span class="pane-node-dot" style="background: ${dotColor}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
+              <div style="min-width: 0; flex: 1;">
+                <div style="font-weight: 600; font-size: 12px; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  ${escapeHtml(n.name)}
+                </div>
+                <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                  ${escapeHtml(cleanUrl)}
+                </div>
               </div>
-              <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(cleanUrl)}</div>
             </div>
-            ${isAct ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+            <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+              <span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono); background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; white-space: nowrap;">
+                ${escapeHtml(latencyStr)}
+              </span>
+              ${isAct ? '<span style="color: var(--accent); font-size: 12px; font-weight: 700; width: 12px; text-align: center;">✓</span>' : '<span style="width: 12px;"></span>'}
+            </div>
           </div>
         `;
       }).join('')}
@@ -17494,6 +17634,11 @@ function openSettingsModal() {
 
   updateHostnameSettingsPreview();
 
+  const customTitleInput = document.getElementById('setting-custom-window-title');
+  if (customTitleInput) {
+    customTitleInput.value = localStorage.getItem('cd_custom_app_title') || App.config?.ui?.window_title || App.systemStatus?.window_title || '';
+  }
+
   const notedogFolderInput = document.getElementById('setting-notedog-folder');
   if (notedogFolderInput) {
     notedogFolderInput.value = localStorage.getItem('cd_notedog_folder') || notedogState.rootFolder || '~/Notes';
@@ -19225,9 +19370,10 @@ function openPaneToolsMenu(e, paneIndex) {
     e.preventDefault();
     e.stopPropagation();
   }
-  document.getElementById('pane-tools-popup')?.remove();
-  document.getElementById('pane-color-popup')?.remove();
-  document.getElementById('pane-favorites-popup')?.remove();
+  const existing = document.getElementById('pane-tools-popup');
+  const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  if (wasOpenForThisPane) return;
 
   const colors = getPaneColors();
   const currentColor = colors[paneIndex] || 'default';
@@ -19246,6 +19392,7 @@ function openPaneToolsMenu(e, paneIndex) {
 
   const popup = document.createElement('div');
   popup.id = 'pane-tools-popup';
+  popup.dataset.paneIndex = String(paneIndex);
   popup.className = 'pane-tools-dropdown active';
 
   popup.innerHTML = `
@@ -19258,71 +19405,51 @@ function openPaneToolsMenu(e, paneIndex) {
     </div>
     <div style="padding: 4px 0; max-height: 440px; overflow-y: auto;">
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); togglePaneFilter(${paneIndex});">
-        <i data-lucide="filter" style="color: var(--accent);"></i> Toggle Quick Filter (/ or Ctrl+F)
+        <i data-lucide="filter"></i> <span>Toggle Quick Filter (/ or Ctrl+F)</span>
       </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneSettingsMenu(event, ${paneIndex});">
-        <i data-lucide="sliders" style="color: var(--accent);"></i> Pane Settings & Customizer...
+        <i data-lucide="sliders"></i> <span>Pane Settings & Customizer...</span>
       </div>
       <div class="dropdown-item" onclick="setActivePane(${paneIndex}); triggerCopy(); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="arrow-right-left" style="color: var(--accent);"></i> Transfer / Copy to Other Pane (F5)
+        <i data-lucide="arrow-right-left"></i> <span>Transfer / Copy to Other Pane (F5)</span>
       </div>
       <div class="dropdown-item" onclick="triggerDeviceUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="upload" style="color: #38bdf8;"></i> Upload Files from Device...
+        <i data-lucide="upload"></i> <span>Upload Files from Device...</span>
       </div>
       <div class="dropdown-item" onclick="triggerDeviceFolderUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="folder-up" style="color: #38bdf8;"></i> Upload Folder from Device...
-      </div>
-      <div class="dropdown-item" onclick="promptRenamePane(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="edit-3" style="color: var(--accent);"></i> Rename Pane Label...
+        <i data-lucide="folder-up"></i> <span>Upload Folder from Device...</span>
       </div>
       <div class="dropdown-item" onclick="togglePaneTree(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="folder-tree" style="color: var(--accent);"></i> Toggle Folder Tree Sidebar (${App.panes[paneIndex]?.showTree ? 'Hide' : 'Show'})
+        <i data-lucide="folder-tree"></i> <span>Toggle Folder Tree Sidebar (${App.panes[paneIndex]?.showTree ? 'Hide' : 'Show'})</span>
       </div>
       <div class="dropdown-item" onclick="toggleBranchView(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="git-branch" style="color: var(--accent);"></i> Toggle Flat Branch View (${App.panes[paneIndex]?.isBranchView ? 'Disable' : 'Enable'})
+        <i data-lucide="git-branch"></i> <span>Toggle Flat Branch View (${App.panes[paneIndex]?.isBranchView ? 'Disable' : 'Enable'})</span>
       </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places, Bookmarks & Fleet...
+        <i data-lucide="compass"></i> <span>Places, Bookmarks & Fleet...</span>
       </div>
       <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
       
-      <!-- Border Color Quick Palette -->
-      <div style="padding: 6px 12px 4px 12px; font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
-        <span>Pane Border Color</span>
-        <span style="color: var(--accent); cursor: pointer; text-transform: none; font-weight: 600;" onclick="cyclePaneColor(${paneIndex}); openPaneToolsMenu(null, ${paneIndex});">Cycle ↻</span>
-      </div>
-      <div style="display: flex; gap: 6px; padding: 0 12px 8px 12px; overflow-x: auto;">
-        ${['default', 'amber', 'emerald', 'sky', 'rose', 'purple', 'teal', 'orange'].map(c => `
-          <div style="width: 20px; height: 20px; border-radius: 50%; background: ${colorHexes[c]}; cursor: pointer; border: 2px solid ${currentColor === c ? 'var(--text-main)' : 'transparent'}; box-sizing: border-box; flex-shrink: 0;"
-               title="${c.toUpperCase()}"
-               onclick="setPaneColorPref(${paneIndex}, '${c}'); openPaneToolsMenu(null, ${paneIndex});"></div>
-        `).join('')}
-      </div>
-
-      <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
       ${App.panes[paneIndex]?.path?.includes('://') ? `
         <div class="dropdown-item" onclick="disconnectPaneRemote(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
-          <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i> Disconnect Remote Connection
+          <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i> <span>Disconnect Remote Connection</span>
         </div>
         <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
       ` : ''}
       <div class="dropdown-item" onclick="openRemoteModal(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="network" style="color: #a855f7;"></i> Connect Remote Storage (SFTP/SMB/WebDAV)...
-      </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places & Bookmarks...
+        <i data-lucide="network"></i> <span>Connect Remote Storage (SFTP/SMB/WebDAV)...</span>
       </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openBookmarksManager();">
-        <i data-lucide="bookmark" style="color: var(--accent);"></i> Bookmarks Manager...
+        <i data-lucide="bookmark"></i> <span>Bookmarks Manager...</span>
       </div>
       <div class="dropdown-item" onclick="triggerDownloadCurrentDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="download"></i> Download Folder (.zip)
+        <i data-lucide="download"></i> <span>Download Folder (.zip)</span>
       </div>
       <div class="dropdown-item" onclick="triggerShareDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="share-2" style="color: var(--accent);"></i> Share Folder / Dropbox...
+        <i data-lucide="share-2"></i> <span>Share Folder / Dropbox...</span>
       </div>
       <div class="dropdown-item" onclick="triggerDirPermissions(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="lock"></i> Permissions & Ownership
+        <i data-lucide="shield-check"></i> <span>Permissions & Ownership</span>
       </div>
     </div>
   `;
@@ -19342,9 +19469,13 @@ function openPaneToolsMenu(e, paneIndex) {
     if (!popup.contains(ev.target) && !btn?.contains(ev.target)) {
       popup.remove();
       document.removeEventListener('click', closeHandler);
+      document.removeEventListener('touchstart', closeHandler);
     }
   };
-  setTimeout(() => document.addEventListener('click', closeHandler), 10);
+  setTimeout(() => {
+    document.addEventListener('click', closeHandler);
+    document.addEventListener('touchstart', closeHandler);
+  }, 10);
 }
 
 function handlePaneBadgeDragStart(e, index) {
@@ -19520,10 +19651,10 @@ function openPaneSettingsMenu(e, paneIndex) {
     e.preventDefault();
     e.stopPropagation();
   }
-  document.getElementById('pane-settings-popup')?.remove();
-  document.getElementById('pane-color-popup')?.remove();
-  document.getElementById('pane-tools-popup')?.remove();
-  document.getElementById('pane-favorites-popup')?.remove();
+  const existing = document.getElementById('pane-settings-popup');
+  const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  if (wasOpenForThisPane) return;
 
   const pane = App.panes[paneIndex];
   const currentName = pane?.customName || `${paneIndex + 1}`;
@@ -19549,6 +19680,7 @@ function openPaneSettingsMenu(e, paneIndex) {
 
   const popup = document.createElement('div');
   popup.id = 'pane-settings-popup';
+  popup.dataset.paneIndex = String(paneIndex);
   popup.className = 'pane-settings-dropdown active';
 
   const visibleCount = Math.min(
@@ -19713,11 +19845,13 @@ function openPaneSettingsMenu(e, paneIndex) {
     if (!popup.contains(evt.target) && !btn?.contains(evt.target) && !evt.target.closest(`.mobile-pane-tab[data-pane-idx="${paneIndex}"]`)) {
       popup.remove();
       document.removeEventListener('click', closeHandler);
+      document.removeEventListener('touchstart', closeHandler);
       document.removeEventListener('contextmenu', closeHandler);
     }
   };
   setTimeout(() => {
     document.addEventListener('click', closeHandler);
+    document.addEventListener('touchstart', closeHandler);
     document.addEventListener('contextmenu', closeHandler);
   }, 10);
 }
@@ -24472,6 +24606,9 @@ function updateMediaPlayButton(playing) {
 
   if (window.lucide) {
     try { lucide.createIcons(); } catch (e) {}
+  }
+  if (typeof updateAppDocumentTitle === 'function') {
+    updateAppDocumentTitle();
   }
 }
 
@@ -34515,6 +34652,9 @@ function updateSoundDogPlaybackState(isPlaying) {
   }
 
   updateSoundDogDockedHUD();
+  if (typeof updateAppDocumentTitle === 'function') {
+    updateAppDocumentTitle();
+  }
 }
 
 function updateSoundDogHUD(track) {
@@ -34535,6 +34675,9 @@ function updateSoundDogHUD(track) {
   if (headerTitle) headerTitle.textContent = `${idxNum}. ${displayTitle}`;
   if (trackTitle) trackTitle.textContent = track.title || track.name;
   if (trackArtist) trackArtist.textContent = track.artist || (isSynth ? 'Chiptune Synthesizer' : 'Audioplayer Jukebox');
+  if (typeof updateAppDocumentTitle === 'function') {
+    updateAppDocumentTitle();
+  }
   if (formatBadge) formatBadge.textContent = ext;
   if (kbpsPill) kbpsPill.textContent = `${track.bitrate || '320'} KBPS`;
   if (khzPill) khzPill.textContent = `${track.sampleRate || '44.1'} KHZ`;
@@ -35281,7 +35424,7 @@ function renderFleetSwitcherDropdown() {
   const activeNode = activeId ? nodes.find(n => n.id === activeId) : null;
 
   if (activeTag) {
-    activeTag.textContent = activeNode ? activeNode.name : 'Local Host';
+    activeTag.textContent = activeNode ? activeNode.name : getLocalHostDisplayName();
   }
 
   let html = '';
@@ -35293,7 +35436,7 @@ function renderFleetSwitcherDropdown() {
       <div class="fleet-node-left">
         <i data-lucide="server" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
         <div class="fleet-node-info">
-          <div class="fleet-node-name">Local Host ${isLocalActive ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}</div>
+          <div class="fleet-node-name">${escapeHtml(getLocalHostDisplayName())} ${isLocalActive ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}</div>
           <div class="fleet-node-url">${escapeHtml(window.location.host || 'localhost')}</div>
         </div>
       </div>
@@ -35401,7 +35544,7 @@ function renderFleetManagerList() {
       <div class="fleet-card-header">
         <div class="fleet-card-name">
           <i data-lucide="server" style="width: 14px; height: 14px; color: #f59e0b;"></i>
-          <span>Local Host</span>
+          <span>${escapeHtml(getLocalHostDisplayName())}</span>
           <span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Local</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
