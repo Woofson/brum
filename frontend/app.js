@@ -2217,6 +2217,7 @@ function createPaneElement(pane, index) {
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
         'tageditor': '<i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Tag Editor',
         'logviewer': '<i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Log Viewer',
+        'cad': '<i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> 3D CAD Studio',
         'shares': '<img src="assets/sharemgr.webp" alt="Sharing Center" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
@@ -12714,6 +12715,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
+  { id: 'cad', label: '3D CAD Studio', icon: 'box', action: 'openCadStudio()', desc: 'Interactive 3D model & CAD viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', visible: true },
   { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
   { id: 'tageditor', label: 'Tag Editor', icon: 'tag', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
   { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
@@ -14327,6 +14329,9 @@ function showContextMenu(x, y) {
       <div class="context-item" onclick="triggerView(); hideContextMenu();"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
       <div class="context-item" onclick="triggerEditor(); hideContextMenu();"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
       <div class="context-item" onclick="openHexEditor('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="binary" style="width: 14px; color: var(--accent);"></i> Open in Hex Editor...</div>
+      ${App.contextItem && isCadOr3dExtension(App.contextItem.name) ? `
+        <div class="context-item" onclick="openCadStudio('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><i data-lucide="box" style="width: 14px; color: var(--accent);"></i> Open in 3D CAD Studio</div>
+      ` : ''}
       ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
         <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in Audioplayer</div>
         <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to Audioplayer Queue</div>
@@ -14445,6 +14450,7 @@ function showContextMenu(x, y) {
           <div class="context-item" onclick="openDuplicateFinder(); hideContextMenu();"><i data-lucide="copy-check" style="width: 13px; color: var(--accent);"></i> Duplicate Finder...</div>
           <div class="context-item" onclick="openTagEditor(); hideContextMenu();"><i data-lucide="tag" style="width: 13px; color: var(--accent);"></i> Tag Editor & EXIF...</div>
           <div class="context-item" onclick="openHexEditor(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="binary" style="width: 13px; color: var(--accent);"></i> Hex Editor...</div>
+          <div class="context-item" onclick="openCadStudio(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="box" style="width: 13px; color: var(--accent);"></i> 3D CAD Studio...</div>
           <div class="context-item" onclick="openLogViewer(App.contextItem ? App.contextItem.path : null); hideContextMenu();"><i data-lucide="scroll-text" style="width: 13px; color: var(--accent);"></i> Log Viewer...</div>
           <div class="context-item" onclick="openSharesManager(); hideContextMenu();"><img src="assets/sharemgr.webp" alt="Sharing" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center (Manage Shares)...</div>
         </div>
@@ -16808,6 +16814,10 @@ function triggerView() {
     }
   }
 
+  if (isCadOr3dExtension(item.name)) {
+    openCadStudio(item.path, App.activePaneIndex);
+    return;
+  }
   if (isDocumentExtension(item.name)) {
     openDocumentViewer(item.path, App.activePaneIndex);
     return;
@@ -21863,6 +21873,12 @@ function isDocumentExtension(filename) {
   return ['pdf', 'md', 'markdown', 'rst', 'csv', 'tsv', 'tab', 'json', 'html', 'htm', 'xml', 'svg', 'docx', 'xlsx', 'pptx', 'odt', 'ods', 'doc', 'xls', 'ppt', 'log', 'txt', 'rtf'].includes(ext);
 }
 
+function isCadOr3dExtension(filename) {
+  if (!filename) return false;
+  const ext = filename.split('.').pop().toLowerCase();
+  return ['stl', 'obj', 'gltf', 'glb', '3mf', 'step', 'stp', 'iges', 'igs', 'dxf', 'ply', 'off'].includes(ext);
+}
+
 function isAudioExtension(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
@@ -22085,6 +22101,8 @@ function openFileByType(entry, paneIndex) {
     loadPaneDirectory(paneIndex, targetPath);
   } else if (isPdfExtension(entry.name) || isDocumentExtension(entry.name)) {
     openDocumentViewer(entry.path, paneIndex);
+  } else if (isCadOr3dExtension(entry.name)) {
+    openCadStudio(entry.path, paneIndex);
   } else if (isAudioExtension(entry.name)) {
     openSoundDog(entry.path, paneIndex);
   } else if (isVideoExtension(entry.name)) {
@@ -26899,6 +26917,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'Format Converter', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDF Studio', sub: 'PDF Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
+  { id: 'cad', title: '3D CAD Studio', sub: '3D CAD Studio: interactive 3D model, mesh & CAD drawing viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', icon: 'box', cat: 'actions', action: () => openCadStudio() },
   { id: 'duplicates', title: 'Duplicate Finder', sub: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', icon: 'copy-check', cat: 'actions', action: () => openDuplicateFinder() },
   { id: 'tageditor', title: 'Tag Editor', sub: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', icon: 'tag', cat: 'actions', action: () => openTagEditor() },
   { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
@@ -28651,6 +28670,15 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       loadActiveShares();
+    }, 50);
+  }
+  // 15. DOCKED 3D CAD STUDIO
+  else if (tool === 'cad') {
+    mount.innerHTML = `
+      <div class="docked-cad-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-cad-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedCadStudio(paneIndex);
     }, 50);
   }
 
@@ -37993,6 +38021,1304 @@ function mountDockedLogViewer(paneIndex) {
     if (toolbar) host.appendChild(toolbar);
     host.appendChild(consoleEl);
     fetchLogViewerTail();
+  }
+}
+
+// ==========================================
+// 🧊 3D CAD STUDIO & MODEL VIEWER (STL, OBJ, GLTF, 3MF, STEP, DXF, PLY)
+// ==========================================
+let cadStudioDragInit = false;
+let cadStudioActivePaneIndex = 0;
+
+let cadStudioState = {
+  filePath: null,
+  isDocked: false,
+  scene: null,
+  camera: null,
+  renderer: null,
+  animId: null,
+  currentMesh: null,
+  currentEdges: null,
+  currentLineObj: null,
+  gridHelper: null,
+  axesHelper: null,
+  shadingMode: 'solid',
+  materialTheme: 'amber-charcoal',
+  showGrid: true,
+  showAxes: true,
+  showEdges: false,
+  isTurntable: false,
+  isSlicing: false,
+  sliceAxis: 'z',
+  slicePercent: 100,
+  clipPlane: null,
+  modelBounds: null,
+  stats: {
+    triangles: 0,
+    vertices: 0,
+    volumeCm3: 0,
+    surfaceAreaCm2: 0,
+    weightGrams: 0,
+    widthMm: 0,
+    heightMm: 0,
+    depthMm: 0
+  },
+  orbit: {
+    target: { x: 0, y: 0, z: 0 },
+    radius: 100,
+    theta: Math.PI / 4,
+    phi: Math.PI / 3,
+    isDragging: false,
+    dragButton: 0,
+    startX: 0,
+    startY: 0,
+    startTheta: 0,
+    startPhi: 0,
+    startRadius: 100,
+    startTarget: { x: 0, y: 0, z: 0 }
+  }
+};
+
+function initCadDragResize() {
+  if (cadStudioDragInit) return;
+  cadStudioDragInit = true;
+
+  const win = document.getElementById('floating-cad-window');
+  const header = document.getElementById('cad-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_cad_x');
+  const savedTop = localStorage.getItem('cd_cad_y');
+  const savedWidth = localStorage.getItem('cd_cad_w');
+  const savedHeight = localStorage.getItem('cd_cad_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(500, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(400, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newX}px`;
+    win.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_cad_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_cad_y', parseInt(win.style.top, 10));
+    }
+  });
+
+  // Corner Resize
+  const corner = document.getElementById('cad-resize-corner');
+  if (corner) {
+    let isResizing = false;
+    let resizeStartX = 0, resizeStartY = 0;
+    let winStartW = 0, winStartH = 0;
+
+    corner.addEventListener('mousedown', (e) => {
+      if (window.innerWidth <= 1024) return;
+      e.stopPropagation();
+      isResizing = true;
+      resizeStartX = e.clientX;
+      resizeStartY = e.clientY;
+      const rect = win.getBoundingClientRect();
+      winStartW = rect.width;
+      winStartH = rect.height;
+      document.body.style.userSelect = 'none';
+      document.body.style.cursor = 'se-resize';
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const dw = e.clientX - resizeStartX;
+      const dh = e.clientY - resizeStartY;
+      const newW = Math.max(480, Math.min(window.innerWidth - 20, winStartW + dw));
+      const newH = Math.max(380, Math.min(window.innerHeight - 40, winStartH + dh));
+      win.style.width = `${newW}px`;
+      win.style.height = `${newH}px`;
+      resizeCadViewport();
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.userSelect = '';
+        document.body.style.cursor = '';
+        if (win.style.width) localStorage.setItem('cd_cad_w', parseInt(win.style.width, 10));
+        if (win.style.height) localStorage.setItem('cd_cad_h', parseInt(win.style.height, 10));
+      }
+    });
+  }
+}
+
+function openCadStudio(filePath = null, paneIndex = null) {
+  cadStudioActivePaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[cadStudioActivePaneIndex];
+
+  let targetModel = filePath;
+  if (!targetModel) {
+    if (pane && pane.selected && pane.selected.size > 0) {
+      const selected = Array.from(pane.selected).find(p => isCadOr3dExtension(p));
+      if (selected) targetModel = selected;
+    }
+    if (!targetModel && pane && Array.isArray(pane.entries)) {
+      const cadEntry = pane.entries.find(e => !e.is_dir && isCadOr3dExtension(e.name));
+      if (cadEntry) targetModel = cadEntry.path;
+    }
+  }
+
+  cadStudioState.filePath = targetModel;
+
+  const win = document.getElementById('floating-cad-window');
+  const toolbar = document.getElementById('cad-toolbar');
+  const viewport = document.getElementById('cad-viewport-container');
+  if (win) {
+    if (toolbar && !win.contains(toolbar)) win.appendChild(toolbar);
+    if (viewport && !win.contains(viewport)) win.appendChild(viewport);
+  }
+
+  const pill = document.getElementById('cad-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  initCadDragResize();
+
+  const fileBadge = document.getElementById('cad-file-badge');
+  if (fileBadge) {
+    if (targetModel) {
+      const fileName = targetModel.split('/').filter(Boolean).pop() || targetModel;
+      fileBadge.textContent = sanitizeCredentials(fileName);
+      fileBadge.title = targetModel;
+    } else {
+      fileBadge.textContent = 'No model selected';
+      fileBadge.title = '';
+    }
+  }
+
+  initCadScene();
+  setTimeout(resizeCadViewport, 50);
+
+  if (targetModel) {
+    loadCadModel(targetModel);
+  }
+}
+
+function closeFloatingCadStudio() {
+  const win = document.getElementById('floating-cad-window');
+  if (win) win.style.display = 'none';
+}
+
+function minimizeFloatingCadStudio() {
+  const win = document.getElementById('floating-cad-window');
+  const pill = document.getElementById('cad-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingCadStudio() {
+  openCadStudio(cadStudioState.filePath);
+}
+
+function toggleMaximizeCadStudio() {
+  const win = document.getElementById('floating-cad-window');
+  if (win) {
+    win.classList.toggle('maximized');
+    setTimeout(resizeCadViewport, 50);
+  }
+}
+
+function dockCadStudioToActivePane() {
+  closeFloatingCadStudio();
+  App.panes[App.activePaneIndex].dockedTool = 'cad';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'cad');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+function mountDockedCadStudio(paneIndex) {
+  const host = document.getElementById(`docked-cad-host-${paneIndex}`);
+  const toolbar = document.getElementById('cad-toolbar');
+  const viewport = document.getElementById('cad-viewport-container');
+  if (host && viewport) {
+    if (toolbar) host.appendChild(toolbar);
+    host.appendChild(viewport);
+    initCadScene();
+    setTimeout(resizeCadViewport, 50);
+    if (cadStudioState.filePath) {
+      loadCadModel(cadStudioState.filePath);
+    }
+  }
+}
+
+function updateCameraFromOrbit() {
+  const o = cadStudioState.orbit;
+  const x = o.target.x + o.radius * Math.sin(o.phi) * Math.sin(o.theta);
+  const y = o.target.y + o.radius * Math.cos(o.phi);
+  const z = o.target.z + o.radius * Math.sin(o.phi) * Math.cos(o.theta);
+
+  if (cadStudioState.camera) {
+    cadStudioState.camera.position.set(x, y, z);
+    cadStudioState.camera.lookAt(o.target.x, o.target.y, o.target.z);
+    cadStudioState.camera.updateProjectionMatrix();
+  }
+}
+
+function setCadCameraView(preset) {
+  const o = cadStudioState.orbit;
+  if (preset === 'iso') {
+    o.theta = Math.PI / 4;
+    o.phi = Math.PI / 3;
+  } else if (preset === 'top') {
+    o.theta = 0;
+    o.phi = 0.001;
+  } else if (preset === 'front') {
+    o.theta = 0;
+    o.phi = Math.PI / 2;
+  } else if (preset === 'right') {
+    o.theta = Math.PI / 2;
+    o.phi = Math.PI / 2;
+  }
+  updateCameraFromOrbit();
+}
+
+function resetCadCamera() {
+  if (!cadStudioState.modelBounds) return;
+  const b = cadStudioState.modelBounds;
+  cadStudioState.orbit.target = { x: 0, y: b.size.y / 2, z: 0 };
+  const maxDim = Math.max(b.size.x, b.size.y, b.size.z) || 50;
+  cadStudioState.orbit.radius = maxDim * 2.2;
+  cadStudioState.orbit.theta = Math.PI / 4;
+  cadStudioState.orbit.phi = Math.PI / 3;
+  updateCameraFromOrbit();
+}
+
+function setupCadInteraction(canvas) {
+  if (canvas._hasCadListeners) return;
+  canvas._hasCadListeners = true;
+
+  const o = cadStudioState.orbit;
+
+  canvas.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    o.isDragging = true;
+    o.dragButton = e.button;
+    o.startX = e.clientX;
+    o.startY = e.clientY;
+    o.startTheta = o.theta;
+    o.startPhi = o.phi;
+    o.startRadius = o.radius;
+    o.startTarget = { ...o.target };
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!o.isDragging) return;
+    const dx = e.clientX - o.startX;
+    const dy = e.clientY - o.startY;
+
+    if (o.dragButton === 0 && !e.shiftKey) {
+      const rotSpeed = 0.006;
+      o.theta = o.startTheta - dx * rotSpeed;
+      o.phi = Math.max(0.01, Math.min(Math.PI - 0.01, o.startPhi - dy * rotSpeed));
+      updateCameraFromOrbit();
+    } else {
+      const panSpeed = (o.radius / 800);
+      const forward = new THREE.Vector3();
+      cadStudioState.camera.getWorldDirection(forward);
+      const right = new THREE.Vector3().crossVectors(forward, cadStudioState.camera.up).normalize();
+      const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+
+      o.target.x = o.startTarget.x - right.x * dx * panSpeed + up.x * dy * panSpeed;
+      o.target.y = o.startTarget.y - right.y * dx * panSpeed + up.y * dy * panSpeed;
+      o.target.z = o.startTarget.z - right.z * dx * panSpeed + up.z * dy * panSpeed;
+      updateCameraFromOrbit();
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    o.isDragging = false;
+  });
+
+  canvas.addEventListener('wheel', (e) => {
+    e.preventDefault();
+    const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+    o.radius = Math.max(1, Math.min(50000, o.radius * zoomFactor));
+    updateCameraFromOrbit();
+  }, { passive: false });
+
+  canvas.addEventListener('dblclick', () => {
+    resetCadCamera();
+  });
+
+  // Touch Support
+  let touchStartDist = 0;
+  let touchStartMid = { x: 0, y: 0 };
+
+  canvas.addEventListener('touchstart', (e) => {
+    if (e.touches.length === 1) {
+      o.isDragging = true;
+      o.dragButton = 0;
+      o.startX = e.touches[0].clientX;
+      o.startY = e.touches[0].clientY;
+      o.startTheta = o.theta;
+      o.startPhi = o.phi;
+    } else if (e.touches.length === 2) {
+      o.isDragging = true;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchStartDist = Math.hypot(dx, dy);
+      o.startRadius = o.radius;
+      o.startTarget = { ...o.target };
+      touchStartMid = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+      };
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchmove', (e) => {
+    if (!o.isDragging) return;
+    if (e.touches.length === 1) {
+      const dx = e.touches[0].clientX - o.startX;
+      const dy = e.touches[0].clientY - o.startY;
+      const rotSpeed = 0.008;
+      o.theta = o.startTheta - dx * rotSpeed;
+      o.phi = Math.max(0.01, Math.min(Math.PI - 0.01, o.startPhi - dy * rotSpeed));
+      updateCameraFromOrbit();
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const curDist = Math.hypot(dx, dy);
+      if (touchStartDist > 0) {
+        const scale = touchStartDist / curDist;
+        o.radius = Math.max(1, Math.min(50000, o.startRadius * scale));
+      }
+      const curMid = {
+        x: (e.touches[0].clientX + e.touches[1].clientX) / 2,
+        y: (e.touches[0].clientY + e.touches[1].clientY) / 2
+      };
+      const midDx = curMid.x - touchStartMid.x;
+      const midDy = curMid.y - touchStartMid.y;
+      const panSpeed = (o.radius / 600);
+      const forward = new THREE.Vector3();
+      cadStudioState.camera.getWorldDirection(forward);
+      const right = new THREE.Vector3().crossVectors(forward, cadStudioState.camera.up).normalize();
+      const up = new THREE.Vector3().crossVectors(right, forward).normalize();
+      o.target.x = o.startTarget.x - right.x * midDx * panSpeed + up.x * midDy * panSpeed;
+      o.target.y = o.startTarget.y - right.y * midDx * panSpeed + up.y * midDy * panSpeed;
+      o.target.z = o.startTarget.z - right.z * midDx * panSpeed + up.z * midDy * panSpeed;
+      updateCameraFromOrbit();
+    }
+  }, { passive: true });
+
+  canvas.addEventListener('touchend', () => {
+    o.isDragging = false;
+  });
+
+  canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+}
+
+function getMaterialColor(theme) {
+  switch (theme) {
+    case 'amber-gold': return { color: 0xd97706, roughness: 0.3, metalness: 0.85 };
+    case 'steel': return { color: 0xc0c5ce, roughness: 0.2, metalness: 0.95 };
+    case 'bronze': return { color: 0x8c6239, roughness: 0.45, metalness: 0.7 };
+    case 'cyan': return { color: 0x06b6d4, roughness: 0.3, metalness: 0.4 };
+    case 'clay': return { color: 0xe2e8f0, roughness: 0.9, metalness: 0.05 };
+    case 'amber-charcoal':
+    default:
+      return { color: 0x475569, roughness: 0.35, metalness: 0.3 };
+  }
+}
+
+function createCadMaterial() {
+  const mode = cadStudioState.shadingMode;
+  const themeProps = getMaterialColor(cadStudioState.materialTheme);
+
+  let mat;
+  if (mode === 'wireframe') {
+    mat = new THREE.MeshBasicMaterial({
+      color: 0xf59e0b,
+      wireframe: true
+    });
+  } else if (mode === 'normals') {
+    mat = new THREE.MeshNormalMaterial({
+      wireframe: false,
+      side: THREE.DoubleSide
+    });
+  } else if (mode === 'matcap') {
+    mat = new THREE.MeshLambertMaterial({
+      color: themeProps.color,
+      side: THREE.DoubleSide
+    });
+  } else if (mode === 'smooth') {
+    mat = new THREE.MeshStandardMaterial({
+      color: themeProps.color,
+      roughness: themeProps.roughness,
+      metalness: themeProps.metalness,
+      flatShading: false,
+      side: THREE.DoubleSide
+    });
+  } else {
+    mat = new THREE.MeshStandardMaterial({
+      color: themeProps.color,
+      roughness: themeProps.roughness,
+      metalness: themeProps.metalness,
+      flatShading: true,
+      side: THREE.DoubleSide
+    });
+  }
+
+  if (cadStudioState.isSlicing && cadStudioState.clipPlane) {
+    mat.clippingPlanes = [cadStudioState.clipPlane];
+    mat.clipShadows = true;
+  }
+  return mat;
+}
+
+function setCadShadingMode(mode) {
+  cadStudioState.shadingMode = mode;
+  if (cadStudioState.currentMesh) {
+    cadStudioState.currentMesh.material = createCadMaterial();
+  }
+}
+
+function setCadMaterialTheme(theme) {
+  cadStudioState.materialTheme = theme;
+  if (cadStudioState.currentMesh) {
+    cadStudioState.currentMesh.material = createCadMaterial();
+  }
+}
+
+function toggleCadSlicer() {
+  cadStudioState.isSlicing = !cadStudioState.isSlicing;
+  const btn = document.getElementById('btn-cad-slice-toggle');
+  const controls = document.getElementById('cad-slice-controls');
+  if (btn) {
+    if (cadStudioState.isSlicing) btn.classList.add('btn-accent');
+    else btn.classList.remove('btn-accent');
+  }
+  if (controls) {
+    controls.style.display = cadStudioState.isSlicing ? 'flex' : 'none';
+  }
+  updateCadSlicePlane(cadStudioState.slicePercent);
+}
+
+function setCadSliceAxis(axis) {
+  cadStudioState.sliceAxis = axis;
+  updateCadSlicePlane(cadStudioState.slicePercent);
+}
+
+function updateCadSlicePlane(percent) {
+  cadStudioState.slicePercent = parseFloat(percent);
+  if (!cadStudioState.renderer) return;
+
+  if (!cadStudioState.isSlicing || !cadStudioState.modelBounds) {
+    cadStudioState.renderer.localClippingEnabled = false;
+    if (cadStudioState.currentMesh && cadStudioState.currentMesh.material) {
+      cadStudioState.currentMesh.material.clippingPlanes = [];
+    }
+    return;
+  }
+
+  cadStudioState.renderer.localClippingEnabled = true;
+  const b = cadStudioState.modelBounds;
+  const p = cadStudioState.slicePercent / 100.0;
+
+  let normal = new THREE.Vector3(0, -1, 0);
+  let constant = 0;
+
+  if (cadStudioState.sliceAxis === 'z') {
+    normal = new THREE.Vector3(0, -1, 0);
+    const minY = b.min.y;
+    const maxY = b.max.y;
+    constant = minY + (maxY - minY) * p;
+  } else if (cadStudioState.sliceAxis === 'y') {
+    normal = new THREE.Vector3(0, 0, -1);
+    const minZ = b.min.z;
+    const maxZ = b.max.z;
+    constant = minZ + (maxZ - minZ) * p;
+  } else if (cadStudioState.sliceAxis === 'x') {
+    normal = new THREE.Vector3(-1, 0, 0);
+    const minX = b.min.x;
+    const maxX = b.max.x;
+    constant = minX + (maxX - minX) * p;
+  }
+
+  cadStudioState.clipPlane = new THREE.Plane(normal, constant);
+  if (cadStudioState.currentMesh && cadStudioState.currentMesh.material) {
+    cadStudioState.currentMesh.material.clippingPlanes = [cadStudioState.clipPlane];
+    cadStudioState.currentMesh.material.clipShadows = true;
+    cadStudioState.currentMesh.material.needsUpdate = true;
+  }
+}
+
+function toggleCadGrid() {
+  cadStudioState.showGrid = !cadStudioState.showGrid;
+  const btn = document.getElementById('btn-cad-grid');
+  if (btn) btn.classList.toggle('active', cadStudioState.showGrid);
+  if (cadStudioState.gridHelper) cadStudioState.gridHelper.visible = cadStudioState.showGrid;
+}
+
+function toggleCadAxes() {
+  cadStudioState.showAxes = !cadStudioState.showAxes;
+  const btn = document.getElementById('btn-cad-axes');
+  if (btn) btn.classList.toggle('active', cadStudioState.showAxes);
+  if (cadStudioState.axesHelper) cadStudioState.axesHelper.visible = cadStudioState.showAxes;
+}
+
+function toggleCadEdges() {
+  cadStudioState.showEdges = !cadStudioState.showEdges;
+  const btn = document.getElementById('btn-cad-edges');
+  if (btn) btn.classList.toggle('active', cadStudioState.showEdges);
+  if (cadStudioState.currentEdges) cadStudioState.currentEdges.visible = cadStudioState.showEdges;
+}
+
+function toggleCadTurntable() {
+  cadStudioState.isTurntable = !cadStudioState.isTurntable;
+  const btn = document.getElementById('btn-cad-turntable');
+  if (btn) btn.classList.toggle('active', cadStudioState.isTurntable);
+}
+
+function takeCadSnapshot() {
+  if (!cadStudioState.renderer || !cadStudioState.scene || !cadStudioState.camera) return;
+  cadStudioState.renderer.render(cadStudioState.scene, cadStudioState.camera);
+  const dataUrl = cadStudioState.renderer.domElement.toDataURL('image/png');
+  const a = document.createElement('a');
+  const baseName = (cadStudioState.filePath || 'cad_model').split('/').pop().replace(/\.[^/.]+$/, '');
+  a.download = `${baseName}_snapshot.png`;
+  a.href = dataUrl;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  showToast('Saved snapshot PNG', 'success');
+}
+
+function computeCadTelemetry(geometry) {
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const size = new THREE.Vector3();
+  box.getSize(size);
+
+  const posAttr = geometry.attributes.position;
+  const numVertices = posAttr.count;
+  const numTriangles = geometry.index ? (geometry.index.count / 3) : (numVertices / 3);
+
+  let totalVolumeMm3 = 0;
+  let totalAreaMm2 = 0;
+
+  const p1 = new THREE.Vector3();
+  const p2 = new THREE.Vector3();
+  const p3 = new THREE.Vector3();
+  const cross = new THREE.Vector3();
+
+  const numTris = Math.floor(numVertices / 3);
+  for (let i = 0; i < numTris; i++) {
+    p1.fromBufferAttribute(posAttr, i * 3);
+    p2.fromBufferAttribute(posAttr, i * 3 + 1);
+    p3.fromBufferAttribute(posAttr, i * 3 + 2);
+
+    cross.crossVectors(p2, p3);
+    totalVolumeMm3 += p1.dot(cross) / 6.0;
+
+    const edge1 = new THREE.Vector3().subVectors(p2, p1);
+    const edge2 = new THREE.Vector3().subVectors(p3, p1);
+    totalAreaMm2 += edge1.cross(edge2).length() * 0.5;
+  }
+
+  const volCm3 = Math.max(0, Math.abs(totalVolumeMm3) / 1000.0);
+  const plaWeightGrams = volCm3 * 1.24;
+
+  cadStudioState.stats = {
+    triangles: Math.round(numTriangles),
+    vertices: numVertices,
+    volumeCm3: volCm3,
+    surfaceAreaCm2: totalAreaMm2 / 100.0,
+    weightGrams: plaWeightGrams,
+    widthMm: size.x,
+    heightMm: size.y,
+    depthMm: size.z
+  };
+
+  updateCadHudTelemetry();
+}
+
+function updateCadHudTelemetry() {
+  const dimEl = document.getElementById('cad-dim-val');
+  const triEl = document.getElementById('cad-stat-triangles');
+  const vertEl = document.getElementById('cad-stat-vertices');
+  const volEl = document.getElementById('cad-stat-volume');
+  const wtEl = document.getElementById('cad-stat-weight');
+
+  const s = cadStudioState.stats;
+  if (dimEl) dimEl.textContent = `${(s.widthMm || 0).toFixed(1)} × ${(s.heightMm || 0).toFixed(1)} × ${(s.depthMm || 0).toFixed(1)} mm`;
+  if (triEl) triEl.textContent = Number(s.triangles || 0).toLocaleString();
+  if (vertEl) vertEl.textContent = Number(s.vertices || 0).toLocaleString();
+  if (volEl) volEl.textContent = `${(s.volumeCm3 || 0).toFixed(1)} cm³`;
+  if (wtEl) wtEl.textContent = `${(s.weightGrams || 0).toFixed(1)} g`;
+}
+
+function renderCadLoop() {
+  if (cadStudioState.isTurntable) {
+    cadStudioState.orbit.theta += 0.008;
+    updateCameraFromOrbit();
+  }
+  if (cadStudioState.renderer && cadStudioState.scene && cadStudioState.camera) {
+    cadStudioState.renderer.render(cadStudioState.scene, cadStudioState.camera);
+  }
+  cadStudioState.animId = requestAnimationFrame(renderCadLoop);
+}
+
+function resizeCadViewport() {
+  const container = document.getElementById('cad-viewport-container');
+  const canvas = document.getElementById('cad-webgl-canvas');
+  if (!container || !canvas || !cadStudioState.renderer || !cadStudioState.camera) return;
+
+  const width = container.clientWidth || 600;
+  const height = container.clientHeight || 450;
+
+  cadStudioState.camera.aspect = width / height;
+  cadStudioState.camera.updateProjectionMatrix();
+  cadStudioState.renderer.setSize(width, height);
+}
+
+function initCadScene() {
+  if (cadStudioState.renderer) {
+    resizeCadViewport();
+    return;
+  }
+  if (!window.THREE) {
+    setTimeout(initCadScene, 100);
+    return;
+  }
+
+  const container = document.getElementById('cad-viewport-container');
+  const canvas = document.getElementById('cad-webgl-canvas');
+  if (!container || !canvas) return;
+
+  const width = container.clientWidth || 600;
+  const height = container.clientHeight || 450;
+
+  const scene = new THREE.Scene();
+  scene.background = new THREE.Color(0x121214);
+
+  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100000);
+  camera.position.set(100, 100, 100);
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas: canvas,
+    antialias: true,
+    preserveDrawingBuffer: true
+  });
+  renderer.setSize(width, height);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  renderer.localClippingEnabled = true;
+
+  const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 1.2);
+  hemiLight.position.set(0, 200, 0);
+  scene.add(hemiLight);
+
+  const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5);
+  dirLight1.position.set(150, 250, 150);
+  scene.add(dirLight1);
+
+  const dirLight2 = new THREE.DirectionalLight(0xf59e0b, 0.6);
+  dirLight2.position.set(-150, -100, -150);
+  scene.add(dirLight2);
+
+  const gridHelper = new THREE.GridHelper(200, 20, 0xf59e0b, 0x27272a);
+  gridHelper.position.y = 0;
+  scene.add(gridHelper);
+
+  const axesHelper = new THREE.AxesHelper(30);
+  scene.add(axesHelper);
+
+  cadStudioState.scene = scene;
+  cadStudioState.camera = camera;
+  cadStudioState.renderer = renderer;
+  cadStudioState.gridHelper = gridHelper;
+  cadStudioState.axesHelper = axesHelper;
+
+  setupCadInteraction(canvas);
+
+  if (!cadStudioState.animId) {
+    renderCadLoop();
+  }
+
+  if (window.ResizeObserver) {
+    const ro = new ResizeObserver(() => {
+      resizeCadViewport();
+    });
+    ro.observe(container);
+  }
+}
+
+function applyModelToScene(geometry, isLines = false) {
+  const loadingOverlay = document.getElementById('cad-loading-overlay');
+  if (loadingOverlay) loadingOverlay.style.display = 'none';
+
+  if (!cadStudioState.scene || !geometry) return;
+
+  if (cadStudioState.currentMesh) {
+    cadStudioState.scene.remove(cadStudioState.currentMesh);
+    cadStudioState.currentMesh = null;
+  }
+  if (cadStudioState.currentEdges) {
+    cadStudioState.scene.remove(cadStudioState.currentEdges);
+    cadStudioState.currentEdges = null;
+  }
+  if (cadStudioState.currentLineObj) {
+    cadStudioState.scene.remove(cadStudioState.currentLineObj);
+    cadStudioState.currentLineObj = null;
+  }
+
+  geometry.computeBoundingBox();
+  const box = geometry.boundingBox;
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+
+  geometry.translate(-center.x, -box.min.y, -center.z);
+  geometry.computeBoundingBox();
+  geometry.computeBoundingSphere();
+
+  const newBox = geometry.boundingBox;
+  const newSize = new THREE.Vector3();
+  newBox.getSize(newSize);
+
+  cadStudioState.modelBounds = {
+    min: newBox.min,
+    max: newBox.max,
+    size: newSize,
+    radius: geometry.boundingSphere ? geometry.boundingSphere.radius : Math.max(newSize.x, newSize.y, newSize.z) / 2
+  };
+
+  if (cadStudioState.gridHelper) {
+    cadStudioState.scene.remove(cadStudioState.gridHelper);
+  }
+  const maxFootprint = Math.max(newSize.x, newSize.z, 20);
+  const gridSize = Math.ceil(maxFootprint * 1.8 / 10) * 10;
+  const divisions = Math.min(50, Math.max(10, Math.round(gridSize / 10)));
+  cadStudioState.gridHelper = new THREE.GridHelper(gridSize, divisions, 0xf59e0b, 0x334155);
+  cadStudioState.gridHelper.position.y = 0;
+  cadStudioState.gridHelper.visible = cadStudioState.showGrid;
+  cadStudioState.scene.add(cadStudioState.gridHelper);
+
+  if (isLines) {
+    const lineMat = new THREE.LineBasicMaterial({
+      color: 0xf59e0b,
+      linewidth: 1.5
+    });
+    cadStudioState.currentLineObj = new THREE.LineSegments(geometry, lineMat);
+    cadStudioState.scene.add(cadStudioState.currentLineObj);
+  } else {
+    const material = createCadMaterial();
+    cadStudioState.currentMesh = new THREE.Mesh(geometry, material);
+    cadStudioState.scene.add(cadStudioState.currentMesh);
+
+    const edgesGeom = new THREE.EdgesGeometry(geometry, 25);
+    const edgesMat = new THREE.LineBasicMaterial({
+      color: 0xf59e0b,
+      transparent: true,
+      opacity: 0.7
+    });
+    cadStudioState.currentEdges = new THREE.LineSegments(edgesGeom, edgesMat);
+    cadStudioState.currentEdges.visible = cadStudioState.showEdges;
+    cadStudioState.scene.add(cadStudioState.currentEdges);
+  }
+
+  computeCadTelemetry(geometry);
+  resetCadCamera();
+}
+
+function parseBinaryStl(buffer) {
+  const dataView = new DataView(buffer);
+  const numTriangles = dataView.getUint32(80, true);
+  const positions = new Float32Array(numTriangles * 9);
+  const normals = new Float32Array(numTriangles * 9);
+
+  let offset = 84;
+  let posIdx = 0;
+  let normIdx = 0;
+
+  for (let i = 0; i < numTriangles; i++) {
+    if (offset + 50 > buffer.byteLength) break;
+
+    const nx = dataView.getFloat32(offset, true);
+    const ny = dataView.getFloat32(offset + 4, true);
+    const nz = dataView.getFloat32(offset + 8, true);
+    offset += 12;
+
+    for (let v = 0; v < 3; v++) {
+      const vx = dataView.getFloat32(offset, true);
+      const vy = dataView.getFloat32(offset + 4, true);
+      const vz = dataView.getFloat32(offset + 8, true);
+      offset += 12;
+
+      positions[posIdx++] = vx;
+      positions[posIdx++] = vy;
+      positions[posIdx++] = vz;
+
+      normals[normIdx++] = nx;
+      normals[normIdx++] = ny;
+      normals[normIdx++] = nz;
+    }
+
+    offset += 2;
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+  if (normIdx > 0 && (normals[0] !== 0 || normals[1] !== 0 || normals[2] !== 0)) {
+    geometry.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
+  } else {
+    geometry.computeVertexNormals();
+  }
+  return geometry;
+}
+
+function parseAsciiStl(text) {
+  const positions = [];
+  const normals = [];
+  const lines = text.split('\n');
+  let currentNormal = [0, 1, 0];
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line.startsWith('facet normal')) {
+      const parts = line.split(/\s+/);
+      if (parts.length >= 4) {
+        currentNormal = [parseFloat(parts[2]), parseFloat(parts[3]), parseFloat(parts[4])];
+      }
+    } else if (line.startsWith('vertex')) {
+      const parts = line.split(/\s+/);
+      if (parts.length >= 4) {
+        positions.push(parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3]));
+        normals.push(currentNormal[0], currentNormal[1], currentNormal[2]);
+      }
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(positions), 3));
+  if (normals.length > 0) {
+    geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(normals), 3));
+  } else {
+    geometry.computeVertexNormals();
+  }
+  return geometry;
+}
+
+function parseObj(text) {
+  const vertices = [];
+  const normals = [];
+  const uvs = [];
+
+  const outPositions = [];
+  const outNormals = [];
+  const outUvs = [];
+
+  const lines = text.split('\n');
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line || line.startsWith('#')) continue;
+
+    const parts = line.split(/\s+/);
+    const cmd = parts[0];
+
+    if (cmd === 'v') {
+      vertices.push([parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
+    } else if (cmd === 'vn') {
+      normals.push([parseFloat(parts[1]), parseFloat(parts[2]), parseFloat(parts[3])]);
+    } else if (cmd === 'vt') {
+      uvs.push([parseFloat(parts[1]), parseFloat(parts[2])]);
+    } else if (cmd === 'f') {
+      const faceVerts = [];
+      for (let j = 1; j < parts.length; j++) {
+        if (!parts[j]) continue;
+        const vParts = parts[j].split('/');
+        const vIdx = parseInt(vParts[0], 10);
+        const vtIdx = vParts[1] ? parseInt(vParts[1], 10) : null;
+        const vnIdx = vParts[2] ? parseInt(vParts[2], 10) : null;
+        faceVerts.push({
+          v: vIdx > 0 ? vIdx - 1 : vertices.length + vIdx,
+          vt: vtIdx ? (vtIdx > 0 ? vtIdx - 1 : uvs.length + vtIdx) : null,
+          vn: vnIdx ? (vnIdx > 0 ? vnIdx - 1 : normals.length + vnIdx) : null
+        });
+      }
+
+      for (let k = 1; k < faceVerts.length - 1; k++) {
+        const tri = [faceVerts[0], faceVerts[k], faceVerts[k + 1]];
+        for (const fv of tri) {
+          if (vertices[fv.v]) {
+            outPositions.push(vertices[fv.v][0], vertices[fv.v][1], vertices[fv.v][2]);
+          }
+          if (fv.vn !== null && normals[fv.vn]) {
+            outNormals.push(normals[fv.vn][0], normals[fv.vn][1], normals[fv.vn][2]);
+          }
+          if (fv.vt !== null && uvs[fv.vt]) {
+            outUvs.push(uvs[fv.vt][0], uvs[fv.vt][1]);
+          }
+        }
+      }
+    }
+  }
+
+  const geometry = new THREE.BufferGeometry();
+  geometry.setAttribute('position', new THREE.BufferAttribute(new Float32Array(outPositions), 3));
+  if (outNormals.length === outPositions.length && outNormals.length > 0) {
+    geometry.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(outNormals), 3));
+  } else {
+    geometry.computeVertexNormals();
+  }
+  return geometry;
+}
+
+function parseDxf(text) {
+  const lines = text.split(/\r?\n/);
+  const linePositions = [];
+  const meshPositions = [];
+
+  let i = 0;
+  while (i < lines.length - 1) {
+    const code = lines[i].trim();
+    const val = lines[i + 1].trim();
+    i += 2;
+
+    if (code === '0' && val === 'LINE') {
+      let x1 = 0, y1 = 0, z1 = 0, x2 = 0, y2 = 0, z2 = 0;
+      while (i < lines.length - 1) {
+        const c = lines[i].trim();
+        const v = lines[i + 1].trim();
+        if (c === '0') break;
+        if (c === '10') x1 = parseFloat(v);
+        else if (c === '20') y1 = parseFloat(v);
+        else if (c === '30') z1 = parseFloat(v);
+        else if (c === '11') x2 = parseFloat(v);
+        else if (c === '21') y2 = parseFloat(v);
+        else if (c === '31') z2 = parseFloat(v);
+        i += 2;
+      }
+      linePositions.push(x1, y1, z1, x2, y2, z2);
+    } else if (code === '0' && (val === 'LWPOLYLINE' || val === 'POLYLINE')) {
+      const polyVerts = [];
+      let isClosed = false;
+      while (i < lines.length - 1) {
+        const c = lines[i].trim();
+        const v = lines[i + 1].trim();
+        if (c === '0') break;
+        if (c === '70' && (parseInt(v, 10) & 1) === 1) isClosed = true;
+        if (c === '10') {
+          const vx = parseFloat(v);
+          let vy = 0, vz = 0;
+          if (i + 2 < lines.length && lines[i + 2].trim() === '20') {
+            vy = parseFloat(lines[i + 3].trim());
+            i += 2;
+          }
+          if (i + 2 < lines.length && lines[i + 2].trim() === '30') {
+            vz = parseFloat(lines[i + 3].trim());
+            i += 2;
+          }
+          polyVerts.push([vx, vy, vz]);
+        }
+        i += 2;
+      }
+      for (let p = 0; p < polyVerts.length - 1; p++) {
+        linePositions.push(polyVerts[p][0], polyVerts[p][1], polyVerts[p][2],
+                          polyVerts[p + 1][0], polyVerts[p + 1][1], polyVerts[p + 1][2]);
+      }
+      if (isClosed && polyVerts.length > 2) {
+        const last = polyVerts[polyVerts.length - 1];
+        const first = polyVerts[0];
+        linePositions.push(last[0], last[1], last[2], first[0], first[1], first[2]);
+      }
+    } else if (code === '0' && val === 'CIRCLE') {
+      let cx = 0, cy = 0, cz = 0, r = 1;
+      while (i < lines.length - 1) {
+        const c = lines[i].trim();
+        const v = lines[i + 1].trim();
+        if (c === '0') break;
+        if (c === '10') cx = parseFloat(v);
+        else if (c === '20') cy = parseFloat(v);
+        else if (c === '30') cz = parseFloat(v);
+        else if (c === '40') r = parseFloat(v);
+        i += 2;
+      }
+      const segs = 32;
+      for (let s = 0; s < segs; s++) {
+        const a1 = (s / segs) * Math.PI * 2;
+        const a2 = ((s + 1) / segs) * Math.PI * 2;
+        linePositions.push(cx + Math.cos(a1) * r, cy + Math.sin(a1) * r, cz,
+                          cx + Math.cos(a2) * r, cy + Math.sin(a2) * r, cz);
+      }
+    } else if (code === '0' && val === '3DFACE') {
+      const v = [];
+      while (i < lines.length - 1) {
+        const c = lines[i].trim();
+        const valStr = lines[i + 1].trim();
+        if (c === '0') break;
+        const cNum = parseInt(c, 10);
+        if (cNum >= 10 && cNum <= 13) {
+          const idx = cNum - 10;
+          v[idx] = v[idx] || [0, 0, 0];
+          v[idx][0] = parseFloat(valStr);
+        } else if (cNum >= 20 && cNum <= 23) {
+          const idx = cNum - 20;
+          v[idx] = v[idx] || [0, 0, 0];
+          v[idx][1] = parseFloat(valStr);
+        } else if (cNum >= 30 && cNum <= 33) {
+          const idx = cNum - 30;
+          v[idx] = v[idx] || [0, 0, 0];
+          v[idx][2] = parseFloat(valStr);
+        }
+        i += 2;
+      }
+      if (v.length >= 3) {
+        meshPositions.push(v[0][0], v[0][1], v[0][2], v[1][0], v[1][1], v[1][2], v[2][0], v[2][1], v[2][2]);
+        if (v[3] && (v[3][0] !== v[2][0] || v[3][1] !== v[2][1] || v[3][2] !== v[2][2])) {
+          meshPositions.push(v[0][0], v[0][1], v[0][2], v[2][0], v[2][1], v[2][2], v[3][0], v[3][1], v[3][2]);
+        }
+      }
+    }
+  }
+
+  if (meshPositions.length > 0) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(meshPositions), 3));
+    geom.computeVertexNormals();
+    return { geometry: geom, isLines: false };
+  } else if (linePositions.length > 0) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linePositions), 3));
+    return { geometry: geom, isLines: true };
+  }
+  return null;
+}
+
+function parsePly(textOrBuffer) {
+  let text = '';
+  if (typeof textOrBuffer === 'string') {
+    text = textOrBuffer;
+  } else {
+    text = new TextDecoder('utf-8').decode(textOrBuffer);
+  }
+
+  const lines = text.split('\n');
+  let isPly = false;
+  let isAscii = false;
+  let numVerts = 0;
+  let numFaces = 0;
+  let headerEnd = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (line === 'ply') isPly = true;
+    if (line.startsWith('format ascii')) isAscii = true;
+    if (line.startsWith('element vertex')) numVerts = parseInt(line.split(/\s+/)[2], 10);
+    if (line.startsWith('element face')) numFaces = parseInt(line.split(/\s+/)[2], 10);
+    if (line === 'end_header') {
+      headerEnd = i + 1;
+      break;
+    }
+  }
+
+  if (!isPly || !isAscii) return null;
+
+  const vertices = [];
+  for (let i = headerEnd; i < headerEnd + numVerts; i++) {
+    if (i >= lines.length) break;
+    const parts = lines[i].trim().split(/\s+/);
+    if (parts.length >= 3) {
+      vertices.push([parseFloat(parts[0]), parseFloat(parts[1]), parseFloat(parts[2])]);
+    }
+  }
+
+  const meshPositions = [];
+  for (let i = headerEnd + numVerts; i < headerEnd + numVerts + numFaces; i++) {
+    if (i >= lines.length) break;
+    const parts = lines[i].trim().split(/\s+/);
+    const count = parseInt(parts[0], 10);
+    if (count === 3 && parts.length >= 4) {
+      const i0 = parseInt(parts[1], 10);
+      const i1 = parseInt(parts[2], 10);
+      const i2 = parseInt(parts[3], 10);
+      if (vertices[i0] && vertices[i1] && vertices[i2]) {
+        meshPositions.push(vertices[i0][0], vertices[i0][1], vertices[i0][2],
+                          vertices[i1][0], vertices[i1][1], vertices[i1][2],
+                          vertices[i2][0], vertices[i2][1], vertices[i2][2]);
+      }
+    } else if (count === 4 && parts.length >= 5) {
+      const i0 = parseInt(parts[1], 10);
+      const i1 = parseInt(parts[2], 10);
+      const i2 = parseInt(parts[3], 10);
+      const i3 = parseInt(parts[4], 10);
+      if (vertices[i0] && vertices[i1] && vertices[i2] && vertices[i3]) {
+        meshPositions.push(vertices[i0][0], vertices[i0][1], vertices[i0][2],
+                          vertices[i1][0], vertices[i1][1], vertices[i1][2],
+                          vertices[i2][0], vertices[i2][1], vertices[i2][2]);
+        meshPositions.push(vertices[i0][0], vertices[i0][1], vertices[i0][2],
+                          vertices[i2][0], vertices[i2][1], vertices[i2][2],
+                          vertices[i3][0], vertices[i3][1], vertices[i3][2]);
+      }
+    }
+  }
+
+  if (meshPositions.length > 0) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(meshPositions), 3));
+    geom.computeVertexNormals();
+    return geom;
+  }
+  return null;
+}
+
+function parseStepWireframe(text) {
+  const linePositions = [];
+  const pointMap = {};
+  const lines = text.split('\n');
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const cpMatch = line.match(/^#(\d+)\s*=\s*CARTESIAN_POINT\s*\([^,]*,\s*\(\s*([-\d.eE+]+)\s*,\s*([-\d.eE+]+)\s*,\s*([-\d.eE+]+)\s*\)\s*\)/i);
+    if (cpMatch) {
+      const id = cpMatch[1];
+      pointMap[id] = [parseFloat(cpMatch[2]), parseFloat(cpMatch[3]), parseFloat(cpMatch[4])];
+    }
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    const edgeMatch = line.match(/EDGE_CURVE\s*\([^,]*,\s*#(\d+)\s*,\s*#(\d+)/i);
+    if (edgeMatch) {
+      const p1 = pointMap[edgeMatch[1]];
+      const p2 = pointMap[edgeMatch[2]];
+      if (p1 && p2) {
+        linePositions.push(p1[0], p1[1], p1[2], p2[0], p2[1], p2[2]);
+      }
+    }
+  }
+
+  if (linePositions.length === 0) {
+    const pts = Object.values(pointMap);
+    for (let p = 0; p < pts.length - 1; p++) {
+      linePositions.push(pts[p][0], pts[p][1], pts[p][2], pts[p + 1][0], pts[p + 1][1], pts[p + 1][2]);
+    }
+  }
+
+  if (linePositions.length > 0) {
+    const geom = new THREE.BufferGeometry();
+    geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(linePositions), 3));
+    return { geometry: geom, isLines: true };
+  }
+  return null;
+}
+
+async function loadCadModel(filePath) {
+  const loadingOverlay = document.getElementById('cad-loading-overlay');
+  const loadingText = document.getElementById('cad-loading-text');
+  if (loadingOverlay) loadingOverlay.style.display = 'flex';
+  if (loadingText) loadingText.textContent = 'Fetching 3D CAD model...';
+
+  try {
+    const ext = filePath.split('.').pop().toLowerCase();
+    const endpoint = getPaneEndpoint(cadStudioActivePaneIndex);
+    const url = `${endpoint}/api/fs/download?path=${encodeURIComponent(filePath)}`;
+
+    const res = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+
+    if (!res.ok) {
+      throw new Error(`Failed to load file: ${res.statusText}`);
+    }
+
+    if (loadingText) loadingText.textContent = 'Parsing geometry...';
+
+    if (ext === 'stl') {
+      const buffer = await res.arrayBuffer();
+      const dataView = new DataView(buffer);
+      let isBinary = false;
+      if (buffer.byteLength >= 84) {
+        const numTriangles = dataView.getUint32(80, true);
+        const expectedSize = 84 + numTriangles * 50;
+        if (expectedSize === buffer.byteLength) {
+          isBinary = true;
+        }
+      }
+      const geom = isBinary ? parseBinaryStl(buffer) : parseAsciiStl(new TextDecoder('utf-8').decode(buffer));
+      applyModelToScene(geom, false);
+    } else if (ext === 'obj') {
+      const text = await res.text();
+      const geom = parseObj(text);
+      applyModelToScene(geom, false);
+    } else if (ext === 'dxf') {
+      const text = await res.text();
+      const parsed = parseDxf(text);
+      if (parsed) applyModelToScene(parsed.geometry, parsed.isLines);
+      else throw new Error('No supported entities found in DXF file');
+    } else if (ext === 'ply') {
+      const text = await res.text();
+      const geom = parsePly(text);
+      if (geom) applyModelToScene(geom, false);
+      else throw new Error('Unsupported PLY format');
+    } else if (['step', 'stp', 'iges', 'igs'].includes(ext)) {
+      const text = await res.text();
+      const parsed = parseStepWireframe(text);
+      if (parsed) applyModelToScene(parsed.geometry, parsed.isLines);
+      else throw new Error('Could not extract CAD wireframe vertices');
+    } else {
+      throw new Error(`Unsupported CAD format: .${ext}`);
+    }
+  } catch (err) {
+    console.error('CAD Load Error:', err);
+    showToast(`CAD Viewer Error: ${err.message}`, 'error');
+    if (loadingText) loadingText.textContent = `Error: ${err.message}`;
+    setTimeout(() => {
+      if (loadingOverlay) loadingOverlay.style.display = 'none';
+    }, 2500);
   }
 }
 

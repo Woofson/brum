@@ -120,6 +120,8 @@
   <!-- Leaflet.js CDN for Interactive GPS Maps -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" defer></script>
+  <!-- Three.js for 3D CAD Studio & Model Viewer -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js" defer></script>
 </head>
 <body>
 
@@ -4725,6 +4727,126 @@
     </div>
   </div>
 
+  <!-- ========================================== -->
+  <!-- 🧊 3D CAD STUDIO & MODEL VIEWER -->
+  <!-- ========================================== -->
+  <div class="floating-cad-window" id="floating-cad-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="cad-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="cad-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="cad-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="cad-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="cad-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- Window Header -->
+    <div class="modal-header cad-header" id="cad-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="cad-drag-handle">
+        <i data-lucide="box" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">3D CAD Studio</span>
+        <span id="cad-file-badge" class="badge" style="font-size: 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No model</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-icon desktop-only" id="btn-cad-dock" onclick="dockCadStudioToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-cad-maximize" onclick="toggleMaximizeCadStudio()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingCadStudio()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingCadStudio()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- CAD Toolbar -->
+    <div class="cad-toolbar" id="cad-toolbar">
+      <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 3px;">
+        <button class="btn btn-xs" id="btn-cad-view-iso" onclick="setCadCameraView('iso')" style="height: 26px; font-weight: 600;" title="Isometric View">ISO</button>
+        <button class="btn btn-xs" id="btn-cad-view-top" onclick="setCadCameraView('top')" style="height: 26px; font-weight: 600;" title="Top View (Z+)">TOP</button>
+        <button class="btn btn-xs" id="btn-cad-view-front" onclick="setCadCameraView('front')" style="height: 26px; font-weight: 600;" title="Front View (Y-)">FRONT</button>
+        <button class="btn btn-xs" id="btn-cad-view-right" onclick="setCadCameraView('right')" style="height: 26px; font-weight: 600;" title="Right View (X+)">RIGHT</button>
+      </div>
+
+      <div class="cad-toolbar-divider"></div>
+
+      <!-- Shading Mode -->
+      <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 10.5px; color: var(--text-muted);">Shading:</span>
+        <select id="cad-shading-select" class="pane-quick-filter" onchange="setCadShadingMode(this.value)" style="height: 26px; font-size: 11px;">
+          <option value="solid" selected>Solid (Studio)</option>
+          <option value="smooth">Smooth</option>
+          <option value="wireframe">Wireframe</option>
+          <option value="normals">Normal Map</option>
+          <option value="matcap">Matcap Clay</option>
+        </select>
+      </div>
+
+      <!-- Color Palette / Material -->
+      <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 4px;">
+        <span style="font-size: 10.5px; color: var(--text-muted);">Material:</span>
+        <select id="cad-material-select" class="pane-quick-filter" onchange="setCadMaterialTheme(this.value)" style="height: 26px; font-size: 11px;">
+          <option value="amber-charcoal" selected>Amber Charcoal</option>
+          <option value="amber-gold">Amber Gold</option>
+          <option value="steel">Polished Steel</option>
+          <option value="bronze">Industrial Bronze</option>
+          <option value="cyan">Cyber Cyan</option>
+          <option value="clay">Studio White Clay</option>
+        </select>
+      </div>
+
+      <div class="cad-toolbar-divider"></div>
+
+      <!-- Slicing / Cross-Section Plane -->
+      <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-xs" id="btn-cad-slice-toggle" onclick="toggleCadSlicer()" style="height: 26px;" title="Cross-Section Slicing Plane"><i data-lucide="scissors" style="width: 11px; height: 11px;"></i> Slice</button>
+        <div id="cad-slice-controls" style="display: none; align-items: center; gap: 4px;">
+          <select id="cad-slice-axis" class="pane-quick-filter" onchange="setCadSliceAxis(this.value)" style="height: 24px; font-size: 10.5px;">
+            <option value="z" selected>Z (Height)</option>
+            <option value="y">Y (Depth)</option>
+            <option value="x">X (Width)</option>
+          </select>
+          <input type="range" id="cad-slice-slider" min="0" max="100" value="100" oninput="updateCadSlicePlane(this.value)" style="width: 80px; height: 16px; accent-color: var(--accent); cursor: pointer;">
+        </div>
+      </div>
+
+      <div class="cad-toolbar-divider"></div>
+
+      <!-- Toggles & Action Tools -->
+      <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 3px; margin-left: auto;">
+        <button class="btn btn-icon btn-xs active" id="btn-cad-grid" onclick="toggleCadGrid()" title="Toggle Build Plate Grid" style="width: 26px; height: 26px;"><i data-lucide="grid" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs active" id="btn-cad-axes" onclick="toggleCadAxes()" title="Toggle Coordinate Axes" style="width: 26px; height: 26px;"><i data-lucide="compass" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-edges" onclick="toggleCadEdges()" title="Toggle Geometric Edges Overlay" style="width: 26px; height: 26px;"><i data-lucide="box-select" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-turntable" onclick="toggleCadTurntable()" title="Auto-Rotate / Turntable" style="width: 26px; height: 26px;"><i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-recenter" onclick="resetCadCamera()" title="Fit Model to View (F)" style="width: 26px; height: 26px;"><i data-lucide="focus" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-snapshot" onclick="takeCadSnapshot()" title="Export PNG Snapshot" style="width: 26px; height: 26px;"><i data-lucide="camera" style="width: 12px; height: 12px;"></i></button>
+      </div>
+    </div>
+
+    <!-- CAD Main Viewport Stage -->
+    <div class="cad-viewport-container" id="cad-viewport-container">
+      <canvas id="cad-webgl-canvas" class="cad-webgl-canvas"></canvas>
+
+      <!-- Viewport HUD Overlay: Top-Left Dimensions & Geometry Telemetry -->
+      <div class="cad-hud-top-left" id="cad-hud-top-left">
+        <div class="cad-hud-badge" id="cad-hud-dimensions">
+          <span style="color: var(--accent); font-weight: 700;">Size:</span> <span id="cad-dim-val">-- × -- × -- mm</span>
+        </div>
+      </div>
+
+      <!-- Viewport HUD Overlay: Bottom-Right 3D Printing & Mesh Telemetry -->
+      <div class="cad-hud-bottom-right" id="cad-hud-bottom-right">
+        <div class="cad-hud-telemetry">
+          <div><span class="cad-stat-label">Triangles:</span> <span id="cad-stat-triangles" class="cad-stat-val">0</span></div>
+          <div><span class="cad-stat-label">Vertices:</span> <span id="cad-stat-vertices" class="cad-stat-val">0</span></div>
+          <div><span class="cad-stat-label">Volume:</span> <span id="cad-stat-volume" class="cad-stat-val">0.0 cm³</span></div>
+          <div><span class="cad-stat-label">Print Wt (PLA):</span> <span id="cad-stat-weight" class="cad-stat-val">0.0 g</span></div>
+        </div>
+      </div>
+
+      <!-- Viewport Loading Overlay -->
+      <div class="cad-loading-overlay" id="cad-loading-overlay" style="display: none;">
+        <i data-lucide="loader-2" class="cad-spin" style="width: 28px; height: 28px; color: var(--accent);"></i>
+        <div id="cad-loading-text" style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 8px;">Loading 3D model...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- Rich Image Viewer Modal -->
   <div class="modal-overlay" id="image-viewer-modal">
     <div class="modal-box image-viewer-box" id="image-viewer-box">
@@ -6838,6 +6960,12 @@
   <div class="logviewer-pill" id="logviewer-pill" style="display: none;" onclick="restoreFloatingLogViewer()" title="Click to restore Log Viewer">
     <i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="logviewer-pill-title" id="logviewer-pill-title">Log Viewer</span>
+  </div>
+
+  <!-- 3D CAD Studio Minimized Task Pill -->
+  <div class="cad-pill" id="cad-pill" style="display: none;" onclick="restoreFloatingCadStudio()" title="Click to restore 3D CAD Studio">
+    <i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span class="cad-pill-title" id="cad-pill-title">3D CAD Studio</span>
   </div>
 
   <!-- Comic Book (.cbz/.cbr) & EPUB In-Browser Reader Modal -->

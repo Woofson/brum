@@ -2203,6 +2203,7 @@ async fn handle_public_share_page(
   <title>CommanderDog Showcase Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
   <style>
     :root {{
       --bg-dark: #121214;
@@ -2674,6 +2675,7 @@ async fn handle_public_share_page(
       if (['mp4', 'webm', 'mov', 'mkv', 'avi'].includes(ext) || mime.startsWith('video/')) return 'video';
       if (['mp3', 'wav', 'ogg', 'flac', 'aac', 'm4a'].includes(ext) || mime.startsWith('audio/')) return 'audio';
       if (ext === 'pdf' || mime === 'application/pdf') return 'pdf';
+      if (['stl', 'obj', 'gltf', 'glb', '3mf', 'step', 'stp', 'iges', 'igs', 'dxf', 'ply', 'off'].includes(ext)) return '3d';
       if (['txt', 'md', 'json', 'rs', 'js', 'ts', 'html', 'css', 'toml', 'yaml', 'yml', 'py', 'c', 'cpp', 'h', 'sh', 'sql', 'log'].includes(ext) || mime.startsWith('text/')) return 'text';
       return 'generic';
     }}
@@ -2818,6 +2820,7 @@ async fn handle_public_share_page(
         else if (type === 'video') icon = '🎬';
         else if (type === 'audio') icon = '🎵';
         else if (type === 'pdf') icon = '📑';
+        else if (type === '3d') icon = '🧊';
         else if (f.is_dir) icon = '📁';
 
         const previewUrl = `/api/public/shares/${{token}}/preview?file=${{encodeURIComponent(f.rel_path)}}${{verifiedPassword ? '&password=' + encodeURIComponent(verifiedPassword) : ''}}${{verifiedEmail ? '&email=' + encodeURIComponent(verifiedEmail) : ''}}`;
@@ -2877,7 +2880,7 @@ async fn handle_public_share_page(
       mount.innerHTML = '<div style="color:var(--text-muted); padding:20px;">Loading preview...</div>';
 
       document.getElementById('viewer-filename').textContent = filename;
-      document.getElementById('viewer-icon').textContent = type === 'image' ? '🖼️' : (type === 'video' ? '🎬' : (type === 'audio' ? '🎵' : '📄'));
+      document.getElementById('viewer-icon').textContent = type === 'image' ? '🖼️' : (type === 'video' ? '🎬' : (type === 'audio' ? '🎵' : (type === '3d' ? '🧊' : '📄')));
       
       const btnDl = document.getElementById('btn-viewer-download');
       if (shareMeta.allow_download) {{
@@ -2914,6 +2917,16 @@ async fn handle_public_share_page(
         `;
       }} else if (type === 'pdf') {{
         mount.innerHTML = `<iframe src="${{previewUrl}}" style="width:100%; height:100%; border:none;"></iframe>`;
+      }} else if (type === '3d') {{
+        mount.innerHTML = `
+          <div style="width:100%; height:100%; position:relative; display:flex; flex-direction:column; background:#121214; border-radius:6px; overflow:hidden;">
+            <canvas id="showcase-3d-canvas" style="width:100%; height:100%; display:block;"></canvas>
+            <div style="position:absolute; bottom:8px; left:8px; font-size:10px; color:var(--text-muted); background:rgba(0,0,0,0.6); padding:4px 8px; border-radius:4px; pointer-events:none;">
+              3D CAD Preview • Drag to rotate • Wheel to zoom
+            </div>
+          </div>
+        `;
+        initShowcase3dViewer(previewUrl, filename);
       }} else if (type === 'text') {{
         try {{
           const txtRes = await fetch(previewUrl);
@@ -2933,6 +2946,142 @@ async fn handle_public_share_page(
             ${{shareMeta.allow_download ? `<button class="btn btn-accent" onclick="downloadCurrentPreviewFile()">⬇️ Download File (${{formatBytes(size)}})</button>` : ''}}
           </div>
         `;
+      }}
+    }}
+
+    async function initShowcase3dViewer(url, filename) {{
+      const canvas = document.getElementById('showcase-3d-canvas');
+      if (!canvas || !window.THREE) return;
+      const parent = canvas.parentElement;
+      const width = parent.clientWidth || 600;
+      const height = parent.clientHeight || 450;
+
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x121214);
+      const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 10000);
+      camera.position.set(100, 100, 100);
+
+      const renderer = new THREE.WebGLRenderer({{ canvas: canvas, antialias: true, preserveDrawingBuffer: true }});
+      renderer.setSize(width, height);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+
+      scene.add(new THREE.HemisphereLight(0xffffff, 0x444444, 1.2));
+      const dl = new THREE.DirectionalLight(0xffffff, 1.5);
+      dl.position.set(100, 150, 100);
+      scene.add(dl);
+
+      let theta = Math.PI / 4, phi = Math.PI / 3, radius = 100;
+      let target = new THREE.Vector3(0, 0, 0);
+
+      function updateCam() {{
+        camera.position.set(
+          target.x + radius * Math.sin(phi) * Math.sin(theta),
+          target.y + radius * Math.cos(phi),
+          target.z + radius * Math.sin(phi) * Math.cos(theta)
+        );
+        camera.lookAt(target);
+      }}
+
+      let isDragging = false, startX = 0, startY = 0, startTheta = 0, startPhi = 0;
+      canvas.addEventListener('mousedown', e => {{
+        isDragging = true;
+        startX = e.clientX; startY = e.clientY;
+        startTheta = theta; startPhi = phi;
+      }});
+      window.addEventListener('mousemove', e => {{
+        if (!isDragging) return;
+        theta = startTheta - (e.clientX - startX) * 0.006;
+        phi = Math.max(0.01, Math.min(Math.PI - 0.01, startPhi - (e.clientY - startY) * 0.006));
+        updateCam();
+      }});
+      window.addEventListener('mouseup', () => {{ isDragging = false; }});
+      canvas.addEventListener('wheel', e => {{
+        e.preventDefault();
+        radius = Math.max(1, Math.min(10000, radius * (e.deltaY > 0 ? 1.1 : 0.9)));
+        updateCam();
+      }}, {{ passive: false }});
+
+      function animate() {{
+        if (document.getElementById('showcase-3d-canvas') === canvas) {{
+          renderer.render(scene, camera);
+          requestAnimationFrame(animate);
+        }}
+      }}
+      animate();
+
+      try {{
+        const ext = filename.split('.').pop().toLowerCase();
+        const res = await fetch(url);
+        if (!res.ok) return;
+
+        let geom = null;
+        if (ext === 'stl') {{
+          const buffer = await res.arrayBuffer();
+          const dv = new DataView(buffer);
+          let isBin = buffer.byteLength >= 84 && (84 + dv.getUint32(80, true) * 50 === buffer.byteLength);
+          if (isBin) {{
+            const count = dv.getUint32(80, true);
+            const pos = new Float32Array(count * 9);
+            let off = 84, pIdx = 0;
+            for (let i = 0; i < count; i++) {{
+              off += 12;
+              for (let v = 0; v < 3; v++) {{
+                pos[pIdx++] = dv.getFloat32(off, true);
+                pos[pIdx++] = dv.getFloat32(off + 4, true);
+                pos[pIdx++] = dv.getFloat32(off + 8, true);
+                off += 12;
+              }}
+              off += 2;
+            }}
+            geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+            geom.computeVertexNormals();
+          }}
+        }} else if (ext === 'obj') {{
+          const txt = await res.text();
+          const verts = [], pos = [];
+          for (const line of txt.split('\n')) {{
+            const p = line.trim().split(/\s+/);
+            if (p[0] === 'v') verts.push([parseFloat(p[1]), parseFloat(p[2]), parseFloat(p[3])]);
+            else if (p[0] === 'f' && p.length >= 4) {{
+              const i0 = parseInt(p[1]) - 1, i1 = parseInt(p[2]) - 1, i2 = parseInt(p[3]) - 1;
+              if (verts[i0] && verts[i1] && verts[i2]) {{
+                pos.push(...verts[i0], ...verts[i1], ...verts[i2]);
+              }}
+            }}
+          }}
+          if (pos.length > 0) {{
+            geom = new THREE.BufferGeometry();
+            geom.setAttribute('position', new THREE.BufferAttribute(new Float32Array(pos), 3));
+            geom.computeVertexNormals();
+          }}
+        }}
+
+        if (geom) {{
+          geom.computeBoundingBox();
+          const box = geom.boundingBox;
+          const center = new THREE.Vector3();
+          box.getCenter(center);
+          geom.translate(-center.x, -box.min.y, -center.z);
+          geom.computeBoundingBox();
+          geom.computeBoundingSphere();
+
+          const size = new THREE.Vector3();
+          geom.boundingBox.getSize(size);
+          const maxDim = Math.max(size.x, size.y, size.z) || 50;
+          radius = maxDim * 2.2;
+          target.set(0, size.y / 2, 0);
+          updateCam();
+
+          const mat = new THREE.MeshStandardMaterial({{ color: 0x475569, roughness: 0.35, metalness: 0.3, side: THREE.DoubleSide }});
+          const mesh = new THREE.Mesh(geom, mat);
+          scene.add(mesh);
+
+          const grid = new THREE.GridHelper(Math.ceil(maxDim * 2 / 10) * 10, 20, 0xf59e0b, 0x27272a);
+          scene.add(grid);
+        }}
+      }} catch (e) {{
+        console.error('Showcase 3D viewer error:', e);
       }}
     }}
 
