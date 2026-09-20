@@ -324,7 +324,7 @@ body {
   max-width: 100%;
   min-width: 0;
   box-sizing: border-box;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .logo-area {
@@ -338,6 +338,26 @@ body {
   margin-right: auto;
   min-width: 0;
   flex-shrink: 0;
+  overflow: visible;
+}
+
+.logo-brand-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  user-select: none;
+  border-radius: var(--radius-sm, 4px);
+  padding: 2px 4px;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.logo-brand-btn:hover {
+  opacity: 0.85;
+}
+
+.logo-brand-btn:active {
+  transform: scale(0.97);
 }
 
 .header-hostname-badge {
@@ -6350,7 +6370,7 @@ html.fkeys-disabled .bottom-fkey-bar,
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
-  z-index: 1200;
+  z-index: 2500;
   display: none;
   min-width: 210px;
   overflow: hidden;

@@ -11917,6 +11917,7 @@ function toggleToolsMenu(e) {
   e?.stopPropagation();
   const menu = document.getElementById('tools-dropdown-menu');
   const profileMenu = document.getElementById('profile-dropdown-menu');
+  if (typeof closeFleetSwitcherDropdown === 'function') closeFleetSwitcherDropdown();
   if (profileMenu) profileMenu.classList.remove('active');
   if (menu) {
     renderToolsMenu();
@@ -11933,6 +11934,7 @@ function toggleProfileMenu(e) {
   e?.stopPropagation();
   const menu = document.getElementById('profile-dropdown-menu');
   const toolsMenu = document.getElementById('tools-dropdown-menu');
+  if (typeof closeFleetSwitcherDropdown === 'function') closeFleetSwitcherDropdown();
   if (toolsMenu) toolsMenu.classList.remove('active');
   if (menu) menu.classList.toggle('active');
 }
