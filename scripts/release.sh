@@ -186,19 +186,19 @@ git push origin main --tags -f
 # 6. FETCH SOURCE TARBALL SHA256 & SYNC PKGBUILD
 # ------------------------------------------------------------------------------
 echo "🔒 Calculating GitHub source tarball SHA-256 for AUR..."
-sleep 2
+sleep 3
 SOURCE_URL="https://github.com/Woofson/brum/archive/refs/tags/v${TARGET_VERSION}.tar.gz"
 SOURCE_SHA256=""
-for attempt in {1..5}; do
-    SOURCE_SHA256=$(curl -sL "${SOURCE_URL}" | sha256sum | awk '{print $1}')
-    if [ -n "${SOURCE_SHA256}" ] && [ "${#SOURCE_SHA256}" -eq 64 ]; then
+for attempt in {1..8}; do
+    SOURCE_SHA256=$(curl -sSfL "${SOURCE_URL}" 2>/dev/null | sha256sum | awk '{print $1}' || true)
+    if [ -n "${SOURCE_SHA256}" ] && [ "${#SOURCE_SHA256}" -eq 64 ] && [ "${SOURCE_SHA256}" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
         break
     fi
-    echo "Retrying tarball checksum fetch (${attempt}/5)..."
-    sleep 2
+    echo "Retrying tarball checksum fetch (${attempt}/8)..."
+    sleep 3
 done
 
-if [ -n "${SOURCE_SHA256}" ] && [ "${#SOURCE_SHA256}" -eq 64 ]; then
+if [ -n "${SOURCE_SHA256}" ] && [ "${#SOURCE_SHA256}" -eq 64 ] && [ "${SOURCE_SHA256}" != "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855" ]; then
     echo "Source SHA-256: ${SOURCE_SHA256}"
     sed -i "s/^sha256sums=('.*')/sha256sums=('${SOURCE_SHA256}')/" packaging/PKGBUILD
     git add packaging/PKGBUILD packaging/brum-bin.PKGBUILD

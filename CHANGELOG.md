@@ -5,6 +5,19 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.9] - 2026-09-20
+
+### Zero-Install Client Local VFS & Windows Release Fix
+- **Zero-Install Client Local File System Access (VFS)**:
+  - Added native browser local folder mounting via the modern Web File System Access API (`showDirectoryPicker()`, `FileSystemDirectoryHandle`, `FileSystemFileHandle`).
+  - Implemented `client://<mount_name>` URI scheme with IndexedDB handle persistence across browser sessions.
+  - Enabled seamless bidirectional streaming transfers between local client machines and remote servers / fleet nodes.
+  - Native in-place actions: browse, branch view, folder creation, in-place renaming, deletion, and direct drag-and-drop from OS desktop into `client://` pane.
+  - Full Core Functions integration: Text/Code Editor, Universal Document Viewer (PDF, Markdown, CSV, HTML, Text), Hex Editor, 3D CAD Studio, Audio Player, Image Viewer, and Diff Viewer.
+- **Windows Release & Cross-Platform CI/CD Fix**:
+  - Resolved `windows_sys` symbol import for `INVALID_FILE_ATTRIBUTES` from `Win32::Storage::FileSystem` for `x86_64-pc-windows-msvc` builds.
+  - Cleaned up unused terminal imports and warnings.
+
 ## [0.8.8] - 2026-09-20
 
 ### 3D CAD Studio, Database Notes, Advanced Sharing Center & Context Menu Refactor

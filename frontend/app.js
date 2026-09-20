@@ -2840,9 +2840,604 @@ function openApiTokensModal() {
   }
 }
 
+// ---------------- 💻 ZERO-INSTALL CLIENT LOCAL VFS (BROWSER FSA API) ----------------
+
+const CLIENT_VFS_DB_NAME = 'brum_client_vfs';
+const CLIENT_VFS_DB_VERSION = 1;
+const CLIENT_VFS_STORE = 'handles';
+
+function openClientVfsDB() {
+  return new Promise((resolve, reject) => {
+    if (typeof indexedDB === 'undefined') {
+      return reject(new Error('IndexedDB not supported'));
+    }
+    const request = indexedDB.open(CLIENT_VFS_DB_NAME, CLIENT_VFS_DB_VERSION);
+    request.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains(CLIENT_VFS_STORE)) {
+        db.createObjectStore(CLIENT_VFS_STORE, { keyPath: 'name' });
+      }
+    };
+    request.onsuccess = (e) => resolve(e.target.result);
+    request.onerror = (e) => reject(e.target.error);
+  });
+}
+
+async function saveClientDirectoryHandle(name, handle) {
+  try {
+    const db = await openClientVfsDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CLIENT_VFS_STORE, 'readwrite');
+      const store = tx.objectStore(CLIENT_VFS_STORE);
+      store.put({ name, handle, lastUsed: Date.now() });
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.warn('Failed to save directory handle in IndexedDB:', err);
+  }
+}
+
+async function getClientDirectoryHandle(name) {
+  try {
+    const db = await openClientVfsDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CLIENT_VFS_STORE, 'readonly');
+      const store = tx.objectStore(CLIENT_VFS_STORE);
+      const req = store.get(name);
+      req.onsuccess = () => resolve(req.result ? req.result.handle : null);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    console.warn('Failed to get directory handle from IndexedDB:', err);
+    return null;
+  }
+}
+
+async function getAllStoredClientMounts() {
+  try {
+    const db = await openClientVfsDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CLIENT_VFS_STORE, 'readonly');
+      const store = tx.objectStore(CLIENT_VFS_STORE);
+      const req = store.getAll();
+      req.onsuccess = () => resolve(req.result || []);
+      req.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {
+    return [];
+  }
+}
+
+async function removeClientDirectoryHandle(name) {
+  try {
+    const db = await openClientVfsDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(CLIENT_VFS_STORE, 'readwrite');
+      const store = tx.objectStore(CLIENT_VFS_STORE);
+      store.delete(name);
+      tx.oncomplete = () => resolve();
+      tx.onerror = (e) => reject(e.target.error);
+    });
+  } catch (err) {}
+}
+
+const clientVfsState = {
+  mounts: new Map() // mountName -> { handle, name, lastUsed }
+};
+
+function parseClientPath(clientUri) {
+  if (typeof clientUri !== 'string' || !clientUri.startsWith('client://')) return null;
+  const raw = clientUri.replace(/^client:\/\//, '');
+  const slashIdx = raw.indexOf('/');
+  if (slashIdx === -1) {
+    return { mountName: raw, subPath: '', segments: [] };
+  }
+  const mountName = raw.substring(0, slashIdx);
+  const subPath = raw.substring(slashIdx + 1);
+  const segments = subPath.split('/').filter(Boolean);
+  return { mountName, subPath, segments };
+}
+
+async function openClientLocalDirectory(paneIndex = null) {
+  const targetPane = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  if (!('showDirectoryPicker' in window)) {
+    showToast('Browser File System Access API is not supported in this browser.', 'warning');
+    return;
+  }
+  try {
+    const handle = await window.showDirectoryPicker({ mode: 'readwrite' });
+    if (!handle) return;
+
+    if (handle.requestPermission) {
+      const perm = await handle.requestPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') {
+        showToast('Permission not granted for local folder access.', 'warning');
+        return;
+      }
+    }
+
+    const mountName = handle.name || 'local-client';
+    clientVfsState.mounts.set(mountName, { handle, name: mountName, lastUsed: Date.now() });
+    await saveClientDirectoryHandle(mountName, handle);
+
+    const targetPath = `client://${mountName}`;
+    loadPaneDirectory(targetPane, targetPath);
+    showToast(`Mounted local client folder "${mountName}"`, 'success');
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.error('Error opening client local directory:', err);
+      showToast(`Local directory error: ${err.message}`, 'error');
+    }
+  }
+}
+
+async function resolveClientDirectoryHandle(clientUri) {
+  const parsed = parseClientPath(clientUri);
+  if (!parsed) throw new Error('Invalid client URI');
+
+  let mount = clientVfsState.mounts.get(parsed.mountName);
+  if (!mount || !mount.handle) {
+    const storedHandle = await getClientDirectoryHandle(parsed.mountName);
+    if (storedHandle) {
+      let hasPerm = true;
+      if (storedHandle.queryPermission) {
+        let perm = await storedHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted' && storedHandle.requestPermission) {
+          try {
+            perm = await storedHandle.requestPermission({ mode: 'readwrite' });
+          } catch (_) {
+            hasPerm = false;
+          }
+        }
+        if (perm !== 'granted') hasPerm = false;
+      }
+      if (hasPerm) {
+        mount = { handle: storedHandle, name: parsed.mountName, lastUsed: Date.now() };
+        clientVfsState.mounts.set(parsed.mountName, mount);
+      }
+    }
+  }
+
+  if (!mount || !mount.handle) {
+    throw new Error(`Local client folder "${parsed.mountName}" is not active or permission was revoked. Please mount it again.`);
+  }
+
+  let curDir = mount.handle;
+  for (const seg of parsed.segments) {
+    curDir = await curDir.getDirectoryHandle(seg);
+  }
+  return curDir;
+}
+
+async function resolveClientFileHandle(clientUri, create = false) {
+  const parsed = parseClientPath(clientUri);
+  if (!parsed || parsed.segments.length === 0) throw new Error('Invalid client file URI');
+
+  const fileName = parsed.segments[parsed.segments.length - 1];
+  const dirSegments = parsed.segments.slice(0, -1);
+
+  let mount = clientVfsState.mounts.get(parsed.mountName);
+  if (!mount || !mount.handle) {
+    const storedHandle = await getClientDirectoryHandle(parsed.mountName);
+    if (storedHandle) {
+      let hasPerm = true;
+      if (storedHandle.queryPermission) {
+        let perm = await storedHandle.queryPermission({ mode: 'readwrite' });
+        if (perm !== 'granted' && storedHandle.requestPermission) {
+          try {
+            perm = await storedHandle.requestPermission({ mode: 'readwrite' });
+          } catch (_) {
+            hasPerm = false;
+          }
+        }
+        if (perm !== 'granted') hasPerm = false;
+      }
+      if (hasPerm) {
+        mount = { handle: storedHandle, name: parsed.mountName, lastUsed: Date.now() };
+        clientVfsState.mounts.set(parsed.mountName, mount);
+      }
+    }
+  }
+
+  if (!mount || !mount.handle) {
+    throw new Error(`Local client folder "${parsed.mountName}" is not active.`);
+  }
+
+  let curDir = mount.handle;
+  for (const seg of dirSegments) {
+    curDir = await curDir.getDirectoryHandle(seg, { create });
+  }
+  return await curDir.getFileHandle(fileName, { create });
+}
+
+async function scanClientDirectoryBranch(dirHandle, basePath, maxLimit = 5000) {
+  const allEntries = [];
+  async function traverse(currentHandle, currentPath) {
+    if (allEntries.length >= maxLimit) return;
+    for await (const [name, handle] of currentHandle.entries()) {
+      if (allEntries.length >= maxLimit) return;
+      const itemPath = currentPath.endsWith('/') ? `${currentPath}${name}` : `${currentPath}/${name}`;
+      const isDir = handle.kind === 'directory';
+      let size = 0;
+      let modified = Math.floor(Date.now() / 1000);
+      if (!isDir) {
+        try {
+          const file = await handle.getFile();
+          size = file.size;
+          modified = Math.floor(file.lastModified / 1000);
+        } catch (_) {}
+      }
+      allEntries.push({
+        name,
+        path: itemPath,
+        is_dir: isDir,
+        is_symlink: false,
+        is_archive: isArchiveFile(name),
+        size,
+        modified,
+        mode: isDir ? 16877 : 33188,
+        readonly: false,
+        owner: 'client',
+        group: 'client',
+        extension: isDir ? null : (name.split('.').pop() || null)
+      });
+      if (isDir) {
+        try {
+          await traverse(handle, itemPath);
+        } catch (_) {}
+      }
+    }
+  }
+  await traverse(dirHandle, basePath);
+  return allEntries;
+}
+
+async function loadClientLocalDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false) {
+  const pane = App.panes[paneIndex];
+  if (!pane) return;
+
+  const parsed = parseClientPath(targetPath);
+  if (!parsed) return;
+
+  if (pane._abortController) {
+    try { pane._abortController.abort(); } catch (_) {}
+    pane._abortController = null;
+  }
+
+  if (!retainBranch && pane.path && targetPath !== pane.path && pane.isBranchView) {
+    pane.isBranchView = false;
+    pane.isBranchTruncated = false;
+  }
+
+  pane.path = targetPath;
+  if (!selectItemName) {
+    pane.selected.clear();
+  }
+  localStorage.setItem(`cd_pane_path_${paneIndex}`, targetPath);
+
+  if (pushHistory && typeof window !== 'undefined' && window.history && typeof window.history.pushState === 'function') {
+    try {
+      window.history.pushState({ type: 'dir', paneIndex, path: targetPath, nodeId: 'local' }, '', '');
+    } catch (_) {}
+  }
+
+  if (pane.isBranchView) {
+    renderPaneBranchLoading(paneIndex);
+  }
+
+  try {
+    const dirHandle = await resolveClientDirectoryHandle(targetPath);
+    let entries = [];
+    let totalSize = 0;
+
+    if (pane.isBranchView) {
+      entries = await scanClientDirectoryBranch(dirHandle, targetPath, pane.branchMaxLimit || 5000);
+      totalSize = entries.reduce((acc, e) => acc + (e.size || 0), 0);
+    } else {
+      for await (const [name, handle] of dirHandle.entries()) {
+        if (!pane.showHidden && name.startsWith('.')) continue;
+
+        const isDir = handle.kind === 'directory';
+        let size = 0;
+        let modified = Math.floor(Date.now() / 1000);
+        let isArchive = false;
+
+        if (!isDir) {
+          try {
+            const file = await handle.getFile();
+            size = file.size;
+            modified = Math.floor(file.lastModified / 1000);
+            totalSize += size;
+            isArchive = isArchiveFile(name);
+          } catch (_) {}
+        }
+
+        const itemPath = targetPath.endsWith('/') ? `${targetPath}${name}` : `${targetPath}/${name}`;
+        entries.push({
+          name,
+          path: itemPath,
+          is_dir: isDir,
+          is_symlink: false,
+          is_archive: isArchive,
+          size,
+          modified,
+          mode: isDir ? 16877 : 33188,
+          readonly: false,
+          owner: 'client',
+          group: 'client',
+          extension: isDir ? null : (name.split('.').pop() || null)
+        });
+      }
+
+      entries.sort((a, b) => {
+        if (a.is_dir && !b.is_dir) return -1;
+        if (!a.is_dir && b.is_dir) return 1;
+        return a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' });
+      });
+    }
+
+    let parentPath = null;
+    if (parsed.segments.length > 0) {
+      const parentSegments = parsed.segments.slice(0, -1);
+      parentPath = parentSegments.length > 0 ? `client://${parsed.mountName}/${parentSegments.join('/')}` : `client://${parsed.mountName}`;
+    }
+
+    pane.path = targetPath;
+    pane.parentPath = parentPath;
+    pane.entries = entries;
+    pane.totalSize = totalSize;
+    pane.isBranchTruncated = false;
+
+    if (selectItemName && pane.entries) {
+      pane.selected.clear();
+      const cleanName = selectItemName.split('/').pop();
+      const match = pane.entries.find(e => e.name === cleanName || e.name === selectItemName || e.path === selectItemName || e.path.endsWith('/' + cleanName));
+      if (match) {
+        pane.selected.add(match.path);
+        const idx = pane.entries.indexOf(match);
+        if (idx !== -1) pane.cursorIndex = idx;
+      }
+    }
+
+    try {
+      renderPaneBreadcrumbs(paneIndex, pane.path);
+      renderPaneTabs(paneIndex);
+    } catch (bErr) {
+      console.error('Breadcrumb/tab render error:', bErr);
+    }
+
+    if (pane.dockedTool) {
+      renderDockedPaneTool(paneIndex);
+    } else {
+      renderPaneTable(paneIndex);
+      const activeTab = pane.tabs ? pane.tabs[pane.activeTabIndex] : null;
+      if (activeTab && activeTab.scrollTop) {
+        const mainView = document.querySelector(`#pane-${paneIndex} .pane-main-view`);
+        if (mainView) mainView.scrollTop = activeTab.scrollTop;
+      }
+    }
+
+    try {
+      updatePaneFooter(paneIndex, {
+        current_path: targetPath,
+        parent_path: parentPath,
+        entries,
+        total_size: totalSize,
+        free_space: null,
+        total_space: null,
+        read_only: false
+      });
+      if (paneIndex === App.activePaneIndex) {
+        updateBranchToggleState();
+      }
+    } catch (fErr) {}
+  } catch (err) {
+    console.error(`Failed to load client directory ${targetPath}:`, err);
+    showToast(`Client local folder: ${err.message}`, 'warning');
+    const userHome = getUserDefaultHomeDir() || '/';
+    loadPaneDirectory(paneIndex, userHome, false);
+  }
+}
+
+async function deleteClientLocalItem(itemPath) {
+  const parsed = parseClientPath(itemPath);
+  if (!parsed || parsed.segments.length === 0) throw new Error('Cannot delete client mount root');
+  const itemName = parsed.segments[parsed.segments.length - 1];
+  const parentSegments = parsed.segments.slice(0, -1);
+  const parentUri = parentSegments.length > 0 ? `client://${parsed.mountName}/${parentSegments.join('/')}` : `client://${parsed.mountName}`;
+  const parentDir = await resolveClientDirectoryHandle(parentUri);
+  await parentDir.removeEntry(itemName, { recursive: true });
+}
+
+async function createClientLocalDirectory(parentPath, newFolderName) {
+  const parentDir = await resolveClientDirectoryHandle(parentPath);
+  await parentDir.getDirectoryHandle(newFolderName, { create: true });
+}
+
+async function renameClientLocalItem(itemPath, newName) {
+  const parsed = parseClientPath(itemPath);
+  if (!parsed || parsed.segments.length === 0) throw new Error('Cannot rename client mount root');
+  const oldName = parsed.segments[parsed.segments.length - 1];
+  const parentSegments = parsed.segments.slice(0, -1);
+  const parentUri = parentSegments.length > 0 ? `client://${parsed.mountName}/${parentSegments.join('/')}` : `client://${parsed.mountName}`;
+  const parentDir = await resolveClientDirectoryHandle(parentUri);
+
+  try {
+    let targetHandle;
+    try {
+      targetHandle = await parentDir.getFileHandle(oldName);
+    } catch (_) {
+      targetHandle = await parentDir.getDirectoryHandle(oldName);
+    }
+    if (targetHandle && typeof targetHandle.move === 'function') {
+      await targetHandle.move(newName);
+      return;
+    }
+  } catch (_) {}
+
+  const oldFileHandle = await parentDir.getFileHandle(oldName);
+  const file = await oldFileHandle.getFile();
+  const newFileHandle = await parentDir.getFileHandle(newName, { create: true });
+  const writable = await newFileHandle.createWritable();
+  await writable.write(file);
+  await writable.close();
+  await parentDir.removeEntry(oldName);
+}
+
+async function executeClientLocalTransfer(action, sources, destination, destIdx, srcIdx) {
+  const isSrcClient = sources.some(s => s.startsWith('client://'));
+  const isDestClient = destination.startsWith('client://');
+
+  const totalItems = sources.length;
+  showToast(`Starting ${action === 'move' ? 'Move' : 'Copy'}: ${totalItems} item(s)...`, 'info');
+
+  const pill = document.getElementById('tasks-pill');
+  const pillText = document.getElementById('tasks-pill-text');
+  if (pill && pillText) {
+    pill.style.display = 'flex';
+    pillText.textContent = `Transferring ${action} (${isSrcClient ? 'Client' : 'Server'} ➔ ${isDestClient ? 'Client' : 'Server'})...`;
+  }
+
+  let successCount = 0;
+  let failCount = 0;
+
+  for (let i = 0; i < sources.length; i++) {
+    const srcPath = sources[i];
+    const fileName = srcPath.split('/').filter(Boolean).pop() || 'transfer_file';
+    if (pillText) pillText.textContent = `[${i + 1}/${totalItems}] ${fileName}...`;
+
+    try {
+      if (!isSrcClient && isDestClient) {
+        // Server -> Client
+        const srcEndpoint = getPaneEndpoint(srcIdx);
+        const srcHeaders = getPaneAuthHeaders(srcIdx);
+        const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(resolveAuthUri(srcPath))}`;
+        const downloadResp = await fetch(dlUrl, { method: 'GET', headers: srcHeaders });
+        if (!downloadResp.ok) throw new Error(`Download failed (${downloadResp.status})`);
+
+        const blob = await downloadResp.blob();
+        const destFileUri = destination.endsWith('/') ? `${destination}${fileName}` : `${destination}/${fileName}`;
+        const destHandle = await resolveClientFileHandle(destFileUri, true);
+        const writable = await destHandle.createWritable();
+        await writable.write(blob);
+        await writable.close();
+
+        if (action === 'move') {
+          await fetch(`${srcEndpoint}/api/fs/delete`, {
+            method: 'POST',
+            headers: getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' }),
+            body: JSON.stringify({ paths: [resolveAuthUri(srcPath)], use_trash: false })
+          });
+        }
+        successCount++;
+      } else if (isSrcClient && !isDestClient) {
+        // Client -> Server
+        const fileHandle = await resolveClientFileHandle(srcPath, false);
+        const file = await fileHandle.getFile();
+
+        const destEndpoint = getPaneEndpoint(destIdx);
+        const destHeaders = getPaneAuthHeaders(destIdx);
+        const formData = new FormData();
+        formData.append('files', file, fileName);
+
+        const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}`;
+        const uploadResp = await fetch(uploadUrl, {
+          method: 'POST',
+          headers: destHeaders,
+          body: formData
+        });
+        if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status}): ${await uploadResp.text()}`);
+
+        if (action === 'move') {
+          await deleteClientLocalItem(srcPath);
+        }
+        successCount++;
+      } else if (isSrcClient && isDestClient) {
+        // Client -> Client
+        const srcFileHandle = await resolveClientFileHandle(srcPath, false);
+        const file = await srcFileHandle.getFile();
+        const destFileUri = destination.endsWith('/') ? `${destination}${fileName}` : `${destination}/${fileName}`;
+        const destFileHandle = await resolveClientFileHandle(destFileUri, true);
+        const writable = await destFileHandle.createWritable();
+        await writable.write(file);
+        await writable.close();
+
+        if (action === 'move') {
+          await deleteClientLocalItem(srcPath);
+        }
+        successCount++;
+      }
+    } catch (err) {
+      console.error(`Transfer error for ${fileName}:`, err);
+      failCount++;
+      showToast(`Failed to transfer ${fileName}: ${err.message}`, 'error');
+    }
+  }
+
+  if (pill) pill.style.display = 'none';
+  if (action === 'move') {
+    const srcPane = App.panes[srcIdx];
+    if (srcPane && srcPane.selected) srcPane.selected.clear();
+  }
+
+  showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${successCount} item(s)${failCount > 0 ? ` (${failCount} failed)` : ''}`, successCount > 0 ? 'success' : 'error');
+  refreshAllPanes();
+}
+
+function computeJsLineDiff(textL, textR) {
+  const linesL = (textL || '').split('\n');
+  const linesR = (textR || '').split('\n');
+  const n = linesL.length;
+  const m = linesR.length;
+  const dp = Array.from({ length: n + 1 }, () => new Uint32Array(m + 1));
+
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < m; j++) {
+      if (linesL[i] === linesR[j]) {
+        dp[i + 1][j + 1] = dp[i][j] + 1;
+      } else {
+        dp[i + 1][j + 1] = Math.max(dp[i + 1][j], dp[i][j + 1]);
+      }
+    }
+  }
+
+  const result = [];
+  let i = n, j = m;
+  let additions = 0, deletions = 0;
+
+  while (i > 0 || j > 0) {
+    if (i > 0 && j > 0 && linesL[i - 1] === linesR[j - 1]) {
+      result.unshift({ tag: 'equal', content: linesL[i - 1], line_num_left: i, line_num_right: j });
+      i--;
+      j--;
+    } else if (j > 0 && (i === 0 || dp[i][j - 1] >= dp[i - 1][j])) {
+      result.unshift({ tag: 'insert', content: linesR[j - 1], line_num_left: null, line_num_right: j });
+      additions++;
+      j--;
+    } else if (i > 0 && (j === 0 || dp[i][j - 1] < dp[i - 1][j])) {
+      result.unshift({ tag: 'delete', content: linesL[i - 1], line_num_left: i, line_num_right: null });
+      deletions++;
+      i--;
+    }
+  }
+
+  return {
+    file_left: '',
+    file_right: '',
+    additions,
+    deletions,
+    lines: result
+  };
+}
+
 async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false) {
   const pane = App.panes[paneIndex];
   if (!pane) return;
+
+  if (typeof targetPath === 'string' && targetPath.startsWith('client://')) {
+    return loadClientLocalDirectory(paneIndex, targetPath, pushHistory, selectItemName, retainBranch);
+  }
 
   const isLocal = !pane.nodeId || pane.nodeId === 'local';
 
@@ -3188,6 +3783,69 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     return;
   }
 
+  if (pathStr.startsWith('client://')) {
+    const parsed = parseClientPath(pathStr);
+    const mountName = parsed ? parsed.mountName : 'local';
+    const subpath = parsed ? parsed.subPath : '';
+
+    const disIconBtn = document.createElement('button');
+    disIconBtn.className = 'btn btn-xs pane-disconnect-chip';
+    disIconBtn.style.marginRight = '4px';
+    disIconBtn.style.padding = '2px 6px';
+    disIconBtn.style.borderRadius = '4px';
+    disIconBtn.style.background = 'rgba(239, 68, 68, 0.15)';
+    disIconBtn.style.border = '1px solid rgba(239, 68, 68, 0.4)';
+    disIconBtn.style.color = 'var(--danger, #ef4444)';
+    disIconBtn.style.display = 'inline-flex';
+    disIconBtn.style.alignItems = 'center';
+    disIconBtn.style.justifyContent = 'center';
+    disIconBtn.style.cursor = 'pointer';
+    disIconBtn.style.flexShrink = '0';
+    disIconBtn.title = `Unmount local client folder (${mountName}) and return to server storage`;
+    disIconBtn.innerHTML = '<i data-lucide="eject" style="width:11px; height:11px;"></i>';
+    disIconBtn.onclick = (e) => {
+      e.stopPropagation();
+      disconnectPaneRemote(paneIndex);
+    };
+    container.appendChild(disIconBtn);
+
+    const rootCrumb = document.createElement('span');
+    rootCrumb.className = 'crumb';
+    rootCrumb.style.color = 'var(--accent)';
+    rootCrumb.style.fontWeight = '700';
+    rootCrumb.textContent = `💻 client://${mountName}`;
+    const rootTarget = `client://${mountName}`;
+    rootCrumb.onclick = (e) => { e.stopPropagation(); loadPaneDirectory(paneIndex, rootTarget); };
+    container.appendChild(rootCrumb);
+
+    if (subpath) {
+      const parts = subpath.split('/').filter(Boolean);
+      let curSub = '';
+      parts.forEach((part, partIdx) => {
+        const sep = document.createElement('span');
+        sep.className = 'crumb-sep crumb-sep-dropdown';
+        sep.textContent = '/';
+        const curParentDir = `client://${mountName}` + (curSub ? `/${curSub}` : '');
+        sep.onclick = (e) => {
+          e.stopPropagation();
+          showBreadcrumbSubfolderDropdown(e, paneIndex, curParentDir);
+        };
+        container.appendChild(sep);
+
+        curSub += (curSub ? '/' : '') + part;
+        const target = `client://${mountName}/${curSub}`;
+        const c = document.createElement('span');
+        c.className = 'crumb';
+        c.textContent = part;
+        c.onclick = (e) => { e.stopPropagation(); loadPaneDirectory(paneIndex, target); };
+        container.appendChild(c);
+      });
+    }
+
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
   const protoMatch = pathStr.match(/^([a-zA-Z0-9_-]+):\/\/(.*)$/);
   if (protoMatch) {
     const proto = protoMatch[1].toLowerCase();
@@ -3516,6 +4174,41 @@ async function showBreadcrumbSubfolderDropdown(event, paneIndex, parentDir) {
   document.body.appendChild(popover);
 
   try {
+    if (parentDir && parentDir.startsWith('client://')) {
+      const dirHandle = await resolveClientDirectoryHandle(parentDir);
+      const subdirs = [];
+      for await (const [name, handle] of dirHandle.entries()) {
+        if (handle.kind === 'directory' && !name.startsWith('.')) {
+          const itemPath = parentDir.endsWith('/') ? `${parentDir}${name}` : `${parentDir}/${name}`;
+          subdirs.push({ name, path: itemPath });
+        }
+      }
+      subdirs.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }));
+      popover.innerHTML = '';
+      if (subdirs.length === 0) {
+        popover.innerHTML = '<div style="padding: 6px 8px; color: var(--text-muted); font-size: 11px;">(No subfolders)</div>';
+        return;
+      }
+      const header = document.createElement('div');
+      header.className = 'breadcrumb-popover-header';
+      header.textContent = `Subfolders (${subdirs.length})`;
+      popover.appendChild(header);
+
+      subdirs.forEach(dir => {
+        const item = document.createElement('div');
+        item.className = 'breadcrumb-popover-item';
+        const isCurrentChild = App.panes[paneIndex].path.startsWith(dir.path);
+        if (isCurrentChild) item.classList.add('active');
+        item.innerHTML = `<span style="font-size: 12px;">📁</span> <span>${escapeHtml(dir.name)}</span>`;
+        item.onclick = () => {
+          loadPaneDirectory(paneIndex, dir.path);
+          closeBreadcrumbPopovers();
+        };
+        popover.appendChild(item);
+      });
+      return;
+    }
+
     const endpoint = getPaneEndpoint(paneIndex);
     const headers = getPaneAuthHeaders(paneIndex);
     const authUrl = resolveAuthUri(parentDir);
@@ -6822,6 +7515,26 @@ async function handlePaneDrop(e, targetPaneIndex, subfolderPath) {
 
   // OS Desktop Drag & Drop Upload
   if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    if (typeof destPath === 'string' && destPath.startsWith('client://')) {
+      const fileCount = e.dataTransfer.files.length;
+      let successCount = 0;
+      for (let f of e.dataTransfer.files) {
+        try {
+          const itemUri = destPath.endsWith('/') ? `${destPath}${f.name}` : `${destPath}/${f.name}`;
+          const fileHandle = await resolveClientFileHandle(itemUri, true);
+          const writable = await fileHandle.createWritable();
+          await writable.write(f);
+          await writable.close();
+          successCount++;
+        } catch (err) {
+          console.error('Error dropping file to client local:', err);
+        }
+      }
+      showToast(`Saved ${successCount} file(s) to client local folder`, 'success');
+      refreshPane(targetPaneIndex);
+      return;
+    }
+
     const fileCount = e.dataTransfer.files.length;
     const formData = new FormData();
     for (let f of e.dataTransfer.files) {
@@ -7109,6 +7822,11 @@ async function executeTransfer(action, sources, destination, refreshTargetPaneId
 
   const srcNode = getPaneNode(srcIdx);
   const destNode = getPaneNode(destIdx);
+
+  // Client VFS Local Transfer detected!
+  if (sources.some(s => typeof s === 'string' && s.startsWith('client://')) || (typeof destination === 'string' && destination.startsWith('client://'))) {
+    return executeClientLocalTransfer(action, sources, destination, destIdx, srcIdx);
+  }
 
   // Cross-Node Transfer detected!
   if (srcNode.id !== destNode.id) {
@@ -7725,32 +8443,41 @@ async function openEditorWithFile(filePath, paneIndex = null, lineNumber = null)
   }
 
   try {
-    const authPath = resolveAuthUri(filePath);
-    const endpoint = getPaneEndpoint(resolvedPaneIdx);
-    const authHeaders = getPaneAuthHeaders(resolvedPaneIdx);
-    const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(authPath)}`, {
-      headers: { ...authHeaders }
-    });
-
-    if (resp.ok) {
-      const data = await resp.json();
-      const tab = createNewEditorTab(data.content, null, cleanPath, false, []);
-      tab.paneIndex = resolvedPaneIdx;
-      
-      const isMd = cleanPath.endsWith('.md') || cleanPath.endsWith('.markdown');
-      handleEditorViewModeChange(isMd ? 'split-markdown' : 'single-editor');
-
-      const dockedIdx = App.panes.findIndex(p => p.dockedTool === 'editor');
-      if (dockedIdx !== -1) {
-        renderDockedPaneTool(dockedIdx);
-      } else {
-        openFloatingEditor();
-      }
-      if (lineNumber) {
-        setTimeout(() => jumpEditorToLine(lineNumber, 'left'), 60);
-      }
+    let content = '';
+    if (filePath.startsWith('client://')) {
+      const fileHandle = await resolveClientFileHandle(filePath);
+      const file = await fileHandle.getFile();
+      content = await file.text();
     } else {
-      showToast('Failed to read file: ' + sanitizeCredentials(await resp.text()), 'error');
+      const authPath = resolveAuthUri(filePath);
+      const endpoint = getPaneEndpoint(resolvedPaneIdx);
+      const authHeaders = getPaneAuthHeaders(resolvedPaneIdx);
+      const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(authPath)}`, {
+        headers: { ...authHeaders }
+      });
+
+      if (!resp.ok) {
+        showToast('Failed to read file: ' + sanitizeCredentials(await resp.text()), 'error');
+        return;
+      }
+      const data = await resp.json();
+      content = data.content;
+    }
+
+    const tab = createNewEditorTab(content, null, cleanPath, false, []);
+    tab.paneIndex = resolvedPaneIdx;
+    
+    const isMd = cleanPath.endsWith('.md') || cleanPath.endsWith('.markdown');
+    handleEditorViewModeChange(isMd ? 'split-markdown' : 'single-editor');
+
+    const dockedIdx = App.panes.findIndex(p => p.dockedTool === 'editor');
+    if (dockedIdx !== -1) {
+      renderDockedPaneTool(dockedIdx);
+    } else {
+      openFloatingEditor();
+    }
+    if (lineNumber) {
+      setTimeout(() => jumpEditorToLine(lineNumber, 'left'), 60);
     }
   } catch (e) {
     showToast('Read error: ' + sanitizeCredentials(String(e)), 'error');
@@ -11320,6 +12047,25 @@ async function saveActiveEditorTab() {
     tab.filename = getBasename(userPath);
   }
 
+  if (tab.path && tab.path.startsWith('client://')) {
+    try {
+      const fileHandle = await resolveClientFileHandle(tab.path, true);
+      const writable = await fileHandle.createWritable();
+      await writable.write(tab.content);
+      await writable.close();
+      tab.origContent = tab.content;
+      tab.isDirty = false;
+      flashSaveButton();
+      showToast(`Saved "${tab.filename}"!`, 'success');
+      renderEditorTabs();
+      refreshAllPanes();
+      return;
+    } catch (e) {
+      showToast('Save error: ' + sanitizeCredentials(String(e)), 'error');
+      return;
+    }
+  }
+
   try {
     const authPath = resolveAuthUri(tab.path);
     const paneIdx = (tab.paneIndex !== undefined && tab.paneIndex !== null) ? tab.paneIndex : App.activePaneIndex;
@@ -12262,45 +13008,79 @@ async function openFileDiffView(fileL, fileR) {
   if (window.lucide) lucide.createIcons();
 
   try {
-    const resp = await fetch('/api/tools/diff/files', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-      body: JSON.stringify({ file_left: fileL, file_right: fileR })
-    });
+    let diffData;
+    if (fileL.startsWith('client://') || fileR.startsWith('client://')) {
+      let textL = '';
+      let textR = '';
 
-    if (resp.ok) {
-      const diffData = await resp.json();
-      body.innerHTML = `
-        <div class="diff-file-header-card">
-          <div class="diff-file-stats">
-            <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_left))}">
-              <span style="font-weight: 700; color: var(--info);">L:</span>
-              <code>${escapeHtml(getBasename(diffData.file_left))}</code>
-            </div>
-            <span style="color: var(--text-dim); font-size: 11px;">⟷</span>
-            <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_right))}">
-              <span style="font-weight: 700; color: #c084fc;">R:</span>
-              <code>${escapeHtml(getBasename(diffData.file_right))}</code>
-            </div>
-            <span style="margin-left: 6px; font-size: 10.5px; font-family: var(--font-mono); background: rgba(245, 158, 11, 0.15); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-weight: 700; white-space: nowrap;">
-              +${diffData.additions} / -${diffData.deletions}
-            </span>
-          </div>
-          <button class="btn btn-sm" onclick="triggerDiff(false)"><i data-lucide="arrow-left"></i> Back</button>
-        </div>
-        <div class="diff-container">
-          ${diffData.lines.map(line => `
-            <div class="diff-line ${line.tag}">
-              <div class="diff-gutter">${line.line_num_left || ''} | ${line.line_num_right || ''}</div>
-              <div>${line.tag === 'insert' ? '+ ' : (line.tag === 'delete' ? '- ' : '  ')}${escapeHtml(line.content)}</div>
-            </div>
-          `).join('')}
-        </div>
-      `;
-      if (window.lucide) lucide.createIcons();
+      if (fileL.startsWith('client://')) {
+        const handleL = await resolveClientFileHandle(fileL, false);
+        if (!handleL) throw new Error('Client left file not found');
+        const fileObjL = await handleL.getFile();
+        textL = await fileObjL.text();
+      } else {
+        const respL = await fetch(getDownloadUrl(fileL, true));
+        if (!respL.ok) throw new Error(`Failed to read left file: ${respL.statusText}`);
+        textL = await respL.text();
+      }
+
+      if (fileR.startsWith('client://')) {
+        const handleR = await resolveClientFileHandle(fileR, false);
+        if (!handleR) throw new Error('Client right file not found');
+        const fileObjR = await handleR.getFile();
+        textR = await fileObjR.text();
+      } else {
+        const respR = await fetch(getDownloadUrl(fileR, true));
+        if (!respR.ok) throw new Error(`Failed to read right file: ${respR.statusText}`);
+        textR = await respR.text();
+      }
+
+      diffData = computeJsLineDiff(textL, textR);
+      diffData.file_left = fileL;
+      diffData.file_right = fileR;
     } else {
-      body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Failed to compare files: ${escapeHtml(await resp.text())}</div>`;
+      const resp = await fetch('/api/tools/diff/files', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        body: JSON.stringify({ file_left: fileL, file_right: fileR })
+      });
+
+      if (resp.ok) {
+        diffData = await resp.json();
+      } else {
+        body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Failed to compare files: ${escapeHtml(await resp.text())}</div>`;
+        return;
+      }
     }
+
+    body.innerHTML = `
+      <div class="diff-file-header-card">
+        <div class="diff-file-stats">
+          <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_left))}">
+            <span style="font-weight: 700; color: var(--info);">L:</span>
+            <code>${escapeHtml(getBasename(diffData.file_left))}</code>
+          </div>
+          <span style="color: var(--text-dim); font-size: 11px;">⟷</span>
+          <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_right))}">
+            <span style="font-weight: 700; color: #c084fc;">R:</span>
+            <code>${escapeHtml(getBasename(diffData.file_right))}</code>
+          </div>
+          <span style="margin-left: 6px; font-size: 10.5px; font-family: var(--font-mono); background: rgba(245, 158, 11, 0.15); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-weight: 700; white-space: nowrap;">
+            +${diffData.additions} / -${diffData.deletions}
+          </span>
+        </div>
+        <button class="btn btn-sm" onclick="triggerDiff(false)"><i data-lucide="arrow-left"></i> Back</button>
+      </div>
+      <div class="diff-container">
+        ${diffData.lines.map(line => `
+          <div class="diff-line ${line.tag}">
+            <div class="diff-gutter">${line.line_num_left || ''} | ${line.line_num_right || ''}</div>
+            <div>${line.tag === 'insert' ? '+ ' : (line.tag === 'delete' ? '- ' : '  ')}${escapeHtml(line.content)}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
   } catch (e) {
     body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error: ${escapeHtml(String(e))}</div>`;
   }
@@ -13255,16 +14035,19 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   let globalMounts = [];
   let userBookmarks = [];
   let storageRoots = [];
+  let storedClientMounts = [];
 
   try {
-    const [mountsRes, bmRes, rootsRes] = await Promise.all([
+    const [mountsRes, bmRes, rootsRes, clientMounts] = await Promise.all([
       fetch('/api/mounts/accessible', { headers: { 'Authorization': `Bearer ${App.token}` } }),
       fetch('/api/bookmarks', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } })
+      fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } }),
+      getAllStoredClientMounts().catch(() => [])
     ]);
     if (mountsRes.ok) globalMounts = await mountsRes.json();
     if (bmRes.ok) userBookmarks = await bmRes.json();
     if (rootsRes.ok) storageRoots = await rootsRes.json();
+    if (Array.isArray(clientMounts)) storedClientMounts = clientMounts;
   } catch (err) {
     console.warn('Failed to load favorites/bookmarks/storage roots:', err);
   }
@@ -13347,6 +14130,33 @@ async function openPaneFavoritesMenu(e, paneIndex) {
           </div>
         `;
       }).join('')}
+      <div class="context-sep" style="margin: 4px 0;"></div>
+
+      <!-- Client Local Storage (FSA API Zero-Install) -->
+      <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+        <span>Client Local Storage</span>
+        <span class="badge" style="font-size: 8.5px; padding: 1px 4px;">ZERO-INSTALL</span>
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); openClientLocalDirectory(${paneIndex});">
+        <i data-lucide="laptop" style="color: var(--accent);"></i>
+        <div>
+          <div style="font-weight: 600;">📁 Open Client Local Folder...</div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Mount local browser folder (FSA API)</div>
+        </div>
+      </div>
+      ${storedClientMounts.map(m => `
+        <div class="dropdown-item ${curPanePath.startsWith('client://' + m.name) ? 'active' : ''}" onclick="document.getElementById('pane-favorites-popup')?.remove(); loadPaneDirectory(${paneIndex}, 'client://${escapeHtml(m.name)}');">
+          <i data-lucide="folder-symlink" style="color: var(--accent);"></i>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">💻 ${escapeHtml(m.name)}</span>
+              <span class="badge" style="font-size: 8.5px; padding: 1px 4px;">CLIENT</span>
+            </div>
+            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">client://${escapeHtml(m.name)}</div>
+          </div>
+          ${curPanePath.startsWith('client://' + m.name) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+        </div>
+      `).join('')}
       <div class="context-sep" style="margin: 4px 0;"></div>
 
       ${storageRoots.length > 0 ? `
@@ -14503,10 +15313,38 @@ function showContextMenu(x, y) {
   positionContextMenu(menu, x, y);
 }
 
-function triggerDownloadContextItem() {
+async function triggerDownloadContextItem() {
   hideContextMenu();
   const item = App.contextItem;
   if (!item) return;
+
+  if (item.path && item.path.startsWith('client://')) {
+    if (item.is_dir) {
+      showToast('Client local folder downloading as zip is not supported directly; use server folder or copy files', 'info');
+      return;
+    }
+    try {
+      const handle = await resolveClientFileHandle(item.path, false);
+      if (!handle) {
+        showToast('Client local file not found', 'error');
+        return;
+      }
+      const file = await handle.getFile();
+      const blobUrl = URL.createObjectURL(file);
+      const a = document.createElement('a');
+      a.href = blobUrl;
+      a.download = item.name || file.name || 'download';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 10000);
+      showToast(`Initiating download for ${item.name}...`, 'success');
+    } catch (e) {
+      showToast('Download error: ' + sanitizeCredentials(String(e)), 'error');
+    }
+    return;
+  }
+
   const url = `/api/fs/download?path=${encodeURIComponent(item.path)}`;
   const a = document.createElement('a');
   a.href = url;
@@ -16903,11 +17741,21 @@ function triggerMkdir() {
       closeModal('mkdir-modal');
       return;
     }
+    closeModal('mkdir-modal');
+    if (pane.path && pane.path.startsWith('client://')) {
+      try {
+        await createClientLocalDirectory(pane.path, name);
+        showToast(`Created folder "${name}"`, 'success');
+        refreshAllPanes();
+      } catch (err) {
+        showToast('Failed to create folder: ' + err.message, 'error');
+      }
+      return;
+    }
     const newDir = `${pane.path.replace(/\/$/, '')}/${name}`;
     const authDir = resolveAuthUri(newDir);
     const endpoint = getPaneEndpoint(App.activePaneIndex);
     const headers = getPaneAuthHeaders(App.activePaneIndex, { 'Content-Type': 'application/json' });
-    closeModal('mkdir-modal');
     try {
       const resp = await fetch(`${endpoint}/api/fs/mkdir`, {
         method: 'POST',
@@ -17039,6 +17887,28 @@ function startInPlaceRename(targetPaneIdx, item) {
     committed = true;
 
     const toPath = `${pane.path.replace(/\/$/, '')}/${newName}`;
+
+    if (item.path && item.path.startsWith('client://')) {
+      try {
+        await renameClientLocalItem(item.path, newName);
+        showToast(`Renamed to "${newName}"`, 'success');
+        if (App.panes && Array.isArray(App.panes)) {
+          App.panes.forEach(p => {
+            if (p && p.selected && p.selected.has(item.path)) {
+              p.selected.delete(item.path);
+              p.selected.add(toPath);
+            }
+          });
+        }
+        refreshAllPanes();
+      } catch (e) {
+        showToast(`Rename error: ${e.message}`, 'error');
+        cancel();
+        refreshAllPanes();
+      }
+      return;
+    }
+
     const fromAuth = resolveAuthUri(item.path);
     const toAuth = resolveAuthUri(toPath);
     const endpoint = getPaneEndpoint(targetPaneIdx);
@@ -17111,18 +17981,17 @@ function startInPlaceRename(targetPaneIdx, item) {
         input.select();
       }
     }
-  }, 25);
+  }, 20);
 
   return true;
 }
 
 function openRenameModal(targetPaneIdx, item) {
   const pane = App.panes[targetPaneIdx];
+  if (!pane || !item) return;
+
   const input = document.getElementById('rename-input');
-  if (!input) {
-    console.error('rename-input not found');
-    return;
-  }
+  if (!input) return;
 
   input.value = item.name;
   showModal('rename-modal');
@@ -17149,11 +18018,32 @@ function openRenameModal(targetPaneIdx, item) {
       return;
     }
     const toPath = `${pane.path.replace(/\/$/, '')}/${newName}`;
+
+    closeModal('rename-modal');
+
+    if (item.path && item.path.startsWith('client://')) {
+      try {
+        await renameClientLocalItem(item.path, newName);
+        showToast(`Renamed to "${newName}"`, 'success');
+        if (App.panes && Array.isArray(App.panes)) {
+          App.panes.forEach(p => {
+            if (p && p.selected && p.selected.has(item.path)) {
+              p.selected.delete(item.path);
+              p.selected.add(toPath);
+            }
+          });
+        }
+        refreshAllPanes();
+      } catch (err) {
+        showToast('Rename failed: ' + err.message, 'error');
+      }
+      return;
+    }
+
     const fromAuth = resolveAuthUri(item.path);
     const toAuth = resolveAuthUri(toPath);
     const endpoint = getPaneEndpoint(targetPaneIdx);
     const headers = getPaneAuthHeaders(targetPaneIdx, { 'Content-Type': 'application/json' });
-    closeModal('rename-modal');
     try {
       const resp = await fetch(`${endpoint}/api/fs/rename`, {
         method: 'POST',
@@ -17222,34 +18112,47 @@ async function triggerDelete() {
 
   if (confirmed) {
     try {
-      const endpoint = getPaneEndpoint(targetPaneIdx);
-      const headers = getPaneAuthHeaders(targetPaneIdx, { 'Content-Type': 'application/json' });
-      const authPaths = paths.map(p => resolveAuthUri(p));
-      const resp = await fetch(`${endpoint}/api/fs/delete`, {
-        method: 'POST',
-        headers: headers,
-        body: JSON.stringify({ 
-          paths: authPaths, 
-          use_trash: useTrash, 
-          custom_trash_dir: customTrash,
-          windows_native_file_ops: App.windowsNativeOps,
-          detect_locking_processes: App.detectFileLocks
-        })
-      });
-      if (resp.ok) {
-        showToast(useTrash ? `Moved ${paths.length} item(s) to Trash` : `Permanently deleted ${paths.length} item(s)`, 'success');
-        if (App.panes && Array.isArray(App.panes)) {
-          App.panes.forEach(p => {
-            if (p && p.selected) {
-              paths.forEach(delPath => p.selected.delete(delPath));
-            }
-          });
+      const clientPaths = paths.filter(p => typeof p === 'string' && p.startsWith('client://'));
+      const serverPaths = paths.filter(p => !p.startsWith('client://'));
+
+      if (clientPaths.length > 0) {
+        for (const cp of clientPaths) {
+          await deleteClientLocalItem(cp);
         }
-        refreshAllPanes();
-        App.contextItem = null;
-      } else {
-        showToast(`Delete failed: ${sanitizeCredentials(await resp.text())}`, 'error');
       }
+
+      if (serverPaths.length > 0) {
+        const endpoint = getPaneEndpoint(targetPaneIdx);
+        const headers = getPaneAuthHeaders(targetPaneIdx, { 'Content-Type': 'application/json' });
+        const authPaths = serverPaths.map(p => resolveAuthUri(p));
+        const resp = await fetch(`${endpoint}/api/fs/delete`, {
+          method: 'POST',
+          headers: headers,
+          body: JSON.stringify({ 
+            paths: authPaths, 
+            use_trash: useTrash, 
+            custom_trash_dir: customTrash,
+            windows_native_file_ops: App.windowsNativeOps,
+            detect_locking_processes: App.detectFileLocks
+          })
+        });
+        if (!resp.ok) {
+          showToast(`Delete failed: ${sanitizeCredentials(await resp.text())}`, 'error');
+          refreshAllPanes();
+          return;
+        }
+      }
+
+      showToast(useTrash ? `Moved ${paths.length} item(s) to Trash` : `Permanently deleted ${paths.length} item(s)`, 'success');
+      if (App.panes && Array.isArray(App.panes)) {
+        App.panes.forEach(p => {
+          if (p && p.selected) {
+            paths.forEach(delPath => p.selected.delete(delPath));
+          }
+        });
+      }
+      refreshAllPanes();
+      App.contextItem = null;
     } catch (err) {
       showToast(`Delete error: ${sanitizeCredentials(String(err))}`, 'error');
     }
@@ -17343,6 +18246,10 @@ async function executeDeltaCopy() {
   const destIdx = (pendingDeltaTransfer && typeof pendingDeltaTransfer.targetIdx === 'number') ? pendingDeltaTransfer.targetIdx : (srcIdx + 1) % getVisiblePaneCount();
   const srcNode = getPaneNode(srcIdx);
   const destNode = getPaneNode(destIdx);
+
+  if (pendingDeltaTransfer.sources.some(s => typeof s === 'string' && s.startsWith('client://')) || (typeof dest === 'string' && dest.startsWith('client://'))) {
+    return executeClientLocalTransfer('copy', pendingDeltaTransfer.sources, dest, destIdx, srcIdx);
+  }
 
   if (srcNode.id !== destNode.id) {
     return executeCrossNodeTransfer('copy', pendingDeltaTransfer.sources, dest, destIdx, srcIdx);
@@ -19855,6 +20762,18 @@ function disconnectPaneRemote(paneIndex) {
     return;
   }
 
+  if (currentPath.startsWith('client://')) {
+    const parsed = parseClientPath(currentPath);
+    if (parsed) {
+      clientVfsState.mounts.delete(parsed.mountName);
+      removeClientDirectoryHandle(parsed.mountName).catch(() => {});
+    }
+    const targetLocal = App.user?.home_dir || '/';
+    loadPaneDirectory(paneIndex, targetLocal);
+    showToast(`🔌 Unmounted client local folder. Returned to ${targetLocal}`, 'info');
+    return;
+  }
+
   // Purge cached session credentials for this host / remote URI
   if (App.sessionCredentials) {
     const cleanCurrent = sanitizeCredentials(currentPath);
@@ -21182,12 +22101,20 @@ async function getImageBlobUrl(path, paneIndex = null) {
     return cached.blobUrl;
   }
 
-  const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentImageViewerPaneIndex;
-  const url = getDownloadUrl(path, true, pIdx);
-  const resp = await fetch(url);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const blob = await resp.blob();
-  const blobUrl = URL.createObjectURL(blob);
+  let blobUrl;
+  if (path.startsWith('client://')) {
+    const handle = await resolveClientFileHandle(path, false);
+    if (!handle) throw new Error('Client local image file not found');
+    const file = await handle.getFile();
+    blobUrl = URL.createObjectURL(file);
+  } else {
+    const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentImageViewerPaneIndex;
+    const url = getDownloadUrl(path, true, pIdx);
+    const resp = await fetch(url);
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    const blob = await resp.blob();
+    blobUrl = URL.createObjectURL(blob);
+  }
 
   if (imageViewerBlobCache.size >= MAX_IMAGE_BLOB_CACHE) {
     const oldestKey = imageViewerBlobCache.keys().next().value;
@@ -22342,40 +23269,46 @@ async function refreshDocViewerText() {
   const ext = currentDocViewerPath.split('.').pop().toLowerCase();
 
   try {
-    const pIdx = (currentDocViewerPaneIndex !== null && currentDocViewerPaneIndex !== undefined) ? currentDocViewerPaneIndex : App.activePaneIndex;
-    const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(pIdx) : '';
-    const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(pIdx) : { 'Authorization': `Bearer ${App.token}` };
-    const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(currentDocViewerPath)}`, {
-      headers
-    });
-    if (resp.ok) {
-      const data = await resp.json();
-      currentDocViewerRawText = data.content || '';
-
-      const allLines = currentDocViewerRawText.split('\n');
-      const totalLineCount = allLines.length;
-      let displayedText = currentDocViewerRawText;
-
-      if (docViewerTailLines !== 'all') {
-        const n = parseInt(docViewerTailLines, 10);
-        if (totalLineCount > n) {
-          displayedText = allLines.slice(-n).join('\n');
-        }
+    if (currentDocViewerPath.startsWith('client://')) {
+      const fileHandle = await resolveClientFileHandle(currentDocViewerPath);
+      const file = await fileHandle.getFile();
+      currentDocViewerRawText = await file.text();
+    } else {
+      const pIdx = (currentDocViewerPaneIndex !== null && currentDocViewerPaneIndex !== undefined) ? currentDocViewerPaneIndex : App.activePaneIndex;
+      const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(pIdx) : '';
+      const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(pIdx) : { 'Authorization': `Bearer ${App.token}` };
+      const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(currentDocViewerPath)}`, {
+        headers
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        currentDocViewerRawText = data.content || '';
       }
+    }
 
-      if (contentEl) {
-        contentEl.textContent = displayedText;
-      }
+    const allLines = currentDocViewerRawText.split('\n');
+    const totalLineCount = allLines.length;
+    let displayedText = currentDocViewerRawText;
 
-      if (metaEl) {
-        const sizeStr = formatBytes(new Blob([currentDocViewerRawText]).size);
-        const liveIndicator = docViewerTailFollow ? ' • <span style="color: #10b981; font-weight: bold;">🟢 Live (tail -f)</span>' : '';
-        metaEl.innerHTML = `${ext.toUpperCase()} • ${totalLineCount.toLocaleString()} lines (showing ${docViewerTailLines === 'all' ? 'all' : Math.min(totalLineCount, parseInt(docViewerTailLines, 10))}) • ${sizeStr}${liveIndicator}`;
+    if (docViewerTailLines !== 'all') {
+      const n = parseInt(docViewerTailLines, 10);
+      if (totalLineCount > n) {
+        displayedText = allLines.slice(-n).join('\n');
       }
+    }
 
-      if (docViewerTailFollow) {
-        scrollViewerToBottom();
-      }
+    if (contentEl) {
+      contentEl.textContent = displayedText;
+    }
+
+    if (metaEl) {
+      const sizeStr = formatBytes(new Blob([currentDocViewerRawText]).size);
+      const liveIndicator = docViewerTailFollow ? ' • <span style="color: #10b981; font-weight: bold;">🟢 Live (tail -f)</span>' : '';
+      metaEl.innerHTML = `${ext.toUpperCase()} • ${totalLineCount.toLocaleString()} lines (showing ${docViewerTailLines === 'all' ? 'all' : Math.min(totalLineCount, parseInt(docViewerTailLines, 10))}) • ${sizeStr}${liveIndicator}`;
+    }
+
+    if (docViewerTailFollow) {
+      scrollViewerToBottom();
     }
   } catch (e) {
     console.error('Tail refresh failed:', e);
@@ -22486,7 +23419,18 @@ async function openDocumentViewer(filePath, paneIndex = null) {
     const pdfPanel = document.getElementById('doc-view-pdf');
     const frame = document.getElementById('doc-pdf-frame');
     if (pdfPanel) pdfPanel.style.display = 'block';
-    if (frame) frame.src = streamUrl;
+
+    if (filePath.startsWith('client://')) {
+      resolveClientFileHandle(filePath).then(h => h.getFile()).then(f => {
+        const clientBlobUrl = URL.createObjectURL(f);
+        if (frame) frame.src = clientBlobUrl;
+        if (dlEl) { dlEl.href = clientBlobUrl; dlEl.download = fileName; }
+      }).catch(err => {
+        showToast('Failed to load local PDF: ' + err.message, 'error');
+      });
+    } else {
+      if (frame) frame.src = streamUrl;
+    }
 
   } else if (['md', 'markdown', 'rst'].includes(ext)) {
     if (metaEl) metaEl.textContent = 'Markdown Document • Rich GitHub Preview';
@@ -22507,16 +23451,22 @@ async function openDocumentViewer(filePath, paneIndex = null) {
     }
 
     try {
-      const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(filePath)}`, {
-        headers
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        currentDocViewerRawText = data.content || '';
-        if (mdPanel) {
-          mdPanel.innerHTML = renderMarkdownToHtml(currentDocViewerRawText);
-          postProcessMarkdownContainer(mdPanel);
+      if (filePath.startsWith('client://')) {
+        const fileHandle = await resolveClientFileHandle(filePath);
+        const file = await fileHandle.getFile();
+        currentDocViewerRawText = await file.text();
+      } else {
+        const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(filePath)}`, {
+          headers
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          currentDocViewerRawText = data.content || '';
         }
+      }
+      if (mdPanel) {
+        mdPanel.innerHTML = renderMarkdownToHtml(currentDocViewerRawText);
+        postProcessMarkdownContainer(mdPanel);
       }
     } catch (e) {
       if (mdPanel) mdPanel.innerHTML = `<div style="color: var(--danger); padding: 24px;">Failed to load markdown: ${escapeHtml(e.message)}</div>`;
@@ -22543,50 +23493,20 @@ async function openDocumentViewer(filePath, paneIndex = null) {
     }
 
     try {
-      const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(filePath)}`, {
-        headers
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        currentDocViewerRawText = data.content || '';
-        if (mdPanel) {
-          mdPanel.innerHTML = renderMarkdownToHtml(currentDocViewerRawText);
-          postProcessMarkdownContainer(mdPanel);
+      if (filePath.startsWith('client://')) {
+        const fileHandle = await resolveClientFileHandle(filePath);
+        const file = await fileHandle.getFile();
+        currentDocViewerRawText = await file.text();
+      } else {
+        const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(filePath)}`, {
+          headers
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          currentDocViewerRawText = data.content || '';
         }
       }
-    } catch (e) {
-      if (mdPanel) mdPanel.innerHTML = `<div style="color: var(--danger); padding: 24px;">Failed to load markdown: ${escapeHtml(e.message)}</div>`;
-    }
-
-  } else if (['csv', 'tsv', 'tab'].includes(ext)) {
-    const delim = ext === 'tsv' || ext === 'tab' ? '\t' : ',';
-    if (metaEl) metaEl.textContent = `${ext.toUpperCase()} Data Sheet • Interactive Table`;
-    if (iconEl) iconEl.setAttribute('data-lucide', 'table');
-
-    if (controlsEl) {
-      controlsEl.innerHTML = `
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <input type="text" id="doc-csv-filter" placeholder="Filter rows..." style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; color: var(--text-main); width: 140px;" oninput="filterDocCsv(this.value)">
-          <span id="doc-csv-stats" style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">0 rows</span>
-        </div>
-      `;
-    }
-
-    const csvPanel = document.getElementById('doc-view-csv');
-    if (csvPanel) {
-      csvPanel.style.display = 'block';
-      csvPanel.innerHTML = '<div style="color: var(--text-muted); padding: 24px; text-align: center;">Parsing CSV table...</div>';
-    }
-
-    try {
-      const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(filePath)}`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        currentDocViewerRawText = data.content || '';
-        renderCsvData(currentDocViewerRawText, delim);
-      }
+      renderCsvData(currentDocViewerRawText, delim);
     } catch (e) {
       if (csvPanel) csvPanel.innerHTML = `<div style="color: var(--danger); padding: 24px;">Failed to read CSV: ${escapeHtml(e.message)}</div>`;
     }
@@ -22606,7 +23526,17 @@ async function openDocumentViewer(filePath, paneIndex = null) {
     const webPanel = document.getElementById('doc-view-web');
     const frame = document.getElementById('doc-web-frame');
     if (webPanel) webPanel.style.display = 'block';
-    if (frame) frame.src = streamUrl;
+
+    if (filePath.startsWith('client://')) {
+      resolveClientFileHandle(filePath).then(h => h.getFile()).then(f => {
+        const clientBlobUrl = URL.createObjectURL(f);
+        if (frame) frame.src = clientBlobUrl;
+      }).catch(err => {
+        showToast('Failed to load local document: ' + err.message, 'error');
+      });
+    } else {
+      if (frame) frame.src = streamUrl;
+    }
 
   } else if (['docx', 'xlsx', 'pptx', 'odt', 'ods', 'doc', 'xls', 'ppt'].includes(ext)) {
     if (metaEl) metaEl.textContent = `${ext.toUpperCase()} Office Document`;
@@ -26898,6 +27828,7 @@ let spotlightAsyncAbortCtrl = null;
 let spotlightAsyncLoading = false;
 
 const SPOTLIGHT_STATIC_ACTIONS = [
+  { id: 'client-vfs', title: 'Open Local Client Folder (Browser)', sub: 'Mount a local directory directly into pane via Browser File System Access API (client://)', icon: 'laptop', cat: 'actions', action: () => openClientLocalDirectory(App.activePaneIndex) },
   { id: 'renamer', title: 'Batch Renamer', sub: 'Multi-file pattern replacement, sequential renamer & live diff preview (Ctrl+M)', icon: 'file-signature', cat: 'actions', action: () => openBatchRenamer() },
   { id: 'hexeditor', title: 'Hex Editor', sub: 'Binary hexadecimal viewer, byte patching & checksum calculator', icon: 'binary', cat: 'actions', action: () => openHexEditor() },
   { id: 'splitter', title: 'File Splitter & Combiner', sub: 'Split large files into chunks (.001, .002) and verify/combine with SHA-256', icon: 'scissors', cat: 'actions', action: () => openFileSplitterModal() },
@@ -28920,7 +29851,7 @@ let currentGitStatusData = null;
 let currentGitDiffFile = null;
 
 async function fetchGitStatusForPane(paneIndex, path) {
-  if (!path || path.startsWith('smb://') || path.startsWith('sftp://')) return;
+  if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('client://')) return;
   try {
     const resp = await fetch(`/api/git/status?path=${encodeURIComponent(path)}`, {
       headers: { 'Authorization': `Bearer ${App.token}` }
@@ -33211,7 +34142,20 @@ async function loadSoundDogTrack(index, autoPlay = true) {
   updateSoundDogPill();
   updateSoundDogDockedHUD();
 
-  const streamUrl = track.fileObj ? track.path : getDownloadUrl(track.path, true, track.paneIndex);
+  let streamUrl = track.path;
+  let clientFileObj = track.fileObj || null;
+  if (!clientFileObj && track.path.startsWith('client://')) {
+    try {
+      const handle = await resolveClientFileHandle(track.path, false);
+      if (handle) {
+        clientFileObj = await handle.getFile();
+        track.fileObj = clientFileObj;
+        streamUrl = URL.createObjectURL(clientFileObj);
+      }
+    } catch (e) {}
+  } else if (!clientFileObj) {
+    streamUrl = getDownloadUrl(track.path, true, track.paneIndex);
+  }
 
   if (isSynthTrack) {
     audioEl.pause();
@@ -33219,10 +34163,15 @@ async function loadSoundDogTrack(index, autoPlay = true) {
     SoundDogSynthEngine.stop();
 
     try {
-      const authHeaders = (track.paneIndex !== undefined && track.paneIndex !== null) ? getPaneAuthHeaders(track.paneIndex) : {};
-      const resp = await fetch(streamUrl, { headers: { ...authHeaders } });
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const arrayBuffer = await resp.arrayBuffer();
+      let arrayBuffer;
+      if (clientFileObj) {
+        arrayBuffer = await clientFileObj.arrayBuffer();
+      } else {
+        const authHeaders = (track.paneIndex !== undefined && track.paneIndex !== null) ? getPaneAuthHeaders(track.paneIndex) : {};
+        const resp = await fetch(streamUrl, { headers: { ...authHeaders } });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        arrayBuffer = await resp.arrayBuffer();
+      }
 
       const onTimeUpdate = (cur, dur) => {
         const pct = dur > 0 ? (cur / dur) * 100 : 0;
@@ -36368,22 +37317,16 @@ async function openHexEditor(filePath = null) {
     const badge = document.getElementById('hexeditor-file-badge');
     if (badge) badge.textContent = sanitizeCredentials(hexEditorState.fileName);
 
-    try {
-      const res = await fetch(`/api/fs/read?path=${encodeURIComponent(targetPath)}&max_bytes=2000000`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
-        let bytes;
-        if (data.is_binary) {
-          const binaryString = atob(data.content);
-          bytes = new Uint8Array(binaryString.length);
-          for (let i = 0; i < binaryString.length; i++) {
-            bytes[i] = binaryString.charCodeAt(i);
-          }
-        } else {
-          bytes = new TextEncoder().encode(data.content);
+    if (targetPath.startsWith('client://')) {
+      try {
+        const fileHandle = await resolveClientFileHandle(targetPath, false);
+        if (!fileHandle) {
+          showToast('Client local file not found', 'error');
+          return;
         }
+        const file = await fileHandle.getFile();
+        const arrayBuf = await file.arrayBuffer();
+        const bytes = new Uint8Array(arrayBuf);
 
         hexEditorState.buffer = bytes;
         hexEditorState.originalBuffer = new Uint8Array(bytes);
@@ -36392,11 +37335,40 @@ async function openHexEditor(filePath = null) {
 
         renderHexEditorView();
         computeHexHashes();
-      } else {
-        showToast('Failed to load binary file: ' + sanitizeCredentials(await res.text()), 'error');
+      } catch (e) {
+        showToast('Hex read error: ' + sanitizeCredentials(String(e)), 'error');
       }
-    } catch (e) {
-      showToast('Hex read error: ' + sanitizeCredentials(String(e)), 'error');
+    } else {
+      try {
+        const res = await fetch(`/api/fs/read?path=${encodeURIComponent(targetPath)}&max_bytes=2000000`, {
+          headers: { 'Authorization': `Bearer ${App.token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          let bytes;
+          if (data.is_binary) {
+            const binaryString = atob(data.content);
+            bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+              bytes[i] = binaryString.charCodeAt(i);
+            }
+          } else {
+            bytes = new TextEncoder().encode(data.content);
+          }
+
+          hexEditorState.buffer = bytes;
+          hexEditorState.originalBuffer = new Uint8Array(bytes);
+          hexEditorState.modifiedIndices.clear();
+          hexEditorState.activeOffset = 0;
+
+          renderHexEditorView();
+          computeHexHashes();
+        } else {
+          showToast('Failed to load binary file: ' + sanitizeCredentials(await res.text()), 'error');
+        }
+      } catch (e) {
+        showToast('Hex read error: ' + sanitizeCredentials(String(e)), 'error');
+      }
     }
   } else {
     // Default dummy buffer if opened without file
@@ -36715,6 +37687,30 @@ async function saveHexEditorChanges() {
   }
 
   const bytes = hexEditorState.buffer;
+
+  if (hexEditorState.filePath.startsWith('client://')) {
+    try {
+      const fileHandle = await resolveClientFileHandle(hexEditorState.filePath, false);
+      if (!fileHandle) {
+        showToast('Client local file not found', 'error');
+        return;
+      }
+      const writable = await fileHandle.createWritable();
+      await writable.write(bytes);
+      await writable.close();
+
+      hexEditorState.modifiedIndices.clear();
+      hexEditorState.originalBuffer = new Uint8Array(bytes);
+      renderHexEditorView();
+      computeHexHashes();
+      showToast('Saved modified binary file successfully!', 'success');
+      refreshAllPanes();
+    } catch (e) {
+      showToast('Save error: ' + sanitizeCredentials(String(e)), 'error');
+    }
+    return;
+  }
+
   let binaryString = '';
   for (let i = 0; i < bytes.length; i++) {
     binaryString += String.fromCharCode(bytes[i]);
@@ -39264,21 +40260,41 @@ async function loadCadModel(filePath) {
 
   try {
     const ext = filePath.split('.').pop().toLowerCase();
-    const endpoint = getPaneEndpoint(cadStudioActivePaneIndex);
-    const url = `${endpoint}/api/fs/download?path=${encodeURIComponent(filePath)}`;
+    let textContent = '';
+    let arrayBuffer = null;
 
-    const res = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
-    });
+    if (filePath.startsWith('client://')) {
+      const fileHandle = await resolveClientFileHandle(filePath, false);
+      if (!fileHandle) throw new Error('Client CAD file not found');
+      const file = await fileHandle.getFile();
+      if (ext === 'stl') {
+        arrayBuffer = await file.arrayBuffer();
+      } else {
+        textContent = await file.text();
+      }
+    } else {
+      const endpoint = getPaneEndpoint(cadStudioActivePaneIndex);
+      const url = `${endpoint}/api/fs/download?path=${encodeURIComponent(filePath)}`;
 
-    if (!res.ok) {
-      throw new Error(`Failed to load file: ${res.statusText}`);
+      const res = await fetch(url, {
+        headers: { 'Authorization': `Bearer ${App.token}` }
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to load file: ${res.statusText}`);
+      }
+
+      if (ext === 'stl') {
+        arrayBuffer = await res.arrayBuffer();
+      } else {
+        textContent = await res.text();
+      }
     }
 
     if (loadingText) loadingText.textContent = 'Parsing geometry...';
 
     if (ext === 'stl') {
-      const buffer = await res.arrayBuffer();
+      const buffer = arrayBuffer;
       const dataView = new DataView(buffer);
       let isBinary = false;
       if (buffer.byteLength >= 84) {
@@ -39291,22 +40307,18 @@ async function loadCadModel(filePath) {
       const geom = isBinary ? parseBinaryStl(buffer) : parseAsciiStl(new TextDecoder('utf-8').decode(buffer));
       applyModelToScene(geom, false);
     } else if (ext === 'obj') {
-      const text = await res.text();
-      const geom = parseObj(text);
+      const geom = parseObj(textContent);
       applyModelToScene(geom, false);
     } else if (ext === 'dxf') {
-      const text = await res.text();
-      const parsed = parseDxf(text);
+      const parsed = parseDxf(textContent);
       if (parsed) applyModelToScene(parsed.geometry, parsed.isLines);
       else throw new Error('No supported entities found in DXF file');
     } else if (ext === 'ply') {
-      const text = await res.text();
-      const geom = parsePly(text);
+      const geom = parsePly(textContent);
       if (geom) applyModelToScene(geom, false);
       else throw new Error('Unsupported PLY format');
     } else if (['step', 'stp', 'iges', 'igs'].includes(ext)) {
-      const text = await res.text();
-      const parsed = parseStepWireframe(text);
+      const parsed = parseStepWireframe(textContent);
       if (parsed) applyModelToScene(parsed.geometry, parsed.isLines);
       else throw new Error('Could not extract CAD wireframe vertices');
     } else {

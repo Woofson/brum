@@ -16,11 +16,11 @@ use tracing::info;
 
 #[cfg(windows)]
 use windows_sys::Win32::Foundation::{
-    ERROR_MORE_DATA, ERROR_SUCCESS, INVALID_FILE_ATTRIBUTES,
+    ERROR_MORE_DATA, ERROR_SUCCESS,
 };
 #[cfg(windows)]
 use windows_sys::Win32::Storage::FileSystem::{
-    GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_READONLY,
+    GetFileAttributesW, SetFileAttributesW, FILE_ATTRIBUTE_READONLY, INVALID_FILE_ATTRIBUTES,
 };
 #[cfg(windows)]
 use windows_sys::Win32::System::RestartManager::{
