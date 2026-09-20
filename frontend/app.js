@@ -3552,7 +3552,7 @@ async function showBreadcrumbSubfolderDropdown(event, paneIndex, parentDir) {
   }
 }
 
-function renderPaneTable(paneIndex) {
+function renderPaneTable(paneIndex, preserveScroll = true) {
   const pane = App.panes[paneIndex];
   const tableEl = document.getElementById(`pane-table-${paneIndex}`);
   const tbody = document.getElementById(`pane-tbody-${paneIndex}`);
@@ -3560,6 +3560,9 @@ function renderPaneTable(paneIndex) {
   const compactEl = document.getElementById(`pane-compact-${paneIndex}`);
   const mainEl = document.getElementById(`pane-main-${paneIndex}`);
   if (!tbody) return;
+
+  const prevScrollTop = (preserveScroll && mainEl) ? mainEl.scrollTop : 0;
+  const prevScrollLeft = (preserveScroll && mainEl) ? mainEl.scrollLeft : 0;
 
   // Manage Flat Branch View Banner
   let branchBanner = document.getElementById(`pane-branch-banner-${paneIndex}`);
@@ -3713,6 +3716,7 @@ function renderPaneTable(paneIndex) {
       let cTouchStartX = 0;
       let cTouchStartY = 0;
       let cIsScrolling = false;
+      let cIsLongPress = false;
       let cTouchTimer = null;
 
       card.ontouchstart = (e) => {
@@ -3721,20 +3725,23 @@ function renderPaneTable(paneIndex) {
         cTouchStartX = e.touches[0].clientX;
         cTouchStartY = e.touches[0].clientY;
         cIsScrolling = false;
+        cIsLongPress = false;
 
         cTouchTimer = setTimeout(() => {
           if (cIsScrolling) return;
+          cIsLongPress = true;
+          triggerHaptic(40);
           setActivePane(paneIndex);
-          if (pane.selected.has(entry.path)) {
-            pane.selected.delete(entry.path);
-          } else {
+          if (!pane.selected.has(entry.path)) {
             pane.selected.add(entry.path);
+            card.classList.add('selected');
           }
           pane.cursorIndex = idx;
           pane.anchorIndex = idx;
-          renderPaneTable(paneIndex);
           updateMobileBottomBar();
-          triggerHaptic(40);
+          App.contextItem = entry;
+          App.contextPaneIndex = paneIndex;
+          showContextMenu(cTouchStartX, cTouchStartY);
         }, 450);
       };
 
@@ -3756,14 +3763,18 @@ function renderPaneTable(paneIndex) {
           clearTimeout(cTouchTimer);
           cTouchTimer = null;
         }
-        if (cIsScrolling) return;
+        if (cIsScrolling || cIsLongPress) return;
         if (Date.now() - cTouchStart < 350) {
           setActivePane(paneIndex);
           if (pane.selected.size > 0) {
-            if (pane.selected.has(entry.path)) pane.selected.delete(entry.path);
-            else pane.selected.add(entry.path);
+            if (pane.selected.has(entry.path)) {
+              pane.selected.delete(entry.path);
+              card.classList.remove('selected');
+            } else {
+              pane.selected.add(entry.path);
+              card.classList.add('selected');
+            }
             pane.anchorIndex = idx;
-            renderPaneTable(paneIndex);
             updateMobileBottomBar();
             return;
           }
@@ -3926,6 +3937,8 @@ function renderPaneTable(paneIndex) {
       let iTouchStartX = 0;
       let iTouchStartY = 0;
       let iIsScrolling = false;
+      let iIsLongPress = false;
+      let iTouchTimer = null;
 
       item.ontouchstart = (e) => {
         if (!e.touches || e.touches.length === 0) return;
@@ -3933,24 +3946,56 @@ function renderPaneTable(paneIndex) {
         iTouchStartX = e.touches[0].clientX;
         iTouchStartY = e.touches[0].clientY;
         iIsScrolling = false;
+        iIsLongPress = false;
+
+        iTouchTimer = setTimeout(() => {
+          if (iIsScrolling) return;
+          iIsLongPress = true;
+          triggerHaptic(40);
+          setActivePane(paneIndex);
+          if (!pane.selected.has(entry.path)) {
+            pane.selected.add(entry.path);
+            item.classList.add('selected');
+          }
+          pane.cursorIndex = idx;
+          pane.anchorIndex = idx;
+          updateMobileBottomBar();
+          App.contextItem = entry;
+          App.contextPaneIndex = paneIndex;
+          showContextMenu(iTouchStartX, iTouchStartY);
+        }, 450);
       };
 
       item.ontouchmove = (e) => {
         if (!e.touches || e.touches.length === 0) return;
         const dx = Math.abs(e.touches[0].clientX - iTouchStartX);
         const dy = Math.abs(e.touches[0].clientY - iTouchStartY);
-        if (dx > 6 || dy > 6) iIsScrolling = true;
+        if (dx > 6 || dy > 6) {
+          iIsScrolling = true;
+          if (iTouchTimer) {
+            clearTimeout(iTouchTimer);
+            iTouchTimer = null;
+          }
+        }
       };
 
       item.ontouchend = (e) => {
-        if (iIsScrolling) return;
+        if (iTouchTimer) {
+          clearTimeout(iTouchTimer);
+          iTouchTimer = null;
+        }
+        if (iIsScrolling || iIsLongPress) return;
         if (Date.now() - iTouchStart < 350) {
           setActivePane(paneIndex);
           if (pane.selected.size > 0) {
-            if (pane.selected.has(entry.path)) pane.selected.delete(entry.path);
-            else pane.selected.add(entry.path);
+            if (pane.selected.has(entry.path)) {
+              pane.selected.delete(entry.path);
+              item.classList.remove('selected');
+            } else {
+              pane.selected.add(entry.path);
+              item.classList.add('selected');
+            }
             pane.anchorIndex = idx;
-            renderPaneTable(paneIndex);
             updateMobileBottomBar();
             return;
           }
@@ -4199,7 +4244,13 @@ function renderPaneTable(paneIndex) {
               pane.selected.add(entry.path);
               pane.anchorIndex = idx;
               pane.cursorIndex = idx;
-              renderPaneTable(paneIndex);
+              tr.classList.add('selected');
+              const iconWrap = tr.querySelector('.row-icon-wrapper');
+              if (iconWrap && isMobile) {
+                iconWrap.classList.add('selected');
+                iconWrap.innerHTML = `<i data-lucide="check" class="file-icon check-icon" style="width: 15px; height: 15px;"></i>`;
+                if (window.lucide) lucide.createIcons();
+              }
               updateMobileBottomBar();
             }
             App.contextItem = entry;
@@ -4236,11 +4287,24 @@ function renderPaneTable(paneIndex) {
           if (pane.selected.size > 0) {
             if (pane.selected.has(entry.path)) {
               pane.selected.delete(entry.path);
+              tr.classList.remove('selected');
+              const iconWrap = tr.querySelector('.row-icon-wrapper');
+              if (iconWrap && isMobile) {
+                iconWrap.classList.remove('selected');
+                iconWrap.innerHTML = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm');
+                if (window.lucide) lucide.createIcons();
+              }
             } else {
               pane.selected.add(entry.path);
+              tr.classList.add('selected');
+              const iconWrap = tr.querySelector('.row-icon-wrapper');
+              if (iconWrap && isMobile) {
+                iconWrap.classList.add('selected');
+                iconWrap.innerHTML = `<i data-lucide="check" class="file-icon check-icon" style="width: 15px; height: 15px;"></i>`;
+                if (window.lucide) lucide.createIcons();
+              }
             }
             pane.anchorIndex = idx;
-            renderPaneTable(paneIndex);
             updateMobileBottomBar();
             return;
           }
@@ -4356,6 +4420,17 @@ function renderPaneTable(paneIndex) {
       `;
 
       tbody.appendChild(tr);
+    });
+  }
+
+  if (preserveScroll && mainEl && prevScrollTop > 0) {
+    mainEl.scrollTop = prevScrollTop;
+    mainEl.scrollLeft = prevScrollLeft;
+    requestAnimationFrame(() => {
+      if (mainEl && prevScrollTop > 0 && Math.abs(mainEl.scrollTop - prevScrollTop) > 5) {
+        mainEl.scrollTop = prevScrollTop;
+        mainEl.scrollLeft = prevScrollLeft;
+      }
     });
   }
 
