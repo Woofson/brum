@@ -162,6 +162,15 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/notedog/section/decrypt", post(handle_notedog_section_decrypt))
         .route("/api/tools/notedog/notebook/encrypt", post(handle_notedog_notebook_encrypt))
         .route("/api/tools/notedog/notebook/decrypt", post(handle_notedog_notebook_decrypt))
+        // Persistent Database Notes & Attachments Engine
+        .route("/api/notes", get(handle_list_db_notes).post(handle_create_db_note))
+        .route("/api/notes/:id", get(handle_get_db_note).put(handle_update_db_note).delete(handle_delete_db_note))
+        .route("/api/notes/:id/attachments", get(handle_list_db_note_attachments).post(handle_upload_db_note_attachment))
+        .route("/api/notes/attachments/upload", post(handle_upload_db_note_attachment_standalone))
+        .route("/api/notes/attachments/:attachment_id", get(handle_get_db_note_attachment_binary).delete(handle_delete_db_note_attachment))
+        .route("/api/notes/attachments/:attachment_id/:filename", get(handle_get_db_note_attachment_binary_with_name))
+        .route("/api/notes/migrate/export", post(handle_notes_migrate_export))
+        .route("/api/notes/migrate/import", post(handle_notes_migrate_import))
         // TetraDog Classic Arcade ChewToy & Leaderboard API
         .route("/api/tools/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score).delete(handle_tetradog_clear_scores))
         .route("/api/chewtoys/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score))
@@ -4834,6 +4843,377 @@ async fn handle_notedog_notebook_decrypt(
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
+}
+
+// ---------------- PERSISTENT DATABASE NOTES & ATTACHMENTS HANDLERS ----------------
+
+#[derive(Deserialize)]
+struct ListDbNotesQuery {
+    search: Option<String>,
+    tag: Option<String>,
+    category: Option<String>,
+    section: Option<String>,
+    archived: Option<bool>,
+}
+
+async fn handle_list_db_notes(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<ListDbNotesQuery>,
+) -> Result<Json<Vec<crate::auth::DbNote>>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role == "admin";
+    let notes = state.auth.list_db_notes(
+        &claims.sub,
+        is_admin,
+        query.search.as_deref(),
+        query.tag.as_deref(),
+        query.category.as_deref(),
+        query.section.as_deref(),
+        query.archived.unwrap_or(false),
+    ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to list notes: {}", e)))?;
+    Ok(Json(notes))
+}
+
+#[derive(Deserialize)]
+struct CreateDbNoteRequest {
+    title: String,
+    content: Option<String>,
+    category: Option<String>,
+    section: Option<String>,
+    tags: Option<String>,
+    is_pinned: Option<bool>,
+    is_encrypted: Option<bool>,
+    color: Option<String>,
+}
+
+async fn handle_create_db_note(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<CreateDbNoteRequest>,
+) -> Result<Json<crate::auth::DbNote>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let title = payload.title.trim();
+    if title.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Title cannot be empty".to_string()));
+    }
+    let content = payload.content.as_deref().unwrap_or("");
+    let category = payload.category.as_deref().unwrap_or("General");
+    let section = payload.section.as_deref().unwrap_or("Default");
+    let tags = payload.tags.as_deref().unwrap_or("[]");
+    let is_pinned = payload.is_pinned.unwrap_or(false);
+    let is_encrypted = payload.is_encrypted.unwrap_or(false);
+    let color = payload.color.as_deref();
+
+    let note = state.auth.create_db_note(
+        &claims.sub,
+        title,
+        content,
+        category,
+        section,
+        tags,
+        is_pinned,
+        is_encrypted,
+        color,
+    ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create note: {}", e)))?;
+
+    Ok(Json(note))
+}
+
+async fn handle_get_db_note(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<Json<crate::auth::DbNote>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role == "admin";
+    let note = state.auth.get_db_note(id, &claims.sub, is_admin)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {}", e)))?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Note not found".to_string()))?;
+    Ok(Json(note))
+}
+
+#[derive(Deserialize)]
+struct UpdateDbNoteRequest {
+    title: Option<String>,
+    content: Option<String>,
+    category: Option<String>,
+    section: Option<String>,
+    tags: Option<String>,
+    is_pinned: Option<bool>,
+    is_archived: Option<bool>,
+    color: Option<Option<String>>,
+}
+
+async fn handle_update_db_note(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<i64>,
+    Json(payload): Json<UpdateDbNoteRequest>,
+) -> Result<Json<crate::auth::DbNote>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role == "admin";
+    let color_opt = payload.color.as_ref().map(|opt| opt.as_deref());
+
+    let note = state.auth.update_db_note(
+        id,
+        &claims.sub,
+        is_admin,
+        payload.title.as_deref(),
+        payload.content.as_deref(),
+        payload.category.as_deref(),
+        payload.section.as_deref(),
+        payload.tags.as_deref(),
+        payload.is_pinned,
+        payload.is_archived,
+        color_opt,
+    ).map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to update note: {}", e)))?;
+
+    Ok(Json(note))
+}
+
+async fn handle_delete_db_note(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role == "admin";
+    let attachments_to_delete = state.auth.delete_db_note(id, &claims.sub, is_admin)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to delete note: {}", e)))?;
+
+    for path_str in attachments_to_delete {
+        let _ = std::fs::remove_file(Path::new(&path_str));
+    }
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+async fn handle_list_db_note_attachments(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<i64>,
+) -> Result<Json<Vec<crate::auth::DbNoteAttachment>>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role == "admin";
+    let note = state.auth.get_db_note(id, &claims.sub, is_admin)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {}", e)))?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Note not found".to_string()))?;
+    Ok(Json(note.attachments))
+}
+
+async fn handle_upload_db_note_attachment(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<i64>,
+    multipart: Multipart,
+) -> Result<Json<crate::auth::DbNoteAttachment>, (StatusCode, String)> {
+    save_uploaded_note_attachment(&state, &headers, Some(id), multipart).await
+}
+
+#[derive(Deserialize)]
+struct UploadAttachmentQuery {
+    note_id: Option<i64>,
+}
+
+async fn handle_upload_db_note_attachment_standalone(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    axum::extract::Query(query): axum::extract::Query<UploadAttachmentQuery>,
+    multipart: Multipart,
+) -> Result<Json<crate::auth::DbNoteAttachment>, (StatusCode, String)> {
+    save_uploaded_note_attachment(&state, &headers, query.note_id, multipart).await
+}
+
+async fn save_uploaded_note_attachment(
+    state: &AppState,
+    headers: &HeaderMap,
+    note_id: Option<i64>,
+    mut multipart: Multipart,
+) -> Result<Json<crate::auth::DbNoteAttachment>, (StatusCode, String)> {
+    use sha2::{Digest, Sha256};
+    let claims = extract_claims_or_local(state, headers)?;
+    let attachments_dir = crate::tools::notedog::get_notes_attachments_dir();
+    let _ = std::fs::create_dir_all(&attachments_dir);
+
+    while let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
+        let original_name = field.file_name().unwrap_or("attachment").to_string();
+        let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
+        let data = field.bytes().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+
+        let size_bytes = data.len() as i64;
+        let mut hasher = Sha256::new();
+        hasher.update(&data);
+        let sha256 = format!("{:x}", hasher.finalize());
+
+        let clean_filename: String = original_name.chars().map(|c| if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' { c } else { '_' }).collect();
+        let unique_name = format!("{}_{}", uuid::Uuid::new_v4().to_string().replace('-', "")[..12].to_string(), clean_filename);
+        let storage_path = attachments_dir.join(&unique_name);
+
+        std::fs::write(&storage_path, &data)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write attachment file: {}", e)))?;
+
+        let att = state.auth.create_db_note_attachment(
+            note_id,
+            &claims.sub,
+            &original_name,
+            &content_type,
+            size_bytes,
+            &storage_path.to_string_lossy(),
+            Some(&sha256),
+        ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save attachment to DB: {}", e)))?;
+
+        return Ok(Json(att));
+    }
+
+    Err((StatusCode::BAD_REQUEST, "No file provided in multipart payload".to_string()))
+}
+
+async fn serve_attachment_binary(
+    state: &AppState,
+    headers: &HeaderMap,
+    attachment_id: i64,
+) -> Result<Response, (StatusCode, String)> {
+    let claims = extract_claims_or_local(state, headers)?;
+    let is_admin = claims.role == "admin";
+    let att = state.auth.get_db_note_attachment(attachment_id, &claims.sub, is_admin)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("DB error: {}", e)))?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Attachment not found".to_string()))?;
+
+    let p = Path::new(&att.storage_path);
+    if !p.exists() || !p.is_file() {
+        return Err((StatusCode::NOT_FOUND, "Attachment file missing on server".to_string()));
+    }
+
+    let bytes = std::fs::read(p)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read file: {}", e)))?;
+
+    let content_type = if !att.mime_type.is_empty() && att.mime_type != "application/octet-stream" {
+        att.mime_type
+    } else {
+        mime_guess::from_path(&att.filename)
+            .first_or_octet_stream()
+            .to_string()
+    };
+
+    let filename_header = format!("inline; filename=\"{}\"", att.filename);
+
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(header::CONTENT_TYPE, content_type)
+        .header(header::CONTENT_DISPOSITION, filename_header)
+        .header(header::CACHE_CONTROL, "public, max-age=31536000, immutable")
+        .body(Body::from(bytes))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    Ok(response)
+}
+
+async fn handle_get_db_note_attachment_binary(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(attachment_id): AxumPath<i64>,
+) -> Result<Response, (StatusCode, String)> {
+    serve_attachment_binary(&state, &headers, attachment_id).await
+}
+
+async fn handle_get_db_note_attachment_binary_with_name(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath((attachment_id, _filename)): AxumPath<(i64, String)>,
+) -> Result<Response, (StatusCode, String)> {
+    serve_attachment_binary(&state, &headers, attachment_id).await
+}
+
+async fn handle_delete_db_note_attachment(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(attachment_id): AxumPath<i64>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role == "admin";
+    let storage_path = state.auth.delete_db_note_attachment(attachment_id, &claims.sub, is_admin)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to delete attachment: {}", e)))?
+        .ok_or_else(|| (StatusCode::NOT_FOUND, "Attachment not found or access denied".to_string()))?;
+
+    let _ = std::fs::remove_file(Path::new(&storage_path));
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
+async fn handle_notes_migrate_export(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role == "admin";
+    let notes = state.auth.list_db_notes(&claims.sub, is_admin, None, None, None, None, false)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    let root = crate::tools::notedog::get_notedog_root_dir(None, Some(&state.config.notedog.notes_folder));
+    let mut exported_count = 0;
+
+    for note in notes {
+        let cat = if note.category.is_empty() { "General".to_string() } else { note.category };
+        let sec = if note.section.is_empty() { "Default".to_string() } else { note.section };
+        let target_dir = root.join(&cat).join(&sec);
+        let _ = std::fs::create_dir_all(&target_dir);
+
+        let sanitized_title: String = note.title.chars()
+            .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' || c == ' ' { c } else { '_' })
+            .collect();
+        let base_name = if sanitized_title.trim().is_empty() { "Untitled_Note" } else { sanitized_title.trim() };
+        let file_path = target_dir.join(format!("{}.md", base_name));
+
+        if std::fs::write(&file_path, note.content.as_bytes()).is_ok() {
+            let _ = crate::tools::notedog::create_note_snapshot(&file_path, note.content.as_bytes());
+            exported_count += 1;
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "exported_count": exported_count,
+        "target_directory": root.to_string_lossy()
+    })))
+}
+
+async fn handle_notes_migrate_import(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let info = crate::tools::notedog::scan_notedog_hierarchy(None, Some(&state.config.notedog.notes_folder));
+    let mut imported_count = 0;
+
+    for nb in info.notebooks {
+        for sec in nb.sections {
+            for note in sec.notes {
+                if !note.is_encrypted {
+                    if let Ok(content) = std::fs::read_to_string(&note.path) {
+                        let title = note.name;
+                        if state.auth.create_db_note(
+                            &claims.sub,
+                            &title,
+                            &content,
+                            &nb.name,
+                            &sec.name,
+                            "[]",
+                            false,
+                            false,
+                            None,
+                        ).is_ok() {
+                            imported_count += 1;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "imported_count": imported_count
+    })))
 }
 
 // ---------------- TETRADOG CLASSIC ARCADE CHEWTOY & LEADERBOARD HANDLERS ----------------

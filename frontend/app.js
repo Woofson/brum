@@ -8442,12 +8442,23 @@ function calcLoadHistoryItem(resVal) {
 const notedogState = {
   isOpen: false,
   isMaximized: false,
+  storageMode: localStorage.getItem('cd_notes_storage_mode') || 'database',
   rootFolder: '',
   customFolder: localStorage.getItem('cd_notedog_folder') || '',
+  // Filesystem notes
   notebooks: [],
   activeNotebook: '',
   activeSection: '',
   activeNote: null,
+  // Database notes
+  dbNotes: [],
+  activeDbNote: null,
+  activeCategory: 'General',
+  activeDbSection: 'Default',
+  categories: ['General', 'Work', 'Personal', 'Projects', 'Archive'],
+  sections: ['Default'],
+  activeAttachments: [],
+  // Common state
   content: '',
   isDirty: false,
   viewMode: 'split',
@@ -8458,6 +8469,8 @@ const notedogState = {
   dragInitialized: false,
   cachedPassphrases: {},
   unlockedNotes: {},
+  pasteDropInitialized: false,
+  attachmentsTrayOpen: false,
 };
 
 function saveNoteDogFolderSetting(newFolder) {
@@ -8471,7 +8484,9 @@ function saveNoteDogFolderSetting(newFolder) {
     notedogState.customFolder = '';
     showToast('NoteDog notes folder reset to default', 'info');
   }
-  loadNoteDogHierarchy();
+  if (notedogState.storageMode === 'filesystem') {
+    loadNoteDogHierarchy();
+  }
 }
 
 function browseNoteDogFolder() {
@@ -8492,6 +8507,34 @@ function promptChangeNoteDogFolder() {
   saveNoteDogFolderSetting(newPath);
 }
 
+function setNoteDogStorageMode(mode) {
+  notedogState.storageMode = mode;
+  localStorage.setItem('cd_notes_storage_mode', mode);
+
+  const win = document.getElementById('floating-notedog-window');
+  if (win) {
+    win.classList.toggle('db-mode', mode === 'database');
+    win.classList.toggle('fs-mode', mode === 'filesystem');
+  }
+
+  const btnDb = document.getElementById('btn-notedog-mode-db');
+  const btnFs = document.getElementById('btn-notedog-mode-fs');
+  if (btnDb) btnDb.classList.toggle('active', mode === 'database');
+  if (btnFs) btnFs.classList.toggle('active', mode === 'filesystem');
+
+  const tier1Title = document.getElementById('notedog-tier1-title');
+  if (tier1Title) tier1Title.textContent = mode === 'database' ? '📚 Categories' : '📚 Notebooks';
+
+  const metaBar = document.getElementById('notedog-meta-bar');
+  if (metaBar) metaBar.style.display = mode === 'database' ? 'flex' : 'none';
+
+  if (mode === 'database') {
+    loadDatabaseNotesHierarchy();
+  } else {
+    loadNoteDogHierarchy();
+  }
+}
+
 function openFloatingNoteDog(optionalNotePath) {
   closeToolsMenu();
   const win = document.getElementById('floating-notedog-window');
@@ -8502,7 +8545,7 @@ function openFloatingNoteDog(optionalNotePath) {
     notedogState.isOpen = true;
     bringFloatingWindowToFront(win);
     if (window.innerWidth <= 1024) {
-      if (optionalNotePath || notedogState.activeNote) {
+      if (optionalNotePath || notedogState.activeNote || notedogState.activeDbNote) {
         closeNoteDogDrawer();
       } else {
         openNoteDogDrawer();
@@ -8515,7 +8558,8 @@ function openFloatingNoteDog(optionalNotePath) {
   }
   initNoteDogDrag();
   initNoteDogTouchGestures();
-  loadNoteDogHierarchy(optionalNotePath);
+  initNoteDogEditorPasteAndDrop();
+  setNoteDogStorageMode(notedogState.storageMode);
   if (window.lucide) lucide.createIcons();
 }
 
@@ -8793,6 +8837,788 @@ function initNoteDogDrag() {
 
   setupNoteDogWindowResizers(win);
 }
+
+// ---------------- DATABASE NOTES & ATTACHMENTS CLIENT ENGINE ----------------
+
+async function loadDatabaseNotesHierarchy(targetNoteId) {
+  try {
+    let url = '/api/notes';
+    const params = [];
+    if (notedogState.searchQuery.trim()) {
+      params.push(`search=${encodeURIComponent(notedogState.searchQuery.trim())}`);
+    }
+    if (params.length > 0) url += `?${params.join('&')}`;
+
+    const resp = await fetch(url, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (!resp.ok) return;
+    const notes = await resp.json();
+    notedogState.dbNotes = notes || [];
+
+    // Extract categories
+    const defaultCats = ['General', 'Work', 'Personal', 'Projects', 'Archive'];
+    const foundCats = new Set(defaultCats);
+    notedogState.dbNotes.forEach(n => {
+      if (n.category) foundCats.add(n.category);
+    });
+    notedogState.categories = Array.from(foundCats);
+
+    if (!notedogState.activeCategory || !notedogState.categories.includes(notedogState.activeCategory)) {
+      notedogState.activeCategory = notedogState.categories[0] || 'General';
+    }
+
+    // Extract sections in active category
+    const catNotes = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory);
+    const foundSections = new Set(['Default']);
+    catNotes.forEach(n => {
+      if (n.section) foundSections.add(n.section);
+    });
+    notedogState.sections = Array.from(foundSections);
+
+    if (!notedogState.activeDbSection || !notedogState.sections.includes(notedogState.activeDbSection)) {
+      notedogState.activeDbSection = notedogState.sections[0] || 'Default';
+    }
+
+    renderDatabaseSidebar();
+
+    // Select target note or matching note or first note
+    if (targetNoteId) {
+      const match = notedogState.dbNotes.find(n => n.id === targetNoteId || n.id === Number(targetNoteId));
+      if (match) {
+        return selectDatabaseNote(match);
+      }
+    }
+
+    const currentNotes = catNotes.filter(n => n.section === notedogState.activeDbSection);
+    if (currentNotes.length > 0) {
+      if (!notedogState.activeDbNote || !currentNotes.some(n => n.id === notedogState.activeDbNote.id)) {
+        selectDatabaseNote(currentNotes[0]);
+      } else {
+        const refreshed = notedogState.dbNotes.find(n => n.id === notedogState.activeDbNote.id);
+        if (refreshed) selectDatabaseNote(refreshed);
+      }
+    } else {
+      notedogState.activeDbNote = null;
+      notedogState.content = '';
+      notedogState.activeAttachments = [];
+      const titleInput = document.getElementById('notedog-active-title');
+      if (titleInput) titleInput.value = 'No notes in section';
+      const textarea = document.getElementById('notedog-editor-textarea');
+      if (textarea) textarea.value = '';
+      const preview = document.getElementById('notedog-preview-content');
+      if (preview) preview.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 40px;">Click <b>+ Note</b> to create a new database note!</div>';
+      renderAttachmentsTray();
+    }
+  } catch (err) {
+    console.error('Database notes load failed:', err);
+  }
+}
+
+function renderDatabaseSidebar() {
+  const nbList = document.getElementById('notedog-notebooks-list');
+  const secList = document.getElementById('notedog-sections-list');
+  const noteList = document.getElementById('notedog-notes-list');
+
+  // 1. Categories
+  if (nbList) {
+    nbList.innerHTML = notedogState.categories.map(cat => {
+      const count = notedogState.dbNotes.filter(n => n.category === cat).length;
+      const isActive = cat === notedogState.activeCategory;
+      return `
+        <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseCategory('${escapeHtml(cat)}')" title="${escapeHtml(cat)} (${count} notes)">
+          <span>📚</span>
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cat)}</span>
+          <span class="notedog-item-count">${count}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 2. Sections in active category
+  if (secList) {
+    const catNotes = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory);
+    secList.innerHTML = notedogState.sections.map(sec => {
+      const count = catNotes.filter(n => n.section === sec).length;
+      const isActive = sec === notedogState.activeDbSection;
+      return `
+        <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection('${escapeHtml(sec)}')" title="${escapeHtml(sec)} (${count} notes)">
+          <span>📂</span>
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(sec)}</span>
+          <span class="notedog-item-count">${count}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  // 3. Notes in active section or search results
+  if (noteList) {
+    let notesToRender = [];
+    if (notedogState.searchQuery.trim()) {
+      notesToRender = notedogState.dbNotes;
+    } else {
+      notesToRender = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory && n.section === notedogState.activeDbSection);
+    }
+
+    if (notesToRender.length === 0) {
+      noteList.innerHTML = `<div style="padding: 10px; font-size: 11px; color: var(--text-dim); text-align: center;">${notedogState.searchQuery ? 'No matching notes' : 'No notes in section'}</div>`;
+    } else {
+      noteList.innerHTML = notesToRender.map(note => {
+        const isActive = notedogState.activeDbNote && (notedogState.activeDbNote.id === note.id);
+        const pinIcon = note.is_pinned ? '📌' : '📄';
+        const colorDot = note.color ? `<span style="width: 8px; height: 8px; border-radius: 50%; background: ${note.color}; display: inline-block; flex-shrink: 0;"></span>` : '';
+        const attBadge = (note.attachments && note.attachments.length > 0) ? `<span style="font-size: 9px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 2px;">📎 ${note.attachments.length}</span>` : '';
+        const subtext = notedogState.searchQuery.trim() ? `${note.category}/${note.section}` : '';
+        
+        return `
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseNoteById(${note.id})" title="${escapeHtml(note.title)}">
+            <span>${pinIcon}</span>
+            ${colorDot}
+            <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+              <div>${escapeHtml(note.title)}</div>
+              ${subtext ? `<div style="font-size: 9px; color: var(--text-dim);">${escapeHtml(subtext)}</div>` : ''}
+            </div>
+            ${attBadge}
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function selectDatabaseCategory(cat) {
+  notedogState.activeCategory = cat;
+  const catNotes = notedogState.dbNotes.filter(n => n.category === cat);
+  const foundSections = new Set(['Default']);
+  catNotes.forEach(n => { if (n.section) foundSections.add(n.section); });
+  notedogState.sections = Array.from(foundSections);
+  notedogState.activeDbSection = notedogState.sections[0] || 'Default';
+
+  renderDatabaseSidebar();
+  const currentNotes = catNotes.filter(n => n.section === notedogState.activeDbSection);
+  if (currentNotes.length > 0) {
+    selectDatabaseNote(currentNotes[0]);
+  } else {
+    notedogState.activeDbNote = null;
+    notedogState.content = '';
+    notedogState.activeAttachments = [];
+    const titleInput = document.getElementById('notedog-active-title');
+    if (titleInput) titleInput.value = 'No notes in section';
+    const textarea = document.getElementById('notedog-editor-textarea');
+    if (textarea) textarea.value = '';
+    const preview = document.getElementById('notedog-preview-content');
+    if (preview) preview.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 40px;">Click <b>+ Note</b> to create a note!</div>';
+    renderAttachmentsTray();
+  }
+}
+
+function selectDatabaseSection(sec) {
+  notedogState.activeDbSection = sec;
+  renderDatabaseSidebar();
+  const currentNotes = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory && n.section === sec);
+  if (currentNotes.length > 0) {
+    selectDatabaseNote(currentNotes[0]);
+  } else {
+    notedogState.activeDbNote = null;
+    notedogState.content = '';
+    notedogState.activeAttachments = [];
+    const titleInput = document.getElementById('notedog-active-title');
+    if (titleInput) titleInput.value = 'No notes in section';
+    const textarea = document.getElementById('notedog-editor-textarea');
+    if (textarea) textarea.value = '';
+    const preview = document.getElementById('notedog-preview-content');
+    if (preview) preview.innerHTML = '<div style="color: var(--text-dim); text-align: center; padding: 40px;">Click <b>+ Note</b> to create a note!</div>';
+    renderAttachmentsTray();
+  }
+}
+
+function selectDatabaseNoteById(id) {
+  const note = notedogState.dbNotes.find(n => n.id === id);
+  if (note) selectDatabaseNote(note);
+}
+
+function selectDatabaseNote(note) {
+  if (notedogState.isDirty && notedogState.activeDbNote) {
+    saveActiveDatabaseNote(true);
+  }
+
+  notedogState.activeDbNote = note;
+  notedogState.content = note.content || '';
+  notedogState.isDirty = false;
+  notedogState.activeAttachments = note.attachments || [];
+
+  const titleInput = document.getElementById('notedog-active-title');
+  if (titleInput) titleInput.value = note.title;
+
+  const textarea = document.getElementById('notedog-editor-textarea');
+  if (textarea) textarea.value = notedogState.content;
+
+  const saveStatus = document.getElementById('notedog-save-status');
+  if (saveStatus) {
+    saveStatus.textContent = 'Saved';
+    saveStatus.className = 'notedog-save-status';
+  }
+
+  const colorIndicator = document.getElementById('notedog-color-indicator');
+  if (colorIndicator) {
+    colorIndicator.style.background = note.color || 'transparent';
+    colorIndicator.style.border = note.color ? `1px solid ${note.color}` : '1px solid rgba(255,255,255,0.25)';
+  }
+
+  const pinBtn = document.getElementById('btn-pin-note');
+  if (pinBtn) {
+    pinBtn.classList.toggle('active', !!note.is_pinned);
+    pinBtn.style.color = note.is_pinned ? 'var(--accent)' : 'var(--text-muted)';
+  }
+
+  const catChip = document.getElementById('notedog-active-cat-chip');
+  if (catChip) catChip.textContent = note.category || 'General';
+
+  const secChip = document.getElementById('notedog-active-sec-chip');
+  if (secChip) secChip.textContent = note.section || 'Default';
+
+  const updatedTime = document.getElementById('notedog-updated-time');
+  if (updatedTime && note.updated_at) {
+    try {
+      const dt = new Date(note.updated_at);
+      updatedTime.textContent = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch(e) {}
+  }
+
+  const unlockCard = document.getElementById('notedog-unlock-card');
+  if (unlockCard) unlockCard.style.display = 'none';
+
+  renderDatabaseNoteTags(note);
+  renderAttachmentsTray();
+  syncNoteDogGutter();
+  renderNoteDogPreview(notedogState.content);
+  renderDatabaseSidebar();
+
+  if (window.innerWidth <= 1024) {
+    closeNoteDogDrawer();
+  }
+}
+
+function renderDatabaseNoteTags(note) {
+  const container = document.getElementById('notedog-tags-list');
+  if (!container) return;
+  let tags = [];
+  try {
+    tags = typeof note.tags === 'string' ? JSON.parse(note.tags || '[]') : (note.tags || []);
+  } catch(e) {
+    tags = [];
+  }
+  container.innerHTML = tags.map(t => `
+    <span class="notedog-tag-chip">
+      #${escapeHtml(t)}
+      <span class="del-tag" onclick="removeNoteTag('${escapeHtml(t)}')" title="Remove tag">×</span>
+    </span>
+  `).join('');
+}
+
+async function promptAddNoteTag() {
+  if (!notedogState.activeDbNote) return;
+  const tag = prompt('Enter new tag name (e.g. design, todo, reference):');
+  if (!tag || !tag.trim()) return;
+  const cleanTag = tag.trim().replace(/^#/, '');
+
+  let tags = [];
+  try {
+    tags = typeof notedogState.activeDbNote.tags === 'string' ? JSON.parse(notedogState.activeDbNote.tags || '[]') : (notedogState.activeDbNote.tags || []);
+  } catch(e) { tags = []; }
+
+  if (!tags.includes(cleanTag)) {
+    tags.push(cleanTag);
+    notedogState.activeDbNote.tags = JSON.stringify(tags);
+    await saveActiveDatabaseNote(true);
+    renderDatabaseNoteTags(notedogState.activeDbNote);
+    showToast(`Added tag #${cleanTag}`, 'info');
+  }
+}
+
+async function removeNoteTag(tag) {
+  if (!notedogState.activeDbNote) return;
+  let tags = [];
+  try {
+    tags = typeof notedogState.activeDbNote.tags === 'string' ? JSON.parse(notedogState.activeDbNote.tags || '[]') : (notedogState.activeDbNote.tags || []);
+  } catch(e) { tags = []; }
+
+  tags = tags.filter(t => t !== tag);
+  notedogState.activeDbNote.tags = JSON.stringify(tags);
+  await saveActiveDatabaseNote(true);
+  renderDatabaseNoteTags(notedogState.activeDbNote);
+}
+
+async function toggleActiveNotePin() {
+  if (!notedogState.activeDbNote) return;
+  const newPinned = !notedogState.activeDbNote.is_pinned;
+  notedogState.activeDbNote.is_pinned = newPinned;
+  await saveActiveDatabaseNote(true);
+  const pinBtn = document.getElementById('btn-pin-note');
+  if (pinBtn) {
+    pinBtn.classList.toggle('active', newPinned);
+    pinBtn.style.color = newPinned ? 'var(--accent)' : 'var(--text-muted)';
+  }
+  renderDatabaseSidebar();
+  showToast(newPinned ? 'Note pinned to top' : 'Note unpinned', 'info');
+}
+
+function openNoteDogColorPicker(e) {
+  if (!notedogState.activeDbNote) return;
+  const colors = [
+    { label: 'Amber (Default)', value: '#f59e0b' },
+    { label: 'Emerald Green', value: '#10b981' },
+    { label: 'Sky Blue', value: '#38bdf8' },
+    { label: 'Purple / Violet', value: '#a855f7' },
+    { label: 'Rose / Pink', value: '#ec4899' },
+    { label: 'Crimson Red', value: '#ef4444' },
+    { label: 'None (Clear)', value: null }
+  ];
+
+  let menu = 'Select note color accent:\n';
+  colors.forEach((c, idx) => {
+    menu += `${idx + 1}. ${c.label}\n`;
+  });
+  const choice = prompt(menu + '\nEnter number (1-7):', '1');
+  if (!choice) return;
+  const idx = parseInt(choice, 10) - 1;
+  const sel = colors[idx];
+  if (sel !== undefined) {
+    setNoteColor(sel.value);
+  }
+}
+
+async function setNoteColor(color) {
+  if (!notedogState.activeDbNote) return;
+  notedogState.activeDbNote.color = color;
+  await saveActiveDatabaseNote(true);
+  const colorIndicator = document.getElementById('notedog-color-indicator');
+  if (colorIndicator) {
+    colorIndicator.style.background = color || 'transparent';
+    colorIndicator.style.border = color ? `1px solid ${color}` : '1px solid rgba(255,255,255,0.25)';
+  }
+  renderDatabaseSidebar();
+}
+
+async function promptChangeNoteCategory() {
+  if (!notedogState.activeDbNote) return;
+  const newCat = prompt('Change note category:\n(e.g. General, Work, Personal, Projects)', notedogState.activeDbNote.category || 'General');
+  if (newCat === null) return;
+  const clean = newCat.trim() || 'General';
+  notedogState.activeDbNote.category = clean;
+  notedogState.activeCategory = clean;
+  await saveActiveDatabaseNote(true);
+  await loadDatabaseNotesHierarchy(notedogState.activeDbNote.id);
+  showToast(`Moved note to category "${clean}"`, 'success');
+}
+
+async function promptChangeNoteSection() {
+  if (!notedogState.activeDbNote) return;
+  const newSec = prompt('Change note section in category:\n(e.g. Default, Ideas, Snippets, Archive)', notedogState.activeDbNote.section || 'Default');
+  if (newSec === null) return;
+  const clean = newSec.trim() || 'Default';
+  notedogState.activeDbNote.section = clean;
+  notedogState.activeDbSection = clean;
+  await saveActiveDatabaseNote(true);
+  await loadDatabaseNotesHierarchy(notedogState.activeDbNote.id);
+  showToast(`Moved note to section "${clean}"`, 'success');
+}
+
+function promptCreateNotebookOrCategory() {
+  if (notedogState.storageMode === 'database') {
+    const cat = prompt('Enter new Category name:\n(e.g. Personal, Research, Snippets)');
+    if (!cat || !cat.trim()) return;
+    const clean = cat.trim();
+    if (!notedogState.categories.includes(clean)) {
+      notedogState.categories.push(clean);
+    }
+    notedogState.activeCategory = clean;
+    notedogState.activeDbSection = 'Default';
+    renderDatabaseSidebar();
+    showToast(`Category "${clean}" created`, 'success');
+  } else {
+    promptCreateNotebook();
+  }
+}
+
+async function saveActiveDatabaseNote(isAutoSave = false) {
+  if (!notedogState.activeDbNote) return;
+  const textarea = document.getElementById('notedog-editor-textarea');
+  const titleInput = document.getElementById('notedog-active-title');
+  const saveStatus = document.getElementById('notedog-save-status');
+
+  const content = textarea ? textarea.value : notedogState.content;
+  const title = (titleInput ? titleInput.value : notedogState.activeDbNote.title).trim() || 'Untitled Note';
+
+  try {
+    const payload = {
+      title,
+      content,
+      category: notedogState.activeDbNote.category,
+      section: notedogState.activeDbNote.section,
+      tags: notedogState.activeDbNote.tags,
+      is_pinned: notedogState.activeDbNote.is_pinned,
+      is_archived: notedogState.activeDbNote.is_archived,
+      color: notedogState.activeDbNote.color ? notedogState.activeDbNote.color : null
+    };
+
+    const resp = await fetch(`/api/notes/${notedogState.activeDbNote.id}`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (resp.ok) {
+      const updated = await resp.json();
+      notedogState.activeDbNote = updated;
+      notedogState.isDirty = false;
+      if (saveStatus) {
+        saveStatus.textContent = 'Saved';
+        saveStatus.className = 'notedog-save-status';
+      }
+      if (!isAutoSave) {
+        showToast(`Saved note: ${updated.title}`, 'success');
+      }
+    } else {
+      const err = await resp.text();
+      if (!isAutoSave) showToast(`Save failed: ${err}`, 'error');
+    }
+  } catch (err) {
+    console.error('Save database note error:', err);
+    if (!isAutoSave) showToast('Failed to save note', 'error');
+  }
+}
+
+async function createDatabaseNote(title, initialContent, category, section) {
+  try {
+    const resp = await fetch('/api/notes', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({
+        title,
+        content: initialContent || `# ${title}\n\n`,
+        category: category || notedogState.activeCategory || 'General',
+        section: section || notedogState.activeDbSection || 'Default',
+        tags: '[]',
+        is_pinned: false,
+        is_encrypted: false,
+        color: null
+      })
+    });
+
+    if (resp.ok) {
+      const note = await resp.json();
+      await loadDatabaseNotesHierarchy(note.id);
+      showToast(`Created note "${title}"`, 'success');
+    } else {
+      showToast('Failed to create note: ' + await resp.text(), 'error');
+    }
+  } catch (err) {
+    showToast('Failed to create note: ' + err.message, 'error');
+  }
+}
+
+async function deleteActiveDatabaseNote() {
+  if (!notedogState.activeDbNote) return;
+  if (!confirm(`Are you sure you want to delete database note "${notedogState.activeDbNote.title}"?`)) return;
+
+  try {
+    const resp = await fetch(`/api/notes/${notedogState.activeDbNote.id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (resp.ok) {
+      notedogState.activeDbNote = null;
+      await loadDatabaseNotesHierarchy();
+      showToast('Note deleted from database', 'info');
+    } else {
+      showToast('Failed to delete note', 'error');
+    }
+  } catch (err) {
+    showToast('Failed to delete note: ' + err.message, 'error');
+  }
+}
+
+// ---------------- ATTACHMENTS & MEDIA ENGINE ----------------
+
+function triggerNoteAttachmentUpload() {
+  const fileInput = document.getElementById('notedog-attachment-file-input');
+  if (fileInput) {
+    fileInput.value = '';
+    fileInput.click();
+  }
+}
+
+async function handleNoteAttachmentFileSelected(files) {
+  if (!files || files.length === 0) return;
+  for (let i = 0; i < files.length; i++) {
+    await uploadNoteAttachment(files[i]);
+  }
+}
+
+async function uploadNoteAttachment(file) {
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const noteId = (notedogState.storageMode === 'database' && notedogState.activeDbNote) ? notedogState.activeDbNote.id : null;
+  const url = noteId ? `/api/notes/${noteId}/attachments` : '/api/notes/attachments/upload';
+
+  try {
+    showToast(`Uploading attachment: ${file.name}...`, 'info');
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${App.token}` },
+      body: formData
+    });
+
+    if (resp.ok) {
+      const att = await resp.json();
+      notedogState.activeAttachments.push(att);
+      renderAttachmentsTray();
+
+      // Automatically insert markdown tag into editor at cursor
+      insertAttachmentMarkdown(att);
+      showToast(`Attached: ${att.filename}`, 'success');
+      
+      // Auto-save note so the markdown reference is persisted
+      if (notedogState.storageMode === 'database') {
+        saveActiveDatabaseNote(true);
+      } else {
+        saveActiveNoteDogNote(true);
+      }
+    } else {
+      const err = await resp.text();
+      showToast(`Upload failed: ${err}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Upload failed: ${err.message}`, 'error');
+  }
+}
+
+function insertAttachmentMarkdown(att) {
+  const filename = att.filename;
+  const isImg = /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(filename) || (att.mime_type && att.mime_type.startsWith('image/'));
+  const isAudio = /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(filename) || (att.mime_type && att.mime_type.startsWith('audio/'));
+  const url = `/api/notes/attachments/${att.id}/${encodeURIComponent(filename)}`;
+
+  let snippet = '';
+  if (isImg) {
+    snippet = `\n![${filename}](${url})\n`;
+  } else if (isAudio) {
+    snippet = `\n<audio controls src="${url}"></audio>\n`;
+  } else {
+    snippet = `\n[📎 ${filename}](${url})\n`;
+  }
+
+  insertNoteDogMarkdown('', '', snippet);
+}
+
+function renderAttachmentsTray() {
+  const trayList = document.getElementById('notedog-att-tray-list');
+  const countBadge = document.getElementById('notedog-attachments-count-badge');
+  const countTray = document.getElementById('notedog-att-tray-count');
+  const tray = document.getElementById('notedog-attachments-tray');
+
+  const count = notedogState.activeAttachments.length;
+  if (countBadge) {
+    countBadge.textContent = count;
+    countBadge.style.display = count > 0 ? 'inline-flex' : 'none';
+  }
+  if (countTray) {
+    countTray.textContent = `${count} file${count === 1 ? '' : 's'}`;
+  }
+
+  if (trayList) {
+    if (count === 0) {
+      trayList.innerHTML = '<div style="font-size: 10px; color: var(--text-dim); padding: 4px;">No files attached to this note yet.</div>';
+    } else {
+      trayList.innerHTML = notedogState.activeAttachments.map(att => {
+        const isImg = /\.(png|jpe?g|gif|webp|svg|bmp|ico)$/i.test(att.filename) || (att.mime_type && att.mime_type.startsWith('image/'));
+        const isAudio = /\.(mp3|wav|ogg|flac|m4a|aac)$/i.test(att.filename) || (att.mime_type && att.mime_type.startsWith('audio/'));
+        const url = `/api/notes/attachments/${att.id}/${encodeURIComponent(att.filename)}`;
+
+        let thumbHtml = '';
+        if (isImg) {
+          thumbHtml = `<img src="${url}" class="notedog-att-thumb" alt="${escapeHtml(att.filename)}" />`;
+        } else if (isAudio) {
+          thumbHtml = `<div class="notedog-att-thumb" style="color: var(--accent); font-size: 14px;">🎵</div>`;
+        } else {
+          thumbHtml = `<div class="notedog-att-thumb" style="color: var(--accent); font-size: 14px;">📄</div>`;
+        }
+
+        return `
+          <div class="notedog-att-card">
+            ${thumbHtml}
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</div>
+              <div style="font-size: 9px; color: var(--text-dim);">${formatFileSize(att.size_bytes || 0)}</div>
+            </div>
+            <button class="btn btn-icon btn-xs" onclick="insertAttachmentMarkdownById(${att.id})" title="Insert into Markdown" style="width: 20px; height: 20px; min-width: 20px; padding: 0;">
+              <i data-lucide="plus" style="width: 10px; height: 10px;"></i>
+            </button>
+            <a href="${url}" target="_blank" download="${escapeHtml(att.filename)}" class="btn btn-icon btn-xs" title="Download Attachment" style="width: 20px; height: 20px; min-width: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted);">
+              <i data-lucide="download" style="width: 10px; height: 10px;"></i>
+            </a>
+            <button class="btn btn-icon btn-xs btn-danger-hover" onclick="deleteNoteAttachment(${att.id})" title="Delete Attachment" style="width: 20px; height: 20px; min-width: 20px; padding: 0;">
+              <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
+            </button>
+          </div>
+        `;
+      }).join('');
+    }
+  }
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function insertAttachmentMarkdownById(id) {
+  const att = notedogState.activeAttachments.find(a => a.id === id);
+  if (att) insertAttachmentMarkdown(att);
+}
+
+async function deleteNoteAttachment(attachmentId) {
+  if (!confirm('Are you sure you want to delete this attachment?')) return;
+  try {
+    const resp = await fetch(`/api/notes/attachments/${attachmentId}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (resp.ok) {
+      notedogState.activeAttachments = notedogState.activeAttachments.filter(a => a.id !== attachmentId);
+      renderAttachmentsTray();
+      showToast('Attachment deleted', 'info');
+    }
+  } catch (err) {
+    showToast('Failed to delete attachment', 'error');
+  }
+}
+
+function toggleNoteAttachmentsTray() {
+  const tray = document.getElementById('notedog-attachments-tray');
+  if (!tray) return;
+  notedogState.attachmentsTrayOpen = (tray.style.display === 'none');
+  tray.style.display = notedogState.attachmentsTrayOpen ? 'flex' : 'none';
+  const toggleBtn = document.getElementById('btn-notedog-attachments-toggle');
+  if (toggleBtn) toggleBtn.classList.toggle('active', notedogState.attachmentsTrayOpen);
+}
+
+function initNoteDogEditorPasteAndDrop() {
+  if (notedogState.pasteDropInitialized) return;
+  notedogState.pasteDropInitialized = true;
+
+  const textarea = document.getElementById('notedog-editor-textarea');
+  const dropzone = document.getElementById('notedog-att-dropzone');
+
+  // Clipboard screenshot paste (Ctrl+V)
+  if (textarea) {
+    textarea.addEventListener('paste', async (e) => {
+      const clipboardData = e.clipboardData || window.clipboardData;
+      if (!clipboardData || !clipboardData.items) return;
+
+      for (let i = 0; i < clipboardData.items.length; i++) {
+        const item = clipboardData.items[i];
+        if (item.type.indexOf('image') !== -1) {
+          e.preventDefault();
+          const file = item.getAsFile();
+          if (file) {
+            const now = new Date();
+            const ts = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const screenshotFile = new File([file], `screenshot_${ts}.png`, { type: file.type || 'image/png' });
+            await uploadNoteAttachment(screenshotFile);
+          }
+        }
+      }
+    });
+  }
+
+  // Drag & drop files on textarea and dropzone
+  [textarea, dropzone].forEach(el => {
+    if (!el) return;
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.add('dragover');
+    });
+
+    el.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('dragover');
+    });
+
+    el.addEventListener('drop', async (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      el.classList.remove('dragover');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        await handleNoteAttachmentFileSelected(e.dataTransfer.files);
+      }
+    });
+  });
+}
+
+function openNoteDogMigrationMenu(e) {
+  const choices = [
+    '1. 📤 Export all Database Notes to ~/Notes (Markdown Files)',
+    '2. 📥 Import ~/Notes Markdown files into Database Notes'
+  ];
+  const choice = prompt(`Database Notes Migration Center:\n\n${choices.join('\n')}\n\nEnter choice (1 or 2):`, '1');
+  if (choice === '1') {
+    executeNotesExport();
+  } else if (choice === '2') {
+    executeNotesImport();
+  }
+}
+
+async function executeNotesExport() {
+  try {
+    showToast('Exporting database notes to ~/Notes...', 'info');
+    const resp = await fetch('/api/notes/migrate/export', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      showToast(`Exported ${data.exported_count} notes to ${data.target_directory}`, 'success');
+    } else {
+      showToast('Export failed: ' + await resp.text(), 'error');
+    }
+  } catch (err) {
+    showToast('Export failed: ' + err.message, 'error');
+  }
+}
+
+async function executeNotesImport() {
+  try {
+    showToast('Importing ~/Notes into database...', 'info');
+    const resp = await fetch('/api/notes/migrate/import', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      showToast(`Imported ${data.imported_count} notes into Database`, 'success');
+      if (notedogState.storageMode === 'database') {
+        loadDatabaseNotesHierarchy();
+      }
+    } else {
+      showToast('Import failed: ' + await resp.text(), 'error');
+    }
+  } catch (err) {
+    showToast('Import failed: ' + err.message, 'error');
+  }
+}
+
+// ---------------- FILESYSTEM NOTES ENGINE ----------------
 
 async function loadNoteDogHierarchy(targetNotePath) {
   try {
@@ -9210,13 +10036,20 @@ function handleNoteDogInput() {
   // Debounced auto-save after 2.5s of typing pause
   if (notedogState.autoSaveTimer) clearTimeout(notedogState.autoSaveTimer);
   notedogState.autoSaveTimer = setTimeout(() => {
-    if (notedogState.isDirty && notedogState.activeNote) {
-      saveActiveNoteDogNote(true);
+    if (notedogState.isDirty) {
+      if (notedogState.storageMode === 'database' && notedogState.activeDbNote) {
+        saveActiveDatabaseNote(true);
+      } else if (notedogState.activeNote) {
+        saveActiveNoteDogNote(true);
+      }
     }
   }, 2500);
 }
 
 async function saveActiveNoteDogNote(isAutoSave = false) {
+  if (notedogState.storageMode === 'database') {
+    return saveActiveDatabaseNote(isAutoSave);
+  }
   if (!notedogState.activeNote) return;
   const textarea = document.getElementById('notedog-editor-textarea');
   const saveStatus = document.getElementById('notedog-save-status');
@@ -9315,8 +10148,20 @@ function handleNoteDogKeyDown(e) {
 }
 
 async function handleNoteDogTitleChange(newTitle) {
-  if (!notedogState.activeNote || !newTitle.trim()) return;
-  const cleanTitle = newTitle.trim();
+  const cleanTitle = (newTitle || '').trim();
+  if (!cleanTitle) return;
+
+  if (notedogState.storageMode === 'database') {
+    if (!notedogState.activeDbNote) return;
+    if (cleanTitle === notedogState.activeDbNote.title) return;
+    notedogState.activeDbNote.title = cleanTitle;
+    await saveActiveDatabaseNote(true);
+    renderDatabaseSidebar();
+    showToast(`Renamed note to "${cleanTitle}"`, 'info');
+    return;
+  }
+
+  if (!notedogState.activeNote) return;
   if (cleanTitle === notedogState.activeNote.name) return;
 
   const oldPath = notedogState.activeNote.path;
@@ -9345,7 +10190,11 @@ async function handleNoteDogTitleChange(newTitle) {
 
 function handleNoteDogSearch(query) {
   notedogState.searchQuery = query || '';
-  renderNoteDogSidebar();
+  if (notedogState.storageMode === 'database') {
+    loadDatabaseNotesHierarchy();
+  } else {
+    renderNoteDogSidebar();
+  }
 }
 
 function setNoteDogViewMode(mode) {
@@ -9485,6 +10334,22 @@ function formatNoteDogInlineMarkdown(str) {
   
   // Shorthand color tags: {[#color]text}
   res = res.replace(/\{\[([#a-zA-Z0-9]+)\](.*?)\}/g, '<span style="color: $1">$2</span>');
+
+  // Images & Media: ![alt](url)
+  res = res.replace(/!\[(.*?)\]\((.*?)\)/g, (match, alt, url) => {
+    const cleanUrl = url.trim();
+    const lower = cleanUrl.toLowerCase();
+    if (lower.endsWith('.mp3') || lower.endsWith('.wav') || lower.endsWith('.ogg') || lower.endsWith('.m4a') || lower.endsWith('.aac') || lower.endsWith('.flac')) {
+      return `<audio controls src="${cleanUrl}" style="max-width:100%; margin:6px 0; display:block;"></audio>`;
+    }
+    if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.endsWith('.ogv')) {
+      return `<video controls src="${cleanUrl}" style="max-width:100%; border-radius:6px; margin:6px 0; display:block;"></video>`;
+    }
+    return `<img src="${cleanUrl}" alt="${alt}" class="notedog-rendered-img" style="max-width:100%; border-radius:6px; margin:6px 0; display:block;" onerror="this.style.display='none'" />`;
+  });
+
+  // Markdown links: [text](url)
+  res = res.replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent); text-decoration:underline;">$1</a>');
 
   // Bold **text**
   res = res.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -9689,6 +10554,14 @@ function toggleNoteDogCreateEncryptedFields() {
 }
 
 function promptCreateNote(isEncrypted = false) {
+  if (notedogState.storageMode === 'database') {
+    const title = prompt('Enter note title:', 'Untitled Note');
+    if (title === null) return;
+    const cleanTitle = title.trim() || 'Untitled Note';
+    createDatabaseNote(cleanTitle, `# ${cleanTitle}\n\n`);
+    return;
+  }
+
   if (!notedogState.activeNotebook || !notedogState.activeSection) {
     showToast('Please select a Notebook and Section first', 'info');
     return;
@@ -9956,10 +10829,15 @@ async function openNoteDogTemplatePicker() {
 }
 
 async function createNoteFromTemplate(template, title) {
-  const root = notedogState.rootFolder || '~/Notes';
   const now = new Date().toISOString().replace('T', ' ').substring(0, 16);
   let content = template.content.replace(/\{\{title\}\}/g, title).replace(/\{\{date\}\}/g, now);
 
+  if (notedogState.storageMode === 'database') {
+    await createDatabaseNote(title, content);
+    return;
+  }
+
+  const root = notedogState.rootFolder || '~/Notes';
   const cleanFilename = `${title.replace(/[/\\?%*:|"<>]/g, '_')}.md`;
   const notePath = `${root}/${notedogState.activeNotebook}/${notedogState.activeSection}/${cleanFilename}`;
 
@@ -9983,6 +10861,15 @@ async function createNoteFromTemplate(template, title) {
 }
 
 async function promptDeleteCurrentNote() {
+  if (notedogState.storageMode === 'database') {
+    if (!notedogState.activeDbNote) {
+      showToast('No active note selected', 'warning');
+      return;
+    }
+    await deleteActiveDatabaseNote();
+    return;
+  }
+
   if (!notedogState.activeNote) return;
   if (!confirm(`Are you sure you want to delete note "${notedogState.activeNote.name}"?`)) return;
 

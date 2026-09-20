@@ -249,6 +249,46 @@ impl AuthManager {
         )?;
         let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_api_tokens_user ON api_tokens (username)", []);
 
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS db_notes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT NOT NULL,
+                title TEXT NOT NULL,
+                content TEXT NOT NULL DEFAULT '',
+                category TEXT NOT NULL DEFAULT 'General',
+                section TEXT NOT NULL DEFAULT 'Default',
+                tags TEXT DEFAULT '[]',
+                is_pinned INTEGER NOT NULL DEFAULT 0,
+                is_archived INTEGER NOT NULL DEFAULT 0,
+                is_encrypted INTEGER NOT NULL DEFAULT 0,
+                color TEXT,
+                created_at TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_db_notes_user ON db_notes (username)", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_db_notes_updated ON db_notes (updated_at DESC)", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_db_notes_category ON db_notes (category)", []);
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS db_note_attachments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                note_id INTEGER,
+                username TEXT NOT NULL,
+                filename TEXT NOT NULL,
+                mime_type TEXT NOT NULL,
+                size_bytes INTEGER NOT NULL,
+                storage_path TEXT NOT NULL,
+                sha256 TEXT,
+                created_at TEXT NOT NULL,
+                FOREIGN KEY(note_id) REFERENCES db_notes(id) ON DELETE CASCADE
+            )",
+            [],
+        )?;
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_db_note_attachments_note ON db_note_attachments (note_id)", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_db_note_attachments_user ON db_note_attachments (username)", []);
+
         // Safe migrations for newly added columns
         let _ = conn.execute("ALTER TABLE users ADD COLUMN nickname TEXT", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN email TEXT", []);
@@ -1620,6 +1660,448 @@ impl AuthManager {
             Ok(false)
         }
     }
+
+    // ---------------- PERSISTENT DATABASE NOTES ENGINE ----------------
+
+    pub fn list_db_notes(
+        &self,
+        username: &str,
+        is_admin: bool,
+        search: Option<&str>,
+        tag: Option<&str>,
+        category: Option<&str>,
+        section: Option<&str>,
+        include_archived: bool,
+    ) -> Result<Vec<DbNote>, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+
+        let mut query = String::from(
+            "SELECT id, username, title, content, category, section, tags, is_pinned, is_archived, is_encrypted, color, created_at, updated_at
+             FROM db_notes WHERE "
+        );
+        let mut params_vec: Vec<Box<dyn rusqlite::ToSql>> = Vec::new();
+
+        if is_admin {
+            query.push_str("(username = ?1 OR ?1 = 'admin')");
+            params_vec.push(Box::new(username.to_string()));
+        } else {
+            query.push_str("username = ?1");
+            params_vec.push(Box::new(username.to_string()));
+        }
+
+        if !include_archived {
+            query.push_str(" AND is_archived = 0");
+        }
+
+        if let Some(cat) = category {
+            let cat_clean = cat.trim();
+            if !cat_clean.is_empty() && cat_clean != "All" {
+                let idx = params_vec.len() + 1;
+                query.push_str(&format!(" AND category = ?{}", idx));
+                params_vec.push(Box::new(cat_clean.to_string()));
+            }
+        }
+
+        if let Some(sec) = section {
+            let sec_clean = sec.trim();
+            if !sec_clean.is_empty() && sec_clean != "All" {
+                let idx = params_vec.len() + 1;
+                query.push_str(&format!(" AND section = ?{}", idx));
+                params_vec.push(Box::new(sec_clean.to_string()));
+            }
+        }
+
+        if let Some(t) = tag {
+            let t_clean = t.trim();
+            if !t_clean.is_empty() && t_clean != "All" {
+                let idx = params_vec.len() + 1;
+                query.push_str(&format!(" AND tags LIKE ?{}", idx));
+                params_vec.push(Box::new(format!("%\"{}\"%", t_clean)));
+            }
+        }
+
+        if let Some(s) = search {
+            let clean = s.trim();
+            if !clean.is_empty() {
+                let idx = params_vec.len() + 1;
+                query.push_str(&format!(" AND (title LIKE ?{0} OR content LIKE ?{0} OR tags LIKE ?{0})", idx));
+                params_vec.push(Box::new(format!("%{}%", clean)));
+            }
+        }
+
+        query.push_str(" ORDER BY is_pinned DESC, updated_at DESC");
+
+        let mut stmt = conn.prepare(&query)?;
+        let param_refs: Vec<&dyn rusqlite::ToSql> = params_vec.iter().map(|b| b.as_ref()).collect();
+
+        let rows = stmt.query_map(param_refs.as_slice(), |row| {
+            Ok(DbNote {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                title: row.get(2)?,
+                content: row.get(3)?,
+                category: row.get(4)?,
+                section: row.get(5)?,
+                tags: row.get::<_, Option<String>>(6)?.unwrap_or_else(|| "[]".to_string()),
+                is_pinned: row.get::<_, i32>(7)? != 0,
+                is_archived: row.get::<_, i32>(8)? != 0,
+                is_encrypted: row.get::<_, i32>(9)? != 0,
+                color: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
+                attachments: Vec::new(),
+            })
+        })?;
+
+        let mut notes = Vec::new();
+        for r in rows {
+            notes.push(r?);
+        }
+
+        // Attach attachments list for each note
+        for note in &mut notes {
+            if let Ok(mut att_stmt) = conn.prepare(
+                "SELECT id, note_id, username, filename, mime_type, size_bytes, storage_path, sha256, created_at
+                 FROM db_note_attachments WHERE note_id = ?1 ORDER BY created_at ASC"
+            ) {
+                if let Ok(att_rows) = att_stmt.query_map(params![note.id], |row| {
+                    Ok(DbNoteAttachment {
+                        id: row.get(0)?,
+                        note_id: row.get(1)?,
+                        username: row.get(2)?,
+                        filename: row.get(3)?,
+                        mime_type: row.get(4)?,
+                        size_bytes: row.get(5)?,
+                        storage_path: row.get(6)?,
+                        sha256: row.get(7)?,
+                        created_at: row.get(8)?,
+                    })
+                }) {
+                    for ar in att_rows.flatten() {
+                        note.attachments.push(ar);
+                    }
+                }
+            }
+        }
+
+        Ok(notes)
+    }
+
+    pub fn get_db_note(
+        &self,
+        id: i64,
+        username: &str,
+        is_admin: bool,
+    ) -> Result<Option<DbNote>, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, username, title, content, category, section, tags, is_pinned, is_archived, is_encrypted, color, created_at, updated_at
+             FROM db_notes WHERE id = ?1"
+        )?;
+
+        let mut note = stmt.query_row(params![id], |row| {
+            Ok(DbNote {
+                id: row.get(0)?,
+                username: row.get(1)?,
+                title: row.get(2)?,
+                content: row.get(3)?,
+                category: row.get(4)?,
+                section: row.get(5)?,
+                tags: row.get::<_, Option<String>>(6)?.unwrap_or_else(|| "[]".to_string()),
+                is_pinned: row.get::<_, i32>(7)? != 0,
+                is_archived: row.get::<_, i32>(8)? != 0,
+                is_encrypted: row.get::<_, i32>(9)? != 0,
+                color: row.get(10)?,
+                created_at: row.get(11)?,
+                updated_at: row.get(12)?,
+                attachments: Vec::new(),
+            })
+        }).optional()?;
+
+        if let Some(ref mut n) = note {
+            if !is_admin && n.username != username && username != "admin" {
+                return Ok(None);
+            }
+            let mut att_stmt = conn.prepare(
+                "SELECT id, note_id, username, filename, mime_type, size_bytes, storage_path, sha256, created_at
+                 FROM db_note_attachments WHERE note_id = ?1 ORDER BY created_at ASC"
+            )?;
+            let att_rows = att_stmt.query_map(params![id], |row| {
+                Ok(DbNoteAttachment {
+                    id: row.get(0)?,
+                    note_id: row.get(1)?,
+                    username: row.get(2)?,
+                    filename: row.get(3)?,
+                    mime_type: row.get(4)?,
+                    size_bytes: row.get(5)?,
+                    storage_path: row.get(6)?,
+                    sha256: row.get(7)?,
+                    created_at: row.get(8)?,
+                })
+            })?;
+            for ar in att_rows.flatten() {
+                n.attachments.push(ar);
+            }
+        }
+
+        Ok(note)
+    }
+
+    pub fn create_db_note(
+        &self,
+        username: &str,
+        title: &str,
+        content: &str,
+        category: &str,
+        section: &str,
+        tags: &str,
+        is_pinned: bool,
+        is_encrypted: bool,
+        color: Option<&str>,
+    ) -> Result<DbNote, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+        let cat = if category.trim().is_empty() { "General" } else { category.trim() };
+        let sec = if section.trim().is_empty() { "Default" } else { section.trim() };
+        let t = if tags.trim().is_empty() { "[]" } else { tags.trim() };
+
+        conn.execute(
+            "INSERT INTO db_notes (username, title, content, category, section, tags, is_pinned, is_archived, is_encrypted, color, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, 0, ?8, ?9, ?10, ?10)",
+            params![
+                username,
+                title,
+                content,
+                cat,
+                sec,
+                t,
+                if is_pinned { 1 } else { 0 },
+                if is_encrypted { 1 } else { 0 },
+                color,
+                now
+            ],
+        )?;
+
+        let id = conn.last_insert_rowid();
+        Ok(DbNote {
+            id,
+            username: username.to_string(),
+            title: title.to_string(),
+            content: content.to_string(),
+            category: cat.to_string(),
+            section: sec.to_string(),
+            tags: t.to_string(),
+            is_pinned,
+            is_archived: false,
+            is_encrypted,
+            color: color.map(|c| c.to_string()),
+            created_at: now.clone(),
+            updated_at: now,
+            attachments: Vec::new(),
+        })
+    }
+
+    pub fn update_db_note(
+        &self,
+        id: i64,
+        username: &str,
+        is_admin: bool,
+        title: Option<&str>,
+        content: Option<&str>,
+        category: Option<&str>,
+        section: Option<&str>,
+        tags: Option<&str>,
+        is_pinned: Option<bool>,
+        is_archived: Option<bool>,
+        color: Option<Option<&str>>,
+    ) -> Result<DbNote, Box<dyn std::error::Error + Send + Sync>> {
+        let existing = self.get_db_note(id, username, is_admin)?
+            .ok_or_else(|| "Note not found or access denied".to_string())?;
+
+        let now = chrono::Utc::now().to_rfc3339();
+        let new_title = title.unwrap_or(&existing.title);
+        let new_content = content.unwrap_or(&existing.content);
+        let new_category = category.unwrap_or(&existing.category);
+        let new_section = section.unwrap_or(&existing.section);
+        let new_tags = tags.unwrap_or(&existing.tags);
+        let new_pinned = is_pinned.unwrap_or(existing.is_pinned);
+        let new_archived = is_archived.unwrap_or(existing.is_archived);
+        let new_color = match color {
+            Some(opt) => opt.map(|c| c.to_string()),
+            None => existing.color.clone(),
+        };
+
+        let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+        conn.execute(
+            "UPDATE db_notes SET title = ?1, content = ?2, category = ?3, section = ?4, tags = ?5,
+                    is_pinned = ?6, is_archived = ?7, color = ?8, updated_at = ?9
+             WHERE id = ?10",
+            params![
+                new_title,
+                new_content,
+                new_category,
+                new_section,
+                new_tags,
+                if new_pinned { 1 } else { 0 },
+                if new_archived { 1 } else { 0 },
+                new_color,
+                now,
+                id
+            ],
+        )?;
+
+        drop(conn);
+        self.get_db_note(id, username, is_admin)?
+            .ok_or_else(|| "Failed to reload updated note".to_string().into())
+    }
+
+    pub fn delete_db_note(
+        &self,
+        id: i64,
+        username: &str,
+        is_admin: bool,
+    ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+        let note = self.get_db_note(id, username, is_admin)?
+            .ok_or_else(|| "Note not found or access denied".to_string())?;
+
+        let attachments_to_delete: Vec<String> = note.attachments.into_iter().map(|a| a.storage_path).collect();
+
+        let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+        conn.execute("DELETE FROM db_note_attachments WHERE note_id = ?1", params![id])?;
+        conn.execute("DELETE FROM db_notes WHERE id = ?1", params![id])?;
+
+        Ok(attachments_to_delete)
+    }
+
+    pub fn create_db_note_attachment(
+        &self,
+        note_id: Option<i64>,
+        username: &str,
+        filename: &str,
+        mime_type: &str,
+        size_bytes: i64,
+        storage_path: &str,
+        sha256: Option<&str>,
+    ) -> Result<DbNoteAttachment, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+        let now = chrono::Utc::now().to_rfc3339();
+
+        conn.execute(
+            "INSERT INTO db_note_attachments (note_id, username, filename, mime_type, size_bytes, storage_path, sha256, created_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+            params![
+                note_id,
+                username,
+                filename,
+                mime_type,
+                size_bytes,
+                storage_path,
+                sha256,
+                now
+            ],
+        )?;
+
+        let id = conn.last_insert_rowid();
+
+        if let Some(nid) = note_id {
+            let _ = conn.execute("UPDATE db_notes SET updated_at = ?1 WHERE id = ?2", params![now, nid]);
+        }
+
+        Ok(DbNoteAttachment {
+            id,
+            note_id,
+            username: username.to_string(),
+            filename: filename.to_string(),
+            mime_type: mime_type.to_string(),
+            size_bytes,
+            storage_path: storage_path.to_string(),
+            sha256: sha256.map(|s| s.to_string()),
+            created_at: now,
+        })
+    }
+
+    pub fn get_db_note_attachment(
+        &self,
+        attachment_id: i64,
+        username: &str,
+        is_admin: bool,
+    ) -> Result<Option<DbNoteAttachment>, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+        let mut stmt = conn.prepare(
+            "SELECT id, note_id, username, filename, mime_type, size_bytes, storage_path, sha256, created_at
+             FROM db_note_attachments WHERE id = ?1"
+        )?;
+
+        let att = stmt.query_row(params![attachment_id], |row| {
+            Ok(DbNoteAttachment {
+                id: row.get(0)?,
+                note_id: row.get(1)?,
+                username: row.get(2)?,
+                filename: row.get(3)?,
+                mime_type: row.get(4)?,
+                size_bytes: row.get(5)?,
+                storage_path: row.get(6)?,
+                sha256: row.get(7)?,
+                created_at: row.get(8)?,
+            })
+        }).optional()?;
+
+        if let Some(ref a) = att {
+            if !is_admin && a.username != username && username != "admin" {
+                return Ok(None);
+            }
+        }
+
+        Ok(att)
+    }
+
+    pub fn delete_db_note_attachment(
+        &self,
+        attachment_id: i64,
+        username: &str,
+        is_admin: bool,
+    ) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
+        let att = self.get_db_note_attachment(attachment_id, username, is_admin)?;
+        if let Some(a) = att {
+            let conn = self.db.lock().map_err(|e| format!("DB lock error: {}", e))?;
+            conn.execute("DELETE FROM db_note_attachments WHERE id = ?1", params![attachment_id])?;
+            Ok(Some(a.storage_path))
+        } else {
+            Ok(None)
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbNote {
+    pub id: i64,
+    pub username: String,
+    pub title: String,
+    pub content: String,
+    pub category: String,
+    pub section: String,
+    pub tags: String,
+    pub is_pinned: bool,
+    pub is_archived: bool,
+    pub is_encrypted: bool,
+    pub color: Option<String>,
+    pub created_at: String,
+    pub updated_at: String,
+    #[serde(default)]
+    pub attachments: Vec<DbNoteAttachment>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DbNoteAttachment {
+    pub id: i64,
+    pub note_id: Option<i64>,
+    pub username: String,
+    pub filename: String,
+    pub mime_type: String,
+    pub size_bytes: i64,
+    pub storage_path: String,
+    pub sha256: Option<String>,
+    pub created_at: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1937,4 +2419,92 @@ mod tests {
         auth.delete_share(share.id, "admin", true).unwrap();
         assert!(auth.get_share_by_id(share.id).unwrap().is_none());
     }
+
+    #[test]
+    fn test_db_notes_and_attachments_lifecycle() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("test_notes.db");
+        let auth = AuthManager::new(
+            &db_file.to_string_lossy(),
+            "secret-key-123456789012345678901234",
+            24,
+            "builtin",
+            "login",
+            "admin",
+            "admin",
+        ).unwrap();
+
+        // 1. Create Note
+        let note = auth.create_db_note(
+            "admin",
+            "Architecture Review 2026",
+            "# Brum Core Design\n\nDatabase notes with attachments.",
+            "Work",
+            "Projects",
+            "[\"design\", \"architecture\"]",
+            true,
+            false,
+            Some("#f59e0b"),
+        ).unwrap();
+
+        assert_eq!(note.title, "Architecture Review 2026");
+        assert_eq!(note.category, "Work");
+        assert_eq!(note.section, "Projects");
+        assert!(note.is_pinned);
+        assert!(!note.is_archived);
+
+        // 2. Add Attachment
+        let att = auth.create_db_note_attachment(
+            Some(note.id),
+            "admin",
+            "diagram.png",
+            "image/png",
+            1024,
+            "/tmp/diagram.png",
+            Some("fake-sha256-hash"),
+        ).unwrap();
+
+        assert_eq!(att.filename, "diagram.png");
+        assert_eq!(att.note_id, Some(note.id));
+
+        // 3. List and Get Note (with attachments included)
+        let fetched = auth.get_db_note(note.id, "admin", true).unwrap().unwrap();
+        assert_eq!(fetched.attachments.len(), 1);
+        assert_eq!(fetched.attachments[0].filename, "diagram.png");
+
+        let listed = auth.list_db_notes("admin", true, Some("Architecture"), None, None, None, false).unwrap();
+        assert_eq!(listed.len(), 1);
+        assert_eq!(listed[0].id, note.id);
+
+        // 4. Update Note
+        let updated = auth.update_db_note(
+            note.id,
+            "admin",
+            true,
+            Some("Architecture Review 2026 (Updated)"),
+            None,
+            None,
+            None,
+            None,
+            Some(false),
+            None,
+            None,
+        ).unwrap();
+
+        assert_eq!(updated.title, "Architecture Review 2026 (Updated)");
+        assert!(!updated.is_pinned);
+
+        // 5. Delete Attachment
+        let del_att_path = auth.delete_db_note_attachment(att.id, "admin", true).unwrap().unwrap();
+        assert_eq!(del_att_path, "/tmp/diagram.png");
+
+        let re_fetched = auth.get_db_note(note.id, "admin", true).unwrap().unwrap();
+        assert_eq!(re_fetched.attachments.len(), 0);
+
+        // 6. Delete Note
+        let paths = auth.delete_db_note(note.id, "admin", true).unwrap();
+        assert_eq!(paths.len(), 0);
+        assert!(auth.get_db_note(note.id, "admin", true).unwrap().is_none());
+    }
 }
+

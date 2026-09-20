@@ -888,6 +888,23 @@ pub fn create_new_note(
     })
 }
 
+/// Resolve the attachments directory for database notes
+pub fn get_notes_attachments_dir() -> PathBuf {
+    if Path::new("/data").is_dir() {
+        let p = PathBuf::from("/data/attachments");
+        let _ = fs::create_dir_all(&p);
+        return p;
+    }
+    if let Some(config_dir) = dirs::config_dir() {
+        let p = config_dir.join("brum").join("attachments");
+        let _ = fs::create_dir_all(&p);
+        return p;
+    }
+    let p = PathBuf::from("data/attachments");
+    let _ = fs::create_dir_all(&p);
+    p
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

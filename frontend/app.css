@@ -9812,6 +9812,223 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 /* ==========================================================================
+   🗄️ DATABASE NOTES & ATTACHMENTS TRAY DESIGN LANGUAGE
+   ========================================================================== */
+
+.notedog-storage-mode-bar {
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.25);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.notedog-storage-toggle-group {
+  display: flex;
+  gap: 2px;
+  flex: 1;
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  padding: 2px;
+  border: 1px solid var(--border);
+}
+
+.notedog-storage-btn {
+  flex: 1;
+  height: 22px;
+  font-size: 10px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.notedog-storage-btn:hover {
+  color: var(--text-bright);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.notedog-storage-btn.active {
+  background: rgba(245, 158, 11, 0.2);
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.notedog-color-indicator {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  cursor: pointer;
+  flex-shrink: 0;
+  background: transparent;
+  transition: transform 0.12s ease;
+}
+
+.notedog-color-indicator:hover {
+  transform: scale(1.2);
+}
+
+.notedog-cat-chip,
+.notedog-sec-chip {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: rgba(245, 158, 11, 0.12);
+  color: var(--accent);
+  cursor: pointer;
+  border: 1px solid rgba(245, 158, 11, 0.25);
+  transition: all 0.12s ease;
+}
+
+.notedog-cat-chip:hover,
+.notedog-sec-chip:hover {
+  background: rgba(245, 158, 11, 0.22);
+  border-color: var(--accent);
+}
+
+.notedog-tags-list {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.notedog-tag-chip {
+  font-size: 9px;
+  padding: 1px 6px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-family: var(--font-mono);
+}
+
+.notedog-tag-chip .del-tag {
+  cursor: pointer;
+  opacity: 0.6;
+  font-weight: 700;
+}
+
+.notedog-tag-chip .del-tag:hover {
+  opacity: 1;
+  color: var(--danger);
+}
+
+.notedog-att-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  font-size: 8px;
+  font-weight: 700;
+  background: var(--accent);
+  color: #121214;
+  border-radius: 8px;
+  padding: 0 3px;
+  min-width: 12px;
+  height: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notedog-attachments-tray {
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.notedog-att-tray-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.notedog-att-tray-body {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.notedog-att-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-size: 10px;
+  max-width: 240px;
+  transition: all 0.12s ease;
+}
+
+.notedog-att-card:hover {
+  border-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.notedog-att-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  object-fit: cover;
+  background: rgba(0, 0, 0, 0.3);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notedog-att-dropzone {
+  padding: 6px 10px;
+  border: 1px dashed rgba(245, 158, 11, 0.4);
+  border-radius: var(--radius);
+  font-size: 10px;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  background: rgba(245, 158, 11, 0.03);
+  transition: all 0.15s ease;
+}
+
+.notedog-att-dropzone:hover,
+.notedog-att-dropzone.dragover {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: var(--accent);
+  color: var(--text-bright);
+}
+
+.fs-mode .db-only {
+  display: none !important;
+}
+
+.db-mode .fs-only {
+  display: none !important;
+}
+
+/* ==========================================================================
    📱 CHEWTOYS & FLOATING UTILITIES RESPONSIVE ARCHITECTURE (PHONE & TABLET)
    ========================================================================== */
 

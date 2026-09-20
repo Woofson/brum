@@ -3160,14 +3160,29 @@
 
       <!-- 3-Tier Sidebar Explorer / Sliding Drawer -->
       <div class="notedog-sidebar" id="notedog-sidebar">
-        <!-- Notebooks Tier -->
+        <!-- Storage Mode Selector (Database vs Filesystem) -->
+        <div class="notedog-storage-mode-bar" id="notedog-storage-mode-bar">
+          <div class="notedog-storage-toggle-group">
+            <button type="button" class="notedog-storage-btn active" id="btn-notedog-mode-db" onclick="setNoteDogStorageMode('database')" title="Persistent SQLite Database (Rich Attachments, Tags, Color Labels, Fast Search)">
+              <i data-lucide="database" style="width: 11px; height: 11px;"></i> <span>Database</span>
+            </button>
+            <button type="button" class="notedog-storage-btn" id="btn-notedog-mode-fs" onclick="setNoteDogStorageMode('filesystem')" title="Filesystem Markdown Files (~/Notes)">
+              <i data-lucide="folder" style="width: 11px; height: 11px;"></i> <span>Filesystem</span>
+            </button>
+          </div>
+          <button type="button" class="btn btn-icon btn-xs" id="btn-notedog-migration" onclick="openNoteDogMigrationMenu(event)" title="Migration: Export DB Notes to ~/Notes or Import from ~/Notes">
+            <i data-lucide="arrow-left-right" style="width: 12px; height: 12px;"></i>
+          </button>
+        </div>
+
+        <!-- Notebooks / Categories Tier -->
         <div class="notedog-tier notedog-tier-notebooks">
           <div class="notedog-tier-header">
-            <span style="font-weight: 700; font-size: 10px; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase;">📚 Notebooks</span>
+            <span style="font-weight: 700; font-size: 10px; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase;" id="notedog-tier1-title">📚 Categories</span>
             <div style="display: flex; gap: 2px;">
-              <button class="btn btn-icon btn-xs" onclick="promptChangeNoteDogFolder()" title="Change Notes Folder Location"><i data-lucide="folder-cog" style="width: 11px;"></i></button>
-              <button class="btn btn-icon btn-xs" id="btn-toggle-encrypt-nb" onclick="promptToggleEncryptNotebook()" title="Encrypt / Decrypt Active Notebook"><i data-lucide="shield" style="width: 11px;"></i></button>
-              <button class="btn btn-icon btn-xs" onclick="promptCreateNotebook()" title="Create Notebook"><i data-lucide="folder-plus" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs fs-only" onclick="promptChangeNoteDogFolder()" title="Change Notes Folder Location"><i data-lucide="folder-cog" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs fs-only" id="btn-toggle-encrypt-nb" onclick="promptToggleEncryptNotebook()" title="Encrypt / Decrypt Active Notebook"><i data-lucide="shield" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs" onclick="promptCreateNotebookOrCategory()" title="Create Notebook / Category"><i data-lucide="folder-plus" style="width: 11px;"></i></button>
               <button class="btn btn-icon btn-xs mobile-or-tablet-only" onclick="closeNoteDogDrawer()" title="Close Drawer"><i data-lucide="x" style="width: 11px;"></i></button>
             </div>
           </div>
@@ -3179,8 +3194,8 @@
           <div class="notedog-tier-header">
             <span style="font-weight: 700; font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; text-transform: uppercase;">📂 Sections</span>
             <div style="display: flex; gap: 2px;">
-              <button class="btn btn-icon btn-xs" id="btn-toggle-encrypt-sec" onclick="promptToggleEncryptSection()" title="Encrypt / Decrypt Active Section"><i data-lucide="shield" style="width: 11px;"></i></button>
-              <button class="btn btn-icon btn-xs" onclick="promptCreateSection()" title="Create Section in Selected Notebook"><i data-lucide="plus" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs fs-only" id="btn-toggle-encrypt-sec" onclick="promptToggleEncryptSection()" title="Encrypt / Decrypt Active Section"><i data-lucide="shield" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs" onclick="promptCreateSection()" title="Create Section in Selected Category / Notebook"><i data-lucide="plus" style="width: 11px;"></i></button>
             </div>
           </div>
           <div class="notedog-tier-list" id="notedog-sections-list"></div>
@@ -3191,7 +3206,7 @@
           <div class="notedog-tier-header">
             <span style="font-weight: 700; font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; text-transform: uppercase;">📄 Notes</span>
             <div style="display: flex; gap: 2px;">
-              <button class="btn btn-icon btn-xs" onclick="promptCreateNote(true)" title="Create Encrypted Note (.md.enc)"><i data-lucide="lock" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs fs-only" onclick="promptCreateNote(true)" title="Create Encrypted Note (.md.enc)"><i data-lucide="lock" style="width: 11px;"></i></button>
               <button class="btn btn-icon btn-xs" onclick="promptCreateNote(false)" title="Create Plain Note (.md)"><i data-lucide="plus" style="width: 11px;"></i></button>
               <button class="btn btn-icon btn-xs" onclick="openNoteDogTemplatePicker(event)" title="New Note from Template"><i data-lucide="file-plus" style="width: 11px;"></i></button>
             </div>
@@ -3206,15 +3221,33 @@
         <div class="notedog-workspace-header">
           <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
             <button type="button" class="btn btn-icon notedog-drawer-btn" id="btn-notedog-workspace-drawer" onclick="toggleNoteDogDrawer()" title="Toggle Notes Explorer (Sidebar)" style="width: 26px; height: 26px; min-width: 26px; padding: 0;"><i data-lucide="panel-left"></i></button>
+            <button type="button" class="btn btn-icon db-only" id="btn-pin-note" onclick="toggleActiveNotePin()" title="Pin / Unpin Note" style="width: 26px; height: 26px; min-width: 26px; padding: 0;"><i data-lucide="pin" style="width: 13px; height: 13px;"></i></button>
+            <div class="notedog-color-indicator db-only" id="notedog-color-indicator" onclick="openNoteDogColorPicker(event)" title="Set Note Color Tag"></div>
             <input type="text" class="notedog-note-title-input" id="notedog-active-title" placeholder="Untitled Note" onchange="handleNoteDogTitleChange(this.value)" onkeydown="if(event.key==='Enter') this.blur();">
             <span class="notedog-save-status" id="notedog-save-status">Saved</span>
           </div>
 
           <div class="notedog-workspace-actions" style="display: flex; align-items: center; gap: 3px;">
-            <button class="btn btn-icon" id="btn-toggle-encrypt-note" onclick="toggleCurrentNoteEncryption()" title="Encrypt / Decrypt Note (Ctrl+E)"><i data-lucide="lock" id="icon-encrypt-note"></i></button>
+            <button class="btn btn-icon fs-only" id="btn-toggle-encrypt-note" onclick="toggleCurrentNoteEncryption()" title="Encrypt / Decrypt Note (Ctrl+E)"><i data-lucide="lock" id="icon-encrypt-note"></i></button>
             <button class="btn btn-icon btn-accent" id="btn-save-notedog" onclick="saveActiveNoteDogNote()" title="Save Note (Ctrl+S)"><i data-lucide="save"></i></button>
             <button class="btn btn-icon" id="btn-template-notedog" onclick="openNoteDogTemplatePicker(event)" title="Insert Template"><i data-lucide="layout-template"></i></button>
             <button class="btn btn-icon btn-danger-hover" id="btn-delete-notedog" onclick="promptDeleteCurrentNote()" title="Delete Current Note"><i data-lucide="trash-2"></i></button>
+          </div>
+        </div>
+
+        <!-- Database Tags & Meta Row (DB Mode) -->
+        <div class="notedog-meta-bar db-only" id="notedog-meta-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 3px 8px; background: rgba(0,0,0,0.18); border-bottom: 1px solid var(--border); font-size: 11px;">
+          <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0;">
+            <span class="notedog-cat-chip" id="notedog-active-cat-chip" onclick="promptChangeNoteCategory()" title="Click to change category">General</span>
+            <span style="color: var(--text-dim); font-size: 10px;">/</span>
+            <span class="notedog-sec-chip" id="notedog-active-sec-chip" onclick="promptChangeNoteSection()" title="Click to change section">Default</span>
+            <div class="notedog-tags-list" id="notedog-tags-list"></div>
+            <button class="btn btn-xs btn-outline" onclick="promptAddNoteTag()" title="Add Tag" style="height: 18px; font-size: 9px; padding: 0 4px; display: inline-flex; align-items: center; gap: 2px;">
+              <i data-lucide="tag" style="width: 9px; height: 9px;"></i> + Tag
+            </button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim);">
+            <span id="notedog-updated-time" style="font-family: var(--font-mono);"></span>
           </div>
         </div>
 
@@ -3233,6 +3266,36 @@
           <button class="btn btn-xs btn-icon" onclick="insertNoteDogMermaid()" title="Insert Mermaid Flowchart Block"><i data-lucide="git-fork" style="width: 12px;"></i></button>
           <button class="btn btn-xs btn-icon" onclick="insertNoteDogColorTag()" title="Insert Universal Color Span"><i data-lucide="palette" style="width: 12px; color: var(--accent);"></i></button>
           <button class="btn btn-xs btn-icon" onclick="insertNoteDogTimestamp()" title="Insert Current Timestamp"><i data-lucide="clock" style="width: 12px;"></i></button>
+          <div class="notedog-fmt-sep"></div>
+          <button class="btn btn-xs btn-icon" id="btn-notedog-attach" onclick="triggerNoteAttachmentUpload()" title="Attach Images, Audio, PDF or Files (Ctrl+V / Drag & Drop)"><i data-lucide="paperclip" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" id="btn-notedog-attachments-toggle" onclick="toggleNoteAttachmentsTray()" title="Toggle Note Attachments Gallery"><i data-lucide="image" style="width: 12px;"></i><span id="notedog-attachments-count-badge" class="notedog-att-badge" style="display: none;">0</span></button>
+          <input type="file" id="notedog-attachment-file-input" style="display: none;" multiple onchange="handleNoteAttachmentFileSelected(this.files)">
+        </div>
+
+        <!-- Note Attachments Gallery Tray -->
+        <div class="notedog-attachments-tray" id="notedog-attachments-tray" style="display: none;">
+          <div class="notedog-att-tray-header">
+            <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 11px;">
+              <i data-lucide="paperclip" style="width: 12px; height: 12px; color: var(--accent);"></i>
+              <span>Note Attachments & Media</span>
+              <span class="badge" id="notedog-att-tray-count">0 files</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;">
+              <button class="btn btn-xs btn-outline" onclick="triggerNoteAttachmentUpload()" style="height: 22px; font-size: 10px; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="upload" style="width: 10px; height: 10px;"></i> Upload Files
+              </button>
+              <button class="btn btn-icon btn-xs" onclick="toggleNoteAttachmentsTray()" title="Close Gallery">
+                <i data-lucide="x" style="width: 11px; height: 11px;"></i>
+              </button>
+            </div>
+          </div>
+          <div class="notedog-att-tray-body" id="notedog-att-tray-list">
+            <!-- Dynamically populated attachment cards -->
+          </div>
+          <div class="notedog-att-dropzone" id="notedog-att-dropzone" onclick="triggerNoteAttachmentUpload()">
+            <i data-lucide="upload-cloud" style="width: 16px; height: 16px; color: var(--accent);"></i>
+            <span>Drag & drop media files here or paste screenshots directly into editor (<kbd>Ctrl+V</kbd>)</span>
+          </div>
         </div>
 
         <!-- Note Editor & Live Preview Panes -->
