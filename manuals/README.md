@@ -18,6 +18,7 @@ Welcome to the **Brum** manual and documentation index.
 | [**`protocols.md`**](protocols.md) | Remote VFS protocols guide (SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
 | [**`vaults.md`**](vaults.md) | Encrypted `.cdvault` containers with Argon2id + AES-256-GCM RAM-only zero-leakage filesystem |
 | [**`sharing.md`**](sharing.md) | Advanced public link sharing, client portals, granular ACLs, dynamic watermarking & upload dropzones |
+| [**`authentik-sso.md`**](authentik-sso.md) | Enterprise OpenID Connect (OIDC) & Authentik SSO setup guide, auto-provisioning & role mapping |
 
 ### Installation & Deployment Runbooks
 | Manual | Description |

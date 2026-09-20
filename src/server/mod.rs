@@ -38,6 +38,7 @@ struct Asset;
 pub struct AppState {
     pub config: Arc<AppConfig>,
     pub auth: Arc<AuthManager>,
+    pub oidc: Arc<crate::auth::oidc::OidcManager>,
     pub tasks: Arc<TaskManager>,
     pub tags: Arc<crate::tools::tags::TagManager>,
     pub vaults: Arc<crate::vfs::vault::VaultManager>,
@@ -57,7 +58,10 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/system/status", get(handle_system_status))
         .route("/api/system/exit", post(handle_system_exit))
         .route("/api/system/restart", post(handle_system_restart))
-        // Auth & Security API
+        // Auth & Security API (OIDC / SSO & Local)
+        .route("/api/auth/oidc/config", get(handle_oidc_config))
+        .route("/api/auth/oidc/login", get(handle_oidc_login))
+        .route("/api/auth/oidc/callback", get(handle_oidc_callback))
         .route("/api/auth/login", post(handle_login))
         .route("/api/auth/logout", post(handle_logout))
         .route("/api/auth/unlock", post(handle_unlock_session))
@@ -226,6 +230,101 @@ struct LoginRequest {
 struct LoginResponse {
     token: String,
     user: User,
+}
+
+async fn handle_oidc_config(State(state): State<AppState>) -> Json<crate::auth::oidc::OidcPublicConfig> {
+    Json(state.oidc.get_public_config())
+}
+
+async fn handle_oidc_login(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    if !state.oidc.is_enabled() {
+        return Err((StatusCode::NOT_FOUND, "OIDC authentication is not enabled".to_string()));
+    }
+
+    let scheme = headers
+        .get("x-forwarded-proto")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("http");
+    let host = headers
+        .get("x-forwarded-host")
+        .or_else(|| headers.get("host"))
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("localhost:8080");
+
+    let dynamic_redirect_uri = format!("{}://{}/api/auth/oidc/callback", scheme, host);
+
+    match state.oidc.generate_auth_url(&dynamic_redirect_uri).await {
+        Ok((auth_url, _state)) => {
+            Ok(axum::response::Redirect::temporary(&auth_url))
+        }
+        Err(e) => {
+            tracing::error!("Failed to generate OIDC authorization URL: {}", e);
+            Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to initiate SSO login: {}", e)))
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct OidcCallbackQuery {
+    code: Option<String>,
+    state: Option<String>,
+    error: Option<String>,
+    error_description: Option<String>,
+}
+
+async fn handle_oidc_callback(
+    State(state): State<AppState>,
+    Query(query): Query<OidcCallbackQuery>,
+) -> impl IntoResponse {
+    if let Some(err) = query.error {
+        let desc = query.error_description.unwrap_or_default();
+        tracing::warn!("OIDC provider returned error: {} - {}", err, desc);
+        return axum::response::Redirect::temporary(&format!("/?error={}", urlencoding_simple(&err))).into_response();
+    }
+
+    let code = match query.code {
+        Some(c) if !c.trim().is_empty() => c,
+        _ => return axum::response::Redirect::temporary("/?error=missing_code").into_response(),
+    };
+
+    let state_param = match query.state {
+        Some(s) if !s.trim().is_empty() => s,
+        _ => return axum::response::Redirect::temporary("/?error=missing_state").into_response(),
+    };
+
+    match state.oidc.exchange_code_and_login(&code, &state_param).await {
+        Ok((token, user)) => {
+            tracing::info!(username = %user.username, role = %user.role, "SSO login successful");
+            let cookie_header = format!(
+                "cd_token={}; Path=/; SameSite=Lax; Max-Age=2592000",
+                token
+            );
+            let mut response = axum::response::Redirect::temporary(&format!("/?token={}&sso_success=1", token)).into_response();
+            if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
+                response.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+            }
+            response
+        }
+        Err(e) => {
+            tracing::error!("OIDC callback error: {}", e);
+            axum::response::Redirect::temporary(&format!("/?error={}", urlencoding_simple(&e.to_string()))).into_response()
+        }
+    }
+}
+
+fn urlencoding_simple(s: &str) -> String {
+    let mut encoded = String::new();
+    for b in s.bytes() {
+        if b.is_ascii_alphanumeric() || b == b'-' || b == b'_' || b == b'.' || b == b'~' {
+            encoded.push(b as char);
+        } else {
+            encoded.push_str(&format!("%{:02X}", b));
+        }
+    }
+    encoded
 }
 
 async fn handle_login(
@@ -6800,9 +6899,12 @@ mod tests {
             vec![],
         ));
 
+        let oidc_mgr = Arc::new(crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_arc.clone()));
+
         let state = AppState {
             config: Arc::new(config),
             auth: auth_arc,
+            oidc: oidc_mgr,
             tasks: task_mgr,
             tags: tag_mgr,
             vaults: vault_mgr,
@@ -6855,9 +6957,12 @@ mod tests {
             vec![],
         ));
 
+        let oidc_mgr = Arc::new(crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_arc.clone()));
+
         let state = AppState {
             config: Arc::new(config),
             auth: auth_arc,
+            oidc: oidc_mgr,
             tasks: task_mgr,
             tags: tag_mgr,
             vaults: vault_mgr,

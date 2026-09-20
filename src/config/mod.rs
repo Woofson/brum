@@ -149,6 +149,58 @@ pub struct AuthConfig {
     pub default_admin_user: String,
     #[serde(default = "default_admin_password")]
     pub default_admin_pass: String,
+    #[serde(default)]
+    pub oidc: OidcConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OidcConfig {
+    #[serde(default = "default_false")]
+    pub enabled: bool,
+    #[serde(default = "default_oidc_provider_name")]
+    pub provider_name: String, // e.g. "Authentik", "Keycloak", "SSO"
+    #[serde(default)]
+    pub issuer_url: String, // e.g. "https://auth.example.com/application/o/brum/"
+    #[serde(default)]
+    pub client_id: String,
+    #[serde(default)]
+    pub client_secret: String,
+    #[serde(default)]
+    pub redirect_url: String, // e.g. "https://brum.example.com/api/auth/oidc/callback"
+    #[serde(default = "default_oidc_scopes")]
+    pub scopes: Vec<String>, // ["openid", "profile", "email", "groups"]
+    #[serde(default = "default_true")]
+    pub auto_provision: bool,
+    #[serde(default = "default_oidc_admin_group")]
+    pub admin_group: String, // e.g. "brum-admins" or "authentik Admins"
+    #[serde(default = "default_oidc_default_role")]
+    pub default_user_role: String, // "user", "readonly", "admin"
+    #[serde(default = "default_user_home_template")]
+    pub default_home_template: String,
+    #[serde(default = "default_false")]
+    pub force_sso_only: bool,
+    #[serde(default = "default_oidc_button_icon")]
+    pub button_icon: String, // e.g. "shield-check", "key-round", "lock"
+}
+
+impl Default for OidcConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            provider_name: default_oidc_provider_name(),
+            issuer_url: String::new(),
+            client_id: String::new(),
+            client_secret: String::new(),
+            redirect_url: String::new(),
+            scopes: default_oidc_scopes(),
+            auto_provision: true,
+            admin_group: default_oidc_admin_group(),
+            default_user_role: default_oidc_default_role(),
+            default_home_template: default_user_home_template(),
+            force_sso_only: false,
+            button_icon: default_oidc_button_icon(),
+        }
+    }
 }
 
 impl Default for AuthConfig {
@@ -159,6 +211,7 @@ impl Default for AuthConfig {
             allow_guest: false,
             default_admin_user: default_admin_username(),
             default_admin_pass: default_admin_password(),
+            oidc: OidcConfig::default(),
         }
     }
 }
@@ -168,6 +221,11 @@ fn default_pam_service() -> String { "login".to_string() }
 fn default_false() -> bool { false }
 fn default_admin_username() -> String { "admin".to_string() }
 fn default_admin_password() -> String { "brum".to_string() }
+fn default_oidc_provider_name() -> String { "Authentik".to_string() }
+fn default_oidc_scopes() -> Vec<String> { vec!["openid".to_string(), "profile".to_string(), "email".to_string(), "groups".to_string()] }
+fn default_oidc_admin_group() -> String { "brum-admins".to_string() }
+fn default_oidc_default_role() -> String { "user".to_string() }
+fn default_oidc_button_icon() -> String { "shield-check".to_string() }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
@@ -1029,6 +1087,32 @@ impl ConfigManager {
             if !jwt.trim().is_empty() {
                 config.server.jwt_secret = jwt.trim().to_string();
             }
+        }
+
+        // OIDC / SSO Environment Variable Overrides
+        if let Ok(v) = std::env::var("BRUM_OIDC_ENABLED").or_else(|_| std::env::var("OIDC_ENABLED")) {
+            config.auth.oidc.enabled = v.eq_ignore_ascii_case("true") || v == "1";
+        }
+        if let Ok(v) = std::env::var("BRUM_OIDC_ISSUER_URL").or_else(|_| std::env::var("OIDC_ISSUER_URL")) {
+            if !v.trim().is_empty() { config.auth.oidc.issuer_url = v.trim().to_string(); }
+        }
+        if let Ok(v) = std::env::var("BRUM_OIDC_CLIENT_ID").or_else(|_| std::env::var("OIDC_CLIENT_ID")) {
+            if !v.trim().is_empty() { config.auth.oidc.client_id = v.trim().to_string(); }
+        }
+        if let Ok(v) = std::env::var("BRUM_OIDC_CLIENT_SECRET").or_else(|_| std::env::var("OIDC_CLIENT_SECRET")) {
+            if !v.trim().is_empty() { config.auth.oidc.client_secret = v.trim().to_string(); }
+        }
+        if let Ok(v) = std::env::var("BRUM_OIDC_REDIRECT_URL").or_else(|_| std::env::var("OIDC_REDIRECT_URL")) {
+            if !v.trim().is_empty() { config.auth.oidc.redirect_url = v.trim().to_string(); }
+        }
+        if let Ok(v) = std::env::var("BRUM_OIDC_PROVIDER_NAME").or_else(|_| std::env::var("OIDC_PROVIDER_NAME")) {
+            if !v.trim().is_empty() { config.auth.oidc.provider_name = v.trim().to_string(); }
+        }
+        if let Ok(v) = std::env::var("BRUM_OIDC_ADMIN_GROUP").or_else(|_| std::env::var("OIDC_ADMIN_GROUP")) {
+            if !v.trim().is_empty() { config.auth.oidc.admin_group = v.trim().to_string(); }
+        }
+        if let Ok(v) = std::env::var("BRUM_OIDC_FORCE_SSO").or_else(|_| std::env::var("OIDC_FORCE_SSO")) {
+            config.auth.oidc.force_sso_only = v.eq_ignore_ascii_case("true") || v == "1";
         }
 
         config

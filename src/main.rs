@@ -161,9 +161,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let task_mgr_arc = Arc::new(task_mgr);
     backup_mgr_arc.clone().start_scheduler(task_mgr_arc.clone());
 
+    let auth_mgr_arc = Arc::new(auth_mgr);
+    let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
+
     let state = AppState {
         config: Arc::new(config.clone()),
-        auth: Arc::new(auth_mgr),
+        auth: auth_mgr_arc,
+        oidc: Arc::new(oidc_mgr),
         tasks: task_mgr_arc,
         tags: Arc::new(tag_mgr),
         vaults: Arc::new(vault_mgr),

@@ -1397,6 +1397,33 @@ function updateStandaloneUI() {
 }
 
 async function checkAuthAndLoad() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const urlToken = urlParams.get('token');
+  const ssoSuccess = urlParams.get('sso_success');
+  const urlError = urlParams.get('error');
+
+  if (urlToken) {
+    App.token = urlToken;
+    localStorage.setItem('cd_token', urlToken);
+    try {
+      document.cookie = `cd_token=${encodeURIComponent(urlToken)}; path=/; SameSite=Lax`;
+    } catch (e) {}
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (ssoSuccess) {
+      setTimeout(() => showToast('Successfully signed in via SSO', 'success'), 300);
+    }
+  } else if (urlError) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setTimeout(() => {
+      const errEl = document.getElementById('login-error');
+      if (errEl) {
+        errEl.style.display = 'block';
+        errEl.textContent = `SSO Sign-in Failed: ${decodeURIComponent(urlError)}`;
+      }
+      showToast(`SSO Sign-in Failed: ${decodeURIComponent(urlError)}`, 'error');
+    }, 200);
+  }
+
   const token = App.token || localStorage.getItem('cd_token');
   const isLocked = localStorage.getItem('cd_is_locked') === 'true';
 
@@ -1500,6 +1527,7 @@ async function checkAuthAndLoad() {
   }
 
   // Not authenticated or token invalid
+  loadOidcConfig();
   document.documentElement.classList.remove('auth-pending-lock', 'auth-verifying', 'auth-ready');
   document.documentElement.classList.add('auth-pending-login');
   showModal('login-modal');
@@ -17279,6 +17307,43 @@ async function handleLoginSubmit() {
   } finally {
     if (submitBtn) submitBtn.disabled = false;
   }
+}
+
+async function loadOidcConfig() {
+  try {
+    const resp = await fetch('/api/auth/oidc/config').catch(() => null);
+    if (resp && resp.ok) {
+      const data = await resp.json();
+      App.oidcConfig = data;
+      const ssoSec = document.getElementById('login-sso-section');
+      const btnText = document.getElementById('login-sso-btn-text');
+      const ssoIcon = document.getElementById('login-sso-icon');
+
+      if (data.enabled && ssoSec) {
+        ssoSec.style.display = 'block';
+        if (btnText && data.provider_name) {
+          btnText.textContent = `Sign in with ${data.provider_name}`;
+        }
+        if (ssoIcon && data.button_icon) {
+          ssoIcon.setAttribute('data-lucide', data.button_icon);
+          if (window.lucide) lucide.createIcons();
+        }
+
+        // Auto-redirect if force_sso_only is enabled and user is not authenticated and no error parameter in URL
+        if (data.force_sso_only && !App.user && !App.token && !new URLSearchParams(window.location.search).get('error')) {
+          triggerOidcLogin();
+        }
+      } else if (ssoSec) {
+        ssoSec.style.display = 'none';
+      }
+    }
+  } catch (e) {
+    console.warn('Failed to load OIDC configuration:', e);
+  }
+}
+
+function triggerOidcLogin() {
+  window.location.href = App.oidcConfig?.login_url || '/api/auth/oidc/login';
 }
 
 function openHelpModal() {

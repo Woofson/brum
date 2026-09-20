@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex};
 use tracing::info;
 
 pub mod pam;
+pub mod oidc;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {

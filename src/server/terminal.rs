@@ -637,9 +637,12 @@ mod tests {
             vec![],
         ));
 
+        let oidc_mgr = Arc::new(crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_arc.clone()));
+
         AppState {
             config: Arc::new(config),
             auth: auth_arc,
+            oidc: oidc_mgr,
             tasks: task_mgr,
             tags: tag_mgr,
             vaults: vault_mgr,
