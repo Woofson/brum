@@ -9442,7 +9442,16 @@ async function createDatabaseNote(title, initialContent, category, section) {
 
 async function deleteActiveDatabaseNote() {
   if (!notedogState.activeDbNote) return;
-  if (!confirm(`Are you sure you want to delete database note "${notedogState.activeDbNote.title}"?`)) return;
+  const noteTitle = notedogState.activeDbNote.title || 'Untitled Note';
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Note',
+    subtitle: 'Remove note from database',
+    message: `Are you sure you want to delete note "${noteTitle}"?`,
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Delete Note'
+  });
+  if (!confirmed) return;
 
   try {
     const resp = await fetch(`/api/notes/${notedogState.activeDbNote.id}`, {
@@ -9600,7 +9609,15 @@ function insertAttachmentMarkdownById(id) {
 }
 
 async function deleteNoteAttachment(attachmentId) {
-  if (!confirm('Are you sure you want to delete this attachment?')) return;
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Attachment',
+    subtitle: 'Remove attached file from note',
+    message: 'Are you sure you want to delete this attachment?',
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Delete'
+  });
+  if (!confirmed) return;
   try {
     const resp = await fetch(`/api/notes/attachments/${attachmentId}`, {
       method: 'DELETE',
@@ -11030,7 +11047,16 @@ async function promptDeleteCurrentNote() {
   }
 
   if (!notedogState.activeNote) return;
-  if (!confirm(`Are you sure you want to delete note "${notedogState.activeNote.name}"?`)) return;
+  const noteName = notedogState.activeNote.name;
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Note',
+    subtitle: 'Remove note file from disk',
+    message: `Are you sure you want to delete note "${noteName}"?`,
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Delete Note'
+  });
+  if (!confirmed) return;
 
   try {
     const resp = await fetch('/api/fs/delete', {
@@ -11129,7 +11155,15 @@ async function selectNoteDogVersion(verPath, verTime, sizeBytes) {
 
 async function restoreSelectedNoteDogVersion() {
   if (!notedogState.selectedVersion || !notedogState.activeNote) return;
-  if (!confirm(`Restore revision from ${notedogState.selectedVersion.time}? Current edits will be replaced.`)) return;
+  const confirmed = await showConfirmDialog({
+    title: 'Restore Revision',
+    subtitle: 'Revert note content to selected snapshot',
+    message: `Restore revision from ${notedogState.selectedVersion.time}? Current unsaved edits will be replaced.`,
+    icon: 'history',
+    type: 'warning',
+    confirmText: 'Restore'
+  });
+  if (!confirmed) return;
 
   const content = notedogState.selectedVersion.content || '';
   const textarea = document.getElementById('notedog-editor-textarea');
