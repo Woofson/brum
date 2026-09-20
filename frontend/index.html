@@ -4075,12 +4075,22 @@
 
   <!-- Audioplayer Minimized Pill -->
   <div class="sounddog-pill audioplayer-pill" id="sounddog-pill" style="display: none;" onclick="restoreFloatingSoundDog()" title="Click to restore Audioplayer">
-    <div class="sounddog-pill-wave">
+    <div class="sounddog-pill-progress" id="sounddog-pill-progress">
+      <div class="sounddog-pill-progress-fill" id="sounddog-pill-progress-fill"></div>
+    </div>
+    <div class="sounddog-pill-wave" id="sounddog-pill-wave">
       <span></span><span></span><span></span><span></span>
     </div>
-    <span class="sounddog-pill-title" id="sounddog-pill-title">Audioplayer</span>
-    <button class="sounddog-pill-btn" onclick="event.stopPropagation(); toggleSoundDogPlay();" title="Play/Pause"><i data-lucide="play" id="sounddog-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
-    <button class="sounddog-pill-btn" onclick="event.stopPropagation(); playNextSoundDogTrack();" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
+    <div class="sounddog-pill-info">
+      <span class="sounddog-pill-title" id="sounddog-pill-title">Audioplayer</span>
+      <span class="sounddog-pill-time" id="sounddog-pill-time">00:00 / 00:00</span>
+    </div>
+    <div class="sounddog-pill-controls">
+      <button type="button" class="sounddog-pill-btn" onclick="event.stopPropagation(); playPrevSoundDogTrack();" title="Previous Track (Z)"><i data-lucide="skip-back" style="width: 12px; height: 12px;"></i></button>
+      <button type="button" class="sounddog-pill-btn sounddog-pill-btn-play" onclick="event.stopPropagation(); toggleSoundDogPlay();" title="Play/Pause (Space)"><i data-lucide="play" id="sounddog-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
+      <button type="button" class="sounddog-pill-btn" onclick="event.stopPropagation(); playNextSoundDogTrack();" title="Next Track (B)"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
+      <button type="button" class="sounddog-pill-btn sounddog-pill-close" onclick="event.stopPropagation(); dismissSoundDogPill();" title="Stop & Close"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+    </div>
   </div>
 
   <!-- Diff & Comparison Modal -->
@@ -6919,10 +6929,20 @@
 
   <!-- Mediaplayer Minimized Pill -->
   <div class="mediaplayer-pill" id="mediaplayer-pill" style="display: none;" onclick="restoreFloatingMediaPlayer()" title="Click to restore Mediaplayer">
-    <img src="assets/media.webp" alt="Media" style="width: 14px; height: 14px; object-fit: contain;">
-    <span class="mediaplayer-pill-title" id="mediaplayer-pill-title">Mediaplayer</span>
-    <button class="mediaplayer-pill-btn" onclick="event.stopPropagation(); toggleMediaPlay();" title="Play/Pause"><i data-lucide="play" id="mediaplayer-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
-    <button class="mediaplayer-pill-btn" onclick="event.stopPropagation(); navMediaPlaylist(1);" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
+    <div class="mediaplayer-pill-progress" id="mediaplayer-pill-progress">
+      <div class="mediaplayer-pill-progress-fill" id="mediaplayer-pill-progress-fill"></div>
+    </div>
+    <img src="assets/media.webp" alt="Media" class="mediaplayer-pill-icon" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;">
+    <div class="mediaplayer-pill-info">
+      <span class="mediaplayer-pill-title" id="mediaplayer-pill-title">Mediaplayer</span>
+      <span class="mediaplayer-pill-time" id="mediaplayer-pill-time">00:00 / 00:00</span>
+    </div>
+    <div class="mediaplayer-pill-controls">
+      <button type="button" class="mediaplayer-pill-btn" onclick="event.stopPropagation(); navMediaPlaylist(-1);" title="Previous Track"><i data-lucide="skip-back" style="width: 12px; height: 12px;"></i></button>
+      <button type="button" class="mediaplayer-pill-btn mediaplayer-pill-btn-play" onclick="event.stopPropagation(); toggleMediaPlay();" title="Play/Pause"><i data-lucide="play" id="mediaplayer-pill-play-icon" style="width: 12px; height: 12px;"></i></button>
+      <button type="button" class="mediaplayer-pill-btn" onclick="event.stopPropagation(); navMediaPlaylist(1);" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
+      <button type="button" class="mediaplayer-pill-btn mediaplayer-pill-close" onclick="event.stopPropagation(); dismissMediaPill();" title="Stop & Close"><i data-lucide="x" style="width: 12px; height: 12px;"></i></button>
+    </div>
   </div>
 
   <!-- ConvertX Minimized Task Pill -->

@@ -24210,6 +24210,12 @@ function attachMediaEvents() {
         if (dTot) dTot.textContent = formatMediaTime(dur);
       }
     });
+
+    // Sync mediaplayer minimized pill time and progress
+    const pillTime = document.getElementById('mediaplayer-pill-time');
+    if (pillTime) pillTime.textContent = `${formatMediaTime(cur)} / ${dur > 0 ? formatMediaTime(dur) : '00:00'}`;
+    const pillProg = document.getElementById('mediaplayer-pill-progress-fill');
+    if (pillProg) pillProg.style.width = `${pct}%`;
   };
 
   el.onplay = () => updateMediaPlayButton(true);
@@ -24328,12 +24334,16 @@ function updateMediaPlayButton(playing) {
   mediaplayerState.isPlaying = playing;
   const playBtn = document.getElementById('btn-mediaplayer-play');
   const pillPlay = document.getElementById('mediaplayer-pill-play-icon');
+  const pill = document.getElementById('mediaplayer-pill');
   
   if (playBtn) {
     playBtn.innerHTML = `<i data-lucide="${playing ? 'pause' : 'play'}" style="width: 14px;"></i>`;
   }
   if (pillPlay) {
     pillPlay.setAttribute('data-lucide', playing ? 'pause' : 'play');
+  }
+  if (pill) {
+    pill.classList.toggle('playing', !!playing);
   }
 
   // Update docked play buttons
@@ -24346,12 +24356,12 @@ function updateMediaPlayButton(playing) {
 
   // Background playback task pill handling
   const win = document.getElementById('floating-mediaplayer-window');
-  const pill = document.getElementById('mediaplayer-pill');
   if (pill) {
     const isFloatingOpen = win && win.style.display !== 'none';
     const isDocked = App.panes && App.panes.some(p => p && p.dockedTool === 'mediaplayer');
     if (playing && !isFloatingOpen && !isDocked) {
       pill.style.display = 'flex';
+      updateMediaPill();
     }
   }
 
@@ -24979,22 +24989,61 @@ function setupMediaplayerResizers(win) {
   });
 }
 
-function closeMediaPlayer() {
+function dismissMediaPill() {
   const videoEl = document.getElementById('mediaplayer-video-element');
   const audioEl = document.getElementById('mediaplayer-audio-element');
   if (videoEl) { videoEl.pause(); videoEl.src = ''; }
   if (audioEl) { audioEl.pause(); audioEl.src = ''; }
-  const win = document.getElementById('floating-mediaplayer-window');
-  if (win) win.style.display = 'none';
+  mediaplayerState.isPlaying = false;
+  updateMediaPlayButton(false);
   const pill = document.getElementById('mediaplayer-pill');
   if (pill) pill.style.display = 'none';
+}
+
+function updateMediaPill() {
+  const pillTitle = document.getElementById('mediaplayer-pill-title');
+  const pillPlay = document.getElementById('mediaplayer-pill-play-icon');
+  const pill = document.getElementById('mediaplayer-pill');
+
+  if (mediaplayerState.currentIndex >= 0 && mediaplayerState.playlist[mediaplayerState.currentIndex]) {
+    const cur = mediaplayerState.playlist[mediaplayerState.currentIndex];
+    if (pillTitle) pillTitle.textContent = cur.name || (cur.path ? cur.path.split('/').pop() : 'Media Track');
+  } else {
+    if (pillTitle) pillTitle.textContent = 'Mediaplayer';
+  }
+
+  if (pillPlay) {
+    pillPlay.setAttribute('data-lucide', mediaplayerState.isPlaying ? 'pause' : 'play');
+  }
+
+  if (pill) {
+    pill.classList.toggle('playing', !!mediaplayerState.isPlaying);
+  }
+
+  if (window.lucide) {
+    try { lucide.createIcons(); } catch (e) {}
+  }
+}
+
+function closeMediaPlayer(force = false) {
+  if (!force && mediaplayerState.isPlaying) {
+    minimizeFloatingMediaPlayer();
+    showToast('Media Player minimized to background pill', 'info');
+    return;
+  }
+  dismissMediaPill();
+  const win = document.getElementById('floating-mediaplayer-window');
+  if (win) win.style.display = 'none';
 }
 
 function minimizeFloatingMediaPlayer() {
   const win = document.getElementById('floating-mediaplayer-window');
   if (win) win.style.display = 'none';
   const pill = document.getElementById('mediaplayer-pill');
-  if (pill) pill.style.display = 'flex';
+  if (pill) {
+    pill.style.display = 'flex';
+    updateMediaPill();
+  }
 }
 
 function restoreFloatingMediaPlayer() {
@@ -33443,11 +33492,25 @@ function openFloatingSoundDog() {
   openSoundDog();
 }
 
-function closeSoundDog() {
+function dismissSoundDogPill() {
+  stopSoundDogPlay();
+  const pill = document.getElementById('sounddog-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function closeSoundDog(force = false) {
+  if (!force && sounddogState.isPlaying) {
+    minimizeFloatingSoundDog();
+    showToast('Audioplayer minimized to background pill', 'info');
+    return;
+  }
   const win = document.getElementById('floating-sounddog-window');
   if (win) win.style.display = 'none';
   const pill = document.getElementById('sounddog-pill');
   if (pill) pill.style.display = 'none';
+  if (force) {
+    stopSoundDogPlay();
+  }
 }
 
 function minimizeFloatingSoundDog() {
@@ -33457,10 +33520,13 @@ function minimizeFloatingSoundDog() {
   if (pill) {
     pill.style.display = 'flex';
     updateSoundDogPill();
+    updateSoundDogScrubber();
   }
 }
 
 function restoreFloatingSoundDog() {
+  const pill = document.getElementById('sounddog-pill');
+  if (pill) pill.style.display = 'none';
   openSoundDog();
 }
 
@@ -33732,43 +33798,6 @@ function seekSoundDogFromEvent(e) {
 
 function seekSoundDogRelative(deltaSecs) {
   skipSoundDog(deltaSecs);
-}
-
-function updateSoundDogScrubber() {
-  const audioEl = getSoundDogAudioElement();
-  if (!audioEl) return;
-
-  const cur = audioEl.currentTime || 0;
-  const dur = audioEl.duration || 0;
-  const pct = dur > 0 ? (cur / dur) * 100 : 0;
-
-  const progEl = document.getElementById('sounddog-scrubber-progress');
-  const thumbEl = document.getElementById('sounddog-scrubber-thumb');
-  const timeCur = document.getElementById('sounddog-time-current');
-  const timeTot = document.getElementById('sounddog-time-total');
-  const timeBadge = document.getElementById('sounddog-track-time-badge');
-
-  if (progEl) progEl.style.width = `${pct}%`;
-  if (thumbEl) thumbEl.style.left = `${pct}%`;
-
-  if (sounddogState.timeMode === 'remaining' && dur > 0) {
-    const rem = Math.max(0, dur - cur);
-    if (timeCur) timeCur.textContent = `-${formatMediaTime(rem)}`;
-  } else {
-    if (timeCur) timeCur.textContent = formatMediaTime(cur);
-  }
-
-  if (timeTot) timeTot.textContent = dur > 0 ? formatMediaTime(dur) : '00:00';
-  if (timeBadge) timeBadge.textContent = dur > 0 ? formatMediaTime(dur) : '00:00';
-
-  if (dur > 0 && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
-    const track = sounddogState.queue[sounddogState.currentIndex];
-    if (!track.duration) {
-      track.duration = dur;
-      updateSoundDogQueueStats();
-      renderSoundDogQueue();
-    }
-  }
 }
 
 function updateSoundDogBuffer() {
@@ -34096,6 +34125,12 @@ function updateSoundDogScrubber() {
     }
   });
 
+  // Sync sounddog minimized pill progress and time display
+  const pillTime = document.getElementById('sounddog-pill-time');
+  if (pillTime) pillTime.textContent = `${formatMediaTime(cur)} / ${dur > 0 ? formatMediaTime(dur) : '00:00'}`;
+  const pillProg = document.getElementById('sounddog-pill-progress-fill');
+  if (pillProg) pillProg.style.width = `${pct}%`;
+
   if (dur > 0 && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
     const track = sounddogState.queue[sounddogState.currentIndex];
     if (!track.duration) {
@@ -34336,8 +34371,11 @@ function playPrevSoundDogTrack() {
 }
 
 function updateSoundDogPlaybackState(isPlaying) {
+  sounddogState.isPlaying = isPlaying;
   const playIcon = document.getElementById('sounddog-play-icon');
   const pillPlayIcon = document.getElementById('sounddog-pill-play-icon');
+  const pill = document.getElementById('sounddog-pill');
+  const wave = document.getElementById('sounddog-pill-wave');
 
   if (playIcon) {
     playIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
@@ -34345,6 +34383,26 @@ function updateSoundDogPlaybackState(isPlaying) {
 
   if (pillPlayIcon) {
     pillPlayIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
+  }
+
+  if (pill) {
+    pill.classList.toggle('playing', !!isPlaying);
+  }
+
+  if (wave) {
+    wave.classList.toggle('playing', !!isPlaying);
+  }
+
+  // If playing in background with floating window closed and not docked, show pill
+  const win = document.getElementById('floating-sounddog-window');
+  if (pill) {
+    const isFloatingOpen = win && win.style.display !== 'none';
+    const isDocked = App.panes && App.panes.some(p => p && p.dockedTool === 'sounddog');
+    if (isPlaying && !isFloatingOpen && !isDocked) {
+      pill.style.display = 'flex';
+      updateSoundDogPill();
+      updateSoundDogScrubber();
+    }
   }
 
   if (window.lucide) {
@@ -34417,13 +34475,33 @@ function resetSoundDogHUD() {
 
 function updateSoundDogPill() {
   const pillTitle = document.getElementById('sounddog-pill-title');
-  if (!pillTitle) return;
+  const pillPlayIcon = document.getElementById('sounddog-pill-play-icon');
+  const pill = document.getElementById('sounddog-pill');
+  const wave = document.getElementById('sounddog-pill-wave');
 
-  if (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
-    const cur = sounddogState.queue[sounddogState.currentIndex];
-    pillTitle.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
-  } else {
-    pillTitle.textContent = 'Audioplayer';
+  if (pillTitle) {
+    if (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
+      const cur = sounddogState.queue[sounddogState.currentIndex];
+      pillTitle.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
+    } else {
+      pillTitle.textContent = 'Audioplayer';
+    }
+  }
+
+  if (pillPlayIcon) {
+    pillPlayIcon.setAttribute('data-lucide', sounddogState.isPlaying ? 'pause' : 'play');
+  }
+
+  if (pill) {
+    pill.classList.toggle('playing', !!sounddogState.isPlaying);
+  }
+
+  if (wave) {
+    wave.classList.toggle('playing', !!sounddogState.isPlaying);
+  }
+
+  if (window.lucide) {
+    try { lucide.createIcons(); } catch (e) {}
   }
 }
 
