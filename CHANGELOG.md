@@ -5,6 +5,25 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.8] - 2026-09-20
+
+### 3D CAD Studio, Database Notes, Advanced Sharing Center & Context Menu Refactor
+- **Interactive 3D CAD Studio & Model Viewer** (Fixes #53):
+  - Added native WebGL/Three.js 3D CAD viewport supporting STL (binary & ASCII), Wavefront OBJ, AutoCAD DXF (`LINE`, `LWPOLYLINE`, `POLYLINE`, `CIRCLE`, `ARC`, `3DFACE`), Polygon File Format (`.ply`), and STEP / STP / IGES / 3MF wireframe geometry.
+  - Dual-mode architecture supporting floating draggable/resizable window (`#floating-cad-window`) and docked mode in Pane 1 or Pane 2 (`mountDockedCadStudio`).
+  - View presets (`ISO`, `TOP`, `FRONT`, `RIGHT`), Shading modes (`Solid PBR`, `Smooth`, `Wireframe`, `Normal Map`, `Matcap Clay`), and Material theme switchers (`Amber Charcoal`, `Amber Gold`, `Polished Steel`, `Industrial Bronze`, `Cyber Cyan`, `Studio White Clay`).
+  - Local cross-section slicing plane with dynamic $X/Y/Z$ axis selector and position slider.
+  - Real-time telemetry HUD displaying bounding box dimensions ($W \times H \times D$ in mm), triangle & vertex counts, closed-mesh volume ($\text{cm}^3$), surface area ($\text{cm}^2$), and PLA print weight estimation in grams.
+  - High-resolution PNG snapshot exporter and interactive 3D model preview in the Public Showcase Portal (`/share/:token`).
+- **Database-Backed Notes & Scratchpad Studio** (Fixes #54):
+  - SQLite database-backed persistent notes engine with encryption, tags, color labels, pinned notes, attachments, markdown preview, and internal confirmation modals.
+- **Advanced Sharing Center & Public Showcase Portal** (Fixes #56):
+  - Time-limited expiring shares, password-protected gates, guest email whitelisting, guest upload dropboxes, and dynamic canvas watermarking overlays.
+- **Dedicated File & Folder Context Menus** (Fixes #55):
+  - Streamlined right-click context menu into dedicated, distinct menus for directories and files with custom user script actions and quick tools.
+- **Viewport Layout & Overflow Hardening** (Fixes #52):
+  - Prevented panel stretching outside mobile/tablet viewports and hardened responsive layouts.
+
 ## [0.8.7] - 2026-09-13
 
 ### Native Core Functions Suite, Duplicate Finder, Fleet Persistence & Dual Multi-Tab VFS
