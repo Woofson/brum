@@ -296,12 +296,203 @@ pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option
         }
     }
 
+    // Append built-in User & Testing Manuals notebook
+    let manuals_nb = get_builtin_manuals_notebook();
+    for sec in &manuals_nb.sections {
+        total_sections += 1;
+        total_notes += sec.notes.len();
+    }
+    notebooks.push(manuals_nb);
+
     NoteDogInfo {
         root_folder: root.to_string_lossy().to_string(),
         total_notebooks: notebooks.len(),
         total_sections,
         total_notes,
         notebooks,
+    }
+}
+
+/// Returns the built-in repository user manuals and QA test manuals as a virtual NoteDog notebook.
+pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
+    NoteDogNotebook {
+        name: "📖 Manuals".to_string(),
+        path: "manual://".to_string(),
+        is_encrypted: false,
+        sections: vec![
+            NoteDogSection {
+                name: "📖 User Manuals".to_string(),
+                path: "manual://user-manuals".to_string(),
+                is_encrypted: false,
+                notes: vec![
+                    NoteDogFile {
+                        name: "01. Documentation Index".to_string(),
+                        filename: "README.md".to_string(),
+                        path: "manual://README.md".to_string(),
+                        relative_path: "Manuals/User Manuals/README.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "02. Keyboard Shortcuts & Navigation".to_string(),
+                        filename: "shortcuts.md".to_string(),
+                        path: "manual://shortcuts.md".to_string(),
+                        relative_path: "Manuals/User Manuals/shortcuts.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "03. Advanced Sharing & Client Portals".to_string(),
+                        filename: "sharing.md".to_string(),
+                        path: "manual://sharing.md".to_string(),
+                        relative_path: "Manuals/User Manuals/sharing.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "04. Transparent Encrypted Vaults".to_string(),
+                        filename: "vaults.md".to_string(),
+                        path: "manual://vaults.md".to_string(),
+                        relative_path: "Manuals/User Manuals/vaults.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "05. Remote Protocols & VFS Guide".to_string(),
+                        filename: "protocols.md".to_string(),
+                        path: "manual://protocols.md".to_string(),
+                        relative_path: "Manuals/User Manuals/protocols.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "06. Design Specs & Amber Palette".to_string(),
+                        filename: "themes-and-palette.md".to_string(),
+                        path: "manual://themes-and-palette.md".to_string(),
+                        relative_path: "Manuals/User Manuals/themes-and-palette.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                ],
+            },
+            NoteDogSection {
+                name: "🚀 Deployment & Config".to_string(),
+                path: "manual://deployment".to_string(),
+                is_encrypted: false,
+                notes: vec![
+                    NoteDogFile {
+                        name: "01. Configuration Reference (config.toml)".to_string(),
+                        filename: "configuration.md".to_string(),
+                        path: "manual://configuration.md".to_string(),
+                        relative_path: "Manuals/Deployment/configuration.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "02. Docker & Portainer Deployment".to_string(),
+                        filename: "docker.md".to_string(),
+                        path: "manual://docker.md".to_string(),
+                        relative_path: "Manuals/Deployment/docker.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "03. Proxmox VE & Linux LXC".to_string(),
+                        filename: "lxc-proxmox.md".to_string(),
+                        path: "manual://lxc-proxmox.md".to_string(),
+                        relative_path: "Manuals/Deployment/lxc-proxmox.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "04. Reverse Proxy & Mesh VPN Guide".to_string(),
+                        filename: "reverse-proxy.md".to_string(),
+                        path: "manual://reverse-proxy.md".to_string(),
+                        relative_path: "Manuals/Deployment/reverse-proxy.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "05. OpenID Connect & Authentik SSO".to_string(),
+                        filename: "authentik-sso.md".to_string(),
+                        path: "manual://authentik-sso.md".to_string(),
+                        relative_path: "Manuals/Deployment/authentik-sso.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "06. Brum for Windows Guide".to_string(),
+                        filename: "windows.md".to_string(),
+                        path: "manual://windows.md".to_string(),
+                        relative_path: "Manuals/Deployment/windows.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "07. Brum on Android & Termux".to_string(),
+                        filename: "android-termux.md".to_string(),
+                        path: "manual://android-termux.md".to_string(),
+                        relative_path: "Manuals/Deployment/android-termux.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                ],
+            },
+            NoteDogSection {
+                name: "🧩 Chewtoys & Plugins".to_string(),
+                path: "manual://chewtoys".to_string(),
+                is_encrypted: false,
+                notes: vec![
+                    NoteDogFile {
+                        name: "01. Power Tools & Chewtoys Manual".to_string(),
+                        filename: "chewtoys.md".to_string(),
+                        path: "manual://chewtoys.md".to_string(),
+                        relative_path: "Manuals/Chewtoys/chewtoys.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                    NoteDogFile {
+                        name: "02. Chewtoy Plugin Development (.grr)".to_string(),
+                        filename: "plugin-development.md".to_string(),
+                        path: "manual://plugin-development.md".to_string(),
+                        relative_path: "Manuals/Chewtoys/plugin-development.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                ],
+            },
+            NoteDogSection {
+                name: "🧪 QA Testing Manuals".to_string(),
+                path: "manual://qa-testing".to_string(),
+                is_encrypted: false,
+                notes: vec![
+                    NoteDogFile {
+                        name: "01. QA Testing & Verification Manual".to_string(),
+                        filename: "qa-testing.md".to_string(),
+                        path: "manual://qa-testing.md".to_string(),
+                        relative_path: "Manuals/QA Testing/qa-testing.md".to_string(),
+                        is_encrypted: false,
+                        modified_sec: 0,
+                        size_bytes: 0,
+                    },
+                ],
+            },
+        ],
     }
 }
 

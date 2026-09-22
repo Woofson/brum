@@ -34,6 +34,10 @@ use tower_http::trace::TraceLayer;
 #[folder = "frontend/"]
 struct Asset;
 
+#[derive(RustEmbed)]
+#[folder = "manuals/"]
+struct ManualsAsset;
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<AppConfig>,
@@ -175,6 +179,9 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/notes/attachments/:attachment_id/:filename", get(handle_get_db_note_attachment_binary_with_name))
         .route("/api/notes/migrate/export", post(handle_notes_migrate_export))
         .route("/api/notes/migrate/import", post(handle_notes_migrate_import))
+        // Repository Manuals & Documentation API
+        .route("/api/manuals", get(handle_list_manuals))
+        .route("/api/manuals/:name", get(handle_get_manual))
         // TetraDog Classic Arcade ChewToy & Leaderboard API
         .route("/api/tools/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score).delete(handle_tetradog_clear_scores))
         .route("/api/chewtoys/tetradog/scores", get(handle_tetradog_get_scores).post(handle_tetradog_submit_score))
@@ -3531,6 +3538,25 @@ async fn handle_read_file(
             mime_type: mime,
             is_binary: !is_text,
         }))
+    } else if target_path.starts_with("manual://") {
+        let clean_name = target_path.strip_prefix("manual://").unwrap().trim_start_matches('/').replace("..", "");
+        let disk_path = Path::new("manuals").join(&clean_name);
+        let content_str = if disk_path.is_file() {
+            fs::read_to_string(&disk_path).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        } else if let Some(file) = ManualsAsset::get(&clean_name) {
+            String::from_utf8_lossy(&file.data).to_string()
+        } else {
+            return Err((StatusCode::NOT_FOUND, format!("Manual '{}' not found", clean_name)));
+        };
+
+        Ok(Json(crate::vfs::FileContentResponse {
+            path: target_path,
+            name: clean_name,
+            content: content_str.clone(),
+            is_binary: false,
+            size: content_str.len() as u64,
+            mime_type: "text/markdown".to_string(),
+        }))
     } else {
         LocalFs::read_file(&target_path, max_b)
             .map(Json)
@@ -3552,6 +3578,10 @@ async fn handle_write_file(
     Json(payload): Json<WriteFileRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let target_path = validate_path_access(&state, &headers, &payload.path, true)?;
+
+    if target_path.starts_with("manual://") {
+        return Err((StatusCode::FORBIDDEN, "Built-in repository user and QA testing manuals are read-only".to_string()));
+    }
 
     let raw_bytes: Vec<u8> = if payload.is_base64.unwrap_or(false) {
         use base64::Engine;
@@ -4900,6 +4930,35 @@ async fn handle_paranoid_dry_run(
     ParanoidEngine::dry_run(&payload.action, &payload.sources, payload.destination.as_deref())
         .map(Json)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Dry run failed: {}", e)))
+}
+
+// ---------------- MANUALS & DOCUMENTATION HANDLERS ----------------
+
+async fn handle_list_manuals() -> Json<crate::tools::notedog::NoteDogNotebook> {
+    Json(crate::tools::notedog::get_builtin_manuals_notebook())
+}
+
+async fn handle_get_manual(
+    axum::extract::Path(name): axum::extract::Path<String>,
+) -> Result<Json<crate::vfs::FileContentResponse>, (StatusCode, String)> {
+    let clean_name = name.trim_start_matches('/').replace("..", "");
+    let disk_path = Path::new("manuals").join(&clean_name);
+    let content_str = if disk_path.is_file() {
+        fs::read_to_string(&disk_path).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    } else if let Some(file) = ManualsAsset::get(&clean_name) {
+        String::from_utf8_lossy(&file.data).to_string()
+    } else {
+        return Err((StatusCode::NOT_FOUND, format!("Manual '{}' not found", clean_name)));
+    };
+
+    Ok(Json(crate::vfs::FileContentResponse {
+        path: format!("manual://{}", clean_name),
+        name: clean_name,
+        content: content_str.clone(),
+        is_binary: false,
+        size: content_str.len() as u64,
+        mime_type: "text/markdown".to_string(),
+    }))
 }
 
 // ---------------- NOTEDOG CHEWTOY HANDLERS ----------------

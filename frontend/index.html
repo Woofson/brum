@@ -192,6 +192,7 @@
         <div class="tools-dropdown-menu" id="tools-dropdown-menu">
           <div class="dropdown-item" onclick="openSpotlightModal()"><img src="assets/spot.webp" alt="Spot!" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Spot! (Ctrl+K)</div>
           <div class="dropdown-item" onclick="openFloatingNoteDog()"><img src="assets/note.webp" alt="Notes" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Notes</div>
+          <div class="dropdown-item" onclick="openFloatingNoteDog('manual://README.md')"><i data-lucide="book-open" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Manuals & Docs</div>
           <div class="dropdown-item" onclick="openFloatingCalculator()"><img src="assets/calc.webp" alt="Calculator" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Calculator</div>
           <div class="dropdown-item" onclick="toggleTerminal()"><img src="assets/term.webp" alt="Terminal" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Terminal (`)</div>
           <div class="dropdown-item" onclick="openFloatingEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Edit (F4)</div>
@@ -2222,6 +2223,17 @@
             <tr><td><code>Ctrl + P</code></td><td>Toggle Paranoid File Handling Mode</td></tr>
             <tr><td><code>Ctrl + Q</code></td><td>Quit / Clean Close Brum</td></tr>
           </table>
+
+          <div style="margin-top: 14px; padding: 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: var(--radius); display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;">
+            <div>
+              <div style="font-weight: 700; font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 6px;"><i data-lucide="book-open" style="width: 14px; height: 14px;"></i> User Manuals & Documentation</div>
+              <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Access all 16 built-in guides and QA test manuals natively in Notes.</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button type="button" class="btn btn-sm btn-accent" onclick="closeModal('settings-modal'); openFloatingNoteDog('manual://README.md');"><i data-lucide="book-open"></i> Open Manuals</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="closeModal('settings-modal'); openFloatingNoteDog('manual://qa-testing.md');"><i data-lucide="flask-conical"></i> QA Manual</button>
+            </div>
+          </div>
         </div>
 
         <!-- Tab: Icons & Filetypes Customizer -->
