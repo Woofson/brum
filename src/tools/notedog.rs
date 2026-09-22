@@ -316,12 +316,12 @@ pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option
 /// Returns the built-in repository user manuals and QA test manuals as a virtual NoteDog notebook.
 pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
     NoteDogNotebook {
-        name: "📖 Manuals".to_string(),
+        name: "Manuals".to_string(),
         path: "manual://".to_string(),
         is_encrypted: false,
         sections: vec![
             NoteDogSection {
-                name: "📖 User Manuals".to_string(),
+                name: "User Manuals".to_string(),
                 path: "manual://user-manuals".to_string(),
                 is_encrypted: false,
                 notes: vec![
@@ -382,7 +382,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                 ],
             },
             NoteDogSection {
-                name: "🚀 Deployment & Config".to_string(),
+                name: "Deployment & Config".to_string(),
                 path: "manual://deployment".to_string(),
                 is_encrypted: false,
                 notes: vec![
@@ -452,7 +452,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                 ],
             },
             NoteDogSection {
-                name: "🧩 Chewtoys & Plugins".to_string(),
+                name: "Chewtoys & Plugins".to_string(),
                 path: "manual://chewtoys".to_string(),
                 is_encrypted: false,
                 notes: vec![
@@ -477,7 +477,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                 ],
             },
             NoteDogSection {
-                name: "🧪 QA Testing Manuals".to_string(),
+                name: "QA Testing Manuals".to_string(),
                 path: "manual://qa-testing".to_string(),
                 is_encrypted: false,
                 notes: vec![

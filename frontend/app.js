@@ -9428,6 +9428,70 @@ function calcLoadHistoryItem(resVal) {
 // =========================================================================
 // 🐶 NOTEDOG CHEWTOY CLIENT ENGINE (Notes & Markdown Studio)
 // =========================================================================
+// 8. NOTEDOG - POWER NOTES STUDIO (PERSISTENT DB + FS BACKENDS)
+// =========================================================================
+
+const DEFAULT_MANUALS_NOTEBOOK = {
+  name: 'Manuals',
+  path: 'manual://',
+  is_encrypted: false,
+  sections: [
+    {
+      name: 'User Manuals',
+      path: 'manual://user-manuals',
+      notes: [
+        { name: '01. Documentation Index', filename: 'README.md', path: 'manual://README.md', relative_path: 'Manuals/User Manuals/README.md', is_manual: true },
+        { name: '02. Keyboard Shortcuts & Navigation', filename: 'shortcuts.md', path: 'manual://shortcuts.md', relative_path: 'Manuals/User Manuals/shortcuts.md', is_manual: true },
+        { name: '03. Advanced Sharing & Client Portals', filename: 'sharing.md', path: 'manual://sharing.md', relative_path: 'Manuals/User Manuals/sharing.md', is_manual: true },
+        { name: '04. Transparent Encrypted Vaults', filename: 'vaults.md', path: 'manual://vaults.md', relative_path: 'Manuals/User Manuals/vaults.md', is_manual: true },
+        { name: '05. Remote Protocols & VFS Guide', filename: 'protocols.md', path: 'manual://protocols.md', relative_path: 'Manuals/User Manuals/protocols.md', is_manual: true },
+        { name: '06. Design Specs & Amber Palette', filename: 'themes-and-palette.md', path: 'manual://themes-and-palette.md', relative_path: 'Manuals/User Manuals/themes-and-palette.md', is_manual: true }
+      ]
+    },
+    {
+      name: 'Deployment & Config',
+      path: 'manual://deployment',
+      notes: [
+        { name: '01. Configuration Reference (config.toml)', filename: 'configuration.md', path: 'manual://configuration.md', relative_path: 'Manuals/Deployment/configuration.md', is_manual: true },
+        { name: '02. Docker & Portainer Deployment', filename: 'docker.md', path: 'manual://docker.md', relative_path: 'Manuals/Deployment/docker.md', is_manual: true },
+        { name: '03. Proxmox VE & Linux LXC', filename: 'lxc-proxmox.md', path: 'manual://lxc-proxmox.md', relative_path: 'Manuals/Deployment/lxc-proxmox.md', is_manual: true },
+        { name: '04. Reverse Proxy & Mesh VPN Guide', filename: 'reverse-proxy.md', path: 'manual://reverse-proxy.md', relative_path: 'Manuals/Deployment/reverse-proxy.md', is_manual: true },
+        { name: '05. OpenID Connect & Authentik SSO', filename: 'authentik-sso.md', path: 'manual://authentik-sso.md', relative_path: 'Manuals/Deployment/authentik-sso.md', is_manual: true },
+        { name: '06. Brum for Windows Guide', filename: 'windows.md', path: 'manual://windows.md', relative_path: 'Manuals/Deployment/windows.md', is_manual: true },
+        { name: '07. Brum on Android & Termux', filename: 'android-termux.md', path: 'manual://android-termux.md', relative_path: 'Manuals/Deployment/android-termux.md', is_manual: true }
+      ]
+    },
+    {
+      name: 'Chewtoys & Plugins',
+      path: 'manual://chewtoys',
+      notes: [
+        { name: '01. Power Tools & Chewtoys Manual', filename: 'chewtoys.md', path: 'manual://chewtoys.md', relative_path: 'Manuals/Chewtoys/chewtoys.md', is_manual: true },
+        { name: '02. Chewtoy Plugin Development (.grr)', filename: 'plugin-development.md', path: 'manual://plugin-development.md', relative_path: 'Manuals/Chewtoys/plugin-development.md', is_manual: true }
+      ]
+    },
+    {
+      name: 'QA Testing Manuals',
+      path: 'manual://qa-testing',
+      notes: [
+        { name: '01. QA Testing & Verification Manual', filename: 'qa-testing.md', path: 'manual://qa-testing.md', relative_path: 'Manuals/QA Testing/qa-testing.md', is_manual: true }
+      ]
+    }
+  ]
+};
+
+function getNoteDogManualsNotebook() {
+  const found = (notedogState.notebooks || []).find(nb => nb.path?.startsWith('manual://') || nb.name === 'Manuals');
+  return found || DEFAULT_MANUALS_NOTEBOOK;
+}
+
+function getManualSectionIcon(secName) {
+  const s = (secName || '').toLowerCase();
+  if (s.includes('qa') || s.includes('testing')) return '🧪';
+  if (s.includes('deployment') || s.includes('config')) return '🚀';
+  if (s.includes('chewtoy') || s.includes('plugin')) return '🧩';
+  return '📖';
+}
+
 const notedogState = {
   isOpen: false,
   isMaximized: false,
@@ -9435,7 +9499,7 @@ const notedogState = {
   rootFolder: '',
   customFolder: localStorage.getItem('cd_notedog_folder') || '',
   // Filesystem notes
-  notebooks: [],
+  notebooks: [DEFAULT_MANUALS_NOTEBOOK],
   activeNotebook: '',
   activeSection: '',
   activeNote: null,
@@ -9444,7 +9508,7 @@ const notedogState = {
   activeDbNote: null,
   activeCategory: 'General',
   activeDbSection: 'Default',
-  categories: ['General', 'Work', 'Personal', 'Projects', 'Archive'],
+  categories: ['General', 'Work', 'Personal', 'Projects', 'Archive', 'Manuals'],
   sections: ['Default'],
   activeAttachments: [],
   // Common state
@@ -9559,7 +9623,7 @@ function openFloatingNoteDog(optionalNotePath) {
 
   if (optionalNotePath) {
     if (optionalNotePath.startsWith('manual://') && notedogState.storageMode === 'database') {
-      selectDatabaseCategory('📖 Manuals');
+      selectDatabaseCategory('Manuals');
     }
     setTimeout(() => {
       selectNoteDogNoteByPath(optionalNotePath);
@@ -9862,10 +9926,10 @@ async function loadDatabaseNotesHierarchy(targetNoteId) {
     notedogState.dbNotes = notes || [];
 
     // Extract categories
-    const defaultCats = ['General', 'Work', 'Personal', 'Projects', 'Archive', '📖 Manuals'];
+    const defaultCats = ['General', 'Work', 'Personal', 'Projects', 'Archive', 'Manuals'];
     const foundCats = new Set(defaultCats);
     notedogState.dbNotes.forEach(n => {
-      if (n.category) foundCats.add(n.category);
+      if (n.category) foundCats.add(n.category.replace(/^[^\w\s&]+/, '').trim());
     });
     notedogState.categories = Array.from(foundCats);
 
@@ -9874,16 +9938,18 @@ async function loadDatabaseNotesHierarchy(targetNoteId) {
     }
 
     // Extract sections in active category
-    if (notedogState.activeCategory === '📖 Manuals') {
-      notedogState.sections = ['📖 User Manuals', '🚀 Deployment & Config', '🧩 Chewtoys & Plugins', '🧪 QA Testing Manuals'];
+    if (notedogState.activeCategory === 'Manuals' || notedogState.activeCategory === '📖 Manuals') {
+      notedogState.activeCategory = 'Manuals';
+      const manualsNb = getNoteDogManualsNotebook();
+      notedogState.sections = (manualsNb.sections || []).map(s => s.name);
       if (!notedogState.sections.includes(notedogState.activeDbSection)) {
-        notedogState.activeDbSection = '📖 User Manuals';
+        notedogState.activeDbSection = notedogState.sections[0] || 'User Manuals';
       }
     } else {
-      const catNotes = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory);
+      const catNotes = notedogState.dbNotes.filter(n => (n.category || '').replace(/^[^\w\s&]+/, '').trim() === notedogState.activeCategory);
       const foundSections = new Set(['Default']);
       catNotes.forEach(n => {
-        if (n.section) foundSections.add(n.section);
+        if (n.section) foundSections.add(n.section.replace(/^[^\w\s&]+/, '').trim());
       });
       notedogState.sections = Array.from(foundSections);
 
@@ -9902,12 +9968,12 @@ async function loadDatabaseNotesHierarchy(targetNoteId) {
       }
     }
 
-    if (notedogState.activeCategory === '📖 Manuals') {
-      const manualsNb = notedogState.notebooks?.find(nb => nb.path?.startsWith('manual://'));
-      const sec = manualsNb?.sections?.find(s => s.name === notedogState.activeDbSection);
+    if (notedogState.activeCategory === 'Manuals') {
+      const manualsNb = getNoteDogManualsNotebook();
+      const sec = manualsNb?.sections?.find(s => s.name === notedogState.activeDbSection || s.name.replace(/^[^\w\s&]+/, '').trim() === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim());
       if (sec && sec.notes.length > 0) {
-        loadNoteDogNoteContent(sec.notes[0]);
-        notedogState.activeNote = sec.notes[0];
+        notedogState.activeNote = { ...sec.notes[0], nbName: 'Manuals', secName: sec.name };
+        loadNoteDogNoteContent(notedogState.activeNote);
       }
       return;
     }
@@ -9945,16 +10011,17 @@ function renderDatabaseSidebar() {
 
   // 1. Categories
   if (nbList) {
-    nbList.innerHTML = notedogState.categories.map(cat => {
-      const isManualCat = cat === '📖 Manuals';
-      const manualsNb = notedogState.notebooks?.find(nb => nb.path?.startsWith('manual://'));
-      const count = isManualCat ? (manualsNb ? manualsNb.sections.reduce((acc, s) => acc + s.notes.length, 0) : 16) : notedogState.dbNotes.filter(n => n.category === cat).length;
-      const isActive = cat === notedogState.activeCategory;
+    nbList.innerHTML = notedogState.categories.map(rawCat => {
+      const cleanCat = (rawCat || '').replace(/^[^\w\s&]+/, '').trim();
+      const isManualCat = cleanCat === 'Manuals' || rawCat === '📖 Manuals';
+      const manualsNb = getNoteDogManualsNotebook();
+      const count = isManualCat ? (manualsNb ? manualsNb.sections.reduce((acc, s) => acc + s.notes.length, 0) : 16) : notedogState.dbNotes.filter(n => (n.category || '').replace(/^[^\w\s&]+/, '').trim() === cleanCat).length;
+      const isActive = cleanCat === (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim();
       const icon = isManualCat ? '📖' : '📚';
       return `
-        <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseCategory('${escapeHtml(cat)}')" title="${escapeHtml(cat)} (${count} notes)">
+        <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseCategory('${escapeHtml(cleanCat)}')" title="${escapeHtml(cleanCat)} (${count} notes)">
           <span>${icon}</span>
-          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cat)}</span>
+          <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanCat)}</span>
           <span class="notedog-item-count">${count}</span>
         </div>
       `;
@@ -9963,35 +10030,34 @@ function renderDatabaseSidebar() {
 
   // 2. Sections in active category
   if (secList) {
-    if (notedogState.activeCategory === '📖 Manuals') {
-      const manualsNb = notedogState.notebooks?.find(nb => nb.path?.startsWith('manual://'));
-      const secListDefs = manualsNb?.sections || [
-        { name: '📖 User Manuals', notes: { length: 6 } },
-        { name: '🚀 Deployment & Config', notes: { length: 7 } },
-        { name: '🧩 Chewtoys & Plugins', notes: { length: 2 } },
-        { name: '🧪 QA Testing Manuals', notes: { length: 1 } }
-      ];
+    const isManualCat = notedogState.activeCategory === 'Manuals' || notedogState.activeCategory === '📖 Manuals';
+    if (isManualCat) {
+      const manualsNb = getNoteDogManualsNotebook();
+      const secListDefs = manualsNb?.sections || [];
       secList.innerHTML = secListDefs.map(sec => {
         const count = sec.notes ? sec.notes.length : 0;
-        const isActive = sec.name === notedogState.activeDbSection;
-        const icon = sec.name.includes('QA') || sec.name.includes('Testing') ? '🧪' : (sec.name.includes('Deployment') ? '🚀' : (sec.name.includes('Chewtoy') || sec.name.includes('Plugin') ? '🧩' : '📖'));
+        const cleanName = sec.name.replace(/^[^\w\s&]+/, '').trim();
+        const isActive = cleanName === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim() || sec.name === notedogState.activeDbSection;
+        const icon = getManualSectionIcon(sec.name);
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection('${escapeHtml(sec.name)}')" title="${escapeHtml(sec.name)} (${count} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection('${escapeHtml(sec.name)}')" title="${escapeHtml(cleanName)} (${count} notes)">
             <span>${icon}</span>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(sec.name)}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanName)}</span>
             <span class="notedog-item-count">${count}</span>
           </div>
         `;
       }).join('');
     } else {
-      const catNotes = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory);
+      const cleanActiveCat = (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim();
+      const catNotes = notedogState.dbNotes.filter(n => (n.category || '').replace(/^[^\w\s&]+/, '').trim() === cleanActiveCat);
       secList.innerHTML = notedogState.sections.map(sec => {
-        const count = catNotes.filter(n => n.section === sec).length;
-        const isActive = sec === notedogState.activeDbSection;
+        const cleanSec = sec.replace(/^[^\w\s&]+/, '').trim();
+        const count = catNotes.filter(n => (n.section || '').replace(/^[^\w\s&]+/, '').trim() === cleanSec).length;
+        const isActive = cleanSec === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim();
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection('${escapeHtml(sec)}')" title="${escapeHtml(sec)} (${count} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection('${escapeHtml(cleanSec)}')" title="${escapeHtml(cleanSec)} (${count} notes)">
             <span>📂</span>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(sec)}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanSec)}</span>
             <span class="notedog-item-count">${count}</span>
           </div>
         `;
@@ -10001,9 +10067,10 @@ function renderDatabaseSidebar() {
 
   // 3. Notes in active section or search results
   if (noteList) {
-    if (notedogState.activeCategory === '📖 Manuals') {
-      const manualsNb = notedogState.notebooks?.find(nb => nb.path?.startsWith('manual://'));
-      const currentSec = manualsNb?.sections?.find(s => s.name === notedogState.activeDbSection);
+    const isManualCat = notedogState.activeCategory === 'Manuals' || notedogState.activeCategory === '📖 Manuals';
+    if (isManualCat) {
+      const manualsNb = getNoteDogManualsNotebook();
+      const currentSec = manualsNb?.sections?.find(s => s.name === notedogState.activeDbSection || s.name.replace(/^[^\w\s&]+/, '').trim() === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim());
       let notesToRender = currentSec ? currentSec.notes : [];
       if (notedogState.searchQuery.trim()) {
         const q = notedogState.searchQuery.toLowerCase();
@@ -10011,7 +10078,7 @@ function renderDatabaseSidebar() {
         manualsNb?.sections?.forEach(sec => {
           sec.notes.forEach(n => {
             if (n.name.toLowerCase().includes(q) || n.filename.toLowerCase().includes(q)) {
-              notesToRender.push({ ...n, subtext: `Manuals/${sec.name}` });
+              notesToRender.push({ ...n, subtext: `Manuals/${sec.name.replace(/^[^\w\s&]+/, '').trim()}` });
             }
           });
         });
@@ -10022,11 +10089,12 @@ function renderDatabaseSidebar() {
       } else {
         noteList.innerHTML = notesToRender.map(note => {
           const isActive = notedogState.activeNote && (notedogState.activeNote.path === note.path);
+          const cleanTitle = note.name.replace(/^[^\w\s&]+/, '').trim();
           return `
             <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath('${escapeHtml(note.path)}')" title="${escapeHtml(note.filename)}">
               <span>📄</span>
               <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-                <div>${escapeHtml(note.name)}</div>
+                <div>${escapeHtml(cleanTitle)}</div>
                 ${note.subtext ? `<div style="font-size: 9px; color: var(--text-dim);">${escapeHtml(note.subtext)}</div>` : ''}
               </div>
             </div>
@@ -10035,10 +10103,12 @@ function renderDatabaseSidebar() {
       }
     } else {
       let notesToRender = [];
+      const cleanActiveCat = (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim();
+      const cleanActiveSec = (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim();
       if (notedogState.searchQuery.trim()) {
         notesToRender = notedogState.dbNotes;
       } else {
-        notesToRender = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory && n.section === notedogState.activeDbSection);
+        notesToRender = notedogState.dbNotes.filter(n => (n.category || '').replace(/^[^\w\s&]+/, '').trim() === cleanActiveCat && (n.section || '').replace(/^[^\w\s&]+/, '').trim() === cleanActiveSec);
       }
 
       if (notesToRender.length === 0) {
@@ -10071,29 +10141,31 @@ function renderDatabaseSidebar() {
 }
 
 function selectDatabaseCategory(cat) {
-  notedogState.activeCategory = cat;
-  if (cat === '📖 Manuals') {
-    notedogState.sections = ['📖 User Manuals', '🚀 Deployment & Config', '🧩 Chewtoys & Plugins', '🧪 QA Testing Manuals'];
+  const cleanCat = (cat || '').replace(/^[^\w\s&]+/, '').trim();
+  const isManual = cleanCat === 'Manuals';
+  notedogState.activeCategory = cleanCat;
+  if (isManual) {
+    const manualsNb = getNoteDogManualsNotebook();
+    notedogState.sections = (manualsNb.sections || []).map(s => s.name);
     if (!notedogState.sections.includes(notedogState.activeDbSection)) {
-      notedogState.activeDbSection = '📖 User Manuals';
+      notedogState.activeDbSection = notedogState.sections[0] || 'User Manuals';
     }
     renderDatabaseSidebar();
-    const manualsNb = notedogState.notebooks?.find(nb => nb.path?.startsWith('manual://'));
-    const sec = manualsNb?.sections?.find(s => s.name === notedogState.activeDbSection);
+    const sec = manualsNb?.sections?.find(s => s.name === notedogState.activeDbSection || s.name.replace(/^[^\w\s&]+/, '').trim() === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim());
     if (sec && sec.notes.length > 0) {
-      selectNoteDogNote(sec.notes[0]);
+      selectNoteDogNote({ ...sec.notes[0], nbName: 'Manuals', secName: sec.name });
     }
     return;
   }
 
-  const catNotes = notedogState.dbNotes.filter(n => n.category === cat);
+  const catNotes = notedogState.dbNotes.filter(n => (n.category || '').replace(/^[^\w\s&]+/, '').trim() === cleanCat);
   const foundSections = new Set(['Default']);
-  catNotes.forEach(n => { if (n.section) foundSections.add(n.section); });
+  catNotes.forEach(n => { if (n.section) foundSections.add(n.section.replace(/^[^\w\s&]+/, '').trim()); });
   notedogState.sections = Array.from(foundSections);
   notedogState.activeDbSection = notedogState.sections[0] || 'Default';
 
   renderDatabaseSidebar();
-  const currentNotes = catNotes.filter(n => n.section === notedogState.activeDbSection);
+  const currentNotes = catNotes.filter(n => (n.section || '').replace(/^[^\w\s&]+/, '').trim() === notedogState.activeDbSection);
   if (currentNotes.length > 0) {
     selectDatabaseNote(currentNotes[0]);
   } else {
@@ -10111,18 +10183,21 @@ function selectDatabaseCategory(cat) {
 }
 
 function selectDatabaseSection(sec) {
-  notedogState.activeDbSection = sec;
+  const cleanSec = (sec || '').replace(/^[^\w\s&]+/, '').trim();
+  notedogState.activeDbSection = cleanSec;
   renderDatabaseSidebar();
-  if (notedogState.activeCategory === '📖 Manuals') {
-    const manualsNb = notedogState.notebooks?.find(nb => nb.path?.startsWith('manual://'));
-    const s = manualsNb?.sections?.find(it => it.name === sec);
+  const isManual = (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim() === 'Manuals';
+  if (isManual) {
+    const manualsNb = getNoteDogManualsNotebook();
+    const s = manualsNb?.sections?.find(it => it.name === sec || it.name.replace(/^[^\w\s&]+/, '').trim() === cleanSec);
     if (s && s.notes.length > 0) {
-      selectNoteDogNote(s.notes[0]);
+      selectNoteDogNote({ ...s.notes[0], nbName: 'Manuals', secName: s.name });
     }
     return;
   }
 
-  const currentNotes = notedogState.dbNotes.filter(n => n.category === notedogState.activeCategory && n.section === sec);
+  const cleanCat = (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim();
+  const currentNotes = notedogState.dbNotes.filter(n => (n.category || '').replace(/^[^\w\s&]+/, '').trim() === cleanCat && (n.section || '').replace(/^[^\w\s&]+/, '').trim() === cleanSec);
   if (currentNotes.length > 0) {
     selectDatabaseNote(currentNotes[0]);
   } else {
@@ -10839,8 +10914,11 @@ function renderNoteDogSidebar() {
   const noteList = document.getElementById('notedog-notes-list');
   const breadcrumb = document.getElementById('notedog-current-breadcrumb');
 
+  const cleanActiveNb = (notedogState.activeNotebook || '').replace(/^[^\w\s&]+/, '').trim();
+  const cleanActiveSec = (notedogState.activeSection || '').replace(/^[^\w\s&]+/, '').trim();
+
   if (breadcrumb) {
-    breadcrumb.textContent = `${notedogState.activeNotebook || 'Notes'} / ${notedogState.activeSection || 'General'}`;
+    breadcrumb.textContent = `${cleanActiveNb || 'Notes'} / ${cleanActiveSec || 'General'}`;
   }
 
   // 1. Notebooks list
@@ -10849,14 +10927,16 @@ function renderNoteDogSidebar() {
       nbList.innerHTML = '<div style="padding: 6px; font-size: 10px; color: var(--text-dim);">No notebooks</div>';
     } else {
       nbList.innerHTML = notedogState.notebooks.map(nb => {
+        const cleanNb = nb.name.replace(/^[^\w\s&]+/, '').trim();
+        const isManualNb = nb.path?.startsWith('manual://') || cleanNb === 'Manuals';
         const totalNotes = nb.sections.reduce((acc, s) => acc + s.notes.length, 0);
-        const isActive = nb.name === notedogState.activeNotebook;
-        const icon = nb.is_encrypted ? '📚 🔒' : '📚';
+        const isActive = cleanNb === cleanActiveNb || nb.name === notedogState.activeNotebook;
+        const icon = nb.is_encrypted ? '🔒' : (isManualNb ? '📖' : '📚');
         const encLabel = nb.is_encrypted ? ' [Encrypted Notebook]' : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNotebook('${escapeHtml(nb.name)}')" title="${escapeHtml(nb.name)}${encLabel} (${totalNotes} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNotebook('${escapeHtml(nb.name)}')" title="${escapeHtml(cleanNb)}${encLabel} (${totalNotes} notes)">
             <span>${icon}</span>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(nb.name)}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanNb)}</span>
             <span class="notedog-item-count">${totalNotes}</span>
           </div>
         `;
@@ -10865,19 +10945,21 @@ function renderNoteDogSidebar() {
   }
 
   // 2. Sections list
-  const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook);
+  const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook || nb.name.replace(/^[^\w\s&]+/, '').trim() === cleanActiveNb);
   if (secList) {
     if (!currentNb || currentNb.sections.length === 0) {
       secList.innerHTML = '<div style="padding: 6px; font-size: 10px; color: var(--text-dim);">No sections</div>';
     } else {
+      const isManualNb = currentNb.path?.startsWith('manual://') || currentNb.name.replace(/^[^\w\s&]+/, '').trim() === 'Manuals';
       secList.innerHTML = currentNb.sections.map(sec => {
-        const isActive = sec.name === notedogState.activeSection;
-        const icon = sec.is_encrypted ? '📂 🔒' : '📂';
+        const cleanSec = sec.name.replace(/^[^\w\s&]+/, '').trim();
+        const isActive = cleanSec === cleanActiveSec || sec.name === notedogState.activeSection;
+        const icon = sec.is_encrypted ? '🔒' : (isManualNb ? getManualSectionIcon(sec.name) : '📂');
         const encLabel = sec.is_encrypted ? ' [Encrypted Section]' : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogSection('${escapeHtml(sec.name)}')" title="${escapeHtml(sec.name)}${encLabel} (${sec.notes.length} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogSection('${escapeHtml(sec.name)}')" title="${escapeHtml(cleanSec)}${encLabel} (${sec.notes.length} notes)">
             <span>${icon}</span>
-            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(sec.name)}</span>
+            <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanSec)}</span>
             <span class="notedog-item-count">${sec.notes.length}</span>
           </div>
         `;
@@ -10900,7 +10982,7 @@ function renderNoteDogSidebar() {
         });
       });
     } else {
-      const currentSec = currentNb?.sections.find(s => s.name === notedogState.activeSection);
+      const currentSec = currentNb?.sections.find(s => s.name === notedogState.activeSection || s.name.replace(/^[^\w\s&]+/, '').trim() === cleanActiveSec);
       notesToRender = currentSec ? currentSec.notes : [];
     }
 
@@ -10910,12 +10992,13 @@ function renderNoteDogSidebar() {
       noteList.innerHTML = notesToRender.map(note => {
         const isActive = notedogState.activeNote && (notedogState.activeNote.path === note.path);
         const icon = note.is_encrypted ? '🔒' : '📄';
-        const subtext = note.nbName ? `${note.nbName}/${note.secName}` : '';
+        const cleanName = note.name.replace(/^[^\w\s&]+/, '').trim();
+        const subtext = note.nbName ? `${note.nbName.replace(/^[^\w\s&]+/, '').trim()}/${note.secName.replace(/^[^\w\s&]+/, '').trim()}` : '';
         return `
           <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath('${escapeHtml(note.path)}')" title="${escapeHtml(note.filename)}">
             <span>${icon}</span>
             <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
-              <div>${escapeHtml(note.name)}</div>
+              <div>${escapeHtml(cleanName)}</div>
               ${subtext ? `<div style="font-size: 9px; color: var(--text-dim);">${escapeHtml(subtext)}</div>` : ''}
             </div>
           </div>
@@ -10927,12 +11010,13 @@ function renderNoteDogSidebar() {
 }
 
 function selectNoteDogNotebook(nbName) {
-  notedogState.activeNotebook = nbName;
-  const currentNb = notedogState.notebooks.find(nb => nb.name === nbName);
+  const cleanNb = (nbName || '').replace(/^[^\w\s&]+/, '').trim();
+  notedogState.activeNotebook = cleanNb;
+  const currentNb = notedogState.notebooks.find(nb => nb.name === nbName || nb.name.replace(/^[^\w\s&]+/, '').trim() === cleanNb);
   if (currentNb && currentNb.sections.length > 0) {
     notedogState.activeSection = currentNb.sections[0].name;
     if (currentNb.sections[0].notes.length > 0) {
-      return selectNoteDogNote(currentNb.sections[0].notes[0]);
+      return selectNoteDogNote({ ...currentNb.sections[0].notes[0], nbName: currentNb.name, secName: currentNb.sections[0].name });
     } else {
       notedogState.activeNote = null;
       notedogState.content = '';
@@ -10947,11 +11031,13 @@ function selectNoteDogNotebook(nbName) {
 }
 
 function selectNoteDogSection(secName) {
-  notedogState.activeSection = secName;
-  const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook);
-  const currentSec = currentNb?.sections.find(s => s.name === secName);
+  const cleanActiveNb = (notedogState.activeNotebook || '').replace(/^[^\w\s&]+/, '').trim();
+  const cleanSec = (secName || '').replace(/^[^\w\s&]+/, '').trim();
+  notedogState.activeSection = cleanSec;
+  const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook || nb.name.replace(/^[^\w\s&]+/, '').trim() === cleanActiveNb);
+  const currentSec = currentNb?.sections.find(s => s.name === secName || s.name.replace(/^[^\w\s&]+/, '').trim() === cleanSec);
   if (currentSec && currentSec.notes.length > 0) {
-    return selectNoteDogNote(currentSec.notes[0]);
+    return selectNoteDogNote({ ...currentSec.notes[0], nbName: currentNb.name, secName: currentSec.name });
   } else {
     notedogState.activeNote = null;
     notedogState.content = '';
@@ -10963,14 +11049,27 @@ function selectNoteDogSection(secName) {
 function selectNoteDogNoteByPath(path) {
   if (!path) return Promise.resolve();
   let found = null;
-  for (const nb of notedogState.notebooks) {
+  const nbs = [...(notedogState.notebooks || [])];
+  const manualNb = getNoteDogManualsNotebook();
+  if (!nbs.some(nb => nb.path?.startsWith('manual://') || nb.name.replace(/^[^\w\s&]+/, '').trim() === 'Manuals')) {
+    nbs.push(manualNb);
+  }
+  for (const nb of nbs) {
     for (const sec of nb.sections) {
-      const n = sec.notes.find(it => it.path === path);
-      if (n) { found = n; break; }
+      const n = sec.notes.find(it => it.path === path || it.relative_path === path || it.filename === path);
+      if (n) {
+        found = { ...n, nbName: nb.name.replace(/^[^\w\s&]+/, '').trim(), secName: sec.name.replace(/^[^\w\s&]+/, '').trim() };
+        break;
+      }
     }
     if (found) break;
   }
   if (found) {
+    if (notedogState.storageMode === 'database') {
+      notedogState.activeCategory = 'Manuals';
+      notedogState.activeDbSection = found.secName;
+      renderDatabaseSidebar();
+    }
     return selectNoteDogNote(found);
   }
   return Promise.resolve();
@@ -12272,9 +12371,10 @@ function mountDockedNoteDog(paneIndex) {
   const mountBody = document.getElementById(`docked-notedog-body-${paneIndex}`);
   if (!mountBody) return;
 
-  const currentNb = notedogState.notebooks.find(nb => nb.name === notedogState.activeNotebook) || notedogState.notebooks[0];
-  const currentSec = (currentNb?.sections || []).find(s => s.name === notedogState.activeSection) || currentNb?.sections[0];
-  const currentNote = (currentSec?.notes || []).find(n => n.path === notedogState.activeNote?.path) || currentSec?.notes[0];
+  const nbs = (notedogState.notebooks && notedogState.notebooks.length > 0) ? notedogState.notebooks : [DEFAULT_MANUALS_NOTEBOOK];
+  const currentNb = nbs.find(nb => nb.name === notedogState.activeNotebook || nb.name.replace(/^[^\w\s&]+/, '').trim() === (notedogState.activeNotebook || '').replace(/^[^\w\s&]+/, '').trim()) || nbs[0];
+  const currentSec = (currentNb?.sections || []).find(s => s.name === notedogState.activeSection || s.name.replace(/^[^\w\s&]+/, '').trim() === (notedogState.activeSection || '').replace(/^[^\w\s&]+/, '').trim()) || currentNb?.sections?.[0];
+  const currentNote = (currentSec?.notes || []).find(n => n.path === notedogState.activeNote?.path) || currentSec?.notes?.[0];
 
   const mode = notedogState.viewMode || 'split';
 
@@ -12282,13 +12382,22 @@ function mountDockedNoteDog(paneIndex) {
     <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden;">
       <div style="padding: 4px 8px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; gap: 4px; align-items: center; font-size: 11px;">
         <select id="docked-notedog-nb-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="handleDockedNotebookChange(${paneIndex}, this.value)">
-          ${notedogState.notebooks.map(nb => `<option value="${escapeHtml(nb.name)}" ${nb.name === (currentNb?.name || '') ? 'selected' : ''}>📚 ${escapeHtml(nb.name)}</option>`).join('')}
+          ${nbs.map(nb => {
+            const clean = nb.name.replace(/^[^\w\s&]+/, '').trim();
+            const icon = (nb.path?.startsWith('manual://') || clean === 'Manuals') ? '📖' : '📚';
+            return `<option value="${escapeHtml(nb.name)}" ${nb.name === (currentNb?.name || '') ? 'selected' : ''}>${icon} ${escapeHtml(clean)}</option>`;
+          }).join('')}
         </select>
         <select id="docked-notedog-sec-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="handleDockedSectionChange(${paneIndex}, this.value)">
-          ${((currentNb?.sections) || []).map(sec => `<option value="${escapeHtml(sec.name)}" ${sec.name === (currentSec?.name || '') ? 'selected' : ''}>📂 ${escapeHtml(sec.name)}</option>`).join('')}
+          ${((currentNb?.sections) || []).map(sec => {
+            const clean = sec.name.replace(/^[^\w\s&]+/, '').trim();
+            const isManualNb = currentNb?.path?.startsWith('manual://') || (currentNb?.name || '').replace(/^[^\w\s&]+/, '').trim() === 'Manuals';
+            const icon = isManualNb ? getManualSectionIcon(sec.name) : '📂';
+            return `<option value="${escapeHtml(sec.name)}" ${sec.name === (currentSec?.name || '') ? 'selected' : ''}>${icon} ${escapeHtml(clean)}</option>`;
+          }).join('')}
         </select>
         <select id="docked-notedog-note-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px; flex: 1;" onchange="handleDockedNoteSelect(${paneIndex}, this.value)">
-          ${((currentSec?.notes) || []).map(n => `<option value="${escapeHtml(n.path)}" ${currentNote && n.path === currentNote.path ? 'selected' : ''}>📄 ${escapeHtml(n.name)}</option>`).join('')}
+          ${((currentSec?.notes) || []).map(n => `<option value="${escapeHtml(n.path)}" ${currentNote && n.path === currentNote.path ? 'selected' : ''}>📄 ${escapeHtml(n.name.replace(/^[^\w\s&]+/, '').trim())}</option>`).join('')}
         </select>
       </div>
       <div class="notedog-panes-wrapper ${mode}-mode" style="flex: 1; height: 100%; display: flex; overflow: hidden;">
@@ -12304,7 +12413,8 @@ function mountDockedNoteDog(paneIndex) {
 
   const titleEl = document.getElementById(`docked-notedog-title-${paneIndex}`);
   if (titleEl) {
-    titleEl.textContent = currentNote?.name || notedogState.activeNote?.name || 'NoteDog';
+    const cleanTitle = (currentNote?.name || notedogState.activeNote?.name || 'Notes').replace(/^[^\w\s&]+/, '').trim();
+    titleEl.textContent = cleanTitle;
   }
 
   ['edit', 'split', 'preview'].forEach(m => {
