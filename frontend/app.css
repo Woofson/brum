@@ -8200,8 +8200,6 @@ html.fkeys-disabled .bottom-fkey-bar,
     radial-gradient(ellipse 80% 60% at 15% 15%, rgba(245, 158, 11, 0.10) 0%, transparent 65%),
     radial-gradient(ellipse 75% 55% at 85% 85%, rgba(217, 119, 6, 0.08) 0%, transparent 65%),
     linear-gradient(140deg, #0a0a0d 0%, #121217 45%, #151310 100%);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   overflow: hidden;
 }
 
@@ -11533,8 +11531,6 @@ html.auth-ready .panes-container {
     radial-gradient(ellipse 80% 60% at 15% 15%, rgba(245, 158, 11, 0.10) 0%, transparent 65%),
     radial-gradient(ellipse 75% 55% at 85% 85%, rgba(217, 119, 6, 0.08) 0%, transparent 65%),
     linear-gradient(140deg, #0a0a0d 0%, #121217 45%, #151310 100%);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
   overflow: hidden;
 }
 
@@ -11642,6 +11638,8 @@ html.auth-ready .panes-container {
   user-select: none;
   z-index: 5;
   overflow: hidden;
+  isolation: isolate;
+  background: transparent !important;
 }
 
 .auth-watermark-img {
@@ -11653,16 +11651,22 @@ html.auth-ready .panes-container {
   opacity: 0.85;
   filter: drop-shadow(0 0 45px rgba(245, 158, 11, 0.45));
   transform-origin: center center;
+  transform: translate3d(0, 0, 0) scale(0.98);
+  -webkit-transform: translate3d(0, 0, 0) scale(0.98);
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background: transparent !important;
   animation: authWatermarkFloat 10s ease-in-out infinite alternate;
 }
 
 @keyframes authWatermarkFloat {
   0% {
-    transform: scale(0.98) translateY(0);
+    transform: translate3d(0, 0, 0) scale(0.98);
     opacity: 0.80;
   }
   100% {
-    transform: scale(1.02) translateY(-8px);
+    transform: translate3d(0, -8px, 0) scale(1.02);
     opacity: 0.90;
   }
 }

@@ -4530,7 +4530,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
 
       let thumbHtml = '';
       if (!entry.is_dir && isImageFile(entry.name)) {
-        thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" onerror="this.src='assets/brum_commanderdog_legacy.webp'">`;
+        thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" onerror="this.src='assets/brum_icon.webp'">`;
       } else {
         thumbHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg');
       }
