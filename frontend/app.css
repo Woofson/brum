@@ -3906,13 +3906,23 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .image-viewer-toolbar {
+  position: relative;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border);
-  padding: 6px 14px;
+  padding: 6px 12px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  gap: 8px;
+  flex-shrink: 0;
+  min-height: 42px;
+  box-sizing: border-box;
+  user-select: none;
+  cursor: grab;
+}
+
+.image-viewer-toolbar:active {
+  cursor: grabbing;
 }
 
 .image-viewer-viewport {
@@ -8773,6 +8783,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
    MOBILE & FOLDABLE CONSOLIDATED LAYOUT TWEAKS FOR EDITOR & VIEWERS
    ========================================================================== */
 .image-viewer-toolbar {
+  position: relative;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border);
   padding: 6px 12px;
@@ -8781,6 +8792,14 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   justify-content: space-between;
   gap: 8px;
   flex-shrink: 0;
+  min-height: 42px;
+  box-sizing: border-box;
+  user-select: none;
+  cursor: grab;
+}
+
+.image-viewer-toolbar:active {
+  cursor: grabbing;
 }
 
 .image-viewer-title-group {
@@ -8788,10 +8807,17 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   align-items: center;
   gap: 8px;
   min-width: 0;
-  max-width: 40%;
+  max-width: calc(50% - 60px);
+  flex-shrink: 1;
+  overflow: hidden;
+  user-select: none;
 }
 
 .image-viewer-nav-pill {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
   display: flex;
   align-items: center;
   gap: 2px;
@@ -8802,6 +8828,9 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   height: 28px;
   box-sizing: border-box;
   flex-shrink: 0;
+  z-index: 5;
+  cursor: default;
+  pointer-events: auto;
 }
 
 .image-viewer-nav-pill button,
@@ -8828,6 +8857,9 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  margin-left: auto;
+  z-index: 2;
+  cursor: default;
 }
 
 @media (max-width: 1024px) {
@@ -8947,7 +8979,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   }
 
   .image-viewer-title-group {
-    max-width: 30%;
+    max-width: calc(50% - 50px);
   }
 
   .image-viewer-nav-pill {
