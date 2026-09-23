@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "brum"
-version = "0.8.3-rc1"
+version = "0.8.12-rc2"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -379,19 +379,21 @@ dependencies = [
  "tar",
  "tempfile",
  "tokio",
+ "tokio-util",
  "toml 0.8.2",
  "tower-http 0.5.2",
  "tracing",
  "tracing-subscriber",
  "uuid",
  "walkdir",
+ "windows-sys 0.59.0",
  "winres",
  "zip",
 ]
 
 [[package]]
 name = "brum-desktop"
-version = "0.8.3"
+version = "0.8.9"
 dependencies = [
  "brum",
  "libdbus-sys",
