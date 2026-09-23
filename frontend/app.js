@@ -700,6 +700,7 @@ function getAllUserPreferences() {
     font_size: App.fontSize || 13,
     border_width: localStorage.getItem('cd_border_width') || '1px',
     ring_style: localStorage.getItem('cd_ring_style') || 'subtle',
+    border_angle: localStorage.getItem('cd_border_angle') || '45deg',
     icon_theme: localStorage.getItem('cd_icon_theme') || 'default',
     global_folder_icon: localStorage.getItem('cd_global_folder_icon') || '',
     custom_file_icons: JSON.parse(localStorage.getItem('cd_custom_file_icons') || '{}'),
@@ -901,12 +902,13 @@ function applyAllUserPreferences(prefs) {
     }
   }
 
-  // 8. Border Width & Active Ring Style
-  if (prefs.border_width || prefs.ring_style) {
+  // 8. Border Width, Active Ring Style & Gradient Angle
+  if (prefs.border_width || prefs.ring_style || prefs.border_angle) {
     if (prefs.border_width) localStorage.setItem('cd_border_width', prefs.border_width);
     if (prefs.ring_style) localStorage.setItem('cd_ring_style', prefs.ring_style);
+    if (prefs.border_angle) localStorage.setItem('cd_border_angle', prefs.border_angle);
     if (typeof applyBorderSettings === 'function') {
-      applyBorderSettings(prefs.border_width, prefs.ring_style, true);
+      applyBorderSettings(prefs.border_width, prefs.ring_style, prefs.border_angle, true);
     }
   }
 
@@ -1265,17 +1267,7 @@ async function promptRenamePane(index) {
 
 function updatePaneTitles() {
   const colors = getPaneColors();
-  const colorHexes = {
-    'default': 'rgba(255,255,255,0.2)',
-    'amber': '#f59e0b',
-    'emerald': '#10b981',
-    'sky': '#38bdf8',
-    'purple': '#c084fc',
-    'rose': '#f43f5e',
-    'indigo': '#6366f1',
-    'teal': '#14b8a6',
-    'orange': '#f97316'
-  };
+  const globalAngle = localStorage.getItem('cd_border_angle') || '45deg';
 
   App.panes.forEach((pane, pIdx) => {
     const displayName = pane.customName || `${pIdx + 1}`;
@@ -1286,10 +1278,10 @@ function updatePaneTitles() {
     const ghost = document.getElementById(`pane-ghost-${pIdx}`);
     if (ghost) {
       ghost.textContent = displayName;
-      const colorKey = colors[pIdx] || 'default';
-      const hex = colorHexes[colorKey] || colorKey;
-      if (hex && hex !== 'rgba(255,255,255,0.2)') {
-        ghost.style.color = hex;
+      const colorConf = colors[pIdx] || 'default';
+      const resolved = typeof resolvePaneColorConfig === 'function' ? resolvePaneColorConfig(colorConf, globalAngle) : { activeC1: '#f59e0b', id: 'default' };
+      if (resolved.id !== 'default') {
+        ghost.style.color = resolved.activeC1;
       } else {
         ghost.style.color = 'var(--accent)';
       }
@@ -2300,21 +2292,11 @@ function createPaneElement(pane, index) {
 
   const visibleCount = getVisiblePaneCount();
   const colors = getPaneColors();
-  const colorHexes = {
-    'default': 'rgba(255,255,255,0.2)',
-    'amber': '#f59e0b',
-    'emerald': '#10b981',
-    'sky': '#38bdf8',
-    'purple': '#c084fc',
-    'rose': '#f43f5e',
-    'indigo': '#6366f1',
-    'teal': '#14b8a6',
-    'orange': '#f97316'
-  };
-
+  const globalAngle = localStorage.getItem('cd_border_angle') || '45deg';
   const paneTitle = pane.customName || `${index + 1}`;
-  const currentColor = colors[index] || 'default';
-  const activeHex = colorHexes[currentColor] || currentColor;
+  const colorConf = colors[index] || 'default';
+  const resolved = typeof resolvePaneColorConfig === 'function' ? resolvePaneColorConfig(colorConf, globalAngle) : { activeC1: '#f59e0b', activeC2: '#f97316', angle: '45deg', id: 'default' };
+  const badgeGradient = `linear-gradient(${resolved.angle}, ${resolved.activeC1}, ${resolved.activeC2})`;
   const isDraggableAttr = App.paneReorderEnabled !== false ? `draggable="true" ondragstart="handlePaneBadgeDragStart(event, ${index})" ondragend="handlePaneBadgeDragEnd(event, ${index})"` : '';
   const badgeTitle = `Pane ${index + 1}: ${escapeHtml(paneTitle)} (${App.paneReorderEnabled !== false ? 'Drag: Reorder, ' : ''}Click / Long Press: Settings)`;
 
@@ -2360,7 +2342,7 @@ function createPaneElement(pane, index) {
                 onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
                 oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
                 title="${badgeTitle}">
-          <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${activeHex};"></span>
+          <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${badgeGradient};"></span>
           <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
         </button>
         <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
@@ -2372,7 +2354,7 @@ function createPaneElement(pane, index) {
         </div>
       </div>
       <div class="pane-content" id="pane-content-${index}" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; position: relative;">
-        <div class="pane-ghost-watermark ${paneTitle.length > 2 ? 'pane-ghost-long' : ''}" id="pane-ghost-${index}" style="color: ${activeHex && activeHex !== 'rgba(255,255,255,0.2)' ? activeHex : 'var(--accent)'};" aria-hidden="true">${escapeHtml(paneTitle)}</div>
+        <div class="pane-ghost-watermark ${paneTitle.length > 2 ? 'pane-ghost-long' : ''}" id="pane-ghost-${index}" style="color: ${resolved.id !== 'default' ? resolved.activeC1 : 'var(--accent)'};" aria-hidden="true">${escapeHtml(paneTitle)}</div>
         <div id="docked-tool-mount-${index}" style="flex: 1; height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1;"></div>
       </div>
     `;
@@ -2391,7 +2373,7 @@ function createPaneElement(pane, index) {
               onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
               oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
               title="${badgeTitle}">
-        <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${activeHex};"></span>
+        <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${badgeGradient};"></span>
         <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
       </button>
 
@@ -17377,7 +17359,7 @@ function openParanoidSettings() {
   switchSettingsTab('tab-security');
 }
 
-function applyBorderSettings(borderWidth, ringStyle, skipSync = false) {
+function applyBorderSettings(borderWidth, ringStyle, borderAngle, skipSync = false) {
   if (borderWidth !== undefined && borderWidth !== null) {
     localStorage.setItem('cd_border_width', borderWidth);
   } else {
@@ -17390,8 +17372,15 @@ function applyBorderSettings(borderWidth, ringStyle, skipSync = false) {
     ringStyle = localStorage.getItem('cd_ring_style') || 'subtle';
   }
 
+  if (borderAngle !== undefined && borderAngle !== null) {
+    localStorage.setItem('cd_border_angle', borderAngle);
+  } else {
+    borderAngle = localStorage.getItem('cd_border_angle') || '45deg';
+  }
+
   const root = document.documentElement;
   root.style.setProperty('--pane-border-width', borderWidth);
+  root.style.setProperty('--pane-border-angle', borderAngle);
 
   if (ringStyle === 'none') {
     root.style.setProperty('--pane-active-ring-width', '0px');
@@ -17408,6 +17397,13 @@ function applyBorderSettings(borderWidth, ringStyle, skipSync = false) {
 
   const ringSelect = document.getElementById('setting-ring-style');
   if (ringSelect) ringSelect.value = ringStyle;
+
+  const angleSelect = document.getElementById('setting-border-angle');
+  if (angleSelect) angleSelect.value = borderAngle;
+
+  if (typeof applyPaneColors === 'function') {
+    applyPaneColors();
+  }
 
   if (!skipSync) {
     queueSaveUserPreferencesToServer();
@@ -17891,6 +17887,11 @@ function openSettingsModal() {
   const ringSel = document.getElementById('setting-ring-style');
   if (ringSel) {
     ringSel.value = localStorage.getItem('cd_ring_style') || 'subtle';
+  }
+
+  const angleSel = document.getElementById('setting-border-angle');
+  if (angleSel) {
+    angleSel.value = localStorage.getItem('cd_border_angle') || '45deg';
   }
 
   const decCheckbox = document.getElementById('setting-window-decorations');
@@ -19668,7 +19669,222 @@ async function downloadBatchArchive(paths) {
 }
 
 // ---------------- PANE IDENTIFICATION BORDER COLORS ----------------
+// ---------------- PANE IDENTIFICATION BORDER COLORS (HYPRLAND-STYLE TWO-TONE) ----------------
 const PANE_COLOR_PALETTE = ['default', 'amber', 'emerald', 'sky', 'purple', 'rose', 'indigo', 'teal', 'orange'];
+
+const PANE_COLOR_PRESETS = {
+  'default': {
+    id: 'default',
+    name: 'Default',
+    c1: '#f59e0b',
+    c2: '#ea580c',
+    inactiveC1: 'rgba(255, 255, 255, 0.18)',
+    inactiveC2: 'rgba(245, 158, 11, 0.25)',
+    activeC1: '#f59e0b',
+    activeC2: '#ea580c',
+    glow: 'rgba(245, 158, 11, 0.35)',
+    badgeBg: 'rgba(245, 158, 11, 0.12)'
+  },
+  'amber': {
+    id: 'amber',
+    name: 'Amber Gold',
+    c1: '#f59e0b',
+    c2: '#f97316',
+    inactiveC1: 'rgba(245, 158, 11, 0.45)',
+    inactiveC2: 'rgba(249, 115, 22, 0.45)',
+    activeC1: '#f59e0b',
+    activeC2: '#f97316',
+    glow: 'rgba(245, 158, 11, 0.35)',
+    badgeBg: 'rgba(245, 158, 11, 0.12)'
+  },
+  'emerald': {
+    id: 'emerald',
+    name: 'Emerald Cyan',
+    c1: '#10b981',
+    c2: '#06b6d4',
+    inactiveC1: 'rgba(16, 185, 129, 0.45)',
+    inactiveC2: 'rgba(6, 182, 212, 0.45)',
+    activeC1: '#10b981',
+    activeC2: '#06b6d4',
+    glow: 'rgba(16, 185, 129, 0.35)',
+    badgeBg: 'rgba(16, 185, 129, 0.12)'
+  },
+  'sky': {
+    id: 'sky',
+    name: 'Sky Indigo',
+    c1: '#38bdf8',
+    c2: '#818cf8',
+    inactiveC1: 'rgba(56, 189, 248, 0.45)',
+    inactiveC2: 'rgba(129, 140, 248, 0.45)',
+    activeC1: '#38bdf8',
+    activeC2: '#818cf8',
+    glow: 'rgba(56, 189, 248, 0.35)',
+    badgeBg: 'rgba(56, 189, 248, 0.12)'
+  },
+  'purple': {
+    id: 'purple',
+    name: 'Purple Rose',
+    c1: '#c084fc',
+    c2: '#f43f5e',
+    inactiveC1: 'rgba(192, 132, 252, 0.45)',
+    inactiveC2: 'rgba(244, 63, 94, 0.45)',
+    activeC1: '#c084fc',
+    activeC2: '#f43f5e',
+    glow: 'rgba(192, 132, 252, 0.35)',
+    badgeBg: 'rgba(192, 132, 252, 0.12)'
+  },
+  'rose': {
+    id: 'rose',
+    name: 'Rose Coral',
+    c1: '#f43f5e',
+    c2: '#fb923c',
+    inactiveC1: 'rgba(244, 63, 94, 0.45)',
+    inactiveC2: 'rgba(251, 146, 60, 0.45)',
+    activeC1: '#f43f5e',
+    activeC2: '#fb923c',
+    glow: 'rgba(244, 63, 94, 0.35)',
+    badgeBg: 'rgba(244, 63, 94, 0.12)'
+  },
+  'indigo': {
+    id: 'indigo',
+    name: 'Indigo Violet',
+    c1: '#6366f1',
+    c2: '#a855f7',
+    inactiveC1: 'rgba(99, 102, 241, 0.45)',
+    inactiveC2: 'rgba(168, 85, 247, 0.45)',
+    activeC1: '#6366f1',
+    activeC2: '#a855f7',
+    glow: 'rgba(99, 102, 241, 0.35)',
+    badgeBg: 'rgba(99, 102, 241, 0.12)'
+  },
+  'teal': {
+    id: 'teal',
+    name: 'Teal Mint',
+    c1: '#14b8a6',
+    c2: '#10b981',
+    inactiveC1: 'rgba(20, 184, 166, 0.45)',
+    inactiveC2: 'rgba(16, 185, 129, 0.45)',
+    activeC1: '#14b8a6',
+    activeC2: '#10b981',
+    glow: 'rgba(20, 184, 166, 0.35)',
+    badgeBg: 'rgba(20, 184, 166, 0.12)'
+  },
+  'orange': {
+    id: 'orange',
+    name: 'Orange Amber',
+    c1: '#f97316',
+    c2: '#eab308',
+    inactiveC1: 'rgba(249, 115, 22, 0.45)',
+    inactiveC2: 'rgba(234, 179, 8, 0.45)',
+    activeC1: '#f97316',
+    activeC2: '#eab308',
+    glow: 'rgba(249, 115, 22, 0.35)',
+    badgeBg: 'rgba(249, 115, 22, 0.12)'
+  }
+};
+
+function hexToRgba(color, alpha = 1) {
+  if (!color) return `rgba(245, 158, 11, ${alpha})`;
+  if (color.startsWith('rgba')) return color;
+  if (color.startsWith('rgb(')) {
+    return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
+  }
+  let hex = color.replace('#', '').trim();
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join('');
+  }
+  if (hex.length === 6) {
+    const num = parseInt(hex, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return color;
+}
+
+function resolvePaneColorConfig(colorConf, globalAngle = '45deg') {
+  if (!colorConf || colorConf === 'default') {
+    const p = PANE_COLOR_PRESETS.default;
+    return {
+      ...p,
+      angle: globalAngle,
+      isCustom: false
+    };
+  }
+
+  if (typeof colorConf === 'object' && colorConf !== null) {
+    const c1 = colorConf.c1 || '#f59e0b';
+    const c2 = colorConf.c2 || c1;
+    const angle = colorConf.angle || globalAngle;
+    return {
+      id: 'custom',
+      name: 'Custom',
+      c1,
+      c2,
+      inactiveC1: hexToRgba(c1, 0.45),
+      inactiveC2: hexToRgba(c2, 0.45),
+      activeC1: c1,
+      activeC2: c2,
+      glow: hexToRgba(c1, 0.35),
+      badgeBg: hexToRgba(c1, 0.12),
+      angle,
+      isCustom: true
+    };
+  }
+
+  if (typeof colorConf === 'string') {
+    if (PANE_COLOR_PRESETS[colorConf]) {
+      return {
+        ...PANE_COLOR_PRESETS[colorConf],
+        angle: globalAngle,
+        isCustom: false
+      };
+    }
+    if (colorConf.includes(',')) {
+      const parts = colorConf.split(',');
+      const c1 = parts[0].trim();
+      const c2 = (parts[1] || parts[0]).trim();
+      return {
+        id: 'custom',
+        name: 'Custom',
+        c1,
+        c2,
+        inactiveC1: hexToRgba(c1, 0.45),
+        inactiveC2: hexToRgba(c2, 0.45),
+        activeC1: c1,
+        activeC2: c2,
+        glow: hexToRgba(c1, 0.35),
+        badgeBg: hexToRgba(c1, 0.12),
+        angle: globalAngle,
+        isCustom: true
+      };
+    }
+    if (colorConf.startsWith('#') || colorConf.startsWith('rgb')) {
+      const c1 = colorConf.trim();
+      return {
+        id: 'custom',
+        name: 'Custom',
+        c1,
+        c2: c1,
+        inactiveC1: hexToRgba(c1, 0.45),
+        inactiveC2: hexToRgba(c1, 0.45),
+        activeC1: c1,
+        activeC2: c1,
+        glow: hexToRgba(c1, 0.35),
+        badgeBg: hexToRgba(c1, 0.12),
+        angle: globalAngle,
+        isCustom: true
+      };
+    }
+  }
+
+  return {
+    ...PANE_COLOR_PRESETS.default,
+    angle: globalAngle,
+    isCustom: false
+  };
+}
 
 function getPaneColors() {
   try {
@@ -19678,12 +19894,12 @@ function getPaneColors() {
   }
 }
 
-function setPaneColorPref(paneIdx, colorName) {
+function setPaneColorPref(paneIdx, colorVal) {
   const colors = getPaneColors();
-  if (colorName === 'default' || !colorName) {
+  if (colorVal === 'default' || !colorVal) {
     delete colors[paneIdx];
   } else {
-    colors[paneIdx] = colorName;
+    colors[paneIdx] = colorVal;
   }
   localStorage.setItem('cd_pane_colors', JSON.stringify(colors));
   applyPaneColors();
@@ -19694,10 +19910,12 @@ function setPaneColorPref(paneIdx, colorName) {
 function cyclePaneColor(paneIdx) {
   const colors = getPaneColors();
   const current = colors[paneIdx] || 'default';
-  const curIdx = PANE_COLOR_PALETTE.indexOf(current);
+  const currentKey = (typeof current === 'string' && PANE_COLOR_PALETTE.includes(current)) ? current : 'default';
+  const curIdx = PANE_COLOR_PALETTE.indexOf(currentKey);
   const nextColor = PANE_COLOR_PALETTE[(curIdx + 1) % PANE_COLOR_PALETTE.length];
   setPaneColorPref(paneIdx, nextColor);
-  showToast(`Pane ${paneIdx + 1} color: ${nextColor.toUpperCase()}`, 'info');
+  const name = PANE_COLOR_PRESETS[nextColor]?.name || nextColor;
+  showToast(`Pane ${paneIdx + 1} color: ${name}`, 'info');
 }
 
 function openPaneToolsMenu(e, paneIndex) {
@@ -19711,19 +19929,10 @@ function openPaneToolsMenu(e, paneIndex) {
   if (wasOpenForThisPane) return;
 
   const colors = getPaneColors();
-  const currentColor = colors[paneIndex] || 'default';
-  const colorHexes = {
-    'default': 'rgba(255,255,255,0.2)',
-    'amber': '#f59e0b',
-    'emerald': '#10b981',
-    'sky': '#38bdf8',
-    'purple': '#c084fc',
-    'rose': '#f43f5e',
-    'indigo': '#6366f1',
-    'teal': '#14b8a6',
-    'orange': '#f97316'
-  };
-  const activeHex = colorHexes[currentColor] || currentColor;
+  const globalAngle = localStorage.getItem('cd_border_angle') || '45deg';
+  const currentColorConf = colors[paneIndex] || 'default';
+  const resolved = resolvePaneColorConfig(currentColorConf, globalAngle);
+  const activeHex = resolved.activeC1;
 
   const popup = document.createElement('div');
   popup.id = 'pane-tools-popup';
@@ -19994,24 +20203,18 @@ function openPaneSettingsMenu(e, paneIndex) {
   const pane = App.panes[paneIndex];
   const currentName = pane?.customName || `${paneIndex + 1}`;
   const colors = getPaneColors();
-  const currentColor = colors[paneIndex] || 'default';
+  const currentColorConf = colors[paneIndex] || 'default';
   const curBorderWidth = localStorage.getItem('cd_border_width') || '1px';
   const curRingStyle = localStorage.getItem('cd_ring_style') || 'subtle';
+  const globalAngle = localStorage.getItem('cd_border_angle') || '45deg';
 
-  const presets = [
-    { id: 'default', name: 'Default', hex: 'rgba(255,255,255,0.2)' },
-    { id: 'amber', name: 'Amber', hex: '#f59e0b' },
-    { id: 'emerald', name: 'Emerald', hex: '#10b981' },
-    { id: 'sky', name: 'Sky Blue', hex: '#38bdf8' },
-    { id: 'purple', name: 'Purple', hex: '#c084fc' },
-    { id: 'rose', name: 'Rose Red', hex: '#f43f5e' },
-    { id: 'indigo', name: 'Indigo', hex: '#6366f1' },
-    { id: 'teal', name: 'Teal', hex: '#14b8a6' },
-    { id: 'orange', name: 'Orange', hex: '#f97316' }
-  ];
+  const resolved = resolvePaneColorConfig(currentColorConf, globalAngle);
+  const isPreset = typeof currentColorConf === 'string' && PANE_COLOR_PRESETS[currentColorConf];
+  const activePresetId = isPreset ? currentColorConf : null;
 
-  const isCustomHex = currentColor.startsWith('#') || currentColor.startsWith('rgb');
-  const currentHexVal = isCustomHex ? currentColor : '#f59e0b';
+  const customC1 = resolved.c1 || '#f59e0b';
+  const customC2 = resolved.c2 || '#f97316';
+  const customAngle = resolved.angle || globalAngle;
 
   const popup = document.createElement('div');
   popup.id = 'pane-settings-popup';
@@ -20045,7 +20248,7 @@ function openPaneSettingsMenu(e, paneIndex) {
       <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-settings-popup')?.remove();">✕</span>
     </div>
     
-    <div style="padding: 10px 12px; max-height: 440px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+    <div style="padding: 10px 12px; max-height: 460px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
       ${paneSwitchHtml}
       <!-- 1. Renaming -->
       <div>
@@ -20057,30 +20260,68 @@ function openPaneSettingsMenu(e, paneIndex) {
         </div>
       </div>
 
-      <!-- 2. Border & Header Color Palette -->
+      <!-- 2. Border & Header Two-Tone Color Palette -->
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between;">
-          <span>Border & Header Color</span>
+          <span>Two-Tone Color Presets</span>
           <span style="color: var(--accent); cursor: pointer; text-transform: none; font-weight: 600;" onclick="cyclePaneColor(${paneIndex}); openPaneSettingsMenu(null, ${paneIndex});">Cycle ↻</span>
         </div>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
-          ${presets.map(p => {
-            const isSelected = currentColor === p.id;
+          ${Object.entries(PANE_COLOR_PRESETS).map(([pId, p]) => {
+            const isSelected = activePresetId === pId;
             return `
               <button type="button" class="color-swatch-btn ${isSelected ? 'active' : ''}" 
                       style="display: flex; align-items: center; gap: 5px; padding: 4px 6px; background: var(--bg-panel); border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; border-radius: 4px; cursor: pointer; color: var(--text-main); font-size: 10px; width: 100%; text-align: left;"
-                      onclick="setPaneColorPref(${paneIndex}, '${p.id}'); openPaneSettingsMenu(null, ${paneIndex});">
-                <span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${p.hex}; border: 1px solid rgba(255,255,255,0.25); flex-shrink: 0;"></span>
+                      onclick="setPaneColorPref(${paneIndex}, '${pId}'); openPaneSettingsMenu(null, ${paneIndex});">
+                <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: linear-gradient(135deg, ${p.c1}, ${p.c2}); border: 1px solid rgba(255,255,255,0.25); flex-shrink: 0; box-shadow: 0 0 3px rgba(0,0,0,0.4);"></span>
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ${isSelected ? 'font-weight: 700; color: var(--accent);' : ''}">${p.name}</span>
               </button>
             `;
           }).join('')}
         </div>
 
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <input type="color" id="pane-hex-picker-${paneIndex}" value="${currentHexVal}" style="width: 28px; height: 26px; border: 1px solid var(--border); border-radius: 4px; padding: 0; background: transparent; cursor: pointer;" oninput="document.getElementById('pane-hex-text-${paneIndex}').value = this.value; setPaneColorPref(${paneIndex}, this.value);">
-          <input type="text" id="pane-hex-text-${paneIndex}" value="${isCustomHex ? currentColor : ''}" placeholder="#RRGGBB" style="flex: 1; height: 26px; padding: 0 6px; font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main);" onchange="if(this.value){ document.getElementById('pane-hex-picker-${paneIndex}').value = this.value; setPaneColorPref(${paneIndex}, this.value); }">
-          <button type="button" class="btn btn-sm btn-accent" style="height: 26px; padding: 0 8px; font-size: 10px;" onclick="const val = document.getElementById('pane-hex-text-${paneIndex}').value; if(val){ setPaneColorPref(${paneIndex}, val); openPaneSettingsMenu(null, ${paneIndex}); }">Apply</button>
+        <!-- Custom Dual-Tone Gradient (Hyprland style: col1, col2, angle) -->
+        <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 8px;">
+          <div style="font-size: 9.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
+            <span>Custom Two-Tone (Hyprland Style)</span>
+            <span style="font-size: 8.5px; color: var(--text-dim);">Color 1 → Color 2</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
+            <!-- Color 1 -->
+            <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px;">
+              <input type="color" id="pane-custom-c1-${paneIndex}" value="${customC1}" style="width: 20px; height: 20px; border: none; padding: 0; background: transparent; cursor: pointer; border-radius: 3px;" oninput="updatePaneCustomGradientPreview(${paneIndex});">
+              <input type="text" id="pane-custom-t1-${paneIndex}" value="${customC1}" placeholder="#f59e0b" style="width: 100%; border: none; background: transparent; font-family: var(--font-mono); font-size: 10px; color: var(--text-main); outline: none;" oninput="document.getElementById('pane-custom-c1-${paneIndex}').value = this.value; updatePaneCustomGradientPreview(${paneIndex});">
+            </div>
+            <!-- Color 2 -->
+            <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px;">
+              <input type="color" id="pane-custom-c2-${paneIndex}" value="${customC2}" style="width: 20px; height: 20px; border: none; padding: 0; background: transparent; cursor: pointer; border-radius: 3px;" oninput="updatePaneCustomGradientPreview(${paneIndex});">
+              <input type="text" id="pane-custom-t2-${paneIndex}" value="${customC2}" placeholder="#f97316" style="width: 100%; border: none; background: transparent; font-family: var(--font-mono); font-size: 10px; color: var(--text-main); outline: none;" oninput="document.getElementById('pane-custom-c2-${paneIndex}').value = this.value; updatePaneCustomGradientPreview(${paneIndex});">
+            </div>
+          </div>
+
+          <!-- Angle Selection -->
+          <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; margin-bottom: 6px;">
+            <span style="font-size: 9.5px; color: var(--text-muted); font-weight: 600;">Angle:</span>
+            <div style="display: flex; gap: 3px; flex-wrap: wrap;">
+              ${['45deg', '90deg', '135deg', '180deg', '270deg', '0deg'].map(ang => `
+                <button type="button" class="btn btn-xs ${customAngle === ang ? 'btn-accent' : 'btn-outline'}" 
+                        id="pane-ang-btn-${paneIndex}-${ang}"
+                        style="padding: 1px 4px; font-size: 9px; min-width: 24px;" 
+                        onclick="setCustomAngleInput(${paneIndex}, '${ang}')">${ang.replace('deg', '°')}</button>
+              `).join('')}
+            </div>
+            <input type="hidden" id="pane-custom-angle-${paneIndex}" value="${customAngle}">
+          </div>
+
+          <!-- Preview & Apply button -->
+          <div style="display: flex; align-items: center; gap: 6px;">
+            <div id="pane-gradient-preview-${paneIndex}" 
+                 style="flex: 1; height: 24px; border-radius: 4px; background: linear-gradient(${customAngle}, ${customC1}, ${customC2}); border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">
+              Gradient Preview
+            </div>
+            <button type="button" class="btn btn-sm btn-accent" style="height: 24px; padding: 0 8px; font-size: 10px;" onclick="applyPaneCustomTwoTone(${paneIndex})">Apply</button>
+          </div>
         </div>
       </div>
 
@@ -20119,19 +20360,26 @@ function openPaneSettingsMenu(e, paneIndex) {
         </div>
       ` : ''}
 
-      <!-- 4. Global Border Width & Ring Settings -->
+      <!-- 4. Global Border Width, Ring & Angle Settings -->
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Border Width</div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
           ${['1px', '2px', '3px', '4px'].map(bw => `
-            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 10px;" onclick="applyBorderSettings('${bw}', null); openPaneSettingsMenu(null, ${paneIndex});">${bw}</button>
+            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 10px;" onclick="applyBorderSettings('${bw}', null, null); openPaneSettingsMenu(null, ${paneIndex});">${bw}</button>
           `).join('')}
         </div>
 
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Active Ring Style</div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;">
+        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
           ${[['subtle', 'Subtle'], ['bold', 'Bold'], ['glow', 'Glow'], ['none', 'None']].map(([rKey, rName]) => `
-            <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" onclick="applyBorderSettings(null, '${rKey}'); openPaneSettingsMenu(null, ${paneIndex});">${rName}</button>
+            <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" onclick="applyBorderSettings(null, '${rKey}', null); openPaneSettingsMenu(null, ${paneIndex});">${rName}</button>
+          `).join('')}
+        </div>
+
+        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Global Border Angle</div>
+        <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;">
+          ${['45deg', '90deg', '135deg', '180deg', '270deg', '0deg'].map(ang => `
+            <button type="button" class="btn btn-xs ${globalAngle === ang ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 9px;" onclick="applyBorderSettings(null, null, '${ang}'); openPaneSettingsMenu(null, ${paneIndex});">${ang.replace('deg', '°')}</button>
           `).join('')}
         </div>
       </div>
@@ -20160,12 +20408,12 @@ function openPaneSettingsMenu(e, paneIndex) {
     const rect = btn.getBoundingClientRect();
     popup.style.position = 'fixed';
     popup.style.top = `${rect.bottom + 4}px`;
-    popup.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 300))}px`;
+    popup.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 330))}px`;
   } else if (e && e.target) {
     const rect = e.target.getBoundingClientRect();
     popup.style.position = 'fixed';
     popup.style.top = `${rect.bottom + 4}px`;
-    popup.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 300))}px`;
+    popup.style.left = `${Math.max(10, Math.min(rect.left, window.innerWidth - 330))}px`;
   }
 
   document.body.appendChild(popup);
@@ -20235,38 +20483,78 @@ function openPaneColorPicker(e, paneIndex) {
   openPaneSettingsMenu(e, paneIndex);
 }
 
+function updatePaneCustomGradientPreview(paneIndex) {
+  const c1Input = document.getElementById(`pane-custom-c1-${paneIndex}`);
+  const c2Input = document.getElementById(`pane-custom-c2-${paneIndex}`);
+  const t1Input = document.getElementById(`pane-custom-t1-${paneIndex}`);
+  const t2Input = document.getElementById(`pane-custom-t2-${paneIndex}`);
+  const angInput = document.getElementById(`pane-custom-angle-${paneIndex}`);
+  const preview = document.getElementById(`pane-gradient-preview-${paneIndex}`);
+  if (!preview) return;
+
+  const c1 = c1Input?.value || '#f59e0b';
+  const c2 = c2Input?.value || '#f97316';
+  const ang = angInput?.value || '45deg';
+
+  if (t1Input && document.activeElement !== t1Input) t1Input.value = c1;
+  if (t2Input && document.activeElement !== t2Input) t2Input.value = c2;
+
+  preview.style.background = `linear-gradient(${ang}, ${c1}, ${c2})`;
+}
+
+function setCustomAngleInput(paneIndex, ang) {
+  const angInput = document.getElementById(`pane-custom-angle-${paneIndex}`);
+  if (angInput) angInput.value = ang;
+  ['45deg', '90deg', '135deg', '180deg', '270deg', '0deg'].forEach(a => {
+    const btn = document.getElementById(`pane-ang-btn-${paneIndex}-${a}`);
+    if (btn) {
+      if (a === ang) {
+        btn.classList.add('btn-accent');
+        btn.classList.remove('btn-outline');
+      } else {
+        btn.classList.remove('btn-accent');
+        btn.classList.add('btn-outline');
+      }
+    }
+  });
+  updatePaneCustomGradientPreview(paneIndex);
+}
+
+function applyPaneCustomTwoTone(paneIndex) {
+  const c1 = document.getElementById(`pane-custom-c1-${paneIndex}`)?.value || '#f59e0b';
+  const c2 = document.getElementById(`pane-custom-c2-${paneIndex}`)?.value || '#f97316';
+  const ang = document.getElementById(`pane-custom-angle-${paneIndex}`)?.value || '45deg';
+  setPaneColorPref(paneIndex, { c1, c2, angle: ang });
+  openPaneSettingsMenu(null, paneIndex);
+}
+
 function applyPaneColors() {
   const colors = getPaneColors();
-  const colorHexes = {
-    'default': 'rgba(255,255,255,0.2)',
-    'amber': '#f59e0b',
-    'emerald': '#10b981',
-    'sky': '#38bdf8',
-    'purple': '#c084fc',
-    'rose': '#f43f5e',
-    'indigo': '#6366f1',
-    'teal': '#14b8a6',
-    'orange': '#f97316'
-  };
+  const globalAngle = localStorage.getItem('cd_border_angle') || '45deg';
 
   for (let i = 0; i < 4; i++) {
     const paneEl = document.getElementById(`pane-${i}`);
-    const color = colors[i] || 'default';
-    const activeHex = colorHexes[color] || color;
-    const isCustomHex = color.startsWith('#') || color.startsWith('rgb');
+    const colorConf = colors[i] || 'default';
+    const resolved = resolvePaneColorConfig(colorConf, globalAngle);
 
     if (paneEl) {
       PANE_COLOR_PALETTE.forEach(c => {
         if (c !== 'default') paneEl.classList.remove(`pane-color-${c}`);
       });
-      if (isCustomHex) {
-        paneEl.style.setProperty('--pane-custom-border', color);
+
+      paneEl.style.setProperty('--pane-border-angle', resolved.angle);
+      paneEl.style.setProperty('--pane-border-c1', resolved.inactiveC1);
+      paneEl.style.setProperty('--pane-border-c2', resolved.inactiveC2);
+      paneEl.style.setProperty('--pane-active-c1', resolved.activeC1);
+      paneEl.style.setProperty('--pane-active-c2', resolved.activeC2);
+      paneEl.style.setProperty('--pane-glow', resolved.glow);
+
+      if (resolved.isCustom) {
         paneEl.classList.add('pane-color-custom');
       } else {
-        paneEl.style.removeProperty('--pane-custom-border');
         paneEl.classList.remove('pane-color-custom');
-        if (color !== 'default') {
-          paneEl.classList.add(`pane-color-${color}`);
+        if (resolved.id !== 'default') {
+          paneEl.classList.add(`pane-color-${resolved.id}`);
         }
       }
     }
@@ -20274,30 +20562,32 @@ function applyPaneColors() {
     const badgeBtn = document.getElementById(`pane-badge-btn-${i}`);
     const badgeInd = document.getElementById(`pane-badge-indicator-${i}`);
     if (badgeInd) {
-      badgeInd.style.background = activeHex;
+      badgeInd.style.background = `linear-gradient(${resolved.angle}, ${resolved.activeC1}, ${resolved.activeC2})`;
     }
     if (badgeBtn) {
       PANE_COLOR_PALETTE.forEach(c => {
         if (c !== 'default') badgeBtn.classList.remove(`pane-color-${c}`);
       });
-      if (isCustomHex) {
-        badgeBtn.style.borderColor = color;
-        badgeBtn.style.color = color;
+      if (resolved.isCustom) {
+        badgeBtn.style.borderColor = resolved.inactiveC1;
+        badgeBtn.style.color = resolved.activeC1;
+        badgeBtn.style.background = resolved.badgeBg;
         badgeBtn.classList.add('pane-color-custom');
       } else {
         badgeBtn.style.borderColor = '';
         badgeBtn.style.color = '';
+        badgeBtn.style.background = '';
         badgeBtn.classList.remove('pane-color-custom');
-        if (color !== 'default') {
-          badgeBtn.classList.add(`pane-color-${color}`);
+        if (resolved.id !== 'default') {
+          badgeBtn.classList.add(`pane-color-${resolved.id}`);
         }
       }
     }
 
     const ghostEl = document.getElementById(`pane-ghost-${i}`);
     if (ghostEl) {
-      if (activeHex && activeHex !== 'rgba(255,255,255,0.2)') {
-        ghostEl.style.color = activeHex;
+      if (resolved.id !== 'default') {
+        ghostEl.style.color = resolved.activeC1;
       } else {
         ghostEl.style.color = 'var(--accent)';
       }
@@ -20305,7 +20595,7 @@ function applyPaneColors() {
 
     const selectEl = document.getElementById(`setting-pane-color-${i}`);
     if (selectEl) {
-      selectEl.value = PANE_COLOR_PALETTE.includes(color) ? color : 'default';
+      selectEl.value = (typeof colorConf === 'string' && PANE_COLOR_PALETTE.includes(colorConf)) ? colorConf : 'default';
     }
   }
 }

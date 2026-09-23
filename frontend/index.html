@@ -1917,18 +1917,19 @@
           </div>
 
           <!-- Card 3: Panel Border & Focus Ring Customization -->
+          <!-- Card 3: Panel Border & Focus Highlight -->
           <div class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
-                <i data-lucide="frame"></i> Panel Border & Focus Highlight
+                <i data-lucide="frame"></i> Panel Border, Focus & Two-Tone Gradient
               </h4>
             </div>
-            <p class="settings-card-desc">Fine-tune panel border thickness and active focused panel highlight intensity.</p>
+            <p class="settings-card-desc">Fine-tune panel border thickness, active highlight style, and Hyprland-style two-tone border gradient angle.</p>
 
-            <div class="settings-grid-2col">
+            <div class="settings-grid-3col">
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-border-width">Panel Border Width:</label>
-                <select id="setting-border-width" class="settings-select" onchange="applyBorderSettings(this.value, null)">
+                <select id="setting-border-width" class="settings-select" onchange="applyBorderSettings(this.value, null, null)">
                   <option value="0px">0px (Borderless / Minimal)</option>
                   <option value="0.5px">0.5px (Ultra Hairline)</option>
                   <option value="1px" selected>1px (Subtle Hairline - Default)</option>
@@ -1939,11 +1940,24 @@
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-ring-style">Active Focus Highlight Style:</label>
-                <select id="setting-ring-style" class="settings-select" onchange="applyBorderSettings(null, this.value)">
+                <select id="setting-ring-style" class="settings-select" onchange="applyBorderSettings(null, this.value, null)">
                   <option value="none">Border Color Only (No Extra Ring)</option>
                   <option value="subtle" selected>Subtle (1px Accent Ring)</option>
                   <option value="bold">Bold (2px Crisp Accent Ring)</option>
                   <option value="glow">Neon Glow (Aura Glow Highlight)</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-border-angle">Border Gradient Angle:</label>
+                <select id="setting-border-angle" class="settings-select" onchange="applyBorderSettings(null, null, this.value)">
+                  <option value="45deg" selected>45° Diagonal (↗ Default)</option>
+                  <option value="90deg">90° Horizontal (→)</option>
+                  <option value="135deg">135° Diagonal (↘)</option>
+                  <option value="180deg">180° Vertical (↓)</option>
+                  <option value="225deg">225° Diagonal (↙)</option>
+                  <option value="270deg">270° Horizontal (←)</option>
+                  <option value="315deg">315° Diagonal (↖)</option>
+                  <option value="0deg">0° Vertical (↑)</option>
                 </select>
               </div>
             </div>
@@ -1953,66 +1967,66 @@
           <div class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
-                <i data-lucide="layers"></i> Panel Identification Colors
+                <i data-lucide="layers"></i> Panel Identification Colors (Two-Tone Complementary)
               </h4>
             </div>
-            <p class="settings-card-desc">Define custom identification border and badge accent colors for each panel for instant visual orientation.</p>
+            <p class="settings-card-desc">Define two-tone complementary border and badge accent gradients for each panel for instant visual orientation.</p>
 
             <div class="settings-grid-2col">
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-0">Pane 1 Color:</label>
                 <select id="setting-pane-color-0" class="settings-select" onchange="setPaneColorPref(0, this.value)">
-                  <option value="default">Default Theme Border</option>
-                  <option value="amber">Amber (#f59e0b)</option>
-                  <option value="emerald">Emerald Green (#10b981)</option>
-                  <option value="sky">Sky Blue (#38bdf8)</option>
-                  <option value="purple">Purple (#c084fc)</option>
-                  <option value="rose">Rose Red (#f43f5e)</option>
-                  <option value="indigo">Indigo (#6366f1)</option>
-                  <option value="teal">Teal (#14b8a6)</option>
-                  <option value="orange">Orange (#f97316)</option>
+                  <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
+                  <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
+                  <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
+                  <option value="sky">Sky Indigo (#38bdf8 → #818cf8)</option>
+                  <option value="purple">Purple Rose (#c084fc → #f43f5e)</option>
+                  <option value="rose">Rose Coral (#f43f5e → #fb923c)</option>
+                  <option value="indigo">Indigo Violet (#6366f1 → #a855f7)</option>
+                  <option value="teal">Teal Mint (#14b8a6 → #10b981)</option>
+                  <option value="orange">Orange Amber (#f97316 → #eab308)</option>
                 </select>
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-1">Pane 2 Color:</label>
                 <select id="setting-pane-color-1" class="settings-select" onchange="setPaneColorPref(1, this.value)">
-                  <option value="default">Default Theme Border</option>
-                  <option value="amber">Amber (#f59e0b)</option>
-                  <option value="emerald">Emerald Green (#10b981)</option>
-                  <option value="sky">Sky Blue (#38bdf8)</option>
-                  <option value="purple">Purple (#c084fc)</option>
-                  <option value="rose">Rose Red (#f43f5e)</option>
-                  <option value="indigo">Indigo (#6366f1)</option>
-                  <option value="teal">Teal (#14b8a6)</option>
-                  <option value="orange">Orange (#f97316)</option>
+                  <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
+                  <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
+                  <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
+                  <option value="sky">Sky Indigo (#38bdf8 → #818cf8)</option>
+                  <option value="purple">Purple Rose (#c084fc → #f43f5e)</option>
+                  <option value="rose">Rose Coral (#f43f5e → #fb923c)</option>
+                  <option value="indigo">Indigo Violet (#6366f1 → #a855f7)</option>
+                  <option value="teal">Teal Mint (#14b8a6 → #10b981)</option>
+                  <option value="orange">Orange Amber (#f97316 → #eab308)</option>
                 </select>
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-2">Pane 3 Color:</label>
                 <select id="setting-pane-color-2" class="settings-select" onchange="setPaneColorPref(2, this.value)">
-                  <option value="default">Default Theme Border</option>
-                  <option value="amber">Amber (#f59e0b)</option>
-                  <option value="emerald">Emerald Green (#10b981)</option>
-                  <option value="sky">Sky Blue (#38bdf8)</option>
-                  <option value="purple">Purple (#c084fc)</option>
-                  <option value="rose">Rose Red (#f43f5e)</option>
-                  <option value="indigo">Indigo (#6366f1)</option>
-                  <option value="teal">Teal (#14b8a6)</option>
-                  <option value="orange">Orange (#f97316)</option>
+                  <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
+                  <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
+                  <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
+                  <option value="sky">Sky Indigo (#38bdf8 → #818cf8)</option>
+                  <option value="purple">Purple Rose (#c084fc → #f43f5e)</option>
+                  <option value="rose">Rose Coral (#f43f5e → #fb923c)</option>
+                  <option value="indigo">Indigo Violet (#6366f1 → #a855f7)</option>
+                  <option value="teal">Teal Mint (#14b8a6 → #10b981)</option>
+                  <option value="orange">Orange Amber (#f97316 → #eab308)</option>
                 </select>
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-3">Pane 4 Color:</label>
                 <select id="setting-pane-color-3" class="settings-select" onchange="setPaneColorPref(3, this.value)">
-                  <option value="default">Default Theme Border</option>
-                  <option value="amber">Amber (#f59e0b)</option>
-                  <option value="emerald">Emerald Green (#10b981)</option>
-                  <option value="sky">Sky Blue (#38bdf8)</option>
-                  <option value="purple">Purple (#c084fc)</option>
-                  <option value="rose">Rose Red (#f43f5e)</option>
-                  <option value="indigo">Indigo (#6366f1)</option>
-                  <option value="teal">Teal (#14b8a6)</option>
-                  <option value="orange">Orange (#f97316)</option>
+                  <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
+                  <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
+                  <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
+                  <option value="sky">Sky Indigo (#38bdf8 → #818cf8)</option>
+                  <option value="purple">Purple Rose (#c084fc → #f43f5e)</option>
+                  <option value="rose">Rose Coral (#f43f5e → #fb923c)</option>
+                  <option value="indigo">Indigo Violet (#6366f1 → #a855f7)</option>
+                  <option value="teal">Teal Mint (#14b8a6 → #10b981)</option>
+                  <option value="orange">Orange Amber (#f97316 → #eab308)</option>
                 </select>
               </div>
             </div>

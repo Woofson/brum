@@ -816,13 +816,18 @@ body {
 /* Individual Pane */
 .pane {
   background-color: var(--bg-panel);
-  border: var(--pane-border-width, 1px) solid var(--border);
+  border: var(--pane-border-width, 1px) solid transparent;
+  background-clip: padding-box, border-box;
+  background-origin: border-box;
+  background-image: 
+    linear-gradient(var(--bg-panel), var(--bg-panel)), 
+    linear-gradient(var(--pane-border-angle, 45deg), var(--pane-border-c1, var(--border)), var(--pane-border-c2, var(--border)));
   border-radius: var(--radius);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   position: relative;
-  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+  transition: background-image 0.2s ease, box-shadow 0.2s ease;
   min-width: 0;
   min-height: 0;
   max-width: 100%;
@@ -830,8 +835,10 @@ body {
 }
 
 .pane.active {
-  border-color: var(--accent);
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) var(--accent);
+  background-image: 
+    linear-gradient(var(--bg-panel), var(--bg-panel)), 
+    linear-gradient(var(--pane-border-angle, 45deg), var(--pane-active-c1, var(--accent)), var(--pane-active-c2, var(--accent)));
+  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) var(--pane-active-c1, var(--accent)), 0 0 14px var(--pane-glow, rgba(245, 158, 11, 0.25));
 }
 
 /* Pane Rearrangement Drag & Drop */
@@ -2508,6 +2515,18 @@ button svg {
   gap: 12px;
 }
 
+.settings-grid-3col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+@media (max-width: 768px) {
+  .settings-grid-3col {
+    grid-template-columns: 1fr;
+  }
+}
+
 .settings-grid-auto {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -3924,13 +3943,13 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 /* Mobile Menu Drawer */
-/* Custom Pane Border Identification Colors */
+/* Custom Pane Border Identification Colors (Hyprland-Style Two-Tone) */
 .pane.pane-color-amber {
-  border-color: rgba(245, 158, 11, 0.45);
-}
-.pane.pane-color-amber.active {
-  border-color: #f59e0b;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #f59e0b;
+  --pane-border-c1: rgba(245, 158, 11, 0.45);
+  --pane-border-c2: rgba(249, 115, 22, 0.45);
+  --pane-active-c1: #f59e0b;
+  --pane-active-c2: #f97316;
+  --pane-glow: rgba(245, 158, 11, 0.35);
 }
 .pane.pane-color-amber .pane-idx-badge {
   background: rgba(245, 158, 11, 0.15);
@@ -3942,11 +3961,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .pane.pane-color-emerald {
-  border-color: rgba(16, 185, 129, 0.45);
-}
-.pane.pane-color-emerald.active {
-  border-color: #10b981;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #10b981;
+  --pane-border-c1: rgba(16, 185, 129, 0.45);
+  --pane-border-c2: rgba(6, 182, 212, 0.45);
+  --pane-active-c1: #10b981;
+  --pane-active-c2: #06b6d4;
+  --pane-glow: rgba(16, 185, 129, 0.35);
 }
 .pane.pane-color-emerald .pane-idx-badge {
   background: rgba(16, 185, 129, 0.15);
@@ -3958,11 +3977,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .pane.pane-color-sky {
-  border-color: rgba(56, 189, 248, 0.45);
-}
-.pane.pane-color-sky.active {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #38bdf8;
+  --pane-border-c1: rgba(56, 189, 248, 0.45);
+  --pane-border-c2: rgba(129, 140, 248, 0.45);
+  --pane-active-c1: #38bdf8;
+  --pane-active-c2: #818cf8;
+  --pane-glow: rgba(56, 189, 248, 0.35);
 }
 .pane.pane-color-sky .pane-idx-badge {
   background: rgba(56, 189, 248, 0.15);
@@ -3974,11 +3993,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .pane.pane-color-purple {
-  border-color: rgba(192, 132, 252, 0.45);
-}
-.pane.pane-color-purple.active {
-  border-color: #c084fc;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #c084fc;
+  --pane-border-c1: rgba(192, 132, 252, 0.45);
+  --pane-border-c2: rgba(244, 63, 94, 0.45);
+  --pane-active-c1: #c084fc;
+  --pane-active-c2: #f43f5e;
+  --pane-glow: rgba(192, 132, 252, 0.35);
 }
 .pane.pane-color-purple .pane-idx-badge {
   background: rgba(192, 132, 252, 0.15);
@@ -3990,11 +4009,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .pane.pane-color-rose {
-  border-color: rgba(244, 63, 94, 0.45);
-}
-.pane.pane-color-rose.active {
-  border-color: #f43f5e;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #f43f5e;
+  --pane-border-c1: rgba(244, 63, 94, 0.45);
+  --pane-border-c2: rgba(251, 146, 60, 0.45);
+  --pane-active-c1: #f43f5e;
+  --pane-active-c2: #fb923c;
+  --pane-glow: rgba(244, 63, 94, 0.35);
 }
 .pane.pane-color-rose .pane-idx-badge {
   background: rgba(244, 63, 94, 0.15);
@@ -4006,11 +4025,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .pane.pane-color-indigo {
-  border-color: rgba(99, 102, 241, 0.45);
-}
-.pane.pane-color-indigo.active {
-  border-color: #6366f1;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #6366f1;
+  --pane-border-c1: rgba(99, 102, 241, 0.45);
+  --pane-border-c2: rgba(168, 85, 247, 0.45);
+  --pane-active-c1: #6366f1;
+  --pane-active-c2: #a855f7;
+  --pane-glow: rgba(99, 102, 241, 0.35);
 }
 .pane.pane-color-indigo .pane-idx-badge {
   background: rgba(99, 102, 241, 0.15);
@@ -4022,11 +4041,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .pane.pane-color-teal {
-  border-color: rgba(20, 184, 166, 0.45);
-}
-.pane.pane-color-teal.active {
-  border-color: #14b8a6;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #14b8a6;
+  --pane-border-c1: rgba(20, 184, 166, 0.45);
+  --pane-border-c2: rgba(16, 185, 129, 0.45);
+  --pane-active-c1: #14b8a6;
+  --pane-active-c2: #10b981;
+  --pane-glow: rgba(20, 184, 166, 0.35);
 }
 .pane.pane-color-teal .pane-idx-badge {
   background: rgba(20, 184, 166, 0.15);
@@ -4038,11 +4057,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .pane.pane-color-orange {
-  border-color: rgba(249, 115, 22, 0.45);
-}
-.pane.pane-color-orange.active {
-  border-color: #f97316;
-  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) #f97316;
+  --pane-border-c1: rgba(249, 115, 22, 0.45);
+  --pane-border-c2: rgba(234, 179, 8, 0.45);
+  --pane-active-c1: #f97316;
+  --pane-active-c2: #eab308;
+  --pane-glow: rgba(249, 115, 22, 0.35);
 }
 .pane.pane-color-orange .pane-idx-badge {
   background: rgba(249, 115, 22, 0.15);
@@ -4053,13 +4072,13 @@ html.fkeys-disabled .bottom-fkey-bar,
   color: #f97316;
 }
 
-/* Custom Hex Arbitrary Color Support */
+/* Custom Hex & Two-Tone Arbitrary Color Support */
 .pane.pane-color-custom {
-  border-color: var(--pane-custom-border) !important;
-}
-.pane.pane-color-custom.active {
-  border-color: var(--pane-custom-border) !important;
-  box-shadow: 0 0 0 1.5px var(--pane-custom-border) !important;
+  --pane-border-c1: var(--pane-custom-border-c1, var(--pane-custom-border, var(--border)));
+  --pane-border-c2: var(--pane-custom-border-c2, var(--pane-custom-border, var(--border)));
+  --pane-active-c1: var(--pane-custom-active-c1, var(--pane-custom-border, var(--accent)));
+  --pane-active-c2: var(--pane-custom-active-c2, var(--pane-custom-border, var(--accent)));
+  --pane-glow: var(--pane-custom-glow, rgba(245, 158, 11, 0.35));
 }
 
 .pane-favorites-wrapper,
@@ -4164,6 +4183,7 @@ html.fkeys-disabled .bottom-fkey-bar,
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(var(--pane-border-angle, 45deg), var(--pane-active-c1, #f59e0b), var(--pane-active-c2, #f97316));
 }
 
 .pane.pane-color-amber .pane-badge-btn { border-color: rgba(245, 158, 11, 0.45); background: rgba(245, 158, 11, 0.12); color: #f59e0b; }
@@ -4174,14 +4194,15 @@ html.fkeys-disabled .bottom-fkey-bar,
 .pane.pane-color-indigo .pane-badge-btn { border-color: rgba(99, 102, 241, 0.45); background: rgba(99, 102, 241, 0.12); color: #6366f1; }
 .pane.pane-color-teal .pane-badge-btn { border-color: rgba(20, 184, 166, 0.45); background: rgba(20, 184, 166, 0.12); color: #14b8a6; }
 .pane.pane-color-orange .pane-badge-btn { border-color: rgba(249, 115, 22, 0.45); background: rgba(249, 115, 22, 0.12); color: #f97316; }
-.pane.pane-color-custom .pane-badge-btn { border-color: var(--pane-custom-border); color: var(--pane-custom-border); }
+.pane.pane-color-custom .pane-badge-btn { border-color: var(--pane-border-c1, var(--border)); color: var(--pane-active-c1, var(--text-main)); background: var(--pane-glow, rgba(255, 255, 255, 0.05)); }
 
 .pane-settings-dropdown {
   position: absolute;
   top: 100%;
   left: 0;
   margin-top: 4px;
-  width: 290px;
+  width: 320px;
+  max-width: 92vw;
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
