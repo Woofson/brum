@@ -383,6 +383,7 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   box-sizing: border-box;
+  margin-top: 2px;
   --badge-color: var(--text-muted, #a1a1aa);
   --badge-bg: transparent;
   --badge-border: transparent;
