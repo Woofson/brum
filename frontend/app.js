@@ -76,6 +76,223 @@ let ColumnConfig = {
   visibility: JSON.parse(localStorage.getItem('cd_col_visibility') || '{"name":true,"ext":false,"size":true,"modified":true,"created":false,"mode":true,"owner":true,"group":false,"hash":false,"tags":false}'),
 };
 
+// ---------------- PANE IDENTIFICATION BORDER COLORS (HYPRLAND-STYLE TWO-TONE) ----------------
+const PANE_COLOR_PALETTE = ['default', 'amber', 'emerald', 'sky', 'purple', 'rose', 'indigo', 'teal', 'orange'];
+
+const PANE_COLOR_PRESETS = {
+  'default': {
+    id: 'default',
+    name: 'Default',
+    c1: '#f59e0b',
+    c2: '#ea580c',
+    inactiveC1: 'rgba(255, 255, 255, 0.18)',
+    inactiveC2: 'rgba(245, 158, 11, 0.25)',
+    activeC1: '#f59e0b',
+    activeC2: '#ea580c',
+    glow: 'rgba(245, 158, 11, 0.35)',
+    badgeBg: 'rgba(245, 158, 11, 0.12)'
+  },
+  'amber': {
+    id: 'amber',
+    name: 'Amber Gold',
+    c1: '#f59e0b',
+    c2: '#f97316',
+    inactiveC1: 'rgba(245, 158, 11, 0.45)',
+    inactiveC2: 'rgba(249, 115, 22, 0.45)',
+    activeC1: '#f59e0b',
+    activeC2: '#f97316',
+    glow: 'rgba(245, 158, 11, 0.35)',
+    badgeBg: 'rgba(245, 158, 11, 0.12)'
+  },
+  'emerald': {
+    id: 'emerald',
+    name: 'Emerald Cyan',
+    c1: '#10b981',
+    c2: '#06b6d4',
+    inactiveC1: 'rgba(16, 185, 129, 0.45)',
+    inactiveC2: 'rgba(6, 182, 212, 0.45)',
+    activeC1: '#10b981',
+    activeC2: '#06b6d4',
+    glow: 'rgba(16, 185, 129, 0.35)',
+    badgeBg: 'rgba(16, 185, 129, 0.12)'
+  },
+  'sky': {
+    id: 'sky',
+    name: 'Sky Indigo',
+    c1: '#38bdf8',
+    c2: '#818cf8',
+    inactiveC1: 'rgba(56, 189, 248, 0.45)',
+    inactiveC2: 'rgba(129, 140, 248, 0.45)',
+    activeC1: '#38bdf8',
+    activeC2: '#818cf8',
+    glow: 'rgba(56, 189, 248, 0.35)',
+    badgeBg: 'rgba(56, 189, 248, 0.12)'
+  },
+  'purple': {
+    id: 'purple',
+    name: 'Purple Rose',
+    c1: '#c084fc',
+    c2: '#f43f5e',
+    inactiveC1: 'rgba(192, 132, 252, 0.45)',
+    inactiveC2: 'rgba(244, 63, 94, 0.45)',
+    activeC1: '#c084fc',
+    activeC2: '#f43f5e',
+    glow: 'rgba(192, 132, 252, 0.35)',
+    badgeBg: 'rgba(192, 132, 252, 0.12)'
+  },
+  'rose': {
+    id: 'rose',
+    name: 'Rose Coral',
+    c1: '#f43f5e',
+    c2: '#fb923c',
+    inactiveC1: 'rgba(244, 63, 94, 0.45)',
+    inactiveC2: 'rgba(251, 146, 60, 0.45)',
+    activeC1: '#f43f5e',
+    activeC2: '#fb923c',
+    glow: 'rgba(244, 63, 94, 0.35)',
+    badgeBg: 'rgba(244, 63, 94, 0.12)'
+  },
+  'indigo': {
+    id: 'indigo',
+    name: 'Indigo Violet',
+    c1: '#6366f1',
+    c2: '#a855f7',
+    inactiveC1: 'rgba(99, 102, 241, 0.45)',
+    inactiveC2: 'rgba(168, 85, 247, 0.45)',
+    activeC1: '#6366f1',
+    activeC2: '#a855f7',
+    glow: 'rgba(99, 102, 241, 0.35)',
+    badgeBg: 'rgba(99, 102, 241, 0.12)'
+  },
+  'teal': {
+    id: 'teal',
+    name: 'Teal Mint',
+    c1: '#14b8a6',
+    c2: '#10b981',
+    inactiveC1: 'rgba(20, 184, 166, 0.45)',
+    inactiveC2: 'rgba(16, 185, 129, 0.45)',
+    activeC1: '#14b8a6',
+    activeC2: '#10b981',
+    glow: 'rgba(20, 184, 166, 0.35)',
+    badgeBg: 'rgba(20, 184, 166, 0.12)'
+  },
+  'orange': {
+    id: 'orange',
+    name: 'Orange Amber',
+    c1: '#f97316',
+    c2: '#eab308',
+    inactiveC1: 'rgba(249, 115, 22, 0.45)',
+    inactiveC2: 'rgba(234, 179, 8, 0.45)',
+    activeC1: '#f97316',
+    activeC2: '#eab308',
+    glow: 'rgba(249, 115, 22, 0.35)',
+    badgeBg: 'rgba(249, 115, 22, 0.12)'
+  }
+};
+
+function hexToRgba(color, alpha = 1) {
+  if (!color) return `rgba(245, 158, 11, ${alpha})`;
+  if (color.startsWith('rgba')) return color;
+  if (color.startsWith('rgb(')) {
+    return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
+  }
+  let hex = color.replace('#', '').trim();
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join('');
+  }
+  if (hex.length === 6) {
+    const num = parseInt(hex, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+  return color;
+}
+
+function resolvePaneColorConfig(colorConf, globalAngle = '45deg') {
+  if (!colorConf || colorConf === 'default') {
+    const p = PANE_COLOR_PRESETS.default;
+    return {
+      ...p,
+      angle: globalAngle,
+      isCustom: false
+    };
+  }
+
+  if (typeof colorConf === 'object' && colorConf !== null) {
+    const c1 = colorConf.c1 || '#f59e0b';
+    const c2 = colorConf.c2 || c1;
+    const angle = colorConf.angle || globalAngle;
+    return {
+      id: 'custom',
+      name: 'Custom',
+      c1,
+      c2,
+      inactiveC1: hexToRgba(c1, 0.45),
+      inactiveC2: hexToRgba(c2, 0.45),
+      activeC1: c1,
+      activeC2: c2,
+      glow: hexToRgba(c1, 0.35),
+      badgeBg: hexToRgba(c1, 0.12),
+      angle,
+      isCustom: true
+    };
+  }
+
+  if (typeof colorConf === 'string') {
+    if (PANE_COLOR_PRESETS[colorConf]) {
+      return {
+        ...PANE_COLOR_PRESETS[colorConf],
+        angle: globalAngle,
+        isCustom: false
+      };
+    }
+    if (colorConf.includes(',')) {
+      const parts = colorConf.split(',');
+      const c1 = parts[0].trim();
+      const c2 = (parts[1] || parts[0]).trim();
+      return {
+        id: 'custom',
+        name: 'Custom',
+        c1,
+        c2,
+        inactiveC1: hexToRgba(c1, 0.45),
+        inactiveC2: hexToRgba(c2, 0.45),
+        activeC1: c1,
+        activeC2: c2,
+        glow: hexToRgba(c1, 0.35),
+        badgeBg: hexToRgba(c1, 0.12),
+        angle: globalAngle,
+        isCustom: true
+      };
+    }
+    if (colorConf.startsWith('#') || colorConf.startsWith('rgb')) {
+      const c1 = colorConf.trim();
+      return {
+        id: 'custom',
+        name: 'Custom',
+        c1,
+        c2: c1,
+        inactiveC1: hexToRgba(c1, 0.45),
+        inactiveC2: hexToRgba(c1, 0.45),
+        activeC1: c1,
+        activeC2: c1,
+        glow: hexToRgba(c1, 0.35),
+        badgeBg: hexToRgba(c1, 0.12),
+        angle: globalAngle,
+        isCustom: true
+      };
+    }
+  }
+
+  return {
+    ...PANE_COLOR_PRESETS.default,
+    angle: globalAngle,
+    isCustom: false
+  };
+}
+
 function triggerHaptic(duration = 25) {
   if (App.hapticFeedback === false || localStorage.getItem('cd_haptic_feedback') === 'false') {
     return;
@@ -19666,225 +19883,8 @@ async function downloadBatchArchive(paths) {
       okText: 'Close'
     });
   }
-}
-
 // ---------------- PANE IDENTIFICATION BORDER COLORS ----------------
-// ---------------- PANE IDENTIFICATION BORDER COLORS (HYPRLAND-STYLE TWO-TONE) ----------------
-const PANE_COLOR_PALETTE = ['default', 'amber', 'emerald', 'sky', 'purple', 'rose', 'indigo', 'teal', 'orange'];
 
-const PANE_COLOR_PRESETS = {
-  'default': {
-    id: 'default',
-    name: 'Default',
-    c1: '#f59e0b',
-    c2: '#ea580c',
-    inactiveC1: 'rgba(255, 255, 255, 0.18)',
-    inactiveC2: 'rgba(245, 158, 11, 0.25)',
-    activeC1: '#f59e0b',
-    activeC2: '#ea580c',
-    glow: 'rgba(245, 158, 11, 0.35)',
-    badgeBg: 'rgba(245, 158, 11, 0.12)'
-  },
-  'amber': {
-    id: 'amber',
-    name: 'Amber Gold',
-    c1: '#f59e0b',
-    c2: '#f97316',
-    inactiveC1: 'rgba(245, 158, 11, 0.45)',
-    inactiveC2: 'rgba(249, 115, 22, 0.45)',
-    activeC1: '#f59e0b',
-    activeC2: '#f97316',
-    glow: 'rgba(245, 158, 11, 0.35)',
-    badgeBg: 'rgba(245, 158, 11, 0.12)'
-  },
-  'emerald': {
-    id: 'emerald',
-    name: 'Emerald Cyan',
-    c1: '#10b981',
-    c2: '#06b6d4',
-    inactiveC1: 'rgba(16, 185, 129, 0.45)',
-    inactiveC2: 'rgba(6, 182, 212, 0.45)',
-    activeC1: '#10b981',
-    activeC2: '#06b6d4',
-    glow: 'rgba(16, 185, 129, 0.35)',
-    badgeBg: 'rgba(16, 185, 129, 0.12)'
-  },
-  'sky': {
-    id: 'sky',
-    name: 'Sky Indigo',
-    c1: '#38bdf8',
-    c2: '#818cf8',
-    inactiveC1: 'rgba(56, 189, 248, 0.45)',
-    inactiveC2: 'rgba(129, 140, 248, 0.45)',
-    activeC1: '#38bdf8',
-    activeC2: '#818cf8',
-    glow: 'rgba(56, 189, 248, 0.35)',
-    badgeBg: 'rgba(56, 189, 248, 0.12)'
-  },
-  'purple': {
-    id: 'purple',
-    name: 'Purple Rose',
-    c1: '#c084fc',
-    c2: '#f43f5e',
-    inactiveC1: 'rgba(192, 132, 252, 0.45)',
-    inactiveC2: 'rgba(244, 63, 94, 0.45)',
-    activeC1: '#c084fc',
-    activeC2: '#f43f5e',
-    glow: 'rgba(192, 132, 252, 0.35)',
-    badgeBg: 'rgba(192, 132, 252, 0.12)'
-  },
-  'rose': {
-    id: 'rose',
-    name: 'Rose Coral',
-    c1: '#f43f5e',
-    c2: '#fb923c',
-    inactiveC1: 'rgba(244, 63, 94, 0.45)',
-    inactiveC2: 'rgba(251, 146, 60, 0.45)',
-    activeC1: '#f43f5e',
-    activeC2: '#fb923c',
-    glow: 'rgba(244, 63, 94, 0.35)',
-    badgeBg: 'rgba(244, 63, 94, 0.12)'
-  },
-  'indigo': {
-    id: 'indigo',
-    name: 'Indigo Violet',
-    c1: '#6366f1',
-    c2: '#a855f7',
-    inactiveC1: 'rgba(99, 102, 241, 0.45)',
-    inactiveC2: 'rgba(168, 85, 247, 0.45)',
-    activeC1: '#6366f1',
-    activeC2: '#a855f7',
-    glow: 'rgba(99, 102, 241, 0.35)',
-    badgeBg: 'rgba(99, 102, 241, 0.12)'
-  },
-  'teal': {
-    id: 'teal',
-    name: 'Teal Mint',
-    c1: '#14b8a6',
-    c2: '#10b981',
-    inactiveC1: 'rgba(20, 184, 166, 0.45)',
-    inactiveC2: 'rgba(16, 185, 129, 0.45)',
-    activeC1: '#14b8a6',
-    activeC2: '#10b981',
-    glow: 'rgba(20, 184, 166, 0.35)',
-    badgeBg: 'rgba(20, 184, 166, 0.12)'
-  },
-  'orange': {
-    id: 'orange',
-    name: 'Orange Amber',
-    c1: '#f97316',
-    c2: '#eab308',
-    inactiveC1: 'rgba(249, 115, 22, 0.45)',
-    inactiveC2: 'rgba(234, 179, 8, 0.45)',
-    activeC1: '#f97316',
-    activeC2: '#eab308',
-    glow: 'rgba(249, 115, 22, 0.35)',
-    badgeBg: 'rgba(249, 115, 22, 0.12)'
-  }
-};
-
-function hexToRgba(color, alpha = 1) {
-  if (!color) return `rgba(245, 158, 11, ${alpha})`;
-  if (color.startsWith('rgba')) return color;
-  if (color.startsWith('rgb(')) {
-    return color.replace('rgb(', 'rgba(').replace(')', `, ${alpha})`);
-  }
-  let hex = color.replace('#', '').trim();
-  if (hex.length === 3) {
-    hex = hex.split('').map(c => c + c).join('');
-  }
-  if (hex.length === 6) {
-    const num = parseInt(hex, 16);
-    const r = (num >> 16) & 255;
-    const g = (num >> 8) & 255;
-    const b = num & 255;
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
-  }
-  return color;
-}
-
-function resolvePaneColorConfig(colorConf, globalAngle = '45deg') {
-  if (!colorConf || colorConf === 'default') {
-    const p = PANE_COLOR_PRESETS.default;
-    return {
-      ...p,
-      angle: globalAngle,
-      isCustom: false
-    };
-  }
-
-  if (typeof colorConf === 'object' && colorConf !== null) {
-    const c1 = colorConf.c1 || '#f59e0b';
-    const c2 = colorConf.c2 || c1;
-    const angle = colorConf.angle || globalAngle;
-    return {
-      id: 'custom',
-      name: 'Custom',
-      c1,
-      c2,
-      inactiveC1: hexToRgba(c1, 0.45),
-      inactiveC2: hexToRgba(c2, 0.45),
-      activeC1: c1,
-      activeC2: c2,
-      glow: hexToRgba(c1, 0.35),
-      badgeBg: hexToRgba(c1, 0.12),
-      angle,
-      isCustom: true
-    };
-  }
-
-  if (typeof colorConf === 'string') {
-    if (PANE_COLOR_PRESETS[colorConf]) {
-      return {
-        ...PANE_COLOR_PRESETS[colorConf],
-        angle: globalAngle,
-        isCustom: false
-      };
-    }
-    if (colorConf.includes(',')) {
-      const parts = colorConf.split(',');
-      const c1 = parts[0].trim();
-      const c2 = (parts[1] || parts[0]).trim();
-      return {
-        id: 'custom',
-        name: 'Custom',
-        c1,
-        c2,
-        inactiveC1: hexToRgba(c1, 0.45),
-        inactiveC2: hexToRgba(c2, 0.45),
-        activeC1: c1,
-        activeC2: c2,
-        glow: hexToRgba(c1, 0.35),
-        badgeBg: hexToRgba(c1, 0.12),
-        angle: globalAngle,
-        isCustom: true
-      };
-    }
-    if (colorConf.startsWith('#') || colorConf.startsWith('rgb')) {
-      const c1 = colorConf.trim();
-      return {
-        id: 'custom',
-        name: 'Custom',
-        c1,
-        c2: c1,
-        inactiveC1: hexToRgba(c1, 0.45),
-        inactiveC2: hexToRgba(c1, 0.45),
-        activeC1: c1,
-        activeC2: c1,
-        glow: hexToRgba(c1, 0.35),
-        badgeBg: hexToRgba(c1, 0.12),
-        angle: globalAngle,
-        isCustom: true
-      };
-    }
-  }
-
-  return {
-    ...PANE_COLOR_PRESETS.default,
-    angle: globalAngle,
-    isCustom: false
-  };
-}
 
 function getPaneColors() {
   try {
