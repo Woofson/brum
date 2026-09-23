@@ -76,6 +76,124 @@ let ColumnConfig = {
   visibility: JSON.parse(localStorage.getItem('cd_col_visibility') || '{"name":true,"ext":false,"size":true,"modified":true,"created":false,"mode":true,"owner":true,"group":false,"hash":false,"tags":false}'),
 };
 
+// ---------------- TOOLS & LAUNCHPAD MENU CUSTOMIZER ----------------
+const DEFAULT_TOOLS_MENU = [
+  { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
+  { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
+  { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', iconColor: 'var(--accent)', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
+  { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', iconColor: 'var(--accent)', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
+  { id: 'splitter', label: 'File Splitter', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
+  { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
+  { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
+  { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
+  { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal()', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
+  { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager()', desc: 'Manage public share links and guest dropboxes', visible: true },
+  { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal()', desc: 'Two-way sync, mirrors, snapshot archives & replication', visible: true },
+  { id: 'du', label: 'Disk Usage', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
+  { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
+  { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
+  { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
+  { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio()', desc: 'Interactive 3D model & CAD viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', visible: true },
+  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
+  { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
+  { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
+  { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video player, subtitles, PiP & playlist', visible: true },
+  { id: 'sounddog', label: 'Audio Player', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band equalizer', visible: true },
+  { id: 'tetradog', label: 'Tetris', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
+];
+
+// ---------------- FILE TEMPLATES ENGINE ----------------
+const DEFAULT_FILE_TEMPLATES = [
+  {
+    id: 'text',
+    name: 'Plain Text Document (.txt)',
+    ext: 'txt',
+    icon: 'file-text',
+    defaultFilename: 'document.txt',
+    content: 'Title: {{TITLE}}\nDate: {{DATE}}\nAuthor: {{USER}}\n--------------------------------------------------\n\n'
+  },
+  {
+    id: 'markdown',
+    name: 'Markdown Document (.md)',
+    ext: 'md',
+    icon: 'file-code',
+    defaultFilename: 'document.md',
+    content: '# {{TITLE}}\n\n> Created on {{DATE}} by {{USER}}\n\n## Overview\n\n\n## Notes\n\n'
+  },
+  {
+    id: 'html',
+    name: 'HTML5 Webpage (.html)',
+    ext: 'html',
+    icon: 'globe',
+    defaultFilename: 'index.html',
+    content: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>{{TITLE}}</title>\n  <style>\n    body {\n      font-family: system-ui, -apple-system, sans-serif;\n      margin: 2rem;\n      background: #121316;\n      color: #e4e4e7;\n    }\n  </style>\n</head>\n<body>\n  <h1>{{TITLE}}</h1>\n  <p>Generated on {{DATE}} by {{USER}}.</p>\n</body>\n</html>\n'
+  },
+  {
+    id: 'css',
+    name: 'CSS Stylesheet (.css)',
+    ext: 'css',
+    icon: 'palette',
+    defaultFilename: 'styles.css',
+    content: '/**\n * {{FILENAME}} - {{TITLE}}\n * Created: {{DATE}} by {{USER}}\n */\n\n:root {\n  --accent: #f59e0b;\n  --bg: #121316;\n  --text: #e4e4e7;\n}\n\n* {\n  box-sizing: border-box;\n}\n'
+  },
+  {
+    id: 'js',
+    name: 'JavaScript Module (.js)',
+    ext: 'js',
+    icon: 'file-code',
+    defaultFilename: 'app.js',
+    content: '/**\n * {{FILENAME}} - {{TITLE}}\n * Created: {{DATE}} by {{USER}}\n */\n\nexport function init() {\n  console.log("Initialized {{TITLE}} on {{DATE}}");\n}\n\ninit();\n'
+  },
+  {
+    id: 'ts',
+    name: 'TypeScript (.ts)',
+    ext: 'ts',
+    icon: 'file-code',
+    defaultFilename: 'index.ts',
+    content: '/**\n * {{FILENAME}} - {{TITLE}}\n * Created: {{DATE}} by {{USER}}\n */\n\nexport interface Config {\n  title: string;\n  createdAt: string;\n  author: string;\n}\n\nexport const config: Config = {\n  title: "{{TITLE}}",\n  createdAt: "{{ISO_DATE}}",\n  author: "{{USER}}"\n};\n'
+  },
+  {
+    id: 'python',
+    name: 'Python Script (.py)',
+    ext: 'py',
+    icon: 'file-code',
+    defaultFilename: 'script.py',
+    content: '#!/usr/bin/env python3\n"""\n{{FILENAME}} - {{TITLE}}\nCreated: {{DATE}} by {{USER}}\n"""\n\ndef main():\n    print("Hello from {{TITLE}}!")\n\nif __name__ == "__main__":\n    main()\n'
+  },
+  {
+    id: 'rust',
+    name: 'Rust Source (.rs)',
+    ext: 'rs',
+    icon: 'file-code',
+    defaultFilename: 'main.rs',
+    content: '//! {{FILENAME}} - {{TITLE}}\n//! Created: {{DATE}} by {{USER}}\n\nfn main() {\n    println!("Hello from {{TITLE}}!");\n}\n'
+  },
+  {
+    id: 'shell',
+    name: 'Bash Script (.sh)',
+    ext: 'sh',
+    icon: 'terminal',
+    defaultFilename: 'script.sh',
+    content: '#!/usr/bin/env bash\n# {{FILENAME}} - {{TITLE}}\n# Created: {{DATE}} by {{USER}}\n\nset -euo pipefail\n\necho "Running {{TITLE}}..."\n'
+  },
+  {
+    id: 'json',
+    name: 'JSON Document (.json)',
+    ext: 'json',
+    icon: 'file-text',
+    defaultFilename: 'data.json',
+    content: '{\n  "title": "{{TITLE}}",\n  "created_at": "{{ISO_DATE}}",\n  "author": "{{USER}}",\n  "version": "1.0"\n}\n'
+  },
+  {
+    id: 'yaml',
+    name: 'YAML Document (.yaml)',
+    ext: 'yaml',
+    icon: 'file-text',
+    defaultFilename: 'config.yaml',
+    content: '# {{TITLE}}\n# Created: {{DATE}} by {{USER}}\nversion: "1.0"\ntitle: "{{TITLE}}"\ncreated_at: "{{ISO_DATE}}"\nauthor: "{{USER}}"\n'
+  }
+];
+
 // ---------------- PANE IDENTIFICATION BORDER COLORS (HYPRLAND-STYLE TWO-TONE) ----------------
 const PANE_COLOR_PALETTE = ['default', 'amber', 'emerald', 'sky', 'purple', 'rose', 'indigo', 'teal', 'orange'];
 
@@ -1728,9 +1846,13 @@ async function checkAuthAndLoad() {
       // INSTANT UI DISPLAY: Remove all auth shields & render panes immediately!
       document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
       document.documentElement.classList.add('auth-ready');
-      applyUserHomeToPanes();
-      renderAllPanes();
-      restoreTerminalState();
+      try {
+        applyUserHomeToPanes();
+        renderAllPanes();
+        restoreTerminalState();
+      } catch (renderErr) {
+        console.error('UI pane rendering error post-auth:', renderErr);
+      }
 
       // Non-blocking background data hydration
       Promise.allSettled([
@@ -2513,6 +2635,7 @@ function createPaneElement(pane, index) {
   const paneTitle = pane.customName || `${index + 1}`;
   const colorConf = colors[index] || 'default';
   const resolved = typeof resolvePaneColorConfig === 'function' ? resolvePaneColorConfig(colorConf, globalAngle) : { activeC1: '#f59e0b', activeC2: '#f97316', angle: '45deg', id: 'default' };
+  const activeHex = resolved.activeC1;
   const badgeGradient = `linear-gradient(${resolved.angle}, ${resolved.activeC1}, ${resolved.activeC2})`;
   const isDraggableAttr = App.paneReorderEnabled !== false ? `draggable="true" ondragstart="handlePaneBadgeDragStart(event, ${index})" ondragend="handlePaneBadgeDragEnd(event, ${index})"` : '';
   const badgeTitle = `Pane ${index + 1}: ${escapeHtml(paneTitle)} (${App.paneReorderEnabled !== false ? 'Drag: Reorder, ' : ''}Click / Long Press: Settings)`;
@@ -2651,7 +2774,7 @@ function createPaneElement(pane, index) {
         <div class="pane-tree-sidebar" id="pane-tree-${index}" style="display: ${App.panes[index]?.showTree ? 'flex' : 'none'};"></div>
         <div class="pane-tree-resizer" id="pane-tree-resizer-${index}" style="display: ${App.panes[index]?.showTree ? 'block' : 'none'};" onmousedown="initTreeResize(event, ${index})"></div>
         <div class="pane-main-view" id="pane-main-${index}">
-          <div class="pane-ghost-watermark ${paneTitle.length > 2 ? 'pane-ghost-long' : ''}" id="pane-ghost-${index}" style="color: ${activeHex && activeHex !== 'rgba(255,255,255,0.2)' ? activeHex : 'var(--accent)'};" aria-hidden="true">${escapeHtml(paneTitle)}</div>
+          <div class="pane-ghost-watermark ${paneTitle.length > 2 ? 'pane-ghost-long' : ''}" id="pane-ghost-${index}" style="color: ${resolved.id !== 'default' ? resolved.activeC1 : 'var(--accent)'};" aria-hidden="true">${escapeHtml(paneTitle)}</div>
           <div class="pull-refresh-indicator" id="pull-refresh-${index}" style="display: none; height: 0px; overflow: hidden; justify-content: center; align-items: center; background: rgba(0,0,0,0.3); color: var(--accent); font-size: 11px; font-weight: 700; transition: height 0.1s linear; border-bottom: 1px dashed var(--border);">
             <i data-lucide="rotate-cw" class="pull-refresh-spinner" style="width: 14px; margin-right: 6px;"></i>
             <span class="pull-refresh-label">Pull down to refresh...</span>
@@ -14193,30 +14316,7 @@ function updateLogoutOrExitButton() {
 }
 
 // ---------------- TOOLS & LAUNCHPAD MENU CUSTOMIZER ----------------
-const DEFAULT_TOOLS_MENU = [
-  { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
-  { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
-  { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', iconColor: 'var(--accent)', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
-  { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', iconColor: 'var(--accent)', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
-  { id: 'splitter', label: 'File Splitter', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
-  { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
-  { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
-  { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
-  { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal()', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
-  { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager()', desc: 'Manage public share links and guest dropboxes', visible: true },
-  { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal()', desc: 'Two-way sync, mirrors, snapshot archives & replication', visible: true },
-  { id: 'du', label: 'Disk Usage', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
-  { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
-  { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
-  { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
-  { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio()', desc: 'Interactive 3D model & CAD viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', visible: true },
-  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
-  { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
-  { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
-  { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video player, subtitles, PiP & playlist', visible: true },
-  { id: 'sounddog', label: 'Audio Player', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band equalizer', visible: true },
-  { id: 'tetradog', label: 'Tetris', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
-];
+
 
 function getToolsMenuConfig() {
   try {
@@ -15045,96 +15145,6 @@ async function showParanoidConfirm(action, sources, destination, onProceed) {
 
 // ---------------- FILE TEMPLATES ENGINE ----------------
 
-const DEFAULT_FILE_TEMPLATES = [
-  {
-    id: 'text',
-    name: 'Plain Text Document (.txt)',
-    ext: 'txt',
-    icon: 'file-text',
-    defaultFilename: 'document.txt',
-    content: 'Title: {{TITLE}}\nDate: {{DATE}}\nAuthor: {{USER}}\n--------------------------------------------------\n\n'
-  },
-  {
-    id: 'markdown',
-    name: 'Markdown Document (.md)',
-    ext: 'md',
-    icon: 'file-code',
-    defaultFilename: 'document.md',
-    content: '# {{TITLE}}\n\n> Created on {{DATE}} by {{USER}}\n\n## Overview\n\n\n## Notes\n\n'
-  },
-  {
-    id: 'html',
-    name: 'HTML5 Webpage (.html)',
-    ext: 'html',
-    icon: 'globe',
-    defaultFilename: 'index.html',
-    content: '<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1.0">\n  <title>{{TITLE}}</title>\n  <style>\n    body {\n      font-family: system-ui, -apple-system, sans-serif;\n      margin: 2rem;\n      background: #121316;\n      color: #e4e4e7;\n    }\n  </style>\n</head>\n<body>\n  <h1>{{TITLE}}</h1>\n  <p>Generated on {{DATE}} by {{USER}}.</p>\n</body>\n</html>\n'
-  },
-  {
-    id: 'css',
-    name: 'CSS Stylesheet (.css)',
-    ext: 'css',
-    icon: 'palette',
-    defaultFilename: 'styles.css',
-    content: '/**\n * {{FILENAME}} - {{TITLE}}\n * Created: {{DATE}} by {{USER}}\n */\n\n:root {\n  --accent: #f59e0b;\n  --bg: #121316;\n  --text: #e4e4e7;\n}\n\n* {\n  box-sizing: border-box;\n}\n'
-  },
-  {
-    id: 'js',
-    name: 'JavaScript Module (.js)',
-    ext: 'js',
-    icon: 'file-code',
-    defaultFilename: 'app.js',
-    content: '/**\n * {{FILENAME}} - {{TITLE}}\n * Created: {{DATE}} by {{USER}}\n */\n\nexport function init() {\n  console.log("Initialized {{TITLE}} on {{DATE}}");\n}\n\ninit();\n'
-  },
-  {
-    id: 'ts',
-    name: 'TypeScript (.ts)',
-    ext: 'ts',
-    icon: 'file-code',
-    defaultFilename: 'index.ts',
-    content: '/**\n * {{FILENAME}} - {{TITLE}}\n * Created: {{DATE}} by {{USER}}\n */\n\nexport interface Config {\n  title: string;\n  createdAt: string;\n  author: string;\n}\n\nexport const config: Config = {\n  title: "{{TITLE}}",\n  createdAt: "{{ISO_DATE}}",\n  author: "{{USER}}"\n};\n'
-  },
-  {
-    id: 'python',
-    name: 'Python Script (.py)',
-    ext: 'py',
-    icon: 'terminal',
-    defaultFilename: 'script.py',
-    content: '#!/usr/bin/env python3\n"""\n{{TITLE}}\nCreated on {{DATE}} by {{USER}}\n"""\n\nimport sys\n\ndef main():\n    print(f"Running {{TITLE}} (created {{DATE}})")\n\nif __name__ == "__main__":\n    main()\n'
-  },
-  {
-    id: 'rust',
-    name: 'Rust Source (.rs)',
-    ext: 'rs',
-    icon: 'cpu',
-    defaultFilename: 'main.rs',
-    content: '//! {{TITLE}}\n//! Created on {{DATE}} by {{USER}}.\n\nfn main() {\n    println!("Running {{TITLE}} ({{DATE}})");\n}\n'
-  },
-  {
-    id: 'sh',
-    name: 'Shell Script (.sh)',
-    ext: 'sh',
-    icon: 'terminal-square',
-    defaultFilename: 'script.sh',
-    content: '#!/usr/bin/env bash\n# ==============================================================================\n# {{FILENAME}} - {{TITLE}}\n# Created: {{DATE}} by {{USER}}\n# ==============================================================================\n\nset -euo pipefail\n\necho "Running {{TITLE}}..."\n'
-  },
-  {
-    id: 'json',
-    name: 'JSON Configuration (.json)',
-    ext: 'json',
-    icon: 'file-text',
-    defaultFilename: 'config.json',
-    content: '{\n  "$schema": "https://json-schema.org/draft/2020-12/schema",\n  "title": "{{TITLE}}",\n  "createdAt": "{{ISO_DATE}}",\n  "author": "{{USER}}",\n  "settings": {}\n}\n'
-  },
-  {
-    id: 'yaml',
-    name: 'YAML Document (.yaml)',
-    ext: 'yaml',
-    icon: 'file-text',
-    defaultFilename: 'config.yaml',
-    content: '# {{TITLE}}\n# Created: {{DATE}} by {{USER}}\nversion: "1.0"\ntitle: "{{TITLE}}"\ncreated_at: "{{ISO_DATE}}"\nauthor: "{{USER}}"\n'
-  }
-];
 
 function getFileTemplates() {
   try {
