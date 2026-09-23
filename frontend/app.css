@@ -5796,6 +5796,46 @@ html.fkeys-disabled .bottom-fkey-bar,
   z-index: 100;
 }
 
+/* Mode: Off */
+html[data-mobile-bar="off"] .mobile-bottom-bar,
+body.mobile-bar-off .mobile-bottom-bar,
+.mobile-bottom-bar.mode-off {
+  display: none !important;
+}
+
+/* Mode: Icons Only */
+html[data-mobile-bar="icons_only"] .mobile-bottom-bar,
+body.mobile-bar-icons_only .mobile-bottom-bar,
+.mobile-bottom-bar.mode-icons_only {
+  min-height: 38px !important;
+  height: calc(38px + env(safe-area-inset-bottom, 0px)) !important;
+  padding-top: 2px !important;
+}
+
+html[data-mobile-bar="icons_only"] .mob-cmd-btn,
+body.mobile-bar-icons_only .mob-cmd-btn,
+.mobile-bottom-bar.mode-icons_only .mob-cmd-btn {
+  height: 32px !important;
+  max-width: 52px !important;
+  gap: 0 !important;
+}
+
+html[data-mobile-bar="icons_only"] .mob-cmd-btn span,
+body.mobile-bar-icons_only .mob-cmd-btn span,
+.mobile-bottom-bar.mode-icons_only .mob-cmd-btn span {
+  display: none !important;
+}
+
+html[data-mobile-bar="icons_only"] .mob-cmd-btn i,
+html[data-mobile-bar="icons_only"] .mob-cmd-btn svg,
+body.mobile-bar-icons_only .mob-cmd-btn i,
+body.mobile-bar-icons_only .mob-cmd-btn svg,
+.mobile-bottom-bar.mode-icons_only .mob-cmd-btn i,
+.mobile-bottom-bar.mode-icons_only .mob-cmd-btn svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
 .mob-cmd-btn {
   flex: 1;
   max-width: 75px;
@@ -6549,6 +6589,12 @@ html.fkeys-disabled .bottom-fkey-bar,
 
   .mobile-bottom-bar {
     display: flex !important;
+  }
+
+  html[data-mobile-bar="off"] .mobile-bottom-bar,
+  body.mobile-bar-off .mobile-bottom-bar,
+  .mobile-bottom-bar.mode-off {
+    display: none !important;
   }
 
   .terminal-drawer {

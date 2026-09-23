@@ -308,11 +308,11 @@
 
   <!-- Static Mobile Bottom Command Bar (Total Commander Style) -->
   <footer class="mobile-bottom-bar" id="mobile-bottom-bar">
-    <button class="mob-cmd-btn" id="mob-btn-copy" onclick="triggerCopy()">
+    <button class="mob-cmd-btn" id="mob-btn-copy" onclick="triggerCopy()" title="Copy (F5)">
       <i data-lucide="copy"></i>
       <span>Copy</span>
     </button>
-    <button class="mob-cmd-btn" id="mob-btn-move" onclick="triggerMove()">
+    <button class="mob-cmd-btn" id="mob-btn-move" onclick="triggerMove()" title="Move (F6)">
       <i data-lucide="move"></i>
       <span>Move</span>
     </button>
@@ -324,11 +324,11 @@
       <i data-lucide="download"></i>
       <span>Download</span>
     </button>
-    <button class="mob-cmd-btn" id="mob-btn-delete" onclick="triggerDelete()">
+    <button class="mob-cmd-btn" id="mob-btn-delete" onclick="triggerDelete()" title="Delete / Move to Trash (F8)">
       <i data-lucide="trash-2"></i>
       <span>Delete</span>
     </button>
-    <button class="mob-cmd-btn mob-cmd-accent" id="mob-btn-actions" onclick="showTouchActionsMenu(event)">
+    <button class="mob-cmd-btn mob-cmd-accent" id="mob-btn-actions" onclick="showTouchActionsMenu(event)" title="Actions & Tools Menu">
       <i data-lucide="zap"></i>
       <span id="mob-actions-label">Actions</span>
     </button>
@@ -1128,6 +1128,16 @@
                     <option value="pc_tablet">PC &amp; Tablet (&ge;600px)</option>
                     <option value="disabled">Disabled (Single Tab per Panel)</option>
                   </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-mobile-bottom-bar-mode">Mobile &amp; Tablet Bottom Actions Bar:</label>
+                  <select id="setting-mobile-bottom-bar-mode" class="settings-select" onchange="updateMobileBottomBarMode(this.value)">
+                    <option value="icons_text" selected>Icons and Text (Default)</option>
+                    <option value="icons_only">Icons Only</option>
+                    <option value="off">Off (Hidden)</option>
+                  </select>
+                  <div class="settings-field-hint">Display mode for bottom command bar on touch, phone, and tablet screens.</div>
                 </div>
               </div>
 

@@ -1080,6 +1080,7 @@ function getAllUserPreferences() {
     activate_on_hover: App.activateOnHover === true,
     phone_tablet_max_panes: App.phoneTabletMaxPanes || 2,
     pane_tabs_mode: localStorage.getItem('cd_pane_tabs_mode') || 'pc_only',
+    mobile_bottom_bar_mode: App.mobileBottomBarMode || localStorage.getItem('cd_mobile_bottom_bar_mode') || 'icons_text',
     dnd_default_action: App.dndDefaultAction,
     dnd_prompt_mode: App.dndPromptMode,
     dnd_paranoid_prompt: App.dndParanoidPrompt,
@@ -1396,6 +1397,11 @@ function applyAllUserPreferences(prefs) {
     if (tabModeSel) tabModeSel.value = prefs.pane_tabs_mode;
     if (typeof updateAllPaneTabsVisibility === 'function') updateAllPaneTabsVisibility();
   }
+  if (prefs.mobile_bottom_bar_mode !== undefined) {
+    App.mobileBottomBarMode = prefs.mobile_bottom_bar_mode;
+    localStorage.setItem('cd_mobile_bottom_bar_mode', prefs.mobile_bottom_bar_mode);
+    applyMobileBottomBarMode(prefs.mobile_bottom_bar_mode);
+  }
   if (prefs.dnd_default_action) {
     App.dndDefaultAction = prefs.dnd_default_action;
     localStorage.setItem('cd_dnd_default_action', prefs.dnd_default_action);
@@ -1633,6 +1639,7 @@ function bootApp() {
     setupKeyboardNavigation();
     setupHistoryNavigation();
     applyFKeyBarState();
+    applyMobileBottomBarMode();
     applyFontSize(App.fontSize);
     applyBorderSettings();
     applyAllColumnWidths();
@@ -18278,6 +18285,11 @@ function openSettingsModal() {
     maxPanesSel.value = (App.phoneTabletMaxPanes || 2).toString();
   }
 
+  const mobBarSel = document.getElementById('setting-mobile-bottom-bar-mode');
+  if (mobBarSel) {
+    mobBarSel.value = App.mobileBottomBarMode || localStorage.getItem('cd_mobile_bottom_bar_mode') || 'icons_text';
+  }
+
   // Populate External Programs & Desktop Handlers (Standalone only)
   renderDesktopAppsTab();
   updateStandaloneUI();
@@ -21128,6 +21140,42 @@ function toggleWindowDecorations(show) {
   const cb = document.getElementById('setting-window-decorations');
   if (cb) cb.checked = show;
   showToast(show ? 'Window titlebar & frame enabled (restart to apply)' : 'Window decorations disabled (Borderless/Tiling mode for Hyprland)', 'info');
+}
+
+function updateMobileBottomBarMode(val) {
+  if (!['icons_text', 'icons_only', 'off'].includes(val)) {
+    val = 'icons_text';
+  }
+  App.mobileBottomBarMode = val;
+  localStorage.setItem('cd_mobile_bottom_bar_mode', val);
+  applyMobileBottomBarMode(val);
+  queueSaveUserPreferencesToServer();
+  const labelMap = {
+    'icons_text': 'Icons and Text',
+    'icons_only': 'Icons Only',
+    'off': 'Off (Hidden)'
+  };
+  showToast(`Mobile bottom bar: ${labelMap[val] || val}`, 'info');
+}
+
+function applyMobileBottomBarMode(mode) {
+  const val = mode || App.mobileBottomBarMode || localStorage.getItem('cd_mobile_bottom_bar_mode') || 'icons_text';
+  App.mobileBottomBarMode = val;
+  document.documentElement.setAttribute('data-mobile-bar', val);
+  const bar = document.getElementById('mobile-bottom-bar');
+  if (bar) {
+    bar.classList.remove('mode-icons_text', 'mode-icons_only', 'mode-off');
+    bar.classList.add(`mode-${val}`);
+    if (val === 'off') {
+      bar.style.display = 'none';
+    } else {
+      bar.style.display = '';
+    }
+  }
+  const sel = document.getElementById('setting-mobile-bottom-bar-mode');
+  if (sel && sel.value !== val) {
+    sel.value = val;
+  }
 }
 
 function applyFKeyBarState() {
