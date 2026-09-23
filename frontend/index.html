@@ -127,10 +127,10 @@
         <span class="app-logo-text" style="font-weight: 700;">Brum</span>
       </div>
       <div class="fleet-switcher-wrapper" id="fleet-switcher-wrapper">
-        <span class="header-hostname-badge" id="header-hostname-badge" onclick="toggleFleetSwitcherDropdown(event)" title="Commander Fleet (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
-          <i data-lucide="server" id="header-hostname-icon"></i>
-          <span id="header-hostname-text">localhost</span>
-          <i data-lucide="chevron-down" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.7;"></i>
+        <span class="header-hostname-badge style-text color-slate" id="header-hostname-badge" onclick="toggleFleetSwitcherDropdown(event)" title="Commander Fleet (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
+          <i data-lucide="server" id="header-hostname-icon" style="display: none;"></i>
+          <span id="header-hostname-text">@localhost</span>
+          <i data-lucide="chevron-down" class="header-hostname-chevron" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.6;"></i>
         </span>
         <!-- Dropdown Menu -->
         <div class="fleet-switcher-dropdown" id="fleet-switcher-dropdown" style="display: none;" onclick="event.stopPropagation()">
@@ -2010,27 +2010,27 @@
             </div>
           </div>
 
-          <!-- Card 5: Hostname & Environment Badge Customizer (Migrated & Enhanced) -->
+          <!-- Card 5: Hostname & Environment Indicator Customizer -->
           <div class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
-                <i data-lucide="server"></i> Hostname & Environment Badge
+                <i data-lucide="server"></i> Hostname & Fleet Indicator
               </h4>
               <div style="display: flex; align-items: center; gap: 6px;">
                 <span style="font-size: 11px; color: var(--text-dim);">Live Preview:</span>
-                <span id="hostname-settings-preview-badge" class="header-hostname-badge color-amber style-subtle size-md" style="display: inline-flex;">
-                  <i data-lucide="server"></i>
-                  <span id="hostname-preview-text">localhost</span>
+                <span id="hostname-settings-preview-badge" class="header-hostname-badge color-slate style-text size-md" style="display: inline-flex;">
+                  <span id="hostname-preview-text">@localhost</span>
+                  <i data-lucide="chevron-down" class="header-hostname-chevron" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.6;"></i>
                 </span>
               </div>
             </div>
-            <p class="settings-card-desc">Display and style a custom environment/host badge next to the logo in the top header (e.g. <code>NAS-PROD</code>, <code>HOMELAB</code>, <code>DEV-BOX</code>).</p>
+            <p class="settings-card-desc">Display and style a custom environment/hostname prompt or badge next to the logo in the top header (e.g. <code>@nas-prod</code>, <code>@homelab</code>, <code>@dev-box</code>).</p>
 
             <label class="settings-checkbox-row">
               <input type="checkbox" id="setting-show-hostname-badge" checked onchange="toggleHostnameBadgeSetting(this.checked)">
               <div>
-                <strong>Show Hostname Badge in Header</strong>
-                <div class="settings-field-hint">Display host status badge next to the Brum logo.</div>
+                <strong>Show Hostname Indicator in Header</strong>
+                <div class="settings-field-hint">Display host status / fleet prompt next to the Brum logo.</div>
               </div>
             </label>
 
@@ -2039,21 +2039,21 @@
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-custom-hostname-label">Custom Environment / Hostname Label (Optional):</label>
                 <input type="text" id="setting-custom-hostname-label" class="settings-input" style="font-family: var(--font-mono);" placeholder="Leave empty for auto-detected system hostname" oninput="handleHostnameSettingChange()">
-                <div class="settings-field-hint">Customize the label shown in the header badge (e.g. <code>NAS-PROD</code>, <code>HOMELAB-01</code>, <code>DEV-BOX</code>).</div>
+                <div class="settings-field-hint">Customize the label shown in the header prompt (e.g. <code>@nas-prod</code>, <code>@homelab-01</code>, <code>@dev-box</code>).</div>
               </div>
 
               <div class="settings-grid-auto">
                 <div class="settings-field">
-                  <label class="settings-field-label" for="setting-hostname-color">Badge Color:</label>
+                  <label class="settings-field-label" for="setting-hostname-color">Indicator Color:</label>
                   <select id="setting-hostname-color" class="settings-select" onchange="handleHostnameSettingChange()">
-                    <option value="amber">🔶 Amber (Default)</option>
+                    <option value="slate" selected>⚪ Slate / Dim Text (Default)</option>
+                    <option value="amber">🔶 Amber Accent</option>
                     <option value="emerald">🟢 Emerald Green</option>
                     <option value="sky">🔷 Sky Blue</option>
                     <option value="purple">🟣 Purple</option>
                     <option value="rose">🔴 Rose Red</option>
                     <option value="orange">🟧 Orange</option>
                     <option value="cyan">💠 Cyan</option>
-                    <option value="slate">⚪ Slate Grey</option>
                     <option value="custom">🎨 Custom Free-form Color...</option>
                   </select>
                 </div>
@@ -2061,17 +2061,19 @@
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-hostname-style">Visual Style:</label>
                   <select id="setting-hostname-style" class="settings-select" onchange="handleHostnameSettingChange()">
-                    <option value="subtle">Subtle Tint (Default)</option>
-                    <option value="solid">Solid Fill</option>
-                    <option value="outline">Outline Border</option>
-                    <option value="pill">Pill Capsule</option>
-                    <option value="glow">Neon Glow</option>
+                    <option value="text" selected>Text Prompt (@host) (Default)</option>
+                    <option value="subtle">Subtle Tint Badge</option>
+                    <option value="solid">Solid Fill Badge</option>
+                    <option value="outline">Outline Border Badge</option>
+                    <option value="pill">Pill Capsule Badge</option>
+                    <option value="glow">Neon Glow Badge</option>
                   </select>
                 </div>
 
                 <div class="settings-field">
-                  <label class="settings-field-label" for="setting-hostname-icon">Badge Icon:</label>
+                  <label class="settings-field-label" for="setting-hostname-icon">Icon / Prefix:</label>
                   <select id="setting-hostname-icon" class="settings-select" onchange="handleHostnameSettingChange()">
+                    <option value="none" selected>🚫 No Icon (Text Only, Default)</option>
                     <option value="server">🖥️ Server</option>
                     <option value="hard-drive">💽 Hard Drive (NAS)</option>
                     <option value="cpu">⚡ CPU / Compute</option>
@@ -2082,12 +2084,11 @@
                     <option value="home">🏠 Homelab / Home</option>
                     <option value="globe">🌐 Globe / Gateway</option>
                     <option value="radio">📻 Radio / Remote</option>
-                    <option value="none">🚫 No Icon (Text Only)</option>
                   </select>
                 </div>
 
                 <div class="settings-field">
-                  <label class="settings-field-label" for="setting-hostname-size">Badge Size:</label>
+                  <label class="settings-field-label" for="setting-hostname-size">Text Size:</label>
                   <select id="setting-hostname-size" class="settings-select" onchange="handleHostnameSettingChange()">
                     <option value="sm">Small (Compact 18px)</option>
                     <option value="md" selected>Medium (Standard 22px)</option>

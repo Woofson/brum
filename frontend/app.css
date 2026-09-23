@@ -367,36 +367,59 @@ body {
 .header-hostname-badge {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  font-weight: 600;
-  padding: 2px 7px;
+  gap: 4px;
+  font-weight: 500;
+  padding: 2px 4px;
   height: 22px;
-  font-size: 11px;
+  font-size: 11.5px;
   border-radius: var(--radius-sm, 4px);
-  letter-spacing: 0.3px;
+  letter-spacing: 0.2px;
   font-family: var(--font-mono, monospace);
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
-  max-width: 220px;
+  max-width: 240px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   box-sizing: border-box;
-  --badge-color: var(--accent, #f59e0b);
-  --badge-bg: rgba(245, 158, 11, 0.12);
-  --badge-border: rgba(245, 158, 11, 0.28);
-  --badge-hover: rgba(245, 158, 11, 0.22);
-  --badge-glow: rgba(245, 158, 11, 0.35);
-  background: var(--badge-bg);
+  --badge-color: var(--text-muted, #a1a1aa);
+  --badge-bg: transparent;
+  --badge-border: transparent;
+  --badge-hover: rgba(255, 255, 255, 0.05);
+  --badge-glow: rgba(245, 158, 11, 0.25);
+  background: transparent;
   color: var(--badge-color);
-  border: 1px solid var(--badge-border);
+  border: 1px solid transparent;
 }
 
 .header-hostname-badge:hover {
-  background: var(--badge-hover);
-  border-color: var(--badge-color);
-  transform: translateY(-1px);
+  color: var(--accent, #f59e0b);
+}
+
+.header-hostname-badge .header-hostname-chevron,
+.header-hostname-badge > i:last-child,
+.header-hostname-badge > svg:last-child {
+  width: 10px;
+  height: 10px;
+  opacity: 0.55;
+  transition: transform 0.18s ease, opacity 0.15s ease, color 0.15s ease;
+  flex-shrink: 0;
+}
+
+.header-hostname-badge:hover .header-hostname-chevron,
+.header-hostname-badge:hover > i:last-child,
+.header-hostname-badge:hover > svg:last-child {
+  opacity: 1;
+  color: var(--accent, #f59e0b);
+}
+
+.header-hostname-badge.dropdown-active .header-hostname-chevron,
+.header-hostname-badge.dropdown-active > i:last-child,
+.header-hostname-badge.dropdown-active > svg:last-child {
+  transform: rotate(180deg);
+  opacity: 1;
+  color: var(--accent, #f59e0b);
 }
 
 .header-hostname-badge i,
@@ -410,9 +433,9 @@ body {
 /* Badge Sizes */
 .header-hostname-badge.size-sm {
   height: 18px;
-  font-size: 9.5px;
-  padding: 1px 5px;
-  gap: 3.5px;
+  font-size: 10px;
+  padding: 1px 3px;
+  gap: 3px;
 }
 .header-hostname-badge.size-sm i,
 .header-hostname-badge.size-sm svg {
@@ -422,22 +445,21 @@ body {
 
 .header-hostname-badge.size-md {
   height: 22px;
-  font-size: 11px;
-  padding: 2px 7px;
-  gap: 5px;
+  font-size: 11.5px;
+  padding: 2px 4px;
+  gap: 4px;
 }
 
 .header-hostname-badge.size-lg {
   height: 26px;
-  font-size: 12px;
-  padding: 3px 9px;
-  gap: 6px;
-  font-weight: 700;
+  font-size: 13px;
+  padding: 3px 6px;
+  gap: 5px;
 }
 .header-hostname-badge.size-lg i,
 .header-hostname-badge.size-lg svg {
-  width: 13px;
-  height: 13px;
+  width: 12.5px;
+  height: 12.5px;
 }
 
 /* Badge Color Themes */
@@ -514,6 +536,21 @@ body {
 }
 
 /* Badge Visual Styles / Variants */
+.header-hostname-badge.style-text {
+  background: transparent !important;
+  border: 1px solid transparent !important;
+  box-shadow: none !important;
+  color: var(--badge-color, var(--text-muted));
+  opacity: 0.8;
+  padding: 1px 4px;
+}
+.header-hostname-badge.style-text:hover {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: var(--accent, #f59e0b) !important;
+  opacity: 1;
+  border-radius: var(--radius-sm, 4px);
+}
+
 .header-hostname-badge.style-subtle {
   background: var(--badge-bg);
   color: var(--badge-color);

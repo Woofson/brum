@@ -1647,22 +1647,22 @@ function getHostnameBadgeSettings() {
   const color = localStorage.getItem('cd_hostname_color')
     || App.config?.ui?.hostname_color
     || App.systemStatus?.hostname_color
-    || 'amber';
+    || 'slate';
 
-  const customText = localStorage.getItem('cd_hostname_custom_text') || '#f59e0b';
-  const customBg = localStorage.getItem('cd_hostname_custom_bg') || 'rgba(245, 158, 11, 0.15)';
-  const customBorder = localStorage.getItem('cd_hostname_custom_border') || 'rgba(245, 158, 11, 0.35)';
-  const customGlow = localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.4)';
+  const customText = localStorage.getItem('cd_hostname_custom_text') || '#94a3b8';
+  const customBg = localStorage.getItem('cd_hostname_custom_bg') || 'rgba(148, 163, 184, 0.12)';
+  const customBorder = localStorage.getItem('cd_hostname_custom_border') || 'rgba(148, 163, 184, 0.3)';
+  const customGlow = localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.35)';
 
   const style = localStorage.getItem('cd_hostname_style')
     || App.config?.ui?.hostname_style
     || App.systemStatus?.hostname_style
-    || 'subtle';
+    || 'text';
 
   const icon = localStorage.getItem('cd_hostname_icon')
     || App.config?.ui?.hostname_icon
     || App.systemStatus?.hostname_icon
-    || 'server';
+    || 'none';
 
   const size = localStorage.getItem('cd_hostname_size')
     || App.config?.ui?.hostname_size
@@ -1670,17 +1670,22 @@ function getHostnameBadgeSettings() {
     || 'md';
 
   const cachedHost = localStorage.getItem('cd_cached_hostname');
-  const hostname = (customLabel && customLabel.trim().length > 0)
+  const rawHostname = (customLabel && customLabel.trim().length > 0)
     ? customLabel.trim()
     : (App.systemStatus?.hostname || cachedHost || 'localhost');
 
-  return { show, hostname, customLabel, color, customText, customBg, customBorder, customGlow, style, icon, size };
+  // Format as @hostname by default for text prompts
+  const hostname = (style === 'text' && !rawHostname.startsWith('@'))
+    ? `@${rawHostname}`
+    : rawHostname;
+
+  return { show, hostname, rawHostname, customLabel, color, customText, customBg, customBorder, customGlow, style, icon, size };
 }
 
 function getLocalHostDisplayName() {
   const hostSettings = typeof getHostnameBadgeSettings === 'function' ? getHostnameBadgeSettings() : null;
-  if (hostSettings && hostSettings.hostname && hostSettings.hostname.trim()) {
-    return hostSettings.hostname.trim();
+  if (hostSettings && hostSettings.rawHostname && hostSettings.rawHostname.trim()) {
+    return hostSettings.rawHostname.trim();
   }
   return App.systemStatus?.hostname || localStorage.getItem('cd_cached_hostname') || 'localhost';
 }
@@ -1708,7 +1713,7 @@ function renderHostnameBadgeElement(badgeEl, textEl, cfg) {
   }
 
   // Update Icon
-  let iconEl = badgeEl.querySelector('#header-hostname-icon') || badgeEl.querySelector('i:first-child, svg:first-child');
+  let iconEl = badgeEl.querySelector('#header-hostname-icon') || badgeEl.querySelector('i:first-child:not(.header-hostname-chevron), svg:first-child:not(.header-hostname-chevron)');
   if (cfg.icon === 'none') {
     if (iconEl) iconEl.style.display = 'none';
   } else {
@@ -1722,6 +1727,17 @@ function renderHostnameBadgeElement(badgeEl, textEl, cfg) {
     if (badgeEl.id === 'header-hostname-badge') {
       iconEl.id = 'header-hostname-icon';
     }
+  }
+
+  // Ensure dropdown chevron exists at end
+  let chevron = badgeEl.querySelector('.header-hostname-chevron') || badgeEl.querySelector('i:last-child, svg:last-child');
+  if (!chevron || chevron === iconEl) {
+    chevron = document.createElement('i');
+    chevron.className = 'header-hostname-chevron';
+    chevron.setAttribute('data-lucide', 'chevron-down');
+    badgeEl.appendChild(chevron);
+  } else if (!chevron.classList.contains('header-hostname-chevron')) {
+    chevron.classList.add('header-hostname-chevron');
   }
 
   if (typeof lucide !== 'undefined' && lucide.createIcons) {
@@ -1746,7 +1762,7 @@ function updateHostnameBadge() {
   // Login Screen Hostname Title
   const loginTitleEl = document.getElementById('login-hostname-title');
   if (loginTitleEl) {
-    loginTitleEl.textContent = cfg.hostname || 'Brum';
+    loginTitleEl.textContent = cfg.rawHostname || 'Brum';
   }
 
   // Lock Screen Hostname Suffix (Ensure resilient span preservation)
@@ -1755,16 +1771,16 @@ function updateHostnameBadge() {
   if (!lockSuffix && userLabel) {
     const userTextEl = document.getElementById('lock-username-text');
     const uname = userTextEl?.textContent || userLabel.textContent || 'Brum User';
-    userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(cfg.hostname || 'localhost') : (cfg.hostname || 'localhost')}</span>`;
+    userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(cfg.rawHostname || 'localhost') : (cfg.rawHostname || 'localhost')}</span>`;
   } else if (lockSuffix) {
-    lockSuffix.textContent = `@${cfg.hostname || 'localhost'}`;
+    lockSuffix.textContent = `@${cfg.rawHostname || 'localhost'}`;
   }
 
   if (badge && cfg.show) {
     const os = App.systemStatus?.os || 'linux';
     const arch = App.systemStatus?.arch || 'x86_64';
     const user = App.user?.username || App.systemStatus?.current_user || 'user';
-    badge.title = `Host: ${cfg.hostname} (${os}/${arch})\nUser: ${user}\nClick to copy host info`;
+    badge.title = `Host: ${cfg.rawHostname} (${os}/${arch})\nUser: ${user}\nClick to switch server / manage fleet`;
   }
 
   updateHostnameSettingsPreview();
@@ -1777,37 +1793,12 @@ function updateHostnameSettingsPreview() {
   if (!previewBadge) return;
 
   const cfg = getHostnameBadgeSettings();
-  if (previewText) previewText.textContent = cfg.hostname;
-  previewBadge.className = `header-hostname-badge color-${cfg.color} style-${cfg.style} size-${cfg.size}`;
+  renderHostnameBadgeElement(previewBadge, previewText, cfg);
 
   if (cfg.color === 'custom') {
-    previewBadge.style.setProperty('--custom-badge-color', cfg.customText);
-    previewBadge.style.setProperty('--custom-badge-bg', cfg.customBg);
-    previewBadge.style.setProperty('--custom-badge-border', cfg.customBorder);
-    previewBadge.style.setProperty('--custom-badge-glow', cfg.customGlow);
     if (customColorRow) customColorRow.style.display = 'flex';
   } else {
-    previewBadge.style.removeProperty('--custom-badge-color');
-    previewBadge.style.removeProperty('--custom-badge-bg');
-    previewBadge.style.removeProperty('--custom-badge-border');
-    previewBadge.style.removeProperty('--custom-badge-glow');
     if (customColorRow) customColorRow.style.display = 'none';
-  }
-
-  let iconEl = previewBadge.querySelector('i, svg');
-  if (cfg.icon === 'none') {
-    if (iconEl) iconEl.style.display = 'none';
-  } else {
-    if (!iconEl) {
-      iconEl = document.createElement('i');
-      previewBadge.insertBefore(iconEl, previewText);
-    }
-    iconEl.style.display = 'inline-block';
-    iconEl.setAttribute('data-lucide', cfg.icon);
-  }
-
-  if (typeof lucide !== 'undefined' && lucide.createIcons) {
-    lucide.createIcons({ root: previewBadge });
   }
 }
 
@@ -35712,6 +35703,7 @@ function toggleFleetSwitcherDropdown(event) {
     event.preventDefault();
   }
   const dropdown = document.getElementById('fleet-switcher-dropdown');
+  const badge = document.getElementById('header-hostname-badge');
   if (!dropdown) return;
   const isShown = dropdown.style.display === 'block';
   if (isShown) {
@@ -35719,6 +35711,7 @@ function toggleFleetSwitcherDropdown(event) {
   } else {
     renderFleetSwitcherDropdown();
     dropdown.style.display = 'block';
+    if (badge) badge.classList.add('dropdown-active');
     try {
       if (window.lucide && typeof lucide.createIcons === 'function') {
         lucide.createIcons({ root: dropdown });
@@ -35730,7 +35723,9 @@ function toggleFleetSwitcherDropdown(event) {
 
 function closeFleetSwitcherDropdown() {
   const dropdown = document.getElementById('fleet-switcher-dropdown');
+  const badge = document.getElementById('header-hostname-badge');
   if (dropdown) dropdown.style.display = 'none';
+  if (badge) badge.classList.remove('dropdown-active');
 }
 
 function renderFleetSwitcherDropdown() {
