@@ -356,6 +356,15 @@ body {
   transition: opacity 0.15s ease, transform 0.15s ease;
 }
 
+.logo-brand-btn img {
+  height: 27px;
+  width: auto;
+  object-fit: contain;
+  vertical-align: middle;
+  flex-shrink: 0;
+  image-rendering: -webkit-optimize-contrast;
+}
+
 .logo-brand-btn:hover {
   opacity: 0.85;
 }
