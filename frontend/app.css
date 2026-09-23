@@ -4546,6 +4546,10 @@ html.fkeys-disabled .bottom-fkey-bar,
   cursor: grabbing;
 }
 
+.doc-viewer-top-row {
+  display: contents;
+}
+
 .doc-viewer-title-group {
   display: flex;
   align-items: center;
@@ -4553,14 +4557,7 @@ html.fkeys-disabled .bottom-fkey-bar,
   min-width: 0;
   max-width: 38%;
   pointer-events: none;
-}
-
-.doc-viewer-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  justify-content: flex-end;
-  flex: 1;
+  order: 1;
 }
 
 .doc-viewer-toolbar-center {
@@ -4568,6 +4565,8 @@ html.fkeys-disabled .bottom-fkey-bar,
   align-items: center;
   gap: 6px;
   justify-content: flex-end;
+  order: 2;
+  margin-left: auto;
 }
 
 .doc-viewer-actions-right {
@@ -4575,12 +4574,13 @@ html.fkeys-disabled .bottom-fkey-bar,
   align-items: center;
   gap: 4px;
   flex-shrink: 0;
+  order: 3;
 }
 
-.doc-viewer-header-right button,
-.doc-viewer-header-right .btn,
-.doc-viewer-header-right select,
-.doc-viewer-header-right input {
+.doc-viewer-header button,
+.doc-viewer-header .btn,
+.doc-viewer-header select,
+.doc-viewer-header input {
   height: 28px !important;
   line-height: 26px !important;
   font-size: 11px !important;
@@ -5824,9 +5824,20 @@ html.fkeys-disabled .bottom-fkey-bar,
 @media (max-width: 900px) {
   .header, .app-header {
     height: auto !important;
-    min-height: 44px;
-    padding: 6px 10px !important;
+    min-height: calc(44px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: max(4px, env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 4px !important;
+    padding-left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(10px, env(safe-area-inset-right, 0px)) !important;
     gap: 6px !important;
+    box-sizing: border-box !important;
+  }
+  .modal-overlay {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    box-sizing: border-box;
   }
   .modal-box {
     width: 95vw !important;
@@ -5842,9 +5853,9 @@ html.fkeys-disabled .bottom-fkey-bar,
 
   /* Spotlight on mobile touch screens */
   #spotlight-modal {
-    padding-top: 8px !important;
-    padding-left: 6px !important;
-    padding-right: 6px !important;
+    padding-top: max(8px, calc(env(safe-area-inset-top, 0px) + 8px)) !important;
+    padding-left: max(6px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(6px, env(safe-area-inset-right, 0px)) !important;
   }
   .spotlight-box {
     width: 100% !important;
@@ -5891,12 +5902,16 @@ html.fkeys-disabled .bottom-fkey-bar,
   }
 
   .app-header {
-    height: 44px !important;
-    min-height: 44px !important;
-    padding: 0 10px !important;
+    height: auto !important;
+    min-height: calc(44px + env(safe-area-inset-top, 0px)) !important;
+    padding-top: max(4px, env(safe-area-inset-top, 0px)) !important;
+    padding-bottom: 4px !important;
+    padding-left: max(10px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(10px, env(safe-area-inset-right, 0px)) !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+    box-sizing: border-box !important;
   }
 
   .app-header .logo-area {
@@ -8866,20 +8881,15 @@ html.fkeys-disabled .bottom-fkey-bar,
   /* 3. Document & PDF Viewer Modal on Mobile */
   .doc-viewer-box {
     width: 100vw !important;
-    height: 100vh !important;
+    height: 100% !important;
+    height: 100dvh !important;
+    height: var(--viewport-height, 100dvh) !important;
     max-width: 100vw !important;
-    max-height: 100vh !important;
+    max-height: 100% !important;
+    max-height: 100dvh !important;
+    max-height: var(--viewport-height, 100dvh) !important;
     border-radius: 0 !important;
     border: none !important;
-  }
-
-  .doc-viewer-header {
-    padding: 6px 10px;
-    height: 42px;
-  }
-
-  .doc-viewer-title-group {
-    max-width: 45%;
   }
 
   .doc-view-panel.markdown-preview-pane {
@@ -10276,9 +10286,20 @@ html.fkeys-disabled .bottom-fkey-bar,
   .floating-sounddog-window,
   .floating-mediaplayer-window,
   .floating-chewtoy-window,
+  .floating-audioplayer-window,
   #dynamic-chewtoy-window,
   #doc-viewer-modal.floating-mode .doc-viewer-box,
-  #image-viewer-modal.floating-mode .image-viewer-box {
+  #image-viewer-modal.floating-mode .image-viewer-box,
+  .doc-viewer-box,
+  .image-viewer-box,
+  .bulk-renamer-box,
+  .diff-modal-box,
+  .du-modal-box,
+  .git-modal-box,
+  .sync-modal-box,
+  .splitter-modal-box,
+  .hex-modal-box,
+  .pdf-studio-modal-box {
     position: fixed !important;
     top: 0 !important;
     left: 0 !important;
@@ -10300,6 +10321,32 @@ html.fkeys-disabled .bottom-fkey-bar,
     transform: none !important;
     margin: 0 !important;
     z-index: 2800 !important;
+  }
+
+  /* Safe Area Inset Top for all tool & modal headers on mobile/tablet */
+  .doc-viewer-header,
+  .image-viewer-toolbar,
+  .notedog-header,
+  .editor-header,
+  .mediaplayer-header,
+  .sounddog-header,
+  .floating-audioplayer-window .audioplayer-header,
+  .audioplayer-header,
+  .tetradog-header,
+  .chewtoy-header,
+  .calc-header,
+  .diff-modal-header,
+  .du-modal-header,
+  .bulk-renamer-header,
+  .git-modal-header,
+  .sync-modal-header,
+  .splitter-modal-header,
+  .hex-modal-header,
+  .pdf-studio-header {
+    padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 6px)) !important;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    box-sizing: border-box !important;
   }
 
   /* NoteDog sliding collapsible drawer on touch, foldable & tablet viewports (<= 1024px) */
@@ -10524,15 +10571,102 @@ html.fkeys-disabled .bottom-fkey-bar,
   }
 
   /* Viewers on Phone */
-  .doc-viewer-header,
+  .doc-viewer-header {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    height: auto !important;
+    min-height: auto !important;
+    padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 6px)) !important;
+    padding-bottom: 8px !important;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
+    gap: 6px !important;
+    cursor: default !important;
+  }
+
+  .doc-viewer-top-row {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    width: 100% !important;
+    min-height: 32px !important;
+    gap: 8px !important;
+  }
+
+  .doc-viewer-title-group {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    flex: 1 !important;
+    min-width: 0 !important;
+    max-width: none !important;
+    order: 1 !important;
+  }
+
+  .doc-viewer-title-group #doc-viewer-title {
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .doc-viewer-actions-right {
+    display: flex !important;
+    align-items: center !important;
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+    order: 2 !important;
+  }
+
+  .doc-viewer-toolbar-center {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 6px !important;
+    width: 100% !important;
+    overflow-x: auto !important;
+    flex-wrap: nowrap !important;
+    padding-top: 5px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.08) !important;
+    scrollbar-width: none !important;
+    -webkit-overflow-scrolling: touch !important;
+    order: 3 !important;
+    margin-left: 0 !important;
+  }
+
+  .doc-viewer-toolbar-center:empty {
+    display: none !important;
+    padding-top: 0 !important;
+    border-top: none !important;
+  }
+
+  .doc-viewer-toolbar-center::-webkit-scrollbar {
+    display: none !important;
+  }
+
   .image-viewer-toolbar {
-    padding: 6px 8px !important;
+    padding-top: max(6px, calc(env(safe-area-inset-top, 0px) + 6px)) !important;
+    padding-bottom: 6px !important;
+    padding-left: max(8px, env(safe-area-inset-left, 0px)) !important;
+    padding-right: max(8px, env(safe-area-inset-right, 0px)) !important;
     gap: 4px !important;
   }
 
   #doc-viewer-meta,
   #img-viewer-meta {
     display: none !important;
+  }
+
+  #tail-follow-label {
+    display: inline-block;
+  }
+
+  @media (max-width: 480px) {
+    #tail-follow-label {
+      display: none !important;
+    }
   }
 
   /* Disk Usage / Stats on Phone */

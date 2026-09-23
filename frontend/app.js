@@ -24116,13 +24116,13 @@ function renderTextDocViewerControls() {
   if (!controlsEl) return;
 
   controlsEl.innerHTML = `
-    <div style="display: flex; align-items: center; gap: 4px;">
-      <button class="btn btn-sm ${docViewerTailFollow ? 'btn-tail-live' : ''}" id="btn-tail-follow" onclick="toggleTailFollow()" title="Toggle live streaming / tail follow updates" style="height: 28px; padding: 0 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+    <div class="doc-viewer-controls-inner" style="display: flex; align-items: center; gap: 4px; flex-wrap: nowrap;">
+      <button class="btn btn-sm ${docViewerTailFollow ? 'btn-tail-live' : ''}" id="btn-tail-follow" onclick="toggleTailFollow()" title="Toggle live streaming / tail follow updates" style="height: 28px; padding: 0 8px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px; flex-shrink: 0;">
         <i data-lucide="${docViewerTailFollow ? 'radio' : 'activity'}" style="width: 13px; height: 13px;"></i>
         <span id="tail-follow-label">${docViewerTailFollow ? 'Following' : 'Follow (tail -f)'}</span>
       </button>
 
-      <div style="display: flex; align-items: center; gap: 3px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; height: 28px; box-sizing: border-box;">
+      <div class="doc-viewer-tail-select-wrap" style="display: flex; align-items: center; gap: 3px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; padding: 0 6px; height: 28px; box-sizing: border-box; flex-shrink: 0;">
         <span style="font-size: 10.5px; color: var(--text-dim); font-family: var(--font-mono); font-weight: 600;">-n</span>
         <select id="tail-lines-select" style="background: transparent; border: none; color: var(--text-main); font-size: 11px; height: 26px; outline: none; cursor: pointer; padding: 0;" onchange="changeTailLines(this.value)">
           <option value="50" ${docViewerTailLines === '50' ? 'selected' : ''}>50 lines</option>
@@ -24134,9 +24134,9 @@ function renderTextDocViewerControls() {
         </select>
       </div>
 
-      <button class="btn btn-icon btn-sm" onclick="scrollViewerToBottom()" title="Scroll to Bottom (End)" style="height: 28px; width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="arrow-down" style="width: 13px; height: 13px;"></i></button>
-      <button class="btn btn-icon btn-sm" onclick="toggleViewerWordWrap()" title="Toggle Word Wrap" style="height: 28px; width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="wrap-text" style="width: 13px; height: 13px;"></i></button>
-      <button class="btn btn-icon btn-sm" onclick="refreshDocViewerText()" title="Refresh text" style="height: 28px; width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center;"><i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i></button>
+      <button class="btn btn-icon btn-sm" onclick="scrollViewerToBottom()" title="Scroll to Bottom (End)" style="height: 28px; width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="arrow-down" style="width: 13px; height: 13px;"></i></button>
+      <button class="btn btn-icon btn-sm" onclick="toggleViewerWordWrap()" title="Toggle Word Wrap" style="height: 28px; width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="wrap-text" style="width: 13px; height: 13px;"></i></button>
+      <button class="btn btn-icon btn-sm" onclick="refreshDocViewerText()" title="Refresh text" style="height: 28px; width: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="refresh-cw" style="width: 13px; height: 13px;"></i></button>
     </div>
   `;
   if (window.lucide) lucide.createIcons();

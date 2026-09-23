@@ -6647,24 +6647,18 @@
 
       <!-- Modal Header & Toolbar -->
       <div class="modal-header doc-viewer-header" id="doc-viewer-header">
-        <!-- Left: File Info -->
-        <div class="doc-viewer-title-group" id="doc-viewer-title-group">
-          <img src="assets/docs.webp" id="doc-viewer-icon" alt="Document" style="width: 18px; height: 18px; object-fit: contain; flex-shrink: 0;">
-          <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
-            <div id="doc-viewer-title" style="font-weight: 700; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">Document.pdf</div>
-            <div id="doc-viewer-meta" style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 1px;">PDF Document</div>
-          </div>
-        </div>
-
-        <!-- Right: Dynamic Controls & Universal Actions (Right-Aligned, Same Size) -->
-        <div class="doc-viewer-header-right" style="display: flex; align-items: center; gap: 8px; justify-content: flex-end; flex: 1;">
-          <div class="doc-viewer-toolbar-center" id="doc-viewer-controls" style="display: flex; align-items: center; gap: 6px;">
-            <!-- Dynamically populated per format -->
+        <div class="doc-viewer-top-row" id="doc-viewer-top-row">
+          <!-- Left: File Info -->
+          <div class="doc-viewer-title-group" id="doc-viewer-title-group">
+            <img src="assets/docs.webp" id="doc-viewer-icon" alt="Document" style="width: 18px; height: 18px; object-fit: contain; flex-shrink: 0;">
+            <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0;">
+              <div id="doc-viewer-title" style="font-weight: 700; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">Document.pdf</div>
+              <div id="doc-viewer-meta" style="font-size: 10px; color: var(--text-muted); font-family: var(--font-mono); margin-top: 1px;">PDF Document</div>
+            </div>
           </div>
 
-          <div style="width: 1px; height: 18px; background: var(--border); margin: 0 2px;"></div>
-
-          <div class="doc-viewer-actions-right" style="display: flex; align-items: center; gap: 4px;">
+          <!-- Right: Universal Actions (Pinned on mobile) -->
+          <div class="doc-viewer-actions-right">
             <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerRenameCurrent()" title="Rename File (F2)"><i data-lucide="edit-3"></i></button>
             <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerCopyCurrent()" title="Copy to Opposite Panel (F5)"><i data-lucide="copy"></i></button>
             <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerMoveCurrent()" title="Move to Opposite Panel (F6)"><i data-lucide="folder-input"></i></button>
@@ -6677,6 +6671,11 @@
             <button class="btn btn-icon btn-sm desktop-only" id="doc-viewer-fullscreen" onclick="toggleDocViewerFullscreen()" title="Toggle Fullscreen"><i data-lucide="maximize-2"></i></button>
             <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeDocViewerModal()" title="Close (Esc)"><i data-lucide="x"></i></button>
           </div>
+        </div>
+
+        <!-- Dynamic Controls (tail -f, line count, wrap, scroll, zoom, csv filter) -->
+        <div class="doc-viewer-toolbar-center" id="doc-viewer-controls">
+          <!-- Dynamically populated per format -->
         </div>
       </div>
 
