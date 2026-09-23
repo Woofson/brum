@@ -941,6 +941,65 @@ body {
   user-select: none;
 }
 
+/* Breadcrumb Inline Ghosted Refresh Button (PC Viewport Only) */
+.pane-refresh-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  padding: 0;
+  margin-left: 4px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius, 4px);
+  color: var(--text-muted);
+  opacity: 0.65;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  user-select: none;
+}
+
+.pane-refresh-btn:hover {
+  opacity: 1;
+  color: var(--accent);
+  background: var(--bg-hover);
+  border-color: rgba(245, 158, 11, 0.25);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+.pane-refresh-btn:active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent);
+}
+
+.pane-refresh-btn i,
+.pane-refresh-btn svg {
+  width: 12px;
+  height: 12px;
+  display: block;
+  transition: transform 0.25s ease;
+}
+
+.pane-refresh-btn.refreshing i,
+.pane-refresh-btn.refreshing svg {
+  animation: paneRefreshSpin 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes paneRefreshSpin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@media (max-width: 1024px) {
+  .pane-refresh-btn {
+    display: none !important;
+  }
+}
+
 /* ---------------- MULTI-TAB PANE STRIP ---------------- */
 .pane-tab-strip {
   display: flex;
@@ -1088,6 +1147,8 @@ body {
 .pane-path-input {
   display: none;
   width: 100%;
+  flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;

@@ -2411,6 +2411,9 @@ function createPaneElement(pane, index) {
       <div class="pane-path-bar" onclick="enablePathInput(${index})">
         <div class="pane-breadcrumbs" id="pane-crumbs-${index}"></div>
         <input type="text" class="pane-path-input" id="pane-input-${index}" onkeydown="handlePathKey(event, ${index})" onblur="disablePathInput(${index})">
+        <button class="btn btn-icon pane-refresh-btn desktop-only-tool" id="btn-refresh-pane-${index}" onclick="event.stopPropagation(); refreshPane(${index});" title="Refresh Pane (${index === 0 ? 'F5' : 'Ctrl+R'})">
+          <i data-lucide="refresh-cw"></i>
+        </button>
       </div>
 
       <!-- Unified Places Hub (Visible on ALL viewports: Phone, Tablet, Foldable, Desktop) -->
@@ -20301,6 +20304,11 @@ function navPaneUp(index) {
 
 function refreshPane(index, selectItemName = null) {
   if (typeof index !== 'number' || index < 0 || !App.panes || !App.panes[index]) return;
+  const btn = document.getElementById(`btn-refresh-pane-${index}`);
+  if (btn) {
+    btn.classList.add('refreshing');
+    setTimeout(() => btn.classList.remove('refreshing'), 600);
+  }
   loadPaneDirectory(index, App.panes[index].path, false, selectItemName, true);
 }
 
