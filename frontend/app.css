@@ -1309,11 +1309,18 @@ body {
   width: 100%;
   max-width: 100%;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   font-size: 12px;
   text-align: left;
   touch-action: pan-y;
   box-sizing: border-box;
+}
+
+.file-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 20;
 }
 
 .file-table th {
@@ -1326,7 +1333,7 @@ body {
   font-weight: 600;
   font-size: 11px;
   cursor: pointer;
-  z-index: 10;
+  z-index: 20;
   user-select: none;
   -webkit-user-select: none;
   box-sizing: border-box;
@@ -1345,6 +1352,11 @@ body {
   background-color: rgba(244, 244, 245, 0.85);
   border-bottom: 1px solid rgba(217, 119, 6, 0.32);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
+}
+
+body.unsticky-col-headers .file-table thead {
+  position: static !important;
+  top: auto !important;
 }
 
 body.unsticky-col-headers .file-table th {
@@ -1407,6 +1419,7 @@ body.unsticky-col-headers .file-table th {
   vertical-align: middle !important;
   line-height: normal;
   box-sizing: border-box;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .file-cell:not(:last-child) {
@@ -5926,7 +5939,8 @@ html.fkeys-disabled .bottom-fkey-bar,
       width: 100% !important;
       max-width: 100% !important;
       overflow-x: hidden !important;
-      border-collapse: collapse !important;
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
       touch-action: pan-y !important;
     }
 
@@ -6068,7 +6082,8 @@ html.fkeys-disabled .bottom-fkey-bar,
       width: 100% !important;
       max-width: 100% !important;
       overflow-x: hidden !important;
-      border-collapse: collapse !important;
+      border-collapse: separate !important;
+      border-spacing: 0 !important;
     }
 
     .file-table th, .file-table td {
