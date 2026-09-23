@@ -4846,7 +4846,25 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         <div class="grid-card-name" style="font-weight: 700; color: var(--accent);">..</div>
         <div class="grid-card-meta">&lt;UP&gt;</div>
       `;
-      pCard.onclick = () => { setActivePane(paneIndex); navPaneUp(paneIndex); };
+      pCard.onclick = (e) => {
+        const isTouch = window.innerWidth <= 768 || window.matchMedia('(pointer: coarse)').matches;
+        if (isTouch) return;
+        e.stopPropagation();
+        setActivePane(paneIndex);
+        if (pane.selected.size > 0 || (pane.cursorIndex !== undefined && pane.cursorIndex !== -1)) {
+          pane.selected.clear();
+          pane.cursorIndex = -1;
+          gridEl.querySelectorAll('.grid-gallery-card.selected').forEach(r => r.classList.remove('selected'));
+          gridEl.querySelectorAll('.grid-gallery-card.cursor-focus').forEach(r => r.classList.remove('cursor-focus'));
+          updatePaneFooter(paneIndex);
+          if (typeof updateMobileBottomBar === 'function') updateMobileBottomBar();
+        }
+      };
+      pCard.ondblclick = (e) => {
+        e.stopPropagation();
+        setActivePane(paneIndex);
+        navPaneUp(paneIndex);
+      };
       gridEl.appendChild(pCard);
     }
 
@@ -5068,9 +5086,22 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         }
       };
 
-      pItem.onclick = () => {
+      pItem.onclick = (e) => {
         const isTouch = window.innerWidth <= 768 || window.matchMedia('(pointer: coarse)').matches;
         if (isTouch) return;
+        e.stopPropagation();
+        setActivePane(paneIndex);
+        if (pane.selected.size > 0 || (pane.cursorIndex !== undefined && pane.cursorIndex !== -1)) {
+          pane.selected.clear();
+          pane.cursorIndex = -1;
+          compactEl.querySelectorAll('.compact-list-item.selected').forEach(r => r.classList.remove('selected'));
+          compactEl.querySelectorAll('.compact-list-item.cursor-focus').forEach(r => r.classList.remove('cursor-focus'));
+          updatePaneFooter(paneIndex);
+          if (typeof updateMobileBottomBar === 'function') updateMobileBottomBar();
+        }
+      };
+      pItem.ondblclick = (e) => {
+        e.stopPropagation();
         setActivePane(paneIndex);
         navPaneUp(paneIndex);
       };
@@ -5298,9 +5329,14 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         if (isTouch) return;
         e.stopPropagation();
         setActivePane(paneIndex);
-        pane.selected.clear();
-        pane.cursorIndex = -1;
-        renderPaneTable(paneIndex);
+        if (pane.selected.size > 0 || (pane.cursorIndex !== undefined && pane.cursorIndex !== -1)) {
+          pane.selected.clear();
+          pane.cursorIndex = -1;
+          tbody.querySelectorAll('.file-row.selected').forEach(r => r.classList.remove('selected'));
+          tbody.querySelectorAll('.file-row.cursor-focus').forEach(r => r.classList.remove('cursor-focus'));
+          updatePaneFooter(paneIndex);
+          if (typeof updateMobileBottomBar === 'function') updateMobileBottomBar();
+        }
       };
 
       parentTr.ondblclick = (e) => {

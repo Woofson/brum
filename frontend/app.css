@@ -1417,6 +1417,36 @@ body.unsticky-col-headers .file-table th {
   outline: 1px dotted var(--accent);
 }
 
+/* Parent Directory ("..") Dedicated Styling */
+.parent-dir-row,
+.parent-dir-card,
+.parent-dir-item {
+  transition: none !important;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.parent-dir-row:hover,
+.parent-dir-card:hover,
+.parent-dir-item:hover {
+  background-color: var(--bg-hover) !important;
+  transition: none !important;
+}
+
+.parent-dir-row:active,
+.parent-dir-card:active,
+.parent-dir-item:active {
+  background-color: var(--bg-hover) !important;
+  transition: none !important;
+}
+
+.parent-dir-row.selected,
+.parent-dir-card.selected,
+.parent-dir-item.selected {
+  background-color: transparent !important;
+  color: inherit !important;
+}
+
 /* Rubberband / Marquee Drag-Selection Box */
 .marquee-selection-box {
   position: fixed;
