@@ -2341,6 +2341,7 @@ function createPaneElement(pane, index) {
         'sounddog': '<img src="assets/amber-media.webp" alt="Audio Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Audio Player',
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
+        'splitter': '<i data-lucide="scissors" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> File Splitter & Combiner',
         'tageditor': '<i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Tag Editor',
         'logviewer': '<i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Log Viewer',
         'cad': '<i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> 3D CAD Studio',
@@ -13996,9 +13997,9 @@ function updateLogoutOrExitButton() {
 const DEFAULT_TOOLS_MENU = [
   { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
   { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
-  { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
-  { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
-  { id: 'splitter', label: 'File Splitter', icon: 'scissors', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
+  { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', iconColor: 'var(--accent)', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
+  { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', iconColor: 'var(--accent)', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
+  { id: 'splitter', label: 'File Splitter', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
   { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
   { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
@@ -14009,10 +14010,10 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
-  { id: 'cad', label: '3D CAD Studio', icon: 'box', action: 'openCadStudio()', desc: 'Interactive 3D model & CAD viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', visible: true },
-  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
-  { id: 'tageditor', label: 'Tag Editor', icon: 'tag', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
-  { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
+  { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio()', desc: 'Interactive 3D model & CAD viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', visible: true },
+  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
+  { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
+  { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
   { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video player, subtitles, PiP & playlist', visible: true },
   { id: 'sounddog', label: 'Audio Player', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band equalizer', visible: true },
   { id: 'tetradog', label: 'Tetris', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
@@ -14077,11 +14078,11 @@ function getChewtoyIconUrl(p) {
 }
 
 function renderToolIconHtml(icon, iconColor = '', size = 18) {
-  if (!icon) return `<i data-lucide="wrench" style="width:${size}px; height:${size}px;"></i>`;
+  if (!icon) return `<i data-lucide="wrench" style="width:${size}px; height:${size}px; color: var(--accent, #f59e0b);"></i>`;
   if (icon.startsWith('/') || icon.startsWith('http') || icon.startsWith('assets/') || icon.endsWith('.png') || icon.endsWith('.webp') || icon.endsWith('.svg')) {
     return `<img src="${escapeHtml(icon)}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; flex-shrink: 0; vertical-align: middle;" onerror="this.src='assets/amber-frameless-apps.webp'">`;
   }
-  const colorStyle = iconColor ? `color: ${iconColor};` : '';
+  const colorStyle = `color: ${iconColor || 'var(--accent, #f59e0b)'};`;
   return `<i data-lucide="${icon}" style="width: ${size}px; height: ${size}px; flex-shrink: 0; ${colorStyle}"></i>`;
 }
 

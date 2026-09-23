@@ -6575,6 +6575,11 @@ html.fkeys-disabled .bottom-fkey-bar,
 }
 
 .tools-dropdown-menu .dropdown-item i,
+.tools-dropdown-menu .dropdown-item svg {
+  color: var(--accent);
+}
+
+.tools-dropdown-menu .dropdown-item i,
 .tools-dropdown-menu .dropdown-item svg,
 .tools-dropdown-menu .dropdown-item img {
   width: 18px !important;
