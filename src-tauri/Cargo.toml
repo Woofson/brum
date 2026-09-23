@@ -1,6 +1,6 @@
 [package]
 name = "brum-desktop"
-version = "0.8.12-rc7"
+version = "0.8.12-rc8"
 description = "Brum Native Desktop App - Multi-Pane Web Environment"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 edition = "2021"
