@@ -19883,7 +19883,10 @@ async function downloadBatchArchive(paths) {
       okText: 'Close'
     });
   }
+}
+
 // ---------------- PANE IDENTIFICATION BORDER COLORS ----------------
+
 
 
 function getPaneColors() {
