@@ -6217,11 +6217,13 @@ async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Respon
     let file_path = if path.is_empty() { "index.html" } else { path };
 
     let is_font_or_media = file_path.starts_with("assets/fonts/")
+        || file_path.starts_with("assets/vendor/")
         || file_path.ends_with(".woff2")
         || file_path.ends_with(".woff")
         || file_path.ends_with(".ttf")
         || file_path.ends_with(".svg")
         || file_path.ends_with(".png")
+        || file_path.ends_with(".webp")
         || file_path.ends_with(".ico");
 
     let cache_control = if is_font_or_media {
