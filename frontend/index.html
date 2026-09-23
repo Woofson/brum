@@ -1414,6 +1414,14 @@
 
               <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
                 <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-sticky-col-headers" checked onchange="toggleStickyColHeaders(this.checked)">
+                  <div>
+                    <strong>Sticky Column Headers (Frosted Glass)</strong>
+                    <div class="settings-field-hint">Pin column header to the top when scrolling with a dynamic frosted glass effect.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
                   <input type="checkbox" id="setting-col-separators" checked onchange="toggleColSeparators(this.checked)">
                   <div>
                     <strong>Discrete Column Separators</strong>

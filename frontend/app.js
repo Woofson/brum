@@ -721,6 +721,7 @@ function getAllUserPreferences() {
     col_widths: ColumnConfig?.widths || {},
     col_visibility: ColumnConfig?.visibility || {},
     col_separators: localStorage.getItem('cd_col_separators') !== '0',
+    sticky_col_headers: localStorage.getItem('cd_sticky_col_headers') !== '0',
     show_dir_tag: localStorage.getItem('cd_show_dir_tag') === '1',
     compact_dates: localStorage.getItem('cd_compact_dates') !== '0',
     file_list_multiline: localStorage.getItem('cd_file_list_multiline') === '1',
@@ -951,6 +952,10 @@ function applyAllUserPreferences(prefs) {
     localStorage.setItem('cd_col_separators', prefs.col_separators ? '1' : '0');
     const sepEl = document.getElementById('setting-col-separators');
     if (sepEl) sepEl.checked = !!prefs.col_separators;
+  }
+  if (prefs.sticky_col_headers !== undefined) {
+    localStorage.setItem('cd_sticky_col_headers', prefs.sticky_col_headers ? '1' : '0');
+    applyStickyColHeaders();
   }
   if (prefs.show_dir_tag !== undefined) {
     localStorage.setItem('cd_show_dir_tag', prefs.show_dir_tag ? '1' : '0');
@@ -1304,6 +1309,7 @@ function bootApp() {
     applyFontSize(App.fontSize);
     applyBorderSettings();
     applyAllColumnWidths();
+    applyStickyColHeaders();
     renderToolsMenu();
     const urlTheme = new URLSearchParams(window.location.search).get('theme');
     applyTheme(urlTheme || localStorage.getItem('cd_theme') || 'amber-charcoal');
@@ -2619,6 +2625,13 @@ function createPaneElement(pane, index) {
       }
       isPulling = false;
       pullDistance = 0;
+    }, { passive: true });
+
+    mainView.addEventListener('scroll', () => {
+      const isScrolled = mainView.scrollTop > 2;
+      if (mainView.classList.contains('is-scrolled') !== isScrolled) {
+        mainView.classList.toggle('is-scrolled', isScrolled);
+      }
     }, { passive: true });
 
     initPaneMarqueeSelection(mainView, index);
@@ -5289,7 +5302,12 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         mainEl.scrollTop = prevScrollTop;
         mainEl.scrollLeft = prevScrollLeft;
       }
+      if (mainEl) {
+        mainEl.classList.toggle('is-scrolled', mainEl.scrollTop > 2);
+      }
     });
+  } else if (mainEl) {
+    mainEl.classList.toggle('is-scrolled', mainEl.scrollTop > 2);
   }
 
   if (window.lucide) lucide.createIcons();
@@ -6089,6 +6107,9 @@ function updateColumnCheckboxes() {
     if (el) el.checked = !!ColumnConfig.visibility[k];
   });
 
+  const stickyEl = document.getElementById('setting-sticky-col-headers');
+  if (stickyEl) stickyEl.checked = localStorage.getItem('cd_sticky_col_headers') !== '0';
+
   const sepEl = document.getElementById('setting-col-separators');
   if (sepEl) sepEl.checked = localStorage.getItem('cd_col_separators') !== '0';
 
@@ -6100,6 +6121,18 @@ function updateColumnCheckboxes() {
 
   const multiEl = document.getElementById('setting-file-list-multiline');
   if (multiEl) multiEl.checked = localStorage.getItem('cd_file_list_multiline') === '1';
+}
+
+function toggleStickyColHeaders(enable) {
+  localStorage.setItem('cd_sticky_col_headers', enable ? '1' : '0');
+  applyStickyColHeaders();
+  updateColumnCheckboxes();
+  queueSaveUserPreferencesToServer();
+}
+
+function applyStickyColHeaders() {
+  const isSticky = localStorage.getItem('cd_sticky_col_headers') !== '0';
+  document.body.classList.toggle('unsticky-col-headers', !isSticky);
 }
 
 function toggleColSeparators(enable) {
@@ -6163,6 +6196,7 @@ function openColumnHeaderContextMenu(e, paneIndex) {
     { key: 'tags', label: 'Tags & Colors' },
   ];
 
+  const isStickyColHeaders = localStorage.getItem('cd_sticky_col_headers') !== '0';
   const showColSeparators = localStorage.getItem('cd_col_separators') !== '0';
   const showDirTag = localStorage.getItem('cd_show_dir_tag') === '1';
   const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
@@ -6183,6 +6217,10 @@ function openColumnHeaderContextMenu(e, paneIndex) {
   itemsHtml += `
     <div style="height: 1px; background: var(--border); margin: 6px 0;"></div>
     <div class="col-chooser-title" style="margin-top: 2px;">Display Options</div>
+    <label class="col-chooser-item" onclick="event.stopPropagation()">
+      <input type="checkbox" ${isStickyColHeaders ? 'checked' : ''} onchange="toggleStickyColHeaders(this.checked)">
+      <span>Sticky header (Frosted Glass)</span>
+    </label>
     <label class="col-chooser-item" onclick="event.stopPropagation()">
       <input type="checkbox" ${showColSeparators ? 'checked' : ''} onchange="toggleColSeparators(this.checked)">
       <span>Discrete column separators</span>

@@ -1330,6 +1330,31 @@ body {
   user-select: none;
   -webkit-user-select: none;
   box-sizing: border-box;
+  transition: background-color 0.2s ease, backdrop-filter 0.2s ease, -webkit-backdrop-filter 0.2s ease, box-shadow 0.2s ease, border-bottom-color 0.2s ease;
+}
+
+.pane-main-view.is-scrolled .file-table th {
+  background-color: rgba(24, 24, 28, 0.82);
+  backdrop-filter: blur(12px) saturate(160%);
+  -webkit-backdrop-filter: blur(12px) saturate(160%);
+  border-bottom: 1px solid rgba(245, 158, 11, 0.32);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.40);
+}
+
+:root[data-theme="zink"] .pane-main-view.is-scrolled .file-table th {
+  background-color: rgba(244, 244, 245, 0.85);
+  border-bottom: 1px solid rgba(217, 119, 6, 0.32);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.10);
+}
+
+body.unsticky-col-headers .file-table th {
+  position: relative !important;
+  top: auto !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  box-shadow: none !important;
+  background-color: var(--bg-header) !important;
+  border-bottom: 1px solid var(--border) !important;
 }
 
 .file-table th:not(:last-child) {
