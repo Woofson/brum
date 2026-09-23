@@ -20293,10 +20293,10 @@ function openPaneSettingsMenu(e, paneIndex) {
           }).join('')}
         </div>
 
-        <!-- Custom Dual-Tone Gradient (Hyprland style: col1, col2, angle) -->
+        <!-- Custom Dual-Tone Gradient -->
         <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 8px;">
           <div style="font-size: 9.5px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
-            <span>Custom Two-Tone (Hyprland Style)</span>
+            <span>Custom Border Style</span>
             <span style="font-size: 8.5px; color: var(--text-dim);">Color 1 → Color 2</span>
           </div>
 
