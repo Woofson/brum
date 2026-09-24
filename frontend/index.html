@@ -170,6 +170,12 @@
         <i data-lucide="folder-tree"></i>
       </button>
 
+      <!-- Pane Synchronization (Desktop Only) -->
+      <div class="layout-btn-group desktop-only" id="pane-sync-btn-group">
+        <button class="btn btn-icon" id="btn-sync-scroll" onclick="toggleSyncScroll()" title="Toggle Synchronized Scrolling (Mirror scroll across panels)"><i data-lucide="unfold-vertical"></i></button>
+        <button class="btn btn-icon" id="btn-sync-nav" onclick="toggleSyncNav()" title="Toggle Synchronized Navigation (Mirror folder traversal across panels)"><i data-lucide="git-compare"></i></button>
+      </div>
+
       <!-- Separator -->
       <div class="header-sep desktop-only"></div>
 
@@ -1155,6 +1161,22 @@
                   <div>
                     <strong>Activate Panel on Mouse Hover (Focus Follows Mouse)</strong>
                     <div class="settings-field-hint">Automatically activate panel and switch keyboard focus when hovering the mouse over it.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-sync-scroll" onchange="toggleSyncScroll(this.checked)">
+                  <div>
+                    <strong>Synchronize Pane Scrolling (Sync Scroll)</strong>
+                    <div class="settings-field-hint">Mirror vertical and horizontal scroll positions across all visible file panels.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-sync-nav" onchange="toggleSyncNav(this.checked)">
+                  <div>
+                    <strong>Synchronize Directory Navigation (Sync Nav)</strong>
+                    <div class="settings-field-hint">Mirror relative subfolder and parent folder traversal across visible panels.</div>
                   </div>
                 </label>
 
@@ -2248,6 +2270,8 @@
             <tr><td><code>Insert / Space</code></td><td>Toggle Selection & Step Down</td></tr>
             <tr><td><code>Ctrl + A</code></td><td>Select All in Current Pane</td></tr>
             <tr><td><code>Ctrl + P</code></td><td>Toggle Paranoid File Handling Mode</td></tr>
+            <tr><td><code>Ctrl + Alt + S</code></td><td>Toggle Synchronized Pane Scrolling</td></tr>
+            <tr><td><code>Ctrl + Alt + N</code></td><td>Toggle Synchronized Relative Directory Navigation</td></tr>
             <tr><td><code>Ctrl + Q</code></td><td>Quit / Clean Close Brum</td></tr>
           </table>
 

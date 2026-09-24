@@ -69,6 +69,8 @@ const App = {
   phoneTabletMaxPanes: parseInt(localStorage.getItem('cd_phone_tablet_max_panes') || '2', 10),
   paneTabsMode: localStorage.getItem('cd_pane_tabs_mode') || 'pc_only',
   hapticFeedback: localStorage.getItem('cd_haptic_feedback') !== 'false',
+  syncScroll: localStorage.getItem('cd_sync_scroll') === 'true',
+  syncNav: localStorage.getItem('cd_sync_nav') === 'true',
 };
 
 let ColumnConfig = {
@@ -1081,6 +1083,8 @@ function getAllUserPreferences() {
     phone_tablet_max_panes: App.phoneTabletMaxPanes || 2,
     pane_tabs_mode: localStorage.getItem('cd_pane_tabs_mode') || 'pc_only',
     mobile_bottom_bar_mode: App.mobileBottomBarMode || localStorage.getItem('cd_mobile_bottom_bar_mode') || 'icons_text',
+    sync_scroll: App.syncScroll === true || localStorage.getItem('cd_sync_scroll') === 'true',
+    sync_nav: App.syncNav === true || localStorage.getItem('cd_sync_nav') === 'true',
     dnd_default_action: App.dndDefaultAction,
     dnd_prompt_mode: App.dndPromptMode,
     dnd_paranoid_prompt: App.dndParanoidPrompt,
@@ -1402,6 +1406,16 @@ function applyAllUserPreferences(prefs) {
     localStorage.setItem('cd_mobile_bottom_bar_mode', prefs.mobile_bottom_bar_mode);
     applyMobileBottomBarMode(prefs.mobile_bottom_bar_mode);
   }
+  if (prefs.sync_scroll !== undefined) {
+    App.syncScroll = !!prefs.sync_scroll;
+    localStorage.setItem('cd_sync_scroll', prefs.sync_scroll ? 'true' : 'false');
+    applySyncScrollState();
+  }
+  if (prefs.sync_nav !== undefined) {
+    App.syncNav = !!prefs.sync_nav;
+    localStorage.setItem('cd_sync_nav', prefs.sync_nav ? 'true' : 'false');
+    applySyncNavState();
+  }
   if (prefs.dnd_default_action) {
     App.dndDefaultAction = prefs.dnd_default_action;
     localStorage.setItem('cd_dnd_default_action', prefs.dnd_default_action);
@@ -1640,6 +1654,8 @@ function bootApp() {
     setupHistoryNavigation();
     applyFKeyBarState();
     applyMobileBottomBarMode();
+    applySyncScrollState();
+    applySyncNavState();
     applyFontSize(App.fontSize);
     applyBorderSettings();
     applyAllColumnWidths();
@@ -2962,6 +2978,7 @@ function createPaneElement(pane, index) {
       if (mainView.classList.contains('is-scrolled') !== isScrolled) {
         mainView.classList.toggle('is-scrolled', isScrolled);
       }
+      handlePaneScrollSync(index, mainView);
     }, { passive: true });
 
     initPaneMarqueeSelection(mainView, index);
@@ -3582,6 +3599,8 @@ async function loadClientLocalDirectory(paneIndex, targetPath, pushHistory = tru
   const pane = App.panes[paneIndex];
   if (!pane) return;
 
+  const prevPath = pane.path;
+
   const parsed = parseClientPath(targetPath);
   if (!parsed) return;
 
@@ -3715,6 +3734,9 @@ async function loadClientLocalDirectory(paneIndex, targetPath, pushHistory = tru
       });
       if (paneIndex === App.activePaneIndex) {
         updateBranchToggleState();
+      }
+      if (App.syncNav && prevPath && targetPath && prevPath !== targetPath) {
+        handlePaneNavSync(paneIndex, prevPath, targetPath);
       }
     } catch (fErr) {}
   } catch (err) {
@@ -3920,6 +3942,8 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
   const pane = App.panes[paneIndex];
   if (!pane) return;
 
+  const prevPath = pane.path;
+
   if (typeof targetPath === 'string' && targetPath.startsWith('client://')) {
     return loadClientLocalDirectory(paneIndex, targetPath, pushHistory, selectItemName, retainBranch);
   }
@@ -4046,6 +4070,9 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
         updateBranchToggleState();
       }
       syncPaneTreeActiveNode(paneIndex, pane.path);
+      if (App.syncNav && prevPath && pane.path && prevPath !== pane.path) {
+        handlePaneNavSync(paneIndex, prevPath, pane.path);
+      }
     } catch (fErr) {
       console.warn('Footer/tree sync error:', fErr);
     }
@@ -8792,6 +8819,18 @@ function setupKeyboardNavigation() {
       e.preventDefault();
       const targetIdx = parseInt(e.key) - 1;
       if (targetIdx < getVisiblePaneCount()) setActivePane(targetIdx);
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === 's' || e.key === 'S')) {
+      e.preventDefault();
+      toggleSyncScroll();
+      return;
+    }
+
+    if ((e.ctrlKey || e.metaKey) && e.altKey && (e.key === 'n' || e.key === 'N')) {
+      e.preventDefault();
+      toggleSyncNav();
+      return;
     }
 
     if (e.ctrlKey && e.key.toLowerCase() === 'd') {
@@ -18290,6 +18329,16 @@ function openSettingsModal() {
     mobBarSel.value = App.mobileBottomBarMode || localStorage.getItem('cd_mobile_bottom_bar_mode') || 'icons_text';
   }
 
+  const syncScrollCb = document.getElementById('setting-sync-scroll');
+  if (syncScrollCb) {
+    syncScrollCb.checked = !!App.syncScroll;
+  }
+
+  const syncNavCb = document.getElementById('setting-sync-nav');
+  if (syncNavCb) {
+    syncNavCb.checked = !!App.syncNav;
+  }
+
   // Populate External Programs & Desktop Handlers (Standalone only)
   renderDesktopAppsTab();
   updateStandaloneUI();
@@ -20030,6 +20079,12 @@ function openPaneToolsMenu(e, paneIndex) {
       <div class="dropdown-item" onclick="toggleBranchView(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="git-branch"></i> <span>Toggle Flat Branch View (${App.panes[paneIndex]?.isBranchView ? 'Disable' : 'Enable'})</span>
       </div>
+      <div class="dropdown-item" onclick="toggleSyncScroll(); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="unfold-vertical"></i> <span>Toggle Synchronized Scrolling (${App.syncScroll ? 'Disable' : 'Enable'})</span>
+      </div>
+      <div class="dropdown-item" onclick="toggleSyncNav(); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="git-compare"></i> <span>Toggle Synchronized Navigation (${App.syncNav ? 'Disable' : 'Enable'})</span>
+      </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
         <i data-lucide="compass"></i> <span>Places, Bookmarks & Fleet...</span>
       </div>
@@ -20454,7 +20509,22 @@ function openPaneSettingsMenu(e, paneIndex) {
         </div>
       </div>
 
-      <!-- 6. Cloud Workspace Persistence (Web/Server Mode) -->
+      <!-- 6. Pane Synchronization -->
+      <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Pane Synchronization</div>
+        <div style="display: flex; flex-direction: column; gap: 6px;">
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; cursor: pointer; color: var(--text-main);">
+            <input type="checkbox" id="pane-setting-sync-scroll" ${App.syncScroll ? 'checked' : ''} onchange="toggleSyncScroll(this.checked)">
+            <span>Mirror Scrolling Across Visible Panels</span>
+          </label>
+          <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; cursor: pointer; color: var(--text-main);">
+            <input type="checkbox" id="pane-setting-sync-nav" ${App.syncNav ? 'checked' : ''} onchange="toggleSyncNav(this.checked)">
+            <span>Mirror Folder Traversal Across Panels</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 7. Cloud Workspace Persistence (Web/Server Mode) -->
       <div class="web-only-setting server-only-setting" style="border-top: 1px solid var(--border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 10px; color: var(--text-dim);"><i data-lucide="cloud" style="width: 11px; height: 11px; vertical-align: -1px;"></i> Cross-Device Sync</span>
         <button type="button" class="btn btn-xs btn-outline" style="font-size: 9.5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;" onclick="saveCurrentWorkspaceAsDefault(); openPaneSettingsMenu(null, ${paneIndex});">
@@ -21175,6 +21245,148 @@ function applyMobileBottomBarMode(mode) {
   const sel = document.getElementById('setting-mobile-bottom-bar-mode');
   if (sel && sel.value !== val) {
     sel.value = val;
+  }
+}
+
+// ---------------- PANE SYNCHRONIZATION (SCROLLING & NAVIGATION) ----------------
+let isSyncScrolling = false;
+let isSyncNavigating = false;
+
+function toggleSyncScroll(forceState) {
+  const next = (typeof forceState === 'boolean') ? forceState : !App.syncScroll;
+  App.syncScroll = next;
+  localStorage.setItem('cd_sync_scroll', next ? 'true' : 'false');
+  applySyncScrollState();
+  queueSaveUserPreferencesToServer();
+  showToast(`Synchronized scrolling: ${next ? 'Enabled' : 'Disabled'}`, 'info');
+  if (next) {
+    const activeMain = document.getElementById(`pane-main-${App.activePaneIndex}`);
+    if (activeMain) handlePaneScrollSync(App.activePaneIndex, activeMain);
+  }
+}
+
+function toggleSyncNav(forceState) {
+  const next = (typeof forceState === 'boolean') ? forceState : !App.syncNav;
+  App.syncNav = next;
+  localStorage.setItem('cd_sync_nav', next ? 'true' : 'false');
+  applySyncNavState();
+  queueSaveUserPreferencesToServer();
+  showToast(`Synchronized navigation: ${next ? 'Enabled' : 'Disabled'}`, 'info');
+}
+
+function applySyncScrollState() {
+  const isEnabled = App.syncScroll === true || localStorage.getItem('cd_sync_scroll') === 'true';
+  App.syncScroll = isEnabled;
+  const btn = document.getElementById('btn-sync-scroll');
+  if (btn) btn.classList.toggle('active', isEnabled);
+  const cb = document.getElementById('setting-sync-scroll');
+  if (cb && cb.checked !== isEnabled) cb.checked = isEnabled;
+  const paneCb = document.getElementById('pane-setting-sync-scroll');
+  if (paneCb && paneCb.checked !== isEnabled) paneCb.checked = isEnabled;
+}
+
+function applySyncNavState() {
+  const isEnabled = App.syncNav === true || localStorage.getItem('cd_sync_nav') === 'true';
+  App.syncNav = isEnabled;
+  const btn = document.getElementById('btn-sync-nav');
+  if (btn) btn.classList.toggle('active', isEnabled);
+  const cb = document.getElementById('setting-sync-nav');
+  if (cb && cb.checked !== isEnabled) cb.checked = isEnabled;
+  const paneCb = document.getElementById('pane-setting-sync-nav');
+  if (paneCb && paneCb.checked !== isEnabled) paneCb.checked = isEnabled;
+}
+
+function handlePaneScrollSync(sourceIndex, sourceMainView) {
+  if (!App.syncScroll || isSyncScrolling || !sourceMainView) return;
+  const visibleCount = getVisiblePaneCount();
+  if (visibleCount <= 1) return;
+
+  isSyncScrolling = true;
+  try {
+    const targetTop = sourceMainView.scrollTop;
+    const targetLeft = sourceMainView.scrollLeft;
+
+    for (let i = 0; i < visibleCount; i++) {
+      if (i === sourceIndex) continue;
+      const targetMain = document.getElementById(`pane-main-${i}`);
+      if (targetMain && !App.panes[i]?.dockedTool) {
+        if (targetMain.scrollTop !== targetTop) {
+          targetMain.scrollTop = targetTop;
+        }
+        if (targetMain.scrollLeft !== targetLeft) {
+          targetMain.scrollLeft = targetLeft;
+        }
+      }
+    }
+  } finally {
+    requestAnimationFrame(() => {
+      isSyncScrolling = false;
+    });
+  }
+}
+
+async function handlePaneNavSync(sourceIndex, prevPath, newPath) {
+  if (!App.syncNav || isSyncNavigating) return;
+  if (!prevPath || !newPath || prevPath === newPath) return;
+  const visibleCount = getVisiblePaneCount();
+  if (visibleCount <= 1) return;
+
+  isSyncNavigating = true;
+  try {
+    const cleanPrev = sanitizeCredentials(prevPath).replace(/\/+$/, '');
+    const cleanNew = sanitizeCredentials(newPath).replace(/\/+$/, '');
+
+    const prevSegs = cleanPrev.split(/[\\/]/).filter(Boolean);
+    const newSegs = cleanNew.split(/[\\/]/).filter(Boolean);
+
+    for (let i = 0; i < visibleCount; i++) {
+      if (i === sourceIndex) continue;
+      const otherPane = App.panes[i];
+      if (!otherPane || !otherPane.path || otherPane.dockedTool) continue;
+
+      const otherClean = sanitizeCredentials(otherPane.path).replace(/\/+$/, '');
+      let otherTarget = null;
+
+      if (cleanNew.startsWith(cleanPrev + '/')) {
+        // Subfolder entered
+        const relSub = cleanNew.substring(cleanPrev.length + 1);
+        otherTarget = (otherClean === '' ? '' : otherClean) + '/' + relSub;
+      } else if (cleanPrev.startsWith(cleanNew + '/')) {
+        // Moved up one or more parent levels
+        const levelsUp = Math.max(1, prevSegs.length - newSegs.length);
+        let curr = otherClean;
+        for (let l = 0; l < levelsUp; l++) {
+          const parent = getParentDirectory(curr);
+          if (parent && parent !== curr) {
+            curr = parent;
+          } else {
+            break;
+          }
+        }
+        otherTarget = curr;
+      } else {
+        // Sibling folder change or relative jump
+        const lastNewSeg = newSegs[newSegs.length - 1];
+        if (lastNewSeg && prevSegs.length === newSegs.length) {
+          const otherParent = getParentDirectory(otherClean);
+          if (otherParent) {
+            otherTarget = otherParent.replace(/\/+$/, '') + '/' + lastNewSeg;
+          }
+        }
+      }
+
+      if (otherTarget && otherTarget !== otherClean) {
+        if (typeof otherTarget === 'string' && otherTarget.startsWith('client://')) {
+          loadClientLocalDirectory(i, otherTarget, false);
+        } else {
+          loadPaneDirectory(i, otherTarget, false);
+        }
+      }
+    }
+  } catch (syncErr) {
+    console.warn('Pane sync navigation error:', syncErr);
+  } finally {
+    isSyncNavigating = false;
   }
 }
 
