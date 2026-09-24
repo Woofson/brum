@@ -4571,7 +4571,8 @@
         <div style="display: flex; align-items: center; gap: 6px;">
           <button class="btn btn-sm btn-outline" onclick="resetRenamerRules()" title="Reset All Rules"><i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset</button>
           <button class="btn btn-sm btn-outline" id="renamer-undo-btn" onclick="undoBatchRename()" disabled title="Undo Last Batch Rename"><i data-lucide="undo" style="width: 12px; height: 12px;"></i> Undo (<span id="renamer-undo-count">0</span>)</button>
-          <button class="btn btn-sm btn-accent" id="renamer-execute-btn" onclick="executeBatchRename()"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Execute Rename</button>
+          <button class="btn btn-sm btn-outline" id="renamer-dryrun-btn" onclick="executeRenamerDryRun()" title="Simulate batch rename operations without modifying files on disk"><i data-lucide="play-circle" style="width: 12px; height: 12px;"></i> Dry Run</button>
+          <button class="btn btn-sm btn-accent" id="renamer-execute-btn" onclick="executeBatchRename()"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Rename</button>
         </div>
       </div>
     </div>

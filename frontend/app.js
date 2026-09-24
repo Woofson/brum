@@ -38550,6 +38550,7 @@ let renamerItems = [];
 let renamerUndoStack = [];
 let renamerActivePaneIndex = 0;
 let renamerDragInit = false;
+let isRenamerDryRunSimulated = false;
 
 function initRenamerDragResize() {
   if (renamerDragInit) return;
@@ -38590,14 +38591,84 @@ function initRenamerDragResize() {
     document.body.style.cursor = 'move';
   });
 
+  let isResizing = false;
+  let resizeMode = null; // 'corner', 'right', 'bottom', 'left', 'top'
+  let startW = 0, startH = 0;
+  let resizeStartX = 0, resizeStartY = 0;
+  let resizeStartLeft = 0, resizeStartTop = 0;
+
+  function onResizeStart(e, mode) {
+    if (window.innerWidth <= 1024 || win.classList.contains('maximized')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isResizing = true;
+    resizeMode = mode;
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    startW = win.offsetWidth;
+    startH = win.offsetHeight;
+    const rect = win.getBoundingClientRect();
+    resizeStartLeft = rect.left;
+    resizeStartTop = rect.top;
+    bringFloatingWindowToFront(win);
+    document.body.style.userSelect = 'none';
+    if (mode === 'corner') document.body.style.cursor = 'nwse-resize';
+    else if (mode === 'right' || mode === 'left') document.body.style.cursor = 'ew-resize';
+    else if (mode === 'bottom' || mode === 'top') document.body.style.cursor = 'ns-resize';
+  }
+
+  const cornerH = document.getElementById('renamer-resize-corner');
+  const rightH = document.getElementById('renamer-resize-right');
+  const bottomH = document.getElementById('renamer-resize-bottom');
+  const leftH = document.getElementById('renamer-resize-left');
+  const topH = document.getElementById('renamer-resize-top');
+
+  if (cornerH) cornerH.addEventListener('mousedown', (e) => onResizeStart(e, 'corner'));
+  if (rightH) rightH.addEventListener('mousedown', (e) => onResizeStart(e, 'right'));
+  if (bottomH) bottomH.addEventListener('mousedown', (e) => onResizeStart(e, 'bottom'));
+  if (leftH) leftH.addEventListener('mousedown', (e) => onResizeStart(e, 'left'));
+  if (topH) topH.addEventListener('mousedown', (e) => onResizeStart(e, 'top'));
+
   window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
-    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
-    win.style.left = `${newX}px`;
-    win.style.top = `${newY}px`;
+    if (isDragging) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+      const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+      win.style.left = `${newX}px`;
+      win.style.top = `${newY}px`;
+      return;
+    }
+
+    if (isResizing) {
+      const dx = e.clientX - resizeStartX;
+      const dy = e.clientY - resizeStartY;
+      const minW = 440;
+      const minH = 340;
+      const maxW = window.innerWidth - 20;
+      const maxH = window.innerHeight - 40;
+
+      if (resizeMode === 'corner' || resizeMode === 'right') {
+        const newW = Math.max(minW, Math.min(maxW, startW + dx));
+        win.style.width = `${newW}px`;
+      }
+      if (resizeMode === 'corner' || resizeMode === 'bottom') {
+        const newH = Math.max(minH, Math.min(maxH, startH + dy));
+        win.style.height = `${newH}px`;
+      }
+      if (resizeMode === 'left') {
+        const newW = Math.max(minW, Math.min(maxW, startW - dx));
+        const newLeft = resizeStartLeft + (startW - newW);
+        win.style.width = `${newW}px`;
+        win.style.left = `${newLeft}px`;
+      }
+      if (resizeMode === 'top') {
+        const newH = Math.max(minH, Math.min(maxH, startH - dy));
+        const newTop = resizeStartTop + (startH - newH);
+        win.style.height = `${newH}px`;
+        win.style.top = `${newTop}px`;
+      }
+    }
   });
 
   window.addEventListener('mouseup', () => {
@@ -38605,6 +38676,15 @@ function initRenamerDragResize() {
       isDragging = false;
       document.body.style.userSelect = '';
       document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_renamer_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_renamer_y', parseInt(win.style.top, 10));
+    }
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.width) localStorage.setItem('cd_renamer_w', parseInt(win.style.width, 10));
+      if (win.style.height) localStorage.setItem('cd_renamer_h', parseInt(win.style.height, 10));
       if (win.style.left) localStorage.setItem('cd_renamer_x', parseInt(win.style.left, 10));
       if (win.style.top) localStorage.setItem('cd_renamer_y', parseInt(win.style.top, 10));
     }
@@ -38776,6 +38856,7 @@ function insertRenamerToken(token) {
 }
 
 function resetRenamerRules() {
+  isRenamerDryRunSimulated = false;
   const findInput = document.getElementById('renamer-find-input');
   const replaceInput = document.getElementById('renamer-replace-input');
   const regexCheck = document.getElementById('renamer-regex-check');
@@ -38828,7 +38909,17 @@ function applyCasingTransform(str, mode) {
   }
 }
 
-function updateRenamerPreview() {
+function executeRenamerDryRun() {
+  updateRenamerPreview(true);
+}
+
+function updateRenamerPreview(isDryRun = false) {
+  if (isDryRun === true) {
+    isRenamerDryRunSimulated = true;
+  } else {
+    isRenamerDryRunSimulated = false;
+  }
+
   const findVal = (document.getElementById('renamer-find-input')?.value || '');
   const replaceVal = (document.getElementById('renamer-replace-input')?.value || '');
   const isRegex = document.getElementById('renamer-regex-check')?.checked || false;
@@ -38954,9 +39045,13 @@ function updateRenamerPreview() {
         if (!it.isChecked) {
           statusBadge = '<span class="badge" style="font-size: 9px; opacity: 0.4;">Skipped</span>';
         } else if (it.hasConflict) {
-          statusBadge = '<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; font-size: 9px;">COLLISION</span>';
+          statusBadge = '<span class="badge" style="background: rgba(239, 68, 68, 0.2); color: #ef4444; font-size: 9px; font-weight: 700;">COLLISION</span>';
         } else if (isModified) {
-          statusBadge = '<span class="badge badge-accent" style="font-size: 9px;">Ready</span>';
+          if (isRenamerDryRunSimulated) {
+            statusBadge = '<span class="badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 9px; font-weight: 700;">SIMULATED: OK</span>';
+          } else {
+            statusBadge = '<span class="badge badge-accent" style="font-size: 9px;">Ready</span>';
+          }
         }
 
         return `
@@ -38978,6 +39073,8 @@ function updateRenamerPreview() {
   if (summaryEl) {
     if (conflictCount > 0) {
       summaryEl.innerHTML = `<span style="color: #ef4444;">⚠️ ${conflictCount} naming collision${conflictCount === 1 ? '' : 's'} detected!</span>`;
+    } else if (isRenamerDryRunSimulated && modifiedCount > 0) {
+      summaryEl.innerHTML = `<span style="color: #22c55e; font-weight: 700;">✓ Dry run passed: ${modifiedCount} file${modifiedCount === 1 ? '' : 's'} safe to rename</span>`;
     } else {
       summaryEl.textContent = `${renamerItems.length} items • ${modifiedCount} to rename`;
     }
@@ -38986,6 +39083,16 @@ function updateRenamerPreview() {
   const execBtn = document.getElementById('renamer-execute-btn');
   if (execBtn) {
     execBtn.disabled = modifiedCount === 0 || conflictCount > 0;
+  }
+
+  if (isDryRun) {
+    if (conflictCount > 0) {
+      showToast(`⚠️ Dry Run: ${conflictCount} naming collision${conflictCount === 1 ? '' : 's'} detected!`, 'warning');
+    } else if (modifiedCount === 0) {
+      showToast('Dry Run: No file renames to perform with current rules', 'info');
+    } else {
+      showToast(`✅ Dry Run Complete: ${modifiedCount} of ${renamerItems.length} items simulated successfully (0 collisions)`, 'success');
+    }
   }
 }
 
