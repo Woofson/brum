@@ -3595,7 +3595,7 @@ async function scanClientDirectoryBranch(dirHandle, basePath, maxLimit = 5000) {
   return allEntries;
 }
 
-async function loadClientLocalDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false) {
+async function loadClientLocalDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false, isSyncNav = false) {
   const pane = App.panes[paneIndex];
   if (!pane) return;
 
@@ -3735,15 +3735,19 @@ async function loadClientLocalDirectory(paneIndex, targetPath, pushHistory = tru
       if (paneIndex === App.activePaneIndex) {
         updateBranchToggleState();
       }
-      if (App.syncNav && prevPath && targetPath && prevPath !== targetPath) {
+      if (App.syncNav && !isSyncNav && !isSyncNavigating && prevPath && targetPath && prevPath !== targetPath) {
         handlePaneNavSync(paneIndex, prevPath, targetPath);
       }
     } catch (fErr) {}
   } catch (err) {
     console.error(`Failed to load client directory ${targetPath}:`, err);
-    showToast(`Client local folder: ${err.message}`, 'warning');
-    const userHome = getUserDefaultHomeDir() || '/';
-    loadPaneDirectory(paneIndex, userHome, false);
+    pane.path = prevPath;
+    if (prevPath) localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
+    if (!isSyncNav) {
+      showToast(`Client local folder: ${err.message}`, 'warning');
+      const userHome = getUserDefaultHomeDir() || '/';
+      loadPaneDirectory(paneIndex, userHome, false);
+    }
   }
 }
 
@@ -3938,14 +3942,14 @@ function computeJsLineDiff(textL, textR) {
   };
 }
 
-async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false) {
+async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false, isSyncNav = false) {
   const pane = App.panes[paneIndex];
   if (!pane) return;
 
   const prevPath = pane.path;
 
   if (typeof targetPath === 'string' && targetPath.startsWith('client://')) {
-    return loadClientLocalDirectory(paneIndex, targetPath, pushHistory, selectItemName, retainBranch);
+    return loadClientLocalDirectory(paneIndex, targetPath, pushHistory, selectItemName, retainBranch, isSyncNav);
   }
 
   const isLocal = !pane.nodeId || pane.nodeId === 'local';
@@ -4004,6 +4008,10 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     if (!resp.ok) {
       const errText = sanitizeCredentials(await resp.text());
       console.warn(`Failed to load ${cleanPath}:`, errText);
+      pane.path = prevPath;
+      if (prevPath) {
+        localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
+      }
       if (isLocal) {
         const userHome = getUserDefaultHomeDir();
         if ((cleanPath === '/' || resp.status === 403) && userHome && userHome !== '/' && userHome !== cleanPath) {
@@ -4012,7 +4020,9 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
           return;
         }
       }
-      showToast(`Failed to load directory: ${errText}`, 'error');
+      if (!isSyncNav) {
+        showToast(`Failed to load directory: ${errText}`, 'error');
+      }
       return;
     }
 
@@ -4070,7 +4080,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
         updateBranchToggleState();
       }
       syncPaneTreeActiveNode(paneIndex, pane.path);
-      if (App.syncNav && prevPath && pane.path && prevPath !== pane.path) {
+      if (App.syncNav && !isSyncNav && !isSyncNavigating && prevPath && pane.path && prevPath !== pane.path) {
         handlePaneNavSync(paneIndex, prevPath, pane.path);
       }
     } catch (fErr) {
@@ -4081,6 +4091,11 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
       return;
     }
     console.error('Directory load error:', e);
+    pane.path = prevPath;
+    if (prevPath) localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
+    if (!isSyncNav) {
+      showToast(`Directory load error: ${e.message}`, 'error');
+    }
   } finally {
     pane._abortController = null;
   }
@@ -21325,6 +21340,82 @@ function handlePaneScrollSync(sourceIndex, sourceMainView) {
   }
 }
 
+function normalizeSyncPath(p) {
+  if (!p) return '';
+  let s = sanitizeCredentials(p).trim();
+  if (!s.startsWith('client://') && !s.includes('://')) {
+    s = s.replace(/\\/g, '/');
+  }
+  if (s.length > 1 && s.endsWith('/')) {
+    s = s.replace(/\/+$/, '');
+  }
+  return s;
+}
+
+function computeSyncedTargetPath(prevPath, newPath, otherPath) {
+  const cleanPrev = normalizeSyncPath(prevPath);
+  const cleanNew = normalizeSyncPath(newPath);
+  const otherClean = normalizeSyncPath(otherPath);
+
+  if (!cleanPrev || !cleanNew || !otherClean || cleanPrev === cleanNew) return null;
+
+  // Case 0: If other pane was at the exact same directory, mirror directly
+  if (otherClean === cleanPrev) {
+    return cleanNew;
+  }
+
+  // Case 1: Descendant navigation (subfolder entered)
+  if (cleanNew.startsWith(cleanPrev + '/')) {
+    const relSub = cleanNew.substring(cleanPrev.length + 1);
+    return otherClean === '/' ? `/${relSub}` : `${otherClean}/${relSub}`;
+  }
+
+  // Case 2: Ancestor navigation (moved up one or more parent levels)
+  if (cleanPrev.startsWith(cleanNew + '/')) {
+    const prevSegs = cleanPrev.split('/').filter(Boolean);
+    const newSegs = cleanNew.split('/').filter(Boolean);
+    const levelsUp = Math.max(1, prevSegs.length - newSegs.length);
+    let curr = otherClean;
+    for (let l = 0; l < levelsUp; l++) {
+      const parent = getParentDirectory(curr);
+      if (parent && parent !== curr) {
+        curr = parent;
+      } else {
+        break;
+      }
+    }
+    return curr;
+  }
+
+  // Case 3: Sibling or branched navigation under a common ancestor
+  const prevSegs = cleanPrev.split('/').filter(Boolean);
+  const newSegs = cleanNew.split('/').filter(Boolean);
+  let commonLen = 0;
+  while (commonLen < prevSegs.length && commonLen < newSegs.length && prevSegs[commonLen] === newSegs[commonLen]) {
+    commonLen++;
+  }
+
+  if (commonLen > 0) {
+    const levelsUp = prevSegs.length - commonLen;
+    const remainingNew = newSegs.slice(commonLen).join('/');
+    let curr = otherClean;
+    for (let l = 0; l < levelsUp; l++) {
+      const parent = getParentDirectory(curr);
+      if (parent && parent !== curr) {
+        curr = parent;
+      } else {
+        break;
+      }
+    }
+    if (remainingNew) {
+      return curr === '/' ? `/${remainingNew}` : `${curr}/${remainingNew}`;
+    }
+    return curr;
+  }
+
+  return null;
+}
+
 async function handlePaneNavSync(sourceIndex, prevPath, newPath) {
   if (!App.syncNav || isSyncNavigating) return;
   if (!prevPath || !newPath || prevPath === newPath) return;
@@ -21333,60 +21424,33 @@ async function handlePaneNavSync(sourceIndex, prevPath, newPath) {
 
   isSyncNavigating = true;
   try {
-    const cleanPrev = sanitizeCredentials(prevPath).replace(/\/+$/, '');
-    const cleanNew = sanitizeCredentials(newPath).replace(/\/+$/, '');
-
-    const prevSegs = cleanPrev.split(/[\\/]/).filter(Boolean);
-    const newSegs = cleanNew.split(/[\\/]/).filter(Boolean);
+    const promises = [];
 
     for (let i = 0; i < visibleCount; i++) {
       if (i === sourceIndex) continue;
       const otherPane = App.panes[i];
       if (!otherPane || !otherPane.path || otherPane.dockedTool) continue;
 
-      const otherClean = sanitizeCredentials(otherPane.path).replace(/\/+$/, '');
-      let otherTarget = null;
+      const otherTarget = computeSyncedTargetPath(prevPath, newPath, otherPane.path);
 
-      if (cleanNew.startsWith(cleanPrev + '/')) {
-        // Subfolder entered
-        const relSub = cleanNew.substring(cleanPrev.length + 1);
-        otherTarget = (otherClean === '' ? '' : otherClean) + '/' + relSub;
-      } else if (cleanPrev.startsWith(cleanNew + '/')) {
-        // Moved up one or more parent levels
-        const levelsUp = Math.max(1, prevSegs.length - newSegs.length);
-        let curr = otherClean;
-        for (let l = 0; l < levelsUp; l++) {
-          const parent = getParentDirectory(curr);
-          if (parent && parent !== curr) {
-            curr = parent;
-          } else {
-            break;
-          }
-        }
-        otherTarget = curr;
-      } else {
-        // Sibling folder change or relative jump
-        const lastNewSeg = newSegs[newSegs.length - 1];
-        if (lastNewSeg && prevSegs.length === newSegs.length) {
-          const otherParent = getParentDirectory(otherClean);
-          if (otherParent) {
-            otherTarget = otherParent.replace(/\/+$/, '') + '/' + lastNewSeg;
-          }
-        }
-      }
-
-      if (otherTarget && otherTarget !== otherClean) {
+      if (otherTarget && otherTarget !== otherPane.path) {
         if (typeof otherTarget === 'string' && otherTarget.startsWith('client://')) {
-          loadClientLocalDirectory(i, otherTarget, false);
+          promises.push(loadClientLocalDirectory(i, otherTarget, false, null, false, true));
         } else {
-          loadPaneDirectory(i, otherTarget, false);
+          promises.push(loadPaneDirectory(i, otherTarget, false, null, false, true));
         }
       }
+    }
+
+    if (promises.length > 0) {
+      await Promise.allSettled(promises);
     }
   } catch (syncErr) {
     console.warn('Pane sync navigation error:', syncErr);
   } finally {
-    isSyncNavigating = false;
+    requestAnimationFrame(() => {
+      isSyncNavigating = false;
+    });
   }
 }
 
