@@ -5,6 +5,19 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-09-24
+
+### Fixed
+- **System User Avatar Resolution Across Reverse Proxies & PAM Sessions** (Fixes #69):
+  - Added centralized backend avatar resolver detecting system profile images across Linux user environments (`~/.face`, `~/.face.icon`, `~/.face.svg`, and AccountsService `/var/lib/AccountsService/icons/<username>`).
+  - Added magic-byte MIME type detection supporting SVG (`image/svg+xml`), PNG, JPEG, and WebP, converting system avatars into Base64 data URIs.
+  - Automatically enriches user payloads during PAM logins, system user database synchronization, user retrieval, and session verification (`/api/auth/me`).
+  - Fixed frontend avatar precedence when accessing instances through reverse proxies and mesh VPNs (NetBird, Nginx Proxy Manager, Tailscale, Cloudflare), prioritizing server-provided system avatars over stale client `localStorage` state.
+
+### Changed
+- **Strict Semantic Versioning Protocol**:
+  - Enforced clean SemVer across release lifecycles, eliminating extraneous `-rc` suffixes on standard git tags and releases.
+
 ## [1.0.0] - 2026-09-24
 
 ### Brum 1.0.0 Milestone: Instant 0ms Optimistic Rendering, Core Functions Window Modernization & Symmetrical Sync
