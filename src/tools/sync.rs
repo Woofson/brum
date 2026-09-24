@@ -135,6 +135,8 @@ pub struct SyncAnalysis {
     pub total_transfer_bytes: u64,
     pub bytes_saved_estimate: u64,
     pub files: Vec<SyncFileItem>,
+    #[serde(default)]
+    pub is_truncated: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -203,12 +205,19 @@ impl DirectorySyncEngine {
         let mut total_transfer_bytes = 0u64;
         let mut bytes_saved_estimate = 0u64;
         let mut files = Vec::new();
+        let mut is_truncated = false;
+        const MAX_ANALYSIS_FILES: usize = 10_000;
 
         let mut src_rel_set: HashSet<PathBuf> = HashSet::new();
 
         // 1. Scan Source Files
         for entry in WalkDir::new(src_path).into_iter().filter_map(|e| e.ok()) {
             if entry.file_type().is_file() {
+                if files.len() >= MAX_ANALYSIS_FILES {
+                    is_truncated = true;
+                    break;
+                }
+
                 let rel = entry.path().strip_prefix(src_path).unwrap().to_path_buf();
                 
                 // Skip internal _archive directory if located in source
@@ -328,9 +337,14 @@ impl DirectorySyncEngine {
         }
 
         // 2. Scan Destination for Right-Only Files
-        if dest_path.exists() && dest_path.is_dir() {
+        if dest_path.exists() && dest_path.is_dir() && !is_truncated {
             for entry in WalkDir::new(dest_path).into_iter().filter_map(|e| e.ok()) {
                 if entry.file_type().is_file() {
+                    if files.len() >= MAX_ANALYSIS_FILES {
+                        is_truncated = true;
+                        break;
+                    }
+
                     let rel = entry.path().strip_prefix(dest_path).unwrap().to_path_buf();
                     
                     // Skip internal _archive snapshot folder
@@ -413,6 +427,7 @@ impl DirectorySyncEngine {
             total_transfer_bytes,
             bytes_saved_estimate,
             files,
+            is_truncated,
         })
     }
 

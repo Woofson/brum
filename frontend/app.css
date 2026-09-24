@@ -5048,43 +5048,67 @@ html.fkeys-disabled .bottom-fkey-bar,
 .sync-profile-card {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: 10px;
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 8px 10px;
+  border-radius: var(--radius, 6px);
+  padding: 10px 12px;
   cursor: pointer;
   transition: all 0.15s ease;
   user-select: none;
 }
 
 .sync-profile-card:hover {
-  border-color: var(--accent);
+  border-color: rgba(245, 158, 11, 0.4);
   background: var(--bg-hover);
 }
 
 .sync-profile-card input[type="radio"] {
   margin-top: 3px;
   accent-color: var(--accent);
+  cursor: pointer;
 }
 
+.sync-profile-card.active,
 .sync-profile-card:has(input[type="radio"]:checked) {
   border-color: var(--accent);
-  background: rgba(245, 158, 11, 0.08);
+  background: rgba(245, 158, 11, 0.1);
   box-shadow: 0 0 0 1px var(--accent);
 }
 
 .sync-card-title {
   font-weight: 700;
-  font-size: 11px;
+  font-size: 11.5px;
   color: var(--text-main);
-  margin-bottom: 2px;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .sync-card-desc {
-  font-size: 10px;
-  color: var(--text-dim);
-  line-height: 1.3;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  line-height: 1.35;
+}
+
+.sync-folder-picker-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 11.5px;
+  transition: all 0.15s ease;
+}
+
+.sync-folder-picker-item:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent);
+  color: var(--accent);
 }
 
 .sync-tab-btn {

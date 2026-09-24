@@ -26872,16 +26872,15 @@ function openSyncModal() {
   updateSyncCounters(0, 0, 0, 0, 0, 0);
 
   const tbody = document.getElementById('sync-diff-body');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">Click <b>Compare & Analyze</b> to inspect differences.</td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">Click <b>Compare & Analyze</b> or <b>Dry Run</b> to inspect differences.</td></tr>`;
 
   const footerStats = document.getElementById('sync-footer-stats');
   if (footerStats) footerStats.textContent = 'Ready to compare directories.';
 
+  handleSyncModeChange();
   switchSyncTab('diff');
   showModal('sync-modal');
-  if (srcPane.path && destPane.path && srcPane.path !== destPane.path) {
-    analyzeSync();
-  }
+  if (window.lucide) lucide.createIcons();
 }
 
 function switchSyncTab(tab) {
@@ -26906,9 +26905,7 @@ function useActivePanePath(inputId) {
     const input = document.getElementById(inputId);
     if (input) {
       input.value = activePane.path;
-      if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-        analyzeSync();
-      }
+      showToast(`Set to Active Pane: ${activePane.path}`, 'info');
     }
   }
 }
@@ -26920,9 +26917,7 @@ function useInactivePanePath(inputId) {
     const input = document.getElementById(inputId);
     if (input) {
       input.value = otherPane.path;
-      if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-        analyzeSync();
-      }
+      showToast(`Set to Target Pane: ${otherPane.path}`, 'info');
     }
   }
 }
@@ -26934,19 +26929,120 @@ function swapSyncPaths() {
     const tmp = srcIn.value;
     srcIn.value = destIn.value;
     destIn.value = tmp;
-    analyzeSync();
+    showToast('Swapped Source and Destination paths', 'info');
+  }
+}
+
+function selectSyncMode(modeVal) {
+  const radio = document.querySelector(`input[name="sync-mode"][value="${modeVal}"]`);
+  if (radio) {
+    radio.checked = true;
+    handleSyncModeChange();
   }
 }
 
 function handleSyncModeChange() {
   const mode = document.querySelector('input[name="sync-mode"]:checked')?.value || 'synchronize';
+  document.querySelectorAll('.sync-profile-card').forEach(card => {
+    const radio = card.querySelector('input[type="radio"]');
+    card.classList.toggle('active', radio && radio.checked);
+  });
   const archiveSettings = document.getElementById('sync-archive-settings');
   if (archiveSettings) {
     archiveSettings.style.display = (mode === 'subscribe') ? 'flex' : 'none';
   }
-  if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-    analyzeSync();
+}
+
+let syncFolderPickerTargetInput = 'sync-src-input';
+let syncPickerCurrentPath = '/';
+
+function openSyncFolderPicker(targetInputId) {
+  syncFolderPickerTargetInput = targetInputId || 'sync-src-input';
+  const curVal = document.getElementById(syncFolderPickerTargetInput)?.value.trim() || getUserDefaultHomeDir() || '/';
+  syncPickerCurrentPath = curVal;
+
+  const panesList = document.getElementById('sync-picker-panes-list');
+  if (panesList) {
+    panesList.innerHTML = App.panes.map((p, idx) => `
+      <div class="sync-folder-picker-item" onclick="selectSyncPickerLocation('${escapeHtml(p.path || '/')}')">
+        <span style="font-weight: 600;"><i data-lucide="layout" style="width: 12px; height: 12px; vertical-align: -1px;"></i> Pane ${idx + 1} (${p.nodeId || 'local'})</span>
+        <span style="font-family: var(--font-mono); color: var(--text-muted); font-size: 11px;">${escapeHtml(p.path || '/')}</span>
+      </div>
+    `).join('');
   }
+
+  navigateSyncPickerPath(syncPickerCurrentPath);
+  showModal('sync-folder-picker-modal');
+  if (window.lucide) lucide.createIcons();
+}
+
+function selectSyncPickerLocation(path) {
+  navigateSyncPickerPath(path);
+}
+
+async function navigateSyncPickerPath(newPath) {
+  if (!newPath) newPath = '/';
+  syncPickerCurrentPath = newPath;
+  const pathIn = document.getElementById('sync-picker-path-input');
+  const selLabel = document.getElementById('sync-picker-selected-label');
+  if (pathIn) pathIn.value = newPath;
+  if (selLabel) selLabel.textContent = `Selected: ${newPath}`;
+
+  const container = document.getElementById('sync-picker-subfolders');
+  if (container) {
+    container.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--accent);"><i data-lucide="loader" class="spinner"></i> Loading folders...</div>';
+    if (window.lucide) lucide.createIcons();
+  }
+
+  try {
+    const encoded = encodeURIComponent(newPath);
+    const resp = await fetch(`/api/files/list?path=${encoded}&dirs_only=true`, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      const dirs = (data.entries || []).filter(e => e.is_dir && e.name !== '.' && e.name !== '..');
+      if (dirs.length === 0) {
+        if (container) container.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--text-dim); font-size: 11px;">No subfolders in this directory.</div>';
+      } else {
+        if (container) {
+          container.innerHTML = dirs.map(d => {
+            const fullSubPath = newPath.endsWith('/') ? `${newPath}${d.name}` : `${newPath}/${d.name}`;
+            return `
+              <div class="sync-folder-picker-item" onclick="navigateSyncPickerPath('${escapeHtml(fullSubPath)}')">
+                <span style="display: flex; align-items: center; gap: 6px;">
+                  <i data-lucide="folder" style="width: 13px; height: 13px; color: var(--accent);"></i>
+                  <span>${escapeHtml(d.name)}</span>
+                </span>
+                <span style="font-size: 10px; color: var(--text-dim);">Folder</span>
+              </div>
+            `;
+          }).join('');
+        }
+      }
+    } else {
+      if (container) container.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--danger); font-size: 11px;">Cannot open folder: ${escapeHtml(await resp.text())}</div>`;
+    }
+  } catch (err) {
+    if (container) container.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--danger); font-size: 11px;">Network error: ${escapeHtml(String(err))}</div>`;
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function navigateSyncPickerUp() {
+  const parent = getParentDirectory(syncPickerCurrentPath);
+  if (parent && parent !== syncPickerCurrentPath) {
+    navigateSyncPickerPath(parent);
+  }
+}
+
+function confirmSyncFolderSelection() {
+  const input = document.getElementById(syncFolderPickerTargetInput);
+  if (input) {
+    input.value = syncPickerCurrentPath;
+  }
+  closeModal('sync-folder-picker-modal');
+  showToast(`Folder selected: ${syncPickerCurrentPath}`, 'info');
 }
 
 function toggleSyncExclusionsPanel() {
@@ -26961,9 +27057,6 @@ function toggleExclusionChip(chipEl) {
   if (!chipEl) return;
   chipEl.classList.toggle('active');
   updateSyncExclusionBadge();
-  if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-    analyzeSync();
-  }
 }
 
 function addCustomExclusionPattern() {
@@ -26975,9 +27068,6 @@ function addCustomExclusionPattern() {
     syncCustomExclusions.push(val);
     renderCustomExclusionTags();
     updateSyncExclusionBadge();
-    if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-      analyzeSync();
-    }
   }
   input.value = '';
 }
@@ -26986,9 +27076,6 @@ function removeCustomExclusionTag(pattern) {
   syncCustomExclusions = syncCustomExclusions.filter(p => p !== pattern);
   renderCustomExclusionTags();
   updateSyncExclusionBadge();
-  if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-    analyzeSync();
-  }
 }
 
 function renderCustomExclusionTags() {
@@ -27007,9 +27094,6 @@ function clearAllSyncExclusions() {
   syncCustomExclusions = [];
   renderCustomExclusionTags();
   updateSyncExclusionBadge();
-  if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-    analyzeSync();
-  }
 }
 
 function getActiveSyncExclusions() {
@@ -27054,7 +27138,7 @@ function applySyncTemplate(templateKey) {
     const verify = document.getElementById('sync-opt-verify');
     if (verify) verify.checked = true;
     setPresetChips(['.DS_Store', 'Thumbs.db', '*.tmp', '*.bak']);
-    showToast('🪞 Applied NAS Mirror template (Echo mode, verify checksums, system exclusions)', 'info');
+    showToast('🪞 Applied NAS Mirror preset (Echo mode, checksum verification, system exclusions)', 'info');
   } else if (templateKey === 'code_sync') {
     const radio = document.querySelector('input[name="sync-mode"][value="synchronize"]');
     if (radio) { radio.checked = true; handleSyncModeChange(); }
@@ -27063,7 +27147,7 @@ function applySyncTemplate(templateKey) {
     const verify = document.getElementById('sync-opt-verify');
     if (verify) verify.checked = true;
     setPresetChips(['node_modules', '.git', 'target', '.cache', 'tmp', 'dist', '*.log']);
-    showToast('💻 Applied Codebase Sync template (2-Way delta sync, dev exclusions)', 'info');
+    showToast('💻 Applied Codebase Sync preset (Two-Way delta sync, developer exclusions)', 'info');
   } else if (templateKey === 'snapshot_archive') {
     const radio = document.querySelector('input[name="sync-mode"][value="subscribe"]');
     if (radio) { radio.checked = true; handleSyncModeChange(); }
@@ -27074,7 +27158,7 @@ function applySyncTemplate(templateKey) {
     const retention = document.getElementById('sync-opt-retention');
     if (retention) retention.value = '30';
     setPresetChips(['.DS_Store', 'Thumbs.db', '*.tmp']);
-    showToast('📦 Applied Snapshot Vault template (Versioned archive snapshots)', 'info');
+    showToast('📦 Applied Snapshot Vault preset (30-day versioned archive snapshots)', 'info');
   } else if (templateKey === 'media_vault') {
     const radio = document.querySelector('input[name="sync-mode"][value="contribute"]');
     if (radio) { radio.checked = true; handleSyncModeChange(); }
@@ -27083,11 +27167,7 @@ function applySyncTemplate(templateKey) {
     const verify = document.getElementById('sync-opt-verify');
     if (verify) verify.checked = true;
     setPresetChips(['.DS_Store', 'Thumbs.db', '*.tmp', '*.bak']);
-    showToast('📸 Applied Media Backup template (Additive contribute mode)', 'info');
-  }
-
-  if (document.getElementById('sync-src-input')?.value && document.getElementById('sync-dest-input')?.value) {
-    analyzeSync();
+    showToast('📸 Applied Media Backup preset (Additive contribute mode, never delete from target)', 'info');
   }
 }
 
@@ -27170,7 +27250,17 @@ function filterSyncGrid(mode) {
   renderSyncDiffTable();
 }
 
-async function analyzeSync() {
+async function executeDryRun() {
+  const source = document.getElementById('sync-src-input')?.value.trim();
+  const destination = document.getElementById('sync-dest-input')?.value.trim();
+  if (!source || !destination) {
+    showToast('Please specify source and destination directories first', 'warning');
+    return;
+  }
+  await analyzeSync(true);
+}
+
+async function analyzeSync(isDryRun = false) {
   const source = document.getElementById('sync-src-input')?.value.trim();
   const destination = document.getElementById('sync-dest-input')?.value.trim();
   const mode = document.querySelector('input[name="sync-mode"]:checked')?.value || 'synchronize';
@@ -27187,7 +27277,7 @@ async function analyzeSync() {
 
   const tbody = document.getElementById('sync-diff-body');
   const footerStats = document.getElementById('sync-footer-stats');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--accent);"><i data-lucide="loader"></i> Analyzing directory differences & delta blocks...</td></tr>`;
+  if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--accent);"><i data-lucide="loader" class="spinner"></i> ${isDryRun ? 'Simulating dry run & checking differences...' : 'Analyzing directory differences & delta blocks...'}</td></tr>`;
   if (window.lucide) lucide.createIcons();
 
   try {
@@ -27227,11 +27317,16 @@ async function analyzeSync() {
     updateSyncCounters(files.length, leftCnt, rightCnt, modCnt, archiveCnt, eqCnt);
 
     if (footerStats) {
+      const truncBadge = syncAnalysisData.is_truncated ? ' [First 10,000 files shown]' : '';
       const savedStr = syncAnalysisData.bytes_saved_estimate > 0 ? ` • Est. Delta Savings: ~${formatFileSize(syncAnalysisData.bytes_saved_estimate)}` : '';
-      footerStats.textContent = `Scanned ${files.length} items: ${leftCnt} to copy/update ➔, ${rightCnt} to copy ⬅, ${archiveCnt} to archive 📦, ${eqCnt} identical (${formatFileSize(syncAnalysisData.total_transfer_bytes)} total)${savedStr}.`;
+      const dryPrefix = isDryRun ? '⚡ [Dry Run Simulation] ' : '';
+      footerStats.textContent = `${dryPrefix}Scanned ${files.length} items${truncBadge}: ${leftCnt} to copy/update ➔, ${rightCnt} to copy ⬅, ${archiveCnt} to archive 📦, ${eqCnt} identical (${formatFileSize(syncAnalysisData.total_transfer_bytes)} total)${savedStr}.`;
     }
 
     renderSyncDiffTable();
+    if (isDryRun) {
+      showToast(`Dry Run: ${leftCnt + rightCnt} to copy/update, ${archiveCnt} to archive, ${syncAnalysisData.to_delete?.length || 0} to delete`, 'info');
+    }
   } catch (e) {
     if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--danger);">Error: ${escapeHtml(String(e))}</td></tr>`;
   }
@@ -27270,7 +27365,10 @@ function renderSyncDiffTable() {
     return;
   }
 
-  tbody.innerHTML = filtered.map(f => {
+  const maxRender = 500;
+  const renderSlice = filtered.slice(0, maxRender);
+
+  const rowsHtml = renderSlice.map(f => {
     let actionBadge = '';
     if (f.suggested_action === 'copy_right') {
       actionBadge = `<span class="sync-action-badge action-copy-right" title="Copy Left ➔ Right (Click to change)" onclick="toggleFileAction(${files.indexOf(f)})">➔</span>`;
@@ -27309,9 +27407,15 @@ function renderSyncDiffTable() {
       </tr>
     `;
   }).join('');
+
+  const truncNotice = filtered.length > maxRender 
+    ? `<tr><td colspan="5" style="text-align: center; padding: 12px; font-weight: 600; color: var(--accent); background: var(--bg-panel);">Showing first ${maxRender} of ${filtered.length} matching files. Use filters above to inspect specific changes.</td></tr>`
+    : '';
+
+  tbody.innerHTML = rowsHtml + truncNotice;
 }
 
-async function executeSync() {
+async function executeSync(dryRun = false) {
   const source = document.getElementById('sync-src-input')?.value.trim();
   const destination = document.getElementById('sync-dest-input')?.value.trim();
   const mode = document.querySelector('input[name="sync-mode"]:checked')?.value || 'synchronize';
@@ -27323,6 +27427,11 @@ async function executeSync() {
 
   if (!source || !destination) {
     showToast('Please specify source and destination directories', 'warning');
+    return;
+  }
+
+  if (dryRun) {
+    await executeDryRun();
     return;
   }
 
@@ -29249,7 +29358,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'search', title: 'Search', sub: 'Search files and folders recursively (Ctrl+F)', icon: 'assets/search.webp', cat: 'actions', action: () => openSearchModal() },
   { id: 'fleet', title: 'Commander Fleet', sub: 'Multi-host node switcher, remote cluster manager & node diagnostics', icon: 'network', cat: 'actions', action: () => openFleetManagerModal() },
   { id: 'shares', title: 'Share Manager', sub: 'Manage public share links and guest upload dropboxes', icon: 'assets/sharemgr.webp', cat: 'actions', action: () => openSharesManager() },
-  { id: 'sync', title: 'Backup & Sync', sub: 'Delta Backup & Sync Studio: Two-Way Sync, Mirror, Contribute & Versioning (SyncToy / Bvckup 2)', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
+  { id: 'sync', title: 'Backup & Sync', sub: 'Delta Backup & Sync Studio: Two-Way Sync, Mirror, Additive Contribute & Snapshot Versioning', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
   { id: 'du', title: 'Disk Usage', sub: 'Disk Usage & Storage Treemap Analyzer: inspect space consumption', icon: 'assets/amber-piechart.webp', cat: 'actions', action: () => openDiskUsageModal() },
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'Format Converter', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
