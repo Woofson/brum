@@ -5,6 +5,37 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2026-09-24
+
+### OIDC SSO, Floating Player Mini-Pills, Hyprland Two-Tone Borders & Mobile Actions Bar
+- **OpenID Connect (OIDC) & SSO Authentication Gateway** (Fixes #61):
+  - Native OIDC single-sign-on integration supporting Authentik, Keycloak, and standard Identity Providers.
+  - Full configuration parameters (`auth.oidc.enabled`, `client_id`, `client_secret`, `issuer_url`, `redirect_uri`, `scopes`).
+  - Automatic PKCE flow, state validation, session generation, and token lifecycle management.
+- **Audio & Media Player Background Mini-Pills** (Fixes #60):
+  - Minimizes active audio and video players into interactive floating pill badges on background playback.
+  - Live elapsed track progress bar, track title ticker, quick play/pause toggles, and click-to-restore window functionality.
+- **Custom Pane Borders & Hyprland-Style Two-Tone Gradients**:
+  - Configurable border styles (Classic, Subtle, Bold, Hyprland Two-Tone Gradients).
+  - Customizable active/inactive colors, gradient rotation angles, and built-in preset palettes in Settings.
+- **Sticky Frosted Glass Column Headers & Breadcrumb Quick Refresh**:
+  - Sticky table headers on file pane scroll with frosted glass backdrop filter.
+  - User-configurable toggle in Settings and instant pane refresh button in the breadcrumb bar.
+- **Mobile & Tablet Bottom Actions Bar Modes**:
+  - Added layout option to toggle bottom command bar between `Icons and Text`, `Icons Only` (compact 38px height), and `Off / Hidden`.
+  - Full safe-area inset preservation and cross-device sync.
+- **Image Viewer Centered Navigation Controls**:
+  - Mathematically locked navigation pill to absolute dead-center of viewer header, eliminating position shifting across differing filename lengths.
+- **Mobile & Android Fold Viewport Hardening**:
+  - Respects Android and mobile browser top/bottom status bar safe-area insets.
+  - Responsive document viewer toolbar overflow fixes and scrollable sub-toolbars.
+- **Offline Assets & Vanilla Windows Compatibility** (Fixes #65):
+  - Bundled local vendor assets (Lucide, fonts, fallbacks) to ensure 100% offline functionality.
+  - Enhanced emoji and font fallbacks for vanilla Windows installations.
+- **Interactive Documentation & QA Manuals** (Fixes #63, Fixes #64):
+  - Embedded complete offline user guide and QA testing manual directly inside Notes.
+  - Added Android and Termux self-hosted deployment documentation.
+
 ## [0.8.11] - 2026-09-21
 
 ### Custom Window Title, Dropdown Consistency & Commander Fleet Symmetrical Telemetry
