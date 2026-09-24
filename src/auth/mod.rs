@@ -30,6 +30,82 @@ pub struct User {
     pub blocked_plugins: String,  // JSON array e.g. []
 }
 
+impl User {
+    pub fn resolve_avatar(&mut self) {
+        if self.avatar_url.is_none() || self.avatar_url.as_deref() == Some("") {
+            self.avatar_url = resolve_system_avatar(&self.username, &self.home_dir);
+        }
+    }
+}
+
+pub fn resolve_system_avatar(username: &str, home_dir: &str) -> Option<String> {
+    #[cfg(unix)]
+    {
+        use base64::Engine;
+        let home_path = std::path::Path::new(home_dir);
+        let mut candidates = vec![
+            home_path.join(".face"),
+            home_path.join(".face.icon"),
+            home_path.join(".face.png"),
+            home_path.join(".face.jpg"),
+            home_path.join(".face.jpeg"),
+            home_path.join(".face.svg"),
+            home_path.join(".face.webp"),
+            home_path.join(".avatar"),
+            home_path.join(".avatar.png"),
+            home_path.join(".avatar.svg"),
+            std::path::PathBuf::from(format!("/var/lib/AccountsService/icons/{}", username)),
+        ];
+
+        if !home_dir.contains(username) {
+            candidates.push(std::path::PathBuf::from(format!("/home/{}/.face", username)));
+            candidates.push(std::path::PathBuf::from(format!("/home/{}/.face.icon", username)));
+            candidates.push(std::path::PathBuf::from(format!("/home/{}/.face.png", username)));
+            candidates.push(std::path::PathBuf::from(format!("/home/{}/.face.svg", username)));
+        }
+
+        for path in &candidates {
+            if path.exists() {
+                if let Ok(bytes) = std::fs::read(path) {
+                    if !bytes.is_empty() && bytes.len() <= 10 * 1024 * 1024 {
+                        let trimmed = bytes.strip_prefix(&[0xEF, 0xBB, 0xBF]).unwrap_or(&bytes);
+                        let is_svg = trimmed.starts_with(b"<?xml")
+                            || trimmed.starts_with(b"<svg")
+                            || (trimmed.len() > 10 && std::str::from_utf8(&trimmed[..std::cmp::min(trimmed.len(), 512)]).map(|s| s.contains("<svg")).unwrap_or(false));
+
+                        let mime = if is_svg {
+                            "image/svg+xml"
+                        } else if trimmed.starts_with(&[0x89, b'P', b'N', b'G']) {
+                            "image/png"
+                        } else if trimmed.starts_with(&[0xFF, 0xD8, 0xFF]) {
+                            "image/jpeg"
+                        } else if trimmed.starts_with(b"RIFF") && trimmed.len() > 12 && &trimmed[8..12] == b"WEBP" {
+                            "image/webp"
+                        } else if trimmed.starts_with(b"GIF87a") || trimmed.starts_with(b"GIF89a") {
+                            "image/gif"
+                        } else if trimmed.starts_with(&[0x00, 0x00, 0x01, 0x00]) {
+                            "image/x-icon"
+                        } else {
+                            "image/png"
+                        };
+
+                        return Some(format!(
+                            "data:{};base64,{}",
+                            mime,
+                            base64::engine::general_purpose::STANDARD.encode(&bytes)
+                        ));
+                    }
+                }
+            }
+        }
+    }
+    #[cfg(windows)]
+    {
+        let _ = (username, home_dir);
+    }
+    None
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GlobalMount {
     pub id: i64,
@@ -372,7 +448,7 @@ impl AuthManager {
 
         let id = conn.last_insert_rowid();
 
-        Ok(User {
+        let mut user = User {
             id,
             username: username.to_string(),
             nickname: None,
@@ -387,7 +463,9 @@ impl AuthManager {
             can_install_plugins: false,
             allowed_plugins: "[\"*\"]".to_string(),
             blocked_plugins: "[]".to_string(),
-        })
+        };
+        user.resolve_avatar();
+        Ok(user)
     }
 
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>, Box<dyn std::error::Error + Send + Sync>> {
@@ -397,7 +475,7 @@ impl AuthManager {
         )?;
 
         let user = stmt.query_row(params![username], |row| {
-            Ok(User {
+            let mut u = User {
                 id: row.get(0)?,
                 username: row.get(1)?,
                 nickname: row.get(2)?,
@@ -412,7 +490,9 @@ impl AuthManager {
                 can_install_plugins: row.get::<_, Option<i64>>(11)?.unwrap_or(0) != 0,
                 allowed_plugins: row.get::<_, Option<String>>(12)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 blocked_plugins: row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "[]".to_string()),
-            })
+            };
+            u.resolve_avatar();
+            Ok(u)
         }).optional()?;
 
         Ok(user)
@@ -424,7 +504,7 @@ impl AuthManager {
             "SELECT id, username, nickname, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins FROM users ORDER BY username ASC"
         )?;
         let rows = stmt.query_map([], |row| {
-            Ok(User {
+            let mut u = User {
                 id: row.get(0)?,
                 username: row.get(1)?,
                 nickname: row.get(2)?,
@@ -439,7 +519,9 @@ impl AuthManager {
                 can_install_plugins: row.get::<_, Option<i64>>(11)?.unwrap_or(0) != 0,
                 allowed_plugins: row.get::<_, Option<String>>(12)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 blocked_plugins: row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "[]".to_string()),
-            })
+            };
+            u.resolve_avatar();
+            Ok(u)
         })?;
 
         let mut users = Vec::new();
@@ -466,8 +548,10 @@ impl AuthManager {
         )?;
 
         drop(conn);
-        self.get_user_by_username(username)?
-            .ok_or_else(|| "Failed to retrieve synced PAM user".into())
+        let mut user = self.get_user_by_username(username)?
+            .ok_or_else(|| format!("Failed to retrieve synced PAM user"))?;
+        user.resolve_avatar();
+        Ok(user)
     }
 
     pub fn update_user_profile(
@@ -586,7 +670,7 @@ impl AuthManager {
                 if !is_pam && hash_str != "PAM_MANAGED" {
                     if let Ok(parsed_hash) = PasswordHash::new(&hash_str) {
                         if Argon2::default().verify_password(password.as_bytes(), &parsed_hash).is_ok() {
-                            return Ok(User {
+                            let mut u = User {
                                 id,
                                 username: uname,
                                 nickname,
@@ -601,7 +685,9 @@ impl AuthManager {
                                 can_install_plugins,
                                 allowed_plugins,
                                 blocked_plugins,
-                            });
+                            };
+                            u.resolve_avatar();
+                            return Ok(u);
                         } else {
                             return Err("Invalid username or password".into());
                         }
@@ -669,6 +755,7 @@ impl AuthManager {
                                 return Err("Account is disabled. Please contact an administrator.".into());
                             }
                             existing.is_pam = true;
+                            existing.resolve_avatar();
                             return Ok(existing);
                         }
 
@@ -681,7 +768,7 @@ impl AuthManager {
                         );
                         let id = conn.last_insert_rowid();
 
-                        return Ok(User {
+                        let mut u = User {
                             id,
                             username: username.to_string(),
                             nickname: Some(username.to_string()),
@@ -696,7 +783,9 @@ impl AuthManager {
                             can_install_plugins: false,
                             allowed_plugins: "[\"*\"]".to_string(),
                             blocked_plugins: "[]".to_string(),
-                        });
+                        };
+                        u.resolve_avatar();
+                        return Ok(u);
                     }
                 }
             }

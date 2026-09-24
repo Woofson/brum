@@ -849,31 +849,12 @@ async fn handle_get_me(
             .map(|p| p.to_string_lossy().to_string())
             .unwrap_or_else(|| "/".to_string());
 
-        if let Ok(Some(user)) = state.auth.get_user_by_username(&current_user) {
+        if let Ok(Some(mut user)) = state.auth.get_user_by_username(&current_user) {
+            user.resolve_avatar();
             return Ok(Json(user));
         }
 
-        #[allow(unused_mut)]
-        let mut avatar_url = None;
-        #[cfg(unix)]
-        {
-            use base64::Engine;
-            if let Some(ref home) = dirs::home_dir() {
-                let face_path = home.join(".face");
-                let face_icon = home.join(".face.icon");
-                if face_path.exists() {
-                    if let Ok(bytes) = std::fs::read(&face_path) {
-                        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
-                        avatar_url = Some(format!("data:{};base64,{}", mime, base64::engine::general_purpose::STANDARD.encode(&bytes)));
-                    }
-                } else if face_icon.exists() {
-                    if let Ok(bytes) = std::fs::read(&face_icon) {
-                        let mime = if bytes.starts_with(&[0x89, b'P', b'N', b'G']) { "image/png" } else { "image/jpeg" };
-                        avatar_url = Some(format!("data:{};base64,{}", mime, base64::engine::general_purpose::STANDARD.encode(&bytes)));
-                    }
-                }
-            }
-        }
+        let avatar_url = crate::auth::resolve_system_avatar(&current_user, &home_dir);
 
         return Ok(Json(User {
             id: 1,
@@ -897,20 +878,23 @@ async fn handle_get_me(
     if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
         match state.auth.verify_token(token_str) {
             Ok(claims) => {
-                if let Ok(Some(user)) = state.auth.get_user_by_username(&claims.sub) {
+                if let Ok(Some(mut user)) = state.auth.get_user_by_username(&claims.sub) {
+                    user.resolve_avatar();
                     return Ok(Json(user));
                 }
                 // Automatically sync PAM user to database so they appear in Users table & RBAC
-                if let Ok(synced_user) = state.auth.sync_pam_user_to_db(&claims.sub, &claims.role, &claims.home_dir) {
+                if let Ok(mut synced_user) = state.auth.sync_pam_user_to_db(&claims.sub, &claims.role, &claims.home_dir) {
+                    synced_user.resolve_avatar();
                     return Ok(Json(synced_user));
                 }
                 let is_admin = claims.role == "admin";
+                let avatar_url = crate::auth::resolve_system_avatar(&claims.sub, &claims.home_dir);
                 Ok(Json(User {
                     id: 0,
                     username: claims.sub,
                     nickname: None,
                     email: None,
-                    avatar_url: None,
+                    avatar_url,
                     role: claims.role,
                     home_dir: claims.home_dir,
                     is_pam: claims.is_pam,

@@ -15086,9 +15086,9 @@ function updateHeaderProfile(user) {
   const localNick = localStorage.getItem('cd_local_nickname');
   const localAvatar = localStorage.getItem('cd_local_avatar');
   const localEmail = localStorage.getItem('cd_local_email');
-  const uname = localNick || user.nickname || user.username || 'User';
+  const uname = user.nickname || localNick || user.username || 'User';
   const roleStr = (user.role || 'ADMIN').toUpperCase();
-  const avatar = localAvatar || user.avatar_url || '👤';
+  const avatar = user.avatar_url || localAvatar || '👤';
 
   const headerLabel = document.getElementById('header-username-label');
   const headerBadge = document.getElementById('header-role-badge');
@@ -15553,8 +15553,8 @@ function openUserProfileModal() {
   const localAvatar = localStorage.getItem('cd_local_avatar');
   const localEmail = localStorage.getItem('cd_local_email');
 
-  if (editAvatar) renderAvatarElement(editAvatar, localAvatar || user.avatar_url || '👤');
-  if (editUname) editUname.textContent = localNick || user.nickname || user.username || 'User';
+  if (editAvatar) renderAvatarElement(editAvatar, user.avatar_url || localAvatar || '👤');
+  if (editUname) editUname.textContent = user.nickname || localNick || user.username || 'User';
   if (editBadge) editBadge.textContent = (user.role || 'ADMIN').toUpperCase();
   if (editAuthType) editAuthType.textContent = (App.isStandalone || !App.token) ? 'Local Standalone Mode' : (user.is_pam ? 'PAM / Local Linux Account' : 'Internal Database Account');
 
@@ -15563,9 +15563,9 @@ function openUserProfileModal() {
   const avatarInput = document.getElementById('profile-input-avatar');
   const passInput = document.getElementById('profile-input-password');
 
-  if (nickInput) nickInput.value = localNick || user.nickname || '';
-  if (emailInput) emailInput.value = localEmail || user.email || '';
-  if (avatarInput) avatarInput.value = localAvatar || user.avatar_url || '';
+  if (nickInput) nickInput.value = user.nickname || localNick || '';
+  if (emailInput) emailInput.value = user.email || localEmail || '';
+  if (avatarInput) avatarInput.value = user.avatar_url || localAvatar || '';
   if (passInput) passInput.value = '';
 
   const passSection = document.getElementById('profile-password-section');
