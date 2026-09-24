@@ -21353,6 +21353,10 @@ function closeModal(id) {
     closeConverterModal();
     return;
   }
+  if (id === 'file-splitter-modal' || id === 'floating-splitter-window') {
+    closeFloatingSplitter();
+    return;
+  }
   if (id) {
     hideModal(id);
   } else {
@@ -30963,6 +30967,8 @@ function undockToolFromPane(paneIndex) {
     openTagEditor();
   } else if (tool === 'logviewer') {
     openLogViewer();
+  } else if (tool === 'splitter') {
+    openFileSplitterModal();
   } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     openDynamicChewToy(pluginId);
@@ -30975,6 +30981,14 @@ function closeDockedTool(paneIndex) {
   const tool = pane.dockedTool;
   pane.dockedTool = null;
   localStorage.removeItem(`cd_pane_docked_${paneIndex}`);
+
+  if (tool === 'splitter') {
+    const win = document.getElementById('floating-splitter-window');
+    const body = document.getElementById('splitter-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
 
   if (tool === 'duplicates') {
     const win = document.getElementById('floating-duplicates-window');
@@ -31495,6 +31509,15 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       mountDockedCadStudio(paneIndex);
+    }, 50);
+  }
+  // 16. DOCKED FILE SPLITTER & COMBINER
+  else if (tool === 'splitter') {
+    mount.innerHTML = `
+      <div class="docked-splitter-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-splitter-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedSplitter(paneIndex);
     }, 50);
   }
 
@@ -32088,7 +32111,11 @@ async function loadGitStatusForDocked(paneIndex, repoPath) {
 
 let splitterCurrentFileSizeBytes = 0;
 let combinerDetectedParts = [];
-let splitterDropzoneInitialized = false;
+let splitterDragInit = false;
+
+function isSplitterDocked() {
+  return Array.isArray(App.panes) && App.panes.some(p => p && p.dockedTool === 'splitter');
+}
 
 function switchSplitterTab(tab) {
   const splitBtn = document.getElementById('btn-splitter-tab-split');
@@ -32100,31 +32127,173 @@ function switchSplitterTab(tab) {
     if (splitBtn) splitBtn.classList.remove('active');
     if (combineBtn) combineBtn.classList.add('active');
     if (splitContent) splitContent.style.display = 'none';
-    if (combineContent) combineContent.style.display = 'block';
+    if (combineContent) combineContent.style.display = 'flex';
   } else {
     if (splitBtn) splitBtn.classList.add('active');
     if (combineBtn) combineBtn.classList.remove('active');
-    if (splitContent) splitContent.style.display = 'block';
+    if (splitContent) splitContent.style.display = 'flex';
     if (combineContent) combineContent.style.display = 'none';
   }
   if (window.lucide) lucide.createIcons();
 }
 
-function setupSplitterDropzone() {
-  if (splitterDropzoneInitialized) return;
-  splitterDropzoneInitialized = true;
+function initSplitterDragResize() {
+  if (splitterDragInit) return;
+  splitterDragInit = true;
 
-  const modal = document.getElementById('file-splitter-modal');
+  const win = document.getElementById('floating-splitter-window');
+  const header = document.getElementById('splitter-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_splitter_x');
+  const savedTop = localStorage.getItem('cd_splitter_y');
+  const savedWidth = localStorage.getItem('cd_splitter_w');
+  const savedHeight = localStorage.getItem('cd_splitter_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(340, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(380, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  let isResizing = false;
+  let resizeMode = null;
+  let startW = 0, startH = 0;
+  let resizeStartX = 0, resizeStartY = 0;
+  let resizeStartLeft = 0, resizeStartTop = 0;
+
+  function onResizeStart(e, mode) {
+    if (window.innerWidth <= 1024 || win.classList.contains('maximized')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    isResizing = true;
+    resizeMode = mode;
+    resizeStartX = e.clientX;
+    resizeStartY = e.clientY;
+    startW = win.offsetWidth;
+    startH = win.offsetHeight;
+    const rect = win.getBoundingClientRect();
+    resizeStartLeft = rect.left;
+    resizeStartTop = rect.top;
+    bringFloatingWindowToFront(win);
+    document.body.style.userSelect = 'none';
+    if (mode === 'corner') document.body.style.cursor = 'nwse-resize';
+    else if (mode === 'right' || mode === 'left') document.body.style.cursor = 'ew-resize';
+    else if (mode === 'bottom' || mode === 'top') document.body.style.cursor = 'ns-resize';
+  }
+
+  const cornerH = document.getElementById('splitter-resize-corner');
+  const rightH = document.getElementById('splitter-resize-right');
+  const bottomH = document.getElementById('splitter-resize-bottom');
+  const leftH = document.getElementById('splitter-resize-left');
+  const topH = document.getElementById('splitter-resize-top');
+
+  if (cornerH) cornerH.addEventListener('mousedown', (e) => onResizeStart(e, 'corner'));
+  if (rightH) rightH.addEventListener('mousedown', (e) => onResizeStart(e, 'right'));
+  if (bottomH) bottomH.addEventListener('mousedown', (e) => onResizeStart(e, 'bottom'));
+  if (leftH) leftH.addEventListener('mousedown', (e) => onResizeStart(e, 'left'));
+  if (topH) topH.addEventListener('mousedown', (e) => onResizeStart(e, 'top'));
+
+  window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      const dx = e.clientX - dragStartX;
+      const dy = e.clientY - dragStartY;
+      const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+      const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+      win.style.left = `${newX}px`;
+      win.style.top = `${newY}px`;
+      return;
+    }
+
+    if (isResizing) {
+      const dx = e.clientX - resizeStartX;
+      const dy = e.clientY - resizeStartY;
+      const minW = 340;
+      const minH = 380;
+      const maxW = window.innerWidth - 20;
+      const maxH = window.innerHeight - 40;
+
+      if (resizeMode === 'corner' || resizeMode === 'right') {
+        const newW = Math.max(minW, Math.min(maxW, startW + dx));
+        win.style.width = `${newW}px`;
+      }
+      if (resizeMode === 'corner' || resizeMode === 'bottom') {
+        const newH = Math.max(minH, Math.min(maxH, startH + dy));
+        win.style.height = `${newH}px`;
+      }
+      if (resizeMode === 'left') {
+        const newW = Math.max(minW, Math.min(maxW, startW - dx));
+        const newLeft = resizeStartLeft + (startW - newW);
+        win.style.width = `${newW}px`;
+        win.style.left = `${newLeft}px`;
+      }
+      if (resizeMode === 'top') {
+        const newH = Math.max(minH, Math.min(maxH, startH - dy));
+        const newTop = resizeStartTop + (startH - newH);
+        win.style.height = `${newH}px`;
+        win.style.top = `${newTop}px`;
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_splitter_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_splitter_y', parseInt(win.style.top, 10));
+    }
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.width) localStorage.setItem('cd_splitter_w', parseInt(win.style.width, 10));
+      if (win.style.height) localStorage.setItem('cd_splitter_h', parseInt(win.style.height, 10));
+      if (win.style.left) localStorage.setItem('cd_splitter_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_splitter_y', parseInt(win.style.top, 10));
+    }
+  });
+
+  setupSplitterDropzone(win);
+}
+
+function setupSplitterDropzone(customWin = null) {
+  const win = customWin || document.getElementById('floating-splitter-window');
+  const body = document.getElementById('splitter-body');
   const dropzone = document.getElementById('splitter-dropzone');
   const combineList = document.getElementById('combine-parts-list');
-  const targetElements = [modal, dropzone, combineList].filter(Boolean);
+  const targetElements = [win, body, dropzone, combineList].filter(Boolean);
 
   targetElements.forEach(el => {
+    if (el._splitterDropzoneBound) return;
+    el._splitterDropzoneBound = true;
+
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
       if (dropzone) dropzone.classList.add('drag-over');
-      if (modal) modal.classList.add('drag-over');
+      if (win) win.classList.add('drag-over');
     });
 
     el.addEventListener('dragleave', (e) => {
@@ -32132,7 +32301,7 @@ function setupSplitterDropzone() {
       e.stopPropagation();
       if (!el.contains(e.relatedTarget)) {
         if (dropzone) dropzone.classList.remove('drag-over');
-        if (modal) modal.classList.remove('drag-over');
+        if (win) win.classList.remove('drag-over');
       }
     });
 
@@ -32140,7 +32309,7 @@ function setupSplitterDropzone() {
       e.preventDefault();
       e.stopPropagation();
       if (dropzone) dropzone.classList.remove('drag-over');
-      if (modal) modal.classList.remove('drag-over');
+      if (win) win.classList.remove('drag-over');
 
       let droppedPaths = [];
 
@@ -32184,7 +32353,28 @@ function setupSplitterDropzone() {
   });
 }
 
-function openFileSplitterModal(filePath, sizeBytes) {
+function openFileSplitterModal(filePath = null, sizeBytes = null) {
+  const win = document.getElementById('floating-splitter-window');
+  const body = document.getElementById('splitter-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
+  const pill = document.getElementById('splitter-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  initSplitterDragResize();
   switchSplitterTab('split');
 
   // If no file path is provided, try resolving from active pane
@@ -32210,7 +32400,6 @@ function openFileSplitterModal(filePath, sizeBytes) {
 
   setSplitterSourceFile(filePath, sizeBytes);
   setupSplitterDropzone();
-  showModal('file-splitter-modal');
 }
 
 async function setSplitterSourceFile(filePath, sizeBytes) {
@@ -32359,7 +32548,9 @@ async function executeFileSplit() {
 
     if (resp.ok) {
       const res = await resp.json();
-      closeModal('file-splitter-modal');
+      if (!isSplitterDocked()) {
+        closeFloatingSplitter();
+      }
       showToast(`Successfully split into ${res.chunk_count} parts! SHA-256: ${res.sha256.substring(0, 10)}...`, 'success');
       refreshAllPanes();
     } else {
@@ -32374,7 +32565,28 @@ async function executeFileSplit() {
   }
 }
 
-function openFileCombinerModal(partsList) {
+function openFileCombinerModal(partsList = null) {
+  const win = document.getElementById('floating-splitter-window');
+  const body = document.getElementById('splitter-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
+  const pill = document.getElementById('splitter-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  initSplitterDragResize();
   switchSplitterTab('combine');
 
   let parts = Array.isArray(partsList) ? partsList : [];
@@ -32392,12 +32604,10 @@ function openFileCombinerModal(partsList) {
 
   setCombinerParts(parts);
   setupSplitterDropzone();
-  showModal('file-splitter-modal');
 }
 
 function setCombinerParts(partsList) {
   combinerDetectedParts = partsList || [];
-  // Sort naturally: .001, .002 ...
   combinerDetectedParts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
   const partsBox = document.getElementById('combine-parts-list');
@@ -32532,7 +32742,9 @@ async function executeFileCombine() {
         resultBox.innerHTML = `<span style="color: #22c55e; font-weight: 700;">✓ Combined ${res.parts_joined} parts successfully (${formatBytes(res.total_bytes_written)})</span><br><span style="font-family: var(--font-mono); font-size: 10.5px; opacity: 0.85;">${verifyMsg}</span>`;
       }
       setTimeout(() => {
-        closeModal('file-splitter-modal');
+        if (!isSplitterDocked()) {
+          closeFloatingSplitter();
+        }
       }, 1200);
       refreshAllPanes();
     } else {
@@ -32549,6 +32761,55 @@ async function executeFileCombine() {
     }
   } finally {
     if (btn) btn.disabled = false;
+  }
+}
+
+function closeFloatingSplitter() {
+  const win = document.getElementById('floating-splitter-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('splitter-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function minimizeFloatingSplitter() {
+  const win = document.getElementById('floating-splitter-window');
+  const pill = document.getElementById('splitter-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingSplitter() {
+  const isCombineTabActive = document.getElementById('splitter-tab-combine')?.style.display !== 'none';
+  if (isCombineTabActive) {
+    openFileCombinerModal(combinerDetectedParts);
+  } else {
+    openFileSplitterModal();
+  }
+}
+
+function toggleMaximizeSplitter() {
+  const win = document.getElementById('floating-splitter-window');
+  if (win) win.classList.toggle('maximized');
+}
+
+function dockSplitterToActivePane() {
+  closeFloatingSplitter();
+  App.panes[App.activePaneIndex].dockedTool = 'splitter';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'splitter');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+function mountDockedSplitter(paneIndex) {
+  const host = document.getElementById(`docked-splitter-host-${paneIndex}`);
+  const floatingBody = document.getElementById('splitter-body');
+  if (host && floatingBody) {
+    host.appendChild(floatingBody);
+    setupSplitterDropzone();
+    if (window.lucide) lucide.createIcons();
   }
 }
 

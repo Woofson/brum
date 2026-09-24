@@ -7656,27 +7656,41 @@
     </div>
   </div>
 
-  <!-- Multi-Part File Splitter & Combiner Modal -->
-  <!-- Multi-Part File Splitter & Combiner Modal -->
-  <div class="modal-overlay" id="file-splitter-modal" style="z-index: 2050;">
-    <div class="modal-box splitter-modal-box" style="width: 480px; max-width: calc(100vw - 28px); max-height: 88vh; display: flex; flex-direction: column;">
-      <div class="modal-header splitter-modal-header" style="padding: 10px 14px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <i data-lucide="scissors" style="color: var(--accent); width: 18px; height: 18px;"></i>
-          <span style="font-weight: 700; font-size: 14px;">File Splitter & Combiner</span>
-        </div>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('file-splitter-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
-      </div>
+  <!-- 🧩 Floating Multi-Part File Splitter & Combiner Window -->
+  <div class="floating-splitter-window" id="floating-splitter-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="splitter-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="splitter-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="splitter-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="splitter-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="splitter-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
 
+    <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
+    <div class="modal-header splitter-header" id="splitter-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="splitter-drag-handle">
+        <i data-lucide="scissors" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">File Splitter & Combiner</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-icon desktop-only" id="btn-splitter-dock" onclick="dockSplitterToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-splitter-maximize" onclick="toggleMaximizeSplitter()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingSplitter()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingSplitter()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- Splitter Workspace Body (Dockable into Pane) -->
+    <div class="splitter-body" id="splitter-body" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; height: calc(100% - 42px);">
       <!-- Tabs Header -->
-      <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 10px; background: var(--bg-dark);">
+      <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 10px; background: var(--bg-dark); flex-shrink: 0;">
         <button class="settings-tab-btn active" id="btn-splitter-tab-split" onclick="switchSplitterTab('split')"><i data-lucide="scissors"></i> Split File</button>
         <button class="settings-tab-btn" id="btn-splitter-tab-combine" onclick="switchSplitterTab('combine')"><i data-lucide="merge"></i> Combine Parts</button>
       </div>
 
-      <div class="modal-body" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 11px;">
+      <div class="splitter-scroll-content" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 11px;">
         <!-- Tab 1: Split File -->
-        <div id="splitter-tab-split" class="splitter-tab-content">
+        <div id="splitter-tab-split" class="splitter-tab-content" style="display: flex; flex-direction: column; flex: 1;">
           <!-- Dropzone & Quick Selector -->
           <div class="converter-dropzone" id="splitter-dropzone" style="min-height: 60px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer;" onclick="if(!event.target.closest('button')) openSplitterFilePicker();" title="Drag & drop a file here or click to browse">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
@@ -7733,14 +7747,14 @@
             <div style="font-size: 11px; color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 6px;" id="split-status-text"><i data-lucide="loader" class="spinner" style="width: 13px; height: 13px;"></i> Splitting file...</div>
           </div>
 
-          <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px;">
-            <button class="btn btn-sm" onclick="closeModal('file-splitter-modal')">Cancel</button>
+          <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto;">
+            <button class="btn btn-sm" onclick="closeFloatingSplitter()">Close</button>
             <button class="btn btn-sm btn-accent" id="btn-run-split" onclick="executeFileSplit()"><i data-lucide="scissors" style="width: 13px; height: 13px;"></i> Split File</button>
           </div>
         </div>
 
         <!-- Tab 2: Combine Parts -->
-        <div id="splitter-tab-combine" class="splitter-tab-content" style="display: none;">
+        <div id="splitter-tab-combine" class="splitter-tab-content" style="display: none; flex-direction: column; flex: 1;">
           <div class="form-group" style="margin-bottom: 10px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label style="font-weight: 600; font-size: 11.5px; color: var(--text-dim);">Detected Parts to Join (Drag files here):</label>
@@ -7766,13 +7780,19 @@
 
           <div id="combine-result-box" style="display: none; padding: 8px 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 8px;"></div>
 
-          <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px;">
-            <button class="btn btn-sm" onclick="closeModal('file-splitter-modal')">Cancel</button>
+          <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto;">
+            <button class="btn btn-sm" onclick="closeFloatingSplitter()">Close</button>
             <button class="btn btn-sm btn-accent" id="btn-run-combine" onclick="executeFileCombine()"><i data-lucide="merge" style="width: 13px; height: 13px;"></i> Join & Verify</button>
           </div>
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- Taskbar Pill for Splitter -->
+  <div class="splitter-pill" id="splitter-pill" style="display: none;" onclick="restoreFloatingSplitter()" title="Click to restore File Splitter & Combiner">
+    <i data-lucide="scissors" style="width: 13px; height: 13px; color: var(--accent);"></i>
+    <span>Splitter & Combiner</span>
   </div>
 
   <!-- Pure-Rust PDF Split & Merger Tool Modal -->
