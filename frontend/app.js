@@ -545,6 +545,147 @@ function getUserDefaultHomeDir() {
   return '~';
 }
 
+// ---------------- ⚡ DIRECTORY FAST CACHE (0ms Optimistic Rendering) ----------------
+const _dirCacheMemMap = new Map();
+const MAX_DIR_CACHE_ENTRIES = 40;
+
+function getDirCacheKey(nodeId, path) {
+  const normNode = (nodeId && nodeId.trim() !== '') ? nodeId : 'local';
+  const normPath = (path && path.trim() !== '') ? path : '/';
+  return `cd_dircache_${normNode}_${normPath}`;
+}
+
+function getDirectoryCache(nodeId, path) {
+  if (!path) return null;
+  const key = getDirCacheKey(nodeId, path);
+  if (_dirCacheMemMap.has(key)) {
+    return _dirCacheMemMap.get(key);
+  }
+  try {
+    const raw = sessionStorage.getItem(key);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && Array.isArray(parsed.entries)) {
+        _dirCacheMemMap.set(key, parsed);
+        return parsed;
+      }
+    }
+  } catch (_) {}
+  return null;
+}
+
+function setDirectoryCache(nodeId, path, data) {
+  if (!path || !data || !Array.isArray(data.entries)) return;
+  const key = getDirCacheKey(nodeId, path);
+  const cacheObj = {
+    current_path: data.current_path || path,
+    parent_path: data.parent_path || null,
+    entries: data.entries || [],
+    total_size: data.total_size || 0,
+    is_truncated: !!data.is_truncated,
+    max_limit: data.max_limit || 5000,
+    timestamp: Date.now()
+  };
+  _dirCacheMemMap.set(key, cacheObj);
+  if (_dirCacheMemMap.size > MAX_DIR_CACHE_ENTRIES) {
+    const firstKey = _dirCacheMemMap.keys().next().value;
+    _dirCacheMemMap.delete(firstKey);
+  }
+  try {
+    sessionStorage.setItem(key, JSON.stringify(cacheObj));
+  } catch (_) {
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith('cd_dircache_') && k !== key) {
+          sessionStorage.removeItem(k);
+        }
+      }
+      sessionStorage.setItem(key, JSON.stringify(cacheObj));
+    } catch (_) {}
+  }
+}
+
+function invalidateDirectoryCache(nodeId, path) {
+  if (!path) {
+    _dirCacheMemMap.clear();
+    try {
+      for (let i = sessionStorage.length - 1; i >= 0; i--) {
+        const k = sessionStorage.key(i);
+        if (k && k.startsWith('cd_dircache_')) sessionStorage.removeItem(k);
+      }
+    } catch (_) {}
+    return;
+  }
+  const key = getDirCacheKey(nodeId, path);
+  _dirCacheMemMap.delete(key);
+  try {
+    sessionStorage.removeItem(key);
+  } catch (_) {}
+}
+
+function getStartupSettings() {
+  const mode = localStorage.getItem('cd_startup_mode') || 'restore';
+  const remoteFallback = localStorage.getItem('cd_startup_remote_fallback') || 'home_fallback';
+  const customPaths = [
+    localStorage.getItem('cd_startup_custom_path_0') || '',
+    localStorage.getItem('cd_startup_custom_path_1') || '',
+    localStorage.getItem('cd_startup_custom_path_2') || '',
+    localStorage.getItem('cd_startup_custom_path_3') || ''
+  ];
+  return { mode, remoteFallback, customPaths };
+}
+
+function handleStartupSettingChange() {
+  const modeSel = document.getElementById('setting-startup-mode');
+  const remoteSel = document.getElementById('setting-startup-remote-fallback');
+  const customWrapper = document.getElementById('wrapper-startup-custom-presets');
+
+  if (modeSel) {
+    const val = modeSel.value;
+    localStorage.setItem('cd_startup_mode', val);
+    if (customWrapper) {
+      customWrapper.style.display = (val === 'custom') ? 'block' : 'none';
+    }
+    const rememberChk = document.getElementById('setting-remember-paths');
+    if (rememberChk) {
+      rememberChk.checked = (val === 'restore');
+      localStorage.setItem('setting-remember-paths', (val === 'restore') ? 'true' : 'false');
+    }
+  }
+
+  if (remoteSel) {
+    localStorage.setItem('cd_startup_remote_fallback', remoteSel.value);
+  }
+
+  for (let i = 0; i < 4; i++) {
+    const input = document.getElementById(`setting-startup-custom-path-${i}`);
+    if (input) {
+      localStorage.setItem(`cd_startup_custom_path_${i}`, input.value.trim());
+    }
+  }
+
+  if (typeof queueSaveUserPreferencesToServer === 'function') {
+    queueSaveUserPreferencesToServer();
+  }
+}
+
+function captureCurrentPathsForCustomStartup() {
+  for (let i = 0; i < 4; i++) {
+    const pane = App.panes[i];
+    const path = pane ? pane.path : getUserDefaultHomeDir();
+    const input = document.getElementById(`setting-startup-custom-path-${i}`);
+    if (input) {
+      input.value = path;
+      localStorage.setItem(`cd_startup_custom_path_${i}`, path);
+    }
+  }
+  showToast('Current panel paths saved as custom startup presets', 'success');
+  if (typeof queueSaveUserPreferencesToServer === 'function') {
+    queueSaveUserPreferencesToServer();
+  }
+}
+
 class PaneTabState {
   constructor(path, options = {}) {
     this.id = options.id || `tab_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
@@ -1718,6 +1859,23 @@ function bootApp() {
         if (avatarEl) renderAvatarElement(avatarEl, avatar);
       } catch (_) {}
     }
+
+    // ⚡ Frame-0 Instant Optimistic Pane Mounting:
+    // If a session token, standalone mode, or auth-disabled is present and session is not locked,
+    // immediately render pane frames and cached directories on frame 0!
+    const token = App.token || localStorage.getItem('cd_token');
+    const isStandalone = isStandaloneMode() || localStorage.getItem('cd_standalone_mode') === 'true';
+    const authDisabled = localStorage.getItem('cd_auth_disabled') === 'true';
+    const isLocked = localStorage.getItem('cd_is_locked') === 'true';
+    if ((token || isStandalone || authDisabled) && !isLocked) {
+      document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
+      document.documentElement.classList.add('auth-ready');
+      try {
+        renderAllPanes(true);
+      } catch (optErr) {
+        console.warn('Optimistic frame-0 render warning:', optErr);
+      }
+    }
   } catch (initErr) {
     console.error('Core UI initialization error:', initErr);
   } finally {
@@ -1734,15 +1892,60 @@ if (document.readyState === 'loading') {
 function initPanes() {
   const defaultCount = 4;
   const defaultHome = getUserDefaultHomeDir();
+  const startupSettings = getStartupSettings();
+
   for (let i = 0; i < defaultCount; i++) {
-    const p = new PaneState(i, defaultHome);
-    p.nodeId = localStorage.getItem(`cd_pane_node_${i}`) || 'local';
+    let startupNode = localStorage.getItem(`cd_pane_node_${i}`) || 'local';
+    let startupPath = defaultHome;
+
+    // Remote host boot fallback check (Reset to local home to avoid network connection delay)
+    if (startupSettings.remoteFallback === 'home_fallback' && startupNode !== 'local') {
+      startupNode = 'local';
+      localStorage.setItem(`cd_pane_node_${i}`, 'local');
+    }
+
+    if (startupSettings.mode === 'home') {
+      startupPath = defaultHome;
+    } else if (startupSettings.mode === 'root') {
+      startupPath = '/';
+    } else if (startupSettings.mode === 'custom') {
+      startupPath = startupSettings.customPaths[i] || defaultHome;
+    } else { // 'restore'
+      const remember = localStorage.getItem('setting-remember-paths') !== 'false';
+      const savedPath = localStorage.getItem(`cd_pane_path_${i}`);
+      if (remember && savedPath && savedPath !== '/') {
+        if (startupSettings.remoteFallback === 'home_fallback' && (savedPath.startsWith('ssh://') || savedPath.startsWith('sftp://') || savedPath.startsWith('smb://') || savedPath.startsWith('client://'))) {
+          startupPath = defaultHome;
+        } else {
+          startupPath = savedPath;
+        }
+      } else {
+        startupPath = defaultHome;
+      }
+    }
+
+    const p = new PaneState(i, startupPath);
+    p.nodeId = startupNode;
+    p.path = startupPath;
+    p.history = [startupPath];
+    p.historyIndex = 0;
     p.viewMode = localStorage.getItem(`cd_pane_viewmode_${i}`) || 'details';
     p.gridSize = localStorage.getItem(`cd_pane_gridsize_${i}`) || 'md';
     p.showTree = localStorage.getItem(`cd_pane_tree_${i}`) === '1';
     p.dockedTool = localStorage.getItem(`cd_pane_docked_${i}`) || null;
     p.syncScroll = localStorage.getItem(`cd_pane_sync_scroll_${i}`) !== 'false';
     p.syncNav = localStorage.getItem(`cd_pane_sync_nav_${i}`) !== 'false';
+
+    // Seed pane from directory fast cache immediately on frame 0!
+    const cachedListing = getDirectoryCache(p.nodeId, p.path);
+    if (cachedListing && cachedListing.entries && Array.isArray(cachedListing.entries)) {
+      p.entries = cachedListing.entries;
+      p.parentPath = cachedListing.parent_path || null;
+      p.totalSize = cachedListing.total_size || 0;
+      p.isBranchTruncated = !!cachedListing.is_truncated;
+      p.branchMaxLimit = cachedListing.max_limit || 5000;
+    }
+
     App.panes.push(p);
   }
   loadPaneCustomNames();
@@ -1750,6 +1953,34 @@ function initPanes() {
 
 function applyUserHomeToPanes(force = false) {
   const home = getUserDefaultHomeDir();
+  const startupSettings = getStartupSettings();
+
+  if (startupSettings.mode === 'home') {
+    App.panes.forEach((pane, idx) => {
+      pane.path = home;
+      pane.history = [home];
+      pane.historyIndex = 0;
+    });
+    return;
+  }
+  if (startupSettings.mode === 'root') {
+    App.panes.forEach((pane, idx) => {
+      pane.path = '/';
+      pane.history = ['/'];
+      pane.historyIndex = 0;
+    });
+    return;
+  }
+  if (startupSettings.mode === 'custom') {
+    App.panes.forEach((pane, idx) => {
+      const customPath = startupSettings.customPaths[idx] || home;
+      pane.path = customPath;
+      pane.history = [customPath];
+      pane.historyIndex = 0;
+    });
+    return;
+  }
+
   if (home && home !== '/') {
     App.panes.forEach((pane, idx) => {
       const saved = localStorage.getItem(`cd_pane_path_${idx}`);
@@ -2597,9 +2828,10 @@ async function loadSystemUsersGroups() {
   }
 }
 
-function renderAllPanes() {
+function renderAllPanes(optimisticOnly = false) {
   stashDockedTerminal();
   const container = document.getElementById('panes-grid');
+  if (!container) return;
   container.className = `panes-container ${App.layout}`;
   container.innerHTML = '';
 
@@ -2607,6 +2839,7 @@ function renderAllPanes() {
 
   for (let i = 0; i < visibleCount; i++) {
     const pane = App.panes[i];
+    if (!pane) continue;
     const paneEl = createPaneElement(pane, i);
     container.appendChild(paneEl);
     renderPaneTabs(i);
@@ -2616,13 +2849,33 @@ function renderAllPanes() {
       if (pane.showTree) {
         loadPaneDirectoryTree(i);
       }
-      loadPaneDirectory(i, pane.path);
+      // Immediate optimistic render if cached entries exist
+      if (pane.entries && pane.entries.length > 0) {
+        renderPaneBreadcrumbs(i, pane.path);
+        renderPaneTable(i);
+      }
     }
   }
 
   applyPaneColors();
   applyAllColumnWidths();
   if (window.lucide) lucide.createIcons();
+
+  if (optimisticOnly) {
+    return;
+  }
+
+  // Parallel batched directory revalidation across all visible file panes
+  const revalPromises = [];
+  for (let i = 0; i < visibleCount; i++) {
+    const pane = App.panes[i];
+    if (pane && !pane.dockedTool) {
+      revalPromises.push(loadPaneDirectory(i, pane.path, false, null, false, false, true));
+    }
+  }
+  if (revalPromises.length > 0) {
+    Promise.allSettled(revalPromises);
+  }
 }
 
 function createPaneElement(pane, index) {
@@ -3975,7 +4228,7 @@ function computeJsLineDiff(textL, textR) {
   };
 }
 
-async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false, isSyncNav = false) {
+async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false, isSyncNav = false, backgroundRevalidate = false) {
   const pane = App.panes[paneIndex];
   if (!pane) return;
 
@@ -4022,6 +4275,25 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     } catch (_) {}
   }
 
+  // ⚡ Optimistic Cache Hydration: Render cached directory snapshot immediately on frame 0
+  if (!pane.isBranchView) {
+    const cached = getDirectoryCache(pane.nodeId, cleanPath);
+    if (cached && cached.entries && Array.isArray(cached.entries)) {
+      pane.entries = cached.entries;
+      pane.parentPath = cached.parent_path || null;
+      pane.totalSize = cached.total_size || 0;
+      pane.isBranchTruncated = !!cached.is_truncated;
+      pane.branchMaxLimit = cached.max_limit || 5000;
+      try {
+        renderPaneBreadcrumbs(paneIndex, pane.path);
+        renderPaneTabs(paneIndex);
+        if (!pane.dockedTool) {
+          renderPaneTable(paneIndex);
+        }
+      } catch (_) {}
+    }
+  }
+
   pane._abortController = new AbortController();
 
   if (pane.isBranchView) {
@@ -4053,20 +4325,54 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
           return;
         }
       }
-      if (!isSyncNav) {
+      if (!isSyncNav && !backgroundRevalidate) {
         showToast(`Failed to load directory: ${errText}`, 'error');
       }
       return;
     }
 
     const data = await resp.json();
-    pane.path = sanitizeCredentials(data.current_path);
-    pane.parentPath = data.parent_path ? sanitizeCredentials(data.parent_path) : null;
-    pane.entries = (data.entries || []).map(e => ({
+    const newPath = sanitizeCredentials(data.current_path);
+    const newParent = data.parent_path ? sanitizeCredentials(data.parent_path) : null;
+    const newEntries = (data.entries || []).map(e => ({
       ...e,
       path: sanitizeCredentials(e.path)
     }));
-    pane.totalSize = data.total_size;
+    const newTotalSize = data.total_size;
+
+    // Cache updated directory listing (except flat recursive branches)
+    if (!pane.isBranchView) {
+      setDirectoryCache(pane.nodeId, newPath, {
+        current_path: newPath,
+        parent_path: newParent,
+        entries: newEntries,
+        total_size: newTotalSize,
+        is_truncated: !!data.is_truncated,
+        max_limit: data.max_limit || 5000
+      });
+    }
+
+    // Determine if DOM re-render is necessary during background revalidation
+    let needsRerender = true;
+    if (backgroundRevalidate && pane.entries && pane.entries.length === newEntries.length && pane.path === newPath) {
+      let isIdentical = true;
+      for (let i = 0; i < newEntries.length; i++) {
+        const oldE = pane.entries[i];
+        const newE = newEntries[i];
+        if (!oldE || oldE.name !== newE.name || oldE.size !== newE.size || oldE.modified !== newE.modified || oldE.is_dir !== newE.is_dir) {
+          isIdentical = false;
+          break;
+        }
+      }
+      if (isIdentical) {
+        needsRerender = false;
+      }
+    }
+
+    pane.path = newPath;
+    pane.parentPath = newParent;
+    pane.entries = newEntries;
+    pane.totalSize = newTotalSize;
     pane.isBranchTruncated = !!data.is_truncated;
     pane.branchMaxLimit = data.max_limit || 5000;
 
@@ -4094,7 +4400,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
 
     if (pane.dockedTool) {
       renderDockedPaneTool(paneIndex);
-    } else {
+    } else if (needsRerender) {
       renderPaneTable(paneIndex);
       const activeTab = pane.tabs ? pane.tabs[pane.activeTabIndex] : null;
       if (activeTab && activeTab.scrollTop) {
@@ -4126,7 +4432,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     console.error('Directory load error:', e);
     pane.path = prevPath;
     if (prevPath) localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
-    if (!isSyncNav) {
+    if (!isSyncNav && !backgroundRevalidate) {
       showToast(`Directory load error: ${e.message}`, 'error');
     }
   } finally {
@@ -4872,10 +5178,6 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
     branchBanner.remove();
   }
 
-  tbody.innerHTML = '';
-  if (gridEl) gridEl.innerHTML = '';
-  if (compactEl) compactEl.innerHTML = '';
-
   const mode = pane.viewMode || 'details';
 
   const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
@@ -4918,6 +5220,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
   const showParent = App.showParentDir && pane.path !== '/' && pane.path !== '' && !pane.filterText;
 
   if (mode === 'grid') {
+    const gridFrag = document.createDocumentFragment();
     if (showParent) {
       const pCard = document.createElement('div');
       pCard.className = 'grid-gallery-card parent-dir-card';
@@ -4947,7 +5250,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         setActivePane(paneIndex);
         navPaneUp(paneIndex);
       };
-      gridEl.appendChild(pCard);
+      gridFrag.appendChild(pCard);
     }
 
     filtered.forEach((entry, idx) => {
@@ -5129,10 +5432,16 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         showContextMenu(e.clientX, e.clientY);
       };
 
-      gridEl.appendChild(card);
+      gridFrag.appendChild(card);
     });
 
+    if (gridEl) {
+      gridEl.innerHTML = '';
+      gridEl.appendChild(gridFrag);
+    }
+
   } else if (mode === 'compact') {
+    const compactFrag = document.createDocumentFragment();
     if (showParent) {
       const pItem = document.createElement('div');
       pItem.className = 'compact-list-item parent-dir-item';
@@ -5187,7 +5496,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         setActivePane(paneIndex);
         navPaneUp(paneIndex);
       };
-      compactEl.appendChild(pItem);
+      compactFrag.appendChild(pItem);
     }
 
     filtered.forEach((entry, idx) => {
@@ -5361,11 +5670,17 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         showContextMenu(e.clientX, e.clientY);
       };
 
-      compactEl.appendChild(item);
+      compactFrag.appendChild(item);
     });
+
+    if (compactEl) {
+      compactEl.innerHTML = '';
+      compactEl.appendChild(compactFrag);
+    }
 
   } else {
     // Details Mode (Orthodox Table)
+    const tbodyFrag = document.createDocumentFragment();
     const showDirTag = localStorage.getItem('cd_show_dir_tag') === '1';
     const compactDates = localStorage.getItem('cd_compact_dates') !== '0';
     const isMultiLine = localStorage.getItem('cd_file_list_multiline') === '1';
@@ -5474,7 +5789,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         ${ColumnConfig.visibility.hash ? '<td class="file-cell file-cell-mono file-cell-hash">-</td>' : ''}
         ${ColumnConfig.visibility.tags ? '<td class="file-cell file-cell-mono file-cell-tags">-</td>' : ''}
       `;
-      tbody.appendChild(parentTr);
+      tbodyFrag.appendChild(parentTr);
     }
 
     filtered.forEach((entry, idx) => {
@@ -5731,8 +6046,11 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         ${ColumnConfig.visibility.tags ? `<td class="file-cell file-cell-mono file-cell-tags">${tagInfo?.color_label ? `<span class="color-dot-mini color-${tagInfo.color_label}" style="vertical-align: middle;"></span> ` : ''}${tagInfo?.tags?.length ? tagInfo.tags.join(', ') : '-'}</td>` : ''}
       `;
 
-      tbody.appendChild(tr);
+      tbodyFrag.appendChild(tr);
     });
+
+    tbody.innerHTML = '';
+    tbody.appendChild(tbodyFrag);
   }
 
   if (preserveScroll && mainEl && prevScrollTop > 0) {
@@ -18585,6 +18903,28 @@ function openHelpModal() {
 }
 
 function openSettingsModal() {
+  const startupSettings = getStartupSettings();
+  const startupModeSel = document.getElementById('setting-startup-mode');
+  if (startupModeSel) {
+    startupModeSel.value = startupSettings.mode;
+    const customWrapper = document.getElementById('wrapper-startup-custom-presets');
+    if (customWrapper) customWrapper.style.display = (startupSettings.mode === 'custom') ? 'block' : 'none';
+  }
+  const startupRemoteSel = document.getElementById('setting-startup-remote-fallback');
+  if (startupRemoteSel) {
+    startupRemoteSel.value = startupSettings.remoteFallback;
+  }
+  for (let i = 0; i < 4; i++) {
+    const input = document.getElementById(`setting-startup-custom-path-${i}`);
+    if (input) {
+      input.value = startupSettings.customPaths[i] || '';
+    }
+  }
+  const rememberChk = document.getElementById('setting-remember-paths');
+  if (rememberChk) {
+    rememberChk.checked = (startupSettings.mode === 'restore');
+  }
+
   const dblclickCheckbox = document.getElementById('setting-dblclick-up');
   if (dblclickCheckbox) {
     dblclickCheckbox.checked = App.dblclickUpDir;
@@ -21488,6 +21828,10 @@ function refreshPane(index, selectItemName = null) {
   if (btn) {
     btn.classList.add('refreshing');
     setTimeout(() => btn.classList.remove('refreshing'), 600);
+  }
+  const pane = App.panes[index];
+  if (pane && pane.path) {
+    invalidateDirectoryCache(pane.nodeId, pane.path);
   }
   loadPaneDirectory(index, App.panes[index].path, false, selectItemName, true);
 }

@@ -1237,6 +1237,66 @@
               </div>
             </div>
 
+            <!-- Card: Startup & Session Recovery -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="power"></i> Startup &amp; Session Recovery
+                </h4>
+              </div>
+              <p class="settings-card-desc">Configure initial panel directories, session restoration, and remote host startup fallback.</p>
+
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-startup-mode">Startup Panel Directories:</label>
+                  <select id="setting-startup-mode" class="settings-select" onchange="handleStartupSettingChange()">
+                    <option value="restore" selected>🔄 Restore Last Session (Remember and restore last opened folders)</option>
+                    <option value="home">🏠 User Home (Always open Home ~ across all panels)</option>
+                    <option value="root">📁 Filesystem Root (Always open Root / or C:\ across all panels)</option>
+                    <option value="custom">⚙️ Custom Presets (Define specific folders per panel)</option>
+                  </select>
+                  <div class="settings-field-hint">Choose what folders are opened when launching Brum.</div>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-startup-remote-fallback">Remote Host on Startup:</label>
+                  <select id="setting-startup-remote-fallback" class="settings-select" onchange="handleStartupSettingChange()">
+                    <option value="home_fallback" selected>🏠 Reset to Local Home (Fast boot, avoid network lag/timeouts)</option>
+                    <option value="reconnect">🌐 Reconnect to Remote Node (May delay startup if host is offline)</option>
+                  </select>
+                  <div class="settings-field-hint">Panes connected to remote nodes will boot locally to eliminate network connection lag.</div>
+                </div>
+              </div>
+
+              <!-- Collapsible Custom Presets Container -->
+              <div id="wrapper-startup-custom-presets" class="settings-field" style="display: none; margin-top: 8px; padding: 10px; background: rgba(0, 0, 0, 0.15); border: 1px solid var(--border); border-radius: var(--radius);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label class="settings-field-label" style="margin-bottom: 0;"><strong>Panel Custom Startup Folders:</strong></label>
+                  <button type="button" class="btn btn-xs btn-outline" onclick="captureCurrentPathsForCustomStartup()" style="height: 24px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="folder-check" style="width: 12px; height: 12px;"></i> Use Current Panel Paths
+                  </button>
+                </div>
+                <div class="settings-grid-2col" style="gap: 8px;">
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 1 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-0" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                  </div>
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 2 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-1" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                  </div>
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 3 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-2" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                  </div>
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 4 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-3" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Card 2: File Operations & Transfers -->
             <div class="settings-group-card">
               <div class="settings-card-header">
