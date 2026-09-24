@@ -76,6 +76,30 @@
         try {
           var v = localStorage.getItem('cd_cached_version');
           if (v) updateVersionElements(v);
+
+          // Early Lock Screen Avatar & Name Hydration
+          if (localStorage.getItem('cd_is_locked') === 'true') {
+            var localAvatar = localStorage.getItem('cd_local_avatar');
+            var localNick = localStorage.getItem('cd_local_nickname');
+            var cachedInfo = null;
+            try { cachedInfo = JSON.parse(localStorage.getItem('cd_user_info') || 'null'); } catch (_) {}
+            var avatar = localAvatar || (cachedInfo && cachedInfo.avatar_url) || '👤';
+            var uname = localNick || (cachedInfo && (cachedInfo.nickname || cachedInfo.username)) || localStorage.getItem('cd_last_username') || 'Brum User';
+
+            var userTextEl = document.getElementById('lock-username-text');
+            if (userTextEl) userTextEl.textContent = uname;
+
+            var avatarEl = document.getElementById('lock-avatar-thumb');
+            if (avatarEl && avatar) {
+              var isImg = avatar.startsWith('data:image') || avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/') || avatar.startsWith('assets/');
+              if (isImg) {
+                avatarEl.innerHTML = '<img src="' + avatar + '" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">';
+              } else {
+                avatarEl.textContent = avatar;
+              }
+            }
+          }
+
           fetch('/api/system/status').then(function(r) { return r.json(); }).then(function(d) {
             if (d && d.version) {
               localStorage.setItem('cd_cached_version', d.version);

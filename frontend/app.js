@@ -1695,25 +1695,27 @@ function bootApp() {
     if (localStorage.getItem('cd_is_locked') === 'true') {
       try {
         const cached = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
-        if (cached) {
-          const userTextEl = document.getElementById('lock-username-text');
-          const hostSuffixEl = document.getElementById('lock-hostname-suffix');
-          const userLabel = document.getElementById('lock-username-label');
-          const avatarEl = document.getElementById('lock-avatar-thumb');
-          const uname = cached.nickname || cached.username || 'Brum User';
-          const cfg = getHostnameBadgeSettings();
-          const hostStr = cfg.hostname || 'localhost';
+        const localAvatar = localStorage.getItem('cd_local_avatar');
+        const localNick = localStorage.getItem('cd_local_nickname');
+        const lastUser = localStorage.getItem('cd_last_username') || '';
+        const userTextEl = document.getElementById('lock-username-text');
+        const hostSuffixEl = document.getElementById('lock-hostname-suffix');
+        const userLabel = document.getElementById('lock-username-label');
+        const avatarEl = document.getElementById('lock-avatar-thumb');
+        const uname = localNick || cached?.nickname || cached?.username || lastUser || 'Brum User';
+        const avatar = localAvatar || cached?.avatar_url || '👤';
+        const cfg = getHostnameBadgeSettings();
+        const hostStr = cfg.hostname || 'localhost';
 
-          if (userTextEl) {
-            userTextEl.textContent = uname;
-          } else if (userLabel) {
-            userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(hostStr) : hostStr}</span>`;
-          }
-          if (hostSuffixEl) {
-            hostSuffixEl.textContent = `@${hostStr}`;
-          }
-          if (avatarEl) renderAvatarElement(avatarEl, cached.avatar_url || '👤');
+        if (userTextEl) {
+          userTextEl.textContent = uname;
+        } else if (userLabel) {
+          userLabel.innerHTML = `<span id="lock-username-text">${typeof escapeHtml === 'function' ? escapeHtml(uname) : uname}</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@${typeof escapeHtml === 'function' ? escapeHtml(hostStr) : hostStr}</span>`;
         }
+        if (hostSuffixEl) {
+          hostSuffixEl.textContent = `@${hostStr}`;
+        }
+        if (avatarEl) renderAvatarElement(avatarEl, avatar);
       } catch (_) {}
     }
   } catch (initErr) {
@@ -1870,12 +1872,16 @@ async function checkAuthAndLoad() {
 
     if (meResp && meResp.ok) {
       App.user = await meResp.json();
+      const localAvatar = localStorage.getItem('cd_local_avatar');
+      const localNick = localStorage.getItem('cd_local_nickname');
+      if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
+      if (localNick && !App.user.nickname) App.user.nickname = localNick;
       updateHeaderProfile(App.user);
       try {
         localStorage.setItem('cd_user_info', JSON.stringify({
           username: App.user.username,
-          nickname: App.user.nickname,
-          avatar_url: App.user.avatar_url
+          nickname: App.user.nickname || localNick,
+          avatar_url: App.user.avatar_url || localAvatar
         }));
         localStorage.setItem('cd_last_username', App.user.username);
       } catch (_) {}
@@ -14324,7 +14330,15 @@ async function executeFileConversion() {
 
 function renderAvatarElement(el, avatar) {
   if (!el) return;
-  const isImage = avatar && (avatar.startsWith('data:image') || avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/'));
+  const isImage = avatar && (
+    avatar.startsWith('data:image') ||
+    avatar.startsWith('http://') ||
+    avatar.startsWith('https://') ||
+    avatar.startsWith('/') ||
+    avatar.startsWith('blob:') ||
+    avatar.startsWith('assets/') ||
+    /\.(png|jpe?g|webp|gif|svg|ico)(\?.*)?$/i.test(avatar)
+  );
   if (isImage) {
     el.innerHTML = `<img src="${escapeHtml(avatar)}" alt="Avatar" style="width: 100%; height: 100%; object-fit: cover; border-radius: inherit; display: block;">`;
   } else {
@@ -14906,6 +14920,19 @@ async function saveUserProfile() {
   updateHeaderProfile(App.user);
 
   try {
+    localStorage.setItem('cd_user_info', JSON.stringify({
+      username: App.user.username,
+      nickname: nickname || App.user.nickname,
+      avatar_url: avatar_url || App.user.avatar_url
+    }));
+  } catch (_) {}
+
+  const lockAvatar = document.getElementById('lock-avatar-thumb');
+  if (lockAvatar) renderAvatarElement(lockAvatar, avatar_url || App.user.avatar_url || '👤');
+  const lockUserText = document.getElementById('lock-username-text');
+  if (lockUserText) lockUserText.textContent = nickname || App.user.nickname || App.user.username || 'Brum User';
+
+  try {
     const headers = { 'Content-Type': 'application/json' };
     if (App.token) {
       headers['Authorization'] = `Bearer ${App.token}`;
@@ -14927,7 +14954,16 @@ async function saveUserProfile() {
       const meResp = await fetch('/api/auth/me', { headers: meHeaders });
       if (meResp.ok) {
         App.user = await meResp.json();
+        if (avatar_url && !App.user.avatar_url) App.user.avatar_url = avatar_url;
+        if (nickname && !App.user.nickname) App.user.nickname = nickname;
         updateHeaderProfile(App.user);
+        try {
+          localStorage.setItem('cd_user_info', JSON.stringify({
+            username: App.user.username,
+            nickname: nickname || App.user.nickname,
+            avatar_url: avatar_url || App.user.avatar_url
+          }));
+        } catch (_) {}
       }
       setTimeout(() => closeModal('profile-modal'), 800);
     } else {
@@ -17311,8 +17347,10 @@ function lockSession() {
   }
 
   const lastUser = localStorage.getItem('cd_last_username') || '';
-  const uname = cachedUser?.nickname || cachedUser?.username || lastUser || 'Brum User';
-  const avatar = cachedUser?.avatar_url || '👤';
+  const localNick = localStorage.getItem('cd_local_nickname');
+  const localAvatar = localStorage.getItem('cd_local_avatar');
+  const uname = localNick || cachedUser?.nickname || cachedUser?.username || lastUser || 'Brum User';
+  const avatar = localAvatar || cachedUser?.avatar_url || '👤';
 
   const userTextEl = document.getElementById('lock-username-text');
   const hostSuffixEl = document.getElementById('lock-hostname-suffix');
@@ -17394,11 +17432,15 @@ async function submitUnlockSession() {
       }
       if (data.user) {
         App.user = data.user;
+        const localAvatar = localStorage.getItem('cd_local_avatar');
+        const localNick = localStorage.getItem('cd_local_nickname');
+        if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
+        if (localNick && !App.user.nickname) App.user.nickname = localNick;
         try {
           localStorage.setItem('cd_user_info', JSON.stringify({
             username: data.user.username,
-            nickname: data.user.nickname,
-            avatar_url: data.user.avatar_url
+            nickname: data.user.nickname || localNick,
+            avatar_url: data.user.avatar_url || localAvatar
           }));
           localStorage.setItem('cd_last_username', data.user.username);
         } catch (_) {}
@@ -17415,13 +17457,17 @@ async function submitUnlockSession() {
         const data = await loginResp.json();
         App.token = data.token;
         App.user = data.user;
+        const localAvatar = localStorage.getItem('cd_local_avatar');
+        const localNick = localStorage.getItem('cd_local_nickname');
+        if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
+        if (localNick && !App.user.nickname) App.user.nickname = localNick;
         localStorage.setItem('cd_token', data.token);
         try {
           document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
           localStorage.setItem('cd_user_info', JSON.stringify({
             username: data.user?.username,
-            nickname: data.user?.nickname,
-            avatar_url: data.user?.avatar_url
+            nickname: data.user?.nickname || localNick,
+            avatar_url: data.user?.avatar_url || localAvatar
           }));
           localStorage.setItem('cd_last_username', data.user?.username);
         } catch (_) {}
@@ -21235,7 +21281,9 @@ function formatDate(timestampSec, compact = undefined) {
 }
 
 function escapeHtml(str) {
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  if (str === null || str === undefined) return '';
+  if (typeof str !== 'string') str = String(str);
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function toggleFKeyBar(show) {
