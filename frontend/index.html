@@ -889,22 +889,36 @@
     </div>
   </div>
 
-  <!-- Sharing Center Dashboard Modal -->
-  <div class="modal-overlay" id="shares-manager-modal">
-    <div class="modal-box" style="width: 900px; max-width: 96vw; max-height: 88vh; display: flex; flex-direction: column;">
-      <div class="modal-header" style="min-height: 42px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/sharemgr.webp" alt="Shares" style="width: 16px; height: 16px; object-fit: contain;">
-          <span style="font-weight: 700; color: var(--accent); font-size: 14px;">Sharing Center</span>
-          <span class="badge badge-showcase" id="shares-count-badge" style="margin-left: 4px;">0 Active</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <button class="btn btn-icon btn-panel-control modal-close-btn" style="width: 28px; height: 28px;" onclick="closeModal('shares-manager-modal')" title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
-        </div>
+  <!-- 🔗 Floating Share Manager & Public Link Studio Window -->
+  <div class="floating-shares-window" id="floating-shares-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="shares-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="shares-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="shares-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="shares-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="shares-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
+    <div class="modal-header shares-header" id="shares-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="shares-drag-handle">
+        <img src="assets/sharemgr.webp" alt="Shares" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;" onerror="this.src='assets/amber-frameless-apps.webp'">
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Sharing Center</span>
+        <span class="badge badge-showcase" id="shares-count-badge" style="margin-left: 4px;">0 Active</span>
       </div>
-      <div class="modal-body" style="padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 4px;">
+        <button class="btn btn-icon desktop-only" id="btn-shares-dock" onclick="dockSharesToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-shares-maximize" onclick="toggleMaximizeShares()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingShares()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingShares()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- Shares Body (Dockable into Pane) -->
+    <div class="shares-body" id="shares-body" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; height: calc(100% - 42px);">
+      <div class="shares-scroll-content" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
         <!-- KPI Row -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 10px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px;">
           <div style="background: var(--bg-header); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; display: flex; align-items: center; gap: 10px;">
             <div style="font-size: 20px;">📦</div>
             <div>
@@ -937,29 +951,29 @@
 
         <!-- Filter & Search Toolbar -->
         <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-          <input type="text" id="shares-search-input" class="pane-quick-filter" style="padding: 6px 10px; font-size: 12px; min-width: 220px; flex: 1;" placeholder="🔍 Filter shares by name or path..." oninput="handleSharesFilterChange()">
-          <select id="shares-status-filter" class="pane-quick-filter" style="padding: 6px 10px; font-size: 12px; width: 150px;" onchange="handleSharesFilterChange()">
+          <input type="text" id="shares-search-input" class="pane-quick-filter" style="padding: 4px 10px; font-size: 11.5px; min-width: 180px; flex: 1; height: 26px;" placeholder="🔍 Filter shares by name or path..." oninput="handleSharesFilterChange()">
+          <select id="shares-status-filter" class="pane-quick-filter" style="padding: 2px 8px; font-size: 11.5px; width: 130px; height: 26px;" onchange="handleSharesFilterChange()">
             <option value="all">All Statuses</option>
             <option value="active" selected>Active Only</option>
             <option value="showcase">Showcase Mode</option>
             <option value="dropbox">Guest Dropboxes</option>
             <option value="revoked">Revoked</option>
           </select>
-          <button class="btn btn-accent" style="height: 28px; font-size: 12px;" onclick="triggerShare()"><i data-lucide="plus" style="width: 13px;"></i> New Share</button>
-          <button class="btn btn-outline btn-icon" style="width: 28px; height: 28px;" onclick="loadActiveShares()" title="Refresh Shares"><i data-lucide="rotate-cw" style="width: 13px;"></i></button>
+          <button class="btn btn-accent btn-xs" style="height: 26px; font-size: 11.5px; padding: 0 10px;" onclick="triggerShare()"><i data-lucide="plus" style="width: 13px;"></i> New Share</button>
+          <button class="btn btn-outline btn-icon btn-xs" style="width: 26px; height: 26px;" onclick="loadActiveShares()" title="Refresh Shares"><i data-lucide="rotate-cw" style="width: 13px;"></i></button>
         </div>
 
         <!-- Shares List / Table -->
-        <div style="overflow-x: auto; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border);">
+        <div style="overflow-x: auto; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); flex: 1; min-height: 140px;">
           <table class="file-table" style="width: 100%;">
             <thead>
               <tr>
                 <th style="width: 32px; text-align: center;">Mode</th>
                 <th>Name / Shared Path</th>
-                <th style="width: 120px;">Access Gates</th>
-                <th style="width: 90px;">Status</th>
-                <th style="width: 100px;">Expires</th>
-                <th style="width: 110px; text-align: center;">Activity</th>
+                <th style="width: 110px;">Access Gates</th>
+                <th style="width: 80px;">Status</th>
+                <th style="width: 90px;">Expires</th>
+                <th style="width: 100px; text-align: center;">Activity</th>
                 <th style="width: 130px; text-align: right;">Actions</th>
               </tr>
             </thead>
@@ -971,10 +985,19 @@
           </table>
         </div>
       </div>
-      <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: flex-end;">
-        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" onclick="closeModal('shares-manager-modal')">Close</button>
+      <div class="modal-footer" style="padding: 8px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 11px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;">
+          <i data-lucide="info" style="width: 13px; height: 13px;"></i> Drag files or folders here to quickly create a share link
+        </span>
+        <button class="btn btn-sm" onclick="closeFloatingShares()">Close</button>
       </div>
     </div>
+  </div>
+
+  <!-- Taskbar Pill for Sharing Center -->
+  <div class="shares-pill" id="shares-pill" style="display: none;" onclick="restoreFloatingShares()" title="Click to restore Sharing Center">
+    <img src="assets/sharemgr.webp" alt="Shares" style="width: 14px; height: 14px; object-fit: contain;" onerror="this.src='assets/amber-frameless-apps.webp'">
+    <span>Sharing Center</span>
   </div>
 
   <!-- Share Access Logs & Visitor Analytics Modal -->
@@ -5633,35 +5656,46 @@
     </div>
   </div>
 
-  <!-- Visual Disk Usage & Storage Treemap Analyzer Modal -->
-  <div class="modal-overlay" id="disk-usage-modal" style="z-index: 2860;">
-    <div class="modal-box disk-usage-box" id="disk-usage-box">
-      <!-- 42px Uniform ChewToy Header with Grab Handle -->
-      <div class="modal-header du-modal-header" id="disk-usage-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/amber-piechart.webp" alt="Stats" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;">
-          <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px;">Stats: Disk Usage & Storage Treemap Analyzer</span>
-          <span id="du-scan-duration-badge" class="badge" style="display: none; background: rgba(245, 158, 11, 0.15); color: var(--accent); font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;">0ms</span>
-        </div>
+  <!-- 💾 Floating Disk Usage & Storage Treemap Analyzer Window -->
+  <div class="floating-diskusage-window" id="floating-diskusage-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="diskusage-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="diskusage-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="diskusage-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="diskusage-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="diskusage-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
 
-        <!-- Right-Aligned Layout & Window Controls (28px Uniform) -->
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <!-- View Switcher -->
-          <div class="layout-btn-group" id="du-view-switcher" style="display: flex; gap: 2px; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
-            <button class="btn btn-icon btn-sm active" id="du-view-btn-mounts" onclick="setDiskUsageViewMode('mounts')" title="Drives & Mounted Storage Overview" style="width: 28px; height: 28px;"><i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i></button>
-            <button class="btn btn-icon btn-sm" id="du-view-btn-split" onclick="setDiskUsageViewMode('split')" title="Split View: Treemap & Item List" style="width: 28px; height: 28px;"><i data-lucide="columns-2" style="width: 14px; height: 14px;"></i></button>
-            <button class="btn btn-icon btn-sm" id="du-view-btn-treemap" onclick="setDiskUsageViewMode('treemap')" title="Treemap Tiles View" style="width: 28px; height: 28px;"><i data-lucide="layout-grid" style="width: 14px; height: 14px;"></i></button>
-            <button class="btn btn-icon btn-sm" id="du-view-btn-list" onclick="setDiskUsageViewMode('list')" title="Detailed List View" style="width: 28px; height: 28px;"><i data-lucide="list" style="width: 14px; height: 14px;"></i></button>
-          </div>
-
-          <div class="header-sep desktop-only"></div>
-
-          <button class="btn btn-icon btn-sm" id="du-rescan-btn" onclick="if(duViewMode==='mounts'){ loadSystemDisksOverview(true); } else { runDiskUsageScan(document.getElementById('du-path-input').value); }" title="Refresh / Rescan" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
-          <button class="btn btn-icon btn-sm desktop-only" id="du-maximize-btn" onclick="toggleDiskUsageMaximize()" title="Toggle Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i></button>
-          <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeModal('disk-usage-modal')" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
-        </div>
+    <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
+    <div class="modal-header du-modal-header" id="disk-usage-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="du-drag-handle">
+        <img src="assets/amber-piechart.webp" alt="Stats" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;">
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px;">Disk Usage</span>
+        <span id="du-scan-duration-badge" class="badge" style="display: none; background: rgba(245, 158, 11, 0.15); color: var(--accent); font-size: 10.5px; font-weight: 600; padding: 2px 7px; border-radius: 4px;">0ms</span>
       </div>
 
+      <!-- Right-Aligned Layout & Window Controls (28px Uniform) -->
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <!-- View Switcher -->
+        <div class="layout-btn-group" id="du-view-switcher" style="display: flex; gap: 2px; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
+          <button class="btn btn-icon btn-sm active" id="du-view-btn-mounts" onclick="setDiskUsageViewMode('mounts')" title="Drives & Mounted Storage Overview" style="width: 28px; height: 28px;"><i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm" id="du-view-btn-split" onclick="setDiskUsageViewMode('split')" title="Split View: Treemap & Item List" style="width: 28px; height: 28px;"><i data-lucide="columns-2" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm" id="du-view-btn-treemap" onclick="setDiskUsageViewMode('treemap')" title="Treemap Tiles View" style="width: 28px; height: 28px;"><i data-lucide="layout-grid" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm" id="du-view-btn-list" onclick="setDiskUsageViewMode('list')" title="Detailed List View" style="width: 28px; height: 28px;"><i data-lucide="list" style="width: 14px; height: 14px;"></i></button>
+        </div>
+
+        <div class="header-sep desktop-only"></div>
+
+        <button class="btn btn-icon btn-sm" id="du-rescan-btn" onclick="if(duViewMode==='mounts'){ loadSystemDisksOverview(true); } else { runDiskUsageScan(document.getElementById('du-path-input').value); }" title="Refresh / Rescan" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm desktop-only" id="btn-du-dock" onclick="dockDiskUsageToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon btn-sm" id="du-maximize-btn" onclick="toggleDiskUsageMaximize()" title="Toggle Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon btn-sm desktop-only" onclick="minimizeFloatingDiskUsage()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeFloatingDiskUsage()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- Disk Usage Body (Dockable into Pane) -->
+    <div class="diskusage-body" id="diskusage-body" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; height: calc(100% - 42px);">
       <!-- Navigation & Breadcrumb Sub-Header (26px buttons) -->
       <div class="du-top-bar" id="du-top-bar">
         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
@@ -5722,7 +5756,7 @@
       <div id="du-multi-bar" class="du-multi-bar"></div>
 
       <!-- Visual Content Body: Split between Mounts, Treemap & Detailed List -->
-      <div class="du-content-body" id="du-content-body">
+      <div class="du-content-body" id="du-content-body" style="flex: 1; overflow-y: auto;">
         <!-- Multi-Drive / Mountpoints Storage Overview Section -->
         <div id="du-mounts-section" style="display: block;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 8px;">
@@ -5777,9 +5811,15 @@
         <span style="font-size: 11px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;">
           <i data-lucide="info" style="width: 13px; height: 13px;"></i> Click any folder to drill down • Click "Open in Pane" to jump in Brum
         </span>
-        <button class="btn btn-accent btn-sm" onclick="closeModal('disk-usage-modal')">Close</button>
+        <button class="btn btn-accent btn-sm" onclick="closeFloatingDiskUsage()">Close</button>
       </div>
     </div>
+  </div>
+
+  <!-- Taskbar Pill for Disk Usage -->
+  <div class="diskusage-pill" id="diskusage-pill" style="display: none;" onclick="restoreFloatingDiskUsage()" title="Click to restore Disk Usage">
+    <img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain;">
+    <span>Disk Usage</span>
   </div>
 
   <!-- Commander Fleet Manager Modal -->

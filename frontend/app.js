@@ -2721,7 +2721,9 @@ function createPaneElement(pane, index) {
         'tageditor': '<i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Tag Editor',
         'logviewer': '<i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Log Viewer',
         'cad': '<i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> 3D CAD Studio',
-        'shares': '<img src="assets/sharemgr.webp" alt="Sharing Center" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center'
+        'shares': '<img src="assets/sharemgr.webp" alt="Sharing Center" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center',
+        'diskusage': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
+        'du': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
     }
@@ -19794,9 +19796,19 @@ function handleShareModeChange() {
   }
 }
 
-function triggerShare() {
+function triggerShare(itemOrPath = null) {
   const pane = App.panes[App.activePaneIndex];
-  const item = App.contextItem || (pane.entries && pane.entries[pane.cursorIndex]);
+  let item = null;
+  if (itemOrPath) {
+    if (typeof itemOrPath === 'string') {
+      const name = itemOrPath.split('/').filter(Boolean).pop() || 'item';
+      item = { name: name, path: itemOrPath, is_dir: false };
+    } else {
+      item = itemOrPath;
+    }
+  } else {
+    item = App.contextItem || (pane && pane.entries && pane.entries[pane.cursorIndex]);
+  }
   if (!item) {
     showToast('Please select a file or folder to share', 'info');
     return;
@@ -19902,8 +19914,271 @@ function copyShareUrl() {
 function openSharesManager() {
   const toolsMenu = document.getElementById('tools-dropdown-menu');
   if (toolsMenu) toolsMenu.classList.remove('active');
-  showModal('shares-manager-modal');
+
+  const win = document.getElementById('floating-shares-window');
+  const body = document.getElementById('shares-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
+  const pill = document.getElementById('shares-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  initSharesDragResize();
+  setupSharesDropzone();
   loadActiveShares();
+}
+
+function closeFloatingShares() {
+  const win = document.getElementById('floating-shares-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('shares-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function minimizeFloatingShares() {
+  const win = document.getElementById('floating-shares-window');
+  const pill = document.getElementById('shares-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingShares() {
+  openSharesManager();
+}
+
+function toggleMaximizeShares() {
+  const win = document.getElementById('floating-shares-window');
+  if (win) win.classList.toggle('maximized');
+}
+
+function dockSharesToActivePane() {
+  closeFloatingShares();
+  App.panes[App.activePaneIndex].dockedTool = 'shares';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'shares');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+function mountDockedShares(paneIndex) {
+  const host = document.getElementById(`docked-shares-host-${paneIndex}`);
+  const floatingBody = document.getElementById('shares-body');
+  if (host && floatingBody) {
+    host.appendChild(floatingBody);
+    setupSharesDropzone();
+    loadActiveShares();
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function setupSharesDropzone(customWin = null) {
+  const win = customWin || document.getElementById('floating-shares-window');
+  const body = document.getElementById('shares-body');
+  const targetElements = [win, body].filter(Boolean);
+
+  targetElements.forEach(el => {
+    if (el._sharesDropzoneBound) return;
+    el._sharesDropzoneBound = true;
+
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (win) win.classList.add('drag-over');
+    });
+
+    el.addEventListener('dragleave', (e) => {
+      if (!el.contains(e.relatedTarget)) {
+        if (win) win.classList.remove('drag-over');
+      }
+    });
+
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (win) win.classList.remove('drag-over');
+
+      let droppedPaths = [];
+      const plainText = e.dataTransfer.getData('text/plain');
+      if (plainText) {
+        try {
+          const data = JSON.parse(plainText);
+          if (data.paths && data.paths.length > 0) {
+            droppedPaths = data.paths;
+          }
+        } catch (_) {
+          if (plainText.startsWith('/') || plainText.startsWith('~')) {
+            droppedPaths = [plainText.trim()];
+          }
+        }
+      }
+
+      if (droppedPaths.length === 0 && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        droppedPaths = Array.from(e.dataTransfer.files).map(f => f.path).filter(Boolean);
+      }
+
+      if (droppedPaths.length === 0) return;
+
+      const firstPath = droppedPaths[0];
+      const itemName = firstPath.split('/').filter(Boolean).pop() || 'item';
+      App.contextItem = {
+        name: itemName,
+        path: firstPath,
+        is_dir: false
+      };
+      triggerShare();
+    });
+  });
+}
+
+function initSharesDragResize() {
+  const win = document.getElementById('floating-shares-window');
+  const header = document.getElementById('shares-header');
+  if (!win || !header) return;
+
+  const savedX = localStorage.getItem('cd_shares_x');
+  const savedY = localStorage.getItem('cd_shares_y');
+  const savedW = localStorage.getItem('cd_shares_w');
+  const savedH = localStorage.getItem('cd_shares_h');
+
+  if (window.innerWidth > 1024) {
+    if (savedW) win.style.width = `${Math.min(parseInt(savedW, 10), window.innerWidth - 20)}px`;
+    if (savedH) win.style.height = `${Math.min(parseInt(savedH, 10), window.innerHeight - 50)}px`;
+    if (savedX && savedY) {
+      const maxX = Math.max(10, window.innerWidth - (parseInt(savedW, 10) || 780) - 20);
+      const maxY = Math.max(40, window.innerHeight - (parseInt(savedH, 10) || 580) - 20);
+      win.style.left = `${Math.min(Math.max(10, parseInt(savedX, 10)), maxX)}px`;
+      win.style.top = `${Math.min(Math.max(40, parseInt(savedY, 10)), maxY)}px`;
+    }
+  }
+
+  if (header._sharesDragBound) return;
+  header._sharesDragBound = true;
+
+  let isDragging = false;
+  let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('a')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    bringFloatingWindowToFront(win);
+    e.preventDefault();
+  });
+
+  let isResizing = false;
+  let currentResizeDir = '';
+  let initialW = 0, initialH = 0;
+
+  const resizeHandles = [
+    { el: document.getElementById('shares-resize-top'), dir: 'top' },
+    { el: document.getElementById('shares-resize-bottom'), dir: 'bottom' },
+    { el: document.getElementById('shares-resize-left'), dir: 'left' },
+    { el: document.getElementById('shares-resize-right'), dir: 'right' },
+    { el: document.getElementById('shares-resize-corner'), dir: 'corner' },
+  ];
+
+  resizeHandles.forEach(({ el, dir }) => {
+    if (!el) return;
+    el.addEventListener('mousedown', (e) => {
+      if (win.classList.contains('maximized')) return;
+      isResizing = true;
+      currentResizeDir = dir;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = win.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      initialW = rect.width;
+      initialH = rect.height;
+      document.body.style.userSelect = 'none';
+      if (dir === 'top' || dir === 'bottom') document.body.style.cursor = 'ns-resize';
+      else if (dir === 'left' || dir === 'right') document.body.style.cursor = 'ew-resize';
+      else document.body.style.cursor = 'nwse-resize';
+      bringFloatingWindowToFront(win);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, initialLeft + dx));
+      const newTop = Math.max(36, Math.min(window.innerHeight - win.offsetHeight, initialTop + dy));
+      win.style.left = `${newLeft}px`;
+      win.style.top = `${newTop}px`;
+    }
+    if (isResizing) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (currentResizeDir === 'corner' || currentResizeDir === 'right') {
+        const newW = Math.max(420, Math.min(window.innerWidth - initialLeft - 10, initialW + dx));
+        win.style.width = `${newW}px`;
+      }
+      if (currentResizeDir === 'corner' || currentResizeDir === 'bottom') {
+        const newH = Math.max(360, Math.min(window.innerHeight - initialTop - 10, initialH + dy));
+        win.style.height = `${newH}px`;
+      }
+      if (currentResizeDir === 'left') {
+        const newW = Math.max(420, initialW - dx);
+        if (newW !== initialW - dx) return;
+        const newLeft = initialLeft + dx;
+        if (newLeft > 0) {
+          win.style.width = `${newW}px`;
+          win.style.left = `${newLeft}px`;
+        }
+      }
+      if (currentResizeDir === 'top') {
+        const newH = Math.max(360, initialH - dy);
+        if (newH !== initialH - dy) return;
+        const newTop = initialTop + dy;
+        if (newTop > 36) {
+          win.style.height = `${newH}px`;
+          win.style.top = `${newTop}px`;
+        }
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_shares_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_shares_y', parseInt(win.style.top, 10));
+    }
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.width) localStorage.setItem('cd_shares_w', parseInt(win.style.width, 10));
+      if (win.style.height) localStorage.setItem('cd_shares_h', parseInt(win.style.height, 10));
+      if (win.style.left) localStorage.setItem('cd_shares_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_shares_y', parseInt(win.style.top, 10));
+    }
+  });
+
+  setupSharesDropzone(win);
 }
 
 async function loadActiveShares() {
@@ -21360,6 +21635,14 @@ function closeModal(id) {
   }
   if (id === 'pdf-tool-modal' || id === 'floating-pdf-window') {
     closeFloatingPdf();
+    return;
+  }
+  if (id === 'shares-manager-modal' || id === 'floating-shares-window') {
+    closeFloatingShares();
+    return;
+  }
+  if (id === 'disk-usage-modal' || id === 'floating-diskusage-window') {
+    closeFloatingDiskUsage();
     return;
   }
   if (id) {
@@ -28325,7 +28608,31 @@ function scanMountpointTreemap(mountPath) {
 }
 
 function openDiskUsageModal(path, optionalMode) {
-  showModal('disk-usage-modal');
+  const toolsMenu = document.getElementById('tools-dropdown-menu');
+  if (toolsMenu) toolsMenu.classList.remove('active');
+
+  const win = document.getElementById('floating-diskusage-window');
+  const body = document.getElementById('diskusage-body');
+  if (win && body && !win.contains(body)) {
+    win.appendChild(body);
+  }
+
+  const pill = document.getElementById('diskusage-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  initDiskUsageDragResize();
+  setupDiskUsageDropzone();
   loadSystemDisksOverview();
 
   if (optionalMode === 'mounts' || (!path && duViewMode === 'mounts')) {
@@ -28339,6 +28646,256 @@ function openDiskUsageModal(path, optionalMode) {
     }
     runDiskUsageScan(targetPath);
   }
+}
+
+function closeFloatingDiskUsage() {
+  const win = document.getElementById('floating-diskusage-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('diskusage-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function minimizeFloatingDiskUsage() {
+  const win = document.getElementById('floating-diskusage-window');
+  const pill = document.getElementById('diskusage-pill');
+  if (win) win.style.display = 'none';
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function restoreFloatingDiskUsage() {
+  openDiskUsageModal(duCurrentPath);
+}
+
+function toggleDiskUsageMaximize() {
+  const win = document.getElementById('floating-diskusage-window');
+  const btn = document.getElementById('du-maximize-btn');
+  if (!win) return;
+
+  win.classList.toggle('maximized');
+  const isMax = win.classList.contains('maximized');
+  if (btn) {
+    btn.innerHTML = isMax ? '<i data-lucide="minimize-2" style="width: 14px; height: 14px;"></i>' : '<i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>';
+    btn.title = isMax ? 'Restore Window' : 'Maximize Window';
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function dockDiskUsageToActivePane() {
+  closeFloatingDiskUsage();
+  App.panes[App.activePaneIndex].dockedTool = 'diskusage';
+  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'diskusage');
+  rebuildPaneDOM(App.activePaneIndex);
+  mountDockedTool(App.activePaneIndex);
+}
+
+function mountDockedDiskUsage(paneIndex) {
+  const host = document.getElementById(`docked-diskusage-host-${paneIndex}`);
+  const floatingBody = document.getElementById('diskusage-body');
+  if (host && floatingBody) {
+    host.appendChild(floatingBody);
+    setupDiskUsageDropzone();
+    const p = App.panes[paneIndex]?.path || '/';
+    runDiskUsageScan(p);
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+function setupDiskUsageDropzone(customWin = null) {
+  const win = customWin || document.getElementById('floating-diskusage-window');
+  const body = document.getElementById('diskusage-body');
+  const targetElements = [win, body].filter(Boolean);
+
+  targetElements.forEach(el => {
+    if (el._duDropzoneBound) return;
+    el._duDropzoneBound = true;
+
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (win) win.classList.add('drag-over');
+    });
+
+    el.addEventListener('dragleave', (e) => {
+      if (!el.contains(e.relatedTarget)) {
+        if (win) win.classList.remove('drag-over');
+      }
+    });
+
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (win) win.classList.remove('drag-over');
+
+      let droppedPaths = [];
+      const plainText = e.dataTransfer.getData('text/plain');
+      if (plainText) {
+        try {
+          const data = JSON.parse(plainText);
+          if (data.paths && data.paths.length > 0) {
+            droppedPaths = data.paths;
+          }
+        } catch (_) {
+          if (plainText.startsWith('/') || plainText.startsWith('~')) {
+            droppedPaths = [plainText.trim()];
+          }
+        }
+      }
+
+      if (droppedPaths.length === 0 && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        droppedPaths = Array.from(e.dataTransfer.files).map(f => f.path).filter(Boolean);
+      }
+
+      if (droppedPaths.length === 0) return;
+
+      const targetPath = droppedPaths[0];
+      if (duViewMode === 'mounts') {
+        setDiskUsageViewMode('split');
+      }
+      const pathIn = document.getElementById('du-path-input');
+      if (pathIn) pathIn.value = targetPath;
+      runDiskUsageScan(targetPath);
+    });
+  });
+}
+
+function initDiskUsageDragResize() {
+  const win = document.getElementById('floating-diskusage-window');
+  const header = document.getElementById('disk-usage-header');
+  if (!win || !header) return;
+
+  const savedX = localStorage.getItem('cd_du_x');
+  const savedY = localStorage.getItem('cd_du_y');
+  const savedW = localStorage.getItem('cd_du_w');
+  const savedH = localStorage.getItem('cd_du_h');
+
+  if (window.innerWidth > 1024) {
+    if (savedW) win.style.width = `${Math.min(parseInt(savedW, 10), window.innerWidth - 20)}px`;
+    if (savedH) win.style.height = `${Math.min(parseInt(savedH, 10), window.innerHeight - 50)}px`;
+    if (savedX && savedY) {
+      const maxX = Math.max(10, window.innerWidth - (parseInt(savedW, 10) || 880) - 20);
+      const maxY = Math.max(40, window.innerHeight - (parseInt(savedH, 10) || 640) - 20);
+      win.style.left = `${Math.min(Math.max(10, parseInt(savedX, 10)), maxX)}px`;
+      win.style.top = `${Math.min(Math.max(40, parseInt(savedY, 10)), maxY)}px`;
+    }
+  }
+
+  if (header._duDragBound) return;
+  header._duDragBound = true;
+
+  let isDragging = false;
+  let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select') || e.target.closest('a')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    bringFloatingWindowToFront(win);
+    e.preventDefault();
+  });
+
+  let isResizing = false;
+  let currentResizeDir = '';
+  let initialW = 0, initialH = 0;
+
+  const resizeHandles = [
+    { el: document.getElementById('diskusage-resize-top'), dir: 'top' },
+    { el: document.getElementById('diskusage-resize-bottom'), dir: 'bottom' },
+    { el: document.getElementById('diskusage-resize-left'), dir: 'left' },
+    { el: document.getElementById('diskusage-resize-right'), dir: 'right' },
+    { el: document.getElementById('diskusage-resize-corner'), dir: 'corner' },
+  ];
+
+  resizeHandles.forEach(({ el, dir }) => {
+    if (!el) return;
+    el.addEventListener('mousedown', (e) => {
+      if (win.classList.contains('maximized')) return;
+      isResizing = true;
+      currentResizeDir = dir;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = win.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      initialW = rect.width;
+      initialH = rect.height;
+      document.body.style.userSelect = 'none';
+      if (dir === 'top' || dir === 'bottom') document.body.style.cursor = 'ns-resize';
+      else if (dir === 'left' || dir === 'right') document.body.style.cursor = 'ew-resize';
+      else document.body.style.cursor = 'nwse-resize';
+      bringFloatingWindowToFront(win);
+      e.preventDefault();
+      e.stopPropagation();
+    });
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (isDragging) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      const newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, initialLeft + dx));
+      const newTop = Math.max(36, Math.min(window.innerHeight - win.offsetHeight, initialTop + dy));
+      win.style.left = `${newLeft}px`;
+      win.style.top = `${newTop}px`;
+    }
+    if (isResizing) {
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      if (currentResizeDir === 'corner' || currentResizeDir === 'right') {
+        const newW = Math.max(480, Math.min(window.innerWidth - initialLeft - 10, initialW + dx));
+        win.style.width = `${newW}px`;
+      }
+      if (currentResizeDir === 'corner' || currentResizeDir === 'bottom') {
+        const newH = Math.max(400, Math.min(window.innerHeight - initialTop - 10, initialH + dy));
+        win.style.height = `${newH}px`;
+      }
+      if (currentResizeDir === 'left') {
+        const newW = Math.max(480, initialW - dx);
+        if (newW !== initialW - dx) return;
+        const newLeft = initialLeft + dx;
+        if (newLeft > 0) {
+          win.style.width = `${newW}px`;
+          win.style.left = `${newLeft}px`;
+        }
+      }
+      if (currentResizeDir === 'top') {
+        const newH = Math.max(400, initialH - dy);
+        if (newH !== initialH - dy) return;
+        const newTop = initialTop + dy;
+        if (newTop > 36) {
+          win.style.height = `${newH}px`;
+          win.style.top = `${newTop}px`;
+        }
+      }
+    }
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_du_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_du_y', parseInt(win.style.top, 10));
+    }
+    if (isResizing) {
+      isResizing = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.width) localStorage.setItem('cd_du_w', parseInt(win.style.width, 10));
+      if (win.style.height) localStorage.setItem('cd_du_h', parseInt(win.style.height, 10));
+      if (win.style.left) localStorage.setItem('cd_du_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_du_y', parseInt(win.style.top, 10));
+    }
+  });
+
+  setupDiskUsageDropzone(win);
 }
 
 function setDiskUsageViewMode(mode) {
@@ -28367,20 +28924,6 @@ function setDiskUsageViewMode(mode) {
 
   if (mode === 'mounts') {
     loadSystemDisksOverview();
-  }
-}
-
-function toggleDiskUsageMaximize() {
-  const box = document.getElementById('disk-usage-box');
-  const btn = document.getElementById('du-maximize-btn');
-  if (!box) return;
-
-  box.classList.toggle('maximized');
-  const isMax = box.classList.contains('maximized');
-  if (btn) {
-    btn.innerHTML = isMax ? '<i data-lucide="minimize-2" style="width: 14px; height: 14px;"></i>' : '<i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i>';
-    btn.title = isMax ? 'Restore Window' : 'Maximize Window';
-    if (window.lucide) lucide.createIcons();
   }
 }
 
@@ -28424,12 +28967,12 @@ function filterDiskUsageItems(val) {
 }
 
 function jumpToPaneFromDiskUsage(path) {
-  closeModal('disk-usage-modal');
+  closeFloatingDiskUsage();
   navigatePane(App.activePaneIndex, path);
 }
 
 function openTerminalFromDiskUsage(path) {
-  closeModal('disk-usage-modal');
+  closeFloatingDiskUsage();
   openTerminalInPath(path);
 }
 
@@ -30976,6 +31519,10 @@ function undockToolFromPane(paneIndex) {
     openFileSplitterModal();
   } else if (tool === 'pdf') {
     openPdfToolModal();
+  } else if (tool === 'shares') {
+    openSharesManager();
+  } else if (tool === 'diskusage' || tool === 'du') {
+    openDiskUsageModal();
   } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     openDynamicChewToy(pluginId);
@@ -31000,6 +31547,22 @@ function closeDockedTool(paneIndex) {
   if (tool === 'pdf') {
     const win = document.getElementById('floating-pdf-window');
     const body = document.getElementById('pdf-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
+
+  if (tool === 'shares') {
+    const win = document.getElementById('floating-shares-window');
+    const body = document.getElementById('shares-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
+
+  if (tool === 'diskusage' || tool === 'du') {
+    const win = document.getElementById('floating-diskusage-window');
+    const body = document.getElementById('diskusage-body');
     if (win && body && !win.contains(body)) {
       win.appendChild(body);
     }
@@ -31498,23 +32061,10 @@ function mountDockedTool(paneIndex) {
   // 14. DOCKED SHARING CENTER
   else if (tool === 'shares') {
     mount.innerHTML = `
-      <div class="docked-shares-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel); padding: 10px; gap: 8px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; background: var(--bg-dark); padding: 6px 10px; border-radius: 6px; border: 1px solid var(--border);">
-          <span style="font-weight: 700; font-size: 11px; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-            <img src="assets/sharemgr.webp" alt="Shares" style="width: 13px; height: 13px; object-fit: contain;"> Active Public Shares
-          </span>
-          <div style="display: flex; gap: 4px;">
-            <button class="btn btn-xs btn-accent" onclick="triggerShare()"><i data-lucide="plus" style="width:11px;"></i> New</button>
-            <button class="btn btn-xs btn-outline" onclick="loadActiveShares()" title="Refresh"><i data-lucide="rotate-cw" style="width:11px;"></i></button>
-          </div>
-        </div>
-        <div id="docked-shares-list-${paneIndex}" style="flex: 1; overflow-y: auto; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); padding: 6px;">
-          <div style="text-align:center; color:var(--text-muted); padding:16px; font-size:11px;">Loading active shares...</div>
-        </div>
-      </div>
+      <div class="docked-shares-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-shares-host-${paneIndex}"></div>
     `;
     setTimeout(() => {
-      loadActiveShares();
+      mountDockedShares(paneIndex);
     }, 50);
   }
   // 15. DOCKED 3D CAD STUDIO
@@ -31542,6 +32092,15 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       mountDockedPdf(paneIndex);
+    }, 50);
+  }
+  // 18. DOCKED DISK USAGE & TREEMAP ANALYZER
+  else if (tool === 'diskusage' || tool === 'du') {
+    mount.innerHTML = `
+      <div class="docked-diskusage-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-diskusage-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedDiskUsage(paneIndex);
     }, 50);
   }
 
