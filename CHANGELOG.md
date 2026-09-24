@@ -5,6 +5,31 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-09-24
+
+### Brum 1.0.0 Milestone: Instant 0ms Optimistic Rendering, Core Functions Window Modernization & Symmetrical Sync
+- **Instant 0ms Perceived Boot & Optimistic Pre-Rendering Engine**:
+  - Implemented client-side directory fast caching with in-memory store and session storage persistence.
+  - Frame-0 instant optimistic pane mounting: mounts pane frames, tabs, breadcrumbs, and directory listings in 0ms before network requests begin.
+  - Converted table, thumbnail grid, and compact list rendering to atomic `DocumentFragment` batching, eliminating sequential pop-in, white flash, and layout jitter.
+  - Parallel background revalidation across visible panels with silent diff checks to avoid redundant DOM updates.
+  - Added **Startup & Session Recovery** configuration in Settings: choose startup directory mode (Restore Last Session, User Home `~`, Root `/`, or Custom Presets per panel) and remote host boot fallback (auto-fallback to local Home to eliminate connection timeouts).
+- **Core Functions Modernization (Dual-Mode Floating & Dockable Architecture)**:
+  - **File Splitter & Combiner**: Modernized into floating, draggable, resizable, and dockable window with drag-and-drop file ingestion, custom chunk size presets (Floppy, CD, DVD, FAT32, Custom), output naming, progress tracking, and MD5/SHA-256 verification.
+  - **PDF Studio**: Transformed into dual-mode floating and dockable window with PDF merge/split, page extraction, rotation, metadata inspector, and direct drag-and-drop file ingestion.
+  - **Sharing Center**: Converted to dual-mode window with active public shares management, passcode enforcement, expiration rules, guest access logs, and Dropbox/guest portal integration.
+  - **Disk Usage Analyzer**: Converted to dual-mode floating/dockable utility with interactive storage breakdown, size bar charts, and top files explorer.
+  - **Batch Renamer & Format Converter**: Enhanced draggable, resizable floating windows with real-time dry-run simulations, regex replacement, and drag-and-drop file imports.
+- **Synchronized Pane Scrolling & Relative Directory Navigation** (Fixes #67):
+  - Bi-directional mirrored scrolling across visible panels with source pane filtering and loop prevention.
+  - Relative directory navigation synchronization mirroring subfolder and parent folder traversal across matching directories.
+  - Per-pane inclusion/exclusion toggles in Pane Tools menu and General Settings.
+- **Backup, Sync & Replication Studio** (Fixes #68):
+  - Overhauled Backup & Sync studio UI with folder pickers, dry-run simulations, and bidirectional replication profiles.
+  - Resolved event loop blocking during checksum calculation.
+- **Lock Screen Avatar & Profile Customization**:
+  - Restored avatar thumbnails, nicknames, and system hostname display on the session lock screen.
+
 ## [0.9.0] - 2026-09-24
 
 ### OIDC SSO, Floating Player Mini-Pills, Hyprland Two-Tone Borders & Mobile Actions Bar
