@@ -5174,25 +5174,25 @@
 
   <!-- Backup & Sync Studio Modal -->
   <div class="modal-overlay" id="sync-modal" style="z-index: 2850;">
-    <div class="modal-box sync-modal-box" id="sync-modal-box" style="max-width: 1080px; width: 95vw; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-box sync-modal-box" id="sync-modal-box">
       <!-- Header -->
       <div class="modal-header" style="padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 12px;">
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <img src="assets/sync.webp" alt="Backup" style="width: 18px; height: 18px; object-fit: contain;">
-            <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 14px; color: var(--text-main);">Backup & Sync</span>
-          </div>
-          <div class="sync-nav-tabs" style="display: flex; gap: 4px; margin-left: 12px;">
-            <button class="btn btn-sm sync-tab-btn active" id="sync-tab-btn-diff" onclick="switchSyncTab('diff')"><i data-lucide="split"></i> Live Diff</button>
-            <button class="btn btn-sm sync-tab-btn" id="sync-tab-btn-profiles" onclick="switchSyncTab('profiles')"><i data-lucide="layers"></i> Backup Jobs</button>
-            <button class="btn btn-sm sync-tab-btn" id="sync-tab-btn-history" onclick="switchSyncTab('history')"><i data-lucide="history"></i> Run Logs</button>
-          </div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <img src="assets/sync.webp" alt="Backup" style="width: 18px; height: 18px; object-fit: contain;">
+          <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 14px; color: var(--text-main);">Backup & Sync</span>
         </div>
         <button class="btn btn-icon modal-close-btn" onclick="closeModal('sync-modal')" title="Close Backup & Sync (Esc)"><i data-lucide="x"></i></button>
       </div>
 
+      <!-- Navigation Tabs Bar Under Header -->
+      <div class="settings-tabs sync-tabs">
+        <button class="settings-tab-btn sync-tab-btn active" id="sync-tab-btn-diff" onclick="switchSyncTab('diff')"><i data-lucide="split"></i> Live Diff</button>
+        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-profiles" onclick="switchSyncTab('profiles')"><i data-lucide="layers"></i> Backup Jobs</button>
+        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-history" onclick="switchSyncTab('history')"><i data-lucide="history"></i> Run Logs</button>
+      </div>
+
       <!-- TAB 1: Live Diff & Replication Studio -->
-      <div id="sync-tab-content-diff" class="sync-tab-pane" style="display: flex; flex-direction: column; flex: 1; overflow: hidden;">
+      <div id="sync-tab-content-diff" class="sync-tab-pane" style="display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;">
         <!-- Paths and Mode Bar -->
         <div class="sync-top-bar" style="padding: 12px 16px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
           <div class="sync-path-selector-row" style="display: flex; align-items: center; gap: 8px;">
@@ -5350,8 +5350,8 @@
       </div>
 
       <!-- TAB 2: Saved Backup Profiles & Scheduler -->
-      <div id="sync-tab-content-profiles" class="sync-tab-pane" style="display: none; flex-direction: column; flex: 1; overflow: hidden; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div id="sync-tab-content-profiles" class="sync-tab-pane" style="display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
           <div>
             <span style="font-weight: 700; font-size: 14px;">Automated Backup Jobs & Schedules</span>
             <div style="font-size: 11px; color: var(--text-dim);">Define continuous background replication profiles with cron, intervals, real-time watchers & webhooks.</div>
@@ -5363,7 +5363,7 @@
         </div>
 
         <!-- Profiles List Table -->
-        <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main);">
+        <div style="flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main);">
           <table style="width: 100%; border-collapse: collapse; font-size: 12px;" id="backup-profiles-table">
             <thead>
               <tr style="position: sticky; top: 0; background: var(--bg-header); border-bottom: 1px solid var(--border);">
@@ -5384,8 +5384,8 @@
       </div>
 
       <!-- TAB 3: Run History & Logs -->
-      <div id="sync-tab-content-history" class="sync-tab-pane" style="display: none; flex-direction: column; flex: 1; overflow: hidden; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+      <div id="sync-tab-content-history" class="sync-tab-pane" style="display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; padding: 16px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
           <div>
             <span style="font-weight: 700; font-size: 14px;">Backup & Synchronization Run History</span>
             <div style="font-size: 11px; color: var(--text-dim);">Audit log of all manual and scheduled replication executions.</div>
@@ -5393,7 +5393,7 @@
           <button class="btn btn-sm" onclick="loadBackupHistory()"><i data-lucide="rotate-cw"></i> Refresh</button>
         </div>
 
-        <div style="flex: 1; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main);">
+        <div style="flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main);">
           <table style="width: 100%; border-collapse: collapse; font-size: 12px;" id="backup-history-table">
             <thead>
               <tr style="position: sticky; top: 0; background: var(--bg-header); border-bottom: 1px solid var(--border);">

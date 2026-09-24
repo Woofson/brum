@@ -4849,8 +4849,10 @@ html.fkeys-disabled .bottom-fkey-bar,
 
 /* ---------------- TWO-WAY VISUAL DIRECTORY SYNCHRONIZER ---------------- */
 .sync-modal-box {
-  width: 900px;
-  max-width: 96vw;
+  width: 1080px;
+  max-width: 95vw;
+  height: 85vh;
+  min-height: 580px;
   max-height: 90vh;
   display: flex;
   flex-direction: column;
@@ -5111,30 +5113,13 @@ html.fkeys-disabled .bottom-fkey-bar,
   color: var(--accent);
 }
 
-.sync-tab-btn {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-muted);
-  font-size: 11px;
-  padding: 4px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.15s ease;
-}
-
-.sync-tab-btn:hover {
-  color: var(--text-main);
-  background: var(--bg-hover);
-}
-
-.sync-tab-btn.active {
-  color: var(--accent);
-  background: rgba(245, 158, 11, 0.15);
-  border-color: rgba(245, 158, 11, 0.3);
-  font-weight: 600;
+.sync-tabs {
+  padding: 6px 16px 0 16px;
+  background: var(--bg-header);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
 }
 
 .sync-template-btn {

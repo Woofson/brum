@@ -26897,6 +26897,7 @@ function switchSyncTab(tab) {
   } else if (tab === 'history') {
     loadBackupHistory();
   }
+  if (window.lucide) lucide.createIcons();
 }
 
 function useActivePanePath(inputId) {
