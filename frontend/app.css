@@ -16009,6 +16009,88 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
+   📑 FLOATING PURE-RUST PDF POWER STUDIO
+   ========================================================================== */
+.floating-pdf-window {
+  position: fixed;
+  top: 80px;
+  left: max(8px, calc(50% - 290px));
+  width: min(580px, calc(100% - 24px));
+  height: min(540px, calc(100vh - 90px));
+  min-width: 360px;
+  min-height: 400px;
+  max-width: calc(100% - 16px);
+  max-height: calc(100vh - 40px);
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 16px 45px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
+  display: flex;
+  flex-direction: column;
+  z-index: 2860;
+  overflow: hidden;
+  font-family: var(--font-sans), sans-serif;
+  user-select: none;
+}
+
+.floating-pdf-window.maximized {
+  top: 36px !important;
+  left: 0 !important;
+  right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  height: calc(100vh - 36px) !important;
+  border-radius: 0 !important;
+}
+
+.floating-pdf-window.drag-over {
+  border-color: var(--accent) !important;
+  box-shadow: 0 0 20px rgba(245, 158, 11, 0.35) !important;
+}
+
+.pdf-header {
+  min-height: 42px;
+  height: 42px;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: grab;
+  flex-shrink: 0;
+}
+
+.pdf-header:active {
+  cursor: grabbing;
+}
+
+.pdf-pill {
+  position: fixed;
+  bottom: 8px;
+  right: 330px;
+  background: var(--bg-panel);
+  border: 1px solid var(--accent);
+  border-radius: 20px;
+  padding: 4px 10px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-main);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  z-index: 2800;
+  transition: all 0.2s ease;
+}
+
+.pdf-pill:hover {
+  background: var(--bg-hover);
+  transform: translateY(-1px);
+}
+
+/* ==========================================================================
    🏷️ FLOATING BATCH RENAMER CHEWTOY (Ctrl+M)
    ========================================================================== */
 .floating-renamer-window {
@@ -16961,6 +17043,7 @@ body.standalone-mode .server-only-setting {
 /* 1. Tablet Viewports (601px - 1024px) */
 @media (max-width: 1024px) {
   .floating-splitter-window,
+  .floating-pdf-window,
   .floating-renamer-window,
   .floating-hexeditor-window,
   .floating-duplicates-window,
@@ -16984,6 +17067,7 @@ body.standalone-mode .server-only-setting {
 /* 2. Narrow Screens & Phone Viewports (<= 768px / <= 600px) */
 @media (max-width: 768px) {
   .floating-splitter-window,
+  .floating-pdf-window,
   .floating-renamer-window,
   .floating-hexeditor-window,
   .floating-duplicates-window,
@@ -17004,6 +17088,7 @@ body.standalone-mode .server-only-setting {
   }
 
   .floating-splitter-window .win-resize-handle,
+  .floating-pdf-window .win-resize-handle,
   .floating-renamer-window .win-resize-handle,
   .floating-hexeditor-window .win-resize-handle,
   .floating-duplicates-window .win-resize-handle,
