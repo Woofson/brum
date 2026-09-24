@@ -84,7 +84,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
   { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', iconColor: 'var(--accent)', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
   { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', iconColor: 'var(--accent)', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
-  { id: 'splitter', label: 'File Splitter', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
+  { id: 'splitter', label: 'File Splitter & Combiner', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
   { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
   { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
@@ -14287,9 +14287,17 @@ function useActivePaneItemForConverter() {
   }
 }
 
-function openConverterFilePicker() {
-  const curVal = activeConverterFile
-    ? activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'))
+let universalPickerCallback = null;
+
+function openUniversalFilePicker(options = {}) {
+  const { title = 'Select File', currentPath, onSelect } = options;
+  universalPickerCallback = onSelect || null;
+
+  const headerTitle = document.querySelector('#converter-file-picker-modal .modal-header span');
+  if (headerTitle) headerTitle.textContent = title;
+
+  const curVal = currentPath
+    ? (currentPath.endsWith('/') ? currentPath : currentPath.substring(0, currentPath.lastIndexOf('/')) || '/')
     : (App.panes[App.activePaneIndex]?.path || getUserDefaultHomeDir() || '/');
   converterPickerCurrentPath = curVal || '/';
 
@@ -14305,6 +14313,28 @@ function openConverterFilePicker() {
   navigateConverterPickerPath(converterPickerCurrentPath);
   showModal('converter-file-picker-modal');
   if (window.lucide) lucide.createIcons();
+}
+
+function openConverterFilePicker() {
+  openUniversalFilePicker({
+    title: 'Select File to Convert',
+    currentPath: activeConverterFile || App.panes[App.activePaneIndex]?.path,
+    onSelect: (filePath) => {
+      setConverterSourceFile(filePath);
+      const win = document.getElementById('floating-converter-window');
+      if (win) bringFloatingWindowToFront(win);
+    }
+  });
+}
+
+function openSplitterFilePicker() {
+  openUniversalFilePicker({
+    title: 'Select File to Split',
+    currentPath: document.getElementById('split-source-path')?.value || App.panes[App.activePaneIndex]?.path,
+    onSelect: (filePath) => {
+      setSplitterSourceFile(filePath);
+    }
+  });
 }
 
 async function navigateConverterPickerPath(newPath) {
@@ -14384,9 +14414,15 @@ function navigateConverterPickerUp() {
 
 function selectConverterPickerFile(filePath) {
   closeModal('converter-file-picker-modal');
-  setConverterSourceFile(filePath);
-  const win = document.getElementById('floating-converter-window');
-  if (win) bringFloatingWindowToFront(win);
+  if (typeof universalPickerCallback === 'function') {
+    const cb = universalPickerCallback;
+    universalPickerCallback = null;
+    cb(filePath);
+  } else {
+    setConverterSourceFile(filePath);
+    const win = document.getElementById('floating-converter-window');
+    if (win) bringFloatingWindowToFront(win);
+  }
 }
 
 function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
@@ -32049,19 +32085,141 @@ async function loadGitStatusForDocked(paneIndex, repoPath) {
 // 🧩 MULTI-PART FILE SPLITTER & COMBINER ENGINE
 // =========================================================================
 
-function openFileSplitterModal(filePath, sizeBytes) {
-  const modal = document.getElementById('file-splitter-modal');
-  if (!modal) return;
+let splitterCurrentFileSizeBytes = 0;
+let combinerDetectedParts = [];
 
+function switchSplitterTab(tab) {
+  const splitBtn = document.getElementById('btn-splitter-tab-split');
+  const combineBtn = document.getElementById('btn-splitter-tab-combine');
+  const splitContent = document.getElementById('splitter-tab-split');
+  const combineContent = document.getElementById('splitter-tab-combine');
+
+  if (tab === 'combine') {
+    if (splitBtn) splitBtn.classList.remove('active');
+    if (combineBtn) combineBtn.classList.add('active');
+    if (splitContent) splitContent.style.display = 'none';
+    if (combineContent) combineContent.style.display = 'block';
+  } else {
+    if (splitBtn) splitBtn.classList.add('active');
+    if (combineBtn) combineBtn.classList.remove('active');
+    if (splitContent) splitContent.style.display = 'block';
+    if (combineContent) combineContent.style.display = 'none';
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function openFileSplitterModal(filePath, sizeBytes) {
+  switchSplitterTab('split');
+
+  // If no file path is provided, try resolving from active pane
+  if (!filePath) {
+    const pane = App.panes[App.activePaneIndex];
+    if (pane && pane.selected && pane.selected.size > 0) {
+      filePath = Array.from(pane.selected)[0];
+      const entry = (pane.entries || []).find(e => e.path === filePath);
+      if (entry && !entry.is_dir) {
+        sizeBytes = entry.size || 0;
+      } else if (entry && entry.is_dir) {
+        filePath = '';
+        sizeBytes = 0;
+      }
+    } else if (pane && Array.isArray(pane.entries) && pane.entries.length > 0) {
+      const firstFile = pane.entries.find(e => e.name !== '..' && !e.is_dir);
+      if (firstFile) {
+        filePath = firstFile.path;
+        sizeBytes = firstFile.size || 0;
+      }
+    }
+  }
+
+  setSplitterSourceFile(filePath, sizeBytes);
+  showModal('file-splitter-modal');
+}
+
+async function setSplitterSourceFile(filePath, sizeBytes) {
   const srcInput = document.getElementById('split-source-path');
-  const sizeLbl = document.getElementById('split-source-size-label');
   const destInput = document.getElementById('split-dest-dir');
 
-  if (srcInput) srcInput.value = filePath;
-  if (sizeLbl) sizeLbl.textContent = `Total Size: ${formatBytes(sizeBytes || 0)}`;
-  if (destInput) destInput.value = filePath.substring(0, filePath.lastIndexOf('/')) || '/';
+  const cleanPath = (filePath || '').trim();
+  if (srcInput) srcInput.value = cleanPath;
 
-  showModal('file-splitter-modal');
+  const defaultDest = cleanPath && cleanPath.includes('/')
+    ? (cleanPath.substring(0, cleanPath.lastIndexOf('/')) || '/')
+    : (App.panes[App.activePaneIndex]?.path || getUserDefaultHomeDir() || '/');
+  if (destInput) destInput.value = defaultDest;
+
+  if (sizeBytes !== undefined && sizeBytes !== null && sizeBytes > 0) {
+    splitterCurrentFileSizeBytes = sizeBytes;
+    updateSplitEstimate(sizeBytes);
+  } else if (cleanPath) {
+    // Look up in pane entries first
+    const pane = App.panes[App.activePaneIndex];
+    const entry = (pane?.entries || []).find(e => e.path === cleanPath);
+    if (entry && entry.size !== undefined) {
+      splitterCurrentFileSizeBytes = entry.size;
+      updateSplitEstimate(entry.size);
+    } else {
+      updateSplitEstimate(0);
+      try {
+        const resp = await fetch(`/api/fs/stat?path=${encodeURIComponent(cleanPath)}`, {
+          headers: { 'Authorization': `Bearer ${App.token}` }
+        });
+        if (resp.ok) {
+          const meta = await resp.json();
+          if (meta && typeof meta.size === 'number') {
+            splitterCurrentFileSizeBytes = meta.size;
+            updateSplitEstimate(meta.size);
+          }
+        }
+      } catch (_) {}
+    }
+  } else {
+    splitterCurrentFileSizeBytes = 0;
+    updateSplitEstimate(0);
+  }
+}
+
+function handleSplitSourceChange(val) {
+  setSplitterSourceFile(val);
+}
+
+function useActivePaneItemForSplitter() {
+  const pane = App.panes[App.activePaneIndex];
+  if (!pane) return;
+  const selPath = (pane.selected && pane.selected.size > 0)
+    ? Array.from(pane.selected)[0]
+    : (pane.entries && pane.entries[pane.cursorIndex] ? pane.entries[pane.cursorIndex].path : null);
+  
+  if (selPath) {
+    const entry = (pane.entries || []).find(e => e.path === selPath);
+    if (entry && entry.is_dir) {
+      showToast('Selected item is a directory. Please select a file to split.', 'warning');
+      return;
+    }
+    setSplitterSourceFile(selPath, entry?.size || 0);
+  } else {
+    showToast('No file selected in active pane', 'warning');
+  }
+}
+
+function updateSplitEstimate(sizeBytes) {
+  if (sizeBytes === undefined) sizeBytes = splitterCurrentFileSizeBytes;
+  const sizeLbl = document.getElementById('split-source-size-label');
+  const preset = document.getElementById('split-size-preset')?.value || '100';
+  const custom = document.getElementById('split-size-custom')?.value || '100';
+  const chunkMb = preset === 'custom' ? parseInt(custom, 10) : parseInt(preset, 10);
+
+  if (!sizeLbl) return;
+
+  if (sizeBytes > 0 && chunkMb && chunkMb > 0) {
+    const chunkBytes = chunkMb * 1024 * 1024;
+    const count = Math.ceil(sizeBytes / chunkBytes);
+    sizeLbl.innerHTML = `Total Size: <strong>${formatBytes(sizeBytes)}</strong> • Estimated: <span style="color: var(--accent); font-weight: 600;">${count} chunk${count === 1 ? '' : 's'}</span> (~${chunkMb} MB each)`;
+  } else if (sizeBytes > 0) {
+    sizeLbl.innerHTML = `Total Size: <strong>${formatBytes(sizeBytes)}</strong>`;
+  } else {
+    sizeLbl.textContent = 'No file selected (select a file from active pane or click Browse)';
+  }
 }
 
 function handleSplitPresetChange(val) {
@@ -32069,27 +32227,34 @@ function handleSplitPresetChange(val) {
   if (custom) {
     custom.style.display = val === 'custom' ? 'block' : 'none';
   }
+  updateSplitEstimate();
 }
 
 async function executeFileSplit() {
-  const srcPath = document.getElementById('split-source-path')?.value;
+  const srcPath = document.getElementById('split-source-path')?.value?.trim();
   const preset = document.getElementById('split-size-preset')?.value;
   const custom = document.getElementById('split-size-custom')?.value;
-  const destDir = document.getElementById('split-dest-dir')?.value;
+  const destDir = document.getElementById('split-dest-dir')?.value?.trim();
   const genChk = document.getElementById('split-generate-checksum')?.checked ?? true;
   const progBox = document.getElementById('split-progress-box');
   const statusTxt = document.getElementById('split-status-text');
   const btn = document.getElementById('btn-run-split');
 
+  if (!srcPath) {
+    showToast('Please select or specify a source file to split', 'warning');
+    return;
+  }
+
   const chunkMb = preset === 'custom' ? parseInt(custom, 10) : parseInt(preset, 10);
   if (!chunkMb || chunkMb < 1) {
-    showToast('Please enter a valid chunk size', 'warning');
+    showToast('Please enter a valid chunk size (minimum 1 MB)', 'warning');
     return;
   }
 
   if (progBox) progBox.style.display = 'block';
-  if (statusTxt) statusTxt.textContent = `Splitting file into ${chunkMb} MB chunks...`;
+  if (statusTxt) statusTxt.innerHTML = `<i data-lucide="loader" class="spinner" style="width: 14px; height: 14px;"></i> Splitting file into ${chunkMb} MB chunks...`;
   if (btn) btn.disabled = true;
+  if (window.lucide) lucide.createIcons({ root: progBox });
 
   try {
     const resp = await fetch('/api/tools/split', {
@@ -32107,44 +32272,138 @@ async function executeFileSplit() {
       const res = await resp.json();
       closeModal('file-splitter-modal');
       showToast(`Successfully split into ${res.chunk_count} parts! SHA-256: ${res.sha256.substring(0, 10)}...`, 'success');
-      renderAllPanes();
+      refreshAllPanes();
     } else {
       const err = await resp.text();
-      showToast(`Split failed: ${err}`, 'error');
+      showToast(`Split failed: ${sanitizeCredentials(err)}`, 'error');
     }
   } catch (e) {
-    showToast(`Error splitting file: ${e}`, 'error');
+    showToast(`Error splitting file: ${sanitizeCredentials(String(e))}`, 'error');
   } finally {
+    if (progBox) progBox.style.display = 'none';
     if (btn) btn.disabled = false;
   }
 }
 
 function openFileCombinerModal(partsList) {
-  const modal = document.getElementById('file-combiner-modal');
-  if (!modal) return;
+  switchSplitterTab('combine');
+
+  let parts = Array.isArray(partsList) ? partsList : [];
+  if (parts.length === 0) {
+    const pane = App.panes[App.activePaneIndex];
+    if (pane && pane.selected && pane.selected.size > 0) {
+      parts = Array.from(pane.selected).filter(p => /\.\d{3}$/.test(p) || /\.part\d+/i.test(p));
+    }
+    if (parts.length === 0 && pane && pane.entries) {
+      parts = pane.entries
+        .filter(e => !e.is_dir && (/\.\d{3}$/.test(e.name) || /\.part\d+/i.test(e.name)))
+        .map(e => e.path);
+    }
+  }
+
+  setCombinerParts(parts);
+  showModal('file-splitter-modal');
+}
+
+function setCombinerParts(partsList) {
+  combinerDetectedParts = partsList || [];
+  // Sort naturally: .001, .002 ...
+  combinerDetectedParts.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
 
   const partsBox = document.getElementById('combine-parts-list');
   const destInput = document.getElementById('combine-dest-path');
   const expSha = document.getElementById('combine-expected-sha');
+  const resultBox = document.getElementById('combine-result-box');
+
+  if (resultBox) resultBox.style.display = 'none';
 
   if (partsBox) {
-    partsBox.innerHTML = partsList.map(p => `<div>📦 ${escapeHtml(p)}</div>`).join('');
+    if (combinerDetectedParts.length === 0) {
+      partsBox.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No part files detected (.001, .part1...). Select part files in active pane or click "Scan Active Pane".</div>';
+    } else {
+      partsBox.innerHTML = combinerDetectedParts.map((p, idx) => {
+        const basename = p.split('/').filter(Boolean).pop() || p;
+        return `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(255,255,255,0.03); border-radius: 4px; margin-bottom: 2px;">
+            <span title="${escapeHtml(p)}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px;">
+              <span style="color: var(--accent); font-weight: 700; margin-right: 4px;">#${idx + 1}</span> ${escapeHtml(basename)}
+            </span>
+            <button type="button" class="btn btn-icon btn-xs" style="width: 20px; height: 20px; padding: 0;" onclick="removeCombinePart(${idx})" title="Remove"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
+          </div>
+        `;
+      }).join('');
+      if (window.lucide) lucide.createIcons({ root: partsBox });
+    }
   }
 
-  if (partsList.length > 0 && destInput) {
-    const firstPart = partsList[0];
+  if (combinerDetectedParts.length > 0 && destInput) {
+    const firstPart = combinerDetectedParts[0];
     const cleanedDest = firstPart.replace(/\.\d{3}$/, '').replace(/\.part\d+.*$/, '');
     destInput.value = cleanedDest;
+
+    // Check if .sha256 manifest exists in active pane
+    const pane = App.panes[App.activePaneIndex];
+    if (pane && pane.entries && expSha) {
+      const shaFile = pane.entries.find(e => e.name.endsWith('.sha256') && (cleanedDest.endsWith(e.name.replace('.sha256', '')) || firstPart.endsWith(e.name.replace('.sha256', ''))));
+      if (shaFile) {
+        fetch(`/api/fs/read?path=${encodeURIComponent(shaFile.path)}`, {
+          headers: { 'Authorization': `Bearer ${App.token}` }
+        }).then(r => r.text()).then(txt => {
+          const match = txt.match(/[a-fA-F0-9]{64}/);
+          if (match && expSha) {
+            expSha.value = match[0];
+          }
+        }).catch(() => {});
+      }
+    }
+  }
+}
+
+function removeCombinePart(index) {
+  if (index >= 0 && index < combinerDetectedParts.length) {
+    combinerDetectedParts.splice(index, 1);
+    setCombinerParts(combinerDetectedParts);
+  }
+}
+
+function clearCombineParts() {
+  setCombinerParts([]);
+  const destInput = document.getElementById('combine-dest-path');
+  const expSha = document.getElementById('combine-expected-sha');
+  if (destInput) destInput.value = '';
+  if (expSha) expSha.value = '';
+}
+
+function scanPaneForCombineParts() {
+  const pane = App.panes[App.activePaneIndex];
+  if (!pane || !pane.entries) {
+    showToast('Active pane is empty', 'info');
+    return;
+  }
+  let parts = [];
+  if (pane.selected && pane.selected.size > 0) {
+    parts = Array.from(pane.selected).filter(p => /\.\d{3}$/.test(p) || /\.part\d+/i.test(p));
+  }
+  if (parts.length === 0) {
+    parts = pane.entries
+      .filter(e => !e.is_dir && (/\.\d{3}$/.test(e.name) || /\.part\d+/i.test(e.name)))
+      .map(e => e.path);
   }
 
-  showModal('file-combiner-modal');
+  if (parts.length === 0) {
+    showToast('No multi-part files (.001, .part1...) found in active pane', 'info');
+    return;
+  }
+
+  setCombinerParts(parts);
+  showToast(`Detected ${parts.length} part files in active pane`, 'success');
 }
 
 async function executeFileCombine() {
-  const partsBox = document.getElementById('combine-parts-list');
   const destInput = document.getElementById('combine-dest-path');
   const expSha = document.getElementById('combine-expected-sha');
   const btn = document.getElementById('btn-run-combine');
+  const resultBox = document.getElementById('combine-result-box');
 
   const destPath = destInput?.value?.trim();
   if (!destPath) {
@@ -32152,21 +32411,24 @@ async function executeFileCombine() {
     return;
   }
 
-  const parts = Array.from(partsBox.querySelectorAll('div')).map(d => d.textContent.replace('📦 ', '').trim());
-  if (parts.length === 0) {
-    showToast('No part files selected', 'warning');
+  if (combinerDetectedParts.length === 0) {
+    showToast('No part files selected to combine', 'warning');
     return;
   }
 
   if (btn) btn.disabled = true;
-  showToast('Combining and verifying file parts...', 'info');
+  if (resultBox) {
+    resultBox.style.display = 'block';
+    resultBox.innerHTML = '<span style="color: var(--accent);"><i data-lucide="loader" class="spinner"></i> Combining and verifying file parts...</span>';
+    if (window.lucide) lucide.createIcons({ root: resultBox });
+  }
 
   try {
     const resp = await fetch('/api/tools/combine', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        parts,
+        parts: combinerDetectedParts,
         dest_path: destPath,
         expected_sha256: expSha?.value?.trim() || null
       })
@@ -32174,16 +32436,27 @@ async function executeFileCombine() {
 
     if (resp.ok) {
       const res = await resp.json();
-      closeModal('file-combiner-modal');
-      const verifyMsg = res.is_verified ? '✔ Verified matching checksum!' : '⚠️ Checksum mismatch';
-      showToast(`Successfully combined ${res.parts_joined} parts (${formatBytes(res.total_bytes_written)})! ${verifyMsg}`, 'success');
-      renderAllPanes();
+      const verifyMsg = res.is_verified ? '✔ Verified SHA-256 Checksum!' : (expSha?.value?.trim() ? '⚠️ Checksum mismatch' : `SHA-256: ${res.sha256.substring(0, 12)}...`);
+      showToast(`Successfully combined ${res.parts_joined} parts (${formatBytes(res.total_bytes_written)})!`, 'success');
+      if (resultBox) {
+        resultBox.innerHTML = `<span style="color: #22c55e; font-weight: 700;">✓ Combined ${res.parts_joined} parts successfully (${formatBytes(res.total_bytes_written)})</span><br><span style="font-family: var(--font-mono); font-size: 10.5px; opacity: 0.85;">${verifyMsg}</span>`;
+      }
+      setTimeout(() => {
+        closeModal('file-splitter-modal');
+      }, 1200);
+      refreshAllPanes();
     } else {
       const err = await resp.text();
-      showToast(`Combine failed: ${err}`, 'error');
+      showToast(`Combine failed: ${sanitizeCredentials(err)}`, 'error');
+      if (resultBox) {
+        resultBox.innerHTML = `<span style="color: var(--danger);">Failed: ${escapeHtml(sanitizeCredentials(err))}</span>`;
+      }
     }
   } catch (e) {
-    showToast(`Error combining files: ${e}`, 'error');
+    showToast(`Error combining files: ${sanitizeCredentials(String(e))}`, 'error');
+    if (resultBox) {
+      resultBox.innerHTML = `<span style="color: var(--danger);">Error: ${escapeHtml(String(e))}</span>`;
+    }
   } finally {
     if (btn) btn.disabled = false;
   }

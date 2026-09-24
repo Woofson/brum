@@ -7656,86 +7656,108 @@
     </div>
   </div>
 
-  <!-- Multi-Part File Splitter Modal -->
+  <!-- Multi-Part File Splitter & Combiner Modal -->
   <div class="modal-overlay" id="file-splitter-modal" style="z-index: 2050;">
-    <div class="modal-box" style="width: 480px; max-width: calc(100vw - 32px);">
-      <div class="modal-header">
+    <div class="modal-box splitter-modal-box" style="width: 540px; max-width: calc(100vw - 32px); max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header splitter-modal-header" style="padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <i data-lucide="scissors" style="color: var(--accent); width: 18px; height: 18px;"></i>
-          <span style="font-weight: 700; font-size: 14px;">Multi-Part File Splitter</span>
+          <span style="font-weight: 700; font-size: 14px;">File Splitter & Combiner</span>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('file-splitter-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" onclick="closeModal('file-splitter-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
-      <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
-        <div class="form-group">
-          <label>Source File to Split:</label>
-          <input type="text" id="split-source-path" class="pane-quick-filter" style="width: 100%;" readonly />
-          <div id="split-source-size-label" style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">0 B</div>
-        </div>
-        <div class="form-group">
-          <label>Chunk Size:</label>
-          <div style="display: flex; gap: 8px;">
-            <select id="split-size-preset" class="pane-quick-filter" style="flex: 1;" onchange="handleSplitPresetChange(this.value)">
-              <option value="10">10 MB (Small Chunks)</option>
-              <option value="50">50 MB (Discord / Email)</option>
-              <option value="100" selected>100 MB (Standard Parts)</option>
-              <option value="250">250 MB</option>
-              <option value="500">500 MB</option>
-              <option value="1024">1 GB (Large Chunks)</option>
-              <option value="custom">Custom Size (MB)...</option>
-            </select>
-            <input type="number" id="split-size-custom" class="pane-quick-filter" style="width: 100px; display: none;" min="1" placeholder="MB" value="100" />
+
+      <!-- Tabs Header -->
+      <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 12px; background: var(--bg-dark);">
+        <button class="settings-tab-btn active" id="btn-splitter-tab-split" onclick="switchSplitterTab('split')"><i data-lucide="scissors"></i> ✂️ Split File</button>
+        <button class="settings-tab-btn" id="btn-splitter-tab-combine" onclick="switchSplitterTab('combine')"><i data-lucide="merge"></i> 🧩 Combine Parts</button>
+      </div>
+
+      <div class="modal-body" style="padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+        <!-- Tab 1: Split File -->
+        <div id="splitter-tab-split" class="splitter-tab-content">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-weight: 600; font-size: 12px;">Source File to Split:</label>
+              <div style="display: flex; gap: 4px;">
+                <button type="button" class="btn btn-xs" onclick="useActivePaneItemForSplitter()" title="Use file selected in active pane" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="layout" style="width: 11px; height: 11px;"></i> From Pane</button>
+                <button type="button" class="btn btn-xs btn-accent" onclick="openSplitterFilePicker()" title="Browse / Select File" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse...</button>
+              </div>
+            </div>
+            <input type="text" id="split-source-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="e.g. /home/user/large-archive.tar.gz" oninput="handleSplitSourceChange(this.value)" />
+            <div id="split-source-size-label" style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">No file selected</div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Chunk Size:</label>
+            <div style="display: flex; gap: 8px;">
+              <select id="split-size-preset" class="pane-quick-filter" style="flex: 1;" onchange="handleSplitPresetChange(this.value)">
+                <option value="10">10 MB (Small Chunks)</option>
+                <option value="50">50 MB (Discord / Email)</option>
+                <option value="100" selected>100 MB (Standard Parts)</option>
+                <option value="250">250 MB</option>
+                <option value="500">500 MB</option>
+                <option value="1024">1 GB (Large Chunks)</option>
+                <option value="custom">Custom Size (MB)...</option>
+              </select>
+              <input type="number" id="split-size-custom" class="pane-quick-filter" style="width: 100px; display: none;" min="1" placeholder="MB" value="100" oninput="updateSplitEstimate()" />
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Destination Directory:</label>
+            <input type="text" id="split-dest-dir" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="Defaults to source folder" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
+              <input type="checkbox" id="split-generate-checksum" checked />
+              <span>Generate SHA-256 Checksum Manifest (.sha256)</span>
+            </label>
+          </div>
+
+          <div id="split-progress-box" style="display: none; padding: 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 8px;">
+            <div style="font-size: 11px; color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 6px;" id="split-status-text"><i data-lucide="loader" class="spinner" style="width: 14px; height: 14px;"></i> Splitting file...</div>
+          </div>
+
+          <div class="modal-footer" style="padding-top: 8px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn btn-sm" onclick="closeModal('file-splitter-modal')">Cancel</button>
+            <button class="btn btn-sm btn-accent" id="btn-run-split" onclick="executeFileSplit()"><i data-lucide="scissors" style="width: 13px; height: 13px;"></i> Split File</button>
           </div>
         </div>
-        <div class="form-group">
-          <label>Destination Folder:</label>
-          <input type="text" id="split-dest-dir" class="pane-quick-filter" style="width: 100%;" />
-        </div>
-        <div class="form-group">
-          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
-            <input type="checkbox" id="split-generate-checksum" checked />
-            <span>Generate SHA-256 Checksum Manifest (.sha256)</span>
-          </label>
-        </div>
-        <div id="split-progress-box" style="display: none; padding: 10px; background: var(--bg-dark); border-radius: 4px; border: 1px solid var(--border);">
-          <div style="font-size: 11px; color: var(--accent); font-weight: 600;" id="split-status-text">Splitting file...</div>
-        </div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeModal('file-splitter-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-run-split" onclick="executeFileSplit()"><i data-lucide="scissors"></i> Split File</button>
-      </div>
-    </div>
-  </div>
 
-  <!-- Multi-Part File Combiner Modal -->
-  <div class="modal-overlay" id="file-combiner-modal" style="z-index: 2050;">
-    <div class="modal-box" style="width: 520px; max-width: calc(100vw - 32px);">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <i data-lucide="merge" style="color: var(--accent); width: 18px; height: 18px;"></i>
-          <span style="font-weight: 700; font-size: 14px;">Multi-Part File Combiner & Verifier</span>
+        <!-- Tab 2: Combine Parts -->
+        <div id="splitter-tab-combine" class="splitter-tab-content" style="display: none;">
+          <div class="form-group" style="margin-bottom: 12px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+              <label style="font-weight: 600; font-size: 12px;">Detected Parts to Join:</label>
+              <div style="display: flex; gap: 4px;">
+                <button type="button" class="btn btn-xs" onclick="scanPaneForCombineParts()" title="Scan active pane for .001, .part1 files" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Scan Active Pane</button>
+                <button type="button" class="btn btn-xs btn-outline" onclick="clearCombineParts()" title="Clear list" style="font-size: 11px; padding: 2px 8px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
+              </div>
+            </div>
+            <div id="combine-parts-list" style="min-height: 90px; max-height: 160px; overflow-y: auto; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; font-family: var(--font-mono); display: flex; flex-direction: column; gap: 4px;">
+              <div style="color: var(--text-muted); text-align: center; padding: 20px;">No part files detected (.001, .part1...). Select part files in active pane or click Scan.</div>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Destination File Output:</label>
+            <input type="text" id="combine-dest-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="e.g. /home/user/restored-archive.tar.gz" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 12px;">
+            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Expected SHA-256 Checksum (Optional verification):</label>
+            <input type="text" id="combine-expected-sha" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="Auto-detected from .sha256 or paste hash..." />
+          </div>
+
+          <div id="combine-result-box" style="display: none; padding: 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 8px;"></div>
+
+          <div class="modal-footer" style="padding-top: 8px; display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn btn-sm" onclick="closeModal('file-splitter-modal')">Cancel</button>
+            <button class="btn btn-sm btn-accent" id="btn-run-combine" onclick="executeFileCombine()"><i data-lucide="merge" style="width: 13px; height: 13px;"></i> Join & Verify</button>
+          </div>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('file-combiner-modal')"><i data-lucide="x"></i></button>
-      </div>
-      <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
-        <div class="form-group">
-          <label>Detected Parts to Join:</label>
-          <div id="combine-parts-list" style="max-height: 120px; overflow-y: auto; padding: 6px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; font-size: 11px; font-family: var(--font-mono);"></div>
-        </div>
-        <div class="form-group">
-          <label>Destination File Output:</label>
-          <input type="text" id="combine-dest-path" class="pane-quick-filter" style="width: 100%;" />
-        </div>
-        <div class="form-group">
-          <label>Expected SHA-256 Checksum (Optional verification):</label>
-          <input type="text" id="combine-expected-sha" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="Auto-detected or paste SHA-256 hash" />
-        </div>
-        <div id="combine-result-box" style="display: none; padding: 10px; background: var(--bg-dark); border-radius: 4px; border: 1px solid var(--border); font-size: 11px;"></div>
-      </div>
-      <div class="modal-footer">
-        <button class="btn" onclick="closeModal('file-combiner-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-run-combine" onclick="executeFileCombine()"><i data-lucide="merge"></i> Join & Verify</button>
       </div>
     </div>
   </div>
