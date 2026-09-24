@@ -14060,7 +14060,7 @@ let activeConvertJob = null;
 
 function triggerConvertFile() {
   const pane = App.panes[App.activePaneIndex];
-  const item = App.contextItem || pane.entries[pane.cursorIndex];
+  const item = App.contextItem || (pane && pane.entries ? pane.entries[pane.cursorIndex] : null);
   if (item && !item.is_dir) {
     openConverterModal(item.path, null, App.activePaneIndex);
   } else {
@@ -14068,51 +14068,366 @@ function triggerConvertFile() {
   }
 }
 
-function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
-  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
-  const pane = App.panes[resolvedPaneIdx];
-  if (!filePath && pane && pane.entries && pane.entries[pane.cursorIndex]) {
-    filePath = pane.entries[pane.cursorIndex].path;
+let converterDragInitialized = false;
+let converterPickerCurrentPath = '/';
+
+function initConverterDrag() {
+  if (converterDragInitialized) return;
+  converterDragInitialized = true;
+
+  const win = document.getElementById('floating-converter-window');
+  const header = document.getElementById('converter-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_converter_x');
+  const savedTop = localStorage.getItem('cd_converter_y');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 380, Math.max(35, parseInt(savedTop, 10)))}px`;
   }
 
-  activeConverterPaneIndex = resolvedPaneIdx;
+  let isDragging = false;
+  let startX = 0;
+  let startY = 0;
+  let initialLeft = 0;
+  let initialTop = 0;
 
-  // If conversion already running for this job, restore view
-  if (isConvertInProgress && activeConvertJob && (!filePath || filePath === activeConvertJob.filePath)) {
-    restoreConverterModal();
-    return;
-  }
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button') || e.target.closest('input') || e.target.closest('select')) return;
+    if (window.innerWidth <= 600) return;
+    isDragging = true;
+    startX = e.clientX;
+    startY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    initialLeft = rect.left;
+    initialTop = rect.top;
+    bringFloatingWindowToFront(win);
+    e.preventDefault();
+  });
 
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - startX;
+    const dy = e.clientY - startY;
+    const newLeft = Math.max(0, Math.min(window.innerWidth - 100, initialLeft + dx));
+    const newTop = Math.max(35, Math.min(window.innerHeight - 100, initialTop + dy));
+    win.style.left = `${newLeft}px`;
+    win.style.top = `${newTop}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      if (win.style.left) localStorage.setItem('cd_converter_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_converter_y', parseInt(win.style.top, 10));
+    }
+  });
+
+  setupConverterDropzone(win);
+}
+
+function setupConverterDropzone(win) {
+  const dropzone = document.getElementById('converter-dropzone');
+  const targetElements = [win, dropzone].filter(Boolean);
+
+  targetElements.forEach(el => {
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (dropzone) dropzone.classList.add('drag-over');
+    });
+
+    el.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!el.contains(e.relatedTarget)) {
+        if (dropzone) dropzone.classList.remove('drag-over');
+      }
+    });
+
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (dropzone) dropzone.classList.remove('drag-over');
+
+      // 1. Brum pane drag data
+      const plainText = e.dataTransfer.getData('text/plain');
+      if (plainText) {
+        try {
+          const data = JSON.parse(plainText);
+          if (data.paths && data.paths.length > 0) {
+            setConverterSourceFile(data.paths[0], data.sourcePane);
+            return;
+          }
+        } catch (_) {
+          if (plainText.startsWith('/') || plainText.match(/^[a-zA-Z]:\\/)) {
+            setConverterSourceFile(plainText.trim());
+            return;
+          }
+        }
+      }
+
+      // 2. Local OS file drop
+      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
+        if (file.path) {
+          setConverterSourceFile(file.path);
+        } else {
+          showToast(`Selected: ${file.name}. Drag files directly from Brum panes or use the file browser.`, 'info');
+        }
+      }
+    });
+  });
+}
+
+function getConverterFileCategoryIcon(filename) {
+  if (isImageExtension(filename)) return '🖼️';
+  if (isVideoExtension(filename)) return '🎬';
+  if (isAudioExtension(filename)) return '🎵';
+  const lastDot = (filename || '').lastIndexOf('.');
+  const ext = lastDot !== -1 ? filename.substring(lastDot + 1).toLowerCase() : '';
+  if (['json', 'yaml', 'yml', 'toml', 'xml', 'csv', 'sql'].includes(ext)) return '📊';
+  if (['html', 'htm', 'md', 'txt', 'pdf', 'docx'].includes(ext)) return '📄';
+  return '📦';
+}
+
+function setConverterSourceFile(filePath, paneIndex = null) {
+  if (!filePath) return;
+  activeConverterFile = filePath;
   activeConverterCustomName = false;
-  activeConverterFile = filePath || '';
+  if (paneIndex !== null && paneIndex !== undefined) {
+    activeConverterPaneIndex = paneIndex;
+  }
 
-  const fileName = filePath ? filePath.split('/').pop() : 'No file selected';
+  const fileName = filePath.split('/').pop() || filePath;
+  const lastDot = fileName.lastIndexOf('.');
+  const ext = lastDot !== -1 ? fileName.substring(lastDot + 1).toLowerCase() : '';
+
+  const card = document.getElementById('converter-selected-card');
+  const prompt = document.getElementById('converter-empty-prompt');
   const nameEl = document.getElementById('convert-source-filename');
   const pathEl = document.getElementById('convert-source-path');
+  const extBadge = document.getElementById('convert-source-ext-badge');
+  const iconBadge = document.getElementById('converter-file-icon-badge');
   const sizeEl = document.getElementById('convert-source-size');
 
-  const node = typeof getPaneNode === 'function' ? getPaneNode(resolvedPaneIdx) : null;
+  if (card) card.style.display = 'flex';
+  if (prompt) prompt.style.display = 'none';
+
+  const node = typeof getPaneNode === 'function' ? getPaneNode(activeConverterPaneIndex) : null;
   const nodeLabel = (node && node.id !== 'local') ? `[Fleet: ${node.name}] ` : '';
 
   if (nameEl) nameEl.textContent = fileName;
-  if (pathEl) pathEl.textContent = filePath ? `${nodeLabel}${filePath}` : 'Select a file in the pane to convert';
-  if (sizeEl) sizeEl.textContent = '';
+  if (pathEl) {
+    pathEl.textContent = `${nodeLabel}${filePath}`;
+    pathEl.title = filePath;
+  }
+  if (extBadge) extBadge.textContent = ext ? ext.toUpperCase() : 'FILE';
+  if (iconBadge) iconBadge.textContent = getConverterFileCategoryIcon(fileName);
 
+  // Check if size is available in pane
+  let foundSize = null;
+  const pane = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
+    ? App.panes[activeConverterPaneIndex]
+    : App.panes[App.activePaneIndex];
+  if (pane && pane.entries) {
+    const matched = pane.entries.find(e => e.path === filePath || e.name === fileName);
+    if (matched && matched.size !== undefined) {
+      foundSize = formatFileSize(matched.size);
+    }
+  }
+  if (sizeEl) sizeEl.textContent = foundSize ? `Size: ${foundSize}` : '';
+
+  // Smart target format selection
   const targetFormatEl = document.getElementById('convert-target-format');
   if (targetFormatEl) {
-    if (defaultFormat) {
-      targetFormatEl.value = defaultFormat;
-    } else if (isVideoExtension(fileName)) {
+    if (isVideoExtension(fileName)) {
       targetFormatEl.value = 'mp4';
     } else if (isAudioExtension(fileName)) {
       targetFormatEl.value = 'mp3';
     } else if (isImageExtension(fileName)) {
       targetFormatEl.value = 'webp';
+    } else if (['json', 'yaml', 'yml', 'toml'].includes(ext)) {
+      targetFormatEl.value = ext === 'json' ? 'yaml' : 'json';
     }
     handleTargetFormatChange(targetFormatEl.value);
   }
 
   updateConvertOutputName(true);
+  if (window.lucide) lucide.createIcons();
+}
+
+function clearConverterSourceFile() {
+  activeConverterFile = '';
+  activeConverterCustomName = false;
+  const card = document.getElementById('converter-selected-card');
+  const prompt = document.getElementById('converter-empty-prompt');
+  if (card) card.style.display = 'none';
+  if (prompt) prompt.style.display = 'flex';
+  const outInput = document.getElementById('convert-output-filename');
+  if (outInput) outInput.value = '';
+  const previewEl = document.getElementById('convert-output-preview-path');
+  if (previewEl) previewEl.textContent = 'Destination: ...';
+  const statusMsg = document.getElementById('convert-status-msg');
+  if (statusMsg) statusMsg.style.display = 'none';
+  if (window.lucide) lucide.createIcons();
+}
+
+function useActivePaneItemForConverter() {
+  const pane = App.panes[App.activePaneIndex];
+  if (!pane) return;
+  const item = (pane.selected && pane.selected.size > 0)
+    ? Array.from(pane.selected)[0]
+    : (pane.entries && pane.entries[pane.cursorIndex] ? pane.entries[pane.cursorIndex].path : null);
+  if (item) {
+    setConverterSourceFile(item, App.activePaneIndex);
+  } else {
+    showToast('No file selected in active pane', 'warning');
+  }
+}
+
+function openConverterFilePicker() {
+  const curVal = activeConverterFile
+    ? activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'))
+    : (App.panes[App.activePaneIndex]?.path || getUserDefaultHomeDir() || '/');
+  converterPickerCurrentPath = curVal || '/';
+
+  const panesList = document.getElementById('converter-picker-panes-list');
+  if (panesList) {
+    panesList.innerHTML = App.panes.map((p, idx) => `
+      <button type="button" class="btn btn-xs" onclick="navigateConverterPickerPath('${escapeHtml(p.path || '/')}')" title="Pane ${idx + 1} (${p.nodeId || 'local'})">
+        Pane ${idx + 1}
+      </button>
+    `).join('');
+  }
+
+  navigateConverterPickerPath(converterPickerCurrentPath);
+  showModal('converter-file-picker-modal');
+  if (window.lucide) lucide.createIcons();
+}
+
+async function navigateConverterPickerPath(newPath) {
+  if (!newPath) newPath = '/';
+  converterPickerCurrentPath = newPath;
+  const pathIn = document.getElementById('converter-picker-path-input');
+  if (pathIn) pathIn.value = newPath;
+
+  const container = document.getElementById('converter-picker-file-list');
+  if (container) {
+    container.innerHTML = '<div style="padding: 16px; text-align: center; color: var(--accent);"><i data-lucide="loader" class="spinner"></i> Loading files...</div>';
+    if (window.lucide) lucide.createIcons();
+  }
+
+  try {
+    const encoded = encodeURIComponent(newPath);
+    const resp = await fetch(`/api/fs/list?path=${encoded}&show_hidden=false`, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      const entries = (data.entries || []).filter(e => e.name !== '.' && e.name !== '..');
+      
+      entries.sort((a, b) => {
+        if (a.is_dir && !b.is_dir) return -1;
+        if (!a.is_dir && b.is_dir) return 1;
+        return a.name.localeCompare(b.name);
+      });
+
+      if (entries.length === 0) {
+        if (container) container.innerHTML = '<div style="padding: 20px; text-align: center; color: var(--text-dim); font-size: 11px;">Folder is empty.</div>';
+      } else {
+        if (container) {
+          container.innerHTML = entries.map(entry => {
+            const fullPath = newPath.endsWith('/') ? `${newPath}${entry.name}` : `${newPath}/${entry.name}`;
+            if (entry.is_dir) {
+              return `
+                <div class="converter-file-picker-row" onclick="navigateConverterPickerPath('${escapeHtml(fullPath)}')">
+                  <span style="display: flex; align-items: center; gap: 6px;">
+                    <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent);"></i>
+                    <span style="font-weight: 600;">${escapeHtml(entry.name)}</span>
+                  </span>
+                  <span style="font-size: 10px; color: var(--text-dim);">Directory</span>
+                </div>
+              `;
+            } else {
+              const icon = getConverterFileCategoryIcon(entry.name);
+              const sizeStr = entry.size !== undefined ? formatFileSize(entry.size) : '';
+              return `
+                <div class="converter-file-picker-row" onclick="selectConverterPickerFile('${escapeHtml(fullPath)}')">
+                  <span style="display: flex; align-items: center; gap: 6px;">
+                    <span style="font-size: 13px;">${icon}</span>
+                    <span style="font-weight: 500;">${escapeHtml(entry.name)}</span>
+                  </span>
+                  <span style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${sizeStr}</span>
+                </div>
+              `;
+            }
+          }).join('');
+        }
+      }
+    } else {
+      if (container) container.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--danger); font-size: 11px;">Cannot open directory: ${escapeHtml(await resp.text())}</div>`;
+    }
+  } catch (err) {
+    if (container) container.innerHTML = `<div style="padding: 16px; text-align: center; color: var(--danger); font-size: 11px;">Network error: ${escapeHtml(String(err))}</div>`;
+  }
+  if (window.lucide) lucide.createIcons();
+}
+
+function navigateConverterPickerUp() {
+  const parent = getParentDirectory(converterPickerCurrentPath);
+  if (parent && parent !== converterPickerCurrentPath) {
+    navigateConverterPickerPath(parent);
+  }
+}
+
+function selectConverterPickerFile(filePath) {
+  closeModal('converter-file-picker-modal');
+  setConverterSourceFile(filePath);
+  const win = document.getElementById('floating-converter-window');
+  if (win) bringFloatingWindowToFront(win);
+}
+
+function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  activeConverterPaneIndex = resolvedPaneIdx;
+
+  const win = document.getElementById('floating-converter-window');
+  const pill = document.getElementById('convertx-pill');
+  if (pill) pill.style.display = 'none';
+
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+
+  initConverterDrag();
+
+  // If conversion already running for this job, retain state
+  if (isConvertInProgress && activeConvertJob && (!filePath || filePath === activeConvertJob.filePath)) {
+    return;
+  }
+
+  if (filePath) {
+    setConverterSourceFile(filePath, resolvedPaneIdx);
+  } else {
+    const pane = App.panes[resolvedPaneIdx];
+    const item = (pane && pane.selected && pane.selected.size > 0)
+      ? Array.from(pane.selected)[0]
+      : (pane && pane.entries && pane.entries[pane.cursorIndex] && !pane.entries[pane.cursorIndex].is_dir
+          ? pane.entries[pane.cursorIndex].path
+          : null);
+    if (item) {
+      setConverterSourceFile(item, resolvedPaneIdx);
+    } else {
+      clearConverterSourceFile();
+    }
+  }
+
+  if (defaultFormat) {
+    setConverterTargetFormat(defaultFormat);
+  }
 
   const cancelBtn = document.getElementById('btn-convert-cancel');
   const bgBtn = document.getElementById('btn-convert-background');
@@ -14130,200 +14445,7 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   const statusMsg = document.getElementById('convert-status-msg');
   if (statusMsg) statusMsg.style.display = 'none';
 
-  showModal('converter-modal');
-}
-
-function minimizeConverterModal() {
-  closeModal('converter-modal');
-  const pill = document.getElementById('convertx-pill');
-  const titleEl = document.getElementById('convertx-pill-title');
-  if (isConvertInProgress && activeConvertJob) {
-    if (titleEl) titleEl.textContent = `Converting ${activeConvertJob.fileName} ➔ ${activeConvertJob.targetFormat.toUpperCase()}`;
-    if (pill) pill.style.display = 'flex';
-    showToast('ConvertX running in background', 'info');
-  } else {
-    if (pill) pill.style.display = 'none';
-  }
-}
-
-function restoreConverterModal() {
-  const pill = document.getElementById('convertx-pill');
-  if (pill) pill.style.display = 'none';
-  showModal('converter-modal');
-}
-
-function closeConverterModal() {
-  if (isConvertInProgress) {
-    minimizeConverterModal();
-  } else {
-    closeModal('converter-modal');
-    const pill = document.getElementById('convertx-pill');
-    if (pill) pill.style.display = 'none';
-  }
-}
-
-function updateConvertOutputName(forceReset = false) {
-  if (!activeConverterFile) return;
-  const fileName = activeConverterFile.split('/').pop() || '';
-  const lastDot = fileName.lastIndexOf('.');
-  const stem = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
-  const srcExt = lastDot !== -1 ? fileName.substring(lastDot + 1).toLowerCase() : '';
-  const targetFmt = (document.getElementById('convert-target-format')?.value || 'webp').toLowerCase().trim();
-
-  const outInput = document.getElementById('convert-output-filename');
-  const previewEl = document.getElementById('convert-output-preview-path');
-
-  if (forceReset || !activeConverterCustomName) {
-    const isSameFormat = srcExt === targetFmt;
-    const defaultName = isSameFormat ? `${stem}_converted.${targetFmt}` : `${stem}.${targetFmt}`;
-    if (outInput) outInput.value = defaultName;
-  }
-
-  const currentOutName = outInput ? outInput.value.trim() : `${stem}.${targetFmt}`;
-  const parentDir = activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'));
-  if (previewEl) {
-    previewEl.textContent = parentDir ? `Destination: ${parentDir}/${currentOutName}` : `Destination: ${currentOutName}`;
-  }
-}
-
-function handleConvertOutputNameInput() {
-  activeConverterCustomName = true;
-  updateConvertOutputName(false);
-}
-
-function handleTargetFormatChange(fmt) {
-  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif', 'bmp', 'ico'].includes(fmt.toLowerCase());
-  const imgOpts = document.getElementById('convert-image-options');
-  if (imgOpts) imgOpts.style.display = isImage ? 'block' : 'none';
-  updateConvertOutputName(false);
-}
-
-async function executeFileConversion() {
-  if (!activeConverterFile) {
-    showToast('Please select a valid file to convert', 'warning');
-    return;
-  }
-
-  const targetFormat = document.getElementById('convert-target-format')?.value || 'webp';
-  const quality = parseInt(document.getElementById('convert-quality-slider')?.value || '85', 10);
-  const resizeW = parseInt(document.getElementById('convert-resize-w')?.value, 10) || null;
-  const resizeH = parseInt(document.getElementById('convert-resize-h')?.value, 10) || null;
-
-  const customOutName = document.getElementById('convert-output-filename')?.value.trim();
-  let resolvedOutputPath = null;
-  if (customOutName) {
-    const parentDir = activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'));
-    resolvedOutputPath = parentDir ? `${parentDir}/${customOutName}` : customOutName;
-  }
-
-  isConvertInProgress = true;
-  const fileName = activeConverterFile.split('/').pop() || activeConverterFile;
-  activeConvertJob = {
-    filePath: activeConverterFile,
-    fileName,
-    targetFormat
-  };
-
-  const statusMsg = document.getElementById('convert-status-msg');
-  const cancelBtn = document.getElementById('btn-convert-cancel');
-  const bgBtn = document.getElementById('btn-convert-background');
-  const convertBtn = document.getElementById('btn-run-convert');
-  const okBtn = document.getElementById('btn-convert-ok');
-
-  if (bgBtn) bgBtn.style.display = 'inline-flex';
-  if (statusMsg) {
-    statusMsg.style.display = 'block';
-    statusMsg.style.color = 'var(--accent)';
-    statusMsg.innerHTML = '<i data-lucide="loader"></i> Converting file in progress... <button class="btn btn-xs" onclick="minimizeConverterModal()" style="margin-left: 8px;">Run in Background</button>';
-    if (window.lucide) lucide.createIcons();
-  }
-  if (convertBtn) convertBtn.disabled = true;
-
-  try {
-    const endpoint = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
-      ? getPaneEndpoint(activeConverterPaneIndex)
-      : '';
-    const headers = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
-      ? getPaneAuthHeaders(activeConverterPaneIndex, { 'Content-Type': 'application/json' })
-      : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` };
-
-    const resp = await fetch(`${endpoint}/api/tools/convert`, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        source_path: activeConverterFile,
-        target_format: targetFormat,
-        output_path: resolvedOutputPath,
-        quality: quality,
-        resize_width: resizeW,
-        resize_height: resizeH
-      })
-    });
-
-    isConvertInProgress = false;
-    const pill = document.getElementById('convertx-pill');
-    if (pill) pill.style.display = 'none';
-
-    if (resp.ok) {
-      const data = await resp.json();
-      const modal = document.getElementById('converter-modal');
-      const isModalOpen = modal && modal.classList.contains('active');
-
-      if (statusMsg) {
-        statusMsg.style.display = 'block';
-        statusMsg.style.color = 'var(--text-main)';
-        statusMsg.innerHTML = `
-          <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 6px; padding: 12px; margin-top: 10px;">
-            <div style="color: var(--success); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-              <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Conversion Complete
-            </div>
-            <div style="font-size: 11px; line-height: 1.6; color: var(--text-dim);">
-              <div><strong style="color: var(--text-main);">Output File:</strong> <span style="color: var(--accent); font-family: var(--font-mono); word-break: break-all;">${escapeHtml(data.output_path)}</span></div>
-              ${data.output_size ? `<div><strong style="color: var(--text-main);">Size:</strong> ${formatFileSize(data.output_size)}</div>` : ''}
-              <div style="margin-top: 4px; color: var(--text-muted);">${escapeHtml(data.message)}</div>
-            </div>
-          </div>
-        `;
-        if (window.lucide) lucide.createIcons();
-      }
-
-      if (!isModalOpen) {
-        showToast(`✅ Converted ${fileName} to ${targetFormat.toUpperCase()} (${data.output_size ? formatFileSize(data.output_size) : ''})`, 'success');
-      }
-
-      // Switch buttons to [OK]
-      if (cancelBtn) cancelBtn.style.display = 'none';
-      if (bgBtn) bgBtn.style.display = 'none';
-      if (convertBtn) convertBtn.style.display = 'none';
-      if (okBtn) okBtn.style.display = 'inline-flex';
-
-      refreshAllPanes();
-    } else {
-      const errText = await resp.text();
-      showToast(`Conversion failed: ${errText}`, 'error');
-      if (statusMsg) {
-        statusMsg.style.display = 'block';
-        statusMsg.style.color = 'var(--danger)';
-        statusMsg.textContent = `Conversion failed: ${errText}`;
-      }
-      if (convertBtn) convertBtn.disabled = false;
-      if (bgBtn) bgBtn.style.display = 'none';
-    }
-  } catch (e) {
-    isConvertInProgress = false;
-    const pill = document.getElementById('convertx-pill');
-    if (pill) pill.style.display = 'none';
-    showToast(`Conversion error: ${e}`, 'error');
-    if (statusMsg) {
-      statusMsg.style.display = 'block';
-      statusMsg.style.color = 'var(--danger)';
-      statusMsg.textContent = `Error: ${e}`;
-    }
-    if (convertBtn) convertBtn.disabled = false;
-    if (bgBtn) bgBtn.style.display = 'none';
-  } finally {
-    activeConvertJob = null;
-  }
+  if (window.lucide) lucide.createIcons();
 }
 
 // ---------------- USER PROFILE & DROPDOWNS & FAVORITES ----------------
