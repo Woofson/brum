@@ -14448,6 +14448,213 @@ function openConverterModal(filePath, defaultFormat = null, paneIndex = null) {
   if (window.lucide) lucide.createIcons();
 }
 
+function minimizeConverterModal() {
+  const win = document.getElementById('floating-converter-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('convertx-pill');
+  const titleEl = document.getElementById('convertx-pill-title');
+  if (isConvertInProgress && activeConvertJob) {
+    if (titleEl) titleEl.textContent = `Converting ${activeConvertJob.fileName} ➔ ${activeConvertJob.targetFormat.toUpperCase()}`;
+    if (pill) pill.style.display = 'flex';
+    showToast('Format Converter running in background', 'info');
+  } else {
+    if (pill) pill.style.display = 'none';
+  }
+}
+
+function restoreConverterModal() {
+  const win = document.getElementById('floating-converter-window');
+  const pill = document.getElementById('convertx-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+}
+
+function closeConverterModal() {
+  if (isConvertInProgress) {
+    minimizeConverterModal();
+  } else {
+    const win = document.getElementById('floating-converter-window');
+    if (win) win.style.display = 'none';
+    const pill = document.getElementById('convertx-pill');
+    if (pill) pill.style.display = 'none';
+  }
+}
+
+function setConverterTargetFormat(fmt) {
+  const targetFormatEl = document.getElementById('convert-target-format');
+  if (targetFormatEl) {
+    targetFormatEl.value = fmt;
+    handleTargetFormatChange(fmt);
+  }
+}
+
+function updateConvertOutputName(forceReset = false) {
+  if (!activeConverterFile) return;
+  const fileName = activeConverterFile.split('/').pop() || '';
+  const lastDot = fileName.lastIndexOf('.');
+  const stem = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
+  const srcExt = lastDot !== -1 ? fileName.substring(lastDot + 1).toLowerCase() : '';
+  const targetFmt = (document.getElementById('convert-target-format')?.value || 'webp').toLowerCase().trim();
+
+  const outInput = document.getElementById('convert-output-filename');
+  const previewEl = document.getElementById('convert-output-preview-path');
+
+  if (forceReset || !activeConverterCustomName) {
+    const isSameFormat = srcExt === targetFmt;
+    const defaultName = isSameFormat ? `${stem}_converted.${targetFmt}` : `${stem}.${targetFmt}`;
+    if (outInput) outInput.value = defaultName;
+  }
+
+  const currentOutName = outInput ? outInput.value.trim() : `${stem}.${targetFmt}`;
+  const parentDir = activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'));
+  if (previewEl) {
+    previewEl.textContent = parentDir ? `Destination: ${parentDir}/${currentOutName}` : `Destination: ${currentOutName}`;
+  }
+}
+
+function handleConvertOutputNameInput() {
+  activeConverterCustomName = true;
+  updateConvertOutputName(false);
+}
+
+function handleTargetFormatChange(fmt) {
+  const isImage = ['png', 'jpg', 'jpeg', 'webp', 'avif', 'gif', 'bmp', 'ico', 'tiff'].includes(fmt.toLowerCase());
+  const imgOpts = document.getElementById('convert-image-options');
+  if (imgOpts) imgOpts.style.display = isImage ? 'block' : 'none';
+  updateConvertOutputName(false);
+}
+
+async function executeFileConversion() {
+  if (!activeConverterFile) {
+    showToast('Please select a valid file to convert', 'warning');
+    return;
+  }
+
+  const targetFormat = document.getElementById('convert-target-format')?.value || 'webp';
+  const quality = parseInt(document.getElementById('convert-quality-slider')?.value || '85', 10);
+  const resizeW = parseInt(document.getElementById('convert-resize-w')?.value, 10) || null;
+  const resizeH = parseInt(document.getElementById('convert-resize-h')?.value, 10) || null;
+
+  const customOutName = document.getElementById('convert-output-filename')?.value.trim();
+  let resolvedOutputPath = null;
+  if (customOutName) {
+    const parentDir = activeConverterFile.substring(0, activeConverterFile.lastIndexOf('/'));
+    resolvedOutputPath = parentDir ? `${parentDir}/${customOutName}` : customOutName;
+  }
+
+  isConvertInProgress = true;
+  const fileName = activeConverterFile.split('/').pop() || activeConverterFile;
+  activeConvertJob = {
+    filePath: activeConverterFile,
+    fileName,
+    targetFormat
+  };
+
+  const statusMsg = document.getElementById('convert-status-msg');
+  const cancelBtn = document.getElementById('btn-convert-cancel');
+  const bgBtn = document.getElementById('btn-convert-background');
+  const convertBtn = document.getElementById('btn-run-convert');
+  const okBtn = document.getElementById('btn-convert-ok');
+
+  if (bgBtn) bgBtn.style.display = 'inline-flex';
+  if (statusMsg) {
+    statusMsg.style.display = 'block';
+    statusMsg.style.color = 'var(--accent)';
+    statusMsg.innerHTML = '<i data-lucide="loader"></i> Converting file in progress... <button class="btn btn-xs" onclick="minimizeConverterModal()" style="margin-left: 8px;">Run in Background</button>';
+    if (window.lucide) lucide.createIcons();
+  }
+  if (convertBtn) convertBtn.disabled = true;
+
+  try {
+    const endpoint = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
+      ? getPaneEndpoint(activeConverterPaneIndex)
+      : '';
+    const headers = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
+      ? getPaneAuthHeaders(activeConverterPaneIndex, { 'Content-Type': 'application/json' })
+      : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` };
+
+    const resp = await fetch(`${endpoint}/api/tools/convert`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        source_path: activeConverterFile,
+        target_format: targetFormat,
+        output_path: resolvedOutputPath,
+        quality: quality,
+        resize_width: resizeW,
+        resize_height: resizeH
+      })
+    });
+
+    isConvertInProgress = false;
+    const pill = document.getElementById('convertx-pill');
+    if (pill) pill.style.display = 'none';
+
+    if (resp.ok) {
+      const data = await resp.json();
+      const win = document.getElementById('floating-converter-window');
+      const isWinOpen = win && win.style.display !== 'none';
+
+      if (statusMsg) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = 'var(--text-main)';
+        statusMsg.innerHTML = `
+          <div style="background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.25); border-radius: 6px; padding: 12px; margin-top: 10px;">
+            <div style="color: var(--success); font-weight: 700; display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
+              <i data-lucide="check-circle" style="width: 16px; height: 16px;"></i> Conversion Complete
+            </div>
+            <div style="font-size: 11px; line-height: 1.6; color: var(--text-dim);">
+              <div><strong style="color: var(--text-main);">Output File:</strong> <span style="color: var(--accent); font-family: var(--font-mono); word-break: break-all;">${escapeHtml(data.output_path)}</span></div>
+              ${data.output_size ? `<div><strong style="color: var(--text-main);">Size:</strong> ${formatFileSize(data.output_size)}</div>` : ''}
+              <div style="margin-top: 4px; color: var(--text-muted);">${escapeHtml(data.message)}</div>
+            </div>
+          </div>
+        `;
+        if (window.lucide) lucide.createIcons();
+      }
+
+      if (!isWinOpen) {
+        showToast(`✅ Converted ${fileName} to ${targetFormat.toUpperCase()} (${data.output_size ? formatFileSize(data.output_size) : ''})`, 'success');
+      }
+
+      // Switch buttons to [OK]
+      if (cancelBtn) cancelBtn.style.display = 'none';
+      if (bgBtn) bgBtn.style.display = 'none';
+      if (convertBtn) convertBtn.style.display = 'none';
+      if (okBtn) okBtn.style.display = 'inline-flex';
+
+      refreshAllPanes();
+    } else {
+      const errText = await resp.text();
+      showToast(`Conversion failed: ${errText}`, 'error');
+      if (statusMsg) {
+        statusMsg.style.display = 'block';
+        statusMsg.style.color = 'var(--danger)';
+        statusMsg.textContent = `Conversion failed: ${errText}`;
+      }
+      if (convertBtn) convertBtn.disabled = false;
+      if (bgBtn) bgBtn.style.display = 'none';
+    }
+  } catch (e) {
+    isConvertInProgress = false;
+    const pill = document.getElementById('convertx-pill');
+    if (pill) pill.style.display = 'none';
+    showToast(`Conversion error: ${e}`, 'error');
+    if (statusMsg) {
+      statusMsg.style.display = 'block';
+      statusMsg.style.color = 'var(--danger)';
+      statusMsg.textContent = `Error: ${e}`;
+    }
+    if (convertBtn) convertBtn.disabled = false;
+    if (bgBtn) bgBtn.style.display = 'none';
+  } finally {
+    activeConvertJob = null;
+  }
+}
+
 // ---------------- USER PROFILE & DROPDOWNS & FAVORITES ----------------
 
 function renderAvatarElement(el, avatar) {
@@ -21106,6 +21313,10 @@ function hideModal(id) {
 }
 
 function closeModal(id) {
+  if (id === 'converter-modal' || id === 'floating-converter-window') {
+    closeConverterModal();
+    return;
+  }
   if (id) {
     hideModal(id);
   } else {
