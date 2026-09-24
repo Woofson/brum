@@ -6,7 +6,12 @@ Welcome to the **CommanderDog** project repository. All agents and pair-programm
 
 ## 1. Versioning & Iteration Rules
 
-* **Iteration Release Candidates (`rc1-rc99`)**: Every time changes/iterations are made to the codebase between official releases, bump the release candidate postfix using SemVer `rc1` through `rc99` (e.g. `0.8.3-rc1`, `0.8.3-rc2`...) in `Cargo.toml`. When an official milestone release is finalized, drop the `-rc` suffix (e.g. `0.8.3`).
+* **Standard Semantic Versioning (`MAJOR.MINOR.PATCH`)**:
+  * Stick to clean SemVer without release candidate (`-rc`) suffixes unless explicitly preparing a dedicated release candidate build.
+  * **Patch Bumps (`x.y.Z`)**: When resolving bugs or fixing regressions (e.g., `1.0.0` -> `1.0.1`).
+  * **Minor Bumps (`x.Y.0`)**: When adding new features, Core Functions, or capabilities (e.g., `1.0.1` -> `1.1.0`).
+  * **Major Bumps (`X.0.0`)**: When implementing breaking changes or full architectural overhauls (e.g., `1.x.x` -> `2.0.0`).
+  * **Local Scratch Iteration**: Local test builds may use alphabetical postfixes (`1.0.1a`–`1.0.1z`) on local workstations; these letter suffixes are never committed to GitHub or published upstream.
 * **Centralized Single Source of Truth**:
   * The version number is defined exclusively in `Cargo.toml` (`[package] version = "..."`).
   * The Rust backend automatically embeds this compile-time via `env!("CARGO_PKG_VERSION")` and serves it via `/api/config` and `/api/system/status`.
@@ -28,15 +33,14 @@ At the end of every response after making changes, **always clearly inform the u
 * **GitHub Issues as Single Source of Truth for Roadmap**:
   * Treat GitHub Issues on `Woofson/brum` as the exclusive single source of truth for the roadmap, active backlog, and sprint tracking.
   * Regularly query, check, and update issues using `scripts/issues.sh` or the GitHub CLI (`gh issue list`, `gh issue view`, `gh issue create`, `gh issue comment`, `gh issue close`).
-  * When implementing features or fixing bugs, cross-reference the corresponding issue number in commit messages (e.g. `fix(notedog): resolve dropdown lag in docked mode (fixes #1)`).
+  * When implementing features or fixing bugs, cross-reference the corresponding issue number in commit messages (e.g. `fix(auth): resolve system user avatar across reverse proxies (fixes #69)`).
 * **Documentation & Changelog CLI Tooling**:
   * Use `scripts/changelog.sh` to compile changelog notes directly to stdout (`./scripts/changelog.sh` or `./scripts/changelog.sh git`).
-  * **Official Releases Only**: Update `CHANGELOG.md` exclusively when finalizing and tagging an official milestone release (e.g., `0.8.3`). Do **NOT** log day-to-day release candidate iterations (`rc1`–`rc99`) in `CHANGELOG.md` to conserve token bandwidth and reduce edit friction.
-  * Before every git commit or push, ensure that `Cargo.toml` is bumped to the next iteration candidate (`-rc`).
+  * **Official Releases Only**: Update `CHANGELOG.md` exclusively when finalizing and tagging an official milestone release (e.g., `1.0.1`).
 * **Release Cadence & Throttling Rules**:
   * **Daily Release Cap**: Do NOT push more than one official release (`"push and release"`) per day, unless resolving a critical/breaking emergency bug.
   * **Weekly Token Cycle Releases**: Aim to build and release officially once per weekly token cycle, ideally at the beginning of each new cycle.
-  * **Day-to-Day Development**: Routine iterations, feature additions, and non-breaking bug fixes should use `"push to git"` with SemVer release candidate bumps (`rc1`–`rc99`) rather than publishing full official releases across package ecosystems.
+  * **Day-to-Day Development**: Routine iterations, feature additions, and non-breaking bug fixes should use `"push to git"` with standard SemVer bumps in `Cargo.toml`.
 * **Command: `"push to git"`**:
   * Commit modified files with a clean, conventional commit message and push to the remote Git repository.
   * **DO NOT trigger releases or publish packages.**
