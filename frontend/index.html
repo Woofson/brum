@@ -7657,9 +7657,10 @@
   </div>
 
   <!-- Multi-Part File Splitter & Combiner Modal -->
+  <!-- Multi-Part File Splitter & Combiner Modal -->
   <div class="modal-overlay" id="file-splitter-modal" style="z-index: 2050;">
-    <div class="modal-box splitter-modal-box" style="width: 540px; max-width: calc(100vw - 32px); max-height: 88vh; display: flex; flex-direction: column;">
-      <div class="modal-header splitter-modal-header" style="padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+    <div class="modal-box splitter-modal-box" style="width: 480px; max-width: calc(100vw - 28px); max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header splitter-modal-header" style="padding: 10px 14px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <i data-lucide="scissors" style="color: var(--accent); width: 18px; height: 18px;"></i>
           <span style="font-weight: 700; font-size: 14px;">File Splitter & Combiner</span>
@@ -7668,30 +7669,42 @@
       </div>
 
       <!-- Tabs Header -->
-      <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 12px; background: var(--bg-dark);">
-        <button class="settings-tab-btn active" id="btn-splitter-tab-split" onclick="switchSplitterTab('split')"><i data-lucide="scissors"></i> ✂️ Split File</button>
-        <button class="settings-tab-btn" id="btn-splitter-tab-combine" onclick="switchSplitterTab('combine')"><i data-lucide="merge"></i> 🧩 Combine Parts</button>
+      <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 10px; background: var(--bg-dark);">
+        <button class="settings-tab-btn active" id="btn-splitter-tab-split" onclick="switchSplitterTab('split')"><i data-lucide="scissors"></i> Split File</button>
+        <button class="settings-tab-btn" id="btn-splitter-tab-combine" onclick="switchSplitterTab('combine')"><i data-lucide="merge"></i> Combine Parts</button>
       </div>
 
-      <div class="modal-body" style="padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">
+      <div class="modal-body" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 11px;">
         <!-- Tab 1: Split File -->
         <div id="splitter-tab-split" class="splitter-tab-content">
-          <div class="form-group" style="margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label style="font-weight: 600; font-size: 12px;">Source File to Split:</label>
-              <div style="display: flex; gap: 4px;">
-                <button type="button" class="btn btn-xs" onclick="useActivePaneItemForSplitter()" title="Use file selected in active pane" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="layout" style="width: 11px; height: 11px;"></i> From Pane</button>
-                <button type="button" class="btn btn-xs btn-accent" onclick="openSplitterFilePicker()" title="Browse / Select File" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse...</button>
+          <!-- Dropzone & Quick Selector -->
+          <div class="converter-dropzone" id="splitter-dropzone" style="min-height: 60px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer;" onclick="if(!event.target.closest('button')) openSplitterFilePicker();" title="Drag & drop a file here or click to browse">
+            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
+              <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; flex: 1;">
+                <div style="width: 32px; height: 32px; border-radius: 6px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <i data-lucide="scissors" style="width: 16px; height: 16px; color: var(--accent);"></i>
+                </div>
+                <div style="display: flex; flex-direction: column; overflow: hidden; min-width: 0;">
+                  <span style="font-size: 11.5px; font-weight: 600; color: var(--text-main); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" id="splitter-dropzone-filename">Drop file here or click to browse...</span>
+                  <span style="font-size: 10.5px; color: var(--text-muted);" id="split-source-size-label">No file selected</span>
+                </div>
+              </div>
+              <div style="display: flex; gap: 4px; flex-shrink: 0;">
+                <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); useActivePaneItemForSplitter();" title="Use file selected in active pane" style="font-size: 10.5px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="layout" style="width: 11px; height: 11px;"></i> Pane</button>
+                <button type="button" class="btn btn-xs btn-accent" onclick="event.stopPropagation(); openSplitterFilePicker();" title="Browse / Select File" style="font-size: 10.5px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
               </div>
             </div>
-            <input type="text" id="split-source-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="e.g. /home/user/large-archive.tar.gz" oninput="handleSplitSourceChange(this.value)" />
-            <div id="split-source-size-label" style="font-size: 11px; color: var(--text-muted); margin-top: 5px;">No file selected</div>
           </div>
 
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Chunk Size:</label>
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Source Path:</label>
+            <input type="text" id="split-source-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="/path/to/large-archive.tar.gz" oninput="handleSplitSourceChange(this.value)" />
+          </div>
+
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Chunk Size:</label>
             <div style="display: flex; gap: 8px;">
-              <select id="split-size-preset" class="pane-quick-filter" style="flex: 1;" onchange="handleSplitPresetChange(this.value)">
+              <select id="split-size-preset" class="pane-quick-filter" style="flex: 1; font-size: 11.5px;" onchange="handleSplitPresetChange(this.value)">
                 <option value="10">10 MB (Small Chunks)</option>
                 <option value="50">50 MB (Discord / Email)</option>
                 <option value="100" selected>100 MB (Standard Parts)</option>
@@ -7700,27 +7713,27 @@
                 <option value="1024">1 GB (Large Chunks)</option>
                 <option value="custom">Custom Size (MB)...</option>
               </select>
-              <input type="number" id="split-size-custom" class="pane-quick-filter" style="width: 100px; display: none;" min="1" placeholder="MB" value="100" oninput="updateSplitEstimate()" />
+              <input type="number" id="split-size-custom" class="pane-quick-filter" style="width: 90px; display: none; font-size: 11.5px;" min="1" placeholder="MB" value="100" oninput="updateSplitEstimate()" />
             </div>
           </div>
 
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Destination Directory:</label>
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Destination Directory:</label>
             <input type="text" id="split-dest-dir" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="Defaults to source folder" />
           </div>
 
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px;">
+          <div class="form-group" style="margin-bottom: 8px;">
+            <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 11.5px; color: var(--text-main);">
               <input type="checkbox" id="split-generate-checksum" checked />
               <span>Generate SHA-256 Checksum Manifest (.sha256)</span>
             </label>
           </div>
 
-          <div id="split-progress-box" style="display: none; padding: 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 8px;">
-            <div style="font-size: 11px; color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 6px;" id="split-status-text"><i data-lucide="loader" class="spinner" style="width: 14px; height: 14px;"></i> Splitting file...</div>
+          <div id="split-progress-box" style="display: none; padding: 8px 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); margin-bottom: 8px;">
+            <div style="font-size: 11px; color: var(--accent); font-weight: 600; display: flex; align-items: center; gap: 6px;" id="split-status-text"><i data-lucide="loader" class="spinner" style="width: 13px; height: 13px;"></i> Splitting file...</div>
           </div>
 
-          <div class="modal-footer" style="padding-top: 8px; display: flex; justify-content: flex-end; gap: 8px;">
+          <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px;">
             <button class="btn btn-sm" onclick="closeModal('file-splitter-modal')">Cancel</button>
             <button class="btn btn-sm btn-accent" id="btn-run-split" onclick="executeFileSplit()"><i data-lucide="scissors" style="width: 13px; height: 13px;"></i> Split File</button>
           </div>
@@ -7728,32 +7741,32 @@
 
         <!-- Tab 2: Combine Parts -->
         <div id="splitter-tab-combine" class="splitter-tab-content" style="display: none;">
-          <div class="form-group" style="margin-bottom: 12px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
-              <label style="font-weight: 600; font-size: 12px;">Detected Parts to Join:</label>
+          <div class="form-group" style="margin-bottom: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <label style="font-weight: 600; font-size: 11.5px; color: var(--text-dim);">Detected Parts to Join (Drag files here):</label>
               <div style="display: flex; gap: 4px;">
-                <button type="button" class="btn btn-xs" onclick="scanPaneForCombineParts()" title="Scan active pane for .001, .part1 files" style="font-size: 11px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Scan Active Pane</button>
-                <button type="button" class="btn btn-xs btn-outline" onclick="clearCombineParts()" title="Clear list" style="font-size: 11px; padding: 2px 8px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
+                <button type="button" class="btn btn-xs" onclick="scanPaneForCombineParts()" title="Scan active pane for .001, .part1 files" style="font-size: 10.5px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Scan Pane</button>
+                <button type="button" class="btn btn-xs btn-outline" onclick="clearCombineParts()" title="Clear list" style="font-size: 10.5px; padding: 2px 7px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
               </div>
             </div>
-            <div id="combine-parts-list" style="min-height: 90px; max-height: 160px; overflow-y: auto; padding: 8px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; font-family: var(--font-mono); display: flex; flex-direction: column; gap: 4px;">
-              <div style="color: var(--text-muted); text-align: center; padding: 20px;">No part files detected (.001, .part1...). Select part files in active pane or click Scan.</div>
+            <div id="combine-parts-list" style="min-height: 85px; max-height: 150px; overflow-y: auto; padding: 6px; background: var(--bg-dark); border: 1px dashed var(--border); border-radius: 6px; font-size: 11px; font-family: var(--font-mono); display: flex; flex-direction: column; gap: 3px;">
+              <div style="color: var(--text-muted); text-align: center; padding: 18px;">No part files detected (.001, .part1...). Drag files here, select in pane, or click Scan.</div>
             </div>
           </div>
 
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Destination File Output:</label>
-            <input type="text" id="combine-dest-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="e.g. /home/user/restored-archive.tar.gz" />
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Destination File Output:</label>
+            <input type="text" id="combine-dest-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="e.g. /path/to/restored-archive.tar.gz" />
           </div>
 
-          <div class="form-group" style="margin-bottom: 12px;">
-            <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Expected SHA-256 Checksum (Optional verification):</label>
+          <div class="form-group" style="margin-bottom: 10px;">
+            <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Expected SHA-256 Checksum (Optional verification):</label>
             <input type="text" id="combine-expected-sha" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="Auto-detected from .sha256 or paste hash..." />
           </div>
 
-          <div id="combine-result-box" style="display: none; padding: 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 8px;"></div>
+          <div id="combine-result-box" style="display: none; padding: 8px 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 8px;"></div>
 
-          <div class="modal-footer" style="padding-top: 8px; display: flex; justify-content: flex-end; gap: 8px;">
+          <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px;">
             <button class="btn btn-sm" onclick="closeModal('file-splitter-modal')">Cancel</button>
             <button class="btn btn-sm btn-accent" id="btn-run-combine" onclick="executeFileCombine()"><i data-lucide="merge" style="width: 13px; height: 13px;"></i> Join & Verify</button>
           </div>
@@ -7775,9 +7788,9 @@
 
       <!-- Tabs Header -->
       <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 12px; background: var(--bg-dark);">
-        <button class="settings-tab-btn active" id="btn-pdf-tab-merge" onclick="switchPdfTab('merge')"><i data-lucide="merge"></i> 📑 Merge PDFs</button>
-        <button class="settings-tab-btn" id="btn-pdf-tab-split" onclick="switchPdfTab('split')"><i data-lucide="scissors"></i> ✂️ Split PDF</button>
-        <button class="settings-tab-btn" id="btn-pdf-tab-reorder" onclick="switchPdfTab('reorder')"><i data-lucide="rotate-cw"></i> 🔄 Reorder & Rotate</button>
+        <button class="settings-tab-btn active" id="btn-pdf-tab-merge" onclick="switchPdfTab('merge')"><i data-lucide="merge"></i> Merge PDFs</button>
+        <button class="settings-tab-btn" id="btn-pdf-tab-split" onclick="switchPdfTab('split')"><i data-lucide="scissors"></i> Split PDF</button>
+        <button class="settings-tab-btn" id="btn-pdf-tab-reorder" onclick="switchPdfTab('reorder')"><i data-lucide="rotate-cw"></i> Reorder & Rotate</button>
       </div>
 
       <div class="modal-body" style="padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 14px;">

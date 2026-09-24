@@ -32082,11 +32082,13 @@ async function loadGitStatusForDocked(paneIndex, repoPath) {
 }
 
 // =========================================================================
+// =========================================================================
 // 🧩 MULTI-PART FILE SPLITTER & COMBINER ENGINE
 // =========================================================================
 
 let splitterCurrentFileSizeBytes = 0;
 let combinerDetectedParts = [];
+let splitterDropzoneInitialized = false;
 
 function switchSplitterTab(tab) {
   const splitBtn = document.getElementById('btn-splitter-tab-split');
@@ -32106,6 +32108,80 @@ function switchSplitterTab(tab) {
     if (combineContent) combineContent.style.display = 'none';
   }
   if (window.lucide) lucide.createIcons();
+}
+
+function setupSplitterDropzone() {
+  if (splitterDropzoneInitialized) return;
+  splitterDropzoneInitialized = true;
+
+  const modal = document.getElementById('file-splitter-modal');
+  const dropzone = document.getElementById('splitter-dropzone');
+  const combineList = document.getElementById('combine-parts-list');
+  const targetElements = [modal, dropzone, combineList].filter(Boolean);
+
+  targetElements.forEach(el => {
+    el.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (dropzone) dropzone.classList.add('drag-over');
+      if (modal) modal.classList.add('drag-over');
+    });
+
+    el.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!el.contains(e.relatedTarget)) {
+        if (dropzone) dropzone.classList.remove('drag-over');
+        if (modal) modal.classList.remove('drag-over');
+      }
+    });
+
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (dropzone) dropzone.classList.remove('drag-over');
+      if (modal) modal.classList.remove('drag-over');
+
+      let droppedPaths = [];
+
+      // 1. Internal Brum pane drag data
+      const plainText = e.dataTransfer.getData('text/plain');
+      if (plainText) {
+        try {
+          const data = JSON.parse(plainText);
+          if (data.paths && data.paths.length > 0) {
+            droppedPaths = data.paths;
+          }
+        } catch (_) {
+          if (plainText.startsWith('/') || plainText.match(/^[a-zA-Z]:\\/)) {
+            droppedPaths = [plainText.trim()];
+          }
+        }
+      }
+
+      // 2. Local OS file drop
+      if (droppedPaths.length === 0 && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        droppedPaths = Array.from(e.dataTransfer.files).map(f => f.path).filter(Boolean);
+      }
+
+      if (droppedPaths.length === 0) return;
+
+      const isCombineTabActive = document.getElementById('splitter-tab-combine')?.style.display !== 'none';
+      const isPartFiles = droppedPaths.every(p => /\.\d{3}$/.test(p) || /\.part\d+/i.test(p));
+
+      if (isCombineTabActive || (droppedPaths.length > 1 && isPartFiles)) {
+        switchSplitterTab('combine');
+        const unique = Array.from(new Set([...combinerDetectedParts, ...droppedPaths]));
+        setCombinerParts(unique);
+        showToast(`Added ${droppedPaths.length} part file${droppedPaths.length === 1 ? '' : 's'} to combiner`, 'success');
+      } else {
+        switchSplitterTab('split');
+        setSplitterSourceFile(droppedPaths[0]);
+        const name = droppedPaths[0].split('/').filter(Boolean).pop() || droppedPaths[0];
+        showToast(`Selected file: ${name}`, 'info');
+      }
+    });
+  });
 }
 
 function openFileSplitterModal(filePath, sizeBytes) {
@@ -32133,15 +32209,28 @@ function openFileSplitterModal(filePath, sizeBytes) {
   }
 
   setSplitterSourceFile(filePath, sizeBytes);
+  setupSplitterDropzone();
   showModal('file-splitter-modal');
 }
 
 async function setSplitterSourceFile(filePath, sizeBytes) {
   const srcInput = document.getElementById('split-source-path');
   const destInput = document.getElementById('split-dest-dir');
+  const dropzoneName = document.getElementById('splitter-dropzone-filename');
 
   const cleanPath = (filePath || '').trim();
   if (srcInput) srcInput.value = cleanPath;
+
+  if (dropzoneName) {
+    if (cleanPath) {
+      const name = cleanPath.split('/').filter(Boolean).pop() || cleanPath;
+      dropzoneName.textContent = name;
+      dropzoneName.title = cleanPath;
+    } else {
+      dropzoneName.textContent = 'Drop file here or click to browse...';
+      dropzoneName.title = '';
+    }
+  }
 
   const defaultDest = cleanPath && cleanPath.includes('/')
     ? (cleanPath.substring(0, cleanPath.lastIndexOf('/')) || '/')
@@ -32214,11 +32303,11 @@ function updateSplitEstimate(sizeBytes) {
   if (sizeBytes > 0 && chunkMb && chunkMb > 0) {
     const chunkBytes = chunkMb * 1024 * 1024;
     const count = Math.ceil(sizeBytes / chunkBytes);
-    sizeLbl.innerHTML = `Total Size: <strong>${formatBytes(sizeBytes)}</strong> • Estimated: <span style="color: var(--accent); font-weight: 600;">${count} chunk${count === 1 ? '' : 's'}</span> (~${chunkMb} MB each)`;
+    sizeLbl.innerHTML = `Size: <strong>${formatBytes(sizeBytes)}</strong> • Estimated: <span style="color: var(--accent); font-weight: 600;">${count} chunk${count === 1 ? '' : 's'}</span> (~${chunkMb} MB each)`;
   } else if (sizeBytes > 0) {
-    sizeLbl.innerHTML = `Total Size: <strong>${formatBytes(sizeBytes)}</strong>`;
+    sizeLbl.innerHTML = `Size: <strong>${formatBytes(sizeBytes)}</strong>`;
   } else {
-    sizeLbl.textContent = 'No file selected (select a file from active pane or click Browse)';
+    sizeLbl.textContent = 'No file selected (select a file or drag & drop)';
   }
 }
 
@@ -32302,6 +32391,7 @@ function openFileCombinerModal(partsList) {
   }
 
   setCombinerParts(parts);
+  setupSplitterDropzone();
   showModal('file-splitter-modal');
 }
 
@@ -32319,13 +32409,13 @@ function setCombinerParts(partsList) {
 
   if (partsBox) {
     if (combinerDetectedParts.length === 0) {
-      partsBox.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 20px;">No part files detected (.001, .part1...). Select part files in active pane or click "Scan Active Pane".</div>';
+      partsBox.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding: 18px;">No part files detected (.001, .part1...). Drag files here, select in pane, or click Scan.</div>';
     } else {
       partsBox.innerHTML = combinerDetectedParts.map((p, idx) => {
         const basename = p.split('/').filter(Boolean).pop() || p;
         return `
           <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(255,255,255,0.03); border-radius: 4px; margin-bottom: 2px;">
-            <span title="${escapeHtml(p)}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 380px;">
+            <span title="${escapeHtml(p)}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px;">
               <span style="color: var(--accent); font-weight: 700; margin-right: 4px;">#${idx + 1}</span> ${escapeHtml(basename)}
             </span>
             <button type="button" class="btn btn-icon btn-xs" style="width: 20px; height: 20px; padding: 0;" onclick="removeCombinePart(${idx})" title="Remove"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
