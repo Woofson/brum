@@ -1,4 +1,4 @@
-# 🔒 Brum Transparent Encrypted Vaults Manual
+# Brum Transparent Encrypted Vaults Manual
 
 > **Zero-Knowledge, RAM-Only Authenticated Encryption (AES-256-GCM & Argon2id)**
 
@@ -6,7 +6,7 @@ Brum Transparent Encrypted Vaults (`.cdvault` / `.cdv`) provide self-contained, 
 
 ---
 
-## 📑 Table of Contents
+## Table of Contents
 1. [Core Security Architecture](#1-core-security-architecture)
 2. [Creating an Encrypted Vault](#2-creating-an-encrypted-vault)
 3. [Unlocking & Accessing a Vault](#3-unlocking--accessing-a-vault)
@@ -46,7 +46,7 @@ You can create an encrypted vault anywhere in Brum (local storage, external driv
 ### Method A: Via Right-Click Context Menu
 1. Navigate to the desired parent folder in any directory pane.
 2. Right-click on empty space (or tap the **Actions** button on mobile).
-3. Select **🔒 Create Encrypted Vault (.cdvault)...**.
+3. Select **Create Encrypted Vault (.cdvault)...**.
 4. In the modal:
    * Enter the destination file path (e.g. `/home/bolt/Documents/Confidential_2026.cdvault`).
    * Enter and confirm your master passphrase.
@@ -63,7 +63,7 @@ You can create an encrypted vault anywhere in Brum (local storage, external driv
 
 Unlocked vaults are mounted seamlessly as a virtual filesystem under the `vault://` protocol scheme.
 
-1. Locate any `.cdvault`, `.cdv`, or `.vault` file in the file browser (marked with the amber 🔒 **`shield-check`** badge).
+1. Locate any `.cdvault`, `.cdv`, or `.vault` file in the file browser (marked with the amber **`shield-check`** badge).
 2. **Double-click** or press <kbd>Enter</kbd> on the vault container.
 3. In the **Unlock Encrypted Vault** dialog:
    * Enter the vault's master password.
@@ -84,7 +84,7 @@ Unlocked vaults are mounted seamlessly as a virtual filesystem under the `vault:
 Inside the vault, you have full access to Brum's suite of power tools:
 
 * **Navigating Subfolders**: Browse virtual directories transparently (e.g. `vault:///path/to/my.cdvault#finance/taxes/`).
-* **Live In-Memory Editing**: Open text files, Markdown, JSON, YAML, code, and config files with **EditorDog**. When pressing <kbd>Ctrl+S</kbd>, changes are encrypted in RAM with AES-256-GCM and written back atomically.
+* **Live In-Memory Editing**: Open text files, Markdown, JSON, YAML, code, and config files with the built-in **Editor**. When pressing <kbd>Ctrl+S</kbd>, changes are encrypted in RAM with AES-256-GCM and written back atomically.
 * **Creating Folders & Files**: Use <kbd>F7</kbd> to create virtual folders or right-click to create new documents inside the encrypted container.
 * **Uploading Files**: Drag & drop files from your desktop or use the **Upload** button to encrypt external files directly into the vault.
 * **Downloading & Streaming**: Download decrypted files or stream media directly through the browser without saving temporary copies on the server.
@@ -100,8 +100,8 @@ Brum implements strict memory hygiene for open vault sessions:
    * Every access (read, write, list) updates the session's `last_accessed` timestamp.
    * If no requests occur within the configured duration (e.g. 15 minutes), the vault locks automatically and purges the 256-bit Master Key from RAM.
 2. **1-Click Breadcrumb Lock**:
-   * While browsing inside a vault, a red **[ 🔒 Lock ]** button appears in the breadcrumb bar next to the vault name.
-   * Clicking **[ 🔒 Lock ]** purges the Master Key immediately and returns the pane to the parent directory.
+   * While browsing inside a vault, a red **[ Lock ]** button appears in the breadcrumb bar next to the vault name.
+   * Clicking **[ Lock ]** purges the Master Key immediately and returns the pane to the parent directory.
 3. **Session Lock Integration**:
    * Locking your overall Brum session (<kbd>Ctrl+Alt+L</kbd>) immediately invalidates all active vault keys in memory.
 
@@ -175,7 +175,3 @@ Authorization: Bearer <TOKEN>
 * **Write file**: `POST /api/fs/write` with `{ "path": "vault:///home/bolt/Documents/Secrets.cdvault#passwords.txt", "content": "..." }`
 * **Download file**: `GET /api/fs/download?path=vault:///home/bolt/Documents/Secrets.cdvault#tax_return.pdf`
 * **Delete file**: `POST /api/fs/delete` with `{ "paths": ["vault:///home/bolt/Documents/Secrets.cdvault#old.txt"] }`
-
----
-
-*Brum Transparent Encrypted Vaults — Engineered for Maximum Privacy & Simplicity.* 🐕🔒

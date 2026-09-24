@@ -1,19 +1,20 @@
-# Brum Advanced Sharing & Client Portals Manual
+# Advanced Sharing Center & Client Portals Manual
 
 > **Secure File Distribution, Granular Access Controls, Dynamic Watermarking & Public Client Portals**
 
-The **Brum Advanced Sharing System** enables users to generate authenticated, expiring, and granularly controlled public links for files and directories. It turns any Brum instance into a professional client portal, design showcase, or secure file distribution hub with zero third-party cloud dependencies.
+The **Brum Sharing Center** is a native Core Function enabling users to generate authenticated, expiring, and granularly controlled public links for files and directories. It turns any Brum instance into a professional client portal, 3D design showcase, or secure file distribution hub with zero third-party cloud dependencies.
 
 ---
 
 ## Table of Contents
 1. [Core Architecture & Security Flow](#1-core-architecture--security-flow)
-2. [Creating & Configuring Share Links](#2-creating--configuring-share-links)
-3. [Granular Permissions & Access Controls](#3-granular-permissions--access-controls)
-4. [Dynamic Watermarking & View-Only Galleries](#4-dynamic-watermarking--view-only-galleries)
-5. [Public Client Portal & Integrated Viewers](#5-public-client-portal--integrated-viewers)
-6. [Managing Shares, Revocation & Audit Logs](#6-managing-shares-revocation--audit-logs)
-7. [REST API Reference](#7-rest-api-reference)
+2. [Dual-Mode Sharing Center Interface](#2-dual-mode-sharing-center-interface)
+3. [Creating & Configuring Share Links](#3-creating--configuring-share-links)
+4. [Granular Permissions & Access Controls](#4-granular-permissions--access-controls)
+5. [Dynamic Watermarking & View-Only Galleries](#5-dynamic-watermarking--view-only-galleries)
+6. [Public Client Portal & Integrated Viewers](#6-public-client-portal--integrated-viewers)
+7. [Managing Shares, Revocation & Audit Logs](#7-managing-shares-revocation--audit-logs)
+8. [REST API Reference](#8-rest-api-reference)
 
 ---
 
@@ -21,7 +22,7 @@ The **Brum Advanced Sharing System** enables users to generate authenticated, ex
 
 ```mermaid
 flowchart TD
-    A["Brum User / Admin"] -->|"Right-Click -> Create Share Link"| B["Share Manager Engine"]
+    A["Brum User / Admin"] -->|"Right-Click -> Create Share Link"| B["Sharing Center Engine"]
     B -->|"Generate 32-char Random Token"| C["Brum SQLite Database (shares table)"]
     
     D["External Recipient / Client"] -->|"Visits /share/:token"| E["Public Share Gateway"]
@@ -39,7 +40,7 @@ flowchart TD
     K --> L
     
     L --> M{"Action"}
-    M -->|"View File"| N["Internal Viewer (Img/Video/PDF/Doc) + Optional Watermark"]
+    M -->|"View File"| N["Internal Viewer (Img/Video/PDF/3D CAD/Doc) + Optional Watermark"]
     M -->|"Download"| O{"Downloads Allowed & Within Cap?"}
     O -->|"Yes"| P["Stream Binary Payload + Increment Counter"]
     O -->|"No"| Q["Download Forbidden (403)"]
@@ -54,7 +55,15 @@ flowchart TD
 
 ---
 
-## 2. Creating & Configuring Share Links
+## 2. Dual-Mode Sharing Center Interface
+
+Sharing Center operates in Brum's universal dual-mode architecture:
+1. **Floating Window Mode**: A resizable, draggable floating dialog for inspecting shares, logs, and token links while continuing file management.
+2. **In-Pane Docking Mode**: Dock directly into Panel 1 or Panel 2 to manage all active shares alongside your active directory structure.
+
+---
+
+## 3. Creating & Configuring Share Links
 
 You can create a share link for any file, folder, or media collection:
 
@@ -72,20 +81,20 @@ You can create a share link for any file, folder, or media collection:
 4. Click **Generate Share Link**.
 5. Copy the generated public URL (`https://your-domain.com/share/abc123xyz...`).
 
-### Method B: Via Share Manager
-1. Open the **Share Manager** from the Tools Launchpad or Settings (<kbd>F10</kbd>).
+### Method B: Via Sharing Center
+1. Open the **Sharing Center** from the Tools Launchpad or Settings (<kbd>F10</kbd>).
 2. Click **+ New Share**.
 3. Select the target path and configure permissions.
 
 ---
 
-## 3. Granular Permissions & Access Controls
+## 4. Granular Permissions & Access Controls
 
 Brum's sharing engine decouples viewing from downloading, enabling flexible delivery scenarios:
 
 | Permission Profile | View in Browser | Download Binary | Upload Files | Ideal Use Case |
 | :--- | :---: | :---: | :---: | :--- |
-| **Protected Showcase** | Yes | No | No | Design studios, confidential drafts, client proofs, photo galleries |
+| **Protected Showcase** | Yes | No | No | Design studios, confidential drafts, client proofs, photo galleries, 3D CAD models |
 | **Standard Distribution** | Yes | Yes | No | Software releases, client deliverables, document distribution |
 | **Client Upload Dropzone**| No | No | Yes | Homework submission, client document collection, raw footage drops |
 | **Collaborative Hub** | Yes | Yes | Yes | Shared project workspaces, partner folders |
@@ -98,7 +107,7 @@ Brum's sharing engine decouples viewing from downloading, enabling flexible deli
 
 ---
 
-## 4. Dynamic Watermarking & View-Only Galleries
+## 5. Dynamic Watermarking & View-Only Galleries
 
 For creative professionals, architects, and agencies presenting pre-release drafts or design mockups:
 
@@ -111,15 +120,16 @@ For creative professionals, architects, and agencies presenting pre-release draf
 
 ---
 
-## 5. Public Client Portal & Integrated Viewers
+## 6. Public Client Portal & Integrated Viewers
 
 Visitors accessing `/share/:token` are presented with a clean, branded, responsive public portal:
 
-* **Single File Shares**: Direct preview with media player, image studio, or document reader.
+* **Single File Shares**: Direct preview with media player, image studio, 3D CAD viewer, or document reader.
 * **Directory Shares**: Multi-file explorer with grid/list view toggles, breadcrumb navigation, and search filter.
 * **Integrated Native Viewers**:
+  * **3D CAD Models**: Interactive Three.js WebGL rendering for `.stl`, `.obj`, `.gltf`, `.glb`, `.3mf`, and `.step` with orbit rotation, wireframe toggles, and mesh stats.
   * **Images**: High-resolution viewer with pan, zoom, and EXIF metadata.
-  * **Video & Audio**: Web media player supporting MP4, WebM, MP3, WAV, FLAC, OGG.
+  * **Video & Audio**: Web media player supporting MP4, WebM, MP3, WAV, FLAC, OGG with seeking.
   * **Documents & PDF**: Visual PDF studio and markdown/text reader with syntax highlighting.
   * **Code**: Syntax highlighted code viewer with line numbers.
 * **Upload Dropzone**:
@@ -128,9 +138,9 @@ Visitors accessing `/share/:token` are presented with a clean, branded, responsi
 
 ---
 
-## 6. Managing Shares, Revocation & Audit Logs
+## 7. Managing Shares, Revocation & Audit Logs
 
-Access the centralized **Share Manager** anytime via Tools Launchpad or `openSharesManager()`:
+Access the centralized **Sharing Center** anytime via Tools Launchpad or `openSharesManager()`:
 
 ### Live Management Features
 * **Active vs Revoked Filter**: Inspect active, expired, and revoked shares.
@@ -142,7 +152,7 @@ Access the centralized **Share Manager** anytime via Tools Launchpad or `openSha
 
 ---
 
-## 7. REST API Reference
+## 8. REST API Reference
 
 All share management endpoints are authenticated with standard JWT Bearer tokens:
 
@@ -192,8 +202,8 @@ All share management endpoints are authenticated with standard JWT Bearer tokens
     "ip": "203.0.113.42",
     "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)...",
     "action": "view",
-    "details": "previewed rendering_v2.png",
-    "created_at": "2026-09-20T10:15:30Z"
+    "details": "previewed model.stl",
+    "created_at": "2026-09-24T10:15:30Z"
   }
 ]
 ```

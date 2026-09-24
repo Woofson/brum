@@ -1,20 +1,20 @@
-# 🐕 Brum — Proxmox VE & Linux LXC Deployment Guide
+# Brum — Proxmox VE & Linux LXC Deployment Guide
 
 > Complete walkthrough for deploying **Brum** in Proxmox VE LXC containers or standalone Linux containers (Debian / Ubuntu / Alpine).
 
 ---
 
-## 🌟 Why Brum in LXC?
+## Why Brum in LXC?
 
-- ⚡ **Ultra-Low Resource Footprint**: Written in Rust, idling at just **~20–30 MB of RAM** with zero runtime bloat.
-- 📦 **Single Standalone Binary**: Web assets are embedded inside the executable via `rust-embed` — no Node.js or web server runtime required.
-- 🔒 **Native PAM & SQLite Multi-User Auth**: Authenticate directly with Linux container users (`/etc/passwd` & `/etc/shadow`) or the built-in SQLite user database.
-- 🗄️ **Direct ZFS / NFS / SMB Bind Mounts**: Seamlessly browse multi-terabyte host storage pools at raw native I/O speeds.
-- 💻 **Integrated Slide-Up Linux PTY Terminal**: Run native `bash`/`sh` shell sessions inside the container directly from the browser (`Ctrl+\``).
+- **Ultra-Low Resource Footprint**: Written in Rust, idling at just **~20–30 MB of RAM** with zero runtime bloat.
+- **Single Standalone Binary**: Web assets are embedded inside the executable via `rust-embed` — no Node.js or web server runtime required.
+- **Native PAM & SQLite Multi-User Auth**: Authenticate directly with Linux container users (`/etc/passwd` & `/etc/shadow`) or the built-in SQLite user database.
+- **Direct ZFS / NFS / SMB Bind Mounts**: Seamlessly browse multi-terabyte host storage pools at raw native I/O speeds.
+- **Integrated Slide-Up Linux PTY Terminal**: Run native `bash`/`sh` shell sessions inside the container directly from the browser (`Ctrl+\``).
 
 ---
 
-## 🚀 Quick Start (Automated 1-Liner)
+## Quick Start (Automated 1-Liner)
 
 Inside your Debian / Ubuntu LXC container terminal, run:
 
@@ -28,16 +28,16 @@ Once installed, Brum is running and enabled on boot:
 
 ---
 
-## 📦 Method A: Installation via Debian `.deb` Package
+## Method A: Installation via Debian `.deb` Package
 
 If you built or downloaded the `.deb` release package:
 
 ```bash
-# 1. Install prerequisites (including optional ffmpeg & imagemagick for ConvertX transcoding)
+# 1. Install prerequisites (including optional ffmpeg & imagemagick for Format Converter transcoding)
 apt-get update && apt-get install -y ca-certificates tar bzip2 7zip ffmpeg imagemagick
 
 # 2. Install Brum
-dpkg -i brum_0.8.5_amd64.deb # or dpkg -i brum_*_amd64.deb
+dpkg -i brum_1.0.0_amd64.deb # or dpkg -i brum_*_amd64.deb
 
 # 3. Enable and Start Systemd Service
 systemctl daemon-reload
@@ -49,13 +49,13 @@ systemctl status brum
 
 ---
 
-## 🔧 Method B: Manual Step-by-Step Installation
+## Method B: Manual Step-by-Step Installation
 
 ```bash
 # 1. Download and extract release tarball
-wget https://github.com/Woofson/brum/releases/latest/download/brum-v0.8.5-linux-x86_64.tar.gz
-tar -xzf brum-v0.8.5-linux-x86_64.tar.gz
-cd brum-v0.8.5-linux-x86_64
+wget https://github.com/Woofson/brum/releases/latest/download/brum-v1.0.0-linux-x86_64.tar.gz
+tar -xzf brum-v1.0.0-linux-x86_64.tar.gz
+cd brum-v1.0.0-linux-x86_64
 
 # 2. Copy binary to system path
 install -m 755 brum /usr/bin/brum
@@ -73,7 +73,7 @@ systemctl enable --now brum.service
 
 ---
 
-## 🗂️ Proxmox Storage Bind-Mounting (Host ➔ LXC)
+## Proxmox Storage Bind-Mounting (Host ➔ LXC)
 
 To give Brum access to host disks, ZFS pools, or NAS shares, add bind mounts in your Proxmox host configuration (`/etc/pve/lxc/<CTID>.conf`).
 
@@ -113,7 +113,7 @@ pct reboot <CTID>
 
 ---
 
-## ⚙️ Reverse Proxy Setup (Nginx, Caddy, Traefik)
+## Reverse Proxy Setup (Nginx, Caddy, Traefik)
 
 Brum uses WebSockets for the **Integrated Terminal (`/api/ws/terminal`)**. Ensure your reverse proxy passes `Upgrade` headers.
 
@@ -161,7 +161,7 @@ files.lan.local {
 
 ---
 
-## 👥 Multi-User Management in LXC
+## Multi-User Management in LXC
 
 ### Linux System Users (PAM Mode)
 If PAM authentication is enabled in `/etc/brum/config.toml`, any Linux user created in the container can log in directly:
@@ -177,7 +177,7 @@ You can also manage independent web users directly from the **Settings (`F10`) �
 
 ---
 
-## 🔄 Service Control & Maintenance
+## Service Control & Maintenance
 
 | Command | Action |
 | :--- | :--- |
@@ -201,6 +201,6 @@ systemctl start brum
 
 ---
 
-## 📜 License
+## License
 
 MIT © Bolt J Woofson

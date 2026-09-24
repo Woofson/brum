@@ -11,13 +11,13 @@ Welcome to the **Brum** manual and documentation index.
 ### Core Features & Usage
 | Manual | Description |
 | :--- | :--- |
-| [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for all built-in ChewToys (NoteDog, ARFAMP, TetraDog, PDFDog, Bite! Terminal, ConvertX, DiffDog, Disk Usage) |
+| [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for Native Core Functions & ChewToys (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Audio Player, Terminal, Format Converter, Batch Renamer, Vaults) |
 | [**`plugin-development.md`**](plugin-development.md) | Modular ChewToy & Plugin development guide: `.grr` package standard, `plugin.toml`, `window.Brum` SDK & Admin RBAC |
-| [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, ARFAMP keys, and mouse/touch navigation |
-| [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, UI options, desktop settings) |
-| [**`protocols.md`**](protocols.md) | Remote VFS protocols guide (SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
+| [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, player hotkeys, and mouse/touch gestures |
+| [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, OIDC SSO, UI options, desktop settings) |
+| [**`protocols.md`**](protocols.md) | Remote & Client VFS protocols guide (Client Local `client://`, SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
 | [**`vaults.md`**](vaults.md) | Encrypted `.cdvault` containers with Argon2id + AES-256-GCM RAM-only zero-leakage filesystem |
-| [**`sharing.md`**](sharing.md) | Advanced public link sharing, client portals, granular ACLs, dynamic watermarking & upload dropzones |
+| [**`sharing.md`**](sharing.md) | Advanced public link sharing, Sharing Center, client portals, granular ACLs, dynamic watermarking & upload dropzones |
 | [**`authentik-sso.md`**](authentik-sso.md) | Enterprise OpenID Connect (OIDC) & Authentik SSO setup guide, auto-provisioning & role mapping |
 
 ### Installation & Deployment Runbooks

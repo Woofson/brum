@@ -1,4 +1,4 @@
-# <img src="../assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> Brum on Android & Termux
+# Brum on Android & Termux
 
 > **High-Performance Multi-Pane File Commander & Web Environment for Android**  
 > *Run Brum directly on unrooted Android devices via Termux, PRoot, UserLAnd, or as a standalone Progressive Web App (PWA).*
@@ -11,7 +11,7 @@ Brum is built in pure asynchronous Rust (`axum`, `tokio`, `rust-embed`) and comp
 
 On Android devices, Brum can run as a local userspace daemon in **Termux** or a **PRoot Linux container**, providing:
 - **Direct Android Storage Access**: Manage internal storage (`/sdcard`), DCIM, Downloads, Documents, and external USB OTG drives without root.
-- **Progressive Web App (PWA)**: Access `http://127.0.0.1:3000` via Chrome, Firefox, or Brave with full-screen, native-feeling mobile touch UI.
+- **Progressive Web App (PWA)**: Access `http://127.0.0.1:3140` via Chrome, Firefox, or Brave with full-screen, native-feeling mobile touch UI.
 - **Embedded Bite! Terminal**: Spawns an interactive Android shell (`bash`, `zsh`, `sh`) directly inside your browser.
 - **Wireless Commander Fleet Node**: Wirelessly browse, edit, and sync phone files from a PC or tablet over local Wi-Fi or Tailscale without MTP cables.
 
@@ -68,7 +68,7 @@ brum
 
 To expose Brum across your local Wi-Fi network (to browse phone files from a PC):
 ```bash
-brum -b 0.0.0.0:3000
+brum --host 0.0.0.0 --port 3140
 ```
 
 ---
@@ -86,17 +86,17 @@ If you prefer using full Linux distributions on Android without Termux's custom 
    ```
 2. Inside Alpine Linux, install the official Brum `.apk` package:
    ```bash
-   apk add --allow-untrusted https://github.com/Woofson/brum/releases/download/v0.8.9/brum-0.8.9-r0.x86_64.apk
-   brum -b 0.0.0.0:3000
+   apk add --allow-untrusted https://github.com/Woofson/brum/releases/download/v1.0.0/brum-1.0.0-r0.x86_64.apk
+   brum --host 0.0.0.0 --port 3140
    ```
 
 ### B. UserLAnd / AndroNix
 1. Launch an Alpine or Debian session in UserLAnd.
 2. Download the generic Linux binary tarball:
    ```bash
-   curl -LO https://github.com/Woofson/brum/releases/latest/download/brum-v0.8.9-linux-x86_64.tar.gz
-   tar -xzf brum-v0.8.9-linux-x86_64.tar.gz
-   cd brum-v0.8.9-linux-x86_64
+   curl -LO https://github.com/Woofson/brum/releases/latest/download/brum-v1.0.0-linux-x86_64.tar.gz
+   tar -xzf brum-v1.0.0-linux-x86_64.tar.gz
+   cd brum-v1.0.0-linux-x86_64
    ./brum
    ```
 
@@ -107,7 +107,7 @@ If you prefer using full Linux distributions on Android without Termux's custom 
 Brum automatically detects mobile screen viewports (`<600px` Phone mode) with single-pane navigation and quick bottom actions.
 
 1. Open **Chrome**, **Firefox**, or **Brave** on your Android device.
-2. Navigate to `http://127.0.0.1:3000`.
+2. Navigate to `http://127.0.0.1:3140`.
 3. Open the browser menu (three dots `⋮`) and select **"Add to Home screen"** or **"Install App"**.
 4. Brum will install as a native-feeling standalone application with no address bars or browser frames.
 
@@ -125,7 +125,7 @@ termux-wake-lock
 
 ### 2. Run as a Background Service
 ```bash
-nohup brum -b 0.0.0.0:3000 > /dev/null 2>&1 &
+nohup brum --host 0.0.0.0 --port 3140 > /dev/null 2>&1 &
 ```
 
 ### 3. Autostart on Device Boot via Termux:Boot
@@ -137,7 +137,7 @@ nohup brum -b 0.0.0.0:3000 > /dev/null 2>&1 &
    cat << 'EOF' > ~/.termux/boot/start-brum.sh
    #!/data/data/com.termux/files/usr/bin/bash
    termux-wake-lock
-   brum -b 0.0.0.0:3000 > ~/.brum.log 2>&1 &
+   brum --host 0.0.0.0 --port 3140 > ~/.brum.log 2>&1 &
    EOF
    chmod +x ~/.termux/boot/start-brum.sh
    ```
@@ -150,7 +150,8 @@ Customize the pre-configured bookmarks and storage roots in `~/.config/brum/conf
 
 ```toml
 [server]
-bind_address = "0.0.0.0:3000"
+host = "0.0.0.0"
+port = 3140
 default_path = "/data/data/com.termux/files/home/storage/shared"
 
 [storage]
@@ -178,9 +179,9 @@ default_shell = "/data/data/com.termux/files/usr/bin/bash"
    *(Example: `192.168.1.145`)*
 2. On your desktop PC or laptop browser, open:
    ```
-   http://192.168.1.145:3000
+   http://192.168.1.145:3140
    ```
-3. You now have full Total Commander / Orthodox dual-pane control over your Android phone's storage from your desktop PC, including drag-and-drop file transfers, audio streaming, PDF viewing, and hex editing.
+3. You now have full Total Commander / Orthodox dual-pane control over your Android phone's storage from your desktop PC, including drag-and-drop file transfers, audio streaming, PDF viewing, 3D CAD inspection, and hex editing.
 
 ---
 

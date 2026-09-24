@@ -1,10 +1,10 @@
-# 📦 Brum Installation & Build Guide
+# Brum Installation & Build Guide
 
-Welcome to the comprehensive installation and compilation manual for **Brum** ("Multi-Pane Web Environment (File Commander/Manager) - By Woofson").
+Welcome to the installation and compilation manual for **Brum** ("Multi-Pane Web Environment (File Commander/Manager) - By Woofson").
 
 ---
 
-## 📋 Quick Selection: How Do You Want to Run Brum?
+## Quick Selection: How Do You Want to Run Brum?
 
 | Deployment Target | Build / Command | Output Mode |
 | :--- | :--- | :--- |
@@ -12,12 +12,12 @@ Welcome to the comprehensive installation and compilation manual for **Brum** ("
 | **Native Desktop (Standard Linux / Windowed)** | `cargo build --release --features gui`<br>`./target/release/brum -s` | Standalone native desktop window with titlebar |
 | **Arch Linux / CachyOS (AUR)** | `yay -S brum` | Pre-configured native desktop + CLI package |
 | **Windows Desktop** | `winget install Woofson.Brum`<br>or `scoop install brum` | Native Windows app (`Brum.exe` with System Tray) |
-| **Headless Server (Web Environment)** | `cargo build --release`<br>`./target/release/brum --server` | Pure background web service on `http://0.0.0.0:3140` |
-| **Docker / Proxmox Container** | `docker compose up -d` | Minimal container on Alpine Linux (`ghcr.io/woofson/brum`) |
+| **Headless Server (Web Environment)** | `cargo build --release`<br>`./target/release/brum --server` | Background web service on `http://0.0.0.0:3140` |
+| **Docker / Proxmox Container** | `docker compose up -d` | Minimal container on Alpine Linux (`ghcr.io/woofson/brum:latest`) |
 
 ---
 
-## 1. 🖥️ Native Desktop Standalone Mode (Linux)
+## 1. Native Desktop Standalone Mode (Linux)
 
 ### Build Dependencies (Debian / Ubuntu / Arch)
 Before compiling with the native GUI windowing engine (`wry` + `tao`), ensure GTK3 and WebKitGTK development headers are installed:
@@ -62,7 +62,7 @@ bind = $mainMod, E, exec, brum -s --frameless
 
 ---
 
-## 2. 🐧 Arch Linux AUR Installation
+## 2. Arch Linux AUR Installation
 
 Brum is available in the Arch User Repository with automated compilation of the native desktop GUI:
 
@@ -79,7 +79,7 @@ yay -S brum-bin
 
 ---
 
-## 3. 🪟 Windows Desktop Standalone
+## 3. Windows Desktop Standalone
 
 Windows users can install Brum via package managers or native installers:
 
@@ -99,7 +99,7 @@ Download standalone portable ZIP, NSIS setup `.exe`, or `.msi` from [GitHub Rele
 
 ---
 
-## 4. 🌐 Headless Web Server Mode (Linux / Servers / NAS)
+## 4. Headless Web Server Mode (Linux / Servers / NAS)
 
 If deploying as a headless network storage server or remote commander:
 
@@ -113,7 +113,7 @@ cargo build --release
 
 ---
 
-## 5. 🐳 Docker & Homelab Deployment
+## 5. Docker & Homelab Deployment
 
 See the comprehensive [**`manuals/docker.md`**](manuals/docker.md) and [**`manuals/lxc-proxmox.md`**](manuals/lxc-proxmox.md) guides:
 
@@ -130,11 +130,11 @@ docker run -d \
 
 ---
 
-## 6. 🎬 Optional System Dependencies (ConvertX Transcoder)
+## 6. Optional System Dependencies (Format Converter)
 
 Brum is distributed as a single static binary with embedded web assets. Core file management, PTY terminal emulation, encrypted `.cdvault` vaults, and note management require **zero external runtime dependencies**.
 
-To unlock high-performance audio/video and image transcoding in **ConvertX**, install `ffmpeg` and `ImageMagick` on your host, container, or desktop:
+To unlock high-performance audio/video and image transcoding in **Format Converter (ConvertX)**, install `ffmpeg` and `ImageMagick` on your host, container, or desktop:
 
 | Operating System | Package Manager / Install Command |
 | :--- | :--- |
@@ -150,7 +150,7 @@ To unlock high-performance audio/video and image transcoding in **ConvertX**, in
 
 ---
 
-## ⚙️ CLI Flags Reference
+## CLI Flags Reference
 
 | Flag | Description |
 | :--- | :--- |
@@ -162,5 +162,3 @@ To unlock high-performance audio/video and image transcoding in **ConvertX**, in
 | `--host <HOST>` | Overrides bind address (default: `0.0.0.0`) |
 | `--no-auth` | Disables authentication globally |
 | `-v`, `--version` | Displays current version |
-
-

@@ -1,4 +1,4 @@
-# <img src="../assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Configuration Guide (`config.toml`)
+# Configuration Guide (`config.toml`)
 
 Brum loads configuration in a single sub-millisecond pass without directory fragmentation.
 
@@ -10,6 +10,7 @@ Brum discovers its configuration in the following order of precedence:
 1. **User Dotfiles**: `~/.config/brum/config.toml` *(Highest priority)*
 2. **System-Wide Fallback**: `/etc/brum/config.toml`
 3. **Custom Themes**: `~/.config/brum/themes/*.toml` (or `/etc/brum/themes/*.toml`)
+4. **Environment Variables**: Overrides prefixed with `CD_` or `BRUM_` (e.g. `CD_PORT=3140`, `BRUM_OIDC_ENABLED=true`)
 
 ---
 
@@ -17,7 +18,7 @@ Brum discovers its configuration in the following order of precedence:
 
 ```toml
 # ==============================================================================
-# Brum Master Configuration
+# Brum Master Configuration (v1.0.0)
 # ==============================================================================
 
 [server]
@@ -29,7 +30,7 @@ port = 3140
 server_name = "Brum Host"
 
 # Public URL for reverse proxy / tunnel setups (optional)
-# public_url = "https://commander.example.com"
+# public_url = "https://files.example.com"
 
 # Session timeout in minutes (default: 1440 = 24h, 0 for infinite)
 session_timeout = 1440
@@ -67,8 +68,25 @@ default_layout = "dual-vertical"
 # Show hidden files (dotfiles) by default
 show_hidden_files = true
 
+# Fast optimistic cache for 0ms sub-millisecond panel directory rendering
+fast_cache = true
+
+# Startup directory restoration behavior:
+# - "last_state" : Restore the exact paths open in each panel when last closed
+# - "home"       : Open user $HOME in all panels
+# - "custom"     : Open explicit paths defined in startup_path_left / startup_path_right
+startup_mode = "last_state"
+startup_path_left = ""
+startup_path_right = ""
+
+# When startup_mode is "last_state", fall back to $HOME if the previous path was a remote host
+remote_startup_fallback = "home"
+
 # Window decorations (set to false for frameless mode on Hyprland/Sway/i3)
 window_decorations = true
+
+# Custom window title
+window_title = "Brum"
 
 # Show hostname badge in top header
 show_hostname_badge = true
@@ -78,7 +96,7 @@ hostname_badge = "" # Custom override text (leave empty for auto OS/host detecti
 date_format = "iso"
 
 [desktop]
-# Minimize application to system tray on window close
+# Minimize application to system tray on window close (Native desktop mode)
 minimize_to_tray = true
 
 # Enable desktop system tray icon
@@ -97,11 +115,40 @@ global_summon_hotkey = "Super+C"
 default_theme = "amber-charcoal"
 
 [auth]
-# Authentication backend: "pam" (Linux system users) or "internal" (SQLite)
+# Authentication backend: "pam" (Linux system users) or "internal" (SQLite) or "mixed"
 backend = "pam"
 
 # Allow guest / anonymous read-only browsing (default: false)
 allow_guest = false
+
+# Session inactivity lock timeout in minutes (0 to disable)
+inactivity_timeout = 15
+
+[auth.oidc]
+# OpenID Connect / Authentik / Keycloak / Authelia SSO
+enabled = false
+provider_name = "Authentik"
+issuer_url = "https://auth.example.com/application/o/brum/"
+client_id = "brum-sso"
+client_secret = "your-sso-client-secret"
+redirect_url = "https://files.example.com/api/auth/oidc/callback"
+scopes = ["openid", "profile", "email", "groups"]
+auto_provision = true
+admin_group = "brum-admins"
+default_user_role = "user"
+default_home_template = "/home/{username}"
+force_sso_only = false
+button_icon = "shield-check"
+
+[plugins]
+# Modular Chewtoy plugins configuration
+enabled = true
+directory = "/etc/brum/plugins"
+user_directory = "/data/plugins"
+allow_user_installs = true
+default_policy = "allow_all" # "allow_all" | "whitelist" | "blacklist"
+global_whitelist = ["*"]
+global_blacklist = []
 ```
 
 ---
@@ -112,3 +159,12 @@ By setting `allow_entire_system = false`, Brum enforces strict sandboxing:
 * Users cannot navigate outside their configured storage roots or personal `$HOME`.
 * Directory traversal attacks (`../`) are safely rejected and sanitized at the kernel VFS layer.
 * Read-only flags (`read_only = true`) prevent accidental deletions, writes, or moves.
+
+---
+
+## Instant 0ms Startup & Cache Optimizations
+
+Brum achieves instantaneous UI rendering and directory browsing through:
+1. **Optimistic Local VFS Pre-Rendering**: Panes render immediately using fast cache metadata while asynchronous re-validation occurs in the background.
+2. **State Persistence**: When `startup_mode = "last_state"`, active panel tabs and directory paths restore seamlessly without UI flicker.
+3. **Remote Fallback Protection**: Setting `remote_startup_fallback = "home"` ensures that if a pane was previously connected to an unavailable remote node or SFTP server, Brum falls back to `$HOME` instantly rather than blocking on network timeouts.

@@ -1,12 +1,12 @@
-# 🐕 Woofson Design Specs — Golden Amber Palette
+# Woofsons Design Specs & Theme Palette
 
-The official unified color palette and design tokens for the **Woofson** suite of applications (`Brum`, `NoteDog`, `DotDog`).
+The official unified color palette and design tokens for Brum and the Woofsons application suite.
 
 ---
 
-## 🎨 Color Palette Tokens
+## Color Palette Tokens
 
-### Charcoal (Dark Theme)
+### Woofsons Amber Charcoal (Dark Theme)
 
 | Token Name | Hex Code | RGB | Usage |
 | :--- | :--- | :--- | :--- |
@@ -25,7 +25,7 @@ The official unified color palette and design tokens for the **Woofson** suite o
 | **`text-muted`** | `#a1a1aa` | `161, 161, 170` | Secondary metadata (sizes, dates, perms) |
 | **`text-dim`** | `#71717a` | `113, 113, 122` | Gutters, separators, placeholders |
 
-### Zink (Light Theme)
+### Woofsons Amber Zink (Light Theme)
 
 | Token Name | Hex Code | RGB | Usage |
 | :--- | :--- | :--- | :--- |
@@ -46,7 +46,7 @@ The official unified color palette and design tokens for the **Woofson** suite o
 
 ---
 
-## 🚦 Functional Semantic Tokens
+## Functional Semantic Tokens
 
 - **Success / Identical / Verified**: `#10b981` (Dark) / `#059669` (Zink)
 - **Danger / Deleted / Overwrite**: `#ef4444` (Dark) / `#dc2626` (Zink)
@@ -57,10 +57,12 @@ The official unified color palette and design tokens for the **Woofson** suite o
 
 ---
 
-## 💻 CSS Variables Definition
+## CSS Variables Definition
 
-### Amber Charcoal
+### Woofsons Amber Charcoal
+```css
 :root[data-theme="charcoal"],
+:root[data-theme="amber-charcoal"],
 :root {
   --bg-dark: #121214;
   --bg-panel: #18181b;
@@ -81,15 +83,17 @@ The official unified color palette and design tokens for the **Woofson** suite o
   --success: #10b981;              
   --info: #38bdf8;
   --archive: #f472b6;
-  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;               
+  --font-mono: 'JetBrainsMono Nerd Font', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;               
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --radius: 6px;
   --pane-border-width: 1px;
   --pane-active-ring-width: 1px;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
+```
 
-### Amber Zink
+### Woofsons Amber Zink
+```css
 :root[data-theme="zink"] {
   --bg-dark: #fafafa;
   --bg-panel: #ffffff;
@@ -110,10 +114,11 @@ The official unified color palette and design tokens for the **Woofson** suite o
   --success: #059669;              
   --info: #0284c7;
   --archive: #db2777;
-  --font-mono: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;               
+  --font-mono: 'JetBrainsMono Nerd Font', 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;               
   --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
   --radius: 6px;
   --pane-border-width: 1px;
   --pane-active-ring-width: 1px;
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
+```

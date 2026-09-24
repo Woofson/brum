@@ -1,10 +1,10 @@
-# <img src="../assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="40" style="vertical-align: -6px; margin-right: 8px;" /> Brum for Windows
+# Brum for Windows
 
 <div align="center">
   <img src="../assets/brum2.png" alt="Brum Windows Desktop Edition" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
 </div>
 
-> **Multi-Tab File Commander for Web & Native Windows Desktop**  
+> **Multi-Panel File Commander for Web & Native Windows Desktop**  
 > *Engineered in Rust & Microsoft WebView2 — High-Performance, Low Memory, Zero Electron Overhead.*
 
 ---
@@ -13,7 +13,7 @@
 
 Brum on Windows is distributed as:
 1. **Standalone Native Desktop Application (`Brum.exe`)**:
-   - Powered by Tauri v2 with Microsoft WebView2 (built into Windows 10 & 11).
+   - Powered by Microsoft WebView2 (built into Windows 10 & 11).
    - Instant startup, ~30MB RAM idle consumption, full hardware-accelerated rendering.
    - Global System Tray icon with minimize-to-tray background operation.
 2. **High-Performance Background & CLI Server (`brum.exe`)**:
@@ -33,8 +33,8 @@ winget install Woofson.Brum
 ### B. Scoop Package Manager
 Install via Scoop bucket:
 ```powershell
-# From local bucket or repository
-scoop install packaging\windows\scoop\brum.json
+scoop bucket add woofson https://github.com/Woofson/scoop-bucket.git
+scoop install brum
 ```
 
 ### C. 1-Click Setup Installer (`.exe` NSIS / `.msi` WiX)
@@ -42,7 +42,7 @@ scoop install packaging\windows\scoop\brum.json
 2. Run the installer to create Start Menu, Desktop shortcuts, and auto-configure file associations.
 
 ### D. Zero-Install Standalone Portable ZIP
-1. Download `brum-v0.8.0-windows-x86_64.zip`.
+1. Download `brum-v1.0.0-windows-x86_64.zip`.
 2. Extract anywhere (e.g. `C:\Tools\Brum` or a USB drive).
 3. Double-click `Brum.exe` — settings and database are saved portably in the same folder or `%APPDATA%\brum\`.
 
@@ -76,11 +76,11 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ---
 
-## 5. Multimedia & Transcoding Dependencies (ConvertX)
+## 5. Multimedia & Transcoding Dependencies (Format Converter)
 
 Brum runs completely standalone out-of-the-box with zero mandatory runtime dependencies for file browsing, terminals, and encrypted vaults.
 
-To enable full audio/video and image transcoding capabilities in the built-in **ConvertX** ChewToy on Windows, install `ffmpeg` and `ImageMagick`:
+To enable full audio/video and image transcoding capabilities in the built-in **Format Converter (ConvertX)** Core Function on Windows, install `ffmpeg` and `ImageMagick`:
 
 ### 1-Command Installation via Package Managers
 
@@ -124,7 +124,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 Build outputs will be generated in `dist\windows\`:
-- `dist\windows\brum-v0.8.0-windows-x86_64.zip` (Portable Distribution)
+- `dist\windows\brum-v1.0.0-windows-x86_64.zip` (Portable Distribution)
 - `dist\windows\SHA256SUMS.txt` (Integrity Hashes)
 - `src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe` (Installer)
 - `src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi` (MSI Package)
@@ -133,4 +133,3 @@ Build outputs will be generated in `dist\windows\`:
 
 ## License
 MIT License — Copyright (c) 2026 Bolt J Woofson <bolt@boop.no>
-

@@ -1,19 +1,19 @@
-# 🐳 Brum — Docker & Portainer Deployment Guide
+# Brum — Docker & Portainer Deployment Guide
 
 > Complete walkthrough for deploying **Brum** with **Docker**, **Docker Compose**, and **Portainer Stacks** with persistent database storage.
 
 ---
 
-## 🌟 Why Run Brum in Docker?
+## Why Run Brum in Docker?
 
-- ⚡ **Ultra-Lightweight & Minimal**: Statically linked musl binary packaged on **Alpine Linux 3.20**, resulting in a tiny **~30 MB image footprint** and using only **~20 MB of RAM**.
-- 🔒 **Isolated & Secure**: Run in rootless/isolated containers with fine-grained host volume bind-mounts and `no-new-privileges: true`.
-- 🗄️ **Multi-Host Storage Management**: Mount `/mnt/storage`, `/mnt/nas`, USB drives, or NFS directly into Brum.
-- 🔄 **Zero-Loss Upgrades**: Persistent `/data` volume keeps all SQLite databases, users, backup schedules, and configurations intact across image upgrades and container refreshes.
+- **Ultra-Lightweight & Minimal**: Statically linked musl binary packaged on **Alpine Linux 3.20**, resulting in a tiny **~30 MB image footprint** and using only **~20 MB of RAM**.
+- **Isolated & Secure**: Run in rootless/isolated containers with fine-grained host volume bind-mounts and `no-new-privileges: true`.
+- **Multi-Host Storage Management**: Mount `/mnt/storage`, `/mnt/nas`, USB drives, or NFS directly into Brum.
+- **Zero-Loss Upgrades**: Persistent `/data` volume keeps all SQLite databases, users, backup schedules, and configurations intact across image upgrades and container refreshes.
 
 ---
 
-## 🚀 1. Quick Start via Docker CLI
+## 1. Quick Start via Docker CLI
 
 Run Brum directly with persistent data and host storage:
 
@@ -30,7 +30,7 @@ docker run -d \
   ghcr.io/woofson/brum:latest
 ```
 
-> 💡 **Image Details**: All official Docker images (`:latest`, `:alpine`, `:v0.7.2-rc1`) are built natively on Alpine Linux 3.20 with static musl binaries. Debian images have been retired.
+> **Image Details**: All official Docker images (`:latest`, `:alpine`, `:v1.0.0`) are built natively on Alpine Linux 3.20 with static musl binaries.
 
 Open `http://<SERVER_IP>:3140` in your browser:
 - **Default Username**: `admin`
@@ -38,7 +38,7 @@ Open `http://<SERVER_IP>:3140` in your browser:
 
 ---
 
-## 📦 2. Deployment via Docker Compose
+## 2. Deployment via Docker Compose
 
 ### Step 1: Create `docker-compose.yml`
 ```yaml
@@ -94,7 +94,7 @@ docker compose up -d --force-recreate
 
 ---
 
-## 💾 3. Database Persistence & Container Migration
+## 3. Database Persistence & Container Migration
 
 Brum automatically recognizes `/data` volumes:
 1. **Auto-Path Resolution**: When `/data` exists, the server automatically defaults to `/data/brum.db` and scans `/data/config.toml`.
@@ -117,7 +117,7 @@ docker compose up -d --force-recreate
 
 ---
 
-## 🎛️ 4. Deployment via Portainer Stacks
+## 4. Deployment via Portainer Stacks
 
 1. Open **Portainer** $\rightarrow$ Navigate to your Environment $\rightarrow$ **Stacks** $\rightarrow$ **Add stack**.
 2. Name the stack: `brum`.
@@ -127,11 +127,11 @@ docker compose up -d --force-recreate
 
 ---
 
-## 🔒 5. Reverse Proxy Integration (Traefik, Nginx, Caddy)
+## 5. Reverse Proxy Integration (Traefik, Nginx, Caddy)
 
 ### Caddy
 ```caddy
-brum.example.com {
+files.example.com {
     reverse_proxy brum:3140
 }
 ```

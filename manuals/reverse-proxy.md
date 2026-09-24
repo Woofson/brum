@@ -1,16 +1,16 @@
-# 🌐 Reverse Proxy & Mesh VPN Guide (Tailscale, NetBird, Caddy, Nginx, Traefik)
+# Reverse Proxy & Mesh VPN Guide (Tailscale, NetBird, Caddy, Nginx, Traefik)
 
 Brum is built from the ground up to run seamlessly behind **any reverse proxy**, **mesh VPN**, or **Cloudflare Tunnel** with zero configuration required.
 
 It supports:
-- ✅ **Automatic WebSockets over HTTPS (`wss://`)** for the interactive PTY terminal.
-- ✅ **Dynamic Viewport & Safe Area (`100dvh`)** for mobile browsers (Vivaldi, Chrome, Firefox, Safari).
-- ✅ **Permissive Cross-Origin & Private IP Routing** (Tailscale `100.x.y.z`, NetBird `100.x.y.z`, LAN `192.168.x.x`, Localhost).
-- ✅ **Large File Uploads** up to 10GB+ with streaming chunk processing.
+- **Automatic WebSockets over HTTPS (`wss://`)** for the interactive PTY terminal.
+- **Dynamic Viewport & Safe Area (`100dvh`)** for mobile browsers (Vivaldi, Chrome, Firefox, Safari).
+- **Permissive Cross-Origin & Private IP Routing** (Tailscale `100.x.y.z`, NetBird `100.x.y.z`, LAN `192.168.x.x`, Localhost).
+- **Large File Uploads** up to 10GB+ with streaming chunk processing.
 
 ---
 
-## 🦎 1. Tailscale
+## 1. Tailscale
 
 Tailscale provides encrypted peer-to-peer WireGuard connections and automatic TLS certificates via MagicDNS.
 
@@ -38,7 +38,7 @@ If you prefer direct IP connections over your Tailnet:
 
 ---
 
-## 🦅 2. NetBird
+## 2. NetBird
 
 NetBird provides fast peer-to-peer overlay networking over WireGuard.
 
@@ -51,13 +51,13 @@ If you have configured a NetBird Routing Peer with domain resolution (e.g. `comm
 
 ---
 
-## 🔒 3. Caddy 2 (Recommended)
+## 3. Caddy 2 (Recommended)
 
 Caddy provides **automatic HTTPS certificates**, HTTP/2, HTTP/3, and built-in WebSocket proxying with zero configuration.
 
 ### `/etc/caddy/Caddyfile`
 ```caddyfile
-brum.yourdomain.com {
+files.yourdomain.com {
     reverse_proxy localhost:3140
 }
 ```
@@ -69,7 +69,7 @@ sudo systemctl reload caddy
 
 ---
 
-## 🌐 4. Nginx
+## 4. Nginx
 
 When using Nginx, you **must** configure WebSocket upgrade headers and disable request buffering for large file uploads and real-time terminal streaming.
 
@@ -129,7 +129,7 @@ sudo nginx -t && sudo systemctl reload nginx
 
 ---
 
-## 🎛️ 5. Nginx Proxy Manager (NPM)
+## 5. Nginx Proxy Manager (NPM)
 
 In the Nginx Proxy Manager Web UI:
 1. **Details Tab**:
@@ -139,7 +139,7 @@ In the Nginx Proxy Manager Web UI:
    - Forward Port: `3140`
    - Check: **Cache Assets**: OFF
    - Check: **Block Common Exploits**: ON
-   - Check: **Websockets Support**: **ON** ⚠️ *(Crucial for Terminal)*
+   - Check: **Websockets Support**: **ON** *(Crucial for Terminal)*
 2. **SSL Tab**:
    - Select SSL Certificate (Let's Encrypt)
    - Check: **Force SSL**: ON
@@ -154,7 +154,7 @@ In the Nginx Proxy Manager Web UI:
 
 ---
 
-## 🚦 6. Traefik (v2 / v3)
+## 6. Traefik (v2 / v3)
 
 ### Docker Compose Example
 ```yaml
@@ -180,7 +180,7 @@ services:
 
 ---
 
-## ☁️ 7. Cloudflare Tunnel (`cloudflared`)
+## 7. Cloudflare Tunnel (`cloudflared`)
 
 ### `~/.cloudflared/config.yml`
 ```yaml
@@ -195,11 +195,11 @@ ingress:
   - service: http_status:404
 ```
 
-> **Note**: In your Cloudflare Dashboard, make sure **Network ➔ WebSockets** is toggled **ON** so terminal sessions connect cleanly.
+> **Note**: In your Cloudflare Dashboard, ensure **Network ➔ WebSockets** is toggled **ON** so terminal sessions connect cleanly.
 
 ---
 
-## 🐘 8. Apache (httpd)
+## 8. Apache (httpd)
 
 Ensure `mod_proxy`, `mod_proxy_http`, and `mod_proxy_wstunnel` are enabled:
 ```bash
@@ -232,10 +232,10 @@ sudo a2enmod proxy proxy_http proxy_wstunnel ssl
 
 ---
 
-## 🔍 Verification Checklist
+## Verification Checklist
 
 Once deployed behind your reverse proxy or VPN, test:
 1. **Web Dashboard**: Navigate to your domain or Tailscale/NetBird IP in browser.
-2. **Interactive Terminal (`F4` or Slide-up)**: Verify that the bash/sh shell connects immediately over WebSocket (`wss://`).
+2. **Interactive Terminal (Backtick or Slide-up)**: Verify that the bash/sh shell connects immediately over WebSocket (`wss://`).
 3. **File Uploads**: Drag and drop large files to ensure the proxy's `client_max_body_size` is not rejecting uploads.
-4. **Mobile Navigation**: Test on mobile browsers (Vivaldi, Chrome, Firefox) to confirm the dynamic viewport and Total Commander bottom bar sit comfortably above any bottom browser toolbars.
+4. **Mobile Navigation**: Test on mobile browsers (Vivaldi, Chrome, Firefox) to confirm the dynamic viewport sits comfortably above mobile bottom bars.

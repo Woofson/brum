@@ -43,12 +43,12 @@ sequenceDiagram
    - **Authorization flow**: Choose your default authorization flow (e.g., `default-provider-authorization-implicit-consent`).
    - **Client type**: `Confidential`
    - **Client ID**: Leave the auto-generated string or enter a custom one (e.g. `brum-sso`).
-   - **Client Secret**: Copy this secret — you will need it for `brum.toml`.
+   - **Client Secret**: Copy this secret — you will need it for `config.toml`.
    - **Redirect URIs / Allowed Callback URLs**:
      ```text
-     https://brum.example.com/api/auth/oidc/callback
+     https://files.example.com/api/auth/oidc/callback
      ```
-     *(If testing locally on LAN/HTTP: `http://192.168.1.100:8080/api/auth/oidc/callback` or `http://localhost:8080/api/auth/oidc/callback`)*
+     *(If testing locally on LAN/HTTP: `http://192.168.1.100:3140/api/auth/oidc/callback` or `http://localhost:3140/api/auth/oidc/callback`)*
    - **Signing Key**: Select your Authentik self-signed or Let's Encrypt certificate.
    - **Subject mode**: `Based on the User's username` (or `Based on the User's Email`).
    - **Selected property mappings**: Ensure the following scopes are highlighted/selected:
@@ -69,8 +69,8 @@ sequenceDiagram
    - **Slug**: `brum` *(Note: this defines your Issuer URL)*
    - **Provider**: Select the `Brum Provider` you created in Step 1.
    - **UI Settings** (Optional):
-     - **Launch URL**: `https://brum.example.com/`
-     - **Icon URL**: Upload Brum's icon (`assets/brum.png`).
+     - **Launch URL**: `https://files.example.com/`
+     - **Icon URL**: Upload Brum's icon.
 4. Click **Create**.
 
 ---
@@ -102,15 +102,15 @@ To give certain users **Superadmin** access in Brum automatically:
 
 ## 3. Configuring Brum
 
-You can configure Brum using `brum.toml` (or via Docker Environment Variables).
+You can configure Brum using `config.toml` (or via Docker Environment Variables).
 
-### Option A: Configuration via `brum.toml`
+### Option A: Configuration via `config.toml`
 
-Add or update the `[auth.oidc]` section in your `brum.toml`:
+Add or update the `[auth.oidc]` section in your `config.toml`:
 
 ```toml
 [auth]
-mode = "mixed" # Allows both local admin login and SSO
+backend = "mixed" # Allows both local admin login and SSO
 
 [auth.oidc]
 enabled = true
@@ -118,7 +118,7 @@ provider_name = "Authentik" # Text shown on the login button
 issuer_url = "https://auth.company.com/application/o/brum/"
 client_id = "your-authentik-client-id"
 client_secret = "your-authentik-client-secret"
-redirect_url = "https://brum.company.com/api/auth/oidc/callback"
+redirect_url = "https://files.company.com/api/auth/oidc/callback"
 scopes = ["openid", "profile", "email", "groups"]
 
 # Automatic User Provisioning & Permissions
@@ -139,17 +139,17 @@ If deploying Brum via Docker Compose or Kubernetes, you can configure SSO entire
 ```yaml
 services:
   brum:
-    image: ghcr.io/woofson/commanderdog:latest
+    image: ghcr.io/woofson/brum:latest
     container_name: brum
     ports:
-      - "8080:8080"
+      - "3140:3140"
     environment:
       - BRUM_OIDC_ENABLED=true
       - BRUM_OIDC_PROVIDER_NAME=Authentik
       - BRUM_OIDC_ISSUER_URL=https://auth.company.com/application/o/brum/
       - BRUM_OIDC_CLIENT_ID=your-authentik-client-id
       - BRUM_OIDC_CLIENT_SECRET=your-authentik-client-secret
-      - BRUM_OIDC_REDIRECT_URL=https://brum.company.com/api/auth/oidc/callback
+      - BRUM_OIDC_REDIRECT_URL=https://files.company.com/api/auth/oidc/callback
       - BRUM_OIDC_ADMIN_GROUP=brum-admins
       - BRUM_OIDC_FORCE_SSO=false
     volumes:
@@ -164,12 +164,12 @@ services:
    ```bash
    cargo run
    ```
-2. Open Brum in your browser (`http://localhost:8080` or your domain).
+2. Open Brum in your browser (`http://localhost:3140` or your domain).
 3. On the login screen, you will now see:
    ```
    [ Log In ]
    -------- or --------
-   [ 🛡️ Sign in with Authentik ]
+   [ Sign in with Authentik ]
    ```
 4. Click **Sign in with Authentik**.
 5. You will be redirected to Authentik's login portal. Log in with your credentials, passkey, or 2FA.
@@ -184,7 +184,7 @@ services:
 
 ### 1. Error: `redirect_uri_mismatch`
 - **Cause**: The redirect URL configured in Authentik does not match the URL Brum is sending.
-- **Fix**: Verify that the URL in Authentik > Provider > Redirect URIs matches `redirect_url` in `brum.toml` exactly (including `http://` vs `https://`, domain, port, and trailing path `/api/auth/oidc/callback`).
+- **Fix**: Verify that the URL in Authentik > Provider > Redirect URIs matches `redirect_url` in `config.toml` exactly (including `http://` vs `https://`, domain, port, and trailing path `/api/auth/oidc/callback`).
 
 ### 2. Reverse Proxy & HTTPS Headers (Nginx / Traefik / Caddy)
 If Brum is running behind a reverse proxy, ensure your proxy passes standard forwarding headers:
@@ -194,7 +194,7 @@ proxy_set_header X-Forwarded-Host $host;
 proxy_set_header X-Forwarded-Proto $scheme;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 ```
-If `redirect_url` is left blank in `brum.toml`, Brum automatically reconstructs the callback URL from these headers.
+If `redirect_url` is left blank in `config.toml`, Brum automatically reconstructs the callback URL from these headers.
 
 ### 3. Docker Internal Networking
 If Brum and Authentik are in the same Docker network, ensure Brum can resolve Authentik's public or internal hostname. You can test connectivity from inside the container:
@@ -203,7 +203,7 @@ curl -I https://auth.company.com/application/o/brum/.well-known/openid-configura
 ```
 
 ### 4. Direct SSO Bypass (`force_sso_only = true`)
-When `force_sso_only = true` is enabled in `brum.toml`, visiting Brum automatically redirects unauthenticated users to Authentik without displaying the local username/password form. If you ever need to access the local admin account when SSO is forced, open:
+When `force_sso_only = true` is enabled in `config.toml`, visiting Brum automatically redirects unauthenticated users to Authentik without displaying the local username/password form. If you ever need to access the local admin account when SSO is forced, open:
 ```text
-https://brum.example.com/?local=1
+https://files.example.com/?local=1
 ```

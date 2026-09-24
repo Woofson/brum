@@ -1,6 +1,6 @@
-# 🧩 ChewToy & Plugin Development Guide (.grr)
+# Chewtoy & Plugin Development Guide (.grr)
 
-> Complete manual for developing, styling, sandboxing, and distributing modular **ChewToys** (extensions) for **Brum** using the **`.grr`** package standard.
+> Complete manual for developing, styling, sandboxing, and distributing modular **Chewtoys** (extensions) for **Brum** using the **`.grr`** package standard.
 
 ---
 
@@ -22,9 +22,9 @@ flowchart TD
         PM --> SVR["Asset Server & Script Runner (/api/plugins/*)"]
     end
 
-    subgraph Frontend [3. Frontend Presentation (ChewToys)]
-        UI_HOST["ChewToy Host & window.Brum SDK"] --> DUAL["Dual-Mode (Floating & In-Pane Dock)"]
-        UI_HOST --> SETTINGS["Settings (F10) ➔ ChewToys & Extensions"]
+    subgraph Frontend [3. Frontend Presentation (Chewtoys)]
+        UI_HOST["Chewtoy Host & window.Brum SDK"] --> DUAL["Dual-Mode (Floating & In-Pane Dock)"]
+        UI_HOST --> SETTINGS["Settings (F10) ➔ Chewtoys & Extensions"]
     end
 
     Package --> Backend
@@ -32,19 +32,19 @@ flowchart TD
 ```
 
 * **Backend / System Terminology**: Strictly termed **`Plugins`** (`src/plugins/`, `PluginManager`, `plugin.toml`, `/api/plugins`).
-* **Frontend / User Terminology**: Presented to end users everywhere as **`ChewToys`** (*"ChewToys & Extensions"*, *"Install ChewToy (.grr)"*).
+* **Frontend / User Terminology**: Presented to end users everywhere as **`Chewtoys`** (*"Chewtoys & Extensions"*, *"Install Chewtoy (.grr)"*).
 
 ---
 
 ## 2. The `.grr` Package Structure
 
-A ChewToy is distributed as a **`.grr`** file (a standard ZIP archive). You can inspect and unpack it with any standard ZIP tool:
+A Chewtoy is distributed as a **`.grr`** file (a standard ZIP archive). You can inspect and unpack it with any standard ZIP tool:
 
 ```
 my-custom-chewtoy.grr/
 ├── plugin.toml          # Required: Manifest, metadata, UI dimensions, permissions
 ├── assets/
-│   └── icon.svg         # Required: 24x24 / 48x48 ChewToy vector icon (or .webp / .png)
+│   └── icon.svg         # Required: 24x24 / 48x48 Chewtoy vector icon (or .webp / .png)
 ├── index.html           # Required: Main UI markup template
 ├── style.css            # Scoped CSS styling (inheriting Brum theme tokens)
 ├── main.js              # Client logic (using window.Brum SDK)
@@ -56,16 +56,16 @@ my-custom-chewtoy.grr/
 
 ## 3. The `plugin.toml` Manifest Specification
 
-The `plugin.toml` manifest file defines everything Brum needs to load, render, and sandbox your ChewToy:
+The `plugin.toml` manifest file defines everything Brum needs to load, render, and sandbox your Chewtoy:
 
 ```toml
 [plugin]
-id = "hexdog"
-name = "HexDog Hexadecimal Studio"
+id = "custom-calculator"
+name = "Scientific Calculator"
 version = "1.0.0"
 author = "Bolt J Woofson <bolt@arf.ac>"
-description = "High-performance hex viewer, binary inspector, and byte patcher."
-homepage = "https://github.com/Woofson/hexdog"
+description = "Scientific calculator and unit conversion tool for engineering workflows."
+homepage = "https://github.com/Woofson/calculator"
 icon = "assets/icon.svg"
 category = "utilities"   # utilities | media | development | games | system
 
@@ -78,16 +78,16 @@ min_width = 420
 min_height = 300
 
 [integrations]
-# Tools & ChewToys Launchpad menu entry
+# Tools & Chewtoys Launchpad menu entry
 launchpad = true
-launchpad_label = "Hex Studio"
+launchpad_label = "Calculator"
 
-# File Context Menu integration in file panels
-file_extensions = ["*.bin", "*.dat", "*.so", "*.dll", "*.exe", "*.iso", "*.img", "*.rom"]
-context_menu_label = "Open in HexDog"
+# File Context Menu integration in file panels (Optional)
+file_extensions = ["*.calc", "*.math"]
+context_menu_label = "Open in Calculator"
 
 # Global Shortcut (Optional)
-shortcut = "Ctrl+Shift+H"
+shortcut = "Ctrl+Shift+K"
 
 [permissions]
 # Sandboxed capabilities declared by the plugin
@@ -106,26 +106,26 @@ script_type = "shell"
 
 ---
 
-## 4. Designing Compliant ChewToys (UI/UX Specification)
+## 4. Designing Compliant Chewtoys (UI/UX Specification)
 
-To ensure a seamless, native feel with Brum's orthodox commander interface, all ChewToys should follow **Rule 9 (ChewToy Design Language)**:
+To ensure a seamless, native feel with Brum's orthodox commander interface, all Chewtoys should follow the window design specifications:
 
 ### 1. Primary Window Header (`42px` Min-Height)
 * **Drag Handle**: The entire header bar must serve as a non-fiddly drag handle (`cursor: grab;` with `:active { cursor: grabbing; }`).
-* **Branding**: Include the ChewToy icon (`16x16`) and bold title in amber accent color (`var(--accent)`).
+* **Branding**: Include the Chewtoy icon (`16x16`) and bold title in amber accent color (`var(--accent)`).
 
 ### 2. Standard Buttons & Controls (`28px` Height)
 * All header buttons, selects, and action controls must share a uniform **`28px` height** with `border-radius: var(--radius)` (`6px`).
 * Action buttons use `font-size: 12px; font-weight: 600;`.
 
 ### 3. Official Woofsons Amber Design Tokens
-Always use CSS variables so your ChewToy automatically adapts when the user switches themes:
+Always use CSS variables so your Chewtoy automatically adapts when the user switches themes:
 
 ```css
 .my-chewtoy-panel {
-  background: var(--bg-panel, #1e1e24);
-  color: var(--text-main, #e6dede);
-  border: 1px solid var(--border, #2b2b36);
+  background: var(--bg-panel, #18181b);
+  color: var(--text-main, #f4f4f5);
+  border: 1px solid var(--border, #3f3f46);
   border-radius: var(--radius, 6px);
 }
 
@@ -135,7 +135,7 @@ Always use CSS variables so your ChewToy automatically adapts when the user swit
 }
 
 .my-chewtoy-btn-primary:hover {
-  background: var(--accent-hover, #d97706);
+  background: var(--accent-hover, #fbbf24);
 }
 ```
 
@@ -143,12 +143,12 @@ Always use CSS variables so your ChewToy automatically adapts when the user swit
 
 ## 5. The `window.Brum` JavaScript SDK
 
-Brum automatically injects the `window.Brum` SDK into every loaded ChewToy:
+Brum automatically injects the `window.Brum` SDK into every loaded Chewtoy:
 
 ### A. Lifecycle & Context
 ```javascript
 window.Brum.onReady((context) => {
-  console.log("ChewToy initialized!");
+  console.log("Chewtoy initialized!");
   console.log("Current active path:", context.activePath);
   console.log("Selected files in panel:", context.selectedFiles);
   console.log("Panel ID:", context.panelId); // 1 or 2
@@ -164,7 +164,7 @@ const text = await Brum.fs.readFile("/home/user/document.txt");
 const binaryData = await Brum.fs.readFile("/home/user/firmware.bin", { binary: true });
 
 // Write file
-await Brum.fs.writeFile("/home/user/output.txt", "Hello from ChewToy!");
+await Brum.fs.writeFile("/home/user/output.txt", "Hello from Chewtoy!");
 
 // List directory
 const listing = await Brum.fs.listDir("/home/user/projects");
@@ -176,7 +176,7 @@ const listing = await Brum.fs.listDir("/home/user/projects");
 Brum.ui.notify("Saved 1,024 bytes!", { type: "success" }); // "info" | "success" | "warning" | "error"
 
 // Query current theme
-const theme = Brum.ui.getTheme(); // "amber-charcoal" | "zink" | "emerald" ...
+const theme = Brum.ui.getTheme(); // "amber-charcoal" | "zink" | "skumring" ...
 ```
 
 ### D. Window & Dock Controls (`Brum.window`)
@@ -195,7 +195,7 @@ Brum.window.close();
 
 ## 6. Admin Governance, RBAC & Whitelisting
 
-Admins have complete operational control over which ChewToys standard users can see, install, or run.
+Admins have complete operational control over which Chewtoys standard users can see, install, or run.
 
 ### A. Server Configuration (`config.toml`)
 ```toml
@@ -212,17 +212,17 @@ global_blacklist = ["unapproved-app"] # Global blocked plugin IDs
 ### B. User-Level Whitelist & Blacklist Overrides
 In **Settings (<kbd>F10</kbd>) ➔ Users Tab**, administrators can configure per-user overrides:
 * **`can_install_plugins`**: Enable/disable personal `.grr` installation for this user.
-* **`allowed_plugins`**: List of whitelisted plugin IDs (e.g. `["hexdog", "notedog"]` or `["*"]`).
+* **`allowed_plugins`**: List of whitelisted plugin IDs (e.g. `["calculator", "tetrion"]` or `["*"]`).
 * **`blocked_plugins`**: List of blacklisted plugin IDs (e.g. `["games-*"]`).
 
 ---
 
-## 7. Packaging Your ChewToy into `.grr`
+## 7. Packaging Your Chewtoy into `.grr`
 
-To package your ChewToy directory for distribution:
+To package your Chewtoy directory for distribution:
 
 ### Using Standard ZIP CLI
-Inside your ChewToy source directory:
+Inside your Chewtoy source directory:
 ```bash
 # Compress all files into .grr archive
 zip -r ../my-chewtoy.grr plugin.toml index.html style.css main.js assets/
@@ -230,9 +230,9 @@ zip -r ../my-chewtoy.grr plugin.toml index.html style.css main.js assets/
 
 ### Installing Your `.grr` Package
 1. Open Brum in your browser.
-2. Open **Settings (<kbd>F10</kbd>) ➔ "ChewToys & Extensions"** tab.
+2. Open **Settings (<kbd>F10</kbd>) ➔ "Chewtoys & Extensions"** tab.
 3. Drag and drop `my-chewtoy.grr` into the installer card.
-4. Your ChewToy is instantly available in the Tools Launchpad and file context menus!
+4. Your Chewtoy is instantly available in the Tools Launchpad and file context menus!
 
 ---
 
