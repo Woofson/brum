@@ -4240,7 +4240,11 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
 
   const isLocal = !pane.nodeId || pane.nodeId === 'local';
 
-  if (targetPath === '~' || (typeof targetPath === 'string' && targetPath.startsWith('~/'))) {
+  if (targetPath === 'trash://' || targetPath === 'trash') {
+    const userHome = isLocal ? getUserDefaultHomeDir() : '/';
+    const resolvedHome = (userHome && userHome !== '~') ? userHome : '/';
+    targetPath = (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + '.local/share/Trash/files';
+  } else if (targetPath === '~' || (typeof targetPath === 'string' && targetPath.startsWith('~/'))) {
     const userHome = isLocal ? getUserDefaultHomeDir() : '/';
     const resolvedHome = (userHome && userHome !== '~') ? userHome : '/';
     targetPath = targetPath === '~' ? resolvedHome : (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + targetPath.substring(2);
@@ -5176,6 +5180,45 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
     }
   } else if (branchBanner) {
     branchBanner.remove();
+  }
+
+  // Manage Trash Bin Banner
+  let trashBanner = document.getElementById(`pane-trash-banner-${paneIndex}`);
+  const isTrash = isTrashDirectory(pane?.path);
+  if (isTrash) {
+    if (!trashBanner && mainEl) {
+      trashBanner = document.createElement('div');
+      trashBanner.className = 'pane-trash-banner';
+      trashBanner.id = `pane-trash-banner-${paneIndex}`;
+      mainEl.insertBefore(trashBanner, mainEl.firstChild);
+    }
+    if (trashBanner) {
+      trashBanner.style.display = 'flex';
+      const count = pane.entries ? pane.entries.length : 0;
+      const selectedCount = pane.selected ? pane.selected.size : 0;
+      trashBanner.innerHTML = `
+        <div class="pane-trash-info" style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--accent);"></i>
+          <span style="font-weight: 700; font-size: 11.5px; color: var(--accent);">Trash Bin</span>
+          <span style="font-size: 11px; color: var(--text-dim);">&bull; ${count} item${count === 1 ? '' : 's'}</span>
+          ${selectedCount > 0 ? `<span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(245, 158, 11, 0.2); color: var(--accent);">${selectedCount} selected</span>` : ''}
+        </div>
+        <div class="pane-trash-actions" style="display: flex; align-items: center; gap: 6px;">
+          <button class="btn btn-xs btn-outline" onclick="restoreSelectedTrashItems(${paneIndex})" title="Restore selected files (or all files if none selected) back to original location" style="font-size: 10.5px; padding: 2px 8px; color: var(--accent); border-color: var(--accent);">
+            <i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i> ${selectedCount > 0 ? `Restore (${selectedCount})` : 'Restore All'}
+          </button>
+          <button class="btn btn-xs btn-outline" onclick="deleteSelectedTrashItems(${paneIndex})" title="Permanently delete selected files" style="font-size: 10.5px; padding: 2px 8px; color: var(--danger); border-color: rgba(239,68,68,0.4);" ${count === 0 ? 'disabled' : ''}>
+            <i data-lucide="x-circle" style="width: 11px; height: 11px;"></i> ${selectedCount > 0 ? `Delete (${selectedCount})` : 'Delete Permanently'}
+          </button>
+          <button class="btn btn-xs btn-danger-action" onclick="promptEmptyTrash(${paneIndex})" title="Permanently empty all items in trash" style="font-size: 10.5px; padding: 2px 8px;" ${count === 0 ? 'disabled' : ''}>
+            <i data-lucide="trash" style="width: 11px; height: 11px;"></i> Empty Trash
+          </button>
+        </div>
+      `;
+      if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ root: trashBanner });
+    }
+  } else if (trashBanner) {
+    trashBanner.remove();
   }
 
   const mode = pane.viewMode || 'details';
@@ -15695,18 +15738,21 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   let userBookmarks = [];
   let storageRoots = [];
   let storedClientMounts = [];
+  let trashSummary = { total_items: 0, total_size: 0, files_dir: '' };
 
   try {
-    const [mountsRes, bmRes, rootsRes, clientMounts] = await Promise.all([
+    const [mountsRes, bmRes, rootsRes, clientMounts, trashRes] = await Promise.all([
       fetch('/api/mounts/accessible', { headers: { 'Authorization': `Bearer ${App.token}` } }),
       fetch('/api/bookmarks', { headers: { 'Authorization': `Bearer ${App.token}` } }),
       fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      getAllStoredClientMounts().catch(() => [])
+      getAllStoredClientMounts().catch(() => []),
+      fetch('/api/tools/trash/summary', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null)
     ]);
     if (mountsRes.ok) globalMounts = await mountsRes.json();
     if (bmRes.ok) userBookmarks = await bmRes.json();
     if (rootsRes.ok) storageRoots = await rootsRes.json();
     if (Array.isArray(clientMounts)) storedClientMounts = clientMounts;
+    if (trashRes && trashRes.ok) trashSummary = await trashRes.json();
   } catch (err) {
     console.warn('Failed to load favorites/bookmarks/storage roots:', err);
   }
@@ -15849,6 +15895,17 @@ async function openPaneFavoritesMenu(e, paneIndex) {
             </div>
           `;
         }).join('')}
+        <div class="dropdown-item ${isTrashDirectory(curPanePath) ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, 'trash://'); document.getElementById('pane-favorites-popup')?.remove();">
+          <i data-lucide="trash-2" style="color: ${trashSummary.total_items > 0 ? 'var(--accent)' : 'var(--text-dim)'};"></i>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+              <span>Trash Bin</span>
+              ${trashSummary.total_items > 0 ? `<span class="badge" style="font-size: 8.5px; padding: 1px 5px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">${trashSummary.total_items} item${trashSummary.total_items > 1 ? 's' : ''} · ${formatBytes(trashSummary.total_size)}</span>` : '<span style="font-size: 9px; color: var(--text-dim);">Empty</span>'}
+            </div>
+            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(trashSummary.files_dir || '~/.local/share/Trash/files')}</div>
+          </div>
+          ${isTrashDirectory(curPanePath) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+        </div>
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : ''}
 
@@ -16562,8 +16619,28 @@ function showContextMenu(x, y) {
   // --- BUILD CONTEXT MENU BODY ---
   let bodyHtml = '';
 
+  // Case 0: Inside Trash Bin
+  if (isTrashDirectory(targetPane?.path)) {
+    const paneIdx = App.contextPaneIndex ?? App.activePaneIndex;
+    bodyHtml = `
+      <div class="context-item" onclick="restoreSelectedTrashItems(${paneIdx}); hideContextMenu();">
+        <i data-lucide="rotate-ccw" style="width: 14px; color: var(--accent);"></i> Restore to Original Location
+      </div>
+      <div class="context-item" onclick="deleteSelectedTrashItems(${paneIdx}); hideContextMenu();">
+        <i data-lucide="x-circle" style="width: 14px; color: var(--danger);"></i> Delete Permanently (Shift+Del)
+      </div>
+      <div class="context-sep"></div>
+      <div class="context-item" onclick="promptEmptyTrash(${paneIdx}); hideContextMenu();">
+        <i data-lucide="trash" style="width: 14px; color: var(--danger);"></i> Empty Trash Bin
+      </div>
+      <div class="context-sep"></div>
+      <div class="context-item" onclick="triggerProperties(); hideContextMenu();">
+        <i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)
+      </div>
+    `;
+  }
   // Case A: Multi-selection Context Menu
-  if (selectedCount > 1) {
+  else if (selectedCount > 1) {
     bodyHtml = `
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
         <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
@@ -44264,5 +44341,154 @@ async function loadCadModel(filePath) {
   }
 }
 
+// ==============================================================================
+// 🗑️ Trash Management & Recovery Suite
+// ==============================================================================
 
+function isTrashDirectory(path) {
+  if (!path || typeof path !== 'string') return false;
+  const p = path.toLowerCase();
+  return p === 'trash://' ||
+         p.includes('/.local/share/trash') ||
+         p.includes('\\.local\\share\\trash') ||
+         p.includes('/tmp/brum_trash') ||
+         p.endsWith('/trash/files') ||
+         p.endsWith('/trash') ||
+         p.endsWith('\\trash\\files') ||
+         p.endsWith('\\trash');
+}
 
+async function getTrashSummary() {
+  try {
+    const res = await fetch('/api/tools/trash/summary', {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    if (res.ok) return await res.json();
+  } catch (err) {
+    console.warn('Failed to load trash summary:', err);
+  }
+  return { total_items: 0, total_size: 0, trash_dir: '', files_dir: '', info_dir: '' };
+}
+
+async function restoreSelectedTrashItems(paneIndex) {
+  const pane = App.panes[paneIndex];
+  if (!pane) return;
+
+  const selectedPaths = pane.selected ? Array.from(pane.selected) : [];
+  let selectedNames = selectedPaths.map(p => {
+    const parts = p.split(/[\/\\]/);
+    return parts[parts.length - 1];
+  }).filter(Boolean);
+
+  if (selectedNames.length === 0) {
+    const totalCount = pane.entries ? pane.entries.length : 0;
+    if (totalCount === 0) {
+      showToast('Trash Bin is empty', 'warning');
+      return;
+    }
+    if (!confirm(`Restore all ${totalCount} item${totalCount === 1 ? '' : 's'} in the Trash Bin to their original locations?`)) {
+      return;
+    }
+    selectedNames = null; // Backend interprets null/empty as restore all
+  }
+
+  showToast('Restoring items from Trash...', 'info');
+
+  try {
+    const res = await fetch('/api/tools/trash/restore', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ items: selectedNames })
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      if (result.success) {
+        showToast(`Restored ${result.affected_count} item${result.affected_count === 1 ? '' : 's'} to original location`, 'success');
+      } else {
+        const errs = result.errors ? result.errors.join('; ') : 'Some items could not be restored';
+        showToast(`Restored ${result.affected_count} items with warnings: ${errs}`, 'warning');
+      }
+      refreshAllPanes();
+    } else {
+      const err = await res.text();
+      showToast(`Restore failed: ${err}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Restore error: ${err.message}`, 'error');
+  }
+}
+
+async function deleteSelectedTrashItems(paneIndex) {
+  const pane = App.panes[paneIndex];
+  if (!pane) return;
+
+  const selectedPaths = pane.selected ? Array.from(pane.selected) : [];
+  let selectedNames = selectedPaths.map(p => {
+    const parts = p.split(/[\/\\]/);
+    return parts[parts.length - 1];
+  }).filter(Boolean);
+
+  if (selectedNames.length === 0) {
+    showToast('Select one or more items to permanently delete', 'warning');
+    return;
+  }
+
+  if (!confirm(`Permanently delete ${selectedNames.length} selected item${selectedNames.length === 1 ? '' : 's'}? THIS ACTION CANNOT BE UNDONE.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/tools/trash/delete', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({ items: selectedNames })
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      showToast(`Permanently deleted ${result.affected_count} item${result.affected_count === 1 ? '' : 's'}`, 'success');
+      refreshPane(paneIndex);
+    } else {
+      const err = await res.text();
+      showToast(`Delete failed: ${err}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Delete error: ${err.message}`, 'error');
+  }
+}
+
+async function promptEmptyTrash(paneIndex) {
+  if (!confirm('Permanently delete all items and empty the Trash Bin? THIS ACTION CANNOT BE UNDONE.')) {
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/tools/trash/empty', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      },
+      body: JSON.stringify({})
+    });
+
+    if (res.ok) {
+      const result = await res.json();
+      const freedStr = result.freed_bytes ? ` (${formatBytes(result.freed_bytes)} freed)` : '';
+      showToast(`Trash Bin emptied${freedStr}`, 'success');
+      refreshPane(paneIndex);
+    } else {
+      const err = await res.text();
+      showToast(`Empty Trash failed: ${err}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Empty Trash error: ${err.message}`, 'error');
+  }
+}

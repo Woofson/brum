@@ -17,3 +17,4 @@ pub mod tetradog;
 pub mod duplicates;
 pub mod metadata;
 pub mod logviewer;
+pub mod trash;

@@ -893,34 +893,13 @@ impl LocalFs {
                 }
             }
 
-            let trash_base = if let Some(ct) = custom_trash {
-                PathBuf::from(ct)
-            } else if let Some(home) = dirs::home_dir() {
-                home.join(".local/share/Trash/files")
-            } else {
-                PathBuf::from("/tmp/brum_trash")
-            };
-
-            let _ = fs::create_dir_all(&trash_base);
-            let file_name = path.file_name().unwrap_or_default();
-            let timestamp = chrono::Utc::now().format("%Y%m%d_%H%M%S");
-            let trash_target = trash_base.join(format!("{}_{}", timestamp, file_name.to_string_lossy()));
-
-            // Attempt fast atomic rename first
-            match fs::rename(&path, &trash_target) {
-                Ok(_) => {
+            match crate::tools::trash::TrashManager::move_to_trash(&path, custom_trash, None) {
+                Ok(trash_target) => {
                     info!("Moved {} to trash: {}", path_str, trash_target.display());
                     return Ok(());
                 }
                 Err(e) => {
-                    // If cross-device move or permission error moving across mounts occurs, try cross-device copy+delete
-                    info!("Direct rename to trash failed ({}), attempting cross-device move for {}", e, path_str);
-                    if let Ok(()) = Self::move_entry_recursive(&path, &trash_target) {
-                        info!("Moved {} to trash via cross-device copy: {}", path_str, trash_target.display());
-                        return Ok(());
-                    }
-                    // If trashing is impossible on this mount/subsystem, fall through to direct deletion
-                    info!("Moving to trash failed for {}, falling back to direct permanent removal", path_str);
+                    info!("Moving to trash failed for {} ({}), falling back to direct permanent removal", path_str, e);
                 }
             }
         }

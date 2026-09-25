@@ -157,6 +157,11 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/metadata/update", post(handle_metadata_update))
         .route("/api/tools/metadata/batch", post(handle_metadata_batch))
         .route("/api/tools/logviewer/tail", get(handle_logviewer_tail))
+        .route("/api/tools/trash/summary", get(handle_trash_summary))
+        .route("/api/tools/trash/items", get(handle_trash_items))
+        .route("/api/tools/trash/restore", post(handle_trash_restore))
+        .route("/api/tools/trash/empty", post(handle_trash_empty))
+        .route("/api/tools/trash/delete", post(handle_trash_delete))
         .route("/api/actions/run", post(handle_run_action))
         // NoteDog Notes & Markdown Studio Chewtoy
         .route("/api/tools/notedog/info", get(handle_notedog_info))
@@ -5757,6 +5762,79 @@ async fn handle_logviewer_tail(
     crate::tools::logviewer::tail_log_file(payload)
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, e))
+}
+
+#[derive(Deserialize)]
+struct TrashQuery {
+    custom_trash_dir: Option<String>,
+}
+
+async fn handle_trash_summary(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<TrashQuery>,
+) -> Result<Json<crate::tools::trash::TrashSummary>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    match crate::tools::trash::TrashManager::get_trash_summary(custom_trash, Some(&claims.home_dir)) {
+        Ok(summary) => Ok(Json(summary)),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get trash summary: {}", e))),
+    }
+}
+
+async fn handle_trash_items(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(query): Query<TrashQuery>,
+) -> Result<Json<Vec<crate::tools::trash::TrashItem>>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    match crate::tools::trash::TrashManager::list_trash_items(custom_trash, Some(&claims.home_dir)) {
+        Ok(items) => Ok(Json(items)),
+        Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to list trash items: {}", e))),
+    }
+}
+
+async fn handle_trash_restore(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::tools::trash::TrashRestoreRequest>,
+) -> Result<Json<crate::tools::trash::TrashActionResult>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if claims.role.eq_ignore_ascii_case("readonly") {
+        return Err((StatusCode::FORBIDDEN, "Read-only users cannot restore files".to_string()));
+    }
+    let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let res = crate::tools::trash::TrashManager::restore_items(payload.items, custom_trash, Some(&claims.home_dir));
+    Ok(Json(res))
+}
+
+async fn handle_trash_empty(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::tools::trash::TrashEmptyRequest>,
+) -> Result<Json<crate::tools::trash::TrashActionResult>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if claims.role.eq_ignore_ascii_case("readonly") {
+        return Err((StatusCode::FORBIDDEN, "Read-only users cannot empty trash".to_string()));
+    }
+    let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let res = crate::tools::trash::TrashManager::empty_trash(custom_trash, Some(&claims.home_dir));
+    Ok(Json(res))
+}
+
+async fn handle_trash_delete(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::tools::trash::TrashDeleteRequest>,
+) -> Result<Json<crate::tools::trash::TrashActionResult>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if claims.role.eq_ignore_ascii_case("readonly") {
+        return Err((StatusCode::FORBIDDEN, "Read-only users cannot delete items".to_string()));
+    }
+    let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let res = crate::tools::trash::TrashManager::delete_items(payload.items, custom_trash, Some(&claims.home_dir));
+    Ok(Json(res))
 }
 
 async fn handle_run_action(

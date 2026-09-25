@@ -9143,6 +9143,38 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   border: 1px solid rgba(245, 158, 11, 0.4);
 }
 
+.pane-trash-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 12px;
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.14) 0%, rgba(245, 158, 11, 0.08) 100%);
+  border-bottom: 1px solid rgba(239, 68, 68, 0.35);
+  color: var(--text-main);
+  font-size: 11.5px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  backdrop-filter: blur(4px);
+}
+
+.pane-trash-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pane-trash-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
 .pane-branch-banner {
   display: flex;
   align-items: center;
