@@ -23473,6 +23473,7 @@ let termWs = null;
 let termOpen = false;
 let termInstance = null;
 let termFitAddon = null;
+let termConnectTime = 0;
 
 function ensureTerminalOutputElement() {
   let termOutput = document.getElementById('terminal-output');
@@ -23606,6 +23607,10 @@ function initTerminalUI() {
     }
 
     termInstance.onData((data) => {
+      // Ignore residual Enter/newline keystroke leakage occurring during window open transition
+      if (Date.now() - termConnectTime < 250 && (data === '\r' || data === '\n' || data === '\r\n')) {
+        return;
+      }
       if (termWs && termWs.readyState === WebSocket.OPEN) {
         termWs.send(data);
       }
@@ -23613,6 +23618,10 @@ function initTerminalUI() {
 
     let resizeDebounceTimer = null;
     termInstance.onResize(({ cols, rows }) => {
+      // Avoid premature SIGWINCH resize events immediately on initial startup handshake
+      if (Date.now() - termConnectTime < 350) {
+        return;
+      }
       if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
       resizeDebounceTimer = setTimeout(() => {
         if (termWs && termWs.readyState === WebSocket.OPEN) {
@@ -23640,6 +23649,7 @@ function toggleTerminal(forceState) {
   termOpen = typeof forceState === 'boolean' ? forceState : !termOpen;
 
   if (termOpen) {
+    termConnectTime = Date.now();
     localStorage.setItem('cd_terminal_open', '1');
     drawer.classList.add('active');
 
@@ -23678,7 +23688,7 @@ function toggleTerminal(forceState) {
           try { termFitAddon.fit(); } catch (e) {}
         }
         if (termInstance) termInstance.focus();
-      }, 50);
+      }, 80);
     }
   } else {
     localStorage.setItem('cd_terminal_open', '0');
@@ -23758,6 +23768,7 @@ function getWsUrl(endpoint) {
 }
 
 function connectTerminal(cwd) {
+  termConnectTime = Date.now();
   if (termWs) {
     const oldWs = termWs;
     termWs = null;
@@ -23786,9 +23797,14 @@ function connectTerminal(cwd) {
 
     thisWs.onopen = () => {
       if (termWs !== thisWs) return;
-      if (termInstance) {
-        termInstance.focus();
-      }
+      setTimeout(() => {
+        if (termFitAddon) {
+          try { termFitAddon.fit(); } catch (e) {}
+        }
+        if (termInstance) {
+          termInstance.focus();
+        }
+      }, 80);
     };
 
     thisWs.onmessage = (e) => {
@@ -31505,11 +31521,16 @@ function handleSpotlightKey(e) {
     }
   } else if (e.key === 'Enter') {
     e.preventDefault();
+    e.stopPropagation();
+    const input = document.getElementById('spotlight-input');
+    if (input) input.blur();
     if (spotlightItems.length > 0 && spotlightItems[spotlightSelectedIndex]) {
-      executeSpotlightIndex(spotlightSelectedIndex);
+      const selectedIdx = spotlightSelectedIndex;
+      setTimeout(() => executeSpotlightIndex(selectedIdx), 40);
     }
   } else if (e.key === 'Escape') {
     e.preventDefault();
+    e.stopPropagation();
     closeSpotlightModal();
   }
 }
