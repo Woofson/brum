@@ -3824,7 +3824,9 @@ html.fkeys-disabled .bottom-fkey-bar,
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.7);
   padding: 4px 0;
   min-width: 220px;
-  max-width: 320px;
+  max-width: 340px;
+  max-height: min(720px, calc(88vh - 40px));
+  overflow-y: auto;
   z-index: 2500;
 }
 
@@ -4242,8 +4244,9 @@ html.fkeys-disabled .bottom-fkey-bar,
   top: 100%;
   left: 0;
   margin-top: 4px;
-  width: 320px;
+  width: 340px;
   max-width: 92vw;
+  max-height: min(780px, calc(88vh - 60px));
   background: var(--bg-panel);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -4284,8 +4287,9 @@ html.fkeys-disabled .bottom-fkey-bar,
   border-radius: var(--radius);
   box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7);
   z-index: 2500;
-  width: 260px;
+  width: 280px;
   max-width: 90vw;
+  max-height: min(780px, calc(88vh - 60px));
   overflow: hidden;
   animation: fadeInDown 0.15s ease-out;
 }
@@ -4301,6 +4305,112 @@ html.fkeys-disabled .bottom-fkey-bar,
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.pane-upload-dropdown,
+.pane-transfer-dropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.7);
+  z-index: 2500;
+  width: 290px;
+  max-width: 90vw;
+  max-height: min(780px, calc(88vh - 60px));
+  overflow: hidden;
+  animation: fadeInDown 0.15s ease-out;
+}
+
+.pane-upload-dropdown .dropdown-item i,
+.pane-upload-dropdown .dropdown-item svg,
+.pane-transfer-dropdown .dropdown-item i,
+.pane-transfer-dropdown .dropdown-item svg {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  flex-shrink: 0;
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---------------- SPLIT ACTION TRANSFER & INGEST BUTTON ---------------- */
+.pane-transfer-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.pane-transfer-group {
+  display: inline-flex;
+  align-items: center;
+  height: 26px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-sizing: border-box;
+  overflow: hidden;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.pane-transfer-group:hover {
+  border-color: var(--accent);
+}
+
+.pane-transfer-main-btn {
+  background: transparent !important;
+  border: none !important;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 !important;
+  width: 25px !important;
+  min-width: 25px !important;
+  max-width: 25px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  border-radius: 0 !important;
+}
+
+.pane-transfer-main-btn:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text-main) !important;
+}
+
+.pane-transfer-dropdown-btn {
+  background: transparent !important;
+  border: none !important;
+  border-left: 1px solid var(--border) !important;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 !important;
+  width: 15px !important;
+  min-width: 15px !important;
+  max-width: 15px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  max-height: 24px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  border-radius: 0 !important;
+}
+
+.pane-transfer-dropdown-btn:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text-main) !important;
 }
 
 /* ---------------- SPOTLIGHT QUICK-SWITCHER ---------------- */
@@ -6681,12 +6791,12 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 /* ---------------- HEADER DROPDOWNS & PROFILE MENU ---------------- */
-.tools-dropdown-wrapper, .profile-dropdown-wrapper, .pane-favorites-wrapper, .pane-color-wrapper {
+.tools-dropdown-wrapper, .profile-dropdown-wrapper, .pane-favorites-wrapper, .pane-color-wrapper, .pane-upload-wrapper, .pane-transfer-wrapper {
   position: relative;
   display: inline-flex;
 }
 
-.tools-dropdown-menu, .profile-dropdown-menu, .pane-favorites-dropdown, .pane-color-dropdown {
+.tools-dropdown-menu, .profile-dropdown-menu, .pane-favorites-dropdown, .pane-color-dropdown, .pane-upload-dropdown, .pane-transfer-dropdown {
   position: absolute;
   top: calc(100% + 4px);
   background: var(--bg-header);
@@ -6702,9 +6812,9 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 .tools-dropdown-menu {
   right: 0;
   left: auto;
-  min-width: 270px;
+  min-width: 290px;
   max-width: calc(100vw - 20px);
-  max-height: 520px;
+  max-height: min(780px, calc(90vh - 60px));
   overflow-y: auto;
 }
 
@@ -6786,18 +6896,26 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 
 .profile-dropdown-menu {
   right: 0;
-  min-width: 240px;
+  min-width: 260px;
+  max-height: min(760px, calc(88vh - 60px));
+  overflow-y: auto;
 }
 
 .pane-favorites-dropdown, .pane-color-dropdown {
   right: 0;
   left: auto;
-  min-width: 280px;
-  max-height: 380px;
+  min-width: 300px;
+  max-width: 440px;
+  max-height: min(780px, calc(88vh - 60px));
   overflow-y: auto;
 }
 
-.tools-dropdown-menu.active, .profile-dropdown-menu.active, .pane-favorites-dropdown.active, .pane-color-dropdown.active {
+.pane-dropdown-body {
+  max-height: min(720px, calc(88vh - 100px));
+  overflow-y: auto;
+}
+
+.tools-dropdown-menu.active, .profile-dropdown-menu.active, .pane-favorites-dropdown.active, .pane-color-dropdown.active, .pane-upload-dropdown.active, .pane-transfer-dropdown.active {
   display: block;
 }
 
@@ -6819,7 +6937,11 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   }
 
   .pane-favorites-dropdown,
-  .pane-color-dropdown {
+  .pane-color-dropdown,
+  .pane-tools-dropdown,
+  .pane-settings-dropdown,
+  .pane-upload-dropdown,
+  .pane-transfer-dropdown {
     position: fixed !important;
     top: 88px !important;
     right: 8px !important;
@@ -6832,16 +6954,28 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
     z-index: 2500 !important;
     border-radius: 10px !important;
   }
+
+  .pane-dropdown-body {
+    max-height: calc(100dvh - 140px) !important;
+  }
 }
 
 @media (min-width: 601px) and (max-width: 1024px) {
   .tools-dropdown-menu,
   .profile-dropdown-menu,
   .pane-favorites-dropdown,
-  .pane-color-dropdown {
+  .pane-color-dropdown,
+  .pane-tools-dropdown,
+  .pane-settings-dropdown,
+  .pane-upload-dropdown,
+  .pane-transfer-dropdown {
     max-width: min(340px, calc(100vw - 20px)) !important;
     max-height: calc(100dvh - 70px) !important;
     overflow-y: auto !important;
+  }
+
+  .pane-dropdown-body {
+    max-height: calc(100dvh - 110px) !important;
   }
 }
 
@@ -11225,28 +11359,14 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 /* ---------------- BREADCRUMBS DROPDOWN & DRIVE SELECTOR ---------------- */
-.crumb-root-dropdown-btn {
+.crumb.crumb-root {
+  font-weight: 600;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   cursor: pointer;
-  padding: 0 5px;
-  height: 18px;
-  line-height: 16px;
-  border-radius: 3px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border);
-  color: var(--text-main);
-  font-size: 10.5px;
-  font-weight: 600;
-  transition: all 0.1s ease;
 }
 
-.crumb-root-dropdown-btn:hover {
-  background: var(--bg-hover);
-  border-color: var(--accent);
-  color: var(--accent);
-}
 
 .crumb-sep-dropdown {
   cursor: pointer;
@@ -11330,9 +11450,9 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
   border-radius: 6px;
   padding: 4px;
-  min-width: 200px;
-  max-width: 340px;
-  max-height: 380px;
+  min-width: 220px;
+  max-width: 420px;
+  max-height: min(680px, calc(85vh - 50px));
   overflow-y: auto;
   font-family: var(--font-main);
   font-size: 11.5px;
@@ -11667,7 +11787,9 @@ body.is-col-resizing {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  min-width: 210px;
+  min-width: 230px;
+  max-height: min(720px, calc(88vh - 40px));
+  overflow-y: auto;
   padding: 6px 0;
   display: flex;
   flex-direction: column;
@@ -14600,7 +14722,7 @@ body.standalone-mode .server-only-setting {
 }
 
 .fleet-dropdown-nodes {
-  max-height: 280px;
+  max-height: min(600px, calc(80vh - 80px));
   overflow-y: auto;
   padding: 8px;
   display: flex;

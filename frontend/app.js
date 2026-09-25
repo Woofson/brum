@@ -3048,19 +3048,21 @@ function createPaneElement(pane, index) {
       <!-- Unified Places Hub (Visible on ALL viewports: Phone, Tablet, Foldable, Desktop) -->
       <div class="pane-favorites-wrapper">
         <button class="btn btn-icon pane-places-btn" id="btn-favorites-${index}" onclick="openPaneFavoritesMenu(event, ${index})" oncontextmenu="event.preventDefault(); openBookmarksManager();" title="Places, Bookmarks & Fleet Nodes (Left-click: Quick Jump, Right-click: Manage)">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg>
+          <i data-lucide="paw-print"></i>
         </button>
       </div>
 
-      <!-- Cross-Pane Transfer Button (Desktop Only) -->
-      <button class="btn btn-icon pane-quick-transfer-btn desktop-header-tool" onclick="event.stopPropagation(); setActivePane(${index}); triggerCopy();" title="Transfer / Copy to Other Pane (F5)">
-        <i data-lucide="arrow-right-left"></i>
-      </button>
-
-      <!-- Direct Device Upload Button (Desktop Only) -->
-      <button class="btn btn-icon pane-upload-btn desktop-header-tool" onclick="event.stopPropagation(); setActivePane(${index}); triggerDeviceUpload(${index});" title="Upload Files from Device to this Directory">
-        <i data-lucide="upload"></i>
-      </button>
+      <!-- Transfer & Ingest Split Action Button (Desktop & Toolbar) -->
+      <div class="pane-transfer-wrapper desktop-header-tool" id="pane-transfer-wrap-${index}">
+        <div class="btn-group pane-transfer-group">
+          <button class="btn btn-icon pane-transfer-main-btn" id="btn-transfer-main-${index}" onclick="executePane1ClickTransfer(${index})" oncontextmenu="event.preventDefault(); openPaneTransferMenu(event, ${index})" title="${getPane1ClickTransferTooltip()}">
+            <i data-lucide="${getPane1ClickTransferIcon()}"></i>
+          </button>
+          <button class="btn btn-icon pane-transfer-dropdown-btn" id="btn-transfer-menu-${index}" onclick="openPaneTransferMenu(event, ${index})" title="Transfer & Ingest Options (Upload, Download, Inter-Pane, Share)">
+            <i data-lucide="chevron-down" style="width: 10px; height: 10px;"></i>
+          </button>
+        </div>
+      </div>
 
       <!-- Combined Pane Menu Button (Visible on ALL viewports, providing overflow for mobile/foldable) -->
       <div class="pane-tools-wrapper">
@@ -4804,15 +4806,15 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     return;
   }
 
-  // Helper to create root dropdown button (Drive / Storage Root picker)
-  const makeRootDropdownBtn = (displayText, rootTarget, icon = '') => {
+  // Helper to create root breadcrumb (clean direct jump)
+  const makeRootCrumb = (displayText, rootTarget, icon = '') => {
     const btn = document.createElement('span');
-    btn.className = 'crumb-root-dropdown-btn';
-    btn.title = 'Click to switch drive or storage root';
-    btn.innerHTML = `${icon ? icon + ' ' : ''}<span>${displayText}</span><span style="font-size: 7.5px; opacity: 0.7; margin-left: 1px;">▾</span>`;
+    btn.className = 'crumb crumb-root';
+    btn.title = `Jump to ${displayText}`;
+    btn.innerHTML = `${icon ? icon + ' ' : ''}<span>${displayText}</span>`;
     btn.onclick = (e) => {
       e.stopPropagation();
-      showBreadcrumbRootDropdown(e, paneIndex);
+      loadPaneDirectory(paneIndex, rootTarget);
     };
     return btn;
   };
@@ -4850,7 +4852,7 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     const rest = winDriveMatch[2];
     const parts = rest.split(/[\\/]/).filter(Boolean);
 
-    const rootCrumb = makeRootDropdownBtn(driveRoot, driveRoot, '🪟');
+    const rootCrumb = makeRootCrumb(driveRoot, driveRoot, '🪟');
     container.appendChild(rootCrumb);
 
     let currentBuild = driveRoot;
@@ -4878,7 +4880,7 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     const rest = uncMatch[2];
     const parts = rest.split(/[\\/]/).filter(Boolean);
 
-    const rootCrumb = makeRootDropdownBtn(shareRoot, shareRoot, '🖥️');
+    const rootCrumb = makeRootCrumb(shareRoot, shareRoot, '🖥️');
     container.appendChild(rootCrumb);
 
     let currentBuild = shareRoot;
@@ -4901,7 +4903,7 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
   }
 
   const parts = pathStr.split('/').filter(Boolean);
-  const rootCrumb = makeRootDropdownBtn('/', '/', '📁');
+  const rootCrumb = makeRootCrumb('/', '/', '📁');
   container.appendChild(rootCrumb);
 
   let currentBuild = '';
@@ -4925,120 +4927,18 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
   }, 0);
 }
 
-async function fetchStorageRoots(paneIndex = null) {
-  try {
-    const endpoint = (paneIndex !== null && paneIndex !== undefined) ? getPaneEndpoint(paneIndex) : '';
-    const headers = (paneIndex !== null && paneIndex !== undefined) ? getPaneAuthHeaders(paneIndex) : { 'Authorization': `Bearer ${App.token}` };
-    const [res, disksRes] = await Promise.all([
-      fetch(`${endpoint}/api/storage/roots`, { headers }),
-      (!window._systemDisks || window._systemDisks.length === 0) ? fetch(`${endpoint}/api/tools/disks`, { headers }).catch(() => null) : Promise.resolve(null)
-    ]);
-    if (disksRes && disksRes.ok) {
-      const d = await disksRes.json();
-      window._systemDisks = d || [];
-      duSystemDisks = window._systemDisks;
-    }
-    if (res && res.ok) {
-      return await res.json();
-    }
-  } catch (e) {
-    console.warn('Failed to fetch storage roots:', e);
-  }
-  return [];
-}
-
 // Global popover cleanup helper
 function closeBreadcrumbPopovers() {
   document.querySelectorAll('.breadcrumb-popover').forEach(p => p.remove());
 }
 
 const handleBreadcrumbOutside = (e) => {
-  if (!e.target.closest('.breadcrumb-popover') && !e.target.closest('.crumb-root-dropdown-btn') && !e.target.closest('.crumb-sep-dropdown') && !e.target.closest('.pane-node-btn') && !e.target.closest('.pane-node-chip')) {
+  if (!e.target.closest('.breadcrumb-popover') && !e.target.closest('.crumb-sep-dropdown') && !e.target.closest('.pane-node-btn') && !e.target.closest('.pane-node-chip')) {
     closeBreadcrumbPopovers();
   }
 };
 document.addEventListener('click', handleBreadcrumbOutside);
 document.addEventListener('touchstart', handleBreadcrumbOutside);
-
-async function showBreadcrumbRootDropdown(event, paneIndex) {
-  if (event && event.stopPropagation) event.stopPropagation();
-  const triggerKey = `crumb-root-${paneIndex}`;
-  const existing = document.querySelector('.breadcrumb-popover');
-  const wasOpen = existing && existing.dataset.triggerKey === triggerKey;
-  closeBreadcrumbPopovers();
-  if (wasOpen) return;
-
-  const trigger = event.currentTarget;
-  const rect = trigger.getBoundingClientRect();
-
-  const popover = document.createElement('div');
-  popover.className = 'breadcrumb-popover';
-  popover.dataset.triggerKey = triggerKey;
-  popover.style.top = `${rect.bottom + 4}px`;
-  popover.style.left = `${Math.max(8, rect.left)}px`;
-  popover.innerHTML = '<div style="padding: 6px 8px; color: var(--text-muted); font-size: 11px;">Loading storage roots & drives...</div>';
-  document.body.appendChild(popover);
-
-  try {
-    const roots = await fetchStorageRoots(paneIndex);
-    popover.innerHTML = '';
-
-    if (roots.length === 0) {
-      popover.innerHTML = '<div class="breadcrumb-popover-item" onclick="loadPaneDirectory(' + paneIndex + ', \'/\'); closeBreadcrumbPopovers();">📁 Root Filesystem (/)</div>';
-      return;
-    }
-
-    const drives = roots.filter(r => r.path.match(/^[a-zA-Z]:[\\/]/));
-    const storageRoots = roots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/));
-
-    if (drives.length > 0) {
-      const header = document.createElement('div');
-      header.className = 'breadcrumb-popover-header';
-      header.textContent = 'Drives & Partitions';
-      popover.appendChild(header);
-
-      drives.forEach(d => {
-        const item = document.createElement('div');
-        item.className = 'breadcrumb-popover-item';
-        const isActive = App.panes[paneIndex].path.toUpperCase().startsWith(d.path.toUpperCase());
-        if (isActive) item.classList.add('active');
-        const diskInfo = (window._systemDisks || []).find(it => it.mount_point.toUpperCase().startsWith(d.path.toUpperCase()));
-        const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono); margin-left: auto;">${diskInfo.formatted_available} free</span>` : '';
-        item.innerHTML = `<span style="font-size: 13px;">🪟</span> <span style="font-weight:600;">${escapeHtml(d.path)}</span> <span style="color:var(--text-muted); font-size:10px; margin-left: 4px;">${escapeHtml(d.name.replace(/^Local Disk\s*\(/i, '').replace(/\)$/, ''))}</span>${quotaBadge}`;
-        item.onclick = () => {
-          loadPaneDirectory(paneIndex, d.path);
-          closeBreadcrumbPopovers();
-        };
-        popover.appendChild(item);
-      });
-    }
-
-    if (storageRoots.length > 0) {
-      const header = document.createElement('div');
-      header.className = 'breadcrumb-popover-header';
-      header.textContent = 'Storage Roots & Mounts';
-      popover.appendChild(header);
-
-      storageRoots.forEach(r => {
-        const item = document.createElement('div');
-        item.className = 'breadcrumb-popover-item';
-        const isActive = App.panes[paneIndex].path.startsWith(r.path);
-        if (isActive) item.classList.add('active');
-        const icon = r.id === 'home' ? '🏠' : '📁';
-        const diskInfo = (window._systemDisks || []).find(it => it.mount_point === r.path || (r.path === '/' && it.mount_point === '/'));
-        const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono); margin-left: auto;">${diskInfo.formatted_available} free</span>` : '';
-        item.innerHTML = `<span style="font-size: 13px;">${icon}</span> <span style="font-weight:500;">${escapeHtml(r.name)}</span>${quotaBadge}`;
-        item.onclick = () => {
-          loadPaneDirectory(paneIndex, r.path);
-          closeBreadcrumbPopovers();
-        };
-        popover.appendChild(item);
-      });
-    }
-  } catch (err) {
-    popover.innerHTML = '<div style="padding: 6px 8px; color: var(--danger); font-size: 11px;">Failed to load roots</div>';
-  }
-}
 
 async function showBreadcrumbSubfolderDropdown(event, paneIndex, parentDir) {
   if (event && event.stopPropagation) event.stopPropagation();
@@ -6977,7 +6877,7 @@ function openColumnHeaderContextMenu(e, paneIndex) {
 
   const existing = document.getElementById('col-chooser-popover');
   const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
-  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
   if (wasOpenForThisPane) return;
 
   const pop = document.createElement('div');
@@ -8964,7 +8864,7 @@ function setupKeyboardNavigation() {
       if (e.key === 'Escape') {
         hideContextMenu();
         closeModal();
-        document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+        document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
       }
       if ((e.ctrlKey || e.metaKey) && (e.key === 'q' || e.key === 'Q')) {
         e.preventDefault();
@@ -8976,7 +8876,7 @@ function setupKeyboardNavigation() {
 
     if (e.key === 'Escape') {
       let handled = false;
-      const popups = document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover');
+      const popups = document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover');
       if (popups.length > 0) {
         popups.forEach(p => p.remove());
         handled = true;
@@ -15513,27 +15413,96 @@ function closeImgTransformDropdown() {
   if (menu) menu.style.display = 'none';
 }
 
-// Close dropdowns on outside click or on menu item selection (Touch & Click)
-document.addEventListener('click', (e) => {
-  if (e.target.closest('#tools-dropdown-menu .dropdown-item') || (!e.target.closest('#btn-tools-menu') && !e.target.closest('#tools-dropdown-menu'))) {
-    document.getElementById('tools-dropdown-menu')?.classList.remove('active');
-  }
-  if (e.target.closest('#profile-dropdown-menu .dropdown-item') || (!e.target.closest('#btn-user-profile') && !e.target.closest('#profile-dropdown-menu'))) {
-    document.getElementById('profile-dropdown-menu')?.classList.remove('active');
-  }
-  if (!e.target.closest('#editor-actions-dropdown-container')) {
-    const m = document.getElementById('editor-actions-dropdown-menu');
-    if (m) m.style.display = 'none';
-  }
-  if (!e.target.closest('#img-transform-dropdown-container')) {
-    const m = document.getElementById('img-transform-dropdown-menu');
-    if (m) m.style.display = 'none';
-  }
+// ---------------- GLOBAL CAPTURE-PHASE DISMISS FOR ALL DROPDOWNS & MENUS ----------------
+function dismissGlobalPopoversAndMenus(e) {
+  const target = e.target;
+  if (!target) return;
+
+  // 1. Places & Fleet Hub popup
   const favMenu = document.getElementById('pane-favorites-popup');
-  if (favMenu && !e.target.closest('.pane-favorites-dropdown') && !e.target.closest('[id^="btn-favorites-"]')) {
+  if (favMenu && !target.closest('#pane-favorites-popup') && !target.closest('[id^="btn-favorites-"]') && !target.closest('.pane-node-chip')) {
     favMenu.remove();
   }
-});
+
+  // 2. Pane Actions / Tools popup
+  const toolsMenu = document.getElementById('pane-tools-popup');
+  if (toolsMenu && !target.closest('#pane-tools-popup') && !target.closest('[id^="pane-tools-btn-"]')) {
+    toolsMenu.remove();
+  }
+
+  // 3. Pane Transfer & Ingest Hub popup
+  const transferMenu = document.getElementById('pane-transfer-popup');
+  if (transferMenu && !target.closest('#pane-transfer-popup') && !target.closest('.pane-transfer-wrapper') && !target.closest('[id^="btn-transfer-"]')) {
+    transferMenu.remove();
+  }
+
+  // 4. Pane Upload & Download popup
+  const uploadMenu = document.getElementById('pane-upload-popup');
+  if (uploadMenu && !target.closest('#pane-upload-popup') && !target.closest('[id^="btn-upload-"]')) {
+    uploadMenu.remove();
+  }
+
+  // 5. Pane Settings & Two-Tone preset popup
+  const settingsMenu = document.getElementById('pane-settings-popup');
+  if (settingsMenu && !target.closest('#pane-settings-popup') && !target.closest('[id^="pane-badge-"]') && !target.closest('.mobile-pane-tab')) {
+    settingsMenu.remove();
+  }
+
+  // 5. Column Chooser popover
+  const colChooser = document.getElementById('col-chooser-popover');
+  if (colChooser && !target.closest('#col-chooser-popover') && !target.closest('.pane-col-config-btn')) {
+    colChooser.remove();
+  }
+
+  // 6. Breadcrumb Subfolder & Fleet Node popovers
+  const breadcrumbPopovers = document.querySelectorAll('.breadcrumb-popover');
+  if (breadcrumbPopovers.length > 0 && !target.closest('.breadcrumb-popover') && !target.closest('.crumb-sep-dropdown') && !target.closest('.pane-node-chip') && !target.closest('.pane-node-btn')) {
+    breadcrumbPopovers.forEach(p => p.remove());
+  }
+
+  // 6. Header Tools Launchpad dropdown
+  const headerTools = document.getElementById('tools-dropdown-menu');
+  if (headerTools && headerTools.classList.contains('active')) {
+    if (target.closest('#tools-dropdown-menu .dropdown-item') || (!target.closest('#btn-tools-menu') && !target.closest('#tools-dropdown-menu'))) {
+      headerTools.classList.remove('active');
+    }
+  }
+
+  // 7. Header User Profile dropdown
+  const headerProfile = document.getElementById('profile-dropdown-menu');
+  if (headerProfile && headerProfile.classList.contains('active')) {
+    if (target.closest('#profile-dropdown-menu .dropdown-item') || (!target.closest('#btn-user-profile') && !target.closest('#profile-dropdown-menu'))) {
+      headerProfile.classList.remove('active');
+    }
+  }
+
+  // 8. Fleet Cluster Switcher dropdown
+  const fleetDropdown = document.getElementById('fleet-switcher-dropdown');
+  if (fleetDropdown && fleetDropdown.style.display !== 'none' && !target.closest('#fleet-switcher-wrapper')) {
+    if (typeof closeFleetSwitcherDropdown === 'function') closeFleetSwitcherDropdown();
+    else fleetDropdown.style.display = 'none';
+  }
+
+  // 9. Editor Actions & Img Transform touch menus
+  const editorTouchMenu = document.getElementById('editor-actions-dropdown-menu');
+  if (editorTouchMenu && editorTouchMenu.style.display === 'block' && !target.closest('#editor-actions-dropdown-container')) {
+    editorTouchMenu.style.display = 'none';
+  }
+  const imgTouchMenu = document.getElementById('img-transform-dropdown-menu');
+  if (imgTouchMenu && imgTouchMenu.style.display === 'block' && !target.closest('#img-transform-dropdown-container')) {
+    imgTouchMenu.style.display = 'none';
+  }
+
+  // 10. MediaPlayer Subtitles dropdown
+  const subsDropdown = document.getElementById('mediaplayer-subtitles-dropdown');
+  if (subsDropdown && subsDropdown.style.display === 'block' && !target.closest('.mediaplayer-dropdown') && !target.closest('#btn-mediaplayer-subtitles')) {
+    subsDropdown.style.display = 'none';
+  }
+}
+
+// Register in capture phase so outside clicks/touches dismiss popups reliably even when child elements call stopPropagation()
+document.addEventListener('pointerdown', dismissGlobalPopoversAndMenus, true);
+document.addEventListener('click', dismissGlobalPopoversAndMenus, true);
 
 function openAboutModal() {
   document.getElementById('profile-dropdown-menu')?.classList.remove('active');
@@ -15723,6 +15692,8 @@ function openAdminPanel() {
 function openBookmarksManager() {
   document.getElementById('pane-favorites-popup')?.remove();
   document.getElementById('pane-tools-popup')?.remove();
+  document.getElementById('pane-upload-popup')?.remove();
+  document.getElementById('pane-transfer-popup')?.remove();
   openSettingsModal();
   switchSettingsTab('tab-bookmarks');
 }
@@ -15731,28 +15702,29 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   if (e && e.stopPropagation) e.stopPropagation();
   const existing = document.getElementById('pane-favorites-popup');
   const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
-  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
   if (wasOpenForThisPane) return;
 
   let globalMounts = [];
   let userBookmarks = [];
   let storageRoots = [];
-  let storedClientMounts = [];
   let trashSummary = { total_items: 0, total_size: 0, files_dir: '' };
 
   try {
-    const [mountsRes, bmRes, rootsRes, clientMounts, trashRes] = await Promise.all([
+    const [mountsRes, bmRes, rootsRes, trashRes, disksRes] = await Promise.all([
       fetch('/api/mounts/accessible', { headers: { 'Authorization': `Bearer ${App.token}` } }),
       fetch('/api/bookmarks', { headers: { 'Authorization': `Bearer ${App.token}` } }),
       fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      getAllStoredClientMounts().catch(() => []),
-      fetch('/api/tools/trash/summary', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null)
+      fetch('/api/tools/trash/summary', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null),
+      (!window._systemDisks || window._systemDisks.length === 0) ? fetch('/api/tools/disks', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null) : Promise.resolve(null)
     ]);
     if (mountsRes.ok) globalMounts = await mountsRes.json();
     if (bmRes.ok) userBookmarks = await bmRes.json();
     if (rootsRes.ok) storageRoots = await rootsRes.json();
-    if (Array.isArray(clientMounts)) storedClientMounts = clientMounts;
     if (trashRes && trashRes.ok) trashSummary = await trashRes.json();
+    if (disksRes && disksRes.ok) {
+      window._systemDisks = await disksRes.json() || [];
+    }
   } catch (err) {
     console.warn('Failed to load favorites/bookmarks/storage roots:', err);
   }
@@ -15774,6 +15746,9 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   const currentPane = App.panes && App.panes[paneIndex];
   const currentNodeId = currentPane ? (currentPane.nodeId || 'local') : 'local';
 
+  const drives = storageRoots.filter(r => r.path.match(/^[a-zA-Z]:[\\/]/));
+  const nonDriveRoots = storageRoots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/));
+
   const popup = document.createElement('div');
   popup.id = 'pane-favorites-popup';
   popup.dataset.paneIndex = String(paneIndex);
@@ -15781,13 +15756,13 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   popup.innerHTML = `
     <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span style="display: flex; align-items: center; gap: 6px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 8h4.5l-3 2.5H15"/><circle cx="11.5" cy="7" r="0.75" fill="currentColor"/><path d="M15 10.5c.8 1.5 2.5 3 5 3 .5 0 1-.1 1.5-.3-.8 4.2-4.5 6.8-9.5 6.8-4.8 0-7.5-2.2-8-5.5-.3-2 .8-4 2.5-5.2C6.2 9 6 8.3 6 7.5 6 4.5 8.5 2 11.5 2S17 4.5 17 7.5c0 1.1-.3 2.1-.9 3"/></svg> Places & Fleet</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="paw-print" style="width: 14px; height: 14px;"></i> Places & Fleet</span>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openBookmarksManager();">Bookmarks</span>
         <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-favorites-popup')?.remove();">✕</span>
       </div>
     </div>
-    <div style="padding: 4px 0; max-height: 420px; overflow-y: auto;">
+    <div class="pane-dropdown-body" style="padding: 4px 0;">
       ${curPanePath.includes('://') ? `
         <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); disconnectPaneRemote(${paneIndex});" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
           <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i>
@@ -15798,6 +15773,65 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         </div>
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : ''}
+
+      ${drives.length > 0 ? `
+        <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Drives & Partitions</div>
+        ${drives.map(d => {
+          const isAct = curPanePath.toUpperCase().startsWith(d.path.toUpperCase());
+          const diskInfo = (window._systemDisks || []).find(it => it.mount_point.toUpperCase().startsWith(d.path.toUpperCase()));
+          const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
+          return `
+            <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, '${escapeHtml(d.path)}'); document.getElementById('pane-favorites-popup')?.remove();">
+              <span style="font-size: 13px;">🪟</span>
+              <div style="flex: 1; min-width: 0;">
+                <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+                  <span>${escapeHtml(d.path)} <span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">(${escapeHtml(d.name.replace(/^Local Disk\s*\(/i, '').replace(/\)$/, ''))})</span></span>
+                  ${quotaBadge}
+                </div>
+                <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(d.path)}</div>
+              </div>
+              ${isAct ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+            </div>
+          `;
+        }).join('')}
+        <div class="context-sep" style="margin: 4px 0;"></div>
+      ` : ''}
+
+      <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Places & Storage Roots</div>
+      ${nonDriveRoots.map(r => {
+        const displayName = (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'Home' : r.name;
+        const diskInfo = (window._systemDisks || []).find(it => it.mount_point === r.path || (r.path === '/' && it.mount_point === '/'));
+        const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
+        const isAct = curPanePath === r.path || (r.id === 'home' && curPanePath.startsWith(r.path));
+        return `
+          <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, '${r.path}'); document.getElementById('pane-favorites-popup')?.remove();">
+            <i data-lucide="${r.id === 'home' ? 'home' : (r.id === 'system-root' ? 'hard-drive' : 'server')}"></i>
+            <div style="flex: 1; min-width: 0;">
+              <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 6px;">
+                  <span>${escapeHtml(displayName)}</span>
+                  ${r.read_only ? '<span class="badge" style="font-size: 8px; padding: 1px 4px; background: rgba(239,68,68,0.2); color: var(--danger);">READ ONLY</span>' : ''}
+                </div>
+                ${quotaBadge}
+              </div>
+              <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(r.path)}</div>
+            </div>
+            ${isAct ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+          </div>
+        `;
+      }).join('')}
+      <div class="dropdown-item ${isTrashDirectory(curPanePath) ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, 'trash://'); document.getElementById('pane-favorites-popup')?.remove();">
+        <i data-lucide="trash-2" style="color: ${trashSummary.total_items > 0 ? 'var(--accent)' : 'var(--text-dim)'};"></i>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>Trash Bin</span>
+            ${trashSummary.total_items > 0 ? `<span class="badge" style="font-size: 8.5px; padding: 1px 5px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">${trashSummary.total_items} item${trashSummary.total_items > 1 ? 's' : ''} · ${formatBytes(trashSummary.total_size)}</span>` : '<span style="font-size: 9px; color: var(--text-dim);">Empty</span>'}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(trashSummary.files_dir || '~/.local/share/Trash/files')}</div>
+        </div>
+        ${isTrashDirectory(curPanePath) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+      </div>
+      <div class="context-sep" style="margin: 4px 0;"></div>
 
       <!-- Commander Fleet Nodes -->
       <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
@@ -15850,64 +15884,6 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         `;
       }).join('')}
       <div class="context-sep" style="margin: 4px 0;"></div>
-
-      <!-- Client Local Storage (FSA API Zero-Install) -->
-      <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
-        <span>Client Local Storage</span>
-        <span class="badge" style="font-size: 8.5px; padding: 1px 4px;">ZERO-INSTALL</span>
-      </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); openClientLocalDirectory(${paneIndex});">
-        <i data-lucide="laptop" style="color: var(--accent);"></i>
-        <div>
-          <div style="font-weight: 600;">📁 Open Client Local Folder...</div>
-          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Mount local browser folder (FSA API)</div>
-        </div>
-      </div>
-      ${storedClientMounts.map(m => `
-        <div class="dropdown-item ${curPanePath.startsWith('client://' + m.name) ? 'active' : ''}" onclick="document.getElementById('pane-favorites-popup')?.remove(); loadPaneDirectory(${paneIndex}, 'client://${escapeHtml(m.name)}');">
-          <i data-lucide="folder-symlink" style="color: var(--accent);"></i>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
-              <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">💻 ${escapeHtml(m.name)}</span>
-              <span class="badge" style="font-size: 8.5px; padding: 1px 4px;">CLIENT</span>
-            </div>
-            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">client://${escapeHtml(m.name)}</div>
-          </div>
-          ${curPanePath.startsWith('client://' + m.name) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
-        </div>
-      `).join('')}
-      <div class="context-sep" style="margin: 4px 0;"></div>
-
-      ${storageRoots.length > 0 ? `
-        <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Storage Roots</div>
-        ${storageRoots.map(r => {
-          const displayName = (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'Home' : r.name;
-          return `
-            <div class="dropdown-item" onclick="loadPaneDirectory(${paneIndex}, '${r.path}'); document.getElementById('pane-favorites-popup')?.remove();">
-              <i data-lucide="${r.id === 'home' ? 'home' : (r.id === 'system-root' ? 'hard-drive' : 'server')}"></i>
-              <div>
-                <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
-                  <span>${escapeHtml(displayName)}</span>
-                  ${r.read_only ? '<span class="badge" style="font-size: 8px; padding: 1px 4px; background: rgba(239,68,68,0.2); color: var(--danger);">READ ONLY</span>' : ''}
-                </div>
-                <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(r.path)}</div>
-              </div>
-            </div>
-          `;
-        }).join('')}
-        <div class="dropdown-item ${isTrashDirectory(curPanePath) ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, 'trash://'); document.getElementById('pane-favorites-popup')?.remove();">
-          <i data-lucide="trash-2" style="color: ${trashSummary.total_items > 0 ? 'var(--accent)' : 'var(--text-dim)'};"></i>
-          <div style="flex: 1; min-width: 0;">
-            <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
-              <span>Trash Bin</span>
-              ${trashSummary.total_items > 0 ? `<span class="badge" style="font-size: 8.5px; padding: 1px 5px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">${trashSummary.total_items} item${trashSummary.total_items > 1 ? 's' : ''} · ${formatBytes(trashSummary.total_size)}</span>` : '<span style="font-size: 9px; color: var(--text-dim);">Empty</span>'}
-            </div>
-            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(trashSummary.files_dir || '~/.local/share/Trash/files')}</div>
-          </div>
-          ${isTrashDirectory(curPanePath) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
-        </div>
-        <div class="context-sep" style="margin: 4px 0;"></div>
-      ` : ''}
 
       ${userBookmarks.length > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Saved Bookmarks</div>
@@ -20108,8 +20084,266 @@ async function triggerChecksum() {
   }
 }
 
-// ---------------- DEVICE UPLOADS & DOWNLOADS (PHONE / TABLET / DESKTOP) ----------------
+// ---------------- 1-CLICK SPLIT ACTION TRANSFER HELPERS ----------------
+function getPane1ClickTransferAction() {
+  return localStorage.getItem('brum_pane_1click_transfer') || 'copy';
+}
+
+function get1ClickActionLabel(action) {
+  const map = {
+    copy: 'Copy to Other Pane (F5)',
+    move: 'Move to Other Pane (F6)',
+    clone_path: 'Clone Path to Other Pane',
+    upload_file: 'Upload Files...',
+    upload_folder: 'Upload Folder...',
+    download_zip: 'Download Folder (.zip)',
+  };
+  return map[action] || map.copy;
+}
+
+function getPane1ClickTransferIcon(action = getPane1ClickTransferAction()) {
+  const map = {
+    copy: 'arrow-right-left',
+    move: 'arrow-right',
+    clone_path: 'copy',
+    upload_file: 'upload',
+    upload_folder: 'folder-up',
+    download_zip: 'archive',
+  };
+  return map[action] || 'arrow-right-left';
+}
+
+function getPane1ClickTransferTooltip(action = getPane1ClickTransferAction()) {
+  const map = {
+    copy: 'Transfer / Copy to Other Pane (F5) [Right-click for options]',
+    move: 'Transfer / Move to Other Pane (F6) [Right-click for options]',
+    clone_path: 'Clone Current Path to Other Pane [Right-click for options]',
+    upload_file: 'Upload Files from Device [Right-click for options]',
+    upload_folder: 'Upload Folder from Device [Right-click for options]',
+    download_zip: 'Download Current Folder as .zip [Right-click for options]',
+  };
+  return map[action] || 'Transfer / Copy to Other Pane (F5) [Right-click for options]';
+}
+
+function setPane1ClickTransferAction(action) {
+  const allowed = ['copy', 'move', 'clone_path', 'upload_file', 'upload_folder', 'download_zip'];
+  const cleanAction = allowed.includes(action) ? action : 'copy';
+  localStorage.setItem('brum_pane_1click_transfer', cleanAction);
+  if (typeof queueSaveUserPreferencesToServer === 'function') queueSaveUserPreferencesToServer();
+
+  // Dynamically update toolbar buttons in active DOM without full re-render
+  const paneCount = (App.panes && App.panes.length) ? App.panes.length : 2;
+  for (let i = 0; i < paneCount; i++) {
+    const mainBtn = document.getElementById(`btn-transfer-main-${i}`);
+    if (mainBtn) {
+      mainBtn.title = getPane1ClickTransferTooltip();
+      mainBtn.innerHTML = `<i data-lucide="${getPane1ClickTransferIcon()}"></i>`;
+    }
+  }
+  if (window.lucide && typeof lucide.createIcons === 'function') {
+    lucide.createIcons();
+  }
+  showToast(`1-Click Transfer action: ${get1ClickActionLabel(cleanAction)}`, 'info');
+}
+
+function cloneDirectoryToOppositePane(paneIndex) {
+  const srcIdx = paneIndex !== undefined ? paneIndex : App.activePaneIndex;
+  const visibleCount = typeof getVisiblePaneCount === 'function' ? getVisiblePaneCount() : (App.panes ? App.panes.length : 2);
+  if (visibleCount < 2) {
+    showToast('Need at least 2 visible panes to clone path', 'warning');
+    return;
+  }
+  const targetIdx = (srcIdx + 1) % visibleCount;
+  const srcPane = App.panes[srcIdx];
+  if (!srcPane || !srcPane.path) return;
+  loadDirectory(targetIdx, srcPane.path);
+  showToast(`Cloned path to Pane ${targetIdx + 1}`, 'info');
+}
+
+function executePane1ClickTransfer(paneIndex) {
+  if (paneIndex !== undefined && typeof setActivePane === 'function') {
+    setActivePane(paneIndex);
+  }
+  const action = getPane1ClickTransferAction();
+  switch (action) {
+    case 'move':
+      triggerMove();
+      break;
+    case 'clone_path':
+      cloneDirectoryToOppositePane(paneIndex);
+      break;
+    case 'upload_file':
+      triggerDeviceUpload(paneIndex);
+      break;
+    case 'upload_folder':
+      triggerDeviceFolderUpload(paneIndex);
+      break;
+    case 'download_zip':
+      triggerDownloadCurrentDirectory(paneIndex);
+      break;
+    case 'copy':
+    default:
+      triggerCopy();
+      break;
+  }
+}
+
+// ---------------- DEVICE UPLOADS & TRANSFERS (PHONE / TABLET / DESKTOP) ----------------
 let targetUploadPaneIndex = null;
+
+function openPaneTransferMenu(e, paneIndex) {
+  if (e) {
+    e.preventDefault();
+    e.stopPropagation();
+  }
+  const existing = document.getElementById('pane-transfer-popup');
+  const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  if (wasOpenForThisPane) return;
+
+  const curAction = getPane1ClickTransferAction();
+  const popup = document.createElement('div');
+  popup.id = 'pane-transfer-popup';
+  popup.dataset.paneIndex = String(paneIndex);
+  popup.className = 'pane-transfer-dropdown active';
+
+  popup.innerHTML = `
+    <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+      <span style="display: flex; align-items: center; gap: 6px;">
+        <i data-lucide="arrow-right-left" style="width: 14px; height: 14px;"></i>
+        Transfer & Ingest Hub (Pane ${paneIndex + 1})
+      </span>
+      <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-transfer-popup')?.remove();">✕</span>
+    </div>
+    <div class="pane-dropdown-body" style="padding: 4px 0;">
+      <!-- Dual-Pane Transfers -->
+      <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Dual-Pane Transfers</div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); setActivePane(${paneIndex}); triggerCopy();">
+        <i data-lucide="arrow-right-left" style="color: var(--accent);"></i>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>Copy to Other Pane (F5)</span>
+            ${curAction === 'copy' ? '<span style="font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(245,158,11,0.18); color: var(--accent); font-weight: 700;">1-CLICK</span>' : ''}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">DeltaCopy or Standard to target pane</div>
+        </div>
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); setActivePane(${paneIndex}); triggerMove();">
+        <i data-lucide="arrow-right" style="color: var(--accent);"></i>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>Move to Other Pane (F6)</span>
+            ${curAction === 'move' ? '<span style="font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(245,158,11,0.18); color: var(--accent); font-weight: 700;">1-CLICK</span>' : ''}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Move selected items to target pane</div>
+        </div>
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); cloneDirectoryToOppositePane(${paneIndex});">
+        <i data-lucide="copy" style="color: var(--accent);"></i>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>Clone Path to Other Pane</span>
+            ${curAction === 'clone_path' ? '<span style="font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(245,158,11,0.18); color: var(--accent); font-weight: 700;">1-CLICK</span>' : ''}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Open this folder in opposite pane</div>
+        </div>
+      </div>
+
+      <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
+
+      <!-- Device Ingest & Egress -->
+      <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Device Ingest & Egress</div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerDeviceUpload(${paneIndex});">
+        <i data-lucide="file-up" style="color: var(--accent);"></i>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>Upload Files...</span>
+            ${curAction === 'upload_file' ? '<span style="font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(245,158,11,0.18); color: var(--accent); font-weight: 700;">1-CLICK</span>' : ''}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Select files from local device</div>
+        </div>
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerDeviceFolderUpload(${paneIndex});">
+        <i data-lucide="folder-up" style="color: var(--accent);"></i>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>Upload Folder...</span>
+            ${curAction === 'upload_folder' ? '<span style="font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(245,158,11,0.18); color: var(--accent); font-weight: 700;">1-CLICK</span>' : ''}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Upload directory hierarchy recursively</div>
+        </div>
+      </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerDownloadCurrentDirectory(${paneIndex});">
+        <i data-lucide="archive"></i>
+        <div style="flex: 1;">
+          <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+            <span>Download Folder (.zip)</span>
+            ${curAction === 'download_zip' ? '<span style="font-size: 9px; padding: 1px 4px; border-radius: 3px; background: rgba(245,158,11,0.18); color: var(--accent); font-weight: 700;">1-CLICK</span>' : ''}
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Zip and download pane contents</div>
+        </div>
+      </div>
+
+      <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
+
+      <!-- Sharing & Links -->
+      <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Sharing & Links</div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerShareDirectory(${paneIndex});">
+        <i data-lucide="share-2"></i>
+        <div>
+          <div style="font-weight: 600;">Share Folder / Dropbox...</div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Generate shareable link or upload portal</div>
+        </div>
+      </div>
+    </div>
+    <!-- 1-Click Action Config Footer -->
+    <div style="padding: 6px 12px 6px; background: var(--bg-dark); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; white-space: nowrap;">1-Click Action:</span>
+      <select class="select" style="font-size: 11px; height: 22px; padding: 0 4px; border-radius: 4px; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border); flex: 1; max-width: 170px;" onchange="setPane1ClickTransferAction(this.value); document.getElementById('pane-transfer-popup')?.remove();">
+        <option value="copy" ${curAction === 'copy' ? 'selected' : ''}>Copy (F5)</option>
+        <option value="move" ${curAction === 'move' ? 'selected' : ''}>Move (F6)</option>
+        <option value="clone_path" ${curAction === 'clone_path' ? 'selected' : ''}>Clone Path</option>
+        <option value="upload_file" ${curAction === 'upload_file' ? 'selected' : ''}>Upload Files</option>
+        <option value="upload_folder" ${curAction === 'upload_folder' ? 'selected' : ''}>Upload Folder</option>
+        <option value="download_zip" ${curAction === 'download_zip' ? 'selected' : ''}>Download Zip</option>
+      </select>
+    </div>
+  `;
+
+  const btn = document.getElementById(`btn-transfer-menu-${paneIndex}`) || document.getElementById(`pane-transfer-wrap-${paneIndex}`) || document.getElementById(`btn-upload-${paneIndex}`);
+  if (btn) {
+    const rect = btn.getBoundingClientRect();
+    popup.style.position = 'fixed';
+    popup.style.top = `${rect.bottom + 4}px`;
+    popup.style.right = `${Math.max(10, window.innerWidth - rect.right)}px`;
+    popup.style.zIndex = '999999';
+  } else {
+    popup.style.position = 'fixed';
+    popup.style.top = '60px';
+    popup.style.right = '10px';
+    popup.style.zIndex = '999999';
+  }
+
+  document.body.appendChild(popup);
+  if (window.lucide) lucide.createIcons();
+
+  const closeHandler = (ev) => {
+    if (!popup.contains(ev.target) && !btn?.contains(ev.target)) {
+      popup.remove();
+      document.removeEventListener('click', closeHandler);
+      document.removeEventListener('touchstart', closeHandler);
+    }
+  };
+  setTimeout(() => {
+    document.addEventListener('click', closeHandler);
+    document.addEventListener('touchstart', closeHandler);
+  }, 10);
+}
+
+// Backward-compatibility alias
+function openPaneUploadMenu(e, paneIndex) {
+  return openPaneTransferMenu(e, paneIndex);
+}
 
 function triggerDeviceUpload(paneIndex) {
   targetUploadPaneIndex = paneIndex !== undefined ? paneIndex : App.activePaneIndex;
@@ -21178,7 +21412,7 @@ function openPaneToolsMenu(e, paneIndex) {
   }
   const existing = document.getElementById('pane-tools-popup');
   const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
-  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
   if (wasOpenForThisPane) return;
 
   const colors = getPaneColors();
@@ -21200,21 +21434,34 @@ function openPaneToolsMenu(e, paneIndex) {
       </span>
       <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-tools-popup')?.remove();">✕</span>
     </div>
-    <div style="padding: 4px 0; max-height: 440px; overflow-y: auto;">
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); togglePaneFilter(${paneIndex});">
-        <i data-lucide="filter"></i> <span>Toggle Quick Filter (/ or Ctrl+F)</span>
-      </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneSettingsMenu(event, ${paneIndex});">
-        <i data-lucide="sliders"></i> <span>Pane Settings & Customizer...</span>
-      </div>
+    <div class="pane-dropdown-body" style="padding: 4px 0;">
+      <!-- Ingest & Transfers -->
+      <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Ingest & Transfers</div>
       <div class="dropdown-item" onclick="setActivePane(${paneIndex}); triggerCopy(); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="arrow-right-left"></i> <span>Transfer / Copy to Other Pane (F5)</span>
+      </div>
+      <div class="dropdown-item" onclick="setActivePane(${paneIndex}); triggerMove(); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="arrow-right"></i> <span>Transfer / Move to Other Pane (F6)</span>
       </div>
       <div class="dropdown-item" onclick="triggerDeviceUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="upload"></i> <span>Upload Files from Device...</span>
       </div>
       <div class="dropdown-item" onclick="triggerDeviceFolderUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="folder-up"></i> <span>Upload Folder from Device...</span>
+      </div>
+      <div class="dropdown-item" onclick="triggerDownloadCurrentDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="download"></i> <span>Download Folder (.zip)</span>
+      </div>
+      <div class="dropdown-item" onclick="triggerShareDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="share-2"></i> <span>Share Folder / Dropbox...</span>
+      </div>
+
+      <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
+
+      <!-- View & Navigation -->
+      <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">View & Navigation</div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); togglePaneFilter(${paneIndex});">
+        <i data-lucide="filter"></i> <span>Toggle Quick Filter (/ or Ctrl+F)</span>
       </div>
       <div class="dropdown-item" onclick="togglePaneTree(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="folder-tree"></i> <span>Toggle Folder Tree Sidebar (${App.panes[paneIndex]?.showTree ? 'Hide' : 'Show'})</span>
@@ -21228,11 +21475,28 @@ function openPaneToolsMenu(e, paneIndex) {
       <div class="dropdown-item" onclick="toggleSyncNav(); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="git-compare"></i> <span>Toggle Synchronized Navigation (${App.syncNav ? 'Disable' : 'Enable'})</span>
       </div>
+
+      <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
+
+      <!-- Pane Customization -->
+      <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Pane Customization</div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneSettingsMenu(event, ${paneIndex});">
+        <i data-lucide="sliders"></i> <span>Pane Settings & Customizer...</span>
+      </div>
       <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
         <i data-lucide="compass"></i> <span>Places, Bookmarks & Fleet...</span>
       </div>
+      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openBookmarksManager();">
+        <i data-lucide="bookmark"></i> <span>Bookmarks Manager...</span>
+      </div>
+      <div class="dropdown-item" onclick="triggerDirPermissions(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+        <i data-lucide="shield-check"></i> <span>Permissions & Ownership</span>
+      </div>
+
       <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
-      
+
+      <!-- Storage & Remote -->
+      <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Storage & Remote</div>
       ${App.panes[paneIndex]?.path?.includes('://') ? `
         <div class="dropdown-item" onclick="disconnectPaneRemote(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
           <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i> <span>Disconnect Remote Connection</span>
@@ -21241,18 +21505,6 @@ function openPaneToolsMenu(e, paneIndex) {
       ` : ''}
       <div class="dropdown-item" onclick="openRemoteModal(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
         <i data-lucide="network"></i> <span>Connect Remote Storage (SFTP/SMB/WebDAV)...</span>
-      </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openBookmarksManager();">
-        <i data-lucide="bookmark"></i> <span>Bookmarks Manager...</span>
-      </div>
-      <div class="dropdown-item" onclick="triggerDownloadCurrentDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="download"></i> <span>Download Folder (.zip)</span>
-      </div>
-      <div class="dropdown-item" onclick="triggerShareDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="share-2"></i> <span>Share Folder / Dropbox...</span>
-      </div>
-      <div class="dropdown-item" onclick="triggerDirPermissions(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
-        <i data-lucide="shield-check"></i> <span>Permissions & Ownership</span>
       </div>
     </div>
   `;
@@ -21456,7 +21708,7 @@ function openPaneSettingsMenu(e, paneIndex) {
   }
   const existing = document.getElementById('pane-settings-popup');
   const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
-  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
+  document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
   if (wasOpenForThisPane) return;
 
   const pane = App.panes[paneIndex];
@@ -21507,7 +21759,7 @@ function openPaneSettingsMenu(e, paneIndex) {
       <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-settings-popup')?.remove();">✕</span>
     </div>
     
-    <div style="padding: 10px 12px; max-height: 460px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
+    <div class="pane-dropdown-body" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 12px;">
       ${paneSwitchHtml}
       <!-- 1. Renaming -->
       <div>
@@ -30686,7 +30938,7 @@ let spotlightAsyncAbortCtrl = null;
 let spotlightAsyncLoading = false;
 
 const SPOTLIGHT_STATIC_ACTIONS = [
-  { id: 'client-vfs', title: 'Open Local Client Folder (Browser)', sub: 'Mount a local directory directly into pane via Browser File System Access API (client://)', icon: 'laptop', cat: 'actions', action: () => openClientLocalDirectory(App.activePaneIndex) },
+  { id: 'upload-folder', title: 'Upload Folder from Device', sub: 'Upload an entire local directory recursively into the active pane via browser (webkitdirectory)', icon: 'folder-up', cat: 'actions', action: () => triggerDeviceFolderUpload(App.activePaneIndex) },
   { id: 'renamer', title: 'Batch Renamer', sub: 'Multi-file pattern replacement, sequential renamer & live diff preview (Ctrl+M)', icon: 'file-signature', cat: 'actions', action: () => openBatchRenamer() },
   { id: 'hexeditor', title: 'Hex Editor', sub: 'Binary hexadecimal viewer, byte patching & checksum calculator', icon: 'binary', cat: 'actions', action: () => openHexEditor() },
   { id: 'splitter', title: 'File Splitter & Combiner', sub: 'Split large files into chunks (.001, .002) and verify/combine with SHA-256', icon: 'scissors', cat: 'actions', action: () => openFileSplitterModal() },
