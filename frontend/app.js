@@ -15463,7 +15463,7 @@ function dismissGlobalPopoversAndMenus(e) {
   // 6. Header Tools Launchpad dropdown
   const headerTools = document.getElementById('tools-dropdown-menu');
   if (headerTools && headerTools.classList.contains('active')) {
-    if (target.closest('#tools-dropdown-menu .dropdown-item') || (!target.closest('#btn-tools-menu') && !target.closest('#tools-dropdown-menu'))) {
+    if (!target.closest('#btn-tools-menu') && !target.closest('#tools-dropdown-menu')) {
       headerTools.classList.remove('active');
     }
   }
@@ -15471,7 +15471,7 @@ function dismissGlobalPopoversAndMenus(e) {
   // 7. Header User Profile dropdown
   const headerProfile = document.getElementById('profile-dropdown-menu');
   if (headerProfile && headerProfile.classList.contains('active')) {
-    if (target.closest('#profile-dropdown-menu .dropdown-item') || (!target.closest('#btn-user-profile') && !target.closest('#profile-dropdown-menu'))) {
+    if (!target.closest('#btn-user-profile') && !target.closest('#profile-dropdown-menu')) {
       headerProfile.classList.remove('active');
     }
   }
@@ -15502,7 +15502,6 @@ function dismissGlobalPopoversAndMenus(e) {
 
 // Register in capture phase so outside clicks/touches dismiss popups reliably even when child elements call stopPropagation()
 document.addEventListener('pointerdown', dismissGlobalPopoversAndMenus, true);
-document.addEventListener('click', dismissGlobalPopoversAndMenus, true);
 
 function openAboutModal() {
   document.getElementById('profile-dropdown-menu')?.classList.remove('active');
