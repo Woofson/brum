@@ -23693,15 +23693,6 @@ function toggleTerminal(forceState) {
   } else {
     localStorage.setItem('cd_terminal_open', '0');
     drawer.classList.remove('active');
-    if (termWs) {
-      const oldWs = termWs;
-      termWs = null;
-      oldWs.onopen = null;
-      oldWs.onmessage = null;
-      oldWs.onerror = null;
-      oldWs.onclose = null;
-      try { oldWs.close(); } catch (_) {}
-    }
   }
   if (window.lucide) lucide.createIcons();
 }
@@ -23777,6 +23768,11 @@ function connectTerminal(cwd) {
     oldWs.onerror = null;
     oldWs.onclose = null;
     try { oldWs.close(); } catch (_) {}
+  }
+
+  // Reset any previous terminal buffer so a new session starts clean
+  if (termInstance) {
+    try { termInstance.reset(); } catch (_) {}
   }
 
   if (termFitAddon) {
