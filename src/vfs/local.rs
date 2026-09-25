@@ -908,6 +908,7 @@ impl LocalFs {
     }
 
     /// Recursively moves an entry across filesystems (copy + delete source)
+    #[allow(dead_code)]
     fn move_entry_recursive(src: &Path, dst: &Path) -> Result<(), std::io::Error> {
         if src.is_dir() {
             fs::create_dir_all(dst)?;

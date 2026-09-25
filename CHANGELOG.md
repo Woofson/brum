@@ -5,6 +5,36 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-09-25
+
+### Added
+- **XDG Trash Suite, File Restoration & Places Hub Integration** (Fixes #70):
+  - Added full Linux XDG Trash specification compliance (`~/.local/share/Trash/files` and `~/.local/share/Trash/info`).
+  - Implemented `.trashinfo` metadata generator writing original file paths and RFC 3339 deletion timestamps.
+  - Safe 1-click restore functionality putting deleted files and directories back into their exact original filesystem location.
+  - Added visual confirmation modals for single-item deletion, multi-file batch trash, and irreversible permanent purge.
+  - Integrated Trash into Places Hub (`btn-favorites`) with live trash item counter badge, custom trash icon, and direct folder browsing.
+  - Added backend REST endpoints (`/api/tools/trash/list`, `/api/tools/trash/move`, `/api/tools/trash/restore`, `/api/tools/trash/purge`, `/api/tools/trash/empty`) with path collision handling and sanitization.
+- **Consolidated Transfer & Ingest Split-Button Hub**:
+  - Replaced duplicate separate toolbar buttons with a unified split-action control on panel headers.
+  - Main button executes user-configurable 1-click action (defaults to `Copy to Other Pane (F5)`, configurable to `Move (F6)`, `Clone Path`, `Upload Files`, `Upload Folder`, or `Download Zip`).
+  - Attached dropdown chevron opens the **Transfer & Ingest Hub** categorized into *Dual-Pane Transfers*, *Device Ingest & Egress*, and *Sharing & Links*.
+  - Added direct 1-click action selector in the hub footer with instant UI and cloud preference persistence.
+
+### Changed
+- **Reorganized Mobile & Touch Tools Menu**:
+  - Restructured `openPaneToolsMenu` (`more-vertical`) into 4 clear high-signal categories (*Ingest & Transfers*, *View & Navigation*, *Pane Customization*, *Storage & Remote*) preserving all touch capabilities on phones, tablets, and foldables.
+- **Persistent Slide-Up Terminal Sessions**:
+  - Hiding or toggling the terminal drawer closed preserves the running PTY WebSocket session in the background without killing active shells.
+  - Reopening the drawer resumes the live session instantly with zero startup lag.
+
+### Fixed
+- **Terminal Startup Keystroke & Initial Resize Prompt Redraws**:
+  - Debounced `onData` input on connection to prevent residual `Enter` keystrokes from leaking into newly focused xterm instances when opened via Spotlight or shortcuts.
+  - Suppressed premature `SIGWINCH` resize events during initial connection handshake to eliminate duplicate prompt redraws.
+- **Global Capture-Phase Popover Dismissal**:
+  - Fixed outside click dismiss handler to prevent premature `.active` removal from Tools and Profile dropdowns during `pointerdown`, restoring reliable click execution for all launched applications.
+
 ## [1.0.1] - 2026-09-24
 
 ### Fixed

@@ -1,7 +1,7 @@
 # yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.6.0.schema.json
 
 PackageIdentifier: Woofson.Brum
-PackageVersion: 1.0.1
+PackageVersion: 1.1.0
 MinimumOSVersion: 10.0.17763.0
 InstallerType: nullsoft
 Scope: user
@@ -12,7 +12,7 @@ UpgradeBehavior: install
 Installers:
   - Architecture: x64
     InstallerType: nullsoft
-    InstallerUrl: https://github.com/woofson/brum/releases/download/v1.0.1/Brum_1.0.1_x64-setup.exe
+    InstallerUrl: https://github.com/woofson/brum/releases/download/v1.1.0/Brum_1.1.0_x64-setup.exe
     InstallerSha256: 1b433cb715617d44624939052dc43f018e43d4016553af2c0969b22a12f04ca4
     ProductCode: ac.arf.brum
 ManifestType: installer

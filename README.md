@@ -4,7 +4,7 @@
   <img src="assets/brum2.png" alt="Brum Web & Desktop Environment" width="800" />
   <p><em>Multi-Pane Web Environment (File Commander/Manager) — By Woofson</em></p>
   <p>
-    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.0.1-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
+    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.1.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
     <a href="https://crates.io/crates/brum"><img src="https://img.shields.io/crates/v/brum?style=flat-square&color=f59e0b" alt="Crates.io" /></a>
     <img src="https://img.shields.io/badge/rust-2021_edition-orange?style=flat-square" alt="Rust 2021" />
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License MIT" />
@@ -19,7 +19,7 @@
 ## Why Brum?
 
 * **Instant 0ms Orthodox Multi-Pane Manager**: 1-to-4 dynamic panels (`Alt+1`–`4`), orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), fast branch view, frame-0 optimistic pre-rendering, and directory fast caching.
-* **Dual-Mode Floating & Dockable Core Functions**: 18+ integrated native power tools that freely toggle between floating desktop windows and in-pane docking with zero iframe overhead (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage Analyzer, Notes, Audio Player, Media Player, Terminal, Duplicate Finder, Batch Renamer, Hex Editor, Tag Editor, Log Viewer, Format Converter, and Delta Backup).
+* **Dual-Mode Floating & Dockable Core Functions**: 19+ integrated native power tools that freely toggle between floating desktop windows and in-pane docking with zero iframe overhead (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage Analyzer, Notes, Audio Player, Media Player, Persistent Terminal, Duplicate Finder, Batch Renamer, Hex Editor, Tag Editor, Log Viewer, Format Converter, Delta Backup, and XDG Trash Suite).
 * **Synchronized Scrolling & Relative Navigation**: Mirrored viewport scrolling and relative subfolder navigation across active panels with loop prevention.
 * **Universal Remote & Client VFS**: Direct zero-leakage client for SFTP/SSH, SMB/Windows Shares, NFS, S3 Cloud Storage, WebDAV, Proton Drive, Hetzner Storage Box, and browser-native Client Local Folder mounts (`client://`).
 * **OpenID Connect (OIDC) & SSO Authentication**: Enterprise identity provider integration (Authentik, Keycloak, generic OIDC) with PKCE flow and token lifecycle management.
@@ -66,7 +66,8 @@ cargo run --release        # Open http://localhost:3140 in your browser
 | **Disk Usage Analyzer** | Interactive disk usage analyzer, directory distribution bar charts & top files inspector | WinDirStat / Baobab / ncdu |
 | **Notes** | SQLite-backed Markdown notebook, checklists, version snapshots, and encrypted notes | Obsidian / Joplin |
 | **Audio Player & Media** | Audio player, mini-pills, windowshade mode, 10-band EQ, 60 FPS visualizer, .m3u playlists | Winamp / XMPlay |
-| **Bite! Terminal** | Slide-Up WebSocket PTY terminal with bundled JetBrainsMono Nerd Fonts in active directory | PuTTY / Web SSH |
+| **Bite! Terminal** | Persistent slide-up WebSocket PTY terminal with bundled JetBrainsMono Nerd Fonts | PuTTY / Web SSH |
+| **XDG Trash Suite** | Linux XDG specification-compliant trash bin, `.trashinfo` metadata & 1-click restore | trash-cli / Recycle Bin |
 | **Duplicate Finder** | Multi-stage hash scanner (Blake3, SHA-256, MD5) with smart cleanup and filters | Czkawka / DupeGuru |
 | **Batch Renamer** | Multi-pattern regex substitutions, auto-numbering, prefix/suffix, case transformations | Advanced Renamer |
 | **Hex Editor** | Hexadecimal & ASCII binary byte inspector with search, jump to offset, and in-place editing | HxD / Hex Fiend |

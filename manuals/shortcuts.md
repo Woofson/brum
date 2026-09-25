@@ -18,7 +18,8 @@ Brum provides orthodox keyboard-driven power navigation paired with intuitive mo
 | **`Shift+F6`** / **`Ctrl+M`** | **Bulk Renamer** | Open advanced regex, numbering, case-conversion bulk renamer |
 | **`F7`** | **New Folder** | Create a new directory in the active path |
 | **`Shift+F7`** | **Calculate Checksums** | Calculate and verify MD5, SHA-1, and SHA-256 hashes |
-| **`F8`** / **`Delete`** | **Delete / Trash** | Safely move selected items to Trash or permanently delete |
+| **`F8`** / **`Delete`** | **Move to Trash** | Safely move selected items to Linux XDG Trash |
+| **`Shift+F8`** / **`Shift+Delete`** | **Permanent Delete** | Irreversibly delete selected files/folders immediately (bypassing Trash) |
 | **`F9`** / **`Ctrl+D`** | **Diff Engine** | Compare files or directories side-by-side |
 | **`F10`** | **Settings Hub** | Open Settings modal (General, Desktop, Themes, Bookmarks, Users, Chewtoys) |
 | **`F11`** | **Fullscreen Toggle** | Toggle browser fullscreen workspace |

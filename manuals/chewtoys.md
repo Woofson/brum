@@ -61,6 +61,9 @@
 │ Winamp / Foobar2000 /  │ Audio Player & Media        │ Windowshade mode, mini-pills,       │
 │ Audacious / XMPlay     │                             │ 10-band EQ, 60fps spectrum, .m3u PL │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
+│ trash-cli / Recycle    │ XDG Trash Suite & Restore   │ Linux XDG compliance, .trashinfo    │
+│ Bin & rm Safeguards    │ Engine (Places Hub)         │ metadata, 1-click safe restoration  │
+├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ Classic Arcade Tetris  │ Tetrion (Chewtoy)           │ Authentic classic Tetris clone,     │
 │ & Desktop Distraction  │                             │ 60 FPS canvas engine, SRS/NES modes,│
 │                        │                             │ DAS/ARR tuning, high scores & audio │
@@ -139,6 +142,7 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 
 ## 9. Bite! Slide-Up PTY Terminal
 * **Native WebSocket PTY**: Full pseudo-terminal session attached directly to the active pane's directory.
+* **Persistent Drawer Sessions**: Toggling or hiding the terminal drawer keeps running processes and active shells alive in the background without restarting sessions.
 * **Shell Support**: Automatically detects and loads your default shell (`fish`, `zsh`, `bash`, `powershell`, `cmd.exe`).
 * **Bundled Nerd Fonts**: Embedded `JetBrainsMono Nerd Font` provides out-of-the-box support for `eza --icons`, `starship`, and powerline glyphs without missing boxes or tofu characters.
 * **Dynamic Geometry**: Automatic `ResizeObserver` recalculates dimensions and synchronizes `{ cols, rows }` across pane and window resizes.
@@ -189,3 +193,23 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 * **60 FPS Arcade Engine**: HTML5 canvas rendering driven by a fixed-timestep physics loop.
 * **DAS & ARR Tuning**: Configurable Delayed Auto Shift and Auto Repeat Rate for competitive, instant piece movement.
 * **Guideline Mechanics**: 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and synchronized leaderboard.
+
+---
+
+## 16. XDG Trash Suite & File Restoration
+* **Linux XDG Compliance**: Implements the FreeDesktop.org Trash specification (`~/.local/share/Trash/files` and `~/.local/share/Trash/info`).
+* **`.trashinfo` Metadata**: Generates standard metadata containing exact original file paths and RFC 3339 deletion timestamps.
+* **Safe 1-Click Restoration**: Restores files or folders back into their exact original filesystem directory with path recreation and collision protection.
+* **Places Hub Integration**: Accessible directly from the Favorites/Places bar (`btn-favorites`) with real-time item counter badges and instant navigation.
+* **Deletion Safeguards**: Dual-mode protection with visual confirmation dialogs for safe Trash movements (<kbd>F8</kbd> / `Delete`) and irreversible permanent purge (<kbd>Shift+F8</kbd> / <kbd>Shift+Delete</kbd>).
+
+---
+
+## 17. Consolidated Transfer & Ingest Split-Button Hub
+* **Unified Panel Header Split-Button**: Replaces cluttered action buttons with an ergonomic split button on panel headers.
+* **Customizable 1-Click Action**: Main click executes user-configured action (defaults to `Copy to Other Pane`, configurable to `Move`, `Clone Path`, `Upload Files`, `Upload Folder`, or `Download Zip`).
+* **Categorized Ingest Hub**: Chevron trigger reveals 3 structured sections:
+  1. *Dual-Pane Transfers*: Cross-pane copy (<kbd>F5</kbd>), move (<kbd>F6</kbd>), duplicate, and path cloning.
+  2. *Device Ingest & Egress*: File and folder uploads, drag-and-drop ingestion, and zip download packaging.
+  3. *Sharing & Links*: Direct public link creation, QR codes, and client upload dropzones.
+
