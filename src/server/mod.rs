@@ -162,6 +162,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/trash/restore", post(handle_trash_restore))
         .route("/api/tools/trash/empty", post(handle_trash_empty))
         .route("/api/tools/trash/delete", post(handle_trash_delete))
+        .route("/api/tools/trash/open-native", post(handle_trash_open_native))
         .route("/api/actions/run", post(handle_run_action))
         // NoteDog Notes & Markdown Studio Chewtoy
         .route("/api/tools/notedog/info", get(handle_notedog_info))
@@ -949,6 +950,9 @@ async fn handle_update_profile(
         let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
         if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
             let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
+            if state.auth.get_user_by_username(&claims.sub).ok().flatten().is_none() {
+                let _ = state.auth.sync_pam_user_to_db(&claims.sub, &claims.role, &claims.home_dir);
+            }
             claims.sub
         } else {
             return Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()));
@@ -3321,6 +3325,9 @@ struct ListQuery {
     port: Option<u16>,
     user: Option<String>,
     pass: Option<String>,
+    windows_native_ops: Option<bool>,
+    windows_native_file_ops: Option<bool>,
+    custom_trash_dir: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -3381,7 +3388,19 @@ async fn handle_list_dir(
     let target_path = validate_path_access(&state, &headers, &raw_path, false)?;
     let show_hidden = query.show_hidden.unwrap_or(state.config.ui.show_hidden_files);
 
-    if target_path.starts_with("vault://") {
+    if target_path == "trash://" || target_path == "recycle://" || target_path == "shell:recyclebinfolder" {
+        let claims = extract_claims_or_local(&state, &headers)?;
+        let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+        let use_native = query.windows_native_ops
+            .or(query.windows_native_file_ops)
+            .unwrap_or(state.config.paranoid.windows_native_file_ops);
+        let listing = crate::tools::trash::TrashManager::list_trash_directory_entries(
+            custom_trash,
+            Some(&claims.home_dir),
+            use_native,
+        );
+        return Ok(Json(listing));
+    } else if target_path.starts_with("vault://") {
         let rest = target_path.strip_prefix("vault://").unwrap();
         let (vault_file, subpath) = match rest.split_once('#') {
             Some((v, s)) => (v, s),
@@ -5795,6 +5814,8 @@ async fn handle_logviewer_tail(
 #[derive(Deserialize)]
 struct TrashQuery {
     custom_trash_dir: Option<String>,
+    windows_native_ops: Option<bool>,
+    windows_native_file_ops: Option<bool>,
 }
 
 async fn handle_trash_summary(
@@ -5804,7 +5825,10 @@ async fn handle_trash_summary(
 ) -> Result<Json<crate::tools::trash::TrashSummary>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
-    match crate::tools::trash::TrashManager::get_trash_summary(custom_trash, Some(&claims.home_dir)) {
+    let use_native = query.windows_native_ops
+        .or(query.windows_native_file_ops)
+        .unwrap_or(state.config.paranoid.windows_native_file_ops);
+    match crate::tools::trash::TrashManager::get_trash_summary(custom_trash, Some(&claims.home_dir), use_native) {
         Ok(summary) => Ok(Json(summary)),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to get trash summary: {}", e))),
     }
@@ -5817,7 +5841,10 @@ async fn handle_trash_items(
 ) -> Result<Json<Vec<crate::tools::trash::TrashItem>>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
-    match crate::tools::trash::TrashManager::list_trash_items(custom_trash, Some(&claims.home_dir)) {
+    let use_native = query.windows_native_ops
+        .or(query.windows_native_file_ops)
+        .unwrap_or(state.config.paranoid.windows_native_file_ops);
+    match crate::tools::trash::TrashManager::list_trash_items(custom_trash, Some(&claims.home_dir), use_native) {
         Ok(items) => Ok(Json(items)),
         Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to list trash items: {}", e))),
     }
@@ -5833,7 +5860,8 @@ async fn handle_trash_restore(
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot restore files".to_string()));
     }
     let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
-    let res = crate::tools::trash::TrashManager::restore_items(payload.items, custom_trash, Some(&claims.home_dir));
+    let use_native_ops = payload.windows_native_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
+    let res = crate::tools::trash::TrashManager::restore_items(payload.items, custom_trash, Some(&claims.home_dir), use_native_ops);
     Ok(Json(res))
 }
 
@@ -5847,8 +5875,34 @@ async fn handle_trash_empty(
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot empty trash".to_string()));
     }
     let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
-    let res = crate::tools::trash::TrashManager::empty_trash(custom_trash, Some(&claims.home_dir));
+    let use_native_ops = payload.windows_native_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
+    let res = crate::tools::trash::TrashManager::empty_trash(custom_trash, Some(&claims.home_dir), use_native_ops);
     Ok(Json(res))
+}
+
+async fn handle_trash_open_native(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let _claims = extract_claims_or_local(&state, &headers)?;
+    #[cfg(windows)]
+    {
+        let status = std::process::Command::new("explorer.exe")
+            .arg("shell:RecycleBinFolder")
+            .spawn();
+        match status {
+            Ok(_) => Ok(Json(serde_json::json!({ "success": true, "message": "Opened Windows Recycle Bin" }))),
+            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open Windows Recycle Bin: {}", e))),
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let status = open::that("trash:///");
+        match status {
+            Ok(_) => Ok(Json(serde_json::json!({ "success": true, "message": "Opened Trash" }))),
+            Err(e) => Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to open Trash: {}", e))),
+        }
+    }
 }
 
 async fn handle_trash_delete(
@@ -5861,7 +5915,8 @@ async fn handle_trash_delete(
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot delete items".to_string()));
     }
     let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
-    let res = crate::tools::trash::TrashManager::delete_items(payload.items, custom_trash, Some(&claims.home_dir));
+    let use_native_ops = payload.windows_native_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
+    let res = crate::tools::trash::TrashManager::delete_items(payload.items, custom_trash, Some(&claims.home_dir), use_native_ops);
     Ok(Json(res))
 }
 

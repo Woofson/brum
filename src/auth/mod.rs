@@ -566,7 +566,15 @@ impl AuthManager {
             "UPDATE users SET nickname = ?1, email = ?2, avatar_url = ?3 WHERE username = ?4",
             params![nickname, email, avatar_url, username],
         )?;
-        Ok(affected > 0)
+        if affected == 0 {
+            let home_dir = dirs::home_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| "/".to_string());
+            let _ = conn.execute(
+                "INSERT INTO users (username, password_hash, role, home_dir, nickname, email, avatar_url, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled)
+                 VALUES (?1, '', 'admin', ?2, ?3, ?4, ?5, '[\"*\"]', '[\"*\"]', 1, '[\"*\"]', '[]', 1, 0)",
+                params![username, home_dir, nickname, email, avatar_url],
+            );
+        }
+        Ok(true)
     }
 
     pub fn update_user_password(

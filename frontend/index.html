@@ -83,15 +83,15 @@
             var localNick = localStorage.getItem('cd_local_nickname');
             var cachedInfo = null;
             try { cachedInfo = JSON.parse(localStorage.getItem('cd_user_info') || 'null'); } catch (_) {}
-            var avatar = localAvatar || (cachedInfo && cachedInfo.avatar_url) || '👤';
-            var uname = localNick || (cachedInfo && (cachedInfo.nickname || cachedInfo.username)) || localStorage.getItem('cd_last_username') || 'Brum User';
+            var avatar = (cachedInfo && cachedInfo.avatar_url) || localAvatar || '👤';
+            var uname = (cachedInfo && (cachedInfo.nickname || cachedInfo.username)) || localNick || localStorage.getItem('cd_last_username') || 'Brum User';
 
             var userTextEl = document.getElementById('lock-username-text');
             if (userTextEl) userTextEl.textContent = uname;
 
             var avatarEl = document.getElementById('lock-avatar-thumb');
             if (avatarEl && avatar) {
-              var isImg = avatar.startsWith('data:image') || avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/') || avatar.startsWith('assets/');
+              var isImg = avatar.startsWith('data:image') || avatar.startsWith('http://') || avatar.startsWith('https://') || avatar.startsWith('/') || avatar.startsWith('blob:') || avatar.startsWith('assets/') || /\.(png|jpe?g|webp|gif|svg|ico)(\?.*)?$/i.test(avatar);
               if (isImg) {
                 avatarEl.innerHTML = '<img src="' + avatar + '" alt="Avatar" style="width:100%;height:100%;object-fit:cover;border-radius:inherit;display:block;">';
               } else {
@@ -1395,7 +1395,7 @@
                   </div>
                 </label>
 
-                <label class="settings-checkbox-row">
+                <label class="settings-checkbox-row windows-only-setting">
                   <input type="checkbox" id="setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
                   <div>
                     <strong>Windows Native Shell & Recycle Bin</strong>
@@ -1403,7 +1403,7 @@
                   </div>
                 </label>
 
-                <label class="settings-checkbox-row">
+                <label class="settings-checkbox-row windows-only-setting">
                   <input type="checkbox" id="setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
                   <div>
                     <strong>Identify Locking Processes (Restart Manager)</strong>
@@ -2841,12 +2841,12 @@
                   <label class="settings-checkbox-row">
                     <input type="checkbox" id="setting-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
                     <div>
-                      <strong>Safe Trash Bin</strong>
-                      <div class="settings-field-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
+                      <strong id="admin-setting-trash-title">Safe Trash Bin</strong>
+                      <div class="settings-field-hint" id="admin-setting-trash-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
                     </div>
                   </label>
 
-                  <label class="settings-checkbox-row">
+                  <label class="settings-checkbox-row windows-only-setting">
                     <input type="checkbox" id="admin-setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
                     <div>
                       <strong>Windows Native Shell & Recycle Bin</strong>
@@ -2854,7 +2854,7 @@
                     </div>
                   </label>
 
-                  <label class="settings-checkbox-row">
+                  <label class="settings-checkbox-row windows-only-setting">
                     <input type="checkbox" id="admin-setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
                     <div>
                       <strong>Windows Process Lock Inspection</strong>
@@ -4840,7 +4840,7 @@
         <div id="dup-status-summary" style="font-size: 11.5px; font-weight: 600; color: var(--text-main);">0 files selected</div>
         <div style="display: flex; align-items: center; gap: 8px;">
           <select id="dup-action-select" class="pane-quick-filter renamer-select" style="height: 28px;">
-            <option value="trash" selected>Move to Trash (.local/share/Trash)</option>
+            <option value="trash" id="dup-action-trash-option" selected>Move to Trash (.local/share/Trash)</option>
             <option value="delete">Delete Permanently</option>
           </select>
           <button class="btn btn-sm btn-danger" id="btn-execute-dup-clean" onclick="executeDuplicateClean()" disabled><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clean Selected</button>

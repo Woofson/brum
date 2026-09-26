@@ -1843,8 +1843,8 @@ function bootApp() {
         const hostSuffixEl = document.getElementById('lock-hostname-suffix');
         const userLabel = document.getElementById('lock-username-label');
         const avatarEl = document.getElementById('lock-avatar-thumb');
-        const uname = localNick || cached?.nickname || cached?.username || lastUser || 'Brum User';
-        const avatar = localAvatar || cached?.avatar_url || '👤';
+        const uname = cached?.nickname || localNick || cached?.username || lastUser || 'Brum User';
+        const avatar = cached?.avatar_url || localAvatar || '👤';
         const cfg = getHostnameBadgeSettings();
         const hostStr = cfg.hostname || 'localhost';
 
@@ -2019,6 +2019,64 @@ function isStandaloneMode() {
          document.body.classList.contains('standalone-mode');
 }
 
+function isWindowsHost() {
+  if (App.systemStatus?.os) {
+    return App.systemStatus.os.toLowerCase() === 'windows';
+  }
+  const homePath = (typeof getUserDefaultHomeDir === 'function') ? getUserDefaultHomeDir() : '';
+  if (/^[a-zA-Z]:/.test(homePath) || (homePath && homePath.includes('\\'))) {
+    return true;
+  }
+  if (typeof navigator !== 'undefined' && navigator.userAgent && navigator.userAgent.includes('Windows') && isStandaloneMode()) {
+    return true;
+  }
+  return false;
+}
+
+function getTrashDisplayName(withBin = true) {
+  const isWinNative = isWindowsHost() && App.windowsNativeOps;
+  if (isWinNative) {
+    return 'Recycle Bin';
+  }
+  return withBin ? 'Trash Bin' : 'Trash';
+}
+
+function getTrashActionName() {
+  const isWinNative = isWindowsHost() && App.windowsNativeOps;
+  return isWinNative ? 'Move to Recycle Bin' : 'Move to Trash';
+}
+
+function updatePlatformLabels() {
+  const isWin = isWindowsHost();
+  const isWinNative = isWin && App.windowsNativeOps;
+
+  // Settings labels
+  const adminTrashTitle = document.getElementById('admin-setting-trash-title');
+  if (adminTrashTitle) {
+    adminTrashTitle.textContent = isWinNative ? 'Safe Recycle Bin' : 'Safe Trash Bin';
+  }
+  const adminTrashHint = document.getElementById('admin-setting-trash-hint');
+  if (adminTrashHint) {
+    adminTrashHint.textContent = isWinNative 
+      ? 'Move deleted items to Windows Recycle Bin ($Recycle.Bin) instead of permanent deletion.' 
+      : 'Move deleted items to Brum Internal Trash (.local/share/Trash) instead of permanent deletion.';
+  }
+  const customTrashInput = document.getElementById('setting-custom-trash-dir');
+  if (customTrashInput) {
+    customTrashInput.placeholder = isWinNative 
+      ? 'Leave empty for OS default (Windows Recycle Bin)' 
+      : 'Leave empty for OS default (~/.local/share/Trash)';
+  }
+
+  // Duplicate cleaner action select option
+  const dupTrashOption = document.getElementById('dup-action-trash-option');
+  if (dupTrashOption) {
+    dupTrashOption.textContent = isWinNative 
+      ? 'Move to Recycle Bin ($Recycle.Bin)' 
+      : 'Move to Trash (.local/share/Trash)';
+  }
+}
+
 function updateStandaloneUI() {
   const isStandalone = isStandaloneMode();
   document.body.classList.toggle('standalone-mode', isStandalone);
@@ -2028,6 +2086,17 @@ function updateStandaloneUI() {
   document.querySelectorAll('.web-only-setting, .server-only-setting').forEach(el => {
     el.style.display = isStandalone ? 'none' : '';
   });
+
+  const isWin = isWindowsHost();
+  document.body.classList.toggle('windows-host', isWin);
+  document.querySelectorAll('.windows-only-setting, .windows-only').forEach(el => {
+    el.style.display = isWin ? '' : 'none';
+  });
+  document.querySelectorAll('.non-windows-only, .posix-only-setting').forEach(el => {
+    el.style.display = isWin ? 'none' : '';
+  });
+
+  updatePlatformLabels();
   updateLogoutOrExitButton();
 }
 
@@ -2595,6 +2664,8 @@ function syncTrashSettingsUI() {
   const adminCustomEl = document.getElementById('setting-custom-trash-dir');
   if (userCustomEl) userCustomEl.value = App.customTrashDir;
   if (adminCustomEl) adminCustomEl.value = App.customTrashDir;
+
+  if (typeof updatePlatformLabels === 'function') updatePlatformLabels();
 }
 
 function syncWindowsNativeOpsUI() {
@@ -2621,16 +2692,26 @@ function syncWindowsNativeOpsUI() {
   const adminLocksEl = document.getElementById('admin-setting-detect-file-locks');
   if (genLocksEl) genLocksEl.checked = App.detectFileLocks;
   if (adminLocksEl) adminLocksEl.checked = App.detectFileLocks;
+
+  if (typeof updatePlatformLabels === 'function') updatePlatformLabels();
 }
 
 function toggleWindowsNativeOpsSetting(enabled) {
   App.windowsNativeOps = !!enabled;
   localStorage.setItem('cd_windows_native_ops', App.windowsNativeOps ? 'true' : 'false');
   syncWindowsNativeOpsUI();
+  if (typeof updatePlatformLabels === 'function') updatePlatformLabels();
   if (typeof queueSaveUserPreferencesToServer === 'function') queueSaveUserPreferencesToServer();
+  if (Array.isArray(App.panes)) {
+    App.panes.forEach((p, idx) => {
+      if (isTrashDirectory(p?.path)) {
+        loadPaneDirectory(idx, 'trash://', false);
+      }
+    });
+  }
   showToast(App.windowsNativeOps 
-    ? 'Windows Native Shell & Recycle Bin enabled ($Recycle.Bin, SHFileOperation)' 
-    : 'Windows Native Shell disabled (using Brum internal POSIX engine)', 'info');
+    ? 'Windows Native Recycle Bin enabled ($Recycle.Bin)' 
+    : 'Brum Built-in Trash enabled (.local/share/Trash)', 'info');
 }
 
 function toggleDetectFileLocksSetting(enabled) {
@@ -2647,7 +2728,9 @@ function toggleTrashSetting(enabled) {
   App.trashEnabled = !!enabled;
   localStorage.setItem('cd_trash_enabled', App.trashEnabled ? 'true' : 'false');
   syncTrashSettingsUI();
-  showToast(App.trashEnabled ? 'Trash Bin enabled (deleted items are moved to trash)' : 'Trash Bin disabled (deleted items will be permanently removed)', 'info');
+  const binName = getTrashDisplayName(true);
+  const targetName = isWindowsHost() ? 'Recycle Bin' : 'trash';
+  showToast(App.trashEnabled ? `${binName} enabled (deleted items are moved to ${targetName})` : `${binName} disabled (deleted items will be permanently removed)`, 'info');
 }
 
 function saveCustomTrashDir(dir) {
@@ -2657,7 +2740,7 @@ function saveCustomTrashDir(dir) {
   if (App.customTrashDir) {
     showToast(`Custom trash directory configured: ${App.customTrashDir}`, 'info');
   } else {
-    showToast('Custom trash cleared (using standard system trash)', 'info');
+    showToast('Custom trash cleared (using standard system ' + (isWindowsHost() ? 'Recycle Bin' : 'trash') + ')', 'info');
   }
 }
 
@@ -3317,9 +3400,9 @@ function initPaneMarqueeSelection(mainViewEl, paneIndex) {
     if (isTouch) return;
 
     // Drag-and-select MUST ALWAYS start on "empty" space!
-    // If clicking directly on any file row, card, item, or parent dir, let drag-and-drop / click handle it.
-    const clickedRow = e.target.closest('tr.file-row, .grid-gallery-card, .compact-list-item, .parent-dir-row, .parent-dir-card, .parent-dir-item');
-    if (clickedRow) {
+    // If clicking directly on any interactive element, row, card, item, or banner, let standard events handle it.
+    const interactiveOrRow = e.target.closest('tr.file-row, .grid-gallery-card, .compact-list-item, .parent-dir-row, .parent-dir-card, .parent-dir-item, .pane-trash-banner, .pane-branch-banner, button, input, select, textarea, a, [role="button"], .interactive, .no-marquee');
+    if (interactiveOrRow) {
       return;
     }
 
@@ -4274,15 +4357,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
   const isTrashAlias = lowerTarget === 'trash://' || lowerTarget === 'trash:' || lowerTarget === 'trash' || lowerTarget === 'recycle bin' || lowerTarget === 'recyclebin' || lowerTarget === 'recycle_bin' || lowerTarget === 'shell:recyclebinfolder';
 
   if (isTrashAlias) {
-    const userHome = isLocal ? getUserDefaultHomeDir() : '/';
-    const resolvedHome = (userHome && userHome !== '~') ? userHome : '/';
-    const isWin = /^[a-zA-Z]:/.test(resolvedHome) || resolvedHome.includes('\\');
-    if (isWin) {
-      const cleanHome = resolvedHome.replace(/\//g, '\\').replace(/\\+$/, '');
-      targetPath = `${cleanHome}\\.local\\share\\Trash\\files`;
-    } else {
-      targetPath = (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + '.local/share/Trash/files';
-    }
+    targetPath = 'trash://';
   } else if (targetPath === '~' || (typeof targetPath === 'string' && (targetPath.startsWith('~/') || targetPath.startsWith('~\\')))) {
     const userHome = isLocal ? getUserDefaultHomeDir() : '/';
     const resolvedHome = (userHome && userHome !== '~') ? userHome : '/';
@@ -4355,7 +4430,9 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     const endpoint = getPaneEndpoint(paneIndex);
     const headers = getPaneAuthHeaders(paneIndex);
     const flatParam = pane.isBranchView ? '&flat=true' : '';
-    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=${pane.showHidden}${flatParam}`;
+    const winNativeParam = (typeof App.windowsNativeOps === 'boolean') ? `&windows_native_ops=${App.windowsNativeOps}` : '';
+    const customTrashParam = App.customTrashDir ? `&custom_trash_dir=${encodeURIComponent(App.customTrashDir)}` : '';
+    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=${pane.showHidden}${flatParam}${winNativeParam}${customTrashParam}`;
     const resp = await fetch(url, {
       headers,
       signal: pane._abortController.signal
@@ -5139,24 +5216,34 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
     }
     if (trashBanner) {
       trashBanner.style.display = 'flex';
-      const count = pane.entries ? pane.entries.length : 0;
+      const isWinNative = isWindowsHost() && App.windowsNativeOps;
+      const count = pane.entries ? pane.entries.filter(e => e.name !== '..').length : 0;
       const selectedCount = pane.selected ? pane.selected.size : 0;
+      trashBanner.onmousedown = (e) => e.stopPropagation();
       trashBanner.innerHTML = `
         <div class="pane-trash-info" style="display: flex; align-items: center; gap: 8px;">
           <i data-lucide="trash-2" style="width: 14px; height: 14px; color: var(--accent);"></i>
-          <span style="font-weight: 700; font-size: 11.5px; color: var(--accent);">Trash Bin</span>
+          <span style="font-weight: 700; font-size: 11.5px; color: var(--accent);">${escapeHtml(getTrashDisplayName(true))}</span>
+          ${isWinNative 
+            ? '<span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(16, 185, 129, 0.2); color: #10b981;">Windows Native ($Recycle.Bin)</span>' 
+            : '<span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(59, 130, 246, 0.2); color: #60a5fa;">Brum Built-in (.local/share/Trash)</span>'}
           <span style="font-size: 11px; color: var(--text-dim);">&bull; ${count} item${count === 1 ? '' : 's'}</span>
           ${selectedCount > 0 ? `<span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(245, 158, 11, 0.2); color: var(--accent);">${selectedCount} selected</span>` : ''}
         </div>
-        <div class="pane-trash-actions" style="display: flex; align-items: center; gap: 6px;">
-          <button class="btn btn-xs btn-outline" onclick="restoreSelectedTrashItems(${paneIndex})" title="Restore selected files (or all files if none selected) back to original location" style="font-size: 10.5px; padding: 2px 8px; color: var(--accent); border-color: var(--accent);">
-            <i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i> ${selectedCount > 0 ? `Restore (${selectedCount})` : 'Restore All'}
+        <div class="pane-trash-actions" style="display: flex; align-items: center; gap: 6px;" onmousedown="event.stopPropagation()">
+          ${isWinNative ? `
+            <button class="btn btn-xs btn-outline" onmousedown="event.stopPropagation()" onclick="openNativeRecycleBin()" title="Open Windows native Recycle Bin in Explorer" style="font-size: 10.5px; padding: 2px 8px; color: var(--text-dim); border-color: var(--border);">
+              <i data-lucide="external-link" style="width: 11px; height: 11px;"></i> Open in Windows
+            </button>
+          ` : ''}
+          <button class="btn btn-xs btn-outline" onmousedown="event.stopPropagation()" onclick="restoreSelectedTrashItems(${paneIndex})" title="Restore selected files (or highlighted file, or all files) back to original location" style="font-size: 10.5px; padding: 2px 8px; color: var(--accent); border-color: var(--accent);" ${count === 0 ? 'disabled' : ''}>
+            <i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i> ${selectedCount > 0 ? `Restore (${selectedCount})` : 'Restore'}
           </button>
-          <button class="btn btn-xs btn-outline" onclick="deleteSelectedTrashItems(${paneIndex})" title="Permanently delete selected files" style="font-size: 10.5px; padding: 2px 8px; color: var(--danger); border-color: rgba(239,68,68,0.4);" ${count === 0 ? 'disabled' : ''}>
+          <button class="btn btn-xs btn-outline" onmousedown="event.stopPropagation()" onclick="deleteSelectedTrashItems(${paneIndex})" title="Permanently delete selected files" style="font-size: 10.5px; padding: 2px 8px; color: var(--danger); border-color: rgba(239,68,68,0.4);" ${count === 0 ? 'disabled' : ''}>
             <i data-lucide="x-circle" style="width: 11px; height: 11px;"></i> ${selectedCount > 0 ? `Delete (${selectedCount})` : 'Delete Permanently'}
           </button>
-          <button class="btn btn-xs btn-danger-action" onclick="promptEmptyTrash(${paneIndex})" title="Permanently empty all items in trash" style="font-size: 10.5px; padding: 2px 8px;" ${count === 0 ? 'disabled' : ''}>
-            <i data-lucide="trash" style="width: 11px; height: 11px;"></i> Empty Trash
+          <button class="btn btn-xs btn-danger-action" onmousedown="event.stopPropagation()" onclick="promptEmptyTrash(${paneIndex})" title="Permanently empty all items in ${escapeHtml(getTrashDisplayName(false).toLowerCase())}" style="font-size: 10.5px; padding: 2px 8px;" ${(isWinNative || count > 0) ? '' : 'disabled'}>
+            <i data-lucide="trash" style="width: 11px; height: 11px;"></i> ${isWinNative ? 'Empty Recycle Bin' : 'Empty Trash'}
           </button>
         </div>
       `;
@@ -8146,7 +8233,14 @@ async function triggerServerReload() {
 }
 
 async function triggerServerRestart() {
-  const confirmed = confirm('Are you sure you want to restart the Brum server process? Active connections will momentarily reconnect.');
+  const confirmed = await showConfirmDialog({
+    title: 'Restart Server Process',
+    subtitle: 'Process Lifecycle & Reconnect',
+    message: 'Are you sure you want to restart the Brum server process? Active connections will momentarily reconnect.',
+    icon: 'refresh-cw',
+    type: 'warning',
+    confirmText: 'Restart Server'
+  });
   if (!confirmed) return;
 
   showToast('Restarting Brum server...', 'info');
@@ -8452,16 +8546,14 @@ function copyAndUseTokenInFleetForm() {
 }
 
 async function revokeApiToken(tokenId, tokenName) {
-  const confirmed = typeof showConfirmDialog === 'function'
-    ? await showConfirmDialog({
-        title: 'Revoke API Token',
-        subtitle: `Revoke token "${tokenName}"`,
-        message: `Are you sure you want to revoke token "${tokenName}"? Any remote node, daemon, or script using this token will be immediately disconnected.`,
-        icon: 'trash-2',
-        type: 'danger',
-        confirmText: 'Revoke Token'
-      })
-    : confirm(`Revoke API token "${tokenName}"?`);
+  const confirmed = await showConfirmDialog({
+    title: 'Revoke API Token',
+    subtitle: `Revoke token "${tokenName}"`,
+    message: `Are you sure you want to revoke token "${tokenName}"? Any remote node, daemon, or script using this token will be immediately disconnected.`,
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Revoke Token'
+  });
 
   if (!confirmed) return;
 
@@ -10012,13 +10104,22 @@ function switchActiveEditorTab(tabId, targetPane = 'left') {
   renderEditorTabs();
 }
 
-function closeEditorTab(tabId, force = false) {
+async function closeEditorTab(tabId, force = false) {
   const tabIndex = editorTabs.findIndex(t => t.id === tabId);
   if (tabIndex === -1) return;
   const tab = editorTabs[tabIndex];
 
   if (tab.isDirty && !force) {
-    if (!confirm(`"${tab.filename}" has unsaved changes. Close without saving?`)) {
+    const confirmed = await showConfirmDialog({
+      title: 'Unsaved Changes',
+      subtitle: tab.filename,
+      message: `"${tab.filename}" has unsaved changes. Close without saving?`,
+      icon: 'alert-circle',
+      type: 'warning',
+      confirmText: 'Discard & Close',
+      cancelText: 'Keep Editing'
+    });
+    if (!confirmed) {
       return;
     }
   }
@@ -10040,10 +10141,19 @@ function closeEditorTab(tabId, force = false) {
   renderEditorTabs();
 }
 
-function closeEditorModal() {
+async function closeEditorModal() {
   const dirtyCount = editorTabs.filter(t => t.isDirty).length;
   if (dirtyCount > 0) {
-    if (!confirm(`You have ${dirtyCount} file(s) with unsaved changes. Close editor?`)) {
+    const confirmed = await showConfirmDialog({
+      title: 'Unsaved Changes in Editor',
+      subtitle: `${dirtyCount} Modified File(s)`,
+      message: `You have ${dirtyCount} file(s) with unsaved changes. Close editor without saving?`,
+      icon: 'alert-triangle',
+      type: 'warning',
+      confirmText: 'Close Without Saving',
+      cancelText: 'Keep Editing'
+    });
+    if (!confirmed) {
       return;
     }
   }
@@ -11503,7 +11613,7 @@ async function toggleActiveNotePin() {
   showToast(newPinned ? 'Note pinned to top' : 'Note unpinned', 'info');
 }
 
-function openNoteDogColorPicker(e) {
+async function openNoteDogColorPicker(e) {
   if (!notedogState.activeDbNote) return;
   const colors = [
     { label: 'Amber (Default)', value: '#f59e0b' },
@@ -11519,12 +11629,22 @@ function openNoteDogColorPicker(e) {
   colors.forEach((c, idx) => {
     menu += `${idx + 1}. ${c.label}\n`;
   });
-  const choice = prompt(menu + '\nEnter number (1-7):', '1');
+  const choice = await showPromptDialog({
+    title: 'Note Color Accent',
+    subtitle: 'Categorize & Highlight Note',
+    message: `${menu}\nEnter number (1-7) or hex color code:`,
+    defaultValue: '1',
+    placeholder: '1-7 or #f59e0b',
+    confirmText: 'Set Color'
+  });
   if (!choice) return;
-  const idx = parseInt(choice, 10) - 1;
-  const sel = colors[idx];
-  if (sel !== undefined) {
+  const trimmed = choice.trim();
+  const idx = parseInt(trimmed, 10) - 1;
+  if (!isNaN(idx) && idx >= 0 && idx < colors.length) {
+    const sel = colors[idx];
     setNoteColor(sel.value);
+  } else if (trimmed.startsWith('#') || trimmed.length >= 3) {
+    setNoteColor(trimmed);
   }
 }
 
@@ -11942,12 +12062,19 @@ function initNoteDogEditorPasteAndDrop() {
   });
 }
 
-function openNoteDogMigrationMenu(e) {
+async function openNoteDogMigrationMenu(e) {
   const choices = [
     '1. 📤 Export all Database Notes to ~/Notes (Markdown Files)',
     '2. 📥 Import ~/Notes Markdown files into Database Notes'
   ];
-  const choice = prompt(`Database Notes Migration Center:\n\n${choices.join('\n')}\n\nEnter choice (1 or 2):`, '1');
+  const choice = await showPromptDialog({
+    title: 'Database Notes Migration Center',
+    subtitle: 'Import / Export Markdown Files',
+    message: `${choices.join('\n')}\n\nEnter choice (1 or 2):`,
+    defaultValue: '1',
+    placeholder: '1 or 2',
+    confirmText: 'Run Migration'
+  });
   if (choice === '1') {
     executeNotesExport();
   } else if (choice === '2') {
@@ -12888,8 +13015,15 @@ function insertNoteDogMermaid() {
   insertNoteDogMarkdown('', '', template);
 }
 
-function insertNoteDogColorTag() {
-  const color = prompt('Enter hex color or name (e.g. #f59e0b, gold, #38bdf8):', '#f59e0b');
+async function insertNoteDogColorTag() {
+  const color = await showPromptDialog({
+    title: 'Insert Colored Text',
+    subtitle: 'HTML/Markdown Color Span',
+    message: 'Enter hex color or CSS color name:',
+    defaultValue: '#f59e0b',
+    placeholder: 'e.g. #f59e0b, gold, #38bdf8',
+    confirmText: 'Insert'
+  });
   if (color) {
     insertNoteDogMarkdown(`<span style="color:${color.trim()}">`, '</span>', 'colored text');
   }
@@ -13002,7 +13136,19 @@ async function toggleCurrentNoteEncryption() {
     });
     if (!confirmed) return;
 
-    const pass = notedogState.cachedPassphrases[notedogState.activeNote.path] || notedogState.cachedPassphrases[notedogState.activeSection] || notedogState.cachedPassphrases['__global'] || prompt('Enter note passphrase:') || 'notedog';
+    let pass = notedogState.cachedPassphrases[notedogState.activeNote.path] || notedogState.cachedPassphrases[notedogState.activeSection] || notedogState.cachedPassphrases['__global'];
+    if (!pass) {
+      pass = await showPromptDialog({
+        title: 'Decrypt Note',
+        subtitle: notedogState.activeNote.filename || 'Encrypted Note',
+        message: 'Enter note passphrase to decrypt:',
+        placeholder: 'Passphrase',
+        inputType: 'password',
+        confirmText: 'Decrypt'
+      });
+      if (pass === null) return;
+      if (!pass) pass = 'notedog';
+    }
     try {
       const resp = await fetch('/api/tools/notedog/encrypt', {
         method: 'POST',
@@ -13021,7 +13167,14 @@ async function toggleCurrentNoteEncryption() {
     }
   } else {
     // Encrypt plain note (.md -> .md.enc)
-    const pass = prompt(`Enter encryption passphrase for "${notedogState.activeNote.name}":\n(ChaCha20-Poly1305 + Argon2id authenticated encryption)`);
+    const pass = await showPromptDialog({
+      title: 'Encrypt Note (ChaCha20-Poly1305 + Argon2id)',
+      subtitle: `Securing "${notedogState.activeNote.name}"`,
+      message: 'Enter encryption passphrase for this note:',
+      placeholder: 'Secret Passphrase',
+      inputType: 'password',
+      confirmText: 'Encrypt'
+    });
     if (pass === null) return;
     const passphrase = pass.trim() || 'notedog';
 
@@ -13298,14 +13451,21 @@ async function promptToggleEncryptNotebook() {
   }
 }
 
-function openNoteDogNewMenu(e) {
+async function openNoteDogNewMenu(e) {
   const choices = [
-    { name: '📄 New Note from Template', action: () => openNoteDogTemplatePicker() },
-    { name: '📂 New Section', action: () => promptCreateSection() },
-    { name: '📚 New Notebook', action: () => promptCreateNotebook() }
+    '1. 📄 New Note from Template',
+    '2. 📂 New Section',
+    '3. 📚 New Notebook'
   ];
 
-  const choice = prompt('Select creation type:\n1. New Note\n2. New Section\n3. New Notebook', '1');
+  const choice = await showPromptDialog({
+    title: 'Create Note Item',
+    subtitle: 'Notebooks, Sections & Templates',
+    message: 'Select creation type:\n1. 📄 New Note from Template\n2. 📂 New Section\n3. 📚 New Notebook',
+    defaultValue: '1',
+    placeholder: '1, 2, or 3',
+    confirmText: 'Select'
+  });
   if (choice === '1') openNoteDogTemplatePicker();
   else if (choice === '2') promptCreateSection();
   else if (choice === '3') promptCreateNotebook();
@@ -13329,12 +13489,26 @@ async function openNoteDogTemplatePicker() {
       templateMenu += `${i + 1}. ${t.icon} ${t.name} - ${t.description}\n`;
     });
 
-    const choice = prompt(templateMenu + '\nEnter number (1-6):', '1');
+    const choice = await showPromptDialog({
+      title: 'Choose a Note Template',
+      subtitle: 'Markdown Templates & Layouts',
+      message: `${templateMenu}\nEnter template number (1-${templates.length}):`,
+      defaultValue: '1',
+      placeholder: `1-${templates.length}`,
+      confirmText: 'Next'
+    });
     if (!choice) return;
     const idx = parseInt(choice, 10) - 1;
     const selectedTemplate = templates[idx] || templates[0];
 
-    const title = prompt('Enter note title:', selectedTemplate.name);
+    const title = await showPromptDialog({
+      title: 'New Note Title',
+      subtitle: `Using "${selectedTemplate.name}" template`,
+      message: 'Enter note title:',
+      defaultValue: selectedTemplate.name,
+      placeholder: 'Note Title',
+      confirmText: 'Create Note'
+    });
     if (!title || !title.trim()) return;
 
     createNoteFromTemplate(selectedTemplate, title.trim());
@@ -13676,10 +13850,19 @@ async function saveActiveEditorTab() {
 
   if (!tab.path) {
     const defaultName = tab.filename.startsWith('Untitled') ? 'newfile.txt' : tab.filename;
-    const userPath = prompt('Enter full file path to save:', `/home/bolt/${defaultName}`);
+    const defaultDir = (App.panes && App.panes[0] && App.panes[0].path && App.panes[0].path !== '/') ? App.panes[0].path : (App.username ? `/home/${App.username}` : '/');
+    const defaultFull = defaultDir.endsWith('/') ? `${defaultDir}${defaultName}` : `${defaultDir}/${defaultName}`;
+    const userPath = await showPromptDialog({
+      title: 'Save File As',
+      subtitle: 'Specify Destination Path',
+      message: 'Enter full file path to save:',
+      defaultValue: defaultFull,
+      placeholder: '/path/to/file.txt',
+      confirmText: 'Save File'
+    });
     if (!userPath) return;
-    tab.path = sanitizeCredentials(userPath);
-    tab.filename = getBasename(userPath);
+    tab.path = sanitizeCredentials(userPath.trim());
+    tab.filename = getBasename(userPath.trim());
   }
 
   if (tab.path && tab.path.startsWith('client://')) {
@@ -15441,6 +15624,21 @@ function updateHeaderProfile(user) {
   const roleStr = (user.role || 'ADMIN').toUpperCase();
   const avatar = user.avatar_url || localAvatar || '👤';
 
+  // Synchronize localStorage with latest profile snapshot
+  if (user.avatar_url) {
+    localStorage.setItem('cd_local_avatar', user.avatar_url);
+  }
+  try {
+    localStorage.setItem('cd_user_info', JSON.stringify({
+      username: user.username,
+      nickname: uname,
+      avatar_url: avatar
+    }));
+    if (user.username) {
+      localStorage.setItem('cd_last_username', user.username);
+    }
+  } catch (_) {}
+
   const headerLabel = document.getElementById('header-username-label');
   const headerBadge = document.getElementById('header-role-badge');
   const headerAvatar = document.getElementById('header-avatar-thumb');
@@ -15456,6 +15654,12 @@ function updateHeaderProfile(user) {
   if (menuEmail) menuEmail.textContent = localEmail || user.email || `${user.username || 'user'}@localhost`;
   if (menuBadge) menuBadge.textContent = roleStr;
   if (menuAvatar) renderAvatarElement(menuAvatar, avatar);
+
+  // Synchronize lock screen avatar and name elements
+  const lockAvatar = document.getElementById('lock-avatar-thumb');
+  if (lockAvatar) renderAvatarElement(lockAvatar, avatar);
+  const lockUserText = document.getElementById('lock-username-text');
+  if (lockUserText) lockUserText.textContent = uname;
 
   // Show/Hide Admin Control Panel item based on role (Admin only)
   const isAdmin = user.role === 'admin';
@@ -16092,6 +16296,7 @@ function openAdminPanel() {
     showToast('Access restricted to Administrators.', 'warning');
     return;
   }
+  updateStandaloneUI();
   showModal('admin-panel-modal');
   switchAdminTab('admin-tab-users');
 }
@@ -16231,10 +16436,10 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         <i data-lucide="trash-2" style="color: ${trashSummary.total_items > 0 ? 'var(--accent)' : 'var(--text-dim)'};"></i>
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
-            <span>Trash Bin</span>
+            <span>${escapeHtml(getTrashDisplayName(true))}</span>
             ${trashSummary.total_items > 0 ? `<span class="badge" style="font-size: 8.5px; padding: 1px 5px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">${trashSummary.total_items} item${trashSummary.total_items > 1 ? 's' : ''} · ${formatBytes(trashSummary.total_size)}</span>` : '<span style="font-size: 9px; color: var(--text-dim);">Empty</span>'}
           </div>
-          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(trashSummary.files_dir || '~/.local/share/Trash/files')}</div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(trashSummary.files_dir || (isWindowsHost() ? 'Windows Recycle Bin ($Recycle.Bin)' : '~/.local/share/Trash/files'))}</div>
         </div>
         ${isTrashDirectory(curPanePath) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
       </div>
@@ -17050,7 +17255,7 @@ function showContextMenu(x, y) {
       </div>
       <div class="context-sep"></div>
       <div class="context-item" onclick="promptEmptyTrash(${paneIdx}); hideContextMenu();">
-        <i data-lucide="trash" style="width: 14px; color: var(--danger);"></i> Empty Trash Bin
+        <i data-lucide="trash" style="width: 14px; color: var(--danger);"></i> Empty ${escapeHtml(getTrashDisplayName(true))}
       </div>
       <div class="context-sep"></div>
       <div class="context-item" onclick="triggerProperties(); hideContextMenu();">
@@ -18528,11 +18733,8 @@ function lockSession() {
     } catch (_) {}
   }
 
-  const lastUser = localStorage.getItem('cd_last_username') || '';
-  const localNick = localStorage.getItem('cd_local_nickname');
-  const localAvatar = localStorage.getItem('cd_local_avatar');
-  const uname = localNick || cachedUser?.nickname || cachedUser?.username || lastUser || 'Brum User';
-  const avatar = localAvatar || cachedUser?.avatar_url || '👤';
+  const uname = cachedUser?.nickname || localNick || cachedUser?.username || lastUser || 'Brum User';
+  const avatar = cachedUser?.avatar_url || localAvatar || '👤';
 
   const userTextEl = document.getElementById('lock-username-text');
   const hostSuffixEl = document.getElementById('lock-hostname-suffix');
@@ -20290,18 +20492,19 @@ async function triggerDelete() {
   const targetPaneIdx = (App.contextPaneIndex !== null && App.contextPaneIndex !== undefined) ? App.contextPaneIndex : App.activePaneIndex;
   const useTrash = App.trashEnabled !== false;
   const customTrash = App.customTrashDir || null;
+  const trashName = getTrashDisplayName(false);
   const itemNames = paths.map(p => sanitizeCredentials(p).split('/').pop() || p);
 
   const confirmed = await showConfirmDialog({
-    title: useTrash ? 'Move to Trash Confirmation' : 'Permanent Deletion Confirmation',
-    subtitle: useTrash ? `Move ${paths.length} item(s) to Trash` : `Permanently Delete ${paths.length} item(s)`,
+    title: useTrash ? `Move to ${trashName} Confirmation` : 'Permanent Deletion Confirmation',
+    subtitle: useTrash ? `Move ${paths.length} item(s) to ${trashName}` : `Permanently Delete ${paths.length} item(s)`,
     message: useTrash
-      ? `Move ${paths.length === 1 ? `'${itemNames[0]}'` : `${paths.length} selected items`} to Trash?`
+      ? `Move ${paths.length === 1 ? `'${itemNames[0]}'` : `${paths.length} selected items`} to ${trashName}?`
       : `Permanently delete ${paths.length === 1 ? `'${itemNames[0]}'` : `${paths.length} selected items`}? This action cannot be undone!`,
     items: itemNames,
     icon: 'trash-2',
     type: 'danger',
-    confirmText: useTrash ? 'Move to Trash (F8)' : 'Permanently Delete (F8)',
+    confirmText: useTrash ? `Move to ${trashName} (F8)` : 'Permanently Delete (F8)',
     cancelText: 'Cancel',
   });
 
@@ -20338,7 +20541,7 @@ async function triggerDelete() {
         }
       }
 
-      showToast(useTrash ? `Moved ${paths.length} item(s) to Trash` : `Permanently deleted ${paths.length} item(s)`, 'success');
+      showToast(useTrash ? `Moved ${paths.length} item(s) to ${trashName}` : `Permanently deleted ${paths.length} item(s)`, 'success');
       if (App.panes && Array.isArray(App.panes)) {
         App.panes.forEach(p => {
           if (p && p.selected) {
@@ -21446,7 +21649,15 @@ function renderDockedSharesList() {
 
 async function toggleRevokeShare(id, isRevoked) {
   const actionName = isRevoked ? 'reactivate' : 'revoke';
-  if (!confirm(`Are you sure you want to ${actionName} this public share link?`)) return;
+  const confirmed = await showConfirmDialog({
+    title: `${isRevoked ? 'Reactivate' : 'Revoke'} Public Share`,
+    subtitle: 'Public Sharing Link Access',
+    message: `Are you sure you want to ${actionName} this public share link?`,
+    icon: isRevoked ? 'check-circle' : 'shield-alert',
+    type: isRevoked ? 'info' : 'warning',
+    confirmText: isRevoked ? 'Reactivate Link' : 'Revoke Link'
+  });
+  if (!confirmed) return;
 
   try {
     const resp = await fetch(`/api/shares/${id}/revoke`, {
@@ -21470,7 +21681,15 @@ async function toggleRevokeShare(id, isRevoked) {
 }
 
 async function deleteSharePermanent(id) {
-  if (!confirm('Are you sure you want to permanently delete this share record and its audit history?')) return;
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Share Record',
+    subtitle: 'Permanent Deletion & Audit Removal',
+    message: 'Are you sure you want to permanently delete this share record and its audit history? This action cannot be undone.',
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Delete Permanently'
+  });
+  if (!confirmed) return;
 
   try {
     const resp = await fetch(`/api/shares/${id}`, {
@@ -22785,7 +23004,10 @@ function showConfirmDialog({
     const msgEl = document.getElementById('dialog-message');
     if (titleEl) titleEl.textContent = title;
     if (subEl) subEl.textContent = subtitle;
-    if (msgEl) msgEl.textContent = message;
+    if (msgEl) {
+      msgEl.style.whiteSpace = 'pre-line';
+      msgEl.textContent = message;
+    }
 
     const iconWrap = document.getElementById('dialog-icon-wrapper');
     if (iconWrap) iconWrap.className = `dialog-icon-wrapper ${type}`;
@@ -22840,7 +23062,10 @@ function showAlertDialog({
     const msgEl = document.getElementById('dialog-message');
     if (titleEl) titleEl.textContent = title;
     if (subEl) subEl.textContent = subtitle;
-    if (msgEl) msgEl.innerHTML = message.replace(/\n/g, '<br>');
+    if (msgEl) {
+      msgEl.style.whiteSpace = 'pre-line';
+      msgEl.textContent = message;
+    }
 
     const iconWrap = document.getElementById('dialog-icon-wrapper');
     if (iconWrap) iconWrap.className = `dialog-icon-wrapper ${type}`;
@@ -22874,6 +23099,7 @@ function showPromptDialog({
   message = 'Please enter a value:',
   defaultValue = '',
   placeholder = '',
+  inputType = 'text',
   confirmText = 'OK',
   cancelText = 'Cancel',
 } = {}) {
@@ -22885,7 +23111,10 @@ function showPromptDialog({
     const msgEl = document.getElementById('dialog-message');
     if (titleEl) titleEl.textContent = title;
     if (subEl) subEl.textContent = subtitle;
-    if (msgEl) msgEl.textContent = message;
+    if (msgEl) {
+      msgEl.style.whiteSpace = 'pre-line';
+      msgEl.textContent = message;
+    }
 
     const iconWrap = document.getElementById('dialog-icon-wrapper');
     if (iconWrap) iconWrap.className = 'dialog-icon-wrapper info';
@@ -22899,6 +23128,7 @@ function showPromptDialog({
     const inputField = document.getElementById('dialog-input-field');
     if (inputGroup) inputGroup.style.display = 'block';
     if (inputField) {
+      inputField.type = inputType || 'text';
       inputField.value = defaultValue;
       inputField.placeholder = placeholder;
       inputField.onkeydown = (e) => {
@@ -25743,18 +25973,19 @@ async function imageViewerDeleteCurrent() {
 
   const useTrash = App.trashEnabled !== false;
   const customTrash = App.customTrashDir || null;
+  const trashName = getTrashDisplayName(false);
   const fileName = filePath.split(/[\\/]/).pop() || filePath;
 
   const confirmed = await showConfirmDialog({
-    title: useTrash ? 'Move to Trash Confirmation' : 'Permanent Deletion Confirmation',
-    subtitle: useTrash ? 'Move image to Trash' : 'Permanently Delete image',
+    title: useTrash ? `Move to ${trashName} Confirmation` : 'Permanent Deletion Confirmation',
+    subtitle: useTrash ? `Move image to ${trashName}` : 'Permanently Delete image',
     message: useTrash
-      ? `Move '${fileName}' to Trash?`
+      ? `Move '${fileName}' to ${trashName}?`
       : `Permanently delete '${fileName}'? This action cannot be undone!`,
     items: [fileName],
     icon: 'trash-2',
     type: 'danger',
-    confirmText: useTrash ? 'Move to Trash (F8)' : 'Permanently Delete (F8)',
+    confirmText: useTrash ? `Move to ${trashName} (F8)` : 'Permanently Delete (F8)',
     cancelText: 'Cancel',
   });
 
@@ -25773,7 +26004,7 @@ async function imageViewerDeleteCurrent() {
         })
       });
       if (resp.ok) {
-        showToast(useTrash ? `Moved "${fileName}" to Trash` : `Permanently deleted "${fileName}"`, 'success');
+        showToast(useTrash ? `Moved "${fileName}" to ${trashName}` : `Permanently deleted "${fileName}"`, 'success');
         const oldEntry = imageViewerBlobCache.get(filePath);
         if (oldEntry && oldEntry.blobUrl) {
           try { URL.revokeObjectURL(oldEntry.blobUrl); } catch (e) {}
@@ -26780,18 +27011,19 @@ async function docViewerDeleteCurrent() {
 
   const useTrash = App.trashEnabled !== false;
   const customTrash = App.customTrashDir || null;
+  const trashName = getTrashDisplayName(false);
   const fileName = filePath.split(/[\\/]/).pop() || filePath;
 
   const confirmed = await showConfirmDialog({
-    title: useTrash ? 'Move to Trash Confirmation' : 'Permanent Deletion Confirmation',
-    subtitle: useTrash ? 'Move document to Trash' : 'Permanently Delete document',
+    title: useTrash ? `Move to ${trashName} Confirmation` : 'Permanent Deletion Confirmation',
+    subtitle: useTrash ? `Move document to ${trashName}` : 'Permanently Delete document',
     message: useTrash
-      ? `Move '${fileName}' to Trash?`
+      ? `Move '${fileName}' to ${trashName}?`
       : `Permanently delete '${fileName}'? This action cannot be undone!`,
     items: [fileName],
     icon: 'trash-2',
     type: 'danger',
-    confirmText: useTrash ? 'Move to Trash (F8)' : 'Permanently Delete (F8)',
+    confirmText: useTrash ? `Move to ${trashName} (F8)` : 'Permanently Delete (F8)',
     cancelText: 'Cancel',
   });
 
@@ -26810,7 +27042,7 @@ async function docViewerDeleteCurrent() {
         })
       });
       if (resp.ok) {
-        showToast(useTrash ? `Moved "${fileName}" to Trash` : `Permanently deleted "${fileName}"`, 'success');
+        showToast(useTrash ? `Moved "${fileName}" to ${trashName}` : `Permanently deleted "${fileName}"`, 'success');
         if (App.panes && Array.isArray(App.panes)) {
           App.panes.forEach(p => {
             if (p && p.selected) p.selected.delete(filePath);
@@ -29547,7 +29779,15 @@ async function toggleBackupProfileActive(id) {
 }
 
 async function deleteBackupProfile(id) {
-  if (!confirm('Are you sure you want to delete this backup profile?')) return;
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Backup Profile',
+    subtitle: 'Replication / Backup Job',
+    message: 'Are you sure you want to delete this backup profile? Scheduled tasks and automation for this profile will be removed.',
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Delete Profile'
+  });
+  if (!confirmed) return;
 
   try {
     const resp = await fetch(`/api/tools/sync/profiles/${encodeURIComponent(id)}`, {
@@ -37381,7 +37621,15 @@ async function submitTetraDogScore(score, lines, level, duration, mode) {
 }
 
 async function promptClearTetraDogScores() {
-  if (!confirm('Are you sure you want to reset your TetraDog scores?')) return;
+  const confirmed = await showConfirmDialog({
+    title: 'Reset High Scores',
+    subtitle: 'Tetrion Arcade Records',
+    message: 'Are you sure you want to reset your Tetrion scores and personal best leaderboard records?',
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Reset Scores'
+  });
+  if (!confirmed) return;
 
   try {
     const resp = await fetch('/api/tools/tetradog/scores', {
@@ -40229,16 +40477,14 @@ async function deleteFleetNodeProfile(id, event) {
   const node = getFleetNodeById(id);
   if (!node) return;
 
-  const confirmed = typeof showConfirmDialog === 'function'
-    ? await showConfirmDialog({
-        title: 'Delete Fleet Node',
-        subtitle: `Remove "${node.name}" from fleet`,
-        message: `Are you sure you want to remove node "${node.name}" (${node.endpoint_url}) from your Commander Fleet registry?`,
-        icon: 'trash-2',
-        type: 'danger',
-        confirmText: 'Delete Node'
-      })
-    : confirm(`Remove "${node.name}" from fleet?`);
+  const confirmed = await showConfirmDialog({
+    title: 'Delete Fleet Node',
+    subtitle: `Remove "${node.name}" from fleet`,
+    message: `Are you sure you want to remove node "${node.name}" (${node.endpoint_url}) from your Commander Fleet registry?`,
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Delete Node'
+  });
 
   if (!confirmed) return;
 
@@ -40474,10 +40720,12 @@ window.Brum = {
     },
 
     showConfirm: async function(title, message) {
-      if (typeof showConfirmDialog === 'function') {
-        return await showConfirmDialog({ title, message });
-      }
-      return window.confirm(`${title}\n\n${message}`);
+      return await showConfirmDialog({
+        title: title || 'Confirmation',
+        message: message || '',
+        confirmText: 'Confirm',
+        cancelText: 'Cancel'
+      });
     }
   },
 
@@ -40831,16 +41079,14 @@ async function toggleChewToy(id, enabled) {
  * Uninstall ChewToy package
  */
 async function uninstallChewToy(id) {
-  const confirmed = typeof showConfirmDialog === 'function'
-    ? await showConfirmDialog({
-        title: 'Uninstall ChewToy',
-        subtitle: `Remove '${id}' from Brum`,
-        message: `Are you sure you want to uninstall the ChewToy '${id}'? This will permanently delete its package and installed files.`,
-        type: 'danger',
-        confirmText: 'Uninstall',
-        cancelText: 'Cancel'
-      })
-    : window.confirm(`Uninstall ChewToy '${id}'?`);
+  const confirmed = await showConfirmDialog({
+    title: 'Uninstall ChewToy',
+    subtitle: `Remove '${id}' from Brum`,
+    message: `Are you sure you want to uninstall the ChewToy '${id}'? This will permanently delete its package and installed files.`,
+    type: 'danger',
+    confirmText: 'Uninstall',
+    cancelText: 'Cancel'
+  });
 
   if (!confirmed) return;
 
@@ -42949,11 +43195,18 @@ async function executeDuplicateClean() {
 
   const action = document.getElementById('dup-action-select')?.value || 'trash';
   const isTrash = action === 'trash';
-  const confirmMsg = isTrash
-    ? `Move ${selected.length} duplicate file${selected.length === 1 ? '' : 's'} to Trash?`
-    : `Permanently delete ${selected.length} duplicate file${selected.length === 1 ? '' : 's'}? THIS CANNOT BE UNDONE.`;
+  const confirmed = await showConfirmDialog({
+    title: isTrash ? `Move to ${trashName}` : 'Permanently Delete Duplicates',
+    subtitle: isTrash ? `Relocate selected duplicates` : 'Irreversible cleanup action',
+    message: isTrash
+      ? `Are you sure you want to move ${selected.length} duplicate file${selected.length === 1 ? '' : 's'} to ${trashName}?`
+      : `Are you sure you want to permanently delete ${selected.length} duplicate file${selected.length === 1 ? '' : 's'}? This action cannot be undone.`,
+    type: isTrash ? 'warning' : 'danger',
+    confirmText: isTrash ? `Move to ${trashName}` : 'Delete Permanently',
+    cancelText: 'Cancel'
+  });
 
-  if (!confirm(confirmMsg)) return;
+  if (!confirmed) return;
 
   const cleanBtn = document.getElementById('btn-execute-dup-clean');
   if (cleanBtn) {
@@ -45097,10 +45350,14 @@ function isTrashDirectory(path) {
   return p === 'trash://' ||
          p === 'trash:' ||
          p === 'trash' ||
+         p === 'recycle://' ||
+         p === 'recycle:' ||
          p === 'recycle bin' ||
          p === 'recyclebin' ||
          p === 'recycle_bin' ||
          p === 'shell:recyclebinfolder' ||
+         p.includes('$recycle.bin') ||
+         p.includes('recycle.bin') ||
          p.includes('/.local/share/trash') ||
          p.includes('\\.local\\share\\trash') ||
          p.includes('/tmp/brum_trash') ||
@@ -45112,7 +45369,12 @@ function isTrashDirectory(path) {
 
 async function getTrashSummary() {
   try {
-    const res = await fetch('/api/tools/trash/summary', {
+    const isWinNative = isWindowsHost() && App.windowsNativeOps;
+    const query = new URLSearchParams();
+    if (typeof isWinNative === 'boolean') query.set('windows_native_ops', isWinNative ? 'true' : 'false');
+    if (App.customTrashDir) query.set('custom_trash_dir', App.customTrashDir);
+    const qs = query.toString() ? `?${query.toString()}` : '';
+    const res = await fetch(`/api/tools/trash/summary${qs}`, {
       headers: { 'Authorization': `Bearer ${App.token}` }
     });
     if (res.ok) return await res.json();
@@ -45122,29 +45384,91 @@ async function getTrashSummary() {
   return { total_items: 0, total_size: 0, trash_dir: '', files_dir: '', info_dir: '' };
 }
 
+async function openNativeRecycleBin() {
+  try {
+    const res = await fetch('/api/tools/trash/open-native', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${App.token}`
+      }
+    });
+    if (res.ok) {
+      showToast('Opened Windows Recycle Bin', 'info');
+    }
+  } catch (err) {
+    console.warn('Could not trigger open-native trash:', err);
+  }
+}
+
 async function restoreSelectedTrashItems(paneIndex) {
-  const pane = App.panes[paneIndex];
+  const paneIdx = (typeof paneIndex === 'number' && !isNaN(paneIndex)) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[paneIdx];
   if (!pane) return;
 
-  const selectedPaths = pane.selected ? Array.from(pane.selected) : [];
-  let selectedNames = selectedPaths.map(p => {
-    const parts = p.split(/[\/\\]/);
-    return parts[parts.length - 1];
-  }).filter(Boolean);
+  let selectedItems = [];
+  if (pane.selected && pane.selected.size > 0) {
+    pane.selected.forEach(p => {
+      selectedItems.push(p);
+      const match = pane.entries?.find(e => e.path === p || e.name === p);
+      if (match) {
+        if (match.path) selectedItems.push(match.path);
+        if (match.name) selectedItems.push(match.name);
+      }
+      const parts = p.split(/[\/\\]/);
+      const last = parts[parts.length - 1];
+      if (last) selectedItems.push(last);
+    });
+  }
 
-  if (selectedNames.length === 0) {
-    const totalCount = pane.entries ? pane.entries.length : 0;
+  // If no files are explicitly multi-selected, check if a row is currently highlighted/focused
+  if (selectedItems.length === 0 && typeof pane.cursorIndex === 'number' && pane.cursorIndex >= 0 && pane.entries && pane.entries[pane.cursorIndex]) {
+    const cursorEntry = pane.entries[pane.cursorIndex];
+    if (cursorEntry && cursorEntry.name && cursorEntry.name !== '..') {
+      if (cursorEntry.path) selectedItems.push(cursorEntry.path);
+      if (cursorEntry.name) selectedItems.push(cursorEntry.name);
+      const parts = (cursorEntry.path || '').split(/[\/\\]/);
+      const last = parts[parts.length - 1];
+      if (last) selectedItems.push(last);
+    }
+  }
+
+  // Context item fallback (e.g. from right-click context menu)
+  if (selectedItems.length === 0 && App.contextItem && (App.contextPaneIndex === undefined || App.contextPaneIndex === paneIdx)) {
+    if (App.contextItem.path) selectedItems.push(App.contextItem.path);
+    if (App.contextItem.name) selectedItems.push(App.contextItem.name);
+    const parts = (App.contextItem.path || '').split(/[\/\\]/);
+    const last = parts[parts.length - 1];
+    if (last) selectedItems.push(last);
+  }
+
+  const uniqueItems = Array.from(new Set(selectedItems.filter(Boolean)));
+  let selectedNames = uniqueItems.length > 0 ? uniqueItems : null;
+
+  if (!selectedNames) {
+    const validEntries = pane.entries ? pane.entries.filter(e => e.name !== '..') : [];
+    const totalCount = validEntries.length;
     if (totalCount === 0) {
-      showToast('Trash Bin is empty', 'warning');
+      showToast(`${getTrashDisplayName(true)} is empty`, 'warning');
       return;
     }
-    if (!confirm(`Restore all ${totalCount} item${totalCount === 1 ? '' : 's'} in the Trash Bin to their original locations?`)) {
+    const confirmed = await showConfirmDialog({
+      title: 'Restore All Items',
+      subtitle: `${getTrashDisplayName(true)} restoration`,
+      message: `Restore all ${totalCount} item${totalCount === 1 ? '' : 's'} in the ${getTrashDisplayName(true)} to their original locations?`,
+      type: 'warning',
+      confirmText: 'Restore All',
+      cancelText: 'Cancel'
+    });
+    if (!confirmed) {
       return;
     }
     selectedNames = null; // Backend interprets null/empty as restore all
   }
 
-  showToast('Restoring items from Trash...', 'info');
+  const isWinNative = isWindowsHost() && App.windowsNativeOps;
+  const countDesc = selectedNames ? (pane.selected && pane.selected.size > 0 ? `${pane.selected.size} item(s)` : '1 item') : 'all items';
+  showToast(`Restoring ${countDesc} from ${getTrashDisplayName(false)}...`, 'info');
 
   try {
     const res = await fetch('/api/tools/trash/restore', {
@@ -45153,7 +45477,11 @@ async function restoreSelectedTrashItems(paneIndex) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${App.token}`
       },
-      body: JSON.stringify({ items: selectedNames })
+      body: JSON.stringify({
+        items: selectedNames,
+        custom_trash_dir: App.customTrashDir || undefined,
+        windows_native_ops: isWinNative
+      })
     });
 
     if (res.ok) {
@@ -45164,6 +45492,7 @@ async function restoreSelectedTrashItems(paneIndex) {
         const errs = result.errors ? result.errors.join('; ') : 'Some items could not be restored';
         showToast(`Restored ${result.affected_count} items with warnings: ${errs}`, 'warning');
       }
+      if (pane.selected) pane.selected.clear();
       refreshAllPanes();
     } else {
       const err = await res.text();
@@ -45175,21 +45504,63 @@ async function restoreSelectedTrashItems(paneIndex) {
 }
 
 async function deleteSelectedTrashItems(paneIndex) {
-  const pane = App.panes[paneIndex];
+  const paneIdx = (typeof paneIndex === 'number' && !isNaN(paneIndex)) ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[paneIdx];
   if (!pane) return;
 
-  const selectedPaths = pane.selected ? Array.from(pane.selected) : [];
-  let selectedNames = selectedPaths.map(p => {
-    const parts = p.split(/[\/\\]/);
-    return parts[parts.length - 1];
-  }).filter(Boolean);
+  let selectedItems = [];
+  if (pane.selected && pane.selected.size > 0) {
+    pane.selected.forEach(p => {
+      selectedItems.push(p);
+      const match = pane.entries?.find(e => e.path === p || e.name === p);
+      if (match) {
+        if (match.path) selectedItems.push(match.path);
+        if (match.name) selectedItems.push(match.name);
+      }
+      const parts = p.split(/[\/\\]/);
+      const last = parts[parts.length - 1];
+      if (last) selectedItems.push(last);
+    });
+  }
 
-  if (selectedNames.length === 0) {
+  // If no files are explicitly multi-selected, check if a row is currently highlighted/focused
+  if (selectedItems.length === 0 && typeof pane.cursorIndex === 'number' && pane.cursorIndex >= 0 && pane.entries && pane.entries[pane.cursorIndex]) {
+    const cursorEntry = pane.entries[pane.cursorIndex];
+    if (cursorEntry && cursorEntry.name && cursorEntry.name !== '..') {
+      if (cursorEntry.path) selectedItems.push(cursorEntry.path);
+      if (cursorEntry.name) selectedItems.push(cursorEntry.name);
+      const parts = (cursorEntry.path || '').split(/[\/\\]/);
+      const last = parts[parts.length - 1];
+      if (last) selectedItems.push(last);
+    }
+  }
+
+  // Context item fallback (e.g. from right-click context menu)
+  if (selectedItems.length === 0 && App.contextItem && (App.contextPaneIndex === undefined || App.contextPaneIndex === paneIdx)) {
+    if (App.contextItem.path) selectedItems.push(App.contextItem.path);
+    if (App.contextItem.name) selectedItems.push(App.contextItem.name);
+    const parts = (App.contextItem.path || '').split(/[\/\\]/);
+    const last = parts[parts.length - 1];
+    if (last) selectedItems.push(last);
+  }
+
+  const uniqueItems = Array.from(new Set(selectedItems.filter(Boolean)));
+  if (uniqueItems.length === 0) {
     showToast('Select one or more items to permanently delete', 'warning');
     return;
   }
 
-  if (!confirm(`Permanently delete ${selectedNames.length} selected item${selectedNames.length === 1 ? '' : 's'}? THIS ACTION CANNOT BE UNDONE.`)) {
+  const isWinNative = isWindowsHost() && App.windowsNativeOps;
+  const countDesc = pane.selected && pane.selected.size > 0 ? `${pane.selected.size} selected item(s)` : '1 item';
+  const confirmed = await showConfirmDialog({
+    title: 'Permanently Delete',
+    subtitle: `${getTrashDisplayName(true)} cleanup`,
+    message: `Permanently delete ${countDesc}? This action cannot be undone.`,
+    type: 'danger',
+    confirmText: 'Delete Permanently',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) {
     return;
   }
 
@@ -45200,13 +45571,18 @@ async function deleteSelectedTrashItems(paneIndex) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${App.token}`
       },
-      body: JSON.stringify({ items: selectedNames })
+      body: JSON.stringify({
+        items: uniqueItems,
+        custom_trash_dir: App.customTrashDir || undefined,
+        windows_native_ops: isWinNative
+      })
     });
 
     if (res.ok) {
       const result = await res.json();
       showToast(`Permanently deleted ${result.affected_count} item${result.affected_count === 1 ? '' : 's'}`, 'success');
-      refreshPane(paneIndex);
+      if (pane.selected) pane.selected.clear();
+      refreshPane(paneIdx);
     } else {
       const err = await res.text();
       showToast(`Delete failed: ${err}`, 'error');
@@ -45217,7 +45593,18 @@ async function deleteSelectedTrashItems(paneIndex) {
 }
 
 async function promptEmptyTrash(paneIndex) {
-  if (!confirm('Permanently delete all items and empty the Trash Bin? THIS ACTION CANNOT BE UNDONE.')) {
+  const isWinNative = isWindowsHost() && App.windowsNativeOps;
+  const confirmed = await showConfirmDialog({
+    title: `Empty ${getTrashDisplayName(true)}`,
+    subtitle: 'Irreversible deletion',
+    message: isWinNative
+      ? 'Permanently empty all items from the Windows Recycle Bin? This action cannot be undone.'
+      : `Permanently delete all items and empty the ${getTrashDisplayName(true)}? This action cannot be undone.`,
+    type: 'danger',
+    confirmText: 'Empty ' + getTrashDisplayName(false),
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) {
     return;
   }
 
@@ -45228,19 +45615,23 @@ async function promptEmptyTrash(paneIndex) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${App.token}`
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({
+        custom_trash_dir: App.customTrashDir || undefined,
+        windows_native_ops: isWinNative
+      })
     });
 
     if (res.ok) {
       const result = await res.json();
       const freedStr = result.freed_bytes ? ` (${formatBytes(result.freed_bytes)} freed)` : '';
-      showToast(`Trash Bin emptied${freedStr}`, 'success');
-      refreshPane(paneIndex);
+      showToast(`${getTrashDisplayName(true)} emptied${freedStr}`, 'success');
+      if (typeof paneIndex === 'number') refreshPane(paneIndex);
+      else refreshAllPanes();
     } else {
       const err = await res.text();
-      showToast(`Empty Trash failed: ${err}`, 'error');
+      showToast(`Empty ${getTrashDisplayName(true)} failed: ${err}`, 'error');
     }
   } catch (err) {
-    showToast(`Empty Trash error: ${err.message}`, 'error');
+    showToast(`Empty ${getTrashDisplayName(true)} error: ${err.message}`, 'error');
   }
 }
