@@ -2,9 +2,46 @@ use crate::tools::tasks::TaskManager;
 use crate::vfs::local::LocalFs;
 use crate::vfs::smb::{SmbClient, SmbParams};
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tempfile::NamedTempFile;
+
+/// Generates a non-colliding destination path if the target already exists (e.g. "photo (1).png", "folder (1)")
+pub fn generate_unique_destination_path(target: &Path) -> PathBuf {
+    if !target.exists() {
+        return target.to_path_buf();
+    }
+    let parent = target.parent().unwrap_or_else(|| Path::new(""));
+    let is_dir = target.is_dir();
+
+    let (stem, ext) = if is_dir {
+        (target.file_name().and_then(|s| s.to_str()).unwrap_or("folder"), None)
+    } else {
+        let stem = target.file_stem().and_then(|s| s.to_str()).unwrap_or("file");
+        let ext = target.extension().and_then(|e| e.to_str());
+        (stem, ext)
+    };
+
+    let mut counter = 1;
+    loop {
+        let new_name = match ext {
+            Some(e) if !e.is_empty() => format!("{} ({}).{}", stem, counter, e),
+            _ => format!("{} ({})", stem, counter),
+        };
+        let candidate = parent.join(&new_name);
+        if !candidate.exists() {
+            return candidate;
+        }
+        counter += 1;
+        if counter > 10000 {
+            let unique_suffix = format!("{}_{}", stem, std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0));
+            return parent.join(match ext {
+                Some(e) if !e.is_empty() => format!("{}.{}", unique_suffix, e),
+                _ => unique_suffix,
+            });
+        }
+    }
+}
 
 pub struct VfsTransfer;
 
@@ -76,6 +113,7 @@ impl VfsTransfer {
         dest_dir: &str,
         is_move: bool,
         paranoid: bool,
+        conflict_resolution: Option<&str>,
         task_manager: &TaskManager,
         task_id: &str,
     ) -> Result<Option<String>, String> {
@@ -105,10 +143,16 @@ impl VfsTransfer {
             };
 
             let dest_path = Path::new(dest_dir);
-            let target = if dest_path.is_dir() {
+            let raw_target = if dest_path.is_dir() {
                 dest_path.join(&file_res.name)
             } else {
                 dest_path.to_path_buf()
+            };
+
+            let target = match conflict_resolution {
+                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
+                _ => raw_target,
             };
 
             if let Some(parent) = target.parent() {
@@ -125,10 +169,16 @@ impl VfsTransfer {
             let src_params = crate::vfs::sftp::SftpClient::parse_uri(src, None, None)?;
             let file_name = src_params.remote_path.rsplit('/').next().unwrap_or(&src_params.remote_path).to_string();
             let dest_path = Path::new(dest_dir);
-            let target = if dest_path.is_dir() {
+            let raw_target = if dest_path.is_dir() {
                 dest_path.join(&file_name)
             } else {
                 dest_path.to_path_buf()
+            };
+
+            let target = match conflict_resolution {
+                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
+                _ => raw_target,
             };
 
             crate::vfs::sftp::SftpClient::download_to_file(&src_params, &target)?;
@@ -183,10 +233,16 @@ impl VfsTransfer {
                 Path::new(dest_dir).to_path_buf()
             };
 
-            let target = if local_dest.is_dir() {
+            let raw_target = if local_dest.is_dir() {
                 local_dest.join(local_src.file_name().unwrap_or_default())
             } else {
                 local_dest
+            };
+
+            let target = match conflict_resolution {
+                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
+                _ => raw_target,
             };
 
             LocalFs::copy_file_paranoid(&local_src.to_string_lossy(), &target.to_string_lossy(), paranoid).map_err(|e| e.to_string())?;
@@ -204,10 +260,16 @@ impl VfsTransfer {
             let src_params = SmbClient::parse_uri(src, None, None)?;
             let file_name = src_params.subpath.rsplit('/').next().unwrap_or(&src_params.subpath).to_string();
             let dest_path = Path::new(dest_dir);
-            let target = if dest_path.is_dir() {
+            let raw_target = if dest_path.is_dir() {
                 dest_path.join(&file_name)
             } else {
                 dest_path.to_path_buf()
+            };
+
+            let target = match conflict_resolution {
+                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
+                _ => raw_target,
             };
 
             // Try download file directly
@@ -293,14 +355,14 @@ impl VfsTransfer {
             }
 
             let file_name = src_path.file_name().unwrap_or_default();
-            let target = if dest_path.is_dir() {
+            let raw_target = if dest_path.is_dir() {
                 dest_path.join(file_name)
             } else {
                 dest_path.to_path_buf()
             };
 
             // Check if source and target are identical
-            if let (Ok(can_src), Ok(can_target)) = (src_path.canonicalize(), target.canonicalize()) {
+            if let (Ok(can_src), Ok(can_target)) = (src_path.canonicalize(), raw_target.canonicalize()) {
                 if can_src == can_target {
                     if is_move {
                         return Ok(None); // Move onto itself is a no-op
@@ -311,13 +373,19 @@ impl VfsTransfer {
                 }
             }
 
+            let target = match conflict_resolution {
+                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
+                _ => raw_target,
+            };
+
             // Prevent copying directory into itself or its own subdirectories
             if src_path.is_dir() {
                 if let Ok(can_src) = src_path.canonicalize() {
                     let dest_check = if target.exists() {
                         target.canonicalize().unwrap_or_else(|_| target.clone())
                     } else if let Some(parent) = target.parent() {
-                        parent.canonicalize().map(|p| p.join(file_name)).unwrap_or_else(|_| target.clone())
+                        parent.canonicalize().map(|p| p.join(target.file_name().unwrap_or(file_name))).unwrap_or_else(|_| target.clone())
                     } else {
                         target.clone()
                     };
@@ -359,6 +427,7 @@ impl VfsTransfer {
         destination: String,
         is_move: bool,
         paranoid: bool,
+        conflict_resolution: Option<String>,
     ) {
         let total_items = sources.len() as u64;
         let mut processed = 0u64;
@@ -391,6 +460,7 @@ impl VfsTransfer {
                 &destination,
                 is_move,
                 paranoid,
+                conflict_resolution.as_deref(),
                 &task_manager,
                 &task_id,
             ) {
@@ -433,3 +503,82 @@ impl VfsTransfer {
         task_manager.complete_task(&task_id).await;
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_generate_unique_destination_path() {
+        let dir = tempdir().unwrap();
+        let file1 = dir.path().join("report.pdf");
+        fs::write(&file1, b"original").unwrap();
+
+        let unique1 = generate_unique_destination_path(&file1);
+        assert_eq!(unique1.file_name().unwrap(), "report (1).pdf");
+
+        fs::write(&unique1, b"copy 1").unwrap();
+        let unique2 = generate_unique_destination_path(&file1);
+        assert_eq!(unique2.file_name().unwrap(), "report (2).pdf");
+    }
+
+    #[tokio::test]
+    async fn test_transfer_single_item_conflict_modes() {
+        let dir = tempdir().unwrap();
+        let src_dir = dir.path().join("src");
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir_all(&src_dir).unwrap();
+        fs::create_dir_all(&dest_dir).unwrap();
+
+        let src_file = src_dir.join("test.txt");
+        let dest_file = dest_dir.join("test.txt");
+        fs::write(&src_file, b"source content").unwrap();
+        fs::write(&dest_file, b"existing dest content").unwrap();
+
+        let tm = TaskManager::new();
+
+        // 1. Skip mode: dest_file is preserved, source is not touched
+        let res = VfsTransfer::transfer_single_item(
+            src_file.to_str().unwrap(),
+            dest_dir.to_str().unwrap(),
+            false,
+            false,
+            Some("skip"),
+            &tm,
+            "test_task_1",
+        );
+        assert!(res.is_ok());
+        assert_eq!(fs::read(&dest_file).unwrap(), b"existing dest content");
+
+        // 2. Rename mode: creates test (1).txt
+        let res2 = VfsTransfer::transfer_single_item(
+            src_file.to_str().unwrap(),
+            dest_dir.to_str().unwrap(),
+            false,
+            false,
+            Some("rename"),
+            &tm,
+            "test_task_2",
+        );
+        assert!(res2.is_ok());
+        let renamed = dest_dir.join("test (1).txt");
+        assert!(renamed.exists());
+        assert_eq!(fs::read(&renamed).unwrap(), b"source content");
+        assert_eq!(fs::read(&dest_file).unwrap(), b"existing dest content");
+
+        // 3. Overwrite mode: replaces dest_file
+        let res3 = VfsTransfer::transfer_single_item(
+            src_file.to_str().unwrap(),
+            dest_dir.to_str().unwrap(),
+            false,
+            false,
+            Some("overwrite"),
+            &tm,
+            "test_task_3",
+        );
+        assert!(res3.is_ok());
+        assert_eq!(fs::read(&dest_file).unwrap(), b"source content");
+    }
+}
+

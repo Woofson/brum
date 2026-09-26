@@ -10,10 +10,14 @@ use futures_util::{SinkExt, StreamExt};
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use serde::Deserialize;
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
+#[cfg(not(windows))]
+use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{error, info, warn};
+use tracing::{error, warn};
+#[cfg(not(windows))]
+use tracing::info;
 
 use crate::auth::Claims;
 use crate::config::TerminalConfig;
@@ -272,6 +276,7 @@ async fn handle_terminal_socket(
     claims: Claims,
     terminal_config: TerminalConfig,
 ) {
+    let _ = &claims;
     let pty_system = native_pty_system();
     let cols = query.cols.unwrap_or(100).max(10);
     let rows = query.rows.unwrap_or(24).max(2);

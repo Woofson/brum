@@ -15,6 +15,8 @@ fn main() {
     let mut config = ConfigManager::load_all();
     config.server.standalone = true;
     config.server.enable_auth = false;
+    config.storage.allow_entire_system = true;
+    config.paranoid.windows_native_file_ops = true;
     config.server.host = "127.0.0.1".to_string();
     if config.server.port == 0 {
         config.server.port = 3140; // Default preferred port
@@ -51,6 +53,7 @@ fn main() {
                         .inner_size(1366.0, 840.0)
                         .min_inner_size(680.0, 480.0)
                         .resizable(true)
+                        .disable_drag_drop_handler()
                         .decorations(window_decorations)
                         .visible(!start_minimized)
                         .center();

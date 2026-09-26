@@ -7365,6 +7365,66 @@
     </div>
   </div>
 
+  <!-- Destination Collision & Conflict Resolution Modal -->
+  <div class="modal-overlay" id="conflict-resolution-modal">
+    <div class="modal-box" style="width: 520px; max-width: 95vw;">
+      <div class="modal-header">
+        <span style="display: flex; align-items: center; gap: 8px; font-weight: 700;">
+          <i data-lucide="alert-triangle" style="width: 16px; height: 16px; color: var(--accent);"></i>
+          <span id="conflict-modal-title">File Conflict Detected</span>
+        </span>
+        <button class="btn btn-icon" onclick="resolveConflictChoice('cancel')" title="Cancel Transfer"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+      </div>
+      <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
+        <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;" id="conflict-modal-desc">
+          An item with the same name already exists in the destination folder. How would you like to proceed?
+        </div>
+
+        <!-- Conflict Comparison Card -->
+        <div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; display: flex; flex-direction: column; gap: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255, 255, 255, 0.06); padding-bottom: 8px;">
+            <span style="font-weight: 700; font-size: 13px; color: var(--text-main); font-family: var(--font-mono); word-break: break-all;" id="conflict-file-name">filename.ext</span>
+            <span class="badge badge-accent" id="conflict-counter-badge" style="font-size: 10px; padding: 2px 6px;">1 of 1</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 11px;">
+            <!-- Incoming Source File -->
+            <div style="background: rgba(245, 158, 11, 0.05); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: 6px; padding: 10px;">
+              <div style="color: var(--accent); font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="arrow-down-right" style="width: 12px; height: 12px;"></i> Source (Incoming)
+              </div>
+              <div style="color: var(--text-dim);">Size: <strong style="color: var(--text-main);" id="conflict-src-size">-</strong></div>
+              <div style="color: var(--text-dim); margin-top: 3px;">Modified: <span style="color: var(--text-main);" id="conflict-src-mtime">-</span></div>
+            </div>
+
+            <!-- Existing Destination File -->
+            <div style="background: rgba(255, 255, 255, 0.03); border: 1px solid var(--border); border-radius: 6px; padding: 10px;">
+              <div style="color: var(--text-muted); font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 4px;">
+                <i data-lucide="hard-drive" style="width: 12px; height: 12px;"></i> Destination (Existing)
+              </div>
+              <div style="color: var(--text-dim);">Size: <strong style="color: var(--text-main);" id="conflict-dest-size">-</strong></div>
+              <div style="color: var(--text-dim); margin-top: 3px;">Modified: <span style="color: var(--text-main);" id="conflict-dest-mtime">-</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Apply to all toggle -->
+        <div id="conflict-apply-all-wrapper" style="display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer;">
+          <input type="checkbox" id="conflict-apply-all-chk" style="cursor: pointer; accent-color: var(--accent);">
+          <label for="conflict-apply-all-chk" style="cursor: pointer; color: var(--text-main);">Apply this action to all remaining conflicts (<span id="conflict-remaining-count">0</span> remaining)</label>
+        </div>
+
+        <!-- Action Buttons -->
+        <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px;">
+          <button class="btn btn-outline" onclick="resolveConflictChoice('cancel')">Cancel</button>
+          <button class="btn btn-outline" onclick="resolveConflictChoice('skip')"><i data-lucide="skip-forward" style="width: 13px; height: 13px;"></i> Skip</button>
+          <button class="btn btn-outline" onclick="resolveConflictChoice('rename')"><i data-lucide="copy-plus" style="width: 13px; height: 13px;"></i> Auto-Rename</button>
+          <button class="btn btn-accent" onclick="resolveConflictChoice('overwrite')"><i data-lucide="replace" style="width: 13px; height: 13px;"></i> Overwrite</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Backdrop for Mobile Pull-Up Drawer -->
   <div class="task-drawer-backdrop" id="task-drawer-backdrop" onclick="closeFloatingTaskManager()"></div>
 

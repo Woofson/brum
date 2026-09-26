@@ -554,6 +554,9 @@ pub fn normalize_path(path: &Path) -> PathBuf {
             std::path::Component::Normal(..) => components.push(component),
         }
     }
+    if components.len() == 1 && matches!(components.first(), Some(std::path::Component::Prefix(..))) {
+        components.push(std::path::Component::RootDir);
+    }
     components.into_iter().collect()
 }
 
@@ -703,8 +706,8 @@ pub fn validate_path_access(
     let norm_str = normalized.to_string_lossy().to_string();
     let is_admin = user_role.eq_ignore_ascii_case("admin");
 
-    // Unrestricted system root access if enabled in config and user is admin
-    if state.config.storage.allow_entire_system && is_admin {
+    // Unrestricted system root access if enabled in config, standalone desktop mode, or admin with wildcard roots
+    if (state.config.storage.allow_entire_system || state.config.server.standalone || allowed_roots.contains(&"*".to_string())) && is_admin {
         return Ok(norm_str);
     }
 
@@ -775,8 +778,8 @@ async fn handle_get_storage_roots(
         }
     }
 
-    // 3. System Root (if allowed in config and user is admin)
-    if state.config.storage.allow_entire_system && is_admin {
+    // 3. System Root (if allowed in config, in standalone desktop mode, or admin with wildcard roots)
+    if (state.config.storage.allow_entire_system || state.config.server.standalone || allowed_roots.contains(&"*".to_string())) && is_admin {
         #[cfg(windows)]
         {
             for b in b'A'..=b'Z' {
@@ -3462,6 +3465,15 @@ async fn handle_list_dir(
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to list branch view: {}", e)))
     } else {
+        let is_trash_files = target_path.ends_with(".local/share/Trash/files")
+            || target_path.ends_with(r".local\share\Trash\files")
+            || target_path.ends_with("/brum_trash/files");
+        if is_trash_files {
+            let trash_p = LocalFs::resolve_local_path(&target_path);
+            if !trash_p.exists() {
+                let _ = std::fs::create_dir_all(&trash_p);
+            }
+        }
         LocalFs::list_dir(&target_path, show_hidden)
             .map(Json)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to list local directory: {}", e)))
@@ -3951,6 +3963,7 @@ struct TransferRequest {
     sources: Vec<String>,
     destination: String,
     paranoid: Option<bool>,
+    conflict_resolution: Option<String>,
 }
 
 async fn handle_copy(
@@ -3965,6 +3978,7 @@ async fn handle_copy(
     let validated_dest = validate_path_access(&state, &headers, &payload.destination, true)?;
 
     let paranoid = payload.paranoid.unwrap_or(state.config.paranoid.verify_after_transfer);
+    let conflict_resolution = payload.conflict_resolution.clone();
     let task_id = state.tasks.create_task(
         &format!("Copy {} items", validated_sources.len()),
         "copy",
@@ -3986,6 +4000,7 @@ async fn handle_copy(
             destination,
             false,
             paranoid,
+            conflict_resolution,
         ).await;
     });
 
@@ -4042,6 +4057,7 @@ async fn handle_move(
     let validated_dest = validate_path_access(&state, &headers, &payload.destination, true)?;
 
     let paranoid = payload.paranoid.unwrap_or(state.config.paranoid.verify_after_transfer);
+    let conflict_resolution = payload.conflict_resolution.clone();
     let task_id = state.tasks.create_task(
         &format!("Move {} items", validated_sources.len()),
         "move",
@@ -4063,6 +4079,7 @@ async fn handle_move(
             destination,
             true,
             paranoid,
+            conflict_resolution,
         ).await;
     });
 
@@ -4246,6 +4263,8 @@ async fn handle_upload(
     let mut uploaded_files = Vec::new();
     let task_id = state.tasks.create_task("Upload Files", "upload", "Browser", &dest_dir, 0).await;
 
+    let conflict_mode = query.get("conflict").or_else(|| query.get("conflict_resolution")).map(|s| s.as_str()).unwrap_or("overwrite");
+
     while let Ok(Some(field)) = multipart.next_field().await {
         let file_name = field.file_name().unwrap_or("upload.bin").to_string();
 
@@ -4304,7 +4323,16 @@ async fn handle_upload(
                     return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
                 }
             } else {
-                let target_path = Path::new(&dest_dir).join(&file_name);
+                let raw_target = Path::new(&dest_dir).join(&file_name);
+                let target_path = match conflict_mode {
+                    "skip" if raw_target.exists() => {
+                        continue;
+                    }
+                    "rename" if raw_target.exists() => {
+                        crate::vfs::transfer::generate_unique_destination_path(&raw_target)
+                    }
+                    _ => raw_target,
+                };
                 if let Err(e) = LocalFs::write_file(&target_path.to_string_lossy(), &data, true) {
                     let err_msg = format!("Failed to write upload: {}", e);
                     state.tasks.fail_task(&task_id, &err_msg).await;
@@ -7005,7 +7033,10 @@ mod tests {
         use crate::config::AppConfig;
         use std::sync::Arc;
 
-        let config = AppConfig::default();
+        let mut config = AppConfig::default();
+        let temp = tempfile::tempdir().unwrap();
+        let db_path = temp.path().join("health_test.db");
+        config.server.database_path = db_path.to_string_lossy().to_string();
         let auth = crate::auth::AuthManager::new(
             &config.server.database_path,
             &config.server.jwt_secret,

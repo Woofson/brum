@@ -23,7 +23,7 @@ default_admin_pass = "brum"      # Initial admin password
 
 # --- Storage Roots & Filesystem Sandboxing ---
 [storage]
-allow_entire_system = false           # When false, users and admins are strictly sandboxed to allowed root dirs + their personal home
+allow_entire_system = true            # When true, admin users have unrestricted access to all local drives and system roots
 default_user_home_template = "/home/{username}" # Template path for newly created virtual/DB users
 
 [[storage.roots]]

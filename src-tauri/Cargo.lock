@@ -339,7 +339,7 @@ dependencies = [
 
 [[package]]
 name = "brum"
-version = "0.8.12-rc2"
+version = "1.1.0-b"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -393,7 +393,7 @@ dependencies = [
 
 [[package]]
 name = "brum-desktop"
-version = "0.8.9"
+version = "1.1.0-b"
 dependencies = [
  "brum",
  "libdbus-sys",

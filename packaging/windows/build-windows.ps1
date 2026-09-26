@@ -44,6 +44,11 @@ Copy-Item "$RootDir\target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\br
 if (Test-Path "$RootDir\src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe") {
     Copy-Item "$RootDir\src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe"
 }
+if (Test-Path "$RootDir\src-tauri\target\x86_64-pc-windows-msvc\release\WebView2Loader.dll") {
+    Copy-Item "$RootDir\src-tauri\target\x86_64-pc-windows-msvc\release\WebView2Loader.dll" "$DistDir\brum\"
+} elseif (Test-Path "$RootDir\src-tauri\target\x86_64-pc-windows-gnu\release\WebView2Loader.dll") {
+    Copy-Item "$RootDir\src-tauri\target\x86_64-pc-windows-gnu\release\WebView2Loader.dll" "$DistDir\brum\"
+}
 Copy-Item "$RootDir\config.toml" "$DistDir\brum\"
 Copy-Item "$RootDir\LICENSE" "$DistDir\brum\"
 Copy-Item "$RootDir\README.md" "$DistDir\brum\"

@@ -1883,6 +1883,22 @@ function bootApp() {
   }
 }
 
+// Global HTML5 Drag and Drop prevention to ensure no blocking cursor occurs across DOM elements
+['dragover', 'dragenter'].forEach(evt => {
+  window.addEventListener(evt, (e) => {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
+    }
+  }, true);
+  document.addEventListener(evt, (e) => {
+    e.preventDefault();
+    if (e.dataTransfer) {
+      e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
+    }
+  }, true);
+});
+
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', bootApp);
 } else {
@@ -2918,6 +2934,18 @@ function createPaneElement(pane, index) {
   }, { passive: true });
 
   // Enable HTML5 Drag & Drop Target
+  el.ondragenter = (e) => {
+    e.preventDefault();
+    if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) {
+      if (window._draggingPaneIndex !== index) {
+        e.dataTransfer.dropEffect = 'move';
+        el.classList.add('pane-reorder-target');
+      }
+      return;
+    }
+    e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
+    el.classList.add('drag-over');
+  };
   el.ondragover = (e) => {
     e.preventDefault();
     if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) {
@@ -2927,6 +2955,7 @@ function createPaneElement(pane, index) {
       }
       return;
     }
+    e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
     el.classList.add('drag-over');
   };
   el.ondragleave = () => {
@@ -4241,15 +4270,31 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
   }
 
   const isLocal = !pane.nodeId || pane.nodeId === 'local';
+  const lowerTarget = (typeof targetPath === 'string') ? targetPath.trim().toLowerCase() : '';
+  const isTrashAlias = lowerTarget === 'trash://' || lowerTarget === 'trash:' || lowerTarget === 'trash' || lowerTarget === 'recycle bin' || lowerTarget === 'recyclebin' || lowerTarget === 'recycle_bin' || lowerTarget === 'shell:recyclebinfolder';
 
-  if (targetPath === 'trash://' || targetPath === 'trash') {
+  if (isTrashAlias) {
     const userHome = isLocal ? getUserDefaultHomeDir() : '/';
     const resolvedHome = (userHome && userHome !== '~') ? userHome : '/';
-    targetPath = (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + '.local/share/Trash/files';
-  } else if (targetPath === '~' || (typeof targetPath === 'string' && targetPath.startsWith('~/'))) {
+    const isWin = /^[a-zA-Z]:/.test(resolvedHome) || resolvedHome.includes('\\');
+    if (isWin) {
+      const cleanHome = resolvedHome.replace(/\//g, '\\').replace(/\\+$/, '');
+      targetPath = `${cleanHome}\\.local\\share\\Trash\\files`;
+    } else {
+      targetPath = (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + '.local/share/Trash/files';
+    }
+  } else if (targetPath === '~' || (typeof targetPath === 'string' && (targetPath.startsWith('~/') || targetPath.startsWith('~\\')))) {
     const userHome = isLocal ? getUserDefaultHomeDir() : '/';
     const resolvedHome = (userHome && userHome !== '~') ? userHome : '/';
-    targetPath = targetPath === '~' ? resolvedHome : (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + targetPath.substring(2);
+    const isWin = /^[a-zA-Z]:/.test(resolvedHome) || resolvedHome.includes('\\');
+    const sub = targetPath === '~' ? '' : targetPath.substring(2);
+    if (isWin) {
+      const cleanHome = resolvedHome.replace(/\//g, '\\').replace(/\\+$/, '');
+      const cleanSub = sub.replace(/\//g, '\\').replace(/^\\+/, '');
+      targetPath = cleanSub ? `${cleanHome}\\${cleanSub}` : cleanHome;
+    } else {
+      targetPath = targetPath === '~' ? resolvedHome : (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + sub.replace(/^\/+/, '');
+    }
   }
 
   const cleanPath = sanitizeCredentials(targetPath);
@@ -5169,7 +5214,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       pCard.className = 'grid-gallery-card parent-dir-card';
       pCard.innerHTML = `
         <div class="grid-thumb-wrapper">
-          ${formatCustomIconToHtml('', 'lg', true, 'var(--accent)')}
+          <i data-lucide="corner-left-up" style="width: 32px; height: 32px; color: var(--accent);"></i>
         </div>
         <div class="grid-card-name" style="font-weight: 700; color: var(--accent);">..</div>
         <div class="grid-card-meta">&lt;UP&gt;</div>
@@ -5220,17 +5265,28 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       if (!isTouchDevice) {
         card.ondragstart = (e) => {
           const selectedPaths = pane.selected.size > 0 ? Array.from(pane.selected) : [entry.path];
-          e.dataTransfer.setData('text/plain', JSON.stringify({
-            sourcePane: paneIndex,
-            paths: selectedPaths
-          }));
-          e.dataTransfer.effectAllowed = 'copyMove';
+          const payload = { sourcePane: paneIndex, paths: selectedPaths };
+          window._activeDraggedPayload = payload;
+          const jsonPayload = JSON.stringify(payload);
+          e.dataTransfer.setData('text/plain', jsonPayload);
+          e.dataTransfer.setData('application/json', jsonPayload);
+          e.dataTransfer.effectAllowed = 'all';
+        };
+
+        card.ondragend = () => {
+          window._activeDraggedPayload = null;
+        };
+
+        card.ondragenter = (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
         };
 
         card.ondragover = (e) => {
           if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
           if (entry.is_dir) {
-            e.preventDefault();
             e.stopPropagation();
             card.classList.add('drag-over-card');
           }
@@ -5243,11 +5299,13 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         };
 
         card.ondrop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          card.classList.remove('drag-over-card');
           if (entry.is_dir) {
-            e.preventDefault();
-            e.stopPropagation();
-            card.classList.remove('drag-over-card');
             handlePaneDrop(e, paneIndex, entry.path);
+          } else {
+            handlePaneDrop(e, paneIndex, pane.path);
           }
         };
       }
@@ -5389,7 +5447,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       const pItem = document.createElement('div');
       pItem.className = 'compact-list-item parent-dir-item';
       pItem.innerHTML = `
-        ${formatCustomIconToHtml('', 'sm', true, 'var(--accent)')}
+        <i data-lucide="corner-left-up" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i>
         <span style="font-weight: 700; color: var(--accent);">..</span>
       `;
 
@@ -5460,17 +5518,28 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       if (!isTouchDevice) {
         item.ondragstart = (e) => {
           const selectedPaths = pane.selected.size > 0 ? Array.from(pane.selected) : [entry.path];
-          e.dataTransfer.setData('text/plain', JSON.stringify({
-            sourcePane: paneIndex,
-            paths: selectedPaths
-          }));
-          e.dataTransfer.effectAllowed = 'copyMove';
+          const payload = { sourcePane: paneIndex, paths: selectedPaths };
+          window._activeDraggedPayload = payload;
+          const jsonPayload = JSON.stringify(payload);
+          e.dataTransfer.setData('text/plain', jsonPayload);
+          e.dataTransfer.setData('application/json', jsonPayload);
+          e.dataTransfer.effectAllowed = 'all';
+        };
+
+        item.ondragend = () => {
+          window._activeDraggedPayload = null;
+        };
+
+        item.ondragenter = (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
         };
 
         item.ondragover = (e) => {
           if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
           if (entry.is_dir) {
-            e.preventDefault();
             e.stopPropagation();
             item.classList.add('drag-over-item');
           }
@@ -5483,11 +5552,13 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         };
 
         item.ondrop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          item.classList.remove('drag-over-item');
           if (entry.is_dir) {
-            e.preventDefault();
-            e.stopPropagation();
-            item.classList.remove('drag-over-item');
             handlePaneDrop(e, paneIndex, entry.path);
+          } else {
+            handlePaneDrop(e, paneIndex, pane.path);
           }
         };
       }
@@ -5686,10 +5757,15 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       };
 
       if (!isTouchDevice) {
+        parentTr.ondragenter = (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
+        };
         parentTr.ondragover = (e) => {
           if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
           e.preventDefault();
           e.stopPropagation();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
           parentTr.classList.add('drag-over-row');
         };
         parentTr.ondragleave = () => parentTr.classList.remove('drag-over-row');
@@ -5705,7 +5781,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       parentTr.innerHTML = `
         <td class="file-cell file-cell-icon">
           <div class="row-icon-wrapper">
-            ${formatCustomIconToHtml('', 'sm', true, 'var(--accent)')}
+            <i data-lucide="corner-left-up" style="width: 15px; height: 15px; color: var(--accent);"></i>
           </div>
         </td>
         <td class="file-cell file-cell-name">
@@ -5758,17 +5834,28 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       if (!isTouchDevice) {
         tr.ondragstart = (e) => {
           const selectedPaths = pane.selected.size > 0 ? Array.from(pane.selected) : [entry.path];
-          e.dataTransfer.setData('text/plain', JSON.stringify({
-            sourcePane: paneIndex,
-            paths: selectedPaths
-          }));
-          e.dataTransfer.effectAllowed = 'copyMove';
+          const payload = { sourcePane: paneIndex, paths: selectedPaths };
+          window._activeDraggedPayload = payload;
+          const jsonPayload = JSON.stringify(payload);
+          e.dataTransfer.setData('text/plain', jsonPayload);
+          e.dataTransfer.setData('application/json', jsonPayload);
+          e.dataTransfer.effectAllowed = 'all';
+        };
+
+        tr.ondragend = () => {
+          window._activeDraggedPayload = null;
+        };
+
+        tr.ondragenter = (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
         };
 
         tr.ondragover = (e) => {
           if (window._draggingPaneIndex !== null && window._draggingPaneIndex !== undefined) return;
+          e.preventDefault();
+          e.dataTransfer.dropEffect = (e.ctrlKey || e.altKey) ? 'copy' : 'move';
           if (entry.is_dir) {
-            e.preventDefault();
             e.stopPropagation();
             tr.classList.add('drag-over-row');
           }
@@ -5781,11 +5868,13 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         };
 
         tr.ondrop = (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          tr.classList.remove('drag-over-row');
           if (entry.is_dir) {
-            e.preventDefault();
-            e.stopPropagation();
-            tr.classList.remove('drag-over-row');
             handlePaneDrop(e, paneIndex, entry.path);
+          } else {
+            handlePaneDrop(e, paneIndex, pane.path);
           }
         };
       }
@@ -6331,7 +6420,7 @@ function getFileIconDetails(name, is_dir, is_archive) {
     if (lower === 'videos') return { icon: 'video', type: 'folder', color: '#06b6d4' };
     if (lower === '.trash' || lower === 'trash') return { icon: 'trash-2', type: 'folder', color: '#ef4444' };
     if (lower === 'desktop') return { icon: 'monitor', type: 'folder', color: '#f59e0b' };
-    return { glyph: '', type: 'folder-glyph', color: 'var(--accent)' };
+    return { icon: 'folder', type: 'folder', color: 'var(--accent)' };
   }
 
   if (isVaultFile(name)) {
@@ -8443,49 +8532,50 @@ async function handlePaneDrop(e, targetPaneIndex, subfolderPath) {
       return;
     }
 
-    const fileCount = e.dataTransfer.files.length;
-    const formData = new FormData();
-    for (let f of e.dataTransfer.files) {
-      formData.append('files', f);
+    const fileArr = Array.from(e.dataTransfer.files);
+    const collisions = detectCollisions(fileArr, targetPane.entries || [], destPath);
+
+    if (collisions.length > 0) {
+      pendingConflictBatch = {
+        action: 'upload',
+        files: fileArr,
+        destination: destPath,
+        refreshTargetPaneIdx: targetPaneIndex,
+        sourcePaneIdx: targetPaneIndex,
+        collisions,
+        currentIndex: 0,
+        decisions: {},
+        uploadType: 'dnd'
+      };
+      renderCurrentConflictModal();
+      showModal('conflict-resolution-modal');
+      return;
     }
 
-    const pill = document.getElementById('tasks-pill');
-    const pillText = document.getElementById('tasks-pill-text');
-    if (pill && pillText) {
-      pill.classList.add('active');
-      pill.style.display = 'flex';
-      pillText.textContent = `Uploading ${fileCount} file(s)...`;
-    }
-
-    try {
-      const resp = await fetch(`/api/fs/upload?destination=${encodeURIComponent(destPath)}`, {
-        method: 'POST',
-        body: formData,
-        headers: { 'Authorization': `Bearer ${App.token}` }
-      });
-      if (resp.ok) {
-        showToast(`Uploaded ${fileCount} file(s) successfully!`, 'success');
-        refreshAllPanes();
-      } else {
-        showToast(`Upload failed: ${await resp.text()}`, 'error');
-      }
-    } catch (err) {
-      showToast(`Upload error: ${err}`, 'error');
-    } finally {
-      if (pill) {
-        pill.classList.remove('active');
-        pill.style.display = 'none';
-      }
-      pollTasks();
-    }
+    executeUploadWithDecisions({
+      files: fileArr,
+      destination: destPath,
+      refreshTargetPaneIdx: targetPaneIndex,
+      decisions: {}
+    });
     return;
   }
 
   // Inter-Pane Transfer
-  const rawData = e.dataTransfer.getData('text/plain');
+  let payloadObj = null;
+  const rawData = e.dataTransfer ? (e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain')) : '';
   if (rawData) {
     try {
-      const { sourcePane, paths } = JSON.parse(rawData);
+      payloadObj = JSON.parse(rawData);
+    } catch (_) {}
+  }
+  if (!payloadObj && window._activeDraggedPayload) {
+    payloadObj = window._activeDraggedPayload;
+  }
+
+  if (payloadObj) {
+    try {
+      const { sourcePane, paths } = payloadObj;
       if (!paths || paths.length === 0) return;
 
       const cleanDest = (destPath || '').replace(/[\\/]+$/, '').toLowerCase();
@@ -8723,7 +8813,284 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
   }
 }
 
-async function executeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx) {
+// ---------------- DESTINATION COLLISION & CONFLICT RESOLUTION ----------------
+
+let pendingConflictBatch = null;
+
+/**
+ * Detects filename collisions between incoming sources and destination pane entries.
+ */
+function detectCollisions(sources, destEntries, destPath) {
+  if (!sources || !destEntries || destEntries.length === 0) return [];
+
+  const destMap = new Map();
+  for (const entry of destEntries) {
+    if (entry && entry.name) {
+      destMap.set(entry.name.toLowerCase(), entry);
+    }
+  }
+
+  const collisions = [];
+  for (const src of sources) {
+    let srcName = '';
+    let srcSize = null;
+    let srcMtime = null;
+    let srcPath = null;
+    let srcFile = null;
+
+    if (typeof src === 'string') {
+      srcPath = src;
+      srcName = src.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || src;
+      for (const p of App.panes) {
+        if (p && p.entries) {
+          const match = p.entries.find(e => e.path === src || e.name === srcName);
+          if (match) {
+            srcSize = match.size;
+            srcMtime = match.mtime;
+            break;
+          }
+        }
+      }
+    } else if (src instanceof File) {
+      srcFile = src;
+      srcName = src.name;
+      srcSize = src.size;
+      srcMtime = src.lastModified ? Math.floor(src.lastModified / 1000) : null;
+    } else if (src && typeof src === 'object') {
+      srcName = src.name || '';
+      srcSize = src.size;
+      srcMtime = src.mtime;
+      srcPath = src.path;
+      srcFile = src.file || null;
+    }
+
+    if (srcName && destMap.has(srcName.toLowerCase())) {
+      const destEntry = destMap.get(srcName.toLowerCase());
+      collisions.push({
+        name: srcName,
+        srcPath,
+        srcFile,
+        srcSize,
+        srcMtime,
+        destItem: destEntry
+      });
+    }
+  }
+
+  return collisions;
+}
+
+/**
+ * Updates the Conflict Resolution Modal with current collision item metadata
+ */
+function renderCurrentConflictModal() {
+  if (!pendingConflictBatch || !pendingConflictBatch.collisions || pendingConflictBatch.collisions.length === 0) {
+    closeModal('conflict-resolution-modal');
+    return;
+  }
+
+  const idx = pendingConflictBatch.currentIndex;
+  const total = pendingConflictBatch.collisions.length;
+  const current = pendingConflictBatch.collisions[idx];
+  if (!current) {
+    closeModal('conflict-resolution-modal');
+    return;
+  }
+
+  const nameEl = document.getElementById('conflict-file-name');
+  const badgeEl = document.getElementById('conflict-counter-badge');
+  const srcSizeEl = document.getElementById('conflict-src-size');
+  const srcMtimeEl = document.getElementById('conflict-src-mtime');
+  const destSizeEl = document.getElementById('conflict-dest-size');
+  const destMtimeEl = document.getElementById('conflict-dest-mtime');
+  const remainingCountEl = document.getElementById('conflict-remaining-count');
+  const applyAllWrapper = document.getElementById('conflict-apply-all-wrapper');
+  const applyAllChk = document.getElementById('conflict-apply-all-chk');
+
+  if (nameEl) nameEl.textContent = current.name;
+  if (badgeEl) badgeEl.textContent = `${idx + 1} of ${total}`;
+
+  if (srcSizeEl) {
+    srcSizeEl.textContent = current.srcSize !== null && current.srcSize !== undefined ? formatBytes(current.srcSize) : 'Unknown';
+  }
+  if (srcMtimeEl) {
+    srcMtimeEl.textContent = current.srcMtime ? (typeof formatMtime === 'function' ? formatMtime(current.srcMtime) : new Date(current.srcMtime * 1000).toLocaleString()) : 'Unknown';
+  }
+
+  if (destSizeEl) {
+    destSizeEl.textContent = current.destItem && current.destItem.size !== undefined ? formatBytes(current.destItem.size) : 'Unknown';
+  }
+  if (destMtimeEl) {
+    destMtimeEl.textContent = current.destItem && current.destItem.mtime ? (typeof formatMtime === 'function' ? formatMtime(current.destItem.mtime) : new Date(current.destItem.mtime * 1000).toLocaleString()) : 'Unknown';
+  }
+
+  const remaining = total - idx - 1;
+  if (remainingCountEl) remainingCountEl.textContent = remaining;
+  if (applyAllWrapper) {
+    applyAllWrapper.style.display = total > 1 ? 'flex' : 'none';
+  }
+  if (applyAllChk) {
+    applyAllChk.checked = false;
+  }
+
+  if (window.lucide && typeof window.lucide.createIcons === 'function') {
+    window.lucide.createIcons();
+  }
+}
+
+/**
+ * Handle user's resolution decision on the current conflict item
+ */
+async function resolveConflictChoice(choice) {
+  if (!pendingConflictBatch) {
+    closeModal('conflict-resolution-modal');
+    return;
+  }
+
+  if (choice === 'cancel') {
+    closeModal('conflict-resolution-modal');
+    pendingConflictBatch = null;
+    showToast('Transfer cancelled', 'info');
+    return;
+  }
+
+  const applyAll = document.getElementById('conflict-apply-all-chk')?.checked;
+  const idx = pendingConflictBatch.currentIndex;
+  const total = pendingConflictBatch.collisions.length;
+
+  if (applyAll) {
+    for (let i = idx; i < total; i++) {
+      const col = pendingConflictBatch.collisions[i];
+      pendingConflictBatch.decisions[col.name.toLowerCase()] = choice;
+    }
+    pendingConflictBatch.currentIndex = total;
+  } else {
+    const col = pendingConflictBatch.collisions[idx];
+    if (col) {
+      pendingConflictBatch.decisions[col.name.toLowerCase()] = choice;
+    }
+    pendingConflictBatch.currentIndex++;
+  }
+
+  if (pendingConflictBatch.currentIndex < total) {
+    renderCurrentConflictModal();
+    return;
+  }
+
+  // All conflicts resolved!
+  closeModal('conflict-resolution-modal');
+  const batch = pendingConflictBatch;
+  pendingConflictBatch = null;
+
+  if (batch.uploadType === 'direct' || batch.uploadType === 'dnd') {
+    executeUploadWithDecisions(batch);
+  } else {
+    executeTransferWithDecisions(batch);
+  }
+}
+
+/**
+ * Executes a file transfer after all conflict decisions have been made
+ */
+async function executeTransferWithDecisions(batch) {
+  const { action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, decisions } = batch;
+  if (!sources || sources.length === 0) return;
+
+  const activeSources = [];
+  let hasRenames = false;
+
+  for (const src of sources) {
+    const name = typeof src === 'string' ? src.replace(/[\\/]+$/, '').split(/[\\/]/).pop() : (src.name || '');
+    const decision = decisions[name.toLowerCase()] || 'overwrite';
+    if (decision === 'skip') {
+      continue;
+    }
+    if (decision === 'rename') {
+      hasRenames = true;
+    }
+    activeSources.push(src);
+  }
+
+  if (activeSources.length === 0) {
+    showToast('All conflicting items were skipped. Nothing transferred.', 'info');
+    return;
+  }
+
+  const conflictMode = hasRenames ? 'rename' : 'overwrite';
+  await executeTransferDirect(action, activeSources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode);
+}
+
+/**
+ * Executes an upload batch after all conflict decisions have been made
+ */
+async function executeUploadWithDecisions(batch) {
+  const { files, destination, refreshTargetPaneIdx, decisions } = batch;
+  if (!files || files.length === 0) return;
+
+  const activeFiles = [];
+  let hasRenames = false;
+
+  for (const file of files) {
+    const name = file.name || '';
+    const decision = decisions[name.toLowerCase()] || 'overwrite';
+    if (decision === 'skip') {
+      continue;
+    }
+    if (decision === 'rename') {
+      hasRenames = true;
+    }
+    activeFiles.push(file);
+  }
+
+  if (activeFiles.length === 0) {
+    showToast('All conflicting upload items were skipped.', 'info');
+    return;
+  }
+
+  const conflictMode = hasRenames ? 'rename' : 'overwrite';
+  const paneIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx]) ? refreshTargetPaneIdx : App.activePaneIndex;
+  const endpoint = getPaneEndpoint(paneIdx);
+  const headers = getPaneAuthHeaders(paneIdx);
+
+  const formData = new FormData();
+  for (const f of activeFiles) {
+    formData.append('files', f);
+  }
+
+  const pill = document.getElementById('tasks-pill');
+  const pillText = document.getElementById('tasks-pill-text');
+  if (pill && pillText) {
+    pill.classList.add('active');
+    pill.style.display = 'flex';
+    pillText.textContent = `Uploading ${activeFiles.length} file(s)...`;
+  }
+
+  try {
+    const uploadUrl = `${endpoint}/api/fs/upload?destination=${encodeURIComponent(destination)}&conflict=${encodeURIComponent(conflictMode)}`;
+    const resp = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData,
+      headers: headers
+    });
+
+    if (resp.ok) {
+      showToast(`Uploaded ${activeFiles.length} file(s) successfully!`, 'success');
+      refreshAllPanes();
+    } else {
+      showToast(`Upload failed: ${await resp.text()}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Upload error: ${err.message || err}`, 'error');
+  } finally {
+    if (pill) {
+      pill.classList.remove('active');
+      pill.style.display = 'none';
+    }
+    if (typeof pollTasks === 'function') pollTasks();
+  }
+}
+
+async function executeTransferDirect(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode) {
   if (!sources || sources.length === 0) return;
   const srcIdx = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx]) ? sourcePaneIdx : App.activePaneIndex;
   const destIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx]) ? refreshTargetPaneIdx : (srcIdx + 1) % getVisiblePaneCount();
@@ -8748,7 +9115,12 @@ async function executeTransfer(action, sources, destination, refreshTargetPaneId
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: headers,
-      body: JSON.stringify({ sources, destination, paranoid: App.paranoidMode })
+      body: JSON.stringify({
+        sources,
+        destination,
+        paranoid: App.paranoidMode,
+        conflict_resolution: conflictMode || 'overwrite'
+      })
     });
 
     if (resp.ok) {
@@ -8780,6 +9152,40 @@ async function executeTransfer(action, sources, destination, refreshTargetPaneId
     showToast(`Transfer error: ${err.message || err}`, 'error');
     refreshAllPanes();
   }
+}
+
+async function executeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode) {
+  if (!sources || sources.length === 0) return;
+  if (conflictMode) {
+    return executeTransferDirect(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode);
+  }
+
+  const destIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx])
+    ? refreshTargetPaneIdx
+    : ((typeof sourcePaneIdx === 'number' ? sourcePaneIdx : App.activePaneIndex) + 1) % getVisiblePaneCount();
+
+  const destPane = App.panes[destIdx];
+  const destEntries = (destPane && destPane.entries && destPane.path === destination) ? destPane.entries : [];
+  const collisions = detectCollisions(sources, destEntries, destination);
+
+  if (collisions.length > 0) {
+    pendingConflictBatch = {
+      action,
+      sources,
+      destination,
+      refreshTargetPaneIdx: destIdx,
+      sourcePaneIdx: (typeof sourcePaneIdx === 'number') ? sourcePaneIdx : App.activePaneIndex,
+      collisions,
+      currentIndex: 0,
+      decisions: {},
+      uploadType: null
+    };
+    renderCurrentConflictModal();
+    showModal('conflict-resolution-modal');
+    return;
+  }
+
+  return executeTransferDirect(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, 'overwrite');
 }
 
 // ---------------- KEYBOARD NAVIGATION & SHORTCUTS ----------------
@@ -11515,6 +11921,7 @@ function initNoteDogEditorPasteAndDrop() {
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
       el.classList.add('dragover');
     });
 
@@ -14399,6 +14806,7 @@ function setupConverterDropzone(win) {
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
       if (dropzone) dropzone.classList.add('drag-over');
     });
 
@@ -15763,7 +16171,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
     </div>
     <div class="pane-dropdown-body" style="padding: 4px 0;">
       ${curPanePath.includes('://') ? `
-        <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); disconnectPaneRemote(${paneIndex});" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
+        <div class="dropdown-item" data-action="disconnect-remote" data-pane="${paneIndex}" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
           <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i>
           <div>
             <div style="font-weight: 700;">Disconnect Remote Connection</div>
@@ -15780,7 +16188,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
           const diskInfo = (window._systemDisks || []).find(it => it.mount_point.toUpperCase().startsWith(d.path.toUpperCase()));
           const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
           return `
-            <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, '${escapeHtml(d.path)}'); document.getElementById('pane-favorites-popup')?.remove();">
+            <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="${escapeHtml(d.path)}">
               <span style="font-size: 13px;">🪟</span>
               <div style="flex: 1; min-width: 0;">
                 <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -15803,7 +16211,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
         const isAct = curPanePath === r.path || (r.id === 'home' && curPanePath.startsWith(r.path));
         return `
-          <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, '${r.path}'); document.getElementById('pane-favorites-popup')?.remove();">
+          <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="${escapeHtml(r.path)}">
             <i data-lucide="${r.id === 'home' ? 'home' : (r.id === 'system-root' ? 'hard-drive' : 'server')}"></i>
             <div style="flex: 1; min-width: 0;">
               <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -15819,7 +16227,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
           </div>
         `;
       }).join('')}
-      <div class="dropdown-item ${isTrashDirectory(curPanePath) ? 'active' : ''}" onclick="loadPaneDirectory(${paneIndex}, 'trash://'); document.getElementById('pane-favorites-popup')?.remove();">
+      <div class="dropdown-item ${isTrashDirectory(curPanePath) ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="trash://">
         <i data-lucide="trash-2" style="color: ${trashSummary.total_items > 0 ? 'var(--accent)' : 'var(--text-dim)'};"></i>
         <div style="flex: 1; min-width: 0;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -15837,7 +16245,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         <span>Commander Fleet</span>
         <span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openFleetManagerModal();">Manage</span>
       </div>
-      <div class="dropdown-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); document.getElementById('pane-favorites-popup')?.remove();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+      <div class="dropdown-item ${currentNodeId === 'local' ? 'active' : ''}" data-action="switch-node" data-pane="${paneIndex}" data-node-id="local" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
           <span class="pane-node-dot" style="background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
           <div style="min-width: 0; flex: 1;">
@@ -15861,7 +16269,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         const latencyStr = typeof n.latency_ms === 'number' ? `${n.latency_ms} ms` : (n.status || 'unknown');
         const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
         return `
-          <div class="dropdown-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); document.getElementById('pane-favorites-popup')?.remove();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+          <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="switch-node" data-pane="${paneIndex}" data-node-id="${escapeHtml(n.id)}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
             <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
               <span class="pane-node-dot" style="background: ${dotColor}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
               <div style="min-width: 0; flex: 1;">
@@ -15887,7 +16295,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       ${userBookmarks.length > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Saved Bookmarks</div>
         ${userBookmarks.map(b => `
-          <div class="dropdown-item" onclick="navigateToBookmark('${encodeURIComponent(b.path)}', ${b.has_password}, '${b.protocol}'); document.getElementById('pane-favorites-popup')?.remove();">
+          <div class="dropdown-item" data-action="bookmark" data-bpath="${encodeURIComponent(b.path)}" data-bpass="${b.has_password}" data-bproto="${escapeHtml(b.protocol)}">
             <i data-lucide="${protoIcons[b.protocol] || 'bookmark'}" style="color: var(--accent);"></i>
             <div>
               <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -15907,7 +16315,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
           <span style="font-size: 9px; opacity: 0.8;">ADMIN</span>
         </div>
         ${globalMounts.map(m => `
-          <div class="dropdown-item" onclick="navigateToBookmark('${encodeURIComponent(m.target_uri)}', false, '${m.protocol}'); document.getElementById('pane-favorites-popup')?.remove();">
+          <div class="dropdown-item" data-action="bookmark" data-bpath="${encodeURIComponent(m.target_uri)}" data-bpass="false" data-bproto="${escapeHtml(m.protocol)}">
             <i data-lucide="${protoIcons[m.protocol] || 'network'}" style="color: var(--accent);"></i>
             <div>
               <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -15921,20 +16329,56 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : ''}
 
-      <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); addNewBookmark('${encodeURIComponent(curPanePath)}');" style="color: var(--accent);">
+      <div class="dropdown-item" data-action="add-bookmark" data-pane="${paneIndex}" data-path="${encodeURIComponent(curPanePath)}" style="color: var(--accent);">
         <i data-lucide="bookmark-plus"></i>
         <div style="font-weight: 600;">+ Bookmark Current Folder</div>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); openRemoteModal(${paneIndex});" style="color: var(--text-muted);">
+      <div class="dropdown-item" data-action="open-remote-modal" data-pane="${paneIndex}" style="color: var(--text-muted);">
         <i data-lucide="network"></i>
         <div style="font-weight: 500;">+ Connect Remote Storage (SFTP/SMB)...</div>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-favorites-popup')?.remove(); openFleetManagerModal();" style="color: var(--text-muted);">
+      <div class="dropdown-item" data-action="open-fleet-modal" style="color: var(--text-muted);">
         <i data-lucide="server"></i>
         <div style="font-weight: 500;">+ Manage Commander Fleet...</div>
       </div>
     </div>
   `;
+
+  popup.addEventListener('click', (ev) => {
+    const item = ev.target.closest('[data-action]');
+    if (!item) return;
+    const action = item.dataset.action;
+    const targetPath = item.dataset.path;
+    const targetPane = parseInt(item.dataset.pane || String(paneIndex), 10);
+
+    if (action === 'load-dir') {
+      loadPaneDirectory(targetPane, targetPath);
+      popup.remove();
+    } else if (action === 'switch-node') {
+      const nodeId = item.dataset.nodeId;
+      switchPaneNode(targetPane, nodeId);
+      popup.remove();
+    } else if (action === 'disconnect-remote') {
+      disconnectPaneRemote(targetPane);
+      popup.remove();
+    } else if (action === 'bookmark') {
+      const bPath = decodeURIComponent(item.dataset.bpath);
+      const bPass = item.dataset.bpass === 'true';
+      const bProto = item.dataset.bproto;
+      navigateToBookmark(bPath, bPass, bProto);
+      popup.remove();
+    } else if (action === 'add-bookmark') {
+      const rawPath = decodeURIComponent(item.dataset.path);
+      addNewBookmark(rawPath);
+      popup.remove();
+    } else if (action === 'open-remote-modal') {
+      openRemoteModal(targetPane);
+      popup.remove();
+    } else if (action === 'open-fleet-modal') {
+      openFleetManagerModal();
+      popup.remove();
+    }
+  });
 
   const favBtn = document.getElementById(`btn-favorites-${paneIndex}`);
   const toolsBtn = document.getElementById(`pane-tools-btn-${paneIndex}`);
@@ -16669,18 +17113,18 @@ function showContextMenu(x, y) {
   // Case B: Dedicated Folder Context Menu
   else if (isDir) {
     bodyHtml = `
-      <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, '${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="folder-open" style="width: 14px; color: var(--accent);"></i> Open Folder</div>
-      <div class="context-item" onclick="createPaneTab(${App.contextPaneIndex ?? App.activePaneIndex}, '${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="plus-square" style="width: 14px;"></i> Open in New Tab</div>
+      <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, App.contextItem?.path); hideContextMenu();"><i data-lucide="folder-open" style="width: 14px; color: var(--accent);"></i> Open Folder</div>
+      <div class="context-item" onclick="createPaneTab(${App.contextPaneIndex ?? App.activePaneIndex}, App.contextItem?.path); hideContextMenu();"><i data-lucide="plus-square" style="width: 14px;"></i> Open in New Tab</div>
       ${oppositeIdx !== null ? `
-        <div class="context-item" onclick="loadPaneDirectory(${oppositeIdx}, '${escapeHtml(App.contextItem?.path || '')}'); showToast('Opened in Pane ${oppositeIdx + 1}', 'info'); hideContextMenu();"><i data-lucide="columns-2" style="width: 14px;"></i> Open in Opposite Pane (Pane ${oppositeIdx + 1})</div>
+        <div class="context-item" onclick="loadPaneDirectory(${oppositeIdx}, App.contextItem?.path); showToast('Opened in Pane ${oppositeIdx + 1}', 'info'); hideContextMenu();"><i data-lucide="columns-2" style="width: 14px;"></i> Open in Opposite Pane (Pane ${oppositeIdx + 1})</div>
       ` : ''}
-      <div class="context-item" onclick="openTerminalInPath('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
-      <div class="context-item" onclick="openSearchModal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Search in Folder (Ctrl+F)</div>
+      <div class="context-item" onclick="openTerminalInPath(App.contextItem?.path); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
+      <div class="context-item" onclick="openSearchModal(App.contextItem?.path); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Search in Folder (Ctrl+F)</div>
       <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Folder / Guest Dropbox...</div>
       <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
-      <div class="context-item" onclick="openDiskUsageModal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
-      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem?.path || '')}', true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
-      <div class="context-item" onclick="addDirectoryToSoundDog('${escapeHtml(App.contextItem?.path || '')}', false); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add Folder to Queue</div>
+      <div class="context-item" onclick="openDiskUsageModal(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
+      <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
+      <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, false); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add Folder to Queue</div>
       <div class="context-item" onclick="toggleBranchView(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="git-branch" style="width: 14px; color: var(--accent);"></i> Flat / Branch View (Ctrl+B)</div>
       <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Download Folder (.zip)</div>
       <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
@@ -16773,16 +17217,16 @@ function showContextMenu(x, y) {
       ` : ''}
       <div class="context-item" onclick="triggerView(); hideContextMenu();"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
       <div class="context-item" onclick="triggerEditor(); hideContextMenu();"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
-      <div class="context-item" onclick="openHexEditor('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="binary" style="width: 14px; color: var(--accent);"></i> Open in Hex Editor...</div>
+      <div class="context-item" onclick="openHexEditor(App.contextItem?.path); hideContextMenu();"><i data-lucide="binary" style="width: 14px; color: var(--accent);"></i> Open in Hex Editor...</div>
       ${App.contextItem && isCadOr3dExtension(App.contextItem.name) ? `
-        <div class="context-item" onclick="openCadStudio('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><i data-lucide="box" style="width: 14px; color: var(--accent);"></i> Open in 3D CAD Studio</div>
+        <div class="context-item" onclick="openCadStudio(App.contextItem?.path); hideContextMenu();"><i data-lucide="box" style="width: 14px; color: var(--accent);"></i> Open in 3D CAD Studio</div>
       ` : ''}
       ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
-        <div class="context-item" onclick="openSoundDog('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in Audioplayer</div>
-        <div class="context-item" onclick="addTracksToSoundDogQueue(['${escapeHtml(App.contextItem.path)}']); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to Audioplayer Queue</div>
+        <div class="context-item" onclick="openSoundDog(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play in Audioplayer</div>
+        <div class="context-item" onclick="addTracksToSoundDogQueue([App.contextItem?.path]); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add to Audioplayer Queue</div>
       ` : ''}
       ${App.contextItem && App.contextItem.name.toLowerCase().endsWith('.pdf') ? `
-        <div class="context-item" onclick="openPdfToolModal('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> PDF Studio (Merge & Split)</div>
+        <div class="context-item" onclick="openPdfToolModal(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> PDF Studio (Merge & Split)</div>
       ` : ''}
       ${renderChewToyContextMenuItems(App.contextItem)}
       <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
@@ -16864,7 +17308,7 @@ function showContextMenu(x, y) {
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
         <div class="context-submenu">
           ${isStandaloneMode() ? `
-            <div class="context-item" onclick="openExternalTerminal('${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();"><i data-lucide="terminal" style="width: 13px; color: var(--accent);"></i> Open in External Terminal</div>
+            <div class="context-item" onclick="openExternalTerminal(App.contextItem?.path); hideContextMenu();"><i data-lucide="terminal" style="width: 13px; color: var(--accent);"></i> Open in External Terminal</div>
             <div class="context-sep"></div>
           ` : ''}
           <div class="context-item" onclick="openSearchModal(); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Advanced Search (Ctrl+F)</div>
@@ -16903,7 +17347,7 @@ function showContextMenu(x, y) {
 
       ${App.contextItem && isVaultFile(App.contextItem.name) ? `
         <div class="context-sep"></div>
-        <div class="context-item" onclick="handleVaultOpen('${escapeHtml(App.contextItem.path)}'); hideContextMenu();"><i data-lucide="key" style="width: 14px; color: var(--accent);"></i> Unlock / Open Vault...</div>
+        <div class="context-item" onclick="handleVaultOpen(App.contextItem?.path); hideContextMenu();"><i data-lucide="key" style="width: 14px; color: var(--accent);"></i> Unlock / Open Vault...</div>
         <div class="context-item" onclick="disconnectPaneRemote(App.activePaneIndex); hideContextMenu();"><i data-lucide="lock" style="width: 14px; color: var(--danger);"></i> Lock Vault</div>
       ` : ''}
     `;
@@ -17651,7 +18095,7 @@ async function triggerNewFile() {
   });
   if (!name || !name.trim()) return;
   const pane = App.panes[App.activePaneIndex];
-  const newFilePath = `${pane.path.replace(/\/$/, '')}/${name.trim()}`;
+  const newFilePath = joinItemPath(pane.path, name.trim());
 
   try {
     const resp = await fetch('/api/fs/write', {
@@ -19500,7 +19944,7 @@ function triggerMkdir() {
       }
       return;
     }
-    const newDir = `${pane.path.replace(/\/$/, '')}/${name}`;
+    const newDir = joinItemPath(pane.path, name);
     const authDir = resolveAuthUri(newDir);
     const endpoint = getPaneEndpoint(App.activePaneIndex);
     const headers = getPaneAuthHeaders(App.activePaneIndex, { 'Content-Type': 'application/json' });
@@ -19581,23 +20025,24 @@ function startInPlaceRename(targetPaneIdx, item) {
   const paneEl = document.getElementById(`pane-${targetPaneIdx}`);
   if (!paneEl) return false;
 
-  const escapedPath = (window.CSS && CSS.escape) ? CSS.escape(item.path) : item.path.replace(/(["\\])/g, '\\$1');
+  // Search for the element in table, grid, or compact view by dataset.path matching item.path
+  const allRows = paneEl.querySelectorAll('tr.file-row, .grid-gallery-card, .compact-list-item');
+  let targetRow = null;
+  for (const el of allRows) {
+    if (el.dataset.path === item.path) {
+      targetRow = el;
+      break;
+    }
+  }
 
-  // Search for the element in table, grid, or compact view
-  let targetRow = paneEl.querySelector(`tr.file-row[data-path="${escapedPath}"]`);
   let nameEl = null;
-
   if (targetRow) {
-    nameEl = targetRow.querySelector('.file-name-text');
-  } else {
-    const card = paneEl.querySelector(`.grid-gallery-card[data-path="${escapedPath}"]`);
-    if (card) {
-      nameEl = card.querySelector('.grid-gallery-title') || card.querySelector('div[title]');
-    } else {
-      const compact = paneEl.querySelector(`.compact-list-item[data-path="${escapedPath}"]`);
-      if (compact) {
-        nameEl = compact.querySelector('span:last-child');
-      }
+    if (targetRow.matches('tr.file-row')) {
+      nameEl = targetRow.querySelector('.file-name-text');
+    } else if (targetRow.matches('.grid-gallery-card')) {
+      nameEl = targetRow.querySelector('.grid-gallery-title') || targetRow.querySelector('div[title]');
+    } else if (targetRow.matches('.compact-list-item')) {
+      nameEl = targetRow.querySelector('span:last-child');
     }
   }
 
@@ -19634,7 +20079,8 @@ function startInPlaceRename(targetPaneIdx, item) {
     }
     committed = true;
 
-    const toPath = `${pane.path.replace(/\/$/, '')}/${newName}`;
+    const parentDir = getParentDirectory(item.path) || pane.path;
+    const toPath = joinItemPath(parentDir, newName);
 
     if (item.path && item.path.startsWith('client://')) {
       try {
@@ -19765,7 +20211,8 @@ function openRenameModal(targetPaneIdx, item) {
       closeModal('rename-modal');
       return;
     }
-    const toPath = `${pane.path.replace(/\/$/, '')}/${newName}`;
+    const parentDir = getParentDirectory(item.path) || pane.path;
+    const toPath = joinItemPath(parentDir, newName);
 
     closeModal('rename-modal');
 
@@ -20370,43 +20817,32 @@ async function handleDirectFileUpload(files) {
   if (!pane) return;
 
   const destPath = pane.path;
-  const fileCount = files.length;
-  const formData = new FormData();
-  
-  for (let i = 0; i < files.length; i++) {
-    formData.append('files', files[i]);
+  const fileArr = Array.from(files);
+  const collisions = detectCollisions(fileArr, pane.entries || [], destPath);
+
+  if (collisions.length > 0) {
+    pendingConflictBatch = {
+      action: 'upload',
+      files: fileArr,
+      destination: destPath,
+      refreshTargetPaneIdx: paneIdx,
+      sourcePaneIdx: paneIdx,
+      collisions,
+      currentIndex: 0,
+      decisions: {},
+      uploadType: 'direct'
+    };
+    renderCurrentConflictModal();
+    showModal('conflict-resolution-modal');
+    return;
   }
 
-  const endpoint = getPaneEndpoint(paneIdx);
-  const headers = getPaneAuthHeaders(paneIdx);
-
-  showToast(`Uploading ${fileCount} item(s) from device to ${pane.path}...`, 'info');
-
-  const pill = document.getElementById('tasks-pill');
-  const pillText = document.getElementById('tasks-pill-text');
-  if (pill && pillText) {
-    pill.style.display = 'flex';
-    pillText.textContent = `Uploading ${fileCount} file(s)...`;
-  }
-
-  try {
-    const resp = await fetch(`${endpoint}/api/fs/upload?destination=${encodeURIComponent(destPath)}`, {
-      method: 'POST',
-      body: formData,
-      headers: headers
-    });
-
-    if (resp.ok) {
-      showToast(`Uploaded ${fileCount} file(s) successfully!`, 'success');
-      refreshAllPanes();
-    } else {
-      showToast(`Upload failed: ${await resp.text()}`, 'error');
-    }
-  } catch (err) {
-    showToast(`Upload error: ${err}`, 'error');
-  } finally {
-    if (pill) pill.style.display = 'none';
-  }
+  executeUploadWithDecisions({
+    files: fileArr,
+    destination: destPath,
+    refreshTargetPaneIdx: paneIdx,
+    decisions: {}
+  });
 }
 
 function triggerDownloadCurrentDirectory(paneIndex) {
@@ -20647,6 +21083,7 @@ function setupSharesDropzone(customWin = null) {
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
       if (win) win.classList.add('drag-over');
     });
 
@@ -21243,7 +21680,7 @@ async function executeExtractArchive() {
 
   if (mode === 'subfolder') {
     const rawSubName = pendingExtractItem.name.replace(/(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|\.tar\.xz|\.7z|\.tar|\.cbz|\.epub)$/i, '');
-    targetDir = `${pane.path.replace(/\/$/, '')}/${rawSubName}`;
+    targetDir = joinItemPath(pane.path, rawSubName);
   } else if (mode === 'opposite') {
     const oppIdx = (App.activePaneIndex + 1) % getVisiblePaneCount();
     targetDir = App.panes[oppIdx].path;
@@ -22619,6 +23056,11 @@ function escapeHtml(str) {
   return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+function escapeJsStr(str) {
+  if (str === null || str === undefined) return "''";
+  return JSON.stringify(String(str)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
 function toggleFKeyBar(show) {
   App.showFKeyBar = !!show;
   localStorage.setItem('cd_show_fkeys', show ? 'true' : 'false');
@@ -23142,10 +23584,10 @@ async function loadAdminGlobalMounts() {
             </td>
             <td class="admin-user-cell" style="text-align: center;">
               <div style="display: flex; gap: 6px; justify-content: center;">
-                <button class="btn" style="padding: 5px 10px; font-size: 11px;" onclick="loadPaneDirectory(App.activePaneIndex, '${escapeHtml(m.target_uri)}'); closeModal('admin-panel-modal');" title="Open in active panel">
+                <button class="btn" style="padding: 5px 10px; font-size: 11px;" onclick="loadPaneDirectory(App.activePaneIndex, ${escapeJsStr(m.target_uri)}); closeModal('admin-panel-modal');" title="Open in active panel">
                   <i data-lucide="folder-open" style="width: 12px;"></i> Open
                 </button>
-                <button class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="deleteGlobalMount(${m.id}, '${escapeHtml(m.name)}')" title="Delete Mount">
+                <button class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="deleteGlobalMount(${m.id}, ${escapeJsStr(m.name)})" title="Delete Mount">
                   <i data-lucide="trash-2" style="width: 12px;"></i>
                 </button>
               </div>
@@ -24426,6 +24868,37 @@ function applyTaskWindowHeight(h) {
   if (logCont) logCont.style.maxHeight = `${internalHeight}px`;
 }
 
+function joinItemPath(parentPath, childName) {
+  if (!parentPath) return childName || '';
+  if (!childName) return parentPath;
+
+  const childClean = String(childName).replace(/^[\\/]+/, '').replace(/[\\/]+$/, '');
+
+  // Custom and remote protocol URIs (e.g. sftp://, smb://, client://)
+  if (parentPath.includes('://')) {
+    const cleanParent = parentPath.replace(/\/+$/, '');
+    return `${cleanParent}/${childClean}`;
+  }
+
+  // Windows file paths (drive letters C:\... or UNC \\server\share)
+  const isWindows = /^[a-zA-Z]:[\\/]/.test(parentPath) || /^[a-zA-Z]:$/.test(parentPath) || parentPath.includes('\\');
+  if (isWindows) {
+    const winParent = parentPath.replace(/\//g, '\\');
+    if (/^[a-zA-Z]:\\?$/.test(winParent)) {
+      return `${winParent.substring(0, 2)}\\${childClean}`;
+    }
+    const cleanParent = winParent.replace(/\\+$/, '');
+    return `${cleanParent}\\${childClean}`;
+  }
+
+  // Unix / POSIX paths
+  if (parentPath === '/') {
+    return `/${childClean}`;
+  }
+  const cleanParent = parentPath.replace(/\/+$/, '');
+  return `${cleanParent}/${childClean}`;
+}
+
 function sanitizeCredentials(str) {
   if (!str) return '';
   return String(str)
@@ -25428,7 +25901,7 @@ async function imageViewerRenameCurrent() {
       closeModal('rename-modal');
       return;
     }
-    const toPath = `${parentDir.replace(/\/$/, '')}/${newName}`;
+    const toPath = joinItemPath(parentDir, newName);
     closeModal('rename-modal');
 
     try {
@@ -26444,7 +26917,7 @@ async function docViewerRenameCurrent() {
       closeModal('rename-modal');
       return;
     }
-    const toPath = `${parentDir.replace(/\/$/, '')}/${newName}`;
+    const toPath = joinItemPath(parentDir, newName);
     closeModal('rename-modal');
 
     try {
@@ -29399,6 +29872,7 @@ function setupDiskUsageDropzone(customWin = null) {
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
       if (win) win.classList.add('drag-over');
     });
 
@@ -33564,6 +34038,7 @@ function setupSplitterDropzone(customWin = null) {
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
       if (dropzone) dropzone.classList.add('drag-over');
       if (win) win.classList.add('drag-over');
     });
@@ -34567,6 +35042,7 @@ function setupPdfDropzone(customWin = null) {
     el.addEventListener('dragover', (e) => {
       e.preventDefault();
       e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
       if (win) win.classList.add('drag-over');
       if (mergeList) mergeList.classList.add('drag-over');
       if (splitDropzone) splitDropzone.classList.add('drag-over');
@@ -37719,6 +38195,7 @@ function initSoundDogDragAndResize() {
   container.addEventListener('dragover', (e) => {
     e.preventDefault();
     e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
     container.classList.add('drag-over');
   });
 
@@ -40253,6 +40730,7 @@ function filterInstalledChewToys(query) {
 function handleChewToyDragOver(e) {
   e.preventDefault();
   e.stopPropagation();
+  e.dataTransfer.dropEffect = 'copy';
   const dropzone = document.getElementById('chewtoy-dropzone');
   if (dropzone) dropzone.classList.add('dragover');
 }
@@ -44615,8 +45093,14 @@ async function loadCadModel(filePath) {
 
 function isTrashDirectory(path) {
   if (!path || typeof path !== 'string') return false;
-  const p = path.toLowerCase();
+  const p = path.toLowerCase().trim();
   return p === 'trash://' ||
+         p === 'trash:' ||
+         p === 'trash' ||
+         p === 'recycle bin' ||
+         p === 'recyclebin' ||
+         p === 'recycle_bin' ||
+         p === 'shell:recyclebinfolder' ||
          p.includes('/.local/share/trash') ||
          p.includes('\\.local\\share\\trash') ||
          p.includes('/tmp/brum_trash') ||

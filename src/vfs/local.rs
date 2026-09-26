@@ -132,12 +132,22 @@ pub fn clear_readonly_attribute(_path: &Path) {}
 /// Move file or directory to Windows Recycle Bin using native Win32 Shell API
 #[cfg(windows)]
 pub fn windows_native_trash(path: &Path) -> Result<(), std::io::Error> {
-    let mut wide_path: Vec<u16> = path.as_os_str().encode_wide().collect();
+    let path_str = path.to_string_lossy();
+    let stripped = if let Some(s) = path_str.strip_prefix(r"\\?\UNC\") {
+        format!(r"\\{}", s)
+    } else if let Some(s) = path_str.strip_prefix(r"\\?\") {
+        s.to_string()
+    } else {
+        path_str.to_string()
+    };
+    let clean_win_path = stripped.replace('/', "\\");
+
+    let mut wide_path: Vec<u16> = std::ffi::OsStr::new(&clean_win_path).encode_wide().collect();
     wide_path.push(0);
     wide_path.push(0); // SHFileOperationW requires double null termination
 
     let mut file_op = SHFILEOPSTRUCTW {
-        hwnd: 0 as _,
+        hwnd: std::ptr::null_mut(),
         wFunc: FO_DELETE,
         pFrom: wide_path.as_ptr(),
         pTo: std::ptr::null(),
@@ -153,7 +163,7 @@ pub fn windows_native_trash(path: &Path) -> Result<(), std::io::Error> {
     } else {
         Err(std::io::Error::new(
             std::io::ErrorKind::Other,
-            format!("Windows Recycle Bin error code: {}", res),
+            format!("Windows Recycle Bin error code: 0x{:X}", res),
         ))
     }
 }
@@ -163,6 +173,48 @@ pub fn windows_native_trash(_path: &Path) -> Result<(), std::io::Error> {
     Err(std::io::Error::new(
         std::io::ErrorKind::Unsupported,
         "Windows Recycle Bin is only supported on Windows",
+    ))
+}
+
+/// Native Windows file rename / move via Win32 MoveFileExW
+#[cfg(windows)]
+pub fn windows_native_rename(from: &Path, to: &Path) -> Result<(), std::io::Error> {
+    use std::os::windows::ffi::OsStrExt;
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_COPY_ALLOWED, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    let wide_from: Vec<u16> = from.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+    let wide_to: Vec<u16> = to.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+
+    let mut res = unsafe {
+        MoveFileExW(
+            wide_from.as_ptr(),
+            wide_to.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if res == 0 {
+        res = unsafe {
+            MoveFileExW(
+                wide_from.as_ptr(),
+                wide_to.as_ptr(),
+                MOVEFILE_COPY_ALLOWED | MOVEFILE_WRITE_THROUGH,
+            )
+        };
+    }
+    if res != 0 {
+        Ok(())
+    } else {
+        Err(std::io::Error::last_os_error())
+    }
+}
+
+#[cfg(not(windows))]
+pub fn windows_native_rename(_from: &Path, _to: &Path) -> Result<(), std::io::Error> {
+    Err(std::io::Error::new(
+        std::io::ErrorKind::Unsupported,
+        "Windows native rename is only supported on Windows",
     ))
 }
 
@@ -348,11 +400,18 @@ impl LocalFs {
                 &expanded
             };
 
+            let mut normalized = without_lead_slash.replace('/', "\\");
+
             // If path is just drive letter e.g. "C:" or "c:", ensure trailing slash "C:\"
-            let final_path = if without_lead_slash.len() == 2 && without_lead_slash.as_bytes()[1] == b':' {
-                format!(r"{}\", without_lead_slash)
+            let final_path = if normalized.len() == 2 && normalized.as_bytes()[1] == b':' {
+                format!(r"{}\", normalized)
+            } else if normalized.len() == 3 && normalized.as_bytes()[1] == b':' && normalized.as_bytes()[2] == b'\\' {
+                normalized
             } else {
-                without_lead_slash.to_string()
+                while normalized.len() > 3 && normalized.ends_with('\\') {
+                    normalized.pop();
+                }
+                normalized
             };
 
             clean_path_buf(&PathBuf::from(final_path))
@@ -835,9 +894,33 @@ impl LocalFs {
     ) -> Result<(), std::io::Error> {
         let from_p = Self::resolve_local_path(from_str);
         let to_p = Self::resolve_local_path(to_str);
+
+        if !from_p.exists() && !from_p.is_symlink() {
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Source file/folder not found: '{}'", from_p.display()),
+            ));
+        }
+
+        // Ensure parent directory of destination exists
+        if let Some(parent) = to_p.parent() {
+            if !parent.exists() {
+                let _ = fs::create_dir_all(parent);
+            }
+        }
+
         match fs::rename(&from_p, &to_p) {
             Ok(()) => Ok(()),
             Err(e) => {
+                #[cfg(windows)]
+                {
+                    if _use_native_ops {
+                        if let Ok(()) = windows_native_rename(&from_p, &to_p) {
+                            return Ok(());
+                        }
+                    }
+                }
+
                 if detect_locks {
                     let locks = get_locking_processes(&from_p);
                     if !locks.is_empty() {
@@ -851,6 +934,14 @@ impl LocalFs {
                         ));
                     }
                 }
+
+                // Cross-device move fallback (EXDEV = 18 on Linux, ERROR_NOT_SAME_DEVICE = 17 on Windows)
+                if e.kind() == std::io::ErrorKind::CrossesDevices || e.raw_os_error() == Some(17) || e.raw_os_error() == Some(18) {
+                    if let Ok(()) = Self::move_entry_recursive(&from_p, &to_p) {
+                        return Ok(());
+                    }
+                }
+
                 Err(e)
             }
         }
