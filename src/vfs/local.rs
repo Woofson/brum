@@ -1,5 +1,4 @@
 use super::{is_archive_file, DirectoryListing, FileContentResponse, FileEntry};
-use crate::vfs::checksum::calculate_sha256;
 #[cfg(unix)]
 use std::collections::HashMap;
 use std::fs::{self, File};
@@ -1176,7 +1175,95 @@ impl LocalFs {
         }
     }
 
+    pub fn copy_single_file_streaming<F>(
+        src_path: &Path,
+        dest_path: &Path,
+        verify: bool,
+        mut on_progress: F,
+    ) -> Result<Option<String>, std::io::Error>
+    where
+        F: FnMut(u64, u64, u64) -> Result<(), std::io::Error>,
+    {
+        use sha2::{Digest, Sha256};
+
+        let target_buf;
+        let dest_file_path = if dest_path.is_dir() {
+            target_buf = dest_path.join(src_path.file_name().unwrap_or_default());
+            &target_buf
+        } else {
+            dest_path
+        };
+
+        let mut src_file = File::open(src_path)?;
+        let metadata = src_file.metadata()?;
+        let total_file_bytes = metadata.len();
+
+        if let Some(p) = dest_file_path.parent() {
+            fs::create_dir_all(p)?;
+        }
+
+        let mut dest_file = File::create(dest_file_path)?;
+
+        let mut buffer = vec![0u8; 256 * 1024]; // 256 KB chunk
+        let mut bytes_copied = 0u64;
+
+        let mut hasher = if verify { Some(Sha256::new()) } else { None };
+
+        loop {
+            let n = src_file.read(&mut buffer)?;
+            if n == 0 {
+                break;
+            }
+            dest_file.write_all(&buffer[..n])?;
+            bytes_copied += n as u64;
+
+            if let Some(ref mut h) = hasher {
+                h.update(&buffer[..n]);
+            }
+
+            on_progress(n as u64, bytes_copied, total_file_bytes)?;
+        }
+
+        dest_file.flush()?;
+
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            let perm = metadata.permissions().mode();
+            let _ = fs::set_permissions(dest_file_path, fs::Permissions::from_mode(perm));
+        }
+
+        if let (Ok(atime), Ok(mtime)) = (metadata.accessed(), metadata.modified()) {
+            let _ = filetime::set_file_times(
+                dest_file_path,
+                filetime::FileTime::from_system_time(atime),
+                filetime::FileTime::from_system_time(mtime),
+            );
+        }
+
+        let verified_hash = if let Some(h) = hasher {
+            let result = h.finalize();
+            Some(hex::encode(result))
+        } else {
+            None
+        };
+
+        Ok(verified_hash)
+    }
+
     pub fn copy_file_paranoid(src_str: &str, dest_str: &str, verify: bool) -> Result<(), std::io::Error> {
+        Self::copy_file_paranoid_with_progress(src_str, dest_str, verify, |_, _, _, _| Ok(()))
+    }
+
+    pub fn copy_file_paranoid_with_progress<F>(
+        src_str: &str,
+        dest_str: &str,
+        verify: bool,
+        mut on_progress: F,
+    ) -> Result<(), std::io::Error>
+    where
+        F: FnMut(&Path, u64, u64, u64) -> Result<(), std::io::Error>,
+    {
         let src_path = Path::new(src_str);
         let dest_path = Path::new(dest_str);
 
@@ -1222,28 +1309,13 @@ impl LocalFs {
                 }
             }
 
-            // Snapshot existing directory entries before creating any new folders in dest
-            let entries: Vec<walkdir::DirEntry> = walkdir::WalkDir::new(src_path)
-                .into_iter()
-                .filter_entry(|e| {
-                    if let Some(ref cd) = can_dest {
-                        if let Ok(can_e) = e.path().canonicalize() {
-                            if can_e == *cd || can_e.starts_with(cd) {
-                                return false;
-                            }
-                        }
-                    }
-                    true
-                })
-                .filter_map(|e| e.ok())
-                .collect();
-
             fs::create_dir_all(dest_path)?;
 
-            for entry in entries {
-                let rel = entry.path().strip_prefix(src_path).map_err(|e| {
-                    std::io::Error::new(std::io::ErrorKind::Other, e)
-                })?;
+            for entry in walkdir::WalkDir::new(src_path).into_iter().filter_map(|e| e.ok()) {
+                let rel = match entry.path().strip_prefix(src_path) {
+                    Ok(r) => r,
+                    Err(_) => continue,
+                };
 
                 if rel.as_os_str().is_empty() {
                     continue;
@@ -1251,39 +1323,29 @@ impl LocalFs {
 
                 let target = dest_path.join(rel);
 
-                if entry.file_type().is_dir() {
+                if entry.path().is_dir() {
                     fs::create_dir_all(&target)?;
-                } else if entry.file_type().is_file() {
+                } else if entry.path().is_file() {
                     if let Some(p) = target.parent() {
                         fs::create_dir_all(p)?;
                     }
-                    fs::copy(entry.path(), &target)?;
-                    if verify {
-                        let hash_src = calculate_sha256(entry.path())?;
-                        let hash_dest = calculate_sha256(&target)?;
-                        if hash_src != hash_dest {
-                            return Err(std::io::Error::new(
-                                std::io::ErrorKind::Other,
-                                format!("Integrity check failed for {}", target.display()),
-                            ));
-                        }
-                    }
+                    Self::copy_single_file_streaming(entry.path(), &target, verify, |chunk, cur_bytes, cur_total| {
+                        on_progress(entry.path(), chunk, cur_bytes, cur_total)
+                    })?;
                 }
             }
             Ok(())
         } else {
-            fs::copy(src_path, dest_path)?;
-            if verify {
-                let hash_src = calculate_sha256(src_path)?;
-                let hash_dest = calculate_sha256(dest_path)?;
-                if hash_src != hash_dest {
-                    let _ = fs::remove_file(dest_path);
-                    return Err(std::io::Error::new(
-                        std::io::ErrorKind::Other,
-                        format!("Paranoid verify failed: Hash mismatch for {}", dest_str),
-                    ));
-                }
-            }
+            let actual_dest_buf;
+            let actual_dest = if dest_path.is_dir() {
+                actual_dest_buf = dest_path.join(src_path.file_name().unwrap_or_default());
+                &actual_dest_buf
+            } else {
+                dest_path
+            };
+            Self::copy_single_file_streaming(src_path, actual_dest, verify, |chunk, cur_bytes, cur_total| {
+                on_progress(src_path, chunk, cur_bytes, cur_total)
+            })?;
             Ok(())
         }
     }
@@ -1332,6 +1394,26 @@ mod tests {
         assert!(dest_dir.join("test.txt").exists());
         let content = fs::read_to_string(dest_dir.join("test.txt")).unwrap();
         assert_eq!(content, "verifiable data");
+    }
+
+    #[test]
+    fn test_copy_file_paranoid_file_to_directory_destination() {
+        let tmp = tempdir().unwrap();
+        let src_file = tmp.path().join("single_file.txt");
+        let dest_dir = tmp.path().join("target_dir");
+        fs::create_dir_all(&dest_dir).unwrap();
+        fs::write(&src_file, "single file data").unwrap();
+
+        let res = LocalFs::copy_file_paranoid(
+            &src_file.to_string_lossy(),
+            &dest_dir.to_string_lossy(),
+            true,
+        );
+
+        assert!(res.is_ok(), "Copying a single file into a directory destination path should succeed");
+        let target_file = dest_dir.join("single_file.txt");
+        assert!(target_file.exists());
+        assert_eq!(fs::read_to_string(target_file).unwrap(), "single file data");
     }
 
     #[test]

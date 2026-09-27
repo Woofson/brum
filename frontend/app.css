@@ -3905,9 +3905,9 @@ html.fkeys-disabled .bottom-fkey-bar,
   right: 16px;
   background: var(--bg-header);
   border: 1px solid var(--accent);
-  padding: 6px 12px;
+  padding: 6px 14px;
   border-radius: 20px;
-  box-shadow: var(--shadow);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
   display: none;
   align-items: center;
   gap: 8px;
@@ -3915,6 +3915,8 @@ html.fkeys-disabled .bottom-fkey-bar,
   color: var(--accent);
   cursor: pointer;
   z-index: 600;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
 }
 
 .tasks-pill.active {
@@ -8038,17 +8040,17 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
-  gap: 6px !important;
+  gap: 5px !important;
   position: relative;
   font-weight: 600;
   font-size: 11px;
-  padding: 0 9px !important;
+  padding: 0 8px !important;
   width: auto !important;
-  min-width: 52px !important;
+  min-width: 48px !important;
   height: 32px !important;
   min-height: 32px !important;
   border-radius: var(--radius);
-  transition: all 0.15s ease;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
   box-sizing: border-box;
 }
 
@@ -8072,25 +8074,29 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 .header-task-btn.has-running #header-task-icon,
-.header-task-btn.has-running img,
-.header-task-btn.has-running svg,
-.header-task-btn.has-running i {
-  color: var(--accent) !important;
-  animation: pulseDot 1.2s infinite;
+.header-task-btn.has-running img {
+  filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.4));
+}
+
+.header-task-btn.has-failed {
+  background: rgba(239, 68, 68, 0.18);
+  border-color: rgba(239, 68, 68, 0.45);
+  color: #ef4444;
 }
 
 .header-task-badge {
   background: var(--bg-dark);
   color: var(--text-muted);
   border: 1px solid var(--border);
-  padding: 0 4px;
+  padding: 0 5px;
   border-radius: 8px;
   font-size: 9.5px;
   font-weight: 700;
   font-family: var(--font-mono);
-  min-width: 15px;
+  font-variant-numeric: tabular-nums;
+  min-width: 16px;
   text-align: center;
-  line-height: 14px;
+  line-height: 15px;
   display: inline-block;
 }
 
@@ -8100,12 +8106,14 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   border-color: var(--accent);
 }
 
+.header-task-btn.has-failed .header-task-badge {
+  background: #ef4444;
+  color: #fff;
+  border-color: #ef4444;
+}
+
 .header-task-speed {
-  font-size: 9.5px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  color: var(--accent);
-  margin-left: 2px;
+  display: none !important;
 }
 
 /* ========================================================
@@ -8147,50 +8155,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   animation: taskSlideUp 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* 2D Resize Handles for Desktop */
-.task-win-resize-handle {
-  width: 100%;
-  height: 8px;
-  background: #1e2128;
-  cursor: ns-resize;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  user-select: none;
-  touch-action: none;
-  transition: background 0.15s ease;
-}
-
-.task-win-resize-handle:hover,
-.task-win-resize-handle.dragging {
-  background: var(--accent);
-}
-
-.resize-handle-bar {
-  width: 36px;
-  height: 3px;
-  background: rgba(255, 255, 255, 0.3);
-  border-radius: 2px;
-}
-
-.task-win-resize-left {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  width: 6px;
-  cursor: ew-resize;
-  z-index: 12;
-  user-select: none;
-  touch-action: none;
-}
-
-.task-win-resize-left:hover,
-.task-win-resize-left.dragging {
-  background: var(--accent);
-}
-
+/* Desktop 2D Corner Resize Pull-Handles */
 .task-win-resize-corner {
   position: absolute;
   top: 0;
@@ -8198,16 +8163,39 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   width: 14px;
   height: 14px;
   cursor: nwse-resize;
-  z-index: 15;
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: center;
   user-select: none;
   touch-action: none;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background 0.15s ease;
+}
+
+.task-win-resize-corner-br {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  cursor: nwse-resize;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: flex-end;
+  padding: 2px;
+  user-select: none;
+  touch-action: none;
+  opacity: 0.6;
+  transition: opacity 0.15s ease, background 0.15s ease;
 }
 
 .task-win-resize-corner:hover,
-.task-win-resize-corner.dragging {
+.task-win-resize-corner.dragging,
+.task-win-resize-corner-br:hover,
+.task-win-resize-corner-br.dragging {
+  opacity: 1;
   background: var(--accent);
   border-radius: 2px;
 }
@@ -8420,9 +8408,8 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
     border-radius: 3px;
   }
 
-  .task-win-resize-handle,
-  .task-win-resize-left,
-  .task-win-resize-corner {
+  .task-win-resize-corner,
+  .task-win-resize-corner-br {
     display: none !important;
   }
 
@@ -8505,12 +8492,40 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 .task-progress-meta {
-  display: flex;
-  justify-content: space-between;
+  display: grid;
+  grid-template-columns: minmax(110px, 1fr) 52px minmax(130px, 1fr) minmax(80px, auto);
   align-items: center;
+  gap: 8px;
   font-size: 11px;
   color: var(--text-muted);
   margin-bottom: 5px;
+  font-family: var(--font-mono);
+}
+
+.task-progress-meta > span:nth-child(1) {
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-progress-meta > span:nth-child(2) {
+  text-align: center;
+  font-weight: 700;
+  color: var(--text-main);
+  font-variant-numeric: tabular-nums;
+}
+
+.task-progress-meta > span:nth-child(3) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.task-progress-meta > span:nth-child(4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .task-progress-bar-track {
@@ -8699,7 +8714,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   height: 6px;
   border-radius: 50%;
   background: var(--accent);
-  animation: pulseDot 1.2s infinite;
+  flex-shrink: 0;
 }
 
 .tasks-pill-speed {
@@ -8707,8 +8722,12 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   font-weight: 700;
   font-size: 10px;
   background: rgba(245, 158, 11, 0.25);
-  padding: 1px 5px;
-  border-radius: 3px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-variant-numeric: tabular-nums;
+  min-width: 62px;
+  text-align: center;
+  display: inline-block;
 }
 
 /* ==========================================================================
@@ -10793,9 +10812,8 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 
   /* Hide 2D window resize handles on touch devices */
   .win-resize-handle,
-  .task-win-resize-handle,
-  .task-win-resize-left,
-  .task-win-resize-corner {
+  .task-win-resize-corner,
+  .task-win-resize-corner-br {
     display: none !important;
   }
 

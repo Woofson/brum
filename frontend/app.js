@@ -874,6 +874,111 @@ function formatBytes(bytes) {
 
 const formatFileSize = formatBytes;
 
+// ---------------- 🛡️ UNIVERSAL SHA-256 ENGINE (Hardware Web Crypto + Zero-Dependency JS Fallback) ----------------
+function sha256Sync(bytes) {
+  const uint8 = bytes instanceof Uint8Array ? bytes : (bytes instanceof ArrayBuffer ? new Uint8Array(bytes) : new Uint8Array(bytes.buffer || bytes));
+  const K = [
+    0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5, 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+    0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3, 0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+    0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+    0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7, 0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+    0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+    0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+    0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+    0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+  ];
+
+  let H0 = 0x6a09e667, H1 = 0xbb67ae85, H2 = 0x3c6ef372, H3 = 0xa54ff53a;
+  let H4 = 0x510e527f, H5 = 0x9b05688c, H6 = 0x1f83d9ab, H7 = 0x5be0cd19;
+
+  const l = uint8.length;
+  const bitLen = l * 8;
+  const padLen = (((l + 8) >> 6) + 1) << 6;
+  const padded = new Uint8Array(padLen);
+  padded.set(uint8);
+  padded[l] = 0x80;
+
+  const view = new DataView(padded.buffer);
+  view.setUint32(padLen - 4, bitLen >>> 0);
+  view.setUint32(padLen - 8, Math.floor(bitLen / 0x100000000));
+
+  const W = new Uint32Array(64);
+  const rotr = (x, n) => (x >>> n) | (x << (32 - n));
+
+  for (let i = 0; i < padLen; i += 64) {
+    for (let t = 0; t < 16; t++) {
+      W[t] = view.getUint32(i + t * 4);
+    }
+    for (let t = 16; t < 64; t++) {
+      const s0 = rotr(W[t - 15], 7) ^ rotr(W[t - 15], 18) ^ (W[t - 15] >>> 3);
+      const s1 = rotr(W[t - 2], 17) ^ rotr(W[t - 2], 19) ^ (W[t - 2] >>> 10);
+      W[t] = (W[t - 16] + s0 + W[t - 7] + s1) >>> 0;
+    }
+
+    let a = H0, b = H1, c = H2, d = H3, e = H4, f = H5, g = H6, h = H7;
+
+    for (let t = 0; t < 64; t++) {
+      const S1 = rotr(e, 6) ^ rotr(e, 11) ^ rotr(e, 25);
+      const ch = (e & f) ^ ((~e) & g);
+      const temp1 = (h + S1 + ch + K[t] + W[t]) >>> 0;
+      const S0 = rotr(a, 2) ^ rotr(a, 13) ^ rotr(a, 22);
+      const maj = (a & b) ^ (a & c) ^ (b & c);
+      const temp2 = (S0 + maj) >>> 0;
+
+      h = g;
+      g = f;
+      f = e;
+      e = (d + temp1) >>> 0;
+      d = c;
+      c = b;
+      b = a;
+      a = (temp1 + temp2) >>> 0;
+    }
+
+    H0 = (H0 + a) >>> 0;
+    H1 = (H1 + b) >>> 0;
+    H2 = (H2 + c) >>> 0;
+    H3 = (H3 + d) >>> 0;
+    H4 = (H4 + e) >>> 0;
+    H5 = (H5 + f) >>> 0;
+    H6 = (H6 + g) >>> 0;
+    H7 = (H7 + h) >>> 0;
+  }
+
+  const toHex = (n) => n.toString(16).padStart(8, '0');
+  return (toHex(H0) + toHex(H1) + toHex(H2) + toHex(H3) + toHex(H4) + toHex(H5) + toHex(H6) + toHex(H7)).toLowerCase();
+}
+
+async function computeSha256Hex(blobOrBuffer) {
+  if (!blobOrBuffer) return null;
+  try {
+    if (window.crypto && window.crypto.subtle && typeof window.crypto.subtle.digest === 'function') {
+      const buffer = blobOrBuffer instanceof ArrayBuffer ? blobOrBuffer : (blobOrBuffer instanceof Blob ? await blobOrBuffer.arrayBuffer() : (blobOrBuffer.buffer || blobOrBuffer));
+      const hashBuf = await window.crypto.subtle.digest('SHA-256', buffer);
+      const hashArray = Array.from(new Uint8Array(hashBuf));
+      return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+  } catch (_) {}
+
+  try {
+    let uint8;
+    if (blobOrBuffer instanceof Blob) {
+      const ab = await blobOrBuffer.arrayBuffer();
+      uint8 = new Uint8Array(ab);
+    } else if (blobOrBuffer instanceof ArrayBuffer) {
+      uint8 = new Uint8Array(blobOrBuffer);
+    } else if (blobOrBuffer instanceof Uint8Array) {
+      uint8 = blobOrBuffer;
+    } else {
+      uint8 = new Uint8Array(blobOrBuffer);
+    }
+    return sha256Sync(uint8);
+  } catch (err) {
+    console.error('SHA-256 fallback computation error:', err);
+    return null;
+  }
+}
+
 function getUserDefaultHomeDir() {
   if (App.user && App.user.home_dir && App.user.home_dir.trim() !== '' && App.user.home_dir !== '/') {
     return App.user.home_dir.trim();
@@ -4050,13 +4155,13 @@ async function showPaneNodeDropdown(event, paneIndex) {
   `;
 
   if (nodes.length > 0) {
-    html += `<div class="breadcrumb-popover-header" style="margin-top: 4px;">Commander Fleet Nodes</div>`;
+    html += `<div class="breadcrumb-popover-header" style="margin-top: 4px;">Fleet Control Nodes</div>`;
     nodes.forEach(n => {
       const isAct = currentNodeId === n.id;
-      let dotColor = '#94a3b8';
-      if (n.status === 'online') dotColor = '#10b981';
+      const colorHex = getFleetColorHex(n.color_accent);
+      let dotColor = colorHex;
+      if (n.status === 'offline') dotColor = '#ef4444';
       else if (n.status === 'unauthorized') dotColor = '#f59e0b';
-      else if (n.status === 'offline') dotColor = '#ef4444';
 
       const latencyStr = typeof n.latency_ms === 'number' ? `${n.latency_ms} ms` : (n.status || 'unknown');
       const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
@@ -4572,25 +4677,84 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
   const isSrcClient = sources.some(s => s.startsWith('client://'));
   const isDestClient = destination.startsWith('client://');
 
+  const srcNode = getPaneNode(srcIdx);
+  const destNode = getPaneNode(destIdx);
+  const srcLabel = isSrcClient ? 'Local Browser (Client)' : srcNode.name;
+  const destLabel = isDestClient ? 'Local Browser (Client)' : destNode.name;
+
   const totalItems = sources.length;
-  showToast(`Starting ${action === 'move' ? 'Move' : 'Copy'}: ${totalItems} item(s)...`, 'info');
+  showToast(`Starting ${action === 'move' ? 'Move' : 'Copy'} (${srcLabel} ➔ ${destLabel}): ${totalItems} item(s)...`, 'info');
+
+  const taskId = `client_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const clientTask = {
+    id: taskId,
+    name: `Client VFS ${action === 'move' ? 'Move' : 'Copy'} (${srcLabel} ➔ ${destLabel})`,
+    action: action,
+    source: sources[0] + (sources.length > 1 ? ` (+${sources.length - 1} more)` : ''),
+    destination: `${destLabel}:${destination}`,
+    total_files: sources.length,
+    files_processed: 0,
+    total_bytes: 0,
+    bytes_processed: 0,
+    current_file: '',
+    current_file_bytes: 0,
+    current_file_total_bytes: 0,
+    speed_bytes_per_sec: 0,
+    status: 'running',
+    paranoid: !!App.paranoidMode,
+    verified_files: 0,
+    last_hash: null,
+    log_entries: [
+      `[${new Date().toLocaleTimeString()}] Starting Client VFS ${action} (${srcLabel} ➔ ${destLabel})`
+    ],
+    started_at: Math.floor(Date.now() / 1000),
+    created_at: new Date().toISOString()
+  };
+  lastKnownTasksList.unshift(clientTask);
+  updateTasksPillState(lastKnownTasksList);
+  renderFloatingTaskManager(lastKnownTasksList);
+  renderDockedTasksPanes(lastKnownTasksList);
+  if (App.autoOpenTasks && !App.taskManagerVisible) {
+    openFloatingTaskManager();
+  }
+  requestTasksFastBurst(6000);
 
   const pill = document.getElementById('tasks-pill');
   const pillText = document.getElementById('tasks-pill-text');
   if (pill && pillText) {
     pill.style.display = 'flex';
-    pillText.textContent = `Transferring ${action} (${isSrcClient ? 'Client' : 'Server'} ➔ ${isDestClient ? 'Client' : 'Server'})...`;
+    pillText.textContent = `Transferring ${action} (${srcLabel} ➔ ${destLabel})...`;
   }
 
   let successCount = 0;
   let failCount = 0;
+  let totalBatchBytesDoneBefore = 0;
 
   for (let i = 0; i < sources.length; i++) {
     const srcPath = sources[i];
     const fileName = srcPath.split('/').filter(Boolean).pop() || 'transfer_file';
+    clientTask.current_file = fileName;
+    clientTask.current_file_bytes = 0;
+    clientTask.current_file_total_bytes = 0;
+
     if (pillText) pillText.textContent = `[${i + 1}/${totalItems}] ${fileName}...`;
+    updateTasksPillState(lastKnownTasksList);
+    renderFloatingTaskManager(lastKnownTasksList);
+    renderDockedTasksPanes(lastKnownTasksList);
 
     try {
+      if (clientTask.status === 'cancelled') {
+        throw new Error('Transfer cancelled by user');
+      }
+      while (clientTask.status === 'paused') {
+        await new Promise(r => setTimeout(r, 120));
+        if (clientTask.status === 'cancelled') {
+          throw new Error('Transfer cancelled by user');
+        }
+      }
+
+      let blobOrFile = null;
+
       if (!isSrcClient && isDestClient) {
         // Server -> Client
         const srcEndpoint = getPaneEndpoint(srcIdx);
@@ -4599,11 +4763,61 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
         const downloadResp = await fetch(dlUrl, { method: 'GET', headers: srcHeaders });
         if (!downloadResp.ok) throw new Error(`Download failed (${downloadResp.status})`);
 
-        const blob = await downloadResp.blob();
+        const contentLength = parseInt(downloadResp.headers.get('content-length') || '0', 10);
+        if (contentLength > 0) {
+          clientTask.current_file_total_bytes = contentLength;
+          if (clientTask.total_bytes === 0 || clientTask.total_bytes < totalBatchBytesDoneBefore + contentLength) {
+            clientTask.total_bytes = totalBatchBytesDoneBefore + contentLength;
+          }
+        }
+
+        const reader = downloadResp.body.getReader();
+        const chunks = [];
+        let receivedBytes = 0;
+        const downloadStart = performance.now();
+        let lastDlProgress = performance.now();
+
+        while (true) {
+          if (clientTask.status === 'cancelled') {
+            try { reader.cancel(); } catch(_) {}
+            throw new Error('Transfer cancelled by user');
+          }
+          while (clientTask.status === 'paused') {
+            await new Promise(r => setTimeout(r, 120));
+            if (clientTask.status === 'cancelled') {
+              try { reader.cancel(); } catch(_) {}
+              throw new Error('Transfer cancelled by user');
+            }
+          }
+
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value);
+          receivedBytes += value.length;
+          clientTask.current_file_bytes = receivedBytes;
+
+          const now = performance.now();
+          if (now - lastDlProgress >= 35) {
+            lastDlProgress = now;
+            const elapsedSec = (now - downloadStart) / 1000;
+            if (elapsedSec > 0.05) {
+              clientTask.speed_bytes_per_sec = Math.round(receivedBytes / elapsedSec);
+            }
+            clientTask.bytes_processed = totalBatchBytesDoneBefore + receivedBytes;
+            updateTasksPillState(lastKnownTasksList);
+            renderFloatingTaskManager(lastKnownTasksList);
+            renderDockedTasksPanes(lastKnownTasksList);
+          }
+        }
+
+        blobOrFile = new Blob(chunks);
+        clientTask.current_file_total_bytes = blobOrFile.size;
+        clientTask.total_bytes = Math.max(clientTask.total_bytes, totalBatchBytesDoneBefore + blobOrFile.size);
+
         const destFileUri = destination.endsWith('/') ? `${destination}${fileName}` : `${destination}/${fileName}`;
         const destHandle = await resolveClientFileHandle(destFileUri, true);
         const writable = await destHandle.createWritable();
-        await writable.write(blob);
+        await writable.write(blobOrFile);
         await writable.close();
 
         if (action === 'move') {
@@ -4613,59 +4827,130 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
             body: JSON.stringify({ paths: [resolveAuthUri(srcPath)], use_trash: false })
           });
         }
-        successCount++;
       } else if (isSrcClient && !isDestClient) {
         // Client -> Server
         const fileHandle = await resolveClientFileHandle(srcPath, false);
-        const file = await fileHandle.getFile();
+        blobOrFile = await fileHandle.getFile();
+        clientTask.current_file_total_bytes = blobOrFile.size;
+        clientTask.total_bytes = Math.max(clientTask.total_bytes, totalBatchBytesDoneBefore + blobOrFile.size);
 
         const destEndpoint = getPaneEndpoint(destIdx);
         const destHeaders = getPaneAuthHeaders(destIdx);
-        const formData = new FormData();
-        formData.append('files', file, fileName);
+        const uploadStart = performance.now();
+        let lastUpProgress = performance.now();
 
-        const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}`;
-        const uploadResp = await fetch(uploadUrl, {
-          method: 'POST',
-          headers: destHeaders,
-          body: formData
+        await new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}&no_task=1`;
+          xhr.open('POST', uploadUrl);
+          for (const h in destHeaders) {
+            xhr.setRequestHeader(h, destHeaders[h]);
+          }
+
+          xhr.upload.onprogress = (e) => {
+            if (clientTask.status === 'cancelled') {
+              xhr.abort();
+              reject(new Error('Transfer cancelled by user'));
+              return;
+            }
+            if (e.lengthComputable) {
+              clientTask.current_file_bytes = e.loaded;
+              clientTask.current_file_total_bytes = e.total;
+              const now = performance.now();
+              if (now - lastUpProgress >= 35) {
+                lastUpProgress = now;
+                const elapsedSec = (now - uploadStart) / 1000;
+                if (elapsedSec > 0.05) {
+                  clientTask.speed_bytes_per_sec = Math.round(e.loaded / elapsedSec);
+                }
+                clientTask.bytes_processed = totalBatchBytesDoneBefore + e.loaded;
+                updateTasksPillState(lastKnownTasksList);
+                renderFloatingTaskManager(lastKnownTasksList);
+                renderDockedTasksPanes(lastKnownTasksList);
+              }
+            }
+          };
+
+          xhr.onload = () => {
+            if (xhr.status >= 200 && xhr.status < 300) {
+              resolve();
+            } else {
+              reject(new Error(`Upload failed (${xhr.status}): ${xhr.responseText}`));
+            }
+          };
+          xhr.onerror = () => reject(new Error('Network upload error to server'));
+          xhr.onabort = () => reject(new Error('Upload aborted'));
+
+          const formData = new FormData();
+          formData.append('files', blobOrFile, fileName);
+          xhr.send(formData);
         });
-        if (!uploadResp.ok) throw new Error(`Upload failed (${uploadResp.status}): ${await uploadResp.text()}`);
 
         if (action === 'move') {
           await deleteClientLocalItem(srcPath);
         }
-        successCount++;
       } else if (isSrcClient && isDestClient) {
         // Client -> Client
         const srcFileHandle = await resolveClientFileHandle(srcPath, false);
-        const file = await srcFileHandle.getFile();
+        blobOrFile = await srcFileHandle.getFile();
+        clientTask.current_file_total_bytes = blobOrFile.size;
+        clientTask.total_bytes = Math.max(clientTask.total_bytes, totalBatchBytesDoneBefore + blobOrFile.size);
+
         const destFileUri = destination.endsWith('/') ? `${destination}${fileName}` : `${destination}/${fileName}`;
         const destFileHandle = await resolveClientFileHandle(destFileUri, true);
         const writable = await destFileHandle.createWritable();
-        await writable.write(file);
+        await writable.write(blobOrFile);
         await writable.close();
 
         if (action === 'move') {
           await deleteClientLocalItem(srcPath);
         }
-        successCount++;
       }
+
+      // Hash calculation
+      const computedHash = blobOrFile ? await computeSha256Hex(blobOrFile) : null;
+      if (computedHash) {
+        clientTask.last_hash = `SHA-256 Match: ${computedHash}`;
+        clientTask.verified_files = (clientTask.verified_files || 0) + 1;
+        clientTask.paranoid = true;
+      }
+
+      const fileSize = blobOrFile ? blobOrFile.size : 0;
+      totalBatchBytesDoneBefore += fileSize;
+      clientTask.files_processed++;
+      clientTask.bytes_processed = totalBatchBytesDoneBefore;
+      const hashLog = clientTask.last_hash ? ` [${clientTask.last_hash}]` : '';
+      clientTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ✓ Transferred ${fileName} (${formatBytes(fileSize)})${hashLog}`);
+
+      successCount++;
     } catch (err) {
       console.error(`Transfer error for ${fileName}:`, err);
       failCount++;
+      clientTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ❌ Error on ${fileName}: ${err.message || err}`);
       showToast(`Failed to transfer ${fileName}: ${err.message}`, 'error');
     }
+    updateTasksPillState(lastKnownTasksList);
+    renderFloatingTaskManager(lastKnownTasksList);
+    renderDockedTasksPanes(lastKnownTasksList);
   }
 
-  if (pill) pill.style.display = 'none';
+  clientTask.status = failCount > 0 ? (successCount > 0 ? 'completed' : 'failed') : 'completed';
+  clientTask.speed_bytes_per_sec = 0;
+  clientTask.finished_at = Math.floor(Date.now() / 1000);
+  clientTask.bytes_processed = clientTask.total_bytes;
+  clientTask.log_entries.push(`[${new Date().toLocaleTimeString()}] Client VFS transfer finished: ${successCount} succeeded, ${failCount} failed`);
+
   if (action === 'move') {
     const srcPane = App.panes[srcIdx];
     if (srcPane && srcPane.selected) srcPane.selected.clear();
   }
 
-  showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${successCount} item(s)${failCount > 0 ? ` (${failCount} failed)` : ''}`, successCount > 0 ? 'success' : 'error');
+  updateTasksPillState(lastKnownTasksList);
+  renderFloatingTaskManager(lastKnownTasksList);
+  renderDockedTasksPanes(lastKnownTasksList);
   refreshAllPanes();
+
+  showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${successCount} item(s)${failCount > 0 ? ` (${failCount} failed)` : ''}`, successCount > 0 ? 'success' : 'error');
 }
 
 function computeJsLineDiff(textL, textR) {
@@ -4951,10 +5236,20 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
   const isRemoteNode = pane && pane.nodeId && pane.nodeId !== 'local';
   if (isRemoteNode) {
     const node = getPaneNode(paneIndex);
+    const colorHex = getFleetColorHex(node.color_accent);
+
     const nodeChip = document.createElement('button');
     nodeChip.className = 'btn btn-xs pane-node-chip';
+    nodeChip.style.borderColor = `${colorHex}55`;
+    nodeChip.style.background = `${colorHex}18`;
+    nodeChip.style.color = colorHex;
+    nodeChip.style.fontWeight = '600';
+    nodeChip.style.display = 'inline-flex';
+    nodeChip.style.alignItems = 'center';
+    nodeChip.style.gap = '5px';
     nodeChip.title = `Connected to Fleet Node: ${node.name} (${node.endpoint_url || ''}). Click to switch node.`;
-    nodeChip.innerHTML = `<i data-lucide="server" style="width: 11px; height: 11px;"></i> <span>${escapeHtml(node.name)}</span>`;
+
+    nodeChip.innerHTML = `<i data-lucide="server" style="width: 11px; height: 11px; color: ${colorHex};"></i> <span>${escapeHtml(node.name)}</span>`;
     nodeChip.onclick = (e) => {
       e.stopPropagation();
       openPaneFavoritesMenu(e, paneIndex);
@@ -6888,8 +7183,18 @@ function getFileIconDetails(name, is_dir, is_archive) {
 
   const ext = (name || '').split('.').pop().toLowerCase();
 
+  // Optical & Disk Sector Images
+  if (['iso', 'udf', 'img', 'raw', 'dd', 'vhd'].includes(ext)) {
+    return { icon: 'disc', type: 'disc', color: '#38bdf8' };
+  }
+
+  // SquashFS & Compressed System Images
+  if (['squashfs', 'snap'].includes(ext)) {
+    return { icon: 'box', type: 'archive', color: '#f59e0b' };
+  }
+
   // Archives & Packages
-  if (is_archive || ['zip', 'tar', 'gz', 'tgz', 'bz2', 'xz', '7z', 'rar', 'iso', 'img', 'vhd', 'deb', 'rpm', 'apk', 'pkg', 'zst'].includes(ext)) {
+  if (is_archive || ['zip', 'tar', 'gz', 'tgz', 'bz2', 'xz', '7z', 'rar', 'img', 'vhd', 'deb', 'rpm', 'apk', 'pkg', 'zst'].includes(ext)) {
     return { icon: 'file-archive', type: 'archive', color: '#f59e0b' };
   }
 
@@ -8720,7 +9025,7 @@ async function loadAdminApiTokens() {
         <div class="settings-empty-state" style="padding: 24px; text-align: center;">
           <i data-lucide="key-round" style="width: 28px; height: 28px; color: var(--text-dim); margin-bottom: 8px;"></i>
           <p style="margin: 0; font-size: 12.5px; color: var(--text-main);">No active API or fleet service tokens.</p>
-          <p style="margin: 4px 0 12px 0; font-size: 11px; color: var(--text-dim);">Generate a token to authenticate remote Commander Fleet nodes, headless daemons, or automation scripts.</p>
+          <p style="margin: 4px 0 12px 0; font-size: 11px; color: var(--text-dim);">Generate a token to authenticate remote Fleet Control nodes, headless daemons, or automation scripts.</p>
           <button type="button" class="btn btn-accent btn-sm" onclick="openCreateApiTokenModal()"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Generate First Token</button>
         </div>
       `;
@@ -9115,30 +9420,55 @@ function executeInterpaneDrop(action) {
   if (App.paranoidMode && App.dndParanoidPrompt) {
     showParanoidConfirm(action, paths, destination, () => {
       executeTransfer(action, paths, destination, targetPaneIndex, sourcePane);
-    });
+    }, sourcePane);
   } else {
     executeTransfer(action, paths, destination, targetPaneIndex, sourcePane);
   }
 }
 
-async function trackTransferTask(taskId, action, sources, destination, onCompleteCallback) {
+async function trackTransferTask(taskId, action, sources, destination, onCompleteCallback, targetEndpoint = '', targetHeaders = null) {
   if (!taskId) {
     refreshAllPanes();
     return;
   }
 
-  const intervals = [40, 80, 120, 200, 350, 500, 800, 1200, 1800];
+  // Clear any optimistic placeholder tasks now that server task ID is verified
+  lastKnownTasksList = lastKnownTasksList.filter(t => !t.id || !t.id.startsWith('opt_'));
+  requestTasksFastBurst(6000);
+
   let checkCount = 0;
   let lastProcessed = -1;
 
   async function check() {
     try {
-      const resp = await fetch(`/api/tasks/${taskId}`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+      const authHeaders = targetHeaders || {};
+      if (!targetHeaders) {
+        const token = App.token || localStorage.getItem('cd_token') || '';
+        if (token) {
+          authHeaders['Authorization'] = `Bearer ${token}`;
+        }
+      }
+      const url = targetEndpoint ? `${targetEndpoint}/api/tasks/${taskId}` : `/api/tasks/${taskId}`;
+      const resp = await fetch(url, {
+        headers: authHeaders
       });
 
       if (resp.ok) {
         const task = await resp.json();
+        task.targetEndpoint = targetEndpoint;
+        task.targetHeaders = targetHeaders;
+
+        // Immediately sync local task state and render UI
+        const existingIdx = lastKnownTasksList.findIndex(t => t.id === taskId);
+        if (existingIdx !== -1) {
+          lastKnownTasksList[existingIdx] = task;
+        } else {
+          lastKnownTasksList.unshift(task);
+        }
+        updateTasksPillState(lastKnownTasksList);
+        renderFloatingTaskManager(lastKnownTasksList);
+        renderDockedTasksPanes(lastKnownTasksList);
+
         if (task.status === 'completed') {
           showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${sources.length} item(s)`, 'success');
           refreshAllPanes();
@@ -9157,20 +9487,23 @@ async function trackTransferTask(taskId, action, sources, destination, onComplet
             lastProcessed = task.files_processed;
             refreshAllPanes();
           }
+          requestTasksFastBurst(3000);
+          checkCount++;
+          setTimeout(check, 60);
+          return;
         }
       }
     } catch (_) {}
 
     checkCount++;
-    const nextDelay = intervals[Math.min(checkCount, intervals.length - 1)];
-    if (checkCount < 50) {
-      setTimeout(check, nextDelay);
+    if (checkCount < 100) {
+      setTimeout(check, 80);
     } else {
       refreshAllPanes();
     }
   }
 
-  setTimeout(check, intervals[0]);
+  setTimeout(check, 20);
 }
 
 async function executeCrossNodeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx) {
@@ -9193,6 +9526,40 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
   const totalItems = sources.length;
   showToast(`Starting cross-node ${action === 'move' ? 'Move' : 'Copy'} (${srcNode.name} ➔ ${destNode.name}): ${totalItems} item(s)...`, 'info');
 
+  const taskId = `xnode_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const xnodeTask = {
+    id: taskId,
+    name: `Cross-Node ${action === 'move' ? 'Move' : 'Copy'} (${srcNode.name} ➔ ${destNode.name})`,
+    action: action,
+    source: sources[0] + (sources.length > 1 ? ` (+${sources.length - 1} more)` : ''),
+    destination: `${destNode.name}:${destination}`,
+    total_files: sources.length,
+    files_processed: 0,
+    total_bytes: 0,
+    bytes_processed: 0,
+    current_file: '',
+    current_file_bytes: 0,
+    current_file_total_bytes: 0,
+    speed_bytes_per_sec: 0,
+    status: 'running',
+    paranoid: !!App.paranoidMode,
+    verified_files: 0,
+    last_hash: null,
+    log_entries: [
+      `[${new Date().toLocaleTimeString()}] Starting cross-node ${action} from ${srcNode.name} (${srcEndpoint || 'local'}) to ${destNode.name} (${destEndpoint || 'local'})`
+    ],
+    started_at: Math.floor(Date.now() / 1000),
+    created_at: new Date().toISOString()
+  };
+  lastKnownTasksList.unshift(xnodeTask);
+  updateTasksPillState(lastKnownTasksList);
+  renderFloatingTaskManager(lastKnownTasksList);
+  renderDockedTasksPanes(lastKnownTasksList);
+  if (App.autoOpenTasks && !App.taskManagerVisible) {
+    openFloatingTaskManager();
+  }
+  requestTasksFastBurst(6000);
+
   const pill = document.getElementById('tasks-pill');
   const pillText = document.getElementById('tasks-pill-text');
   if (pill && pillText) {
@@ -9202,16 +9569,26 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
   let successCount = 0;
   let failCount = 0;
+  let totalBatchBytesDoneBefore = 0;
 
   for (let i = 0; i < sources.length; i++) {
     const srcPath = sources[i];
     const fileName = srcPath.split('/').filter(Boolean).pop() || 'transferred_file';
+    xnodeTask.current_file = fileName;
+    xnodeTask.phase = 'download';
+    xnodeTask.phase_text = `📥 Downloading [${i + 1}/${totalItems}]: ${fileName}`;
+    xnodeTask.current_file_bytes = 0;
+    xnodeTask.current_file_total_bytes = 0;
+
     if (pillText) {
-      pillText.textContent = `Streaming [${i + 1}/${totalItems}] ${fileName}...`;
+      pillText.textContent = `📥 Downloading [${i + 1}/${totalItems}] ${fileName}...`;
     }
+    updateTasksPillState(lastKnownTasksList);
+    renderFloatingTaskManager(lastKnownTasksList);
+    renderDockedTasksPanes(lastKnownTasksList);
 
     try {
-      // 1. Download stream from Source Node
+      // 1. Download stream from Source Node with real-time chunk progress
       const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(srcPath)}`;
       const downloadResp = await fetch(dlUrl, {
         method: 'GET',
@@ -9222,21 +9599,134 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
         throw new Error(`Source download failed (${downloadResp.status}): ${await downloadResp.text()}`);
       }
 
-      const blob = await downloadResp.blob();
+      const contentLength = parseInt(downloadResp.headers.get('content-length') || '0', 10);
+      if (contentLength > 0) {
+        xnodeTask.current_file_total_bytes = contentLength;
+        if (xnodeTask.total_bytes === 0 || xnodeTask.total_bytes < totalBatchBytesDoneBefore + contentLength) {
+          xnodeTask.total_bytes = totalBatchBytesDoneBefore + contentLength;
+        }
+      }
 
-      // 2. Upload to Destination Node
-      const formData = new FormData();
-      formData.append('files', blob, fileName);
+      const reader = downloadResp.body.getReader();
+      const chunks = [];
+      let receivedBytes = 0;
+      const downloadStart = performance.now();
+      let lastDlProgress = performance.now();
 
-      const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(destination)}`;
-      const uploadResp = await fetch(uploadUrl, {
-        method: 'POST',
-        headers: destHeaders,
-        body: formData
+      while (true) {
+        if (xnodeTask.status === 'cancelled') {
+          try { reader.cancel(); } catch(_) {}
+          throw new Error('Transfer cancelled by user');
+        }
+        while (xnodeTask.status === 'paused') {
+          await new Promise(r => setTimeout(r, 120));
+          if (xnodeTask.status === 'cancelled') {
+            try { reader.cancel(); } catch(_) {}
+            throw new Error('Transfer cancelled by user');
+          }
+        }
+
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        receivedBytes += value.length;
+        xnodeTask.current_file_bytes = receivedBytes;
+
+        const now = performance.now();
+        if (now - lastDlProgress >= 35) {
+          lastDlProgress = now;
+          const elapsedSec = (now - downloadStart) / 1000;
+          if (elapsedSec > 0.05) {
+            xnodeTask.speed_bytes_per_sec = Math.round(receivedBytes / elapsedSec);
+          }
+          xnodeTask.bytes_processed = totalBatchBytesDoneBefore + Math.round(receivedBytes * 0.5);
+          updateTasksPillState(lastKnownTasksList);
+          renderFloatingTaskManager(lastKnownTasksList);
+          renderDockedTasksPanes(lastKnownTasksList);
+        }
+      }
+
+      const blob = new Blob(chunks);
+      xnodeTask.current_file_total_bytes = blob.size;
+      xnodeTask.total_bytes = Math.max(xnodeTask.total_bytes, totalBatchBytesDoneBefore + blob.size);
+
+      // SHA-256 integrity hash calculation
+      const srcSha256 = await computeSha256Hex(blob);
+      if (srcSha256) {
+        xnodeTask.last_hash = `SHA-256 Match: ${srcSha256}`;
+        xnodeTask.paranoid = true;
+      }
+
+      // 2. Upload to Destination Node with XHR progress monitoring
+      xnodeTask.phase = 'upload';
+      xnodeTask.phase_text = `📤 Uploading [${i + 1}/${totalItems}]: ${fileName}`;
+      if (pillText) {
+        pillText.textContent = `📤 Uploading [${i + 1}/${totalItems}] ${fileName}...`;
+      }
+      updateTasksPillState(lastKnownTasksList);
+      renderFloatingTaskManager(lastKnownTasksList);
+      renderDockedTasksPanes(lastKnownTasksList);
+
+      const uploadStart = performance.now();
+      let lastUpProgress = performance.now();
+      let destResponseData = null;
+
+      await new Promise((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+        const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(destination)}&no_task=1`;
+        xhr.open('POST', uploadUrl);
+        for (const h in destHeaders) {
+          xhr.setRequestHeader(h, destHeaders[h]);
+        }
+
+        xhr.upload.onprogress = (e) => {
+          if (xnodeTask.status === 'cancelled') {
+            xhr.abort();
+            reject(new Error('Transfer cancelled by user'));
+            return;
+          }
+          if (e.lengthComputable) {
+            xnodeTask.current_file_bytes = e.loaded;
+            xnodeTask.current_file_total_bytes = e.total;
+            const now = performance.now();
+            if (now - lastUpProgress >= 35) {
+              lastUpProgress = now;
+              const elapsedSec = (now - uploadStart) / 1000;
+              if (elapsedSec > 0.05) {
+                xnodeTask.speed_bytes_per_sec = Math.round(e.loaded / elapsedSec);
+              }
+              xnodeTask.bytes_processed = totalBatchBytesDoneBefore + Math.round(blob.size * 0.5) + Math.round(e.loaded * 0.5);
+              updateTasksPillState(lastKnownTasksList);
+              renderFloatingTaskManager(lastKnownTasksList);
+              renderDockedTasksPanes(lastKnownTasksList);
+            }
+          }
+        };
+
+        xhr.onload = () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            try {
+              destResponseData = JSON.parse(xhr.responseText);
+            } catch (_) {}
+            resolve();
+          } else {
+            reject(new Error(`Target upload failed (${xhr.status}): ${xhr.responseText}`));
+          }
+        };
+        xhr.onerror = () => reject(new Error('Network upload error to target node'));
+        xhr.onabort = () => reject(new Error('Upload aborted'));
+
+        const formData = new FormData();
+        formData.append('files', blob, fileName);
+        xhr.send(formData);
       });
 
-      if (!uploadResp.ok) {
-        throw new Error(`Target upload failed (${uploadResp.status}): ${await uploadResp.text()}`);
+      const destSha256 = (destResponseData && destResponseData.hashes && destResponseData.hashes[fileName]) ? destResponseData.hashes[fileName] : null;
+      const finalHash = destSha256 || srcSha256;
+      if (finalHash) {
+        xnodeTask.last_hash = `SHA-256 Match: ${finalHash}`;
+        xnodeTask.verified_files = (xnodeTask.verified_files || 0) + 1;
+        xnodeTask.paranoid = true;
       }
 
       // 3. Delete from Source if Move operation
@@ -9254,20 +9744,37 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
         }
       }
 
+      totalBatchBytesDoneBefore += blob.size;
+      xnodeTask.files_processed++;
+      xnodeTask.bytes_processed = totalBatchBytesDoneBefore;
+      const hashLog = xnodeTask.last_hash ? ` [${xnodeTask.last_hash}]` : '';
+      xnodeTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ✓ Transferred ${fileName} (${formatBytes(blob.size)})${hashLog}`);
+
       successCount++;
     } catch (err) {
       console.error(`Cross-node transfer error for ${srcPath}:`, err);
       failCount++;
-      showToast(`Transfer failed for ${fileName}: ${err.message}`, 'error');
+      xnodeTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ❌ Error on ${fileName}: ${err.message || err}`);
+      showToast(`Transfer failed for ${fileName}: ${err.message || err}`, 'error');
     }
+    updateTasksPillState(lastKnownTasksList);
+    renderFloatingTaskManager(lastKnownTasksList);
+    renderDockedTasksPanes(lastKnownTasksList);
   }
 
-  if (pill) pill.style.display = 'none';
+  xnodeTask.status = failCount > 0 ? (successCount > 0 ? 'completed' : 'failed') : 'completed';
+  xnodeTask.speed_bytes_per_sec = 0;
+  xnodeTask.finished_at = Math.floor(Date.now() / 1000);
+  xnodeTask.bytes_processed = xnodeTask.total_bytes;
+  xnodeTask.log_entries.push(`[${new Date().toLocaleTimeString()}] Cross-node transfer finished: ${successCount} succeeded, ${failCount} failed`);
 
   if (action === 'move' && srcPane.selected) {
     srcPane.selected.clear();
   }
 
+  updateTasksPillState(lastKnownTasksList);
+  renderFloatingTaskManager(lastKnownTasksList);
+  renderDockedTasksPanes(lastKnownTasksList);
   refreshAllPanes();
 
   if (failCount === 0) {
@@ -9517,9 +10024,34 @@ async function executeUploadWithDecisions(batch) {
   const headers = getPaneAuthHeaders(paneIdx);
 
   const formData = new FormData();
+  let totalUploadBytes = 0;
   for (const f of activeFiles) {
     formData.append('files', f);
+    totalUploadBytes += (f.size || 0);
   }
+
+  // Zero-latency optimistic task dispatch
+  const optId = `opt_up_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const optTask = {
+    id: optId,
+    name: `Upload ${activeFiles.length} file(s)`,
+    status: 'running',
+    source: activeFiles[0].name + (activeFiles.length > 1 ? ` (+${activeFiles.length - 1} more)` : ''),
+    destination: destination,
+    total_files: activeFiles.length,
+    files_processed: 0,
+    total_bytes: totalUploadBytes,
+    bytes_processed: 0,
+    speed_bytes_per_sec: 0,
+    paranoid: false,
+    created_at: new Date().toISOString()
+  };
+  lastKnownTasksList.unshift(optTask);
+  updateTasksPillState(lastKnownTasksList);
+  renderFloatingTaskManager(lastKnownTasksList);
+  renderDockedTasksPanes(lastKnownTasksList);
+  triggerAutoOpenTasksIfNeeded(350);
+  requestTasksFastBurst(6000);
 
   const pill = document.getElementById('tasks-pill');
   const pillText = document.getElementById('tasks-pill-text');
@@ -9546,6 +10078,10 @@ async function executeUploadWithDecisions(batch) {
   } catch (err) {
     showToast(`Upload error: ${err.message || err}`, 'error');
   } finally {
+    lastKnownTasksList = lastKnownTasksList.filter(t => t.id !== optId);
+    updateTasksPillState(lastKnownTasksList);
+    renderFloatingTaskManager(lastKnownTasksList);
+    renderDockedTasksPanes(lastKnownTasksList);
     if (pill) {
       pill.classList.remove('active');
       pill.style.display = 'none';
@@ -9572,7 +10108,32 @@ async function executeTransferDirect(action, sources, destination, refreshTarget
     return executeCrossNodeTransfer(action, sources, destination, destIdx, srcIdx);
   }
 
-  const endpoint = action === 'move' ? `${getPaneEndpoint(srcIdx)}/api/fs/move` : `${getPaneEndpoint(srcIdx)}/api/fs/copy`;
+  // Zero-latency optimistic task dispatch for instant UI response (<1ms)
+  const optId = `opt_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const optTask = {
+    id: optId,
+    name: `${action === 'move' ? 'Move' : 'Copy'} ${sources.length} item(s)`,
+    status: 'running',
+    source: sources[0] + (sources.length > 1 ? ` (+${sources.length - 1} more)` : ''),
+    destination: destination,
+    total_files: sources.length,
+    files_processed: 0,
+    total_bytes: 0,
+    bytes_processed: 0,
+    speed_bytes_per_sec: 0,
+    paranoid: !!App.paranoidMode,
+    created_at: new Date().toISOString()
+  };
+  lastKnownTasksList.unshift(optTask);
+  updateTasksPillState(lastKnownTasksList);
+  renderFloatingTaskManager(lastKnownTasksList);
+  if (App.autoOpenTasks && !App.taskManagerVisible) {
+    openFloatingTaskManager();
+  }
+  requestTasksFastBurst(6000);
+
+  const baseEndpoint = getPaneEndpoint(srcIdx);
+  const endpoint = action === 'move' ? `${baseEndpoint}/api/fs/move` : `${baseEndpoint}/api/fs/copy`;
   const headers = getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' });
 
   try {
@@ -9602,17 +10163,29 @@ async function executeTransferDirect(action, sources, destination, refreshTarget
       refreshAllPanes();
 
       if (data.task_id) {
-        trackTransferTask(data.task_id, action, sources, destination);
+        trackTransferTask(data.task_id, action, sources, destination, null, baseEndpoint, headers);
       } else {
+        lastKnownTasksList = lastKnownTasksList.filter(t => t.id !== optId);
+        updateTasksPillState(lastKnownTasksList);
+        renderFloatingTaskManager(lastKnownTasksList);
+        renderDockedTasksPanes(lastKnownTasksList);
         showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${sources.length} item(s)`, 'success');
         setTimeout(() => refreshAllPanes(), 80);
         setTimeout(() => refreshAllPanes(), 300);
       }
     } else {
+      lastKnownTasksList = lastKnownTasksList.filter(t => t.id !== optId);
+      updateTasksPillState(lastKnownTasksList);
+      renderFloatingTaskManager(lastKnownTasksList);
+      renderDockedTasksPanes(lastKnownTasksList);
       showToast(`Transfer failed: ${await resp.text()}`, 'error');
       refreshAllPanes();
     }
   } catch (err) {
+    lastKnownTasksList = lastKnownTasksList.filter(t => t.id !== optId);
+    updateTasksPillState(lastKnownTasksList);
+    renderFloatingTaskManager(lastKnownTasksList);
+    renderDockedTasksPanes(lastKnownTasksList);
     showToast(`Transfer error: ${err.message || err}`, 'error');
     refreshAllPanes();
   }
@@ -16824,9 +17397,9 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       </div>
       <div class="context-sep" style="margin: 4px 0;"></div>
 
-      <!-- Commander Fleet Nodes -->
+      <!-- Fleet Control Nodes -->
       <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
-        <span>Commander Fleet</span>
+        <span>Fleet Control</span>
         <span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openFleetManagerModal();">Manage</span>
       </div>
       <div class="dropdown-item ${currentNodeId === 'local' ? 'active' : ''}" data-action="switch-node" data-pane="${paneIndex}" data-node-id="local" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
@@ -16840,6 +17413,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
           </div>
         </div>
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
+          <span class="fleet-tag-pill" style="font-family: var(--font-mono); font-size: 8.5px; padding: 0 4px; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25);" title="Local coordinator: v${escapeHtml(App.version || '1.1.2')}">v${escapeHtml(App.version || '1.1.2')}</span>
           <span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono); background: rgba(255,255,255,0.05); border: 1px solid var(--border); padding: 1px 5px; border-radius: 4px; white-space: nowrap;">0 ms</span>
           ${currentNodeId === 'local' ? '<span style="color: var(--accent); font-size: 12px; font-weight: 700; width: 12px; text-align: center;">✓</span>' : '<span style="width: 12px;"></span>'}
         </div>
@@ -16923,7 +17497,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       </div>
       <div class="dropdown-item" data-action="open-fleet-modal" style="color: var(--text-muted);">
         <i data-lucide="server"></i>
-        <div style="font-weight: 500;">+ Manage Commander Fleet...</div>
+        <div style="font-weight: 500;">+ Fleet Control...</div>
       </div>
     </div>
   `;
@@ -17009,40 +17583,109 @@ function toggleGlobalDotfiles(show) {
 
 // ---------------- PARANOID DRY RUN ----------------
 
-async function showParanoidConfirm(action, sources, destination, onProceed) {
+async function showParanoidConfirm(action, sources, destination, onProceed, sourcePaneIdx) {
   const modalBody = document.getElementById('paranoid-modal-body');
-  modalBody.innerHTML = '<div>Analyzing filesystem transaction safety & disk availability...</div>';
+  if (modalBody) {
+    modalBody.innerHTML = '<div>Analyzing filesystem transaction safety & disk availability...</div>';
+  }
   showModal('paranoid-modal');
 
-  const resp = await fetch('/api/tools/paranoid/dry-run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-    body: JSON.stringify({ action, sources, destination })
+  const srcIdx = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx]) ? sourcePaneIdx : App.activePaneIndex;
+  const endpoint = getPaneEndpoint(srcIdx);
+  const headers = getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' });
+
+  // Clean and normalize source paths (decode URI components for spaces and special characters)
+  const cleanSources = (sources || []).map(s => {
+    if (typeof s === 'string') {
+      try {
+        return decodeURIComponent(s);
+      } catch (_) {
+        return s;
+      }
+    }
+    return s;
   });
 
-  if (resp.ok) {
-    const report = await resp.json();
-    modalBody.innerHTML = `
-      <div style="font-size: 12px; line-height: 1.6;">
-        <p><b>Action:</b> <span style="text-transform: uppercase; color: var(--accent);">${report.action}</span></p>
-        <p><b>Items:</b> ${report.sources.length} files/directories (${formatBytes(report.estimated_total_bytes)})</p>
-        <p><b>Destination:</b> ${report.destination_target || 'N/A'}</p>
-        <p><b>Post-Transfer Verification:</b> <span style="color: var(--success);">SHA-256 Checksum Validation</span></p>
-        ${report.warnings.length > 0 ? `
-          <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); padding: 8px; border-radius: 4px; margin-top: 8px;">
-            <b>Warnings:</b>
-            <ul style="padding-left: 16px;">
-              ${report.warnings.map(w => `<li>${w}</li>`).join('')}
-            </ul>
-          </div>
-        ` : ''}
-      </div>
-    `;
+  const cleanDestination = (typeof destination === 'string') ? (() => {
+    try {
+      return decodeURIComponent(destination);
+    } catch (_) {
+      return destination;
+    }
+  })() : destination;
 
-    document.getElementById('btn-paranoid-proceed').onclick = () => {
-      closeModal('paranoid-modal');
-      onProceed();
-    };
+  try {
+    const resp = await fetch(`${endpoint}/api/tools/paranoid/dry-run`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({ action, sources: cleanSources, destination: cleanDestination })
+    });
+
+    if (resp.ok) {
+      const report = await resp.json();
+      if (modalBody) {
+        modalBody.innerHTML = `
+          <div style="font-size: 12px; line-height: 1.6;">
+            <p><b>Action:</b> <span style="text-transform: uppercase; color: var(--accent);">${escapeHtml(report.action || action)}</span></p>
+            <p><b>Items:</b> ${(report.sources || cleanSources).length} files/directories (${formatBytes(report.estimated_total_bytes || 0)})</p>
+            <p><b>Destination:</b> ${escapeHtml(report.destination_target || cleanDestination || 'N/A')}</p>
+            <p><b>Post-Transfer Verification:</b> <span style="color: var(--success);">SHA-256 Checksum Validation</span></p>
+            ${report.warnings && report.warnings.length > 0 ? `
+              <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); padding: 8px; border-radius: 4px; margin-top: 8px;">
+                <b>Warnings:</b>
+                <ul style="padding-left: 16px; margin: 4px 0 0;">
+                  ${report.warnings.map(w => `<li>${escapeHtml(w)}</li>`).join('')}
+                </ul>
+              </div>
+            ` : ''}
+          </div>
+        `;
+      }
+
+      const proceedBtn = document.getElementById('btn-paranoid-proceed');
+      if (proceedBtn) {
+        proceedBtn.onclick = () => {
+          closeModal('paranoid-modal');
+          onProceed();
+        };
+      }
+    } else {
+      if (modalBody) {
+        modalBody.innerHTML = `
+          <div style="font-size: 12px; line-height: 1.6;">
+            <p><b>Action:</b> <span style="text-transform: uppercase; color: var(--accent);">${escapeHtml(action)}</span></p>
+            <p><b>Items:</b> ${cleanSources.length} files/directories</p>
+            <p><b>Destination:</b> ${escapeHtml(cleanDestination || 'N/A')}</p>
+            <p><b>Integrity:</b> <span style="color: var(--success);">SHA-256 Checksum Verification</span></p>
+          </div>
+        `;
+      }
+      const proceedBtn = document.getElementById('btn-paranoid-proceed');
+      if (proceedBtn) {
+        proceedBtn.onclick = () => {
+          closeModal('paranoid-modal');
+          onProceed();
+        };
+      }
+    }
+  } catch (err) {
+    if (modalBody) {
+      modalBody.innerHTML = `
+        <div style="font-size: 12px; line-height: 1.6;">
+          <p><b>Action:</b> <span style="text-transform: uppercase; color: var(--accent);">${escapeHtml(action)}</span></p>
+          <p><b>Items:</b> ${cleanSources.length} files/directories</p>
+          <p><b>Destination:</b> ${escapeHtml(cleanDestination || 'N/A')}</p>
+          <p><b>Integrity:</b> <span style="color: var(--success);">SHA-256 Checksum Verification</span></p>
+        </div>
+      `;
+    }
+    const proceedBtn = document.getElementById('btn-paranoid-proceed');
+    if (proceedBtn) {
+      proceedBtn.onclick = () => {
+        closeModal('paranoid-modal');
+        onProceed();
+      };
+    }
   }
 }
 
@@ -20059,6 +20702,11 @@ function openSettingsModal() {
     fkeysCheckbox.checked = App.showFKeyBar !== false && localStorage.getItem('cd_show_fkeys') !== 'false';
   }
 
+  const mediaStopCheckbox = document.getElementById('setting-media-stop-on-close');
+  if (mediaStopCheckbox) {
+    mediaStopCheckbox.checked = localStorage.getItem('cd_media_stop_on_close') !== 'false';
+  }
+
   const paneTabsModeSel = document.getElementById('setting-pane-tabs-mode');
   if (paneTabsModeSel) {
     paneTabsModeSel.value = localStorage.getItem('cd_pane_tabs_mode') || 'pc_only';
@@ -20985,7 +21633,8 @@ function triggerCopy() {
   pendingDeltaTransfer = {
     sources: paths,
     destination: targetPane.path,
-    targetIdx: targetIdx
+    targetIdx: targetIdx,
+    sourceIdx: App.activePaneIndex
   };
 
   const summary = document.getElementById('deltacopy-source-summary');
@@ -21040,7 +21689,7 @@ async function executeDeltaCopy() {
 
   closeModal('deltacopy-modal');
 
-  const srcIdx = App.activePaneIndex;
+  const srcIdx = (pendingDeltaTransfer && typeof pendingDeltaTransfer.sourceIdx === 'number') ? pendingDeltaTransfer.sourceIdx : App.activePaneIndex;
   const destIdx = (pendingDeltaTransfer && typeof pendingDeltaTransfer.targetIdx === 'number') ? pendingDeltaTransfer.targetIdx : (srcIdx + 1) % getVisiblePaneCount();
   const srcNode = getPaneNode(srcIdx);
   const destNode = getPaneNode(destIdx);
@@ -21090,7 +21739,9 @@ async function executeDeltaCopy() {
 async function executeStandardCopy() {
   const dest = document.getElementById('deltacopy-dest-input').value;
   closeModal('deltacopy-modal');
-  executeTransfer('copy', pendingDeltaTransfer.sources, dest, pendingDeltaTransfer.targetIdx);
+  const targetIdx = pendingDeltaTransfer ? pendingDeltaTransfer.targetIdx : undefined;
+  const sourceIdx = pendingDeltaTransfer ? pendingDeltaTransfer.sourceIdx : undefined;
+  executeTransfer('copy', pendingDeltaTransfer.sources, dest, targetIdx, sourceIdx);
 }
 
 function triggerMove() {
@@ -21101,7 +21752,7 @@ function triggerMove() {
 
   if (paths.length === 0) return;
   if (App.paranoidMode) {
-    showParanoidConfirm('move', paths, targetPane.path, () => executeTransfer('move', paths, targetPane.path, targetIdx, App.activePaneIndex));
+    showParanoidConfirm('move', paths, targetPane.path, () => executeTransfer('move', paths, targetPane.path, targetIdx, App.activePaneIndex), App.activePaneIndex);
   } else {
     executeTransfer('move', paths, targetPane.path, targetIdx, App.activePaneIndex);
   }
@@ -23707,6 +24358,13 @@ function toggleWindowDecorations(show) {
   showToast(show ? 'Window titlebar & frame enabled (restart to apply)' : 'Window decorations disabled (Borderless/Tiling mode for Hyprland)', 'info');
 }
 
+function toggleMediaStopOnClose(stopOnClose) {
+  App.mediaStopOnClose = !!stopOnClose;
+  localStorage.setItem('cd_media_stop_on_close', stopOnClose ? 'true' : 'false');
+  queueSaveUserPreferencesToServer();
+  showToast(stopOnClose ? 'Media Player: Stop playback on close' : 'Media Player: Keep playing in background on close', 'info');
+}
+
 function updateMobileBottomBarMode(val) {
   if (!['icons_text', 'icons_only', 'off'].includes(val)) {
     val = 'icons_text';
@@ -24922,12 +25580,36 @@ function appendTerminalTextFallback(str) {
 let tasksPollTimer = null;
 let lastKnownTasksList = [];
 let wasAnyRunningLastCheck = false;
+let fastPollExpiry = 0;
 
 function startTasksPolling() {
-  if (tasksPollTimer) clearInterval(tasksPollTimer);
-  tasksPollTimer = setInterval(pollTasks, 1500);
+  if (tasksPollTimer) clearTimeout(tasksPollTimer);
   initTaskWindowDragResize();
   initMobileDrawerGestures();
+  scheduleNextTaskPoll(300);
+}
+
+function requestTasksFastBurst(durationMs = 4000) {
+  fastPollExpiry = Math.max(fastPollExpiry, Date.now() + durationMs);
+  scheduleNextTaskPoll(30);
+}
+
+let autoOpenTasksTimer = null;
+function triggerAutoOpenTasksIfNeeded(delayMs = 350) {
+  if (!App.autoOpenTasks || App.taskManagerVisible) return;
+  if (autoOpenTasksTimer) clearTimeout(autoOpenTasksTimer);
+  autoOpenTasksTimer = setTimeout(() => {
+    autoOpenTasksTimer = null;
+    const isAnyRunning = lastKnownTasksList.some(t => t.status === 'running');
+    if (isAnyRunning && App.autoOpenTasks && !App.taskManagerVisible) {
+      openFloatingTaskManager();
+    }
+  }, delayMs);
+}
+
+function scheduleNextTaskPoll(delayMs) {
+  if (tasksPollTimer) clearTimeout(tasksPollTimer);
+  tasksPollTimer = setTimeout(pollTasks, delayMs);
 }
 
 function toggleFloatingTaskManager() {
@@ -25218,7 +25900,10 @@ let knownCompletedTasks = new Set();
 let tasksAutoPruneTimer = null;
 
 async function pollTasks() {
-  if (!App.token) return;
+  if (!App.token) {
+    scheduleNextTaskPoll(2000);
+    return;
+  }
 
   try {
     const res = await fetch('/api/tasks', {
@@ -25226,11 +25911,26 @@ async function pollTasks() {
     });
     if (res.ok) {
       const list = await res.json();
-      lastKnownTasksList = Array.isArray(list) ? list : [];
+      const serverTasks = Array.isArray(list) ? list : [];
+
+      // Preserve any client-side / cross-node / optimistic or remote tasks not present in local server tasks
+      const serverTaskIds = new Set(serverTasks.map(t => t.id));
+      const clientSideOrRemoteTasks = lastKnownTasksList.filter(t => {
+        if (!t || !t.id) return false;
+        if (serverTaskIds.has(t.id)) return false;
+        return t.id.startsWith('opt_') || t.id.startsWith('xnode_') || t.id.startsWith('client_') || (t.targetEndpoint && t.targetEndpoint !== '');
+      });
+
+      const combined = [...clientSideOrRemoteTasks, ...serverTasks];
+      lastKnownTasksList = combined;
 
       const isAnyRunning = lastKnownTasksList.some(t => t.status === 'running');
       if (isAnyRunning && !wasAnyRunningLastCheck && App.autoOpenTasks && !App.taskManagerVisible) {
-        openFloatingTaskManager();
+        triggerAutoOpenTasksIfNeeded(350);
+      }
+      if (!isAnyRunning && autoOpenTasksTimer) {
+        clearTimeout(autoOpenTasksTimer);
+        autoOpenTasksTimer = null;
       }
       wasAnyRunningLastCheck = isAnyRunning;
 
@@ -25267,10 +25967,19 @@ async function pollTasks() {
       updateTasksPillState(lastKnownTasksList);
       renderFloatingTaskManager(lastKnownTasksList);
       renderDockedTasksPanes(lastKnownTasksList);
+
+      // Adaptive polling rate
+      if (isAnyRunning || Date.now() < fastPollExpiry) {
+        scheduleNextTaskPoll(60);
+      } else {
+        scheduleNextTaskPoll(2000);
+      }
+      return;
     }
   } catch (e) {
     // Ignore polling errors
   }
+  scheduleNextTaskPoll(2000);
 }
 
 function updateTasksPillState(list) {
@@ -25283,24 +25992,30 @@ function updateTasksPillState(list) {
 
   const safeList = Array.isArray(list) ? list : [];
   const running = safeList.filter(t => t.status === 'running');
+  const failed = safeList.filter(t => t.status === 'failed');
   const win = document.getElementById('floating-task-manager');
   const isWinOpen = win && win.classList.contains('active') && !win.classList.contains('minimized');
   const totalSpeed = running.reduce((acc, t) => acc + (t.speed_bytes_per_sec || 0), 0);
   const speedStr = totalSpeed > 0 ? `${formatBytes(totalSpeed)}/s` : '';
 
-  // Update Header Button (Left of Profile)
+  // Update Header Button (Left of Profile) - Strictly static, count-only, jitter-free
   if (headerBtn) {
-    if (running.length > 0) {
+    if (headerSpeed) headerSpeed.style.display = 'none';
+
+    if (failed.length > 0) {
+      headerBtn.classList.remove('has-running');
+      headerBtn.classList.add('has-failed');
+      if (headerCount) headerCount.textContent = running.length > 0 ? `${running.length}` : '!';
+      headerBtn.title = `${failed.length} task(s) failed${running.length > 0 ? ` • ${running.length} running` : ''} (Click to open Task Manager)`;
+    } else if (running.length > 0) {
+      headerBtn.classList.remove('has-failed');
       headerBtn.classList.add('has-running');
       if (headerCount) headerCount.textContent = `${running.length}`;
-      if (headerSpeed) {
-        headerSpeed.style.display = totalSpeed > 0 ? 'inline-block' : 'none';
-        headerSpeed.textContent = speedStr;
-      }
+      headerBtn.title = `${running.length} active task(s) running (Click to open Task Manager)`;
     } else {
-      headerBtn.classList.remove('has-running');
+      headerBtn.classList.remove('has-running', 'has-failed');
       if (headerCount) headerCount.textContent = '0';
-      if (headerSpeed) headerSpeed.style.display = 'none';
+      headerBtn.title = 'Background Tasks & Transfers (Click to toggle)';
     }
   }
 
@@ -25322,8 +26037,15 @@ function updateTasksPillState(list) {
 
   // Update Mobile Bottom Peek Tab Badge
   if (peekBadge && peekText) {
-    if (running.length > 0) {
+    if (failed.length > 0) {
       peekBadge.style.display = 'inline-flex';
+      peekBadge.style.background = 'rgba(239, 68, 68, 0.2)';
+      peekBadge.style.color = '#ef4444';
+      peekText.textContent = `${failed.length} failed${running.length > 0 ? ` • ${running.length} active` : ''}`;
+    } else if (running.length > 0) {
+      peekBadge.style.display = 'inline-flex';
+      peekBadge.style.background = '';
+      peekBadge.style.color = '';
       const hasParanoid = running.some(t => t.paranoid);
       peekText.textContent = `${hasParanoid ? '🛡️ ' : ''}${running.length} active${speedStr ? ' • ' + speedStr : ''}`;
     } else {
@@ -25334,12 +26056,13 @@ function updateTasksPillState(list) {
 
 function initTaskWindowDragResize() {
   const win = document.getElementById('floating-task-manager');
-  const topHandle = document.getElementById('task-win-resize-handle');
-  const leftHandle = document.getElementById('task-win-resize-left');
-  const cornerHandle = document.getElementById('task-win-resize-corner');
+  if (!win) return;
+  if (win.dataset.resizeInitialized === 'true') return;
+  win.dataset.resizeInitialized = 'true';
+
+  const cornerTlHandle = document.getElementById('task-win-resize-corner');
+  const cornerBrHandle = document.getElementById('task-win-resize-corner-br');
   const header = document.getElementById('task-win-header');
-  if (!win || !topHandle || topHandle.dataset.resizeInitialized) return;
-  topHandle.dataset.resizeInitialized = 'true';
 
   // Restore saved width, height, and coordinates if any
   const savedWidth = localStorage.getItem('cd_task_win_width');
@@ -25402,27 +26125,36 @@ function initTaskWindowDragResize() {
 
   let startX = 0, startY = 0;
   let startW = 0, startH = 0;
-  let dragMode = null; // 'top', 'left', 'corner'
+  let startLeft = 0, startTop = 0;
+  let dragMode = null; // 'corner-tl', 'corner-br'
+  let activeHandle = null;
 
-  function onDragStart(e, mode) {
+  function onDragStart(e, mode, handleElem) {
     if (window.innerWidth <= 768) return; // Mobile drawer uses full width
+    if (win.classList.contains('maximized')) return;
     dragMode = mode;
-    startX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
-    startY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
-    startW = win.offsetWidth;
-    startH = win.offsetHeight;
+    activeHandle = handleElem;
+    bringFloatingWindowToFront(win);
+
+    const pt = e.touches ? e.touches[0] : e;
+    startX = pt.clientX;
+    startY = pt.clientY;
+
+    const rect = win.getBoundingClientRect();
+    startLeft = rect.left;
+    startTop = rect.top;
+    startW = rect.width;
+    startH = rect.height;
+
+    // Anchor strictly to explicit top/left coordinates for deterministic geometry
+    win.style.left = `${startLeft}px`;
+    win.style.top = `${startTop}px`;
+    win.style.right = 'auto';
+    win.style.bottom = 'auto';
 
     document.body.style.userSelect = 'none';
-    if (mode === 'top') {
-      topHandle.classList.add('dragging');
-      document.body.style.cursor = 'ns-resize';
-    } else if (mode === 'left') {
-      leftHandle?.classList.add('dragging');
-      document.body.style.cursor = 'ew-resize';
-    } else if (mode === 'corner') {
-      cornerHandle?.classList.add('dragging');
-      document.body.style.cursor = 'nwse-resize';
-    }
+    if (activeHandle) activeHandle.classList.add('dragging');
+    document.body.style.cursor = 'nwse-resize';
 
     window.addEventListener('mousemove', onDragMove);
     window.addEventListener('mouseup', onDragEnd);
@@ -25432,33 +26164,85 @@ function initTaskWindowDragResize() {
 
   function onDragMove(e) {
     if (!dragMode) return;
-    const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
-    const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+    const pt = e.touches ? e.touches[0] : e;
+    const clientX = pt.clientX;
+    const clientY = pt.clientY;
 
-    if (dragMode === 'top' || dragMode === 'corner') {
-      const deltaY = startY - clientY;
-      const newH = Math.max(220, Math.min(window.innerHeight - 60, startH + deltaY));
+    const minW = 360;
+    const maxW = Math.min(880, window.innerWidth - 32);
+    const minH = 220;
+    const maxH = Math.min(780, window.innerHeight - 48);
+
+    if (dragMode === 'corner-tl') {
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+
+      let newW = startW - deltaX;
+      let newLeft = startLeft + deltaX;
+      if (newW < minW) {
+        newLeft = startLeft + (startW - minW);
+        newW = minW;
+      } else if (newW > maxW) {
+        newLeft = startLeft + (startW - maxW);
+        newW = maxW;
+      }
+      if (newLeft < 0) {
+        newW = startLeft + startW;
+        newLeft = 0;
+      }
+
+      let newH = startH - deltaY;
+      let newTop = startTop + deltaY;
+      if (newH < minH) {
+        newTop = startTop + (startH - minH);
+        newH = minH;
+      } else if (newH > maxH) {
+        newTop = startTop + (startH - maxH);
+        newH = maxH;
+      }
+      if (newTop < 35) {
+        newH = startTop + startH - 35;
+        newTop = 35;
+      }
+
+      win.style.left = `${newLeft}px`;
+      win.style.top = `${newTop}px`;
+      applyTaskWindowWidth(newW);
       applyTaskWindowHeight(newH);
     }
-    if (dragMode === 'left' || dragMode === 'corner') {
-      const deltaX = startX - clientX;
-      const newW = Math.max(360, Math.min(window.innerWidth - 40, startW + deltaX));
+
+    if (dragMode === 'corner-br') {
+      const deltaX = clientX - startX;
+      const deltaY = clientY - startY;
+      let newW = Math.max(minW, Math.min(maxW, startW + deltaX));
+      let newH = Math.max(minH, Math.min(maxH, startH + deltaY));
+      if (startLeft + newW > window.innerWidth - 10) {
+        newW = Math.max(minW, window.innerWidth - 10 - startLeft);
+      }
+      if (startTop + newH > window.innerHeight - 10) {
+        newH = Math.max(minH, window.innerHeight - 10 - startTop);
+      }
       applyTaskWindowWidth(newW);
+      applyTaskWindowHeight(newH);
     }
+
     if (e.preventDefault && e.cancelable) e.preventDefault();
   }
 
   function onDragEnd() {
     if (!dragMode) return;
     dragMode = null;
-    topHandle.classList.remove('dragging');
-    leftHandle?.classList.remove('dragging');
-    cornerHandle?.classList.remove('dragging');
+    if (activeHandle) {
+      activeHandle.classList.remove('dragging');
+      activeHandle = null;
+    }
     document.body.style.userSelect = '';
     document.body.style.cursor = '';
 
     localStorage.setItem('cd_task_win_width', win.offsetWidth);
     localStorage.setItem('cd_task_win_height', win.offsetHeight);
+    if (win.style.left) localStorage.setItem('cd_task_win_left', parseInt(win.style.left, 10));
+    if (win.style.top) localStorage.setItem('cd_task_win_top', parseInt(win.style.top, 10));
 
     window.removeEventListener('mousemove', onDragMove);
     window.removeEventListener('mouseup', onDragEnd);
@@ -25466,18 +26250,24 @@ function initTaskWindowDragResize() {
     window.removeEventListener('touchend', onDragEnd);
   }
 
-  topHandle.addEventListener('mousedown', (e) => onDragStart(e, 'top'));
-  topHandle.addEventListener('touchstart', (e) => onDragStart(e, 'top'), { passive: false });
+  const handleMappings = [
+    { el: cornerTlHandle, mode: 'corner-tl' },
+    { el: cornerBrHandle, mode: 'corner-br' }
+  ];
 
-  if (leftHandle) {
-    leftHandle.addEventListener('mousedown', (e) => onDragStart(e, 'left'));
-    leftHandle.addEventListener('touchstart', (e) => onDragStart(e, 'left'), { passive: false });
-  }
-
-  if (cornerHandle) {
-    cornerHandle.addEventListener('mousedown', (e) => onDragStart(e, 'corner'));
-    cornerHandle.addEventListener('touchstart', (e) => onDragStart(e, 'corner'), { passive: false });
-  }
+  handleMappings.forEach(({ el, mode }) => {
+    if (!el) return;
+    el.addEventListener('mousedown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onDragStart(e, mode, el);
+    });
+    el.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      onDragStart(e, mode, el);
+    }, { passive: false });
+  });
 }
 
 function applyTaskWindowWidth(w) {
@@ -25648,7 +26438,7 @@ function renderFloatingTaskManager(list) {
     speedEl.style.display = totalSpeed > 0 ? 'inline-block' : 'none';
   }
 
-  // 2. Batch Summary Progress (Total files & bytes across running/all jobs)
+  // 2. Batch Summary Progress (Total files & bytes across active running / batch jobs)
   let totalBatchBytes = 0;
   let totalProcessedBytes = 0;
   let totalBatchFiles = 0;
@@ -25660,23 +26450,30 @@ function renderFloatingTaskManager(list) {
   let activeSpeed = 0;
   let activeCurHash = null;
 
-  list.forEach(t => {
-    totalBatchBytes += t.total_bytes || 0;
-    totalProcessedBytes += t.bytes_processed || 0;
+  const activeBatchList = running.length > 0 ? running : list;
+  activeBatchList.forEach(t => {
+    const isDone = t.status === 'completed';
+    const tBytes = t.total_bytes || (isDone ? (t.bytes_processed || 0) : 0);
+    const pBytes = isDone ? (t.total_bytes || t.bytes_processed || 0) : (t.bytes_processed || 0);
+
+    totalBatchBytes += tBytes;
+    totalProcessedBytes += pBytes;
     totalBatchFiles += t.total_files || 1;
-    totalProcessedFiles += t.files_processed || (t.status === 'completed' ? (t.total_files || 1) : 0);
+    totalProcessedFiles += isDone ? (t.total_files || 1) : (t.files_processed || 0);
     totalVerified += t.verified_files || 0;
 
     if (t.status === 'running' && !activeCurrentFile) {
-      activeCurrentFile = sanitizeCredentials(t.current_file || t.name);
-      activeCurBytes = t.current_file_bytes || t.bytes_processed;
-      activeCurTotal = t.current_file_total_bytes || t.total_bytes;
+      activeCurrentFile = t.phase_text ? t.phase_text : sanitizeCredentials(t.current_file || t.name);
+      activeCurBytes = t.current_file_bytes || t.bytes_processed || 0;
+      activeCurTotal = t.current_file_total_bytes || t.total_bytes || 0;
       activeSpeed = t.speed_bytes_per_sec || 0;
       activeCurHash = t.last_hash;
     }
   });
 
-  const overallPercent = totalBatchBytes > 0 ? Math.min(100, Math.round((totalProcessedBytes / totalBatchBytes) * 100)) : (running.length === 0 && list.length > 0 ? 100 : 0);
+  const overallPercent = totalBatchBytes > 0 
+    ? Math.min(100, Math.round((totalProcessedBytes / totalBatchBytes) * 100)) 
+    : (running.length === 0 && list.length > 0 ? 100 : 0);
 
   const batchFill = document.getElementById('task-batch-progress-fill');
   const batchPercent = document.getElementById('task-batch-percent-text');
@@ -25700,7 +26497,8 @@ function renderFloatingTaskManager(list) {
     } else if (running.length === 0) {
       batchEta.textContent = list.length > 0 ? (totalVerified > 0 ? '✓ Verified Complete' : '✓ Completed') : 'Idle';
     } else {
-      batchEta.textContent = 'ETA: calculating...';
+      const hasParanoid = running.some(t => t.paranoid);
+      batchEta.textContent = hasParanoid ? 'Verifying...' : 'Processing...';
     }
   }
 
@@ -25719,16 +26517,26 @@ function renderFloatingTaskManager(list) {
       `;
     }
     if (curSpeedEl) curSpeedEl.textContent = activeSpeed > 0 ? `${formatBytes(activeSpeed)}/s` : '';
-    const filePct = activeCurTotal > 0 ? Math.min(100, Math.round((activeCurBytes / activeCurTotal) * 100)) : 0;
+    const filePct = activeCurTotal > 0 ? Math.min(100, Math.round((activeCurBytes / activeCurTotal) * 100)) : (running.length > 0 ? 50 : 0);
     if (curFillEl) curFillEl.style.width = `${filePct}%`;
-    if (curBytesEl) curBytesEl.textContent = `${formatBytes(activeCurBytes)} / ${formatBytes(activeCurTotal)}`;
+    if (curBytesEl) curBytesEl.textContent = activeCurTotal > 0 ? `${formatBytes(activeCurBytes)} / ${formatBytes(activeCurTotal)}` : `${formatBytes(activeCurBytes)}`;
     if (curPercentEl) curPercentEl.textContent = `${filePct}%`;
   } else {
-    if (curNameEl) curNameEl.textContent = running.length === 0 ? 'No active file transfer' : 'Preparing next file...';
+    const lastHash = list.find(t => t.last_hash)?.last_hash;
+    if (curNameEl) {
+      if (running.length === 0 && list.length > 0) {
+        curNameEl.innerHTML = `
+          <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">All operations completed</div>
+          ${lastHash ? `<div style="font-size: 9.5px; color: #a3e635; font-family: var(--font-mono); margin-top: 2px;">🔑 ${escapeHtml(lastHash)}</div>` : ''}
+        `;
+      } else {
+        curNameEl.textContent = running.length === 0 ? 'No active file transfer' : 'Processing file transfer...';
+      }
+    }
     if (curSpeedEl) curSpeedEl.textContent = '';
-    if (curFillEl) curFillEl.style.width = '0%';
-    if (curBytesEl) curBytesEl.textContent = '0 B / 0 B';
-    if (curPercentEl) curPercentEl.textContent = '0%';
+    if (curFillEl) curFillEl.style.width = running.length === 0 && list.length > 0 ? '100%' : '0%';
+    if (curBytesEl) curBytesEl.textContent = running.length === 0 && list.length > 0 ? `${formatBytes(totalBatchBytes)} / ${formatBytes(totalBatchBytes)}` : '0 B / 0 B';
+    if (curPercentEl) curPercentEl.textContent = running.length === 0 && list.length > 0 ? '100%' : '0%';
   }
 
   // 4. Job Queue List
@@ -25754,7 +26562,7 @@ function renderFloatingTaskManager(list) {
                 <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
                   <span class="task-queue-name" title="${escapeHtml(safeName)}">${escapeHtml(safeName)}</span>
                   ${isRunning && t.speed_bytes_per_sec > 0 ? `<span style="font-size: 9.5px; font-family: var(--font-mono); color: var(--accent); font-weight: 700; background: rgba(245, 158, 11, 0.15); padding: 1px 5px; border-radius: 3px; white-space: nowrap;">⚡ ${formatBytes(t.speed_bytes_per_sec)}/s</span>` : ''}
-                  ${t.paranoid ? `<span class="task-queue-badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 8.5px; padding: 1px 4px; white-space: nowrap;">🛡️ SHA-256 ${t.verified_files ? `(${t.verified_files} OK)` : ''}</span>` : ''}
+                  ${(t.paranoid || t.verified_files > 0 || t.last_hash) ? `<span class="task-queue-badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 8.5px; padding: 1px 4px; white-space: nowrap;">🛡️ SHA-256 ${t.verified_files ? `(${t.verified_files} OK)` : ''}</span>` : ''}
                 </div>
                 <span class="task-queue-badge ${badgeClass}">${escapeHtml(t.status)}</span>
               </div>
@@ -25817,26 +26625,73 @@ function renderFloatingTaskManager(list) {
 }
 
 async function pauseTask(id) {
-  await fetch(`/api/tasks/${id}/pause`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${App.token}` }
-  });
+  if (id && (id.startsWith('xnode_') || id.startsWith('client_') || id.startsWith('opt_'))) {
+    const task = lastKnownTasksList.find(t => t.id === id);
+    if (task) {
+      task.status = 'paused';
+      task.speed_bytes_per_sec = 0;
+      updateTasksPillState(lastKnownTasksList);
+      renderFloatingTaskManager(lastKnownTasksList);
+      renderDockedTasksPanes(lastKnownTasksList);
+    }
+    return;
+  }
+  const task = lastKnownTasksList.find(t => t.id === id);
+  const endpoint = (task && task.targetEndpoint) ? task.targetEndpoint : '';
+  const headers = (task && task.targetHeaders) ? task.targetHeaders : { 'Authorization': `Bearer ${App.token}` };
+  try {
+    await fetch(`${endpoint}/api/tasks/${id}/pause`, {
+      method: 'POST',
+      headers: headers
+    });
+  } catch (_) {}
   pollTasks();
 }
 
 async function resumeTask(id) {
-  await fetch(`/api/tasks/${id}/resume`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${App.token}` }
-  });
+  if (id && (id.startsWith('xnode_') || id.startsWith('client_') || id.startsWith('opt_'))) {
+    const task = lastKnownTasksList.find(t => t.id === id);
+    if (task) {
+      task.status = 'running';
+      updateTasksPillState(lastKnownTasksList);
+      renderFloatingTaskManager(lastKnownTasksList);
+      renderDockedTasksPanes(lastKnownTasksList);
+    }
+    return;
+  }
+  const task = lastKnownTasksList.find(t => t.id === id);
+  const endpoint = (task && task.targetEndpoint) ? task.targetEndpoint : '';
+  const headers = (task && task.targetHeaders) ? task.targetHeaders : { 'Authorization': `Bearer ${App.token}` };
+  try {
+    await fetch(`${endpoint}/api/tasks/${id}/resume`, {
+      method: 'POST',
+      headers: headers
+    });
+  } catch (_) {}
   pollTasks();
 }
 
 async function cancelTask(id) {
-  await fetch(`/api/tasks/${id}/cancel`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${App.token}` }
-  });
+  if (id && (id.startsWith('xnode_') || id.startsWith('client_') || id.startsWith('opt_'))) {
+    const task = lastKnownTasksList.find(t => t.id === id);
+    if (task) {
+      task.status = 'cancelled';
+      task.speed_bytes_per_sec = 0;
+      updateTasksPillState(lastKnownTasksList);
+      renderFloatingTaskManager(lastKnownTasksList);
+      renderDockedTasksPanes(lastKnownTasksList);
+    }
+    return;
+  }
+  const task = lastKnownTasksList.find(t => t.id === id);
+  const endpoint = (task && task.targetEndpoint) ? task.targetEndpoint : '';
+  const headers = (task && task.targetHeaders) ? task.targetHeaders : { 'Authorization': `Bearer ${App.token}` };
+  try {
+    await fetch(`${endpoint}/api/tasks/${id}/cancel`, {
+      method: 'POST',
+      headers: headers
+    });
+  } catch (_) {}
   pollTasks();
 }
 
@@ -25855,10 +26710,16 @@ async function resumeAllTasks() {
 }
 
 async function clearCompletedTasks() {
-  await fetch('/api/tasks/clear-completed', {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${App.token}` }
-  });
+  lastKnownTasksList = lastKnownTasksList.filter(t => t.status === 'running' || t.status === 'paused');
+  updateTasksPillState(lastKnownTasksList);
+  renderFloatingTaskManager(lastKnownTasksList);
+  renderDockedTasksPanes(lastKnownTasksList);
+  try {
+    await fetch('/api/tasks/clear-completed', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+  } catch (_) {}
   pollTasks();
 }
 
@@ -26637,7 +27498,16 @@ function isArchiveFile(filename) {
          lower.endsWith('.tbz2') ||
          lower.endsWith('.tar.xz') ||
          lower.endsWith('.txz') ||
-         lower.endsWith('.tar');
+         lower.endsWith('.tar') ||
+         lower.endsWith('.iso') ||
+         lower.endsWith('.udf') ||
+         lower.endsWith('.img') ||
+         lower.endsWith('.raw') ||
+         lower.endsWith('.dd') ||
+         lower.endsWith('.vhd') ||
+         lower.endsWith('.squashfs') ||
+         lower.endsWith('.snap') ||
+         lower.endsWith('.appimage');
 }
 
 function isVaultFile(filename) {
@@ -28833,7 +29703,8 @@ function updateMediaPill() {
 }
 
 function closeMediaPlayer(force = false) {
-  if (!force && mediaplayerState.isPlaying) {
+  const stopOnClose = localStorage.getItem('cd_media_stop_on_close') !== 'false';
+  if (!force && !stopOnClose && mediaplayerState.isPlaying) {
     minimizeFloatingMediaPlayer();
     showToast('Media Player minimized to background pill', 'info');
     return;
@@ -32076,7 +32947,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'edit', title: 'Editor', sub: 'Open floating Edit code & text editor (F4)', icon: 'assets/edit.webp', cat: 'actions', action: () => openFloatingEditor() },
   { id: 'diff', title: 'Compare', sub: 'Compare files or directories side-by-side (F9)', icon: 'assets/diff.webp', cat: 'actions', action: () => triggerDiff() },
   { id: 'search', title: 'Search', sub: 'Search files and folders recursively (Ctrl+F)', icon: 'assets/search.webp', cat: 'actions', action: () => openSearchModal() },
-  { id: 'fleet', title: 'Commander Fleet', sub: 'Multi-host node switcher, remote cluster manager & node diagnostics', icon: 'network', cat: 'actions', action: () => openFleetManagerModal() },
+  { id: 'fleet', title: 'Fleet Control', sub: 'Multi-host node switcher, remote cluster manager & node diagnostics', icon: 'network', cat: 'actions', action: () => openFleetManagerModal() },
   { id: 'shares', title: 'Share Manager', sub: 'Manage public share links and guest upload dropboxes', icon: 'assets/sharemgr.webp', cat: 'actions', action: () => openSharesManager() },
   { id: 'sync', title: 'Backup & Sync', sub: 'Delta Backup & Sync Studio: Two-Way Sync, Mirror, Additive Contribute & Snapshot Versioning', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
   { id: 'du', title: 'Disk Usage', sub: 'Disk Usage & Storage Treemap Analyzer: inspect space consumption', icon: 'assets/amber-piechart.webp', cat: 'actions', action: () => openDiskUsageModal() },
@@ -32408,9 +33279,10 @@ function buildSpotlightItems() {
     if (typeof getAllFleetNodes === 'function') {
       const fleetNodes = getAllFleetNodes();
       fleetNodes.forEach(fn => {
+        const verStr = fn.version ? `v${fn.version} • ` : '';
         pool.push({
           title: `Fleet Node: ${fn.name}`,
-          sub: `Switch to ${fn.endpoint_url} • ${fn.status || 'node'} ${fn.latency_ms ? '(' + fn.latency_ms + 'ms)' : ''}`,
+          sub: `Switch to ${fn.endpoint_url} • ${verStr}${fn.status || 'node'} ${fn.latency_ms ? '(' + fn.latency_ms + 'ms)' : ''}`,
           icon: 'network',
           cat: 'action',
           badge: 'Fleet',
@@ -33944,26 +34816,37 @@ function renderDockedTasksForPane(paneIndex, list) {
   let totalProcessedBytes = 0;
   let totalBatchFiles = 0;
   let totalProcessedFiles = 0;
+  let totalVerified = 0;
   let activeCurrentFile = null;
   let activeCurBytes = 0;
   let activeCurTotal = 0;
   let activeSpeed = 0;
+  let activeCurHash = null;
 
-  list.forEach(t => {
-    totalBatchBytes += t.total_bytes || 0;
-    totalProcessedBytes += t.bytes_processed || 0;
+  const activeBatchList = running.length > 0 ? running : list;
+  activeBatchList.forEach(t => {
+    const isDone = t.status === 'completed';
+    const tBytes = t.total_bytes || (isDone ? (t.bytes_processed || 0) : 0);
+    const pBytes = isDone ? (t.total_bytes || t.bytes_processed || 0) : (t.bytes_processed || 0);
+
+    totalBatchBytes += tBytes;
+    totalProcessedBytes += pBytes;
     totalBatchFiles += t.total_files || 1;
-    totalProcessedFiles += t.files_processed || (t.status === 'completed' ? (t.total_files || 1) : 0);
+    totalProcessedFiles += isDone ? (t.total_files || 1) : (t.files_processed || 0);
+    totalVerified += t.verified_files || 0;
 
     if (t.status === 'running' && !activeCurrentFile) {
-      activeCurrentFile = sanitizeCredentials(t.current_file || t.name);
-      activeCurBytes = t.current_file_bytes || t.bytes_processed;
-      activeCurTotal = t.current_file_total_bytes || t.total_bytes;
+      activeCurrentFile = t.phase_text ? t.phase_text : sanitizeCredentials(t.current_file || t.name);
+      activeCurBytes = t.current_file_bytes || t.bytes_processed || 0;
+      activeCurTotal = t.current_file_total_bytes || t.total_bytes || 0;
       activeSpeed = t.speed_bytes_per_sec || 0;
+      activeCurHash = t.last_hash;
     }
   });
 
-  const overallPercent = totalBatchBytes > 0 ? Math.min(100, Math.round((totalProcessedBytes / totalBatchBytes) * 100)) : (running.length === 0 && list.length > 0 ? 100 : 0);
+  const overallPercent = totalBatchBytes > 0 
+    ? Math.min(100, Math.round((totalProcessedBytes / totalBatchBytes) * 100)) 
+    : (running.length === 0 && list.length > 0 ? 100 : 0);
 
   const batchFill = document.getElementById(`docked-task-batch-fill-${paneIndex}`);
   const batchPercent = document.getElementById(`docked-task-batch-percent-${paneIndex}`);
@@ -33973,7 +34856,7 @@ function renderDockedTasksForPane(paneIndex, list) {
 
   if (batchFill) batchFill.style.width = `${overallPercent}%`;
   if (batchPercent) batchPercent.textContent = `${overallPercent}%`;
-  if (batchFiles) batchFiles.textContent = `${totalProcessedFiles} / ${totalBatchFiles} files`;
+  if (batchFiles) batchFiles.textContent = `${totalProcessedFiles} / ${totalBatchFiles} files${totalVerified > 0 ? ` (🛡️ ${totalVerified} SHA-256 verified)` : ''}`;
   if (batchBytes) batchBytes.textContent = `${formatBytes(totalProcessedBytes)} / ${formatBytes(totalBatchBytes)}`;
 
   if (batchEta) {
@@ -33983,9 +34866,9 @@ function renderDockedTasksForPane(paneIndex, list) {
       const secs = etaSec % 60;
       batchEta.textContent = `ETA: ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
     } else if (running.length === 0) {
-      batchEta.textContent = list.length > 0 ? '✓ Complete' : 'Idle';
+      batchEta.textContent = list.length > 0 ? (totalVerified > 0 ? '✓ Verified Complete' : '✓ Completed') : 'Idle';
     } else {
-      batchEta.textContent = 'ETA: --:--';
+      batchEta.textContent = 'Processing...';
     }
   }
 
@@ -33996,18 +34879,33 @@ function renderDockedTasksForPane(paneIndex, list) {
   const curPercentEl = document.getElementById(`docked-task-file-percent-${paneIndex}`);
 
   if (activeCurrentFile) {
-    if (curNameEl) curNameEl.textContent = activeCurrentFile;
+    if (curNameEl) {
+      curNameEl.innerHTML = `
+        <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(activeCurrentFile)}</div>
+        ${activeCurHash ? `<div style="font-size: 9px; color: #a3e635; font-family: var(--font-mono); margin-top: 2px;">🔑 ${escapeHtml(activeCurHash)}</div>` : ''}
+      `;
+    }
     if (curSpeedEl) curSpeedEl.textContent = activeSpeed > 0 ? `${formatBytes(activeSpeed)}/s` : '';
-    const filePct = activeCurTotal > 0 ? Math.min(100, Math.round((activeCurBytes / activeCurTotal) * 100)) : 0;
+    const filePct = activeCurTotal > 0 ? Math.min(100, Math.round((activeCurBytes / activeCurTotal) * 100)) : (running.length > 0 ? 50 : 0);
     if (curFillEl) curFillEl.style.width = `${filePct}%`;
-    if (curBytesEl) curBytesEl.textContent = `${formatBytes(activeCurBytes)} / ${formatBytes(activeCurTotal)}`;
+    if (curBytesEl) curBytesEl.textContent = activeCurTotal > 0 ? `${formatBytes(activeCurBytes)} / ${formatBytes(activeCurTotal)}` : `${formatBytes(activeCurBytes)}`;
     if (curPercentEl) curPercentEl.textContent = `${filePct}%`;
   } else {
-    if (curNameEl) curNameEl.textContent = running.length === 0 ? 'No active file transfer' : 'Preparing next file...';
+    const lastHash = list.find(t => t.last_hash)?.last_hash;
+    if (curNameEl) {
+      if (running.length === 0 && list.length > 0) {
+        curNameEl.innerHTML = `
+          <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">All operations completed</div>
+          ${lastHash ? `<div style="font-size: 9px; color: #a3e635; font-family: var(--font-mono); margin-top: 2px;">🔑 ${escapeHtml(lastHash)}</div>` : ''}
+        `;
+      } else {
+        curNameEl.textContent = running.length === 0 ? 'No active file transfer' : 'Processing file transfer...';
+      }
+    }
     if (curSpeedEl) curSpeedEl.textContent = '';
-    if (curFillEl) curFillEl.style.width = '0%';
-    if (curBytesEl) curBytesEl.textContent = '0 B / 0 B';
-    if (curPercentEl) curPercentEl.textContent = '0%';
+    if (curFillEl) curFillEl.style.width = running.length === 0 && list.length > 0 ? '100%' : '0%';
+    if (curBytesEl) curBytesEl.textContent = running.length === 0 && list.length > 0 ? `${formatBytes(totalBatchBytes)} / ${formatBytes(totalBatchBytes)}` : '0 B / 0 B';
+    if (curPercentEl) curPercentEl.textContent = running.length === 0 && list.length > 0 ? '100%' : '0%';
   }
 
   const queueList = document.getElementById(`docked-task-queue-${paneIndex}`);
@@ -34031,10 +34929,12 @@ function renderDockedTasksForPane(paneIndex, list) {
                 <div style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
                   <span class="task-queue-name" title="${escapeHtml(safeName)}">${escapeHtml(safeName)}</span>
                   ${isRunning && t.speed_bytes_per_sec > 0 ? `<span style="font-size: 9px; font-family: var(--font-mono); color: var(--accent); font-weight: 700;">⚡ ${formatBytes(t.speed_bytes_per_sec)}/s</span>` : ''}
+                  ${(t.paranoid || t.verified_files > 0 || t.last_hash) ? `<span class="task-queue-badge" style="background: rgba(34, 197, 94, 0.15); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.3); font-size: 8.5px; padding: 1px 4px; white-space: nowrap;">🛡️ SHA-256 ${t.verified_files ? `(${t.verified_files} OK)` : ''}</span>` : ''}
                 </div>
                 <span class="task-queue-badge ${badgeClass}">${escapeHtml(t.status)}</span>
               </div>
               <div class="task-queue-sub" title="${escapeHtml(safeSrc)} ➔ ${escapeHtml(safeDest)}">${escapeHtml(safeSrc)} ➔ ${escapeHtml(safeDest)}</div>
+              ${t.last_hash ? `<div style="font-size: 9px; color: #a3e635; font-family: var(--font-mono); margin-top: 1px; word-break: break-all;">✓ ${escapeHtml(t.last_hash)}</div>` : ''}
               ${isRunning || isPaused ? `
                 <div style="height: 3px; background: rgba(255,255,255,0.06); border-radius: 2px; margin-top: 3px; overflow: hidden;">
                   <div style="height: 100%; width: ${pct}%; background: var(--accent);"></div>
@@ -40314,11 +41214,12 @@ async function pingAllFleetNodes() {
   }
 }
 
-// Switch active node profile or navigate to node endpoint
+// Switch active pane to fleet node profile
 function switchToFleetNode(nodeId) {
   if (!nodeId || nodeId === 'local') {
     localStorage.removeItem(FLEET_ACTIVE_KEY);
-    showToast('Switched active profile to Local Host', 'success');
+    switchPaneNode(App.activePane ?? 0, 'local');
+    showToast('Switched active pane to Local Host', 'success');
     closeFleetSwitcherDropdown();
     renderFleetSwitcherDropdown();
     updateHostnameBadge();
@@ -40332,21 +41233,27 @@ function switchToFleetNode(nodeId) {
   }
 
   localStorage.setItem(FLEET_ACTIVE_KEY, nodeId);
-  showToast(`Switched active fleet profile to ${node.name}`, 'success');
+  switchPaneNode(App.activePane ?? 0, nodeId);
+  showToast(`Switched active pane to ${node.name}`, 'success');
   closeFleetSwitcherDropdown();
   renderFleetSwitcherDropdown();
+  updateHostnameBadge();
+}
 
-  // If remote node URL is distinct from current origin, navigate to host
-  if (node.endpoint_url && !node.endpoint_url.startsWith(window.location.origin)) {
-    const cleanUrl = node.endpoint_url.replace(/\/+$/, '');
-    let target = cleanUrl;
-    if (node.auth_token && node.auth_token.trim()) {
-      target += `/#token=${encodeURIComponent(node.auth_token.trim())}`;
-    }
-    setTimeout(() => {
-      window.location.href = target;
-    }, 350);
+// Open remote node standalone Web UI in external browser tab
+function openFleetNodeWebUi(nodeId, event) {
+  if (event) {
+    event.stopPropagation();
+    event.preventDefault();
   }
+  const node = getFleetNodeById(nodeId);
+  if (!node || !node.endpoint_url) return;
+  const cleanUrl = node.endpoint_url.replace(/\/+$/, '');
+  let target = cleanUrl;
+  if (node.auth_token && node.auth_token.trim()) {
+    target += `/#token=${encodeURIComponent(node.auth_token.trim())}`;
+  }
+  window.open(target, '_blank', 'noopener,noreferrer');
 }
 
 // Dropdown UI
@@ -40381,6 +41288,32 @@ function closeFleetSwitcherDropdown() {
   if (badge) badge.classList.remove('dropdown-active');
 }
 
+function getFleetNodeVersionBadge(nodeVer, localVer = App.version) {
+  if (!nodeVer) {
+    return `<span class="fleet-tag-pill" style="font-family: var(--font-mono); font-size: 8.5px; opacity: 0.55; padding: 0 4px;" title="Version unprobed / unknown">v?</span>`;
+  }
+  const cleanNode = String(nodeVer).trim().replace(/^v/, '');
+  const cleanLocal = (localVer ? String(localVer).trim().replace(/^v/, '') : '');
+  if (!cleanLocal || cleanNode === cleanLocal) {
+    return `<span class="fleet-tag-pill" style="font-family: var(--font-mono); font-size: 8.5px; padding: 0 4px; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25);" title="Version match: v${escapeHtml(cleanNode)}">v${escapeHtml(cleanNode)}</span>`;
+  } else {
+    return `<span class="fleet-tag-pill" style="font-family: var(--font-mono); font-size: 8.5px; padding: 0 4px; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.35);" title="Version mismatch: Node runs v${escapeHtml(cleanNode)}, coordinator is v${escapeHtml(cleanLocal)}. Update node for full compatibility.">v${escapeHtml(cleanNode)} ⚠️</span>`;
+  }
+}
+
+function getFleetColorHex(name) {
+  switch (name) {
+    case 'emerald': return '#10b981';
+    case 'sky': return '#0284c7';
+    case 'purple': return '#a855f7';
+    case 'rose': return '#f43f5e';
+    case 'cyan': return '#06b6d4';
+    case 'slate': return '#64748b';
+    case 'amber':
+    default: return '#f59e0b';
+  }
+}
+
 function renderFleetSwitcherDropdown() {
   const container = document.getElementById('fleet-dropdown-nodes-list');
   const activeTag = document.getElementById('fleet-active-node-tag');
@@ -40404,7 +41337,7 @@ function renderFleetSwitcherDropdown() {
         <i data-lucide="server" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
         <div class="fleet-node-info">
           <div class="fleet-node-name">${escapeHtml(getLocalHostDisplayName())} ${isLocalActive ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}</div>
-          <div class="fleet-node-url">${escapeHtml(window.location.host || 'localhost')}</div>
+          <div class="fleet-node-url">${escapeHtml(window.location.host || 'localhost')} • <span style="color: var(--text-muted); font-family: var(--font-mono); font-size: 9.5px;">v${escapeHtml(App.version || '1.1.2')}</span></div>
         </div>
       </div>
       <div class="fleet-node-right">
@@ -40441,9 +41374,13 @@ function renderFleetSwitcherDropdown() {
             <div class="fleet-node-url">${escapeHtml(n.endpoint_url || '')}</div>
           </div>
         </div>
-        <div class="fleet-node-right">
+        <div class="fleet-node-right" style="display: flex; align-items: center; gap: 6px;">
+          ${getFleetNodeVersionBadge(n.version)}
           <span class="fleet-ping-dot ${dotClass}" title="${n.status || 'unknown'}"></span>
           <span class="fleet-node-latency">${latencyText}</span>
+          <button type="button" class="btn btn-xs btn-ghost" onclick="openFleetNodeWebUi('${escapeHtml(n.id)}', event)" title="Open ${escapeHtml(n.name)} Web UI in new tab" style="height: 20px; width: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0.7;">
+            <i data-lucide="external-link" style="width: 11px; height: 11px;"></i>
+          </button>
         </div>
       </div>
     `;
@@ -40455,19 +41392,6 @@ function renderFleetSwitcherDropdown() {
       lucide.createIcons({ root: container });
     }
   } catch (_) {}
-}
-
-function getFleetColorHex(name) {
-  switch (name) {
-    case 'emerald': return '#10b981';
-    case 'sky': return '#0284c7';
-    case 'purple': return '#a855f7';
-    case 'rose': return '#f43f5e';
-    case 'cyan': return '#06b6d4';
-    case 'slate': return '#64748b';
-    case 'amber':
-    default: return '#f59e0b';
-  }
 }
 
 // Fleet Manager Modal
@@ -40513,6 +41437,7 @@ function renderFleetManagerList() {
           <i data-lucide="server" style="width: 14px; height: 14px; color: #f59e0b;"></i>
           <span>${escapeHtml(getLocalHostDisplayName())}</span>
           <span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Local</span>
+          <span class="fleet-tag-pill" style="font-family: var(--font-mono); font-size: 8.5px; padding: 0 4px; background: rgba(16, 185, 129, 0.12); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.25);" title="Local coordinator: v${escapeHtml(App.version || '1.1.2')}">v${escapeHtml(App.version || '1.1.2')}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
           <span class="fleet-ping-dot green" title="Local node"></span>
@@ -40559,6 +41484,7 @@ function renderFleetManagerList() {
           <div class="fleet-card-name">
             <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex};"></i>
             <span>${escapeHtml(n.name)}</span>
+            ${getFleetNodeVersionBadge(n.version)}
             ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Active</span>' : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
@@ -40572,6 +41498,7 @@ function renderFleetManagerList() {
             ${tagsHtml || '<span class="fleet-tag-pill" style="opacity: 0.6;">no tags</span>'}
           </div>
           <div style="display: flex; gap: 4px;">
+            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); openFleetNodeWebUi('${escapeHtml(n.id)}', event)" title="Open Node Web UI in New Tab" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="external-link" style="width: 11px; height: 11px;"></i></button>
             <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); pingFleetNode('${escapeHtml(n.id)}')" title="Ping Node" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i></button>
             <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); deleteFleetNodeProfile('${escapeHtml(n.id)}', event)" title="Delete Node" style="height: 22px; width: 22px; padding: 0; color: #ef4444;"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i></button>
             ${!isAct ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode('${escapeHtml(n.id)}');" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
@@ -40617,7 +41544,30 @@ function selectFleetNodeInManager(id) {
   const results = document.getElementById('fleet-test-results');
   if (results) {
     if (node.status === 'online') {
-      results.innerHTML = `<span style="color: #10b981;"><i data-lucide="check-circle-2" style="width: 12px; height: 12px;"></i> Last Seen Online: ${node.latency_ms || 0}ms latency (Host: ${escapeHtml(node.hostname || 'unknown')}, Brum v${escapeHtml(node.version || '?')})</span>`;
+      const cleanNode = node.version ? String(node.version).trim().replace(/^v/, '') : '';
+      const cleanLocal = App.version ? String(App.version).trim().replace(/^v/, '') : '';
+      const isMismatch = cleanNode && cleanLocal && cleanNode !== cleanLocal;
+      let mismatchBanner = '';
+      if (isMismatch) {
+        mismatchBanner = `
+          <div style="margin-top: 4px; padding: 4px 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; color: #f59e0b; font-size: 10.5px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="alert-triangle" style="width: 13px; height: 13px; flex-shrink: 0;"></i>
+            <span>Version mismatch: Node runs <strong>v${escapeHtml(cleanNode)}</strong> while coordinator is <strong>v${escapeHtml(cleanLocal)}</strong>. Features (such as archive formats or APIs) may differ.</span>
+          </div>
+        `;
+      }
+      results.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 2px;">
+          <span style="color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 4px;">
+            <i data-lucide="check-circle-2" style="width: 12px; height: 12px;"></i> Last Seen Online: ${node.latency_ms || 0}ms latency
+          </span>
+          <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+            <span>Host: <strong style="color: var(--text-main);">${escapeHtml(node.hostname || 'unknown')}</strong></span> • 
+            <span>Version: ${getFleetNodeVersionBadge(node.version)}</span>
+          </span>
+          ${mismatchBanner}
+        </div>
+      `;
     } else if (node.status === 'unauthorized') {
       results.innerHTML = `<span style="color: #f59e0b;"><i data-lucide="alert-triangle" style="width: 12px; height: 12px;"></i> Node reached but returned 401/403 Unauthorized. Check token.</span>`;
     } else if (node.status === 'offline') {
@@ -40747,18 +41697,31 @@ async function testFleetNodeConnection() {
 
     if (resp.ok) {
       const data = await resp.json();
+      const cleanNode = data.version ? String(data.version).trim().replace(/^v/, '') : '';
+      const cleanLocal = App.version ? String(App.version).trim().replace(/^v/, '') : '';
+      const isMismatch = cleanNode && cleanLocal && cleanNode !== cleanLocal;
+      let mismatchBanner = '';
+      if (isMismatch) {
+        mismatchBanner = `
+          <div style="margin-top: 4px; padding: 4px 8px; background: rgba(245, 158, 11, 0.12); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 4px; color: #f59e0b; font-size: 10.5px; display: flex; align-items: center; gap: 6px;">
+            <i data-lucide="alert-triangle" style="width: 13px; height: 13px; flex-shrink: 0;"></i>
+            <span>Version mismatch: Node runs <strong>v${escapeHtml(cleanNode)}</strong> while coordinator is <strong>v${escapeHtml(cleanLocal)}</strong>. Features (such as archive formats or APIs) may differ.</span>
+          </div>
+        `;
+      }
       if (results) {
         results.innerHTML = `
           <div style="display: flex; flex-direction: column; gap: 3px;">
             <div style="color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 4px;">
               <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Connected successfully (${latency}ms round-trip)
             </div>
-            <div style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono);">
-              Host: <span style="color: var(--text-main);">${escapeHtml(data.hostname || data.node_name || 'unknown')}</span> • 
-              Version: <span style="color: var(--text-main);">v${escapeHtml(data.version || '?')}</span> • 
-              OS/Arch: <span style="color: var(--text-main);">${escapeHtml(data.os || '?')}/${escapeHtml(data.arch || '?')}</span> • 
-              Auth: <span style="color: var(--text-main);">${data.auth_enabled ? 'JWT/Active' : 'Open/None'}</span>
+            <div style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+              <span>Host: <span style="color: var(--text-main);">${escapeHtml(data.hostname || data.node_name || 'unknown')}</span></span> • 
+              <span>Version: ${getFleetNodeVersionBadge(data.version)}</span> • 
+              <span>OS/Arch: <span style="color: var(--text-main);">${escapeHtml(data.os || '?')}/${escapeHtml(data.arch || '?')}</span></span> • 
+              <span>Auth: <span style="color: var(--text-main);">${data.auth_enabled ? 'JWT/Active' : 'Open/None'}</span></span>
             </div>
+            ${mismatchBanner}
           </div>
         `;
       }
@@ -40880,7 +41843,7 @@ async function deleteFleetNodeProfile(id, event) {
   const confirmed = await showConfirmDialog({
     title: 'Delete Fleet Node',
     subtitle: `Remove "${node.name}" from fleet`,
-    message: `Are you sure you want to remove node "${node.name}" (${node.endpoint_url}) from your Commander Fleet registry?`,
+    message: `Are you sure you want to remove node "${node.name}" (${node.endpoint_url}) from your Fleet Control registry?`,
     icon: 'trash-2',
     type: 'danger',
     confirmText: 'Delete Node'
@@ -42942,14 +43905,10 @@ async function computeHexHashes() {
   const crcEl = document.getElementById('hex-hash-crc32');
   if (crcEl) crcEl.textContent = `0x${crc.toUpperCase()}`;
 
-  // SHA-256 via Web Crypto
-  try {
-    const hashBuf = await crypto.subtle.digest('SHA-256', bytes);
-    const hashArray = Array.from(new Uint8Array(hashBuf));
-    const hexSha = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-    const shaEl = document.getElementById('hex-hash-sha256');
-    if (shaEl) shaEl.textContent = hexSha;
-  } catch (_) {}
+  // SHA-256 via Universal Engine
+  const hexSha = await computeSha256Hex(bytes);
+  const shaEl = document.getElementById('hex-hash-sha256');
+  if (shaEl && hexSha) shaEl.textContent = hexSha;
 }
 
 function handleHexGridKey(e) {

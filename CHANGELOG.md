@@ -5,6 +5,33 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-09-27
+
+### Added
+- **Windows Installer Options (Standalone Desktop vs Autostart Service)** (Fixes #87):
+  - Created native Inno Setup installer script (`packaging/windows/setup.iss`) with selectable installation components.
+  - Standalone Desktop Component (`Brum.exe`): Installs Brum as a local desktop file manager with Desktop and Start Menu shortcuts.
+  - Windows Service Component (`Brum-cli.exe`): Automatically registers and starts Brum as an autostarting background Windows Service (`brum-cli.exe service install`).
+  - Windows Explorer Context Menu: Adds "Open in Brum" to directory and background right-click context menus.
+  - Integrated installer compilation into `build-windows.ps1` with automated SHA-256 manifest generation.
+- **Media Player Stop on Close Enhancement & User Preference** (Fixes #88):
+  - Added configurable stop-on-close preference (`cd_media_stop_on_close`, default: `true`).
+  - Closing the Media Player window (<kbd>Esc</kbd> or <kbd>✕</kbd>) immediately pauses and dismisses media playback.
+  - Minimizing (<kbd>−</kbd>) preserves background playback via the sleek floating pill widget.
+  - Added preference toggle under **Settings → General**.
+- **Fleet & Cross-Node SHA-256 Match Verification**:
+  - Implemented pure JavaScript SHA-256 fallback engine for non-HTTPS LAN fleet nodes where `window.crypto.subtle` is unavailable.
+  - Backend upload endpoints calculate and return destination SHA-256 hashes.
+  - Cross-node fleet transfers verify checksums end-to-end and log `SHA-256 Match: <hash>` on task cards.
+
+### Fixed
+- **Floating Task Manager 2D Window Drag-Resizing**:
+  - Fixed 2D bounding box conversion when resizing from `bottom`/`right` origins.
+  - Streamlined dual-corner pull handles (top-left and bottom-right) for predictable, non-inverted resizing.
+- **Header Task Button & Pill Transfer Speed Layout Shifts**:
+  - Stabilized `#btn-header-tasks` to a fixed width with task count badges and failure alert states.
+  - Delegated dynamic transfer speed display to the floating pill with `tabular-nums` formatting to eliminate horizontal UI jitter.
+
 ## [1.1.0] - 2026-09-25
 
 ### Added

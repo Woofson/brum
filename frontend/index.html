@@ -152,7 +152,7 @@
         <span class="app-logo-text" style="font-weight: 700;">Brum</span>
       </div>
       <div class="fleet-switcher-wrapper" id="fleet-switcher-wrapper">
-        <span class="header-hostname-badge style-text color-slate" id="header-hostname-badge" onclick="toggleFleetSwitcherDropdown(event)" title="Commander Fleet (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
+        <span class="header-hostname-badge style-text color-slate" id="header-hostname-badge" onclick="toggleFleetSwitcherDropdown(event)" title="Fleet Control (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
           <i data-lucide="server" id="header-hostname-icon" style="display: none;"></i>
           <span id="header-hostname-text">@localhost</span>
           <i data-lucide="chevron-down" class="header-hostname-chevron" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.6;"></i>
@@ -160,7 +160,7 @@
         <!-- Dropdown Menu -->
         <div class="fleet-switcher-dropdown" id="fleet-switcher-dropdown" style="display: none;" onclick="event.stopPropagation()">
           <div class="fleet-dropdown-header">
-            <span class="fleet-dropdown-title"><i data-lucide="network" style="width: 13px; height: 13px; color: var(--accent);"></i> Commander Fleet</span>
+            <span class="fleet-dropdown-title"><i data-lucide="network" style="width: 13px; height: 13px; color: var(--accent);"></i> Fleet Control</span>
             <span class="fleet-dropdown-status" id="fleet-active-node-tag">Local Node</span>
           </div>
           <div class="fleet-dropdown-nodes" id="fleet-dropdown-nodes-list">
@@ -1227,6 +1227,14 @@
                   <div>
                     <strong>Bottom Function Key Bar (F1..F10)</strong>
                     <div class="settings-field-hint">Display classic orthodox commander function key shortcuts at the bottom.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-media-stop-on-close" onchange="toggleMediaStopOnClose(this.checked)" checked>
+                  <div>
+                    <strong>Stop Playback on Close (Media Player)</strong>
+                    <div class="settings-field-hint">Stop audio and video playback when closing the Media Player. Use the Minimize button (-) to keep playing in the background pill.</div>
                   </div>
                 </label>
               </div>
@@ -2609,7 +2617,7 @@
                   <i data-lucide="key-round"></i> API Keys & Fleet Service Tokens
                 </h4>
                 <p class="settings-card-desc" style="margin-top: 2px;">
-                  Create and manage cryptographically signed long-lived Bearer tokens for Commander Fleet nodes, backup daemons, and automated scripts.
+                  Create and manage cryptographically signed long-lived Bearer tokens for Fleet Control nodes, backup daemons, and automated scripts.
                 </p>
               </div>
               <button type="button" class="btn btn-accent btn-sm" onclick="openCreateApiTokenModal()" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
@@ -5877,14 +5885,14 @@
     <span>Disk Usage</span>
   </div>
 
-  <!-- Commander Fleet Manager Modal -->
+  <!-- Fleet Control Manager Modal -->
   <div class="modal-overlay" id="fleet-manager-modal" style="z-index: 2870;">
     <div class="modal-box" style="width: 840px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;">
       <!-- Modal Header (42px standard) -->
       <div class="modal-header" style="min-height: 42px; padding: 0 14px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: grab;">
         <div style="display: flex; align-items: center; gap: 8px;">
           <i data-lucide="network" style="width: 16px; height: 16px; color: var(--accent);"></i>
-          <span style="font-weight: 700; font-size: 13.5px; letter-spacing: 0.2px;">Commander Fleet Manager</span>
+          <span style="font-weight: 700; font-size: 13.5px; letter-spacing: 0.2px;">Fleet Control</span>
           <span class="user-role-badge" id="fleet-node-count-badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent); font-size: 10.5px;">1 Node</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
@@ -7436,14 +7444,10 @@
       <div class="drawer-pull-handle"></div>
     </div>
 
-    <!-- Desktop 2D Resize Handles -->
-    <div class="task-win-resize-handle desktop-only" id="task-win-resize-handle" title="Drag up/down to resize height">
-      <div class="resize-handle-bar"></div>
-    </div>
-    <div class="task-win-resize-left desktop-only" id="task-win-resize-left" title="Drag left/right to resize width"></div>
+    <!-- Desktop 2D Corner Resize Pull-Handles -->
     <div class="task-win-resize-corner desktop-only" id="task-win-resize-corner" title="Drag to resize width and height">
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+        <path d="M1 9L9 1M1 5L5 1M1 1H1.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
       </svg>
     </div>
 
@@ -7516,6 +7520,11 @@
       <div class="task-footer-right">
         <button class="btn btn-sm" onclick="copyTaskLogs()" title="Copy Diagnostics"><i data-lucide="clipboard" style="width: 12px;"></i> Copy Log</button>
       </div>
+    </div>
+    <div class="task-win-resize-corner-br desktop-only" id="task-win-resize-corner-br" title="Drag to resize width and height">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
     </div>
   </div>
 

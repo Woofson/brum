@@ -117,6 +117,34 @@ impl VfsTransfer {
         task_manager: &TaskManager,
         task_id: &str,
     ) -> Result<Option<String>, String> {
+        Self::transfer_single_item_with_metrics(
+            src,
+            dest_dir,
+            is_move,
+            paranoid,
+            conflict_resolution,
+            task_manager,
+            task_id,
+            0,
+            1,
+            0,
+            std::time::Instant::now(),
+        )
+    }
+
+    pub fn transfer_single_item_with_metrics(
+        src: &str,
+        dest_dir: &str,
+        is_move: bool,
+        paranoid: bool,
+        conflict_resolution: Option<&str>,
+        task_manager: &TaskManager,
+        task_id: &str,
+        files_done_before: u64,
+        total_files: u64,
+        bytes_done_before: u64,
+        start_time: std::time::Instant,
+    ) -> Result<Option<String>, String> {
         let is_src_smb = src.starts_with("smb://");
         let is_dest_smb = dest_dir.starts_with("smb://");
         let is_src_sftp = src.starts_with("sftp://");
@@ -400,18 +428,180 @@ impl VfsTransfer {
                 }
             }
 
+            let tm = task_manager.clone();
+            let tid = task_id.to_string();
+            let iname = file_name.to_string_lossy().to_string();
+            let mut last_progress_time = std::time::Instant::now();
+            let mut dir_bytes_done = 0u64;
+
             if is_move {
                 if std::fs::rename(src, &target).is_err() {
-                    LocalFs::copy_file_paranoid(src, &target.to_string_lossy(), paranoid).map_err(|e| e.to_string())?;
+                    if src_path.is_file() {
+                        let hash_opt = LocalFs::copy_single_file_streaming(src_path, &target, paranoid, |_, cur_file_bytes, cur_file_total| {
+                            if tm.sync_is_cancelled(&tid) {
+                                return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                            }
+                            while tm.sync_is_paused(&tid) {
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                                if tm.sync_is_cancelled(&tid) {
+                                    return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                                }
+                            }
+
+                            let now = std::time::Instant::now();
+                            if now.duration_since(last_progress_time).as_millis() >= 35 || cur_file_bytes == cur_file_total {
+                                last_progress_time = now;
+                                let elapsed = start_time.elapsed().as_secs_f64();
+                                let total_bytes_now = bytes_done_before + cur_file_bytes;
+                                let current_speed = if elapsed > 0.05 {
+                                    (total_bytes_now as f64 / elapsed) as u64
+                                } else {
+                                    0
+                                };
+                                tm.sync_update_stream_progress(
+                                    &tid,
+                                    Some(&iname),
+                                    cur_file_bytes,
+                                    cur_file_total,
+                                    files_done_before,
+                                    total_files,
+                                    total_bytes_now,
+                                    current_speed,
+                                );
+                            }
+                            Ok(())
+                        }).map_err(|e| e.to_string())?;
+
+                        if let Some(h) = hash_opt {
+                            verified_hash = Some(format!("SHA-256 Match: {}", h));
+                        }
+                    } else {
+                        LocalFs::copy_file_paranoid_with_progress(src, &target.to_string_lossy(), paranoid, |cur_file_path, chunk_bytes, cur_bytes, cur_total| {
+                            if tm.sync_is_cancelled(&tid) {
+                                return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                            }
+                            while tm.sync_is_paused(&tid) {
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                                if tm.sync_is_cancelled(&tid) {
+                                    return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                                }
+                            }
+
+                            dir_bytes_done += chunk_bytes;
+                            let now = std::time::Instant::now();
+                            if now.duration_since(last_progress_time).as_millis() >= 35 || cur_bytes == cur_total {
+                                last_progress_time = now;
+                                let elapsed = start_time.elapsed().as_secs_f64();
+                                let total_bytes_now = bytes_done_before + dir_bytes_done;
+                                let current_speed = if elapsed > 0.05 {
+                                    (total_bytes_now as f64 / elapsed) as u64
+                                } else {
+                                    0
+                                };
+                                let cur_name = cur_file_path.file_name().unwrap_or_default().to_string_lossy();
+                                tm.sync_update_stream_progress(
+                                    &tid,
+                                    Some(&cur_name),
+                                    cur_bytes,
+                                    cur_total,
+                                    files_done_before,
+                                    total_files,
+                                    total_bytes_now,
+                                    current_speed,
+                                );
+                            }
+                            Ok(())
+                        }).map_err(|e| e.to_string())?;
+                    }
                     let _ = LocalFs::delete_entry(src, false, None);
+                } else if paranoid && target.is_file() {
+                    if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
+                        verified_hash = Some(format!("SHA-256 Match: {}", h));
+                    }
                 }
             } else {
-                LocalFs::copy_file_paranoid(src, &target.to_string_lossy(), paranoid).map_err(|e| e.to_string())?;
-            }
+                if src_path.is_file() {
+                    let hash_opt = LocalFs::copy_single_file_streaming(src_path, &target, paranoid, |_, cur_file_bytes, cur_file_total| {
+                        if tm.sync_is_cancelled(&tid) {
+                            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                        }
+                        while tm.sync_is_paused(&tid) {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            if tm.sync_is_cancelled(&tid) {
+                                return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                            }
+                        }
 
-            if target.is_file() {
-                if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
-                    verified_hash = Some(format!("SHA-256 Match: {}", h));
+                        let now = std::time::Instant::now();
+                        if now.duration_since(last_progress_time).as_millis() >= 35 || cur_file_bytes == cur_file_total {
+                            last_progress_time = now;
+                            let elapsed = start_time.elapsed().as_secs_f64();
+                            let total_bytes_now = bytes_done_before + cur_file_bytes;
+                            let current_speed = if elapsed > 0.05 {
+                                (total_bytes_now as f64 / elapsed) as u64
+                            } else {
+                                0
+                            };
+                            tm.sync_update_stream_progress(
+                                &tid,
+                                Some(&iname),
+                                cur_file_bytes,
+                                cur_file_total,
+                                files_done_before,
+                                total_files,
+                                total_bytes_now,
+                                current_speed,
+                            );
+                        }
+                        Ok(())
+                    }).map_err(|e| e.to_string())?;
+
+                    if let Some(h) = hash_opt {
+                        verified_hash = Some(format!("SHA-256 Match: {}", h));
+                    }
+                } else {
+                    LocalFs::copy_file_paranoid_with_progress(src, &target.to_string_lossy(), paranoid, |cur_file_path, chunk_bytes, cur_bytes, cur_total| {
+                        if tm.sync_is_cancelled(&tid) {
+                            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                        }
+                        while tm.sync_is_paused(&tid) {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            if tm.sync_is_cancelled(&tid) {
+                                return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                            }
+                        }
+
+                        dir_bytes_done += chunk_bytes;
+                        let now = std::time::Instant::now();
+                        if now.duration_since(last_progress_time).as_millis() >= 35 || cur_bytes == cur_total {
+                            last_progress_time = now;
+                            let elapsed = start_time.elapsed().as_secs_f64();
+                            let total_bytes_now = bytes_done_before + dir_bytes_done;
+                            let current_speed = if elapsed > 0.05 {
+                                (total_bytes_now as f64 / elapsed) as u64
+                            } else {
+                                0
+                            };
+                            let cur_name = cur_file_path.file_name().unwrap_or_default().to_string_lossy();
+                            tm.sync_update_stream_progress(
+                                &tid,
+                                Some(&cur_name),
+                                cur_bytes,
+                                cur_total,
+                                files_done_before,
+                                total_files,
+                                total_bytes_now,
+                                current_speed,
+                            );
+                        }
+                        Ok(())
+                    }).map_err(|e| e.to_string())?;
+
+                    if paranoid && target.is_file() {
+                        if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
+                            verified_hash = Some(format!("SHA-256 Match: {}", h));
+                        }
+                    }
                 }
             }
         }
@@ -429,33 +619,87 @@ impl VfsTransfer {
         paranoid: bool,
         conflict_resolution: Option<String>,
     ) {
-        let total_items = sources.len() as u64;
-        let mut processed = 0u64;
-        let mut verified = 0u64;
+        // 1. Accurate zero-latency pre-scan of total batch files and bytes
+        let mut total_files = 0u64;
+        let mut total_bytes = 0u64;
+        for s in &sources {
+            if !s.starts_with("smb://") && !s.starts_with("sftp://") && !s.starts_with("nfs://") {
+                let p = Path::new(s);
+                if p.is_dir() {
+                    let (count, bytes) = walkdir::WalkDir::new(p)
+                        .into_iter()
+                        .filter_map(|e| e.ok())
+                        .filter(|e| e.file_type().is_file())
+                        .fold((0u64, 0u64), |(c, b), e| {
+                            let len = e.metadata().map(|m| m.len()).unwrap_or(0);
+                            (c + 1, b + len)
+                        });
+                    total_files += if count > 0 { count } else { 1 };
+                    total_bytes += bytes;
+                } else if let Ok(meta) = p.metadata() {
+                    total_bytes += meta.len();
+                    total_files += 1;
+                } else {
+                    total_files += 1;
+                }
+            } else {
+                total_files += 1;
+            }
+        }
+        if total_files == 0 {
+            total_files = sources.len() as u64;
+        }
 
+        task_manager.set_task_totals(&task_id, total_files, total_bytes).await;
         task_manager.set_paranoid(&task_id, paranoid).await;
 
         if paranoid {
             task_manager.add_log_entry(&task_id, "🛡️ TeraCopy Paranoid Integrity: ACTIVE (Full SHA-256 Hash Verification)").await;
         }
 
+        let mut files_done = 0u64;
+        let mut verified = 0u64;
+        let mut bytes_done = 0u64;
+        let start_time = std::time::Instant::now();
+
         for (idx, src_str) in sources.iter().enumerate() {
+            // Check cancellation
+            if task_manager.is_cancelled(&task_id).await {
+                task_manager.add_log_entry(&task_id, "Transfer cancelled by user").await;
+                return;
+            }
+
+            // Check pause
+            while task_manager.is_paused(&task_id).await {
+                tokio::time::sleep(tokio::time::Duration::from_millis(150)).await;
+                if task_manager.is_cancelled(&task_id).await {
+                    return;
+                }
+            }
+
             let item_name = src_str.rsplit('/').next().unwrap_or(src_str);
+            let elapsed = start_time.elapsed().as_secs_f64();
+            let current_speed = if elapsed > 0.05 {
+                (bytes_done as f64 / elapsed) as u64
+            } else {
+                0
+            };
+
             task_manager.update_task_details(
                 &task_id,
                 Some(item_name),
                 0,
                 0,
-                processed,
-                total_items,
-                0,
-                0,
+                files_done,
+                total_files,
+                bytes_done,
+                current_speed,
                 Some(verified),
                 None,
-                Some(&format!("Transferring item {}/{}: {}", idx + 1, total_items, item_name)),
+                Some(&format!("Transferring item {}/{}: {}", idx + 1, sources.len(), item_name)),
             ).await;
 
-            match Self::transfer_single_item(
+            match Self::transfer_single_item_with_metrics(
                 src_str,
                 &destination,
                 is_move,
@@ -463,27 +707,48 @@ impl VfsTransfer {
                 conflict_resolution.as_deref(),
                 &task_manager,
                 &task_id,
+                files_done,
+                total_files,
+                bytes_done,
+                start_time,
             ) {
                 Ok(hash_opt) => {
-                    processed += 1;
+                    let (item_files, item_bytes) = if Path::new(src_str).is_dir() {
+                        let count = walkdir::WalkDir::new(src_str).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()).count() as u64;
+                        let bytes = walkdir::WalkDir::new(src_str).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()).map(|e| e.metadata().map(|m| m.len()).unwrap_or(0)).sum::<u64>();
+                        (if count > 0 { count } else { 1 }, bytes)
+                    } else {
+                        (1, Path::new(src_str).metadata().map(|m| m.len()).unwrap_or(0))
+                    };
+                    files_done += item_files;
+                    bytes_done += item_bytes;
                     if hash_opt.is_some() {
                         verified += 1;
                     }
+
                     let hash_str = hash_opt.as_deref().unwrap_or("");
                     let log_msg = if !hash_str.is_empty() {
                         format!("✓ Transferred {} | {}", item_name, hash_str)
                     } else {
                         format!("✓ Transferred {}", item_name)
                     };
+
+                    let post_elapsed = start_time.elapsed().as_secs_f64();
+                    let post_speed = if post_elapsed > 0.05 {
+                        (bytes_done as f64 / post_elapsed) as u64
+                    } else {
+                        0
+                    };
+
                     task_manager.update_task_details(
                         &task_id,
                         Some(item_name),
                         1,
                         1,
-                        processed,
-                        total_items,
-                        0,
-                        0,
+                        files_done,
+                        total_files,
+                        bytes_done,
+                        post_speed,
                         Some(verified),
                         hash_opt.as_deref(),
                         Some(&log_msg),
@@ -497,7 +762,7 @@ impl VfsTransfer {
         }
 
         if paranoid && verified > 0 {
-            task_manager.add_log_entry(&task_id, &format!("🛡️ Paranoid Verification Complete: {}/{} files verified with SHA-256 match", verified, total_items)).await;
+            task_manager.add_log_entry(&task_id, &format!("🛡️ Paranoid Verification Complete: {}/{} files verified with SHA-256 match", verified, total_files)).await;
         }
 
         task_manager.complete_task(&task_id).await;

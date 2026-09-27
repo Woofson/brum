@@ -59,12 +59,41 @@ Copy-Item "$RootDir\assets\brum.ico" "$DistDir\brum\" -ErrorAction SilentlyConti
 $ZipPath = "$DistDir\brum-windows-x86_64-v$Version.zip"
 Compress-Archive -Path "$DistDir\brum\*" -DestinationPath $ZipPath -Force
 
-# 4. Generate SHA256 Checksums
-Write-Host "[4/4] Generating SHA-256 Checksums..." -ForegroundColor Yellow
+# 4. Generate SHA256 Checksums for Portable ZIP
+Write-Host "[4/5] Generating SHA-256 Checksums..." -ForegroundColor Yellow
 $Hash = (Get-FileHash -Path $ZipPath -Algorithm SHA256).Hash.ToLower()
 "$Hash  $([System.IO.Path]::GetFileName($ZipPath))" | Out-File -FilePath "$DistDir\SHA256SUMS.txt" -Encoding ascii
 
-Write-Host "`n✅ Build and packaging complete!" -ForegroundColor Green
+# 5. Build Windows Setup Installer (Inno Setup)
+Write-Host "[5/5] Compiling Inno Setup Windows Installer..." -ForegroundColor Yellow
+$IsccPaths = @(
+    "C:\Program Files (x86)\Inno Setup 6\ISCC.exe",
+    "C:\Program Files\Inno Setup 6\ISCC.exe",
+    "ISCC.exe"
+)
+$IsccExe = $null
+foreach ($p in $IsccPaths) {
+    if (Get-Command $p -ErrorAction SilentlyContinue) {
+        $IsccExe = $p
+        break
+    }
+}
+
+if ($IsccExe) {
+    Write-Host "Found Inno Setup Compiler at: $IsccExe" -ForegroundColor Cyan
+    & $IsccExe "/DMyAppVersion=$Version" "$RootDir\packaging\windows\setup.iss"
+    $InstallerExe = "$DistDir\Brum-Setup-v$Version.exe"
+    if (Test-Path $InstallerExe) {
+        $InstHash = (Get-FileHash -Path $InstallerExe -Algorithm SHA256).Hash.ToLower()
+        "$InstHash  $([System.IO.Path]::GetFileName($InstallerExe))" | Out-File -FilePath "$DistDir\SHA256SUMS.txt" -Append -Encoding ascii
+        Write-Host "📦 Setup Installer: $InstallerExe" -ForegroundColor Green
+        Write-Host "🔑 Installer Hash:  $InstHash" -ForegroundColor Green
+    }
+} else {
+    Write-Host "Inno Setup Compiler (ISCC.exe) not found. Skipping installer exe creation (portable ZIP created)." -ForegroundColor DarkGray
+}
+
+Write-Host "`nBuild and packaging complete!" -ForegroundColor Green
 Write-Host "📦 Portable ZIP: $ZipPath" -ForegroundColor Green
 Write-Host "🔑 SHA-256:      $Hash" -ForegroundColor Green
 

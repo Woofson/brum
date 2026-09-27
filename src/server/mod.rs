@@ -4280,7 +4280,15 @@ async fn handle_upload(
     let dest_dir = validate_path_access(&state, &headers, &raw_dest, true)?;
 
     let mut uploaded_files = Vec::new();
-    let task_id = state.tasks.create_task("Upload Files", "upload", "Browser", &dest_dir, 0).await;
+    let mut uploaded_hashes: HashMap<String, String> = HashMap::new();
+    let is_silent = query.get("silent").map(|v| v == "true" || v == "1").unwrap_or(false)
+        || query.get("no_task").map(|v| v == "true" || v == "1").unwrap_or(false);
+
+    let task_id_opt = if !is_silent {
+        Some(state.tasks.create_task("Upload Files", "upload", "Browser", &dest_dir, 0).await)
+    } else {
+        None
+    };
 
     let conflict_mode = query.get("conflict").or_else(|| query.get("conflict_resolution")).map(|s| s.as_str()).unwrap_or("overwrite");
 
@@ -4288,20 +4296,28 @@ async fn handle_upload(
         let file_name = field.file_name().unwrap_or("upload.bin").to_string();
 
         if let Ok(data) = field.bytes().await {
+            use sha2::{Digest, Sha256};
+            let mut hasher = Sha256::new();
+            hasher.update(&data);
+            let sha256_hex = hex::encode(hasher.finalize());
+            uploaded_hashes.insert(file_name.clone(), sha256_hex.clone());
+
             let file_size = data.len() as u64;
-            state.tasks.update_task_details(
-                &task_id,
-                Some(&file_name),
-                file_size,
-                file_size,
-                uploaded_files.len() as u64 + 1,
-                uploaded_files.len() as u64 + 1,
-                file_size,
-                0,
-                None,
-                None,
-                Some(&format!("Uploaded {}", file_name)),
-            ).await;
+            if let Some(ref tid) = task_id_opt {
+                state.tasks.update_task_details(
+                    tid,
+                    Some(&file_name),
+                    file_size,
+                    file_size,
+                    uploaded_files.len() as u64 + 1,
+                    uploaded_files.len() as u64 + 1,
+                    file_size,
+                    0,
+                    Some(uploaded_files.len() as u64 + 1),
+                    Some(&format!("SHA-256 Match: {}", sha256_hex)),
+                    Some(&format!("Uploaded {} | SHA-256 Match: {}", file_name, sha256_hex)),
+                ).await;
+            }
 
             if dest_dir.starts_with("smb://") {
                 let params = match crate::vfs::smb::SmbClient::parse_uri(&dest_dir, None, None) {
@@ -4311,13 +4327,17 @@ async fn handle_upload(
                     }
                     Err(e) => {
                         let err_msg = format!("Invalid SMB destination: {}", e);
-                        state.tasks.fail_task(&task_id, &err_msg).await;
+                        if let Some(ref tid) = task_id_opt {
+                            state.tasks.fail_task(tid, &err_msg).await;
+                        }
                         return Err((StatusCode::BAD_REQUEST, err_msg));
                     }
                 };
                 if let Err(e) = crate::vfs::smb::SmbClient::write_file(&params, &data) {
                     let err_msg = format!("Failed to write SMB upload: {}", e);
-                    state.tasks.fail_task(&task_id, &err_msg).await;
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
                     return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
                 }
             } else if dest_dir.starts_with("sftp://") {
@@ -4332,13 +4352,17 @@ async fn handle_upload(
                     }
                     Err(e) => {
                         let err_msg = format!("Invalid SFTP destination: {}", e);
-                        state.tasks.fail_task(&task_id, &err_msg).await;
+                        if let Some(ref tid) = task_id_opt {
+                            state.tasks.fail_task(tid, &err_msg).await;
+                        }
                         return Err((StatusCode::BAD_REQUEST, err_msg));
                     }
                 };
                 if let Err(e) = SftpClient::write_file(&params, &data) {
                     let err_msg = format!("Failed to write SFTP upload: {}", e);
-                    state.tasks.fail_task(&task_id, &err_msg).await;
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
                     return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
                 }
             } else {
@@ -4354,7 +4378,9 @@ async fn handle_upload(
                 };
                 if let Err(e) = LocalFs::write_file(&target_path.to_string_lossy(), &data, true) {
                     let err_msg = format!("Failed to write upload: {}", e);
-                    state.tasks.fail_task(&task_id, &err_msg).await;
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
                     return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
                 }
             }
@@ -4362,8 +4388,15 @@ async fn handle_upload(
         }
     }
 
-    state.tasks.complete_task(&task_id).await;
-    Ok(Json(serde_json::json!({ "success": true, "uploaded": uploaded_files, "task_id": task_id })))
+    if let Some(ref tid) = task_id_opt {
+        state.tasks.complete_task(tid).await;
+    }
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "uploaded": uploaded_files,
+        "hashes": uploaded_hashes,
+        "task_id": task_id_opt
+    })))
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

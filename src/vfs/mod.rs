@@ -1,5 +1,6 @@
 pub mod archive;
 pub mod checksum;
+pub mod disk_image;
 pub mod local;
 pub mod nfs;
 pub mod proton;
@@ -73,6 +74,15 @@ pub fn is_archive_file(path_or_name: &str) -> bool {
         || lower.ends_with(".tar")
         || lower.ends_with(".7z")
         || lower.ends_with(".rar")
+        || lower.ends_with(".iso")
+        || lower.ends_with(".udf")
+        || lower.ends_with(".img")
+        || lower.ends_with(".raw")
+        || lower.ends_with(".dd")
+        || lower.ends_with(".vhd")
+        || lower.ends_with(".squashfs")
+        || lower.ends_with(".snap")
+        || lower.ends_with(".appimage")
 }
 
 pub fn sanitize_uri(uri: &str) -> String {

@@ -1,8 +1,7 @@
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -59,6 +58,17 @@ impl TaskManager {
         destination: &str,
         total_bytes: u64,
     ) -> String {
+        self.sync_create_task(name, action, source, destination, total_bytes)
+    }
+
+    pub fn sync_create_task(
+        &self,
+        name: &str,
+        action: &str,
+        source: &str,
+        destination: &str,
+        total_bytes: u64,
+    ) -> String {
         let id = Uuid::new_v4().to_string();
         let safe_name = sanitize_credentials(name);
         let safe_src = sanitize_credentials(source);
@@ -93,23 +103,89 @@ impl TaskManager {
             last_hash: None,
         };
 
-        let mut map = self.tasks.write().await;
-        map.insert(id.clone(), task);
+        if let Ok(mut map) = self.tasks.write() {
+            map.insert(id.clone(), task);
+        }
         id
     }
 
+    pub async fn is_cancelled(&self, id: &str) -> bool {
+        self.sync_is_cancelled(id)
+    }
+
+    pub fn sync_is_cancelled(&self, id: &str) -> bool {
+        if let Ok(map) = self.tasks.read() {
+            if let Some(task) = map.get(id) {
+                return task.status == "cancelled";
+            }
+        }
+        false
+    }
+
+    pub async fn is_paused(&self, id: &str) -> bool {
+        self.sync_is_paused(id)
+    }
+
+    pub fn sync_is_paused(&self, id: &str) -> bool {
+        if let Ok(map) = self.tasks.read() {
+            if let Some(task) = map.get(id) {
+                return task.status == "paused";
+            }
+        }
+        false
+    }
+
+    pub async fn set_task_totals(&self, id: &str, total_files: u64, total_bytes: u64) {
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                task.total_files = total_files;
+                task.total_bytes = total_bytes;
+            }
+        }
+    }
+
     pub async fn set_paranoid(&self, id: &str, paranoid: bool) {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            task.paranoid = paranoid;
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                task.paranoid = paranoid;
+            }
         }
     }
 
     pub async fn update_progress(&self, id: &str, bytes_processed: u64, speed_bps: u64) {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            task.bytes_processed = bytes_processed;
-            task.speed_bytes_per_sec = speed_bps;
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                task.bytes_processed = bytes_processed;
+                task.speed_bytes_per_sec = speed_bps;
+            }
+        }
+    }
+
+    pub fn sync_update_stream_progress(
+        &self,
+        id: &str,
+        current_file: Option<&str>,
+        cur_file_bytes: u64,
+        cur_file_total: u64,
+        files_processed: u64,
+        total_files: u64,
+        total_bytes_processed: u64,
+        speed_bps: u64,
+    ) {
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                if let Some(f) = current_file {
+                    task.current_file = Some(sanitize_credentials(f));
+                }
+                task.current_file_bytes = cur_file_bytes;
+                task.current_file_total_bytes = cur_file_total;
+                task.files_processed = files_processed;
+                if total_files > 0 {
+                    task.total_files = total_files;
+                }
+                task.bytes_processed = total_bytes_processed;
+                task.speed_bytes_per_sec = speed_bps;
+            }
         }
     }
 
@@ -127,26 +203,39 @@ impl TaskManager {
         last_hash: Option<&str>,
         log_msg: Option<&str>,
     ) {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            if let Some(f) = current_file {
-                task.current_file = Some(sanitize_credentials(f));
-            }
-            task.current_file_bytes = cur_file_bytes;
-            task.current_file_total_bytes = cur_file_total;
-            task.files_processed = files_processed;
-            task.total_files = total_files;
-            task.bytes_processed = total_bytes_processed;
-            task.speed_bytes_per_sec = speed_bps;
-            if let Some(v) = verified_files {
-                task.verified_files = v;
-            }
-            if let Some(h) = last_hash {
-                task.last_hash = Some(h.to_string());
-            }
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                if let Some(f) = current_file {
+                    task.current_file = Some(sanitize_credentials(f));
+                }
+                task.current_file_bytes = cur_file_bytes;
+                task.current_file_total_bytes = cur_file_total;
+                task.files_processed = files_processed;
+                task.total_files = total_files;
+                task.bytes_processed = total_bytes_processed;
+                task.speed_bytes_per_sec = speed_bps;
+                if let Some(v) = verified_files {
+                    task.verified_files = v;
+                }
+                if let Some(h) = last_hash {
+                    task.last_hash = Some(h.to_string());
+                }
 
-            if let Some(msg) = log_msg {
-                let entry = format!("[{}] {}", Utc::now().format("%H:%M:%S"), sanitize_credentials(msg));
+                if let Some(msg) = log_msg {
+                    let entry = format!("[{}] {}", Utc::now().format("%H:%M:%S"), sanitize_credentials(msg));
+                    if task.log_entries.len() > 200 {
+                        task.log_entries.remove(0);
+                    }
+                    task.log_entries.push(entry);
+                }
+            }
+        }
+    }
+
+    pub async fn add_log_entry(&self, id: &str, log_msg: &str) {
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                let entry = format!("[{}] {}", Utc::now().format("%H:%M:%S"), sanitize_credentials(log_msg));
                 if task.log_entries.len() > 200 {
                     task.log_entries.remove(0);
                 }
@@ -155,125 +244,127 @@ impl TaskManager {
         }
     }
 
-    pub async fn add_log_entry(&self, id: &str, log_msg: &str) {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            let entry = format!("[{}] {}", Utc::now().format("%H:%M:%S"), sanitize_credentials(log_msg));
-            if task.log_entries.len() > 200 {
-                task.log_entries.remove(0);
-            }
-            task.log_entries.push(entry);
-        }
-    }
-
     pub async fn complete_task(&self, id: &str) {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            task.status = "completed".to_string();
-            task.bytes_processed = task.total_bytes;
-            task.files_processed = task.total_files;
-            task.finished_at = Some(Utc::now().timestamp());
-            task.log_entries.push(format!(
-                "[{}] Task completed successfully",
-                Utc::now().format("%H:%M:%S")
-            ));
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                task.status = "completed".to_string();
+                task.bytes_processed = task.total_bytes;
+                task.files_processed = task.total_files;
+                task.finished_at = Some(Utc::now().timestamp());
+                task.log_entries.push(format!(
+                    "[{}] Task completed successfully",
+                    Utc::now().format("%H:%M:%S")
+                ));
+            }
         }
     }
 
     pub async fn fail_task(&self, id: &str, error: &str) {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            let safe_err = sanitize_credentials(error);
-            task.status = "failed".to_string();
-            task.error_message = Some(safe_err.clone());
-            task.finished_at = Some(Utc::now().timestamp());
-            task.log_entries.push(format!(
-                "[{}] Error: {}",
-                Utc::now().format("%H:%M:%S"),
-                safe_err
-            ));
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                let safe_err = sanitize_credentials(error);
+                task.status = "failed".to_string();
+                task.error_message = Some(safe_err.clone());
+                task.finished_at = Some(Utc::now().timestamp());
+                task.log_entries.push(format!(
+                    "[{}] Error: {}",
+                    Utc::now().format("%H:%M:%S"),
+                    safe_err
+                ));
+            }
         }
     }
 
     pub async fn cancel_task(&self, id: &str) -> bool {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            if task.status == "running" || task.status == "paused" {
-                task.status = "cancelled".to_string();
-                task.finished_at = Some(Utc::now().timestamp());
-                task.log_entries.push(format!(
-                    "[{}] Task cancelled by user",
-                    Utc::now().format("%H:%M:%S")
-                ));
-                return true;
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                if task.status == "running" || task.status == "paused" {
+                    task.status = "cancelled".to_string();
+                    task.finished_at = Some(Utc::now().timestamp());
+                    task.log_entries.push(format!(
+                        "[{}] Task cancelled by user",
+                        Utc::now().format("%H:%M:%S")
+                    ));
+                    return true;
+                }
             }
         }
         false
     }
 
     pub async fn pause_task(&self, id: &str) -> bool {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            if task.status == "running" {
-                task.status = "paused".to_string();
-                task.log_entries.push(format!(
-                    "[{}] Task paused",
-                    Utc::now().format("%H:%M:%S")
-                ));
-                return true;
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                if task.status == "running" {
+                    task.status = "paused".to_string();
+                    task.log_entries.push(format!(
+                        "[{}] Task paused",
+                        Utc::now().format("%H:%M:%S")
+                    ));
+                    return true;
+                }
             }
         }
         false
     }
 
     pub async fn resume_task(&self, id: &str) -> bool {
-        let mut map = self.tasks.write().await;
-        if let Some(task) = map.get_mut(id) {
-            if task.status == "paused" {
-                task.status = "running".to_string();
-                task.log_entries.push(format!(
-                    "[{}] Task resumed",
-                    Utc::now().format("%H:%M:%S")
-                ));
-                return true;
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                if task.status == "paused" {
+                    task.status = "running".to_string();
+                    task.log_entries.push(format!(
+                        "[{}] Task resumed",
+                        Utc::now().format("%H:%M:%S")
+                    ));
+                    return true;
+                }
             }
         }
         false
     }
 
     pub async fn clear_completed(&self) {
-        let mut map = self.tasks.write().await;
-        map.retain(|_, task| task.status == "running" || task.status == "paused");
+        if let Ok(mut map) = self.tasks.write() {
+            map.retain(|_, task| task.status == "running" || task.status == "paused");
+        }
     }
 
     pub async fn prune_old_completed(&self) {
         let now = Utc::now().timestamp();
-        let mut map = self.tasks.write().await;
-        if map.len() > 15 {
-            map.retain(|_, task| {
-                if task.status == "running" || task.status == "paused" {
-                    return true;
-                }
-                if let Some(finished) = task.finished_at {
-                    if now - finished > 60 {
-                        return false;
+        if let Ok(mut map) = self.tasks.write() {
+            if map.len() > 15 {
+                map.retain(|_, task| {
+                    if task.status == "running" || task.status == "paused" {
+                        return true;
                     }
-                }
-                true
-            });
+                    if let Some(finished) = task.finished_at {
+                        if now - finished > 60 {
+                            return false;
+                        }
+                    }
+                    true
+                });
+            }
         }
     }
 
     pub async fn get_task(&self, id: &str) -> Option<TaskInfo> {
-        let map = self.tasks.read().await;
-        map.get(id).cloned()
+        if let Ok(map) = self.tasks.read() {
+            map.get(id).cloned()
+        } else {
+            None
+        }
     }
 
     pub async fn list_tasks(&self) -> Vec<TaskInfo> {
         self.prune_old_completed().await;
-        let map = self.tasks.read().await;
-        let mut list: Vec<TaskInfo> = map.values().cloned().collect();
-        list.sort_by(|a, b| b.started_at.cmp(&a.started_at));
-        list
+        if let Ok(map) = self.tasks.read() {
+            let mut list: Vec<TaskInfo> = map.values().cloned().collect();
+            list.sort_by(|a, b| b.started_at.cmp(&a.started_at));
+            list
+        } else {
+            Vec::new()
+        }
     }
 }

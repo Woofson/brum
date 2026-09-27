@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "1.1.2"
+version = "1.2.0"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -78,8 +78,17 @@ base64 = "0.22"
 hmac = "0.12"
 regex = "1.11"
 lopdf = "0.34"
+iso9660-rs = { version = "1.0", features = ["all-extensions"] }
+gpt_disk_io = { version = "0.16", features = ["std"] }
+gpt_disk_types = "0.16"
+hadris-udf = "2.4.0"
+backhand = "0.25"
 wry = { version = "0.47", optional = true }
 tao = { version = "0.30", optional = true }
+fatfs = "0.3.6"
+mbr-nostd = "0.1.0"
+ext4 = "0.9.0"
+positioned-io = "=0.2.2"
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
