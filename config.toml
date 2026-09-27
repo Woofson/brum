@@ -1,6 +1,6 @@
 # ==============================================================================
 # 🐕 Brum Master Configuration File
-# Location: ~/.config/brum/config.toml (or /etc/brum/config.toml)
+# Location: ~/projects/brum/config.toml
 # ==============================================================================
 
 # --- Core Server Settings ---
@@ -23,28 +23,28 @@ default_admin_pass = "brum"      # Initial admin password
 
 # --- Storage Roots & Filesystem Sandboxing ---
 [storage]
-allow_entire_system = true            # When true, admin users have unrestricted access to all local drives and system roots
+allow_entire_system = false            # When true, admin users have unrestricted access to all local drives and system roots
 default_user_home_template = "/home/{username}" # Template path for newly created virtual/DB users (e.g. "C:/Users/{username}" on Windows)
 
 # Linux / Standard Mount Example
-[[storage.roots]]
-id = "storage"
-name = "Mass Storage"
-path = "/mnt/storage"
-read_only = false
+#[[storage.roots]]
+#id = "storage"
+#name = "Mass Storage"
+#path = "/mnt/storage"
+#read_only = false
 # allowed_roles = ["admin", "user"]
 
-[[storage.roots]]
-id = "data"
-name = "Application Data"
-path = "/data"
-read_only = false
+#[[storage.roots]]
+#id = "data"
+#name = "Application Data"
+#path = "/data"
+#read_only = false
 
-[[storage.roots]]
-id = "backups"
-name = "Backups (Read-Only)"
-path = "/mnt/backups"
-read_only = true
+#[[storage.roots]]
+#id = "backups"
+#name = "Backups (Read-Only)"
+#path = "/mnt/backups"
+#read_only = true
 
 # Windows Local Drive Example (supports forward slashes "D:/Media", single quotes 'D:\Media', or escaped "D:\\Media")
 # [[storage.roots]]

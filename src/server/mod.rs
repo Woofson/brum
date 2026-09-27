@@ -647,6 +647,49 @@ pub fn path_starts_with_case_insensitive(path: &Path, prefix: &Path) -> bool {
     true
 }
 
+pub fn is_root_path(path: &Path) -> bool {
+    let clean = crate::vfs::local::clean_path_buf(path);
+    let s = clean.to_string_lossy();
+    let trimmed = s.trim();
+    if trimmed.is_empty() || trimmed == "/" || trimmed == "\\" {
+        return true;
+    }
+    let comps: Vec<_> = clean.components().collect();
+    if comps.is_empty() {
+        return true;
+    }
+    let has_normal = comps.iter().any(|c| matches!(c, std::path::Component::Normal(..)));
+    if !has_normal {
+        return true;
+    }
+    if trimmed.len() <= 3 && trimmed.as_bytes().get(1) == Some(&b':') {
+        return true;
+    }
+    false
+}
+
+pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) -> String {
+    let user_home = &claims.home_dir;
+    if !state.config.storage.allow_entire_system && is_root_path(Path::new(user_home)) {
+        let candidate = state.config.storage.default_user_home_template.replace("{username}", &claims.sub);
+        if !is_root_path(Path::new(&candidate)) {
+            candidate
+        } else {
+            dirs::home_dir()
+                .filter(|p| !is_root_path(p))
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| {
+                    #[cfg(windows)]
+                    { format!("C:\\Users\\{}", &claims.sub) }
+                    #[cfg(not(windows))]
+                    { format!("/home/{}", &claims.sub) }
+                })
+        }
+    } else {
+        user_home.clone()
+    }
+}
+
 pub fn validate_path_access(
     state: &AppState,
     headers: &HeaderMap,
@@ -655,7 +698,7 @@ pub fn validate_path_access(
 ) -> Result<String, (StatusCode, String)> {
     let claims = extract_claims_or_local(state, headers)?;
     let user_role = claims.role.as_str();
-    let user_home = &claims.home_dir;
+    let effective_home = resolve_effective_home(&claims, state);
     let allowed_roots_json = claims.allowed_roots.as_deref().unwrap_or("[\"*\"]");
     let allowed_roots: Vec<String> = serde_json::from_str(allowed_roots_json).unwrap_or_else(|_| vec!["*".to_string()]);
 
@@ -669,16 +712,16 @@ pub fn validate_path_access(
     }
 
     let expanded = if raw_path == "~" {
-        user_home.clone()
+        effective_home.clone()
     } else if let Some(stripped) = raw_path.strip_prefix("~/") {
-        Path::new(user_home).join(stripped).to_string_lossy().to_string()
+        Path::new(&effective_home).join(stripped).to_string_lossy().to_string()
     } else if let Some(stripped) = raw_path.strip_prefix(r"~\") {
-        Path::new(user_home).join(stripped).to_string_lossy().to_string()
+        Path::new(&effective_home).join(stripped).to_string_lossy().to_string()
     } else {
         #[cfg(windows)]
         {
-            if (raw_path == "/" || raw_path == "\\") && user_home != "/" {
-                user_home.clone()
+            if (raw_path == "/" || raw_path == "\\") && effective_home != "/" {
+                effective_home.clone()
             } else if (raw_path.starts_with('/') || raw_path.starts_with('\\'))
                 && raw_path.len() >= 3
                 && raw_path.as_bytes()[1].is_ascii_alphabetic()
@@ -707,16 +750,18 @@ pub fn validate_path_access(
     let norm_str = normalized.to_string_lossy().to_string();
     let is_admin = user_role.eq_ignore_ascii_case("admin");
 
-    // Unrestricted system root access if enabled in config (or standalone desktop mode) AND user has permission
-    let allow_system = (state.config.storage.allow_entire_system || state.config.server.standalone)
+    // Unrestricted system root access if enabled in config AND user has permission
+    let allow_system = state.config.storage.allow_entire_system
         && (is_admin || allowed_roots.contains(&"*".to_string()) || allowed_roots.contains(&"/".to_string()));
     if allow_system {
         return Ok(norm_str);
     }
 
-    // Always permit user within their designated home directory
-    let norm_home = normalize_path(Path::new(user_home));
-    if path_starts_with_case_insensitive(&normalized, &norm_home) {
+    // Permit user within their designated home directory (if home is not root or allow_entire_system is enabled)
+    let norm_home = normalize_path(Path::new(&effective_home));
+    if (!is_root_path(&norm_home) || state.config.storage.allow_entire_system)
+        && path_starts_with_case_insensitive(&normalized, &norm_home)
+    {
         return Ok(norm_str);
     }
 
@@ -748,7 +793,7 @@ async fn handle_get_storage_roots(
 ) -> Result<Json<Vec<crate::config::StorageRoot>>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     let user_role = claims.role.as_str();
-    let user_home = claims.home_dir.clone();
+    let effective_home = resolve_effective_home(&claims, &state);
     let allowed_roots_json = claims.allowed_roots.as_deref().unwrap_or("[\"*\"]");
     let allowed_roots: Vec<String> = serde_json::from_str(allowed_roots_json).unwrap_or_else(|_| vec!["*".to_string()]);
 
@@ -756,14 +801,16 @@ async fn handle_get_storage_roots(
     let is_admin = user_role.eq_ignore_ascii_case("admin");
     let is_readonly = user_role.eq_ignore_ascii_case("readonly");
 
-    // 1. Personal Home Directory
-    accessible.push(crate::config::StorageRoot {
-        id: "home".to_string(),
-        name: "Home".to_string(),
-        path: user_home.clone(),
-        read_only: is_readonly,
-        allowed_roles: vec![],
-    });
+    // 1. Personal Home Directory (only if not root when allow_entire_system is false)
+    if state.config.storage.allow_entire_system || !is_root_path(Path::new(&effective_home)) {
+        accessible.push(crate::config::StorageRoot {
+            id: "home".to_string(),
+            name: "Home".to_string(),
+            path: effective_home,
+            read_only: is_readonly,
+            allowed_roles: vec![],
+        });
+    }
 
     // 2. Configured Storage Roots
     for root in &state.config.storage.roots {
@@ -775,14 +822,14 @@ async fn handle_get_storage_roots(
             if is_readonly {
                 r.read_only = true;
             }
-            if r.path != user_home && !accessible.iter().any(|existing| existing.path == r.path) {
+            if !accessible.iter().any(|existing| existing.path == r.path) {
                 accessible.push(r);
             }
         }
     }
 
-    // 3. System Root (if allowed in config or standalone desktop mode, AND user has permission)
-    let allow_system = (state.config.storage.allow_entire_system || state.config.server.standalone)
+    // 3. System Root (if allowed in config, AND user has permission)
+    let allow_system = state.config.storage.allow_entire_system
         && (is_admin || allowed_roots.contains(&"*".to_string()) || allowed_roots.contains(&"/".to_string()));
     if allow_system {
         #[cfg(windows)]
@@ -5784,8 +5831,9 @@ async fn handle_get_disks(
 ) -> Result<Json<Vec<crate::tools::disk_usage::DiskMountInfo>>, (StatusCode, String)> {
     let _claims = extract_claims_or_local(&state, &headers)?;
     let roots = state.config.storage.roots.clone();
+    let allow_entire_system = state.config.storage.allow_entire_system;
     let disks = tokio::task::spawn_blocking(move || {
-        crate::tools::disk_usage::get_system_disks(&roots)
+        crate::tools::disk_usage::get_system_disks(&roots, allow_entire_system)
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Disk enumeration failed: {}", e)))?;
@@ -7042,6 +7090,21 @@ mod tests {
                 Path::new("//server/share/data")
             );
         }
+    }
+
+    #[test]
+    fn test_is_root_path() {
+        assert!(is_root_path(Path::new("/")));
+        assert!(is_root_path(Path::new("\\")));
+        assert!(is_root_path(Path::new("")));
+        assert!(is_root_path(Path::new("C:")));
+        assert!(is_root_path(Path::new("C:\\")));
+        assert!(is_root_path(Path::new("c:/")));
+        assert!(is_root_path(Path::new("D:\\")));
+        assert!(!is_root_path(Path::new("/home/user")));
+        assert!(!is_root_path(Path::new("C:\\Users\\admin")));
+        assert!(!is_root_path(Path::new("C:/Users/admin")));
+        assert!(!is_root_path(Path::new("/mnt/storage")));
     }
 
     #[test]

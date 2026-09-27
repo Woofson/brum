@@ -400,10 +400,14 @@ impl AuthManager {
             info!("No users found in database. Creating default admin user: {}", default_admin_user);
             #[cfg(windows)]
             let def_home = dirs::home_dir()
+                .filter(|p| !p.to_string_lossy().eq_ignore_ascii_case("C:\\") && !p.to_string_lossy().eq_ignore_ascii_case("C:/"))
                 .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| "C:\\".to_string());
+                .unwrap_or_else(|| format!("C:\\Users\\{}", default_admin_user));
             #[cfg(not(windows))]
-            let def_home = "/".to_string();
+            let def_home = dirs::home_dir()
+                .filter(|p| p != std::path::Path::new("/"))
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| format!("/home/{}", default_admin_user));
 
             auth.create_user(default_admin_user, default_admin_pass, "admin", &def_home, Some("[\"*\"]"))?;
         }

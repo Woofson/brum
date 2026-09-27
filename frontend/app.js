@@ -7896,31 +7896,16 @@ async function loadPaneDirectoryTree(paneIndex) {
   `;
 
   const rootsContainer = document.getElementById(`pane-tree-roots-${paneIndex}`);
-  const homePath = getUserDefaultHomeDir() || '~';
-  const isWindows = App.systemStatus?.os === 'windows' || Boolean(homePath && homePath.match(/^[a-zA-Z]:/));
-
-  const roots = [
-    { name: 'Home', path: homePath, icon: 'home' },
-  ];
-
-  if (!isWindows) {
-    roots.push({ name: 'Root', path: '/', icon: 'hard-drive' });
-  }
+  const homePath = getUserDefaultHomeDir() || App.user?.home_dir || (App.systemStatus?.home_dir || '~');
+  const roots = [];
 
   if (App.storageRoots && App.storageRoots.length > 0) {
     App.storageRoots.forEach(r => {
-      if (r.path !== '/' && r.path !== homePath) {
-        const icon = r.path.match(/^[a-zA-Z]:/) ? 'hard-drive' : 'server';
-        roots.push({ name: r.name, path: r.path, icon });
-      }
+      const icon = (r.id === 'home') ? 'home' : (r.path.match(/^[a-zA-Z]:/) ? 'hard-drive' : 'server');
+      roots.push({ name: r.name, path: r.path, icon });
     });
-  } else if (isWindows) {
-    // If no storage roots returned yet on Windows, fallback to primary drive
-    const driveMatch = homePath.match(/^([a-zA-Z]:\\?)/);
-    const primaryDrive = driveMatch ? driveMatch[1] : 'C:\\';
-    if (!roots.some(r => r.path.toUpperCase().startsWith(primaryDrive.toUpperCase()))) {
-      roots.push({ name: `Local Disk (${primaryDrive.substring(0, 2)})`, path: primaryDrive.endsWith('\\') ? primaryDrive : primaryDrive + '\\', icon: 'hard-drive' });
-    }
+  } else {
+    roots.push({ name: 'Home', path: homePath, icon: 'home' });
   }
 
   roots.forEach(root => {
@@ -17303,8 +17288,8 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   const currentPane = App.panes && App.panes[paneIndex];
   const currentNodeId = currentPane ? (currentPane.nodeId || 'local') : 'local';
 
-  const drives = storageRoots.filter(r => r.path.match(/^[a-zA-Z]:[\\/]/));
-  const nonDriveRoots = storageRoots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/));
+  const drives = storageRoots.filter(r => r.id !== 'home' && r.path.match(/^[a-zA-Z]:[\\/]/));
+  const nonDriveRoots = storageRoots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/) || r.id === 'home');
 
   const popup = document.createElement('div');
   popup.id = 'pane-favorites-popup';
@@ -36167,16 +36152,14 @@ async function renderFolderTreeRoot() {
 
     if (!roots || roots.length === 0) {
       const userHome = getUserDefaultHomeDir();
-      const fallbackRoot = (userHome && userHome !== '/')
-        ? { id: 'home', name: 'Home', path: userHome, is_dir: true, is_home: true }
-        : { id: 'root', name: 'Root Filesystem (/)', path: '/', is_dir: true };
+      const fallbackRoot = { id: 'home', name: 'Home', path: userHome || '~', is_dir: true, is_home: true };
       buildTreeNode(rootContainer, fallbackRoot, 0);
       return;
     }
 
     // Separate Windows drives and unix/storage roots
-    const drives = roots.filter(r => r.path.match(/^[a-zA-Z]:[\\/]/));
-    const storageRoots = roots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/));
+    const drives = roots.filter(r => r.id !== 'home' && r.path.match(/^[a-zA-Z]:[\\/]/));
+    const storageRoots = roots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/) || r.id === 'home');
 
     if (drives.length > 0) {
       const groupTitle = document.createElement('div');

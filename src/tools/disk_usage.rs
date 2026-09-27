@@ -109,8 +109,10 @@ fn query_windows_disk(path: &str) -> Option<(u64, u64, u64)> {
     }
 }
 
-pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot]) -> Vec<DiskMountInfo> {
+pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot], allow_entire_system: bool) -> Vec<DiskMountInfo> {
     let mut disks: Vec<DiskMountInfo> = Vec::new();
+
+    if allow_entire_system {
 
     #[cfg(unix)]
     {
@@ -244,6 +246,7 @@ pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot]) -> Vec<Dis
             }
         }
     }
+    }
 
     // Correlate with configured storage roots
     for root in storage_roots {
@@ -269,6 +272,26 @@ pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot]) -> Vec<Dis
                     formatted_available: format_size(avail),
                     usage_percentage: (pct * 10.0).round() / 10.0,
                     is_read_only: root.read_only || is_ro,
+                    is_removable: false,
+                    storage_root_id: Some(root.id.clone()),
+                });
+            }
+            #[cfg(windows)]
+            if let Some((total, used, avail)) = query_windows_disk(&root.path) {
+                let pct = if total > 0 { ((used as f64 / total as f64) * 100.0).min(100.0) } else { 0.0 };
+                disks.push(DiskMountInfo {
+                    name: root.name.clone(),
+                    mount_point: root.path.clone(),
+                    fs_type: "NTFS".to_string(),
+                    device: root.id.clone(),
+                    total_bytes: total,
+                    used_bytes: used,
+                    available_bytes: avail,
+                    formatted_total: format_size(total),
+                    formatted_used: format_size(used),
+                    formatted_available: format_size(avail),
+                    usage_percentage: (pct * 10.0).round() / 10.0,
+                    is_read_only: root.read_only,
                     is_removable: false,
                     storage_root_id: Some(root.id.clone()),
                 });
@@ -602,7 +625,7 @@ mod tests {
 
     #[test]
     fn test_get_system_disks_enumeration() {
-        let disks = get_system_disks(&[]);
+        let disks = get_system_disks(&[], true);
         // Should find at least one disk / mount point on any running OS
         assert!(!disks.is_empty(), "Expected at least 1 disk/mount point");
         let first = &disks[0];
@@ -620,8 +643,11 @@ mod tests {
             read_only: true,
             allowed_roles: Vec::new(),
         }];
-        let disks_with_roots = get_system_disks(&custom_roots);
+        let disks_with_roots = get_system_disks(&custom_roots, true);
         assert!(!disks_with_roots.is_empty());
+
+        let sandboxed_empty = get_system_disks(&[], false);
+        assert!(sandboxed_empty.is_empty(), "Sandboxed mode with no roots should return empty disks");
     }
 }
 
