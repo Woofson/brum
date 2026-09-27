@@ -23,8 +23,10 @@ default_admin_pass = "brum"      # Initial admin password
 
 # --- Storage Roots & Filesystem Sandboxing ---
 [storage]
-allow_entire_system = false            # When true, admin users have unrestricted access to all local drives and system roots
-default_user_home_template = "/home/{username}" # Template path for newly created virtual/DB users (e.g. "C:/Users/{username}" on Windows)
+allow_entire_system = true            # When true, admin users have unrestricted access to all local drives and system roots
+default_user_home_template = "/home/{username}" # Template path for newly created virtual/DB users (e.g. "/data/users/{username}" or "C:/Users/{username}")
+home_fallback_scheme = "auto"         # Options: "auto" (smart auto-creation & fallback cascade), "roots_only" (pure storage roots, no home), "strict"
+auto_create_home_dirs = true          # Automatically create missing user home directories on login/init if writable
 
 # Linux / Standard Mount Example
 #[[storage.roots]]

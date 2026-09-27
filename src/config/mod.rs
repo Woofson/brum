@@ -233,8 +233,16 @@ pub struct StorageConfig {
     pub allow_entire_system: bool,
     #[serde(default = "default_user_home_template")]
     pub default_user_home_template: String,
+    #[serde(default = "default_home_fallback_scheme")]
+    pub home_fallback_scheme: String, // "auto", "roots_only", "strict"
+    #[serde(default = "default_true")]
+    pub auto_create_home_dirs: bool,
     #[serde(default = "default_storage_roots")]
     pub roots: Vec<StorageRoot>,
+}
+
+fn default_home_fallback_scheme() -> String {
+    "auto".to_string()
 }
 
 impl Default for StorageConfig {
@@ -242,6 +250,8 @@ impl Default for StorageConfig {
         Self {
             allow_entire_system: true,
             default_user_home_template: default_user_home_template(),
+            home_fallback_scheme: default_home_fallback_scheme(),
+            auto_create_home_dirs: true,
             roots: default_storage_roots(),
         }
     }
@@ -1574,6 +1584,8 @@ mod tests {
             [storage]
             allow_entire_system = false
             default_user_home_template = "/users/{username}"
+            home_fallback_scheme = "roots_only"
+            auto_create_home_dirs = false
 
             [[storage.roots]]
             id = "vault"
@@ -1592,6 +1604,8 @@ mod tests {
         let config: AppConfig = toml::from_str(sample_toml).unwrap();
         assert_eq!(config.storage.allow_entire_system, false);
         assert_eq!(config.storage.default_user_home_template, "/users/{username}");
+        assert_eq!(config.storage.home_fallback_scheme, "roots_only");
+        assert_eq!(config.storage.auto_create_home_dirs, false);
         assert_eq!(config.storage.roots.len(), 2);
         assert_eq!(config.storage.roots[0].id, "vault");
         assert_eq!(config.storage.roots[0].read_only, true);

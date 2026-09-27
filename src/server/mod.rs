@@ -668,25 +668,91 @@ pub fn is_root_path(path: &Path) -> bool {
     false
 }
 
-pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) -> String {
-    let user_home = &claims.home_dir;
-    if !state.config.storage.allow_entire_system && is_root_path(Path::new(user_home)) {
-        let candidate = state.config.storage.default_user_home_template.replace("{username}", &claims.sub);
-        if !is_root_path(Path::new(&candidate)) {
-            candidate
-        } else {
-            dirs::home_dir()
-                .filter(|p| !is_root_path(p))
-                .map(|p| p.to_string_lossy().to_string())
-                .unwrap_or_else(|| {
-                    #[cfg(windows)]
-                    { format!("C:\\Users\\{}", &claims.sub) }
-                    #[cfg(not(windows))]
-                    { format!("/home/{}", &claims.sub) }
-                })
-        }
+pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) -> Option<String> {
+    let scheme = state.config.storage.home_fallback_scheme.to_lowercase();
+    let is_admin = claims.role.eq_ignore_ascii_case("admin");
+
+    // 1. "roots_only" scheme: Do not inject personal home directory if storage roots are configured
+    if scheme == "roots_only" && !state.config.storage.roots.is_empty() {
+        return None;
+    }
+
+    let raw_home = claims.home_dir.trim();
+
+    // Determine candidate path
+    let candidate = if !raw_home.is_empty() && (!is_root_path(Path::new(raw_home)) || state.config.storage.allow_entire_system) {
+        raw_home.to_string()
     } else {
-        user_home.clone()
+        state.config.storage.default_user_home_template.replace("{username}", &claims.sub)
+    };
+
+    let candidate_path = Path::new(&candidate);
+
+    // If candidate path is valid, check if it exists or auto-create it
+    if !is_root_path(candidate_path) || state.config.storage.allow_entire_system {
+        if candidate_path.is_dir() {
+            return Some(candidate);
+        }
+        if state.config.storage.auto_create_home_dirs {
+            let _ = std::fs::create_dir_all(candidate_path);
+            if candidate_path.is_dir() {
+                return Some(candidate);
+            }
+        }
+    }
+
+    // 2. "strict" scheme: Do not fall back
+    if scheme == "strict" {
+        if candidate_path.is_dir() {
+            return Some(candidate);
+        }
+        return None;
+    }
+
+    // 3. "auto" scheme: Graceful fallback cascade
+    // Fallback A: First accessible configured storage root
+    for root in &state.config.storage.roots {
+        let role_ok = root.allowed_roles.is_empty() || root.allowed_roles.iter().any(|r| r.eq_ignore_ascii_case(&claims.role));
+        let user_ok = is_admin || claims.allowed_roots.as_deref().map_or(true, |r| r.contains('*') || r.contains(&root.id) || r.contains(&root.path));
+        if role_ok && user_ok && Path::new(&root.path).is_dir() {
+            return Some(root.path.clone());
+        }
+    }
+
+    // Fallback B: Container /data directory
+    if Path::new("/data").is_dir() {
+        let container_user_dir = format!("/data/users/{}", claims.sub);
+        if state.config.storage.auto_create_home_dirs {
+            let _ = std::fs::create_dir_all(&container_user_dir);
+        }
+        if Path::new(&container_user_dir).is_dir() {
+            return Some(container_user_dir);
+        }
+        return Some("/data".to_string());
+    }
+
+    // Fallback C: Real process user home if accessible and not root
+    if let Some(home) = dirs::home_dir() {
+        if !is_root_path(&home) && home.is_dir() {
+            return Some(home.to_string_lossy().to_string());
+        }
+    }
+
+    // Fallback D: App local data directory (~/.local/share/brum/users/{username} or %LOCALAPPDATA%/brum/users/{username})
+    if let Some(data_dir) = dirs::data_local_dir() {
+        let app_user_dir = data_dir.join("brum").join("users").join(&claims.sub);
+        if state.config.storage.auto_create_home_dirs {
+            let _ = std::fs::create_dir_all(&app_user_dir);
+        }
+        if app_user_dir.is_dir() {
+            return Some(app_user_dir.to_string_lossy().to_string());
+        }
+    }
+
+    if candidate_path.is_dir() || state.config.storage.allow_entire_system {
+        Some(candidate)
+    } else {
+        None
     }
 }
 
@@ -698,7 +764,7 @@ pub fn validate_path_access(
 ) -> Result<String, (StatusCode, String)> {
     let claims = extract_claims_or_local(state, headers)?;
     let user_role = claims.role.as_str();
-    let effective_home = resolve_effective_home(&claims, state);
+    let effective_home_opt = resolve_effective_home(&claims, state);
     let allowed_roots_json = claims.allowed_roots.as_deref().unwrap_or("[\"*\"]");
     let allowed_roots: Vec<String> = serde_json::from_str(allowed_roots_json).unwrap_or_else(|_| vec!["*".to_string()]);
 
@@ -711,17 +777,19 @@ pub fn validate_path_access(
         return Ok(raw_path.to_string());
     }
 
+    let default_home = effective_home_opt.as_deref().unwrap_or("/");
+
     let expanded = if raw_path == "~" {
-        effective_home.clone()
+        default_home.to_string()
     } else if let Some(stripped) = raw_path.strip_prefix("~/") {
-        Path::new(&effective_home).join(stripped).to_string_lossy().to_string()
+        Path::new(default_home).join(stripped).to_string_lossy().to_string()
     } else if let Some(stripped) = raw_path.strip_prefix(r"~\") {
-        Path::new(&effective_home).join(stripped).to_string_lossy().to_string()
+        Path::new(default_home).join(stripped).to_string_lossy().to_string()
     } else {
         #[cfg(windows)]
         {
-            if (raw_path == "/" || raw_path == "\\") && effective_home != "/" {
-                effective_home.clone()
+            if (raw_path == "/" || raw_path == "\\") && default_home != "/" {
+                default_home.to_string()
             } else if (raw_path.starts_with('/') || raw_path.starts_with('\\'))
                 && raw_path.len() >= 3
                 && raw_path.as_bytes()[1].is_ascii_alphabetic()
@@ -757,12 +825,14 @@ pub fn validate_path_access(
         return Ok(norm_str);
     }
 
-    // Permit user within their designated home directory (if home is not root or allow_entire_system is enabled)
-    let norm_home = normalize_path(Path::new(&effective_home));
-    if (!is_root_path(&norm_home) || state.config.storage.allow_entire_system)
-        && path_starts_with_case_insensitive(&normalized, &norm_home)
-    {
-        return Ok(norm_str);
+    // Permit user within their designated home directory (if resolved and home is not root or allow_entire_system is enabled)
+    if let Some(ref effective_home) = effective_home_opt {
+        let norm_home = normalize_path(Path::new(effective_home));
+        if (!is_root_path(&norm_home) || state.config.storage.allow_entire_system)
+            && path_starts_with_case_insensitive(&normalized, &norm_home)
+        {
+            return Ok(norm_str);
+        }
     }
 
     // Check configured storage roots
@@ -793,7 +863,7 @@ async fn handle_get_storage_roots(
 ) -> Result<Json<Vec<crate::config::StorageRoot>>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     let user_role = claims.role.as_str();
-    let effective_home = resolve_effective_home(&claims, &state);
+    let effective_home_opt = resolve_effective_home(&claims, &state);
     let allowed_roots_json = claims.allowed_roots.as_deref().unwrap_or("[\"*\"]");
     let allowed_roots: Vec<String> = serde_json::from_str(allowed_roots_json).unwrap_or_else(|_| vec!["*".to_string()]);
 
@@ -801,15 +871,17 @@ async fn handle_get_storage_roots(
     let is_admin = user_role.eq_ignore_ascii_case("admin");
     let is_readonly = user_role.eq_ignore_ascii_case("readonly");
 
-    // 1. Personal Home Directory (only if not root when allow_entire_system is false)
-    if state.config.storage.allow_entire_system || !is_root_path(Path::new(&effective_home)) {
-        accessible.push(crate::config::StorageRoot {
-            id: "home".to_string(),
-            name: "Home".to_string(),
-            path: effective_home,
-            read_only: is_readonly,
-            allowed_roles: vec![],
-        });
+    // 1. Personal Home Directory (if resolved and not roots_only)
+    if let Some(ref effective_home) = effective_home_opt {
+        if state.config.storage.allow_entire_system || !is_root_path(Path::new(effective_home)) {
+            accessible.push(crate::config::StorageRoot {
+                id: "home".to_string(),
+                name: "Home".to_string(),
+                path: effective_home.clone(),
+                read_only: is_readonly,
+                allowed_roles: vec![],
+            });
+        }
     }
 
     // 2. Configured Storage Roots
@@ -7105,6 +7177,81 @@ mod tests {
         assert!(!is_root_path(Path::new("C:\\Users\\admin")));
         assert!(!is_root_path(Path::new("C:/Users/admin")));
         assert!(!is_root_path(Path::new("/mnt/storage")));
+    }
+
+    #[test]
+    fn test_resolve_effective_home_schemes() {
+        let temp = tempfile::tempdir().unwrap();
+        let db_path = temp.path().join("home_schemes_test.db");
+        let mut config = crate::config::AppConfig::default();
+        config.server.database_path = db_path.to_string_lossy().to_string();
+        config.storage.allow_entire_system = false;
+        config.storage.roots = vec![crate::config::StorageRoot {
+            id: "vault".to_string(),
+            name: "Vault".to_string(),
+            path: temp.path().to_string_lossy().to_string(),
+            read_only: false,
+            allowed_roles: vec!["admin".to_string()],
+        }];
+
+        let auth = crate::auth::AuthManager::new(
+            &config.server.database_path,
+            &config.server.jwt_secret,
+            config.server.session_duration_hours,
+            &config.auth.mode,
+            &config.auth.pam_service,
+            &config.auth.default_admin_user,
+            &config.auth.default_admin_pass,
+        ).unwrap();
+        let db = auth.db();
+        let auth_arc = std::sync::Arc::new(auth);
+        let task_mgr = std::sync::Arc::new(crate::tools::tasks::TaskManager::new());
+        let tag_mgr = std::sync::Arc::new(crate::tools::tags::TagManager::new(db.clone()).unwrap());
+        let vault_mgr = std::sync::Arc::new(crate::vfs::vault::VaultManager::new());
+        let backup_mgr = std::sync::Arc::new(crate::tools::sync::BackupManager::new(db).unwrap());
+        let plugin_mgr = std::sync::Arc::new(crate::plugins::PluginManager::new(
+            temp.path().join("sys_plugins"),
+            temp.path().join("usr_plugins"),
+            false,
+            "allow_all".to_string(),
+            vec!["*".to_string()],
+            vec![],
+        ));
+        let oidc_mgr = std::sync::Arc::new(crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_arc.clone()));
+
+        let mut state = AppState {
+            config: std::sync::Arc::new(config.clone()),
+            auth: auth_arc,
+            tasks: task_mgr,
+            tags: tag_mgr,
+            vaults: vault_mgr,
+            backup: backup_mgr,
+            plugins: plugin_mgr,
+            oidc: oidc_mgr,
+        };
+
+        let claims = crate::auth::Claims {
+            sub: "admin".to_string(),
+            role: "admin".to_string(),
+            home_dir: "/".to_string(),
+            is_pam: false,
+            allowed_roots: Some("[\"*\"]".to_string()),
+            token_id: None,
+            exp: 9999999999,
+        };
+
+        // 1. "roots_only" scheme returns None for personal home
+        let mut roots_only_config = config.clone();
+        roots_only_config.storage.home_fallback_scheme = "roots_only".to_string();
+        state.config = std::sync::Arc::new(roots_only_config);
+        assert_eq!(resolve_effective_home(&claims, &state), None);
+
+        // 2. "auto" scheme falls back to first accessible storage root if home is root
+        let mut auto_config = config.clone();
+        auto_config.storage.home_fallback_scheme = "auto".to_string();
+        state.config = std::sync::Arc::new(auto_config);
+        let effective = resolve_effective_home(&claims, &state);
+        assert!(effective.is_some());
     }
 
     #[test]

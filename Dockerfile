@@ -33,7 +33,7 @@ COPY target/x86_64-unknown-linux-musl/release/brum /usr/local/bin/brum
 COPY config.toml /etc/brum/config.toml
 
 # Setup storage and runtime directories
-RUN mkdir -p /data /mnt
+RUN mkdir -p /data /data/admin /data/users /mnt
 
 EXPOSE 3140
 
