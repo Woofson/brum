@@ -132,6 +132,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         i += 1;
     }
 
+    if config.server.standalone {
+        config.server.enable_auth = false;
+        if config.server.host == "0.0.0.0" {
+            config.server.host = "127.0.0.1".to_string();
+        }
+        if !is_server_mode {
+            auto_open = true;
+        }
+    }
+
     info!("Starting Brum v{} with active configuration...", env!("CARGO_PKG_VERSION"));
 
     let auth_mgr = AuthManager::new(
@@ -180,7 +190,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
     info!("Brum Web Server listening on http://{}", addr);
     if config.server.standalone || !config.server.enable_auth {
-        let current_user = std::env::var("USER").unwrap_or_else(|_| "user".to_string());
+        let current_user = std::env::var("USERNAME")
+            .or_else(|_| std::env::var("USER"))
+            .unwrap_or_else(|_| "user".to_string());
         info!("MODE: Standalone Desktop Mode (Running with local credentials for '{}')", current_user);
     } else {
         info!("Default Admin User: '{}' (Change password in settings)", config.auth.default_admin_user);

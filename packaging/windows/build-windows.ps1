@@ -40,7 +40,7 @@ $DistDir = "$RootDir\dist\windows"
 if (Test-Path $DistDir) { Remove-Item -Recurse -Force $DistDir }
 New-Item -ItemType Directory -Path "$DistDir\brum" | Out-Null
 
-Copy-Item "$RootDir\target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\"
+Copy-Item "$RootDir\target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum-cli.exe"
 if (Test-Path "$RootDir\src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe") {
     Copy-Item "$RootDir\src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe"
 }

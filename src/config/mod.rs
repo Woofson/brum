@@ -749,6 +749,14 @@ pub struct PluginsConfig {
 fn default_plugins_system_dir() -> String {
     #[cfg(windows)]
     {
+        if let Ok(exe) = std::env::current_exe() {
+            if let Some(parent) = exe.parent() {
+                let p = parent.join("plugins");
+                if p.is_dir() {
+                    return p.to_string_lossy().to_string();
+                }
+            }
+        }
         if std::path::Path::new("plugins").exists() {
             return "plugins".to_string();
         }
@@ -772,10 +780,16 @@ fn default_plugins_system_dir() -> String {
 fn default_plugins_user_dir() -> String {
     #[cfg(windows)]
     {
+        if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
+            return PathBuf::from(local_appdata).join("brum").join("plugins").to_string_lossy().to_string();
+        }
+        if let Some(local_dir) = dirs::data_local_dir() {
+            return local_dir.join("brum").join("plugins").to_string_lossy().to_string();
+        }
         if let Some(app_data) = dirs::config_dir() {
             return app_data.join("brum").join("plugins").to_string_lossy().to_string();
         }
-        "C:\\Users\\Default\\AppData\\Roaming\\brum\\plugins".to_string()
+        "C:\\Users\\Default\\AppData\\Local\\brum\\plugins".to_string()
     }
     #[cfg(not(windows))]
     {
@@ -1009,41 +1023,278 @@ fn default_bookmarks() -> Vec<BookmarkConfig> {
     ]
 }
 
+/// Preprocesses raw TOML text to automatically repair unescaped Windows backslashes in double-quoted strings.
+pub fn sanitize_toml_content(input: &str) -> String {
+    let mut output = String::with_capacity(input.len() + 64);
+
+    for line in input.lines() {
+        let trimmed = line.trim();
+        // Skip comment lines or empty lines
+        if trimmed.starts_with('#') || trimmed.is_empty() {
+            output.push_str(line);
+            output.push('\n');
+            continue;
+        }
+
+        let mut repaired_line = String::with_capacity(line.len() + 16);
+        let mut in_double_quote = false;
+        let mut in_single_quote = false;
+        let chars: Vec<char> = line.chars().collect();
+        let mut i = 0;
+        let len = chars.len();
+
+        while i < len {
+            let c = chars[i];
+
+            if in_single_quote {
+                repaired_line.push(c);
+                if c == '\'' {
+                    in_single_quote = false;
+                }
+                i += 1;
+                continue;
+            }
+
+            if !in_double_quote {
+                if c == '#' {
+                    // Comment until end of line
+                    repaired_line.push_str(&chars[i..].iter().collect::<String>());
+                    break;
+                } else if c == '\'' {
+                    in_single_quote = true;
+                    repaired_line.push(c);
+                    i += 1;
+                } else if c == '"' {
+                    // Check if triple quote
+                    if i + 2 < len && chars[i + 1] == '"' && chars[i + 2] == '"' {
+                        // Skip multi-line strings verbatim
+                        repaired_line.push_str("\"\"\"");
+                        i += 3;
+                    } else {
+                        in_double_quote = true;
+                        repaired_line.push(c);
+                        i += 1;
+                    }
+                } else {
+                    repaired_line.push(c);
+                    i += 1;
+                }
+                continue;
+            }
+
+            // We are inside a double-quoted string
+            if c == '"' {
+                in_double_quote = false;
+                repaired_line.push(c);
+                i += 1;
+                continue;
+            }
+
+            if c == '\\' {
+                if i + 1 < len {
+                    let next_c = chars[i + 1];
+                    if next_c == '"' {
+                        // Check if this is a trailing backslash at the end of a Windows path e.g. "D:\"
+                        // If there is no other quote later in the line before a comment, this quote is the closing quote!
+                        let remaining = &chars[i + 2..];
+                        let has_another_quote = remaining.iter().take_while(|&&ch| ch != '#').any(|&ch| ch == '"');
+                        if !has_another_quote {
+                            // This is a trailing backslash before closing quote! Repair: \\"
+                            repaired_line.push_str("\\\\\"");
+                            in_double_quote = false;
+                            i += 2;
+                            continue;
+                        } else {
+                            // Intended escaped quote \" inside string
+                            repaired_line.push_str("\\\"");
+                            i += 2;
+                            continue;
+                        }
+                    } else if next_c == 'u' || next_c == 'U' {
+                        // Check if valid unicode escape (4 hex for \u, 8 hex for \U)
+                        let hex_len = if next_c == 'u' { 4 } else { 8 };
+                        let is_hex = i + 1 + hex_len < len && chars[i + 2..=i + 1 + hex_len].iter().all(|ch| ch.is_ascii_hexdigit());
+                        if is_hex {
+                            repaired_line.push('\\');
+                            repaired_line.push(next_c);
+                            i += 2;
+                            continue;
+                        } else {
+                            // Windows folder starting with \u... (e.g. \users) -> escape as \\
+                            repaired_line.push_str("\\\\");
+                            i += 1;
+                            continue;
+                        }
+                    } else {
+                        // Escape single backslash as \\ so TOML parser treats it as literal \
+                        repaired_line.push_str("\\\\");
+                        i += 1;
+                        continue;
+                    }
+                } else {
+                    // Backslash at end of line
+                    repaired_line.push_str("\\\\");
+                    i += 1;
+                    continue;
+                }
+            } else {
+                repaired_line.push(c);
+                i += 1;
+            }
+        }
+
+        output.push_str(&repaired_line);
+        output.push('\n');
+    }
+
+    output
+}
+
 /// Config & External Theme Manager
 pub struct ConfigManager;
 
 impl ConfigManager {
-    /// Loads configuration with sub-millisecond fast-path resolution:
-    /// 1. User config: ~/.config/brum/config.toml (or ~/.config/commanderdog/config.toml)
-    /// 2. Working dir config: ./config.toml / ./brum.toml
-    /// 3. System-wide config: /etc/brum/config.toml / /etc/commanderdog/config.toml
-    /// 4. Embedded fallback defaults: AppConfig::default()
-    ///
-    /// Also scans external theme directories (~/.config/brum/themes/*.toml).
+    /// Parses and normalizes configuration string with smart backslash repair fallback
+    pub fn parse_config_str(content: &str) -> Result<AppConfig, String> {
+        match toml::from_str::<AppConfig>(content) {
+            Ok(mut cfg) => {
+                Self::normalize_config_paths(&mut cfg);
+                Ok(cfg)
+            }
+            Err(e) => {
+                let sanitized = sanitize_toml_content(content);
+                match toml::from_str::<AppConfig>(&sanitized) {
+                    Ok(mut cfg) => {
+                        info!("Parsed configuration successfully after auto-repairing Windows path escape sequences");
+                        Self::normalize_config_paths(&mut cfg);
+                        Ok(cfg)
+                    }
+                    Err(sanitized_err) => {
+                        Err(format!("Failed to parse config: {} (after pre-processing: {})", e, sanitized_err))
+                    }
+                }
+            }
+        }
+    }
+
+    /// Normalizes configured storage paths and expands environment variables
+    pub fn normalize_config_paths(config: &mut AppConfig) {
+        config.server.root_path = crate::vfs::local::expand_windows_env_vars(&config.server.root_path);
+        config.storage.default_user_home_template = crate::vfs::local::expand_windows_env_vars(&config.storage.default_user_home_template);
+        if let Some(ref mut trash) = config.paranoid.custom_trash_dir {
+            *trash = crate::vfs::local::expand_windows_env_vars(trash);
+        }
+
+        for root in &mut config.storage.roots {
+            root.path = crate::vfs::local::expand_windows_env_vars(&root.path);
+            let trimmed = root.path.trim().to_string();
+            if !trimmed.is_empty() {
+                root.path = trimmed;
+            }
+            if root.id.trim().is_empty() {
+                root.id = root.name.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+            }
+        }
+    }
+
+    /// Returns all candidate config paths in priority order:
+    /// 1. Environment variable override: $BRUM_CONFIG, $CD_CONFIG, $CONFIG_PATH, $CONFIG_FILE
+    /// 2. User Roaming AppData: %APPDATA%/brum/config.toml (or ~/.config/brum/config.toml)
+    /// 3. User Local AppData: %LOCALAPPDATA%/brum/config.toml
+    /// 4. User Roaming AppData (legacy): %APPDATA%/commanderdog/config.toml
+    /// 5. User Local AppData (legacy): %LOCALAPPDATA%/commanderdog/config.toml
+    /// 6. Executable directory: <exe_dir>/config.toml, <exe_dir>/brum.toml (portable mode)
+    /// 7. Current working directory: ./brum.toml, ./config.toml
+    /// 8. System-wide & container config: /data/config.toml, /etc/brum/config.toml, /etc/commanderdog/config.toml
+    pub fn candidate_config_paths() -> Vec<PathBuf> {
+        let mut candidates = Vec::new();
+
+        // 1. Environment Variable Overrides
+        for env_var in &["BRUM_CONFIG", "CD_CONFIG", "CONFIG_PATH", "CONFIG_FILE"] {
+            if let Ok(val) = std::env::var(env_var) {
+                let trimmed = val.trim();
+                if !trimmed.is_empty() {
+                    candidates.push(PathBuf::from(trimmed));
+                }
+            }
+        }
+
+        // 2. User Config Dir (~/.config or %APPDATA%)
+        if let Some(d) = dirs::config_dir() {
+            candidates.push(d.join("brum").join("config.toml"));
+            candidates.push(d.join("commanderdog").join("config.toml"));
+        }
+
+        // 3. User Local Data Dir (%LOCALAPPDATA% on Windows, ~/.local/share on Linux)
+        if let Some(d) = dirs::data_local_dir() {
+            candidates.push(d.join("brum").join("config.toml"));
+            candidates.push(d.join("commanderdog").join("config.toml"));
+        }
+
+        // 4. Windows Explicit %LOCALAPPDATA%
+        if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
+            let p = PathBuf::from(local_appdata);
+            candidates.push(p.join("brum").join("config.toml"));
+            candidates.push(p.join("commanderdog").join("config.toml"));
+        }
+
+        // 5. Executable Directory (Portable installations)
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(parent) = exe_path.parent() {
+                candidates.push(parent.join("config.toml"));
+                candidates.push(parent.join("brum.toml"));
+            }
+        }
+
+        // 6. Working Directory & Container Mounts
+        candidates.push(PathBuf::from("./brum.toml"));
+        candidates.push(PathBuf::from("./config.toml"));
+        candidates.push(PathBuf::from("/data/config.toml"));
+        candidates.push(PathBuf::from("/etc/brum/config.toml"));
+        candidates.push(PathBuf::from("/etc/commanderdog/config.toml"));
+
+        candidates
+    }
+
+    /// Resolves the currently active configuration path, or the preferred writable location if none exists
+    pub fn active_config_path() -> PathBuf {
+        for candidate in Self::candidate_config_paths() {
+            if candidate.is_file() {
+                return candidate;
+            }
+        }
+
+        // Default write location if no existing config file was found
+        if let Some(user_config) = dirs::config_dir().map(|d| d.join("brum").join("config.toml")) {
+            user_config
+        } else if let Some(local_config) = dirs::data_local_dir().map(|d| d.join("brum").join("config.toml")) {
+            local_config
+        } else {
+            PathBuf::from("./config.toml")
+        }
+    }
+
+    /// Loads configuration with sub-millisecond fast-path resolution across all standard paths.
+    /// Also scans external theme directories (~/.config/brum/themes/*.toml, %LOCALAPPDATA%/brum/themes/*.toml).
     pub fn load_all() -> AppConfig {
-        // Ensure user config and themes directory exists
+        // Ensure user config and themes directories exist
         if let Some(user_config_dir) = dirs::config_dir().map(|d| d.join("brum")) {
             let _ = fs::create_dir_all(user_config_dir.join("themes"));
         }
-
-        // Fast-path candidate paths in strict priority order
-        let candidate_paths = vec![
-            dirs::config_dir().map(|d| d.join("brum").join("config.toml")),
-            dirs::config_dir().map(|d| d.join("commanderdog").join("config.toml")),
-            Some(PathBuf::from("/data/config.toml")),
-            Some(PathBuf::from("./brum.toml")),
-            Some(PathBuf::from("./config.toml")),
-            Some(PathBuf::from("/etc/brum/config.toml")),
-            Some(PathBuf::from("/etc/commanderdog/config.toml")),
-        ];
+        if let Some(local_data_dir) = dirs::data_local_dir().map(|d| d.join("brum")) {
+            let _ = fs::create_dir_all(local_data_dir.join("themes"));
+        }
+        if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
+            let _ = fs::create_dir_all(PathBuf::from(local_appdata).join("brum").join("themes"));
+        }
 
         let mut config = AppConfig::default();
 
-        for candidate in candidate_paths.into_iter().flatten() {
+        for candidate in Self::candidate_config_paths() {
             if candidate.is_file() {
                 info!("Loading master configuration: {}", candidate.display());
                 match fs::read_to_string(&candidate) {
-                    Ok(content) => match toml::from_str::<AppConfig>(&content) {
+                    Ok(content) => match Self::parse_config_str(&content) {
                         Ok(parsed) => {
                             config = parsed;
                             break; // Stop immediately on first matching priority config
@@ -1145,6 +1396,19 @@ impl ConfigManager {
         if let Some(d) = dirs::config_dir() {
             theme_dirs.push(d.join("brum").join("themes"));
             theme_dirs.push(d.join("commanderdog").join("themes"));
+        }
+        if let Some(d) = dirs::data_local_dir() {
+            theme_dirs.push(d.join("brum").join("themes"));
+            theme_dirs.push(d.join("commanderdog").join("themes"));
+        }
+        if let Some(local_app_data) = std::env::var_os("LOCALAPPDATA") {
+            theme_dirs.push(PathBuf::from(&local_app_data).join("brum").join("themes"));
+            theme_dirs.push(PathBuf::from(local_app_data).join("commanderdog").join("themes"));
+        }
+        if let Ok(exe_path) = std::env::current_exe() {
+            if let Some(parent) = exe_path.parent() {
+                theme_dirs.push(parent.join("themes"));
+            }
         }
 
         let mut theme_files = Vec::new();
@@ -1398,5 +1662,46 @@ mod tests {
         assert_eq!(config.terminal.allow_virtual_users, false);
         assert_eq!(config.terminal.drop_privileges, true);
         assert_eq!(config.terminal.default_shell, Some("/bin/bash".to_string()));
+    }
+
+    #[test]
+    fn test_windows_unescaped_backslashes_auto_repair() {
+        let raw_toml = r#"
+            [storage]
+            allow_entire_system = true
+            default_user_home_template = "C:\Users\{username}"
+
+            [[storage.roots]]
+            id = "d-drive"
+            name = "D Drive"
+            path = "D:\Storage\Media"
+            read_only = false
+
+            [[storage.roots]]
+            id = "samba-share"
+            name = "NAS Samba"
+            path = "\\192.168.1.100\share\data"
+            read_only = true
+
+            [[storage.roots]]
+            id = "d-root"
+            name = "D Root"
+            path = "D:\"
+            read_only = false
+
+            [[storage.roots]]
+            id = "literal-single"
+            name = "Single Quoted"
+            path = 'C:\Users\Photos'
+            read_only = false
+        "#;
+
+        let parsed = ConfigManager::parse_config_str(raw_toml).expect("Should parse despite unescaped backslashes");
+        assert_eq!(parsed.storage.default_user_home_template, "C:\\Users\\{username}");
+        assert_eq!(parsed.storage.roots.len(), 4);
+        assert_eq!(parsed.storage.roots[0].path, "D:\\Storage\\Media");
+        assert_eq!(parsed.storage.roots[1].path, "\\\\192.168.1.100\\share\\data");
+        assert_eq!(parsed.storage.roots[2].path, "D:\\");
+        assert_eq!(parsed.storage.roots[3].path, "C:\\Users\\Photos");
     }
 }

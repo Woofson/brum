@@ -6007,28 +6007,7 @@ struct SaveConfigFileRequest {
 }
 
 fn resolve_active_config_path() -> PathBuf {
-    let candidate_paths = vec![
-        dirs::config_dir().map(|d| d.join("brum").join("config.toml")),
-        dirs::config_dir().map(|d| d.join("commanderdog").join("config.toml")),
-        Some(PathBuf::from("./brum.toml")),
-        Some(PathBuf::from("./config.toml")),
-        Some(PathBuf::from("/etc/brum/config.toml")),
-        Some(PathBuf::from("/etc/commanderdog/config.toml")),
-    ];
-
-    for candidate in candidate_paths.into_iter().flatten() {
-        if candidate.is_file() {
-            return candidate;
-        }
-    }
-
-    if let Some(user_config) = dirs::config_dir().map(|d| d.join("brum").join("config.toml")) {
-        user_config
-    } else if let Some(legacy_config) = dirs::config_dir().map(|d| d.join("commanderdog").join("config.toml")) {
-        legacy_config
-    } else {
-        PathBuf::from("./config.toml")
-    }
+    crate::config::ConfigManager::active_config_path()
 }
 
 async fn handle_get_config_file(

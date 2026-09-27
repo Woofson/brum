@@ -53,9 +53,10 @@
         }
         var token = localStorage.getItem('cd_token');
         var isLocked = localStorage.getItem('cd_is_locked') === 'true';
+        var isTauri = window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined || window.__WRY__ !== undefined;
         if (isLocked) {
           document.documentElement.classList.add('auth-pending-lock');
-        } else if (!token) {
+        } else if (!token && !isTauri) {
           document.documentElement.classList.add('auth-pending-login');
         } else {
           document.documentElement.classList.add('auth-verifying');
@@ -6608,7 +6609,7 @@
           </p>
         </div>
       </div>
-      <form id="login-form" onsubmit="event.preventDefault(); handleLoginSubmit();">
+      <form id="login-form" onsubmit="event.preventDefault(); handleLoginSubmit(); return false;">
         <div class="login-card-body">
           <div class="login-form-group">
             <label for="login-username" class="login-label">

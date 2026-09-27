@@ -1,8 +1,17 @@
 // Brum Multi-Pane Web Environment - By Woofson
 
+function isStandaloneMode() {
+  return (typeof window !== 'undefined' && window.App && (window.App.isStandalone === true || window.App.config?.server?.standalone === true || window.App.systemStatus?.standalone === true)) || 
+         (typeof window !== 'undefined' && (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined || window.__WRY__ !== undefined)) || 
+         (typeof document !== 'undefined' && document.body && document.body.classList.contains('standalone-mode'));
+}
+
 function getViewportType() {
-  if (window.innerWidth <= 600) return 'phone';
-  if (window.innerWidth <= 1024) return 'tablet';
+  if (typeof window !== 'undefined' && (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined || window.__WRY__ !== undefined || (window.App && window.App.isStandalone))) {
+    return 'pc';
+  }
+  if (typeof window !== 'undefined' && window.innerWidth <= 600) return 'phone';
+  if (typeof window !== 'undefined' && window.innerWidth <= 1024) return 'tablet';
   return 'pc';
 }
 
@@ -29,7 +38,335 @@ function setLayoutForViewport(layoutName, vp) {
   }
 }
 
-const App = {
+// ---------------- 📐 RESIZABLE PANES & SPLITTER DIVIDERS ----------------
+const DEFAULT_PANE_SPLITS = {
+  'dual-v': [50, 50],
+  'dual-h': [50, 50],
+  'triple': [33.333, 33.333, 33.334],
+  'triple-stacked-col': [50, 50],
+  'triple-stacked-row': [50, 50],
+  'quad-col': [50, 50],
+  'quad-row': [50, 50]
+};
+
+function getPaneSplits() {
+  try {
+    const raw = localStorage.getItem('cd_pane_splits');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === 'object') {
+        return Object.assign({}, DEFAULT_PANE_SPLITS, parsed);
+      }
+    }
+  } catch (e) {}
+  return Object.assign({}, DEFAULT_PANE_SPLITS);
+}
+
+function savePaneSplits(splits) {
+  try {
+    localStorage.setItem('cd_pane_splits', JSON.stringify(splits));
+  } catch (e) {}
+}
+
+function applyPaneSplits(splitsToApply) {
+  const splits = splitsToApply || getPaneSplits();
+  const root = document.getElementById('panes-grid');
+  const docRoot = document.documentElement;
+  const targets = root ? [root, docRoot] : [docRoot];
+
+  targets.forEach(el => {
+    // Dual Vertical
+    const dv = splits['dual-v'] || [50, 50];
+    el.style.setProperty('--pane-split-dual-v-0', `${dv[0]}fr`);
+    el.style.setProperty('--pane-split-dual-v-1', `${dv[1]}fr`);
+
+    // Dual Horizontal
+    const dh = splits['dual-h'] || [50, 50];
+    el.style.setProperty('--pane-split-dual-h-0', `${dh[0]}fr`);
+    el.style.setProperty('--pane-split-dual-h-1', `${dh[1]}fr`);
+
+    // Triple (3 columns)
+    const t = splits['triple'] || [33.333, 33.333, 33.334];
+    el.style.setProperty('--pane-split-triple-0', `${t[0]}fr`);
+    el.style.setProperty('--pane-split-triple-1', `${t[1]}fr`);
+    el.style.setProperty('--pane-split-triple-2', `${t[2]}fr`);
+
+    // Triple Stacked
+    const tsc = splits['triple-stacked-col'] || [50, 50];
+    const tsr = splits['triple-stacked-row'] || [50, 50];
+    el.style.setProperty('--pane-split-triplestack-c0', `${tsc[0]}fr`);
+    el.style.setProperty('--pane-split-triplestack-c1', `${tsc[1]}fr`);
+    el.style.setProperty('--pane-split-triplestack-r0', `${tsr[0]}fr`);
+    el.style.setProperty('--pane-split-triplestack-r1', `${tsr[1]}fr`);
+
+    // Quad (2x2)
+    const qc = splits['quad-col'] || [50, 50];
+    const qr = splits['quad-row'] || [50, 50];
+    el.style.setProperty('--pane-split-quad-c0', `${qc[0]}fr`);
+    el.style.setProperty('--pane-split-quad-c1', `${qc[1]}fr`);
+    el.style.setProperty('--pane-split-quad-r0', `${qr[0]}fr`);
+    el.style.setProperty('--pane-split-quad-r1', `${qr[1]}fr`);
+  });
+}
+
+function attachPaneResizerHandles(paneEl, paneIndex, layout) {
+  if (!paneEl) return;
+  if (!isStandaloneMode() && getViewportType() === 'phone') return;
+
+  const currentLayout = layout || App.layout || 'layout-dual-vertical';
+
+  const createHandle = (resizerType, orientationClass, title) => {
+    const handle = document.createElement('div');
+    handle.className = `pane-resizer-handle ${orientationClass}`;
+    handle.setAttribute('data-resizer', resizerType);
+    handle.title = title || 'Drag to resize panes (Double-click to reset 50/50)';
+    handle.innerHTML = '<div class="splitter-grip-dots"></div>';
+    attachPaneResizerEvents(handle);
+    return handle;
+  };
+
+  if (currentLayout === 'layout-dual-vertical') {
+    if (paneIndex === 0) {
+      paneEl.appendChild(createHandle('dual-v', 'pane-resizer-handle-r', 'Drag to resize panes (Double-click to reset 50/50)'));
+    }
+  } else if (currentLayout === 'layout-dual-horizontal') {
+    if (paneIndex === 0) {
+      paneEl.appendChild(createHandle('dual-h', 'pane-resizer-handle-b', 'Drag to resize panes (Double-click to reset 50/50)'));
+    }
+  } else if (currentLayout === 'layout-triple') {
+    if (paneIndex === 0) {
+      paneEl.appendChild(createHandle('triple-0', 'pane-resizer-handle-r', 'Drag to resize pane 1 & 2 (Double-click to reset)'));
+    } else if (paneIndex === 1) {
+      paneEl.appendChild(createHandle('triple-1', 'pane-resizer-handle-r', 'Drag to resize pane 2 & 3 (Double-click to reset)'));
+    }
+  } else if (currentLayout === 'layout-triple-stacked') {
+    if (paneIndex === 0) {
+      paneEl.appendChild(createHandle('triplestack-col', 'pane-resizer-handle-r', 'Drag to resize columns (Double-click to reset 50/50)'));
+    } else if (paneIndex === 1) {
+      paneEl.appendChild(createHandle('triplestack-row', 'pane-resizer-handle-b', 'Drag to resize right rows (Double-click to reset 50/50)'));
+    }
+  } else if (currentLayout === 'layout-quad') {
+    if (paneIndex === 0) {
+      paneEl.appendChild(createHandle('quad-col', 'pane-resizer-handle-r', 'Drag to resize columns (Double-click to reset 50/50)'));
+      paneEl.appendChild(createHandle('quad-row', 'pane-resizer-handle-b', 'Drag to resize rows (Double-click to reset 50/50)'));
+      paneEl.appendChild(createHandle('quad-corner', 'pane-resizer-handle-corner-br', 'Drag 2D center to resize (Double-click to reset 50/50)'));
+    } else if (paneIndex === 1) {
+      paneEl.appendChild(createHandle('quad-row', 'pane-resizer-handle-b', 'Drag to resize rows (Double-click to reset 50/50)'));
+    } else if (paneIndex === 2) {
+      paneEl.appendChild(createHandle('quad-col', 'pane-resizer-handle-r', 'Drag to resize columns (Double-click to reset 50/50)'));
+    }
+  }
+}
+
+function attachPaneResizerEvents(handleEl) {
+  if (!handleEl) return;
+
+  const resizerType = handleEl.getAttribute('data-resizer');
+
+  const startResize = (e) => {
+    if (e.button !== undefined && e.button !== 0) return;
+    if (e.cancelable) e.preventDefault();
+    e.stopPropagation();
+
+    const container = document.getElementById('panes-grid');
+    if (!container) return;
+
+    window._isResizingSplitter = true;
+    handleEl.classList.add('is-resizing');
+    document.body.classList.add('resizing-panes');
+    if (resizerType.includes('row')) {
+      document.body.style.cursor = 'row-resize';
+    } else if (resizerType.includes('corner')) {
+      document.body.style.cursor = 'move';
+    } else {
+      document.body.style.cursor = 'col-resize';
+    }
+
+    if (handleEl.setPointerCapture && e.pointerId !== undefined) {
+      try { handleEl.setPointerCapture(e.pointerId); } catch (_) {}
+    }
+
+    const containerRect = container.getBoundingClientRect();
+    const currentSplits = getPaneSplits();
+
+    const getCoords = (ev) => {
+      let x = ev.clientX;
+      let y = ev.clientY;
+      if ((x === undefined || y === undefined) && ev.touches && ev.touches.length > 0) {
+        x = ev.touches[0].clientX;
+        y = ev.touches[0].clientY;
+      } else if ((x === undefined || y === undefined) && ev.changedTouches && ev.changedTouches.length > 0) {
+        x = ev.changedTouches[0].clientX;
+        y = ev.changedTouches[0].clientY;
+      }
+      return { x, y };
+    };
+
+    const onMove = (moveEvt) => {
+      if (!window._isResizingSplitter) return;
+      if (moveEvt.cancelable) moveEvt.preventDefault();
+      moveEvt.stopPropagation();
+
+      const { x, y } = getCoords(moveEvt);
+      if (x === undefined || y === undefined) return;
+
+      const relX = x - containerRect.left;
+      const relY = y - containerRect.top;
+
+      if (resizerType === 'dual-v') {
+        const minPct = Math.max(10, (120 / containerRect.width) * 100);
+        const maxPct = 100 - minPct;
+        const pct = Math.min(Math.max((relX / containerRect.width) * 100, minPct), maxPct);
+        currentSplits['dual-v'] = [pct, 100 - pct];
+      } else if (resizerType === 'dual-h') {
+        const minPct = Math.max(10, (80 / containerRect.height) * 100);
+        const maxPct = 100 - minPct;
+        const pct = Math.min(Math.max((relY / containerRect.height) * 100, minPct), maxPct);
+        currentSplits['dual-h'] = [pct, 100 - pct];
+      } else if (resizerType === 'triple-0') {
+        const triple = currentSplits['triple'] || [33.333, 33.333, 33.334];
+        const sum01 = triple[0] + triple[1];
+        const min0 = Math.max(10, (120 / containerRect.width) * 100);
+        const max0 = sum01 - min0;
+        const pct0 = Math.min(Math.max((relX / containerRect.width) * 100, min0), max0);
+        const pct1 = sum01 - pct0;
+        currentSplits['triple'] = [pct0, pct1, triple[2]];
+      } else if (resizerType === 'triple-1') {
+        const triple = currentSplits['triple'] || [33.333, 33.333, 33.334];
+        const sum12 = triple[1] + triple[2];
+        const pct0_plus_1 = (relX / containerRect.width) * 100;
+        const rawPct1 = pct0_plus_1 - triple[0];
+        const min1 = Math.max(10, (120 / containerRect.width) * 100);
+        const max1 = sum12 - min1;
+        const pct1 = Math.min(Math.max(rawPct1, min1), max1);
+        const pct2 = sum12 - pct1;
+        currentSplits['triple'] = [triple[0], pct1, pct2];
+      } else if (resizerType === 'triplestack-col') {
+        const minPct = Math.max(10, (120 / containerRect.width) * 100);
+        const maxPct = 100 - minPct;
+        const pct = Math.min(Math.max((relX / containerRect.width) * 100, minPct), maxPct);
+        currentSplits['triple-stacked-col'] = [pct, 100 - pct];
+      } else if (resizerType === 'triplestack-row') {
+        const minPct = Math.max(10, (80 / containerRect.height) * 100);
+        const maxPct = 100 - minPct;
+        const pct = Math.min(Math.max((relY / containerRect.height) * 100, minPct), maxPct);
+        currentSplits['triple-stacked-row'] = [pct, 100 - pct];
+      } else if (resizerType === 'quad-col') {
+        const minPct = Math.max(10, (120 / containerRect.width) * 100);
+        const maxPct = 100 - minPct;
+        const pct = Math.min(Math.max((relX / containerRect.width) * 100, minPct), maxPct);
+        currentSplits['quad-col'] = [pct, 100 - pct];
+      } else if (resizerType === 'quad-row') {
+        const minPct = Math.max(10, (80 / containerRect.height) * 100);
+        const maxPct = 100 - minPct;
+        const pct = Math.min(Math.max((relY / containerRect.height) * 100, minPct), maxPct);
+        currentSplits['quad-row'] = [pct, 100 - pct];
+      } else if (resizerType === 'quad-corner') {
+        const minPctX = Math.max(10, (120 / containerRect.width) * 100);
+        const maxPctX = 100 - minPctX;
+        const pctX = Math.min(Math.max((relX / containerRect.width) * 100, minPctX), maxPctX);
+        currentSplits['quad-col'] = [pctX, 100 - pctX];
+
+        const minPctY = Math.max(10, (80 / containerRect.height) * 100);
+        const maxPctY = 100 - minPctY;
+        const pctY = Math.min(Math.max((relY / containerRect.height) * 100, minPctY), maxPctY);
+        currentSplits['quad-row'] = [pctY, 100 - pctY];
+      }
+
+      applyPaneSplits(currentSplits);
+    };
+
+    const onEnd = (upEvt) => {
+      window._isResizingSplitter = false;
+      handleEl.classList.remove('is-resizing');
+      document.body.classList.remove('resizing-panes');
+      document.body.style.cursor = '';
+
+      if (handleEl.releasePointerCapture && upEvt && upEvt.pointerId !== undefined) {
+        try { handleEl.releasePointerCapture(upEvt.pointerId); } catch (_) {}
+      }
+
+      window.removeEventListener('pointermove', onMove, { capture: true });
+      window.removeEventListener('pointerup', onEnd, { capture: true });
+      window.removeEventListener('pointercancel', onEnd, { capture: true });
+      window.removeEventListener('mousemove', onMove, { capture: true });
+      window.removeEventListener('mouseup', onEnd, { capture: true });
+      window.removeEventListener('touchmove', onMove, { capture: true });
+      window.removeEventListener('touchend', onEnd, { capture: true });
+      window.removeEventListener('touchcancel', onEnd, { capture: true });
+      document.removeEventListener('pointermove', onMove, { capture: true });
+      document.removeEventListener('pointerup', onEnd, { capture: true });
+      document.removeEventListener('mousemove', onMove, { capture: true });
+      document.removeEventListener('mouseup', onEnd, { capture: true });
+      document.removeEventListener('touchmove', onMove, { capture: true });
+      document.removeEventListener('touchend', onEnd, { capture: true });
+
+      savePaneSplits(currentSplits);
+      queueSaveUserPreferencesToServer();
+      window.dispatchEvent(new Event('resize'));
+      if (typeof applyAllColumnWidths === 'function') {
+        applyAllColumnWidths();
+      }
+    };
+
+    window.addEventListener('pointermove', onMove, { capture: true, passive: false });
+    window.addEventListener('pointerup', onEnd, { capture: true, passive: false });
+    window.addEventListener('pointercancel', onEnd, { capture: true, passive: false });
+    window.addEventListener('mousemove', onMove, { capture: true, passive: false });
+    window.addEventListener('mouseup', onEnd, { capture: true, passive: false });
+    window.addEventListener('touchmove', onMove, { capture: true, passive: false });
+    window.addEventListener('touchend', onEnd, { capture: true, passive: false });
+    window.addEventListener('touchcancel', onEnd, { capture: true, passive: false });
+    document.addEventListener('pointermove', onMove, { capture: true, passive: false });
+    document.addEventListener('pointerup', onEnd, { capture: true, passive: false });
+    document.addEventListener('mousemove', onMove, { capture: true, passive: false });
+    document.addEventListener('mouseup', onEnd, { capture: true, passive: false });
+    document.addEventListener('touchmove', onMove, { capture: true, passive: false });
+    document.addEventListener('touchend', onEnd, { capture: true, passive: false });
+  };
+
+  handleEl.addEventListener('pointerdown', startResize, { passive: false });
+  handleEl.addEventListener('mousedown', startResize);
+  handleEl.addEventListener('touchstart', startResize, { passive: false });
+
+  // Double Click Reset to Default
+  handleEl.addEventListener('dblclick', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    resetPaneSplit(resizerType);
+  });
+}
+
+function resetPaneSplit(resizerType) {
+  const currentSplits = getPaneSplits();
+  if (resizerType === 'dual-v') {
+    currentSplits['dual-v'] = [50, 50];
+  } else if (resizerType === 'dual-h') {
+    currentSplits['dual-h'] = [50, 50];
+  } else if (resizerType === 'triple-0' || resizerType === 'triple-1') {
+    currentSplits['triple'] = [33.333, 33.333, 33.334];
+  } else if (resizerType === 'triplestack-col') {
+    currentSplits['triple-stacked-col'] = [50, 50];
+  } else if (resizerType === 'triplestack-row') {
+    currentSplits['triple-stacked-row'] = [50, 50];
+  } else if (resizerType === 'quad-col') {
+    currentSplits['quad-col'] = [50, 50];
+  } else if (resizerType === 'quad-row') {
+    currentSplits['quad-row'] = [50, 50];
+  } else if (resizerType === 'quad-corner') {
+    currentSplits['quad-col'] = [50, 50];
+    currentSplits['quad-row'] = [50, 50];
+  } else {
+    Object.assign(currentSplits, DEFAULT_PANE_SPLITS);
+  }
+  applyPaneSplits(currentSplits);
+  savePaneSplits(currentSplits);
+  queueSaveUserPreferencesToServer();
+  window.dispatchEvent(new Event('resize'));
+  showToast('Pane split reset to default 50/50', 'info');
+}
+
+var App = {
   panes: [],
   activePaneIndex: 0,
   layout: getLayoutForViewport(),
@@ -72,6 +409,7 @@ const App = {
   syncScroll: localStorage.getItem('cd_sync_scroll') === 'true',
   syncNav: localStorage.getItem('cd_sync_nav') === 'true',
 };
+window.App = App;
 
 let ColumnConfig = {
   widths: JSON.parse(localStorage.getItem('cd_col_widths') || '{}'),
@@ -505,17 +843,18 @@ function getParentDirectory(path) {
     return `${drive}${sep}${parts.join(sep)}`;
   }
 
-  // Windows UNC path e.g. \\server\share\subfolder
-  const uncMatch = cleanPath.match(/^(\\\\[^\\\/]+[\\\/][^\\\/]+)[\\/]?(.*)$/);
+  // Windows UNC path e.g. \\server\share\subfolder or //server/share/subfolder
+  const uncMatch = cleanPath.match(/^([\\\/]{2}[^\\\/]+[\\\/][^\\\/]+)[\\/]?(.*)$/);
   if (uncMatch) {
     const root = uncMatch[1];
     const rest = uncMatch[2];
+    const sep = str.includes('/') ? '/' : '\\';
     const parts = rest.split(/[\\/]/).filter(Boolean);
     if (parts.length <= 1) {
       return root;
     }
     parts.pop();
-    return `${root}\\${parts.join('\\')}`;
+    return `${root}${sep}${parts.join(sep)}`;
   }
 
   // Standard POSIX / Unix path
@@ -1248,7 +1587,10 @@ function getAllUserPreferences() {
     editor_wordwrap: localStorage.getItem('cd_editor_wordwrap') !== 'false',
     editor_minimap: localStorage.getItem('cd_editor_minimap') !== 'false',
     diff_ignore_whitespace: localStorage.getItem('cd_diff_ignore_whitespace') === 'true',
-    diff_view_mode: localStorage.getItem('cd_diff_view_mode') || 'split'
+    diff_view_mode: localStorage.getItem('cd_diff_view_mode') || 'split',
+
+    // 9. Resizable Pane Splits
+    pane_splits: getPaneSplits()
   };
 }
 
@@ -1632,6 +1974,13 @@ function applyAllUserPreferences(prefs) {
   if (prefs.diff_ignore_whitespace !== undefined) localStorage.setItem('cd_diff_ignore_whitespace', prefs.diff_ignore_whitespace ? 'true' : 'false');
   if (prefs.diff_view_mode) localStorage.setItem('cd_diff_view_mode', prefs.diff_view_mode);
 
+  // 16. Resizable Pane Splits
+  if (prefs.pane_splits && typeof prefs.pane_splits === 'object') {
+    const mergedSplits = Object.assign({}, DEFAULT_PANE_SPLITS, prefs.pane_splits);
+    savePaneSplits(mergedSplits);
+    applyPaneSplits(mergedSplits);
+  }
+
   // Synchronize UI
   updatePaneTitles();
   applyPaneColors();
@@ -1730,6 +2079,8 @@ async function resetServerPreferences() {
     if (res.ok) {
       localStorage.removeItem('cd_pane_custom_names');
       localStorage.removeItem('cd_pane_colors');
+      localStorage.removeItem('cd_pane_splits');
+      applyPaneSplits(DEFAULT_PANE_SPLITS);
       App.panes.forEach((p) => { p.customName = null; });
       updatePaneTitles();
       applyPaneColors();
@@ -1812,6 +2163,7 @@ function updatePaneTitles() {
 function bootApp() {
   try {
     initPanes();
+    applyPaneSplits();
     setupEventListeners();
     setupKeyboardNavigation();
     setupHistoryNavigation();
@@ -2010,14 +2362,6 @@ function applyUserHomeToPanes(force = false) {
   }
 }
 
-function isStandaloneMode() {
-  return App.isStandalone === true || 
-         App.config?.server?.standalone === true || 
-         App.systemStatus?.standalone === true || 
-         window.__TAURI__ !== undefined || 
-         window.__WRY__ !== undefined || 
-         document.body.classList.contains('standalone-mode');
-}
 
 function isWindowsHost() {
   if (App.systemStatus?.os) {
@@ -2132,60 +2476,31 @@ async function checkAuthAndLoad() {
   const isLocked = localStorage.getItem('cd_is_locked') === 'true';
 
   try {
+    const isTauri = window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined || window.__WRY__ !== undefined;
+    const meHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
+
     // Parallelize system status and token verification
     const [sysResp, meResp] = await Promise.all([
       fetch('/api/system/status').catch(() => null),
-      token ? fetch('/api/auth/me', { headers: { 'Authorization': `Bearer ${token}` } }).catch(() => null) : Promise.resolve(null)
+      (token || isTauri) ? fetch('/api/auth/me', { headers: meHeaders }).catch(() => null) : Promise.resolve(null)
     ]);
 
+    let sysData = null;
     if (sysResp && sysResp.ok) {
-      const sysData = await sysResp.json();
+      sysData = await sysResp.json();
       App.systemStatus = sysData;
       if (sysData.hostname) localStorage.setItem('cd_cached_hostname', sysData.hostname);
       if (sysData.custom_hostname) localStorage.setItem('cd_custom_hostname', sysData.custom_hostname);
       if (sysData.version) applyAppVersion(sysData.version);
       updateHostnameBadge();
-      App.isStandalone = sysData.standalone;
+      App.isStandalone = !!sysData.standalone;
       updateStandaloneUI();
-      if (sysData.standalone) localStorage.setItem('cd_standalone_mode', 'true');
-      if (sysData.auth_enabled === false) localStorage.setItem('cd_auth_disabled', 'true');
-      else localStorage.removeItem('cd_auth_disabled');
-
-      // Standalone mode or disabled auth:
-      if ((sysData.standalone || !sysData.auth_enabled) && (!meResp || !meResp.ok)) {
-        const localMe = await fetch('/api/auth/me').catch(() => null);
-        if (localMe && localMe.ok) {
-          App.user = await localMe.json();
-          updateHeaderProfile(App.user);
-          hideModal('login-modal');
-
-          if (isLocked) {
-            document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
-            document.documentElement.classList.add('auth-pending-lock');
-            lockSession();
-            return;
-          }
-
-          document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
-          document.documentElement.classList.add('auth-ready');
-          applyUserHomeToPanes();
-          renderAllPanes();
-          restoreTerminalState();
-
-          // Non-blocking background hydration
-          Promise.allSettled([
-            loadConfig(),
-            loadSystemUsersGroups(),
-            loadAdminSecuritySettings(),
-            loadAllFileTags(),
-            loadUserPreferencesFromServer(),
-            loadInstalledChewToys(false)
-          ]);
-          return;
-        }
-      }
     }
 
+    const isStandalone = !!sysData?.standalone || isTauri;
+    const authDisabled = sysData?.auth_enabled === false;
+
+    // 1. Authenticated via token or local standalone/auth-disabled user:
     if (meResp && meResp.ok) {
       App.user = await meResp.json();
       const localAvatar = localStorage.getItem('cd_local_avatar');
@@ -2204,7 +2519,6 @@ async function checkAuthAndLoad() {
 
       hideModal('login-modal');
 
-      // If session was locked before browser refresh, keep session locked!
       if (isLocked) {
         document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
         document.documentElement.classList.add('auth-pending-lock');
@@ -2234,11 +2548,66 @@ async function checkAuthAndLoad() {
       ]);
       return;
     }
+
+    // 2. Standalone / Auth-disabled Fallback:
+    if (isStandalone || authDisabled) {
+      const localMe = await fetch('/api/auth/me').catch(() => null);
+      if (localMe && localMe.ok) {
+        App.user = await localMe.json();
+      } else {
+        App.user = {
+          id: 1,
+          username: sysData?.current_user || 'user',
+          nickname: sysData?.current_user || 'user',
+          role: 'admin',
+          home_dir: sysData?.home_dir || '/',
+          is_pam: false,
+          can_install_plugins: true,
+          allowed_roots: '["*"]',
+          allowed_services: '["*"]'
+        };
+      }
+      updateHeaderProfile(App.user);
+      hideModal('login-modal');
+
+      if (isLocked) {
+        document.documentElement.classList.remove('auth-pending-login', 'auth-verifying');
+        document.documentElement.classList.add('auth-pending-lock');
+        lockSession();
+        return;
+      }
+
+      document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+      document.documentElement.classList.add('auth-ready');
+      try {
+        applyUserHomeToPanes();
+        renderAllPanes();
+        restoreTerminalState();
+      } catch (renderErr) {
+        console.error('UI pane rendering error post-auth fallback:', renderErr);
+      }
+
+      Promise.allSettled([
+        loadConfig(),
+        loadSystemUsersGroups(),
+        loadAdminSecuritySettings(),
+        loadAllFileTags(),
+        loadUserPreferencesFromServer(),
+        loadInstalledChewToys(false)
+      ]);
+      return;
+    }
   } catch (e) {
     console.warn('Auth check error:', e);
   }
 
-  // Not authenticated or token invalid
+  // If we had an invalid token, clear it from storage
+  if (token) {
+    localStorage.removeItem('cd_token');
+    App.token = null;
+  }
+
+  // Not authenticated: show login screen
   loadOidcConfig();
   document.documentElement.classList.remove('auth-pending-lock', 'auth-verifying', 'auth-ready');
   document.documentElement.classList.add('auth-pending-login');
@@ -2932,6 +3301,7 @@ function renderAllPanes(optimisticOnly = false) {
   const container = document.getElementById('panes-grid');
   if (!container) return;
   container.className = `panes-container ${App.layout}`;
+  applyPaneSplits();
   container.innerHTML = '';
 
   let visibleCount = getVisiblePaneCount();
@@ -3383,6 +3753,8 @@ function createPaneElement(pane, index) {
 
     initPaneMarqueeSelection(mainView, index);
   }
+
+  attachPaneResizerHandles(el, index, App.layout);
 
   return el;
 }
@@ -16414,10 +16786,17 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         const displayName = (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'Home' : r.name;
         const diskInfo = (window._systemDisks || []).find(it => it.mount_point === r.path || (r.path === '/' && it.mount_point === '/'));
         const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
-        const isAct = curPanePath === r.path || (r.id === 'home' && curPanePath.startsWith(r.path));
+        const isAct = curPanePath.toUpperCase() === r.path.toUpperCase()
+          || curPanePath.replace(/\\/g, '/').toUpperCase() === r.path.replace(/\\/g, '/').toUpperCase()
+          || (r.id === 'home' && (curPanePath.startsWith(r.path) || curPanePath.replace(/\\/g, '/').toUpperCase().startsWith(r.path.replace(/\\/g, '/').toUpperCase())));
+        const iconName = r.id === 'home'
+          ? 'home'
+          : (r.id === 'system-root'
+            ? 'hard-drive'
+            : (r.path.startsWith('\\\\') || r.path.startsWith('//') || r.path.startsWith('smb://') ? 'share-2' : 'folder'));
         return `
           <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="${escapeHtml(r.path)}">
-            <i data-lucide="${r.id === 'home' ? 'home' : (r.id === 'system-root' ? 'hard-drive' : 'server')}"></i>
+            <i data-lucide="${iconName}"></i>
             <div style="flex: 1; min-width: 0;">
               <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
                 <div style="display: flex; align-items: center; gap: 6px;">
@@ -19035,19 +19414,12 @@ function setupEventListeners() {
     e.preventDefault();
     handleLoginSubmit();
   });
-  document.getElementById('login-password')?.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleLoginSubmit();
-    }
-  });
   document.getElementById('login-username')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
       e.preventDefault();
       document.getElementById('login-password')?.focus();
     }
   });
-  document.getElementById('btn-submit-login')?.addEventListener('click', handleLoginSubmit);
   document.getElementById('btn-logout')?.addEventListener('click', () => {
     localStorage.removeItem('cd_token');
     try {
@@ -19476,15 +19848,19 @@ function applyTheme(themeId, skipSync = false) {
 }
 
 async function handleLoginSubmit() {
+  if (window._isSubmittingLogin) return;
+  window._isSubmittingLogin = true;
+
   const uInput = document.getElementById('login-username');
   const pInput = document.getElementById('login-password');
   const err = document.getElementById('login-error');
-  const submitBtn = document.getElementById('login-submit-btn');
+  const submitBtn = document.getElementById('btn-submit-login') || document.querySelector('.login-submit-btn');
 
   const u = uInput?.value.trim() || '';
   const p = pInput?.value || '';
 
   if (!u || !p) {
+    window._isSubmittingLogin = false;
     if (err) {
       err.style.display = 'block';
       err.textContent = 'Please enter both username and password.';
@@ -19496,6 +19872,7 @@ async function handleLoginSubmit() {
 
   if (submitBtn) submitBtn.disabled = true;
 
+  let loginData = null;
   try {
     const resp = await fetch('/api/auth/login', {
       method: 'POST',
@@ -19504,35 +19881,7 @@ async function handleLoginSubmit() {
     });
 
     if (resp.ok) {
-      const data = await resp.json();
-      App.token = data.token;
-      App.user = data.user;
-      updateHeaderProfile(App.user);
-      localStorage.setItem('cd_token', data.token);
-      try {
-        document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
-        localStorage.setItem('cd_user_info', JSON.stringify({
-          username: data.user?.username,
-          nickname: data.user?.nickname,
-          avatar_url: data.user?.avatar_url
-        }));
-        if (data.user?.username) {
-          localStorage.setItem('cd_last_username', data.user.username);
-        }
-      } catch (e) {}
-      localStorage.removeItem('cd_is_locked');
-      App.isLocked = false;
-      document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
-      document.documentElement.classList.add('auth-ready');
-      hideModal('login-modal');
-      if (err) err.style.display = 'none';
-      if (pInput) pInput.value = '';
-      await loadConfig();
-      await loadSystemUsersGroups();
-      await loadUserPreferencesFromServer();
-      applyUserHomeToPanes(true);
-      renderAllPanes();
-      restoreTerminalState();
+      loginData = await resp.json();
     } else {
       let errMsg = 'Invalid credentials. Please try again.';
       try {
@@ -19547,14 +19896,65 @@ async function handleLoginSubmit() {
         pInput.value = '';
         pInput.focus();
       }
+      return;
     }
   } catch (netErr) {
     if (err) {
       err.style.display = 'block';
       err.textContent = 'Connection to server failed. Please verify that Brum backend is running.';
     }
+    return;
   } finally {
+    window._isSubmittingLogin = false;
     if (submitBtn) submitBtn.disabled = false;
+  }
+
+  // Handle post-login rendering and hydration outside the network catch block
+  if (loginData && loginData.token) {
+    App.token = loginData.token;
+    App.user = loginData.user;
+    updateHeaderProfile(App.user);
+    localStorage.setItem('cd_token', loginData.token);
+    try {
+      document.cookie = `cd_token=${encodeURIComponent(loginData.token)}; path=/; SameSite=Lax`;
+      localStorage.setItem('cd_user_info', JSON.stringify({
+        username: loginData.user?.username,
+        nickname: loginData.user?.nickname,
+        avatar_url: loginData.user?.avatar_url
+      }));
+      if (loginData.user?.username) {
+        localStorage.setItem('cd_last_username', loginData.user.username);
+      }
+    } catch (e) {}
+    localStorage.removeItem('cd_is_locked');
+    App.isLocked = false;
+    document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
+    document.documentElement.classList.add('auth-ready');
+    hideModal('login-modal');
+    const modalEl = document.getElementById('login-modal');
+    if (modalEl) {
+      modalEl.classList.remove('active');
+      modalEl.style.display = 'none';
+    }
+    if (err) err.style.display = 'none';
+    if (pInput) pInput.value = '';
+
+    try {
+      applyUserHomeToPanes(true);
+      renderAllPanes();
+      restoreTerminalState();
+    } catch (renderErr) {
+      console.error('Post-login render error:', renderErr);
+    }
+
+    Promise.allSettled([
+      loadConfig(),
+      loadSystemUsersGroups(),
+      loadAdminSecuritySettings(),
+      loadAllFileTags(),
+      loadUserPreferencesFromServer(),
+      loadInstalledChewToys(false)
+    ]);
   }
 }
 

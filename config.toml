@@ -24,8 +24,9 @@ default_admin_pass = "brum"      # Initial admin password
 # --- Storage Roots & Filesystem Sandboxing ---
 [storage]
 allow_entire_system = true            # When true, admin users have unrestricted access to all local drives and system roots
-default_user_home_template = "/home/{username}" # Template path for newly created virtual/DB users
+default_user_home_template = "/home/{username}" # Template path for newly created virtual/DB users (e.g. "C:/Users/{username}" on Windows)
 
+# Linux / Standard Mount Example
 [[storage.roots]]
 id = "storage"
 name = "Mass Storage"
@@ -44,6 +45,20 @@ id = "backups"
 name = "Backups (Read-Only)"
 path = "/mnt/backups"
 read_only = true
+
+# Windows Local Drive Example (supports forward slashes "D:/Media", single quotes 'D:\Media', or escaped "D:\\Media")
+# [[storage.roots]]
+# id = "d-drive"
+# name = "D: Media Storage"
+# path = "D:/Media"
+# read_only = false
+
+# Windows / Samba Network UNC Share Example (supports '//nas/share', '\\nas\share', or "\\\\nas\\share")
+# [[storage.roots]]
+# id = "nas-share"
+# name = "Samba Public Share"
+# path = "//192.168.1.100/share"
+# read_only = false
 
 # --- User Interface & Panels ---
 [ui]
