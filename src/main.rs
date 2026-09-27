@@ -341,6 +341,9 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
                     let _ = std::process::Command::new("sc.exe")
                         .args(["description", "Brum", "Multi-Pane Web Environment and Fleet Commander Daemon"])
                         .status();
+                    let _ = std::process::Command::new("sc.exe")
+                        .args(["failure", "Brum", "reset=", "86400", "actions=", "restart/2000/restart/2000/restart/5000"])
+                        .status();
                     println!("Successfully registered Brum Windows Service.");
                 } else {
                     eprintln!("Failed to register service. Ensure you are running Command Prompt / PowerShell as Administrator.");

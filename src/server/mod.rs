@@ -707,8 +707,10 @@ pub fn validate_path_access(
     let norm_str = normalized.to_string_lossy().to_string();
     let is_admin = user_role.eq_ignore_ascii_case("admin");
 
-    // Unrestricted system root access if enabled in config, standalone desktop mode, or admin with wildcard roots
-    if (state.config.storage.allow_entire_system || state.config.server.standalone || allowed_roots.contains(&"*".to_string())) && is_admin {
+    // Unrestricted system root access if enabled in config (or standalone desktop mode) AND user has permission
+    let allow_system = (state.config.storage.allow_entire_system || state.config.server.standalone)
+        && (is_admin || allowed_roots.contains(&"*".to_string()) || allowed_roots.contains(&"/".to_string()));
+    if allow_system {
         return Ok(norm_str);
     }
 
@@ -779,8 +781,10 @@ async fn handle_get_storage_roots(
         }
     }
 
-    // 3. System Root (if allowed in config, in standalone desktop mode, or admin with wildcard roots)
-    if (state.config.storage.allow_entire_system || state.config.server.standalone || allowed_roots.contains(&"*".to_string())) && is_admin {
+    // 3. System Root (if allowed in config or standalone desktop mode, AND user has permission)
+    let allow_system = (state.config.storage.allow_entire_system || state.config.server.standalone)
+        && (is_admin || allowed_roots.contains(&"*".to_string()) || allowed_roots.contains(&"/".to_string()));
+    if allow_system {
         #[cfg(windows)]
         {
             for b in b'A'..=b'Z' {
@@ -6141,7 +6145,7 @@ async fn handle_system_restart(
     }
 
     tokio::spawn(async {
-        tokio::time::sleep(tokio::time::Duration::from_millis(200)).await;
+        tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
         #[cfg(unix)]
         {
             use std::os::unix::process::CommandExt;
@@ -6152,12 +6156,25 @@ async fn handle_system_restart(
         }
         #[cfg(windows)]
         {
-            if let Ok(exe) = std::env::current_exe() {
-                let args: Vec<String> = std::env::args().skip(1).collect();
-                let _ = std::process::Command::new(exe).args(args).spawn();
+            let args: Vec<String> = std::env::args().collect();
+            let is_service = args.iter().any(|a| a == "--windows-service" || a == "--service" || a == "service");
+            if is_service {
+                // When running under Windows SCM, trigger SCM restart via detached cmd.exe so SCM cycles the service
+                use std::os::windows::process::CommandExt;
+                let _ = std::process::Command::new("cmd.exe")
+                    .args(["/c", "timeout /t 1 /nobreak >nul & net stop Brum & net start Brum"])
+                    .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                    .spawn();
+            } else if let Ok(exe) = std::env::current_exe() {
+                use std::os::windows::process::CommandExt;
+                let pass_args: Vec<String> = std::env::args().skip(1).collect();
+                let _ = std::process::Command::new(exe)
+                    .args(pass_args)
+                    .creation_flags(0x08000000)
+                    .spawn();
+                std::process::exit(0);
             }
         }
-        std::process::exit(0);
     });
 
     Ok(Json(serde_json::json!({

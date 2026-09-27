@@ -278,26 +278,7 @@ pub struct StorageRoot {
 }
 
 fn default_storage_roots() -> Vec<StorageRoot> {
-    let mut list = Vec::new();
-    if Path::new("/data").exists() {
-        list.push(StorageRoot {
-            id: "data".to_string(),
-            name: "Application Data".to_string(),
-            path: "/data".to_string(),
-            read_only: false,
-            allowed_roles: vec![],
-        });
-    }
-    if Path::new("/mnt").exists() {
-        list.push(StorageRoot {
-            id: "mnt".to_string(),
-            name: "Mounts Storage".to_string(),
-            path: "/mnt".to_string(),
-            read_only: false,
-            allowed_roles: vec![],
-        });
-    }
-    list
+    Vec::new()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
