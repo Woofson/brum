@@ -2600,7 +2600,7 @@ async function checkAuthAndLoad() {
       App.systemStatus = sysData;
       if (sysData.hostname) localStorage.setItem('cd_cached_hostname', sysData.hostname);
       if (sysData.custom_hostname) localStorage.setItem('cd_custom_hostname', sysData.custom_hostname);
-      if (sysData.version) applyAppVersion(sysData.version);
+      if (sysData.version) applyAppVersion(sysData.version, sysData);
       updateHostnameBadge();
       App.isStandalone = !!sysData.standalone;
       updateStandaloneUI();
@@ -2738,24 +2738,46 @@ async function fetchAppVersion() {
       if (data.custom_hostname) {
         localStorage.setItem('cd_custom_hostname', data.custom_hostname);
       }
-      if (data.version) applyAppVersion(data.version);
+      if (data.version) applyAppVersion(data.version, data);
       updateHostnameBadge();
     }
   } catch (_) {}
 }
 
-function applyAppVersion(ver) {
+function applyAppVersion(ver, sysData = null) {
   if (!ver) return;
   App.version = ver;
+  if (sysData) {
+    if (sysData.build_number) App.buildNumber = sysData.build_number;
+    if (sysData.build_commit) App.buildCommit = sysData.build_commit;
+    if (sysData.build_timestamp) App.buildTimestamp = sysData.build_timestamp;
+    if (sysData.build_target) App.buildTarget = sysData.build_target;
+    if (sysData.semver_full) App.semverFull = sysData.semver_full;
+  }
   try {
     localStorage.setItem('cd_cached_version', ver);
   } catch (_) {}
-  document.querySelectorAll('.login-version-badge').forEach(el => el.textContent = `v${ver}`);
-  document.querySelectorAll('.lock-version-badge, #lock-corner-version-badge').forEach(el => el.textContent = `Brum v${ver}`);
+  const buildStr = App.buildNumber ? ` (Build #${App.buildNumber})` : '';
+  const tooltip = `Brum v${ver}${App.buildNumber ? ` (Build #${App.buildNumber} · ${App.buildCommit || ''} · ${App.buildTimestamp || ''})` : ''}`;
+  document.querySelectorAll('.login-version-badge').forEach(el => {
+    el.textContent = `v${ver}${buildStr}`;
+    el.title = tooltip;
+  });
+  document.querySelectorAll('.lock-version-badge, #lock-corner-version-badge').forEach(el => {
+    el.textContent = `Brum v${ver}${buildStr}`;
+    el.title = tooltip;
+  });
   document.querySelectorAll('.login-app-version, #login-app-version').forEach(el => el.textContent = ver);
-  document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(el => el.textContent = `v${ver} (Desktop & Web)`);
+  document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(el => {
+    el.textContent = `v${ver}${buildStr} (Desktop & Web)`;
+    el.title = tooltip;
+  });
   const syncBadge = document.getElementById('sync-version-badge');
-  if (syncBadge) syncBadge.textContent = `v${ver}`;
+  if (syncBadge) {
+    syncBadge.textContent = `v${ver}${buildStr}`;
+    syncBadge.title = tooltip;
+  }
+  updateAboutSystemDetails(App.systemStatus);
   updateAppDocumentTitle();
 }
 
@@ -17133,9 +17155,10 @@ window.showAbout = openAboutModal;
 window.openAboutModal = openAboutModal;
 
 function updateAboutModalContent() {
-  const ver = App.version || (App.systemStatus && App.systemStatus.version) || '0.8.3';
+  const ver = App.version || (App.systemStatus && App.systemStatus.version) || '1.2.1';
+  const buildStr = App.buildNumber ? ` (Build #${App.buildNumber})` : '';
   document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(b => {
-    b.textContent = `v${ver} (Desktop & Web)`;
+    b.textContent = `v${ver}${buildStr} (Desktop & Web)`;
   });
 
   if (!App.systemStatus) {
@@ -17144,7 +17167,7 @@ function updateAboutModalContent() {
       .then(data => {
         if (data) {
           App.systemStatus = data;
-          if (data.version) applyAppVersion(data.version);
+          if (data.version) applyAppVersion(data.version, data);
           updateAboutSystemDetails(data);
         }
       })
@@ -17161,6 +17184,12 @@ function updateAboutSystemDetails(status) {
   });
   document.querySelectorAll('#about-sys-mode, .about-sys-mode').forEach(el => {
     el.textContent = status.standalone ? 'Desktop Standalone (Native / Hyprland)' : (status.auth_enabled ? 'Multi-User Server (PAM + SQLite)' : 'Standalone Web Mode');
+  });
+  document.querySelectorAll('.about-sys-build').forEach(el => {
+    el.textContent = status.build_number ? `#${status.build_number} (${status.build_commit ? `git: ${status.build_commit}` : 'release'})` : '#1';
+  });
+  document.querySelectorAll('.about-sys-compiled').forEach(el => {
+    el.textContent = status.build_timestamp || '—';
   });
 }
 
@@ -41227,6 +41256,9 @@ async function pingFleetNode(nodeId) {
         node.status = 'online';
         node.latency_ms = latency;
         node.version = data.version || null;
+        node.build_number = data.build_number || null;
+        node.build_commit = data.build_commit || null;
+        node.build_timestamp = data.build_timestamp || null;
         node.hostname = data.hostname || data.node_name || null;
         node.os = data.os || null;
         node.arch = data.arch || null;
@@ -41631,6 +41663,8 @@ function selectFleetNodeInManager(id) {
           <span style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
             <span>Host: <strong style="color: var(--text-main);">${escapeHtml(node.hostname || 'unknown')}</strong></span> • 
             <span>Version: ${getFleetNodeVersionBadge(node.version)}</span>
+            ${node.build_number ? ` • <span>Build: <strong style="color: var(--accent);">#${escapeHtml(node.build_number)}</strong>${node.build_commit ? ` (${escapeHtml(node.build_commit)})` : ''}</span>` : ''}
+            ${node.build_timestamp ? ` • <span>Compiled: <span style="color: var(--text-main);">${escapeHtml(node.build_timestamp)}</span></span>` : ''}
           </span>
           ${mismatchBanner}
         </div>
@@ -41787,6 +41821,8 @@ async function testFleetNodeConnection() {
             <div style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span>Host: <span style="color: var(--text-main);">${escapeHtml(data.hostname || data.node_name || 'unknown')}</span></span> • 
               <span>Version: ${getFleetNodeVersionBadge(data.version)}</span> • 
+              ${data.build_number ? `<span>Build: <span style="color: var(--accent); font-weight: 600;">#${escapeHtml(data.build_number)}</span>${data.build_commit ? ` (${escapeHtml(data.build_commit)})` : ''}</span> • ` : ''}
+              ${data.build_timestamp ? `<span>Compiled: <span style="color: var(--text-main);">${escapeHtml(data.build_timestamp)}</span></span> • ` : ''}
               <span>OS/Arch: <span style="color: var(--text-main);">${escapeHtml(data.os || '?')}/${escapeHtml(data.arch || '?')}</span></span> • 
               <span>Auth: <span style="color: var(--text-main);">${data.auth_enabled ? 'JWT/Active' : 'Open/None'}</span></span>
             </div>

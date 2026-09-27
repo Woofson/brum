@@ -81,7 +81,13 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
         let mut config = crate::config::ConfigManager::load_all();
         config.server.standalone = false;
 
-        info!("Starting Brum Windows Service (v{})...", env!("CARGO_PKG_VERSION"));
+        info!(
+            "Starting Brum Windows Service (v{} build #{}, commit: {}, target: {})...",
+            env!("CARGO_PKG_VERSION"),
+            env!("BRUM_BUILD_NUMBER"),
+            env!("BRUM_BUILD_COMMIT"),
+            env!("BRUM_BUILD_TARGET")
+        );
 
         let auth_mgr = match crate::auth::AuthManager::new(
             &config.server.database_path,

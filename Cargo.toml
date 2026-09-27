@@ -104,6 +104,9 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_ProcessStatus",
 ] }
 
+[build-dependencies]
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1"
 

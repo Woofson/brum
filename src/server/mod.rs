@@ -402,6 +402,11 @@ pub fn get_system_hostname() -> String {
 #[derive(Serialize)]
 pub struct SystemStatusResponse {
     pub version: String,
+    pub build_number: String,
+    pub build_commit: String,
+    pub build_timestamp: String,
+    pub build_target: String,
+    pub semver_full: String,
     pub standalone: bool,
     pub auth_enabled: bool,
     pub current_user: String,
@@ -431,6 +436,11 @@ async fn handle_health(State(state): State<AppState>) -> Json<serde_json::Value>
     Json(serde_json::json!({
         "status": "ok",
         "version": env!("CARGO_PKG_VERSION"),
+        "build_number": env!("BRUM_BUILD_NUMBER"),
+        "build_commit": env!("BRUM_BUILD_COMMIT"),
+        "build_timestamp": env!("BRUM_BUILD_TIMESTAMP"),
+        "build_target": env!("BRUM_BUILD_TARGET"),
+        "semver_full": env!("BRUM_SEMVER_FULL"),
         "hostname": hostname,
         "node_name": node_name,
         "os": std::env::consts::OS,
@@ -465,6 +475,11 @@ async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatu
 
     Json(SystemStatusResponse {
         version: env!("CARGO_PKG_VERSION").to_string(),
+        build_number: env!("BRUM_BUILD_NUMBER").to_string(),
+        build_commit: env!("BRUM_BUILD_COMMIT").to_string(),
+        build_timestamp: env!("BRUM_BUILD_TIMESTAMP").to_string(),
+        build_target: env!("BRUM_BUILD_TARGET").to_string(),
+        semver_full: env!("BRUM_SEMVER_FULL").to_string(),
         standalone: state.config.server.standalone,
         auth_enabled: state.config.server.enable_auth && !state.config.server.standalone,
         current_user,

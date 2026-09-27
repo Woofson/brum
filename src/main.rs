@@ -124,11 +124,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 config.ui.window_decorations = true;
             }
             "--version" | "-v" => {
-                println!("Brum v{}", env!("CARGO_PKG_VERSION"));
+                println!(
+                    "Brum v{} (build #{} · commit {} · {} · {})",
+                    env!("CARGO_PKG_VERSION"),
+                    env!("BRUM_BUILD_NUMBER"),
+                    env!("BRUM_BUILD_COMMIT"),
+                    env!("BRUM_BUILD_TIMESTAMP"),
+                    env!("BRUM_BUILD_TARGET")
+                );
                 return Ok(());
             }
             "--help" | "-h" => {
-                println!("Brum v{} - Multi-Pane Web Environment (File Commander/Manager)", env!("CARGO_PKG_VERSION"));
+                println!("Brum v{} (build #{}) - Multi-Pane Web Environment (File Commander/Manager)", env!("CARGO_PKG_VERSION"), env!("BRUM_BUILD_NUMBER"));
                 println!();
                 println!("USAGE:");
                 println!("    brum [OPTIONS]");
@@ -173,7 +180,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    info!("Starting Brum v{} with active configuration...", env!("CARGO_PKG_VERSION"));
+    info!(
+        "Starting Brum v{} (build #{}, commit: {}, target: {})...",
+        env!("CARGO_PKG_VERSION"),
+        env!("BRUM_BUILD_NUMBER"),
+        env!("BRUM_BUILD_COMMIT"),
+        env!("BRUM_BUILD_TARGET")
+    );
 
     let auth_mgr = AuthManager::new(
         &config.server.database_path,
