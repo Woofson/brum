@@ -45,19 +45,27 @@ jobs:
           cd src-tauri
           cargo tauri build --target x86_64-pc-windows-msvc
 
-      - name: Package Standalone Portable ZIP
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress
+
+      - name: Package Standalone Distribution & Inno Setup Installer
         shell: pwsh
         run: |
           $Version = "${{ github.ref_name }}".TrimStart('v')
           if ([string]::IsNullOrEmpty($Version) -or $Version -eq "main") { $Version = "${{ github.event.inputs.version }}" }
-          if ([string]::IsNullOrEmpty($Version)) { $Version = "0.8.2" }
+          if ([string]::IsNullOrEmpty($Version)) { $Version = "1.2.0" }
 
           $DistDir = "dist\windows"
           New-Item -ItemType Directory -Path "$DistDir\brum" -Force | Out-Null
 
-          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\"
+          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum-cli.exe"
+          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum.exe"
           Copy-Item "target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
           Copy-Item "src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
+          if (-not (Test-Path "$DistDir\brum\Brum.exe")) {
+            Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\Brum.exe"
+          }
+
           Copy-Item "config.toml" "$DistDir\brum\"
           Copy-Item "LICENSE" "$DistDir\brum\"
           Copy-Item "README.md" "$DistDir\brum\"
@@ -65,14 +73,17 @@ jobs:
           Copy-Item "packaging\windows\unregister-context-menu.reg" "$DistDir\brum\"
           Copy-Item "assets\brum.ico" "$DistDir\brum\" -ErrorAction SilentlyContinue
 
+          # 1. Create Portable Standalone ZIP
           $ZipName = "brum-v${Version}-windows-x86_64.zip"
           Compress-Archive -Path "$DistDir\brum\*" -DestinationPath "$DistDir\$ZipName" -Force
 
-          # Copy installers to dist
-          Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe" -ErrorAction SilentlyContinue | Copy-Item -Destination $DistDir
+          # 2. Compile Inno Setup Installer (Interactive Standalone vs Windows Service)
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$Version" "packaging\windows\setup.iss"
+
+          # 3. Copy Tauri MSI if available
           Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi" -ErrorAction SilentlyContinue | Copy-Item -Destination $DistDir
 
-          # Generate SHA256 Checksums
+          # 4. Generate SHA256 Checksums
           Get-ChildItem -Path "$DistDir\*" -Include *.zip,*.exe,*.msi | ForEach-Object {
             $h = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$h  $($_.Name)" | Out-File -FilePath "$DistDir\SHA256SUMS-windows.txt" -Append -Encoding ascii

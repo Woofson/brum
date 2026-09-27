@@ -6,7 +6,7 @@
 
 #define MyAppName "Brum"
 #ifndef MyAppVersion
-  #define MyAppVersion "0.8.2"
+  #define MyAppVersion "1.2.0"
 #endif
 #define MyAppPublisher "Bolt J Woofson @ Woofsons Lab"
 #define MyAppURL "https://www.arf.ac"
@@ -32,6 +32,9 @@ SetupIconFile=..\..\assets\brum.ico
 Compression=lzma2/ultra64
 SolidCompression=yes
 WizardStyle=modern
+AlwaysShowComponentsList=yes
+AlwaysShowDirOnReadyPage=yes
+AlwaysShowGroupOnReadyPage=yes
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
 PrivilegesRequiredOverridesAllowed=commandline
@@ -41,25 +44,24 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Types]
-Name: "full"; Description: "Standard Installation (Standalone App + Context Menu)"
-Name: "standalone"; Description: "Standalone Desktop Only (Single Computer)"
-Name: "service"; Description: "Windows Service Only (Headless Daemon / Fleet Server)"
-Name: "custom"; Description: "Custom Installation"; Flags: iscustom
+Name: "standalone"; Description: "Standalone Desktop Application (Single Computer)"
+Name: "service"; Description: "Windows Background Service (Headless Autostart Daemon / Fleet Server)"
+Name: "full"; Description: "Full Suite (Desktop Application + Background Service + Context Menu)"
+Name: "custom"; Description: "Custom Installation Options"; Flags: iscustom
 
 [Components]
-Name: "standalone"; Description: "Standalone Desktop Application (Brum.exe)"; Types: full standalone custom; Flags: checkablealone
-Name: "service"; Description: "Windows Background Service (Brum-cli.exe autostart daemon)"; Types: service custom; Flags: checkablealone
-Name: "contextmenu"; Description: "Windows Explorer Context Menu ('Open in Brum')"; Types: full standalone custom
+Name: "standalone"; Description: "Standalone Desktop Application (Brum.exe - Desktop UI & Shortcuts)"; Types: standalone full custom; Flags: checkablealone
+Name: "service"; Description: "Windows Background Service (Brum-cli.exe autostart system daemon)"; Types: service full custom; Flags: checkablealone
+Name: "contextmenu"; Description: "Windows Explorer Context Menu Integration ('Open in Brum')"; Types: standalone service full custom
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Components: standalone; Flags: unchecked
-Name: "startservice"; Description: "Start Brum Background Service immediately after installation"; GroupDescription: "Service Options:"; Components: service
-Name: "quicklaunchicon"; Description: "{cm:CreateQuickLaunchIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Components: standalone; Flags: unchecked; OnlyBelowVersion: 6.1; Check: not IsAdminInstallMode
+Name: "startservice"; Description: "Start Brum Windows Service immediately after installation"; GroupDescription: "Service Options:"; Components: service
 
 [Files]
-; Core Binaries
+; Core Binaries & Assets
 Source: "..\..\dist\windows\brum\brum-cli.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\windows\brum\Brum.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist; Components: standalone
+Source: "..\..\dist\windows\brum\Brum.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\dist\windows\brum\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\dist\windows\brum\config.toml"; DestDir: "{app}"; Flags: ignoreversion onlyifdestdoesntexist
 Source: "..\..\dist\windows\brum\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
@@ -75,7 +77,6 @@ Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\brum.ico"; Tasks: desktopicon; Components: standalone
 
 [Registry]
-; Context menu integration when selected
 Root: HKLM; Subkey: "Software\Classes\Directory\shell\Brum"; ValueType: string; ValueName: ""; ValueData: "Open in Brum"; Flags: uninsdeletekey; Components: contextmenu
 Root: HKLM; Subkey: "Software\Classes\Directory\shell\Brum"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\brum.ico"""; Flags: uninsdeletekey; Components: contextmenu
 Root: HKLM; Subkey: "Software\Classes\Directory\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\brum-cli.exe"" --open ""%1"""; Flags: uninsdeletekey; Components: contextmenu
@@ -95,9 +96,3 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 ; Stop and remove Windows Service cleanly if installed
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service stop"; Flags: runhidden waituntilterminated
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service uninstall"; Flags: runhidden waituntilterminated
-
-[Code]
-function NextButtonClick(CurPageID: Integer): Boolean;
-begin
-  Result := True;
-end;
