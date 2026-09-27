@@ -63,7 +63,7 @@ Name: "startservice"; Description: "Start Brum Windows Service immediately after
 Source: "..\..\dist\windows\brum\brum-cli.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\windows\brum\Brum.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "..\..\dist\windows\brum\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
-Source: "..\..\dist\windows\brum\config.toml"; DestDir: "{app}"; Flags: ignoreversion onlyifdestdoesntexist
+Source: "..\..\dist\windows\brum\config.toml"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 Source: "..\..\dist\windows\brum\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\windows\brum\README.md"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\assets\brum.ico"; DestDir: "{app}"; Flags: ignoreversion
