@@ -7,10 +7,16 @@ Brum loads configuration in a single sub-millisecond pass without directory frag
 ## Configuration File Locations
 
 Brum discovers its configuration in the following order of precedence:
-1. **User Dotfiles**: `~/.config/brum/config.toml` *(Highest priority)*
-2. **System-Wide Fallback**: `/etc/brum/config.toml`
-3. **Custom Themes**: `~/.config/brum/themes/*.toml` (or `/etc/brum/themes/*.toml`)
-4. **Environment Variables**: Overrides prefixed with `CD_` or `BRUM_` (e.g. `CD_PORT=3140`, `BRUM_OIDC_ENABLED=true`)
+1. **Command-Line Option**: `--config /path/to/config.toml` *(Explicit override)*
+2. **User Configuration**:
+   - Linux/macOS: `~/.config/brum/config.toml`
+   - Windows: `%APPDATA%\Brum\config.toml` *(e.g. `C:\Users\<User>\AppData\Roaming\Brum\config.toml`)*
+3. **System-Wide Configuration**:
+   - Linux/macOS: `/etc/brum/config.toml`
+   - Windows: `%PROGRAMDATA%\Brum\config.toml` *(e.g. `C:\ProgramData\Brum\config.toml` for Windows Service)*
+4. **Local Directory Fallback**: `./config.toml`
+5. **Custom Themes**: `~/.config/brum/themes/*.toml`, `/etc/brum/themes/*.toml`, `%PROGRAMDATA%\Brum\themes\*.toml`
+6. **Environment Variables**: Overrides prefixed with `CD_` or `BRUM_` (e.g. `CD_PORT=3140`, `BRUM_OIDC_ENABLED=true`)
 
 ---
 
@@ -18,7 +24,7 @@ Brum discovers its configuration in the following order of precedence:
 
 ```toml
 # ==============================================================================
-# Brum Master Configuration (v1.0.0)
+# Brum Master Configuration (v1.2.1)
 # ==============================================================================
 
 [server]
@@ -42,6 +48,17 @@ allow_entire_system = false
 
 # Default starting directory upon login (empty defaults to user $HOME)
 default_path = ""
+
+# Strategy when user home directory is missing or inaccessible:
+# - "user"     : Default standard user home (/home/<username> or C:\Users\<username>)
+# - "root"     : Fall back to first configured storage root
+# - "custom"   : Fall back to path specified in home_fallback_path
+# - "disabled" : Reject login if home directory does not exist
+home_fallback_scheme = "user"
+home_fallback_path = ""
+
+# Automatically provision missing user home directories on first login
+auto_create_home_dirs = true
 
 # Storage Roots: Explicit allowed volumes and mountpoints
 [[storage.roots]]
@@ -140,6 +157,20 @@ default_home_template = "/home/{username}"
 force_sso_only = false
 button_icon = "shield-check"
 
+[fleet]
+# Enable multi-node fleet manager and remote node auto-discovery
+enabled = true
+
+[[fleet.nodes]]
+id = "hetzner-backup"
+name = "Hetzner Storage Box"
+url = "https://backup.example.com:3140"
+token = "api_token_here"
+# Optional default start path on this remote node (leave empty for auto home discovery)
+default_path = ""
+# Read-only fleet node flag
+read_only = false
+
 [plugins]
 # Modular Chewtoy plugins configuration
 enabled = true
@@ -159,6 +190,16 @@ By setting `allow_entire_system = false`, Brum enforces strict sandboxing:
 * Users cannot navigate outside their configured storage roots or personal `$HOME`.
 * Directory traversal attacks (`../`) are safely rejected and sanitized at the kernel VFS layer.
 * Read-only flags (`read_only = true`) prevent accidental deletions, writes, or moves.
+
+---
+
+## Automated SemVer Build Metadata
+
+Brum automatically embeds full build metadata at compile time adhering to **SemVer 2.0.0 (Section 10)**:
+* Query build details via CLI: `brum --version` or `brum.exe -v`
+  * Example output: `Brum v1.2.1 (build #419 · commit 8f42092 · 2026-09-27 21:33:00 UTC · x86_64-pc-windows-gnu)`
+* Query status and build info via REST API: `GET /api/system/status` or `GET /api/health`
+* Inspect build metadata in the UI: Open **Settings (Tab 10: About)** or the standalone **About Brum** modal to view the build number (`#419`), git commit hash, and UTC compilation timestamp.
 
 ---
 

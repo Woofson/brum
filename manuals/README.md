@@ -11,10 +11,10 @@ Welcome to the **Brum** manual and documentation index.
 ### Core Features & Usage
 | Manual | Description |
 | :--- | :--- |
-| [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for Native Core Functions & ChewToys (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Audio Player, Terminal, Format Converter, Batch Renamer, Vaults) |
-| [**`plugin-development.md`**](plugin-development.md) | Modular ChewToy & Plugin development guide: `.grr` package standard, `plugin.toml`, `window.Brum` SDK & Admin RBAC |
+| [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for Native Core Functions & Chewtoys (3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Audio Player, Terminal, Format Converter, Batch Renamer, Vaults, Fleet Manager) |
+| [**`plugin-development.md`**](plugin-development.md) | Modular Chewtoy & Plugin development guide: `.grr` package standard, `plugin.toml`, `window.Brum` SDK & Admin RBAC |
 | [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, player hotkeys, and mouse/touch gestures |
-| [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, OIDC SSO, UI options, desktop settings) |
+| [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, fallback schemes, Fleet nodes, OIDC SSO, UI options) |
 | [**`protocols.md`**](protocols.md) | Remote & Client VFS protocols guide (Client Local `client://`, SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
 | [**`vaults.md`**](vaults.md) | Encrypted `.cdvault` containers with Argon2id + AES-256-GCM RAM-only zero-leakage filesystem |
 | [**`sharing.md`**](sharing.md) | Advanced public link sharing, Sharing Center, client portals, granular ACLs, dynamic watermarking & upload dropzones |

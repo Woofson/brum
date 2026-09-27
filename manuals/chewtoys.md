@@ -1,4 +1,4 @@
-# Brum Native Core Functions & ChewToys Manual
+# Brum Native Core Functions & Chewtoys Manual
 
 **Brum** replaces a fragmented collection of separate desktop and command-line utilities with a unified, high-performance web and native desktop interface. These integrated tools are divided into **Native Core Functions** (embedded directly into the core DOM and Rust backend with zero iframe overhead) and **Chewtoys** (isolated, sandboxed modular `.grr` extension packages).
 
@@ -212,4 +212,12 @@ Every Core Function and power tool in Brum supports dual operational modes confo
   1. *Dual-Pane Transfers*: Cross-pane copy (<kbd>F5</kbd>), move (<kbd>F6</kbd>), duplicate, and path cloning.
   2. *Device Ingest & Egress*: File and folder uploads, drag-and-drop ingestion, and zip download packaging.
   3. *Sharing & Links*: Direct public link creation, QR codes, and client upload dropzones.
+
+---
+
+## 18. Distributed Fleet Manager & Node Diagnostics
+* **Remote Fleet Administration**: Centralized hub in Settings to connect, monitor, and manage remote Brum instances across LAN/WAN networks.
+* **Node Home Auto-Discovery & Custom Paths**: Automatically fetches the user's remote home path or opens configured custom start paths per node.
+* **Node-Aware Places & Breadcrumbs**: Seamlessly switch active panel context to remote nodes; Places drawer automatically loads remote node bookmarks and favorites.
+* **Live Health & Version Drift Diagnostics**: Instant connection testing reporting real-time ping latency, remote OS/architecture, build number (`#<N>`), git commit, and UTC compile timestamp to quickly pinpoint outdated nodes across your fleet.
 

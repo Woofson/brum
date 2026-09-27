@@ -37,18 +37,48 @@ scoop bucket add woofson https://github.com/Woofson/scoop-bucket.git
 scoop install brum
 ```
 
-### C. 1-Click Setup Installer (`.exe` NSIS / `.msi` WiX)
-1. Download `Brum_x64-setup.exe` or `Brum_x64_en-US.msi` from [GitHub Releases](https://github.com/woofson/brum/releases).
-2. Run the installer to create Start Menu, Desktop shortcuts, and auto-configure file associations.
+### C. Inno Setup Windows Installer (`.exe`)
+1. Download `Brum-Setup-v1.2.1.exe` from [GitHub Releases](https://github.com/Woofson/brum/releases).
+2. Choose between **Desktop GUI Application** or **Background Windows Service (SCM)** mode.
+3. Automatically sets up Start Menu items, Desktop shortcuts, Context Menu integrations, and `%PROGRAMDATA%\Brum\` configuration roots.
 
 ### D. Zero-Install Standalone Portable ZIP
-1. Download `brum-v1.0.0-windows-x86_64.zip`.
+1. Download `brum-v1.2.1-windows-x86_64.zip`.
 2. Extract anywhere (e.g. `C:\Tools\Brum` or a USB drive).
-3. Double-click `Brum.exe` — settings and database are saved portably in the same folder or `%APPDATA%\brum\`.
+3. Double-click `Brum.exe` or `brum.exe` — settings and database are saved portably in the local folder or `%APPDATA%\Brum\`.
 
 ---
 
-## 3. Windows Explorer Context Menu Integration
+## 3. Windows Service Architecture & SCM Management
+
+Brum can run 24/7 as a background Windows Service managed by the native Windows Service Control Manager (SCM):
+
+### Service Control Commands:
+Run PowerShell or CMD as **Administrator**:
+```powershell
+# Install Brum as an auto-starting Windows Service
+brum.exe --install-service
+
+# Start the background service
+brum.exe --start-service
+# or: net start Brum
+
+# Stop the service
+brum.exe --stop-service
+# or: net stop Brum
+
+# Uninstall / remove the service registration
+brum.exe --uninstall-service
+```
+
+### Windows Service Logging & Configuration:
+* **Service Config**: `%PROGRAMDATA%\Brum\config.toml` (auto-created if missing with safe system defaults).
+* **Database & Auth**: `%PROGRAMDATA%\Brum\brum.db`
+* **Event Logging**: SCM lifecycle events and errors are recorded directly in the Windows Application Event Log (`eventvwr.msc`).
+
+---
+
+## 4. Windows Explorer Context Menu Integration
 
 Add **"Open in Brum"** to the Windows Explorer right-click context menu for any directory, drive, or folder background:
 
@@ -66,17 +96,27 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ---
 
-## 4. Windows Filesystem Features
+## 5. Windows Filesystem Features
 
 - **Drive Letter Navigation**: Switch seamlessly across `C:\`, `D:\`, `E:\`, `Z:\` in breadcrumbs and the quick jump menu.
 - **Environment Variable Expansion**: Navigate directly to `%USERPROFILE%`, `%APPDATA%`, `%LOCALAPPDATA%`, `%TEMP%`, or `~/`.
 - **Windows SMB & UNC Paths**: Open and browse network shares transparently using UNC format (`\\server\share\folder`) or orthodox `smb://user@server/share`.
+- **Windows Recycle Bin Restoration**: Direct integration with Windows Recycle Bin (`C:\$Recycle.Bin`), parsing `$I*` deletion metadata and restoring files to their original paths.
 - **Integrated Windows PowerShell / CMD Terminal**: Embedded slide-up terminal console defaulting to Windows PowerShell or `COMSPEC` (`cmd.exe`).
 - **Transparent Encrypted Vaults (`.cdvault`)**: Password-protected AES-256-GCM / Argon2id zero-knowledge virtual storage containers.
 
 ---
 
-## 5. Multimedia & Transcoding Dependencies (Format Converter)
+## 6. Windows PE Metadata & Build Inspection
+
+Windows executables (`brum.exe` and `Brum.exe`) automatically embed PE Version Resources:
+* **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.2.1.419`).
+* **Product Version**: Formatted as full SemVer 2.0.0 metadata (e.g. `1.2.1+build.419.git.8f42092`).
+* **File Properties**: Right-click `brum.exe` in Windows Explorer -> **Properties** -> **Details** tab to view the exact build number, product version, and lab copyright information.
+
+---
+
+## 7. Multimedia & Transcoding Dependencies (Format Converter)
 
 Brum runs completely standalone out-of-the-box with zero mandatory runtime dependencies for file browsing, terminals, and encrypted vaults.
 
@@ -108,26 +148,28 @@ If installing manually without a package manager:
 
 ---
 
-## 6. Building from Source on Windows
+## 8. Building from Source on Windows
 
 ### Prerequisites
-- [Rust & Cargo](https://rustup.rs/) (`stable-x86_64-pc-windows-msvc`)
-- Visual Studio 2022 C++ Build Tools or Windows SDK
+- [Rust & Cargo](https://rustup.rs/) (`stable-x86_64-pc-windows-msvc` or cross-compile with `x86_64-pc-windows-gnu`)
+- Visual Studio 2022 C++ Build Tools or MinGW-w64 toolchain
 - Microsoft WebView2 Runtime (Preinstalled on Windows 10/11)
-- Tauri CLI: `cargo install tauri-cli --version "^2.0.0"`
 
-### Build Script
-Run the automated build script in PowerShell:
+### Cross-Compiling from Linux:
+```bash
+cargo build --release --target x86_64-pc-windows-gnu
+```
+
+### Native PowerShell Build Script:
 ```powershell
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\packaging\windows\build-windows.ps1 -Release
 ```
 
-Build outputs will be generated in `dist\windows\`:
-- `dist\windows\brum-v1.0.0-windows-x86_64.zip` (Portable Distribution)
+Build outputs are placed in `dist\windows\`:
+- `dist\windows\brum-v1.2.1-windows-x86_64.zip` (Portable Distribution)
+- `dist\windows\Brum-Setup-v1.2.1.exe` (Inno Setup Installer)
 - `dist\windows\SHA256SUMS.txt` (Integrity Hashes)
-- `src-tauri\target\x86_64-pc-windows-msvc\release\bundle\nsis\*.exe` (Installer)
-- `src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi` (MSI Package)
 
 ---
 

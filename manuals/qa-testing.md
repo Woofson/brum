@@ -1,7 +1,7 @@
 # Brum QA Testing & Verification Manual
 
-> **Document Version**: `3.1.0`  
-> **Target Release**: `Brum v1.0.0`  
+> **Document Version**: `3.2.0`  
+> **Target Release**: `Brum v1.2.1`  
 > **Maintainer**: Bolt J. Woofson <bolt@boop.no>  
 > **Repository**: [Woofson/brum](https://github.com/Woofson/brum)
 
@@ -23,6 +23,7 @@ Brum combines automated backend test coverage with rigorous multi-viewport manua
 │ • Database integrity & SQLite WAL schema  │ • PC (> 1024px): Multi-panel & F-Keys      │
 │ • Task scheduling & DeltaSync replication │ • Input modalities: Mouse, Touch, Stylus   │
 │ • Token generation, PAM & OIDC parsing    │ • Browser rendering: Chrome, Firefox, WebKit│
+│ • Windows SCM, Recycle Bin & PE metadata  │ • Cross-platform: Linux, Windows, macOS    │
 └───────────────────────────────────────────┴────────────────────────────────────────────┘
 ```
 
@@ -30,7 +31,7 @@ Brum combines automated backend test coverage with rigorous multi-viewport manua
 
 ## 2. Automated Test Suite (`cargo test`)
 
-Brum includes **54 automated unit and integration test suites** in the Rust backend. These are run automatically on every build and pre-release check.
+Brum includes **71 automated unit and integration test suites** in the Rust backend. These are run automatically on every build and pre-release check.
 
 ```bash
 cargo test
@@ -40,13 +41,13 @@ cargo test
 
 | Subsystem | Automated Test Functions | What is Verified Automatically |
 | :--- | :--- | :--- |
-| **VFS & Filesystem** | `test_clean_path_buf_strips_unc_and_verbatim_prefix`<br>`test_copy_file_paranoid_prevents_recursive_loop`<br>`test_copy_file_paranoid_success`<br>`test_delete_and_rename_with_options`<br>`test_list_branch_view_hidden_filter`<br>`test_list_branch_view_max_entries_truncation`<br>`test_list_branch_view_recursive_flatten`<br>`test_resolve_local_path_windows_prefix`<br>`test_windows_native_helpers_and_lock_detection`<br>`test_sftp_parse_uri_variations`<br>`test_sanitize_uri` | • Path normalization & traversal prevention<br>• Recursive copy loop protection<br>• Branch/Flat view directory flattening<br>• SFTP URI parsing across IPv4/IPv6/ports<br>• Windows verbatim prefix (`\\?\`) handling |
-| **Authentication & RBAC** | `test_auth_sqlite_wal_pragmas`<br>`test_verify_token_allow_expired_for_session_unlock`<br>`test_api_token_lifecycle_and_revocation`<br>`test_user_preferences_persistence`<br>`test_user_group_cache_ttl`<br>`test_is_role_permitted`<br>`test_extract_terminal_claims_standalone`<br>`test_extract_terminal_claims_with_token_and_query` | • SQLite WAL mode and schema initialization<br>• JWT token issuance, expiry & signature verification<br>• API token generation, prefix hashing & revocation<br>• Session unlock with expired token grace period<br>• Role-Based Access Control (Admin vs User vs Readonly)<br>• Terminal PTY claim extraction and auth guards |
+| **VFS & Filesystem** | `test_clean_path_buf_strips_unc_and_verbatim_prefix`<br>`test_copy_file_paranoid_prevents_recursive_loop`<br>`test_copy_file_paranoid_success`<br>`test_delete_and_rename_with_options`<br>`test_list_branch_view_hidden_filter`<br>`test_list_branch_view_max_entries_truncation`<br>`test_list_branch_view_recursive_flatten`<br>`test_resolve_local_path_windows_prefix`<br>`test_windows_native_helpers_and_lock_detection`<br>`test_sftp_parse_uri_variations`<br>`test_sanitize_uri`<br>`test_windows_recycle_bin_i_file_parsing_v1_and_v2`<br>`test_is_archive_file_extensions`<br>`test_real_iso_reading`<br>`test_squashfs_lifecycle`<br>`test_fat_filesystem_read_lifecycle`<br>`test_gpt_probing`<br>`test_mbr_fat16_probing_and_reading` | • Path normalization & traversal prevention<br>• Recursive copy loop protection<br>• Branch/Flat view directory flattening<br>• SFTP URI parsing across IPv4/IPv6/ports<br>• Windows verbatim prefix (`\\?\`) handling<br>• Windows Recycle Bin `$I` file decoding<br>• ISO 9660, SquashFS, and FAT16/FAT32 disk probing |
+| **Authentication & RBAC** | `test_auth_sqlite_wal_pragmas`<br>`test_verify_token_allow_expired_for_session_unlock`<br>`test_api_token_lifecycle_and_revocation`<br>`test_user_preferences_persistence`<br>`test_user_group_cache_ttl`<br>`test_is_role_permitted`<br>`test_extract_terminal_claims_standalone`<br>`test_extract_terminal_claims_with_token_and_query`<br>`test_resolve_effective_home_schemes` | • SQLite WAL mode and schema initialization<br>• JWT token issuance, expiry & signature verification<br>• API token generation, prefix hashing & revocation<br>• Session unlock with expired token grace period<br>• Role-Based Access Control (Admin vs User vs Readonly)<br>• Terminal PTY claim extraction and auth guards<br>• Home fallback scheme resolution |
 | **Vaults & Encryption** | `test_vault_create_unlock_write_read_cycle`<br>`test_notedog_encryption_cycle`<br>`test_notedog_wrong_password` | • `.cdvault` Argon2id + AES-256-GCM RAM container<br>• Zero plaintext persistence on vault lock<br>• AES-256 encrypted database note attachments<br>• Rejection of invalid encryption passphrases |
 | **Sync & Backup Studio** | `test_sync_replication_profiles`<br>`test_backup_manager_crud`<br>`test_splitter_and_combine_integrity` | • Replication modes (Mirror, Synchronize, Backup)<br>• Checksum calculation & delta block verification<br>• File splitting (`.001`, `.002`) and SHA-256 recombine |
-| **Tools & Utilities** | `test_duplicate_scan_and_clean`<br>`test_duplicate_scan_with_filters`<br>`test_disk_usage_scan_and_report`<br>`test_disk_usage_single_file`<br>`test_disk_usage_nonexistent`<br>`test_get_system_disks_enumeration`<br>`test_pdf_merge`<br>`test_pdf_info_and_split`<br>`test_id3v1_metadata_cycle`<br>`test_log_viewer_tail_and_filters`<br>`test_tags_and_color_label_persistence_and_clearing`<br>`test_git_status_and_actions` | • Byte-exact duplicate file scanner & filters<br>• Disk usage recursive analysis<br>• PDF page splitting, rotation, and merging<br>• Audio ID3 tag parsing and embedding<br>• File color tagging and label persistence<br>• Git staging, diff, and status detection |
-| **Sharing & Chewtoys** | `test_advanced_sharing_center_lifecycle`<br>`test_plugin_pack_and_install_grr`<br>`test_handle_install_and_list_plugins` | • Public share token generation, ACLs, and expiry<br>• `.grr` Chewtoy plugin extraction & manifest parsing<br>• Sandboxed plugin installation & uninstallation |
-| **Server & HTTP** | `test_handle_health_endpoint`<br>`test_handle_static_asset_etags`<br>`test_http_range_parsing`<br>`test_normalize_path_resolution`<br>`test_path_starts_with_case_insensitive`<br>`test_master_config_parsing`<br>`test_external_theme_flat_parsing`<br>`test_external_theme_multi_parsing`<br>`test_terminal_config_parsing`<br>`test_storage_config_parsing` | • HTTP 206 Partial Content range requests (Media streaming)<br>• Static asset ETag caching & compression<br>• Master `config.toml` & external theme loader |
+| **Tools & Utilities** | `test_duplicate_scan_and_clean`<br>`test_duplicate_scan_with_filters`<br>`test_disk_usage_scan_and_report`<br>`test_disk_usage_single_file`<br>`test_disk_usage_nonexistent`<br>`test_get_system_disks_enumeration`<br>`test_pdf_merge`<br>`test_pdf_info_and_split`<br>`test_id3v1_metadata_cycle`<br>`test_log_viewer_tail_and_filters`<br>`test_tags_and_color_label_persistence_and_clearing`<br>`test_git_status_and_actions`<br>`test_trash_encode_decode_path`<br>`test_trash_move_list_restore_lifecycle`<br>`test_trash_collision_handling`<br>`test_list_trash_directory_entries_vfs` | • Byte-exact duplicate file scanner & filters<br>• Disk usage recursive analysis<br>• PDF page splitting, rotation, and merging<br>• Audio ID3 tag parsing and embedding<br>• File color tagging and label persistence<br>• Git staging, diff, and status detection<br>• XDG Trash cycle, restoration & collision handling |
+| **Sharing & Chewtoys** | `test_advanced_sharing_center_lifecycle`<br>`test_plugin_pack_and_install_grr`<br>`test_handle_install_and_list_plugins`<br>`test_tetradog_scoring_and_leaderboard_multiuser` | • Public share token generation, ACLs, and expiry<br>• `.grr` Chewtoy plugin extraction & manifest parsing<br>• Sandboxed plugin installation & uninstallation<br>• Tetrion multiplayer leaderboard scoring |
+| **Server & HTTP** | `test_handle_health_endpoint`<br>`test_handle_static_asset_etags`<br>`test_http_range_parsing`<br>`test_normalize_path_resolution`<br>`test_path_starts_with_case_insensitive`<br>`test_master_config_parsing`<br>`test_external_theme_flat_parsing`<br>`test_external_theme_multi_parsing`<br>`test_terminal_config_parsing`<br>`test_storage_config_parsing`<br>`test_windows_unescaped_backslashes_auto_repair` | • HTTP 206 Partial Content range requests (Media streaming)<br>• Static asset ETag caching & compression<br>• Master `config.toml` & external theme loader<br>• Automatic repair of unescaped Windows paths |
 
 ---
 
