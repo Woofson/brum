@@ -5941,13 +5941,21 @@
               </div>
             </div>
 
-            <div class="settings-field">
-              <label class="settings-field-label" for="fleet-input-token">Auth Token / API Secret:</label>
-              <div style="display: flex; gap: 6px; align-items: center;">
-                <input type="password" id="fleet-input-token" class="settings-input" placeholder="Bearer JWT token or service secret for remote node" style="flex: 1; font-family: var(--font-mono); height: 28px;">
-                <button type="button" class="btn btn-icon btn-sm btn-outline" id="btn-toggle-fleet-token" onclick="toggleFleetTokenVisibility()" title="Toggle Token Visibility" style="width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="eye" id="fleet-token-eye-icon" style="width: 14px; height: 14px; margin: 0;"></i></button>
+            <div class="settings-grid-2col" style="gap: 10px;">
+              <div class="settings-field">
+                <label class="settings-field-label" for="fleet-input-token">Auth Token / API Secret:</label>
+                <div style="display: flex; gap: 6px; align-items: center;">
+                  <input type="password" id="fleet-input-token" class="settings-input" placeholder="Bearer JWT token or service secret for remote node" style="flex: 1; font-family: var(--font-mono); height: 28px;">
+                  <button type="button" class="btn btn-icon btn-sm btn-outline" id="btn-toggle-fleet-token" onclick="toggleFleetTokenVisibility()" title="Toggle Token Visibility" style="width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="eye" id="fleet-token-eye-icon" style="width: 14px; height: 14px; margin: 0;"></i></button>
+                </div>
+                <div class="settings-field-hint">Leave blank for unauthenticated or local node profiles.</div>
               </div>
-              <div class="settings-field-hint">Leave blank for unauthenticated or local node profiles.</div>
+
+              <div class="settings-field">
+                <label class="settings-field-label" for="fleet-input-start-path">Start Directory Path (Optional):</label>
+                <input type="text" id="fleet-input-start-path" class="settings-input" placeholder="e.g. C:\Users\bolt, /home/bolt, /data" style="height: 28px; font-family: var(--font-mono); font-size: 11.5px;">
+                <div class="settings-field-hint">Leave blank for automatic home & root discovery.</div>
+              </div>
             </div>
 
             <div class="settings-grid-2col" style="gap: 10px;">

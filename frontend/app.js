@@ -2430,6 +2430,7 @@ function applyUserHomeToPanes(force = false) {
 
   if (startupSettings.mode === 'home') {
     App.panes.forEach((pane, idx) => {
+      if (pane.nodeId && pane.nodeId !== 'local') return;
       pane.path = home;
       pane.history = [home];
       pane.historyIndex = 0;
@@ -2438,6 +2439,7 @@ function applyUserHomeToPanes(force = false) {
   }
   if (startupSettings.mode === 'root') {
     App.panes.forEach((pane, idx) => {
+      if (pane.nodeId && pane.nodeId !== 'local') return;
       pane.path = '/';
       pane.history = ['/'];
       pane.historyIndex = 0;
@@ -2446,6 +2448,7 @@ function applyUserHomeToPanes(force = false) {
   }
   if (startupSettings.mode === 'custom') {
     App.panes.forEach((pane, idx) => {
+      if (pane.nodeId && pane.nodeId !== 'local') return;
       const customPath = startupSettings.customPaths[idx] || home;
       pane.path = customPath;
       pane.history = [customPath];
@@ -2456,6 +2459,7 @@ function applyUserHomeToPanes(force = false) {
 
   if (home && home !== '/') {
     App.panes.forEach((pane, idx) => {
+      if (pane.nodeId && pane.nodeId !== 'local') return;
       const saved = localStorage.getItem(`cd_pane_path_${idx}`);
       if (force || !saved || saved === '/' || pane.path === '/' || pane.path === '~') {
         pane.path = home;
@@ -4062,7 +4066,7 @@ function getPaneAuthHeaders(paneIndex, extraHeaders = {}) {
   return headers;
 }
 
-function switchPaneNode(paneIndex, nodeId, targetPath = null) {
+async function switchPaneNode(paneIndex, nodeId, targetPath = null) {
   const pane = App.panes && App.panes[paneIndex];
   if (!pane) return;
 
@@ -4082,7 +4086,38 @@ function switchPaneNode(paneIndex, nodeId, targetPath = null) {
     showToast(`Pane ${paneIndex + 1} switched to Local Host`, 'info');
   } else {
     const node = getPaneNode(paneIndex);
-    const dest = targetPath || '/';
+    let dest = targetPath;
+    if (!dest) {
+      if (node.start_path && node.start_path.trim()) {
+        dest = node.start_path.trim();
+      } else if (node.resolved_home && node.resolved_home.trim()) {
+        dest = node.resolved_home.trim();
+      } else {
+        // Probe node storage roots to autodiscover user's home or root path
+        try {
+          const endpoint = getPaneEndpoint(paneIndex);
+          const headers = getPaneAuthHeaders(paneIndex);
+          const res = await fetch(`${endpoint}/api/storage/roots`, { headers, cache: 'no-store' });
+          if (res.ok) {
+            const roots = await res.json();
+            if (Array.isArray(roots) && roots.length > 0) {
+              const homeRoot = roots.find(r => r.id === 'home' || (r.name && r.name.startsWith('Personal Home')));
+              if (homeRoot && homeRoot.path) {
+                dest = homeRoot.path;
+              } else if (roots[0] && roots[0].path) {
+                dest = roots[0].path;
+              }
+            }
+          }
+        } catch (e) {
+          console.warn(`Failed to auto-discover home for fleet node ${node.name}:`, e);
+        }
+        if (!dest) {
+          dest = '/';
+        }
+        node.resolved_home = dest;
+      }
+    }
     loadPaneDirectory(paneIndex, dest, true);
     showToast(`Pane ${paneIndex + 1} switched to Fleet Node "${node.name}"`, 'success');
     if (typeof pingFleetNode === 'function') {
@@ -5108,6 +5143,26 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
           console.info(`Auto-redirecting pane ${paneIndex} from ${cleanPath} to user home: ${userHome}`);
           loadPaneDirectory(paneIndex, userHome, false);
           return;
+        }
+      } else {
+        const node = getPaneNode(paneIndex);
+        if (cleanPath === '/' || resp.status === 403) {
+          try {
+            const rRes = await fetch(`${endpoint}/api/storage/roots`, { headers });
+            if (rRes.ok) {
+              const roots = await rRes.json();
+              if (Array.isArray(roots) && roots.length > 0) {
+                const homeRoot = roots.find(r => r.id === 'home' || (r.name && r.name.startsWith('Personal Home')));
+                const target = (homeRoot && homeRoot.path) ? homeRoot.path : (roots[0] && roots[0].path ? roots[0].path : null);
+                if (target && target !== cleanPath) {
+                  console.info(`Auto-redirecting remote pane ${paneIndex} (${node.name}) from ${cleanPath} to remote home/root: ${target}`);
+                  node.resolved_home = target;
+                  loadPaneDirectory(paneIndex, target, false);
+                  return;
+                }
+              }
+            }
+          } catch (_) {}
         }
       }
       if (!isSyncNav && !backgroundRevalidate) {
@@ -7896,15 +7951,29 @@ async function loadPaneDirectoryTree(paneIndex) {
   `;
 
   const rootsContainer = document.getElementById(`pane-tree-roots-${paneIndex}`);
-  const homePath = getUserDefaultHomeDir() || App.user?.home_dir || (App.systemStatus?.home_dir || '~');
-  const roots = [];
+  const node = getPaneNode(paneIndex);
+  const endpoint = getPaneEndpoint(paneIndex);
+  const authHeaders = getPaneAuthHeaders(paneIndex);
+  const isRemote = node && node.id !== 'local';
 
-  if (App.storageRoots && App.storageRoots.length > 0) {
-    App.storageRoots.forEach(r => {
-      const icon = (r.id === 'home') ? 'home' : (r.path.match(/^[a-zA-Z]:/) ? 'hard-drive' : 'server');
-      roots.push({ name: r.name, path: r.path, icon });
+  let storageRoots = [];
+  if (isRemote) {
+    try {
+      const rootsRes = await fetch(`${endpoint}/api/storage/roots`, { headers: authHeaders });
+      if (rootsRes.ok) storageRoots = await rootsRes.json();
+    } catch (_) {}
+  } else {
+    storageRoots = App.storageRoots || [];
+  }
+
+  const roots = [];
+  if (storageRoots && storageRoots.length > 0) {
+    storageRoots.forEach(r => {
+      const icon = (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'home' : (r.path.match(/^[a-zA-Z]:/) ? 'hard-drive' : 'server');
+      roots.push({ name: (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'Home' : r.name, path: r.path, icon });
     });
   } else {
+    const homePath = isRemote ? (node.start_path || node.resolved_home || '/') : (getUserDefaultHomeDir() || App.user?.home_dir || (App.systemStatus?.home_dir || '~'));
     roots.push({ name: 'Home', path: homePath, icon: 'home' });
   }
 
@@ -7968,8 +8037,10 @@ async function toggleTreeNodeExpand(expanderEl, paneIndex, path) {
     if (childrenContainer.children.length === 0) {
       childrenContainer.innerHTML = '<div style="font-size: 10px; color: var(--text-muted); padding: 2px 6px;">Loading...</div>';
       try {
-        const resp = await fetch(`/api/fs/list?path=${encodeURIComponent(path)}`, {
-          headers: { 'Authorization': `Bearer ${App.token}` }
+        const endpoint = getPaneEndpoint(paneIndex);
+        const headers = getPaneAuthHeaders(paneIndex);
+        const resp = await fetch(`${endpoint}/api/fs/list?path=${encodeURIComponent(path)}`, {
+          headers
         });
         if (resp.ok) {
           const data = await resp.json();
@@ -17247,6 +17318,11 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
   if (wasOpenForThisPane) return;
 
+  const endpoint = getPaneEndpoint(paneIndex);
+  const authHeaders = getPaneAuthHeaders(paneIndex);
+  const node = getPaneNode(paneIndex);
+  const isRemote = node && node.id !== 'local';
+
   let globalMounts = [];
   let userBookmarks = [];
   let storageRoots = [];
@@ -17254,21 +17330,26 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   try {
     const [mountsRes, bmRes, rootsRes, trashRes, disksRes] = await Promise.all([
-      fetch('/api/mounts/accessible', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      fetch('/api/bookmarks', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      fetch('/api/tools/trash/summary', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null),
-      (!window._systemDisks || window._systemDisks.length === 0) ? fetch('/api/tools/disks', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null) : Promise.resolve(null)
+      fetch(`${endpoint}/api/mounts/accessible`, { headers: authHeaders }).catch(() => null),
+      fetch('/api/bookmarks', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null),
+      fetch(`${endpoint}/api/storage/roots`, { headers: authHeaders }).catch(() => null),
+      fetch(`${endpoint}/api/tools/trash/summary`, { headers: authHeaders }).catch(() => null),
+      fetch(`${endpoint}/api/tools/disks`, { headers: authHeaders }).catch(() => null)
     ]);
-    if (mountsRes.ok) globalMounts = await mountsRes.json();
-    if (bmRes.ok) userBookmarks = await bmRes.json();
-    if (rootsRes.ok) storageRoots = await rootsRes.json();
+    if (mountsRes && mountsRes.ok) globalMounts = await mountsRes.json();
+    if (bmRes && bmRes.ok) userBookmarks = await bmRes.json();
+    if (rootsRes && rootsRes.ok) storageRoots = await rootsRes.json();
     if (trashRes && trashRes.ok) trashSummary = await trashRes.json();
     if (disksRes && disksRes.ok) {
-      window._systemDisks = await disksRes.json() || [];
+      const disks = await disksRes.json() || [];
+      if (!isRemote) {
+        window._systemDisks = disks;
+      } else {
+        node._systemDisks = disks;
+      }
     }
   } catch (err) {
-    console.warn('Failed to load favorites/bookmarks/storage roots:', err);
+    console.warn('Failed to load favorites/bookmarks/storage roots for pane:', err);
   }
 
   const protoIcons = {
@@ -17287,6 +17368,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   const fleetNodes = typeof getAllFleetNodes === 'function' ? getAllFleetNodes() : [];
   const currentPane = App.panes && App.panes[paneIndex];
   const currentNodeId = currentPane ? (currentPane.nodeId || 'local') : 'local';
+  const nodeDisks = isRemote ? (node._systemDisks || []) : (window._systemDisks || []);
 
   const drives = storageRoots.filter(r => r.id !== 'home' && r.path.match(/^[a-zA-Z]:[\\/]/));
   const nonDriveRoots = storageRoots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/) || r.id === 'home');
@@ -17298,7 +17380,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   popup.innerHTML = `
     <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-      <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="paw-print" style="width: 14px; height: 14px;"></i> Places & Fleet</span>
+      <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="paw-print" style="width: 14px; height: 14px;"></i> Places & Fleet ${isRemote ? `<span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">(${escapeHtml(node.name)})</span>` : ''}</span>
       <div style="display: flex; align-items: center; gap: 8px;">
         <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openBookmarksManager();">Bookmarks</span>
         <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-favorites-popup')?.remove();">✕</span>
@@ -17320,7 +17402,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Drives & Partitions</div>
         ${drives.map(d => {
           const isAct = curPanePath.toUpperCase().startsWith(d.path.toUpperCase());
-          const diskInfo = (window._systemDisks || []).find(it => it.mount_point.toUpperCase().startsWith(d.path.toUpperCase()));
+          const diskInfo = nodeDisks.find(it => it.mount_point.toUpperCase().startsWith(d.path.toUpperCase()));
           const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
           return `
             <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="${escapeHtml(d.path)}">
@@ -17342,7 +17424,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Places & Storage Roots</div>
       ${nonDriveRoots.map(r => {
         const displayName = (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'Home' : r.name;
-        const diskInfo = (window._systemDisks || []).find(it => it.mount_point === r.path || (r.path === '/' && it.mount_point === '/'));
+        const diskInfo = nodeDisks.find(it => it.mount_point === r.path || (r.path === '/' && it.mount_point === '/'));
         const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
         const isAct = curPanePath.toUpperCase() === r.path.toUpperCase()
           || curPanePath.replace(/\\/g, '/').toUpperCase() === r.path.replace(/\\/g, '/').toUpperCase()
@@ -17376,7 +17458,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
             <span>${escapeHtml(getTrashDisplayName(true))}</span>
             ${trashSummary.total_items > 0 ? `<span class="badge" style="font-size: 8.5px; padding: 1px 5px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">${trashSummary.total_items} item${trashSummary.total_items > 1 ? 's' : ''} · ${formatBytes(trashSummary.total_size)}</span>` : '<span style="font-size: 9px; color: var(--text-dim);">Empty</span>'}
           </div>
-          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(trashSummary.files_dir || (isWindowsHost() ? 'Windows Recycle Bin ($Recycle.Bin)' : '~/.local/share/Trash/files'))}</div>
+          <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(trashSummary.files_dir || (isRemote ? (trashSummary.files_dir || 'Remote Trash') : (isWindowsHost() ? 'Windows Recycle Bin ($Recycle.Bin)' : '~/.local/share/Trash/files')))}</div>
         </div>
         ${isTrashDirectory(curPanePath) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
       </div>
@@ -41507,6 +41589,7 @@ function selectFleetNodeInManager(id) {
   const nameInput = document.getElementById('fleet-input-name');
   const urlInput = document.getElementById('fleet-input-url');
   const tokenInput = document.getElementById('fleet-input-token');
+  const startPathInput = document.getElementById('fleet-input-start-path');
   const colorInput = document.getElementById('fleet-input-color');
   const tagsInput = document.getElementById('fleet-input-tags');
 
@@ -41514,6 +41597,7 @@ function selectFleetNodeInManager(id) {
   if (nameInput) nameInput.value = node.name || '';
   if (urlInput) urlInput.value = node.endpoint_url || '';
   if (tokenInput) tokenInput.value = node.auth_token || '';
+  if (startPathInput) startPathInput.value = node.start_path || '';
   if (colorInput) colorInput.value = node.color_accent || 'amber';
   if (tagsInput) tagsInput.value = (node.tags || []).join(', ');
 
@@ -41573,6 +41657,7 @@ function resetFleetNodeForm() {
   const nameInput = document.getElementById('fleet-input-name');
   const urlInput = document.getElementById('fleet-input-url');
   const tokenInput = document.getElementById('fleet-input-token');
+  const startPathInput = document.getElementById('fleet-input-start-path');
   const colorInput = document.getElementById('fleet-input-color');
   const tagsInput = document.getElementById('fleet-input-tags');
 
@@ -41580,6 +41665,7 @@ function resetFleetNodeForm() {
   if (nameInput) nameInput.value = '';
   if (urlInput) urlInput.value = '';
   if (tokenInput) tokenInput.value = '';
+  if (startPathInput) startPathInput.value = '';
   if (colorInput) colorInput.value = 'amber';
   if (tagsInput) tagsInput.value = '';
 
@@ -41746,6 +41832,7 @@ function saveFleetNodeProfile() {
   let name = (document.getElementById('fleet-input-name')?.value || '').trim();
   let url = (document.getElementById('fleet-input-url')?.value || '').trim();
   const token = (document.getElementById('fleet-input-token')?.value || '').trim();
+  const startPath = (document.getElementById('fleet-input-start-path')?.value || '').trim();
   const color = document.getElementById('fleet-input-color')?.value || 'amber';
   const tagsRaw = (document.getElementById('fleet-input-tags')?.value || '').trim();
 
@@ -41781,6 +41868,7 @@ function saveFleetNodeProfile() {
         name,
         endpoint_url: url,
         auth_token: token,
+        start_path: startPath || undefined,
         color_accent: color,
         tags,
         updated_at: Date.now()
@@ -41797,6 +41885,7 @@ function saveFleetNodeProfile() {
       name,
       endpoint_url: url,
       auth_token: token,
+      start_path: startPath || undefined,
       color_accent: color,
       tags,
       created_at: Date.now(),
