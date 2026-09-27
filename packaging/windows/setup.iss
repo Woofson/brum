@@ -6,7 +6,7 @@
 
 #define MyAppName "Brum"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.2.0"
+  #define MyAppVersion "1.2.1"
 #endif
 #define MyAppPublisher "Bolt J Woofson @ Woofsons Lab"
 #define MyAppURL "https://www.arf.ac"
@@ -72,7 +72,7 @@ Source: "unregister-context-menu.reg"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\brum.ico"; Components: standalone
-Name: "{group}\Brum (Web Console)"; Filename: "http://127.0.0.1:4040"; IconFilename: "{app}\brum.ico"
+Name: "{group}\Brum (Web Console)"; Filename: "http://127.0.0.1:3140"; IconFilename: "{app}\brum.ico"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\brum.ico"; Tasks: desktopicon; Components: standalone
 

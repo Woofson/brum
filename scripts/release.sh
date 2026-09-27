@@ -150,6 +150,11 @@ if [ -f "packaging/windows/scoop/brum.json" ]; then
     sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+.*\.zip/v${TARGET_VERSION}.zip/g" packaging/windows/scoop/brum.json
 fi
 
+# packaging/windows/setup.iss
+if [ -f "packaging/windows/setup.iss" ]; then
+    sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"${TARGET_VERSION}\"/" packaging/windows/setup.iss
+fi
+
 # packaging/windows/winget
 if [ -f "packaging/windows/winget/Woofson.Brum.yaml" ]; then
     sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.Brum.yaml

@@ -5,6 +5,9 @@ pub mod server;
 pub mod tools;
 pub mod vfs;
 
+#[cfg(target_os = "windows")]
+mod windows_service_runner;
+
 use auth::AuthManager;
 use config::ConfigManager;
 use server::{create_router, AppState};
@@ -43,6 +46,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
+            "--windows-service" | "--service" => {
+                #[cfg(target_os = "windows")]
+                {
+                    windows_service_runner::run_as_service()?;
+                    return Ok(());
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    eprintln!("Windows Service mode is only supported on Windows.");
+                    return Ok(());
+                }
+            }
             "--server" | "--headless" => {
                 is_server_mode = true;
                 config.server.standalone = false;
@@ -78,10 +93,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
             "service" => {
                 if i + 1 < args.len() {
                     let subcmd = args[i + 1].clone();
-                    handle_service_command(&subcmd)?;
-                    return Ok(());
+                    if subcmd == "run" {
+                        #[cfg(target_os = "windows")]
+                        {
+                            windows_service_runner::run_as_service()?;
+                            return Ok(());
+                        }
+                        #[cfg(not(target_os = "windows"))]
+                        {
+                            is_server_mode = true;
+                            config.server.standalone = false;
+                        }
+                    } else {
+                        handle_service_command(&subcmd)?;
+                        return Ok(());
+                    }
                 } else {
-                    eprintln!("Usage: brum service [install|uninstall|start|stop|status]");
+                    eprintln!("Usage: brum service [install|uninstall|start|stop|restart|status|run]");
                     return Ok(());
                 }
             }
@@ -107,24 +135,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    brum service [COMMAND]");
                 println!();
                 println!("OPTIONS:");
-                println!("    -s, --standalone    Run in standalone desktop mode (auto-authenticates as local user, opens browser/window)");
-                println!("    -o, --open          Automatically open Brum in default web browser / webview");
-                println!("    -p, --port <PORT>   Override web server port (default: 3140 or config.toml setting)");
-                println!("        --host <HOST>   Override web server bind host (default: 0.0.0.0)");
-                println!("        --no-auth       Disable login authentication and run with local permissions");
-                println!("        --minimized     Launch minimized in system tray / background without opening window");
-                println!("        --no-decorations Launch without window titlebar/frame (ideal for Hyprland/tiling WMs)");
-                println!("        --frameless     Alias for --no-decorations");
-                println!("        --decorations   Force enable window titlebar and borders");
-                println!("    -v, --version       Print version information");
-                println!("    -h, --help          Print this help message");
+                println!("    -s, --standalone       Run in standalone desktop mode (auto-authenticates as local user, opens browser/window)");
+                println!("    -o, --open             Automatically open Brum in default web browser / webview");
+                println!("    -p, --port <PORT>      Override web server port (default: 3140 or config.toml setting)");
+                println!("        --host <HOST>      Override web server bind host (default: 0.0.0.0)");
+                println!("        --no-auth          Disable login authentication and run with local permissions");
+                println!("        --windows-service  Internal entry point for Windows Service Control Manager");
+                println!("        --minimized        Launch minimized in system tray / background without opening window");
+                println!("        --no-decorations   Launch without window titlebar/frame (ideal for Hyprland/tiling WMs)");
+                println!("        --frameless        Alias for --no-decorations");
+                println!("        --decorations      Force enable window titlebar and borders");
+                println!("    -v, --version          Print version information");
+                println!("    -h, --help             Print this help message");
                 println!();
                 println!("SERVICE COMMANDS:");
-                println!("    install             Register Brum as Windows NT Service or systemd user service");
-                println!("    uninstall           Remove registered background service");
-                println!("    start               Start background service");
-                println!("    stop                Stop running service");
-                println!("    status              Query service running status");
+                println!("    install                Register Brum as Windows NT Service or systemd user service");
+                println!("    uninstall              Remove registered background service");
+                println!("    start                  Start background service");
+                println!("    stop                   Stop running service");
+                println!("    restart                Restart background service");
+                println!("    status                 Query service running status");
+                println!("    run                    Execute service dispatcher directly");
                 return Ok(());
             }
             _ => {}
@@ -302,10 +333,14 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
         match cmd {
             "install" => {
                 println!("Installing Brum Windows Service via sc.exe...");
+                let bin_path = format!("\"{}\" --windows-service", exe.display());
                 let status = std::process::Command::new("sc.exe")
-                    .args(["create", "Brum", "binPath=", &format!("\"{}\" --server", exe.display()), "start=", "auto", "DisplayName=", "Brum Web Service"])
+                    .args(["create", "Brum", "binPath=", &bin_path, "start=", "auto", "DisplayName=", "Brum Web Service"])
                     .status()?;
                 if status.success() {
+                    let _ = std::process::Command::new("sc.exe")
+                        .args(["description", "Brum", "Multi-Pane Web Environment and Fleet Commander Daemon"])
+                        .status();
                     println!("Successfully registered Brum Windows Service.");
                 } else {
                     eprintln!("Failed to register service. Ensure you are running Command Prompt / PowerShell as Administrator.");
@@ -323,20 +358,29 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
                 println!("Starting Brum Windows Service...");
                 let status = std::process::Command::new("sc.exe").args(["start", "Brum"]).status()?;
                 if status.success() {
-                    println!("Service started.");
+                    println!("Service start requested.");
                 }
             }
             "stop" => {
                 println!("Stopping Brum Windows Service...");
                 let status = std::process::Command::new("sc.exe").args(["stop", "Brum"]).status()?;
                 if status.success() {
-                    println!("Service stopped.");
+                    println!("Service stop requested.");
+                }
+            }
+            "restart" => {
+                println!("Restarting Brum Windows Service...");
+                let _ = std::process::Command::new("sc.exe").args(["stop", "Brum"]).status();
+                std::thread::sleep(std::time::Duration::from_millis(1500));
+                let status = std::process::Command::new("sc.exe").args(["start", "Brum"]).status()?;
+                if status.success() {
+                    println!("Service restarted.");
                 }
             }
             "status" => {
                 let _ = std::process::Command::new("sc.exe").args(["query", "Brum"]).status();
             }
-            _ => eprintln!("Unknown service command: {}. Available: install, uninstall, start, stop, status", cmd),
+            _ => eprintln!("Unknown service command: {}. Available: install, uninstall, start, stop, restart, status, run", cmd),
         }
     }
     #[cfg(not(target_os = "windows"))]
@@ -373,10 +417,13 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
             "stop" => {
                 let _ = std::process::Command::new("systemctl").args(["--user", "stop", "brum"]).status();
             }
+            "restart" => {
+                let _ = std::process::Command::new("systemctl").args(["--user", "restart", "brum"]).status();
+            }
             "status" => {
                 let _ = std::process::Command::new("systemctl").args(["--user", "status", "brum"]).status();
             }
-            _ => eprintln!("Unknown service command: {}. Available: install, uninstall, start, stop, status", cmd),
+            _ => eprintln!("Unknown service command: {}. Available: install, uninstall, start, stop, restart, status, run", cmd),
         }
     }
     Ok(())

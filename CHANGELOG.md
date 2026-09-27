@@ -5,6 +5,17 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-09-27
+
+### Fixed
+- **Native Windows Service Dispatcher & SCM Lifecycle Integration** (Fixes Windows Service Error 1053):
+  - Added `windows-service` crate integration with native Windows Service Control Manager (SCM) dispatcher (`service_dispatcher::start` and `service_control_handler::register`).
+  - Dispatched immediate `SERVICE_RUNNING` status heartbeat to SCM upon startup, completely resolving the 30-second timeout (`The service did not respond to the start or control request in a timely fashion`).
+  - Added clean asynchronous graceful server shutdown handling for `SERVICE_CONTROL_STOP` and `SERVICE_CONTROL_SHUTDOWN` events.
+  - Added automatic working directory resolution ensuring service execution launched from `C:\Windows\System32` properly accesses configuration, database, and plugins relative to the installation directory.
+  - Added `--windows-service`, `--service`, and `service run` command flags, updated `sc.exe` registration in `brum service install`, and added `brum service restart` support.
+  - Fixed Web Console shortcut port in Windows Inno Setup installer (`packaging/windows/setup.iss`) to default port `3140`.
+
 ## [1.2.0] - 2026-09-27
 
 ### Added

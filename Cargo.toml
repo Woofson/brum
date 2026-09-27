@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "1.2.0"
+version = "1.2.1"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -94,6 +94,7 @@ positioned-io = "=0.2.2"
 openssl = { version = "0.10", features = ["vendored"] }
 
 [target.'cfg(windows)'.dependencies]
+windows-service = "0.7"
 windows-sys = { version = "0.59", features = [
     "Win32_Foundation",
     "Win32_Storage_FileSystem",
