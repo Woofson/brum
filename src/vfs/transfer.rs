@@ -107,6 +107,372 @@ impl VfsTransfer {
         Ok(())
     }
 
+    /// Recursively copy an SFTP folder to local destination
+    pub fn copy_sftp_dir_to_local(
+        src_params: &crate::vfs::sftp::SftpParams,
+        dest_local_dir: &Path,
+        task_manager: &TaskManager,
+        task_id: &str,
+    ) -> Result<(), String> {
+        Self::copy_sftp_dir_to_local_with_progress(
+            src_params,
+            dest_local_dir,
+            task_manager,
+            task_id,
+            0,
+            1,
+            0,
+            std::time::Instant::now(),
+        ).map(|_| ())
+    }
+
+    pub fn copy_sftp_dir_to_local_with_progress(
+        src_params: &crate::vfs::sftp::SftpParams,
+        dest_local_dir: &Path,
+        task_manager: &TaskManager,
+        task_id: &str,
+        files_done_before: u64,
+        total_files: u64,
+        bytes_done_before: u64,
+        start_time: std::time::Instant,
+    ) -> Result<(u64, u64), String> {
+        fs::create_dir_all(dest_local_dir).map_err(|e| format!("Failed to create local directory: {}", e))?;
+
+        let listing = crate::vfs::sftp::SftpClient::list_dir(src_params).map_err(|e| e.to_string())?;
+        let mut total_dir_files = 0u64;
+        let mut total_dir_bytes = 0u64;
+        let mut last_progress_time = std::time::Instant::now();
+
+        for entry in listing.entries {
+            if task_manager.sync_is_cancelled(task_id) {
+                return Err("Transfer cancelled by user".to_string());
+            }
+            while task_manager.sync_is_paused(task_id) {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if task_manager.sync_is_cancelled(task_id) {
+                    return Err("Transfer cancelled by user".to_string());
+                }
+            }
+
+            let child_remote_path = if src_params.remote_path == "/" {
+                format!("/{}", entry.name)
+            } else {
+                format!("{}/{}", src_params.remote_path.trim_end_matches('/'), entry.name)
+            };
+            let mut child_params = src_params.clone();
+            child_params.remote_path = child_remote_path;
+
+            let child_dest = dest_local_dir.join(&entry.name);
+            if entry.is_dir {
+                let (c, b) = Self::copy_sftp_dir_to_local_with_progress(
+                    &child_params,
+                    &child_dest,
+                    task_manager,
+                    task_id,
+                    files_done_before + total_dir_files,
+                    total_files,
+                    bytes_done_before + total_dir_bytes,
+                    start_time,
+                )?;
+                total_dir_files += c;
+                total_dir_bytes += b;
+            } else {
+                let tm = task_manager.clone();
+                let tid = task_id.to_string();
+                let iname = entry.name.clone();
+                let cur_done_before = bytes_done_before + total_dir_bytes;
+                let cur_files_before = files_done_before + total_dir_files;
+
+                crate::vfs::sftp::SftpClient::download_to_file_streaming(
+                    &child_params,
+                    &child_dest,
+                    false,
+                    |_chunk, cur_file_bytes, cur_file_total| {
+                        if tm.sync_is_cancelled(&tid) {
+                            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                        }
+                        while tm.sync_is_paused(&tid) {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            if tm.sync_is_cancelled(&tid) {
+                                return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                            }
+                        }
+
+                        let now = std::time::Instant::now();
+                        if now.duration_since(last_progress_time).as_millis() >= 35 || cur_file_bytes == cur_file_total {
+                            last_progress_time = now;
+                            let elapsed = start_time.elapsed().as_secs_f64();
+                            let total_bytes_now = cur_done_before + cur_file_bytes;
+                            let current_speed = if elapsed > 0.05 {
+                                (total_bytes_now as f64 / elapsed) as u64
+                            } else {
+                                0
+                            };
+                            tm.sync_update_stream_progress(
+                                &tid,
+                                Some(&iname),
+                                cur_file_bytes,
+                                cur_file_total,
+                                cur_files_before,
+                                total_files,
+                                total_bytes_now,
+                                current_speed,
+                            );
+                        }
+                        Ok(())
+                    },
+                ).map_err(|e| e.to_string())?;
+
+                total_dir_files += 1;
+                total_dir_bytes += child_dest.metadata().map(|m| m.len()).unwrap_or(entry.size);
+            }
+        }
+        Ok((total_dir_files, total_dir_bytes))
+    }
+
+    /// Recursively copy a local folder to SFTP destination
+    pub fn copy_local_dir_to_sftp(
+        src_local_dir: &Path,
+        dest_params: &crate::vfs::sftp::SftpParams,
+        task_manager: &TaskManager,
+        task_id: &str,
+    ) -> Result<(), String> {
+        Self::copy_local_dir_to_sftp_with_progress(
+            src_local_dir,
+            dest_params,
+            task_manager,
+            task_id,
+            0,
+            1,
+            0,
+            std::time::Instant::now(),
+        ).map(|_| ())
+    }
+
+    pub fn copy_local_dir_to_sftp_with_progress(
+        src_local_dir: &Path,
+        dest_params: &crate::vfs::sftp::SftpParams,
+        task_manager: &TaskManager,
+        task_id: &str,
+        files_done_before: u64,
+        total_files: u64,
+        bytes_done_before: u64,
+        start_time: std::time::Instant,
+    ) -> Result<(u64, u64), String> {
+        let _ = crate::vfs::sftp::SftpClient::mkdir(dest_params);
+
+        let read_dir = fs::read_dir(src_local_dir).map_err(|e| format!("Failed to read local dir: {}", e))?;
+        let mut total_dir_files = 0u64;
+        let mut total_dir_bytes = 0u64;
+        let mut last_progress_time = std::time::Instant::now();
+
+        for entry_res in read_dir {
+            if task_manager.sync_is_cancelled(task_id) {
+                return Err("Transfer cancelled by user".to_string());
+            }
+            while task_manager.sync_is_paused(task_id) {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if task_manager.sync_is_cancelled(task_id) {
+                    return Err("Transfer cancelled by user".to_string());
+                }
+            }
+
+            if let Ok(entry) = entry_res {
+                let name = entry.file_name().to_string_lossy().to_string();
+                let child_remote_path = if dest_params.remote_path.is_empty() || dest_params.remote_path == "/" {
+                    format!("/{}", name)
+                } else {
+                    format!("{}/{}", dest_params.remote_path.trim_end_matches('/'), name)
+                };
+                let mut child_params = dest_params.clone();
+                child_params.remote_path = child_remote_path;
+
+                let path = entry.path();
+                if path.is_dir() {
+                    let (c, b) = Self::copy_local_dir_to_sftp_with_progress(
+                        &path,
+                        &child_params,
+                        task_manager,
+                        task_id,
+                        files_done_before + total_dir_files,
+                        total_files,
+                        bytes_done_before + total_dir_bytes,
+                        start_time,
+                    )?;
+                    total_dir_files += c;
+                    total_dir_bytes += b;
+                } else {
+                    let tm = task_manager.clone();
+                    let tid = task_id.to_string();
+                    let iname = name.clone();
+                    let cur_done_before = bytes_done_before + total_dir_bytes;
+                    let cur_files_before = files_done_before + total_dir_files;
+
+                    crate::vfs::sftp::SftpClient::upload_from_file_streaming(
+                        &child_params,
+                        &path,
+                        false,
+                        |_chunk, cur_file_bytes, cur_file_total| {
+                            if tm.sync_is_cancelled(&tid) {
+                                return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                            }
+                            while tm.sync_is_paused(&tid) {
+                                std::thread::sleep(std::time::Duration::from_millis(100));
+                                if tm.sync_is_cancelled(&tid) {
+                                    return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                                }
+                            }
+
+                            let now = std::time::Instant::now();
+                            if now.duration_since(last_progress_time).as_millis() >= 35 || cur_file_bytes == cur_file_total {
+                                last_progress_time = now;
+                                let elapsed = start_time.elapsed().as_secs_f64();
+                                let total_bytes_now = cur_done_before + cur_file_bytes;
+                                let current_speed = if elapsed > 0.05 {
+                                    (total_bytes_now as f64 / elapsed) as u64
+                                } else {
+                                    0
+                                };
+                                tm.sync_update_stream_progress(
+                                    &tid,
+                                    Some(&iname),
+                                    cur_file_bytes,
+                                    cur_file_total,
+                                    cur_files_before,
+                                    total_files,
+                                    total_bytes_now,
+                                    current_speed,
+                                );
+                            }
+                            Ok(())
+                        },
+                    ).map_err(|e| e.to_string())?;
+
+                    total_dir_files += 1;
+                    total_dir_bytes += path.metadata().map(|m| m.len()).unwrap_or(0);
+                }
+            }
+        }
+        Ok((total_dir_files, total_dir_bytes))
+    }
+
+    /// Recursively copy an archive/image folder to local destination with live progress
+    pub fn copy_archive_dir_to_local_with_progress(
+        archive_file: &str,
+        subpath: &str,
+        dest_local_dir: &Path,
+        conflict_resolution: Option<&str>,
+        task_manager: &TaskManager,
+        task_id: &str,
+        files_done_before: u64,
+        total_files: u64,
+        bytes_done_before: u64,
+        start_time: std::time::Instant,
+    ) -> Result<(u64, u64), String> {
+        fs::create_dir_all(dest_local_dir).map_err(|e| format!("Failed to create local directory: {}", e))?;
+
+        let listing = crate::vfs::archive::ArchiveHandler::list_archive_contents(archive_file, subpath)
+            .map_err(|e| format!("Failed to list archive directory: {}", e))?;
+
+        let mut total_dir_files = 0u64;
+        let mut total_dir_bytes = 0u64;
+        let mut last_progress_time = std::time::Instant::now();
+
+        for entry in listing.entries {
+            if task_manager.sync_is_cancelled(task_id) {
+                return Err("Transfer cancelled by user".to_string());
+            }
+            while task_manager.sync_is_paused(task_id) {
+                std::thread::sleep(std::time::Duration::from_millis(100));
+                if task_manager.sync_is_cancelled(task_id) {
+                    return Err("Transfer cancelled by user".to_string());
+                }
+            }
+
+            let entry_name = entry.name.clone();
+            let child_subpath = if subpath.is_empty() {
+                entry_name.clone()
+            } else {
+                format!("{}/{}", subpath.trim_matches('/'), entry_name)
+            };
+
+            let child_dest = dest_local_dir.join(&entry_name);
+
+            if entry.is_dir {
+                let (d_files, d_bytes) = Self::copy_archive_dir_to_local_with_progress(
+                    archive_file,
+                    &child_subpath,
+                    &child_dest,
+                    conflict_resolution,
+                    task_manager,
+                    task_id,
+                    files_done_before + total_dir_files,
+                    total_files,
+                    bytes_done_before + total_dir_bytes,
+                    start_time,
+                )?;
+                total_dir_files += d_files;
+                total_dir_bytes += d_bytes;
+            } else {
+                let file_res = match crate::vfs::archive::ArchiveHandler::read_archive_entry(archive_file, &child_subpath, 0) {
+                    Ok(r) => r,
+                    Err(e) => {
+                        tracing::warn!("Skipping unreadable archive entry '{}': {}", child_subpath, e);
+                        continue;
+                    }
+                };
+
+                use base64::Engine;
+                let file_bytes = if file_res.is_binary {
+                    base64::engine::general_purpose::STANDARD.decode(&file_res.content).unwrap_or_default()
+                } else {
+                    file_res.content.into_bytes()
+                };
+
+                let raw_target = child_dest;
+                let target = match conflict_resolution {
+                    Some("skip") if raw_target.exists() => continue,
+                    Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
+                    _ => raw_target,
+                };
+
+                if let Some(parent) = target.parent() {
+                    let _ = fs::create_dir_all(parent);
+                }
+
+                let byte_len = file_bytes.len() as u64;
+                fs::write(&target, &file_bytes).map_err(|e| format!("Failed to write extracted file '{}': {}", target.display(), e))?;
+
+                total_dir_files += 1;
+                total_dir_bytes += byte_len;
+
+                let now = std::time::Instant::now();
+                if now.duration_since(last_progress_time).as_millis() >= 35 {
+                    last_progress_time = now;
+                    let elapsed = start_time.elapsed().as_secs_f64();
+                    let total_now = bytes_done_before + total_dir_bytes;
+                    let speed = if elapsed > 0.05 {
+                        (total_now as f64 / elapsed) as u64
+                    } else {
+                        0
+                    };
+                    task_manager.sync_update_stream_progress(
+                        task_id,
+                        Some(&entry_name),
+                        byte_len,
+                        byte_len,
+                        files_done_before + total_dir_files,
+                        total_files,
+                        total_now,
+                        speed,
+                    );
+                }
+            }
+        }
+
+        Ok((total_dir_files, total_dir_bytes))
+    }
+
     /// Execute transfer of a single item (file or folder) between any supported VFS endpoints
     pub fn transfer_single_item(
         src: &str,
@@ -129,7 +495,7 @@ impl VfsTransfer {
             1,
             0,
             std::time::Instant::now(),
-        )
+        ).map(|(hash, _, _)| hash)
     }
 
     pub fn transfer_single_item_with_metrics(
@@ -144,15 +510,17 @@ impl VfsTransfer {
         total_files: u64,
         bytes_done_before: u64,
         start_time: std::time::Instant,
-    ) -> Result<Option<String>, String> {
+    ) -> Result<(Option<String>, u64, u64), String> {
         let is_src_smb = src.starts_with("smb://");
         let is_dest_smb = dest_dir.starts_with("smb://");
-        let is_src_sftp = src.starts_with("sftp://");
-        let is_dest_sftp = dest_dir.starts_with("sftp://");
+        let is_src_sftp = src.starts_with("sftp://") || src.starts_with("ssh://");
+        let is_dest_sftp = dest_dir.starts_with("sftp://") || dest_dir.starts_with("ssh://");
         let is_src_nfs = src.starts_with("nfs://");
         let is_dest_nfs = dest_dir.starts_with("nfs://");
         let is_src_archive = src.starts_with("archive://");
         let mut verified_hash: Option<String> = None;
+        let mut item_files = 1u64;
+        let mut item_bytes = 0u64;
 
         if is_src_archive {
             let rest = src.strip_prefix("archive://").unwrap();
@@ -160,38 +528,66 @@ impl VfsTransfer {
                 Some((a, s)) => (a, s),
                 None => (rest, ""),
             };
-            let file_res = crate::vfs::archive::ArchiveHandler::read_archive_entry(archive_file, subpath, 0)
-                .map_err(|e| format!("Failed to read archive entry: {}", e))?;
 
-            use base64::Engine;
-            let file_bytes = if file_res.is_binary {
-                base64::engine::general_purpose::STANDARD.decode(&file_res.content).unwrap_or_default()
-            } else {
-                file_res.content.into_bytes()
-            };
+            let read_attempt = crate::vfs::archive::ArchiveHandler::read_archive_entry(archive_file, subpath, 0);
+            match read_attempt {
+                Ok(file_res) => {
+                    use base64::Engine;
+                    let file_bytes = if file_res.is_binary {
+                        base64::engine::general_purpose::STANDARD.decode(&file_res.content).unwrap_or_default()
+                    } else {
+                        file_res.content.into_bytes()
+                    };
 
-            let dest_path = Path::new(dest_dir);
-            let raw_target = if dest_path.is_dir() {
-                dest_path.join(&file_res.name)
-            } else {
-                dest_path.to_path_buf()
-            };
+                    let dest_path = Path::new(dest_dir);
+                    let raw_target = if dest_path.is_dir() {
+                        dest_path.join(&file_res.name)
+                    } else {
+                        dest_path.to_path_buf()
+                    };
 
-            let target = match conflict_resolution {
-                Some("skip") if raw_target.exists() => return Ok(None),
-                Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
-                _ => raw_target,
-            };
+                    let target = match conflict_resolution {
+                        Some("skip") if raw_target.exists() => return Ok((None, 0, 0)),
+                        Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
+                        _ => raw_target,
+                    };
 
-            if let Some(parent) = target.parent() {
-                let _ = fs::create_dir_all(parent);
+                    if let Some(parent) = target.parent() {
+                        let _ = fs::create_dir_all(parent);
+                    }
+
+                    item_bytes = file_bytes.len() as u64;
+                    fs::write(&target, &file_bytes).map_err(|e| format!("Failed to write extracted file: {}", e))?;
+                    if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
+                        verified_hash = Some(format!("Extracted SHA-256: {}", h));
+                    }
+                    return Ok((verified_hash, 1, item_bytes));
+                }
+                Err(_) => {
+                    // Try directory extraction
+                    let dest_path = Path::new(dest_dir);
+                    let folder_name = subpath.rsplit('/').next().unwrap_or(subpath).trim_matches('/');
+                    let target = if dest_path.is_dir() && !folder_name.is_empty() {
+                        dest_path.join(folder_name)
+                    } else {
+                        dest_path.to_path_buf()
+                    };
+
+                    let (d_files, d_bytes) = Self::copy_archive_dir_to_local_with_progress(
+                        archive_file,
+                        subpath,
+                        &target,
+                        conflict_resolution,
+                        task_manager,
+                        task_id,
+                        files_done_before,
+                        total_files,
+                        bytes_done_before,
+                        start_time,
+                    )?;
+                    return Ok((None, d_files, d_bytes));
+                }
             }
-
-            fs::write(&target, &file_bytes).map_err(|e| format!("Failed to write extracted file: {}", e))?;
-            if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
-                verified_hash = Some(format!("Extracted SHA-256: {}", h));
-            }
-            return Ok(verified_hash);
         } else if is_src_sftp && !is_dest_sftp {
             // SFTP -> Local
             let src_params = crate::vfs::sftp::SftpClient::parse_uri(src, None, None)?;
@@ -204,20 +600,86 @@ impl VfsTransfer {
             };
 
             let target = match conflict_resolution {
-                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("skip") if raw_target.exists() => return Ok((None, 0, 0)),
                 Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
                 _ => raw_target,
             };
 
-            crate::vfs::sftp::SftpClient::download_to_file(&src_params, &target)?;
-            if target.is_file() {
-                if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
-                    verified_hash = Some(format!("Dest SHA-256: {}", h));
+            let tm = task_manager.clone();
+            let tid = task_id.to_string();
+            let mut last_progress_time = std::time::Instant::now();
+            let iname = file_name.clone();
+
+            let stream_res = crate::vfs::sftp::SftpClient::download_to_file_streaming(
+                &src_params,
+                &target,
+                paranoid,
+                |_chunk, cur_file_bytes, cur_file_total| {
+                    if tm.sync_is_cancelled(&tid) {
+                        return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                    }
+                    while tm.sync_is_paused(&tid) {
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        if tm.sync_is_cancelled(&tid) {
+                            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                        }
+                    }
+
+                    let now = std::time::Instant::now();
+                    if now.duration_since(last_progress_time).as_millis() >= 35 || cur_file_bytes == cur_file_total {
+                        last_progress_time = now;
+                        let elapsed = start_time.elapsed().as_secs_f64();
+                        let total_bytes_now = bytes_done_before + cur_file_bytes;
+                        let current_speed = if elapsed > 0.05 {
+                            (total_bytes_now as f64 / elapsed) as u64
+                        } else {
+                            0
+                        };
+                        tm.sync_update_stream_progress(
+                            &tid,
+                            Some(&iname),
+                            cur_file_bytes,
+                            cur_file_total,
+                            files_done_before,
+                            total_files,
+                            total_bytes_now,
+                            current_speed,
+                        );
+                    }
+                    Ok(())
+                },
+            );
+
+            match stream_res {
+                Ok(hash_opt) => {
+                    if let Some(h) = hash_opt {
+                        verified_hash = Some(format!("Dest SHA-256: {}", h));
+                    }
+                    item_bytes = target.metadata().map(|m| m.len()).unwrap_or(0);
+                    item_files = 1;
+                }
+                Err(e) => {
+                    if let Ok(_listing) = crate::vfs::sftp::SftpClient::list_dir(&src_params) {
+                        let (d_files, d_bytes) = Self::copy_sftp_dir_to_local_with_progress(
+                            &src_params,
+                            &target,
+                            task_manager,
+                            task_id,
+                            files_done_before,
+                            total_files,
+                            bytes_done_before,
+                            start_time,
+                        )?;
+                        item_files = d_files;
+                        item_bytes = d_bytes;
+                    } else {
+                        return Err(format!("SFTP download failed: {}", e));
+                    }
                 }
             }
 
             if is_move {
-                let _ = crate::vfs::sftp::SftpClient::delete(&src_params, false);
+                let _ = crate::vfs::sftp::SftpClient::delete(&src_params, target.is_dir());
             }
         } else if !is_src_sftp && is_dest_sftp {
             // Local -> SFTP
@@ -235,13 +697,98 @@ impl VfsTransfer {
             let mut target_params = dest_params.clone();
             target_params.remote_path = target_remote_path;
 
-            if let Ok(h) = crate::vfs::checksum::calculate_sha256(src_path) {
-                verified_hash = Some(format!("Src SHA-256: {}", h));
+            let tm = task_manager.clone();
+            let tid = task_id.to_string();
+            let mut last_progress_time = std::time::Instant::now();
+            let iname = file_name.clone();
+
+            if src_path.is_dir() {
+                let (d_files, d_bytes) = Self::copy_local_dir_to_sftp_with_progress(
+                    src_path,
+                    &target_params,
+                    task_manager,
+                    task_id,
+                    files_done_before,
+                    total_files,
+                    bytes_done_before,
+                    start_time,
+                )?;
+                item_files = d_files;
+                item_bytes = d_bytes;
+            } else {
+                let hash_opt = crate::vfs::sftp::SftpClient::upload_from_file_streaming(
+                    &target_params,
+                    src_path,
+                    paranoid,
+                    |_chunk, cur_file_bytes, cur_file_total| {
+                        if tm.sync_is_cancelled(&tid) {
+                            return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                        }
+                        while tm.sync_is_paused(&tid) {
+                            std::thread::sleep(std::time::Duration::from_millis(100));
+                            if tm.sync_is_cancelled(&tid) {
+                                return Err(std::io::Error::new(std::io::ErrorKind::Interrupted, "Transfer cancelled by user"));
+                            }
+                        }
+
+                        let now = std::time::Instant::now();
+                        if now.duration_since(last_progress_time).as_millis() >= 35 || cur_file_bytes == cur_file_total {
+                            last_progress_time = now;
+                            let elapsed = start_time.elapsed().as_secs_f64();
+                            let total_bytes_now = bytes_done_before + cur_file_bytes;
+                            let current_speed = if elapsed > 0.05 {
+                                (total_bytes_now as f64 / elapsed) as u64
+                            } else {
+                                0
+                            };
+                            tm.sync_update_stream_progress(
+                                &tid,
+                                Some(&iname),
+                                cur_file_bytes,
+                                cur_file_total,
+                                files_done_before,
+                                total_files,
+                                total_bytes_now,
+                                current_speed,
+                            );
+                        }
+                        Ok(())
+                    },
+                )?;
+                if let Some(h) = hash_opt {
+                    verified_hash = Some(format!("Src SHA-256: {}", h));
+                }
+                item_bytes = src_path.metadata().map(|m| m.len()).unwrap_or(0);
+                item_files = 1;
             }
-            crate::vfs::sftp::SftpClient::upload_from_file(&target_params, src_path)?;
 
             if is_move {
                 let _ = LocalFs::delete_entry(src, false, None);
+            }
+        } else if is_src_sftp && is_dest_sftp {
+            // SFTP -> SFTP
+            let src_params = crate::vfs::sftp::SftpClient::parse_uri(src, None, None)?;
+            let file_name = src_params.remote_path.rsplit('/').next().unwrap_or(&src_params.remote_path).to_string();
+            let dest_params = crate::vfs::sftp::SftpClient::parse_uri(dest_dir, None, None)?;
+            let target_remote_path = if dest_params.remote_path.is_empty() || dest_params.remote_path == "/" {
+                format!("/{}", file_name)
+            } else {
+                format!("{}/{}", dest_params.remote_path.trim_end_matches('/'), file_name)
+            };
+            let mut target_params = dest_params.clone();
+            target_params.remote_path = target_remote_path;
+
+            let tmp = NamedTempFile::new().map_err(|e| format!("Temp file error: {}", e))?;
+            crate::vfs::sftp::SftpClient::download_to_file(&src_params, tmp.path())?;
+            if let Ok(h) = crate::vfs::checksum::calculate_sha256(tmp.path()) {
+                verified_hash = Some(format!("Stream SHA-256: {}", h));
+            }
+            crate::vfs::sftp::SftpClient::upload_from_file(&target_params, tmp.path())?;
+            item_bytes = tmp.path().metadata().map(|m| m.len()).unwrap_or(0);
+            item_files = 1;
+
+            if is_move {
+                let _ = crate::vfs::sftp::SftpClient::delete(&src_params, false);
             }
         } else if is_src_nfs || is_dest_nfs {
             // NFS transfers via ensured mount
@@ -268,7 +815,7 @@ impl VfsTransfer {
             };
 
             let target = match conflict_resolution {
-                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("skip") if raw_target.exists() => return Ok((None, 0, 0)),
                 Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
                 _ => raw_target,
             };
@@ -278,6 +825,8 @@ impl VfsTransfer {
                 if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
                     verified_hash = Some(format!("SHA-256 Match: {}", h));
                 }
+                item_bytes = target.metadata().map(|m| m.len()).unwrap_or(0);
+                item_files = 1;
             }
 
             if is_move {
@@ -295,7 +844,7 @@ impl VfsTransfer {
             };
 
             let target = match conflict_resolution {
-                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("skip") if raw_target.exists() => return Ok((None, 0, 0)),
                 Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
                 _ => raw_target,
             };
@@ -307,12 +856,14 @@ impl VfsTransfer {
                         if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
                             verified_hash = Some(format!("Dest SHA-256: {}", h));
                         }
+                        item_bytes = target.metadata().map(|m| m.len()).unwrap_or(0);
+                        item_files = 1;
                     }
                 },
                 Err(e) => {
-                    // Check if it's a directory or try directory recursion
                     if let Ok(_listing) = SmbClient::list_dir(&src_params) {
                         Self::copy_smb_dir_to_local(&src_params, &target, task_manager, task_id)?;
+                        item_files = 1;
                     } else {
                         return Err(format!("SMB download failed: {}", e));
                     }
@@ -340,11 +891,14 @@ impl VfsTransfer {
 
             if src_path.is_dir() {
                 Self::copy_local_dir_to_smb(src_path, &target_params, task_manager, task_id)?;
+                item_files = 1;
             } else {
                 if let Ok(h) = crate::vfs::checksum::calculate_sha256(src_path) {
                     verified_hash = Some(format!("Src SHA-256: {}", h));
                 }
                 SmbClient::upload_from_file(&target_params, src_path)?;
+                item_bytes = src_path.metadata().map(|m| m.len()).unwrap_or(0);
+                item_files = 1;
             }
 
             if is_move {
@@ -369,6 +923,8 @@ impl VfsTransfer {
                 verified_hash = Some(format!("Stream SHA-256: {}", h));
             }
             SmbClient::upload_from_file(&target_params, tmp.path())?;
+            item_bytes = tmp.path().metadata().map(|m| m.len()).unwrap_or(0);
+            item_files = 1;
 
             if is_move {
                 let _ = SmbClient::delete(&src_params, false);
@@ -393,16 +949,16 @@ impl VfsTransfer {
             if let (Ok(can_src), Ok(can_target)) = (src_path.canonicalize(), raw_target.canonicalize()) {
                 if can_src == can_target {
                     if is_move {
-                        return Ok(None); // Move onto itself is a no-op
+                        return Ok((None, 0, 0)); // Move onto itself is a no-op
                     } else {
                         // Copy onto itself is a no-op
-                        return Ok(None);
+                        return Ok((None, 0, 0));
                     }
                 }
             }
 
             let target = match conflict_resolution {
-                Some("skip") if raw_target.exists() => return Ok(None),
+                Some("skip") if raw_target.exists() => return Ok((None, 0, 0)),
                 Some("rename") if raw_target.exists() => generate_unique_destination_path(&raw_target),
                 _ => raw_target,
             };
@@ -475,6 +1031,8 @@ impl VfsTransfer {
                         if let Some(h) = hash_opt {
                             verified_hash = Some(format!("SHA-256 Match: {}", h));
                         }
+                        item_bytes = target.metadata().map(|m| m.len()).unwrap_or(0);
+                        item_files = 1;
                     } else {
                         LocalFs::copy_file_paranoid_with_progress(src, &target.to_string_lossy(), paranoid, |cur_file_path, chunk_bytes, cur_bytes, cur_total| {
                             if tm.sync_is_cancelled(&tid) {
@@ -512,11 +1070,17 @@ impl VfsTransfer {
                             }
                             Ok(())
                         }).map_err(|e| e.to_string())?;
+                        item_bytes = dir_bytes_done;
+                        item_files = walkdir::WalkDir::new(&target).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()).count() as u64;
                     }
                     let _ = LocalFs::delete_entry(src, false, None);
-                } else if paranoid && target.is_file() {
-                    if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
-                        verified_hash = Some(format!("SHA-256 Match: {}", h));
+                } else {
+                    item_bytes = src_path.metadata().map(|m| m.len()).unwrap_or(0);
+                    item_files = 1;
+                    if paranoid && target.is_file() {
+                        if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
+                            verified_hash = Some(format!("SHA-256 Match: {}", h));
+                        }
                     }
                 }
             } else {
@@ -559,6 +1123,8 @@ impl VfsTransfer {
                     if let Some(h) = hash_opt {
                         verified_hash = Some(format!("SHA-256 Match: {}", h));
                     }
+                    item_bytes = target.metadata().map(|m| m.len()).unwrap_or(0);
+                    item_files = 1;
                 } else {
                     LocalFs::copy_file_paranoid_with_progress(src, &target.to_string_lossy(), paranoid, |cur_file_path, chunk_bytes, cur_bytes, cur_total| {
                         if tm.sync_is_cancelled(&tid) {
@@ -596,6 +1162,8 @@ impl VfsTransfer {
                         }
                         Ok(())
                     }).map_err(|e| e.to_string())?;
+                    item_bytes = dir_bytes_done;
+                    item_files = walkdir::WalkDir::new(&target).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()).count() as u64;
 
                     if paranoid && target.is_file() {
                         if let Ok(h) = crate::vfs::checksum::calculate_sha256(&target) {
@@ -606,7 +1174,7 @@ impl VfsTransfer {
             }
         }
 
-        Ok(verified_hash)
+        Ok((verified_hash, item_files, item_bytes))
     }
 
     /// Run full batch transfer in background task
@@ -623,7 +1191,7 @@ impl VfsTransfer {
         let mut total_files = 0u64;
         let mut total_bytes = 0u64;
         for s in &sources {
-            if !s.starts_with("smb://") && !s.starts_with("sftp://") && !s.starts_with("nfs://") {
+            if !s.starts_with("smb://") && !s.starts_with("sftp://") && !s.starts_with("ssh://") && !s.starts_with("nfs://") {
                 let p = Path::new(s);
                 if p.is_dir() {
                     let (count, bytes) = walkdir::WalkDir::new(p)
@@ -639,6 +1207,26 @@ impl VfsTransfer {
                 } else if let Ok(meta) = p.metadata() {
                     total_bytes += meta.len();
                     total_files += 1;
+                } else {
+                    total_files += 1;
+                }
+            } else if s.starts_with("sftp://") || s.starts_with("ssh://") {
+                if let Ok(params) = crate::vfs::sftp::SftpClient::parse_uri(s, None, None) {
+                    if let Ok((size, is_dir)) = crate::vfs::sftp::SftpClient::stat_path(&params) {
+                        if is_dir {
+                            if let Ok((count, bytes)) = crate::vfs::sftp::SftpClient::scan_dir_totals(&params) {
+                                total_files += if count > 0 { count } else { 1 };
+                                total_bytes += bytes;
+                            } else {
+                                total_files += 1;
+                            }
+                        } else {
+                            total_files += 1;
+                            total_bytes += size;
+                        }
+                    } else {
+                        total_files += 1;
+                    }
                 } else {
                     total_files += 1;
                 }
@@ -712,14 +1300,7 @@ impl VfsTransfer {
                 bytes_done,
                 start_time,
             ) {
-                Ok(hash_opt) => {
-                    let (item_files, item_bytes) = if Path::new(src_str).is_dir() {
-                        let count = walkdir::WalkDir::new(src_str).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()).count() as u64;
-                        let bytes = walkdir::WalkDir::new(src_str).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()).map(|e| e.metadata().map(|m| m.len()).unwrap_or(0)).sum::<u64>();
-                        (if count > 0 { count } else { 1 }, bytes)
-                    } else {
-                        (1, Path::new(src_str).metadata().map(|m| m.len()).unwrap_or(0))
-                    };
+                Ok((hash_opt, item_files, item_bytes)) => {
                     files_done += item_files;
                     bytes_done += item_bytes;
                     if hash_opt.is_some() {
@@ -844,6 +1425,134 @@ mod tests {
         );
         assert!(res3.is_ok());
         assert_eq!(fs::read(&dest_file).unwrap(), b"source content");
+    }
+
+    #[tokio::test]
+    async fn test_transfer_single_item_from_archive() {
+        let dir = tempdir().unwrap();
+        let zip_path = dir.path().join("test.zip");
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir_all(&dest_dir).unwrap();
+
+        // Create a test zip file
+        {
+            let file = fs::File::create(&zip_path).unwrap();
+            let mut zip = zip::ZipWriter::new(file);
+            let options = zip::write::SimpleFileOptions::default()
+                .compression_method(zip::CompressionMethod::Stored);
+            zip.start_file("hello.txt", options).unwrap();
+            use std::io::Write;
+            zip.write_all(b"Hello World from Archive!").unwrap();
+            zip.finish().unwrap();
+        }
+
+        let tm = TaskManager::new();
+        let archive_uri = format!("archive://{}#hello.txt", zip_path.to_str().unwrap());
+        let res = VfsTransfer::transfer_single_item(
+            &archive_uri,
+            dest_dir.to_str().unwrap(),
+            false,
+            false,
+            None,
+            &tm,
+            "test_archive_task",
+        );
+
+        assert!(res.is_ok(), "Transfer failed: {:?}", res.err());
+        let extracted_file = dest_dir.join("hello.txt");
+        assert!(extracted_file.exists());
+        let content = fs::read(&extracted_file).unwrap();
+        assert_eq!(content, b"Hello World from Archive!");
+    }
+
+    #[tokio::test]
+    async fn test_transfer_single_item_from_fat_image() {
+        let dir = tempdir().unwrap();
+        let img_path = dir.path().join("floppy.img");
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir_all(&dest_dir).unwrap();
+
+        // Create a FAT floppy image with a file
+        {
+            let mut cursor = std::io::Cursor::new(vec![0u8; 1440 * 1024]);
+            fatfs::format_volume(&mut cursor, fatfs::FormatVolumeOptions::new()).unwrap();
+            let buf = cursor.into_inner();
+            fs::write(&img_path, &buf).unwrap();
+
+            let file = fs::OpenOptions::new().read(true).write(true).open(&img_path).unwrap();
+            let fs_obj = fatfs::FileSystem::new(file, fatfs::FsOptions::new()).unwrap();
+            let mut root_file = fs_obj.root_dir().create_file("CONFIG.SYS").unwrap();
+            use std::io::Write;
+            root_file.write_all(b"DOS=HIGH,UMB\nFILES=40\n").unwrap();
+        }
+
+        let tm = TaskManager::new();
+        let archive_uri = format!("archive://{}#CONFIG.SYS", img_path.to_str().unwrap());
+        let res = VfsTransfer::transfer_single_item(
+            &archive_uri,
+            dest_dir.to_str().unwrap(),
+            false,
+            false,
+            None,
+            &tm,
+            "test_fat_task",
+        );
+
+        assert!(res.is_ok(), "FAT transfer failed: {:?}", res.err());
+        let extracted = dest_dir.join("CONFIG.SYS");
+        assert!(extracted.exists());
+        let content = fs::read(&extracted).unwrap();
+        assert_eq!(content, b"DOS=HIGH,UMB\nFILES=40\n");
+    }
+
+    #[tokio::test]
+    #[ignore]
+    async fn test_transfer_from_real_fog_image() {
+        let fog_path = "/home/bolt/projects/Test/test-images/w10fog";
+        if !std::path::Path::new(fog_path).exists() {
+            return;
+        }
+
+        let dir = tempdir().unwrap();
+        let dest_dir = dir.path().join("dest");
+        fs::create_dir_all(&dest_dir).unwrap();
+
+        let tm = TaskManager::new();
+        // 1. Transfer FOG summary file
+        let summary_uri = format!("archive://{}#[FOG Image Summary.txt]", fog_path);
+        let res = VfsTransfer::transfer_single_item(
+            &summary_uri,
+            dest_dir.to_str().unwrap(),
+            false,
+            false,
+            None,
+            &tm,
+            "fog_test_task",
+        );
+        assert!(res.is_ok(), "Failed to extract summary: {:?}", res.err());
+        let summary_file = dest_dir.join("[FOG Image Summary.txt]");
+        assert!(summary_file.exists());
+        let summary_bytes = fs::read(&summary_file).unwrap();
+        assert!(!summary_bytes.is_empty(), "Extracted summary file was empty!");
+        assert!(String::from_utf8_lossy(&summary_bytes).contains("FOG PROJECT IMAGE MANIFEST"));
+
+        // 2. Transfer a file from partition 1 (EFI boot file)
+        let p1_file_uri = format!("archive://{}#p1-nvme0n1p1-fat32/EFI/Microsoft/Boot/bootmgfw.efi", fog_path);
+        let res2 = VfsTransfer::transfer_single_item(
+            &p1_file_uri,
+            dest_dir.to_str().unwrap(),
+            false,
+            false,
+            None,
+            &tm,
+            "fog_p1_file_task",
+        );
+        assert!(res2.is_ok(), "Failed to extract EFI boot file: {:?}", res2.err());
+        let extracted_boot = dest_dir.join("bootmgfw.efi");
+        assert!(extracted_boot.exists());
+        let boot_bytes = fs::read(&extracted_boot).unwrap();
+        assert!(!boot_bytes.is_empty(), "Extracted bootmgfw.efi was empty!");
+        println!("Successfully extracted bootmgfw.efi: {} bytes!", boot_bytes.len());
     }
 }
 

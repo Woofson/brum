@@ -32,14 +32,68 @@ pub struct IsoVolumeInfo {
     pub has_rock_ridge: bool,
 }
 
+fn hex_val(b: u8) -> Option<u8> {
+    match b {
+        b'0'..=b'9' => Some(b - b'0'),
+        b'a'..=b'f' => Some(b - b'a' + 10),
+        b'A'..=b'F' => Some(b - b'A' + 10),
+        _ => None,
+    }
+}
+
+fn percent_decode(s: &str) -> String {
+    let mut bytes = Vec::new();
+    let mut chars = s.bytes();
+    while let Some(b) = chars.next() {
+        if b == b'%' {
+            let h1 = chars.next();
+            let h2 = chars.next();
+            if let (Some(h1), Some(h2)) = (h1, h2) {
+                if let (Some(d1), Some(d2)) = (hex_val(h1), hex_val(h2)) {
+                    bytes.push((d1 << 4) | d2);
+                    continue;
+                }
+            }
+        }
+        bytes.push(b);
+    }
+    String::from_utf8_lossy(&bytes).to_string()
+}
+
 pub struct ArchiveHandler;
 
 impl ArchiveHandler {
+    pub fn normalize_archive_path(raw: &str) -> (std::path::PathBuf, String) {
+        let mut s = raw.to_string();
+        while s.starts_with("archive://") {
+            s = s.strip_prefix("archive://").unwrap_or(&s).to_string();
+        }
+        if let Some((base, _)) = s.split_once('#') {
+            s = base.to_string();
+        }
+        if s.contains('%') {
+            s = percent_decode(&s);
+        }
+        if (s.starts_with('/') || s.starts_with('\\'))
+            && s.len() >= 3
+            && s.as_bytes()[1].is_ascii_alphabetic()
+            && s.as_bytes()[2] == b':'
+        {
+            s = s[1..].to_string();
+        }
+        if s.len() > 1 && (s.ends_with('/') || s.ends_with('\\')) && !s.ends_with(":/") && !s.ends_with(r":\") {
+            s = s.trim_end_matches(&['/', '\\'][..]).to_string();
+        }
+        (std::path::PathBuf::from(&s), s)
+    }
+
     pub fn list_archive_contents(
         archive_path_str: &str,
         subpath_filter: &str,
     ) -> Result<DirectoryListing, std::io::Error> {
-        let path = Path::new(archive_path_str);
+        let (path_buf, normalized_str) = Self::normalize_archive_path(archive_path_str);
+        let path = path_buf.as_path();
+        let archive_path_str = normalized_str.as_str();
         if !path.exists() {
             return Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
@@ -173,7 +227,7 @@ impl ArchiveHandler {
                     }
                 }
             }
-        } else if lower_name.ends_with(".img") || lower_name.ends_with(".raw") || lower_name.ends_with(".dd") || lower_name.ends_with(".vhd") {
+        } else if super::disk_image::DiskImageHandler::is_supported_image(archive_path_str) || path.is_dir() {
             match super::disk_image::DiskImageHandler::list_image_contents(archive_path_str, clean_subpath) {
                 Ok(listing) => return Ok(listing),
                 Err(err) => {
@@ -561,12 +615,15 @@ impl ArchiveHandler {
         inner_path: &str,
         max_bytes: usize,
     ) -> Result<FileContentResponse, std::io::Error> {
-        let path = Path::new(archive_path_str);
+        let (path_buf, normalized_str) = Self::normalize_archive_path(archive_path_str);
+        let path = path_buf.as_path();
+        let archive_path_str = normalized_str.as_str();
         let lower = archive_path_str.to_lowercase();
         let clean_inner = inner_path.trim_matches('/');
 
-        if lower.ends_with(".img") || lower.ends_with(".raw") || lower.ends_with(".dd") || lower.ends_with(".vhd") {
-            match super::disk_image::DiskImageHandler::read_image_entry(archive_path_str, clean_inner, Some(max_bytes)) {
+        if super::disk_image::DiskImageHandler::is_supported_image(archive_path_str) || path.is_dir() {
+            let limit_opt = if max_bytes > 0 { Some(max_bytes) } else { None };
+            match super::disk_image::DiskImageHandler::read_image_entry(archive_path_str, clean_inner, limit_opt) {
                 Ok(resp) => return Ok(resp),
                 Err(err) => {
                     tracing::debug!("DiskImageHandler fallback to ISO reader for {}: {}", clean_inner, err);
@@ -875,7 +932,9 @@ impl ArchiveHandler {
     }
 
     pub fn extract_archive(archive_path_str: &str, target_dir_str: &str) -> Result<(), std::io::Error> {
-        let path = Path::new(archive_path_str);
+        let (path_buf, normalized_str) = Self::normalize_archive_path(archive_path_str);
+        let path = path_buf.as_path();
+        let archive_path_str = normalized_str.as_str();
         let target = Path::new(target_dir_str);
         fs::create_dir_all(target)?;
 
@@ -910,7 +969,7 @@ impl ArchiveHandler {
             }
             info!("Extracted SquashFS {} to {}", archive_path_str, target_dir_str);
             return Ok(());
-        } else if lower.ends_with(".img") || lower.ends_with(".raw") || lower.ends_with(".dd") || lower.ends_with(".vhd") {
+        } else if super::disk_image::DiskImageHandler::is_supported_image(archive_path_str) || path.is_dir() {
             match super::disk_image::DiskImageHandler::extract_image(archive_path_str, target_dir_str) {
                 Ok(()) => return Ok(()),
                 Err(err) => {
@@ -1515,6 +1574,11 @@ mod tests {
         assert!(crate::vfs::is_archive_file("rootfs.squashfs"));
         assert!(crate::vfs::is_archive_file("core22_123.snap"));
         assert!(crate::vfs::is_archive_file("cursor.AppImage"));
+        assert!(crate::vfs::is_archive_file("windows11.qcow2"));
+        assert!(crate::vfs::is_archive_file("debian_vm.vmdk"));
+        assert!(crate::vfs::is_archive_file("hyperv_disk.vhd"));
+        assert!(crate::vfs::is_archive_file("hyperv_gen2.vhdx"));
+        assert!(crate::vfs::is_archive_file("partclone_backup.zst"));
         assert!(crate::vfs::is_archive_file("archive.tar.gz"));
         assert!(crate::vfs::is_archive_file("bundle.zip"));
         assert!(!crate::vfs::is_archive_file("document.pdf"));
@@ -1624,6 +1688,48 @@ mod tests {
                 println!("  Extract result: {:?}", extract_res);
                 assert!(extract_res.is_ok(), "Must be able to extract ISO {}", name);
             }
+        }
+    }
+
+    #[test]
+    fn test_normalize_archive_path_and_fog_navigation() {
+        let (p1, s1) = ArchiveHandler::normalize_archive_path("/home/bolt/images/w10fog/");
+        assert_eq!(s1, "/home/bolt/images/w10fog");
+        assert_eq!(p1.to_string_lossy(), "/home/bolt/images/w10fog");
+
+        let (p2, s2) = ArchiveHandler::normalize_archive_path("/C:/Users/name/images/w10fog%20test/");
+        assert_eq!(s2, "C:/Users/name/images/w10fog test");
+        assert_eq!(p2.to_string_lossy(), "C:/Users/name/images/w10fog test");
+
+        // Test with real FOG directory if exists
+        let fog_path = "/home/bolt/projects/Test/test-images/w10fog";
+        if Path::new(fog_path).exists() {
+            let listing = ArchiveHandler::list_archive_contents(&format!("{}/", fog_path), "").unwrap();
+            assert!(listing.entries.iter().any(|e| e.name == "[FOG Image Summary.txt]"));
+            assert!(listing.entries.iter().any(|e| e.name.contains("fat32")));
+
+            let report = ArchiveHandler::read_archive_entry(fog_path, "[FOG Image Summary.txt]", 0).unwrap();
+            assert!(report.content.contains("FOG PROJECT IMAGE MANIFEST"));
+
+            // Test partition 4 (NTFS partition listing)
+            let p4_entry = listing.entries.iter().find(|e| e.name.contains("p4")).unwrap();
+            let p4_listing = ArchiveHandler::list_archive_contents(fog_path, &p4_entry.name).unwrap();
+            assert_eq!(p4_listing.current_path, format!("archive://{}#{}", fog_path, p4_entry.name));
+            assert!(p4_listing.entries.iter().any(|e| e.name.eq_ignore_ascii_case("Recovery")));
+
+            let rec_listing = ArchiveHandler::list_archive_contents(fog_path, &format!("{}/Recovery", p4_entry.name)).unwrap();
+            eprintln!("Recovery entries: {:?}", rec_listing.entries.iter().map(|e| (&e.name, e.is_dir, e.size)).collect::<Vec<_>>());
+            assert_eq!(rec_listing.current_path, format!("archive://{}#{}/Recovery", fog_path, p4_entry.name));
+
+            let p4_info = ArchiveHandler::read_archive_entry(fog_path, &format!("{}/[Partition Info.txt]", p4_entry.name), 0).unwrap();
+            assert!(p4_info.content.contains("PARTITION INFORMATION"));
+            assert!(p4_info.content.contains("d1p4.img"));
+
+            // Test partition 1 (FAT32 EFI partition)
+            let p1_entry = listing.entries.iter().find(|e| e.name.contains("p1")).unwrap();
+            let p1_listing = ArchiveHandler::list_archive_contents(fog_path, &p1_entry.name).unwrap();
+            assert_eq!(p1_listing.current_path, format!("archive://{}#{}", fog_path, p1_entry.name));
+            assert!(p1_listing.entries.iter().any(|e| e.name.eq_ignore_ascii_case("efi")));
         }
     }
 }

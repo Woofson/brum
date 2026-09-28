@@ -2056,6 +2056,44 @@
                 <button type="button" class="perm-chip" onclick="setFontSizePreset(17)">Large (17px)</button>
               </div>
             </div>
+
+            <div class="settings-grid-3col" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-font-sans">UI Font Family:</label>
+                <select id="setting-font-sans" class="settings-select" onchange="handleSansFontChange(this.value)">
+                  <option value="default" selected>System Default (San Francisco / Segoe UI / Roboto)</option>
+                  <option value="Inter, -apple-system, BlinkMacSystemFont, sans-serif">Inter</option>
+                  <option value="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif">Segoe UI</option>
+                  <option value="Roboto, -apple-system, BlinkMacSystemFont, sans-serif">Roboto</option>
+                  <option value="Ubuntu, -apple-system, BlinkMacSystemFont, sans-serif">Ubuntu</option>
+                  <option value="'Open Sans', -apple-system, BlinkMacSystemFont, sans-serif">Open Sans</option>
+                  <option value="'Fira Sans', -apple-system, BlinkMacSystemFont, sans-serif">Fira Sans</option>
+                  <option value="'JetBrains Mono', monospace">JetBrains Mono (Full Monospace UI)</option>
+                </select>
+              </div>
+
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-font-mono">Code / Terminal Font:</label>
+                <select id="setting-font-mono" class="settings-select" onchange="handleMonoFontChange(this.value)">
+                  <option value="default" selected>JetBrainsMono Nerd Font (Bundled / Default)</option>
+                  <option value="'Cascadia Code', 'JetBrainsMono Nerd Font', monospace">Cascadia Code</option>
+                  <option value="'Fira Code', 'JetBrainsMono Nerd Font', monospace">Fira Code</option>
+                  <option value="'Source Code Pro', 'JetBrainsMono Nerd Font', monospace">Source Code Pro</option>
+                  <option value="Consolas, 'JetBrainsMono Nerd Font', monospace">Consolas</option>
+                  <option value="Monaco, 'JetBrainsMono Nerd Font', monospace">Monaco</option>
+                  <option value="ui-monospace, monospace">System Monospace</option>
+                </select>
+              </div>
+
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-font-weight">Font Weight:</label>
+                <select id="setting-font-weight" class="settings-select" onchange="handleFontWeightChange(this.value)">
+                  <option value="default" selected>Standard (400 / Normal)</option>
+                  <option value="500">Medium (500)</option>
+                  <option value="600">Semi-Bold (600)</option>
+                </select>
+              </div>
+            </div>
           </div>
 
           <!-- Card 3: Panel Border & Focus Ring Customization -->
@@ -2357,6 +2395,20 @@
               </tr>
             </tbody>
           </table>
+
+          <!-- Drives & Partition Visibility Management -->
+          <div class="settings-group-card" style="margin-top: 18px;">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="hard-drive"></i> Drives & Partitions Visibility
+              </h4>
+              <button type="button" class="btn btn-xs" onclick="resetHiddenDrives()" title="Reset all drives to visible"><i data-lucide="rotate-ccw" style="width:11px; height:11px;"></i> Show All</button>
+            </div>
+            <p class="settings-card-desc">Show or hide specific drive letters, disk partitions, and storage roots from the Places menu.</p>
+            <div id="drive-visibility-list" style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
+              <div style="color: var(--text-dim); font-size: 11px; padding: 6px;">Loading discovered system drives...</div>
+            </div>
+          </div>
         </div>
 
         <!-- Tab 4: Keybindings -->

@@ -652,9 +652,9 @@ impl Default for UiConfig {
             show_global_refresh: false,
             show_hostname_badge: true,
             hostname_badge: String::new(),
-            hostname_color: "amber".to_string(),
-            hostname_style: "subtle".to_string(),
-            hostname_icon: "server".to_string(),
+            hostname_color: "slate".to_string(),
+            hostname_style: "text".to_string(),
+            hostname_icon: "none".to_string(),
             hostname_size: "md".to_string(),
             window_title: String::new(),
         }

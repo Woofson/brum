@@ -132,6 +132,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
 
         let backup_mgr_arc = Arc::new(backup_mgr);
         let task_mgr_arc = Arc::new(task_mgr);
+        crate::tools::tasks::set_global_task_manager(task_mgr_arc.clone());
         backup_mgr_arc.clone().start_scheduler(task_mgr_arc.clone());
 
         let auth_mgr_arc = Arc::new(auth_mgr);

@@ -80,9 +80,14 @@ pub fn is_archive_file(path_or_name: &str) -> bool {
         || lower.ends_with(".raw")
         || lower.ends_with(".dd")
         || lower.ends_with(".vhd")
+        || lower.ends_with(".vhdx")
+        || lower.ends_with(".qcow2")
+        || lower.ends_with(".vmdk")
         || lower.ends_with(".squashfs")
         || lower.ends_with(".snap")
         || lower.ends_with(".appimage")
+        || lower.ends_with(".zst")
+        || lower.ends_with(".zstd")
 }
 
 pub fn sanitize_uri(uri: &str) -> String {

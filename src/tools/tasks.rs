@@ -37,6 +37,16 @@ pub struct TaskManager {
     tasks: Arc<RwLock<HashMap<String, TaskInfo>>>,
 }
 
+static GLOBAL_TASK_MANAGER: parking_lot::RwLock<Option<Arc<TaskManager>>> = parking_lot::RwLock::new(None);
+
+pub fn set_global_task_manager(tm: Arc<TaskManager>) {
+    *GLOBAL_TASK_MANAGER.write() = Some(tm);
+}
+
+pub fn get_global_task_manager() -> Option<Arc<TaskManager>> {
+    GLOBAL_TASK_MANAGER.read().clone()
+}
+
 /// Masks credentials in any URI strings so passwords are never stored in task lists or logs
 pub fn sanitize_credentials(text: &str) -> String {
     let re = regex::Regex::new(r"://([^:@\s/]+):([^@\s/]+)@").unwrap();
@@ -244,7 +254,7 @@ impl TaskManager {
         }
     }
 
-    pub async fn complete_task(&self, id: &str) {
+    pub fn sync_complete_task(&self, id: &str) {
         if let Ok(mut map) = self.tasks.write() {
             if let Some(task) = map.get_mut(id) {
                 task.status = "completed".to_string();
@@ -259,7 +269,11 @@ impl TaskManager {
         }
     }
 
-    pub async fn fail_task(&self, id: &str, error: &str) {
+    pub async fn complete_task(&self, id: &str) {
+        self.sync_complete_task(id);
+    }
+
+    pub fn sync_fail_task(&self, id: &str, error: &str) {
         if let Ok(mut map) = self.tasks.write() {
             if let Some(task) = map.get_mut(id) {
                 let safe_err = sanitize_credentials(error);
@@ -273,6 +287,10 @@ impl TaskManager {
                 ));
             }
         }
+    }
+
+    pub async fn fail_task(&self, id: &str, error: &str) {
+        self.sync_fail_task(id, error);
     }
 
     pub async fn cancel_task(&self, id: &str) -> bool {

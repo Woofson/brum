@@ -213,6 +213,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let backup_mgr_arc = Arc::new(backup_mgr);
     let task_mgr_arc = Arc::new(task_mgr);
+    crate::tools::tasks::set_global_task_manager(task_mgr_arc.clone());
     backup_mgr_arc.clone().start_scheduler(task_mgr_arc.clone());
 
     let auth_mgr_arc = Arc::new(auth_mgr);
@@ -295,8 +296,56 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 }
 
 #[cfg(feature = "gui")]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+struct GuiWindowState {
+    x: Option<i32>,
+    y: Option<i32>,
+    width: u32,
+    height: u32,
+    maximized: bool,
+}
+
+#[cfg(feature = "gui")]
+impl Default for GuiWindowState {
+    fn default() -> Self {
+        Self {
+            x: None,
+            y: None,
+            width: 1366,
+            height: 840,
+            maximized: false,
+        }
+    }
+}
+
+#[cfg(feature = "gui")]
+fn load_gui_window_state() -> GuiWindowState {
+    if let Some(config_dir) = dirs::config_dir() {
+        let state_file = config_dir.join("brum").join("window_state.json");
+        if let Ok(content) = std::fs::read_to_string(&state_file) {
+            if let Ok(state) = serde_json::from_str::<GuiWindowState>(&content) {
+                return state;
+            }
+        }
+    }
+    GuiWindowState::default()
+}
+
+#[cfg(feature = "gui")]
+fn save_gui_window_state(state: &GuiWindowState) {
+    if let Some(config_dir) = dirs::config_dir() {
+        let dir = config_dir.join("brum");
+        let _ = std::fs::create_dir_all(&dir);
+        let state_file = dir.join("window_state.json");
+        if let Ok(json) = serde_json::to_string_pretty(state) {
+            let _ = std::fs::write(state_file, json);
+        }
+    }
+}
+
+#[cfg(feature = "gui")]
 fn run_native_gui(url: &str, title: &str, decorations: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use tao::dpi::LogicalSize;
+    use tao::dpi::{LogicalPosition, LogicalSize};
     use tao::event::{Event, WindowEvent};
     use tao::event_loop::{ControlFlow, EventLoop};
     use tao::window::WindowBuilder;
@@ -307,14 +356,26 @@ fn run_native_gui(url: &str, title: &str, decorations: bool) -> Result<(), Box<d
     #[cfg(target_os = "linux")]
     use wry::WebViewBuilderExtUnix;
 
+    let saved_state = load_gui_window_state();
+    let mut current_state = saved_state.clone();
+
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
+    let mut win_builder = WindowBuilder::new()
         .with_title(title)
-        .with_inner_size(LogicalSize::new(1366.0, 840.0))
+        .with_inner_size(LogicalSize::new(
+            (current_state.width.max(680)) as f64,
+            (current_state.height.max(480)) as f64,
+        ))
         .with_min_inner_size(LogicalSize::new(680.0, 480.0))
         .with_resizable(true)
         .with_decorations(decorations)
-        .build(&event_loop)?;
+        .with_maximized(current_state.maximized);
+
+    if let (Some(x), Some(y)) = (current_state.x, current_state.y) {
+        win_builder = win_builder.with_position(LogicalPosition::new(x as f64, y as f64));
+    }
+
+    let window = win_builder.build(&event_loop)?;
 
     let builder = WebViewBuilder::new().with_url(url);
 
@@ -329,12 +390,42 @@ fn run_native_gui(url: &str, title: &str, decorations: bool) -> Result<(), Box<d
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
-        if let Event::WindowEvent {
-            event: WindowEvent::CloseRequested,
-            ..
-        } = event
-        {
-            *control_flow = ControlFlow::Exit;
+        match event {
+            Event::WindowEvent {
+                event: WindowEvent::Moved(pos),
+                ..
+            } => {
+                if !window.is_maximized() {
+                    current_state.x = Some(pos.x);
+                    current_state.y = Some(pos.y);
+                }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::Resized(size),
+                ..
+            } => {
+                let is_max = window.is_maximized();
+                current_state.maximized = is_max;
+                if !is_max && size.width > 0 && size.height > 0 {
+                    current_state.width = size.width;
+                    current_state.height = size.height;
+                }
+            }
+            Event::WindowEvent {
+                event: WindowEvent::CloseRequested,
+                ..
+            } => {
+                current_state.maximized = window.is_maximized();
+                if let Ok(pos) = window.outer_position() {
+                    if !current_state.maximized {
+                        current_state.x = Some(pos.x);
+                        current_state.y = Some(pos.y);
+                    }
+                }
+                save_gui_window_state(&current_state);
+                *control_flow = ControlFlow::Exit;
+            }
+            _ => {}
         }
     });
 }

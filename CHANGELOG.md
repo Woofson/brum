@@ -5,6 +5,30 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-09-28
+
+### Added
+- **Virtual Disk Image & FOG Project VFS Integration** (Fixes #66):
+  - Added native VFS browsing and file extraction for virtual disk images (`archive://` / `disk_image.rs`).
+  - Implemented container parsers for raw disk images (`.img`, `.raw`), ISO 9660 (`.iso`), SquashFS (`.sqsh`), VMDK sparse containers, and QEMU QCOW2 images.
+  - Implemented partition table probing for Master Boot Record (MBR) and GUID Partition Tables (GPT).
+  - Integrated native read drivers for FAT12, FAT16, FAT32 (`fatfs`), Ext4 (`ext4`), and NTFS (`ntfs`).
+  - Added FOG Project multi-partition image directory auto-detection (`d1.partitions`, `d1.minimum.partitions`, `d1.fixed_size_partitions`, `d1p*.img`).
+  - Implemented streaming decompression for Zstandard (`zstd` / `.zst`) and Gzip (`.gz`) Partclone partition streams.
+  - Added recursive directory and file drag-and-drop extraction from virtual disk images to the local filesystem with real-time progress metrics.
+- **Automated Version-Upgrade Cache Purging & Strict HTTP Revalidation**:
+  - Added build and version tracking in `applyAppVersion` that automatically purges stale `sessionStorage` optimistic directory caches (`cd_dircache_*`) and in-memory blob URLs upon version bumps.
+  - Configured `Cache-Control: no-cache, no-store, must-revalidate` for `index.html` and `Cache-Control: no-cache, must-revalidate` for JS/CSS assets with SHA-256 ETags.
+
+### Fixed
+- **Table Header Sorting & Interaction Guards**:
+  - Scoped column sorting strictly to the text labels (`.col-header-text.sortable`), preventing accidental sort triggers when clicking empty header space.
+  - Added `ondblclick` event guards on `thead`, `th`, `.col-header`, and `.col-resizer` to prevent double-click events from triggering upward directory navigation (`navPaneUp`).
+  - Added dynamic sort direction indicators (`▲` / `▼`) on active column header labels.
+  - Fixed parent directory (`..`) row rendering so the size column `-` placeholder uses neutral styling rather than amber accent color.
+- **Image Viewer Blob Authentication & Cache Eviction**:
+  - Attached authorization headers to image blob fetches and added automatic eviction of corrupt or 0-byte responses from `imageViewerBlobCache`.
+
 ## [1.2.1] - 2026-09-27
 
 ### Fixed

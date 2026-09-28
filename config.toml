@@ -8,7 +8,7 @@
 host = "0.0.0.0"                 # "0.0.0.0" to listen on all network interfaces, "127.0.0.1" for local-only
 port = 3140                      # Brum standard default port
 root_path = "/"                  # Root filesystem path
-upload_max_size_mb = 10240       # Max file upload size in MB (10 GB)
+upload_max_size_mb = 20480       # Max file upload size in MB (10 GB)
 enable_auth = true               # Enable authentication (automatically disabled in --standalone mode)
 session_duration_hours = 72      # JWT session expiry duration in hours
 database_path = "brum.db"        # SQLite local metadata and session database

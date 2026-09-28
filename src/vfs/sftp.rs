@@ -52,6 +52,42 @@ impl SftpClient {
         let mut sess = Session::new()?;
         sess.set_tcp_stream(tcp);
         sess.set_timeout(15000); // 15s timeout
+
+        // Configure modern Key Exchange (KEX), HostKey, Cipher, and MAC algorithm preferences
+        // Modern OpenSSH servers (8.8+, 9.x, 10.x) require modern SHA-256/512 and elliptic curve ciphers
+        let _ = sess.method_pref(
+            ssh2::MethodType::Kex,
+            "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1",
+        );
+        let _ = sess.method_pref(
+            ssh2::MethodType::HostKey,
+            "ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa,ssh-dss",
+        );
+        let _ = sess.method_pref(
+            ssh2::MethodType::CryptCs,
+            "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc",
+        );
+        let _ = sess.method_pref(
+            ssh2::MethodType::CryptSc,
+            "chacha20-poly1305@openssh.com,aes256-gcm@openssh.com,aes128-gcm@openssh.com,aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc",
+        );
+        let _ = sess.method_pref(
+            ssh2::MethodType::MacCs,
+            "hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1,hmac-sha1-96,umac-64-etm@openssh.com,umac-128-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com",
+        );
+        let _ = sess.method_pref(
+            ssh2::MethodType::MacSc,
+            "hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha2-256,hmac-sha2-512,hmac-sha1,hmac-sha1-96,umac-64-etm@openssh.com,umac-128-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com",
+        );
+        let _ = sess.method_pref(
+            ssh2::MethodType::CompCs,
+            "none,zlib@openssh.com,zlib",
+        );
+        let _ = sess.method_pref(
+            ssh2::MethodType::CompSc,
+            "none,zlib@openssh.com,zlib",
+        );
+
         sess.handshake()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionRefused, format!("SSH handshake failed with {}:{}: {}", params.host, params.port, e)))?;
 
@@ -284,7 +320,13 @@ impl SftpClient {
     }
 
     pub fn parse_uri(uri: &str, default_user: Option<&str>, default_pass: Option<&str>) -> Result<SftpParams, String> {
-        let clean = uri.strip_prefix("sftp://").ok_or_else(|| "Invalid SFTP URI: must start with 'sftp://'".to_string())?;
+        let clean = if let Some(stripped) = uri.strip_prefix("sftp://") {
+            stripped
+        } else if let Some(stripped) = uri.strip_prefix("ssh://") {
+            stripped
+        } else {
+            return Err("Invalid SFTP/SSH URI: must start with 'sftp://' or 'ssh://'".to_string());
+        };
 
         let (auth_part, host_and_path) = if let Some(at) = clean.rfind('@') {
             (&clean[..at], &clean[at + 1..])
@@ -292,7 +334,8 @@ impl SftpClient {
             ("", clean)
         };
 
-        let mut user = default_user.unwrap_or("root").to_string();
+        let current_sys_user = std::env::var("USER").or_else(|_| std::env::var("USERNAME")).unwrap_or_else(|_| "root".to_string());
+        let mut user = default_user.unwrap_or(&current_sys_user).to_string();
         let mut password = default_pass.filter(|p| !p.trim().is_empty()).map(|s| s.to_string());
 
         if !auth_part.is_empty() {
@@ -330,32 +373,157 @@ impl SftpClient {
         })
     }
 
+    pub fn stat_path(params: &SftpParams) -> Result<(u64, bool), String> {
+        let sess = Self::connect(params)
+            .map_err(|e| format!("SFTP connect error: {}", e))?;
+        let sftp = sess.sftp().map_err(|e| format!("SFTP session error: {}", e))?;
+        let resolved = Self::resolve_remote_path(&sftp, &params.remote_path);
+        let stat = sftp.stat(Path::new(&resolved))
+            .map_err(|e| format!("SFTP stat error for {}: {}", resolved, e))?;
+        let is_dir = stat.is_dir();
+        let size = stat.size.unwrap_or(0);
+        Ok((size, is_dir))
+    }
+
+    pub fn scan_dir_totals(params: &SftpParams) -> Result<(u64, u64), String> {
+        let mut total_files = 0u64;
+        let mut total_bytes = 0u64;
+        let listing = Self::list_dir(params).map_err(|e| e.to_string())?;
+        for entry in listing.entries {
+            if entry.is_dir {
+                let child_remote = if params.remote_path == "/" {
+                    format!("/{}", entry.name)
+                } else {
+                    format!("{}/{}", params.remote_path.trim_end_matches('/'), entry.name)
+                };
+                let mut child_params = params.clone();
+                child_params.remote_path = child_remote;
+                if let Ok((c, b)) = Self::scan_dir_totals(&child_params) {
+                    total_files += c;
+                    total_bytes += b;
+                }
+            } else {
+                total_files += 1;
+                total_bytes += entry.size;
+            }
+        }
+        Ok((total_files, total_bytes))
+    }
+
     pub fn download_to_file(params: &SftpParams, local_dest: &Path) -> Result<(), String> {
+        Self::download_to_file_streaming(params, local_dest, false, |_, _, _| Ok(())).map(|_| ())
+    }
+
+    pub fn download_to_file_streaming<F>(
+        params: &SftpParams,
+        local_dest: &Path,
+        verify: bool,
+        mut on_progress: F,
+    ) -> Result<Option<String>, String>
+    where
+        F: FnMut(u64, u64, u64) -> Result<(), std::io::Error>,
+    {
+        use std::io::{Read, Write};
+        use sha2::{Digest, Sha256};
+
         let sess = Self::connect(params)
             .map_err(|e| format!("SFTP connect error: {}", e))?;
         let sftp = sess.sftp().map_err(|e| format!("SFTP session error: {}", e))?;
         let resolved = Self::resolve_remote_path(&sftp, &params.remote_path);
         let mut remote_file = sftp.open(Path::new(&resolved))
             .map_err(|e| format!("SFTP open error for {}: {}", resolved, e))?;
+
+        let stat = sftp.stat(Path::new(&resolved)).ok();
+        let total_file_bytes = stat.and_then(|s| s.size).unwrap_or(0);
+
+        if let Some(parent) = local_dest.parent() {
+            let _ = std::fs::create_dir_all(parent);
+        }
+
         let mut local_file = std::fs::File::create(local_dest)
             .map_err(|e| format!("Failed to create local file {}: {}", local_dest.display(), e))?;
-        std::io::copy(&mut remote_file, &mut local_file)
-            .map_err(|e| format!("SFTP download stream error: {}", e))?;
-        Ok(())
+
+        let mut buffer = vec![0u8; 128 * 1024]; // 128 KB buffer
+        let mut bytes_copied = 0u64;
+        let mut hasher = if verify { Some(Sha256::new()) } else { None };
+
+        loop {
+            let n = remote_file.read(&mut buffer)
+                .map_err(|e| format!("SFTP read stream error: {}", e))?;
+            if n == 0 {
+                break;
+            }
+            local_file.write_all(&buffer[..n])
+                .map_err(|e| format!("Local write error: {}", e))?;
+            bytes_copied += n as u64;
+
+            if let Some(ref mut h) = hasher {
+                h.update(&buffer[..n]);
+            }
+
+            on_progress(n as u64, bytes_copied, total_file_bytes)
+                .map_err(|e| format!("Transfer interrupted: {}", e))?;
+        }
+
+        local_file.flush().map_err(|e| format!("Local flush error: {}", e))?;
+
+        let verified_hash = hasher.map(|h| hex::encode(h.finalize()));
+        Ok(verified_hash)
     }
 
     pub fn upload_from_file(params: &SftpParams, local_src: &Path) -> Result<(), String> {
+        Self::upload_from_file_streaming(params, local_src, false, |_, _, _| Ok(())).map(|_| ())
+    }
+
+    pub fn upload_from_file_streaming<F>(
+        params: &SftpParams,
+        local_src: &Path,
+        verify: bool,
+        mut on_progress: F,
+    ) -> Result<Option<String>, String>
+    where
+        F: FnMut(u64, u64, u64) -> Result<(), std::io::Error>,
+    {
+        use std::io::{Read, Write};
+        use sha2::{Digest, Sha256};
+
         let sess = Self::connect(params)
             .map_err(|e| format!("SFTP connect error: {}", e))?;
         let sftp = sess.sftp().map_err(|e| format!("SFTP session error: {}", e))?;
         let resolved = Self::resolve_remote_path(&sftp, &params.remote_path);
         let mut remote_file = sftp.create(Path::new(&resolved))
             .map_err(|e| format!("SFTP create remote file error for {}: {}", resolved, e))?;
+
         let mut local_file = std::fs::File::open(local_src)
             .map_err(|e| format!("Failed to open local source {}: {}", local_src.display(), e))?;
-        std::io::copy(&mut local_file, &mut remote_file)
-            .map_err(|e| format!("SFTP upload stream error: {}", e))?;
-        Ok(())
+        let total_file_bytes = local_src.metadata().map(|m| m.len()).unwrap_or(0);
+
+        let mut buffer = vec![0u8; 128 * 1024]; // 128 KB buffer
+        let mut bytes_copied = 0u64;
+        let mut hasher = if verify { Some(Sha256::new()) } else { None };
+
+        loop {
+            let n = local_file.read(&mut buffer)
+                .map_err(|e| format!("Local read stream error: {}", e))?;
+            if n == 0 {
+                break;
+            }
+            remote_file.write_all(&buffer[..n])
+                .map_err(|e| format!("SFTP write error: {}", e))?;
+            bytes_copied += n as u64;
+
+            if let Some(ref mut h) = hasher {
+                h.update(&buffer[..n]);
+            }
+
+            on_progress(n as u64, bytes_copied, total_file_bytes)
+                .map_err(|e| format!("Transfer interrupted: {}", e))?;
+        }
+
+        remote_file.flush().map_err(|e| format!("SFTP flush error: {}", e))?;
+
+        let verified_hash = hasher.map(|h| hex::encode(h.finalize()));
+        Ok(verified_hash)
     }
 
     pub fn mkdir(params: &SftpParams) -> Result<(), String> {
@@ -463,5 +631,42 @@ mod tests {
         assert_eq!(p3.password.as_deref(), Some("p@ss:word"));
         assert_eq!(p3.host, "nas.local");
         assert_eq!(p3.remote_path, "/data");
+
+        let p4 = SftpClient::parse_uri("ssh://root:secret@10.0.0.1:2222/etc", None, None).unwrap();
+        assert_eq!(p4.host, "10.0.0.1");
+        assert_eq!(p4.port, 2222);
+        assert_eq!(p4.user, "root");
+        assert_eq!(p4.password.as_deref(), Some("secret"));
+        assert_eq!(p4.remote_path, "/etc");
+    }
+
+    #[test]
+    fn test_sftp_supported_methods() {
+        let sess = Session::new().unwrap();
+        let kex_pref = "curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-hellman-group14-sha256,diffie-hellman-group14-sha1,diffie-hellman-group-exchange-sha1,diffie-hellman-group1-sha1";
+        let hostkey_pref = "ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa,ssh-dss";
+        let crypt_pref = "aes256-ctr,aes192-ctr,aes128-ctr,aes256-cbc,aes192-cbc,aes128-cbc,3des-cbc";
+        let mac_pref = "hmac-sha2-256,hmac-sha2-512,hmac-sha1,hmac-sha1-96";
+
+        let r_kex = sess.method_pref(ssh2::MethodType::Kex, kex_pref);
+        let r_hk = sess.method_pref(ssh2::MethodType::HostKey, hostkey_pref);
+        let r_ccs = sess.method_pref(ssh2::MethodType::CryptCs, crypt_pref);
+        let r_csc = sess.method_pref(ssh2::MethodType::CryptSc, crypt_pref);
+        let r_mcs = sess.method_pref(ssh2::MethodType::MacCs, mac_pref);
+        let r_msc = sess.method_pref(ssh2::MethodType::MacSc, mac_pref);
+
+        println!("r_kex: {:?}", r_kex);
+        println!("r_hk: {:?}", r_hk);
+        println!("r_ccs: {:?}", r_ccs);
+        println!("r_csc: {:?}", r_csc);
+        println!("r_mcs: {:?}", r_mcs);
+        println!("r_msc: {:?}", r_msc);
+
+        assert!(r_kex.is_ok());
+        assert!(r_hk.is_ok());
+        assert!(r_ccs.is_ok());
+        assert!(r_csc.is_ok());
+        assert!(r_mcs.is_ok());
+        assert!(r_msc.is_ok());
     }
 }

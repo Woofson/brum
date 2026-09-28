@@ -770,9 +770,15 @@ if (App.token) {
 
 function getBasename(path) {
   if (!path) return '';
-  const clean = String(path).replace(/[\\/]+$/, '');
+  let clean = String(path).replace(/[\\/]+$/, '');
+  if (clean.includes('#')) {
+    const hashPart = clean.split('#').pop();
+    if (hashPart) clean = hashPart.replace(/[\\/]+$/, '');
+  }
   return clean.split(/[\\/]/).filter(Boolean).pop() || clean;
 }
+
+const getPathBasename = getBasename;
 
 function getParentDirectory(path) {
   if (!path) return null;
@@ -1635,14 +1641,18 @@ function getAllUserPreferences() {
     show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
     custom_hostname: localStorage.getItem('cd_custom_hostname') || '',
     custom_app_title: localStorage.getItem('cd_custom_app_title') || '',
-    hostname_color: localStorage.getItem('cd_hostname_color') || 'amber',
-    hostname_custom_text: localStorage.getItem('cd_hostname_custom_text') || '#f59e0b',
-    hostname_custom_bg: localStorage.getItem('cd_hostname_custom_bg') || 'rgba(245, 158, 11, 0.15)',
-    hostname_custom_border: localStorage.getItem('cd_hostname_custom_border') || 'rgba(245, 158, 11, 0.35)',
-    hostname_custom_glow: localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.4)',
-    hostname_style: localStorage.getItem('cd_hostname_style') || 'subtle',
-    hostname_icon: localStorage.getItem('cd_hostname_icon') || 'server',
+    hostname_color: localStorage.getItem('cd_hostname_color') || 'slate',
+    hostname_custom_text: localStorage.getItem('cd_hostname_custom_text') || '#94a3b8',
+    hostname_custom_bg: localStorage.getItem('cd_hostname_custom_bg') || 'rgba(148, 163, 184, 0.12)',
+    hostname_custom_border: localStorage.getItem('cd_hostname_custom_border') || 'rgba(148, 163, 184, 0.3)',
+    hostname_custom_glow: localStorage.getItem('cd_hostname_custom_glow') || 'rgba(245, 158, 11, 0.35)',
+    hostname_style: localStorage.getItem('cd_hostname_style') || 'text',
+    hostname_icon: localStorage.getItem('cd_hostname_icon') || 'none',
     hostname_size: localStorage.getItem('cd_hostname_size') || 'md',
+    font_sans: localStorage.getItem('cd_font_sans') || 'default',
+    font_mono: localStorage.getItem('cd_font_mono') || 'default',
+    font_weight: localStorage.getItem('cd_font_weight') || 'default',
+    hidden_drives: JSON.parse(localStorage.getItem('cd_hidden_drives') || '[]'),
 
     // 4. Column Configuration & Display Options
     col_widths: ColumnConfig?.widths || {},
@@ -1867,8 +1877,15 @@ function applyAllUserPreferences(prefs) {
   if (prefs.hostname_style) localStorage.setItem('cd_hostname_style', prefs.hostname_style);
   if (prefs.hostname_icon) localStorage.setItem('cd_hostname_icon', prefs.hostname_icon);
   if (prefs.hostname_size) localStorage.setItem('cd_hostname_size', prefs.hostname_size);
+  if (prefs.font_sans) localStorage.setItem('cd_font_sans', prefs.font_sans);
+  if (prefs.font_mono) localStorage.setItem('cd_font_mono', prefs.font_mono);
+  if (prefs.font_weight) localStorage.setItem('cd_font_weight', prefs.font_weight);
+  if (Array.isArray(prefs.hidden_drives)) localStorage.setItem('cd_hidden_drives', JSON.stringify(prefs.hidden_drives));
   if (typeof updateHostnameBadge === 'function') {
     updateHostnameBadge();
+  }
+  if (typeof applyFontSettings === 'function') {
+    applyFontSettings();
   }
 
   // 10. Table Column Widths & Visibility
@@ -2277,6 +2294,7 @@ function bootApp() {
     applySyncScrollState();
     applySyncNavState();
     applyFontSize(App.fontSize);
+    applyFontSettings();
     applyBorderSettings();
     applyAllColumnWidths();
     applyStickyColHeaders();
@@ -2755,7 +2773,31 @@ function applyAppVersion(ver, sysData = null) {
     if (sysData.semver_full) App.semverFull = sysData.semver_full;
   }
   try {
+    const cachedVer = localStorage.getItem('cd_cached_version');
+    const cachedBuild = localStorage.getItem('cd_cached_build');
+    const currentBuild = App.buildNumber || ver;
+    if (cachedVer && (cachedVer !== ver || (cachedBuild && cachedBuild !== String(currentBuild)))) {
+      // Auto-purge transient caches across versions to prevent stale site data
+      if (typeof _dirCacheMemMap !== 'undefined') _dirCacheMemMap.clear();
+      if (typeof sessionStorage !== 'undefined') {
+        const keysToRemove = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && k.startsWith('cd_dircache_')) keysToRemove.push(k);
+        }
+        keysToRemove.forEach(k => sessionStorage.removeItem(k));
+      }
+      if (typeof imageViewerBlobCache !== 'undefined') {
+        imageViewerBlobCache.forEach(entry => {
+          if (entry && entry.blobUrl) {
+            try { URL.revokeObjectURL(entry.blobUrl); } catch (_) {}
+          }
+        });
+        imageViewerBlobCache.clear();
+      }
+    }
     localStorage.setItem('cd_cached_version', ver);
+    if (App.buildNumber) localStorage.setItem('cd_cached_build', String(App.buildNumber));
   } catch (_) {}
   const buildStr = App.buildNumber ? ` (Build #${App.buildNumber})` : '';
   const tooltip = `Brum v${ver}${App.buildNumber ? ` (Build #${App.buildNumber} · ${App.buildCommit || ''} · ${App.buildTimestamp || ''})` : ''}`;
@@ -3705,51 +3747,51 @@ function createPaneElement(pane, index) {
           </div>
           <table class="file-table" id="pane-table-${index}">
             <thead>
-              <tr id="pane-header-row-${index}" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                <th class="col-header col-icon" style="text-align: center; padding: 0 4px; vertical-align: middle;">
+              <tr id="pane-header-row-${index}" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                <th class="col-header col-icon" ondblclick="event.stopPropagation();">
                   <button class="pane-col-config-btn" onclick="event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" oncontextmenu="event.preventDefault(); event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" title="Configure Table Columns & Auto-Fit">
                     <i data-lucide="sliders-horizontal"></i>
                   </button>
                 </th>
-                <th class="col-header col-name" id="col-header-${index}-name" onclick="sortPane(${index}, 'name')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Name</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'name')" ontouchstart="initColResize(event, ${index}, 'name')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-name" id="col-header-${index}-name" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'name')" title="Sort by Name">Name</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'name')" ontouchstart="initColResize(event, ${index}, 'name')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-ext" id="col-header-${index}-ext" onclick="sortPane(${index}, 'ext')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Ext</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'ext')" ontouchstart="initColResize(event, ${index}, 'ext')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-ext" id="col-header-${index}-ext" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'ext')" title="Sort by Extension">Ext</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'ext')" ontouchstart="initColResize(event, ${index}, 'ext')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-size" id="col-header-${index}-size" onclick="sortPane(${index}, 'size')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Size</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'size')" ontouchstart="initColResize(event, ${index}, 'size')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-size" id="col-header-${index}-size" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'size')" title="Sort by Size">Size</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'size')" ontouchstart="initColResize(event, ${index}, 'size')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-modified" id="col-header-${index}-modified" onclick="sortPane(${index}, 'modified')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Modified</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'modified')" ontouchstart="initColResize(event, ${index}, 'modified')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-modified" id="col-header-${index}-modified" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'modified')" title="Sort by Modified Date">Modified</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'modified')" ontouchstart="initColResize(event, ${index}, 'modified')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-created" id="col-header-${index}-created" style="display: none;" onclick="sortPane(${index}, 'created')" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Created</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'created')" ontouchstart="initColResize(event, ${index}, 'created')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-created" id="col-header-${index}-created" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'created')" title="Sort by Created Date">Created</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'created')" ontouchstart="initColResize(event, ${index}, 'created')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-mode" id="col-header-${index}-mode" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Mode</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'mode')" ontouchstart="initColResize(event, ${index}, 'mode')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-mode" id="col-header-${index}-mode" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text">Mode</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'mode')" ontouchstart="initColResize(event, ${index}, 'mode')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-owner" id="col-header-${index}-owner" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Owner</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'owner')" ontouchstart="initColResize(event, ${index}, 'owner')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-owner" id="col-header-${index}-owner" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text">Owner</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'owner')" ontouchstart="initColResize(event, ${index}, 'owner')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-group" id="col-header-${index}-group" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Group</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'group')" ontouchstart="initColResize(event, ${index}, 'group')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-group" id="col-header-${index}-group" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text">Group</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'group')" ontouchstart="initColResize(event, ${index}, 'group')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-hash" id="col-header-${index}-hash" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>SHA-256</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'hash')" ontouchstart="initColResize(event, ${index}, 'hash')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-hash" id="col-header-${index}-hash" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text">SHA-256</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'hash')" ontouchstart="initColResize(event, ${index}, 'hash')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-tags" id="col-header-${index}-tags" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});">
-                  <span>Tags</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'tags')" ontouchstart="initColResize(event, ${index}, 'tags')" onclick="event.stopPropagation()" ondblclick="autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-tags" id="col-header-${index}-tags" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                  <span class="col-header-text">Tags</span>
+                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'tags')" ontouchstart="initColResize(event, ${index}, 'tags')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
               </tr>
             </thead>
@@ -3780,7 +3822,7 @@ function createPaneElement(pane, index) {
   const content = el.querySelector('.pane-content');
   if (content) {
     content.ondblclick = (e) => {
-      if (e.target.closest('tr.file-row, .grid-gallery-card, .compact-list-item')) return;
+      if (e.target.closest('thead, th, .col-header, .col-resizer, tr.file-row, .grid-gallery-card, .compact-list-item, .pane-tree-sidebar, .pane-tree-resizer, .pane-trash-banner, .pane-branch-banner, button, input, select, textarea, a, [role="button"], .pane-footer')) return;
       if (App.dblclickUpDir) {
         navPaneUp(index);
       }
@@ -4789,7 +4831,7 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
 
   for (let i = 0; i < sources.length; i++) {
     const srcPath = sources[i];
-    const fileName = srcPath.split('/').filter(Boolean).pop() || 'transfer_file';
+    const fileName = getBasename(srcPath) || 'transfer_file';
     clientTask.current_file = fileName;
     clientTask.current_file_bytes = 0;
     clientTask.current_file_total_bytes = 0;
@@ -5060,6 +5102,8 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
   const pane = App.panes[paneIndex];
   if (!pane) return;
 
+  extractAndStoreCredentials(targetPath);
+
   const prevPath = pane.path;
 
   if (typeof targetPath === 'string' && targetPath.startsWith('client://')) {
@@ -5159,6 +5203,12 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
       if (prevPath) {
         localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
       }
+
+      if ((cleanPath.startsWith('sftp://') || cleanPath.startsWith('ssh://') || cleanPath.startsWith('smb://')) && (resp.status === 401 || resp.status === 403 || errText.toLowerCase().includes('authentication failed') || errText.toLowerCase().includes('verify password'))) {
+        promptRemoteCredentials(paneIndex, cleanPath);
+        return;
+      }
+
       if (isLocal) {
         const userHome = getUserDefaultHomeDir();
         if ((cleanPath === '/' || resp.status === 403) && userHome && userHome !== '/' && userHome !== cleanPath) {
@@ -6610,11 +6660,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       }
 
       parentTr.innerHTML = `
-        <td class="file-cell file-cell-icon">
-          <div class="row-icon-wrapper">
-            <i data-lucide="corner-left-up" style="width: 15px; height: 15px; color: var(--accent);"></i>
-          </div>
-        </td>
+        <td class="file-cell file-cell-icon"><div class="row-icon-wrapper"><i data-lucide="corner-left-up" style="width: 15px; height: 15px; color: var(--accent);"></i></div></td>
         <td class="file-cell file-cell-name">
           ${isMultiLine ? `
           <div class="file-name-wrapper">
@@ -6622,7 +6668,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
               <span class="file-name-text" style="font-weight: 700; color: var(--accent); font-size: 13px;">..</span>
             </div>
             <div class="file-subtext-mobile">
-              <span class="subtext-size" style="color: var(--accent);">${showDirTag ? '&lt;UP&gt;' : '..'}</span>
+              <span class="subtext-size" ${showDirTag ? 'style="color: var(--accent); font-weight: 600;"' : ''}>${showDirTag ? '&lt;UP&gt;' : '-'}</span>
             </div>
           </div>
           ` : `
@@ -6630,7 +6676,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
           `}
         </td>
         ${ColumnConfig.visibility.ext ? '<td class="file-cell file-cell-mono file-cell-ext">-</td>' : ''}
-        ${ColumnConfig.visibility.size ? `<td class="file-cell file-cell-mono file-cell-size" style="color: var(--accent); font-weight: 600;">${showDirTag ? '&lt;UP&gt;' : '-'}</td>` : ''}
+        ${ColumnConfig.visibility.size ? (showDirTag ? '<td class="file-cell file-cell-mono file-cell-size" style="color: var(--accent); font-weight: 600;">&lt;UP&gt;</td>' : '<td class="file-cell file-cell-mono file-cell-size">-</td>') : ''}
         ${ColumnConfig.visibility.modified ? '<td class="file-cell file-cell-mono file-cell-modified">-</td>' : ''}
         ${ColumnConfig.visibility.created ? '<td class="file-cell file-cell-mono file-cell-created">-</td>' : ''}
         ${ColumnConfig.visibility.mode ? '<td class="file-cell file-cell-mono file-cell-mode">-</td>' : ''}
@@ -6875,11 +6921,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       const sizeDisplay = entry.is_dir ? (showDirTag ? '<DIR>' : '') : formatBytes(entry.size);
 
       tr.innerHTML = `
-        <td class="file-cell file-cell-icon">
-          <div class="row-icon-wrapper ${showCheckBadge ? 'selected' : ''}">
-            ${iconHtml}
-          </div>
-        </td>
+        <td class="file-cell file-cell-icon"><div class="row-icon-wrapper ${showCheckBadge ? 'selected' : ''}">${iconHtml}</div></td>
         <td class="file-cell file-cell-name">
           ${isMultiLine ? `
           <div class="file-name-wrapper">
@@ -6933,8 +6975,35 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
   }
 
   if (window.lucide) lucide.createIcons();
+  updatePaneHeaderSortIndicators(paneIndex);
   updateMobileBottomBar();
   updatePaneFooter(paneIndex);
+}
+
+function updatePaneHeaderSortIndicators(paneIndex) {
+  const pane = App.panes[paneIndex];
+  if (!pane) return;
+  const sortMap = {
+    name: 'Name',
+    ext: 'Ext',
+    size: 'Size',
+    modified: 'Modified',
+    created: 'Created'
+  };
+  Object.entries(sortMap).forEach(([colKey, baseLabel]) => {
+    const th = document.getElementById(`col-header-${paneIndex}-${colKey}`);
+    if (th) {
+      const isSorted = pane.sortBy === colKey;
+      th.classList.toggle('is-sorted', isSorted);
+      th.classList.toggle('sort-asc', isSorted && pane.sortAsc);
+      th.classList.toggle('sort-desc', isSorted && !pane.sortAsc);
+      const span = th.querySelector('.col-header-text') || th.querySelector('span');
+      if (span) {
+        span.textContent = isSorted ? `${baseLabel} ${pane.sortAsc ? '▲' : '▼'}` : baseLabel;
+        span.title = `Sort by ${baseLabel} (${isSorted ? (pane.sortAsc ? 'Ascending' : 'Descending') : 'Click to sort'})`;
+      }
+    }
+  });
 }
 
 // ---------------- 🎨 CUSTOM ICON & EMOTE PRESETS & RESOLUTION ----------------
@@ -9651,7 +9720,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
   for (let i = 0; i < sources.length; i++) {
     const srcPath = sources[i];
-    const fileName = srcPath.split('/').filter(Boolean).pop() || 'transferred_file';
+    const fileName = getBasename(srcPath) || 'transferred_file';
     xnodeTask.current_file = fileName;
     xnodeTask.phase = 'download';
     xnodeTask.phase_text = `📥 Downloading [${i + 1}/${totalItems}]: ${fileName}`;
@@ -9667,7 +9736,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
     try {
       // 1. Download stream from Source Node with real-time chunk progress
-      const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(srcPath)}`;
+      const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(resolveAuthUri(srcPath))}`;
       const downloadResp = await fetch(dlUrl, {
         method: 'GET',
         headers: srcHeaders
@@ -9751,7 +9820,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(destination)}&no_task=1`;
+        const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}&no_task=1`;
         xhr.open('POST', uploadUrl);
         for (const h in destHeaders) {
           xhr.setRequestHeader(h, destHeaders[h]);
@@ -9813,7 +9882,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
           method: 'POST',
           headers: getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' }),
           body: JSON.stringify({
-            paths: [srcPath],
+            paths: [resolveAuthUri(srcPath)],
             use_trash: false
           })
         });
@@ -10140,7 +10209,7 @@ async function executeUploadWithDecisions(batch) {
   }
 
   try {
-    const uploadUrl = `${endpoint}/api/fs/upload?destination=${encodeURIComponent(destination)}&conflict=${encodeURIComponent(conflictMode)}`;
+    const uploadUrl = `${endpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}&conflict=${encodeURIComponent(conflictMode)}`;
     const resp = await fetch(uploadUrl, {
       method: 'POST',
       body: formData,
@@ -10214,13 +10283,16 @@ async function executeTransferDirect(action, sources, destination, refreshTarget
   const endpoint = action === 'move' ? `${baseEndpoint}/api/fs/move` : `${baseEndpoint}/api/fs/copy`;
   const headers = getPaneAuthHeaders(srcIdx, { 'Content-Type': 'application/json' });
 
+  const authSources = (sources || []).map(s => resolveAuthUri(s));
+  const authDestination = resolveAuthUri(destination);
+
   try {
     const resp = await fetch(endpoint, {
       method: 'POST',
       headers: headers,
       body: JSON.stringify({
-        sources,
-        destination,
+        sources: authSources,
+        destination: authDestination,
         paranoid: App.paranoidMode,
         conflict_resolution: conflictMode || 'overwrite'
       })
@@ -16078,7 +16150,7 @@ function setConverterSourceFile(filePath, paneIndex = null) {
     activeConverterPaneIndex = paneIndex;
   }
 
-  const fileName = filePath.split('/').pop() || filePath;
+  const fileName = getBasename(filePath) || filePath;
   const lastDot = fileName.lastIndexOf('.');
   const ext = lastDot !== -1 ? fileName.substring(lastDot + 1).toLowerCase() : '';
 
@@ -16407,7 +16479,7 @@ function setConverterTargetFormat(fmt) {
 
 function updateConvertOutputName(forceReset = false) {
   if (!activeConverterFile) return;
-  const fileName = activeConverterFile.split('/').pop() || '';
+  const fileName = getBasename(activeConverterFile) || '';
   const lastDot = fileName.lastIndexOf('.');
   const stem = lastDot !== -1 ? fileName.substring(0, lastDot) : fileName;
   const srcExt = lastDot !== -1 ? fileName.substring(lastDot + 1).toLowerCase() : '';
@@ -17342,6 +17414,7 @@ function openBookmarksManager() {
 
 async function openPaneFavoritesMenu(e, paneIndex) {
   if (e && e.stopPropagation) e.stopPropagation();
+  if (typeof setActivePane === 'function') setActivePane(paneIndex);
   const existing = document.getElementById('pane-favorites-popup');
   const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
   document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
@@ -17402,6 +17475,10 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   const drives = storageRoots.filter(r => r.id !== 'home' && r.path.match(/^[a-zA-Z]:[\\/]/));
   const nonDriveRoots = storageRoots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/) || r.id === 'home');
 
+  const hiddenDrives = typeof getHiddenDrives === 'function' ? getHiddenDrives() : [];
+  const visibleDrives = drives.filter(d => !hiddenDrives.includes(d.path) && !hiddenDrives.includes(d.id));
+  const hiddenCount = drives.length - visibleDrives.length;
+
   const popup = document.createElement('div');
   popup.id = 'pane-favorites-popup';
   popup.dataset.paneIndex = String(paneIndex);
@@ -17427,28 +17504,44 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : ''}
 
-      ${drives.length > 0 ? `
-        <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Drives & Partitions</div>
-        ${drives.map(d => {
+      ${visibleDrives.length > 0 ? `
+        <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+          <span>Drives & Partitions</span>
+          ${hiddenCount > 0 ? `<span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" onclick="resetHiddenDrives(${paneIndex});">Unhide ${hiddenCount}</span>` : ''}
+        </div>
+        ${visibleDrives.map(d => {
           const isAct = curPanePath.toUpperCase().startsWith(d.path.toUpperCase());
           const diskInfo = nodeDisks.find(it => it.mount_point.toUpperCase().startsWith(d.path.toUpperCase()));
           const quotaBadge = diskInfo ? `<span style="color: ${diskInfo.usage_percentage > 90 ? '#ef4444' : '#10b981'}; font-size: 9.5px; font-family: var(--font-mono);">${diskInfo.formatted_available} free</span>` : '';
           return `
-            <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="${escapeHtml(d.path)}">
-              <span style="font-size: 13px;">🪟</span>
-              <div style="flex: 1; min-width: 0;">
-                <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
-                  <span>${escapeHtml(d.path)} <span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">(${escapeHtml(d.name.replace(/^Local Disk\s*\(/i, '').replace(/\)$/, ''))})</span></span>
-                  ${quotaBadge}
+            <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="${escapeHtml(d.path)}" style="display: flex; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                <span style="font-size: 13px;">🪟</span>
+                <div style="flex: 1; min-width: 0;">
+                  <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
+                    <span>${escapeHtml(d.path)} <span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">(${escapeHtml(d.name.replace(/^Local Disk\s*\(/i, '').replace(/\)$/, ''))})</span></span>
+                    ${quotaBadge}
+                  </div>
+                  <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(d.path)}</div>
                 </div>
-                <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(d.path)}</div>
               </div>
-              ${isAct ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+              <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
+                ${isAct ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
+                <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); toggleHideDrive('${escapeHtml(d.path)}', ${paneIndex});" title="Hide from Places menu" style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; padding: 0; background: transparent; border: 1px solid transparent; color: var(--text-dim); opacity: 0.6;">
+                  <i data-lucide="eye-off" style="width: 11px; height: 11px;"></i>
+                </button>
+              </div>
             </div>
           `;
         }).join('')}
         <div class="context-sep" style="margin: 4px 0;"></div>
-      ` : ''}
+      ` : (hiddenCount > 0 ? `
+        <div style="padding: 4px 12px; font-size: 10px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center;">
+          <span>${hiddenCount} Drives Hidden</span>
+          <span style="color: var(--accent); cursor: pointer; text-decoration: underline; font-size: 9.5px;" onclick="resetHiddenDrives(${paneIndex});">Unhide All</span>
+        </div>
+        <div class="context-sep" style="margin: 4px 0;"></div>
+      ` : '')}
 
       <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Places & Storage Roots</div>
       ${nonDriveRoots.map(r => {
@@ -17549,7 +17642,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       ${userBookmarks.length > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase;">Saved Bookmarks</div>
         ${userBookmarks.map(b => `
-          <div class="dropdown-item" data-action="bookmark" data-bpath="${encodeURIComponent(b.path)}" data-bpass="${b.has_password}" data-bproto="${escapeHtml(b.protocol)}">
+          <div class="dropdown-item" data-action="bookmark" data-pane="${paneIndex}" data-bpath="${encodeURIComponent(b.path)}" data-bpass="${b.has_password}" data-bproto="${escapeHtml(b.protocol)}">
             <i data-lucide="${protoIcons[b.protocol] || 'bookmark'}" style="color: var(--accent);"></i>
             <div>
               <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -17569,7 +17662,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
           <span style="font-size: 9px; opacity: 0.8;">ADMIN</span>
         </div>
         ${globalMounts.map(m => `
-          <div class="dropdown-item" data-action="bookmark" data-bpath="${encodeURIComponent(m.target_uri)}" data-bpass="false" data-bproto="${escapeHtml(m.protocol)}">
+          <div class="dropdown-item" data-action="bookmark" data-pane="${paneIndex}" data-bpath="${encodeURIComponent(m.target_uri)}" data-bpass="false" data-bproto="${escapeHtml(m.protocol)}">
             <i data-lucide="${protoIcons[m.protocol] || 'network'}" style="color: var(--accent);"></i>
             <div>
               <div style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
@@ -17606,10 +17699,12 @@ async function openPaneFavoritesMenu(e, paneIndex) {
     const targetPane = parseInt(item.dataset.pane || String(paneIndex), 10);
 
     if (action === 'load-dir') {
+      if (typeof setActivePane === 'function') setActivePane(targetPane);
       loadPaneDirectory(targetPane, targetPath);
       popup.remove();
     } else if (action === 'switch-node') {
       const nodeId = item.dataset.nodeId;
+      if (typeof setActivePane === 'function') setActivePane(targetPane);
       switchPaneNode(targetPane, nodeId);
       popup.remove();
     } else if (action === 'disconnect-remote') {
@@ -17619,7 +17714,8 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       const bPath = decodeURIComponent(item.dataset.bpath);
       const bPass = item.dataset.bpass === 'true';
       const bProto = item.dataset.bproto;
-      navigateToBookmark(bPath, bPass, bProto);
+      if (typeof setActivePane === 'function') setActivePane(targetPane);
+      navigateToBookmark(bPath, bPass, bProto, targetPane);
       popup.remove();
     } else if (action === 'add-bookmark') {
       const rawPath = decodeURIComponent(item.dataset.path);
@@ -18438,6 +18534,9 @@ function showContextMenu(x, y) {
     bodyHtml = `
       <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, App.contextItem?.path); hideContextMenu();"><i data-lucide="folder-open" style="width: 14px; color: var(--accent);"></i> Open Folder</div>
       <div class="context-item" onclick="createPaneTab(${App.contextPaneIndex ?? App.activePaneIndex}, App.contextItem?.path); hideContextMenu();"><i data-lucide="plus-square" style="width: 14px;"></i> Open in New Tab</div>
+      ${!App.contextItem?.path?.startsWith('archive://') && !App.contextItem?.path?.startsWith('vault://') ? `
+        <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, 'archive://' + App.contextItem?.path + '#'); hideContextMenu();"><i data-lucide="disc" style="width: 14px; color: var(--accent);"></i> Open as Virtual Disk / Image</div>
+      ` : ''}
       ${oppositeIdx !== null ? `
         <div class="context-item" onclick="loadPaneDirectory(${oppositeIdx}, App.contextItem?.path); showToast('Opened in Pane ${oppositeIdx + 1}', 'info'); hideContextMenu();"><i data-lucide="columns-2" style="width: 14px;"></i> Open in Opposite Pane (Pane ${oppositeIdx + 1})</div>
       ` : ''}
@@ -18539,6 +18638,9 @@ function showContextMenu(x, y) {
         </div>
       ` : ''}
       <div class="context-item" onclick="triggerView(); hideContextMenu();"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
+      ${App.contextItem && !App.contextItem.path?.startsWith('archive://') && !App.contextItem.path?.startsWith('vault://') && (isArchiveFile(App.contextItem.name) || App.contextItem.is_archive || App.contextItem.name.startsWith('d1') || App.contextItem.name.endsWith('.partitions') || App.contextItem.name.endsWith('.img') || App.contextItem.name.endsWith('.iso')) ? `
+        <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, 'archive://' + App.contextItem?.path + '#'); hideContextMenu();"><i data-lucide="disc" style="width: 14px; color: var(--accent);"></i> Browse as Disk Image / Archive</div>
+      ` : ''}
       <div class="context-item" onclick="triggerEditor(); hideContextMenu();"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit (F4)</div>
       <div class="context-item" onclick="openHexEditor(App.contextItem?.path); hideContextMenu();"><i data-lucide="binary" style="width: 14px; color: var(--accent);"></i> Open in Hex Editor...</div>
       ${App.contextItem && isCadOr3dExtension(App.contextItem.name) ? `
@@ -18618,7 +18720,10 @@ function showContextMenu(x, y) {
           <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
           <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
           <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
-          <div class="context-item" onclick="triggerExtract(); hideContextMenu();"><i data-lucide="folder-archive" style="width: 13px;"></i> Extract Here</div>
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="triggerExtractHere(); hideContextMenu();"><i data-lucide="folder-archive" style="width: 13px;"></i> Extract Here</div>
+          <div class="context-item" onclick="triggerExtractToFolder(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px;"></i> Extract to &lt;folder&gt;...</div>
+          <div class="context-item" onclick="triggerExtractModal(); hideContextMenu();"><i data-lucide="folder-input" style="width: 13px;"></i> Extract to...</div>
           <div class="context-sep"></div>
           <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
         </div>
@@ -18747,7 +18852,7 @@ async function triggerDownloadContextItem() {
     return;
   }
 
-  const url = `/api/fs/download?path=${encodeURIComponent(item.path)}`;
+  const url = getDownloadUrl(item.path, false, App.contextPaneIndex ?? App.activePaneIndex);
   const a = document.createElement('a');
   a.href = url;
   a.download = item.name || 'download';
@@ -19588,25 +19693,33 @@ function submitRemoteAuth() {
     const host = parts[0].includes('@') ? parts[0].split('@')[1] : parts[0];
     const rest = parts.slice(1).join('/');
     authUri = `smb://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}/${rest}`;
-  } else if (targetPath.startsWith('sftp://')) {
-    const clean = targetPath.slice(7);
+  } else if (targetPath.startsWith('sftp://') || targetPath.startsWith('ssh://')) {
+    const scheme = targetPath.startsWith('ssh://') ? 'ssh' : 'sftp';
+    const clean = targetPath.slice(scheme.length + 3);
     const parts = clean.split('/');
     const hostPort = parts[0].includes('@') ? parts[0].split('@')[1] : parts[0];
     const rest = parts.slice(1).join('/');
-    authUri = `sftp://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${hostPort}/${rest}`;
+    authUri = `${scheme}://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${hostPort}/${rest}`;
   }
 
-  if (remember) {
-    App.sessionCredentials = App.sessionCredentials || {};
-    App.sessionCredentials[targetPath] = { user, pass, authUri };
+  if (user && pass) {
+    extractAndStoreCredentials(authUri);
+    if (remember) {
+      App.sessionCredentials = App.sessionCredentials || {};
+      App.sessionCredentials[targetPath] = { user, pass, authUri };
+      try {
+        sessionStorage.setItem('cd_session_credentials', JSON.stringify(App.sessionCredentials));
+      } catch (_) {}
+    }
   }
 
   loadPaneDirectory(paneIndex, authUri);
 }
 
-function navigateToBookmark(encodedPath, hasPassword, protocol) {
+function navigateToBookmark(encodedPath, hasPassword, protocol, targetPaneIndex = null) {
   const path = decodeURIComponent(encodedPath);
-  const paneIndex = App.activePaneIndex;
+  const paneIndex = (targetPaneIndex !== null && targetPaneIndex !== undefined) ? targetPaneIndex : App.activePaneIndex;
+  if (typeof setActivePane === 'function') setActivePane(paneIndex);
 
   if (protocol === 'web' || path.startsWith('http://') || path.startsWith('https://')) {
     window.open(path, '_blank', 'noopener,noreferrer');
@@ -19619,16 +19732,139 @@ function navigateToBookmark(encodedPath, hasPassword, protocol) {
     return;
   }
 
-  if (App.sessionCredentials && App.sessionCredentials[path]) {
-    loadPaneDirectory(paneIndex, App.sessionCredentials[path].authUri || path);
+  const resolved = resolveAuthUri(path);
+  if (resolved !== path || (App.sessionCredentials && App.sessionCredentials[path])) {
+    loadPaneDirectory(paneIndex, resolved);
     return;
   }
 
   promptRemoteCredentials(paneIndex, path);
 }
 
+function getHiddenDrives() {
+  try {
+    return JSON.parse(localStorage.getItem('cd_hidden_drives') || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function toggleHideDrive(drivePathOrId, paneIndex = null) {
+  let list = getHiddenDrives();
+  if (list.includes(drivePathOrId)) {
+    list = list.filter(item => item !== drivePathOrId);
+    showToast(`Restored drive: ${drivePathOrId}`, 'info');
+  } else {
+    list.push(drivePathOrId);
+    showToast(`Hidden from Places: ${drivePathOrId}`, 'info');
+  }
+  localStorage.setItem('cd_hidden_drives', JSON.stringify(list));
+  queueSaveUserPreferencesToServer();
+
+  if (paneIndex !== null && document.getElementById('pane-favorites-popup')) {
+    openPaneFavoritesMenu(null, paneIndex);
+  }
+  loadDriveVisibilitySettings();
+}
+
+function resetHiddenDrives(paneIndex = null) {
+  localStorage.removeItem('cd_hidden_drives');
+  showToast('All drives and partitions restored to Places menu.', 'success');
+  queueSaveUserPreferencesToServer();
+  if (paneIndex !== null && document.getElementById('pane-favorites-popup')) {
+    openPaneFavoritesMenu(null, paneIndex);
+  }
+  loadDriveVisibilitySettings();
+}
+
+async function loadDriveVisibilitySettings() {
+  const container = document.getElementById('drive-visibility-list');
+  if (!container) return;
+
+  const hidden = getHiddenDrives();
+  let storageRoots = App.storageRoots || [];
+  if (storageRoots.length === 0) {
+    try {
+      const rootsRes = await fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } });
+      if (rootsRes.ok) storageRoots = await rootsRes.json();
+    } catch (_) {}
+  }
+
+  const allDrives = storageRoots.filter(r => r.id !== 'home');
+  if (allDrives.length === 0) {
+    container.innerHTML = '<div style="color: var(--text-dim); font-size: 11px; padding: 6px;">No separate drive partitions detected on this host.</div>';
+    return;
+  }
+
+  container.innerHTML = allDrives.map(d => {
+    const isHidden = hidden.includes(d.path) || hidden.includes(d.id);
+    const label = `${d.path} (${d.name})`;
+    return `
+      <label style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <input type="checkbox" ${!isHidden ? 'checked' : ''} onchange="toggleHideDrive('${escapeHtml(d.path)}')" style="cursor: pointer; accent-color: var(--accent);">
+          <span style="font-weight: 500; font-size: 12px; color: ${isHidden ? 'var(--text-dim)' : 'var(--text-main)'}; text-decoration: ${isHidden ? 'line-through' : 'none'};">${escapeHtml(label)}</span>
+        </div>
+        <span class="badge" style="font-size: 9px; ${isHidden ? 'background: rgba(239,68,68,0.15); color: #ef4444;' : 'background: rgba(16,185,129,0.15); color: #10b981;'}">${isHidden ? 'HIDDEN' : 'VISIBLE'}</span>
+      </label>
+    `;
+  }).join('');
+}
+
+function handleSansFontChange(font) {
+  localStorage.setItem('cd_font_sans', font);
+  applyFontSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function handleMonoFontChange(font) {
+  localStorage.setItem('cd_font_mono', font);
+  applyFontSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function handleFontWeightChange(weight) {
+  localStorage.setItem('cd_font_weight', weight);
+  applyFontSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function applyFontSettings() {
+  const sans = localStorage.getItem('cd_font_sans') || 'default';
+  const mono = localStorage.getItem('cd_font_mono') || 'default';
+  const weight = localStorage.getItem('cd_font_weight') || 'default';
+
+  if (sans && sans !== 'default') {
+    document.documentElement.style.setProperty('--font-sans', sans);
+  } else {
+    document.documentElement.style.removeProperty('--font-sans');
+  }
+
+  if (mono && mono !== 'default') {
+    document.documentElement.style.setProperty('--font-mono', mono);
+  } else {
+    document.documentElement.style.removeProperty('--font-mono');
+  }
+
+  if (weight && weight !== 'default') {
+    document.documentElement.style.setProperty('--base-font-weight', weight);
+    document.body.style.fontWeight = weight;
+  } else {
+    document.documentElement.style.removeProperty('--base-font-weight');
+    document.body.style.fontWeight = '';
+  }
+
+  const sansSelect = document.getElementById('setting-font-sans');
+  if (sansSelect) sansSelect.value = sans;
+  const monoSelect = document.getElementById('setting-font-mono');
+  if (monoSelect) monoSelect.value = mono;
+  const weightSelect = document.getElementById('setting-font-weight');
+  if (weightSelect) weightSelect.value = weight;
+}
+
 async function loadBookmarksList() {
   const tbody = document.getElementById('bookmarks-table-body');
+  loadDriveVisibilitySettings();
   if (!tbody) return;
   
   try {
@@ -19702,7 +19938,7 @@ function addNewBookmark(prefillPath = null, prefillName = null) {
   let proto = 'local';
   if (rawPath.startsWith('http://') || rawPath.startsWith('https://')) proto = 'web';
   else if (rawPath.startsWith('smb://')) proto = 'smb';
-  else if (rawPath.startsWith('sftp://')) proto = 'sftp';
+  else if (rawPath.startsWith('sftp://') || rawPath.startsWith('ssh://')) proto = 'sftp';
   else if (rawPath.startsWith('nfs://')) proto = 'nfs';
   else if (rawPath.startsWith('webdav://')) proto = 'webdav';
   else if (rawPath.startsWith('s3://')) proto = 's3';
@@ -20980,6 +21216,8 @@ function openSettingsModal() {
 
   updateColumnCheckboxes();
   renderIconSettingsTab();
+  applyFontSettings();
+  loadDriveVisibilitySettings();
   showModal('settings-modal');
 }
 
@@ -22196,9 +22434,10 @@ async function handleDirectFileUpload(files) {
 }
 
 function triggerDownloadCurrentDirectory(paneIndex) {
-  const pane = App.panes[paneIndex !== undefined ? paneIndex : App.activePaneIndex];
+  const pIdx = paneIndex !== undefined ? paneIndex : App.activePaneIndex;
+  const pane = App.panes[pIdx];
   if (!pane) return;
-  const url = `/api/fs/download?path=${encodeURIComponent(pane.path)}`;
+  const url = getDownloadUrl(pane.path, false, pIdx);
   window.location.href = url;
 }
 
@@ -23092,6 +23331,54 @@ function triggerExtract() {
   triggerExtractModal();
 }
 
+function triggerExtractHere() {
+  const pane = App.panes[App.activePaneIndex];
+  const item = App.contextItem || (pane.entries && pane.entries[pane.cursorIndex]);
+  if (!item) return;
+  extractArchiveDirect(item, false);
+}
+
+function triggerExtractToFolder() {
+  const pane = App.panes[App.activePaneIndex];
+  const item = App.contextItem || (pane.entries && pane.entries[pane.cursorIndex]);
+  if (!item) return;
+  extractArchiveDirect(item, true);
+}
+
+async function extractArchiveDirect(item, subfolder = false) {
+  if (!item) return;
+  const pane = App.panes[App.activePaneIndex];
+  let targetDir = pane.path;
+  if (subfolder) {
+    const rawSubName = item.name.replace(/(\.zip|\.tar\.gz|\.tgz|\.tar\.bz2|\.tar\.xz|\.7z|\.tar|\.cbz|\.epub|\.iso|\.squashfs|\.snap|\.appimage)$/i, '');
+    targetDir = joinItemPath(pane.path, rawSubName);
+  }
+
+  showToast(`Extracting ${item.name}...`, 'info');
+
+  try {
+    const endpoint = getPaneEndpoint(App.activePaneIndex);
+    const headers = getPaneAuthHeaders(App.activePaneIndex, { 'Content-Type': 'application/json' });
+    const resp = await fetch(`${endpoint}/api/fs/archive/extract`, {
+      method: 'POST',
+      headers: headers,
+      body: JSON.stringify({
+        archive_path: item.path,
+        target_dir: targetDir
+      })
+    });
+
+    if (resp.ok) {
+      showToast(`Extracted ${item.name} successfully!`, 'success');
+      refreshAllPanes();
+    } else {
+      showToast(`Extraction failed: ${await resp.text()}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Extraction error: ${err}`, 'error');
+  }
+}
+
 // ---------------- MULTI-FILE & BATCH DOWNLOAD ----------------
 async function triggerDownload() {
   const pane = App.panes[App.activePaneIndex];
@@ -23116,7 +23403,7 @@ async function triggerDownload() {
     const singlePath = paths[0];
     const entry = pane.entries.find(e => e.path === singlePath);
     if (entry && !entry.is_dir) {
-      window.open(`/api/fs/download?path=${encodeURIComponent(singlePath)}`, '_blank');
+      window.open(getDownloadUrl(singlePath, false, App.activePaneIndex), '_blank');
       showToast('Download started', 'success');
       return;
     }
@@ -23129,13 +23416,14 @@ async function triggerDownload() {
 async function downloadBatchArchive(paths) {
   showToast('Creating batch zip archive for download...', 'info');
   try {
+    const authPaths = paths.map(p => resolveAuthUri(p));
     const resp = await fetch('/api/fs/download/batch', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${App.token}`
       },
-      body: JSON.stringify({ paths })
+      body: JSON.stringify({ paths: authPaths })
     });
 
     if (!resp.ok) {
@@ -24824,14 +25112,15 @@ async function saveGlobalRemoteMount() {
   const port = parseInt(document.getElementById('remote-port')?.value || '22', 10);
   const user = document.getElementById('remote-user')?.value.trim() || '';
   const pass = document.getElementById('remote-pass')?.value || '';
-  const path = document.getElementById('remote-path')?.value || '/';
+  const rawPath = document.getElementById('remote-path')?.value?.trim() || '';
+  const path = (rawPath === '~' || !rawPath) ? '' : rawPath;
   const mountName = document.getElementById('remote-global-mount-name')?.value.trim() || `${proto.toUpperCase()} - ${host}`;
 
   let target_uri = '';
   if (proto === 'sftp') {
     if (!host) { showToast('Please specify host', 'warning'); return; }
     const userAuth = user ? (pass ? `${encodeURIComponent(user)}:${encodeURIComponent(pass)}@` : `${encodeURIComponent(user)}@`) : '';
-    const cleanPath = path && path !== '~' ? (path.startsWith('/') ? path : '/' + path) : '';
+    const cleanPath = path ? (path.startsWith('/') ? path : '/' + path) : '';
     target_uri = `sftp://${userAuth}${host}:${port}${cleanPath}`;
   } else if (proto === 'smb') {
     const share = document.getElementById('remote-smb-share')?.value || '';
@@ -25189,14 +25478,18 @@ function connectRemoteToActivePane() {
   const user = document.getElementById('remote-user')?.value.trim() || '';
   const pass = document.getElementById('remote-pass')?.value || '';
   const bucket = document.getElementById('remote-bucket')?.value.trim() || '';
-  const path = document.getElementById('remote-path')?.value || '/';
+  const rawPath = document.getElementById('remote-path')?.value?.trim() || '';
+  const path = (rawPath === '~' || !rawPath) ? '' : rawPath;
 
   let remoteUrl = '';
   if (proto === 'sftp') {
     if (!host) { showToast('Please specify a server host / URL', 'warning'); return; }
     const userAuth = user ? (pass ? `${encodeURIComponent(user)}:${encodeURIComponent(pass)}@` : `${encodeURIComponent(user)}@`) : '';
-    const cleanPath = path && path !== '~' ? (path.startsWith('/') ? path : '/' + path) : '';
+    const cleanPath = path ? (path.startsWith('/') ? path : '/' + path) : '';
     remoteUrl = `sftp://${userAuth}${host}:${port}${cleanPath}`;
+    if (user && pass) {
+      extractAndStoreCredentials(remoteUrl);
+    }
   } else if (proto === 'smb') {
     const share = document.getElementById('remote-smb-share')?.value || '';
     const domain = document.getElementById('remote-smb-domain')?.value || '';
@@ -25207,6 +25500,9 @@ function connectRemoteToActivePane() {
     const portSuffix = port !== 445 ? `:${port}` : '';
     const sub = path.startsWith('/') ? path : '/' + path;
     remoteUrl = `smb://${userAuth}${host}${portSuffix}/${share}${sub === '/' ? '' : sub}`;
+    if (user && pass) {
+      extractAndStoreCredentials(remoteUrl);
+    }
   } else if (proto === 'nfs') {
     const exportPath = document.getElementById('remote-nfs-export')?.value || '/';
     if (!host) { showToast('Please specify NFS host', 'warning'); return; }
@@ -25218,7 +25514,11 @@ function connectRemoteToActivePane() {
     const hMode = document.getElementById('hetzner-mode')?.value || 'sftp';
     const userAuth = user ? (pass ? `${encodeURIComponent(user)}:${encodeURIComponent(pass)}@` : `${encodeURIComponent(user)}@`) : '';
     if (hMode === 'sftp') {
-      remoteUrl = `sftp://${userAuth}${host}:${port}${path.startsWith('/') ? path : '/' + path}`;
+      const cleanPath = path ? (path.startsWith('/') ? path : '/' + path) : '';
+      remoteUrl = `sftp://${userAuth}${host}:${port}${cleanPath}`;
+      if (user && pass) {
+        extractAndStoreCredentials(remoteUrl);
+      }
     } else {
       remoteUrl = `webdav://${host.replace(/^https?:\/\//, '')}${path.startsWith('/') ? path : '/' + path}`;
     }
@@ -26422,16 +26722,60 @@ function sanitizeCredentials(str) {
     .replace(/(:\/\/[^/@]+):([^@]+)@/g, '$1@');
 }
 
+function extractAndStoreCredentials(path) {
+  if (!path || typeof path !== 'string' || !path.includes('://')) return;
+  const match = path.match(/^([a-zA-Z0-9_-]+):\/\/([^:@/]+):([^@/]+)@([^/:]+)(?::(\d+))?(.*)$/);
+  if (match) {
+    const scheme = match[1];
+    const user = decodeURIComponent(match[2]);
+    const pass = decodeURIComponent(match[3]);
+    const host = match[4];
+    const defaultPort = (scheme === 'sftp' || scheme === 'ssh') ? 22 : (scheme === 'smb' ? 445 : 80);
+    const port = match[5] ? parseInt(match[5], 10) : defaultPort;
+    const hostPort = match[5] ? `${host}:${match[5]}` : host;
+
+    App.sessionCredentials = App.sessionCredentials || {};
+    try {
+      if (Object.keys(App.sessionCredentials).length === 0) {
+        const saved = sessionStorage.getItem('cd_session_credentials');
+        if (saved) App.sessionCredentials = JSON.parse(saved);
+      }
+    } catch (_) {}
+
+    const schemes = (scheme === 'sftp' || scheme === 'ssh') ? ['sftp', 'ssh'] : [scheme];
+    schemes.forEach(s => {
+      App.sessionCredentials[`${s}://${encodeURIComponent(user)}@${hostPort}`] = { user, pass, host, port };
+      App.sessionCredentials[`${s}://${user}@${hostPort}`] = { user, pass, host, port };
+      App.sessionCredentials[`${s}://${encodeURIComponent(user)}@${host}`] = { user, pass, host, port };
+      App.sessionCredentials[`${s}://${user}@${host}`] = { user, pass, host, port };
+      App.sessionCredentials[`${s}://${hostPort}`] = { user, pass, host, port };
+      App.sessionCredentials[`${s}://${host}`] = { user, pass, host, port };
+    });
+
+    try {
+      sessionStorage.setItem('cd_session_credentials', JSON.stringify(App.sessionCredentials));
+    } catch (_) {}
+  }
+}
+
 function resolveAuthUri(path) {
   if (!path || typeof path !== 'string') return path;
   if (!path.includes('://')) return path;
 
-  // If path already contains embedded credentials, return as-is
+  // If path already contains embedded credentials, extract to session cache and return as-is
   if (path.includes('@')) {
     const atParts = path.split('@')[0];
     if (atParts.includes(':') && atParts.split(':').length > 2) {
+      extractAndStoreCredentials(path);
       return path;
     }
+  }
+
+  if (!App.sessionCredentials || Object.keys(App.sessionCredentials).length === 0) {
+    try {
+      const saved = sessionStorage.getItem('cd_session_credentials');
+      if (saved) App.sessionCredentials = JSON.parse(saved);
+    } catch (_) {}
   }
 
   if (!App.sessionCredentials) return path;
@@ -26444,12 +26788,13 @@ function resolveAuthUri(path) {
     const cleanKey = sanitizeCredentials(key);
 
     if (cleanPath.startsWith(cleanKey) || (cred.host && path.includes(cred.host))) {
-      if (path.startsWith('sftp://')) {
-        const raw = path.slice(7);
+      if (path.startsWith('sftp://') || path.startsWith('ssh://')) {
+        const scheme = path.startsWith('ssh://') ? 'ssh' : 'sftp';
+        const raw = path.slice(scheme.length + 3);
         const parts = raw.split('/');
         const hostPort = parts[0].includes('@') ? parts[0].split('@')[1] : parts[0];
         const sub = parts.slice(1).join('/');
-        return `sftp://${encodeURIComponent(cred.user)}:${encodeURIComponent(cred.pass)}@${hostPort}/${sub}`;
+        return `${scheme}://${encodeURIComponent(cred.user)}:${encodeURIComponent(cred.pass)}@${hostPort}/${sub}`;
       } else if (path.startsWith('smb://')) {
         const raw = path.slice(6);
         const parts = raw.split('/');
@@ -26860,9 +27205,11 @@ async function getImageBlobUrl(path, paneIndex = null) {
   } else {
     const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentImageViewerPaneIndex;
     const url = getDownloadUrl(path, true, pIdx);
-    const resp = await fetch(url);
+    const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(pIdx) : {};
+    const resp = await fetch(url, { headers });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const blob = await resp.blob();
+    if (!blob || blob.size === 0) throw new Error('Image file is empty (0 bytes)');
     blobUrl = URL.createObjectURL(blob);
   }
 
@@ -27214,10 +27561,39 @@ async function loadImageToViewer(path, paneIndex = null) {
 
   if (!imgEl) return;
 
+  // Helper to handle error fallback
+  const handleImageError = () => {
+    if (loadId !== currentLoadingImageId) return;
+    imgEl.classList.remove('loading');
+    if (imageViewerBlobCache.has(path)) {
+      const entry = imageViewerBlobCache.get(path);
+      if (entry && entry.blobUrl) {
+        try { URL.revokeObjectURL(entry.blobUrl); } catch (e) {}
+      }
+      imageViewerBlobCache.delete(path);
+    }
+    if (metaEl) metaEl.textContent = '(Preview unavailable)';
+  };
+
+  // Helper to handle success
+  const handleImageSuccess = () => {
+    if (loadId !== currentLoadingImageId) return;
+    imgEl.classList.remove('loading');
+    const entry = imageViewerBlobCache.get(path);
+    if (entry) {
+      entry.width = imgEl.naturalWidth;
+      entry.height = imgEl.naturalHeight;
+    }
+    if (metaEl) metaEl.textContent = `(${imgEl.naturalWidth} × ${imgEl.naturalHeight} px)`;
+    preloadAdjacentImages();
+  };
+
   // 1. Instant RAM Cache Hit (0ms)
   if (imageViewerBlobCache.has(path)) {
     const cached = imageViewerBlobCache.get(path);
     imgEl.classList.remove('loading');
+    imgEl.onload = () => handleImageSuccess();
+    imgEl.onerror = () => handleImageError();
     imgEl.src = cached.blobUrl;
     if (metaEl && cached.width && cached.height) {
       metaEl.textContent = `(${cached.width} × ${cached.height} px)`;
@@ -27231,48 +27607,25 @@ async function loadImageToViewer(path, paneIndex = null) {
   // 2. Fetch in background network thread as Blob to bypass single-threaded WebKitGTK HTTP stalls
   imgEl.classList.add('loading');
   try {
-    const blobUrl = await getImageBlobUrl(path);
+    const blobUrl = await getImageBlobUrl(path, pIdx);
     if (loadId !== currentLoadingImageId) return;
 
+    imgEl.onload = () => handleImageSuccess();
+    imgEl.onerror = () => handleImageError();
     imgEl.src = blobUrl;
-    imgEl.onload = () => {
-      if (loadId !== currentLoadingImageId) return;
-      imgEl.classList.remove('loading');
-      const entry = imageViewerBlobCache.get(path);
-      if (entry) {
-        entry.width = imgEl.naturalWidth;
-        entry.height = imgEl.naturalHeight;
-      }
-      if (metaEl) metaEl.textContent = `(${imgEl.naturalWidth} × ${imgEl.naturalHeight} px)`;
-      preloadAdjacentImages();
-    };
-    imgEl.onerror = () => {
-      if (loadId !== currentLoadingImageId) return;
-      imgEl.classList.remove('loading');
-      if (metaEl) metaEl.textContent = '(Preview unavailable)';
-    };
   } catch (err) {
     if (loadId !== currentLoadingImageId) return;
     // Fallback direct URL if blob creation failed
-    imgEl.src = getDownloadUrl(path, true);
-    imgEl.onload = () => {
-      if (loadId !== currentLoadingImageId) return;
-      imgEl.classList.remove('loading');
-      if (metaEl) metaEl.textContent = `(${imgEl.naturalWidth} × ${imgEl.naturalHeight} px)`;
-      preloadAdjacentImages();
-    };
-    imgEl.onerror = () => {
-      if (loadId !== currentLoadingImageId) return;
-      imgEl.classList.remove('loading');
-      if (metaEl) metaEl.textContent = '(Preview unavailable)';
-    };
+    imgEl.onload = () => handleImageSuccess();
+    imgEl.onerror = () => handleImageError();
+    imgEl.src = getDownloadUrl(path, true, pIdx);
   }
 }
 
 function navImageViewer(dir) {
   if (currentImageList.length <= 1) return;
   currentImageIndex = (currentImageIndex + dir + currentImageList.length) % currentImageList.length;
-  loadImageToViewer(currentImageList[currentImageIndex]);
+  loadImageToViewer(currentImageList[currentImageIndex], currentImageViewerPaneIndex);
 }
 
 function zoomImage(delta) {
@@ -28133,7 +28486,7 @@ async function openDocumentViewer(filePath, paneIndex = null) {
 
   initDocViewerDrag();
 
-  const fileName = filePath.split('/').pop() || filePath;
+  const fileName = getBasename(filePath) || filePath;
   const ext = fileName.split('.').pop().toLowerCase();
 
   const titleEl = document.getElementById('doc-viewer-title');
@@ -28831,7 +29184,7 @@ function openMediaPlayer(filePath = null, mediaType = null, paneIndex = null) {
     if (mediaplayerState.playlist.length === 0) {
       mediaplayerState.playlist = [{
         path: filePath,
-        name: filePath.split('/').pop() || filePath,
+        name: getBasename(filePath) || filePath,
         isVideo: isVideoExtension(filePath),
         paneIndex: currentMediaPlayerPaneIndex
       }];
@@ -28863,7 +29216,7 @@ function openMediaPlayer(filePath = null, mediaType = null, paneIndex = null) {
 function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
   if (!filePath) return;
   const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentMediaPlayerPaneIndex;
-  const fileName = filePath.split('/').pop() || filePath;
+  const fileName = getBasename(filePath) || filePath;
   const ext = fileName.split('.').pop().toLowerCase();
   const isVideo = forcedType === 'video' || isVideoExtension(fileName);
 
@@ -29988,7 +30341,7 @@ async function openBookReader(filePath) {
   bookPageIndex = 0;
   bookZoom = 1;
 
-  const fileName = filePath.split('/').pop() || filePath;
+  const fileName = getBasename(filePath) || filePath;
   const titleEl = document.getElementById('book-reader-title');
   if (titleEl) titleEl.textContent = fileName;
 
@@ -33447,7 +33800,7 @@ function buildSpotlightItems() {
     });
 
     // If query looks like an absolute path or URI, offer to jump directly
-    if (spotlightQuery.startsWith('/') || spotlightQuery.startsWith('~') || spotlightQuery.startsWith('smb://') || spotlightQuery.startsWith('sftp://')) {
+    if (spotlightQuery.startsWith('/') || spotlightQuery.startsWith('~') || spotlightQuery.startsWith('smb://') || spotlightQuery.startsWith('sftp://') || spotlightQuery.startsWith('ssh://')) {
       const targetP = spotlightQuery.startsWith('~') ? spotlightQuery.replace('~', userHome) : spotlightQuery;
       const cleanTargetP = sanitizeCredentials(targetP);
       pool.unshift({
@@ -33680,7 +34033,7 @@ function extractDominantColors(imgEl) {
 }
 
 async function openMediaInspector(filePath) {
-  const fileName = filePath.split('/').pop() || filePath;
+  const fileName = getBasename(filePath) || filePath;
   const ext = fileName.split('.').pop().toLowerCase();
 
   const titleEl = document.getElementById('inspector-file-title');
@@ -35141,7 +35494,7 @@ let currentGitStatusData = null;
 let currentGitDiffFile = null;
 
 async function fetchGitStatusForPane(paneIndex, path) {
-  if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('client://')) return;
+  if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('ssh://') || path.startsWith('client://')) return;
   try {
     const resp = await fetch(`/api/git/status?path=${encodeURIComponent(path)}`, {
       headers: { 'Authorization': `Bearer ${App.token}` }
@@ -43783,7 +44136,7 @@ async function openHexEditor(filePath = null) {
   const targetPath = filePath || (App.panes[App.activePaneIndex]?.entries[App.panes[App.activePaneIndex]?.cursorIndex]?.path);
   if (targetPath) {
     hexEditorState.filePath = targetPath;
-    hexEditorState.fileName = targetPath.split('/').filter(Boolean).pop() || targetPath;
+    hexEditorState.fileName = getBasename(targetPath) || targetPath;
     const badge = document.getElementById('hexeditor-file-badge');
     if (badge) badge.textContent = sanitizeCredentials(hexEditorState.fileName);
 
@@ -45315,7 +45668,7 @@ function openLogViewer(filePath = null, paneIndex = null) {
 
   const fileBadge = document.getElementById('logviewer-file-badge');
   if (fileBadge) {
-    const fileName = logViewerState.filePath.split('/').filter(Boolean).pop() || logViewerState.filePath;
+    const fileName = getBasename(logViewerState.filePath) || logViewerState.filePath;
     fileBadge.textContent = sanitizeCredentials(fileName);
     fileBadge.title = logViewerState.filePath;
   }
@@ -45695,7 +46048,7 @@ function openCadStudio(filePath = null, paneIndex = null) {
   const fileBadge = document.getElementById('cad-file-badge');
   if (fileBadge) {
     if (targetModel) {
-      const fileName = targetModel.split('/').filter(Boolean).pop() || targetModel;
+      const fileName = getBasename(targetModel) || targetModel;
       fileBadge.textContent = sanitizeCredentials(fileName);
       fileBadge.title = targetModel;
     } else {

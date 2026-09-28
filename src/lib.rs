@@ -40,6 +40,7 @@ pub fn create_app_state(config: &AppConfig) -> Result<AppState, Box<dyn std::err
 
     let backup_mgr_arc = Arc::new(backup_mgr);
     let task_mgr_arc = Arc::new(task_mgr);
+    crate::tools::tasks::set_global_task_manager(task_mgr_arc.clone());
     backup_mgr_arc.clone().start_scheduler(task_mgr_arc.clone());
 
     let auth_mgr_arc = Arc::new(auth_mgr);

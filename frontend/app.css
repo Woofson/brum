@@ -1508,7 +1508,7 @@ body.unsticky-col-headers .file-table th {
   border-right: 1px solid var(--border-col-header-divider);
 }
 
-.file-table th:hover {
+.file-table th .col-header-text.sortable:hover {
   color: var(--accent);
 }
 
@@ -1601,14 +1601,18 @@ body.unsticky-col-headers .file-table th {
   width: 28px !important;
   min-width: 28px !important;
   max-width: 28px !important;
-  padding: 0 4px !important;
+  padding: 0 !important;
   text-align: center;
   vertical-align: middle !important;
+  text-overflow: clip !important;
+  overflow: hidden !important;
 }
 
 .row-icon-wrapper {
-  width: 24px;
-  height: 24px;
+  width: 20px;
+  height: 20px;
+  max-width: 100%;
+  max-height: 100%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -1616,6 +1620,7 @@ body.unsticky-col-headers .file-table th {
   border-radius: 50%;
   margin: 0 auto;
   line-height: 1;
+  box-sizing: border-box;
 }
 
 .row-icon-wrapper svg,
@@ -1711,9 +1716,11 @@ body.unsticky-col-headers .file-table th {
   width: 28px !important;
   min-width: 28px !important;
   max-width: 28px !important;
-  padding: 0 4px !important;
+  padding: 0 !important;
   text-align: center;
   vertical-align: middle !important;
+  text-overflow: clip !important;
+  overflow: hidden !important;
 }
 
 /* Inverted style table columns edit button in the leftmost table header */
@@ -2334,6 +2341,7 @@ button svg {
 .perm-chip {
   background: var(--bg-header);
   border: 1px solid var(--border);
+  color: var(--text-main);
   padding: 4px 8px;
   border-radius: 4px;
   font-size: 11px;
@@ -2342,8 +2350,16 @@ button svg {
 }
 
 .perm-chip:hover {
+  background: var(--bg-hover);
   border-color: var(--accent);
   color: var(--accent);
+}
+
+.perm-chip.active {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .perm-octal-badge {
@@ -6323,8 +6339,10 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
       width: 26px !important;
       min-width: 26px !important;
       max-width: 26px !important;
-      padding: 0 2px !important;
+      padding: 0 !important;
       text-align: center !important;
+      text-overflow: clip !important;
+      overflow: hidden !important;
     }
 
     .file-table th.col-name,
@@ -6466,8 +6484,10 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
       width: 26px !important;
       min-width: 26px !important;
       max-width: 26px !important;
-      padding: 0 3px !important;
+      padding: 0 !important;
       text-align: center;
+      text-overflow: clip !important;
+      overflow: hidden !important;
     }
 
     /* Name column flexes to fill available tablet pane space */
@@ -6678,8 +6698,10 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
     width: 26px !important;
     min-width: 26px !important;
     max-width: 26px !important;
-    padding: 0 3px !important;
+    padding: 0 !important;
     text-align: center;
+    text-overflow: clip !important;
+    overflow: hidden !important;
   }
 
   /* Name column gets majority ~58-60% visibility */
@@ -11659,14 +11681,36 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   position: relative;
   user-select: none;
   overflow: visible !important;
+  cursor: default;
 }
 
-.file-table th > span {
-  display: block;
+.file-table th > span,
+.col-header-text {
+  display: inline-flex;
+  align-items: center;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  pointer-events: none;
+  pointer-events: auto;
+  user-select: none;
+}
+
+.col-header-text.sortable {
+  cursor: pointer;
+  padding: 1px 4px;
+  margin: -1px -4px;
+  border-radius: var(--radius-sm, 3px);
+  transition: color 0.12s ease, background-color 0.12s ease;
+}
+
+.col-header-text.sortable:hover {
+  color: var(--accent);
+  background: rgba(245, 158, 11, 0.10);
+}
+
+.file-table th.is-sorted .col-header-text {
+  color: var(--accent);
+  font-weight: 700;
 }
 
 .col-resizer {

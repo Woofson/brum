@@ -576,6 +576,30 @@ pub fn normalize_path(path: &Path) -> PathBuf {
     components.into_iter().collect()
 }
 
+pub fn sanitize_uploaded_file_name(raw: &str) -> String {
+    let clean = raw.trim();
+    // Strip Windows drive letter prefix (e.g. "C:", "D:")
+    let without_drive = if clean.len() >= 2 && clean.as_bytes()[1] == b':' && clean.as_bytes()[0].is_ascii_alphabetic() {
+        &clean[2..]
+    } else {
+        clean
+    };
+    // Split on both '/' and '\\' and take the last component
+    let filename = without_drive
+        .split(|c| c == '/' || c == '\\')
+        .filter(|s| !s.is_empty() && *s != "." && *s != "..")
+        .last()
+        .unwrap_or("upload.bin");
+
+    // Filter out control characters
+    let sanitized: String = filename.chars().filter(|c| !c.is_control()).collect();
+    if sanitized.is_empty() {
+        "upload.bin".to_string()
+    } else {
+        sanitized
+    }
+}
+
 pub fn path_starts_with_case_insensitive(path: &Path, prefix: &Path) -> bool {
     let path = crate::vfs::local::clean_path_buf(path);
     let prefix = crate::vfs::local::clean_path_buf(prefix);
@@ -2415,8 +2439,8 @@ async fn handle_public_upload_share(
     let mut saved_count = 0;
 
     while let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
-        let file_name = field.file_name().unwrap_or("uploaded_file").to_string();
-        let safe_name = Path::new(&file_name).file_name().unwrap_or_default().to_string_lossy().to_string();
+        let raw_name = field.file_name().unwrap_or("uploaded_file");
+        let safe_name = sanitize_uploaded_file_name(raw_name);
         if safe_name.is_empty() {
             continue;
         }
@@ -3550,12 +3574,16 @@ async fn handle_list_dir(
     } else if target_path.starts_with("archive://") {
         let rest = target_path.strip_prefix("archive://").unwrap();
         let parts: Vec<&str> = rest.split('#').collect();
-        let archive_file = parts[0];
-        let subpath = if parts.len() > 1 { parts[1] } else { "" };
-        ArchiveHandler::list_archive_contents(archive_file, subpath)
-            .map(Json)
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to list archive: {}", e)))
-    } else if target_path.starts_with("sftp://") {
+        let archive_file = parts[0].to_string();
+        let subpath = if parts.len() > 1 { parts[1].to_string() } else { String::new() };
+        tokio::task::spawn_blocking(move || {
+            ArchiveHandler::list_archive_contents(&archive_file, &subpath)
+        })
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Archive listing task join error: {}", e)))?
+        .map(Json)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to list archive: {}", e)))
+    } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&target_path, query.user.as_deref(), query.pass.as_deref())
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
         SftpClient::list_dir(&params)
@@ -3663,18 +3691,22 @@ async fn handle_read_file(
     } else if target_path.starts_with("archive://") {
         let rest = target_path.strip_prefix("archive://").unwrap();
         let parts: Vec<&str> = rest.split('#').collect();
-        let archive_file = parts[0];
-        let subpath = if parts.len() > 1 { parts[1] } else { "" };
-        ArchiveHandler::read_archive_entry(archive_file, subpath, max_b)
-            .map(Json)
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read archive item: {}", e)))
+        let archive_file = parts[0].to_string();
+        let subpath = if parts.len() > 1 { parts[1].to_string() } else { String::new() };
+        tokio::task::spawn_blocking(move || {
+            ArchiveHandler::read_archive_entry(&archive_file, &subpath, max_b)
+        })
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Archive read task join error: {}", e)))?
+        .map(Json)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read archive item: {}", e)))
     } else if target_path.starts_with("smb://") {
         let params = crate::vfs::smb::SmbClient::parse_uri(&target_path, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SMB URI: {}", e)))?;
         crate::vfs::smb::SmbClient::read_file(&params)
             .map(Json)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read SMB file: {}", e)))
-    } else if target_path.starts_with("sftp://") {
+    } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&target_path, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
         let bytes = SftpClient::download_file(&params.host, params.port, &params.user, params.password.as_deref(), &params.remote_path, max_b)
@@ -3765,7 +3797,7 @@ async fn handle_write_file(
         crate::vfs::smb::SmbClient::write_file(&params, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save SMB file: {}", e)))
-    } else if target_path.starts_with("sftp://") {
+    } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&target_path, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
         SftpClient::write_file(&params, &raw_bytes)
@@ -3806,7 +3838,7 @@ async fn handle_mkdir(
         crate::vfs::smb::SmbClient::mkdir(&params)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create SMB folder: {}", e)))
-    } else if target_path.starts_with("sftp://") {
+    } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = crate::vfs::sftp::SftpClient::parse_uri(&target_path, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
         crate::vfs::sftp::SftpClient::mkdir(&params)
@@ -3859,10 +3891,10 @@ async fn handle_rename(
         crate::vfs::smb::SmbClient::rename(&params_from, &target_subpath)
             .map(|_| Json(serde_json::json!({ "success": true })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to rename SMB item: {}", e)))
-    } else if from_path.starts_with("sftp://") {
+    } else if from_path.starts_with("sftp://") || from_path.starts_with("ssh://") {
         let params_from = crate::vfs::sftp::SftpClient::parse_uri(&from_path, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
-        let target_remote = if to_path.starts_with("sftp://") {
+        let target_remote = if to_path.starts_with("sftp://") || to_path.starts_with("ssh://") {
             let params_to = crate::vfs::sftp::SftpClient::parse_uri(&to_path, None, None)
                 .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
             params_to.remote_path
@@ -3991,7 +4023,7 @@ async fn handle_delete(
                 }
                 Err(e) => errors.push(format!("{}: {}", path, e)),
             }
-        } else if valid_path.starts_with("sftp://") {
+        } else if valid_path.starts_with("sftp://") || valid_path.starts_with("ssh://") {
             match crate::vfs::sftp::SftpClient::parse_uri(&valid_path, None, None) {
                 Ok(params) => {
                     match crate::vfs::sftp::SftpClient::delete(&params, false) {
@@ -4431,7 +4463,7 @@ async fn handle_upload(
     let conflict_mode = query.get("conflict").or_else(|| query.get("conflict_resolution")).map(|s| s.as_str()).unwrap_or("overwrite");
 
     while let Ok(Some(field)) = multipart.next_field().await {
-        let file_name = field.file_name().unwrap_or("upload.bin").to_string();
+        let file_name = sanitize_uploaded_file_name(field.file_name().unwrap_or("upload.bin"));
 
         if let Ok(data) = field.bytes().await {
             use sha2::{Digest, Sha256};
@@ -4478,7 +4510,7 @@ async fn handle_upload(
                     }
                     return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
                 }
-            } else if dest_dir.starts_with("sftp://") {
+            } else if dest_dir.starts_with("sftp://") || dest_dir.starts_with("ssh://") {
                 let params = match SftpClient::parse_uri(&dest_dir, None, None) {
                     Ok(mut p) => {
                         p.remote_path = if p.remote_path.is_empty() || p.remote_path == "/" {
@@ -4854,7 +4886,7 @@ async fn handle_download(
         };
 
         return build_bytes_range_response(file_bytes, mime, disposition, None, range_header);
-    } else if path_str.starts_with("sftp://") {
+    } else if path_str.starts_with("sftp://") || path_str.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&path_str, None, None)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
         let file_bytes = SftpClient::download_file(&params.host, params.port, &params.user, params.password.as_deref(), &params.remote_path, 0)
@@ -5559,7 +5591,7 @@ async fn save_uploaded_note_attachment(
     let _ = std::fs::create_dir_all(&attachments_dir);
 
     while let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
-        let original_name = field.file_name().unwrap_or("attachment").to_string();
+        let original_name = sanitize_uploaded_file_name(field.file_name().unwrap_or("attachment"));
         let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
         let data = field.bytes().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
 
@@ -6537,8 +6569,10 @@ async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Respon
 
     let cache_control = if is_font_or_media {
         "public, max-age=31536000, immutable"
+    } else if file_path == "index.html" {
+        "no-cache, no-store, must-revalidate"
     } else {
-        "no-cache"
+        "no-cache, must-revalidate"
     };
 
     // 1. In development / when ./frontend directory exists on disk, prefer live disk reading for instant browser refresh
@@ -7485,6 +7519,21 @@ description = "Test chewtoy package"
         ).await.unwrap();
 
         assert_eq!(asset_res.status(), StatusCode::OK);
+    }
+
+    #[test]
+    fn test_sanitize_uploaded_file_name() {
+        assert_eq!(sanitize_uploaded_file_name(r"C:\Users\bolt\Documents\report.docx"), "report.docx");
+        assert_eq!(sanitize_uploaded_file_name("C:/Users/bolt/Documents/report.docx"), "report.docx");
+        assert_eq!(sanitize_uploaded_file_name("/home/bolt/file.txt"), "file.txt");
+        assert_eq!(sanitize_uploaded_file_name("relative/path/sub/test.rs"), "test.rs");
+        assert_eq!(sanitize_uploaded_file_name("simple.png"), "simple.png");
+        assert_eq!(sanitize_uploaded_file_name(r"..\..\etc\passwd"), "passwd");
+        assert_eq!(sanitize_uploaded_file_name("../../etc/passwd"), "passwd");
+        assert_eq!(sanitize_uploaded_file_name(r"C:\"), "upload.bin");
+        assert_eq!(sanitize_uploaded_file_name(""), "upload.bin");
+        assert_eq!(sanitize_uploaded_file_name("   "), "upload.bin");
+        assert_eq!(sanitize_uploaded_file_name(r"D:\Data\Archive.tar.gz"), "Archive.tar.gz");
     }
 }
 
