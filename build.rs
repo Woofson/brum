@@ -36,14 +36,16 @@ fn main() {
         .unwrap_or(1);
 
     // Read or increment local build counter
-    let counter_file = ".build_counter";
-    let previous_count = std::fs::read_to_string(counter_file)
+    let out_dir = std::env::var("OUT_DIR").unwrap_or_else(|_| ".".to_string());
+    let counter_file = std::path::Path::new(&out_dir).join(".build_counter");
+    let previous_count = std::fs::read_to_string(&counter_file)
+        .or_else(|_| std::fs::read_to_string(".build_counter"))
         .ok()
         .and_then(|s| s.trim().parse::<u64>().ok())
         .unwrap_or(0);
 
     let build_number = std::cmp::max(commit_count, previous_count + 1);
-    let _ = std::fs::write(counter_file, build_number.to_string());
+    let _ = std::fs::write(&counter_file, build_number.to_string());
 
     // 3. Formatted UTC timestamp
     let timestamp = chrono::Utc::now().format("%Y-%m-%d %H:%M:%S UTC").to_string();

@@ -21,7 +21,8 @@ exclude = [
     "dist/**",
     "*.tar.gz",
     "*.deb",
-    "*.apk"
+    "*.apk",
+    ".build_counter"
 ]
 
 [lib]
