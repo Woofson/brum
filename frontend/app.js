@@ -10589,6 +10589,18 @@ function matchKeyboardShortcut(e, shortcutStr) {
 
 function setupKeyboardNavigation() {
   document.addEventListener('keydown', (e) => {
+    // If session is locked or on auth login screen, bypass all global file manager shortcuts
+    if (App.isLocked || document.documentElement.classList.contains('auth-pending-lock') || document.documentElement.classList.contains('auth-pending-login')) {
+      if (e.key === 'Enter') {
+        if (App.isLocked || document.documentElement.classList.contains('auth-pending-lock')) {
+          submitUnlockSession();
+        } else {
+          handleLoginSubmit();
+        }
+      }
+      return;
+    }
+
     // Global Spotlight Trigger (Ctrl+K, Cmd+K, Ctrl+P)
     if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K' || e.key === 'p' || e.key === 'P')) {
       e.preventDefault();
@@ -20769,6 +20781,51 @@ async function addCurrentPaneToQuickDest() {
 
 let lastUserActivityTime = Date.now();
 
+function toggleLockUsernameField() {
+  const group = document.getElementById('lock-custom-username-group');
+  const userIn = document.getElementById('unlock-username-input');
+  if (group) {
+    const isHidden = group.style.display === 'none';
+    group.style.display = isHidden ? 'block' : 'none';
+    if (isHidden && userIn) {
+      setTimeout(() => {
+        userIn.focus();
+        userIn.select();
+      }, 50);
+    }
+  }
+}
+
+function switchUserFromLock() {
+  localStorage.removeItem('cd_is_locked');
+  localStorage.removeItem('cd_token');
+  try {
+    document.cookie = 'cd_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0;';
+  } catch (_) {}
+  App.isLocked = false;
+  App.token = '';
+  App.user = null;
+
+  const lockScreen = document.getElementById('session-lock-screen');
+  if (lockScreen) {
+    lockScreen.classList.remove('active');
+    lockScreen.style.display = 'none';
+  }
+
+  document.documentElement.classList.remove('auth-ready', 'auth-pending-lock', 'auth-verifying');
+  document.documentElement.classList.add('auth-pending-login');
+
+  const loginModal = document.getElementById('login-modal');
+  if (loginModal) {
+    loginModal.classList.add('active');
+    loginModal.style.display = 'flex';
+  }
+  showModal('login-modal');
+  setTimeout(() => {
+    document.getElementById('login-username')?.focus();
+  }, 100);
+}
+
 function lockSession() {
   App.isLocked = true;
   localStorage.setItem('cd_is_locked', 'true');
@@ -20779,6 +20836,8 @@ function lockSession() {
   const userLabel = document.getElementById('lock-username-label');
   const avatarEl = document.getElementById('lock-avatar-thumb');
   const passIn = document.getElementById('unlock-password-input');
+  const userIn = document.getElementById('unlock-username-input');
+  const userGroup = document.getElementById('lock-custom-username-group');
   const errMsg = document.getElementById('unlock-error-msg');
 
   let cachedUser = App.user;
@@ -20788,6 +20847,10 @@ function lockSession() {
     } catch (_) {}
   }
 
+  const localNick = localStorage.getItem('cd_local_nickname') || '';
+  const localAvatar = localStorage.getItem('cd_local_avatar') || '';
+  const lastUser = localStorage.getItem('cd_last_username') || '';
+  const rawUsername = cachedUser?.username || lastUser || 'admin';
   const uname = cachedUser?.nickname || localNick || cachedUser?.username || lastUser || 'Brum User';
   const avatar = cachedUser?.avatar_url || localAvatar || '👤';
 
@@ -20796,6 +20859,15 @@ function lockSession() {
   const cfg = getHostnameBadgeSettings();
   const hostStr = cfg.hostname || 'localhost';
 
+  if (userLabel) {
+    userLabel.dataset.rawUsername = rawUsername;
+  }
+  if (userIn) {
+    userIn.value = rawUsername;
+  }
+  if (userGroup) {
+    userGroup.style.display = 'none';
+  }
   if (userTextEl) {
     userTextEl.textContent = uname;
   } else if (userLabel) {
@@ -20813,6 +20885,7 @@ function lockSession() {
   if (errMsg) errMsg.style.display = 'none';
 
   if (lockScreen) {
+    lockScreen.style.display = 'flex';
     lockScreen.classList.add('active');
     if (window.lucide) lucide.createIcons({ root: lockScreen });
   }
@@ -20821,11 +20894,12 @@ function lockSession() {
 
 async function submitUnlockSession() {
   const passIn = document.getElementById('unlock-password-input');
+  const userIn = document.getElementById('unlock-username-input');
   const errMsg = document.getElementById('unlock-error-msg');
   const submitBtn = document.getElementById('btn-submit-unlock');
   const pass = passIn?.value || '';
 
-  if (!pass) return;
+  const isStandalone = isStandaloneMode() || App.isStandalone || localStorage.getItem('cd_standalone_mode') === 'true' || App.systemStatus?.auth_enabled === false;
 
   let cachedUser = App.user;
   if (!cachedUser) {
@@ -20833,9 +20907,18 @@ async function submitUnlockSession() {
       cachedUser = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
     } catch (_) {}
   }
-  const domUsername = document.getElementById('lock-username-text')?.textContent?.trim();
-  const lastUsername = localStorage.getItem('cd_last_username') || '';
-  const uname = cachedUser?.username || domUsername || lastUsername || 'admin';
+
+  const userLabel = document.getElementById('lock-username-label');
+  const rawUname = userIn?.value?.trim() || cachedUser?.username || userLabel?.dataset?.rawUsername || localStorage.getItem('cd_last_username') || 'admin';
+
+  if (!pass && !isStandalone) {
+    if (errMsg) {
+      errMsg.textContent = 'Please enter your password to unlock.';
+      errMsg.style.display = 'block';
+    }
+    passIn?.focus();
+    return;
+  }
 
   if (errMsg) errMsg.style.display = 'none';
 
@@ -20848,69 +20931,80 @@ async function submitUnlockSession() {
 
   try {
     let unlocked = false;
-    const authHeaders = { 'Content-Type': 'application/json' };
-    if (App.token) {
-      authHeaders['Authorization'] = `Bearer ${App.token}`;
-    }
 
-    // 1. Direct unified unlock endpoint (fast path: accepts active or expired token, or username)
-    const resp = await fetch('/api/auth/unlock', {
-      method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({ password: pass, username: uname })
-    });
-
-    if (resp.ok) {
-      const data = await resp.json();
-      if (data.token) {
-        App.token = data.token;
-        localStorage.setItem('cd_token', data.token);
-        try {
-          document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
-        } catch (_) {}
-      }
-      if (data.user) {
-        App.user = data.user;
-        const localAvatar = localStorage.getItem('cd_local_avatar');
-        const localNick = localStorage.getItem('cd_local_nickname');
-        if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
-        if (localNick && !App.user.nickname) App.user.nickname = localNick;
-        try {
-          localStorage.setItem('cd_user_info', JSON.stringify({
-            username: data.user.username,
-            nickname: data.user.nickname || localNick,
-            avatar_url: data.user.avatar_url || localAvatar
-          }));
-          localStorage.setItem('cd_last_username', data.user.username);
-        } catch (_) {}
-      }
+    if (isStandalone) {
       unlocked = true;
-    } else if (resp.status === 404 || resp.status === 400) {
-      // 2. Fallback to /api/auth/login if /api/auth/unlock endpoint is not available
-      const loginResp = await fetch('/api/auth/login', {
+      if (!App.user) {
+        const localMe = await fetch('/api/auth/me').catch(() => null);
+        if (localMe && localMe.ok) {
+          App.user = await localMe.json();
+        }
+      }
+    } else {
+      const authHeaders = { 'Content-Type': 'application/json' };
+      if (App.token) {
+        authHeaders['Authorization'] = `Bearer ${App.token}`;
+      }
+
+      // 1. Direct unified unlock endpoint (fast path: accepts active or expired token, or username)
+      const resp = await fetch('/api/auth/unlock', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: uname, password: pass })
+        headers: authHeaders,
+        body: JSON.stringify({ password: pass, username: rawUname })
       });
-      if (loginResp.ok) {
-        const data = await loginResp.json();
-        App.token = data.token;
-        App.user = data.user;
-        const localAvatar = localStorage.getItem('cd_local_avatar');
-        const localNick = localStorage.getItem('cd_local_nickname');
-        if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
-        if (localNick && !App.user.nickname) App.user.nickname = localNick;
-        localStorage.setItem('cd_token', data.token);
-        try {
-          document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
-          localStorage.setItem('cd_user_info', JSON.stringify({
-            username: data.user?.username,
-            nickname: data.user?.nickname || localNick,
-            avatar_url: data.user?.avatar_url || localAvatar
-          }));
-          localStorage.setItem('cd_last_username', data.user?.username);
-        } catch (_) {}
+
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data.token) {
+          App.token = data.token;
+          localStorage.setItem('cd_token', data.token);
+          try {
+            document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
+          } catch (_) {}
+        }
+        if (data.user) {
+          App.user = data.user;
+          const localAvatar = localStorage.getItem('cd_local_avatar');
+          const localNick = localStorage.getItem('cd_local_nickname');
+          if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
+          if (localNick && !App.user.nickname) App.user.nickname = localNick;
+          try {
+            localStorage.setItem('cd_user_info', JSON.stringify({
+              username: data.user.username,
+              nickname: data.user.nickname || localNick,
+              avatar_url: data.user.avatar_url || localAvatar
+            }));
+            localStorage.setItem('cd_last_username', data.user.username);
+          } catch (_) {}
+        }
         unlocked = true;
+      } else if (resp.status === 404 || resp.status === 400 || resp.status === 401) {
+        // 2. Fallback to /api/auth/login if /api/auth/unlock endpoint is not available
+        const loginResp = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: rawUname, password: pass })
+        });
+        if (loginResp.ok) {
+          const data = await loginResp.json();
+          App.token = data.token;
+          App.user = data.user;
+          const localAvatar = localStorage.getItem('cd_local_avatar');
+          const localNick = localStorage.getItem('cd_local_nickname');
+          if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
+          if (localNick && !App.user.nickname) App.user.nickname = localNick;
+          localStorage.setItem('cd_token', data.token);
+          try {
+            document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
+            localStorage.setItem('cd_user_info', JSON.stringify({
+              username: data.user?.username,
+              nickname: data.user?.nickname || localNick,
+              avatar_url: data.user?.avatar_url || localAvatar
+            }));
+            localStorage.setItem('cd_last_username', data.user?.username);
+          } catch (_) {}
+          unlocked = true;
+        }
       }
     }
 
@@ -20923,11 +21017,12 @@ async function submitUnlockSession() {
       const lockScreen = document.getElementById('session-lock-screen');
       if (lockScreen) {
         lockScreen.classList.remove('active');
+        lockScreen.style.display = 'none';
       }
       if (passIn) passIn.value = '';
       if (errMsg) errMsg.style.display = 'none';
 
-      updateHeaderProfile(App.user);
+      if (App.user) updateHeaderProfile(App.user);
       applyUserHomeToPanes();
       renderAllPanes();
 
@@ -33748,6 +33843,9 @@ async function confirmExitBrum() {
 function logout() {
   localStorage.removeItem('cd_token');
   localStorage.removeItem('cd_is_locked');
+  try {
+    document.cookie = 'cd_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0;';
+  } catch (_) {}
   App.token = '';
   App.user = null;
   App.isLocked = false;

@@ -7880,21 +7880,30 @@
 
     <!-- Lock Screen Card -->
     <div class="lock-screen-card">
-      <div class="lock-screen-header">
+      <div class="lock-screen-header" onclick="toggleLockUsernameField()" style="cursor: pointer;" title="Click to edit username / switch account">
         <div class="lock-avatar-thumb" id="lock-avatar-thumb">👤</div>
         <div class="lock-header-text">
           <div class="lock-user-label" id="lock-username-label"><span id="lock-username-text">Brum User</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@localhost</span></div>
-          <div class="lock-sub-text">Session is locked!</div>
+          <div class="lock-sub-text">Session is locked · <span style="text-decoration: underline; opacity: 0.85;">click to edit user</span></div>
         </div>
       </div>
       <form id="unlock-form" onsubmit="event.preventDefault(); submitUnlockSession();">
         <div class="lock-card-body">
+          <div class="login-form-group" id="lock-custom-username-group" style="display: none;">
+            <label for="unlock-username-input" class="login-label">
+              <i data-lucide="user" class="login-label-icon"></i> Username
+            </label>
+            <div class="login-input-wrapper">
+              <input type="text" id="unlock-username-input" class="login-input" autocomplete="username" spellcheck="false" placeholder="Username">
+            </div>
+          </div>
           <div class="login-form-group">
             <label for="unlock-password-input" class="login-label">
               <i data-lucide="lock" class="login-label-icon"></i> Password
             </label>
-            <div class="login-input-wrapper">
-              <input type="password" id="unlock-password-input" class="login-input lock-password-input" autocomplete="current-password" required>
+            <div class="login-input-wrapper" style="position: relative;">
+              <input type="password" id="unlock-password-input" class="login-input lock-password-input" autocomplete="current-password" required placeholder="Enter password to unlock">
+              <button type="button" class="btn btn-icon" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 6px; font-size: 11px; background: transparent; border: none; opacity: 0.7;" onclick="togglePassVisibility('unlock-password-input')" tabindex="-1" title="Toggle password visibility"><i data-lucide="eye" style="width: 13px; height: 13px;"></i></button>
             </div>
           </div>
           <div id="unlock-error-msg" class="login-error-msg lock-error-msg" style="display: none;"></div>
@@ -7904,9 +7913,9 @@
             <i data-lucide="unlock" style="width: 14px; height: 14px;"></i>
             <span>Unlock Session</span>
           </button>
-          <button type="button" class="btn btn-switch-user" onclick="logout()" title="Switch user or log out">
+          <button type="button" class="btn btn-switch-user" id="btn-switch-user" onclick="switchUserFromLock()" title="Switch user or return to login">
             <i data-lucide="log-out" style="width: 12px; height: 12px;"></i>
-            <span>Log Out</span>
+            <span>Switch User</span>
           </button>
         </div>
       </form>

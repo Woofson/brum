@@ -1506,6 +1506,49 @@ async fn handle_unlock_session(
     headers: HeaderMap,
     Json(payload): Json<UnlockRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    // 0. Standalone / Auth Disabled mode
+    if !state.config.server.enable_auth || state.config.server.standalone {
+        let current_user = std::env::var("USER")
+            .or_else(|_| std::env::var("USERNAME"))
+            .unwrap_or_else(|_| "user".to_string());
+        let home_dir = dirs::home_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "/".to_string());
+
+        let user = if let Ok(Some(mut u)) = state.auth.get_user_by_username(&current_user) {
+            u.resolve_avatar();
+            u
+        } else {
+            let avatar_url = crate::auth::resolve_system_avatar(&current_user, &home_dir);
+            User {
+                id: 1,
+                username: current_user.clone(),
+                nickname: Some(current_user),
+                full_name: None,
+                bio: None,
+                email: None,
+                avatar_url,
+                role: "admin".to_string(),
+                home_dir,
+                is_pam: false,
+                is_disabled: false,
+                allowed_services: "[\"*\"]".to_string(),
+                allowed_roots: "[\"*\"]".to_string(),
+                can_install_plugins: true,
+                allowed_plugins: "[\"*\"]".to_string(),
+                blocked_plugins: "[]".to_string(),
+            }
+        };
+
+        let new_token = state.auth.generate_token(&user).unwrap_or_default();
+        return Ok(Json(serde_json::json!({
+            "success": true,
+            "message": "Session unlocked (standalone)",
+            "token": new_token,
+            "user": user
+        })));
+    }
+
     let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
     let mut username = payload.username.clone();
 
@@ -1527,10 +1570,36 @@ async fn handle_unlock_session(
                     "user": user
                 })))
             }
-            Err(e) => Err((StatusCode::UNAUTHORIZED, e.to_string())),
+            Err(e) => {
+                // Fallback to default admin user if username provided was display nickname or different
+                if uname != state.config.auth.default_admin_user {
+                    if let Ok(admin_user) = state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
+                        let new_token = state.auth.generate_token(&admin_user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+                        return Ok(Json(serde_json::json!({
+                            "success": true,
+                            "message": "Session unlocked",
+                            "token": new_token,
+                            "user": admin_user
+                        })));
+                    }
+                }
+                Err((StatusCode::UNAUTHORIZED, e.to_string()))
+            }
         }
     } else {
-        Err((StatusCode::UNAUTHORIZED, "Missing username or authorization token".to_string()))
+        // Fallback to default admin user
+        match state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
+            Ok(user) => {
+                let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+                Ok(Json(serde_json::json!({
+                    "success": true,
+                    "message": "Session unlocked",
+                    "token": new_token,
+                    "user": user
+                })))
+            }
+            Err(e) => Err((StatusCode::UNAUTHORIZED, e.to_string())),
+        }
     }
 }
 
