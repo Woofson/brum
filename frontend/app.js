@@ -42275,15 +42275,6 @@ async function pingFleetNode(nodeId) {
     }
   }
 }
-    return { status: 'offline', latency_ms: null, error: err.message, node };
-  } finally {
-    renderFleetSwitcherDropdown();
-    const managerModal = document.getElementById('fleet-manager-modal');
-    if (managerModal && managerModal.classList.contains('active')) {
-      renderFleetManagerList();
-    }
-  }
-}
 
 // Ping all registered fleet nodes concurrently
 async function pingAllFleetNodes() {
