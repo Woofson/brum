@@ -28,7 +28,7 @@ Welcome to the **Brum** manual and documentation index.
 | [**`android-termux.md`**](android-termux.md) | Android & Termux guide: Native binary, PRoot/UserLAnd, PWA, Termux:Boot autostart & Wi-Fi Fleet node |
 | [**`docker.md`**](docker.md) | Multi-arch Docker & GHCR container deployment with Compose, Portainer, and volume persistence |
 | [**`lxc-proxmox.md`**](lxc-proxmox.md) | 1-click Proxmox VE & Debian LXC container setup, TurnKey Linux, and systemd service management |
-| [**`reverse-proxy.md`**](reverse-proxy.md) | Reverse proxy & tunneling runbooks: Tailscale, NetBird, Caddy 2, Nginx, Traefik, and Cloudflare Tunnels |
+| [**`reverse-proxy.md`**](reverse-proxy.md) | Reverse proxy & tunneling runbooks: Fleet Gateway Hub (Reverse Proxy for LAN nodes), Tailscale, NetBird, Caddy 2, Nginx, Traefik, Cloudflare |
 
 ### Design & Quality Assurance
 | Manual | Description |

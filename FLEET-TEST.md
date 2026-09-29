@@ -108,7 +108,32 @@ PORT=3141 STORAGE_BASE_DIR=/tmp/fleet-test-node cargo run
 
 ---
 
-## Step 8: Test Disconnect & Quick Switching
+---
+
+## Step 9: Test Gateway Hub Reverse Proxy & Terminal WebSocket Tunneling
+
+When connecting to your primary Brum console from an HTTPS domain, remote LAN/WAN nodes can be transparently reverse-proxied through the primary host without mixed-content blocks:
+
+1. **Gateway Proxy Routing**:
+   - Open **Fleet Manager** and edit the remote node profile.
+   - Set **Proxy Mode** to **`Gateway Proxy (Route via Gateway Hub)`** (or leave as `Auto`).
+   - Click **Save Node Profile**.
+   - Notice the blue `[Gateway]` pill badge appears on the node card.
+2. **Gateway Health Probe**:
+   - Click **Test Connection** in the node editor.
+   - Verify it tests via `/api/fleet/ping/probe` through the Gateway Hub with round-trip latency and remote host status reported.
+3. **Remote Terminal WebSocket Tunneling**:
+   - Bind Panel 2 to the remote node.
+   - Press <kbd>\`</kbd> (Backtick) or click **Terminal** on Panel 2's header.
+   - Verify that Bite! Terminal connects to the remote host's shell via the gateway WebSocket tunnel (`/api/fleet/proxy/<node_id>/api/terminal/ws`).
+   - Run commands (`uname -a`, `hostname`, `ls`) and verify they execute on the remote node.
+4. **End-to-End SHA-256 Verification**:
+   - Transfer a file from Panel 1 to Panel 2 (<kbd>F5</kbd>).
+   - Check the Task card and ensure `SHA-256 Match: <hash>` confirms cryptographic integrity between source and target nodes.
+
+---
+
+## Step 10: Test Disconnect & Quick Switching
 
 1. On Panel 2 (Remote), click the small **`✕`** icon on the `[Secondary Test Node]` breadcrumb badge (or click the node button $\rightarrow$ select `Localhost`).
 2. Verify Panel 2 smoothly switches back to Localhost and restores your previous local directory.
@@ -120,11 +145,14 @@ PORT=3141 STORAGE_BASE_DIR=/tmp/fleet-test-node cargo run
 | Test Item | Status | Notes |
 | :--- | :---: | :--- |
 | Node registration in Fleet Manager | [ ] | Ping test green |
+| Gateway Hub Proxy mode & blue badge | [ ] | `/api/fleet/proxy/<node-id>` active |
 | Pane 2 switched to remote node | [ ] | Breadcrumb chip & glow visible |
 | Remote directory listing & navigation | [ ] | Subfolders load properly |
 | Remote folder creation (<kbd>F7</kbd>) | [ ] | Created on target node |
-| Cross-pane file copy (<kbd>F5</kbd>) | [ ] | Local $\rightarrow$ Remote streamed |
+| Cross-pane file copy (<kbd>F5</kbd>) with SHA-256 | [ ] | Local $\rightarrow$ Remote streamed with hash match |
 | Cross-pane file move (<kbd>F6</kbd>) | [ ] | Remote $\rightarrow$ Local streamed |
 | Remote file viewing (<kbd>F3</kbd>) & editing (<kbd>F4</kbd>) | [ ] | Direct save confirmed |
+| Remote terminal WebSocket tunneling | [ ] | PTY connected via Gateway proxy WS |
 | Audio streaming from remote node | [ ] | Audio plays with seek bar |
 | Pane 1-click disconnect | [ ] | Returns to Localhost |
+

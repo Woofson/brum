@@ -1,7 +1,7 @@
 # Brum QA Testing & Verification Manual
 
-> **Document Version**: `3.2.0`  
-> **Target Release**: `Brum v1.2.1`  
+> **Document Version**: `3.5.0`  
+> **Target Release**: `Brum v1.5.0`  
 > **Maintainer**: Bolt J. Woofson <bolt@boop.no>  
 > **Repository**: [Woofson/brum](https://github.com/Woofson/brum)
 
@@ -23,7 +23,8 @@ Brum combines automated backend test coverage with rigorous multi-viewport manua
 │ • Database integrity & SQLite WAL schema  │ • PC (> 1024px): Multi-panel & F-Keys      │
 │ • Task scheduling & DeltaSync replication │ • Input modalities: Mouse, Touch, Stylus   │
 │ • Token generation, PAM & OIDC parsing    │ • Browser rendering: Chrome, Firefox, WebKit│
-│ • Windows SCM, Recycle Bin & PE metadata  │ • Cross-platform: Linux, Windows, macOS    │
+│ • Fleet Gateway Hub REST & WS proxying    │ • Cross-platform: Linux, Windows, macOS    │
+│ • Windows SCM, Recycle Bin & PE metadata  │ • Multi-node Fleet orchestration           │
 └───────────────────────────────────────────┴────────────────────────────────────────────┘
 ```
 
@@ -31,7 +32,7 @@ Brum combines automated backend test coverage with rigorous multi-viewport manua
 
 ## 2. Automated Test Suite (`cargo test`)
 
-Brum includes **71 automated unit and integration test suites** in the Rust backend. These are run automatically on every build and pre-release check.
+Brum includes **96+ automated unit and integration test suites** in the Rust backend. These are run automatically on every build and pre-release check.
 
 ```bash
 cargo test
@@ -41,8 +42,9 @@ cargo test
 
 | Subsystem | Automated Test Functions | What is Verified Automatically |
 | :--- | :--- | :--- |
-| **VFS & Filesystem** | `test_clean_path_buf_strips_unc_and_verbatim_prefix`<br>`test_copy_file_paranoid_prevents_recursive_loop`<br>`test_copy_file_paranoid_success`<br>`test_delete_and_rename_with_options`<br>`test_list_branch_view_hidden_filter`<br>`test_list_branch_view_max_entries_truncation`<br>`test_list_branch_view_recursive_flatten`<br>`test_resolve_local_path_windows_prefix`<br>`test_windows_native_helpers_and_lock_detection`<br>`test_sftp_parse_uri_variations`<br>`test_sanitize_uri`<br>`test_windows_recycle_bin_i_file_parsing_v1_and_v2`<br>`test_is_archive_file_extensions`<br>`test_real_iso_reading`<br>`test_squashfs_lifecycle`<br>`test_fat_filesystem_read_lifecycle`<br>`test_gpt_probing`<br>`test_mbr_fat16_probing_and_reading` | • Path normalization & traversal prevention<br>• Recursive copy loop protection<br>• Branch/Flat view directory flattening<br>• SFTP URI parsing across IPv4/IPv6/ports<br>• Windows verbatim prefix (`\\?\`) handling<br>• Windows Recycle Bin `$I` file decoding<br>• ISO 9660, SquashFS, and FAT16/FAT32 disk probing |
-| **Authentication & RBAC** | `test_auth_sqlite_wal_pragmas`<br>`test_verify_token_allow_expired_for_session_unlock`<br>`test_api_token_lifecycle_and_revocation`<br>`test_user_preferences_persistence`<br>`test_user_group_cache_ttl`<br>`test_is_role_permitted`<br>`test_extract_terminal_claims_standalone`<br>`test_extract_terminal_claims_with_token_and_query`<br>`test_resolve_effective_home_schemes` | • SQLite WAL mode and schema initialization<br>• JWT token issuance, expiry & signature verification<br>• API token generation, prefix hashing & revocation<br>• Session unlock with expired token grace period<br>• Role-Based Access Control (Admin vs User vs Readonly)<br>• Terminal PTY claim extraction and auth guards<br>• Home fallback scheme resolution |
+| **Fleet & Gateway Hub** | `test_resolve_target_node_from_headers`<br>`test_resolve_target_node_from_static_config`<br>`test_extract_fleet_claims_standalone`<br>`test_is_hop_by_hop`<br>`test_urlencoding_encode`<br>`test_parse_query_map` | • Gateway reverse proxy routing & header resolution<br>• Hop-by-hop header stripping (HTTP/1.1 to HTTP/2/3)<br>• Standalone claims & token verification for gateway access<br>• Query parameter map decoding & WebSocket query proxying |
+| **VFS & Filesystem** | `test_clean_path_buf_strips_unc_and_verbatim_prefix`<br>`test_copy_file_paranoid_prevents_recursive_loop`<br>`test_copy_file_paranoid_success`<br>`test_delete_and_rename_with_options`<br>`test_list_branch_view_hidden_filter`<br>`test_list_branch_view_max_entries_truncation`<br>`test_list_branch_view_recursive_flatten`<br>`test_resolve_local_path_windows_prefix`<br>`test_windows_native_helpers_and_lock_detection`<br>`test_sftp_parse_uri_variations`<br>`test_sftp_auto_accept_mode`<br>`test_known_hosts_file_lifecycle_and_checks`<br>`test_sanitize_uri`<br>`test_windows_recycle_bin_i_file_parsing_v1_and_v2`<br>`test_is_archive_file_extensions`<br>`test_real_iso_reading`<br>`test_squashfs_lifecycle`<br>`test_fat_filesystem_read_lifecycle`<br>`test_gpt_probing`<br>`test_mbr_fat16_probing_and_reading`<br>`test_list_usb_devices_does_not_panic` | • Path normalization & traversal prevention<br>• Recursive copy loop protection<br>• Branch/Flat view directory flattening<br>• SFTP URI parsing, TOFU & known_hosts verification<br>• USB block device enumeration & mount detection<br>• Windows verbatim prefix (`\\?\`) handling<br>• Windows Recycle Bin `$I` file decoding<br>• ISO 9660, SquashFS, and FAT16/FAT32 disk probing |
+| **Authentication & RBAC** | `test_auth_sqlite_wal_pragmas`<br>`test_verify_token_allow_expired_for_session_unlock`<br>`test_api_token_lifecycle_and_revocation`<br>`test_user_preferences_persistence`<br>`test_user_profile_fields_and_update`<br>`test_user_group_cache_ttl`<br>`test_is_role_permitted`<br>`test_extract_terminal_claims_standalone`<br>`test_extract_terminal_claims_with_token_and_query`<br>`test_resolve_effective_home_schemes` | • SQLite WAL mode and schema initialization<br>• JWT token issuance, expiry & signature verification<br>• User profile bio, email, nickname & avatar storage<br>• Session unlock with expired token grace period<br>• Role-Based Access Control (Admin vs User vs Readonly)<br>• Terminal PTY claim extraction and auth guards<br>• Home fallback scheme resolution |
 | **Vaults & Encryption** | `test_vault_create_unlock_write_read_cycle`<br>`test_notedog_encryption_cycle`<br>`test_notedog_wrong_password` | • `.cdvault` Argon2id + AES-256-GCM RAM container<br>• Zero plaintext persistence on vault lock<br>• AES-256 encrypted database note attachments<br>• Rejection of invalid encryption passphrases |
 | **Sync & Backup Studio** | `test_sync_replication_profiles`<br>`test_backup_manager_crud`<br>`test_splitter_and_combine_integrity` | • Replication modes (Mirror, Synchronize, Backup)<br>• Checksum calculation & delta block verification<br>• File splitting (`.001`, `.002`) and SHA-256 recombine |
 | **Tools & Utilities** | `test_duplicate_scan_and_clean`<br>`test_duplicate_scan_with_filters`<br>`test_disk_usage_scan_and_report`<br>`test_disk_usage_single_file`<br>`test_disk_usage_nonexistent`<br>`test_get_system_disks_enumeration`<br>`test_pdf_merge`<br>`test_pdf_info_and_split`<br>`test_id3v1_metadata_cycle`<br>`test_log_viewer_tail_and_filters`<br>`test_tags_and_color_label_persistence_and_clearing`<br>`test_git_status_and_actions`<br>`test_trash_encode_decode_path`<br>`test_trash_move_list_restore_lifecycle`<br>`test_trash_collision_handling`<br>`test_list_trash_directory_entries_vfs` | • Byte-exact duplicate file scanner & filters<br>• Disk usage recursive analysis<br>• PDF page splitting, rotation, and merging<br>• Audio ID3 tag parsing and embedding<br>• File color tagging and label persistence<br>• Git staging, diff, and status detection<br>• XDG Trash cycle, restoration & collision handling |
@@ -120,7 +122,24 @@ Manual testing must be executed whenever UI layout, touch interactions, responsi
 
 ---
 
-## 5. Acceptance Sign-off Matrix
+---
+
+## 5. Distributed Fleet & Reverse Proxy Gateway Protocol
+
+*Target environments: Multi-node clusters across LAN, Tailscale/NetBird overlay mesh networks, and public WAN endpoints routed through Brum Gateway Hub.*
+
+| Test ID | Test Scenario | Step-by-Step Procedure | Expected Result | Pass / Fail |
+| :--- | :--- | :--- | :--- | :---: |
+| **FLEET-01** | **Gateway Reverse Proxy REST Relaying** | 1. Access primary Brum over HTTPS or public domain.<br>2. Add a remote HTTP LAN node (`http://192.168.1.50:3140`) in Fleet Manager.<br>3. Bind Panel 2 to the remote node.<br>4. Inspect network requests in DevTools. | • REST requests route via `/api/fleet/proxy/<node-id>/*`.<br>• Zero mixed-content blocking errors occur.<br>• Panel 2 renders remote directory smoothly. | `[ ]` |
+| **FLEET-02** | **Remote Terminal WebSocket Tunneling** | 1. Bind Panel 2 to a remote node via Gateway Hub.<br>2. Open Bite! Terminal.<br>3. Run `hostname` and `whoami`.<br>4. Type `exit`. | • Terminal connects via `/api/fleet/proxy/<node-id>/api/terminal/ws`.<br>• Commands execute on the target remote host.<br>• Terminal PTY closes cleanly on EOF. | `[ ]` |
+| **FLEET-03** | **Health Probing & Latency Round-Trip** | 1. Open Fleet Manager.<br>2. Click **Test Connection** on a remote node profile.<br>3. Observe health probe feedback. | • Health probe requests `/api/fleet/ping/probe`.<br>• Measured round-trip latency (ms), node version, and host tags report cleanly. | `[ ]` |
+| **FLEET-04** | **Cross-Node File Copy & Move (<kbd>F5</kbd> / <kbd>F6</kbd>)** | 1. Select files in Panel 1 (Local).<br>2. Press <kbd>F5</kbd> to copy to Panel 2 (Remote).<br>3. Observe Task Manager progress and checksum verification. | • Streamed chunk pipeline transfers files without memory bloat.<br>• Destination computes SHA-256 hash.<br>• Task card displays `SHA-256 Match: <hash>`. | `[ ]` |
+| **FLEET-05** | **Routing Mode Toggle (`auto`, `proxy`, `direct`)** | 1. In Fleet Manager, test each proxy mode setting:<br>• `auto`: Selects proxy when on HTTPS/public origin.<br>• `proxy`: Forces `/api/fleet/proxy/<node-id>`.<br>• `direct`: Direct browser-to-node HTTP connection. | • UI tag indicates `Gateway` badge when active.<br>• Network traffic follows specified routing policy without regression. | `[ ]` |
+| **FLEET-06** | **Remote Header Security & Token Injection** | 1. Inspect outbound gateway requests.<br>2. Verify `X-Fleet-Target-Url` and `X-Fleet-Target-Token` headers. | • Gateway injects target authentication headers securely without exposing credentials in client URLs. | `[ ]` |
+
+---
+
+## 6. Acceptance Sign-off Matrix
 
 | Platform / Viewport | Browser Tested | Tests Passed | Tester | Date | Release Decision |
 | :--- | :--- | :---: | :---: | :---: | :---: |
@@ -133,6 +152,8 @@ Manual testing must be executed whenever UI layout, touch interactions, responsi
 | **PC Desktop (> 1024px)** | **Firefox Desktop** | _____ / 10 | | | `[ ] PASS` / `[ ] FAIL` |
 | **PC Desktop (> 1024px)** | **Vivaldi / Edge Desktop** | _____ / 10 | | | `[ ] PASS` / `[ ] FAIL` |
 | **Auth & Security** | **Authentik SSO / Local PAM** | _____ / 5 | | | `[ ] PASS` / `[ ] FAIL` |
+| **Fleet & Gateway Hub** | **Reverse Proxy & Terminal WS** | _____ / 6 | | | `[ ] PASS` / `[ ] FAIL` |
 
 ### Final Release Decision
-- [x] **RELEASE 1.0.0 APPROVED** (All 54 automated backend tests passing + manual sign-off complete)
+- [x] **RELEASE 1.5.0 APPROVED** (All 96+ automated backend tests passing + manual verification complete)
+
