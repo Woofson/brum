@@ -180,6 +180,7 @@ pub fn authenticate_windows_user(
         can_install_plugins: is_admin,
         allowed_plugins: "[\"*\"]".to_string(),
         blocked_plugins: "[]".to_string(),
+        auth_source: Some("windows".to_string()),
     };
     user.resolve_avatar();
 

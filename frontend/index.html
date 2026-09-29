@@ -2685,7 +2685,7 @@
               <div><span style="color: var(--text-muted);">Operating System:</span> <strong class="about-sys-os" style="color: var(--text-main);">Linux</strong></div>
               <div><span style="color: var(--text-muted);">Execution Mode:</span> <span class="about-sys-mode">Desktop &amp; Web</span></div>
               <div><span style="color: var(--text-muted);">Terminal Engine:</span> <span>Native PTY (portable-pty) + Nerd Font</span></div>
-              <div><span style="color: var(--text-muted);">Auth &amp; Permissions:</span> <span>Linux PAM + SQLite RBAC</span></div>
+              <div><span style="color: var(--text-muted);">Auth Engine:</span> <span class="about-sys-auth">Linux PAM + SQLite RBAC</span></div>
               <div><span style="color: var(--text-muted);">Frontend Stack:</span> <span>Vanilla JS + Prism + Lucide</span></div>
               <div><span style="color: var(--text-muted);">Repository:</span> <a href="https://github.com/Woofson/brum" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/Woofson/brum</a></div>
               <div><span style="color: var(--text-muted);">Support / Ko-fi:</span> <a href="https://ko-fi.com/J7P327BXTR" target="_blank" style="color: #ff5e5b; font-weight: 600; text-decoration: none;">ko-fi.com/J7P327BXTR</a></div>
@@ -2860,7 +2860,7 @@
                   <i data-lucide="users"></i> User Accounts & Granular Service Permissions
                 </h4>
                 <p class="settings-card-desc" style="margin-top: 2px;">
-                  Manage internal and PAM accounts, assign Admin privileges, and grant or restrict service access per user.
+                  Manage internal, Windows, and PAM system accounts, assign Admin privileges, and grant or restrict service access per user.
                 </p>
               </div>
               <button type="button" class="btn btn-accent btn-sm" onclick="showAddUserPrompt()" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
@@ -3205,7 +3205,7 @@
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
               <div>
                 <div style="font-weight: 700; font-size: 15px;" id="profile-edit-username">User</div>
-                <div style="font-size: 11px; color: var(--text-dim);" id="profile-edit-auth-type">PAM / Local Linux Account</div>
+                <div style="font-size: 11px; color: var(--text-dim);" id="profile-edit-auth-type">System Account</div>
               </div>
               <span class="user-role-badge" id="profile-edit-role-badge">ADMIN</span>
             </div>
@@ -7160,7 +7160,7 @@
             <div><span style="color: var(--text-muted);">Compiled:</span> <span class="about-sys-compiled" style="font-family: var(--font-mono); font-size: 10.5px;">--</span></div>
             <div><span style="color: var(--text-muted);">Backend:</span> <span style="font-family: var(--font-mono);">Rust 2021 (Axum 0.7)</span></div>
             <div><span style="color: var(--text-muted);">Operating System:</span> <strong class="about-sys-os" style="color: var(--text-main);">Linux</strong></div>
-            <div><span style="color: var(--text-muted);">Auth Engine:</span> <span>Linux PAM + SQLite RBAC</span></div>
+            <div><span style="color: var(--text-muted);">Auth Engine:</span> <span class="about-sys-auth">Linux PAM + SQLite RBAC</span></div>
             <div><span style="color: var(--text-muted);">Terminal:</span> <span>Native PTY (portable-pty)</span></div>
             <div><span style="color: var(--text-muted);">Frontend:</span> <span>Vanilla JS + Prism + Mermaid</span></div>
             <div><span style="color: var(--text-muted);">Repository:</span> <a href="https://github.com/Woofson/brum" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/Woofson/brum</a></div>

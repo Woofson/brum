@@ -8869,7 +8869,7 @@ async function loadUsersTable() {
                 <div>
                   <div class="admin-user-name-row">
                     <span class="admin-user-name">${safeUname}</span>
-                    ${u.is_pam ? '<span class="badge" style="font-size:10px; background:rgba(56,189,248,0.15); color:var(--info); border:1px solid rgba(56,189,248,0.3);">PAM / Linux</span>' : '<span class="badge" style="font-size:10px; background:rgba(245,158,11,0.15); color:var(--accent); border:1px solid rgba(245,158,11,0.3);">Database</span>'}
+                    ${formatUserAuthBadge(u)}
                   </div>
                   <div class="admin-user-sub">${escapeHtml(u.email || (u.nickname ? `@${u.nickname}` : 'System user account'))}</div>
                 </div>
@@ -17397,13 +17397,42 @@ function updateAboutModalContent() {
   }
 }
 
+function formatUserAuthType(user) {
+  if (App.isStandalone || !App.token) return 'Local Standalone Mode';
+  const isWin = user?.auth_source === 'windows' || (user?.is_pam && (App.systemStatus?.os === 'windows' || navigator.userAgent?.toLowerCase().includes('win')));
+  if (user?.auth_source === 'windows' || (user?.is_pam && isWin)) return 'Windows / Local SAM Account';
+  if (user?.auth_source === 'oidc') return 'OIDC / SSO Enterprise Account';
+  if (user?.is_pam || user?.auth_source === 'pam') return 'PAM / Local Linux Account';
+  return 'Internal Database Account';
+}
+
+function formatUserAuthBadge(u) {
+  if (!u) return '<span class="badge" style="font-size:10px; background:rgba(245,158,11,0.15); color:var(--accent); border:1px solid rgba(245,158,11,0.3);">Database</span>';
+  const isWin = u.auth_source === 'windows' || (u.is_pam && (App.systemStatus?.os === 'windows' || navigator.userAgent?.toLowerCase().includes('win')));
+  if (u.auth_source === 'windows' || (u.is_pam && isWin)) {
+    return '<span class="badge" style="font-size:10px; background:rgba(56,189,248,0.15); color:var(--info); border:1px solid rgba(56,189,248,0.3);">Windows / SAM</span>';
+  }
+  if (u.auth_source === 'oidc') {
+    return '<span class="badge" style="font-size:10px; background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.3);">OIDC / SSO</span>';
+  }
+  if (u.is_pam || u.auth_source === 'pam') {
+    return '<span class="badge" style="font-size:10px; background:rgba(56,189,248,0.15); color:var(--info); border:1px solid rgba(56,189,248,0.3);">PAM / Linux</span>';
+  }
+  return '<span class="badge" style="font-size:10px; background:rgba(245,158,11,0.15); color:var(--accent); border:1px solid rgba(245,158,11,0.3);">Database</span>';
+}
+
 function updateAboutSystemDetails(status) {
   if (!status) return;
+  const osName = status.os === 'windows' ? 'Windows' : (status.os === 'macos' ? 'macOS' : (status.os || 'Linux'));
+  const authEngineName = status.auth_engine || (status.os === 'windows' ? 'Windows SAM / AD + SQLite RBAC' : 'Linux PAM + SQLite RBAC');
   document.querySelectorAll('#about-sys-os, .about-sys-os').forEach(el => {
-    el.textContent = `${status.os || 'Linux'} (${status.hostname || 'localhost'})`;
+    el.textContent = `${osName} (${status.hostname || 'localhost'})`;
   });
   document.querySelectorAll('#about-sys-mode, .about-sys-mode').forEach(el => {
-    el.textContent = status.standalone ? 'Desktop Standalone (Native / Hyprland)' : (status.auth_enabled ? 'Multi-User Server (PAM + SQLite)' : 'Standalone Web Mode');
+    el.textContent = status.standalone ? 'Desktop Standalone (Native)' : (status.auth_enabled ? `Multi-User Server (${authEngineName})` : 'Standalone Web Mode');
+  });
+  document.querySelectorAll('.about-sys-auth, #about-sys-auth').forEach(el => {
+    el.textContent = authEngineName;
   });
   document.querySelectorAll('.about-sys-build').forEach(el => {
     el.textContent = status.build_number ? `#${status.build_number} (${status.build_commit ? `git: ${status.build_commit}` : 'release'})` : '#1';
@@ -17431,7 +17460,7 @@ function openUserProfileModal() {
   if (editAvatar) renderAvatarElement(editAvatar, user.avatar_url || localAvatar || '👤');
   if (editUname) editUname.textContent = user.nickname || user.full_name || localNick || user.username || 'User';
   if (editBadge) editBadge.textContent = (user.role || 'ADMIN').toUpperCase();
-  if (editAuthType) editAuthType.textContent = (App.isStandalone || !App.token) ? 'Local Standalone Mode' : (user.is_pam ? 'PAM / Local Linux Account' : 'Internal Database Account');
+  if (editAuthType) editAuthType.textContent = formatUserAuthType(user);
 
   const fullnameInput = document.getElementById('profile-input-fullname');
   const nickInput = document.getElementById('profile-input-nickname');
@@ -17569,7 +17598,7 @@ function openSettingsAccountTab() {
   if (avatarPreview) renderAvatarElement(avatarPreview, user.avatar_url || localAvatar || '👤');
   if (unameLabel) unameLabel.textContent = user.nickname || user.full_name || localNick || user.username || 'User';
   if (roleBadge) roleBadge.textContent = (user.role || 'ADMIN').toUpperCase();
-  if (authTypeLabel) authTypeLabel.textContent = (App.isStandalone || !App.token) ? 'Local Standalone Mode' : (user.is_pam ? 'PAM / Local Linux Account' : 'Internal Database Account');
+  if (authTypeLabel) authTypeLabel.textContent = formatUserAuthType(user);
 
   const fnInput = document.getElementById('settings-profile-fullname');
   const nickInput = document.getElementById('settings-profile-nickname');

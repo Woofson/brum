@@ -702,6 +702,7 @@ mod tests {
             can_install_plugins: true,
             allowed_plugins: "[\"*\"]".to_string(),
             blocked_plugins: "[]".to_string(),
+            auth_source: None,
         };
         let token = state.auth.generate_token(&user).unwrap();
 

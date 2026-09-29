@@ -31,6 +31,8 @@ pub struct User {
     pub can_install_plugins: bool,
     pub allowed_plugins: String,  // JSON array e.g. ["*"]
     pub blocked_plugins: String,  // JSON array e.g. []
+    #[serde(default)]
+    pub auth_source: Option<String>,
 }
 
 impl User {
@@ -476,6 +478,7 @@ impl AuthManager {
             can_install_plugins: false,
             allowed_plugins: "[\"*\"]".to_string(),
             blocked_plugins: "[]".to_string(),
+            auth_source: Some("database".to_string()),
         };
         user.resolve_avatar();
         Ok(user)
@@ -484,10 +487,22 @@ impl AuthManager {
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let mut stmt = conn.prepare(
-            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins FROM users WHERE username = ?1"
+            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash FROM users WHERE username = ?1"
         )?;
 
         let user = stmt.query_row(params![username], |row| {
+            let is_pam = row.get::<_, i64>(9)? != 0;
+            let pass_hash: String = row.get::<_, Option<String>>(16)?.unwrap_or_default();
+            let auth_source = if pass_hash == "WINDOWS_MANAGED" || (is_pam && cfg!(windows)) {
+                Some("windows".to_string())
+            } else if pass_hash == "OIDC_MANAGED" {
+                Some("oidc".to_string())
+            } else if pass_hash == "PAM_MANAGED" || is_pam {
+                Some("pam".to_string())
+            } else {
+                Some("database".to_string())
+            };
+
             let mut u = User {
                 id: row.get(0)?,
                 username: row.get(1)?,
@@ -498,13 +513,14 @@ impl AuthManager {
                 avatar_url: row.get(6)?,
                 role: row.get(7)?,
                 home_dir: row.get(8)?,
-                is_pam: row.get::<_, i64>(9)? != 0,
+                is_pam,
                 is_disabled: row.get::<_, i64>(10)? != 0,
                 allowed_services: row.get::<_, Option<String>>(11)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 allowed_roots: row.get::<_, Option<String>>(12)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 can_install_plugins: row.get::<_, Option<i64>>(13)?.unwrap_or(0) != 0,
                 allowed_plugins: row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 blocked_plugins: row.get::<_, Option<String>>(15)?.unwrap_or_else(|| "[]".to_string()),
+                auth_source,
             };
             u.resolve_avatar();
             Ok(u)
@@ -516,9 +532,21 @@ impl AuthManager {
     pub fn list_users(&self) -> Result<Vec<User>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let mut stmt = conn.prepare(
-            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins FROM users ORDER BY username ASC"
+            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash FROM users ORDER BY username ASC"
         )?;
         let rows = stmt.query_map([], |row| {
+            let is_pam = row.get::<_, i64>(9)? != 0;
+            let pass_hash: String = row.get::<_, Option<String>>(16)?.unwrap_or_default();
+            let auth_source = if pass_hash == "WINDOWS_MANAGED" || (is_pam && cfg!(windows)) {
+                Some("windows".to_string())
+            } else if pass_hash == "OIDC_MANAGED" {
+                Some("oidc".to_string())
+            } else if pass_hash == "PAM_MANAGED" || is_pam {
+                Some("pam".to_string())
+            } else {
+                Some("database".to_string())
+            };
+
             let mut u = User {
                 id: row.get(0)?,
                 username: row.get(1)?,
@@ -529,13 +557,14 @@ impl AuthManager {
                 avatar_url: row.get(6)?,
                 role: row.get(7)?,
                 home_dir: row.get(8)?,
-                is_pam: row.get::<_, i64>(9)? != 0,
+                is_pam,
                 is_disabled: row.get::<_, i64>(10)? != 0,
                 allowed_services: row.get::<_, Option<String>>(11)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 allowed_roots: row.get::<_, Option<String>>(12)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 can_install_plugins: row.get::<_, Option<i64>>(13)?.unwrap_or(0) != 0,
                 allowed_plugins: row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 blocked_plugins: row.get::<_, Option<String>>(15)?.unwrap_or_else(|| "[]".to_string()),
+                auth_source,
             };
             u.resolve_avatar();
             Ok(u)
@@ -556,12 +585,13 @@ impl AuthManager {
     ) -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let now = Utc::now().to_rfc3339();
+        let default_hash = if cfg!(windows) { "WINDOWS_MANAGED" } else { "PAM_MANAGED" };
 
         conn.execute(
             "INSERT INTO users (username, password_hash, role, home_dir, nickname, allowed_services, allowed_roots, is_pam, is_disabled, created_at)
-             VALUES (?1, 'PAM_MANAGED', ?2, ?3, ?1, '[\"*\"]', '[\"*\"]', 1, 0, ?4)
+             VALUES (?1, ?2, ?3, ?4, ?1, '[\"*\"]', '[\"*\"]', 1, 0, ?5)
              ON CONFLICT(username) DO UPDATE SET is_pam = 1",
-            params![username, role, home_dir, now],
+            params![username, default_hash, role, home_dir, now],
         )?;
 
         drop(conn);
@@ -716,6 +746,7 @@ impl AuthManager {
                                 can_install_plugins,
                                 allowed_plugins,
                                 blocked_plugins,
+                                auth_source: Some("database".to_string()),
                             };
                             u.resolve_avatar();
                             return Ok(u);
@@ -816,6 +847,7 @@ impl AuthManager {
                             can_install_plugins: false,
                             allowed_plugins: "[\"*\"]".to_string(),
                             blocked_plugins: "[]".to_string(),
+                            auth_source: Some("pam".to_string()),
                         };
                         u.resolve_avatar();
                         return Ok(u);
@@ -834,6 +866,7 @@ impl AuthManager {
                         return Err("Account is disabled. Please contact an administrator.".into());
                     }
                     existing.is_pam = true;
+                    existing.auth_source = Some("windows".to_string());
                     existing.resolve_avatar();
                     return Ok(existing);
                 }
@@ -864,6 +897,7 @@ impl AuthManager {
                     can_install_plugins: win_user.can_install_plugins,
                     allowed_plugins: win_user.allowed_plugins,
                     blocked_plugins: win_user.blocked_plugins,
+                    auth_source: Some("windows".to_string()),
                 };
                 u.resolve_avatar();
                 return Ok(u);

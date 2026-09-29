@@ -394,6 +394,7 @@ async fn handle_login(
                 can_install_plugins: true,
                 allowed_plugins: "[\"*\"]".to_string(),
                 blocked_plugins: "[]".to_string(),
+                auth_source: None,
             }
         };
 
@@ -481,6 +482,7 @@ pub struct SystemStatusResponse {
     pub hostname: String,
     pub os: String,
     pub arch: String,
+    pub auth_engine: String,
     pub custom_hostname: Option<String>,
     pub show_hostname_badge: bool,
     pub hostname_color: Option<String>,
@@ -554,6 +556,13 @@ async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatu
         hostname,
         os: std::env::consts::OS.to_string(),
         arch: std::env::consts::ARCH.to_string(),
+        auth_engine: if cfg!(windows) {
+            "Windows SAM / AD + SQLite RBAC".to_string()
+        } else if cfg!(target_os = "macos") {
+            "macOS PAM + SQLite RBAC".to_string()
+        } else {
+            "Linux PAM + SQLite RBAC".to_string()
+        },
         custom_hostname,
         show_hostname_badge: state.config.ui.show_hostname_badge,
         hostname_color: if !state.config.ui.hostname_color.trim().is_empty() { Some(state.config.ui.hostname_color.clone()) } else { None },
@@ -1132,6 +1141,7 @@ async fn handle_get_me(
             can_install_plugins: true,
             allowed_plugins: "[\"*\"]".to_string(),
             blocked_plugins: "[]".to_string(),
+            auth_source: None,
         }));
     }
 
@@ -1167,6 +1177,7 @@ async fn handle_get_me(
                     can_install_plugins: is_admin,
                     allowed_plugins: "[\"*\"]".to_string(),
                     blocked_plugins: "[]".to_string(),
+                    auth_source: if claims.is_pam { Some(if cfg!(windows) { "windows".to_string() } else { "pam".to_string() }) } else { None },
                 }))
             }
             Err(_) => Err((StatusCode::UNAUTHORIZED, "Invalid token".to_string())),
@@ -1591,6 +1602,7 @@ async fn handle_unlock_session(
                 can_install_plugins: true,
                 allowed_plugins: "[\"*\"]".to_string(),
                 blocked_plugins: "[]".to_string(),
+                auth_source: None,
             }
         };
 
