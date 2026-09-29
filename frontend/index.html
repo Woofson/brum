@@ -1115,6 +1115,7 @@
         <div class="settings-sidebar">
           <div class="settings-sidebar-group-title">Appearance & UI</div>
           <button class="settings-nav-btn active" onclick="switchSettingsTab('tab-general')"><i data-lucide="sliders"></i> General</button>
+          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-account')"><i data-lucide="user"></i> Account & Profile</button>
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-palette')"><i data-lucide="palette"></i> Themes</button>
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-icons')"><i data-lucide="sparkles"></i> Icons & Filetypes</button>
 
@@ -2049,11 +2050,11 @@
               <div class="slider-container">
                 <input type="range" min="10" max="18" value="13" class="range-slider" id="setting-font-size-slider" oninput="handleFontSizeChange(this.value)">
               </div>
-              <div class="perm-preset-container" style="margin-top: 8px;">
-                <button type="button" class="perm-chip" onclick="setFontSizePreset(11)">Compact (11px)</button>
-                <button type="button" class="perm-chip" onclick="setFontSizePreset(13)">Standard (13px)</button>
-                <button type="button" class="perm-chip" onclick="setFontSizePreset(15)">Medium (15px)</button>
-                <button type="button" class="perm-chip" onclick="setFontSizePreset(17)">Large (17px)</button>
+              <div class="perm-preset-container font-preset-container" style="margin-top: 8px;">
+                <button type="button" class="perm-chip font-preset-chip" data-size="11" onclick="setFontSizePreset(11)">Compact (11px)</button>
+                <button type="button" class="perm-chip font-preset-chip" data-size="13" onclick="setFontSizePreset(13)">Standard (13px)</button>
+                <button type="button" class="perm-chip font-preset-chip" data-size="15" onclick="setFontSizePreset(15)">Medium (15px)</button>
+                <button type="button" class="perm-chip font-preset-chip" data-size="17" onclick="setFontSizePreset(17)">Large (17px)</button>
               </div>
             </div>
 
@@ -2609,6 +2610,98 @@
             </div>
           </div>
         </div>
+
+        <!-- Tab: Account & User Profile -->
+        <div class="settings-tab-content" id="tab-account" style="padding: 16px;">
+          <!-- User Profile Card -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="user"></i> User Profile & Identity
+              </h4>
+              <span class="user-role-badge" id="settings-account-role-badge">ADMIN</span>
+            </div>
+            <p class="settings-card-desc">Personalize your identity, avatar photo, full name, display name, and credentials stored directly in your server user profile.</p>
+
+            <div style="display: flex; align-items: center; gap: 16px; margin: 8px 0 14px 0; background: var(--bg-header); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border);">
+              <div style="position: relative; display: inline-block;">
+                <div class="profile-avatar-large" id="settings-account-avatar-preview" onclick="document.getElementById('settings-avatar-file-input').click()" title="Click to upload profile photo" style="cursor: pointer;">👤</div>
+                <button type="button" class="btn btn-sm btn-icon" onclick="document.getElementById('settings-avatar-file-input').click()" title="Upload Photo" style="position: absolute; bottom: -3px; right: -3px; border-radius: 50%; width: 22px; height: 22px; background: var(--accent); color: #000; border: none; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer;">
+                  <i data-lucide="camera" style="width: 12px; height: 12px;"></i>
+                </button>
+              </div>
+              <input type="file" id="settings-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" onchange="handleSettingsAvatarFileUpload(event)">
+              <div style="flex: 1;">
+                <div style="font-weight: 700; font-size: 15px;" id="settings-account-username-label">User</div>
+                <div style="font-size: 11px; color: var(--text-dim);" id="settings-account-auth-type-label">Internal Database Account</div>
+                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                  <button type="button" class="btn btn-sm" onclick="document.getElementById('settings-avatar-file-input').click()"><i data-lucide="upload" style="width: 12px;"></i> Upload Photo</button>
+                  <button type="button" class="btn btn-sm" onclick="resetSettingsAvatar()"><i data-lucide="rotate-ccw" style="width: 12px;"></i> Reset Avatar</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-grid-2col">
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-fullname">Full Name:</label>
+                <input type="text" id="settings-profile-fullname" class="settings-input" placeholder="e.g. Bolt J Woofson">
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-nickname">Display Name / Nickname:</label>
+                <input type="text" id="settings-profile-nickname" class="settings-input" placeholder="e.g. Woofson">
+              </div>
+            </div>
+
+            <div class="settings-grid-2col" style="margin-top: 10px;">
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-email">Email Address:</label>
+                <input type="email" id="settings-profile-email" class="settings-input" placeholder="e.g. user@domain.com">
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-bio">Bio / Status:</label>
+                <input type="text" id="settings-profile-bio" class="settings-input" placeholder="e.g. Lead Systems Engineer">
+              </div>
+            </div>
+
+            <div class="settings-field" style="margin-top: 10px;">
+              <label class="settings-field-label" for="settings-profile-avatar-url">Avatar Emoji / URL / Custom Data:</label>
+              <input type="text" id="settings-profile-avatar-url" class="settings-input" placeholder="e.g. 🐕 or /api/auth/avatar/username" oninput="renderAvatarElement(document.getElementById('settings-account-avatar-preview'), this.value)">
+            </div>
+
+            <div class="settings-grid-2col" style="margin-top: 10px;" id="settings-profile-password-section">
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-new-pass">New Password (optional):</label>
+                <input type="password" id="settings-profile-new-pass" class="settings-input" placeholder="Leave blank to keep current">
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-confirm-pass">Confirm New Password:</label>
+                <input type="password" id="settings-profile-confirm-pass" class="settings-input" placeholder="Confirm new password">
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
+              <span id="settings-profile-save-status" style="font-size: 12px; font-weight: 600; display: none;"></span>
+              <button type="button" class="btn btn-accent" onclick="saveSettingsUserProfile()"><i data-lucide="save"></i> Save Profile Details</button>
+            </div>
+          </div>
+
+          <!-- Server Workspace Synchronization Card -->
+          <div class="settings-group-card" style="margin-top: 16px;">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="cloud"></i> Server Workspace & Cloud Sync
+              </h4>
+              <span class="badge badge-success" id="settings-cloud-sync-badge">Cloud Synced</span>
+            </div>
+            <p class="settings-card-desc">All multi-pane arrangements, custom pane names, colors, open tabs, themes, and bookmarks are synchronized with your user account in the server database for seamless cross-device continuity.</p>
+
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+              <button type="button" class="btn btn-sm btn-accent" onclick="saveCurrentWorkspaceAsDefault()"><i data-lucide="cloud-upload"></i> Save Current Workspace to Profile</button>
+              <button type="button" class="btn btn-sm" onclick="loadUserPreferencesFromServer()"><i data-lucide="refresh-cw"></i> Sync Workspace from Server</button>
+              <button type="button" class="btn btn-sm btn-danger" onclick="resetServerPreferences()"><i data-lucide="rotate-ccw"></i> Reset Server Profile</button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -3006,6 +3099,11 @@
         </div>
 
         <div class="form-group">
+          <label>Full Name:</label>
+          <input type="text" id="profile-input-fullname" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. Bolt J Woofson">
+        </div>
+
+        <div class="form-group">
           <label>Display Name / Nickname:</label>
           <input type="text" id="profile-input-nickname" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. Woofson">
         </div>
@@ -3016,8 +3114,13 @@
         </div>
 
         <div class="form-group">
+          <label>Bio / Status:</label>
+          <input type="text" id="profile-input-bio" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. Lead Systems Engineer">
+        </div>
+
+        <div class="form-group">
           <label>Avatar Emoji / URL / Image Data:</label>
-          <input type="text" id="profile-input-avatar" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. 🐕 or https://example.com/avatar.png" oninput="renderAvatarElement(document.getElementById('profile-edit-avatar'), this.value)">
+          <input type="text" id="profile-input-avatar" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. 🐕 or /api/auth/avatar/username" oninput="renderAvatarElement(document.getElementById('profile-edit-avatar'), this.value)">
         </div>
 
         <div class="form-group" id="profile-password-section">

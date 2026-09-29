@@ -2653,10 +2653,11 @@ async function checkAuthAndLoad() {
         return;
       }
 
-      // INSTANT UI DISPLAY: Remove all auth shields & render panes immediately!
+      // INSTANT UI DISPLAY: Hydrate preferences from server then render panes!
       document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
       document.documentElement.classList.add('auth-ready');
       try {
+        await loadUserPreferencesFromServer();
         applyUserHomeToPanes();
         renderAllPanes();
         restoreTerminalState();
@@ -2670,7 +2671,6 @@ async function checkAuthAndLoad() {
         loadSystemUsersGroups(),
         loadAdminSecuritySettings(),
         loadAllFileTags(),
-        loadUserPreferencesFromServer(),
         loadInstalledChewToys(false)
       ]);
       return;
@@ -2707,6 +2707,7 @@ async function checkAuthAndLoad() {
       document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
       document.documentElement.classList.add('auth-ready');
       try {
+        await loadUserPreferencesFromServer();
         applyUserHomeToPanes();
         renderAllPanes();
         restoreTerminalState();
@@ -2719,7 +2720,6 @@ async function checkAuthAndLoad() {
         loadSystemUsersGroups(),
         loadAdminSecuritySettings(),
         loadAllFileTags(),
-        loadUserPreferencesFromServer(),
         loadInstalledChewToys(false)
       ]);
       return;
@@ -8599,6 +8599,7 @@ function switchSettingsTab(tabId) {
   document.getElementById(tabId)?.classList.add('active');
 
   if (tabId === 'tab-general') updateColumnCheckboxes();
+  if (tabId === 'tab-account') openSettingsAccountTab();
   if (tabId === 'tab-bookmarks') loadBookmarksList();
   if (tabId === 'tab-desktop-apps') renderDesktopAppsTab();
   if (tabId === 'tab-openwith') renderOpenWithRules();
@@ -17277,19 +17278,25 @@ function openUserProfileModal() {
   const localNick = localStorage.getItem('cd_local_nickname');
   const localAvatar = localStorage.getItem('cd_local_avatar');
   const localEmail = localStorage.getItem('cd_local_email');
+  const localFullName = localStorage.getItem('cd_local_fullname');
+  const localBio = localStorage.getItem('cd_local_bio');
 
   if (editAvatar) renderAvatarElement(editAvatar, user.avatar_url || localAvatar || '👤');
-  if (editUname) editUname.textContent = user.nickname || localNick || user.username || 'User';
+  if (editUname) editUname.textContent = user.nickname || user.full_name || localNick || user.username || 'User';
   if (editBadge) editBadge.textContent = (user.role || 'ADMIN').toUpperCase();
   if (editAuthType) editAuthType.textContent = (App.isStandalone || !App.token) ? 'Local Standalone Mode' : (user.is_pam ? 'PAM / Local Linux Account' : 'Internal Database Account');
 
+  const fullnameInput = document.getElementById('profile-input-fullname');
   const nickInput = document.getElementById('profile-input-nickname');
   const emailInput = document.getElementById('profile-input-email');
+  const bioInput = document.getElementById('profile-input-bio');
   const avatarInput = document.getElementById('profile-input-avatar');
   const passInput = document.getElementById('profile-input-password');
 
+  if (fullnameInput) fullnameInput.value = user.full_name || localFullName || '';
   if (nickInput) nickInput.value = user.nickname || localNick || '';
   if (emailInput) emailInput.value = user.email || localEmail || '';
+  if (bioInput) bioInput.value = user.bio || localBio || '';
   if (avatarInput) avatarInput.value = user.avatar_url || localAvatar || '';
   if (passInput) passInput.value = '';
 
@@ -17304,8 +17311,10 @@ function openUserProfileModal() {
 }
 
 async function saveUserProfile() {
+  const full_name = document.getElementById('profile-input-fullname')?.value.trim() || null;
   const nickname = document.getElementById('profile-input-nickname')?.value.trim() || null;
   const email = document.getElementById('profile-input-email')?.value.trim() || null;
+  const bio = document.getElementById('profile-input-bio')?.value.trim() || null;
   const avatar_url = document.getElementById('profile-input-avatar')?.value.trim() || null;
   const new_password = document.getElementById('profile-input-password')?.value || null;
 
@@ -17316,32 +17325,41 @@ async function saveUserProfile() {
     statusMsg.textContent = 'Saving profile...';
   }
 
-  // Persist locally in localStorage for standalone / immediate UI feedback
+  // Persist locally in localStorage for immediate UI feedback
+  if (full_name) localStorage.setItem('cd_local_fullname', full_name);
+  else localStorage.removeItem('cd_local_fullname');
   if (nickname) localStorage.setItem('cd_local_nickname', nickname);
   else localStorage.removeItem('cd_local_nickname');
   if (avatar_url) localStorage.setItem('cd_local_avatar', avatar_url);
   else localStorage.removeItem('cd_local_avatar');
   if (email) localStorage.setItem('cd_local_email', email);
   else localStorage.removeItem('cd_local_email');
+  if (bio) localStorage.setItem('cd_local_bio', bio);
+  else localStorage.removeItem('cd_local_bio');
 
   if (!App.user) App.user = {};
+  if (full_name) App.user.full_name = full_name;
   if (nickname) App.user.nickname = nickname;
   if (avatar_url) App.user.avatar_url = avatar_url;
   if (email) App.user.email = email;
+  if (bio) App.user.bio = bio;
   updateHeaderProfile(App.user);
 
   try {
     localStorage.setItem('cd_user_info', JSON.stringify({
       username: App.user.username,
+      full_name: full_name || App.user.full_name,
       nickname: nickname || App.user.nickname,
-      avatar_url: avatar_url || App.user.avatar_url
+      avatar_url: avatar_url || App.user.avatar_url,
+      email: email || App.user.email,
+      bio: bio || App.user.bio
     }));
   } catch (_) {}
 
   const lockAvatar = document.getElementById('lock-avatar-thumb');
   if (lockAvatar) renderAvatarElement(lockAvatar, avatar_url || App.user.avatar_url || '👤');
   const lockUserText = document.getElementById('lock-username-text');
-  if (lockUserText) lockUserText.textContent = nickname || App.user.nickname || App.user.username || 'Brum User';
+  if (lockUserText) lockUserText.textContent = nickname || App.user.nickname || full_name || App.user.username || 'Brum User';
 
   try {
     const headers = { 'Content-Type': 'application/json' };
@@ -17351,10 +17369,11 @@ async function saveUserProfile() {
     const resp = await fetch('/api/auth/profile', {
       method: 'POST',
       headers,
-      body: JSON.stringify({ nickname, email, avatar_url, new_password })
+      body: JSON.stringify({ nickname, full_name, bio, email, avatar_url, new_password })
     });
 
     if (resp.ok) {
+      const data = await resp.json().catch(() => ({}));
       if (statusMsg) {
         statusMsg.style.color = 'var(--success)';
         statusMsg.textContent = 'Profile updated successfully!';
@@ -17365,30 +17384,200 @@ async function saveUserProfile() {
       const meResp = await fetch('/api/auth/me', { headers: meHeaders });
       if (meResp.ok) {
         App.user = await meResp.json();
-        if (avatar_url && !App.user.avatar_url) App.user.avatar_url = avatar_url;
-        if (nickname && !App.user.nickname) App.user.nickname = nickname;
+        if (data.avatar_url) App.user.avatar_url = data.avatar_url;
         updateHeaderProfile(App.user);
         try {
-          localStorage.setItem('cd_user_info', JSON.stringify({
-            username: App.user.username,
-            nickname: nickname || App.user.nickname,
-            avatar_url: avatar_url || App.user.avatar_url
-          }));
+          localStorage.setItem('cd_user_info', JSON.stringify(App.user));
         } catch (_) {}
       }
       setTimeout(() => closeModal('profile-modal'), 800);
     } else {
+      const err = await resp.json().catch(() => ({ error: 'Update failed' }));
       if (statusMsg) {
         statusMsg.style.color = 'var(--danger)';
-        statusMsg.textContent = `Save failed: ${await resp.text()}`;
+        statusMsg.textContent = err.error || 'Failed to update profile.';
       }
     }
   } catch (e) {
     if (statusMsg) {
-      statusMsg.style.color = 'var(--success)';
-      statusMsg.textContent = 'Profile saved locally!';
+      statusMsg.style.color = 'var(--danger)';
+      statusMsg.textContent = `Error: ${e.message}`;
     }
-    setTimeout(() => closeModal('profile-modal'), 800);
+  }
+}
+
+function openSettingsAccountTab() {
+  const user = App.user || {};
+  const localNick = localStorage.getItem('cd_local_nickname');
+  const localAvatar = localStorage.getItem('cd_local_avatar');
+  const localEmail = localStorage.getItem('cd_local_email');
+  const localFullName = localStorage.getItem('cd_local_fullname');
+  const localBio = localStorage.getItem('cd_local_bio');
+
+  const avatarPreview = document.getElementById('settings-account-avatar-preview');
+  const unameLabel = document.getElementById('settings-account-username-label');
+  const roleBadge = document.getElementById('settings-account-role-badge');
+  const authTypeLabel = document.getElementById('settings-account-auth-type-label');
+
+  if (avatarPreview) renderAvatarElement(avatarPreview, user.avatar_url || localAvatar || '👤');
+  if (unameLabel) unameLabel.textContent = user.nickname || user.full_name || localNick || user.username || 'User';
+  if (roleBadge) roleBadge.textContent = (user.role || 'ADMIN').toUpperCase();
+  if (authTypeLabel) authTypeLabel.textContent = (App.isStandalone || !App.token) ? 'Local Standalone Mode' : (user.is_pam ? 'PAM / Local Linux Account' : 'Internal Database Account');
+
+  const fnInput = document.getElementById('settings-profile-fullname');
+  const nickInput = document.getElementById('settings-profile-nickname');
+  const emailInput = document.getElementById('settings-profile-email');
+  const bioInput = document.getElementById('settings-profile-bio');
+  const avUrlInput = document.getElementById('settings-profile-avatar-url');
+  const newPassInput = document.getElementById('settings-profile-new-pass');
+  const confirmPassInput = document.getElementById('settings-profile-confirm-pass');
+
+  if (fnInput) fnInput.value = user.full_name || localFullName || '';
+  if (nickInput) nickInput.value = user.nickname || localNick || '';
+  if (emailInput) emailInput.value = user.email || localEmail || '';
+  if (bioInput) bioInput.value = user.bio || localBio || '';
+  if (avUrlInput) avUrlInput.value = user.avatar_url || localAvatar || '';
+  if (newPassInput) newPassInput.value = '';
+  if (confirmPassInput) confirmPassInput.value = '';
+
+  const passSec = document.getElementById('settings-profile-password-section');
+  if (passSec) passSec.style.display = (App.isStandalone || !App.token) ? 'none' : 'grid';
+
+  const statusEl = document.getElementById('settings-profile-save-status');
+  if (statusEl) statusEl.style.display = 'none';
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function handleSettingsAvatarFileUpload(event) {
+  const file = event.target.files?.[0];
+  if (!file) return;
+
+  if (!file.type.startsWith('image/')) {
+    showToast('Please select a valid image file (JPEG, PNG, WebP, GIF)', 'warning');
+    return;
+  }
+
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const img = new Image();
+    img.onload = function() {
+      const canvas = document.createElement('canvas');
+      const targetSize = 160;
+      canvas.width = targetSize;
+      canvas.height = targetSize;
+      const ctx = canvas.getContext('2d');
+      const minDim = Math.min(img.width, img.height);
+      const startX = (img.width - minDim) / 2;
+      const startY = (img.height - minDim) / 2;
+      ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, targetSize, targetSize);
+      const dataUri = canvas.toDataURL('image/webp', 0.85);
+
+      const avInput = document.getElementById('settings-profile-avatar-url');
+      const avPreview = document.getElementById('settings-account-avatar-preview');
+      if (avInput) avInput.value = dataUri;
+      if (avPreview) renderAvatarElement(avPreview, dataUri);
+      showToast('Profile photo ready! Click "Save Profile Details" to apply.', 'info');
+    };
+    img.src = e.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function resetSettingsAvatar() {
+  const avInput = document.getElementById('settings-profile-avatar-url');
+  const avPreview = document.getElementById('settings-account-avatar-preview');
+  if (avInput) avInput.value = '👤';
+  if (avPreview) renderAvatarElement(avPreview, '👤');
+  showToast('Avatar reset to default', 'info');
+}
+
+async function saveSettingsUserProfile() {
+  const full_name = document.getElementById('settings-profile-fullname')?.value.trim() || null;
+  const nickname = document.getElementById('settings-profile-nickname')?.value.trim() || null;
+  const email = document.getElementById('settings-profile-email')?.value.trim() || null;
+  const bio = document.getElementById('settings-profile-bio')?.value.trim() || null;
+  const avatar_url = document.getElementById('settings-profile-avatar-url')?.value.trim() || null;
+  const new_pass = document.getElementById('settings-profile-new-pass')?.value || null;
+  const confirm_pass = document.getElementById('settings-profile-confirm-pass')?.value || null;
+
+  const statusEl = document.getElementById('settings-profile-save-status');
+  if (new_pass && new_pass !== confirm_pass) {
+    if (statusEl) {
+      statusEl.style.display = 'block';
+      statusEl.style.color = '#ef4444';
+      statusEl.textContent = 'Passwords do not match!';
+    }
+    showToast('Passwords do not match', 'error');
+    return;
+  }
+
+  if (statusEl) {
+    statusEl.style.display = 'block';
+    statusEl.style.color = 'var(--accent)';
+    statusEl.textContent = 'Saving profile to server...';
+  }
+
+  if (full_name) localStorage.setItem('cd_local_fullname', full_name);
+  else localStorage.removeItem('cd_local_fullname');
+  if (nickname) localStorage.setItem('cd_local_nickname', nickname);
+  else localStorage.removeItem('cd_local_nickname');
+  if (avatar_url) localStorage.setItem('cd_local_avatar', avatar_url);
+  else localStorage.removeItem('cd_local_avatar');
+  if (email) localStorage.setItem('cd_local_email', email);
+  else localStorage.removeItem('cd_local_email');
+  if (bio) localStorage.setItem('cd_local_bio', bio);
+  else localStorage.removeItem('cd_local_bio');
+
+  if (!App.user) App.user = {};
+  if (full_name) App.user.full_name = full_name;
+  if (nickname) App.user.nickname = nickname;
+  if (avatar_url) App.user.avatar_url = avatar_url;
+  if (email) App.user.email = email;
+  if (bio) App.user.bio = bio;
+  updateHeaderProfile(App.user);
+
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (App.token) headers['Authorization'] = `Bearer ${App.token}`;
+    const resp = await fetch('/api/auth/profile', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ nickname, full_name, bio, email, avatar_url, new_password: new_pass })
+    });
+
+    if (resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      if (statusEl) {
+        statusEl.style.color = '#34d399';
+        statusEl.textContent = 'Profile details saved to server!';
+      }
+      showToast('Profile saved to server database', 'success');
+      const meHeaders = {};
+      if (App.token) meHeaders['Authorization'] = `Bearer ${App.token}`;
+      const meResp = await fetch('/api/auth/me', { headers: meHeaders });
+      if (meResp.ok) {
+        App.user = await meResp.json();
+        if (data.avatar_url) App.user.avatar_url = data.avatar_url;
+        updateHeaderProfile(App.user);
+        try {
+          localStorage.setItem('cd_user_info', JSON.stringify(App.user));
+        } catch (_) {}
+      }
+    } else {
+      const err = await resp.json().catch(() => ({ error: 'Update failed' }));
+      if (statusEl) {
+        statusEl.style.color = '#ef4444';
+        statusEl.textContent = err.error || 'Failed to update profile.';
+      }
+      showToast(err.error || 'Failed to update profile', 'error');
+    }
+  } catch (e) {
+    if (statusEl) {
+      statusEl.style.color = '#ef4444';
+      statusEl.textContent = `Error: ${e.message}`;
+    }
+    showToast(`Error: ${e.message}`, 'error');
   }
 }
 
@@ -19860,6 +20049,7 @@ function applyFontSettings() {
   if (monoSelect) monoSelect.value = mono;
   const weightSelect = document.getElementById('setting-font-weight');
   if (weightSelect) weightSelect.value = weight;
+  applyFontSize(App.fontSize || 13);
 }
 
 async function loadBookmarksList() {
@@ -20915,6 +21105,7 @@ async function handleLoginSubmit() {
     if (pInput) pInput.value = '';
 
     try {
+      await loadUserPreferencesFromServer();
       applyUserHomeToPanes(true);
       renderAllPanes();
       restoreTerminalState();
@@ -20927,7 +21118,6 @@ async function handleLoginSubmit() {
       loadSystemUsersGroups(),
       loadAdminSecuritySettings(),
       loadAllFileTags(),
-      loadUserPreferencesFromServer(),
       loadInstalledChewToys(false)
     ]);
   }
@@ -25035,12 +25225,19 @@ function setFontSizePreset(val) {
 }
 
 function applyFontSize(val) {
-  document.documentElement.style.setProperty('--base-font-size', `${val}px`);
-  document.body.style.fontSize = `${val}px`;
+  const numVal = parseInt(val, 10);
+  if (isNaN(numVal)) return;
+  document.documentElement.style.setProperty('--base-font-size', `${numVal}px`);
+  document.body.style.fontSize = `${numVal}px`;
   const badge = document.getElementById('setting-font-size-val');
-  if (badge) badge.textContent = `${val}px`;
+  if (badge) badge.textContent = `${numVal}px`;
   const slider = document.getElementById('setting-font-size-slider');
-  if (slider) slider.value = val;
+  if (slider) slider.value = numVal;
+
+  document.querySelectorAll('.font-preset-chip').forEach(chip => {
+    const chipSize = parseInt(chip.getAttribute('data-size'), 10);
+    chip.classList.toggle('active', chipSize === numVal);
+  });
 }
 
 // ---------------- REMOTE SFTP / WEBDAV & GLOBAL MOUNTS ----------------

@@ -72,6 +72,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/security-settings", get(handle_get_security_settings).post(handle_update_security_settings))
         .route("/api/auth/me", get(handle_get_me))
         .route("/api/auth/profile", post(handle_update_profile))
+        .route("/api/auth/avatar/:username", get(handle_get_user_avatar))
         .route("/api/auth/users", get(handle_list_users).post(handle_create_user))
         .route("/api/auth/users/:username", delete(handle_delete_user).post(handle_update_user_rbac))
         .route("/api/auth/tokens", get(handle_list_api_tokens).post(handle_create_api_token))
@@ -1031,6 +1032,8 @@ async fn handle_get_me(
             id: 1,
             username: current_user.clone(),
             nickname: Some(current_user),
+            full_name: None,
+            bio: None,
             email: None,
             avatar_url,
             role: "admin".to_string(),
@@ -1064,6 +1067,8 @@ async fn handle_get_me(
                     id: 0,
                     username: claims.sub,
                     nickname: None,
+                    full_name: None,
+                    bio: None,
                     email: None,
                     avatar_url,
                     role: claims.role,
@@ -1084,9 +1089,81 @@ async fn handle_get_me(
     }
 }
 
+pub fn get_avatars_dir() -> std::path::PathBuf {
+    if let Some(config_dir) = dirs::config_dir() {
+        config_dir.join("brum").join("avatars")
+    } else {
+        std::path::PathBuf::from("data").join("avatars")
+    }
+}
+
+async fn handle_get_user_avatar(
+    AxumPath(username): AxumPath<String>,
+) -> Result<impl axum::response::IntoResponse, (StatusCode, String)> {
+    let sanitized: String = username.chars().filter(|c| c.is_alphanumeric() || *c == '_' || *c == '-' || *c == '.').collect();
+    if sanitized.is_empty() {
+        return Err((StatusCode::BAD_REQUEST, "Invalid username".to_string()));
+    }
+
+    let avatars_dir = get_avatars_dir();
+    let candidates = [
+        (avatars_dir.join(format!("{}.webp", sanitized)), "image/webp"),
+        (avatars_dir.join(format!("{}.png", sanitized)), "image/png"),
+        (avatars_dir.join(format!("{}.jpg", sanitized)), "image/jpeg"),
+        (avatars_dir.join(format!("{}.jpeg", sanitized)), "image/jpeg"),
+        (avatars_dir.join(format!("{}.svg", sanitized)), "image/svg+xml"),
+    ];
+
+    for (path, content_type) in &candidates {
+        if path.exists() {
+            if let Ok(bytes) = tokio::fs::read(path).await {
+                return Ok((
+                    [
+                        (header::CONTENT_TYPE, *content_type),
+                        (header::CACHE_CONTROL, "public, max-age=86400, stale-while-revalidate=604800"),
+                    ],
+                    bytes,
+                ));
+            }
+        }
+    }
+
+    // Check system avatar fallback
+    let home_dir = format!("/home/{}", sanitized);
+    if let Some(data_uri) = crate::auth::resolve_system_avatar(&sanitized, &home_dir) {
+        if let Some(comma_pos) = data_uri.find(',') {
+            let meta = &data_uri[..comma_pos];
+            let b64_data = &data_uri[comma_pos + 1..];
+            use base64::Engine;
+            if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(b64_data) {
+                let content_type = if meta.contains("image/webp") {
+                    "image/webp"
+                } else if meta.contains("image/jpeg") {
+                    "image/jpeg"
+                } else if meta.contains("image/svg") {
+                    "image/svg+xml"
+                } else {
+                    "image/png"
+                };
+                return Ok((
+                    [
+                        (header::CONTENT_TYPE, content_type),
+                        (header::CACHE_CONTROL, "public, max-age=86400"),
+                    ],
+                    bytes,
+                ));
+            }
+        }
+    }
+
+    Err((StatusCode::NOT_FOUND, "Avatar not found".to_string()))
+}
+
 #[derive(Deserialize)]
 struct UpdateProfileRequest {
     nickname: Option<String>,
+    full_name: Option<String>,
+    bio: Option<String>,
     email: Option<String>,
     avatar_url: Option<String>,
     new_password: Option<String>,
@@ -1121,11 +1198,40 @@ async fn handle_update_profile(
         }
     };
 
+    let mut effective_avatar_url = payload.avatar_url.clone();
+
+    // If payload avatar_url is a base64 data URI, extract and save to server avatars directory
+    if let Some(ref av) = payload.avatar_url {
+        if av.starts_with("data:image/") {
+            if let Some(comma_pos) = av.find(',') {
+                let meta = &av[..comma_pos];
+                let b64 = &av[comma_pos + 1..];
+                use base64::Engine;
+                if let Ok(bytes) = base64::engine::general_purpose::STANDARD.decode(b64) {
+                    let ext = if meta.contains("webp") { "webp" } else if meta.contains("jpeg") || meta.contains("jpg") { "jpg" } else if meta.contains("svg") { "svg" } else { "png" };
+                    let avatars_dir = get_avatars_dir();
+                    let _ = std::fs::create_dir_all(&avatars_dir);
+                    let target_path = avatars_dir.join(format!("{}.{}", username, ext));
+                    if std::fs::write(&target_path, bytes).is_ok() {
+                        effective_avatar_url = Some(format!("/api/auth/avatar/{}?t={}", username, chrono::Utc::now().timestamp()));
+                    }
+                }
+            }
+        } else if av.trim().is_empty() || av == "👤" {
+            let avatars_dir = get_avatars_dir();
+            for ext in &["webp", "png", "jpg", "jpeg", "svg"] {
+                let _ = std::fs::remove_file(avatars_dir.join(format!("{}.{}", username, ext)));
+            }
+        }
+    }
+
     let _ = state.auth.update_user_profile(
         &username,
         payload.nickname.as_deref(),
+        payload.full_name.as_deref(),
+        payload.bio.as_deref(),
         payload.email.as_deref(),
-        payload.avatar_url.as_deref(),
+        effective_avatar_url.as_deref(),
     ).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update profile: {}", e)))?;
 
     if let Some(ref new_pass) = payload.new_password {
@@ -1135,7 +1241,11 @@ async fn handle_update_profile(
         }
     }
 
-    Ok(Json(serde_json::json!({ "success": true, "message": "Profile updated successfully" })))
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "message": "Profile updated successfully",
+        "avatar_url": effective_avatar_url
+    })))
 }
 
 #[derive(Deserialize)]

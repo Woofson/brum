@@ -3,11 +3,68 @@
 
 use brum::config::ConfigManager;
 use brum::start_background_server;
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU16, Ordering};
 use std::sync::Arc;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct SavedWindowState {
+    #[serde(default)]
+    pub x: Option<f64>,
+    #[serde(default)]
+    pub y: Option<f64>,
+    #[serde(default)]
+    pub width: Option<f64>,
+    #[serde(default)]
+    pub height: Option<f64>,
+    #[serde(default)]
+    pub is_maximized: Option<bool>,
+}
+
+impl Default for SavedWindowState {
+    fn default() -> Self {
+        Self {
+            x: None,
+            y: None,
+            width: Some(1366.0),
+            height: Some(840.0),
+            is_maximized: Some(false),
+        }
+    }
+}
+
+impl SavedWindowState {
+    fn file_path() -> Option<PathBuf> {
+        dirs::config_dir().map(|p| p.join("brum").join("window_state.json"))
+    }
+
+    fn load() -> Self {
+        if let Some(path) = Self::file_path() {
+            if let Ok(data) = fs::read_to_string(&path) {
+                if let Ok(state) = serde_json::from_str::<Self>(&data) {
+                    return state;
+                }
+            }
+        }
+        Self::default()
+    }
+
+    fn save(&self) {
+        if let Some(path) = Self::file_path() {
+            if let Some(parent) = path.parent() {
+                let _ = fs::create_dir_all(parent);
+            }
+            if let Ok(json) = serde_json::to_string_pretty(self) {
+                let _ = fs::write(path, json);
+            }
+        }
+    }
+}
 
 fn main() {
     brum::setup_linux_desktop_env();
@@ -42,6 +99,11 @@ fn main() {
                         let url = format!("http://127.0.0.1:{}", port);
                         println!("Brum desktop backend bound to: {}", url);
 
+                        let saved_state = SavedWindowState::load();
+                        let win_width = saved_state.width.unwrap_or(1366.0).max(680.0);
+                        let win_height = saved_state.height.unwrap_or(840.0).max(480.0);
+                        let is_max = saved_state.is_maximized.unwrap_or(false);
+
                         // Create the primary standalone window pointing to the local embedded server
                         #[allow(unused_mut)]
                         let mut win_builder = WebviewWindowBuilder::new(
@@ -50,13 +112,22 @@ fn main() {
                             WebviewUrl::External(url.parse().unwrap()),
                         )
                         .title("Brum")
-                        .inner_size(1366.0, 840.0)
+                        .inner_size(win_width, win_height)
                         .min_inner_size(680.0, 480.0)
                         .resizable(true)
                         .disable_drag_drop_handler()
                         .decorations(window_decorations)
-                        .visible(!start_minimized)
-                        .center();
+                        .visible(!start_minimized);
+
+                        if let (Some(x), Some(y)) = (saved_state.x, saved_state.y) {
+                            win_builder = win_builder.position(x, y);
+                        } else {
+                            win_builder = win_builder.center();
+                        }
+
+                        if is_max {
+                            win_builder = win_builder.maximized(true);
+                        }
 
                         #[cfg(target_os = "macos")]
                         {
@@ -69,13 +140,54 @@ fn main() {
                                     let _ = window.set_icon(icon.clone());
                                 }
                                 let window_clone = window.clone();
-                                window.on_window_event(move |event| {
-                                    if let WindowEvent::CloseRequested { api, .. } = event {
+                                let state_lock = Arc::new(std::sync::Mutex::new(saved_state));
+                                let state_clone = state_lock.clone();
+
+                                window.on_window_event(move |event| match event {
+                                    WindowEvent::CloseRequested { api, .. } => {
+                                        if let Ok(mut state) = state_clone.lock() {
+                                            if let Ok(is_max) = window_clone.is_maximized() {
+                                                state.is_maximized = Some(is_max);
+                                            }
+                                            if !window_clone.is_maximized().unwrap_or(false) {
+                                                let scale = window_clone.scale_factor().unwrap_or(1.0);
+                                                if let Ok(pos) = window_clone.outer_position() {
+                                                    state.x = Some(pos.x as f64 / scale);
+                                                    state.y = Some(pos.y as f64 / scale);
+                                                }
+                                                if let Ok(size) = window_clone.inner_size() {
+                                                    state.width = Some(size.width as f64 / scale);
+                                                    state.height = Some(size.height as f64 / scale);
+                                                }
+                                            }
+                                            state.save();
+                                        }
                                         if minimize_to_tray {
                                             api.prevent_close();
                                             let _ = window_clone.hide();
                                         }
                                     }
+                                    WindowEvent::Moved(pos) => {
+                                        if !window_clone.is_maximized().unwrap_or(false) {
+                                            let scale = window_clone.scale_factor().unwrap_or(1.0);
+                                            if let Ok(mut state) = state_clone.lock() {
+                                                state.x = Some(pos.x as f64 / scale);
+                                                state.y = Some(pos.y as f64 / scale);
+                                                state.save();
+                                            }
+                                        }
+                                    }
+                                    WindowEvent::Resized(size) => {
+                                        if !window_clone.is_maximized().unwrap_or(false) {
+                                            let scale = window_clone.scale_factor().unwrap_or(1.0);
+                                            if let Ok(mut state) = state_clone.lock() {
+                                                state.width = Some(size.width as f64 / scale);
+                                                state.height = Some(size.height as f64 / scale);
+                                                state.save();
+                                            }
+                                        }
+                                    }
+                                    _ => {}
                                 });
                             }
                             Err(e) => {
@@ -125,6 +237,23 @@ fn main() {
                         let _ = open::that(format!("http://127.0.0.1:{}", port));
                     }
                     "quit" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let is_max = window.is_maximized().unwrap_or(false);
+                            let scale = window.scale_factor().unwrap_or(1.0);
+                            let mut state = SavedWindowState::load();
+                            state.is_maximized = Some(is_max);
+                            if !is_max {
+                                if let Ok(pos) = window.outer_position() {
+                                    state.x = Some(pos.x as f64 / scale);
+                                    state.y = Some(pos.y as f64 / scale);
+                                }
+                                if let Ok(size) = window.inner_size() {
+                                    state.width = Some(size.width as f64 / scale);
+                                    state.height = Some(size.height as f64 / scale);
+                                }
+                            }
+                            state.save();
+                        }
                         app.exit(0);
                     }
                     _ => {}

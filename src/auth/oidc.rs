@@ -366,6 +366,8 @@ impl OidcManager {
                     let _ = self.auth.update_user_profile(
                         &username,
                         nickname.as_deref().or(u.nickname.as_deref()),
+                        None,
+                        None,
                         email.as_deref().or(u.email.as_deref()),
                         avatar_url.as_deref().or(u.avatar_url.as_deref()),
                     );
@@ -395,6 +397,8 @@ impl OidcManager {
                     let _ = self.auth.update_user_profile(
                         &username,
                         nickname.as_deref(),
+                        None,
+                        None,
                         email.as_deref(),
                         avatar_url.as_deref(),
                     );

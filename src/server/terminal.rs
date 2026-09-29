@@ -689,6 +689,8 @@ mod tests {
             id: 1,
             username: "testuser".to_string(),
             nickname: None,
+            full_name: None,
+            bio: None,
             email: None,
             avatar_url: None,
             role: "admin".to_string(),
