@@ -2338,6 +2338,7 @@ function bootApp() {
     applyAllColumnWidths();
     applyStickyColHeaders();
     renderToolsMenu();
+    populateThemeSelectors();
     const urlTheme = new URLSearchParams(window.location.search).get('theme');
     applyTheme(urlTheme || localStorage.getItem('cd_theme') || 'amber-charcoal');
     updateHostnameBadge();
@@ -3454,26 +3455,38 @@ border = "${accent}"
 }
 
 const defaultThemeList = [
-  { id: 'amber-charcoal', name: 'Woofsons Amber Charcoal', bg_dark: '#121214', bg_panel: '#18181b', accent: '#f59e0b', text_main: '#f4f4f5' },
-  { id: 'zink', name: 'Woofsons Amber Zink', bg_dark: '#fafafa', bg_panel: '#ffffff', accent: '#d97706', text_main: '#18181b' },
-  { id: 'gruvbox', name: 'Gruvbox Dark', bg_dark: '#1d2021', bg_panel: '#282828', accent: '#fabd2f', text_main: '#ebdbb2' },
-  { id: 'catppuccin-mocha', name: 'Catppuccin Mocha', bg_dark: '#181825', bg_panel: '#1e1e2e', accent: '#cba6f7', text_main: '#cdd6f4' },
-  { id: 'catppuccin-latte', name: 'Catppuccin Latte (Light)', bg_dark: '#dce0e8', bg_panel: '#eff1f5', accent: '#8839ef', text_main: '#4c4f69' },
-  { id: 'tokyo-night', name: 'Tokyo Night', bg_dark: '#16161e', bg_panel: '#1a1b26', accent: '#7aa2f7', text_main: '#c0caf5' },
-  { id: 'monokai', name: 'Monokai Pro', bg_dark: '#1e1f1c', bg_panel: '#272822', accent: '#ffd866', text_main: '#f8f8f2' },
-  { id: 'solarized-dark', name: 'Solarized Dark', bg_dark: '#00212b', bg_panel: '#002b36', accent: '#268bd2', text_main: '#839496' },
-  { id: 'ayu-dark', name: 'Ayu Dark', bg_dark: '#0b0e14', bg_panel: '#0f1419', accent: '#e6b450', text_main: '#e6e1cf' },
-  { id: 'nord', name: 'Nord Frost', bg_dark: '#242933', bg_panel: '#2e3440', accent: '#88c0d0', text_main: '#eceff4' },
-  { id: 'dracula', name: 'Dracula Dark', bg_dark: '#1e1f29', bg_panel: '#282a36', accent: '#bd93f9', text_main: '#f8f8f2' },
-  { id: 'midnight-blue', name: 'Midnight Commander Blue', bg_dark: '#000044', bg_panel: '#000088', accent: '#00ffff', text_main: '#ffffff' },
-  { id: 'skumring', name: 'Larvikite Skumring', bg_dark: '#0a0e14', bg_panel: '#111822', accent: '#38bdf8', text_main: '#e6edf3' },
-  { id: 'demring', name: 'Larvikite Demring', bg_dark: '#eef2f6', bg_panel: '#f7fafc', accent: '#0e7490', text_main: '#0f172a' },
-  { id: 'trollnatt', name: 'Larvikite Trollnatt', bg_dark: '#0b100d', bg_panel: '#121914', accent: '#4ade80', text_main: '#edf4ee' },
-  { id: 'myrtaake', name: 'Larvikite Myrtåke', bg_dark: '#edf2ee', bg_panel: '#f5f9f6', accent: '#15803d', text_main: '#0f1712' },
-  { id: 'bergtatt', name: 'Kittelsen Bergtatt', bg_dark: '#0a0c0f', bg_panel: '#11141a', accent: '#d9a042', text_main: '#e8e2d8' },
-  { id: 'soria-moria', name: 'Kittelsen Soria Moria', bg_dark: '#ebe5dc', bg_panel: '#f5f0e6', accent: '#b87a1f', text_main: '#1c1815' },
-  { id: 'pestanatt', name: 'Kittelsen Pestanatt', bg_dark: '#0b090a', bg_panel: '#141011', accent: '#dc2626', text_main: '#e6dede' },
-  { id: 'sotslette', name: 'Kittelsen Sotslette', bg_dark: '#ece6dc', bg_panel: '#f5f0e6', accent: '#991b1b', text_main: '#1c1517' }
+  { id: 'amber-charcoal', name: 'Woofsons Amber Charcoal', bg_dark: '#121214', bg_panel: '#18181b', bg_active: '#27272a', border: '#3f3f46', accent: '#f59e0b', accent_hover: '#fbbf24', text_main: '#f4f4f5', text_muted: '#a1a1aa' },
+  { id: 'zink', name: 'Woofsons Amber Zink', bg_dark: '#fafafa', bg_panel: '#ffffff', bg_active: '#e4e4e7', border: '#d4d4d8', accent: '#d97706', accent_hover: '#b45309', text_main: '#18181b', text_muted: '#52525b' },
+  { id: 'amber', name: 'Amber Gold (Classic)', bg_dark: '#0c0a09', bg_panel: '#1c1917', bg_active: '#292524', border: '#44403c', accent: '#f59e0b', accent_hover: '#fbbf24', text_main: '#fafaf9', text_muted: '#a8a29e' },
+  { id: 'gruvbox', name: 'Gruvbox Dark', bg_dark: '#1d2021', bg_panel: '#282828', bg_active: '#504945', border: '#504945', accent: '#fabd2f', accent_hover: '#fe8019', text_main: '#ebdbb2', text_muted: '#a89984' },
+  { id: 'gruvbox-light', name: 'Gruvbox Light', bg_dark: '#fbf1c7', bg_panel: '#f9f5d7', bg_active: '#ebdbb2', border: '#d5c4a1', accent: '#b57614', accent_hover: '#af3a03', text_main: '#282828', text_muted: '#7c6f64' },
+  { id: 'catppuccin-mocha', name: 'Catppuccin Mocha', bg_dark: '#181825', bg_panel: '#1e1e2e', bg_active: '#45475a', border: '#45475a', accent: '#cba6f7', accent_hover: '#f5c2e7', text_main: '#cdd6f4', text_muted: '#a6adc8' },
+  { id: 'catppuccin-latte', name: 'Catppuccin Latte (Light)', bg_dark: '#dce0e8', bg_panel: '#eff1f5', bg_active: '#ccd0da', border: '#bcc0cc', accent: '#8839ef', accent_hover: '#1e66f5', text_main: '#4c4f69', text_muted: '#6c6f85' },
+  { id: 'catppuccin-macchiato', name: 'Catppuccin Macchiato', bg_dark: '#1e2030', bg_panel: '#24273a', bg_active: '#494d64', border: '#494d64', accent: '#c6a0f6', accent_hover: '#f5bde6', text_main: '#cad3f5', text_muted: '#a5adcb' },
+  { id: 'catppuccin-frappe', name: 'Catppuccin Frappé', bg_dark: '#292c3c', bg_panel: '#303446', bg_active: '#51576d', border: '#51576d', accent: '#ca9ee6', accent_hover: '#f4b8e4', text_main: '#c6d0f5', text_muted: '#a5adce' },
+  { id: 'tokyo-night', name: 'Tokyo Night', bg_dark: '#16161e', bg_panel: '#1a1b26', bg_active: '#292e42', border: '#3b4261', accent: '#7aa2f7', accent_hover: '#7dcfff', text_main: '#c0caf5', text_muted: '#9aa5ce' },
+  { id: 'tokyo-night-storm', name: 'Tokyo Night Storm', bg_dark: '#1f2335', bg_panel: '#24283b', bg_active: '#343b58', border: '#414868', accent: '#7aa2f7', accent_hover: '#7dcfff', text_main: '#c0caf5', text_muted: '#9aa5ce' },
+  { id: 'tokyo-night-light', name: 'Tokyo Night Light', bg_dark: '#e1e2e7', bg_panel: '#e9e9ed', bg_active: '#cfc9c2', border: '#b4b5b9', accent: '#34548a', accent_hover: '#2e7de9', text_main: '#343b58', text_muted: '#565a6e' },
+  { id: 'nord', name: 'Nord Frost', bg_dark: '#242933', bg_panel: '#2e3440', bg_active: '#434c5e', border: '#4c566a', accent: '#88c0d0', accent_hover: '#81a1c1', text_main: '#eceff4', text_muted: '#d8dee9' },
+  { id: 'nord-light', name: 'Nord Snow (Light)', bg_dark: '#eceff4', bg_panel: '#e5e9f0', bg_active: '#d8dee9', border: '#c2c8d2', accent: '#5e81ac', accent_hover: '#81a1c1', text_main: '#2e3440', text_muted: '#4c566a' },
+  { id: 'dracula', name: 'Dracula Dark', bg_dark: '#1e1f29', bg_panel: '#282a36', bg_active: '#6272a4', border: '#6272a4', accent: '#bd93f9', accent_hover: '#ff79c6', text_main: '#f8f8f2', text_muted: '#6272a4' },
+  { id: 'dracula-alucard', name: 'Dracula Alucard (Light)', bg_dark: '#f8f8f2', bg_panel: '#ffffff', bg_active: '#e8e8e2', border: '#d0d0c8', accent: '#9547d2', accent_hover: '#d2327d', text_main: '#282a36', text_muted: '#6272a4' },
+  { id: 'monokai', name: 'Monokai Pro', bg_dark: '#1e1f1c', bg_panel: '#272822', bg_active: '#49483e', border: '#49483e', accent: '#ffd866', accent_hover: '#a9dc76', text_main: '#f8f8f2', text_muted: '#939293' },
+  { id: 'monokai-light', name: 'Monokai Light', bg_dark: '#faf8f5', bg_panel: '#f2eee8', bg_active: '#e5dfd5', border: '#d5cdc0', accent: '#c47d00', accent_hover: '#5e8d00', text_main: '#2d2a2e', text_muted: '#706b6e' },
+  { id: 'solarized-dark', name: 'Solarized Dark', bg_dark: '#00212b', bg_panel: '#002b36', bg_active: '#0a4250', border: '#586e75', accent: '#268bd2', accent_hover: '#2aa198', text_main: '#839496', text_muted: '#657b83' },
+  { id: 'solarized-light', name: 'Solarized Light', bg_dark: '#fdf6e3', bg_panel: '#eee8d5', bg_active: '#e0d9c4', border: '#b58900', accent: '#268bd2', accent_hover: '#2aa198', text_main: '#073642', text_muted: '#586e75' },
+  { id: 'cyberpunk', name: 'Cyberpunk Neon', bg_dark: '#080811', bg_panel: '#10101f', bg_active: '#241a3a', border: '#2d1f4d', accent: '#00ffff', accent_hover: '#ff007f', text_main: '#00ffcc', text_muted: '#8080b0' },
+  { id: 'matrix', name: 'Matrix Terminal', bg_dark: '#020b04', bg_panel: '#051408', bg_active: '#0c2410', border: '#0f3818', accent: '#00ff41', accent_hover: '#33ff66', text_main: '#00ff66', text_muted: '#00aa44' },
+  { id: 'midnight-blue', name: 'Midnight Commander Blue', bg_dark: '#000044', bg_panel: '#000088', bg_active: '#0000aa', border: '#00aaff', accent: '#00ffff', accent_hover: '#ffffff', text_main: '#ffffff', text_muted: '#a0a0ff' },
+  { id: 'ayu-dark', name: 'Ayu Dark', bg_dark: '#0b0e14', bg_panel: '#0f1419', bg_active: '#242b38', border: '#252e37', accent: '#e6b450', accent_hover: '#ffb454', text_main: '#e6e1cf', text_muted: '#707a8c' },
+  { id: 'skumring', name: 'Larvikite Skumring', bg_dark: '#0a0e14', bg_panel: '#111822', bg_active: '#1e2c3d', border: '#243347', accent: '#38bdf8', accent_hover: '#7dd3fc', text_main: '#e6edf3', text_muted: '#8b9bb4' },
+  { id: 'demring', name: 'Larvikite Demring', bg_dark: '#eef2f6', bg_panel: '#f7fafc', bg_active: '#cbd5e1', border: '#cbd5e1', accent: '#0e7490', accent_hover: '#155e75', text_main: '#0f172a', text_muted: '#475569' },
+  { id: 'trollnatt', name: 'Larvikite Trollnatt', bg_dark: '#0b100d', bg_panel: '#121914', bg_active: '#222f26', border: '#25342a', accent: '#4ade80', accent_hover: '#86efac', text_main: '#edf4ee', text_muted: '#93a797' },
+  { id: 'myrtaake', name: 'Larvikite Myrtåke', bg_dark: '#edf2ee', bg_panel: '#f5f9f6', bg_active: '#cad5cc', border: '#cbd7cd', accent: '#15803d', accent_hover: '#166534', text_main: '#0f1712', text_muted: '#49594d' },
+  { id: 'bergtatt', name: 'Kittelsen Bergtatt', bg_dark: '#0a0c0f', bg_panel: '#11141a', bg_active: '#222935', border: '#262e3d', accent: '#d9a042', accent_hover: '#f1b759', text_main: '#e8e2d8', text_muted: '#8e8d89' },
+  { id: 'soria-moria', name: 'Kittelsen Soria Moria', bg_dark: '#ebe5dc', bg_panel: '#f5f0e6', bg_active: '#cbbead', border: '#c6bbaa', accent: '#b87a1f', accent_hover: '#8f5a0e', text_main: '#1c1815', text_muted: '#5d554a' },
+  { id: 'pestanatt', name: 'Kittelsen Pestanatt', bg_dark: '#0b090a', bg_panel: '#141011', bg_active: '#261e20', border: '#2b2023', accent: '#dc2626', accent_hover: '#ef4444', text_main: '#e6dede', text_muted: '#948285' },
+  { id: 'sotslette', name: 'Kittelsen Sotslette', bg_dark: '#ece6dc', bg_panel: '#f5f0e6', bg_active: '#cec3b2', border: '#c7bcab', accent: '#991b1b', accent_hover: '#b91c1c', text_main: '#1c1517', text_muted: '#5c4f52' }
 ];
 
 function populateThemeSelectors() {
@@ -3494,7 +3507,7 @@ function populateThemeSelectors() {
     themeList.forEach(t => {
       const opt = document.createElement('option');
       opt.value = t.id;
-      opt.textContent = t.name;
+      opt.textContent = t.name || t.id;
       if (t.id === curVal) opt.selected = true;
       sel.appendChild(opt);
     });
@@ -3509,17 +3522,36 @@ function populateThemeSelectors() {
       const card = document.createElement('div');
       card.className = `theme-swatch-card ${t.id === curVal ? 'active' : ''}`;
       card.id = `theme-card-${t.id}`;
-      card.onclick = () => applyTheme(t.id);
+      card.setAttribute('role', 'button');
+      card.setAttribute('tabindex', '0');
+      card.title = `Switch theme to ${t.name || t.id}`;
+
+      const bgDark = t.bg_dark || '#121214';
+      const bgPanel = t.bg_panel || '#18181b';
+      const accent = t.accent || '#f59e0b';
+      const textMain = t.text_main || '#f4f4f5';
 
       card.innerHTML = `
         <div class="theme-swatch-preview">
-          <span class="theme-swatch-dot" style="background: ${t.bg_dark};" title="Background: ${t.bg_dark}"></span>
-          <span class="theme-swatch-dot" style="background: ${t.bg_panel};" title="Panel: ${t.bg_panel}"></span>
-          <span class="theme-swatch-dot" style="background: ${t.accent};" title="Accent: ${t.accent}"></span>
-          <span class="theme-swatch-dot" style="background: ${t.text_main};" title="Text: ${t.text_main}"></span>
+          <span class="theme-swatch-dot" style="background: ${bgDark};" title="Background: ${bgDark}"></span>
+          <span class="theme-swatch-dot" style="background: ${bgPanel};" title="Panel: ${bgPanel}"></span>
+          <span class="theme-swatch-dot" style="background: ${accent};" title="Accent: ${accent}"></span>
+          <span class="theme-swatch-dot" style="background: ${textMain};" title="Text: ${textMain}"></span>
         </div>
-        <div class="theme-swatch-name">${escapeHtml(t.name)}</div>
+        <div class="theme-swatch-name">${escapeHtml(t.name || t.id)}</div>
       `;
+
+      card.addEventListener('click', (e) => {
+        e.preventDefault();
+        applyTheme(t.id);
+      });
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          applyTheme(t.id);
+        }
+      });
+
       grid.appendChild(card);
     });
   }
@@ -8668,6 +8700,7 @@ function switchSettingsTab(tabId) {
   document.getElementById(tabId)?.classList.add('active');
 
   if (tabId === 'tab-general') updateColumnCheckboxes();
+  if (tabId === 'tab-palette') populateThemeSelectors();
   if (tabId === 'tab-account') openSettingsAccountTab();
   if (tabId === 'tab-bookmarks') loadBookmarksList();
   if (tabId === 'tab-desktop-apps') renderDesktopAppsTab();
@@ -21191,7 +21224,31 @@ function randomizeLoginBackground() {
   `;
 }
 
+function isThemeLight(themeDef) {
+  if (!themeDef) return false;
+  if (['zink', 'catppuccin-latte', 'solarized-light', 'nord-light', 'dracula-alucard', 'monokai-light', 'tokyo-night-light', 'gruvbox-light', 'demring', 'myrtaake', 'soria-moria', 'sotslette'].includes(themeDef.id)) {
+    return true;
+  }
+  if (themeDef.id && (themeDef.id.includes('light') || themeDef.id.includes('latte') || themeDef.id.includes('snow') || themeDef.id.includes('white'))) {
+    return true;
+  }
+  const bg = themeDef.bg_panel || themeDef.bg_dark;
+  if (!bg) return false;
+  let hex = bg.replace('#', '').trim();
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  if (hex.length === 6) {
+    const num = parseInt(hex, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    const yiq = (r * 299 + g * 587 + b * 114) / 1000;
+    return yiq >= 135;
+  }
+  return false;
+}
+
 function applyTheme(themeId, skipSync = false) {
+  if (!themeId) themeId = 'amber-charcoal';
   localStorage.setItem('cd_theme', themeId);
   const sel = document.getElementById('theme-selector');
   const selSettings = document.getElementById('settings-theme-selector');
@@ -21207,243 +21264,44 @@ function applyTheme(themeId, skipSync = false) {
     else card.classList.remove('active');
   });
 
-  if (!skipSync) {
+  if (!skipSync && typeof queueSaveUserPreferencesToServer === 'function') {
     queueSaveUserPreferencesToServer();
   }
 
-  // 1. Check dynamic themes loaded from App.config.themes.themes (built-in + ~/.config/brum/themes/)
-  const customTheme = App.config?.themes?.themes?.find(t => t.id === themeId);
-  if (customTheme) {
-    root.style.setProperty('--bg-dark', customTheme.bg_dark);
-    root.style.setProperty('--bg-panel', customTheme.bg_panel);
-    root.style.setProperty('--bg-header', customTheme.bg_active || customTheme.bg_panel);
-    root.style.setProperty('--bg-active', customTheme.bg_active);
-    root.style.setProperty('--border', customTheme.border);
-    root.style.setProperty('--accent', customTheme.accent);
-    root.style.setProperty('--accent-hover', customTheme.accent_hover || customTheme.accent);
-    root.style.setProperty('--text-main', customTheme.text_main);
-    root.style.setProperty('--text-muted', customTheme.text_muted);
-  } else if (themeId === 'zink') {
-    root.style.setProperty('--bg-dark', '#fafafa');
-    root.style.setProperty('--bg-panel', '#ffffff');
-    root.style.setProperty('--bg-header', '#f4f4f5');
-    root.style.setProperty('--bg-active', '#e4e4e7');
-    root.style.setProperty('--bg-hover', '#ebecee');
-    root.style.setProperty('--bg-selected', 'rgba(245, 158, 11, 0.14)');
-    root.style.setProperty('--border', '#d4d4d8');
-    root.style.setProperty('--border-focus', '#d97706');
-    root.style.setProperty('--accent', '#d97706');
-    root.style.setProperty('--accent-hover', '#b45309');
-    root.style.setProperty('--accent-dark', '#92400e');
-    root.style.setProperty('--accent-subtle', 'rgba(245, 158, 11, 0.10)');
-    root.style.setProperty('--text-main', '#18181b');
-    root.style.setProperty('--text-muted', '#52525b');
+  const themeList = (App.config?.themes?.themes && Array.isArray(App.config.themes.themes) && App.config.themes.themes.length > 0)
+    ? App.config.themes.themes
+    : defaultThemeList;
+  const themeDef = themeList.find(t => t.id === themeId) || defaultThemeList.find(t => t.id === 'amber-charcoal');
+
+  if (themeDef) {
+    const isLight = isThemeLight(themeDef);
+    const accent = themeDef.accent || '#f59e0b';
+    const accentHover = themeDef.accent_hover || accent;
+    const accSubtle = typeof hexToRgba === 'function' ? hexToRgba(accent, isLight ? 0.10 : 0.12) : `rgba(245, 158, 11, ${isLight ? 0.10 : 0.12})`;
+    const bgSel = typeof hexToRgba === 'function' ? hexToRgba(accent, isLight ? 0.14 : 0.18) : `rgba(245, 158, 11, ${isLight ? 0.14 : 0.18})`;
+
+    root.style.setProperty('--bg-dark', themeDef.bg_dark || (isLight ? '#fafafa' : '#121214'));
+    root.style.setProperty('--bg-panel', themeDef.bg_panel || (isLight ? '#ffffff' : '#18181b'));
+    root.style.setProperty('--bg-header', themeDef.bg_active || themeDef.bg_panel || (isLight ? '#f4f4f5' : '#202024'));
+    root.style.setProperty('--bg-active', themeDef.bg_active || (isLight ? '#e4e4e7' : '#27272a'));
+    root.style.setProperty('--border', themeDef.border || (isLight ? '#d4d4d8' : '#3f3f46'));
+    root.style.setProperty('--border-focus', accent);
+    root.style.setProperty('--accent', accent);
+    root.style.setProperty('--accent-hover', accentHover);
+    root.style.setProperty('--accent-dark', isLight ? '#92400e' : '#d97706');
+    root.style.setProperty('--accent-subtle', accSubtle);
+    root.style.setProperty('--text-main', themeDef.text_main || (isLight ? '#18181b' : '#f4f4f5'));
+    root.style.setProperty('--text-muted', themeDef.text_muted || (isLight ? '#52525b' : '#a1a1aa'));
     root.style.setProperty('--text-dim', '#71717a');
-    root.style.setProperty('--danger', '#dc2626');
-    root.style.setProperty('--success', '#059669');
-    root.style.setProperty('--info', '#0284c7');
-    root.style.setProperty('--archive', '#db2777');
-  } else if (themeId === 'gruvbox') {
-    root.style.setProperty('--bg-dark', '#1d2021');
-    root.style.setProperty('--bg-panel', '#282828');
-    root.style.setProperty('--bg-header', '#3c3836');
-    root.style.setProperty('--bg-active', '#504945');
-    root.style.setProperty('--border', '#504945');
-    root.style.setProperty('--accent', '#fabd2f');
-    root.style.setProperty('--accent-hover', '#fe8019');
-    root.style.setProperty('--text-main', '#ebdbb2');
-    root.style.setProperty('--text-muted', '#a89984');
-  } else if (themeId === 'catppuccin-mocha') {
-    root.style.setProperty('--bg-dark', '#181825');
-    root.style.setProperty('--bg-panel', '#1e1e2e');
-    root.style.setProperty('--bg-header', '#313244');
-    root.style.setProperty('--bg-active', '#45475a');
-    root.style.setProperty('--border', '#45475a');
-    root.style.setProperty('--accent', '#cba6f7');
-    root.style.setProperty('--accent-hover', '#f5c2e7');
-    root.style.setProperty('--text-main', '#cdd6f4');
-    root.style.setProperty('--text-muted', '#a6adc8');
-  } else if (themeId === 'catppuccin-latte') {
-    root.style.setProperty('--bg-dark', '#dce0e8');
-    root.style.setProperty('--bg-panel', '#eff1f5');
-    root.style.setProperty('--bg-header', '#e6e9ef');
-    root.style.setProperty('--bg-active', '#ccd0da');
-    root.style.setProperty('--border', '#bcc0cc');
-    root.style.setProperty('--accent', '#8839ef');
-    root.style.setProperty('--accent-hover', '#1e66f5');
-    root.style.setProperty('--text-main', '#4c4f69');
-    root.style.setProperty('--text-muted', '#6c6f85');
-  } else if (themeId === 'tokyo-night') {
-    root.style.setProperty('--bg-dark', '#16161e');
-    root.style.setProperty('--bg-panel', '#1a1b26');
-    root.style.setProperty('--bg-header', '#24283b');
-    root.style.setProperty('--bg-active', '#292e42');
-    root.style.setProperty('--border', '#3b4261');
-    root.style.setProperty('--accent', '#7aa2f7');
-    root.style.setProperty('--accent-hover', '#7dcfff');
-    root.style.setProperty('--text-main', '#c0caf5');
-    root.style.setProperty('--text-muted', '#9aa5ce');
-  } else if (themeId === 'monokai') {
-    root.style.setProperty('--bg-dark', '#1e1f1c');
-    root.style.setProperty('--bg-panel', '#272822');
-    root.style.setProperty('--bg-header', '#3e3d32');
-    root.style.setProperty('--bg-active', '#49483e');
-    root.style.setProperty('--border', '#49483e');
-    root.style.setProperty('--accent', '#ffd866');
-    root.style.setProperty('--accent-hover', '#a9dc76');
-    root.style.setProperty('--text-main', '#f8f8f2');
-    root.style.setProperty('--text-muted', '#939293');
-  } else if (themeId === 'solarized-dark') {
-    root.style.setProperty('--bg-dark', '#00212b');
-    root.style.setProperty('--bg-panel', '#002b36');
-    root.style.setProperty('--bg-header', '#073642');
-    root.style.setProperty('--bg-active', '#0a4250');
-    root.style.setProperty('--border', '#586e75');
-    root.style.setProperty('--accent', '#268bd2');
-    root.style.setProperty('--accent-hover', '#2aa198');
-    root.style.setProperty('--text-main', '#839496');
-    root.style.setProperty('--text-muted', '#657b83');
-  } else if (themeId === 'ayu-dark') {
-    root.style.setProperty('--bg-dark', '#0b0e14');
-    root.style.setProperty('--bg-panel', '#0f1419');
-    root.style.setProperty('--bg-header', '#1f2430');
-    root.style.setProperty('--bg-active', '#242b38');
-    root.style.setProperty('--border', '#252e37');
-    root.style.setProperty('--accent', '#e6b450');
-    root.style.setProperty('--accent-hover', '#ffb454');
-    root.style.setProperty('--text-main', '#e6e1cf');
-    root.style.setProperty('--text-muted', '#707a8c');
-  } else if (themeId === 'nord') {
-    root.style.setProperty('--bg-dark', '#242933');
-    root.style.setProperty('--bg-panel', '#2e3440');
-    root.style.setProperty('--bg-header', '#3b4252');
-    root.style.setProperty('--bg-active', '#434c5e');
-    root.style.setProperty('--border', '#4c566a');
-    root.style.setProperty('--accent', '#88c0d0');
-    root.style.setProperty('--accent-hover', '#81a1c1');
-    root.style.setProperty('--text-main', '#eceff4');
-    root.style.setProperty('--text-muted', '#d8dee9');
-  } else if (themeId === 'dracula') {
-    root.style.setProperty('--bg-dark', '#1e1f29');
-    root.style.setProperty('--bg-panel', '#282a36');
-    root.style.setProperty('--bg-header', '#44475a');
-    root.style.setProperty('--bg-active', '#6272a4');
-    root.style.setProperty('--border', '#6272a4');
-    root.style.setProperty('--accent', '#bd93f9');
-    root.style.setProperty('--accent-hover', '#ff79c6');
-    root.style.setProperty('--text-main', '#f8f8f2');
-    root.style.setProperty('--text-muted', '#6272a4');
-  } else if (themeId === 'midnight-blue') {
-    root.style.setProperty('--bg-dark', '#000044');
-    root.style.setProperty('--bg-panel', '#000088');
-    root.style.setProperty('--bg-header', '#000066');
-    root.style.setProperty('--bg-active', '#0000aa');
-    root.style.setProperty('--border', '#00aaff');
-    root.style.setProperty('--accent', '#00ffff');
-    root.style.setProperty('--accent-hover', '#ffffff');
-    root.style.setProperty('--text-main', '#ffffff');
-    root.style.setProperty('--text-muted', '#a0a0ff');
-  } else if (themeId === 'skumring') {
-    root.style.setProperty('--bg-dark', '#0a0e14');
-    root.style.setProperty('--bg-panel', '#111822');
-    root.style.setProperty('--bg-header', '#1e2c3d');
-    root.style.setProperty('--bg-active', '#1e2c3d');
-    root.style.setProperty('--border', '#243347');
-    root.style.setProperty('--accent', '#38bdf8');
-    root.style.setProperty('--accent-hover', '#7dd3fc');
-    root.style.setProperty('--text-main', '#e6edf3');
-    root.style.setProperty('--text-muted', '#8b9bb4');
-  } else if (themeId === 'demring') {
-    root.style.setProperty('--bg-dark', '#eef2f6');
-    root.style.setProperty('--bg-panel', '#f7fafc');
-    root.style.setProperty('--bg-header', '#cbd5e1');
-    root.style.setProperty('--bg-active', '#cbd5e1');
-    root.style.setProperty('--border', '#cbd5e1');
-    root.style.setProperty('--accent', '#0e7490');
-    root.style.setProperty('--accent-hover', '#155e75');
-    root.style.setProperty('--text-main', '#0f172a');
-    root.style.setProperty('--text-muted', '#475569');
-  } else if (themeId === 'trollnatt') {
-    root.style.setProperty('--bg-dark', '#0b100d');
-    root.style.setProperty('--bg-panel', '#121914');
-    root.style.setProperty('--bg-header', '#222f26');
-    root.style.setProperty('--bg-active', '#222f26');
-    root.style.setProperty('--border', '#25342a');
-    root.style.setProperty('--accent', '#4ade80');
-    root.style.setProperty('--accent-hover', '#86efac');
-    root.style.setProperty('--text-main', '#edf4ee');
-    root.style.setProperty('--text-muted', '#93a797');
-  } else if (themeId === 'myrtaake') {
-    root.style.setProperty('--bg-dark', '#edf2ee');
-    root.style.setProperty('--bg-panel', '#f5f9f6');
-    root.style.setProperty('--bg-header', '#cad5cc');
-    root.style.setProperty('--bg-active', '#cad5cc');
-    root.style.setProperty('--border', '#cbd7cd');
-    root.style.setProperty('--accent', '#15803d');
-    root.style.setProperty('--accent-hover', '#166534');
-    root.style.setProperty('--text-main', '#0f1712');
-    root.style.setProperty('--text-muted', '#49594d');
-  } else if (themeId === 'bergtatt') {
-    root.style.setProperty('--bg-dark', '#0a0c0f');
-    root.style.setProperty('--bg-panel', '#11141a');
-    root.style.setProperty('--bg-header', '#222935');
-    root.style.setProperty('--bg-active', '#222935');
-    root.style.setProperty('--border', '#262e3d');
-    root.style.setProperty('--accent', '#d9a042');
-    root.style.setProperty('--accent-hover', '#f1b759');
-    root.style.setProperty('--text-main', '#e8e2d8');
-    root.style.setProperty('--text-muted', '#8e8d89');
-  } else if (themeId === 'soria-moria') {
-    root.style.setProperty('--bg-dark', '#ebe5dc');
-    root.style.setProperty('--bg-panel', '#f5f0e6');
-    root.style.setProperty('--bg-header', '#cbbead');
-    root.style.setProperty('--bg-active', '#cbbead');
-    root.style.setProperty('--border', '#c6bbaa');
-    root.style.setProperty('--accent', '#b87a1f');
-    root.style.setProperty('--accent-hover', '#8f5a0e');
-    root.style.setProperty('--text-main', '#1c1815');
-    root.style.setProperty('--text-muted', '#5d554a');
-  } else if (themeId === 'pestanatt') {
-    root.style.setProperty('--bg-dark', '#0b090a');
-    root.style.setProperty('--bg-panel', '#141011');
-    root.style.setProperty('--bg-header', '#261e20');
-    root.style.setProperty('--bg-active', '#261e20');
-    root.style.setProperty('--border', '#2b2023');
-    root.style.setProperty('--accent', '#dc2626');
-    root.style.setProperty('--accent-hover', '#ef4444');
-    root.style.setProperty('--text-main', '#e6dede');
-    root.style.setProperty('--text-muted', '#948285');
-  } else if (themeId === 'sotslette') {
-    root.style.setProperty('--bg-dark', '#ece6dc');
-    root.style.setProperty('--bg-panel', '#f5f0e6');
-    root.style.setProperty('--bg-header', '#cec3b2');
-    root.style.setProperty('--bg-active', '#cec3b2');
-    root.style.setProperty('--border', '#c7bcab');
-    root.style.setProperty('--accent', '#991b1b');
-    root.style.setProperty('--accent-hover', '#b91c1c');
-    root.style.setProperty('--text-main', '#1c1517');
-    root.style.setProperty('--text-muted', '#5c4f52');
-  } else {
-    // Woofson Amber Charcoal Default
-    root.style.setProperty('--bg-dark', '#121214');
-    root.style.setProperty('--bg-panel', '#18181b');
-    root.style.setProperty('--bg-header', '#202024');
-    root.style.setProperty('--bg-active', '#27272a');
-    root.style.setProperty('--bg-hover', '#323238');
-    root.style.setProperty('--bg-selected', 'rgba(245, 158, 11, 0.18)');
-    root.style.setProperty('--border', '#3f3f46');
-    root.style.setProperty('--border-focus', '#f59e0b');
-    root.style.setProperty('--accent', '#f59e0b');
-    root.style.setProperty('--accent-hover', '#fbbf24');
-    root.style.setProperty('--accent-dark', '#d97706');
-    root.style.setProperty('--accent-subtle', 'rgba(245, 158, 11, 0.12)');
-    root.style.setProperty('--text-main', '#f4f4f5');
-    root.style.setProperty('--text-muted', '#a1a1aa');
-    root.style.setProperty('--text-dim', '#71717a');
-    root.style.setProperty('--danger', '#ef4444');
-    root.style.setProperty('--success', '#10b981');
-    root.style.setProperty('--info', '#38bdf8');
-    root.style.setProperty('--archive', '#f472b6');
+    root.style.setProperty('--bg-hover', isLight ? '#ebecee' : '#323238');
+    root.style.setProperty('--bg-selected', bgSel);
+    root.style.setProperty('--border-col-divider', isLight ? 'rgba(0, 0, 0, 0.06)' : 'rgba(255, 255, 255, 0.05)');
+    root.style.setProperty('--border-col-header-divider', isLight ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.10)');
+    root.style.setProperty('--danger', isLight ? '#dc2626' : '#ef4444');
+    root.style.setProperty('--success', isLight ? '#059669' : '#10b981');
+    root.style.setProperty('--info', isLight ? '#0284c7' : '#38bdf8');
+    root.style.setProperty('--archive', isLight ? '#db2777' : '#f472b6');
+    root.style.setProperty('--shadow', isLight ? '0 4px 16px rgba(0, 0, 0, 0.08)' : '0 8px 24px rgba(0, 0, 0, 0.5)');
   }
 
   if (typeof applyLayoutGapSettings === 'function') {
@@ -21605,6 +21463,7 @@ function openHelpModal() {
 }
 
 function openSettingsModal() {
+  populateThemeSelectors();
   const startupSettings = getStartupSettings();
   const startupModeSel = document.getElementById('setting-startup-mode');
   if (startupModeSel) {
