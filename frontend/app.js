@@ -20868,12 +20868,14 @@ async function submitUnlockSession() {
       authHeaders['Authorization'] = `Bearer ${App.token}`;
     }
 
+    console.log('[Brum Auth] Submitting unlock request for user:', rawUname);
     // 1. Direct unified unlock endpoint (fast path: accepts active or expired token, or username)
     const resp = await fetch('/api/auth/unlock', {
       method: 'POST',
       headers: authHeaders,
       body: JSON.stringify({ password: pass, username: rawUname })
     });
+    console.log('[Brum Auth] Unlock response status:', resp.status);
 
     if (resp.ok) {
       const data = await resp.json();
@@ -21123,6 +21125,16 @@ function setupEventListeners() {
     if (e.key === 'Enter') {
       e.preventDefault();
       handleLoginSubmit();
+    }
+  });
+  document.getElementById('unlock-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submitUnlockSession();
+  });
+  document.getElementById('unlock-password-input')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitUnlockSession();
     }
   });
   document.getElementById('btn-logout')?.addEventListener('click', logout);
@@ -21403,6 +21415,7 @@ async function handleLoginSubmit() {
     if (window.lucide) lucide.createIcons({ root: submitBtn });
   }
 
+  console.log('[Brum Auth] Submitting login request for username:', u);
   let loginData = null;
   try {
     const resp = await fetch('/api/auth/login', {
@@ -21410,6 +21423,7 @@ async function handleLoginSubmit() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username: u, password: p })
     });
+    console.log('[Brum Auth] Login response status:', resp.status);
 
     if (resp.ok) {
       loginData = await resp.json();

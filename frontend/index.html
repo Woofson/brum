@@ -6931,7 +6931,7 @@
           <div id="login-error" class="login-error-msg" style="display: none;"></div>
         </div>
         <div class="login-card-footer">
-          <button type="submit" class="btn btn-accent login-submit-btn" id="btn-submit-login">
+          <button type="button" class="btn btn-accent login-submit-btn" id="btn-submit-login" onclick="handleLoginSubmit()">
             <i data-lucide="log-in" style="width: 14px; height: 14px;"></i>
             <span>Log In</span>
           </button>
@@ -7887,20 +7887,20 @@
           <div class="lock-sub-text">Session is locked!</div>
         </div>
       </div>
-      <form id="unlock-form" onsubmit="event.preventDefault(); submitUnlockSession();">
+      <form id="unlock-form" onsubmit="event.preventDefault(); submitUnlockSession(); return false;">
         <div class="lock-card-body">
           <div class="login-form-group">
             <label for="unlock-password-input" class="login-label">
               <i data-lucide="lock" class="login-label-icon"></i> Password
             </label>
             <div class="login-input-wrapper">
-              <input type="password" id="unlock-password-input" class="login-input lock-password-input" autocomplete="current-password" required placeholder="Enter password to unlock">
+              <input type="password" id="unlock-password-input" class="login-input lock-password-input" autocomplete="current-password" placeholder="Enter password to unlock">
             </div>
           </div>
           <div id="unlock-error-msg" class="login-error-msg lock-error-msg" style="display: none;"></div>
         </div>
         <div class="lock-card-footer">
-          <button type="submit" class="btn btn-accent login-submit-btn" id="btn-submit-unlock">
+          <button type="button" class="btn btn-accent login-submit-btn" id="btn-submit-unlock" onclick="submitUnlockSession()">
             <i data-lucide="unlock" style="width: 14px; height: 14px;"></i>
             <span>Unlock Session</span>
           </button>
