@@ -34,6 +34,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub plugins: PluginsConfig,
     #[serde(default)]
+    pub fleet: FleetConfig,
+    #[serde(default)]
     pub sftp: Option<SftpConfig>,
 }
 
@@ -64,6 +66,7 @@ impl Default for AppConfig {
             notedog: NoteDogConfig::default(),
             terminal: TerminalConfig::default(),
             plugins: PluginsConfig::default(),
+            fleet: FleetConfig::default(),
             sftp: None,
         }
     }
@@ -909,6 +912,40 @@ impl Default for PluginsConfig {
             global_blacklist: default_global_blacklist(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FleetConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    #[serde(default)]
+    pub nodes: Vec<FleetNodeConfig>,
+}
+
+impl Default for FleetConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            nodes: Vec::new(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct FleetNodeConfig {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+    #[serde(default)]
+    pub token: Option<String>,
+    #[serde(default)]
+    pub start_path: Option<String>,
+    #[serde(default)]
+    pub read_only: bool,
+    #[serde(default)]
+    pub color_accent: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

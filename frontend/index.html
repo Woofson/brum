@@ -6235,23 +6235,33 @@
 
             <div class="settings-grid-2col" style="gap: 10px;">
               <div class="settings-field">
-                <label class="settings-field-label">Node Accent Color:</label>
-                <div class="fleet-color-radio-group" id="fleet-color-swatches">
-                  <div class="fleet-color-swatch active" data-color="amber" style="background: #f59e0b;" onclick="selectFleetColor('amber')" title="Amber"></div>
-                  <div class="fleet-color-swatch" data-color="emerald" style="background: #10b981;" onclick="selectFleetColor('emerald')" title="Emerald"></div>
-                  <div class="fleet-color-swatch" data-color="sky" style="background: #0284c7;" onclick="selectFleetColor('sky')" title="Sky Blue"></div>
-                  <div class="fleet-color-swatch" data-color="purple" style="background: #a855f7;" onclick="selectFleetColor('purple')" title="Purple"></div>
-                  <div class="fleet-color-swatch" data-color="rose" style="background: #f43f5e;" onclick="selectFleetColor('rose')" title="Rose"></div>
-                  <div class="fleet-color-swatch" data-color="cyan" style="background: #06b6d4;" onclick="selectFleetColor('cyan')" title="Cyan"></div>
-                  <div class="fleet-color-swatch" data-color="slate" style="background: #64748b;" onclick="selectFleetColor('slate')" title="Slate"></div>
-                </div>
-                <input type="hidden" id="fleet-input-color" value="amber">
+                <label class="settings-field-label" for="fleet-input-proxy-mode">Gateway Routing Mode:</label>
+                <select id="fleet-input-proxy-mode" class="settings-select" style="height: 28px;">
+                  <option value="auto">Auto (Gateway Hub on Remote/HTTPS)</option>
+                  <option value="proxy">Force Gateway Hub Proxy (/api/fleet/proxy)</option>
+                  <option value="direct">Direct Connection (LAN Only)</option>
+                </select>
+                <div class="settings-field-hint">Routes LAN node traffic via Gateway Hub to bypass Mixed Content and CORS.</div>
               </div>
 
               <div class="settings-field">
                 <label class="settings-field-label" for="fleet-input-tags">Tags (comma-separated):</label>
-                <input type="text" id="fleet-input-tags" class="settings-input" placeholder="e.g. nas, proxmox, cloud, prod">
+                <input type="text" id="fleet-input-tags" class="settings-input" placeholder="e.g. nas, proxmox, cloud, prod" style="height: 28px;">
               </div>
+            </div>
+
+            <div class="settings-field">
+              <label class="settings-field-label">Node Accent Color:</label>
+              <div class="fleet-color-radio-group" id="fleet-color-swatches">
+                <div class="fleet-color-swatch active" data-color="amber" style="background: #f59e0b;" onclick="selectFleetColor('amber')" title="Amber"></div>
+                <div class="fleet-color-swatch" data-color="emerald" style="background: #10b981;" onclick="selectFleetColor('emerald')" title="Emerald"></div>
+                <div class="fleet-color-swatch" data-color="sky" style="background: #0284c7;" onclick="selectFleetColor('sky')" title="Sky Blue"></div>
+                <div class="fleet-color-swatch" data-color="purple" style="background: #a855f7;" onclick="selectFleetColor('purple')" title="Purple"></div>
+                <div class="fleet-color-swatch" data-color="rose" style="background: #f43f5e;" onclick="selectFleetColor('rose')" title="Rose"></div>
+                <div class="fleet-color-swatch" data-color="cyan" style="background: #06b6d4;" onclick="selectFleetColor('cyan')" title="Cyan"></div>
+                <div class="fleet-color-swatch" data-color="slate" style="background: #64748b;" onclick="selectFleetColor('slate')" title="Slate"></div>
+              </div>
+              <input type="hidden" id="fleet-input-color" value="amber">
             </div>
 
             <!-- Live Test Connection Box -->

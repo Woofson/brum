@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "1.4.1"
+version = "1.5.0"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -68,6 +68,7 @@ reqwest = { version = "0.12", default-features = false, features = ["json", "rus
 aes-gcm = "0.10"
 getrandom = "0.2"
 ssh2 = { version = "0.9", features = ["vendored-openssl", "openssl-on-win32"] }
+tokio-tungstenite = { version = "0.24", default-features = false, features = ["connect", "handshake", "rustls-tls-webpki-roots"] }
 tempfile = "3.16"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }

@@ -1,4 +1,5 @@
 pub mod terminal;
+pub mod fleet;
 
 use crate::auth::{AuthManager, GlobalMount, User};
 use crate::config::{AppConfig, ConfigManager};
@@ -17,7 +18,7 @@ use axum::{
     extract::{DefaultBodyLimit, Multipart, Path as AxumPath, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
-    routing::{delete, get, post, put},
+    routing::{any, delete, get, post, put},
     Router,
 };
 use rust_embed::RustEmbed;
@@ -132,6 +133,13 @@ pub fn create_router(state: AppState) -> Router {
         // Remote Connections & Test
         .route("/api/remotes/test", post(handle_test_remote))
         .route("/api/remotes/proton/status", get(handle_proton_status))
+        // Fleet Manager & Gateway Reverse Proxy
+        .route("/api/fleet/nodes", get(fleet::handle_list_fleet_nodes))
+        .route("/api/fleet/ping/:node_id", get(fleet::handle_fleet_ping))
+        .route("/api/fleet/proxy/:node_id/api/terminal/ws", get(fleet::handle_fleet_ws_proxy))
+        .route("/api/fleet/proxy/:node_id/ws", get(fleet::handle_fleet_ws_proxy))
+        .route("/api/fleet/proxy/:node_id/*path", any(fleet::handle_fleet_http_proxy))
+        .route("/api/fleet/proxy/:node_id", any(fleet::handle_fleet_http_proxy_root))
         // Tools, Comparison & Tasks
         .route("/api/tools/diff/files", post(handle_diff_files))
         .route("/api/tools/diff/folders", post(handle_diff_folders))

@@ -4207,10 +4207,37 @@ function getPaneNode(paneIndex) {
   return node;
 }
 
+function shouldRouteViaGateway(node) {
+  if (!node || node.id === 'local' || !node.endpoint_url) return false;
+  const mode = node.proxy_mode || 'auto';
+  if (mode === 'proxy') return true;
+  if (mode === 'direct') return false;
+  // 'auto' mode:
+  // If current page is HTTPS and node URL is HTTP, proxy to prevent mixed content blocking
+  if (window.location.protocol === 'https:' && node.endpoint_url.startsWith('http://')) {
+    return true;
+  }
+  // If current origin differs from node endpoint and we are accessing through a public domain or proxy
+  try {
+    const nodeOrigin = new URL(node.endpoint_url).origin;
+    if (nodeOrigin !== window.location.origin) {
+      const host = window.location.hostname;
+      const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
+      if (!isLocalHost) {
+        return true;
+      }
+    }
+  } catch (_) {}
+  return false;
+}
+
 function getPaneEndpoint(paneIndex) {
   const node = getPaneNode(paneIndex);
   if (!node || node.id === 'local' || !node.endpoint_url) {
     return '';
+  }
+  if (shouldRouteViaGateway(node)) {
+    return `/api/fleet/proxy/${encodeURIComponent(node.id)}`;
   }
   return node.endpoint_url.trim().replace(/\/+$/, '');
 }
@@ -4219,8 +4246,21 @@ function getPaneAuthHeaders(paneIndex, extraHeaders = {}) {
   const node = getPaneNode(paneIndex);
   const headers = { ...extraHeaders };
   if (node && node.id !== 'local') {
-    if (node.auth_token && node.auth_token.trim()) {
-      headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
+    if (shouldRouteViaGateway(node)) {
+      // Authenticate against gateway hub with session token
+      const token = App.token || localStorage.getItem('cd_token') || '';
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      headers['X-Fleet-Target-Url'] = node.endpoint_url;
+      if (node.auth_token && node.auth_token.trim()) {
+        headers['X-Fleet-Target-Token'] = node.auth_token.trim();
+      }
+    } else {
+      // Direct LAN connection
+      if (node.auth_token && node.auth_token.trim()) {
+        headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
+      }
     }
   } else {
     const token = App.token || localStorage.getItem('cd_token') || '';
@@ -26405,7 +26445,22 @@ function connectTerminal(cwd) {
   const cleanCwd = (cwd && typeof cwd === 'string') ? cwd : '/';
   const token = App.token || localStorage.getItem('cd_token') || '';
   const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
-  const url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
+
+  const activePaneIdx = App.activePane ?? 0;
+  const node = typeof getPaneNode === 'function' ? getPaneNode(activePaneIdx) : null;
+  let url;
+  if (node && node.id !== 'local') {
+    if (typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(node)) {
+      url = `${getWsUrl(`/api/fleet/proxy/${encodeURIComponent(node.id)}/api/terminal/ws`)}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
+    } else {
+      const nodeWsBase = node.endpoint_url.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
+      const nodeToken = node.auth_token || '';
+      const remoteTokenParam = nodeToken ? `&token=${encodeURIComponent(nodeToken)}` : '';
+      url = `${nodeWsBase}/api/terminal/ws?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${remoteTokenParam}`;
+    }
+  } else {
+    url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
+  }
 
   try {
     const thisWs = new WebSocket(url);
@@ -42082,16 +42137,27 @@ async function pingFleetNode(nodeId) {
 
   if (!endpoint) return null;
 
-  const url = `${endpoint}/api/health`;
+  const isProxy = nodeId !== 'local' && node && typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(node);
+  const url = isProxy
+    ? `/api/fleet/ping/${encodeURIComponent(node.id)}`
+    : `${endpoint}/api/health`;
+
   const headers = {};
-  if (node && node.auth_token && node.auth_token.trim()) {
+  if (isProxy) {
+    const token = App.token || localStorage.getItem('cd_token') || '';
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    headers['X-Fleet-Target-Url'] = node.endpoint_url;
+    if (node.auth_token && node.auth_token.trim()) {
+      headers['X-Fleet-Target-Token'] = node.auth_token.trim();
+    }
+  } else if (node && node.auth_token && node.auth_token.trim()) {
     headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
   } else if (nodeId === 'local' && App.token) {
     headers['Authorization'] = `Bearer ${App.token}`;
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
   const t0 = performance.now();
 
   try {
@@ -42102,32 +42168,38 @@ async function pingFleetNode(nodeId) {
       cache: 'no-store'
     });
     clearTimeout(timeoutId);
-    const latency = Math.round(performance.now() - t0);
+    const measuredLatency = Math.round(performance.now() - t0);
 
     if (resp.ok) {
-      const data = await resp.json();
+      const payload = await resp.json();
+      const data = isProxy ? (payload.data || payload) : payload;
+      const status = isProxy ? (payload.status || 'online') : 'online';
+      const latency = (isProxy && payload.latency_ms != null) ? payload.latency_ms : measuredLatency;
+
       if (node) {
-        node.status = 'online';
+        node.status = status;
         node.latency_ms = latency;
-        node.version = data.version || null;
-        node.build_number = data.build_number || null;
-        node.build_commit = data.build_commit || null;
-        node.build_timestamp = data.build_timestamp || null;
-        node.hostname = data.hostname || data.node_name || null;
-        node.os = data.os || null;
-        node.arch = data.arch || null;
+        if (data && typeof data === 'object') {
+          node.version = data.version || null;
+          node.build_number = data.build_number || null;
+          node.build_commit = data.build_commit || null;
+          node.build_timestamp = data.build_timestamp || null;
+          node.hostname = data.hostname || data.node_name || null;
+          node.os = data.os || null;
+          node.arch = data.arch || null;
+        }
         node.last_seen = Date.now();
         saveFleetNodes(nodes, true);
       }
-      return { status: 'online', latency_ms: latency, data, node };
+      return { status, latency_ms: latency, data, node };
     } else if (resp.status === 401 || resp.status === 403) {
       if (node) {
         node.status = 'unauthorized';
-        node.latency_ms = latency;
+        node.latency_ms = measuredLatency;
         node.last_seen = Date.now();
         saveFleetNodes(nodes, true);
       }
-      return { status: 'unauthorized', latency_ms: latency, node };
+      return { status: 'unauthorized', latency_ms: measuredLatency, node };
     } else {
       if (node) {
         node.status = 'offline';
@@ -42143,6 +42215,15 @@ async function pingFleetNode(nodeId) {
       node.latency_ms = null;
       saveFleetNodes(nodes, true);
     }
+    return { status: 'offline', latency_ms: null, error: err.message, node };
+  } finally {
+    renderFleetSwitcherDropdown();
+    const managerModal = document.getElementById('fleet-manager-modal');
+    if (managerModal && managerModal.classList.contains('active')) {
+      renderFleetManagerList();
+    }
+  }
+}
     return { status: 'offline', latency_ms: null, error: err.message, node };
   } finally {
     renderFleetSwitcherDropdown();
@@ -42315,13 +42396,18 @@ function renderFleetSwitcherDropdown() {
     }
 
     const colorHex = getFleetColorHex(n.color_accent);
+    const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(n);
 
     html += `
       <div class="fleet-node-item ${isAct ? 'active' : ''}" onclick="switchToFleetNode('${escapeHtml(n.id)}')">
         <div class="fleet-node-left">
           <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex}; flex-shrink: 0;"></i>
           <div class="fleet-node-info">
-            <div class="fleet-node-name">${escapeHtml(n.name)} ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}</div>
+            <div class="fleet-node-name">
+              ${escapeHtml(n.name)}
+              ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}
+              ${isProxy ? '<span class="fleet-tag-pill" style="font-size: 8.5px; padding: 0 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);" title="Routed via Gateway Hub Reverse Proxy">Gateway</span>' : ''}
+            </div>
             <div class="fleet-node-url">${escapeHtml(n.endpoint_url || '')}</div>
           </div>
         </div>
@@ -42428,6 +42514,7 @@ function renderFleetManagerList() {
     }
 
     const tagsHtml = (n.tags || []).map(t => `<span class="fleet-tag-pill">${escapeHtml(t)}</span>`).join('');
+    const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(n);
 
     html += `
       <div class="fleet-card ${isAct ? 'active' : ''}" style="border-left: 3px solid ${colorHex}; ${isEditing ? 'outline: 1.5px solid var(--accent);' : ''}" onclick="selectFleetNodeInManager('${escapeHtml(n.id)}')">
@@ -42437,6 +42524,7 @@ function renderFleetManagerList() {
             <span>${escapeHtml(n.name)}</span>
             ${getFleetNodeVersionBadge(n.version)}
             ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Active</span>' : ''}
+            ${isProxy ? '<span class="fleet-tag-pill" style="font-size: 8.5px; padding: 0 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);" title="Routed via Gateway Hub Reverse Proxy">Gateway</span>' : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
             <span class="fleet-ping-dot ${dotClass}" title="${n.status || 'unknown'}"></span>
@@ -42476,6 +42564,7 @@ function selectFleetNodeInManager(id) {
   const urlInput = document.getElementById('fleet-input-url');
   const tokenInput = document.getElementById('fleet-input-token');
   const startPathInput = document.getElementById('fleet-input-start-path');
+  const proxyModeInput = document.getElementById('fleet-input-proxy-mode');
   const colorInput = document.getElementById('fleet-input-color');
   const tagsInput = document.getElementById('fleet-input-tags');
 
@@ -42484,6 +42573,7 @@ function selectFleetNodeInManager(id) {
   if (urlInput) urlInput.value = node.endpoint_url || '';
   if (tokenInput) tokenInput.value = node.auth_token || '';
   if (startPathInput) startPathInput.value = node.start_path || '';
+  if (proxyModeInput) proxyModeInput.value = node.proxy_mode || 'auto';
   if (colorInput) colorInput.value = node.color_accent || 'amber';
   if (tagsInput) tagsInput.value = (node.tags || []).join(', ');
 
@@ -42546,6 +42636,7 @@ function resetFleetNodeForm() {
   const urlInput = document.getElementById('fleet-input-url');
   const tokenInput = document.getElementById('fleet-input-token');
   const startPathInput = document.getElementById('fleet-input-start-path');
+  const proxyModeInput = document.getElementById('fleet-input-proxy-mode');
   const colorInput = document.getElementById('fleet-input-color');
   const tagsInput = document.getElementById('fleet-input-tags');
 
@@ -42554,6 +42645,7 @@ function resetFleetNodeForm() {
   if (urlInput) urlInput.value = '';
   if (tokenInput) tokenInput.value = '';
   if (startPathInput) startPathInput.value = '';
+  if (proxyModeInput) proxyModeInput.value = 'auto';
   if (colorInput) colorInput.value = 'amber';
   if (tagsInput) tagsInput.value = '';
 
@@ -42607,6 +42699,7 @@ function toggleFleetTokenVisibility() {
 async function testFleetNodeConnection() {
   let url = (document.getElementById('fleet-input-url')?.value || '').trim();
   const token = (document.getElementById('fleet-input-token')?.value || '').trim();
+  const proxyMode = document.getElementById('fleet-input-proxy-mode')?.value || 'auto';
   const results = document.getElementById('fleet-test-results');
   const btn = document.getElementById('btn-fleet-test');
 
@@ -42623,10 +42716,11 @@ async function testFleetNodeConnection() {
   }
 
   const endpoint = url.replace(/\/+$/, '');
-  const healthUrl = `${endpoint}/api/health`;
+  const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway({ endpoint_url: endpoint, proxy_mode: proxyMode });
+  const healthUrl = isProxy ? `/api/fleet/ping/probe` : `${endpoint}/api/health`;
 
   if (results) {
-    results.innerHTML = `<span style="color: var(--accent);"><i data-lucide="loader-2" class="spin" style="width: 12px; height: 12px;"></i> Probing node endpoint ${escapeHtml(healthUrl)}...</span>`;
+    results.innerHTML = `<span style="color: var(--accent);"><i data-lucide="loader-2" class="spin" style="width: 12px; height: 12px;"></i> Probing node endpoint ${escapeHtml(endpoint)}${isProxy ? ' via Gateway Hub' : ''}...</span>`;
     try {
       if (window.lucide && typeof lucide.createIcons === 'function') {
         lucide.createIcons({ root: results });
@@ -42636,12 +42730,19 @@ async function testFleetNodeConnection() {
   if (btn) btn.disabled = true;
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 5000);
+  const timeoutId = setTimeout(() => controller.abort(), 6000);
   const t0 = performance.now();
 
   try {
     const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (isProxy) {
+      const localToken = App.token || localStorage.getItem('cd_token') || '';
+      if (localToken) headers['Authorization'] = `Bearer ${localToken}`;
+      headers['X-Fleet-Target-Url'] = endpoint;
+      if (token) headers['X-Fleet-Target-Token'] = token;
+    } else {
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+    }
 
     const resp = await fetch(healthUrl, {
       method: 'GET',
@@ -42650,10 +42751,13 @@ async function testFleetNodeConnection() {
       cache: 'no-store'
     });
     clearTimeout(timeoutId);
-    const latency = Math.round(performance.now() - t0);
+    const measuredLatency = Math.round(performance.now() - t0);
 
     if (resp.ok) {
-      const data = await resp.json();
+      const payload = await resp.json();
+      const data = isProxy ? (payload.data || payload) : payload;
+      const latency = (isProxy && payload.latency_ms != null) ? payload.latency_ms : measuredLatency;
+
       const cleanNode = data.version ? String(data.version).trim().replace(/^v/, '') : '';
       const cleanLocal = App.version ? String(App.version).trim().replace(/^v/, '') : '';
       const isMismatch = cleanNode && cleanLocal && cleanNode !== cleanLocal;
@@ -42670,7 +42774,7 @@ async function testFleetNodeConnection() {
         results.innerHTML = `
           <div style="display: flex; flex-direction: column; gap: 3px;">
             <div style="color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Connected successfully (${latency}ms round-trip)
+              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Connected successfully (${latency}ms round-trip${isProxy ? ' via Gateway' : ''})
             </div>
             <div style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span>Host: <span style="color: var(--text-main);">${escapeHtml(data.hostname || data.node_name || 'unknown')}</span></span> • 
@@ -42689,7 +42793,7 @@ async function testFleetNodeConnection() {
       if (results) {
         results.innerHTML = `
           <div style="color: #f59e0b; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-            <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i> HTTP ${resp.status} Unauthorized (${latency}ms)
+            <i data-lucide="alert-triangle" style="width: 13px; height: 13px;"></i> HTTP ${resp.status} Unauthorized (${measuredLatency}ms)
           </div>
           <div style="font-size: 11px; color: var(--text-dim);">Node reached, but rejected authentication. Please provide a valid Bearer token.</div>
         `;
@@ -42723,6 +42827,7 @@ function saveFleetNodeProfile() {
   let url = (document.getElementById('fleet-input-url')?.value || '').trim();
   const token = (document.getElementById('fleet-input-token')?.value || '').trim();
   const startPath = (document.getElementById('fleet-input-start-path')?.value || '').trim();
+  const proxyMode = document.getElementById('fleet-input-proxy-mode')?.value || 'auto';
   const color = document.getElementById('fleet-input-color')?.value || 'amber';
   const tagsRaw = (document.getElementById('fleet-input-tags')?.value || '').trim();
 
@@ -42759,6 +42864,7 @@ function saveFleetNodeProfile() {
         endpoint_url: url,
         auth_token: token,
         start_path: startPath || undefined,
+        proxy_mode: proxyMode,
         color_accent: color,
         tags,
         updated_at: Date.now()
@@ -42776,6 +42882,7 @@ function saveFleetNodeProfile() {
       endpoint_url: url,
       auth_token: token,
       start_path: startPath || undefined,
+      proxy_mode: proxyMode,
       color_accent: color,
       tags,
       created_at: Date.now(),
