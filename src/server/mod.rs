@@ -57,11 +57,15 @@ pub fn create_router(state: AppState) -> Router {
         .allow_headers(Any);
 
     Router::new()
-        // System & Platform Status
+        // System & Platform Status & Removable Storage
         .route("/api/health", get(handle_health))
         .route("/api/system/status", get(handle_system_status))
         .route("/api/system/exit", post(handle_system_exit))
         .route("/api/system/restart", post(handle_system_restart))
+        .route("/api/system/usb", get(handle_list_usb))
+        .route("/api/system/usb/mount", post(handle_mount_usb))
+        .route("/api/system/usb/unmount", post(handle_unmount_usb))
+        .route("/api/system/usb/eject", post(handle_eject_usb))
         // Auth & Security API (OIDC / SSO & Local)
         .route("/api/auth/oidc/config", get(handle_oidc_config))
         .route("/api/auth/oidc/login", get(handle_oidc_login))
@@ -973,6 +977,27 @@ async fn handle_get_storage_roots(
                     read_only: false,
                     allowed_roles: vec!["admin".to_string()],
                 });
+            }
+        }
+    }
+
+    // 4. Mounted Removable / USB Storage
+    for usb in crate::tools::usb::list_usb_devices() {
+        for part in usb.partitions {
+            if let Some(ref mnt) = part.mount_point {
+                if Path::new(mnt).exists() && !accessible.iter().any(|existing| existing.path == *mnt) {
+                    let display_name = part.label.clone()
+                        .filter(|l| !l.trim().is_empty())
+                        .or_else(|| usb.model.clone())
+                        .unwrap_or_else(|| format!("USB Storage ({})", part.name));
+                    accessible.push(crate::config::StorageRoot {
+                        id: format!("usb-{}", part.name),
+                        name: display_name,
+                        path: mnt.clone(),
+                        read_only: part.is_read_only,
+                        allowed_roles: vec![],
+                    });
+                }
             }
         }
     }
@@ -6078,6 +6103,97 @@ async fn handle_get_disks(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Disk enumeration failed: {}", e)))?;
 
     Ok(Json(disks))
+}
+
+async fn handle_list_usb(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::tools::usb::UsbDevice>>, (StatusCode, String)> {
+    let _claims = extract_claims_or_local(&state, &headers)?;
+    let devices = tokio::task::spawn_blocking(crate::tools::usb::list_usb_devices)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("USB scan failed: {}", e)))?;
+    Ok(Json(devices))
+}
+
+async fn handle_mount_usb(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::tools::usb::MountUsbRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if claims.role.eq_ignore_ascii_case("readonly") {
+        return Err((StatusCode::FORBIDDEN, "Read-only users cannot mount devices".to_string()));
+    }
+
+    let dev_path = payload.device_path.clone();
+    let mnt_opt = payload.mount_point.clone();
+    let mount_point = tokio::task::spawn_blocking(move || {
+        crate::tools::usb::mount_usb_partition(&dev_path, mnt_opt.as_deref())
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Mount task failed: {}", e)))?
+    .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "device_path": payload.device_path,
+        "mount_point": mount_point,
+        "message": format!("Mounted {} successfully at {}", payload.device_path, mount_point)
+    })))
+}
+
+async fn handle_unmount_usb(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::tools::usb::UnmountUsbRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if claims.role.eq_ignore_ascii_case("readonly") {
+        return Err((StatusCode::FORBIDDEN, "Read-only users cannot unmount devices".to_string()));
+    }
+
+    let target = payload.device_path.clone().or_else(|| payload.mount_point.clone())
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "device_path or mount_point required".to_string()))?;
+
+    let t = target.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::tools::usb::unmount_usb_partition(&t)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Unmount task failed: {}", e)))?
+    .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "target": target,
+        "message": format!("Unmounted {} successfully", target)
+    })))
+}
+
+async fn handle_eject_usb(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<crate::tools::usb::EjectUsbRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if claims.role.eq_ignore_ascii_case("readonly") {
+        return Err((StatusCode::FORBIDDEN, "Read-only users cannot eject devices".to_string()));
+    }
+
+    let dev_path = payload.device_path.clone();
+    tokio::task::spawn_blocking(move || {
+        crate::tools::usb::eject_usb_device(&dev_path)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Eject task failed: {}", e)))?
+    .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+
+    Ok(Json(serde_json::json!({
+        "success": true,
+        "device_path": payload.device_path,
+        "message": format!("Safe to remove device {}", payload.device_path)
+    })))
 }
 
 async fn handle_search(

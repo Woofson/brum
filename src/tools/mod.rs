@@ -18,3 +18,4 @@ pub mod duplicates;
 pub mod metadata;
 pub mod logviewer;
 pub mod trash;
+pub mod usb;

@@ -17618,14 +17618,16 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   let userBookmarks = [];
   let storageRoots = [];
   let trashSummary = { total_items: 0, total_size: 0, files_dir: '' };
+  let usbDevices = [];
 
   try {
-    const [mountsRes, bmRes, rootsRes, trashRes, disksRes] = await Promise.all([
+    const [mountsRes, bmRes, rootsRes, trashRes, disksRes, usbRes] = await Promise.all([
       fetch(`${endpoint}/api/mounts/accessible`, { headers: authHeaders }).catch(() => null),
       fetch('/api/bookmarks', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null),
       fetch(`${endpoint}/api/storage/roots`, { headers: authHeaders }).catch(() => null),
       fetch(`${endpoint}/api/tools/trash/summary`, { headers: authHeaders }).catch(() => null),
-      fetch(`${endpoint}/api/tools/disks`, { headers: authHeaders }).catch(() => null)
+      fetch(`${endpoint}/api/tools/disks`, { headers: authHeaders }).catch(() => null),
+      fetch(`${endpoint}/api/system/usb`, { headers: authHeaders }).catch(() => null)
     ]);
     if (mountsRes && mountsRes.ok) globalMounts = await mountsRes.json();
     if (bmRes && bmRes.ok) userBookmarks = await bmRes.json();
@@ -17637,6 +17639,14 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         window._systemDisks = disks;
       } else {
         node._systemDisks = disks;
+      }
+    }
+    if (usbRes && usbRes.ok) {
+      usbDevices = await usbRes.json() || [];
+      if (!isRemote) {
+        window._usbDevices = usbDevices;
+      } else {
+        node._usbDevices = usbDevices;
       }
     }
   } catch (err) {
@@ -17662,7 +17672,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   const nodeDisks = isRemote ? (node._systemDisks || []) : (window._systemDisks || []);
 
   const drives = storageRoots.filter(r => r.id !== 'home' && r.path.match(/^[a-zA-Z]:[\\/]/));
-  const nonDriveRoots = storageRoots.filter(r => !r.path.match(/^[a-zA-Z]:[\\/]/) || r.id === 'home');
+  const nonDriveRoots = storageRoots.filter(r => (!r.path.match(/^[a-zA-Z]:[\\/]/) || r.id === 'home') && !r.id.startsWith('usb-'));
 
   const hiddenDrives = typeof getHiddenDrives === 'function' ? getHiddenDrives() : [];
   const visibleDrives = drives.filter(d => !hiddenDrives.includes(d.path) && !hiddenDrives.includes(d.id));
@@ -17690,6 +17700,96 @@ async function openPaneFavoritesMenu(e, paneIndex) {
             <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(sanitizeCredentials(curPanePath))}</div>
           </div>
         </div>
+        <div class="context-sep" style="margin: 4px 0;"></div>
+      ` : ''}
+
+      ${usbDevices.length > 0 ? `
+        <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+          <span>Removable & USB Storage</span>
+          <span style="font-size: 9px; opacity: 0.8; font-family: var(--font-mono);">${usbDevices.length} drive${usbDevices.length > 1 ? 's' : ''}</span>
+        </div>
+        ${usbDevices.map(dev => {
+          const devLabel = [dev.vendor, dev.model].filter(Boolean).join(' ') || dev.name;
+          const devIcon = dev.is_optical ? 'disc' : 'usb';
+          const partitions = (dev.partitions && dev.partitions.length > 0) ? dev.partitions : [{
+            name: dev.name,
+            label: devLabel,
+            filesystem: null,
+            device_path: dev.device_path,
+            mount_point: null,
+            is_mounted: false,
+            size_bytes: dev.size_bytes,
+            formatted_size: dev.formatted_size,
+            read_only: false
+          }];
+
+          return partitions.map(part => {
+            const partName = part.label || devLabel || part.name;
+            const isMounted = part.is_mounted && !!part.mount_point;
+            const isAct = isMounted && (
+              curPanePath.toUpperCase() === part.mount_point.toUpperCase() ||
+              curPanePath.toUpperCase().startsWith(part.mount_point.toUpperCase())
+            );
+            const fsTag = part.filesystem ? `<span class="badge" style="font-size: 8px; padding: 1px 4px; text-transform: uppercase;">${escapeHtml(part.filesystem)}</span>` : '';
+            const roTag = part.read_only ? `<span class="badge" style="font-size: 8px; padding: 1px 4px; background: rgba(239,68,68,0.2); color: var(--danger);">RO</span>` : '';
+            const sizeStr = part.formatted_size || dev.formatted_size || '';
+
+            if (isMounted) {
+              return `
+                <div class="dropdown-item ${isAct ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="${escapeHtml(part.mount_point)}" style="display: flex; align-items: center; justify-content: space-between;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                    <i data-lucide="${devIcon}" style="color: var(--accent); flex-shrink: 0; width: 14px; height: 14px;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(partName)}</span>
+                        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                          ${fsTag}
+                          ${roTag}
+                          ${sizeStr ? `<span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(sizeStr)}</span>` : ''}
+                        </div>
+                      </div>
+                      <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${escapeHtml(part.mount_point)} <span style="opacity: 0.6;">(${escapeHtml(part.device_path)})</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
+                    ${isAct ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
+                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); unmountUsbDevice('${escapeHtml(part.mount_point || part.device_path)}', ${paneIndex});" title="Safely unmount & eject" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: var(--danger, #ef4444); border-radius: var(--radius);">
+                      <i data-lucide="eject" style="width: 12px; height: 12px;"></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+            } else {
+              return `
+                <div class="dropdown-item" data-action="mount-usb" data-pane="${paneIndex}" data-devpath="${escapeHtml(part.device_path)}" style="display: flex; align-items: center; justify-content: space-between; opacity: 0.9;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0;">
+                    <i data-lucide="${devIcon}" style="color: var(--text-dim); flex-shrink: 0; width: 14px; height: 14px;"></i>
+                    <div style="flex: 1; min-width: 0;">
+                      <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between; gap: 6px;">
+                        <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(partName)}</span>
+                        <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
+                          <span class="badge" style="font-size: 8px; padding: 1px 4px; background: rgba(245,158,11,0.15); color: var(--accent);">UNMOUNTED</span>
+                          ${fsTag}
+                          ${sizeStr ? `<span style="font-size: 9.5px; color: var(--text-dim); font-family: var(--font-mono);">${escapeHtml(sizeStr)}</span>` : ''}
+                        </div>
+                      </div>
+                      <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                        ${escapeHtml(part.device_path)}
+                      </div>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
+                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); mountUsbDevice('${escapeHtml(part.device_path)}', ${paneIndex});" title="Mount storage partition" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); color: #10b981; border-radius: var(--radius);">
+                      <i data-lucide="play" style="width: 11px; height: 11px;"></i>
+                    </button>
+                  </div>
+                </div>
+              `;
+            }
+          }).join('');
+        }).join('')}
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : ''}
 
@@ -17890,6 +17990,10 @@ async function openPaneFavoritesMenu(e, paneIndex) {
     if (action === 'load-dir') {
       if (typeof setActivePane === 'function') setActivePane(targetPane);
       loadPaneDirectory(targetPane, targetPath);
+      popup.remove();
+    } else if (action === 'mount-usb') {
+      const devPath = item.dataset.devpath;
+      mountUsbDevice(devPath, targetPane);
       popup.remove();
     } else if (action === 'switch-node') {
       const nodeId = item.dataset.nodeId;
@@ -19999,6 +20103,98 @@ async function loadDriveVisibilitySettings() {
     `;
   }).join('');
 }
+
+async function mountUsbDevice(devicePath, paneIndex = 0) {
+  const endpoint = getPaneEndpoint(paneIndex);
+  const authHeaders = getPaneAuthHeaders(paneIndex);
+  showToast(`Mounting ${devicePath}...`, 'info');
+  try {
+    const res = await fetch(`${endpoint}/api/system/usb/mount`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ device_path: devicePath })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(`Mounted ${devicePath} at ${data.mount_point || 'target'}`, 'success');
+      document.getElementById('pane-favorites-popup')?.remove();
+      if (data.mount_point) {
+        if (typeof setActivePane === 'function') setActivePane(paneIndex);
+        loadPaneDirectory(paneIndex, data.mount_point);
+      } else {
+        refreshPane(paneIndex);
+      }
+    } else {
+      showToast(`Failed to mount ${devicePath}: ${data.error || 'Unknown error'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Mount request failed: ${err.message}`, 'error');
+  }
+}
+window.mountUsbDevice = mountUsbDevice;
+
+async function unmountUsbDevice(target, paneIndex = 0) {
+  const endpoint = getPaneEndpoint(paneIndex);
+  const authHeaders = getPaneAuthHeaders(paneIndex);
+  showToast(`Unmounting ${target}...`, 'info');
+  try {
+    const res = await fetch(`${endpoint}/api/system/usb/unmount`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ target: target })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(`Safely unmounted ${target}`, 'success');
+      document.getElementById('pane-favorites-popup')?.remove();
+      const curPath = App.panes[paneIndex]?.path || '';
+      if (curPath.startsWith(target)) {
+        const homePath = getUserDefaultHomeDir() || '/';
+        loadPaneDirectory(paneIndex, homePath);
+      } else {
+        refreshPane(paneIndex);
+      }
+    } else {
+      showToast(`Failed to unmount ${target}: ${data.error || 'Unknown error'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Unmount request failed: ${err.message}`, 'error');
+  }
+}
+window.unmountUsbDevice = unmountUsbDevice;
+
+async function ejectUsbDevice(devicePath, paneIndex = 0) {
+  const endpoint = getPaneEndpoint(paneIndex);
+  const authHeaders = getPaneAuthHeaders(paneIndex);
+  showToast(`Ejecting ${devicePath}...`, 'info');
+  try {
+    const res = await fetch(`${endpoint}/api/system/usb/eject`, {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ device_path: devicePath })
+    });
+    const data = await res.json();
+    if (res.ok && data.success) {
+      showToast(`Device ${devicePath} safely ejected`, 'success');
+      document.getElementById('pane-favorites-popup')?.remove();
+      refreshPane(paneIndex);
+    } else {
+      showToast(`Failed to eject ${devicePath}: ${data.error || 'Unknown error'}`, 'error');
+    }
+  } catch (err) {
+    showToast(`Eject request failed: ${err.message}`, 'error');
+  }
+}
+window.ejectUsbDevice = ejectUsbDevice;
 
 function handleSansFontChange(font) {
   localStorage.setItem('cd_font_sans', font);
@@ -31862,7 +32058,7 @@ function renderSystemDisksOverview() {
     const isZfs = disk.fs_type.toLowerCase().includes('zfs');
     const isBtrfs = disk.fs_type.toLowerCase().includes('btrfs');
     const isNetwork = ['nfs', 'smb', 'cifs', 'sshfs', 'fuse'].some(t => disk.fs_type.toLowerCase().includes(t));
-    const iconName = isNetwork ? 'cloud' : (isZfs || isBtrfs ? 'database' : 'hard-drive');
+    const iconName = disk.is_removable ? 'usb' : (isNetwork ? 'cloud' : (isZfs || isBtrfs ? 'database' : 'hard-drive'));
 
     return `
       <div class="du-mount-card">
@@ -31879,6 +32075,7 @@ function renderSystemDisksOverview() {
             </div>
           </div>
           <div class="du-mount-badges">
+            ${disk.is_removable ? '<span class="du-mount-badge" style="background: rgba(245,158,11,0.15); color: var(--accent);">USB / REMOVABLE</span>' : ''}
             <span class="du-mount-badge fstype">${escapeHtml(disk.fs_type)}</span>
             <span class="du-mount-badge ${disk.is_read_only ? 'ro' : 'rw'}">${disk.is_read_only ? 'RO' : 'RW'}</span>
           </div>
@@ -31903,6 +32100,11 @@ function renderSystemDisksOverview() {
           <button type="button" class="btn btn-xs btn-accent" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="scanMountpointTreemap('${escapeHtml(disk.mount_point)}')" title="Run parallel Rayon deep scan on this mount point">
             <i data-lucide="layout-grid" style="width: 12px; height: 12px;"></i> Deep Scan
           </button>
+          ${disk.is_removable ? `
+            <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--danger, #ef4444); border-color: rgba(239,68,68,0.3);" onclick="unmountUsbDevice('${escapeHtml(disk.mount_point)}', App.activePaneIndex)" title="Safely unmount & eject">
+              <i data-lucide="eject" style="width: 12px; height: 12px;"></i>
+            </button>
+          ` : ''}
           <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="openTerminalFromDiskUsage('${escapeHtml(disk.mount_point)}')" title="Open Terminal here">
             <i data-lucide="terminal" style="width: 12px; height: 12px;"></i>
           </button>

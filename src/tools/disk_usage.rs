@@ -172,6 +172,11 @@ pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot], allow_enti
                             0.0
                         };
 
+                        let is_removable = mount_point.starts_with("/media")
+                            || mount_point.starts_with("/run/media")
+                            || mount_point.starts_with("/mnt")
+                            || crate::tools::usb::is_device_removable(device);
+
                         disks.push(DiskMountInfo {
                             name,
                             mount_point: mount_point.to_string(),
@@ -185,7 +190,7 @@ pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot], allow_enti
                             formatted_available: format_size(avail),
                             usage_percentage: (pct * 10.0).round() / 10.0,
                             is_read_only: is_ro,
-                            is_removable: false,
+                            is_removable,
                             storage_root_id: None,
                         });
                     }
@@ -219,12 +224,22 @@ pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot], allow_enti
 
     #[cfg(windows)]
     {
+        use std::ffi::OsStr;
+        use std::os::windows::ffi::OsStrExt;
+
+        extern "system" {
+            fn GetDriveTypeW(lpRootPathName: *const u16) -> u32;
+        }
+
         for b in b'A'..=b'Z' {
             let drive_root = format!("{}:\\", b as char);
             if Path::new(&drive_root).exists() {
                 if let Some((total, used, avail)) = query_windows_disk(&drive_root) {
                     if total > 0 {
                         let pct = ((used as f64 / total as f64) * 100.0).min(100.0);
+                        let wide: Vec<u16> = OsStr::new(&drive_root).encode_wide().chain(Some(0)).collect();
+                        let drive_type = unsafe { GetDriveTypeW(wide.as_ptr()) };
+                        let is_removable = drive_type == 2 || drive_type == 5; // 2=DRIVE_REMOVABLE, 5=DRIVE_CDROM
                         disks.push(DiskMountInfo {
                             name: format!("Local Disk ({}:)", b as char),
                             mount_point: drive_root,
@@ -237,8 +252,8 @@ pub fn get_system_disks(storage_roots: &[crate::config::StorageRoot], allow_enti
                             formatted_used: format_size(used),
                             formatted_available: format_size(avail),
                             usage_percentage: (pct * 10.0).round() / 10.0,
-                            is_read_only: false,
-                            is_removable: false,
+                            is_read_only: drive_type == 5,
+                            is_removable,
                             storage_root_id: None,
                         });
                     }
