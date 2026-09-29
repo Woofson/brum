@@ -157,6 +157,23 @@ default_home_template = "/home/{username}"
 force_sso_only = false
 button_icon = "shield-check"
 
+[sftp]
+# SSH/SFTP Host Key Verification:
+# - "strict"     : Strict host key checking against known_hosts (rejects unknown keys)
+# - "accept-new" : Trust On First Use (TOFU) - automatically accepts and saves new host keys
+# - "off"        : Disables host key verification (insecure, useful for lab testing)
+host_key_checking = "accept-new"
+# Optional explicit path to custom known_hosts file (defaults to ~/.ssh/known_hosts)
+known_hosts_file = ""
+
+[usb]
+# Hardware USB & removable storage auto-detection
+enabled = true
+# Auto-mount discovered USB block devices upon insertion
+auto_mount = false
+# Mount parent directory for removable media
+mount_base = "/media/brum"
+
 [fleet]
 # Enable multi-node fleet manager and remote node auto-discovery
 enabled = true
@@ -166,6 +183,8 @@ id = "hetzner-backup"
 name = "Hetzner Storage Box"
 url = "https://backup.example.com:3140"
 token = "api_token_here"
+# Routing mode: "auto" | "proxy" | "direct"
+proxy_mode = "auto"
 # Optional default start path on this remote node (leave empty for auto home discovery)
 default_path = ""
 # Read-only fleet node flag

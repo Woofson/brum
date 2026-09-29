@@ -5,6 +5,34 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-09-29
+
+### Added
+- **Fleet Gateway Reverse Proxy Hub for Distributed LAN Nodes** (Fixes #93):
+  - Implemented backend reverse proxy gateway hub (`/api/fleet/proxy/:node_id/*` and `/api/fleet/ping/:node_id`) allowing remote LAN nodes to be accessed seamlessly from public domains and HTTPS origins.
+  - Added transparent WebSocket tunneling (`/api/fleet/proxy/:node_id/api/terminal/ws`) for remote interactive terminal sessions with bidirectional frame forwarding.
+  - Implemented node routing modes (`auto`, `proxy`, `direct`) in Fleet Manager with automatic gateway badge indicators and live health latency probing.
+  - Added mixed-content defense bridging HTTP LAN nodes over HTTPS secure frontend sessions.
+- **Modular External Themes & Visual Layout Customization Engine** (Fixes #90):
+  - Added support for external `./themes/*.toml` modular theme definitions loaded dynamically at startup.
+  - Introduced customizable layout spacing (`gap = "4px"`), border-radius (`radius = "6px"`), folder icon colors (`folder_color`), and window title templates (`title_template = "{path} - Brum"`).
+  - Added live theme swatch reactivity and streamlined core `config.toml` structure.
+- **USB & Removable Storage Hardware Auto-Detection & Management** (Fixes #95):
+  - Added Linux `/sys/block` and `lsblk` auto-detection for USB flash drives and external hard drives.
+  - Implemented REST endpoints and UI controls for one-click mount, unmount, and eject management (`/api/system/usb`, `/api/system/usb/mount`, `/api/system/usb/unmount`, `/api/system/usb/eject`).
+- **Configurable SSH/SFTP Host Key Verification (TOFU / Known Hosts)** (Fixes #96):
+  - Added configurable host key verification modes (`strict`, `accept-new` / TOFU, `off`) and custom known hosts file paths in `config.toml` (`[sftp]`).
+- **Server-Side User Profiles, Avatars & Workspace Preferences** (Fixes #97, Fixes #94):
+  - Implemented server-side user profile management with custom nicknames, bios, emails, and avatar image uploads (`/api/auth/profile`, `/api/auth/avatar/:username`).
+  - Added server-side user preferences persistence across devices and sessions (`/api/auth/user-preferences`).
+
+### Fixed
+- **Authentication & Lock Screen Zero-Flash Stability**:
+  - Replaced native form submissions with explicit direct button click dispatchers and Enter keypress handlers to prevent silent submission drops.
+  - Resolved session lock input handling and restored clean lock screen logout flow.
+  - Added standalone and auth-disabled instant login bypass and fallback default admin authentication.
+  - Resolved JavaScript evaluation syntax error in `pingFleetNode` ensuring instant client-side execution.
+
 ## [1.3.0] - 2026-09-28
 
 ### Added

@@ -122,3 +122,40 @@ The official unified color palette and design tokens for Brum and the Woofsons a
   --shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
 }
 ```
+
+---
+
+## Modular External Themes (`./themes/*.toml`)
+
+Brum loads external themes dynamically from TOML files located in:
+* `./themes/*.toml` (Application root)
+* `~/.config/brum/themes/*.toml` (User config directory)
+* `/etc/brum/themes/*.toml` (System-wide on Linux)
+* `%APPDATA%\Brum\themes\*.toml` (Windows)
+
+### Theme TOML Schema
+```toml
+# Custom Theme Example
+[[themes]]
+id = "custom-theme"
+name = "My Custom Theme"
+bg_dark = "#18181b"
+bg_panel = "#27272a"
+bg_active = "#3f3f46"
+accent = "#f59e0b"
+accent_hover = "#fbbf24"
+text_main = "#fafafa"
+text_muted = "#a1a1aa"
+border = "#52525b"
+folder_color = "#f59e0b"
+radius = "6px"
+gap = "4px"
+```
+
+### Visual Layout & Appearance Settings
+In addition to color palettes, Brum supports:
+* **Custom UI Gaps**: Configurable pane and tool gap spacing (`gap = "4px"`).
+* **Border Radius**: Rounding tokens (`radius = "6px"`).
+* **Custom Folder Icon Colors**: Per-theme folder accents (`folder_color`).
+* **Window Title Templates**: Configurable header document titles via `config.toml` (`[ui] title_template = "{path} - Brum"`).
+

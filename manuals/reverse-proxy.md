@@ -232,10 +232,28 @@ sudo a2enmod proxy proxy_http proxy_wstunnel ssl
 
 ---
 
+## 9. Brum Fleet Gateway Hub (Reverse Proxy for LAN Nodes)
+
+When managing a fleet of distributed Brum nodes across local subnets or private mesh networks, Brum includes a native **Fleet Gateway Hub Reverse Proxy**.
+
+### Why use Fleet Gateway Hub?
+* **Mixed-Content Prevention**: If you access your main Brum instance via HTTPS (`https://files.yourdomain.com`), modern browsers block direct HTTP requests to LAN nodes (`http://192.168.1.50:3140`). Fleet Gateway Hub transparently relays API calls and WebSockets through the main server.
+* **Unified Single Ingress**: Access all nodes in your home lab or office fleet from outside the network through a single public domain or VPN IP without opening separate firewall ports for every node.
+* **WebSocket Relaying**: Proxies PTY terminal sessions (`/api/fleet/proxy/:node_id/api/terminal/ws`) seamlessly.
+
+### Gateway Proxy Configuration
+In Fleet Manager (**Fleet Control ➔ Manage Fleet Nodes**), each node supports three routing modes:
+1. **Auto (Recommended)**: Automatically routes via Gateway Hub if accessing from a public/HTTPS origin or non-localhost domain.
+2. **Gateway Proxy (`proxy`)**: Forces all traffic (REST and WebSocket) through `/api/fleet/proxy/<node-id>`.
+3. **Direct (`direct`)**: Directly connects client browser to the remote node endpoint URL.
+
+---
+
 ## Verification Checklist
 
 Once deployed behind your reverse proxy or VPN, test:
 1. **Web Dashboard**: Navigate to your domain or Tailscale/NetBird IP in browser.
 2. **Interactive Terminal (Backtick or Slide-up)**: Verify that the bash/sh shell connects immediately over WebSocket (`wss://`).
 3. **File Uploads**: Drag and drop large files to ensure the proxy's `client_max_body_size` is not rejecting uploads.
-4. **Mobile Navigation**: Test on mobile browsers (Vivaldi, Chrome, Firefox) to confirm the dynamic viewport sits comfortably above mobile bottom bars.
+4. **Fleet Node Probing**: Probe remote fleet nodes to confirm Gateway Hub proxy routes resolve latency and status accurately.
+5. **Mobile Navigation**: Test on mobile browsers (Vivaldi, Chrome, Firefox) to confirm the dynamic viewport sits comfortably above mobile bottom bars.

@@ -4,7 +4,7 @@
   <img src="assets/brum2.png" alt="Brum Web & Desktop Environment" width="800" />
   <p><em>Multi-Pane Web Environment (File Commander/Manager) — By Woofson</em></p>
   <p>
-    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.2.1-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
+    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.5.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
     <a href="https://crates.io/crates/brum"><img src="https://img.shields.io/crates/v/brum?style=flat-square&color=f59e0b" alt="Crates.io" /></a>
     <img src="https://img.shields.io/badge/rust-2021_edition-orange?style=flat-square" alt="Rust 2021" />
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License MIT" />
@@ -20,9 +20,11 @@
 
 * **Instant 0ms Orthodox Multi-Pane Manager**: 1-to-4 dynamic panels (`Alt+1`–`4`), orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), fast branch view, frame-0 optimistic pre-rendering, and directory fast caching.
 * **Dual-Mode Floating & Dockable Core Functions**: 19+ integrated native power tools that freely toggle between floating desktop windows and in-pane docking with zero iframe overhead (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage Analyzer, Notes, Audio Player, Media Player, Persistent Terminal, Duplicate Finder, Batch Renamer, Hex Editor, Tag Editor, Log Viewer, Format Converter, Delta Backup, and XDG Trash Suite).
-* **Distributed Fleet Management & Auto-Discovery**: Connect, monitor, and manage remote Brum nodes across LAN/WAN with node-aware Places navigation, home auto-discovery, custom start paths, and live health diagnostics.
+* **Distributed Fleet Management & Reverse Proxy Gateway**: Connect, monitor, and manage remote Brum nodes across LAN/WAN with node-aware Places navigation, home auto-discovery, custom start paths, health diagnostics, and built-in Gateway Hub reverse proxy routing for REST and WebSockets.
+* **Removable & USB Storage Automation**: Native hardware auto-detection for USB sticks and external drives with one-click mount, unmount, and eject management.
+* **Modular Theme Engine & Custom Styling**: External `./themes/*.toml` theme files, live theme switching, custom UI gaps, border-radius, folder colors, and window title templates.
 * **Synchronized Scrolling & Relative Navigation**: Mirrored viewport scrolling and relative subfolder navigation across active panels with loop prevention.
-* **Universal Remote & Client VFS**: Direct zero-leakage client for SFTP/SSH, SMB/Windows Shares, NFS, S3 Cloud Storage, WebDAV, Proton Drive, Hetzner Storage Box, and browser-native Client Local Folder mounts (`client://`).
+* **Universal Remote & Client VFS**: Direct zero-leakage client for SFTP/SSH (with configurable TOFU / Known Hosts verification), SMB/Windows Shares, NFS, S3 Cloud Storage, WebDAV, Proton Drive, Hetzner Storage Box, and browser-native Client Local Folder mounts (`client://`).
 * **OpenID Connect (OIDC) & SSO Authentication**: Enterprise identity provider integration (Authentik, Keycloak, generic OIDC) with PKCE flow and token lifecycle management.
 * **Zero-Knowledge Encrypted Vaults**: Password-protected `.cdvault` containers with Argon2id + AES-256-GCM RAM-only virtual streaming (no plaintext ever touches disk).
 * **Automated SemVer Build Metadata**: Native compile-time build tracking (`+build.<N>.git.<hash>`), UTC timestamps, and target architecture visible across CLI, About modals, and API.
