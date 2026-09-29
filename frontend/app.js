@@ -20833,6 +20833,9 @@ function lockSession() {
 }
 
 async function submitUnlockSession() {
+  if (window._isSubmittingUnlock) return;
+  window._isSubmittingUnlock = true;
+
   const passIn = document.getElementById('unlock-password-input');
   const errMsg = document.getElementById('unlock-error-msg');
   const submitBtn = document.getElementById('btn-submit-unlock');
@@ -20847,15 +20850,6 @@ async function submitUnlockSession() {
 
   const userLabel = document.getElementById('lock-username-label');
   const rawUname = cachedUser?.username || userLabel?.dataset?.rawUsername || localStorage.getItem('cd_last_username') || 'admin';
-
-  if (!pass) {
-    if (errMsg) {
-      errMsg.textContent = 'Please enter your password to unlock.';
-      errMsg.style.display = 'block';
-    }
-    passIn?.focus();
-    return;
-  }
 
   if (errMsg) errMsg.style.display = 'none';
 
@@ -20967,6 +20961,7 @@ async function submitUnlockSession() {
       errMsg.style.display = 'block';
     }
   } finally {
+    window._isSubmittingUnlock = false;
     if (submitBtn) {
       submitBtn.disabled = false;
       submitBtn.innerHTML = origBtnHtml || '<i data-lucide="unlock" style="width: 14px; height: 14px;"></i> <span>Unlock Session</span>';
@@ -21114,17 +21109,23 @@ function setupEventListeners() {
   });
   document.getElementById('login-username')?.addEventListener('keydown', (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault();
-      document.getElementById('login-password')?.focus();
+      const pIn = document.getElementById('login-password');
+      if (pIn && pIn.value) {
+        e.preventDefault();
+        handleLoginSubmit();
+      } else if (pIn) {
+        e.preventDefault();
+        pIn.focus();
+      }
     }
   });
-  document.getElementById('btn-logout')?.addEventListener('click', () => {
-    localStorage.removeItem('cd_token');
-    try {
-      document.cookie = 'cd_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-    } catch (e) {}
-    location.reload();
+  document.getElementById('login-password')?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleLoginSubmit();
+    }
   });
+  document.getElementById('btn-logout')?.addEventListener('click', logout);
 
   setupTouchGestures();
 }
@@ -21383,18 +21384,24 @@ async function handleLoginSubmit() {
   const u = uInput?.value.trim() || '';
   const p = pInput?.value || '';
 
-  if (!u || !p) {
+  if (!u) {
     window._isSubmittingLogin = false;
     if (err) {
       err.style.display = 'block';
-      err.textContent = 'Please enter both username and password.';
+      err.textContent = 'Please enter your username.';
     }
-    if (!u) uInput?.focus();
-    else pInput?.focus();
+    uInput?.focus();
     return;
   }
 
-  if (submitBtn) submitBtn.disabled = true;
+  if (err) err.style.display = 'none';
+
+  const origBtnHtml = submitBtn ? submitBtn.innerHTML : '';
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i data-lucide="loader" class="spinner" style="width: 14px; height: 14px;"></i> <span>Logging in...</span>';
+    if (window.lucide) lucide.createIcons({ root: submitBtn });
+  }
 
   let loginData = null;
   try {
@@ -21407,10 +21414,11 @@ async function handleLoginSubmit() {
     if (resp.ok) {
       loginData = await resp.json();
     } else {
-      let errMsg = 'Invalid credentials. Please try again.';
+      let errMsg = 'Invalid username or password.';
       try {
         const errJson = await resp.json();
         if (errJson && errJson.message) errMsg = errJson.message;
+        else if (typeof errJson === 'string') errMsg = errJson;
       } catch (_) {}
       if (err) {
         err.style.display = 'block';
@@ -21430,7 +21438,11 @@ async function handleLoginSubmit() {
     return;
   } finally {
     window._isSubmittingLogin = false;
-    if (submitBtn) submitBtn.disabled = false;
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerHTML = origBtnHtml;
+      if (window.lucide) lucide.createIcons({ root: submitBtn });
+    }
   }
 
   // Handle post-login rendering and hydration outside the network catch block

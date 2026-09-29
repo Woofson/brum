@@ -357,6 +357,50 @@ async fn handle_login(
     State(state): State<AppState>,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, String)> {
+    tracing::info!("Received login request for user '{}'...", payload.username);
+
+    // Standalone / Auth Disabled bypass
+    if !state.config.server.enable_auth || state.config.server.standalone {
+        tracing::info!("Authentication disabled or standalone mode active - granting login for '{}'", payload.username);
+        let current_user = std::env::var("USER")
+            .or_else(|_| std::env::var("USERNAME"))
+            .unwrap_or_else(|_| "user".to_string());
+        let home_dir = dirs::home_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "/".to_string());
+
+        let user = if let Ok(Some(mut u)) = state.auth.get_user_by_username(&payload.username) {
+            u.resolve_avatar();
+            u
+        } else if let Ok(Some(mut u)) = state.auth.get_user_by_username(&current_user) {
+            u.resolve_avatar();
+            u
+        } else {
+            let avatar_url = crate::auth::resolve_system_avatar(&current_user, &home_dir);
+            User {
+                id: 1,
+                username: current_user.clone(),
+                nickname: Some(current_user),
+                full_name: None,
+                bio: None,
+                email: None,
+                avatar_url,
+                role: "admin".to_string(),
+                home_dir,
+                is_pam: false,
+                is_disabled: false,
+                allowed_services: "[\"*\"]".to_string(),
+                allowed_roots: "[\"*\"]".to_string(),
+                can_install_plugins: true,
+                allowed_plugins: "[\"*\"]".to_string(),
+                blocked_plugins: "[]".to_string(),
+            }
+        };
+
+        let token = state.auth.generate_token(&user).unwrap_or_default();
+        return Ok(Json(LoginResponse { token, user }));
+    }
+
     match state.auth.authenticate(&payload.username, &payload.password) {
         Ok(user) => {
             tracing::info!(username = %user.username, is_pam = user.is_pam, role = %user.role, "User successfully authenticated");
@@ -366,6 +410,16 @@ async fn handle_login(
             Ok(Json(LoginResponse { token, user }))
         }
         Err(e) => {
+            // Check fallback default admin user
+            if payload.username != state.config.auth.default_admin_user {
+                if let Ok(admin_user) = state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
+                    tracing::info!("Login fallback successful via default admin user '{}'", admin_user.username);
+                    let token = state.auth.generate_token(&admin_user).map_err(|e| {
+                        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e))
+                    })?;
+                    return Ok(Json(LoginResponse { token, user: admin_user }));
+                }
+            }
             tracing::warn!(username = %payload.username, error = %e, "Authentication failed");
             Err((StatusCode::UNAUTHORIZED, "Invalid username or password".to_string()))
         }
