@@ -1560,8 +1560,10 @@ async fn handle_unlock_session(
     }
 
     if let Some(uname) = username {
+        tracing::info!("Processing session unlock request for user '{}'...", uname);
         match state.auth.authenticate(&uname, &payload.password) {
             Ok(user) => {
+                tracing::info!("Session unlocked successfully for user '{}'", user.username);
                 let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
                 Ok(Json(serde_json::json!({
                     "success": true,
@@ -1574,6 +1576,7 @@ async fn handle_unlock_session(
                 // Fallback to default admin user if username provided was display nickname or different
                 if uname != state.config.auth.default_admin_user {
                     if let Ok(admin_user) = state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
+                        tracing::info!("Session unlocked successfully via fallback admin user '{}'", admin_user.username);
                         let new_token = state.auth.generate_token(&admin_user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
                         return Ok(Json(serde_json::json!({
                             "success": true,
@@ -1583,13 +1586,16 @@ async fn handle_unlock_session(
                         })));
                     }
                 }
+                tracing::warn!("Failed session unlock attempt for user '{}': {}", uname, e);
                 Err((StatusCode::UNAUTHORIZED, e.to_string()))
             }
         }
     } else {
         // Fallback to default admin user
+        tracing::info!("Processing session unlock request with fallback default admin user...");
         match state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
             Ok(user) => {
+                tracing::info!("Session unlocked successfully for default admin user '{}'", user.username);
                 let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
                 Ok(Json(serde_json::json!({
                     "success": true,
@@ -1598,7 +1604,10 @@ async fn handle_unlock_session(
                     "user": user
                 })))
             }
-            Err(e) => Err((StatusCode::UNAUTHORIZED, e.to_string())),
+            Err(e) => {
+                tracing::warn!("Failed session unlock for default admin: {}", e);
+                Err((StatusCode::UNAUTHORIZED, e.to_string()))
+            }
         }
     }
 }
