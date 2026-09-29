@@ -67,6 +67,11 @@
   --radius-sm: 4px;
   --radius-md: 6px;
   --radius-lg: 10px;
+  --panel-gap: 6px;
+  --panel-gap-x: 6px;
+  --panel-gap-y: 6px;
+  --app-margin: 6px;
+  --folder-color: #f59e0b;
   --pane-border-width: 1px;
   --pane-active-ring-width: 1px;
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
@@ -758,8 +763,8 @@ body {
 .panes-container {
   flex: 1;
   display: grid;
-  gap: 6px;
-  padding: 6px;
+  gap: var(--panel-gap-y, var(--panel-gap, 6px)) var(--panel-gap-x, var(--panel-gap, 6px));
+  padding: var(--app-margin, 6px);
   overflow: hidden;
   height: 100%;
   width: 100%;
@@ -1685,18 +1690,18 @@ body.unsticky-col-headers .file-table th {
 }
 
 .file-icon.dir {
-  color: var(--accent);
+  color: var(--folder-color, var(--accent));
 }
 
 .file-icon.dir.dir-filled {
-  fill: var(--accent);
-  color: var(--accent);
+  fill: var(--folder-color, var(--accent));
+  color: var(--folder-color, var(--accent));
 }
 
 .file-icon.dir.dir-empty {
   fill: transparent;
-  color: var(--accent);
-  stroke: var(--accent);
+  color: var(--folder-color, var(--accent));
+  stroke: var(--folder-color, var(--accent));
 }
 
 .file-icon.archive { color: #f472b6; }

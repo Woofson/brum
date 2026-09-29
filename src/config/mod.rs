@@ -359,250 +359,291 @@ pub struct ThemeDefinition {
     pub text_main: String,
     pub text_muted: String,
     pub border: String,
+    #[serde(default)]
+    pub folder_color: Option<String>,
+    #[serde(default)]
+    pub radius: Option<String>,
+    #[serde(default)]
+    pub panel_gap_x: Option<String>,
+    #[serde(default)]
+    pub panel_gap_y: Option<String>,
+    #[serde(default)]
+    pub app_margin: Option<String>,
+}
+
+pub fn theme_def(
+    id: &str,
+    name: &str,
+    bg_dark: &str,
+    bg_panel: &str,
+    bg_active: &str,
+    accent: &str,
+    accent_hover: &str,
+    text_main: &str,
+    text_muted: &str,
+    border: &str,
+) -> ThemeDefinition {
+    ThemeDefinition {
+        id: id.to_string(),
+        name: name.to_string(),
+        bg_dark: bg_dark.to_string(),
+        bg_panel: bg_panel.to_string(),
+        bg_active: bg_active.to_string(),
+        accent: accent.to_string(),
+        accent_hover: accent_hover.to_string(),
+        text_main: text_main.to_string(),
+        text_muted: text_muted.to_string(),
+        border: border.to_string(),
+        folder_color: None,
+        radius: None,
+        panel_gap_x: None,
+        panel_gap_y: None,
+        app_margin: None,
+    }
 }
 
 fn default_themes() -> Vec<ThemeDefinition> {
     vec![
-        ThemeDefinition {
-            id: "amber-charcoal".to_string(),
-            name: "Woofsons Amber Charcoal".to_string(),
-            bg_dark: "#121214".to_string(),
-            bg_panel: "#18181b".to_string(),
-            bg_active: "#27272a".to_string(),
-            accent: "#f59e0b".to_string(),
-            accent_hover: "#fbbf24".to_string(),
-            text_main: "#f4f4f5".to_string(),
-            text_muted: "#a1a1aa".to_string(),
-            border: "#3f3f46".to_string(),
-        },
-        ThemeDefinition {
-            id: "zink".to_string(),
-            name: "Woofsons Amber Zink".to_string(),
-            bg_dark: "#fafafa".to_string(),
-            bg_panel: "#ffffff".to_string(),
-            bg_active: "#e4e4e7".to_string(),
-            accent: "#d97706".to_string(),
-            accent_hover: "#b45309".to_string(),
-            text_main: "#18181b".to_string(),
-            text_muted: "#52525b".to_string(),
-            border: "#d4d4d8".to_string(),
-        },
-        ThemeDefinition {
-            id: "gruvbox".to_string(),
-            name: "Gruvbox Dark".to_string(),
-            bg_dark: "#1d2021".to_string(),
-            bg_panel: "#282828".to_string(),
-            bg_active: "#3c3836".to_string(),
-            accent: "#fabd2f".to_string(),
-            accent_hover: "#fe8019".to_string(),
-            text_main: "#ebdbb2".to_string(),
-            text_muted: "#a89984".to_string(),
-            border: "#504945".to_string(),
-        },
-        ThemeDefinition {
-            id: "catppuccin-mocha".to_string(),
-            name: "Catppuccin Mocha".to_string(),
-            bg_dark: "#181825".to_string(),
-            bg_panel: "#1e1e2e".to_string(),
-            bg_active: "#313244".to_string(),
-            accent: "#cba6f7".to_string(),
-            accent_hover: "#f5c2e7".to_string(),
-            text_main: "#cdd6f4".to_string(),
-            text_muted: "#a6adc8".to_string(),
-            border: "#45475a".to_string(),
-        },
-        ThemeDefinition {
-            id: "catppuccin-latte".to_string(),
-            name: "Catppuccin Latte (Light)".to_string(),
-            bg_dark: "#dce0e8".to_string(),
-            bg_panel: "#eff1f5".to_string(),
-            bg_active: "#e6e9ef".to_string(),
-            accent: "#8839ef".to_string(),
-            accent_hover: "#1e66f5".to_string(),
-            text_main: "#4c4f69".to_string(),
-            text_muted: "#6c6f85".to_string(),
-            border: "#bcc0cc".to_string(),
-        },
-        ThemeDefinition {
-            id: "tokyo-night".to_string(),
-            name: "Tokyo Night".to_string(),
-            bg_dark: "#16161e".to_string(),
-            bg_panel: "#1a1b26".to_string(),
-            bg_active: "#24283b".to_string(),
-            accent: "#7aa2f7".to_string(),
-            accent_hover: "#7dcfff".to_string(),
-            text_main: "#c0caf5".to_string(),
-            text_muted: "#9aa5ce".to_string(),
-            border: "#3b4261".to_string(),
-        },
-        ThemeDefinition {
-            id: "monokai".to_string(),
-            name: "Monokai Pro".to_string(),
-            bg_dark: "#1e1f1c".to_string(),
-            bg_panel: "#272822".to_string(),
-            bg_active: "#3e3d32".to_string(),
-            accent: "#ffd866".to_string(),
-            accent_hover: "#a9dc76".to_string(),
-            text_main: "#f8f8f2".to_string(),
-            text_muted: "#939293".to_string(),
-            border: "#49483e".to_string(),
-        },
-        ThemeDefinition {
-            id: "solarized-dark".to_string(),
-            name: "Solarized Dark".to_string(),
-            bg_dark: "#00212b".to_string(),
-            bg_panel: "#002b36".to_string(),
-            bg_active: "#073642".to_string(),
-            accent: "#268bd2".to_string(),
-            accent_hover: "#2aa198".to_string(),
-            text_main: "#839496".to_string(),
-            text_muted: "#657b83".to_string(),
-            border: "#586e75".to_string(),
-        },
-        ThemeDefinition {
-            id: "ayu-dark".to_string(),
-            name: "Ayu Dark".to_string(),
-            bg_dark: "#0b0e14".to_string(),
-            bg_panel: "#0f1419".to_string(),
-            bg_active: "#1f2430".to_string(),
-            accent: "#e6b450".to_string(),
-            accent_hover: "#ffb454".to_string(),
-            text_main: "#e6e1cf".to_string(),
-            text_muted: "#707a8c".to_string(),
-            border: "#252e37".to_string(),
-        },
-        ThemeDefinition {
-            id: "nord".to_string(),
-            name: "Nord Frost".to_string(),
-            bg_dark: "#242933".to_string(),
-            bg_panel: "#2e3440".to_string(),
-            bg_active: "#3b4252".to_string(),
-            accent: "#88c0d0".to_string(),
-            accent_hover: "#81a1c1".to_string(),
-            text_main: "#eceff4".to_string(),
-            text_muted: "#d8dee9".to_string(),
-            border: "#4c566a".to_string(),
-        },
-        ThemeDefinition {
-            id: "dracula".to_string(),
-            name: "Dracula Dark".to_string(),
-            bg_dark: "#1e1f29".to_string(),
-            bg_panel: "#282a36".to_string(),
-            bg_active: "#44475a".to_string(),
-            accent: "#bd93f9".to_string(),
-            accent_hover: "#ff79c6".to_string(),
-            text_main: "#f8f8f2".to_string(),
-            text_muted: "#6272a4".to_string(),
-            border: "#6272a4".to_string(),
-        },
-        ThemeDefinition {
-            id: "midnight-blue".to_string(),
-            name: "Midnight Commander Blue".to_string(),
-            bg_dark: "#000044".to_string(),
-            bg_panel: "#000088".to_string(),
-            bg_active: "#0000aa".to_string(),
-            accent: "#00ffff".to_string(),
-            accent_hover: "#ffffff".to_string(),
-            text_main: "#ffffff".to_string(),
-            text_muted: "#a0a0ff".to_string(),
-            border: "#00aaff".to_string(),
-        },
-        ThemeDefinition {
-            id: "skumring".to_string(),
-            name: "Larvikite Skumring".to_string(),
-            bg_dark: "#0a0e14".to_string(),
-            bg_panel: "#111822".to_string(),
-            bg_active: "#1e2c3d".to_string(),
-            accent: "#38bdf8".to_string(),
-            accent_hover: "#7dd3fc".to_string(),
-            text_main: "#e6edf3".to_string(),
-            text_muted: "#8b9bb4".to_string(),
-            border: "#243347".to_string(),
-        },
-        ThemeDefinition {
-            id: "demring".to_string(),
-            name: "Larvikite Demring".to_string(),
-            bg_dark: "#eef2f6".to_string(),
-            bg_panel: "#f7fafc".to_string(),
-            bg_active: "#cbd5e1".to_string(),
-            accent: "#0e7490".to_string(),
-            accent_hover: "#155e75".to_string(),
-            text_main: "#0f172a".to_string(),
-            text_muted: "#475569".to_string(),
-            border: "#cbd5e1".to_string(),
-        },
-        ThemeDefinition {
-            id: "trollnatt".to_string(),
-            name: "Larvikite Trollnatt".to_string(),
-            bg_dark: "#0b100d".to_string(),
-            bg_panel: "#121914".to_string(),
-            bg_active: "#222f26".to_string(),
-            accent: "#4ade80".to_string(),
-            accent_hover: "#86efac".to_string(),
-            text_main: "#edf4ee".to_string(),
-            text_muted: "#93a797".to_string(),
-            border: "#25342a".to_string(),
-        },
-        ThemeDefinition {
-            id: "myrtaake".to_string(),
-            name: "Larvikite Myrtåke".to_string(),
-            bg_dark: "#edf2ee".to_string(),
-            bg_panel: "#f5f9f6".to_string(),
-            bg_active: "#cad5cc".to_string(),
-            accent: "#15803d".to_string(),
-            accent_hover: "#166534".to_string(),
-            text_main: "#0f1712".to_string(),
-            text_muted: "#49594d".to_string(),
-            border: "#cbd7cd".to_string(),
-        },
-        ThemeDefinition {
-            id: "bergtatt".to_string(),
-            name: "Kittelsen Bergtatt".to_string(),
-            bg_dark: "#0a0c0f".to_string(),
-            bg_panel: "#11141a".to_string(),
-            bg_active: "#222935".to_string(),
-            accent: "#d9a042".to_string(),
-            accent_hover: "#f1b759".to_string(),
-            text_main: "#e8e2d8".to_string(),
-            text_muted: "#8e8d89".to_string(),
-            border: "#262e3d".to_string(),
-        },
-        ThemeDefinition {
-            id: "soria-moria".to_string(),
-            name: "Kittelsen Soria Moria".to_string(),
-            bg_dark: "#ebe5dc".to_string(),
-            bg_panel: "#f5f0e6".to_string(),
-            bg_active: "#cbbead".to_string(),
-            accent: "#b87a1f".to_string(),
-            accent_hover: "#8f5a0e".to_string(),
-            text_main: "#1c1815".to_string(),
-            text_muted: "#5d554a".to_string(),
-            border: "#c6bbaa".to_string(),
-        },
-        ThemeDefinition {
-            id: "pestanatt".to_string(),
-            name: "Kittelsen Pestanatt".to_string(),
-            bg_dark: "#0b090a".to_string(),
-            bg_panel: "#141011".to_string(),
-            bg_active: "#261e20".to_string(),
-            accent: "#dc2626".to_string(),
-            accent_hover: "#ef4444".to_string(),
-            text_main: "#e6dede".to_string(),
-            text_muted: "#948285".to_string(),
-            border: "#2b2023".to_string(),
-        },
-        ThemeDefinition {
-            id: "sotslette".to_string(),
-            name: "Kittelsen Sotslette".to_string(),
-            bg_dark: "#ece6dc".to_string(),
-            bg_panel: "#f5f0e6".to_string(),
-            bg_active: "#cec3b2".to_string(),
-            accent: "#991b1b".to_string(),
-            accent_hover: "#b91c1c".to_string(),
-            text_main: "#1c1517".to_string(),
-            text_muted: "#5c4f52".to_string(),
-            border: "#c7bcab".to_string(),
-        },
+        theme_def(
+            "amber-charcoal",
+            "Woofsons Amber Charcoal",
+            "#121214",
+            "#18181b",
+            "#27272a",
+            "#f59e0b",
+            "#fbbf24",
+            "#f4f4f5",
+            "#a1a1aa",
+            "#3f3f46",
+        ),
+        theme_def(
+            "zink",
+            "Woofsons Amber Zink",
+            "#fafafa",
+            "#ffffff",
+            "#e4e4e7",
+            "#d97706",
+            "#b45309",
+            "#18181b",
+            "#52525b",
+            "#d4d4d8",
+        ),
+        theme_def(
+            "gruvbox",
+            "Gruvbox Dark",
+            "#1d2021",
+            "#282828",
+            "#3c3836",
+            "#fabd2f",
+            "#fe8019",
+            "#ebdbb2",
+            "#a89984",
+            "#504945",
+        ),
+        theme_def(
+            "catppuccin-mocha",
+            "Catppuccin Mocha",
+            "#181825",
+            "#1e1e2e",
+            "#313244",
+            "#cba6f7",
+            "#f5c2e7",
+            "#cdd6f4",
+            "#a6adc8",
+            "#45475a",
+        ),
+        theme_def(
+            "catppuccin-latte",
+            "Catppuccin Latte (Light)",
+            "#dce0e8",
+            "#eff1f5",
+            "#e6e9ef",
+            "#8839ef",
+            "#1e66f5",
+            "#4c4f69",
+            "#6c6f85",
+            "#bcc0cc",
+        ),
+        theme_def(
+            "tokyo-night",
+            "Tokyo Night",
+            "#16161e",
+            "#1a1b26",
+            "#24283b",
+            "#7aa2f7",
+            "#7dcfff",
+            "#c0caf5",
+            "#9aa5ce",
+            "#3b4261",
+        ),
+        theme_def(
+            "monokai",
+            "Monokai Pro",
+            "#1e1f1c",
+            "#272822",
+            "#3e3d32",
+            "#ffd866",
+            "#a9dc76",
+            "#f8f8f2",
+            "#939293",
+            "#49483e",
+        ),
+        theme_def(
+            "solarized-dark",
+            "Solarized Dark",
+            "#00212b",
+            "#002b36",
+            "#073642",
+            "#268bd2",
+            "#2aa198",
+            "#839496",
+            "#657b83",
+            "#586e75",
+        ),
+        theme_def(
+            "ayu-dark",
+            "Ayu Dark",
+            "#0b0e14",
+            "#0f1419",
+            "#1f2430",
+            "#e6b450",
+            "#ffb454",
+            "#e6e1cf",
+            "#707a8c",
+            "#252e37",
+        ),
+        theme_def(
+            "nord",
+            "Nord Frost",
+            "#242933",
+            "#2e3440",
+            "#3b4252",
+            "#88c0d0",
+            "#81a1c1",
+            "#eceff4",
+            "#d8dee9",
+            "#4c566a",
+        ),
+        theme_def(
+            "dracula",
+            "Dracula Dark",
+            "#1e1f29",
+            "#282a36",
+            "#44475a",
+            "#bd93f9",
+            "#ff79c6",
+            "#f8f8f2",
+            "#6272a4",
+            "#6272a4",
+        ),
+        theme_def(
+            "midnight-blue",
+            "Midnight Commander Blue",
+            "#000044",
+            "#000088",
+            "#0000aa",
+            "#00ffff",
+            "#ffffff",
+            "#ffffff",
+            "#a0a0ff",
+            "#00aaff",
+        ),
+        theme_def(
+            "skumring",
+            "Larvikite Skumring",
+            "#0a0e14",
+            "#111822",
+            "#1e2c3d",
+            "#38bdf8",
+            "#7dd3fc",
+            "#e6edf3",
+            "#8b9bb4",
+            "#243347",
+        ),
+        theme_def(
+            "demring",
+            "Larvikite Demring",
+            "#eef2f6",
+            "#f7fafc",
+            "#cbd5e1",
+            "#0e7490",
+            "#155e75",
+            "#0f172a",
+            "#475569",
+            "#cbd5e1",
+        ),
+        theme_def(
+            "trollnatt",
+            "Larvikite Trollnatt",
+            "#0b100d",
+            "#121914",
+            "#222f26",
+            "#4ade80",
+            "#86efac",
+            "#edf4ee",
+            "#93a797",
+            "#25342a",
+        ),
+        theme_def(
+            "myrtaake",
+            "Larvikite Myrtåke",
+            "#edf2ee",
+            "#f5f9f6",
+            "#cad5cc",
+            "#15803d",
+            "#166534",
+            "#0f1712",
+            "#49594d",
+            "#cbd7cd",
+        ),
+        theme_def(
+            "bergtatt",
+            "Kittelsen Bergtatt",
+            "#0a0c0f",
+            "#11141a",
+            "#222935",
+            "#d9a042",
+            "#f1b759",
+            "#e8e2d8",
+            "#8e8d89",
+            "#262e3d",
+        ),
+        theme_def(
+            "soria-moria",
+            "Kittelsen Soria Moria",
+            "#ebe5dc",
+            "#f5f0e6",
+            "#cbbead",
+            "#b87a1f",
+            "#8f5a0e",
+            "#1c1815",
+            "#5d554a",
+            "#c6bbaa",
+        ),
+        theme_def(
+            "pestanatt",
+            "Kittelsen Pestanatt",
+            "#0b090a",
+            "#141011",
+            "#261e20",
+            "#dc2626",
+            "#ef4444",
+            "#e6dede",
+            "#948285",
+            "#2b2023",
+        ),
+        theme_def(
+            "sotslette",
+            "Kittelsen Sotslette",
+            "#ece6dc",
+            "#f5f0e6",
+            "#cec3b2",
+            "#991b1b",
+            "#b91c1c",
+            "#1c1517",
+            "#5c4f52",
+            "#c7bcab",
+        ),
     ]
 }
 
@@ -676,6 +717,18 @@ pub struct UiConfig {
     pub hostname_size: String,  // "sm", "md", "lg"
     #[serde(default)]
     pub window_title: String,   // Custom document / window title (empty = default "Brum - Multi-Pane Web Environment")
+    #[serde(default)]
+    pub document_title_template: Option<String>,
+    #[serde(default)]
+    pub panel_gap_x: Option<String>,
+    #[serde(default)]
+    pub panel_gap_y: Option<String>,
+    #[serde(default)]
+    pub app_margin: Option<String>,
+    #[serde(default)]
+    pub corner_radius: Option<String>,
+    #[serde(default)]
+    pub folder_color: Option<String>,
 }
 
 impl Default for UiConfig {
@@ -694,6 +747,12 @@ impl Default for UiConfig {
             hostname_icon: "none".to_string(),
             hostname_size: "md".to_string(),
             window_title: String::new(),
+            document_title_template: None,
+            panel_gap_x: None,
+            panel_gap_y: None,
+            app_margin: None,
+            corner_radius: None,
+            folder_color: None,
         }
     }
 }
@@ -1400,13 +1459,18 @@ impl ConfigManager {
         config
     }
 
-    fn collect_toml_files_sorted(dir: &Path, files: &mut Vec<PathBuf>) {
+    fn collect_theme_files_sorted(dir: &Path, files: &mut Vec<PathBuf>) {
         if dir.exists() && dir.is_dir() {
             if let Ok(entries) = fs::read_dir(dir) {
                 let mut dir_files: Vec<PathBuf> = entries
                     .filter_map(|e| e.ok())
                     .map(|e| e.path())
-                    .filter(|p| p.extension().map_or(false, |ext| ext == "toml"))
+                    .filter(|p| {
+                        p.is_file()
+                            && p.extension().map_or(false, |ext| {
+                                ext.eq_ignore_ascii_case("toml") || ext.eq_ignore_ascii_case("conf")
+                            })
+                    })
                     .collect();
                 dir_files.sort();
                 files.extend(dir_files);
@@ -1441,7 +1505,7 @@ impl ConfigManager {
 
         let mut theme_files = Vec::new();
         for dir in theme_dirs {
-            Self::collect_toml_files_sorted(&dir, &mut theme_files);
+            Self::collect_theme_files_sorted(&dir, &mut theme_files);
         }
 
         for file_path in theme_files {
@@ -1454,22 +1518,53 @@ impl ConfigManager {
     }
 
     fn parse_and_insert_themes(config: &mut AppConfig, content: &str, file_stem: &str) {
-        // Try parsing as multi-theme array struct: [[themes]] or [themes] themes = [...]
+        #[derive(Deserialize)]
+        #[serde(untagged)]
+        enum ThemeListOrNested {
+            List(Vec<ThemeDefinition>),
+            Nested { themes: Vec<ThemeDefinition> },
+        }
+
+        // Try parsing as multi-theme array struct: [[themes]], [themes] themes = [...], [dark], [light]
         #[derive(Deserialize)]
         struct MultiThemeContainer {
-            themes: Option<Vec<ThemeDefinition>>,
+            themes: Option<ThemeListOrNested>,
             theme: Option<ThemeDefinition>,
+            dark: Option<ThemeDefinition>,
+            light: Option<ThemeDefinition>,
         }
 
         if let Ok(container) = toml::from_str::<MultiThemeContainer>(content) {
-            if let Some(list) = container.themes {
+            let mut matched = false;
+            if let Some(list_or_nested) = container.themes {
+                let list = match list_or_nested {
+                    ThemeListOrNested::List(l) => l,
+                    ThemeListOrNested::Nested { themes } => themes,
+                };
                 for t in list {
                     Self::upsert_theme(&mut config.themes.themes, t);
                 }
-                return;
+                matched = true;
             }
             if let Some(t) = container.theme {
                 Self::upsert_theme(&mut config.themes.themes, t);
+                matched = true;
+            }
+            if let Some(mut d) = container.dark {
+                if d.id.is_empty() {
+                    d.id = format!("{}-dark", file_stem);
+                }
+                Self::upsert_theme(&mut config.themes.themes, d);
+                matched = true;
+            }
+            if let Some(mut l) = container.light {
+                if l.id.is_empty() {
+                    l.id = format!("{}-light", file_stem);
+                }
+                Self::upsert_theme(&mut config.themes.themes, l);
+                matched = true;
+            }
+            if matched {
                 return;
             }
         }
@@ -1488,6 +1583,11 @@ impl ConfigManager {
             text_main: String,
             text_muted: String,
             border: String,
+            folder_color: Option<String>,
+            radius: Option<String>,
+            panel_gap_x: Option<String>,
+            panel_gap_y: Option<String>,
+            app_margin: Option<String>,
         }
 
         if let Ok(flat) = toml::from_str::<FlatTheme>(content) {
@@ -1519,6 +1619,11 @@ impl ConfigManager {
                 text_main: flat.text_main,
                 text_muted: flat.text_muted,
                 border: flat.border,
+                folder_color: flat.folder_color,
+                radius: flat.radius,
+                panel_gap_x: flat.panel_gap_x,
+                panel_gap_y: flat.panel_gap_y,
+                app_margin: flat.app_margin,
             };
             Self::upsert_theme(&mut config.themes.themes, theme);
         }

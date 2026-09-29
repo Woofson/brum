@@ -2213,6 +2213,124 @@
             </div>
           </div>
 
+          <!-- Card: Panel Gaps, Window Margins & Corner Rounding -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="layout-grid"></i> Panel Gaps, Outer Margins & Corner Rounding
+              </h4>
+              <button type="button" class="btn btn-xs btn-outline" onclick="resetLayoutGapsToDefault()" style="height: 24px; padding: 0 6px; font-size: 10.5px;">Reset Spacing Defaults</button>
+            </div>
+            <p class="settings-card-desc">Define horizontal/vertical spacing between panels, outer window margin, corner rounding, and folder icon accents.</p>
+
+            <div class="settings-grid-3col">
+              <div class="settings-field">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="settings-field-label" style="margin: 0;">Horizontal Panel Gap:</label>
+                  <span class="slider-val-badge" id="setting-gap-x-val">6px</span>
+                </div>
+                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-gap-x-slider" oninput="handleGapXChange(this.value)">
+                <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
+                  <button type="button" class="perm-chip" onclick="handleGapXChange(0)">0px (Flush)</button>
+                  <button type="button" class="perm-chip" onclick="handleGapXChange(4)">4px</button>
+                  <button type="button" class="perm-chip" onclick="handleGapXChange(6)">6px</button>
+                  <button type="button" class="perm-chip" onclick="handleGapXChange(12)">12px</button>
+                </div>
+              </div>
+
+              <div class="settings-field">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="settings-field-label" style="margin: 0;">Vertical Panel Gap:</label>
+                  <span class="slider-val-badge" id="setting-gap-y-val">6px</span>
+                </div>
+                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-gap-y-slider" oninput="handleGapYChange(this.value)">
+                <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
+                  <button type="button" class="perm-chip" onclick="handleGapYChange(0)">0px (Flush)</button>
+                  <button type="button" class="perm-chip" onclick="handleGapYChange(4)">4px</button>
+                  <button type="button" class="perm-chip" onclick="handleGapYChange(6)">6px</button>
+                  <button type="button" class="perm-chip" onclick="handleGapYChange(12)">12px</button>
+                </div>
+              </div>
+
+              <div class="settings-field">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="settings-field-label" style="margin: 0;">Outer Window Margin:</label>
+                  <span class="slider-val-badge" id="setting-app-margin-val">6px</span>
+                </div>
+                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-app-margin-slider" oninput="handleAppMarginChange(this.value)">
+                <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
+                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(0)">0px (Flush)</button>
+                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(4)">4px</button>
+                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(6)">6px</button>
+                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(12)">12px</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-grid-2col" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
+              <div class="settings-field">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                  <label class="settings-field-label" style="margin: 0;">Corner Rounding Radius:</label>
+                  <span class="slider-val-badge" id="setting-radius-val">6px</span>
+                </div>
+                <input type="range" min="0" max="20" value="6" class="range-slider" id="setting-radius-slider" oninput="handleRadiusChange(this.value)">
+                <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
+                  <button type="button" class="perm-chip" onclick="handleRadiusChange(0)">0px (Square)</button>
+                  <button type="button" class="perm-chip" onclick="handleRadiusChange(4)">4px</button>
+                  <button type="button" class="perm-chip" onclick="handleRadiusChange(6)">6px (Default)</button>
+                  <button type="button" class="perm-chip" onclick="handleRadiusChange(10)">10px</button>
+                  <button type="button" class="perm-chip" onclick="handleRadiusChange(16)">16px</button>
+                </div>
+              </div>
+
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-folder-color">Folder Icon Color Accent:</label>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <select id="setting-folder-color" class="settings-select" style="flex: 1;" onchange="handleFolderColorChange(this.value)">
+                    <option value="default" selected>Follow Theme Accent (Dynamic)</option>
+                    <option value="#f59e0b">Amber Gold (#f59e0b)</option>
+                    <option value="#38bdf8">Sky Blue (#38bdf8)</option>
+                    <option value="#10b981">Emerald Green (#10b981)</option>
+                    <option value="#c084fc">Purple Violet (#c084fc)</option>
+                    <option value="#f43f5e">Crimson Rose (#f43f5e)</option>
+                    <option value="#fb923c">Warm Orange (#fb923c)</option>
+                    <option value="#94a3b8">Slate Neutral (#94a3b8)</option>
+                    <option value="custom">Custom Hex Color...</option>
+                  </select>
+                  <input type="color" id="setting-folder-custom-color" value="#f59e0b" style="display: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;" oninput="handleFolderColorCustomChange(this.value)">
+                </div>
+                <div class="settings-field-hint">Customizes directory folder icon tint across dual panes, tree drawers, and Places menu.</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card: Dynamic Document Title Engine -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="compass"></i> Dynamic Document Title Engine
+              </h4>
+              <span id="title-template-preview-badge" style="font-size: 10px; font-family: var(--font-mono); color: var(--accent); background: var(--bg-active); border: 1px solid var(--border); padding: 2px 8px; border-radius: 4px;">Preview: Brum</span>
+            </div>
+            <p class="settings-card-desc">Format the browser window tab title template dynamically with variables like <code>$hostname</code>, <code>$path</code>, <code>$os</code>, <code>$kernel</code>, <code>$version</code>, and <code>$user</code>.</p>
+
+            <div class="settings-field">
+              <label class="settings-field-label" for="setting-title-template">Title Template String:</label>
+              <input type="text" id="setting-title-template" class="settings-input" placeholder="Brum — $path ($hostname)" oninput="handleTitleTemplateChange(this.value)">
+              <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
+                <button type="button" class="perm-chip" onclick="insertTitleVar('$hostname')" title="Insert Hostname">$hostname</button>
+                <button type="button" class="perm-chip" onclick="insertTitleVar('$path')" title="Insert Active Pane Directory Path">$path</button>
+                <button type="button" class="perm-chip" onclick="insertTitleVar('$os')" title="Insert Operating System">$os</button>
+                <button type="button" class="perm-chip" onclick="insertTitleVar('$kernel')" title="Insert Kernel Version">$kernel</button>
+                <button type="button" class="perm-chip" onclick="insertTitleVar('$version')" title="Insert Brum Version">$version</button>
+                <button type="button" class="perm-chip" onclick="insertTitleVar('$user')" title="Insert Username">$user</button>
+                <button type="button" class="perm-chip" onclick="setTitleTemplatePreset('Brum — $path ($hostname)')">Default</button>
+                <button type="button" class="perm-chip" onclick="setTitleTemplatePreset('[$user@$hostname] $path ($os)')">Terminal Style</button>
+                <button type="button" class="perm-chip" onclick="setTitleTemplatePreset('Brum v$version · $path')">Minimal</button>
+              </div>
+            </div>
+          </div>
+
           <!-- Card 5: Hostname & Environment Indicator Customizer -->
           <div class="settings-group-card">
             <div class="settings-card-header">

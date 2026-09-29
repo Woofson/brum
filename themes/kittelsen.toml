@@ -1,4 +1,6 @@
-[[themes.themes]]
+# Kittelsen & Larvikite Norwegian Folklore Color Schemes for Brum
+
+[[themes]]
 id = "skumring"
 name = "Larvikite Skumring"
 bg_dark = "#0a0e14"
@@ -9,8 +11,10 @@ accent_hover = "#7dd3fc"
 text_main = "#e6edf3"
 text_muted = "#8b9bb4"
 border = "#243347"
+folder_color = "#38bdf8"
+radius = "6px"
 
-[[themes.themes]]
+[[themes]]
 id = "demring"
 name = "Larvikite Demring"
 bg_dark = "#eef2f6"
@@ -21,8 +25,10 @@ accent_hover = "#155e75"
 text_main = "#0f172a"
 text_muted = "#475569"
 border = "#cbd5e1"
+folder_color = "#0e7490"
+radius = "6px"
 
-[[themes.themes]]
+[[themes]]
 id = "trollnatt"
 name = "Larvikite Trollnatt"
 bg_dark = "#0b100d"
@@ -33,8 +39,10 @@ accent_hover = "#86efac"
 text_main = "#edf4ee"
 text_muted = "#93a797"
 border = "#25342a"
+folder_color = "#4ade80"
+radius = "6px"
 
-[[themes.themes]]
+[[themes]]
 id = "myrtaake"
 name = "Larvikite Myrtåke"
 bg_dark = "#edf2ee"
@@ -45,8 +53,10 @@ accent_hover = "#166534"
 text_main = "#0f1712"
 text_muted = "#49594d"
 border = "#cbd7cd"
+folder_color = "#15803d"
+radius = "6px"
 
-[[themes.themes]]
+[[themes]]
 id = "bergtatt"
 name = "Kittelsen Bergtatt"
 bg_dark = "#0a0c0f"
@@ -57,8 +67,10 @@ accent_hover = "#f1b759"
 text_main = "#e8e2d8"
 text_muted = "#8e8d89"
 border = "#262e3d"
+folder_color = "#d9a042"
+radius = "6px"
 
-[[themes.themes]]
+[[themes]]
 id = "soria-moria"
 name = "Kittelsen Soria Moria"
 bg_dark = "#ebe5dc"
@@ -69,8 +81,10 @@ accent_hover = "#8f5a0e"
 text_main = "#1c1815"
 text_muted = "#5d554a"
 border = "#c6bbaa"
+folder_color = "#b87a1f"
+radius = "6px"
 
-[[themes.themes]]
+[[themes]]
 id = "pestanatt"
 name = "Kittelsen Pestanatt"
 bg_dark = "#0b090a"
@@ -81,8 +95,10 @@ accent_hover = "#ef4444"
 text_main = "#e6dede"
 text_muted = "#948285"
 border = "#2b2023"
+folder_color = "#dc2626"
+radius = "6px"
 
-[[themes.themes]]
+[[themes]]
 id = "sotslette"
 name = "Kittelsen Sotslette"
 bg_dark = "#ece6dc"
@@ -93,3 +109,5 @@ accent_hover = "#b91c1c"
 text_main = "#1c1517"
 text_muted = "#5c4f52"
 border = "#c7bcab"
+folder_color = "#991b1b"
+radius = "6px"

@@ -1636,6 +1636,12 @@ function getAllUserPreferences() {
     icon_theme: localStorage.getItem('cd_icon_theme') || 'default',
     global_folder_icon: localStorage.getItem('cd_global_folder_icon') || '',
     custom_file_icons: JSON.parse(localStorage.getItem('cd_custom_file_icons') || '{}'),
+    gap_x: localStorage.getItem('cd_gap_x') || '',
+    gap_y: localStorage.getItem('cd_gap_y') || '',
+    app_margin: localStorage.getItem('cd_app_margin') || '',
+    radius: localStorage.getItem('cd_radius') || '',
+    folder_color: localStorage.getItem('cd_folder_color') || '',
+    title_template: localStorage.getItem('cd_title_template') || '',
 
     // 3. Hostname Badge & Window Title
     show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
@@ -1854,6 +1860,38 @@ function applyAllUserPreferences(prefs) {
     if (typeof applyBorderSettings === 'function') {
       applyBorderSettings(prefs.border_width, prefs.ring_style, prefs.border_angle, true);
     }
+  }
+
+  // 8b. Layout Gaps, Margin, Corner Radius, Folder Color & Title Template
+  if (prefs.gap_x !== undefined) {
+    if (prefs.gap_x) localStorage.setItem('cd_gap_x', prefs.gap_x);
+    else localStorage.removeItem('cd_gap_x');
+  }
+  if (prefs.gap_y !== undefined) {
+    if (prefs.gap_y) localStorage.setItem('cd_gap_y', prefs.gap_y);
+    else localStorage.removeItem('cd_gap_y');
+  }
+  if (prefs.app_margin !== undefined) {
+    if (prefs.app_margin) localStorage.setItem('cd_app_margin', prefs.app_margin);
+    else localStorage.removeItem('cd_app_margin');
+  }
+  if (prefs.radius !== undefined) {
+    if (prefs.radius) localStorage.setItem('cd_radius', prefs.radius);
+    else localStorage.removeItem('cd_radius');
+  }
+  if (prefs.folder_color !== undefined) {
+    if (prefs.folder_color) localStorage.setItem('cd_folder_color', prefs.folder_color);
+    else localStorage.removeItem('cd_folder_color');
+  }
+  if (prefs.title_template !== undefined) {
+    if (prefs.title_template) localStorage.setItem('cd_title_template', prefs.title_template);
+    else localStorage.removeItem('cd_title_template');
+  }
+  if (typeof applyLayoutGapSettings === 'function') {
+    applyLayoutGapSettings();
+  }
+  if (typeof updateAppDocumentTitle === 'function') {
+    updateAppDocumentTitle();
   }
 
   // 9. Hostname Badge Customizer & Window Title
@@ -2296,12 +2334,14 @@ function bootApp() {
     applyFontSize(App.fontSize);
     applyFontSettings();
     applyBorderSettings();
+    applyLayoutGapSettings();
     applyAllColumnWidths();
     applyStickyColHeaders();
     renderToolsMenu();
     const urlTheme = new URLSearchParams(window.location.search).get('theme');
     applyTheme(urlTheme || localStorage.getItem('cd_theme') || 'amber-charcoal');
     updateHostnameBadge();
+    updateAppDocumentTitle();
     fetchAppVersion();
     startTasksPolling();
     initInactivityTracker();
@@ -2824,12 +2864,40 @@ function applyAppVersion(ver, sysData = null) {
 }
 
 function getAppBaseTitle() {
-  const customTitle = localStorage.getItem('cd_custom_app_title')
+  const customTemplate = localStorage.getItem('cd_title_template')
+    || localStorage.getItem('cd_custom_app_title')
+    || App.config?.ui?.document_title_template
     || App.config?.ui?.window_title
     || App.systemStatus?.window_title;
-  return (customTitle && customTitle.trim().length > 0)
-    ? customTitle.trim()
-    : 'Brum - Multi-Pane Web Environment';
+
+  const activePane = App.panes && App.panes[App.activePaneIndex || 0];
+  const activePath = activePane?.path || '/';
+  const pane1Path = App.panes && App.panes[0]?.path || '/';
+  const pane2Path = App.panes && App.panes[1]?.path || '/';
+  const hostname = App.systemStatus?.hostname || window.location.hostname || 'localhost';
+  const osName = App.systemStatus?.os_name || (navigator.platform || 'Linux');
+  const kernel = App.systemStatus?.kernel_version || '';
+  const version = App.version || '1.4.0';
+  const username = App.user?.username || 'user';
+
+  if (customTemplate && customTemplate.trim().length > 0) {
+    let t = customTemplate.trim();
+    t = t.replace(/\$hostname/gi, hostname)
+         .replace(/\$host/gi, hostname)
+         .replace(/\$os/gi, osName)
+         .replace(/\$kernel/gi, kernel)
+         .replace(/\$version/gi, version)
+         .replace(/\$path/gi, activePath)
+         .replace(/\$active_path/gi, activePath)
+         .replace(/\$pane1_path/gi, pane1Path)
+         .replace(/\$pane2_path/gi, pane2Path)
+         .replace(/\$username/gi, username)
+         .replace(/\$user/gi, username)
+         .replace(/\$app_name/gi, 'Brum');
+    return t;
+  }
+
+  return `Brum — ${activePath} (${hostname})`;
 }
 
 function updateAppDocumentTitle() {
@@ -2860,11 +2928,12 @@ function handleWindowTitleSettingChange() {
   if (!input) return;
   const val = input.value.trim();
   if (val) {
-    localStorage.setItem('cd_custom_app_title', val);
+    localStorage.setItem('cd_title_template', val);
   } else {
-    localStorage.removeItem('cd_custom_app_title');
+    localStorage.removeItem('cd_title_template');
   }
   updateAppDocumentTitle();
+  updateTitleTemplatePreview();
   if (typeof queueSaveUserPreferencesToServer === 'function') {
     queueSaveUserPreferencesToServer();
   }
@@ -20248,6 +20317,179 @@ function applyFontSettings() {
   applyFontSize(App.fontSize || 13);
 }
 
+function applyLayoutGapSettings() {
+  const root = document.documentElement;
+  const currentThemeId = localStorage.getItem('cd_theme') || 'amber-charcoal';
+  const customTheme = App.config?.themes?.themes?.find(t => t.id === currentThemeId);
+
+  const gapX = localStorage.getItem('cd_gap_x') || App.config?.ui?.panel_gap_x || customTheme?.panel_gap_x || '6px';
+  const gapY = localStorage.getItem('cd_gap_y') || App.config?.ui?.panel_gap_y || customTheme?.panel_gap_y || '6px';
+  const margin = localStorage.getItem('cd_app_margin') || App.config?.ui?.app_margin || customTheme?.app_margin || '6px';
+  const radius = localStorage.getItem('cd_radius') || App.config?.ui?.corner_radius || customTheme?.radius || '6px';
+  const folderColor = localStorage.getItem('cd_folder_color') || App.config?.ui?.folder_color || customTheme?.folder_color || 'default';
+
+  const formatPx = (v) => (typeof v === 'number' || (typeof v === 'string' && /^\d+$/.test(v))) ? `${v}px` : v;
+
+  const finalGapX = formatPx(gapX);
+  const finalGapY = formatPx(gapY);
+  const finalMargin = formatPx(margin);
+  const finalRadius = formatPx(radius);
+
+  root.style.setProperty('--panel-gap-x', finalGapX);
+  root.style.setProperty('--panel-gap-y', finalGapY);
+  root.style.setProperty('--panel-gap', finalGapX);
+  root.style.setProperty('--app-margin', finalMargin);
+  root.style.setProperty('--radius', finalRadius);
+  root.style.setProperty('--radius-md', finalRadius);
+
+  if (folderColor && folderColor !== 'default') {
+    root.style.setProperty('--folder-color', folderColor);
+  } else {
+    root.style.removeProperty('--folder-color');
+  }
+
+  const numVal = (str) => parseInt(String(str).replace('px', ''), 10) || 0;
+
+  const sliderX = document.getElementById('setting-gap-x-slider');
+  const valX = document.getElementById('setting-gap-x-val');
+  if (sliderX) sliderX.value = numVal(finalGapX);
+  if (valX) valX.textContent = finalGapX;
+
+  const sliderY = document.getElementById('setting-gap-y-slider');
+  const valY = document.getElementById('setting-gap-y-val');
+  if (sliderY) sliderY.value = numVal(finalGapY);
+  if (valY) valY.textContent = finalGapY;
+
+  const sliderMargin = document.getElementById('setting-app-margin-slider');
+  const valMargin = document.getElementById('setting-app-margin-val');
+  if (sliderMargin) sliderMargin.value = numVal(finalMargin);
+  if (valMargin) valMargin.textContent = finalMargin;
+
+  const sliderRadius = document.getElementById('setting-radius-slider');
+  const valRadius = document.getElementById('setting-radius-val');
+  if (sliderRadius) sliderRadius.value = numVal(finalRadius);
+  if (valRadius) valRadius.textContent = finalRadius;
+
+  const folderSelect = document.getElementById('setting-folder-color');
+  const folderCustomInput = document.getElementById('setting-folder-custom-color');
+  if (folderSelect) {
+    if (folderColor === 'default') {
+      folderSelect.value = 'default';
+      if (folderCustomInput) folderCustomInput.style.display = 'none';
+    } else if (['#f59e0b', '#38bdf8', '#10b981', '#c084fc', '#f43f5e', '#fb923c', '#94a3b8'].includes(folderColor)) {
+      folderSelect.value = folderColor;
+      if (folderCustomInput) folderCustomInput.style.display = 'none';
+    } else {
+      folderSelect.value = 'custom';
+      if (folderCustomInput) {
+        folderCustomInput.style.display = 'inline-block';
+        folderCustomInput.value = folderColor;
+      }
+    }
+  }
+
+  const titleTemplateInput = document.getElementById('setting-title-template');
+  if (titleTemplateInput) {
+    titleTemplateInput.value = localStorage.getItem('cd_title_template') || App.config?.ui?.document_title_template || '';
+  }
+  updateTitleTemplatePreview();
+}
+
+function handleGapXChange(val) {
+  const str = typeof val === 'number' ? `${val}px` : (val.endsWith('px') ? val : `${val}px`);
+  localStorage.setItem('cd_gap_x', str);
+  applyLayoutGapSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function handleGapYChange(val) {
+  const str = typeof val === 'number' ? `${val}px` : (val.endsWith('px') ? val : `${val}px`);
+  localStorage.setItem('cd_gap_y', str);
+  applyLayoutGapSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function handleAppMarginChange(val) {
+  const str = typeof val === 'number' ? `${val}px` : (val.endsWith('px') ? val : `${val}px`);
+  localStorage.setItem('cd_app_margin', str);
+  applyLayoutGapSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function handleRadiusChange(val) {
+  const str = typeof val === 'number' ? `${val}px` : (val.endsWith('px') ? val : `${val}px`);
+  localStorage.setItem('cd_radius', str);
+  applyLayoutGapSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function handleFolderColorChange(val) {
+  const customInput = document.getElementById('setting-folder-custom-color');
+  if (val === 'custom') {
+    if (customInput) customInput.style.display = 'inline-block';
+    const hex = customInput ? customInput.value : '#f59e0b';
+    localStorage.setItem('cd_folder_color', hex);
+  } else {
+    if (customInput) customInput.style.display = 'none';
+    if (val === 'default') {
+      localStorage.removeItem('cd_folder_color');
+    } else {
+      localStorage.setItem('cd_folder_color', val);
+    }
+  }
+  applyLayoutGapSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function handleFolderColorCustomChange(hex) {
+  localStorage.setItem('cd_folder_color', hex);
+  applyLayoutGapSettings();
+  queueSaveUserPreferencesToServer();
+}
+
+function resetLayoutGapsToDefault() {
+  localStorage.removeItem('cd_gap_x');
+  localStorage.removeItem('cd_gap_y');
+  localStorage.removeItem('cd_app_margin');
+  localStorage.removeItem('cd_radius');
+  localStorage.removeItem('cd_folder_color');
+  applyLayoutGapSettings();
+  queueSaveUserPreferencesToServer();
+  showToast('Panel spacing, margin, and radius reset to defaults.', 'success');
+}
+
+function handleTitleTemplateChange(template) {
+  const clean = template.trim();
+  if (clean) {
+    localStorage.setItem('cd_title_template', clean);
+  } else {
+    localStorage.removeItem('cd_title_template');
+  }
+  updateTitleTemplatePreview();
+  updateAppDocumentTitle();
+  queueSaveUserPreferencesToServer();
+}
+
+function insertTitleVar(v) {
+  const input = document.getElementById('setting-title-template');
+  if (!input) return;
+  const cur = input.value || '';
+  input.value = cur ? `${cur} ${v}` : v;
+  handleTitleTemplateChange(input.value);
+}
+
+function setTitleTemplatePreset(preset) {
+  const input = document.getElementById('setting-title-template');
+  if (input) input.value = preset;
+  handleTitleTemplateChange(preset);
+}
+
+function updateTitleTemplatePreview() {
+  const badge = document.getElementById('title-template-preview-badge');
+  if (!badge) return;
+  badge.textContent = `Preview: ${getAppBaseTitle()}`;
+}
+
 async function loadBookmarksList() {
   const tbody = document.getElementById('bookmarks-table-body');
   loadDriveVisibilitySettings();
@@ -20981,10 +21223,7 @@ function applyTheme(themeId, skipSync = false) {
     root.style.setProperty('--accent-hover', customTheme.accent_hover || customTheme.accent);
     root.style.setProperty('--text-main', customTheme.text_main);
     root.style.setProperty('--text-muted', customTheme.text_muted);
-    return;
-  }
-
-  if (themeId === 'zink') {
+  } else if (themeId === 'zink') {
     root.style.setProperty('--bg-dark', '#fafafa');
     root.style.setProperty('--bg-panel', '#ffffff');
     root.style.setProperty('--bg-header', '#f4f4f5');
@@ -21205,6 +21444,10 @@ function applyTheme(themeId, skipSync = false) {
     root.style.setProperty('--success', '#10b981');
     root.style.setProperty('--info', '#38bdf8');
     root.style.setProperty('--archive', '#f472b6');
+  }
+
+  if (typeof applyLayoutGapSettings === 'function') {
+    applyLayoutGapSettings();
   }
 }
 
