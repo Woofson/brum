@@ -1,6 +1,9 @@
 use serde::{Deserialize, Serialize};
+#[cfg(unix)]
 use std::fs;
+#[cfg(unix)]
 use std::path::Path;
+#[cfg(unix)]
 use std::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]

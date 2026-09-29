@@ -11,6 +11,7 @@ use tracing::info;
 
 pub mod pam;
 pub mod oidc;
+pub mod windows;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct User {
@@ -820,6 +821,52 @@ impl AuthManager {
                         return Ok(u);
                     }
                 }
+            }
+        }
+
+        // 2b. Windows Native System Authentication (LogonUserW)
+        #[cfg(windows)]
+        if self.auth_mode == "pam" || self.auth_mode == "windows" || self.auth_mode == "mixed" {
+            if let Ok(win_user) = windows::authenticate_windows_user(username, password) {
+                // Check if this Windows user already has an existing DB record with custom profile settings
+                if let Ok(Some(mut existing)) = self.get_user_by_username(&win_user.username) {
+                    if existing.is_disabled {
+                        return Err("Account is disabled. Please contact an administrator.".into());
+                    }
+                    existing.is_pam = true;
+                    existing.resolve_avatar();
+                    return Ok(existing);
+                }
+
+                // Auto-link new Windows system user to DB profile
+                let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+                let now = Utc::now().to_rfc3339();
+                let _ = conn.execute(
+                    "INSERT OR IGNORE INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, 'WINDOWS_MANAGED', ?2, ?3, '[\"*\"]', '[\"*\"]', ?4, '[\"*\"]', '[]', 1, 0, ?5)",
+                    params![win_user.username, win_user.role, win_user.home_dir, if win_user.can_install_plugins { 1 } else { 0 }, now],
+                );
+                let id = conn.last_insert_rowid();
+
+                let mut u = User {
+                    id,
+                    username: win_user.username,
+                    nickname: win_user.nickname,
+                    full_name: win_user.full_name,
+                    bio: win_user.bio,
+                    email: win_user.email,
+                    avatar_url: win_user.avatar_url,
+                    role: win_user.role,
+                    home_dir: win_user.home_dir,
+                    is_pam: true,
+                    is_disabled: false,
+                    allowed_services: win_user.allowed_services,
+                    allowed_roots: win_user.allowed_roots,
+                    can_install_plugins: win_user.can_install_plugins,
+                    allowed_plugins: win_user.allowed_plugins,
+                    blocked_plugins: win_user.blocked_plugins,
+                };
+                u.resolve_avatar();
+                return Ok(u);
             }
         }
 

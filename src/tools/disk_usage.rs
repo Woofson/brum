@@ -75,7 +75,7 @@ pub fn query_statvfs(path: &str) -> Option<(u64, u64, u64, bool)> {
 }
 
 #[cfg(windows)]
-fn query_windows_disk(path: &str) -> Option<(u64, u64, u64)> {
+pub fn query_windows_disk(path: &str) -> Option<(u64, u64, u64)> {
     use std::ffi::OsStr;
     use std::os::windows::ffi::OsStrExt;
     let wide: Vec<u16> = OsStr::new(path).encode_wide().chain(Some(0)).collect();
