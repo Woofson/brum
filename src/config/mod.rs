@@ -33,6 +33,18 @@ pub struct AppConfig {
     pub terminal: TerminalConfig,
     #[serde(default)]
     pub plugins: PluginsConfig,
+    #[serde(default)]
+    pub sftp: Option<SftpConfig>,
+}
+
+impl AppConfig {
+    pub fn get_sftp_config(&self) -> SftpConfig {
+        if let Some(ref sftp) = self.sftp {
+            sftp.clone()
+        } else {
+            self.storage.sftp.clone()
+        }
+    }
 }
 
 impl Default for AppConfig {
@@ -52,6 +64,7 @@ impl Default for AppConfig {
             notedog: NoteDogConfig::default(),
             terminal: TerminalConfig::default(),
             plugins: PluginsConfig::default(),
+            sftp: None,
         }
     }
 }
@@ -227,6 +240,27 @@ fn default_oidc_admin_group() -> String { "brum-admins".to_string() }
 fn default_oidc_default_role() -> String { "user".to_string() }
 fn default_oidc_button_icon() -> String { "shield-check".to_string() }
 
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct SftpConfig {
+    #[serde(default = "default_host_key_checking")]
+    pub host_key_checking: String, // "auto_accept", "tofu", "strict"
+    #[serde(default)]
+    pub known_hosts_file: Option<String>,
+}
+
+fn default_host_key_checking() -> String {
+    "tofu".to_string()
+}
+
+impl Default for SftpConfig {
+    fn default() -> Self {
+        Self {
+            host_key_checking: default_host_key_checking(),
+            known_hosts_file: None,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
     #[serde(default = "default_true")]
@@ -237,6 +271,8 @@ pub struct StorageConfig {
     pub home_fallback_scheme: String, // "auto", "roots_only", "strict"
     #[serde(default = "default_true")]
     pub auto_create_home_dirs: bool,
+    #[serde(default)]
+    pub sftp: SftpConfig,
     #[serde(default = "default_storage_roots")]
     pub roots: Vec<StorageRoot>,
 }
@@ -252,6 +288,7 @@ impl Default for StorageConfig {
             default_user_home_template: default_user_home_template(),
             home_fallback_scheme: default_home_fallback_scheme(),
             auto_create_home_dirs: true,
+            sftp: SftpConfig::default(),
             roots: default_storage_roots(),
         }
     }
@@ -1698,5 +1735,33 @@ mod tests {
         assert_eq!(parsed.storage.roots[1].path, "\\\\192.168.1.100\\share\\data");
         assert_eq!(parsed.storage.roots[2].path, "D:\\");
         assert_eq!(parsed.storage.roots[3].path, "C:\\Users\\Photos");
+    }
+
+    #[test]
+    fn test_sftp_config_parsing() {
+        // 1. Default fallback
+        let cfg_default: AppConfig = toml::from_str("").unwrap();
+        assert_eq!(cfg_default.get_sftp_config().host_key_checking, "tofu");
+        assert_eq!(cfg_default.get_sftp_config().known_hosts_file, None);
+
+        // 2. [storage.sftp] nested format
+        let toml_storage = r#"
+            [storage.sftp]
+            host_key_checking = "strict"
+            known_hosts_file = "/etc/ssh/ssh_known_hosts"
+        "#;
+        let cfg_storage: AppConfig = toml::from_str(toml_storage).unwrap();
+        assert_eq!(cfg_storage.get_sftp_config().host_key_checking, "strict");
+        assert_eq!(cfg_storage.get_sftp_config().known_hosts_file, Some("/etc/ssh/ssh_known_hosts".to_string()));
+
+        // 3. Top-level [sftp] format
+        let toml_toplevel = r#"
+            [sftp]
+            host_key_checking = "auto_accept"
+            known_hosts_file = "~/.ssh/known_hosts"
+        "#;
+        let cfg_top: AppConfig = toml::from_str(toml_toplevel).unwrap();
+        assert_eq!(cfg_top.get_sftp_config().host_key_checking, "auto_accept");
+        assert_eq!(cfg_top.get_sftp_config().known_hosts_file, Some("~/.ssh/known_hosts".to_string()));
     }
 }

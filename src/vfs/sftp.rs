@@ -2,8 +2,9 @@ use super::{is_archive_file, DirectoryListing, FileEntry};
 use ssh2::{KeyboardInteractivePrompt, Prompt, Session};
 use std::io::{Read, Write};
 use std::net::{TcpStream, ToSocketAddrs};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
 pub struct SftpParams {
@@ -13,6 +14,46 @@ pub struct SftpParams {
     pub password: Option<String>,
     pub key_path: Option<String>,
     pub remote_path: String,
+    pub host_key_checking: Option<String>,
+    pub known_hosts_file: Option<String>,
+}
+
+impl SftpParams {
+    pub fn with_config(mut self, config: &crate::config::SftpConfig) -> Self {
+        self.host_key_checking = Some(config.host_key_checking.clone());
+        self.known_hosts_file = config.known_hosts_file.clone();
+        self
+    }
+}
+
+pub fn resolve_known_hosts_path(custom_path: Option<&str>) -> PathBuf {
+    if let Some(custom) = custom_path.filter(|p| !p.trim().is_empty()) {
+        let trimmed = custom.trim();
+        if trimmed.starts_with("~/") {
+            if let Some(home) = dirs::home_dir() {
+                return home.join(trimmed.trim_start_matches("~/"));
+            }
+        } else if trimmed == "~" {
+            if let Some(home) = dirs::home_dir() {
+                return home;
+            }
+        }
+        return PathBuf::from(trimmed);
+    }
+
+    if let Some(home) = dirs::home_dir() {
+        let ssh_dir = home.join(".ssh");
+        let known = ssh_dir.join("known_hosts");
+        if known.exists() || ssh_dir.exists() {
+            return known;
+        }
+    }
+
+    if let Some(cfg) = dirs::config_dir() {
+        return cfg.join("brum").join("known_hosts");
+    }
+
+    PathBuf::from("known_hosts")
 }
 
 struct KbdInteractiveHelper<'a> {
@@ -33,6 +74,116 @@ impl<'a> KeyboardInteractivePrompt for KbdInteractiveHelper<'a> {
 pub struct SftpClient;
 
 impl SftpClient {
+    pub fn verify_host_key(sess: &Session, params: &SftpParams) -> Result<(), std::io::Error> {
+        let mode = params
+            .host_key_checking
+            .as_deref()
+            .unwrap_or("tofu")
+            .trim()
+            .to_lowercase();
+
+        if mode == "auto_accept" || mode == "no" || mode == "off" || mode == "accept-all" {
+            return Ok(());
+        }
+
+        let (key, key_type) = match sess.host_key() {
+            Some(k) => k,
+            None => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    format!("Remote host {}:{} did not present an SSH host key", params.host, params.port),
+                ));
+            }
+        };
+
+        let mut known_hosts = sess.known_hosts().map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::Other,
+                format!("Failed to initialize known_hosts handler: {}", e),
+            )
+        })?;
+
+        let known_hosts_path = resolve_known_hosts_path(params.known_hosts_file.as_deref());
+        if known_hosts_path.exists() {
+            let _ = known_hosts.read_file(&known_hosts_path, ssh2::KnownHostFileKind::OpenSSH);
+        }
+
+        let check = known_hosts.check_port(&params.host, params.port, key);
+
+        let fp_sha256 = sess.host_key_hash(ssh2::HashType::Sha256)
+            .map(|h| {
+                use base64::Engine;
+                format!("SHA256:{}", base64::engine::general_purpose::STANDARD_NO_PAD.encode(h))
+            })
+            .unwrap_or_else(|| "unknown".to_string());
+
+        match check {
+            ssh2::CheckResult::Match => Ok(()),
+            ssh2::CheckResult::NotFound => {
+                if mode == "strict" {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        format!(
+                            "Host key verification failed: Host '{}:{}' (fingerprint: {}) is not in known_hosts file '{}' and host_key_checking is set to 'strict'.",
+                            params.host, params.port, fp_sha256, known_hosts_path.display()
+                        ),
+                    ))
+                } else {
+                    // "tofu" (Trust On First Use): Record host key to known_hosts
+                    let host_pattern = if params.port == 22 {
+                        params.host.clone()
+                    } else {
+                        format!("[{}]:{}", params.host, params.port)
+                    };
+
+                    let _ = known_hosts.add(
+                        &host_pattern,
+                        key,
+                        &format!("Added by Brum {}", chrono::Utc::now().format("%Y-%m-%d")),
+                        key_type.into(),
+                    );
+
+                    if let Some(parent) = known_hosts_path.parent() {
+                        let _ = std::fs::create_dir_all(parent);
+                    }
+
+                    if let Err(e) = known_hosts.write_file(&known_hosts_path, ssh2::KnownHostFileKind::OpenSSH) {
+                        warn!(
+                            "Failed to write known_hosts entry for {}:{} to '{}': {}",
+                            params.host, params.port, known_hosts_path.display(), e
+                        );
+                    } else {
+                        info!(
+                            "Recorded new host key for {}:{} (fingerprint: {}) in '{}'",
+                            params.host, params.port, fp_sha256, known_hosts_path.display()
+                        );
+                    }
+
+                    Ok(())
+                }
+            }
+            ssh2::CheckResult::Mismatch => {
+                Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    format!(
+                        "HOST KEY VERIFICATION FAILED: Host key for '{}:{}' has changed! Server presented fingerprint: {}. Offending key in: {}. Connection rejected to prevent potential Man-In-The-Middle attacks.",
+                        params.host, params.port, fp_sha256, known_hosts_path.display()
+                    ),
+                ))
+            }
+            ssh2::CheckResult::Failure => {
+                if mode == "strict" {
+                    Err(std::io::Error::new(
+                        std::io::ErrorKind::Other,
+                        format!("Failed to verify host key in known_hosts for {}:{}", params.host, params.port),
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
+
     pub fn connect(params: &SftpParams) -> Result<Session, std::io::Error> {
         let addr_str = format!("{}:{}", params.host, params.port);
         let socket_addrs: Vec<_> = addr_str.to_socket_addrs()
@@ -90,6 +241,9 @@ impl SftpClient {
 
         sess.handshake()
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionRefused, format!("SSH handshake failed with {}:{}: {}", params.host, params.port, e)))?;
+
+        // Perform Host Key Verification according to configured policy (tofu, strict, auto_accept)
+        Self::verify_host_key(&sess, params)?;
 
         // 1. Password authentication
         if let Some(password) = params.password.as_deref().filter(|p| !p.is_empty()) {
@@ -290,10 +444,19 @@ impl SftpClient {
             password: pass.map(|s| s.to_string()),
             key_path: None,
             remote_path: remote_path.to_string(),
+            host_key_checking: None,
+            known_hosts_file: None,
         };
-        let sess = Self::connect(&params)?;
+        Self::download_file_with_params(&params, max_bytes)
+    }
+
+    pub fn download_file_with_params(
+        params: &SftpParams,
+        max_bytes: usize,
+    ) -> Result<Vec<u8>, std::io::Error> {
+        let sess = Self::connect(params)?;
         let sftp = sess.sftp().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SFTP subsystem error: {}", e)))?;
-        let resolved = Self::resolve_remote_path(&sftp, remote_path);
+        let resolved = Self::resolve_remote_path(&sftp, &params.remote_path);
         let mut file = sftp.open(Path::new(&resolved))
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SFTP open error for '{}': {}", resolved, e)))?;
 
@@ -317,6 +480,20 @@ impl SftpClient {
         file.write_all(data)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SFTP write error for '{}': {}", resolved, e)))?;
         Ok(())
+    }
+
+    pub fn parse_uri_with_config(
+        uri: &str,
+        default_user: Option<&str>,
+        default_pass: Option<&str>,
+        config: Option<&crate::config::SftpConfig>,
+    ) -> Result<SftpParams, String> {
+        let mut params = Self::parse_uri(uri, default_user, default_pass)?;
+        if let Some(cfg) = config {
+            params.host_key_checking = Some(cfg.host_key_checking.clone());
+            params.known_hosts_file = cfg.known_hosts_file.clone();
+        }
+        Ok(params)
     }
 
     pub fn parse_uri(uri: &str, default_user: Option<&str>, default_pass: Option<&str>) -> Result<SftpParams, String> {
@@ -370,6 +547,8 @@ impl SftpClient {
             password,
             key_path: None,
             remote_path: final_path,
+            host_key_checking: None,
+            known_hosts_file: None,
         })
     }
 
@@ -668,5 +847,91 @@ mod tests {
         assert!(r_csc.is_ok());
         assert!(r_mcs.is_ok());
         assert!(r_msc.is_ok());
+    }
+
+    #[test]
+    fn test_resolve_known_hosts_path() {
+        let custom = resolve_known_hosts_path(Some("/tmp/custom_hosts"));
+        assert_eq!(custom, PathBuf::from("/tmp/custom_hosts"));
+
+        let tilde_path = resolve_known_hosts_path(Some("~/.ssh/test_hosts"));
+        if let Some(home) = dirs::home_dir() {
+            assert_eq!(tilde_path, home.join(".ssh/test_hosts"));
+        }
+
+        let default_path = resolve_known_hosts_path(None);
+        assert!(default_path.to_string_lossy().contains("known_hosts"));
+    }
+
+    #[test]
+    fn test_sftp_params_config_binding() {
+        let p = SftpClient::parse_uri("sftp://user:pass@example.com:2222/data", None, None).unwrap();
+        assert_eq!(p.host_key_checking, None);
+        assert_eq!(p.known_hosts_file, None);
+
+        let cfg = crate::config::SftpConfig {
+            host_key_checking: "strict".to_string(),
+            known_hosts_file: Some("/var/lib/brum/known_hosts".to_string()),
+        };
+
+        let bound = p.with_config(&cfg);
+        assert_eq!(bound.host_key_checking, Some("strict".to_string()));
+        assert_eq!(bound.known_hosts_file, Some("/var/lib/brum/known_hosts".to_string()));
+    }
+
+    #[test]
+    fn test_known_hosts_file_lifecycle_and_checks() {
+        let tmp = tempfile::tempdir().unwrap();
+        let hosts_file = tmp.path().join("known_hosts");
+
+        let sess = Session::new().unwrap();
+        let mut kh = sess.known_hosts().unwrap();
+
+        // 1. Add host with raw key
+        let host = "192.168.1.150";
+        let port = 2222;
+        let host_pattern = format!("[{}]:{}", host, port);
+        let sample_key = vec![42u8; 32];
+
+        kh.add(&host_pattern, &sample_key, "Test server key", ssh2::KnownHostKeyFormat::Ed25519).unwrap();
+        kh.write_file(&hosts_file, ssh2::KnownHostFileKind::OpenSSH).unwrap();
+        assert!(hosts_file.exists());
+
+        // 2. Read back from file into a fresh known_hosts handler
+        let sess2 = Session::new().unwrap();
+        let mut kh2 = sess2.known_hosts().unwrap();
+        kh2.read_file(&hosts_file, ssh2::KnownHostFileKind::OpenSSH).unwrap();
+
+        // 3. Check match
+        let res_match = kh2.check_port(host, port, &sample_key);
+        assert!(matches!(res_match, ssh2::CheckResult::Match));
+
+        // 4. Check mismatch (MITM / changed key)
+        let altered_key = vec![99u8; 32];
+        let res_mismatch = kh2.check_port(host, port, &altered_key);
+        assert!(matches!(res_mismatch, ssh2::CheckResult::Mismatch));
+
+        // 5. Check not found
+        let res_not_found = kh2.check_port("10.0.0.99", 22, &sample_key);
+        assert!(matches!(res_not_found, ssh2::CheckResult::NotFound));
+    }
+
+    #[test]
+    fn test_sftp_auto_accept_mode() {
+        let sess = Session::new().unwrap();
+        let params = SftpParams {
+            host: "unreachable.invalid".to_string(),
+            port: 22,
+            user: "test".to_string(),
+            password: None,
+            key_path: None,
+            remote_path: "/".to_string(),
+            host_key_checking: Some("auto_accept".to_string()),
+            known_hosts_file: None,
+        };
+
+        // auto_accept mode should bypass host key checking immediately with Ok(())
+        let res = SftpClient::verify_host_key(&sess, &params);
+        assert!(res.is_ok());
     }
 }

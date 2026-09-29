@@ -62,6 +62,11 @@ auto_create_home_dirs = true          # Automatically create missing user home d
 # path = "//192.168.1.100/share"
 # read_only = false
 
+# --- Remote SFTP / SSH Host Key Security ---
+[storage.sftp]
+host_key_checking = "tofu"          # Host key verification policy: "tofu" (Trust On First Use / auto-record), "strict" (must pre-exist in known_hosts), "auto_accept" (ignore/skip verification)
+# known_hosts_file = "~/.ssh/known_hosts" # Optional custom known_hosts path (defaults to ~/.ssh/known_hosts or ~/.config/brum/known_hosts)
+
 # --- User Interface & Panels ---
 [ui]
 default_pane_count = 2           # Default number of visible panes on startup (1 to 4)

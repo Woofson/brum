@@ -3695,7 +3695,8 @@ async fn handle_list_dir(
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to list archive: {}", e)))
     } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&target_path, query.user.as_deref(), query.pass.as_deref())
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?
+            .with_config(&state.config.get_sftp_config());
         SftpClient::list_dir(&params)
             .map(Json)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("SFTP list failed: {}", e)))
@@ -3818,8 +3819,9 @@ async fn handle_read_file(
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read SMB file: {}", e)))
     } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&target_path, None, None)
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
-        let bytes = SftpClient::download_file(&params.host, params.port, &params.user, params.password.as_deref(), &params.remote_path, max_b)
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?
+            .with_config(&state.config.get_sftp_config());
+        let bytes = SftpClient::download_file_with_params(&params, max_b)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read SFTP file: {}", e)))?;
         let mime = mime_guess::from_path(&params.remote_path).first_or_octet_stream().to_string();
         let is_text = mime.starts_with("text/") || mime.contains("json") || mime.contains("javascript") || mime.contains("xml") || mime.contains("yaml") || mime.contains("toml");
@@ -3909,7 +3911,8 @@ async fn handle_write_file(
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save SMB file: {}", e)))
     } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&target_path, None, None)
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?
+            .with_config(&state.config.get_sftp_config());
         SftpClient::write_file(&params, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save SFTP file: {}", e)))
@@ -3950,7 +3953,8 @@ async fn handle_mkdir(
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create SMB folder: {}", e)))
     } else if target_path.starts_with("sftp://") || target_path.starts_with("ssh://") {
         let params = crate::vfs::sftp::SftpClient::parse_uri(&target_path, None, None)
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?
+            .with_config(&state.config.get_sftp_config());
         crate::vfs::sftp::SftpClient::mkdir(&params)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create SFTP folder: {}", e)))
@@ -4003,10 +4007,12 @@ async fn handle_rename(
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to rename SMB item: {}", e)))
     } else if from_path.starts_with("sftp://") || from_path.starts_with("ssh://") {
         let params_from = crate::vfs::sftp::SftpClient::parse_uri(&from_path, None, None)
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?
+            .with_config(&state.config.get_sftp_config());
         let target_remote = if to_path.starts_with("sftp://") || to_path.starts_with("ssh://") {
             let params_to = crate::vfs::sftp::SftpClient::parse_uri(&to_path, None, None)
-                .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
+                .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?
+                .with_config(&state.config.get_sftp_config());
             params_to.remote_path
         } else {
             to_path
@@ -4136,6 +4142,7 @@ async fn handle_delete(
         } else if valid_path.starts_with("sftp://") || valid_path.starts_with("ssh://") {
             match crate::vfs::sftp::SftpClient::parse_uri(&valid_path, None, None) {
                 Ok(params) => {
+                    let params = params.with_config(&state.config.get_sftp_config());
                     match crate::vfs::sftp::SftpClient::delete(&params, false) {
                         Ok(_) => deleted.push(path.clone()),
                         Err(e) => errors.push(format!("{}: {}", path, e)),
@@ -4410,6 +4417,8 @@ async fn handle_test_remote(
                 password: payload.pass.filter(|p| !p.trim().is_empty()),
                 key_path: None,
                 remote_path: "/".to_string(),
+                host_key_checking: None,
+                known_hosts_file: None,
             };
             match SftpClient::list_dir(&params) {
                 Ok(listing) => Ok(Json(serde_json::json!({
@@ -4628,7 +4637,7 @@ async fn handle_upload(
                         } else {
                             format!("{}/{}", p.remote_path.trim_end_matches('/'), file_name)
                         };
-                        p
+                        p.with_config(&state.config.get_sftp_config())
                     }
                     Err(e) => {
                         let err_msg = format!("Invalid SFTP destination: {}", e);
@@ -4998,8 +5007,9 @@ async fn handle_download(
         return build_bytes_range_response(file_bytes, mime, disposition, None, range_header);
     } else if path_str.starts_with("sftp://") || path_str.starts_with("ssh://") {
         let params = SftpClient::parse_uri(&path_str, None, None)
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?;
-        let file_bytes = SftpClient::download_file(&params.host, params.port, &params.user, params.password.as_deref(), &params.remote_path, 0)
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SFTP URI: {}", e)))?
+            .with_config(&state.config.get_sftp_config());
+        let file_bytes = SftpClient::download_file_with_params(&params, 0)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to download SFTP file: {}", e)))?;
         let file_name = params.remote_path.rsplit('/').next().unwrap_or(&params.remote_path).to_string();
         let mime = mime_guess::from_path(&file_name).first_or_octet_stream().to_string();
