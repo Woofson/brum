@@ -8577,21 +8577,239 @@ function renderDesktopAppsTab() {
   }
 }
 
-// ---------------- CONTEXT MENU CUSTOMIZER & SHELL ACTIONS ----------------
+// ---------------- CONTEXT MENU BUILDER, CUSTOMIZER & SHELL ACTIONS ----------------
 
-let ContextItemVisibility = JSON.parse(localStorage.getItem('cd_context_visibility') || '{"view":true,"edit":true,"openwith":true,"download":true,"share":true,"diff":true}');
+const DefaultMenuConfig = {
+  folder: [
+    { id: 'open', label: 'Open Folder', icon: 'folder-open', enabled: true, desc: 'Navigate pane into this directory' },
+    { id: 'new_tab', label: 'Open in New Tab', icon: 'plus-square', enabled: true, desc: 'Open directory in a new tab' },
+    { id: 'virtual_disk', label: 'Open as Virtual Disk / Image', icon: 'disc', enabled: true, desc: 'Browse filesystem inside disk image or virtual container' },
+    { id: 'opposite', label: 'Open in Opposite Pane', icon: 'columns-2', enabled: true, desc: 'Navigate opposite dual-pane to this folder' },
+    { id: 'clipboard', label: 'Copy / Cut / Paste', icon: 'clipboard-copy', enabled: true, desc: 'Direct clipboard transfer actions (Ctrl+C, Ctrl+X, Ctrl+V)' },
+    { id: 'transfer', label: 'Copy to... / Move to...', icon: 'copy', enabled: true, desc: 'Fast routing to active panes or favorite destinations' },
+    { id: 'rename', label: 'Rename / Batch Rename', icon: 'edit-3', enabled: true, desc: 'Inline file rename (F2) or Multi-file pattern renamer (Ctrl+M)' },
+    { id: 'delete', label: 'Delete / Trash', icon: 'trash-2', enabled: true, desc: 'Send to trash bin or permanent deletion (F8)' },
+    { id: 'properties', label: 'Properties Dialog', icon: 'info', enabled: true, desc: 'View 7-tab metadata, permissions, disk usage, and git stats (Alt+Enter)' },
+    { id: 'folder_tools', label: 'Folder Tools Submenu', icon: 'wrench', enabled: true, desc: 'Terminal, search, sync, audioplayer, and permissions tools' },
+    { id: 'new_menu', label: 'New... Submenu', icon: 'plus-circle', enabled: true, desc: 'Create folders, blank files, and document templates' },
+    { id: 'archives', label: 'Archives Submenu', icon: 'archive', enabled: true, desc: 'Compression, extraction, and checksums' },
+  ],
+  file: [
+    { id: 'open_with', label: 'Open with...', icon: 'external-link', enabled: true, desc: 'System default app or custom handler launcher' },
+    { id: 'quick_view', label: 'Quick View (F3)', icon: 'eye', enabled: true, desc: 'Universal document, video, or image viewer' },
+    { id: 'edit', label: 'Edit in Editor (F4)', icon: 'edit', enabled: true, desc: 'Dual-pane code and text editor' },
+    { id: 'hex_edit', label: 'Hex Editor', icon: 'binary', enabled: true, desc: 'Raw binary byte inspector and editor' },
+    { id: 'cad_studio', label: '3D CAD Studio', icon: 'box', enabled: true, desc: 'Interactive 3D mesh and model viewport' },
+    { id: 'audio_player', label: 'Audioplayer', icon: 'music', enabled: true, desc: 'Play audio file or add to background queue' },
+    { id: 'pdf_studio', label: 'PDF Studio', icon: 'file-text', enabled: true, desc: 'PDF split, merge, and page extractor' },
+    { id: 'chewtoys', label: 'Chewtoys Actions', icon: 'puzzle', enabled: true, desc: 'Modular .grr plugin context actions' },
+    { id: 'clipboard', label: 'Copy / Cut / Paste', icon: 'clipboard-copy', enabled: true, desc: 'Direct clipboard transfer actions (Ctrl+C, Ctrl+X, Ctrl+V)' },
+    { id: 'transfer', label: 'Copy to... / Move to...', icon: 'copy', enabled: true, desc: 'Fast routing to active panes or favorite destinations' },
+    { id: 'rename', label: 'Rename / Batch Rename', icon: 'edit-3', enabled: true, desc: 'Inline file rename (F2) or Multi-file pattern renamer (Ctrl+M)' },
+    { id: 'delete', label: 'Delete / Trash', icon: 'trash-2', enabled: true, desc: 'Send to trash bin or permanent deletion (F8)' },
+    { id: 'properties', label: 'Properties Dialog', icon: 'info', enabled: true, desc: 'View 7-tab metadata, permissions, checksums, and git stats (Alt+Enter)' },
+    { id: 'file_tools', label: 'File Tools Submenu', icon: 'wrench', enabled: true, desc: 'Diff compare, advanced search, script actions, and duplicate finder' },
+    { id: 'new_menu', label: 'New... Submenu', icon: 'plus-circle', enabled: true, desc: 'Create folders, blank files, and document templates' },
+    { id: 'archives', label: 'Archives Submenu', icon: 'archive', enabled: true, desc: 'Compression, extraction, and checksums' },
+  ],
+  app: [
+    { id: 'terminal', label: 'Bite! Terminal', icon: 'terminal', enabled: true, desc: 'Embedded pseudo-terminal with Nerd Font support' },
+    { id: 'editor', label: 'Dual-Pane Editor', icon: 'code', enabled: true, desc: 'Side-by-side text and source code editor' },
+    { id: 'notes', label: 'Notes & Documentation', icon: 'book-open', enabled: true, desc: 'Rich markdown notebook with built-in guides' },
+    { id: 'batch_renamer', label: 'Batch Renamer', icon: 'file-signature', enabled: true, desc: 'Multi-pattern regex and sequential renamer' },
+    { id: 'hex_editor', label: 'Hex Editor', icon: 'binary', enabled: true, desc: 'Low-level raw binary file inspector' },
+    { id: 'git_manager', label: 'Git Manager & Diff', icon: 'git-branch', enabled: true, desc: 'Visual branch manager, staging, and commit log' },
+    { id: 'pdf_studio', label: 'PDF Studio', icon: 'file-text', enabled: true, desc: 'Native PDF manipulation tools' },
+    { id: 'disk_usage', label: 'Disk Usage & Treemap', icon: 'pie-chart', enabled: true, desc: 'Hierarchical visual storage space visualizer' },
+    { id: 'sync', label: 'Sync & Replication', icon: 'refresh-cw', enabled: true, desc: 'Automated bidirectional directory synchronization' },
+    { id: 'audio_player', label: 'Audio Player', icon: 'music', enabled: true, desc: 'Integrated music and audio track player' },
+    { id: 'video_player', label: 'Video Player', icon: 'video', enabled: true, desc: 'Universal video player' },
+  ],
+  spot: [
+    { id: 'spot_files', label: 'Search Files & Folders', icon: 'search', enabled: true, desc: 'Instant fuzzy filename search across active directories' },
+    { id: 'spot_tools', label: 'Core Tools & Utilities', icon: 'wrench', enabled: true, desc: 'Quick launcher for all native Core Functions' },
+    { id: 'spot_bookmarks', label: 'Places & Bookmarks', icon: 'bookmark', enabled: true, desc: 'Direct jumps to saved storage destinations' },
+    { id: 'spot_chewtoys', label: 'Chewtoys & Plugins', icon: 'puzzle', enabled: true, desc: 'Launch installed .grr modular plugins' },
+    { id: 'spot_commands', label: 'Shell Commands & Terminal', icon: 'terminal', enabled: true, desc: 'Run host shell commands directly from launcher' },
+  ],
+  options: {
+    defaultDownloadArchive: 'zip',
+    showQuickActionButtons: true,
+    compactSubmenus: false,
+  }
+};
+
+let activeMenuCategory = 'folder';
+
+function getMenuConfig() {
+  try {
+    const raw = localStorage.getItem('cd_menu_builder_config');
+    if (!raw) return JSON.parse(JSON.stringify(DefaultMenuConfig));
+    const parsed = JSON.parse(raw);
+    return {
+      folder: Array.isArray(parsed.folder) ? parsed.folder : JSON.parse(JSON.stringify(DefaultMenuConfig.folder)),
+      file: Array.isArray(parsed.file) ? parsed.file : JSON.parse(JSON.stringify(DefaultMenuConfig.file)),
+      app: Array.isArray(parsed.app) ? parsed.app : JSON.parse(JSON.stringify(DefaultMenuConfig.app)),
+      spot: Array.isArray(parsed.spot) ? parsed.spot : JSON.parse(JSON.stringify(DefaultMenuConfig.spot)),
+      options: Object.assign({}, DefaultMenuConfig.options, parsed.options || {})
+    };
+  } catch (e) {
+    return JSON.parse(JSON.stringify(DefaultMenuConfig));
+  }
+}
+
+function saveMenuConfig(config) {
+  localStorage.setItem('cd_menu_builder_config', JSON.stringify(config));
+}
+
+function switchMenuBuilderCategory(category) {
+  activeMenuCategory = category;
+  ['folder', 'file', 'app', 'spot', 'options', 'shell'].forEach(cat => {
+    const btn = document.getElementById(`btn-menu-cat-${cat}`);
+    if (btn) {
+      if (cat === category) {
+        btn.classList.add('active');
+        btn.style.background = 'var(--accent)';
+        btn.style.color = '#000';
+      } else {
+        btn.classList.remove('active');
+        btn.style.background = 'transparent';
+        btn.style.color = 'var(--text-main)';
+      }
+    }
+  });
+
+  const formEl = document.getElementById('custom-action-form');
+  if (formEl) formEl.style.display = 'none';
+
+  renderMenuBuilderCategory(category);
+}
+
+function renderMenuBuilderCategory(category) {
+  const container = document.getElementById('menu-builder-container');
+  if (!container) return;
+
+  const config = getMenuConfig();
+
+  if (category === 'shell') {
+    container.innerHTML = `
+      <div class="form-group">
+        <div style="font-weight: 600; font-size: 12px; margin-bottom: 6px; color: var(--accent);">User-Defined Shell Actions:</div>
+        <div class="form-hint" style="margin-bottom: 10px;">Create custom shell commands mapped with tokens: <code>{file}</code> (selected file), <code>{dir}</code> (current path), <code>{selection}</code> (all selected paths), <code>{target_pane}</code> (target pane path).</div>
+        <div id="custom-actions-list"></div>
+      </div>
+    `;
+    renderCustomActionsList();
+    return;
+  }
+
+  if (category === 'options') {
+    const opts = config.options || DefaultMenuConfig.options;
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 14px;">
+        <div class="form-group">
+          <label style="font-weight: 700; font-size: 12px;">Default Folder Download Compression Format:</label>
+          <select id="opt-menu-download-format" class="pane-quick-filter" style="width: 320px; padding: 6px 8px;" onchange="updateMenuOption('defaultDownloadArchive', this.value)">
+            <option value="zip" ${opts.defaultDownloadArchive === 'zip' ? 'selected' : ''}>Standard Zip (.zip - Fastest & Universal)</option>
+            <option value="tar.gz" ${opts.defaultDownloadArchive === 'tar.gz' ? 'selected' : ''}>Gzipped Tarball (.tar.gz - Linux / Unix)</option>
+            <option value="7z" ${opts.defaultDownloadArchive === '7z' ? 'selected' : ''}>7-Zip Archive (.7z - High Compression)</option>
+          </select>
+          <div class="form-hint">Used whenever downloading folders or batch collections from the Context Menu.</div>
+        </div>
+
+        <div class="form-group" style="margin-top: 4px;">
+          <label style="font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
+            <input type="checkbox" id="opt-menu-quick-header" ${opts.showQuickActionButtons ? 'checked' : ''} onchange="updateMenuOption('showQuickActionButtons', this.checked)">
+            Show Quick Header Action Buttons in Context Menu (Bookmark + Notes)
+          </label>
+          <div class="form-hint">Displays instantaneous Bookmark to Places and Open in Notes shortcuts directly in the context menu header row.</div>
+        </div>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+    return;
+  }
+
+  const items = config[category] || [];
+  let html = `
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+      <div style="font-size: 11px; color: var(--text-muted);">Toggle items or use up/down arrows to reorder actions in this menu.</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 6px; max-height: 380px; overflow-y: auto; padding-right: 4px;">
+  `;
+
+  items.forEach((item, idx) => {
+    html += `
+      <div class="rule-config-row" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px;">
+        <input type="checkbox" ${item.enabled !== false ? 'checked' : ''} onchange="toggleMenuItemVisibility('${category}', '${escapeHtml(item.id)}', this.checked)" title="Toggle item visibility" style="cursor: pointer;">
+        <i data-lucide="${item.icon || 'circle'}" style="width: 15px; height: 15px; color: ${item.enabled !== false ? 'var(--accent)' : 'var(--text-muted)'}; flex-shrink: 0;"></i>
+        <div style="flex: 1; min-width: 0;">
+          <div style="font-size: 12px; font-weight: 600; color: ${item.enabled !== false ? 'var(--text-main)' : 'var(--text-muted)'};">${escapeHtml(item.label)}</div>
+          <div style="font-size: 10px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.desc || '')}</div>
+        </div>
+        <div style="display: flex; gap: 4px; flex-shrink: 0;">
+          <button class="btn btn-icon btn-xs" onclick="moveMenuItem('${category}', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up"><i data-lucide="arrow-up" style="width: 12px; height: 12px;"></i></button>
+          <button class="btn btn-icon btn-xs" onclick="moveMenuItem('${category}', ${idx}, 1)" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down"><i data-lucide="arrow-down" style="width: 12px; height: 12px;"></i></button>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  container.innerHTML = html;
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function updateMenuOption(key, value) {
+  const config = getMenuConfig();
+  if (!config.options) config.options = {};
+  config.options[key] = value;
+  saveMenuConfig(config);
+  showToast(`Updated menu option: ${key}`, 'info');
+}
+
+function toggleMenuItemVisibility(category, itemId, checked) {
+  const config = getMenuConfig();
+  if (!config[category]) return;
+  const item = config[category].find(i => i.id === itemId);
+  if (item) {
+    item.enabled = checked;
+    saveMenuConfig(config);
+    showToast(`"${item.label}" ${checked ? 'enabled' : 'disabled'}`, 'info');
+    renderMenuBuilderCategory(category);
+  }
+}
+
+function moveMenuItem(category, index, delta) {
+  const config = getMenuConfig();
+  const list = config[category];
+  if (!list) return;
+  const targetIdx = index + delta;
+  if (targetIdx < 0 || targetIdx >= list.length) return;
+
+  const temp = list[index];
+  list[index] = list[targetIdx];
+  list[targetIdx] = temp;
+
+  saveMenuConfig(config);
+  renderMenuBuilderCategory(category);
+}
+
+function resetMenuConfigToDefaults() {
+  localStorage.removeItem('cd_menu_builder_config');
+  showToast('Reset menu configuration to factory defaults', 'success');
+  renderMenuBuilderCategory(activeMenuCategory);
+}
+
+// ---------------- USER DEFINED SHELL ACTIONS ----------------
+
 let CustomShellActions = JSON.parse(localStorage.getItem('cd_custom_shell_actions') || 'null');
 if (!CustomShellActions) {
   CustomShellActions = [
     { id: 'git-status', label: 'Git Status Here', icon: 'git-branch', cmd: 'git -C {dir} status' },
     { id: 'zip-sel', label: 'Compress Selection (7z)', icon: 'archive', cmd: '7z a -tzip "{dir}/archive.zip" {selection}' },
   ];
-}
-
-function toggleContextItemVisibility(key, visible) {
-  ContextItemVisibility[key] = visible;
-  localStorage.setItem('cd_context_visibility', JSON.stringify(ContextItemVisibility));
-  showToast(`Context item "${key}" ${visible ? 'enabled' : 'hidden'}`, 'info');
 }
 
 function renderCustomActionsList() {
@@ -8604,14 +8822,14 @@ function renderCustomActionsList() {
   }
 
   list.innerHTML = CustomShellActions.map((a, idx) => `
-    <div class="rule-config-row">
-      <i data-lucide="${a.icon || 'terminal'}" style="width: 16px; color: var(--accent);"></i>
+    <div class="rule-config-row" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px;">
+      <i data-lucide="${a.icon || 'terminal'}" style="width: 15px; height: 15px; color: var(--accent);"></i>
       <div style="flex: 1; min-width: 0;">
         <div style="font-weight: 600; font-size: 12px;">${escapeHtml(a.label)}</div>
-        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(a.cmd)}</div>
+        <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.cmd)}</div>
       </div>
-      <button class="btn btn-icon btn-sm" onclick="editCustomAction(${idx})" title="Edit"><i data-lucide="edit-3" style="width: 13px;"></i></button>
-      <button class="btn btn-icon btn-sm" onclick="deleteCustomAction(${idx})" title="Delete"><i data-lucide="trash-2" style="width: 13px; color: var(--danger);"></i></button>
+      <button class="btn btn-icon btn-xs" onclick="editCustomAction(${idx})" title="Edit"><i data-lucide="edit-3" style="width: 12px; height: 12px;"></i></button>
+      <button class="btn btn-icon btn-xs" onclick="deleteCustomAction(${idx})" title="Delete"><i data-lucide="trash-2" style="width: 12px; height: 12px; color: var(--danger);"></i></button>
     </div>
   `).join('');
 
@@ -8624,6 +8842,7 @@ function showAddCustomActionPrompt() {
   document.getElementById('custom-action-input-icon').value = 'terminal';
   document.getElementById('custom-action-input-cmd').value = '';
   document.getElementById('custom-action-form').style.display = 'block';
+  document.getElementById('custom-action-input-label').focus();
 }
 
 function editCustomAction(index) {
@@ -8709,6 +8928,39 @@ async function executeCustomAction(cmd, targetPath) {
   }
 }
 
+function addCurrentOrContextItemToQuickDest() {
+  hideContextMenu();
+  const target = App.contextItem || { path: App.panes[App.activePaneIndex]?.path, name: App.panes[App.activePaneIndex]?.path.split('/').pop() || 'Folder' };
+  if (!target || !target.path) return;
+
+  const exists = App.quickDestinations.some(d => d.path === target.path);
+  if (exists) {
+    showToast(`"${target.name || target.path}" is already bookmarked`, 'info');
+    return;
+  }
+
+  App.quickDestinations.push({
+    name: target.name || target.path.split('/').pop() || 'Bookmark',
+    path: target.path
+  });
+
+  localStorage.setItem('cd_quick_destinations', JSON.stringify(App.quickDestinations));
+  showToast(`Added "${target.name || target.path}" to Places`, 'success');
+}
+
+function openNoteForContextItem() {
+  hideContextMenu();
+  const target = App.contextItem || { path: App.panes[App.activePaneIndex]?.path, name: 'Current Path' };
+  if (!target || !target.path) return;
+
+  if (typeof openFloatingNoteDog === 'function') {
+    openFloatingNoteDog(null, `Note for: ${target.name}\nPath: ${target.path}\n\n`);
+    showToast(`Opened Notes for ${target.name}`, 'info');
+  } else {
+    showToast('Notes tool not initialized', 'info');
+  }
+}
+
 // ---------------- SETTINGS & CONF.D INSPECTOR ----------------
 
 function switchSettingsTab(tabId) {
@@ -8745,7 +8997,8 @@ function switchSettingsTab(tabId) {
   if (tabId === 'tab-bookmarks') loadBookmarksList();
   if (tabId === 'tab-desktop-apps') renderDesktopAppsTab();
   if (tabId === 'tab-openwith') renderOpenWithRules();
-  if (tabId === 'tab-context') renderCustomActionsList();
+  if (tabId === 'tab-context') renderMenuBuilderCategory(activeMenuCategory);
+  if (tabId === 'tab-keys') renderKeybindingsTable();
   if (tabId === 'tab-icons') renderIconSettingsTab();
   if (tabId === 'tab-templates') renderFileTemplatesList();
   if (tabId === 'tab-tools') renderToolsSettingsTab();
@@ -10587,6 +10840,305 @@ function matchKeyboardShortcut(e, shortcutStr) {
   return false;
 }
 
+// ---------------- KEYBINDINGS & HOTKEY MANAGER ----------------
+
+const DEFAULT_KEYBINDINGS = [
+  { id: 'nav_switch_pane', name: 'Switch Active Focused Pane', category: 'Navigation', shortcut: 'Tab', defaultKey: 'Tab', desc: 'Cycles focus between active dual/quad file panels' },
+  { id: 'nav_prev_pane', name: 'Switch Focused Pane (Reverse)', category: 'Navigation', shortcut: 'Shift+Tab', defaultKey: 'Shift+Tab', desc: 'Cycles focus in reverse order' },
+  { id: 'nav_help', name: 'Quick Help', category: 'System', shortcut: 'F1', defaultKey: 'F1', desc: 'Open help and command reference dialog' },
+  { id: 'file_rename', name: 'Rename Selected', category: 'File Actions', shortcut: 'F2', defaultKey: 'F2', desc: 'Rename current file or directory under cursor' },
+  { id: 'file_view', name: 'Quick View / Preview', category: 'File Actions', shortcut: 'F3', defaultKey: 'F3', desc: 'Open universal document or media viewer' },
+  { id: 'file_edit', name: 'Dual-Pane Editor', category: 'Core Tools', shortcut: 'F4', defaultKey: 'F4', desc: 'Open file in code editor' },
+  { id: 'file_copy', name: 'Copy to Target Pane', category: 'File Actions', shortcut: 'F5', defaultKey: 'F5', desc: 'Copy selected files directly to opposite pane' },
+  { id: 'file_move', name: 'Move to Target Pane', category: 'File Actions', shortcut: 'F6', defaultKey: 'F6', desc: 'Move selected files directly to opposite pane' },
+  { id: 'file_mkdir', name: 'Create New Folder (Mkdir)', category: 'File Actions', shortcut: 'F7', defaultKey: 'F7', desc: 'Create directory in active pane path' },
+  { id: 'file_delete', name: 'Delete / Trash', category: 'File Actions', shortcut: 'F8', defaultKey: 'F8', desc: 'Send selected files to trash bin' },
+  { id: 'tools_diff', name: 'Compare / Diff Files', category: 'Core Tools', shortcut: 'F9', defaultKey: 'F9', desc: 'Open visual side-by-side diff comparison' },
+  { id: 'system_settings', name: 'Settings & Preferences', category: 'System', shortcut: 'F10', defaultKey: 'F10', desc: 'Open settings and menu builder' },
+  { id: 'system_lock', name: 'Lock Session', category: 'System', shortcut: 'F12', defaultKey: 'F12', desc: 'Lock the current workstation session' },
+  { id: 'file_properties', name: 'Properties Modal', category: 'File Actions', shortcut: 'Alt+Enter', defaultKey: 'Alt+Enter', desc: 'Open multi-tab file properties and permissions dialog' },
+  { id: 'tools_spotlight', name: 'Spot! Launcher', category: 'Core Tools', shortcut: 'Ctrl+K', defaultKey: 'Ctrl+K', desc: 'Launch Spot! fuzzy command and file launcher' },
+  { id: 'tools_terminal', name: 'Bite! Terminal Console', category: 'Core Tools', shortcut: '`', defaultKey: '`', desc: 'Toggle docked or floating terminal drawer' },
+  { id: 'clip_copy', name: 'Copy to Clipboard', category: 'File Actions', shortcut: 'Ctrl+C', defaultKey: 'Ctrl+C', desc: 'Copy selected paths to virtual clipboard' },
+  { id: 'clip_cut', name: 'Cut to Clipboard', category: 'File Actions', shortcut: 'Ctrl+X', defaultKey: 'Ctrl+X', desc: 'Cut selected paths to virtual clipboard' },
+  { id: 'clip_paste', name: 'Paste from Clipboard', category: 'File Actions', shortcut: 'Ctrl+V', defaultKey: 'Ctrl+V', desc: 'Paste copied or cut paths into active directory' },
+  { id: 'file_batch_rename', name: 'Batch Renamer', category: 'Core Tools', shortcut: 'Ctrl+M', defaultKey: 'Ctrl+M', desc: 'Open regex and pattern batch renamer' },
+  { id: 'nav_branch_view', name: 'Flat / Branch View', category: 'Panes & Views', shortcut: 'Ctrl+B', defaultKey: 'Ctrl+B', desc: 'Toggle recursive flat directory branch listing' },
+  { id: 'pane_new_tab', name: 'New Pane Tab', category: 'Panes & Views', shortcut: 'Ctrl+T', defaultKey: 'Ctrl+T', desc: 'Create new tab in active pane' },
+  { id: 'pane_close_tab', name: 'Close Active Tab', category: 'Panes & Views', shortcut: 'Ctrl+W', defaultKey: 'Ctrl+W', desc: 'Close current tab in active pane' },
+  { id: 'pane_tree_toggle', name: 'Toggle Folder Tree Sidebar', category: 'Panes & Views', shortcut: 'Ctrl+Shift+T', defaultKey: 'Ctrl+Shift+T', desc: 'Show or hide directory tree hierarchy' },
+  { id: 'select_all', name: 'Select All Items', category: 'Selection', shortcut: 'Ctrl+A', defaultKey: 'Ctrl+A', desc: 'Select all files and directories in current pane' },
+  { id: 'system_quit', name: 'Quit Brum', category: 'System', shortcut: 'Ctrl+Q', defaultKey: 'Ctrl+Q', desc: 'Cleanly exit and close Brum server' }
+];
+
+function getKeybindingsMap() {
+  const custom = JSON.parse(localStorage.getItem('cd_custom_keybindings') || '{}');
+  const result = [];
+  DEFAULT_KEYBINDINGS.forEach(item => {
+    const override = custom[item.id];
+    result.push({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      desc: item.desc,
+      defaultKey: item.defaultKey,
+      shortcut: (override !== undefined) ? override : item.shortcut,
+      isCustom: (override !== undefined && override !== item.defaultKey)
+    });
+  });
+  return result;
+}
+
+function saveCustomKeybinding(actionId, newShortcut) {
+  const custom = JSON.parse(localStorage.getItem('cd_custom_keybindings') || '{}');
+  if (newShortcut === null) {
+    delete custom[actionId];
+  } else {
+    custom[actionId] = newShortcut;
+  }
+  localStorage.setItem('cd_custom_keybindings', JSON.stringify(custom));
+}
+
+function renderKeybindingsTable() {
+  const tbody = document.getElementById('keybindings-table-body');
+  if (!tbody) return;
+
+  const search = (document.getElementById('keybinds-search-input')?.value || '').toLowerCase().trim();
+  const catFilter = document.getElementById('keybinds-category-filter')?.value || 'all';
+
+  const list = getKeybindingsMap();
+  const filtered = list.filter(item => {
+    if (catFilter !== 'all' && item.category !== catFilter) return false;
+    if (search) {
+      const matchName = item.name.toLowerCase().includes(search);
+      const matchDesc = (item.desc || '').toLowerCase().includes(search);
+      const matchKey = (item.shortcut || '').toLowerCase().includes(search);
+      const matchCat = item.category.toLowerCase().includes(search);
+      if (!matchName && !matchDesc && !matchKey && !matchCat) return false;
+    }
+    return true;
+  });
+
+  if (filtered.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 24px;">No matching keyboard shortcuts found.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map(item => {
+    const kbdHtml = formatShortcutToKbd(item.shortcut);
+    return `
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 8px 10px;">
+          <div style="font-weight: 600; font-size: 12px; color: var(--text-main);">${escapeHtml(item.name)}</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">${escapeHtml(item.desc || '')}</div>
+        </td>
+        <td style="padding: 8px 10px;">
+          <span style="font-size: 11px; padding: 2px 6px; border-radius: 4px; background: var(--bg-active); border: 1px solid var(--border); color: var(--text-muted);">${escapeHtml(item.category)}</span>
+        </td>
+        <td style="padding: 8px 10px;">
+          ${kbdHtml}
+          ${item.isCustom ? '<span style="font-size: 10px; color: var(--accent); margin-left: 6px; font-weight: 600;">(Custom)</span>' : ''}
+        </td>
+        <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
+          <button class="btn btn-xs btn-outline" onclick="openKeyRecordModal('${escapeHtml(item.id)}')" title="Record new shortcut"><i data-lucide="edit-3" style="width: 11px; height: 11px;"></i> Rebind</button>
+          ${item.isCustom ? `<button class="btn btn-xs" onclick="resetSingleKeybind('${escapeHtml(item.id)}')" title="Reset to default (${escapeHtml(item.defaultKey)})"><i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i></button>` : ''}
+        </td>
+      </tr>
+    `;
+  }).join('');
+
+  if (window.lucide) lucide.createIcons();
+}
+
+function formatShortcutToKbd(shortcutStr) {
+  if (!shortcutStr) return '<span style="color: var(--text-muted); font-style: italic; font-size: 11px;">Unassigned</span>';
+  const parts = shortcutStr.split('+').map(s => s.trim()).filter(Boolean);
+  return parts.map(p => `<kbd style="display: inline-block; padding: 2px 6px; font-size: 11px; font-family: var(--font-mono); font-weight: 600; background: var(--bg-active); border: 1px solid var(--border); border-bottom: 2px solid var(--border); border-radius: 4px; color: var(--accent); box-shadow: 0 1px 2px rgba(0,0,0,0.2);">${escapeHtml(p)}</kbd>`).join(' <span style="color: var(--text-muted); font-size: 10px;">+</span> ');
+}
+
+let activeRecordingActionId = null;
+let currentRecordedKeyCombo = '';
+
+function openKeyRecordModal(actionId) {
+  activeRecordingActionId = actionId;
+  const list = getKeybindingsMap();
+  const item = list.find(i => i.id === actionId);
+  if (!item) return;
+
+  currentRecordedKeyCombo = item.shortcut || '';
+
+  document.getElementById('key-record-action-id').value = actionId;
+  document.getElementById('key-record-category').textContent = item.category;
+  document.getElementById('key-record-title').textContent = item.name;
+  document.getElementById('key-record-desc').textContent = item.desc || `Default: ${item.defaultKey}`;
+
+  const displayEl = document.getElementById('key-record-keys-display');
+  if (displayEl) {
+    displayEl.innerHTML = item.shortcut ? formatShortcutToKbd(item.shortcut) : 'Press keys on keyboard...';
+  }
+
+  const conflictEl = document.getElementById('key-record-conflict-msg');
+  if (conflictEl) conflictEl.style.display = 'none';
+
+  const box = document.getElementById('key-record-capture-box');
+  if (box) {
+    box.onkeydown = handleKeyRecordCapture;
+    setTimeout(() => box.focus(), 100);
+  }
+
+  showModal('key-record-modal');
+}
+
+function closeKeyRecordModal() {
+  activeRecordingActionId = null;
+  currentRecordedKeyCombo = '';
+  closeModal('key-record-modal');
+}
+
+function handleKeyRecordCapture(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  if (e.key === 'Escape') {
+    closeKeyRecordModal();
+    return;
+  }
+
+  const parts = [];
+  if (e.ctrlKey || e.metaKey) parts.push('Ctrl');
+  if (e.altKey) parts.push('Alt');
+  if (e.shiftKey) parts.push('Shift');
+
+  let keyName = e.key;
+  if (['Control', 'Alt', 'Shift', 'Meta'].includes(keyName)) {
+    const displayEl = document.getElementById('key-record-keys-display');
+    if (displayEl) {
+      displayEl.textContent = parts.join(' + ') + ' + ...';
+    }
+    return;
+  }
+
+  if (keyName === ' ') keyName = 'Space';
+  else if (keyName === 'Delete') keyName = 'Delete';
+  else if (keyName === 'Insert') keyName = 'Insert';
+  else if (keyName.length === 1) keyName = keyName.toUpperCase();
+
+  parts.push(keyName);
+  const comboStr = parts.join('+');
+  currentRecordedKeyCombo = comboStr;
+
+  const displayEl = document.getElementById('key-record-keys-display');
+  if (displayEl) {
+    displayEl.innerHTML = formatShortcutToKbd(comboStr);
+  }
+
+  const list = getKeybindingsMap();
+  const conflict = list.find(i => i.id !== activeRecordingActionId && i.shortcut && i.shortcut.toLowerCase() === comboStr.toLowerCase());
+  const conflictEl = document.getElementById('key-record-conflict-msg');
+  const conflictTxt = document.getElementById('key-record-conflict-text');
+
+  if (conflict) {
+    if (conflictEl) conflictEl.style.display = 'flex';
+    if (conflictTxt) conflictTxt.textContent = `Warning: "${comboStr}" is currently assigned to "${conflict.name}". Saving will override this binding.`;
+  } else {
+    if (conflictEl) conflictEl.style.display = 'none';
+  }
+}
+
+function saveCapturedKeybind() {
+  if (!activeRecordingActionId) return;
+  saveCustomKeybinding(activeRecordingActionId, currentRecordedKeyCombo);
+  showToast(`Updated shortcut to ${currentRecordedKeyCombo || 'Unassigned'}`, 'success');
+  closeKeyRecordModal();
+  renderKeybindingsTable();
+}
+
+function clearCapturedKeybind() {
+  if (!activeRecordingActionId) return;
+  currentRecordedKeyCombo = '';
+  saveCustomKeybinding(activeRecordingActionId, '');
+  showToast('Cleared shortcut', 'info');
+  closeKeyRecordModal();
+  renderKeybindingsTable();
+}
+
+function resetSingleKeybind(actionId) {
+  saveCustomKeybinding(actionId, null);
+  showToast('Reset shortcut to default', 'info');
+  renderKeybindingsTable();
+}
+
+function resetKeybindingsToDefaults() {
+  localStorage.removeItem('cd_custom_keybindings');
+  showToast('Reset all keybindings to defaults', 'success');
+  renderKeybindingsTable();
+}
+
+function dispatchCustomKeybinding(e) {
+  const list = getKeybindingsMap();
+  for (const item of list) {
+    if (item.shortcut && matchKeyboardShortcut(e, item.shortcut)) {
+      e.preventDefault();
+      executeActionById(item.id);
+      return true;
+    }
+  }
+  return false;
+}
+
+function executeActionById(actionId) {
+  const pane = App.panes[App.activePaneIndex];
+  switch (actionId) {
+    case 'nav_switch_pane': {
+      const count = getVisiblePaneCount();
+      setActivePane((App.activePaneIndex + 1) % count);
+      break;
+    }
+    case 'nav_prev_pane': {
+      const count = getVisiblePaneCount();
+      setActivePane((App.activePaneIndex - 1 + count) % count);
+      break;
+    }
+    case 'nav_help': openHelpModal(); break;
+    case 'file_rename': triggerRename(); break;
+    case 'file_view': triggerView(); break;
+    case 'file_edit': triggerEditor(); break;
+    case 'file_copy': triggerCopy(); break;
+    case 'file_move': triggerMove(); break;
+    case 'file_mkdir': triggerMkdir(); break;
+    case 'file_delete': triggerDelete(); break;
+    case 'tools_diff': triggerDiff(); break;
+    case 'system_settings': openSettingsModal(); break;
+    case 'system_lock': lockSession(); break;
+    case 'file_properties': triggerProperties(); break;
+    case 'tools_spotlight': toggleSpotlightModal(); break;
+    case 'tools_terminal': toggleTerminalDock(); break;
+    case 'clip_copy': triggerCopyClipboard(); break;
+    case 'clip_cut': triggerCutClipboard(); break;
+    case 'clip_paste': triggerPaste(App.activePaneIndex); break;
+    case 'file_batch_rename': openBatchRenamer(); break;
+    case 'nav_branch_view': toggleBranchView(App.activePaneIndex); break;
+    case 'pane_new_tab': createPaneTab(App.activePaneIndex); break;
+    case 'pane_close_tab': {
+      if (pane && pane.tabs && pane.tabs.length > 1) {
+        closePaneTab(App.activePaneIndex, pane.activeTabIndex);
+      }
+      break;
+    }
+    case 'pane_tree_toggle': toggleFolderTree(); break;
+    case 'select_all': {
+      if (pane && pane.entries) {
+        pane.selected.clear();
+        pane.entries.forEach(entry => pane.selected.add(entry.path));
+        renderPaneTable(App.activePaneIndex);
+        updateMobileBottomBar();
+      }
+      break;
+    }
+    case 'system_quit': confirmExitBrum(); break;
+  }
+}
+
 function setupKeyboardNavigation() {
   document.addEventListener('keydown', (e) => {
     // If session is locked or on auth login screen, bypass all global file manager shortcuts
@@ -10655,6 +11207,11 @@ function setupKeyboardNavigation() {
         toggleDynamicChewToy(plugin.id);
         return;
       }
+    }
+
+    // Check user-remapped keybindings first
+    if (dispatchCustomKeybinding(e)) {
+      return;
     }
 
     if (e.ctrlKey || e.metaKey) {
@@ -18923,6 +19480,11 @@ function showContextMenu(x, y) {
     headerLabel = escapeHtml(App.contextItem?.name || 'File Actions');
   }
 
+  const menuConfig = getMenuConfig();
+  const opts = menuConfig.options || {};
+  const defaultFmt = opts.defaultDownloadArchive || 'zip';
+  const defaultFmtLabel = defaultFmt === 'tar.gz' ? '(.tar.gz)' : (defaultFmt === '7z' ? '(.7z)' : '(.zip)');
+
   // --- BUILD CONTEXT MENU BODY ---
   let bodyHtml = '';
 
@@ -18949,6 +19511,7 @@ function showContextMenu(x, y) {
   // Case A: Multi-selection Context Menu
   else if (selectedCount > 1) {
     bodyHtml = `
+      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
         <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
@@ -18962,6 +19525,7 @@ function showContextMenu(x, y) {
         </div>
       </div>
 
+      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
         <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
@@ -18974,15 +19538,14 @@ function showContextMenu(x, y) {
         </div>
       </div>
 
-      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
-      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
       <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste (Ctrl+V)</div>
       <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
       <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
+      <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
       <div class="context-sep"></div>
 
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archive Selection</div>
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archives</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
         <div class="context-submenu">
           <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
@@ -18993,12 +19556,10 @@ function showContextMenu(x, y) {
           <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
         </div>
       </div>
-      <div class="context-sep"></div>
       <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Selection...</div>
-      <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
     `;
   }
-  // Case B: Dedicated Folder Context Menu
+  // Case B: Dedicated Folder Context Menu (Issue #98 Structure)
   else if (isDir) {
     bodyHtml = `
       <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, App.contextItem?.path); hideContextMenu();"><i data-lucide="folder-open" style="width: 14px; color: var(--accent);"></i> Open Folder</div>
@@ -19009,21 +19570,66 @@ function showContextMenu(x, y) {
       ${oppositeIdx !== null ? `
         <div class="context-item" onclick="loadPaneDirectory(${oppositeIdx}, App.contextItem?.path); showToast('Opened in Pane ${oppositeIdx + 1}', 'info'); hideContextMenu();"><i data-lucide="columns-2" style="width: 14px;"></i> Open in Opposite Pane (Pane ${oppositeIdx + 1})</div>
       ` : ''}
-      <div class="context-item" onclick="openTerminalInPath(App.contextItem?.path); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
-      <div class="context-item" onclick="openSearchModal(App.contextItem?.path); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Search in Folder (Ctrl+F)</div>
-      <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Folder / Guest Dropbox...</div>
-      <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
-      <div class="context-item" onclick="openDiskUsageModal(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
-      <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
-      <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, false); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add Folder to Queue</div>
-      <div class="context-item" onclick="toggleBranchView(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="git-branch" style="width: 14px; color: var(--accent);"></i> Flat / Branch View (Ctrl+B)</div>
-      <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Download Folder (.zip)</div>
+      <div class="context-sep"></div>
+
+      <!-- Top Primary Actions -->
+      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${copyPaneItems ? `<div class="submenu-header">Active Panes</div>${copyPaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favCopyItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('copy'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+          <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width:13px;"></i> + Bookmark Current Path</div>
+        </div>
+      </div>
+
+      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          ${movePaneItems ? `<div class="submenu-header">Active Panes</div>${movePaneItems}<div class="context-sep"></div>` : ''}
+          <div class="submenu-header">Favorite Destinations</div>
+          ${favMoveItems}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="openCustomDestModal('move'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
+        </div>
+      </div>
+
+      <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste ${clipInfo} (Ctrl+V)</div>
+      <div class="context-item" onclick="triggerRename(); hideContextMenu();"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
+      <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
+      <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
       <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
       <div class="context-sep"></div>
 
-      <!-- New Submenu -->
+      <!-- Submenu 1: Folder Tools -->
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New</div>
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="wrench" style="width: 14px; color: var(--accent);"></i> Folder Tools</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="openTerminalInPath(App.contextItem?.path); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
+          <div class="context-item" onclick="openSearchModal(App.contextItem?.path); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Search in Folder (Ctrl+F)</div>
+          <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share Folder / Guest Dropbox...</div>
+          <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
+          <div class="context-item" onclick="openDiskUsageModal(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
+          <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Play Folder in Audioplayer</div>
+          <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, false); hideContextMenu();"><i data-lucide="list-plus" style="width: 14px; color: var(--accent);"></i> Add Folder to Queue</div>
+          <div class="context-item" onclick="toggleBranchView(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="git-branch" style="width: 14px; color: var(--accent);"></i> Flat / Branch View (Ctrl+B)</div>
+          <div class="context-item" onclick="triggerDirPermissions(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="lock" style="width: 14px;"></i> Directory Permissions & Ownership</div>
+          <div class="context-item" onclick="openRemoteModal(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="network" style="width: 14px;"></i> Mount Remote Storage Here...</div>
+          <div class="context-item" onclick="triggerGitManager(); hideContextMenu();"><i data-lucide="git-branch" style="width: 14px;"></i> Git Manager & Diff</div>
+          <div class="context-item" onclick="openSharesManager(); hideContextMenu();"><img src="assets/sharemgr.webp" alt="Sharing" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center (Manage Shares)...</div>
+        </div>
+      </div>
+
+      <!-- Submenu 2: New -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New...</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
         <div class="context-submenu">
           <div class="context-item" onclick="triggerMkdir(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px; color: var(--accent);"></i> New Folder... (F7)</div>
@@ -19036,65 +19642,25 @@ function showContextMenu(x, y) {
           <div class="context-item" onclick="openSettings(); switchSettingsTab('tab-templates'); hideContextMenu();"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Manage Templates...</div>
         </div>
       </div>
-      <div class="context-sep"></div>
 
-      <!-- Transfer & Folder Actions -->
+      <!-- Submenu 3: Archives -->
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archives</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
         <div class="context-submenu">
-          ${copyPaneItems ? `<div class="submenu-header">Active Panes</div>${copyPaneItems}<div class="context-sep"></div>` : ''}
-          <div class="submenu-header">Favorite Destinations</div>
-          ${favCopyItems}
+          <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 13px; color: var(--accent);"></i> Download Folder ${defaultFmtLabel}</div>
           <div class="context-sep"></div>
-          <div class="context-item" onclick="openCustomDestModal('copy'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
-          <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width:13px;"></i> + Bookmark Current Path</div>
-        </div>
-      </div>
-
-      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
-        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-        <div class="context-submenu">
-          ${movePaneItems ? `<div class="submenu-header">Active Panes</div>${movePaneItems}<div class="context-sep"></div>` : ''}
-          <div class="submenu-header">Favorite Destinations</div>
-          ${favMoveItems}
-          <div class="context-sep"></div>
-          <div class="context-item" onclick="openCustomDestModal('move'); hideContextMenu();"><i data-lucide="folder-symlink" style="width:13px;"></i> Custom Folder...</div>
-        </div>
-      </div>
-
-      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
-      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
-      <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste ${clipInfo} (Ctrl+V)</div>
-      <div class="context-item" onclick="triggerRename(); hideContextMenu();"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
-      <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
-      <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
-      <div class="context-sep"></div>
-
-      <!-- Archive Submenu -->
-      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archive Folder</div>
-        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-        <div class="context-submenu">
           <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
           <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
           <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
           <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
         </div>
       </div>
-      <div class="context-sep"></div>
-
-      <!-- Folder Tools -->
-      <div class="context-item" onclick="triggerDirPermissions(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="lock" style="width: 14px;"></i> Directory Permissions & Ownership</div>
-      <div class="context-item" onclick="runPredefinedAction('du -sh &quot;{dir}&quot;', 'Folder Disk Usage'); hideContextMenu();"><i data-lucide="hard-drive" style="width: 14px;"></i> Check Disk Usage (du -sh)</div>
-      <div class="context-item" onclick="triggerGitManager(); hideContextMenu();"><i data-lucide="git-branch" style="width: 14px;"></i> Git Manager & Diff</div>
-      <div class="context-item" onclick="openRemoteModal(${App.contextPaneIndex ?? App.activePaneIndex}); hideContextMenu();"><i data-lucide="network" style="width: 14px;"></i> Mount Remote Storage Here...</div>
-      <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width: 14px;"></i> Bookmark Current Path</div>
-      <div class="context-item" onclick="openSharesManager(); hideContextMenu();"><img src="assets/sharemgr.webp" alt="Sharing" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center (Manage Shares)...</div>
     `;
   }
-  // Case C: Dedicated File Context Menu
+  // Case C: Dedicated File Context Menu (Issue #98 Structure)
   else {
     bodyHtml = `
       ${isStandaloneMode() ? `
@@ -19123,30 +19689,10 @@ function showContextMenu(x, y) {
         <div class="context-item" onclick="openPdfToolModal(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> PDF Studio (Merge & Split)</div>
       ` : ''}
       ${renderChewToyContextMenuItems(App.contextItem)}
-      <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 14px; color: var(--accent);"></i> Save / Download File</div>
-      <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share File / Advanced Sharing...</div>
-      <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
       <div class="context-sep"></div>
 
-      <!-- New Submenu -->
-      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New</div>
-        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-        <div class="context-submenu">
-          <div class="context-item" onclick="triggerMkdir(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px; color: var(--accent);"></i> New Folder... (F7)</div>
-          <div class="context-item" onclick="triggerNewFile(); hideContextMenu();"><i data-lucide="file-plus" style="width: 13px;"></i> Blank File...</div>
-          <div class="context-sep"></div>
-          <div class="submenu-header">Templates</div>
-          ${generateTemplateSubmenuItems()}
-          <div class="context-sep"></div>
-          <div class="context-item" onclick="saveContextItemAsTemplate(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width: 13px; color: var(--accent);"></i> Save File as Template...</div>
-          <div class="context-item" onclick="openCreateTemplateModal(); hideContextMenu();"><i data-lucide="file-code-2" style="width: 13px;"></i> + Create Template...</div>
-          <div class="context-item" onclick="openSettings(); switchSettingsTab('tab-templates'); hideContextMenu();"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Manage Templates...</div>
-        </div>
-      </div>
-      <div class="context-sep"></div>
-
-      <!-- Transfer & File Operations -->
+      <!-- Top Primary Actions -->
+      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
         <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="copy" style="width: 14px;"></i> Copy to...</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
@@ -19160,6 +19706,7 @@ function showContextMenu(x, y) {
         </div>
       </div>
 
+      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
         <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="move" style="width: 14px;"></i> Move to...</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
@@ -19172,36 +19719,16 @@ function showContextMenu(x, y) {
         </div>
       </div>
 
-      <div class="context-item" onclick="triggerCopyClipboard(); hideContextMenu();"><i data-lucide="clipboard-copy" style="width: 14px;"></i> Copy (Ctrl+C)</div>
-      <div class="context-item" onclick="triggerCutClipboard(); hideContextMenu();"><i data-lucide="scissors" style="width: 14px;"></i> Cut (Ctrl+X)</div>
       <div class="context-item ${App.clipboard ? '' : 'disabled'}" onclick="triggerPaste(App.activePaneIndex); hideContextMenu();" style="${App.clipboard ? '' : 'opacity: 0.5; pointer-events: none;'}"><i data-lucide="clipboard-paste" style="width: 14px;"></i> Paste (Ctrl+V)</div>
       <div class="context-item" onclick="triggerRename(); hideContextMenu();"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
       <div class="context-item" onclick="openBatchRenamer(); hideContextMenu();"><i data-lucide="file-signature" style="width: 14px; color: var(--accent);"></i> Batch Rename... (Ctrl+M)</div>
       <div class="context-item" onclick="triggerDelete(); hideContextMenu();"><i data-lucide="trash-2" style="width: 14px; color: var(--danger);"></i> Delete (F8)</div>
+      <div class="context-item" onclick="triggerProperties(); hideContextMenu();"><i data-lucide="info" style="width: 14px; color: var(--accent);"></i> Properties (Alt+Enter)</div>
       <div class="context-sep"></div>
 
-      <!-- Archive Submenu -->
+      <!-- Submenu 1: File Tools -->
       <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archive</div>
-        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-        <div class="context-submenu">
-          <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
-          <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
-          <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
-          <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
-          <div class="context-sep"></div>
-          <div class="context-item" onclick="triggerExtractHere(); hideContextMenu();"><i data-lucide="folder-archive" style="width: 13px;"></i> Extract Here</div>
-          <div class="context-item" onclick="triggerExtractToFolder(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px;"></i> Extract to &lt;folder&gt;...</div>
-          <div class="context-item" onclick="triggerExtractModal(); hideContextMenu();"><i data-lucide="folder-input" style="width: 13px;"></i> Extract to...</div>
-          <div class="context-sep"></div>
-          <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
-        </div>
-      </div>
-      <div class="context-sep"></div>
-
-      <!-- Tools Submenu -->
-      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
-        <div style="display:flex; align-items:center; gap:8px;"><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tools</div>
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="wrench" style="width: 14px; color: var(--accent);"></i> File Tools</div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
         <div class="context-submenu">
           ${isStandaloneMode() ? `
@@ -19242,6 +19769,44 @@ function showContextMenu(x, y) {
         </div>
       </div>
 
+      <!-- Submenu 2: New -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="plus-circle" style="width: 14px; color: var(--accent);"></i> New...</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="triggerMkdir(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px; color: var(--accent);"></i> New Folder... (F7)</div>
+          <div class="context-item" onclick="triggerNewFile(); hideContextMenu();"><i data-lucide="file-plus" style="width: 13px;"></i> Blank File...</div>
+          <div class="context-sep"></div>
+          <div class="submenu-header">Templates</div>
+          ${generateTemplateSubmenuItems()}
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="saveContextItemAsTemplate(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width: 13px; color: var(--accent);"></i> Save File as Template...</div>
+          <div class="context-item" onclick="openCreateTemplateModal(); hideContextMenu();"><i data-lucide="file-code-2" style="width: 13px;"></i> + Create Template...</div>
+          <div class="context-item" onclick="openSettings(); switchSettingsTab('tab-templates'); hideContextMenu();"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Manage Templates...</div>
+        </div>
+      </div>
+
+      <!-- Submenu 3: Archives -->
+      <div class="context-item has-submenu" onmouseenter="adjustSubmenuPosition(this)" onclick="toggleContextSubmenu(event, this)">
+        <div style="display:flex; align-items:center; gap:8px;"><i data-lucide="archive" style="width: 14px; color: var(--accent);"></i> Archives</div>
+        <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+        <div class="context-submenu">
+          <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="width: 13px; color: var(--accent);"></i> Save / Download File</div>
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="triggerArchiveZip(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .zip</div>
+          <div class="context-item" onclick="triggerArchive7z(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .7z</div>
+          <div class="context-item" onclick="triggerArchiveTarGz(); hideContextMenu();"><i data-lucide="archive" style="width: 13px;"></i> Add to .tar.gz</div>
+          <div class="context-item" onclick="triggerCompressModal(); hideContextMenu();"><i data-lucide="package" style="width: 13px;"></i> Add to Archive...</div>
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="triggerExtractHere(); hideContextMenu();"><i data-lucide="folder-archive" style="width: 13px;"></i> Extract Here</div>
+          <div class="context-item" onclick="triggerExtractToFolder(); hideContextMenu();"><i data-lucide="folder-plus" style="width: 13px;"></i> Extract to &lt;folder&gt;...</div>
+          <div class="context-item" onclick="triggerExtractModal(); hideContextMenu();"><i data-lucide="folder-input" style="width: 13px;"></i> Extract to...</div>
+          <div class="context-sep"></div>
+          <div class="context-item" onclick="triggerChecksum(); hideContextMenu();"><i data-lucide="shield-check" style="width: 13px;"></i> Calculate Checksums</div>
+        </div>
+      </div>
+      <div class="context-item" onclick="triggerShare(); hideContextMenu();"><i data-lucide="share-2" style="width: 14px; color: var(--accent);"></i> Share File / Advanced Sharing...</div>
+
       ${App.contextItem && isVaultFile(App.contextItem.name) ? `
         <div class="context-sep"></div>
         <div class="context-item" onclick="handleVaultOpen(App.contextItem?.path); hideContextMenu();"><i data-lucide="key" style="width: 14px; color: var(--accent);"></i> Unlock / Open Vault...</div>
@@ -19250,16 +19815,22 @@ function showContextMenu(x, y) {
     `;
   }
 
+  const showQuickButtons = opts.showQuickActionButtons !== false;
+
   menu.innerHTML = `
-    <!-- Top Header: Filename/Folder on left, Small Color Dot & Tag icon on right -->
+    <!-- Top Header: Filename/Folder on left, Quick Bookmark & Notes & Tag on right -->
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-bottom: 1px solid var(--border); background: rgba(0,0,0,0.15);">
-      <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 175px;" title="${escapeHtml(App.contextItem?.name || '')}">
+      <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 160px;" title="${escapeHtml(App.contextItem?.name || '')}">
         ${headerIconHtml}
         <span style="font-weight: 700; font-size: 11px; font-family: var(--font-mono); color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
           ${headerLabel}
         </span>
       </div>
-      <div style="display: flex; align-items: center; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 6px;">
+        ${showQuickButtons ? `
+          <button type="button" class="btn btn-icon btn-xs" onclick="addCurrentOrContextItemToQuickDest()" title="Add to Places Bookmarks" style="padding: 2px 4px; border: none; background: transparent; color: var(--text-muted); cursor: pointer;" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-muted)'"><i data-lucide="bookmark-plus" style="width: 13px; height: 13px;"></i></button>
+          <button type="button" class="btn btn-icon btn-xs" onclick="openNoteForContextItem()" title="Open Notes Workspace" style="padding: 2px 4px; border: none; background: transparent; color: var(--text-muted); cursor: pointer;" onmouseenter="this.style.color='var(--accent)'" onmouseleave="this.style.color='var(--text-muted)'"><i data-lucide="sticky-note" style="width: 13px; height: 13px;"></i></button>
+        ` : ''}
         <span id="ctx-btn-color" onclick="toggleContextColorPalette(event)" title="Set Color Label" style="width: 12px; height: 12px; min-width: 12px; min-height: 12px; max-width: 12px; max-height: 12px; aspect-ratio: 1 / 1; border-radius: 50%; border: 1.5px solid ${activeColorHex || 'var(--border)'}; background: ${activeColorHex || 'rgba(255,255,255,0.15)'}; display: inline-block; flex-shrink: 0; cursor: pointer; transition: transform 0.15s, box-shadow 0.15s; box-shadow: ${activeColorHex ? `0 0 5px ${activeColorHex}` : 'none'};" onmouseenter="this.style.transform='scale(1.25)'" onmouseleave="this.style.transform='scale(1)'"></span>
         <i data-lucide="tag" id="ctx-icon-tag" onclick="triggerEditTagsModal(); hideContextMenu();" title="${hasTags ? `Custom Tags (${escapeHtml(curTags.map(t => '#' + t).join(', '))})` : 'Custom Tags (None assigned)'}" style="width: 13px; height: 13px; color: ${hasTags ? '#22c55e' : 'var(--text-muted)'}; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; opacity: ${hasTags ? '1' : '0.55'}; filter: ${hasTags ? 'drop-shadow(0 0 4px rgba(34, 197, 94, 0.75))' : 'none'}; transition: opacity 0.15s, transform 0.15s, filter 0.15s;" onmouseenter="this.style.opacity='1'; this.style.transform='scale(1.2)';" onmouseleave="this.style.opacity='${hasTags ? '1' : '0.55'}'; this.style.transform='scale(1)';"></i>
       </div>
@@ -19294,6 +19865,9 @@ async function triggerDownloadContextItem() {
   const item = App.contextItem;
   if (!item) return;
 
+  const menuConfig = getMenuConfig();
+  const defaultFmt = menuConfig.options?.defaultDownloadArchive || 'zip';
+
   if (item.path && item.path.startsWith('client://')) {
     if (item.is_dir) {
       showToast('Client local folder downloading as zip is not supported directly; use server folder or copy files', 'info');
@@ -19321,10 +19895,15 @@ async function triggerDownloadContextItem() {
     return;
   }
 
-  const url = getDownloadUrl(item.path, false, App.contextPaneIndex ?? App.activePaneIndex);
+  const url = getDownloadUrl(item.path, false, App.contextPaneIndex ?? App.activePaneIndex, item.is_dir ? defaultFmt : null);
   const a = document.createElement('a');
   a.href = url;
-  a.download = item.name || 'download';
+  if (item.is_dir) {
+    const ext = defaultFmt === 'tar.gz' ? 'tar.gz' : (defaultFmt === '7z' ? '7z' : 'zip');
+    a.download = `${item.name || 'folder'}.${ext}`;
+  } else {
+    a.download = item.name || 'download';
+  }
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -19445,6 +20024,190 @@ function switchPropertiesTab(tabId) {
   }
   const content = document.getElementById(tabId);
   if (content) content.classList.add('active');
+
+  if (tabId === 'prop-tab-metadata') reloadPropertiesMetadata();
+  if (tabId === 'prop-tab-stats') runPropertiesStatsScan();
+  if (tabId === 'prop-tab-git') reloadPropertiesGitStatus();
+  if (tabId === 'prop-tab-checksums' && activePropertiesEntry && !activePropertiesEntry.is_dir) {
+    const shaEl = document.getElementById('prop-hash-sha256');
+    if (shaEl && shaEl.value === '-') calculatePropertiesChecksums();
+  }
+}
+
+function applyPropPermPreset(presetStr) {
+  const mode = parseInt(presetStr, 8);
+  if (isNaN(mode)) return;
+  setPropPermCheckboxesFromMode(mode);
+  showToast(`Applied permission preset 0${presetStr}`, 'info');
+}
+
+async function reloadPropertiesMetadata() {
+  const container = document.getElementById('prop-metadata-container');
+  if (!container || !activePropertiesEntry) return;
+
+  const entry = activePropertiesEntry;
+  container.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 12px 0;">Reading file metadata & tags...</div>';
+
+  try {
+    const res = await fetch(`/api/fs/inspect-media?path=${encodeURIComponent(entry.path)}`, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    const data = await res.json();
+    const meta = data.meta || {};
+
+    const ext = entry.name.includes('.') ? entry.name.split('.').pop().toUpperCase() : 'Unknown';
+    let rows = [
+      { label: 'File Name', val: entry.name },
+      { label: 'Full Path', val: entry.path, mono: true },
+      { label: 'File Type', val: entry.is_dir ? 'Directory' : `${ext} File` },
+      { label: 'File Size', val: entry.is_dir ? 'Folder' : `${formatBytes(entry.size)} (${(entry.size || 0).toLocaleString()} bytes)` },
+      { label: 'Permissions', val: `${entry.permissions || '-'} (${entry.mode_octal || '-'})`, mono: true },
+      { label: 'Modified Time', val: formatDate(entry.modified) },
+      { label: 'Created Time', val: entry.created ? formatDate(entry.created) : '-' }
+    ];
+
+    if (meta.width && meta.height) rows.push({ label: 'Image Dimensions', val: `${meta.width} × ${meta.height} px` });
+    if (meta.duration_sec) rows.push({ label: 'Media Duration', val: `${Math.round(meta.duration_sec)} seconds (${Math.floor(meta.duration_sec / 60)}m ${Math.round(meta.duration_sec % 60)}s)` });
+    if (meta.bitrate_kbps) rows.push({ label: 'Audio / Video Bitrate', val: `${meta.bitrate_kbps} kbps` });
+    if (meta.codec) rows.push({ label: 'Codec / Compression', val: meta.codec });
+    if (meta.camera_make || meta.camera_model) rows.push({ label: 'Camera Device', val: `${meta.camera_make || ''} ${meta.camera_model || ''}`.trim() });
+    if (meta.iso) rows.push({ label: 'EXIF ISO Speed', val: String(meta.iso) });
+    if (meta.f_number) rows.push({ label: 'EXIF Aperture', val: `f/${meta.f_number}` });
+    if (meta.exposure_time) rows.push({ label: 'Exposure Time', val: meta.exposure_time });
+    if (meta.audio_channels) rows.push({ label: 'Audio Channels', val: `${meta.audio_channels} Channels` });
+    if (meta.sample_rate_hz) rows.push({ label: 'Audio Sample Rate', val: `${meta.sample_rate_hz} Hz` });
+
+    container.innerHTML = `
+      <div style="display: flex; flex-direction: column; gap: 6px;">
+        ${rows.map(r => `
+          <div style="display: flex; justify-content: space-between; align-items: center; padding: 6px 8px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+            <span style="color: var(--text-muted); font-weight: 600;">${escapeHtml(r.label)}</span>
+            <span style="color: var(--text-main); font-weight: 500; ${r.mono ? 'font-family: var(--font-mono);' : ''} text-align: right; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(r.val)}">${escapeHtml(r.val)}</span>
+          </div>
+        `).join('')}
+      </div>
+    `;
+  } catch (e) {
+    container.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 12px 0;">Extended media metadata not available for this item.</div>';
+  }
+}
+
+async function runPropertiesStatsScan() {
+  const container = document.getElementById('prop-stats-container');
+  if (!container || !activePropertiesEntry) return;
+
+  const entry = activePropertiesEntry;
+  if (!entry.is_dir) {
+    container.innerHTML = `
+      <div style="padding: 12px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; font-size: 11px;">
+        <div style="font-weight: 700; color: var(--accent); margin-bottom: 6px;">Single File Statistics</div>
+        <div style="color: var(--text-muted);">Size on Disk: <strong>${formatBytes(entry.size)}</strong></div>
+        <div style="color: var(--text-muted); margin-top: 4px;">Byte Count: <strong>${(entry.size || 0).toLocaleString()} bytes</strong></div>
+      </div>
+    `;
+    return;
+  }
+
+  container.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 12px 0;"><i data-lucide="loader-2" class="spin" style="width: 14px; vertical-align: middle; margin-right: 4px;"></i> Scanning folder recursively...</div>';
+  if (window.lucide) lucide.createIcons();
+
+  try {
+    const res = await fetch(`/api/tools/disk_usage?path=${encodeURIComponent(entry.path)}`, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    const data = await res.json();
+    const children = Array.isArray(data.children) ? data.children : [];
+    const totalSize = data.total_size || data.size || 0;
+
+    let html = `
+      <div style="padding: 10px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 10px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--accent);">Total Recursive Size:</span>
+          <span style="font-size: 13px; font-weight: 700; color: var(--text-main); font-family: var(--font-mono);">${formatBytes(totalSize)}</span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
+          Contains <strong>${(data.file_count || 0).toLocaleString()}</strong> files across <strong>${(data.dir_count || 0).toLocaleString()}</strong> directories.
+        </div>
+      </div>
+    `;
+
+    if (children.length > 0) {
+      html += '<div style="font-size: 11px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px;">Subfolder Size Breakdown:</div><div style="display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow-y: auto;">';
+      children.slice(0, 10).forEach(c => {
+        const pct = totalSize > 0 ? Math.round(((c.size || 0) / totalSize) * 100) : 0;
+        html += `
+          <div style="padding: 6px 8px; background: var(--bg-card); border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+              <span style="font-weight: 600; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 65%;">${escapeHtml(c.name || 'Subfolder')}</span>
+              <span style="font-family: var(--font-mono); color: var(--accent); font-weight: 600;">${formatBytes(c.size || 0)} (${pct}%)</span>
+            </div>
+            <div style="height: 4px; border-radius: 2px; background: rgba(255,255,255,0.1); overflow: hidden;">
+              <div style="height: 100%; width: ${pct}%; background: var(--accent); border-radius: 2px;"></div>
+            </div>
+          </div>
+        `;
+      });
+      html += '</div>';
+    }
+
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div style="color: var(--text-muted); font-size: 11px; padding: 12px 0;">Could not scan folder disk usage.</div>';
+  }
+}
+
+async function reloadPropertiesGitStatus() {
+  const container = document.getElementById('prop-git-container');
+  if (!container || !activePropertiesEntry) return;
+
+  const entry = activePropertiesEntry;
+  container.innerHTML = '<div style="color: var(--text-muted); font-size: 11px;">Inspecting repository status...</div>';
+
+  try {
+    const res = await fetch(`/api/tools/git/status?path=${encodeURIComponent(entry.path)}`, {
+      headers: { 'Authorization': `Bearer ${App.token}` }
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      container.innerHTML = `
+        <div style="padding: 10px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; color: var(--text-muted);">
+          Path is not inside an active Git repository.
+        </div>
+      `;
+      return;
+    }
+
+    const branch = data.branch || 'HEAD';
+    const changed = (data.changed_files || []).length;
+    const isClean = changed === 0;
+
+    container.innerHTML = `
+      <div style="padding: 10px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; display: flex; flex-direction: column; gap: 6px;">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--text-muted);">Current Branch:</span>
+          <span style="font-weight: 700; color: var(--accent); font-family: var(--font-mono);"><i data-lucide="git-branch" style="width: 12px; vertical-align: middle;"></i> ${escapeHtml(branch)}</span>
+        </div>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span style="color: var(--text-muted);">Working Tree:</span>
+          <span style="font-weight: 600; color: ${isClean ? '#22c55e' : '#f97316'};">${isClean ? 'Clean (No unstaged changes)' : `${changed} changed files`}</span>
+        </div>
+        ${data.remote_url ? `
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <span style="color: var(--text-muted);">Origin Remote:</span>
+            <span style="color: var(--text-dim); font-family: var(--font-mono); font-size: 10px; max-width: 60%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(data.remote_url)}</span>
+          </div>
+        ` : ''}
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons();
+  } catch (e) {
+    container.innerHTML = '<div style="color: var(--text-muted); font-size: 11px;">Path is not inside a Git repository.</div>';
+  }
+}
+
+function openGitFromProperties() {
+  closeModal('properties-modal');
+  triggerGitManager();
 }
 
 function setPropPermCheckboxesFromMode(mode) {
@@ -27434,7 +28197,7 @@ function resolveAuthUri(path) {
   return path;
 }
 
-function getDownloadUrl(path, inline = false, paneIndex = null) {
+function getDownloadUrl(path, inline = false, paneIndex = null, format = null) {
   if (!path) return '';
   const resolved = resolveAuthUri(path);
   const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
@@ -27442,6 +28205,7 @@ function getDownloadUrl(path, inline = false, paneIndex = null) {
   const node = typeof getPaneNode === 'function' ? getPaneNode(pIdx) : null;
   let url = `${endpoint}/api/fs/download?path=${encodeURIComponent(resolved)}`;
   if (inline) url += '&inline=true';
+  if (format) url += `&format=${encodeURIComponent(format)}`;
   const token = (node && node.id !== 'local' && node.auth_token) ? node.auth_token.trim() : (App.token || localStorage.getItem('cd_token'));
   if (token) url += `&token=${encodeURIComponent(token)}`;
   return url;

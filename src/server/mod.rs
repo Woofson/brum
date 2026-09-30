@@ -5213,31 +5213,61 @@ async fn handle_download(
     }
 
     if path.is_dir() {
-        let temp_zip = tempfile::Builder::new()
-            .prefix("brum_folder_")
-            .suffix(".zip")
-            .tempfile()
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
-        let temp_path = temp_zip.path().to_str().unwrap().to_string();
-
-        ArchiveHandler::create_zip(&[path_str.clone()], &temp_path)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip creation failed: {}", e)))?;
-
-        let file_bytes = tokio::fs::read(&temp_path).await.map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated zip: {}", e))
-        })?;
-
+        let fmt = query.get("format").map(|s| s.to_lowercase()).unwrap_or_else(|| "zip".to_string());
         let dir_name = path.file_name().unwrap_or_default().to_string_lossy();
-        let zip_name = if dir_name.is_empty() { "folder.zip".to_string() } else { format!("{}.zip", dir_name) };
+        let safe_name = if dir_name.is_empty() { "folder".to_string() } else { dir_name.to_string() };
 
-        let response = Response::builder()
-            .header(header::CONTENT_TYPE, "application/zip")
-            .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
-            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-            .body(Body::from(file_bytes))
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
+        if fmt == "tar.gz" || fmt == "targz" || fmt == "tgz" {
+            let temp_tar = tempfile::Builder::new()
+                .prefix("brum_folder_")
+                .suffix(".tar.gz")
+                .tempfile()
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
+            let temp_path = temp_tar.path().to_str().unwrap().to_string();
 
-        return Ok(response);
+            ArchiveHandler::create_targz(&[path_str.clone()], &temp_path)
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Tar.gz creation failed: {}", e)))?;
+
+            let file_bytes = tokio::fs::read(&temp_path).await.map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated tar.gz: {}", e))
+            })?;
+
+            let tar_name = format!("{}.tar.gz", safe_name);
+
+            let response = Response::builder()
+                .header(header::CONTENT_TYPE, "application/gzip")
+                .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", tar_name))
+                .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
+                .body(Body::from(file_bytes))
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
+
+            return Ok(response);
+        } else {
+            let temp_zip = tempfile::Builder::new()
+                .prefix("brum_folder_")
+                .suffix(".zip")
+                .tempfile()
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
+            let temp_path = temp_zip.path().to_str().unwrap().to_string();
+
+            ArchiveHandler::create_zip(&[path_str.clone()], &temp_path)
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip creation failed: {}", e)))?;
+
+            let file_bytes = tokio::fs::read(&temp_path).await.map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated zip: {}", e))
+            })?;
+
+            let zip_name = format!("{}.zip", safe_name);
+
+            let response = Response::builder()
+                .header(header::CONTENT_TYPE, "application/zip")
+                .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
+                .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
+                .body(Body::from(file_bytes))
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
+
+            return Ok(response);
+        }
     }
 
     let metadata = tokio::fs::metadata(path).await.map_err(|e| {
