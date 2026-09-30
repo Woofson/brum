@@ -1647,6 +1647,8 @@ function getAllUserPreferences() {
     show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
     custom_hostname: localStorage.getItem('cd_custom_hostname') || '',
     custom_app_title: localStorage.getItem('cd_custom_app_title') || '',
+    login_title: localStorage.getItem('cd_login_title') || '',
+    login_subtitle_template: localStorage.getItem('cd_login_subtitle_template') || '',
     hostname_color: localStorage.getItem('cd_hostname_color') || 'slate',
     hostname_custom_text: localStorage.getItem('cd_hostname_custom_text') || '#94a3b8',
     hostname_custom_bg: localStorage.getItem('cd_hostname_custom_bg') || 'rgba(148, 163, 184, 0.12)',
@@ -1906,6 +1908,17 @@ function applyAllUserPreferences(prefs) {
     if (prefs.custom_app_title) localStorage.setItem('cd_custom_app_title', prefs.custom_app_title);
     else localStorage.removeItem('cd_custom_app_title');
     if (typeof updateAppDocumentTitle === 'function') updateAppDocumentTitle();
+  }
+  if (prefs.login_title !== undefined) {
+    if (prefs.login_title) localStorage.setItem('cd_login_title', prefs.login_title);
+    else localStorage.removeItem('cd_login_title');
+  }
+  if (prefs.login_subtitle_template !== undefined) {
+    if (prefs.login_subtitle_template) localStorage.setItem('cd_login_subtitle_template', prefs.login_subtitle_template);
+    else localStorage.removeItem('cd_login_subtitle_template');
+  }
+  if (typeof renderLoginBranding === 'function') {
+    renderLoginBranding();
   }
   if (prefs.hostname_color) localStorage.setItem('cd_hostname_color', prefs.hostname_color);
   if (prefs.hostname_custom_text) localStorage.setItem('cd_hostname_custom_text', prefs.hostname_custom_text);
@@ -2342,6 +2355,8 @@ function bootApp() {
     const urlTheme = new URLSearchParams(window.location.search).get('theme');
     applyTheme(urlTheme || localStorage.getItem('cd_theme') || 'amber-charcoal');
     updateHostnameBadge();
+    renderLoginBranding();
+    randomizeLoginBackground();
     updateAppDocumentTitle();
     fetchAppVersion();
     startTasksPolling();
@@ -2842,12 +2857,19 @@ function applyAppVersion(ver, sysData = null) {
   } catch (_) {}
   const buildStr = App.buildNumber ? ` (Build #${App.buildNumber})` : '';
   const tooltip = `Brum v${ver}${App.buildNumber ? ` (Build #${App.buildNumber} · ${App.buildCommit || ''} · ${App.buildTimestamp || ''})` : ''}`;
+  const ghReleaseUrl = `https://github.com/Woofson/brum`;
+
+  document.querySelectorAll('.login-corner-version-link, #login-corner-version-link, #lock-corner-version-link').forEach(el => {
+    el.textContent = `v${ver}${buildStr}`;
+    el.title = tooltip;
+    el.href = ghReleaseUrl;
+  });
   document.querySelectorAll('.login-version-badge').forEach(el => {
     el.textContent = `v${ver}${buildStr}`;
     el.title = tooltip;
   });
   document.querySelectorAll('.lock-version-badge, #lock-corner-version-badge').forEach(el => {
-    el.textContent = `Brum v${ver}${buildStr}`;
+    el.textContent = `v${ver}${buildStr}`;
     el.title = tooltip;
   });
   document.querySelectorAll('.login-app-version, #login-app-version').forEach(el => el.textContent = ver);
@@ -3077,11 +3099,8 @@ function updateHostnameBadge() {
   // Header Badge
   renderHostnameBadgeElement(badge, textEl, cfg);
 
-  // Login Screen Hostname Title
-  const loginTitleEl = document.getElementById('login-hostname-title');
-  if (loginTitleEl) {
-    loginTitleEl.textContent = cfg.rawHostname || 'Brum';
-  }
+  // Render Login & Lock Screen Branding (Brum title & dynamic subtitle)
+  renderLoginBranding();
 
   // Lock Screen Hostname Suffix (Ensure resilient span preservation)
   let lockSuffix = document.getElementById('lock-hostname-suffix');
@@ -3102,6 +3121,103 @@ function updateHostnameBadge() {
   }
 
   updateHostnameSettingsPreview();
+}
+
+function getLoginBrandingSettings() {
+  const customTitle = localStorage.getItem('cd_login_title')
+    || App.config?.ui?.login_title
+    || App.systemStatus?.login_title
+    || '';
+
+  const customSubtitleTpl = localStorage.getItem('cd_login_subtitle_template')
+    || App.config?.ui?.login_subtitle_template
+    || App.systemStatus?.login_subtitle_template
+    || '$hostname, running Brum';
+
+  return {
+    title: customTitle.trim() ? customTitle.trim() : 'Brum',
+    subtitleTemplate: customSubtitleTpl.trim() ? customSubtitleTpl.trim() : '$hostname, running Brum'
+  };
+}
+
+function interpolateLoginTemplate(templateStr) {
+  if (!templateStr) return '';
+  const rawHostname = App.systemStatus?.hostname
+    || localStorage.getItem('cd_cached_hostname')
+    || window.location.hostname
+    || 'localhost';
+
+  const hostIp = window.location.hostname || '127.0.0.1';
+  let osName = App.systemStatus?.os || 'Linux';
+  if (osName.toLowerCase() === 'linux') osName = 'Linux';
+  else if (osName.toLowerCase() === 'windows') osName = 'Windows';
+  else if (osName.toLowerCase() === 'macos' || osName.toLowerCase() === 'darwin') osName = 'macOS';
+
+  const archName = App.systemStatus?.arch || 'x86_64';
+  const verName = App.version || localStorage.getItem('cd_cached_version') || '1.7.0';
+  const nodeName = App.systemStatus?.node_name || rawHostname;
+
+  let res = templateStr
+    .replace(/\$(?:hostname|host_name)|\{(?:hostname|host_name)\}/gi, rawHostname)
+    .replace(/\$(?:ip|host)|\{(?:ip|host)\}/gi, hostIp)
+    .replace(/\$os|\{os\}/gi, osName)
+    .replace(/\$arch|\{arch\}/gi, archName)
+    .replace(/\$version|\{version\}/gi, verName)
+    .replace(/\$node|\{node\}/gi, nodeName);
+
+  return res;
+}
+
+function renderLoginBranding() {
+  const branding = getLoginBrandingSettings();
+  const titleEl = document.getElementById('login-hostname-title');
+  if (titleEl) {
+    titleEl.textContent = branding.title;
+  }
+
+  const subTextEl = document.getElementById('login-subtitle-text') || document.getElementById('login-subtitle-container');
+  if (subTextEl) {
+    const interpolated = interpolateLoginTemplate(branding.subtitleTemplate);
+    const safeEscaped = typeof escapeHtml === 'function' ? escapeHtml(interpolated) : interpolated;
+    const withGhLink = safeEscaped.replace(/\bBrum\b/g, '<a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" class="auth-stealth-link" title="Brum on GitHub">Brum</a>');
+    subTextEl.innerHTML = withGhLink;
+  }
+
+  updateLoginBrandingSettingsPreview();
+}
+
+function updateLoginBrandingSettingsPreview() {
+  const previewEl = document.getElementById('login-branding-subtitle-preview');
+  const subInput = document.getElementById('setting-custom-login-subtitle');
+  if (!previewEl) return;
+
+  const tpl = subInput?.value?.trim() || '$hostname, running Brum';
+  const interpolated = interpolateLoginTemplate(tpl);
+  const safeEscaped = typeof escapeHtml === 'function' ? escapeHtml(interpolated) : interpolated;
+  const withGhLink = safeEscaped.replace(/\bBrum\b/g, '<a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" class="auth-stealth-link" title="Brum on GitHub">Brum</a>');
+  previewEl.innerHTML = withGhLink;
+}
+
+function handleLoginBrandingSettingChange() {
+  const titleInput = document.getElementById('setting-custom-login-title');
+  const subInput = document.getElementById('setting-custom-login-subtitle');
+
+  if (titleInput) {
+    const val = titleInput.value.trim();
+    if (val) localStorage.setItem('cd_login_title', val);
+    else localStorage.removeItem('cd_login_title');
+  }
+
+  if (subInput) {
+    const val = subInput.value.trim();
+    if (val) localStorage.setItem('cd_login_subtitle_template', val);
+    else localStorage.removeItem('cd_login_subtitle_template');
+  }
+
+  renderLoginBranding();
+  if (typeof queueSaveUserPreferencesToServer === 'function') {
+    queueSaveUserPreferencesToServer();
+  }
 }
 
 function updateHostnameSettingsPreview() {
@@ -21617,6 +21733,7 @@ function lockSession() {
   if (errMsg) errMsg.style.display = 'none';
 
   if (lockScreen) {
+    randomizeLoginBackground(lockScreen);
     lockScreen.style.display = 'flex';
     lockScreen.classList.add('active');
     if (window.lucide) lucide.createIcons({ root: lockScreen });
@@ -22063,9 +22180,9 @@ function applyBorderSettings(borderWidth, ringStyle, borderAngle, skipSync = fal
   }
 }
 
-function randomizeLoginBackground() {
-  const modal = document.getElementById('login-modal');
-  if (!modal) return;
+function randomizeLoginBackground(targetEl = null) {
+  const elements = targetEl ? [targetEl] : [document.getElementById('login-modal'), document.getElementById('session-lock-screen')].filter(Boolean);
+  if (!elements.length) return;
 
   const randInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
   const randFloat = (min, max) => (Math.random() * (max - min) + min).toFixed(2);
@@ -22083,12 +22200,16 @@ function randomizeLoginBackground() {
   const rx2 = randInt(55, 75), ry2 = randInt(40, 60);
   const circleSize = randInt(450, 650);
 
-  modal.style.backgroundImage = `
+  const bgStyle = `
     radial-gradient(ellipse ${rx1}% ${ry1}% at ${x1}% ${y1}%, rgba(245, 158, 11, ${op1}) 0%, transparent 70%),
     radial-gradient(ellipse ${rx2}% ${ry2}% at ${x2}% ${y2}%, rgba(217, 119, 6, ${op2}) 0%, transparent 65%),
     radial-gradient(circle ${circleSize}px at ${x3}% ${y3}%, rgba(120, 53, 15, ${op3}) 0%, transparent 100%),
     linear-gradient(${angle}deg, #0e0e11 0%, #15151a 45%, #181512 100%)
   `;
+
+  elements.forEach(el => {
+    if (el) el.style.backgroundImage = bgStyle;
+  });
 }
 
 function isThemeLight(themeDef) {
@@ -22522,6 +22643,18 @@ function openSettingsModal() {
   if (customTitleInput) {
     customTitleInput.value = localStorage.getItem('cd_custom_app_title') || App.config?.ui?.window_title || App.systemStatus?.window_title || '';
   }
+
+  const customLoginTitleInput = document.getElementById('setting-custom-login-title');
+  if (customLoginTitleInput) {
+    customLoginTitleInput.value = localStorage.getItem('cd_login_title') || App.config?.ui?.login_title || App.systemStatus?.login_title || '';
+  }
+
+  const customLoginSubtitleInput = document.getElementById('setting-custom-login-subtitle');
+  if (customLoginSubtitleInput) {
+    customLoginSubtitleInput.value = localStorage.getItem('cd_login_subtitle_template') || App.config?.ui?.login_subtitle_template || App.systemStatus?.login_subtitle_template || '';
+  }
+
+  updateLoginBrandingSettingsPreview();
 
   const notedogFolderInput = document.getElementById('setting-notedog-folder');
   if (notedogFolderInput) {

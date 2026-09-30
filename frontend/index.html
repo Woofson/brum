@@ -2534,6 +2534,35 @@
             </div>
           </div>
 
+          <!-- Card 7: Login & Lock Screen Branding -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="shield"></i> Login & Lock Screen Branding
+              </h4>
+            </div>
+            <p class="settings-card-desc">Configure the branding title and dynamic subtitle displayed on the login and workstation lock screens.</p>
+
+            <div class="settings-field">
+              <label class="settings-field-label" for="setting-custom-login-title">Custom Login Screen Title (Optional):</label>
+              <input type="text" id="setting-custom-login-title" class="settings-input" placeholder="Brum (Default)" oninput="handleLoginBrandingSettingChange()">
+              <div class="settings-field-hint">Defaults to <code>Brum</code> if left empty.</div>
+            </div>
+
+            <div class="settings-field" style="margin-top: 10px;">
+              <label class="settings-field-label" for="setting-custom-login-subtitle">Custom Subtitle Template (Optional):</label>
+              <input type="text" id="setting-custom-login-subtitle" class="settings-input" style="font-family: var(--font-mono);" placeholder="$hostname, running Brum" oninput="handleLoginBrandingSettingChange()">
+              <div class="settings-field-hint">
+                Supported dynamic tokens: <code>$hostname</code>, <code>$ip</code>, <code>$os</code>, <code>$arch</code>, <code>$version</code>. Default: <code>$hostname, running Brum</code> (where Brum links to GitHub).
+              </div>
+            </div>
+
+            <div style="margin-top: 10px; padding: 10px 12px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius);">
+              <div style="font-size: 11px; color: var(--text-muted); font-weight: 600; margin-bottom: 4px;">Live Subtitle Preview:</div>
+              <div id="login-branding-subtitle-preview" style="font-size: 12px; color: var(--text-main); font-family: var(--font-mono);"></div>
+            </div>
+          </div>
+
         </div>
 
         <!-- Tab: Bookmarks & Favorites -->
@@ -6945,29 +6974,24 @@
 
   <!-- Login Modal -->
   <div class="modal-overlay login-screen-overlay" id="login-modal">
-    <!-- Top-Left Corner Branding Logo -->
+    <!-- Top-Left Corner Branding Logo (Mobile / Tablet) -->
     <div class="login-corner-brand">
       <img src="assets/brum_icon.webp" alt="Brum" class="login-corner-logo">
       <span class="login-corner-name">Brum</span>
-    </div>
-
-    <!-- Ambient Splash / Watermark Background -->
-    <div class="auth-watermark-backdrop" aria-hidden="true">
-      <img src="assets/brum_logo.webp" alt="" class="auth-watermark-img">
     </div>
 
     <!-- Login Card -->
     <div class="login-card">
       <div class="login-card-header">
         <div class="login-brand-icon">
-          <img src="assets/brum_icon.webp" alt="Brum" class="login-brand-img">
+          <img src="assets/brum_clean.webp" alt="Brum" class="login-brand-img" id="login-brand-logo">
         </div>
         <div class="login-header-text">
           <h2 class="login-title">
             <span id="login-hostname-title">Brum</span>
           </h2>
-          <p class="login-subtitle">
-            Running <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" class="auth-stealth-link" title="Brum">Brum</a> version <span id="login-app-version" class="login-app-version"></span>.
+          <p class="login-subtitle" id="login-subtitle-container">
+            <span id="login-subtitle-text"></span>
           </p>
         </div>
       </div>
@@ -7008,6 +7032,9 @@
         </button>
       </div>
     </div>
+
+    <!-- Flat Dim Lower-Right Version Link -->
+    <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" id="login-corner-version-link" class="login-corner-version-link" title="Brum on GitHub"></a>
   </div>
 
   <!-- Remote Connection Modal (SFTP / WebDAV / S3 / Proton Drive) -->
@@ -7923,20 +7950,10 @@
 
   <!-- Full-Screen Session Lock Overlay -->
   <div id="session-lock-screen" class="session-lock-screen">
-    <!-- Top-Left Corner Branding Logo -->
+    <!-- Top-Left Corner Branding Logo (Mobile / Tablet) -->
     <div class="login-corner-brand">
       <img src="assets/brum_icon.webp" alt="Brum" class="login-corner-logo">
       <span class="login-corner-name">Brum</span>
-    </div>
-
-    <!-- Lower-Right Version Badge -->
-    <div class="login-corner-version">
-      <span class="login-version-badge lock-version-badge" id="lock-corner-version-badge">Brum</span>
-    </div>
-
-    <!-- Ambient Splash / Watermark Background -->
-    <div class="auth-watermark-backdrop" aria-hidden="true">
-      <img src="assets/brum_logo.webp" alt="" class="auth-watermark-img">
     </div>
 
     <!-- Lock Screen Card -->
@@ -7972,6 +7989,9 @@
         </div>
       </form>
     </div>
+
+    <!-- Flat Dim Lower-Right Version Link -->
+    <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" id="lock-corner-version-link" class="login-corner-version-link lock-version-link" title="Brum on GitHub"></a>
   </div>
 
   <!-- Add/Edit Bookmark Modal -->

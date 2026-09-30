@@ -732,6 +732,10 @@ pub struct UiConfig {
     pub corner_radius: Option<String>,
     #[serde(default)]
     pub folder_color: Option<String>,
+    #[serde(default)]
+    pub login_title: Option<String>,
+    #[serde(default)]
+    pub login_subtitle_template: Option<String>,
 }
 
 impl Default for UiConfig {
@@ -756,6 +760,8 @@ impl Default for UiConfig {
             app_margin: None,
             corner_radius: None,
             folder_color: None,
+            login_title: None,
+            login_subtitle_template: None,
         }
     }
 }
