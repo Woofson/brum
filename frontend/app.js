@@ -437,8 +437,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
   { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
   { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
-  { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal video player, subtitles, PiP & playlist', visible: true },
-  { id: 'sounddog', label: 'Audio Player', icon: 'assets/amber-media.webp', action: 'openSoundDog()', desc: 'Audio player, jukebox, playlists & 10-band equalizer', visible: true },
+  { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal audio, video, chiptune & tracker player with playlists and subtitles', visible: true },
   { id: 'tetradog', label: 'Tetris', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
 ];
 
@@ -2928,20 +2927,20 @@ function getAppBaseTitle() {
 function updateAppDocumentTitle() {
   const baseTitle = getAppBaseTitle();
 
-  // 1. Audio Player Now-Playing
+  // Unified Media Player Now-Playing
+  if (typeof mediaplayerState !== 'undefined' && mediaplayerState.isPlaying && mediaplayerState.playlist && mediaplayerState.playlist[mediaplayerState.currentIndex]) {
+    const media = mediaplayerState.playlist[mediaplayerState.currentIndex];
+    const mediaTitle = media.title || media.name || 'Media';
+    document.title = `▶ ${mediaTitle} | ${baseTitle}`;
+    return;
+  }
+
+  // Legacy SoundDog audio fallback
   if (typeof sounddogState !== 'undefined' && sounddogState.isPlaying && sounddogState.queue && sounddogState.queue[sounddogState.currentIndex]) {
     const track = sounddogState.queue[sounddogState.currentIndex];
     const trackTitle = track.title || track.name || 'Audio Track';
     const artist = track.artist ? ` - ${track.artist}` : '';
     document.title = `▶ ${trackTitle}${artist} | ${baseTitle}`;
-    return;
-  }
-
-  // 2. Media Player (Video) Now-Playing
-  if (typeof mediaplayerState !== 'undefined' && mediaplayerState.isPlaying && mediaplayerState.playlist && mediaplayerState.playlist[mediaplayerState.currentIndex]) {
-    const media = mediaplayerState.playlist[mediaplayerState.currentIndex];
-    const mediaTitle = media.title || media.name || 'Media';
-    document.title = `▶ ${mediaTitle} | ${baseTitle}`;
     return;
   }
 
@@ -3930,7 +3929,6 @@ function createPaneElement(pane, index) {
         'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src=\'assets/amber-frameless-apps.webp\'"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
         'tetradog': '<img src="assets/amber-tetris.webp" alt="Tetris" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetris',
-        'sounddog': '<img src="assets/amber-media.webp" alt="Audio Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Audio Player',
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
         'splitter': '<i data-lucide="scissors" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> File Splitter & Combiner',
@@ -19817,7 +19815,7 @@ function showContextMenu(x, y) {
       ` : ''}
       <div class="context-item" onclick="openTerminalInPath(App.contextItem?.path); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Open in Terminal</span> <span class="context-shortcut">\`</span></div>
       <div class="context-item" onclick="openSearchModal(App.contextItem?.path); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Search</span> <span class="context-shortcut">Ctrl+F</span></div>
-      <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, false); hideContextMenu();"><i data-lucide="list-plus" style="color: var(--accent);"></i> <span class="context-label">Add Folder to Queue</span></div>
+      <div class="context-item" onclick="addDirectoryToMediaPlaylist(App.contextItem?.path, false); hideContextMenu();"><i data-lucide="list-plus" style="color: var(--accent);"></i> <span class="context-label">Add Folder to Queue</span></div>
       <div class="context-item" onclick="triggerDownloadContextItem(); hideContextMenu();"><i data-lucide="download" style="color: var(--accent);"></i> <span class="context-label">Download Folder ${defaultFmtLabel}</span></div>
 
       <div class="context-sep"></div>
@@ -19827,7 +19825,7 @@ function showContextMenu(x, y) {
         <div style="display:flex; align-items:center; gap:8px; flex:1;"><i data-lucide="wrench" style="color: var(--accent);"></i> <span class="context-label">Folder Tools</span></div>
         <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
         <div class="context-submenu">
-          <div class="context-item" onclick="addDirectoryToSoundDog(App.contextItem?.path, true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Open in Audioplayer</span></div>
+          <div class="context-item" onclick="addDirectoryToMediaPlaylist(App.contextItem?.path, true); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play Folder" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Open in Media Player</span></div>
           ${!App.contextItem?.path?.startsWith('archive://') && !App.contextItem?.path?.startsWith('vault://') ? `
             <div class="context-item" onclick="loadPaneDirectory(${App.contextPaneIndex ?? App.activePaneIndex}, 'archive://' + App.contextItem?.path + '#'); hideContextMenu();"><i data-lucide="disc" style="color: var(--accent);"></i> <span class="context-label">Open as Virtual Disk / Image</span></div>
           ` : ''}
@@ -19940,9 +19938,9 @@ function showContextMenu(x, y) {
           ${App.contextItem && isCadOr3dExtension(App.contextItem.name) ? `
             <div class="context-item" onclick="openCadStudio(App.contextItem?.path); hideContextMenu();"><i data-lucide="box" style="color: var(--accent);"></i> <span class="context-label">3D CAD Studio</span></div>
           ` : ''}
-          ${App.contextItem && isAudioExtension(App.contextItem.name) ? `
-            <div class="context-item" onclick="openSoundDog(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Open in Audioplayer</span></div>
-            <div class="context-item" onclick="addTracksToSoundDogQueue([App.contextItem?.path]); hideContextMenu();"><i data-lucide="list-plus" style="color: var(--accent);"></i> <span class="context-label">Add to Audioplayer Queue</span></div>
+          ${App.contextItem && (isAudioExtension(App.contextItem.name) || isVideoExtension(App.contextItem.name)) ? `
+            <div class="context-item" onclick="openMediaPlayer(App.contextItem?.path, null, App.activePaneIndex); hideContextMenu();"><img src="assets/media.webp" alt="Play" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Open in Media Player</span></div>
+            <div class="context-item" onclick="addTracksToMediaPlaylist([App.contextItem?.path], false, App.activePaneIndex); hideContextMenu();"><i data-lucide="list-plus" style="color: var(--accent);"></i> <span class="context-label">Add to Media Player Queue</span></div>
           ` : ''}
           ${App.contextItem && App.contextItem.name.toLowerCase().endsWith('.pdf') ? `
             <div class="context-item" onclick="openPdfToolModal(App.contextItem?.path); hideContextMenu();"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">PDF Studio (Merge & Split)</span></div>
@@ -23035,7 +23033,7 @@ function triggerView() {
     return;
   }
   if (isAudioExtension(item.name)) {
-    openSoundDog(item.path, App.activePaneIndex);
+    openMediaPlayer(item.path, 'audio', App.activePaneIndex);
     return;
   }
   if (isVideoExtension(item.name)) {
@@ -29534,13 +29532,13 @@ function isCadOr3dExtension(filename) {
 function isAudioExtension(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
-  return ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma', 'opus', 'aiff', 'alac', 'mid', 'midi', 'mod', 'xm', 's3m', 'it', 'sid', 'nsf', 'vgm', 'spc'].includes(ext);
+  return ['mp3', 'wav', 'aac', 'flac', 'ogg', 'm4a', 'wma', 'opus', 'aiff', 'alac', 'mid', 'midi', 'mod', 'xm', 's3m', 'it', 'sid', 'nsf', 'vgm', 'spc', 'gbs', 'gym', 'rgm', 'rsn', 'frm'].includes(ext);
 }
 
 function isTrackerOrMidiExtension(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
-  return ['mid', 'midi', 'mod', 'xm', 's3m', 'it'].includes(ext);
+  return ['mid', 'midi', 'mod', 'xm', 's3m', 'it', 'sid', 'nsf', 'vgm', 'spc', 'gbs', 'gym', 'rgm', 'rsn', 'frm'].includes(ext);
 }
 
 function isVideoExtension(filename) {
@@ -29765,7 +29763,7 @@ function openFileByType(entry, paneIndex) {
   } else if (isCadOr3dExtension(entry.name)) {
     openCadStudio(entry.path, paneIndex);
   } else if (isAudioExtension(entry.name)) {
-    openSoundDog(entry.path, paneIndex);
+    openMediaPlayer(entry.path, 'audio', paneIndex);
   } else if (isVideoExtension(entry.name)) {
     openMediaPlayer(entry.path, 'video', paneIndex);
   } else if (isComicBookExtension(entry.name)) {
@@ -30749,6 +30747,471 @@ const mediaplayerState = {
   filterQuery: ''
 };
 
+// ============================================================================
+// 🎵 UNIFIED MEDIA PLAYER AUDIO/SYNTH CONTEXT & ENGINE
+// ============================================================================
+let mediaAudioCtx = null;
+let mediaMasterGain = null;
+
+function getMediaAudioContext() {
+  if (!mediaAudioCtx) {
+    try {
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtxClass) {
+        mediaAudioCtx = new AudioCtxClass();
+        mediaMasterGain = mediaAudioCtx.createGain();
+        mediaMasterGain.gain.value = mediaplayerState.isMuted ? 0 : mediaplayerState.volume;
+        mediaMasterGain.connect(mediaAudioCtx.destination);
+      }
+    } catch (e) {
+      console.debug('Media Audio Context notice:', e);
+    }
+  }
+  return mediaAudioCtx;
+}
+
+const SoundDogSynthEngine = {
+  activeType: null, // 'midi', 'tracker', null
+  isPlaying: false,
+  currentTime: 0,
+  duration: 0,
+  timer: null,
+  activeNodes: [],
+  midiEvents: [],
+  onTimeUpdate: null,
+  onEnded: null,
+
+  getOutputNode() {
+    const ctx = getMediaAudioContext();
+    if (mediaMasterGain) return mediaMasterGain;
+    if (ctx) return ctx.destination;
+    return null;
+  },
+
+  stop() {
+    this.isPlaying = false;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.activeNodes.forEach(n => {
+      try {
+        if (n.stop) n.stop();
+        n.disconnect();
+      } catch (_) {}
+    });
+    this.activeNodes = [];
+    this.activeType = null;
+    this.currentTime = 0;
+    this.duration = 0;
+  },
+
+  pause() {
+    this.isPlaying = false;
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.activeNodes.forEach(n => {
+      try {
+        if (n.stop) n.stop();
+        n.disconnect();
+      } catch (_) {}
+    });
+    this.activeNodes = [];
+  },
+
+  async playMidi(arrayBuffer, ctx, outputNode, onTimeUpdate, onEnded) {
+    this.stop();
+    this.activeType = 'midi';
+    this.onTimeUpdate = onTimeUpdate;
+    this.onEnded = onEnded;
+
+    try {
+      const parsed = this.parseMidi(arrayBuffer);
+      if (!parsed || parsed.events.length === 0) {
+        throw new Error('No playable MIDI events found');
+      }
+
+      this.midiEvents = parsed.events;
+      this.duration = Math.max(1, parsed.duration);
+      this.currentTime = 0;
+      this.isPlaying = true;
+
+      const targetOutput = outputNode || this.getOutputNode();
+      const startTime = ctx.currentTime;
+      this.scheduleMidiEvents(ctx, targetOutput, startTime, 0);
+
+      const startWall = Date.now();
+      this.timer = setInterval(() => {
+        if (!this.isPlaying) return;
+        const elapsed = (Date.now() - startWall) / 1000;
+        this.currentTime = elapsed;
+        if (this.onTimeUpdate) {
+          this.onTimeUpdate(Math.min(this.duration, this.currentTime), this.duration);
+        }
+        if (this.currentTime >= this.duration) {
+          this.stop();
+          if (this.onEnded) this.onEnded();
+        }
+      }, 100);
+
+      return true;
+    } catch (err) {
+      console.warn('MIDI Synth playback notice:', err);
+      this.stop();
+      return false;
+    }
+  },
+
+  scheduleMidiEvents(ctx, outputNode, startCtxTime, fromTime = 0) {
+    const events = this.midiEvents.filter(e => e.time >= fromTime);
+    events.forEach(e => {
+      const triggerTime = startCtxTime + (e.time - fromTime);
+      if (triggerTime < ctx.currentTime) return;
+
+      if (e.type === 'noteOn') {
+        const dur = Math.max(0.1, e.duration || 0.4);
+        this.playMidiVoice(ctx, outputNode, e.channel, e.note, e.velocity, triggerTime, dur);
+      }
+    });
+  },
+
+  playMidiVoice(ctx, outputNode, channel, note, velocity, time, duration) {
+    if (velocity === 0 || !outputNode) return;
+    const vol = (velocity / 127) * 0.35;
+    const freq = 440 * Math.pow(2, (note - 69) / 12);
+
+    if (channel === 9) {
+      this.playMidiDrum(ctx, outputNode, note, vol, time);
+      return;
+    }
+
+    try {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      if (note < 48) {
+        osc.type = 'triangle';
+      } else if (note > 72) {
+        osc.type = 'square';
+      } else {
+        osc.type = 'sawtooth';
+      }
+
+      osc.frequency.setValueAtTime(freq, time);
+
+      gain.gain.setValueAtTime(0.0001, time);
+      gain.gain.exponentialRampToValueAtTime(vol, time + 0.01);
+      gain.gain.exponentialRampToValueAtTime(vol * 0.6, time + 0.05);
+      gain.gain.setValueAtTime(vol * 0.6, time + duration * 0.7);
+      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
+
+      osc.connect(gain);
+      gain.connect(outputNode);
+
+      osc.start(time);
+      osc.stop(time + duration + 0.05);
+
+      this.activeNodes.push(osc, gain);
+    } catch (_) {}
+  },
+
+  playMidiDrum(ctx, outputNode, note, vol, time) {
+    if (!outputNode) return;
+    try {
+      if (note === 35 || note === 36) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(140, time);
+        osc.frequency.exponentialRampToValueAtTime(32, time + 0.15);
+        gain.gain.setValueAtTime(vol * 1.2, time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
+        osc.connect(gain);
+        gain.connect(outputNode);
+        osc.start(time);
+        osc.stop(time + 0.17);
+        this.activeNodes.push(osc, gain);
+      } else if (note >= 37 && note <= 40) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(220, time);
+        gain.gain.setValueAtTime(vol * 0.8, time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12);
+        osc.connect(gain);
+        gain.connect(outputNode);
+        osc.start(time);
+        osc.stop(time + 0.13);
+        this.activeNodes.push(osc, gain);
+      } else {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(note > 48 ? 1200 : 800, time);
+        gain.gain.setValueAtTime(vol * 0.4, time);
+        gain.gain.exponentialRampToValueAtTime(0.0001, time + (note === 46 || note === 49 ? 0.35 : 0.06));
+        osc.connect(gain);
+        gain.connect(outputNode);
+        osc.start(time);
+        osc.stop(time + 0.4);
+        this.activeNodes.push(osc, gain);
+      }
+    } catch (_) {}
+  },
+
+  parseMidi(arrayBuffer) {
+    const data = new Uint8Array(arrayBuffer);
+    if (data.length < 14) return null;
+    if (data[0] !== 0x4d || data[1] !== 0x54 || data[2] !== 0x68 || data[3] !== 0x64) return null;
+
+    const ntracks = (data[10] << 8) | data[11];
+    let division = (data[12] << 8) | data[13];
+    if (division & 0x8000) division = 96;
+
+    let offset = 14;
+    const allEvents = [];
+    let currentTempo = 500000;
+
+    for (let t = 0; t < ntracks; t++) {
+      if (offset + 8 > data.length) break;
+      if (data[offset] !== 0x4d || data[offset+1] !== 0x54 || data[offset+2] !== 0x72 || data[offset+3] !== 0x6b) break;
+      const trackLen = (data[offset+4] << 24) | (data[offset+5] << 16) | (data[offset+6] << 8) | data[offset+7];
+      offset += 8;
+      const trackEnd = offset + trackLen;
+
+      let tick = 0;
+      let lastStatus = 0;
+      const noteOnMap = {};
+
+      while (offset < trackEnd && offset < data.length) {
+        let delta = 0;
+        let b = 0;
+        do {
+          b = data[offset++];
+          delta = (delta << 7) | (b & 0x7f);
+        } while (b & 0x80);
+
+        tick += delta;
+        const timeSec = (tick / division) * (currentTempo / 1000000);
+
+        let status = data[offset];
+        if (status < 0x80) {
+          status = lastStatus;
+        } else {
+          offset++;
+          lastStatus = status;
+        }
+
+        const msgType = status & 0xf0;
+        const channel = status & 0x0f;
+
+        if (status === 0xff) {
+          const metaType = data[offset++];
+          let metaLen = 0;
+          let mb = 0;
+          do {
+            mb = data[offset++];
+            metaLen = (metaLen << 7) | (mb & 0x7f);
+          } while (mb & 0x80);
+
+          if (metaType === 0x51 && metaLen === 3) {
+            currentTempo = (data[offset] << 16) | (data[offset+1] << 8) | data[offset+2];
+          }
+          offset += metaLen;
+        } else if (msgType === 0x90) {
+          const note = data[offset++];
+          const vel = data[offset++];
+          if (vel > 0) {
+            noteOnMap[`${channel}_${note}`] = { time: timeSec, vel, channel, note };
+          } else if (noteOnMap[`${channel}_${note}`]) {
+            const on = noteOnMap[`${channel}_${note}`];
+            allEvents.push({
+              type: 'noteOn',
+              channel: on.channel,
+              note: on.note,
+              velocity: on.vel,
+              time: on.time,
+              duration: Math.max(0.08, timeSec - on.time)
+            });
+            delete noteOnMap[`${channel}_${note}`];
+          }
+        } else if (msgType === 0x80) {
+          const note = data[offset++];
+          const vel = data[offset++];
+          if (noteOnMap[`${channel}_${note}`]) {
+            const on = noteOnMap[`${channel}_${note}`];
+            allEvents.push({
+              type: 'noteOn',
+              channel: on.channel,
+              note: on.note,
+              velocity: on.vel,
+              time: on.time,
+              duration: Math.max(0.08, timeSec - on.time)
+            });
+            delete noteOnMap[`${channel}_${note}`];
+          }
+        } else if (msgType === 0xc0) {
+          offset++;
+        } else if (msgType === 0xb0 || msgType === 0xe0) {
+          offset += 2;
+        } else if (msgType === 0xa0 || msgType === 0xd0) {
+          offset += (msgType === 0xa0 ? 2 : 1);
+        } else if (status === 0xf0 || status === 0xf7) {
+          while (offset < data.length && data[offset] !== 0xf7) offset++;
+          if (offset < data.length) offset++;
+        }
+      }
+
+      offset = trackEnd;
+    }
+
+    allEvents.sort((a, b) => a.time - b.time);
+    const maxTime = allEvents.length > 0 ? (allEvents[allEvents.length - 1].time + (allEvents[allEvents.length - 1].duration || 1)) : 60;
+    return { events: allEvents, duration: maxTime };
+  },
+
+  async playTracker(arrayBuffer, ext, ctx, outputNode, onTimeUpdate, onEnded) {
+    this.stop();
+    this.activeType = 'tracker';
+    this.onTimeUpdate = onTimeUpdate;
+    this.onEnded = onEnded;
+
+    try {
+      const data = new Uint8Array(arrayBuffer);
+      let numChannels = 4;
+      let estimatedDuration = 45;
+      const noteEvents = [];
+      const bpm = 125;
+      const speed = 6;
+      const rowDuration = (2.5 / bpm) * (speed / 6);
+
+      const isNES = data.length >= 4 && data[0] === 0x4e && data[1] === 0x45 && data[2] === 0x53 && data[3] === 0x4d;
+      const isGBS = data.length >= 3 && data[0] === 0x47 && data[1] === 0x42 && data[2] === 0x53;
+      const isSPC = data.length >= 11 && String.fromCharCode(...data.slice(0, 11)) === 'SNES-SPC700';
+      const isVGM = data.length >= 4 && data[0] === 0x56 && data[1] === 0x67 && data[2] === 0x6d && data[3] === 0x20;
+      const isMeridian = ext === 'frm' || ext === 'rgm' || ext === 'rsn' || (data.length >= 4 && String.fromCharCode(...data.slice(0, 4)) === 'MRDN');
+
+      if (isNES || isGBS || isSPC || isVGM || isMeridian || ['nsf', 'gbs', 'spc', 'gym', 'vgm', 'frm', 'rgm', 'rsn', 'sid'].includes(ext)) {
+        const songLen = Math.max(16, Math.min(64, Math.floor(data.length / 512)));
+        estimatedDuration = Math.max(30, songLen * 2.5);
+        numChannels = (isNES || isGBS) ? 4 : (isSPC ? 8 : 6);
+
+        const totalRows = songLen * 32;
+        for (let r = 0; r < Math.min(totalRows, 1024); r++) {
+          const rowTime = r * rowDuration;
+          const byteIdx = (r * 16) % Math.max(1, data.length - 16);
+          for (let ch = 0; ch < numChannels; ch++) {
+            const rawVal = data[byteIdx + (ch * 2)];
+            const rawPitch = data[byteIdx + (ch * 2) + 1] || rawVal;
+            if (rawVal > 15 && (rawVal % 4 !== 0)) {
+              const noteNum = 36 + (rawPitch % 48);
+              const freq = 440 * Math.pow(2, (noteNum - 69) / 12);
+              if (freq >= 50 && freq <= 4000) {
+                noteEvents.push({
+                  time: rowTime,
+                  freq: freq,
+                  channel: ch,
+                  duration: rowDuration * (ch === 0 ? 1.5 : (ch === 1 ? 0.8 : 1.2)),
+                  waveform: ch === 0 ? 'square' : (ch === 1 ? 'sawtooth' : (ch === 2 ? 'triangle' : 'square'))
+                });
+              }
+            }
+          }
+        }
+      } else {
+        if (data.length >= 1084) {
+          const sig = String.fromCharCode(data[1080], data[1081], data[1082], data[1083]);
+          if (sig === '8CHN' || sig === 'OCTA') numChannels = 8;
+        }
+
+        const songLen = data[950] || 1;
+        estimatedDuration = Math.max(30, songLen * 3.5);
+        const totalRows = songLen * 64;
+        const patternOffset = 1084;
+
+        for (let r = 0; r < Math.min(totalRows, 1024); r++) {
+          const rowTime = r * rowDuration;
+          const patIdx = data[952 + Math.floor(r / 64)] || 0;
+          const patRow = r % 64;
+          const rowByteOffset = patternOffset + (patIdx * 64 * numChannels * 4) + (patRow * numChannels * 4);
+
+          if (rowByteOffset + (numChannels * 4) <= data.length) {
+            for (let ch = 0; ch < numChannels; ch++) {
+              const chOffset = rowByteOffset + (ch * 4);
+              const b0 = data[chOffset];
+              const b1 = data[chOffset + 1];
+              const period = ((b0 & 0x0f) << 8) | b1;
+              if (period > 0) {
+                const freq = 7093789.2 / (period * 2);
+                if (freq >= 40 && freq <= 5000) {
+                  noteEvents.push({
+                    time: rowTime,
+                    freq: freq,
+                    channel: ch,
+                    duration: rowDuration * 2,
+                    waveform: ch % 2 === 0 ? 'square' : (ch === 1 ? 'sawtooth' : 'triangle')
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+
+      this.duration = estimatedDuration;
+      this.currentTime = 0;
+      this.isPlaying = true;
+
+      const targetOutput = outputNode || this.getOutputNode();
+      const startTime = ctx.currentTime;
+      noteEvents.forEach(e => {
+        const t = startTime + e.time;
+        if (!targetOutput) return;
+        try {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+
+          osc.type = e.waveform || (e.channel % 2 === 0 ? 'square' : (e.channel === 1 ? 'sawtooth' : 'triangle'));
+          osc.frequency.setValueAtTime(e.freq, t);
+
+          gain.gain.setValueAtTime(0.0001, t);
+          gain.gain.exponentialRampToValueAtTime(0.18, t + 0.006);
+          gain.gain.exponentialRampToValueAtTime(0.0001, t + e.duration);
+
+          osc.connect(gain);
+          gain.connect(targetOutput);
+          osc.start(t);
+          osc.stop(t + e.duration + 0.02);
+
+          this.activeNodes.push(osc, gain);
+        } catch (_) {}
+      });
+
+      const startWall = Date.now();
+      this.timer = setInterval(() => {
+        if (!this.isPlaying) return;
+        const elapsed = (Date.now() - startWall) / 1000;
+        this.currentTime = elapsed;
+        if (this.onTimeUpdate) {
+          this.onTimeUpdate(Math.min(this.duration, this.currentTime), this.duration);
+        }
+        if (this.currentTime >= this.duration) {
+          this.stop();
+          if (this.onEnded) this.onEnded();
+        }
+      }, 100);
+
+      return true;
+    } catch (err) {
+      console.warn('Tracker / Chiptune Synth playback notice:', err);
+      this.stop();
+      return false;
+    }
+  }
+};
+
 let currentMediaPlayerPaneIndex = null;
 let mediaplayerDragInitialized = false;
 let mediaplayerKeysInitialized = false;
@@ -30834,12 +31297,13 @@ function openMediaPlayer(filePath = null, mediaType = null, paneIndex = null) {
   }
 }
 
-function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
+async function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
   if (!filePath) return;
   const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : currentMediaPlayerPaneIndex;
   const fileName = getBasename(filePath) || filePath;
   const ext = fileName.split('.').pop().toLowerCase();
   const isVideo = forcedType === 'video' || isVideoExtension(fileName);
+  const isSynthTrack = !isVideo && isTrackerOrMidiExtension(fileName);
 
   const titleEl = document.getElementById('mediaplayer-header-title');
   const badgeEl = document.getElementById('mediaplayer-badge');
@@ -30865,6 +31329,7 @@ function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
   clearMediaSubtitles();
 
   if (isVideo) {
+    if (SoundDogSynthEngine) SoundDogSynthEngine.stop();
     if (vizEl) vizEl.style.display = 'none';
     if (audioEl) { audioEl.pause(); audioEl.src = ''; }
     if (videoEl) {
@@ -30877,7 +31342,94 @@ function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
     }
     // Scan matching subtitles in directory
     scanAndAttachSubtitles(filePath, pIdx);
+  } else if (isSynthTrack) {
+    if (videoEl) {
+      videoEl.pause();
+      videoEl.style.display = 'none';
+      videoEl.src = '';
+    }
+    if (audioEl) {
+      audioEl.pause();
+      audioEl.src = '';
+    }
+    if (vizEl) vizEl.style.display = 'flex';
+    if (SoundDogSynthEngine) SoundDogSynthEngine.stop();
+
+    try {
+      let arrayBuffer;
+      if (filePath.startsWith('client://')) {
+        const handle = await resolveClientFileHandle(filePath, false);
+        if (handle) {
+          const fileObj = await handle.getFile();
+          arrayBuffer = await fileObj.arrayBuffer();
+        }
+      }
+      if (!arrayBuffer) {
+        const authHeaders = (pIdx !== undefined && pIdx !== null) ? getPaneAuthHeaders(pIdx) : {};
+        const resp = await fetch(streamUrl, { headers: { ...authHeaders } });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        arrayBuffer = await resp.arrayBuffer();
+      }
+
+      const ctx = getMediaAudioContext();
+      if (ctx && ctx.state === 'suspended') {
+        try { await ctx.resume(); } catch (e) {}
+      }
+
+      const onTimeUpdate = (cur, dur) => {
+        const pct = dur > 0 ? (cur / dur) * 100 : 0;
+        const progEl = document.getElementById('mediaplayer-scrubber-progress');
+        const curEl = document.getElementById('mediaplayer-time-current');
+        const totEl = document.getElementById('mediaplayer-time-total');
+        if (progEl) progEl.style.width = `${pct}%`;
+        if (curEl) curEl.textContent = formatMediaTime(cur);
+        if (totEl) totEl.textContent = formatMediaTime(dur);
+
+        App.panes.forEach((p, idx) => {
+          if (p && p.dockedTool === 'mediaplayer') {
+            const dProg = document.getElementById(`docked-mediaplayer-progress-${idx}`);
+            const dCur = document.getElementById(`docked-mediaplayer-time-cur-${idx}`);
+            const dTot = document.getElementById(`docked-mediaplayer-time-tot-${idx}`);
+            if (dProg) dProg.style.width = `${pct}%`;
+            if (dCur) dCur.textContent = formatMediaTime(cur);
+            if (dTot) dTot.textContent = formatMediaTime(dur);
+          }
+        });
+
+        const pillTime = document.getElementById('mediaplayer-pill-time');
+        if (pillTime) pillTime.textContent = `${formatMediaTime(cur)} / ${dur > 0 ? formatMediaTime(dur) : '00:00'}`;
+        const pillProg = document.getElementById('mediaplayer-pill-progress-fill');
+        if (pillProg) pillProg.style.width = `${pct}%`;
+      };
+
+      const onEnded = () => {
+        if (mediaplayerState.loopMode === 'one') {
+          loadMediaTrack(filePath, forcedType, pIdx);
+        } else if (mediaplayerState.loopMode === 'all' || mediaplayerState.playlist.length > 1) {
+          navMediaPlaylist(1);
+        } else {
+          updateMediaPlayButton(false);
+        }
+      };
+
+      const outNode = SoundDogSynthEngine.getOutputNode();
+      let success = false;
+      if (ext === 'mid' || ext === 'midi') {
+        success = await SoundDogSynthEngine.playMidi(arrayBuffer, ctx, outNode, onTimeUpdate, onEnded);
+      } else {
+        success = await SoundDogSynthEngine.playTracker(arrayBuffer, ext, ctx, outNode, onTimeUpdate, onEnded);
+      }
+
+      if (success) {
+        updateMediaPlayButton(true);
+      }
+    } catch (err) {
+      console.warn('Synth playback failed:', err);
+      showToast(`Chiptune engine notice: ${err.message}`, 'warning');
+      updateMediaPlayButton(false);
+    }
   } else {
+    if (SoundDogSynthEngine) SoundDogSynthEngine.stop();
     if (videoEl) {
       videoEl.pause();
       videoEl.style.display = 'none';
@@ -30899,7 +31451,7 @@ function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
       const dockedVid = document.getElementById(`docked-mediaplayer-video-${idx}`);
       const dockedTitle = document.getElementById(`docked-mediaplayer-track-title-${idx}`);
       if (dockedTitle) dockedTitle.textContent = fileName;
-      if (dockedVid) {
+      if (dockedVid && !isSynthTrack) {
         dockedVid.src = streamUrl;
         dockedVid.currentTime = 0;
         dockedVid.playbackRate = mediaplayerState.playbackRate;
@@ -31118,6 +31670,44 @@ function updateMediaPlayButton(playing) {
 }
 
 function toggleMediaPlay() {
+  if (SoundDogSynthEngine && SoundDogSynthEngine.activeType) {
+    if (SoundDogSynthEngine.isPlaying) {
+      SoundDogSynthEngine.pause();
+      updateMediaPlayButton(false);
+      showMediaOSD('pause', 'Paused');
+    } else {
+      const ctx = getMediaAudioContext();
+      if (ctx && ctx.state === 'suspended') {
+        ctx.resume().catch(() => {});
+      }
+      if (SoundDogSynthEngine.activeType === 'midi' && SoundDogSynthEngine.midiEvents && SoundDogSynthEngine.midiEvents.length > 0) {
+        SoundDogSynthEngine.isPlaying = true;
+        const targetOutput = SoundDogSynthEngine.getOutputNode();
+        const startTime = ctx.currentTime;
+        SoundDogSynthEngine.scheduleMidiEvents(ctx, targetOutput, startTime, SoundDogSynthEngine.currentTime);
+        const startWall = Date.now() - (SoundDogSynthEngine.currentTime * 1000);
+        SoundDogSynthEngine.timer = setInterval(() => {
+          if (!SoundDogSynthEngine.isPlaying) return;
+          const elapsed = (Date.now() - startWall) / 1000;
+          SoundDogSynthEngine.currentTime = elapsed;
+          if (SoundDogSynthEngine.onTimeUpdate) {
+            SoundDogSynthEngine.onTimeUpdate(Math.min(SoundDogSynthEngine.duration, SoundDogSynthEngine.currentTime), SoundDogSynthEngine.duration);
+          }
+          if (SoundDogSynthEngine.currentTime >= SoundDogSynthEngine.duration) {
+            SoundDogSynthEngine.stop();
+            if (SoundDogSynthEngine.onEnded) SoundDogSynthEngine.onEnded();
+          }
+        }, 100);
+        updateMediaPlayButton(true);
+        showMediaOSD('play', 'Playing');
+      } else {
+        const curTrack = mediaplayerState.playlist[mediaplayerState.currentIndex];
+        if (curTrack) loadMediaTrack(curTrack.path, null, curTrack.paneIndex);
+      }
+    }
+    return;
+  }
+
   const el = getActiveMediaElement();
   if (!el) return;
   if (el.paused) {
@@ -31131,17 +31721,75 @@ function toggleMediaPlay() {
 }
 
 function seekMedia(e) {
-  const el = getActiveMediaElement();
-  if (!el || !el.duration) return;
   const track = e.currentTarget || document.getElementById('mediaplayer-scrubber-track');
   if (!track) return;
   const rect = track.getBoundingClientRect();
   const clickX = e.clientX - rect.left;
   const pct = Math.max(0, Math.min(1, clickX / rect.width));
+
+  if (SoundDogSynthEngine && SoundDogSynthEngine.activeType) {
+    const targetTime = pct * (SoundDogSynthEngine.duration || 1);
+    if (SoundDogSynthEngine.activeType === 'midi' && SoundDogSynthEngine.midiEvents) {
+      const ctx = getMediaAudioContext();
+      SoundDogSynthEngine.pause();
+      SoundDogSynthEngine.currentTime = targetTime;
+      const targetOutput = SoundDogSynthEngine.getOutputNode();
+      const startTime = ctx.currentTime;
+      SoundDogSynthEngine.isPlaying = true;
+      SoundDogSynthEngine.scheduleMidiEvents(ctx, targetOutput, startTime, targetTime);
+      const startWall = Date.now() - (targetTime * 1000);
+      SoundDogSynthEngine.timer = setInterval(() => {
+        if (!SoundDogSynthEngine.isPlaying) return;
+        const elapsed = (Date.now() - startWall) / 1000;
+        SoundDogSynthEngine.currentTime = elapsed;
+        if (SoundDogSynthEngine.onTimeUpdate) {
+          SoundDogSynthEngine.onTimeUpdate(Math.min(SoundDogSynthEngine.duration, SoundDogSynthEngine.currentTime), SoundDogSynthEngine.duration);
+        }
+        if (SoundDogSynthEngine.currentTime >= SoundDogSynthEngine.duration) {
+          SoundDogSynthEngine.stop();
+          if (SoundDogSynthEngine.onEnded) SoundDogSynthEngine.onEnded();
+        }
+      }, 100);
+      updateMediaPlayButton(true);
+    }
+    return;
+  }
+
+  const el = getActiveMediaElement();
+  if (!el || !el.duration) return;
   el.currentTime = pct * el.duration;
 }
 
 function skipMedia(seconds) {
+  if (SoundDogSynthEngine && SoundDogSynthEngine.activeType) {
+    if (SoundDogSynthEngine.activeType === 'midi') {
+      const targetTime = Math.max(0, Math.min(SoundDogSynthEngine.duration || 1, SoundDogSynthEngine.currentTime + seconds));
+      const ctx = getMediaAudioContext();
+      SoundDogSynthEngine.pause();
+      SoundDogSynthEngine.currentTime = targetTime;
+      const targetOutput = SoundDogSynthEngine.getOutputNode();
+      const startTime = ctx.currentTime;
+      SoundDogSynthEngine.isPlaying = true;
+      SoundDogSynthEngine.scheduleMidiEvents(ctx, targetOutput, startTime, targetTime);
+      const startWall = Date.now() - (targetTime * 1000);
+      SoundDogSynthEngine.timer = setInterval(() => {
+        if (!SoundDogSynthEngine.isPlaying) return;
+        const elapsed = (Date.now() - startWall) / 1000;
+        SoundDogSynthEngine.currentTime = elapsed;
+        if (SoundDogSynthEngine.onTimeUpdate) {
+          SoundDogSynthEngine.onTimeUpdate(Math.min(SoundDogSynthEngine.duration, SoundDogSynthEngine.currentTime), SoundDogSynthEngine.duration);
+        }
+        if (SoundDogSynthEngine.currentTime >= SoundDogSynthEngine.duration) {
+          SoundDogSynthEngine.stop();
+          if (SoundDogSynthEngine.onEnded) SoundDogSynthEngine.onEnded();
+        }
+      }, 100);
+      updateMediaPlayButton(true);
+      showMediaOSD(seconds > 0 ? 'rotate-cw' : 'rotate-ccw', `${seconds > 0 ? '+' : ''}${seconds}s`);
+    }
+    return;
+  }
+
   const el = getActiveMediaElement();
   if (!el || !el.duration) return;
   el.currentTime = Math.max(0, Math.min(el.duration, el.currentTime + seconds));
@@ -31152,6 +31800,14 @@ function changeMediaVolume(val) {
   const v = Math.max(0, Math.min(1, parseFloat(val)));
   mediaplayerState.volume = v;
   localStorage.setItem('cd_media_vol', v.toString());
+
+  if (mediaMasterGain && mediaAudioCtx) {
+    try {
+      mediaMasterGain.gain.setValueAtTime(mediaplayerState.isMuted ? 0 : v, mediaAudioCtx.currentTime);
+    } catch (_) {
+      mediaMasterGain.gain.value = mediaplayerState.isMuted ? 0 : v;
+    }
+  }
 
   const videoEl = document.getElementById('mediaplayer-video-element');
   const audioEl = document.getElementById('mediaplayer-audio-element');
@@ -31344,7 +32000,70 @@ function populateMediaPlaylistFromActivePane() {
   showToast(`Loaded ${mediaEntries.length} media files to playlist`, 'success');
 }
 
+function addTracksToMediaPlaylist(paths, autoPlayFirst = false, paneIndex = null) {
+  if (!paths || paths.length === 0) return;
+  const pIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  const validPaths = paths.filter(p => !!p);
+  if (validPaths.length === 0) return;
+
+  const wasEmpty = mediaplayerState.playlist.length === 0;
+  const newTracks = [];
+
+  validPaths.forEach(p => {
+    const exists = mediaplayerState.playlist.some(t => t.path === p && (t.paneIndex === pIdx || t.paneIndex === undefined));
+    if (!exists) {
+      const fileName = getBasename(p) || p.split('/').pop() || p;
+      const isVid = isVideoExtension(fileName);
+      const trackObj = {
+        path: p,
+        name: fileName,
+        isVideo: isVid,
+        paneIndex: pIdx
+      };
+      mediaplayerState.playlist.push(trackObj);
+      newTracks.push(trackObj);
+    }
+  });
+
+  renderMediaPlaylist();
+
+  if (autoPlayFirst || wasEmpty) {
+    const targetIdx = wasEmpty ? 0 : mediaplayerState.playlist.findIndex(t => t.path === validPaths[0]);
+    if (targetIdx !== -1) {
+      playMediaPlaylistItem(targetIdx);
+    }
+  }
+
+  showToast(`Added ${newTracks.length} media file(s) to playlist`, 'info');
+}
+
+async function addDirectoryToMediaPlaylist(dirPath, autoPlay = true, paneIndex = null) {
+  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
+  try {
+    const endpoint = getPaneEndpoint(resolvedPaneIdx);
+    const headers = getPaneAuthHeaders(resolvedPaneIdx);
+    const authUrl = resolveAuthUri(dirPath);
+    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=false`;
+    const resp = await fetch(url, { headers });
+    if (resp.ok) {
+      const data = await resp.json();
+      const entries = data.entries || [];
+      const mediaFiles = entries.filter(e => !e.is_dir && (isAudioExtension(e.name) || isVideoExtension(e.name))).map(e => e.path);
+      if (mediaFiles.length > 0) {
+        openMediaPlayer(null, null, resolvedPaneIdx);
+        addTracksToMediaPlaylist(mediaFiles, autoPlay, resolvedPaneIdx);
+        showToast(`Loaded ${mediaFiles.length} media tracks into Media Player`, 'success');
+      } else {
+        showToast('No media tracks found in folder', 'info');
+      }
+    }
+  } catch (e) {
+    console.error('Failed to load media from directory:', e);
+  }
+}
+
 function clearMediaPlaylist() {
+  if (SoundDogSynthEngine) SoundDogSynthEngine.stop();
   mediaplayerState.playlist = [];
   mediaplayerState.currentIndex = -1;
   const videoEl = document.getElementById('mediaplayer-video-element');
@@ -31737,6 +32456,7 @@ function setupMediaplayerResizers(win) {
 }
 
 function dismissMediaPill() {
+  if (SoundDogSynthEngine) SoundDogSynthEngine.stop();
   const videoEl = document.getElementById('mediaplayer-video-element');
   const audioEl = document.getElementById('mediaplayer-audio-element');
   if (videoEl) { videoEl.pause(); videoEl.src = ''; }
@@ -31756,7 +32476,7 @@ function updateMediaPill() {
     const cur = mediaplayerState.playlist[mediaplayerState.currentIndex];
     if (pillTitle) pillTitle.textContent = cur.name || (cur.path ? cur.path.split('/').pop() : 'Media Track');
   } else {
-    if (pillTitle) pillTitle.textContent = 'Mediaplayer';
+    if (pillTitle) pillTitle.textContent = 'Media Player';
   }
 
   if (pillPlay) {
@@ -31773,12 +32493,6 @@ function updateMediaPill() {
 }
 
 function closeMediaPlayer(force = false) {
-  const stopOnClose = localStorage.getItem('cd_media_stop_on_close') !== 'false';
-  if (!force && !stopOnClose && mediaplayerState.isPlaying) {
-    minimizeFloatingMediaPlayer();
-    showToast('Media Player minimized to background pill', 'info');
-    return;
-  }
   dismissMediaPill();
   const win = document.getElementById('floating-mediaplayer-window');
   if (win) win.style.display = 'none';
@@ -35037,8 +35751,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'duplicates', title: 'Duplicate Finder', sub: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', icon: 'copy-check', cat: 'actions', action: () => openDuplicateFinder() },
   { id: 'tageditor', title: 'Tag Editor', sub: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', icon: 'tag', cat: 'actions', action: () => openTagEditor() },
   { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
-  { id: 'mediaplayer', title: 'Media Player', sub: 'Universal video & media player, subtitles, PiP popout & playlist', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
-  { id: 'sounddog', title: 'Audio Player', sub: 'Audio player, jukebox, playlists & 10-band studio equalizer', icon: 'assets/amber-media.webp', cat: 'actions', action: () => openSoundDog() },
+  { id: 'mediaplayer', title: 'Media Player', sub: 'Universal audio, video, chiptune & tracker player, subtitles, PiP popout & playlists', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
   { id: 'tetradog', title: 'Tetris', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
@@ -41040,2114 +41753,143 @@ function mountDockedTetraDog(paneIndex) {
 }
 
 // ==========================================================================
-// 🎵 AUDIOPLAYER: MODERN UNIVERSAL AUDIO ENGINE CHEWTOY (FLOATING & DOCKED)
+// 🎵 AUDIOPLAYER / SOUNDDOG BACKWARD-COMPATIBILITY ALIASES (#100)
 // ==========================================================================
 
 const sounddogState = {
-  queue: [], // Array of { path, paneIndex, name, title, artist, album, duration, size, cover, bitrate, sampleRate, year, genre, fileObj }
-  currentIndex: -1,
-  selectedPlIndex: -1,
-  isPlaying: false,
-  isShuffle: false,
-  repeatMode: localStorage.getItem('cd_sounddog_repeat') || 'all', // 'off', 'all', 'one'
-  volume: parseFloat(localStorage.getItem('cd_sounddog_volume') || '0.8'),
-  isMuted: false,
-  playbackRate: 1.0,
-  timeMode: localStorage.getItem('cd_sounddog_timemode') || 'elapsed', // 'elapsed', 'remaining'
-  showEq: localStorage.getItem('cd_sounddog_show_eq') === '1',
-  showPl: (() => {
-    const isMobileOrTablet = typeof window !== 'undefined' && window.innerWidth <= 1024;
-    const saved = localStorage.getItem('cd_sounddog_show_pl');
-    return saved !== null ? (saved === '1') : (!isMobileOrTablet);
-  })(),
-  eqEnabled: true,
-  vizMode: localStorage.getItem('cd_sounddog_viz') || 'bars', // 'bars', 'wave', 'glow', 'off'
-  eq: {
-    preset: localStorage.getItem('cd_sounddog_eq_preset') || 'flat',
-    bands: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // 60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000 Hz
-    preamp: 0
-  },
-  isMaximized: false,
-  initialized: false,
-  blobUrls: new Map(),
-  visPeakArray: new Array(24).fill(0),
-  visPeakDecay: new Array(24).fill(0)
+  get queue() { return mediaplayerState.playlist; },
+  set queue(val) { mediaplayerState.playlist = val; },
+  get currentIndex() { return mediaplayerState.currentIndex; },
+  set currentIndex(val) { mediaplayerState.currentIndex = val; },
+  get isPlaying() { return mediaplayerState.isPlaying; },
+  set isPlaying(val) { mediaplayerState.isPlaying = val; },
+  get isShuffle() { return mediaplayerState.isShuffle; },
+  set isShuffle(val) { mediaplayerState.isShuffle = val; },
+  get repeatMode() { return mediaplayerState.loopMode; },
+  set repeatMode(val) { mediaplayerState.loopMode = val; },
+  get volume() { return mediaplayerState.volume; },
+  set volume(val) { mediaplayerState.volume = val; },
+  get isMuted() { return mediaplayerState.isMuted; },
+  set isMuted(val) { mediaplayerState.isMuted = val; },
+  get playbackRate() { return mediaplayerState.playbackRate; },
+  set playbackRate(val) { mediaplayerState.playbackRate = val; }
 };
 
-let sounddogAudioCtx = null;
-let sounddogSourceNode = null;
-let sounddogAnalyserNode = null;
-let sounddogGainNode = null;
-let sounddogEqFilters = [];
-let sounddogAnimFrame = null;
-let sounddogDragInitialized = false;
-
-const SOUNDDOG_EQ_FREQS = [60, 170, 310, 600, 1000, 3000, 6000, 12000, 14000, 16000];
-
-const SOUNDDOG_EQ_PRESETS = {
-  flat: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-  bass_boost: [6.0, 5.0, 4.0, 2.0, 0.0, 0.0, 0.0, 0.0, 1.0, 2.0],
-  rock: [4.5, 3.0, 1.5, -1.0, -1.5, 1.0, 3.0, 4.5, 4.5, 4.5],
-  synthwave: [5.5, 4.0, 2.0, 0.0, -1.0, 1.5, 3.5, 4.5, 5.0, 5.0],
-  vocal: [-2.0, -1.0, 1.0, 3.5, 4.5, 3.5, 2.0, 0.5, -0.5, -2.0],
-  jazz: [3.5, 2.5, 1.5, 1.5, -1.0, -1.0, 0.0, 1.5, 2.5, 3.5],
-  classical: [4.0, 3.0, 2.0, 1.5, -1.0, -1.0, 0.0, 2.0, 3.5, 4.0],
-  pop: [-1.5, 1.5, 3.5, 4.5, 3.0, 0.0, -1.5, -1.5, -1.0, -1.0],
-  custom: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-};
-
-// ============================================================================
-// 🎵 SOUNDDOG CHIPTUNE & MIDI SYNTHESIZER ENGINE (#46)
-// ============================================================================
-
-const SoundDogSynthEngine = {
-  activeType: null, // 'midi', 'tracker', null
-  isPlaying: false,
-  currentTime: 0,
-  duration: 0,
-  timer: null,
-  activeNodes: [],
-  midiEvents: [],
-  onTimeUpdate: null,
-  onEnded: null,
-
-  getOutputNode() {
-    if (sounddogEqFilters && sounddogEqFilters.length > 0) return sounddogEqFilters[0];
-    if (sounddogAnalyserNode) return sounddogAnalyserNode;
-    if (sounddogAudioCtx) return sounddogAudioCtx.destination;
-    return null;
-  },
-
-  stop() {
-    this.isPlaying = false;
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.activeNodes.forEach(n => {
-      try {
-        if (n.stop) n.stop();
-        n.disconnect();
-      } catch (_) {}
-    });
-    this.activeNodes = [];
-    this.activeType = null;
-    this.currentTime = 0;
-    this.duration = 0;
-  },
-
-  pause() {
-    this.isPlaying = false;
-    if (this.timer) {
-      clearInterval(this.timer);
-      this.timer = null;
-    }
-    this.activeNodes.forEach(n => {
-      try {
-        if (n.stop) n.stop();
-        n.disconnect();
-      } catch (_) {}
-    });
-    this.activeNodes = [];
-  },
-
-  async playMidi(arrayBuffer, ctx, outputNode, onTimeUpdate, onEnded) {
-    this.stop();
-    this.activeType = 'midi';
-    this.onTimeUpdate = onTimeUpdate;
-    this.onEnded = onEnded;
-
-    try {
-      const parsed = this.parseMidi(arrayBuffer);
-      if (!parsed || parsed.events.length === 0) {
-        throw new Error('No playable MIDI events found');
-      }
-
-      this.midiEvents = parsed.events;
-      this.duration = Math.max(1, parsed.duration);
-      this.currentTime = 0;
-      this.isPlaying = true;
-
-      const targetOutput = outputNode || this.getOutputNode();
-      const startTime = ctx.currentTime;
-      this.scheduleMidiEvents(ctx, targetOutput, startTime, 0);
-
-      const startWall = Date.now();
-      this.timer = setInterval(() => {
-        if (!this.isPlaying) return;
-        const elapsed = (Date.now() - startWall) / 1000;
-        this.currentTime = elapsed;
-        if (this.onTimeUpdate) {
-          this.onTimeUpdate(Math.min(this.duration, this.currentTime), this.duration);
-        }
-        if (this.currentTime >= this.duration) {
-          this.stop();
-          if (this.onEnded) this.onEnded();
-        }
-      }, 100);
-
-      return true;
-    } catch (err) {
-      console.warn('MIDI Synth playback notice:', err);
-      this.stop();
-      return false;
-    }
-  },
-
-  scheduleMidiEvents(ctx, outputNode, startCtxTime, fromTime = 0) {
-    const events = this.midiEvents.filter(e => e.time >= fromTime);
-    events.forEach(e => {
-      const triggerTime = startCtxTime + (e.time - fromTime);
-      if (triggerTime < ctx.currentTime) return;
-
-      if (e.type === 'noteOn') {
-        const dur = Math.max(0.1, e.duration || 0.4);
-        this.playMidiVoice(ctx, outputNode, e.channel, e.note, e.velocity, triggerTime, dur);
-      }
-    });
-  },
-
-  playMidiVoice(ctx, outputNode, channel, note, velocity, time, duration) {
-    if (velocity === 0 || !outputNode) return;
-    const vol = (velocity / 127) * 0.35;
-    const freq = 440 * Math.pow(2, (note - 69) / 12);
-
-    // Channel 9 (10 in 1-based GM) = Percussion / Drums
-    if (channel === 9) {
-      this.playMidiDrum(ctx, outputNode, note, vol, time);
-      return;
-    }
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      // Instrument waveform mapping
-      if (note < 48) {
-        osc.type = 'triangle'; // Warm bass
-      } else if (note > 72) {
-        osc.type = 'square'; // Chiptune lead
-      } else {
-        osc.type = 'sawtooth'; // Melodic body
-      }
-
-      osc.frequency.setValueAtTime(freq, time);
-
-      // ADSR Envelope
-      gain.gain.setValueAtTime(0.0001, time);
-      gain.gain.exponentialRampToValueAtTime(vol, time + 0.01);
-      gain.gain.exponentialRampToValueAtTime(vol * 0.6, time + 0.05);
-      gain.gain.setValueAtTime(vol * 0.6, time + duration * 0.7);
-      gain.gain.exponentialRampToValueAtTime(0.0001, time + duration);
-
-      osc.connect(gain);
-      gain.connect(outputNode);
-
-      osc.start(time);
-      osc.stop(time + duration + 0.05);
-
-      this.activeNodes.push(osc, gain);
-    } catch (_) {}
-  },
-
-  playMidiDrum(ctx, outputNode, note, vol, time) {
-    if (!outputNode) return;
-    try {
-      // Bass drum (35, 36)
-      if (note === 35 || note === 36) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.setValueAtTime(140, time);
-        osc.frequency.exponentialRampToValueAtTime(32, time + 0.15);
-        gain.gain.setValueAtTime(vol * 1.2, time);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.16);
-        osc.connect(gain);
-        gain.connect(outputNode);
-        osc.start(time);
-        osc.stop(time + 0.17);
-        this.activeNodes.push(osc, gain);
-      }
-      // Snare / Rimshot / Clap (37, 38, 39, 40)
-      else if (note >= 37 && note <= 40) {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(220, time);
-        gain.gain.setValueAtTime(vol * 0.8, time);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + 0.12);
-        osc.connect(gain);
-        gain.connect(outputNode);
-        osc.start(time);
-        osc.stop(time + 0.13);
-        this.activeNodes.push(osc, gain);
-      }
-      // Hi-Hats & Cymbals (42, 44, 46, 49, 51)
-      else {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(note > 48 ? 1200 : 800, time);
-        gain.gain.setValueAtTime(vol * 0.4, time);
-        gain.gain.exponentialRampToValueAtTime(0.0001, time + (note === 46 || note === 49 ? 0.35 : 0.06));
-        osc.connect(gain);
-        gain.connect(outputNode);
-        osc.start(time);
-        osc.stop(time + 0.4);
-        this.activeNodes.push(osc, gain);
-      }
-    } catch (_) {}
-  },
-
-  parseMidi(arrayBuffer) {
-    const data = new Uint8Array(arrayBuffer);
-    if (data.length < 14) return null;
-    if (data[0] !== 0x4d || data[1] !== 0x54 || data[2] !== 0x68 || data[3] !== 0x64) return null;
-
-    const format = (data[8] << 8) | data[9];
-    const ntracks = (data[10] << 8) | data[11];
-    let division = (data[12] << 8) | data[13];
-    if (division & 0x8000) division = 96;
-
-    let offset = 14;
-    const allEvents = [];
-    let currentTempo = 500000;
-
-    for (let t = 0; t < ntracks; t++) {
-      if (offset + 8 > data.length) break;
-      if (data[offset] !== 0x4d || data[offset+1] !== 0x54 || data[offset+2] !== 0x72 || data[offset+3] !== 0x6b) break;
-      const trackLen = (data[offset+4] << 24) | (data[offset+5] << 16) | (data[offset+6] << 8) | data[offset+7];
-      offset += 8;
-      const trackEnd = offset + trackLen;
-
-      let tick = 0;
-      let lastStatus = 0;
-      const noteOnMap = {};
-
-      while (offset < trackEnd && offset < data.length) {
-        let delta = 0;
-        let b = 0;
-        do {
-          b = data[offset++];
-          delta = (delta << 7) | (b & 0x7f);
-        } while (b & 0x80);
-
-        tick += delta;
-        const timeSec = (tick / division) * (currentTempo / 1000000);
-
-        let status = data[offset];
-        if (status < 0x80) {
-          status = lastStatus;
-        } else {
-          offset++;
-          lastStatus = status;
-        }
-
-        const msgType = status & 0xf0;
-        const channel = status & 0x0f;
-
-        if (status === 0xff) {
-          const metaType = data[offset++];
-          let metaLen = 0;
-          let mb = 0;
-          do {
-            mb = data[offset++];
-            metaLen = (metaLen << 7) | (mb & 0x7f);
-          } while (mb & 0x80);
-
-          if (metaType === 0x51 && metaLen === 3) {
-            currentTempo = (data[offset] << 16) | (data[offset+1] << 8) | data[offset+2];
-          }
-          offset += metaLen;
-        } else if (msgType === 0x90) {
-          const note = data[offset++];
-          const vel = data[offset++];
-          if (vel > 0) {
-            noteOnMap[`${channel}_${note}`] = { time: timeSec, vel, channel, note };
-          } else if (noteOnMap[`${channel}_${note}`]) {
-            const on = noteOnMap[`${channel}_${note}`];
-            allEvents.push({
-              type: 'noteOn',
-              channel: on.channel,
-              note: on.note,
-              velocity: on.vel,
-              time: on.time,
-              duration: Math.max(0.08, timeSec - on.time)
-            });
-            delete noteOnMap[`${channel}_${note}`];
-          }
-        } else if (msgType === 0x80) {
-          const note = data[offset++];
-          const vel = data[offset++];
-          if (noteOnMap[`${channel}_${note}`]) {
-            const on = noteOnMap[`${channel}_${note}`];
-            allEvents.push({
-              type: 'noteOn',
-              channel: on.channel,
-              note: on.note,
-              velocity: on.vel,
-              time: on.time,
-              duration: Math.max(0.08, timeSec - on.time)
-            });
-            delete noteOnMap[`${channel}_${note}`];
-          }
-        } else if (msgType === 0xc0) {
-          offset++;
-        } else if (msgType === 0xb0 || msgType === 0xe0) {
-          offset += 2;
-        } else if (msgType === 0xa0 || msgType === 0xd0) {
-          offset += (msgType === 0xa0 ? 2 : 1);
-        } else if (status === 0xf0 || status === 0xf7) {
-          while (offset < data.length && data[offset] !== 0xf7) offset++;
-          if (offset < data.length) offset++;
-        }
-      }
-
-      offset = trackEnd;
-    }
-
-    allEvents.sort((a, b) => a.time - b.time);
-    const maxTime = allEvents.length > 0 ? (allEvents[allEvents.length - 1].time + (allEvents[allEvents.length - 1].duration || 1)) : 60;
-    return { events: allEvents, duration: maxTime };
-  },
-
-  async playTracker(arrayBuffer, ext, ctx, outputNode, onTimeUpdate, onEnded) {
-    this.stop();
-    this.activeType = 'tracker';
-    this.onTimeUpdate = onTimeUpdate;
-    this.onEnded = onEnded;
-
-    try {
-      const data = new Uint8Array(arrayBuffer);
-      let numChannels = 4;
-      if (data.length >= 1084) {
-        const sig = String.fromCharCode(data[1080], data[1081], data[1082], data[1083]);
-        if (sig === '8CHN' || sig === 'OCTA') numChannels = 8;
-      }
-
-      const songLen = data[950] || 1;
-      const estimatedDuration = Math.max(30, songLen * 3.5);
-
-      this.duration = estimatedDuration;
-      this.currentTime = 0;
-      this.isPlaying = true;
-
-      const bpm = 125;
-      const speed = 6;
-      const rowDuration = (2.5 / bpm) * (speed / 6);
-      const totalRows = songLen * 64;
-
-      const patternOffset = 1084;
-      const noteEvents = [];
-
-      for (let r = 0; r < Math.min(totalRows, 1024); r++) {
-        const rowTime = r * rowDuration;
-        const patIdx = data[952 + Math.floor(r / 64)] || 0;
-        const patRow = r % 64;
-        const rowByteOffset = patternOffset + (patIdx * 64 * numChannels * 4) + (patRow * numChannels * 4);
-
-        if (rowByteOffset + (numChannels * 4) <= data.length) {
-          for (let ch = 0; ch < numChannels; ch++) {
-            const chOffset = rowByteOffset + (ch * 4);
-            const b0 = data[chOffset];
-            const b1 = data[chOffset + 1];
-            const b2 = data[chOffset + 2];
-            const b3 = data[chOffset + 3];
-
-            const period = ((b0 & 0x0f) << 8) | b1;
-            if (period > 0) {
-              const freq = 7093789.2 / (period * 2);
-              if (freq >= 40 && freq <= 5000) {
-                noteEvents.push({
-                  time: rowTime,
-                  freq: freq,
-                  channel: ch,
-                  duration: rowDuration * 2
-                });
-              }
-            }
-          }
-        }
-      }
-
-      const targetOutput = outputNode || this.getOutputNode();
-      const startTime = ctx.currentTime;
-      noteEvents.forEach(e => {
-        const t = startTime + e.time;
-        if (!targetOutput) return;
-        try {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-
-          if (e.channel % 2 === 0) osc.type = 'square';
-          else if (e.channel === 1) osc.type = 'sawtooth';
-          else osc.type = 'triangle';
-
-          osc.frequency.setValueAtTime(e.freq, t);
-          gain.gain.setValueAtTime(0.0001, t);
-          gain.gain.exponentialRampToValueAtTime(0.2, t + 0.005);
-          gain.gain.exponentialRampToValueAtTime(0.0001, t + e.duration);
-
-          osc.connect(gain);
-          gain.connect(targetOutput);
-          osc.start(t);
-          osc.stop(t + e.duration + 0.02);
-
-          this.activeNodes.push(osc, gain);
-        } catch (_) {}
-      });
-
-      const startWall = Date.now();
-      this.timer = setInterval(() => {
-        if (!this.isPlaying) return;
-        const elapsed = (Date.now() - startWall) / 1000;
-        this.currentTime = elapsed;
-        if (this.onTimeUpdate) {
-          this.onTimeUpdate(Math.min(this.duration, this.currentTime), this.duration);
-        }
-        if (this.currentTime >= this.duration) {
-          this.stop();
-          if (this.onEnded) this.onEnded();
-        }
-      }, 100);
-
-      return true;
-    } catch (err) {
-      console.warn('Tracker Synth playback notice:', err);
-      this.stop();
-      return false;
-    }
-  }
-};
-
-function getSoundDogAudioElement() {
-  return document.getElementById('sounddog-audio-element');
-}
-
-function initSoundDogAudioEngine() {
-  const audioEl = getSoundDogAudioElement();
-  if (!audioEl) return;
-
-  if (!sounddogAudioCtx) {
-    try {
-      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtxClass) {
-        sounddogAudioCtx = new AudioCtxClass();
-        sounddogSourceNode = sounddogAudioCtx.createMediaElementSource(audioEl);
-
-        // 10-Band Biquad Graphic Equalizer
-        sounddogEqFilters = SOUNDDOG_EQ_FREQS.map(freq => {
-          const filter = sounddogAudioCtx.createBiquadFilter();
-          filter.type = 'peaking';
-          filter.frequency.value = freq;
-          filter.Q.value = 1.4;
-          filter.gain.value = 0;
-          return filter;
-        });
-
-        // Analyser Node for 60 FPS Visualizer
-        sounddogAnalyserNode = sounddogAudioCtx.createAnalyser();
-        sounddogAnalyserNode.fftSize = 256;
-        sounddogAnalyserNode.smoothingTimeConstant = 0.75;
-
-        // Master Volume Gain
-        sounddogGainNode = sounddogAudioCtx.createGain();
-        sounddogGainNode.gain.value = sounddogState.isMuted ? 0 : sounddogState.volume;
-
-        // Connect audio graph: source -> 10 EQ filters -> analyser -> master gain -> destination
-        let currentNode = sounddogSourceNode;
-        sounddogEqFilters.forEach(f => {
-          currentNode.connect(f);
-          currentNode = f;
-        });
-
-        currentNode.connect(sounddogAnalyserNode);
-        sounddogAnalyserNode.connect(sounddogGainNode);
-        sounddogGainNode.connect(sounddogAudioCtx.destination);
-      }
-    } catch (e) {
-      console.debug('Audioplayer Web Audio API notice:', e);
-    }
-  }
-
-  // HTML5 Audio Element Events
-  audioEl.ontimeupdate = () => {
-    updateSoundDogScrubber();
-  };
-
-  audioEl.onprogress = () => {
-    updateSoundDogBuffer();
-  };
-
-  audioEl.onplay = () => {
-    sounddogState.isPlaying = true;
-    updateSoundDogPlaybackState(true);
-    startSoundDogVisualizer();
-  };
-
-  audioEl.onpause = () => {
-    sounddogState.isPlaying = false;
-    updateSoundDogPlaybackState(false);
-  };
-
-  audioEl.onended = () => {
-    if (sounddogState.repeatMode === 'one') {
-      audioEl.currentTime = 0;
-      audioEl.play().catch(() => {});
-    } else {
-      playNextSoundDogTrack();
-    }
-  };
-
-  audioEl.onerror = () => {
-    if (sounddogState.queue.length > 0 && sounddogState.currentIndex >= 0) {
-      const cur = sounddogState.queue[sounddogState.currentIndex];
-      showToast(`Playback error for: ${cur.name}`, 'warning');
-    }
-  };
-
-  // Restore saved volume & EQ presets
-  setSoundDogVolume(sounddogState.volume);
-  if (sounddogState.eq.preset && SOUNDDOG_EQ_PRESETS[sounddogState.eq.preset]) {
-    applySoundDogEqPreset(sounddogState.eq.preset, false);
-  }
-
-  updateSoundDogRepeatButton();
-  updateSoundDogShuffleButton();
-  initSoundDogKeyboardShortcuts();
-}
-
-// ---------------- WINDOWING & DRAG/RESIZE ----------------
 function openSoundDog(initialPath = null, paneIndex = null) {
-  closeToolsMenu();
-  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
-  const win = document.getElementById('floating-sounddog-window');
-  const pill = document.getElementById('sounddog-pill');
-  if (pill) pill.style.display = 'none';
-
-  if (win) {
-    win.style.display = 'flex';
-    bringFloatingWindowToFront(win);
-  }
-
-  updateDynamicViewportHeight();
-  initSoundDogDragAndResize();
-
-  if (!sounddogState.initialized) {
-    initSoundDogAudioEngine();
-    sounddogState.initialized = true;
-  }
-
-  // Ensure playlist drawer is closed by default on phone & tablet viewports (<= 1024px) unless explicitly opened
-  const isCompactViewport = window.innerWidth <= 1024;
-  if (isCompactViewport && localStorage.getItem('cd_sounddog_show_pl') === null) {
-    sounddogState.showPl = false;
-  }
-
-  // Sync drawer visibility
-  const eqDrawer = document.getElementById('sounddog-eq-drawer');
-  const eqBtn = document.getElementById('btn-sounddog-eq-toggle');
-  if (eqDrawer) eqDrawer.style.display = sounddogState.showEq ? 'flex' : 'none';
-  if (eqBtn) eqBtn.classList.toggle('active', sounddogState.showEq);
-
-  const plDrawer = document.getElementById('sounddog-playlist-sidebar');
-  const plBtn = document.getElementById('btn-sounddog-playlist-toggle');
-  if (plDrawer) plDrawer.style.display = sounddogState.showPl ? 'flex' : 'none';
-  if (plBtn) plBtn.classList.toggle('active', sounddogState.showPl);
-
-  if (initialPath) {
-    addTracksToSoundDogQueue([initialPath], true, resolvedPaneIdx);
-  } else if (sounddogState.queue.length === 0) {
-    populateSoundDogFromActivePane(false, resolvedPaneIdx);
-  }
-
-  renderSoundDogQueue();
-  updateSoundDogQueueStats();
-
-  if (window.lucide) {
-    try { lucide.createIcons(); } catch (e) {}
-  }
+  openMediaPlayer(initialPath, 'audio', paneIndex);
 }
-
-function openFloatingSoundDog() {
-  openSoundDog();
-}
-
-function dismissSoundDogPill() {
-  stopSoundDogPlay();
-  const pill = document.getElementById('sounddog-pill');
-  if (pill) pill.style.display = 'none';
+function openFloatingSoundDog(initialPath = null, paneIndex = null) {
+  openMediaPlayer(initialPath, 'audio', paneIndex);
 }
 
 function closeSoundDog(force = false) {
-  if (!force && sounddogState.isPlaying) {
-    minimizeFloatingSoundDog();
-    showToast('Audioplayer minimized to background pill', 'info');
-    return;
-  }
-  const win = document.getElementById('floating-sounddog-window');
-  if (win) win.style.display = 'none';
-  const pill = document.getElementById('sounddog-pill');
-  if (pill) pill.style.display = 'none';
-  if (force) {
-    stopSoundDogPlay();
-  }
+  closeMediaPlayer(force);
 }
 
 function minimizeFloatingSoundDog() {
-  const win = document.getElementById('floating-sounddog-window');
-  if (win) win.style.display = 'none';
-  const pill = document.getElementById('sounddog-pill');
-  if (pill) {
-    pill.style.display = 'flex';
-    updateSoundDogPill();
-    updateSoundDogScrubber();
-  }
+  minimizeFloatingMediaPlayer();
 }
 
 function restoreFloatingSoundDog() {
-  const pill = document.getElementById('sounddog-pill');
-  if (pill) pill.style.display = 'none';
-  openSoundDog();
+  restoreFloatingMediaPlayer();
 }
 
 function maximizeFloatingSoundDog() {
-  const win = document.getElementById('floating-sounddog-window');
-  if (!win) return;
-  sounddogState.isMaximized = !sounddogState.isMaximized;
-  win.classList.toggle('maximized', sounddogState.isMaximized);
+  maximizeFloatingMediaPlayer();
 }
 
-function dockSoundDogToActivePane() {
-  dockToolToPane('sounddog', App.activePaneIndex);
-}
-
-function initSoundDogDragAndResize() {
-  if (sounddogDragInitialized) return;
-  sounddogDragInitialized = true;
-
-  const container = document.getElementById('floating-sounddog-window');
-  const header = document.getElementById('sounddog-header');
-  if (!container || !header) return;
-
-  // Restore saved position
-  const savedLeft = localStorage.getItem('cd_sounddog_x');
-  const savedTop = localStorage.getItem('cd_sounddog_y');
-  if (savedLeft && savedTop && window.innerWidth > 768) {
-    container.style.left = `${Math.min(window.innerWidth - 140, Math.max(0, parseInt(savedLeft, 10)))}px`;
-    container.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
-  }
-
-  let isDragging = false;
-  let dragStartX = 0, dragStartY = 0;
-  let winStartX = 0, winStartY = 0;
-
-  header.addEventListener('mousedown', (e) => {
-    if (window.innerWidth <= 768 || sounddogState.isMaximized) return;
-    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
-    isDragging = true;
-    bringFloatingWindowToFront(container);
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    const rect = container.getBoundingClientRect();
-    winStartX = rect.left;
-    winStartY = rect.top;
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'move';
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
-    const newY = Math.max(30, Math.min(window.innerHeight - 60, winStartY + dy));
-    container.style.left = `${newX}px`;
-    container.style.top = `${newY}px`;
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      const rect = container.getBoundingClientRect();
-      localStorage.setItem('cd_sounddog_x', Math.round(rect.left).toString());
-      localStorage.setItem('cd_sounddog_y', Math.round(rect.top).toString());
-    }
-  });
-
-  // Window Edge and Corner Resizing
-  const resizeHandles = [
-    { el: document.getElementById('sounddog-resize-right'), dir: 'e' },
-    { el: document.getElementById('sounddog-resize-bottom'), dir: 's' },
-    { el: document.getElementById('sounddog-resize-corner'), dir: 'se' }
-  ];
-
-  resizeHandles.forEach(({ el, dir }) => {
-    if (!el) return;
-    el.addEventListener('mousedown', (e) => {
-      if (window.innerWidth <= 768 || sounddogState.isMaximized) return;
-      e.preventDefault();
-      e.stopPropagation();
-      const startX = e.clientX;
-      const startY = e.clientY;
-      const startW = container.offsetWidth;
-      const startH = container.offsetHeight;
-
-      const onMouseMove = (me) => {
-        if (dir.includes('e')) {
-          const newW = Math.max(320, Math.min(window.innerWidth - 20, startW + (me.clientX - startX)));
-          container.style.width = `${newW}px`;
-        }
-        if (dir.includes('s')) {
-          const newH = Math.max(200, Math.min(window.innerHeight - 40, startH + (me.clientY - startY)));
-          container.style.height = `${newH}px`;
-        }
-      };
-
-      const onMouseUp = () => {
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-      };
-
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-    });
-  });
-
-  // Drag & Drop files directly onto Audioplayer
-  container.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'copy';
-    container.classList.add('drag-over');
-  });
-
-  container.addEventListener('dragleave', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    container.classList.remove('drag-over');
-  });
-
-  container.addEventListener('drop', (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    container.classList.remove('drag-over');
-
-    if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleSoundDogDroppedFiles(e.dataTransfer.files);
-    }
-  });
-}
-
-// ---------------- DRAWER & CONTROLS TOGGLES ----------------
-function toggleSoundDogPlaylistDrawer(forceState) {
-  if (typeof forceState === 'boolean') sounddogState.showPl = forceState;
-  else sounddogState.showPl = !sounddogState.showPl;
-
-  localStorage.setItem('cd_sounddog_show_pl', sounddogState.showPl ? '1' : '0');
-
-  const drawer = document.getElementById('sounddog-playlist-sidebar');
-  const btn = document.getElementById('btn-sounddog-playlist-toggle');
-  if (drawer) drawer.style.display = sounddogState.showPl ? 'flex' : 'none';
-  if (btn) btn.classList.toggle('active', sounddogState.showPl);
-}
-
-function toggleSoundDogEqDrawer(forceState) {
-  if (typeof forceState === 'boolean') sounddogState.showEq = forceState;
-  else sounddogState.showEq = !sounddogState.showEq;
-
-  localStorage.setItem('cd_sounddog_show_eq', sounddogState.showEq ? '1' : '0');
-
-  const drawer = document.getElementById('sounddog-eq-drawer');
-  const btn = document.getElementById('btn-sounddog-eq-toggle');
-  if (drawer) drawer.style.display = sounddogState.showEq ? 'flex' : 'none';
-  if (btn) btn.classList.toggle('active', sounddogState.showEq);
-}
-
-function cycleSoundDogRepeat() {
-  if (sounddogState.repeatMode === 'all') sounddogState.repeatMode = 'one';
-  else if (sounddogState.repeatMode === 'one') sounddogState.repeatMode = 'off';
-  else sounddogState.repeatMode = 'all';
-
-  localStorage.setItem('cd_sounddog_repeat', sounddogState.repeatMode);
-  updateSoundDogRepeatButton();
-  showToast(`Repeat: ${sounddogState.repeatMode.toUpperCase()}`, 'info');
-}
-
-function updateSoundDogRepeatButton() {
-  const btn = document.getElementById('btn-sounddog-repeat');
-  if (!btn) return;
-  const mode = sounddogState.repeatMode;
-  btn.classList.toggle('active', mode !== 'off');
-  btn.title = `Repeat Mode: ${mode.toUpperCase()} (R)`;
-}
-
-function toggleSoundDogShuffle() {
-  sounddogState.isShuffle = !sounddogState.isShuffle;
-  updateSoundDogShuffleButton();
-  showToast(`Shuffle: ${sounddogState.isShuffle ? 'ON' : 'OFF'}`, 'info');
-}
-
-function updateSoundDogShuffleButton() {
-  const btn = document.getElementById('btn-sounddog-shuffle');
-  if (btn) btn.classList.toggle('active', sounddogState.isShuffle);
-}
-
-function toggleSoundDogMute() {
-  sounddogState.isMuted = !sounddogState.isMuted;
-  const audioEl = getSoundDogAudioElement();
-  if (audioEl) audioEl.volume = sounddogState.isMuted ? 0 : sounddogState.volume;
-
-  if (sounddogGainNode && sounddogAudioCtx) {
-    sounddogGainNode.gain.setValueAtTime(sounddogState.isMuted ? 0 : sounddogState.volume, sounddogAudioCtx.currentTime);
-  }
-
-  const icon = document.getElementById('sounddog-volume-icon');
-  if (icon) {
-    icon.setAttribute('data-lucide', sounddogState.isMuted ? 'volume-x' : (sounddogState.volume > 0.5 ? 'volume-2' : 'volume-1'));
-    if (window.lucide) {
-      try { lucide.createIcons({ root: icon.parentElement }); } catch (e) {}
-    }
-  }
-}
-
-function setSoundDogVolume(val) {
-  const v = Math.max(0, Math.min(1, parseFloat(val)));
-  sounddogState.volume = v;
-  sounddogState.isMuted = false;
-  localStorage.setItem('cd_sounddog_volume', v.toString());
-
-  const audioEl = getSoundDogAudioElement();
-  if (audioEl) audioEl.volume = v;
-
-  if (sounddogGainNode && sounddogAudioCtx) {
-    sounddogGainNode.gain.setValueAtTime(v, sounddogAudioCtx.currentTime);
-  }
-
-  const slider = document.getElementById('sounddog-volume-slider');
-  if (slider && slider.value !== v.toString()) slider.value = v.toString();
-
-  const icon = document.getElementById('sounddog-volume-icon');
-  if (icon) {
-    icon.setAttribute('data-lucide', v === 0 ? 'volume-x' : (v > 0.5 ? 'volume-2' : 'volume-1'));
-    if (window.lucide) {
-      try { lucide.createIcons({ root: icon.parentElement }); } catch (e) {}
-    }
-  }
-}
-
-function skipSoundDog(secs) {
-  const audioEl = getSoundDogAudioElement();
-  if (!audioEl || !audioEl.duration) return;
-  audioEl.currentTime = Math.max(0, Math.min(audioEl.duration, audioEl.currentTime + secs));
-  updateSoundDogScrubber();
-}
-
-function handleSoundDogScrubberHover(e) {
-  const audioEl = getSoundDogAudioElement();
-  const trackEl = document.getElementById('sounddog-scrubber-track');
-  const tooltip = document.getElementById('sounddog-scrubber-tooltip');
-  if (!audioEl || !trackEl || !tooltip || !audioEl.duration) return;
-
-  const rect = trackEl.getBoundingClientRect();
-  const hoverX = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
-  const pct = hoverX / rect.width;
-  const hoverSecs = pct * audioEl.duration;
-
-  tooltip.textContent = formatMediaTime(hoverSecs);
-  tooltip.style.left = `${hoverX}px`;
-  tooltip.style.display = 'block';
-}
-
-function hideSoundDogScrubberTooltip() {
-  const tooltip = document.getElementById('sounddog-scrubber-tooltip');
-  if (tooltip) tooltip.style.display = 'none';
-}
-
-function seekSoundDogFromEvent(e) {
-  const audioEl = getSoundDogAudioElement();
-  const trackEl = e.currentTarget || document.getElementById('sounddog-scrubber-track');
-  if (!audioEl || !trackEl || !audioEl.duration) return;
-
-  const rect = trackEl.getBoundingClientRect();
-  const clickX = e.clientX - rect.left;
-  const pct = Math.max(0, Math.min(1, clickX / rect.width));
-  audioEl.currentTime = pct * audioEl.duration;
-  updateSoundDogScrubber();
-}
-
-function seekSoundDogRelative(deltaSecs) {
-  skipSoundDog(deltaSecs);
-}
-
-function updateSoundDogBuffer() {
-  // Scrubber buffering feedback
-}
-
-function toggleSoundDogTimeMode() {
-  sounddogState.timeMode = (sounddogState.timeMode === 'elapsed') ? 'remaining' : 'elapsed';
-  localStorage.setItem('cd_sounddog_timemode', sounddogState.timeMode);
-  updateSoundDogScrubber();
-}
-
-// ---------------- QUEUE & PLAYLIST MANAGEMENT ----------------
-function populateSoundDogFromActivePane(autoPlay = false, paneIndex = null) {
-  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
-  const pane = App.panes[resolvedPaneIdx];
-  if (!pane || !pane.entries) return;
-
-  const audioEntries = pane.entries.filter(e => !e.is_dir && isAudioExtension(e.name));
-  if (audioEntries.length > 0) {
-    const paths = audioEntries.map(e => e.path);
-    addTracksToSoundDogQueue(paths, autoPlay, resolvedPaneIdx);
-  }
-}
-
-function addCurrentPaneFolderToSoundDog(paneIndex = null) {
-  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
-  const pane = App.panes[resolvedPaneIdx];
-  if (!pane || !pane.entries) return;
-
-  const audioEntries = pane.entries.filter(e => !e.is_dir && isAudioExtension(e.name));
-  if (audioEntries.length === 0) {
-    showToast('No audio files found in current panel', 'info');
-    return;
-  }
-
-  const paths = audioEntries.map(e => e.path);
-  addTracksToSoundDogQueue(paths, sounddogState.queue.length === 0, resolvedPaneIdx);
-  showToast(`Added ${audioEntries.length} tracks to Audioplayer playlist`, 'success');
-}
-
-async function addDirectoryToSoundDog(dirPath, autoPlay = true, paneIndex = null) {
-  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
-  try {
-    const endpoint = getPaneEndpoint(resolvedPaneIdx);
-    const headers = getPaneAuthHeaders(resolvedPaneIdx);
-    const authUrl = resolveAuthUri(dirPath);
-    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=false`;
-    const resp = await fetch(url, { headers });
-    if (resp.ok) {
-      const data = await resp.json();
-      const entries = data.entries || [];
-      const audioFiles = entries.filter(e => !e.is_dir && isAudioExtension(e.name)).map(e => e.path);
-      if (audioFiles.length > 0) {
-        openSoundDog();
-        addTracksToSoundDogQueue(audioFiles, autoPlay, resolvedPaneIdx);
-        showToast(`Loaded ${audioFiles.length} tracks into Audioplayer`, 'success');
-      } else {
-        showToast('No audio tracks found in folder', 'info');
-      }
-    }
-  } catch (e) {
-    console.error('Failed to load audio from directory:', e);
-  }
-}
-
-function addTracksToSoundDogQueue(paths, autoPlayFirst = false, paneIndex = null) {
-  if (!paths || paths.length === 0) return;
-
-  const resolvedPaneIdx = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
-  const wasEmpty = sounddogState.queue.length === 0;
-  const newTracks = [];
-
-  paths.forEach(p => {
-    const exists = sounddogState.queue.some(t => t.path === p && (t.paneIndex === resolvedPaneIdx || t.paneIndex === undefined));
-    if (!exists) {
-      const fileName = p.split('/').pop() || p;
-      const cleanName = fileName.replace(/\.[^/.]+$/, '');
-      const parts = cleanName.split(' - ');
-      const artist = parts.length > 1 ? parts[0].trim() : '';
-      const title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : cleanName;
-
-      newTracks.push({
-        path: p,
-        paneIndex: resolvedPaneIdx,
-        name: fileName,
-        title: title,
-        artist: artist,
-        album: 'Audioplayer Jukebox',
-        duration: 0,
-        size: 0,
-        cover: null,
-        bitrate: '320',
-        sampleRate: '44',
-        year: '',
-        genre: ''
-      });
-    }
-  });
-
-  sounddogState.queue.push(...newTracks);
-  renderSoundDogQueue();
-  updateSoundDogQueueStats();
-
-  if (wasEmpty || autoPlayFirst) {
-    const targetIdx = wasEmpty ? 0 : sounddogState.queue.length - newTracks.length;
-    loadSoundDogTrack(targetIdx, true);
-  }
-}
-
-function handleSoundDogDroppedFiles(fileList) {
-  const files = Array.from(fileList).filter(f => isAudioExtension(f.name) || f.type.startsWith('audio/'));
-  if (files.length === 0) {
-    showToast('No valid audio files dropped', 'info');
-    return;
-  }
-
-  const wasEmpty = sounddogState.queue.length === 0;
-  const newTracks = files.map(file => {
-    const blobUrl = URL.createObjectURL(file);
-    const cleanName = file.name.replace(/\.[^/.]+$/, '');
-    const parts = cleanName.split(' - ');
-    const artist = parts.length > 1 ? parts[0].trim() : '';
-    const title = parts.length > 1 ? parts.slice(1).join(' - ').trim() : cleanName;
-
-    return {
-      path: blobUrl,
-      name: file.name,
-      title: title,
-      artist: artist,
-      album: 'Local File',
-      duration: 0,
-      size: file.size,
-      cover: null,
-      bitrate: '320',
-      sampleRate: '44',
-      fileObj: file
-    };
-  });
-
-  sounddogState.queue.push(...newTracks);
-  renderSoundDogQueue();
-  updateSoundDogQueueStats();
-
-  if (wasEmpty) {
-    loadSoundDogTrack(0, true);
-  }
-  showToast(`Loaded ${newTracks.length} dropped audio tracks`, 'success');
-}
-
-function triggerSoundDogOpenFiles() {
-  const input = document.getElementById('sounddog-file-input');
-  if (input) input.click();
-}
-
-function handleSoundDogFilePicker(e) {
-  if (e.target && e.target.files && e.target.files.length > 0) {
-    handleSoundDogDroppedFiles(e.target.files);
-    e.target.value = '';
-  }
-}
-
-function clearSoundDogQueue() {
-  const audioEl = getSoundDogAudioElement();
-  if (audioEl) {
-    audioEl.pause();
-    audioEl.src = '';
-  }
-  sounddogState.queue = [];
-  sounddogState.currentIndex = -1;
-  sounddogState.selectedPlIndex = -1;
-  sounddogState.isPlaying = false;
-  updateSoundDogPlaybackState(false);
-  resetSoundDogHUD();
-  renderSoundDogQueue();
-  updateSoundDogQueueStats();
-}
-
-function removeSoundDogTrack(index) {
-  if (index < 0 || index >= sounddogState.queue.length) return;
-
-  const isCurrent = index === sounddogState.currentIndex;
-  sounddogState.queue.splice(index, 1);
-
-  if (sounddogState.queue.length === 0) {
-    clearSoundDogQueue();
-    return;
-  }
-
-  if (isCurrent) {
-    const nextIdx = Math.min(index, sounddogState.queue.length - 1);
-    loadSoundDogTrack(nextIdx, sounddogState.isPlaying);
-  } else if (index < sounddogState.currentIndex) {
-    sounddogState.currentIndex--;
-  }
-
-  sounddogState.selectedPlIndex = Math.min(sounddogState.selectedPlIndex, sounddogState.queue.length - 1);
-  renderSoundDogQueue();
-  updateSoundDogQueueStats();
-}
-
-function removeSoundDogSelectedTrack() {
-  const targetIdx = sounddogState.selectedPlIndex >= 0 ? sounddogState.selectedPlIndex : sounddogState.currentIndex;
-  if (targetIdx >= 0) {
-    removeSoundDogTrack(targetIdx);
-  }
-}
-
-function randomizeSoundDogQueue() {
-  if (sounddogState.queue.length <= 1) return;
-
-  const currentTrack = sounddogState.currentIndex >= 0 ? sounddogState.queue[sounddogState.currentIndex] : null;
-
-  // Fisher-Yates Shuffle
-  for (let i = sounddogState.queue.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [sounddogState.queue[i], sounddogState.queue[j]] = [sounddogState.queue[j], sounddogState.queue[i]];
-  }
-
-  if (currentTrack) {
-    sounddogState.currentIndex = sounddogState.queue.indexOf(currentTrack);
-  }
-
-  renderSoundDogQueue();
-  showToast('Playlist randomized', 'info');
-}
-
-function renderSoundDogQueue() {
-  const tbody = document.getElementById('sounddog-queue-tbody');
-  const filterInput = document.getElementById('sounddog-queue-filter');
-  const filterTerm = (filterInput?.value || '').toLowerCase().trim();
-
-  if (!tbody) return;
-
-  if (sounddogState.queue.length === 0) {
-    tbody.innerHTML = `
-      <div class="audioplayer-playlist-empty">
-        <p style="font-weight: 600; color: var(--text-muted); margin-bottom: 4px;">Playlist is empty</p>
-        <small style="opacity: 0.7;">Double-click audio files in panels or click + to load</small>
-      </div>
-    `;
-    return;
-  }
-
-  let html = '';
-  sounddogState.queue.forEach((track, idx) => {
-    if (filterTerm) {
-      const match = (track.title || '').toLowerCase().includes(filterTerm) ||
-                    (track.artist || '').toLowerCase().includes(filterTerm) ||
-                    (track.name || '').toLowerCase().includes(filterTerm);
-      if (!match) return;
-    }
-
-    const isCurrent = idx === sounddogState.currentIndex;
-    const isSelected = idx === sounddogState.selectedPlIndex;
-    const durStr = track.duration > 0 ? formatMediaTime(track.duration) : '--:--';
-    const displayTitle = track.artist ? `${track.artist} - ${track.title}` : (track.title || track.name);
-
-    html += `
-      <div class="audioplayer-pl-row ${isCurrent ? 'playing' : ''} ${isSelected ? 'selected' : ''}" 
-           onclick="selectSoundDogPlTrack(${idx})" 
-           ondblclick="loadSoundDogTrack(${idx}, true)">
-        <span class="audioplayer-pl-num">${idx + 1}.</span>
-        <span class="audioplayer-pl-title" title="${escapeHtml(displayTitle)}">${escapeHtml(displayTitle)}</span>
-        <span class="audioplayer-pl-time">${durStr}</span>
-        <button type="button" class="audioplayer-pl-remove" onclick="event.stopPropagation(); removeSoundDogTrack(${idx})" title="Remove Track">✕</button>
-      </div>
-    `;
-  });
-
-  tbody.innerHTML = html;
-}
-
-function selectSoundDogPlTrack(index) {
-  sounddogState.selectedPlIndex = index;
-  renderSoundDogQueue();
-}
-
-function filterSoundDogQueue(term) {
-  renderSoundDogQueue();
-}
-
-function updateSoundDogQueueStats() {
-  const countBadge = document.getElementById('sounddog-playlist-count');
-  const count = sounddogState.queue.length;
-  if (countBadge) countBadge.textContent = count.toString();
-}
-
-function updateSoundDogScrubber() {
-  const isSynth = SoundDogSynthEngine.activeType !== null;
-  const audioEl = getSoundDogAudioElement();
-
-  const cur = isSynth ? SoundDogSynthEngine.currentTime : (audioEl?.currentTime || 0);
-  const dur = isSynth ? SoundDogSynthEngine.duration : (audioEl?.duration || 0);
-  const pct = dur > 0 ? (cur / dur) * 100 : 0;
-
-  const progEl = document.getElementById('sounddog-scrubber-progress');
-  const thumbEl = document.getElementById('sounddog-scrubber-thumb');
-  const timeCur = document.getElementById('sounddog-time-current');
-  const timeTot = document.getElementById('sounddog-time-total');
-  const timeBadge = document.getElementById('sounddog-track-time-badge');
-
-  if (progEl) progEl.style.width = `${pct}%`;
-  if (thumbEl) thumbEl.style.left = `${pct}%`;
-
-  if (sounddogState.timeMode === 'remaining' && dur > 0) {
-    const rem = Math.max(0, dur - cur);
-    if (timeCur) timeCur.textContent = `-${formatMediaTime(rem)}`;
-  } else {
-    if (timeCur) timeCur.textContent = formatMediaTime(cur);
-  }
-
-  if (timeTot) timeTot.textContent = dur > 0 ? formatMediaTime(dur) : '00:00';
-  if (timeBadge) timeBadge.textContent = dur > 0 ? formatMediaTime(dur) : '00:00';
-
-  // Sync docked SoundDog progress and time displays
-  App.panes.forEach((p, idx) => {
-    if (p && p.dockedTool === 'sounddog') {
-      const dProg = document.getElementById(`docked-sounddog-scrubber-progress-${idx}`);
-      const dCur = document.getElementById(`docked-sounddog-time-cur-${idx}`);
-      const dTot = document.getElementById(`docked-sounddog-time-tot-${idx}`);
-      if (dProg) dProg.style.width = `${pct}%`;
-      if (dCur) dCur.textContent = formatMediaTime(cur);
-      if (dTot) dTot.textContent = dur > 0 ? formatMediaTime(dur) : '00:00';
-    }
-  });
-
-  // Sync sounddog minimized pill progress and time display
-  const pillTime = document.getElementById('sounddog-pill-time');
-  if (pillTime) pillTime.textContent = `${formatMediaTime(cur)} / ${dur > 0 ? formatMediaTime(dur) : '00:00'}`;
-  const pillProg = document.getElementById('sounddog-pill-progress-fill');
-  if (pillProg) pillProg.style.width = `${pct}%`;
-
-  if (dur > 0 && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
-    const track = sounddogState.queue[sounddogState.currentIndex];
-    if (!track.duration) {
-      track.duration = dur;
-      updateSoundDogQueueStats();
-      renderSoundDogQueue();
-    }
-  }
-}
-
-function updateSoundDogBuffer() {
-  // Scrubber buffering feedback
-}
-
-function toggleSoundDogTimeMode() {
-  sounddogState.timeMode = (sounddogState.timeMode === 'elapsed') ? 'remaining' : 'elapsed';
-  localStorage.setItem('cd_sounddog_timemode', sounddogState.timeMode);
-  updateSoundDogScrubber();
-}
-
-// ---------------- AUDIO PLAYBACK & TRACK LOADING ----------------
-async function loadSoundDogTrack(index, autoPlay = true) {
-  if (index < 0 || index >= sounddogState.queue.length) return;
-
-  sounddogState.currentIndex = index;
-  sounddogState.selectedPlIndex = index;
-  const track = sounddogState.queue[index];
-  const audioEl = getSoundDogAudioElement();
-  if (!audioEl) return;
-
-  if (!sounddogAudioCtx) {
-    initSoundDogAudioEngine();
-  }
-
-  if (sounddogAudioCtx && sounddogAudioCtx.state === 'suspended') {
-    try { await sounddogAudioCtx.resume(); } catch (e) {}
-  }
-
-  const ext = (track.name.split('.').pop() || '').toLowerCase();
-  const isSynthTrack = isTrackerOrMidiExtension(track.name);
-
-  updateSoundDogHUD(track);
-  renderSoundDogQueue();
-  updateSoundDogPill();
-  updateSoundDogDockedHUD();
-
-  let streamUrl = track.path;
-  let clientFileObj = track.fileObj || null;
-  if (!clientFileObj && track.path.startsWith('client://')) {
-    try {
-      const handle = await resolveClientFileHandle(track.path, false);
-      if (handle) {
-        clientFileObj = await handle.getFile();
-        track.fileObj = clientFileObj;
-        streamUrl = URL.createObjectURL(clientFileObj);
-      }
-    } catch (e) {}
-  } else if (!clientFileObj) {
-    streamUrl = getDownloadUrl(track.path, true, track.paneIndex);
-  }
-
-  if (isSynthTrack) {
-    audioEl.pause();
-    audioEl.src = '';
-    SoundDogSynthEngine.stop();
-
-    try {
-      let arrayBuffer;
-      if (clientFileObj) {
-        arrayBuffer = await clientFileObj.arrayBuffer();
-      } else {
-        const authHeaders = (track.paneIndex !== undefined && track.paneIndex !== null) ? getPaneAuthHeaders(track.paneIndex) : {};
-        const resp = await fetch(streamUrl, { headers: { ...authHeaders } });
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        arrayBuffer = await resp.arrayBuffer();
-      }
-
-      const onTimeUpdate = (cur, dur) => {
-        const pct = dur > 0 ? (cur / dur) * 100 : 0;
-        const progEl = document.getElementById('sounddog-scrubber-progress');
-        const thumbEl = document.getElementById('sounddog-scrubber-thumb');
-        const timeCur = document.getElementById('sounddog-time-current');
-        const timeTot = document.getElementById('sounddog-time-total');
-        const timeBadge = document.getElementById('sounddog-track-time-badge');
-
-        if (progEl) progEl.style.width = `${pct}%`;
-        if (thumbEl) thumbEl.style.left = `${pct}%`;
-        if (timeCur) timeCur.textContent = formatMediaTime(cur);
-        if (timeTot) timeTot.textContent = formatMediaTime(dur);
-        if (timeBadge) timeBadge.textContent = formatMediaTime(dur);
-
-        App.panes.forEach((p, idx) => {
-          if (p && p.dockedTool === 'sounddog') {
-            const dProg = document.getElementById(`docked-sounddog-scrubber-progress-${idx}`);
-            const dCur = document.getElementById(`docked-sounddog-time-cur-${idx}`);
-            const dTot = document.getElementById(`docked-sounddog-time-tot-${idx}`);
-            if (dProg) dProg.style.width = `${pct}%`;
-            if (dCur) dCur.textContent = formatMediaTime(cur);
-            if (dTot) dTot.textContent = formatMediaTime(dur);
-          }
-        });
-      };
-
-      const onEnded = () => {
-        if (sounddogState.repeatMode === 'one') {
-          loadSoundDogTrack(sounddogState.currentIndex, true);
-        } else {
-          playNextSoundDogTrack();
-        }
-      };
-
-      const outNode = SoundDogSynthEngine.getOutputNode();
-      let success = false;
-      if (ext === 'mid' || ext === 'midi') {
-        success = await SoundDogSynthEngine.playMidi(arrayBuffer, sounddogAudioCtx, outNode, onTimeUpdate, onEnded);
-      } else {
-        success = await SoundDogSynthEngine.playTracker(arrayBuffer, ext, sounddogAudioCtx, outNode, onTimeUpdate, onEnded);
-      }
-
-      if (success) {
-        sounddogState.isPlaying = true;
-        updateSoundDogPlaybackState(true);
-        startSoundDogVisualizer();
-      }
-    } catch (err) {
-      console.warn('Synth playback failed:', err);
-      showToast(`Chiptune engine notice: ${err.message}`, 'warning');
-    }
-  } else {
-    SoundDogSynthEngine.stop();
-    audioEl.src = streamUrl;
-    audioEl.playbackRate = sounddogState.playbackRate;
-
-    if (autoPlay) {
-      audioEl.play().catch(e => {
-        console.debug('Audioplayer playback notice:', e);
-      });
-    }
-
-    if (!track.fileObj) {
-      parseSoundDogMetadata(track);
-    }
-  }
+function dismissSoundDogPill() {
+  dismissMediaPill();
 }
 
 function toggleSoundDogPlay() {
-  if (SoundDogSynthEngine.activeType) {
-    if (SoundDogSynthEngine.isPlaying) {
-      SoundDogSynthEngine.pause();
-      sounddogState.isPlaying = false;
-      updateSoundDogPlaybackState(false);
-    } else {
-      if (sounddogAudioCtx && sounddogAudioCtx.state === 'suspended') {
-        sounddogAudioCtx.resume().catch(() => {});
-      }
-      SoundDogSynthEngine.isPlaying = true;
-      sounddogState.isPlaying = true;
-      updateSoundDogPlaybackState(true);
-      startSoundDogVisualizer();
-    }
-    return;
-  }
-
-  const audioEl = getSoundDogAudioElement();
-  if (!audioEl) return;
-
-  if (sounddogAudioCtx && sounddogAudioCtx.state === 'suspended') {
-    sounddogAudioCtx.resume().catch(() => {});
-  }
-
-  if (sounddogState.currentIndex === -1 && sounddogState.queue.length > 0) {
-    loadSoundDogTrack(0, true);
-    return;
-  }
-
-  if (audioEl.paused) {
-    audioEl.play().catch(() => {});
-  } else {
-    audioEl.pause();
-  }
+  toggleMediaPlay();
 }
 
 function stopSoundDogPlay() {
-  SoundDogSynthEngine.stop();
-  const audioEl = getSoundDogAudioElement();
-  if (audioEl) {
-    audioEl.pause();
-    audioEl.currentTime = 0;
-  }
-  sounddogState.isPlaying = false;
-  updateSoundDogPlaybackState(false);
-  updateSoundDogScrubber();
+  dismissMediaPill();
 }
 
 function playNextSoundDogTrack() {
-  if (sounddogState.queue.length === 0) return;
-
-  let nextIdx = 0;
-  if (sounddogState.isShuffle) {
-    nextIdx = Math.floor(Math.random() * sounddogState.queue.length);
-    if (nextIdx === sounddogState.currentIndex && sounddogState.queue.length > 1) {
-      nextIdx = (nextIdx + 1) % sounddogState.queue.length;
-    }
-  } else {
-    if (sounddogState.currentIndex + 1 >= sounddogState.queue.length) {
-      if (sounddogState.repeatMode === 'off') {
-        stopSoundDogPlay();
-        return;
-      }
-      nextIdx = 0;
-    } else {
-      nextIdx = sounddogState.currentIndex + 1;
-    }
-  }
-
-  loadSoundDogTrack(nextIdx, true);
+  navMediaPlaylist(1);
 }
 
 function playPrevSoundDogTrack() {
-  if (sounddogState.queue.length === 0) return;
-
-  if (SoundDogSynthEngine.activeType && SoundDogSynthEngine.currentTime > 3) {
-    SoundDogSynthEngine.currentTime = 0;
-    return;
-  }
-
-  const audioEl = getSoundDogAudioElement();
-  if (audioEl && audioEl.currentTime > 3) {
-    audioEl.currentTime = 0;
-    return;
-  }
-
-  let prevIdx = sounddogState.currentIndex - 1;
-  if (prevIdx < 0) {
-    prevIdx = sounddogState.queue.length - 1;
-  }
-  loadSoundDogTrack(prevIdx, true);
+  navMediaPlaylist(-1);
 }
 
-function updateSoundDogPlaybackState(isPlaying) {
-  sounddogState.isPlaying = isPlaying;
-  const playIcon = document.getElementById('sounddog-play-icon');
-  const pillPlayIcon = document.getElementById('sounddog-pill-play-icon');
-  const pill = document.getElementById('sounddog-pill');
-  const wave = document.getElementById('sounddog-pill-wave');
-
-  if (playIcon) {
-    playIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
-  }
-
-  if (pillPlayIcon) {
-    pillPlayIcon.setAttribute('data-lucide', isPlaying ? 'pause' : 'play');
-  }
-
-  if (pill) {
-    pill.classList.toggle('playing', !!isPlaying);
-  }
-
-  if (wave) {
-    wave.classList.toggle('playing', !!isPlaying);
-  }
-
-  // If playing in background with floating window closed and not docked, show pill
-  const win = document.getElementById('floating-sounddog-window');
-  if (pill) {
-    const isFloatingOpen = win && win.style.display !== 'none';
-    const isDocked = App.panes && App.panes.some(p => p && p.dockedTool === 'sounddog');
-    if (isPlaying && !isFloatingOpen && !isDocked) {
-      pill.style.display = 'flex';
-      updateSoundDogPill();
-      updateSoundDogScrubber();
-    }
-  }
-
-  if (window.lucide) {
-    try { lucide.createIcons(); } catch (e) {}
-  }
-
-  updateSoundDogDockedHUD();
-  if (typeof updateAppDocumentTitle === 'function') {
-    updateAppDocumentTitle();
-  }
+function addTracksToSoundDogQueue(paths, autoPlayFirst = false, paneIndex = null) {
+  addTracksToMediaPlaylist(paths, autoPlayFirst, paneIndex);
 }
 
-function updateSoundDogHUD(track) {
-  if (!track) return;
-
-  const headerTitle = document.getElementById('sounddog-header-title');
-  const trackTitle = document.getElementById('sounddog-track-title');
-  const trackArtist = document.getElementById('sounddog-track-artist');
-  const formatBadge = document.getElementById('sounddog-format-badge');
-  const kbpsPill = document.getElementById('sounddog-tech-bitrate');
-  const khzPill = document.getElementById('sounddog-tech-samplerate');
-
-  const idxNum = sounddogState.currentIndex + 1;
-  const displayTitle = track.artist ? `${track.artist} - ${track.title}` : (track.title || track.name);
-  const ext = (track.name.split('.').pop() || 'AUDIO').toUpperCase();
-  const isSynth = isTrackerOrMidiExtension(track.name);
-
-  if (headerTitle) headerTitle.textContent = `${idxNum}. ${displayTitle}`;
-  if (trackTitle) trackTitle.textContent = track.title || track.name;
-  if (trackArtist) trackArtist.textContent = track.artist || (isSynth ? 'Chiptune Synthesizer' : 'Audioplayer Jukebox');
-  if (typeof updateAppDocumentTitle === 'function') {
-    updateAppDocumentTitle();
-  }
-  if (formatBadge) formatBadge.textContent = ext;
-  if (kbpsPill) kbpsPill.textContent = `${track.bitrate || '320'} KBPS`;
-  if (khzPill) khzPill.textContent = `${track.sampleRate || '44.1'} KHZ`;
-
-  // Media Session metadata for OS lockscreen & hardware keys
-  if ('mediaSession' in navigator) {
-    try {
-      navigator.mediaSession.metadata = new MediaMetadata({
-        title: track.title || track.name,
-        artist: track.artist || 'Audioplayer',
-        album: track.album || 'Audioplayer Jukebox',
-        artwork: [{ src: track.cover || 'assets/amber-media.webp', sizes: '128x128', type: 'image/webp' }]
-      });
-
-      navigator.mediaSession.setActionHandler('play', () => toggleSoundDogPlay());
-      navigator.mediaSession.setActionHandler('pause', () => toggleSoundDogPlay());
-      navigator.mediaSession.setActionHandler('previoustrack', () => playPrevSoundDogTrack());
-      navigator.mediaSession.setActionHandler('nexttrack', () => playNextSoundDogTrack());
-    } catch (e) {}
-  }
+function addCurrentPaneFolderToSoundDog(paneIndex = null) {
+  populateMediaPlaylistFromActivePane();
 }
 
-function resetSoundDogHUD() {
-  const headerTitle = document.getElementById('sounddog-header-title');
-  const trackTitle = document.getElementById('sounddog-track-title');
-  const trackArtist = document.getElementById('sounddog-track-artist');
-  const timeCur = document.getElementById('sounddog-time-current');
-  const timeTot = document.getElementById('sounddog-time-total');
-  const timeBadge = document.getElementById('sounddog-track-time-badge');
-
-  if (headerTitle) headerTitle.textContent = 'No audio loaded';
-  if (trackTitle) trackTitle.textContent = 'Audioplayer';
-  if (trackArtist) trackArtist.textContent = 'Woofsons Lab Jukebox';
-  if (timeCur) timeCur.textContent = '00:00';
-  if (timeTot) timeTot.textContent = '00:00';
-  if (timeBadge) timeBadge.textContent = '00:00';
-
-  const progEl = document.getElementById('sounddog-scrubber-progress');
-  const thumbEl = document.getElementById('sounddog-scrubber-thumb');
-  if (progEl) progEl.style.width = '0%';
-  if (thumbEl) thumbEl.style.left = '0%';
+async function addDirectoryToSoundDog(dirPath, autoPlay = true, paneIndex = null) {
+  addDirectoryToMediaPlaylist(dirPath, autoPlay, paneIndex);
 }
 
-function updateSoundDogPill() {
-  const pillTitle = document.getElementById('sounddog-pill-title');
-  const pillPlayIcon = document.getElementById('sounddog-pill-play-icon');
-  const pill = document.getElementById('sounddog-pill');
-  const wave = document.getElementById('sounddog-pill-wave');
-
-  if (pillTitle) {
-    if (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
-      const cur = sounddogState.queue[sounddogState.currentIndex];
-      pillTitle.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
-    } else {
-      pillTitle.textContent = 'Audioplayer';
-    }
-  }
-
-  if (pillPlayIcon) {
-    pillPlayIcon.setAttribute('data-lucide', sounddogState.isPlaying ? 'pause' : 'play');
-  }
-
-  if (pill) {
-    pill.classList.toggle('playing', !!sounddogState.isPlaying);
-  }
-
-  if (wave) {
-    wave.classList.toggle('playing', !!sounddogState.isPlaying);
-  }
-
-  if (window.lucide) {
-    try { lucide.createIcons(); } catch (e) {}
-  }
+function dockSoundDogToActivePane() {
+  dockMediaPlayerToActivePane();
 }
 
-function updateSoundDogDockedHUD() {
-  App.panes.forEach((p, idx) => {
-    if (p.dockedTool === 'sounddog') {
-      const btn = document.getElementById(`docked-sounddog-play-btn-${idx}`);
-      if (btn) {
-        btn.setAttribute('data-lucide', sounddogState.isPlaying ? 'pause' : 'play');
-        if (window.lucide) {
-          try { lucide.createIcons({ root: btn.parentElement }); } catch (e) {}
-        }
-      }
-      const titleEl = document.getElementById(`docked-sounddog-track-${idx}`);
-      if (titleEl && sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) {
-        const cur = sounddogState.queue[sounddogState.currentIndex];
-        titleEl.textContent = cur.artist ? `${cur.artist} - ${cur.title}` : (cur.title || cur.name);
-      }
-    }
-  });
-}
-
-// ---------------- 60 FPS REAL-TIME VISUALIZER ----------------
-function cycleSoundDogVizMode() {
-  const modes = ['bars', 'wave', 'glow', 'off'];
-  const curIdx = modes.indexOf(sounddogState.vizMode);
-  const nextMode = modes[(curIdx + 1) % modes.length];
-  sounddogState.vizMode = nextMode;
-  localStorage.setItem('cd_sounddog_viz', nextMode);
-  showToast(`Visualizer: ${nextMode.toUpperCase()}`, 'info');
-
-  if (nextMode === 'off') {
-    const canvas = document.getElementById('sounddog-visualizer-canvas');
-    if (canvas) {
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-    }
-  } else {
-    startSoundDogVisualizer();
-  }
-}
-
-function startSoundDogVisualizer() {
-  if (sounddogAnimFrame) cancelAnimationFrame(sounddogAnimFrame);
-
-  const canvas = document.getElementById('sounddog-visualizer-canvas');
-  if (!canvas || sounddogState.vizMode === 'off') return;
-
-  const ctx = canvas.getContext('2d');
-  const bufferLength = sounddogAnalyserNode ? sounddogAnalyserNode.frequencyBinCount : 128;
-  const dataArray = new Uint8Array(bufferLength);
-
-  function renderVisualizer() {
-    if (!sounddogState.isPlaying || sounddogState.vizMode === 'off') {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      return;
-    }
-
-    sounddogAnimFrame = requestAnimationFrame(renderVisualizer);
-
-    const width = canvas.width;
-    const height = canvas.height;
-    ctx.clearRect(0, 0, width, height);
-
-    if (sounddogState.vizMode === 'bars') {
-      sounddogAnalyserNode.getByteFrequencyData(dataArray);
-      const barCount = 20;
-      const barWidth = Math.max(2, Math.floor((width - (barCount * 2)) / barCount));
-      const barGap = 2;
-      const step = Math.floor(bufferLength / barCount);
-
-      for (let i = 0; i < barCount; i++) {
-        const val = dataArray[i * step] / 255;
-        const barHeight = Math.max(1, Math.floor(val * (height - 2)));
-        const x = i * (barWidth + barGap) + 2;
-
-        // Falling Peak Indicator
-        if (barHeight >= (sounddogState.visPeakArray[i] || 0)) {
-          sounddogState.visPeakArray[i] = barHeight;
-          sounddogState.visPeakDecay[i] = 0;
-        } else {
-          sounddogState.visPeakDecay[i] = (sounddogState.visPeakDecay[i] || 0) + 0.2;
-          sounddogState.visPeakArray[i] = Math.max(0, sounddogState.visPeakArray[i] - sounddogState.visPeakDecay[i]);
-        }
-
-        // Draw segmented LED bar
-        for (let segY = height - 1; segY >= height - barHeight; segY -= 3) {
-          const normY = (height - segY) / height;
-          if (normY > 0.8) ctx.fillStyle = '#ef4444'; // Red peak
-          else if (normY > 0.55) ctx.fillStyle = '#fbbf24'; // Amber
-          else ctx.fillStyle = '#f59e0b'; // Amber Charcoal accent
-
-          ctx.fillRect(x, segY, barWidth, 2);
-        }
-
-        // Draw falling peak cap
-        const peakY = height - Math.floor(sounddogState.visPeakArray[i] || 0);
-        if (peakY < height && peakY >= 0) {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(x, peakY, barWidth, 1.5);
-        }
-      }
-    } else if (sounddogState.vizMode === 'wave') {
-      sounddogAnalyserNode.getByteTimeDomainData(dataArray);
-      ctx.lineWidth = 1.5;
-      ctx.strokeStyle = '#f59e0b';
-      ctx.shadowColor = 'rgba(245, 158, 11, 0.8)';
-      ctx.shadowBlur = 6;
-
-      ctx.beginPath();
-      const sliceWidth = width / bufferLength;
-      let x = 0;
-
-      for (let i = 0; i < bufferLength; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = (v * height) / 2;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-        x += sliceWidth;
-      }
-
-      ctx.stroke();
-    } else if (sounddogState.vizMode === 'glow') {
-      sounddogAnalyserNode.getByteFrequencyData(dataArray);
-      let avg = 0;
-      for (let i = 0; i < 16; i++) avg += dataArray[i];
-      avg = (avg / 16) / 255;
-
-      const grad = ctx.createRadialGradient(width / 2, height / 2, 1, width / 2, height / 2, width / 2);
-      grad.addColorStop(0, `rgba(245, 158, 11, ${avg * 0.9})`);
-      grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, width, height);
-    }
-  }
-
-  renderVisualizer();
-}
-
-// ---------------- 10-BAND GRAPHIC EQUALIZER CONTROLS ----------------
-function applySoundDogEqPreset(presetName, updateSelect = true) {
-  const gains = SOUNDDOG_EQ_PRESETS[presetName] || SOUNDDOG_EQ_PRESETS.flat;
-  sounddogState.eq.preset = presetName;
-  localStorage.setItem('cd_sounddog_eq_preset', presetName);
-
-  gains.forEach((gain, idx) => {
-    setSoundDogEqBand(idx, gain, false);
-  });
-
-  if (updateSelect) {
-    const sel = document.getElementById('sounddog-eq-preset-select');
-    if (sel) sel.value = presetName;
-  }
-}
-
-function setSoundDogEqBand(bandIdx, dbValue, isCustom = true) {
-  const val = parseFloat(dbValue);
-  sounddogState.eq.bands[bandIdx] = val;
-
-  if (sounddogEqFilters[bandIdx] && sounddogAudioCtx && sounddogState.eqEnabled) {
-    sounddogEqFilters[bandIdx].gain.setValueAtTime(val, sounddogAudioCtx.currentTime);
-  }
-
-  const slider = document.getElementById(`sounddog-eq-band-${bandIdx}`);
-  const dbLabel = document.getElementById(`sounddog-eq-db-${bandIdx}`);
-
-  if (slider) slider.value = val.toString();
-  if (dbLabel) dbLabel.textContent = `${val > 0 ? '+' : ''}${val.toFixed(0)}`;
-
-  if (isCustom) {
-    sounddogState.eq.preset = 'custom';
-    const sel = document.getElementById('sounddog-eq-preset-select');
-    if (sel) sel.value = 'custom';
-  }
-}
-
-function toggleSoundDogEqEnabled() {
-  sounddogState.eqEnabled = !sounddogState.eqEnabled;
-  const btn = document.getElementById('btn-sounddog-eq-power');
-  if (btn) {
-    btn.textContent = sounddogState.eqEnabled ? 'ON' : 'OFF';
-    btn.classList.toggle('btn-accent', sounddogState.eqEnabled);
-    btn.classList.toggle('btn-outline', !sounddogState.eqEnabled);
-  }
-
-  if (sounddogAudioCtx) {
-    sounddogEqFilters.forEach((f, idx) => {
-      const targetGain = sounddogState.eqEnabled ? sounddogState.eq.bands[idx] : 0;
-      f.gain.setValueAtTime(targetGain, sounddogAudioCtx.currentTime);
-    });
-  }
-}
-
-// ---------------- ID3 METADATA PARSER ----------------
-async function parseSoundDogMetadata(track) {
-  if (!track || !track.path) return;
-
-  try {
-    const streamUrl = getDownloadUrl(track.path, true, track.paneIndex);
-    const authHeaders = (track.paneIndex !== undefined && track.paneIndex !== null) ? getPaneAuthHeaders(track.paneIndex) : {};
-    const resp = await fetch(streamUrl, {
-      headers: { 'Range': 'bytes=0-131071', ...authHeaders }
-    });
-
-    if (resp.ok || resp.status === 206) {
-      const buffer = await resp.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-
-      if (bytes[0] === 0x49 && bytes[1] === 0x44 && bytes[2] === 0x33) {
-        let offset = 10;
-        const tagSize = ((bytes[6] & 0x7f) << 21) | ((bytes[7] & 0x7f) << 14) | ((bytes[8] & 0x7f) << 7) | (bytes[9] & 0x7f);
-
-        while (offset < Math.min(bytes.length - 10, tagSize)) {
-          const frameId = String.fromCharCode(bytes[offset], bytes[offset+1], bytes[offset+2], bytes[offset+3]);
-          if (!/^[A-Z0-9]{4}$/.test(frameId)) break;
-
-          const frameSize = (bytes[offset+4] << 24) | (bytes[offset+5] << 16) | (bytes[offset+6] << 8) | bytes[offset+7];
-          if (frameSize <= 0 || offset + 10 + frameSize > bytes.length) break;
-
-          const frameData = bytes.slice(offset + 10, offset + 10 + frameSize);
-
-          if (frameId === 'TIT2') {
-            track.title = decodeId3String(frameData);
-          } else if (frameId === 'TPE1') {
-            track.artist = decodeId3String(frameData);
-          } else if (frameId === 'TALB') {
-            track.album = decodeId3String(frameData);
-          } else if (frameId === 'TYER' || frameId === 'TDRC') {
-            track.year = decodeId3String(frameData);
-          } else if (frameId === 'TCON') {
-            track.genre = decodeId3String(frameData);
-          }
-
-          offset += 10 + frameSize;
-        }
-      }
-    }
-  } catch (e) {
-    console.debug('Audioplayer ID3 parse notice:', e);
-  }
-
-  if (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]?.path === track.path) {
-    updateSoundDogHUD(track);
-    renderSoundDogQueue();
-  }
-}
-
-function decodeId3String(bytes) {
-  if (!bytes || bytes.length === 0) return '';
-  const encoding = bytes[0];
-  const strBytes = bytes.slice(1);
-  try {
-    if (encoding === 0) return new TextDecoder('iso-8859-1').decode(strBytes).replace(/\0/g, '').trim();
-    if (encoding === 1) return new TextDecoder('utf-16').decode(strBytes).replace(/\0/g, '').trim();
-    if (encoding === 2) return new TextDecoder('utf-16be').decode(strBytes).replace(/\0/g, '').trim();
-    return new TextDecoder('utf-8').decode(strBytes).replace(/\0/g, '').trim();
-  } catch (e) {
-    return new TextDecoder().decode(strBytes).replace(/\0/g, '').trim();
-  }
-}
-
-function exportSoundDogM3U() {
-  if (sounddogState.queue.length === 0) {
-    showToast('Playlist is empty, nothing to export', 'info');
-    return;
-  }
-
-  let m3u = '#EXTM3U\n';
-  sounddogState.queue.forEach(t => {
-    m3u += `#EXTINF:${Math.round(t.duration || -1)},${t.artist ? `${t.artist} - ` : ''}${t.title || t.name}\n`;
-    m3u += `${t.path}\n`;
-  });
-
-  const blob = new Blob([m3u], { type: 'audio/x-mpegurl' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `Audioplayer_Playlist_${new Date().toISOString().slice(0, 10)}.m3u`;
-  a.click();
-  URL.revokeObjectURL(url);
-  showToast('Playlist exported (.m3u)', 'success');
-}
-
-// ---------------- KEYBOARD SHORTCUTS ----------------
-function initSoundDogKeyboardShortcuts() {
-  window.addEventListener('keydown', (e) => {
-    const win = document.getElementById('floating-sounddog-window');
-    const isSoundDogOpen = win && win.style.display !== 'none';
-    if (!isSoundDogOpen) return;
-
-    // Ignore if typing inside text fields
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(e.target.tagName)) return;
-
-    // Alt + Hotkeys
-    if (e.altKey) {
-      if (e.key === 'p' || e.key === 'P') {
-        e.preventDefault();
-        toggleSoundDogPlaylistDrawer();
-        return;
-      }
-    }
-
-    // Playback Hotkeys (Space, Z, X, C, V, B, L, S, R, E, M)
-    const key = e.key.toLowerCase();
-    switch (key) {
-      case ' ':
-      case 'x':
-      case 'c':
-        e.preventDefault();
-        toggleSoundDogPlay();
-        break;
-      case 'z':
-        e.preventDefault();
-        playPrevSoundDogTrack();
-        break;
-      case 'v':
-        e.preventDefault();
-        stopSoundDogPlay();
-        break;
-      case 'b':
-        e.preventDefault();
-        playNextSoundDogTrack();
-        break;
-      case 'l':
-        e.preventDefault();
-        triggerSoundDogOpenFiles();
-        break;
-      case 's':
-        e.preventDefault();
-        toggleSoundDogShuffle();
-        break;
-      case 'r':
-        e.preventDefault();
-        cycleSoundDogRepeat();
-        break;
-      case 'e':
-        e.preventDefault();
-        toggleSoundDogEqDrawer();
-        break;
-      case 'm':
-        e.preventDefault();
-        toggleSoundDogMute();
-        break;
-      case 'arrowleft':
-        e.preventDefault();
-        skipSoundDog(-10);
-        break;
-      case 'arrowright':
-        e.preventDefault();
-        skipSoundDog(10);
-        break;
-      case 'arrowup':
-        e.preventDefault();
-        setSoundDogVolume(sounddogState.volume + 0.05);
-        break;
-      case 'arrowdown':
-        e.preventDefault();
-        setSoundDogVolume(sounddogState.volume - 0.05);
-        break;
-      case 'delete':
-        e.preventDefault();
-        removeSoundDogSelectedTrack();
-        break;
-    }
-  });
-}
-
-// ---------------- DOCKED SOUNDDOG PANE ----------------
 function mountDockedSoundDog(paneIndex) {
-  const host = document.getElementById(`docked-sounddog-host-${paneIndex}`);
-  if (!host) return;
-
-  const currentTrack = (sounddogState.currentIndex >= 0 && sounddogState.queue[sounddogState.currentIndex]) 
-    ? sounddogState.queue[sounddogState.currentIndex] 
-    : null;
-  const displayTitle = currentTrack 
-    ? (currentTrack.artist ? `${currentTrack.artist} - ${currentTrack.title}` : (currentTrack.title || currentTrack.name))
-    : 'No audio loaded';
-  const ext = currentTrack ? (currentTrack.name.split('.').pop() || 'AUDIO').toUpperCase() : 'AUDIO';
-  const isSynth = currentTrack ? isTrackerOrMidiExtension(currentTrack.name) : false;
-
-  host.innerHTML = `
-    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; gap: 6px; overflow: hidden;">
-      <!-- Now Playing Card -->
-      <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;">
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-          <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">
-            <div style="font-size: 11.5px; font-weight: 700; color: var(--text-main); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="docked-sounddog-track-${paneIndex}">
-              ${escapeHtml(displayTitle)}
-            </div>
-            <div style="font-size: 10px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-              <span class="badge" id="docked-sounddog-badge-${paneIndex}" style="font-size: 8.5px; padding: 1px 4px; text-transform: uppercase;">${escapeHtml(ext)}</span>
-              <span id="docked-sounddog-artist-${paneIndex}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(currentTrack?.artist || (isSynth ? 'Chiptune Synthesizer' : 'Woofsons Lab'))}</span>
-            </div>
-          </div>
-          <!-- Mini Wave Visualizer -->
-          <div class="sounddog-pill-wave" id="docked-sounddog-wave-${paneIndex}" style="height: 14px; opacity: ${sounddogState.isPlaying ? '1' : '0.4'};">
-            <span></span><span></span><span></span><span></span>
-          </div>
-        </div>
-
-        <!-- Scrubber Progress Bar & Time Display -->
-        <div style="display: flex; flex-direction: column; gap: 2px;">
-          <div class="audioplayer-scrubber-track" id="docked-sounddog-scrubber-track-${paneIndex}" style="height: 4px; background: rgba(255,255,255,0.12); border-radius: 2px; width: 100%; position: relative; cursor: pointer; overflow: hidden;" onclick="seekSoundDogFromEvent(event)">
-            <div class="audioplayer-scrubber-progress" id="docked-sounddog-scrubber-progress-${paneIndex}" style="height: 100%; background: var(--accent); width: 0%;"></div>
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9.5px; font-family: var(--font-mono); color: var(--text-muted);">
-            <span id="docked-sounddog-time-cur-${paneIndex}">00:00</span>
-            <span id="docked-sounddog-time-tot-${paneIndex}">00:00</span>
-          </div>
-        </div>
-
-        <!-- Transport Action Toolbar (26px buttons per Rule 9) -->
-        <div style="display: flex; align-items: center; justify-content: space-between; gap: 4px; padding-top: 2px;">
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-icon btn-panel-control" onclick="playPrevSoundDogTrack()" title="Previous Track"><i data-lucide="skip-back"></i></button>
-            <button class="btn btn-icon btn-panel-control btn-accent" onclick="toggleSoundDogPlay()" title="Play / Pause"><i data-lucide="${sounddogState.isPlaying ? 'pause' : 'play'}" id="docked-sounddog-play-btn-${paneIndex}"></i></button>
-            <button class="btn btn-icon btn-panel-control" onclick="playNextSoundDogTrack()" title="Next Track"><i data-lucide="skip-forward"></i></button>
-            <button class="btn btn-icon btn-panel-control" onclick="stopSoundDogPlay()" title="Stop"><i data-lucide="square"></i></button>
-          </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-icon btn-panel-control ${sounddogState.isShuffle ? 'active' : ''}" onclick="toggleSoundDogShuffle()" title="Toggle Shuffle"><i data-lucide="shuffle"></i></button>
-            <button class="btn btn-icon btn-panel-control ${sounddogState.repeatMode !== 'off' ? 'active' : ''}" onclick="cycleSoundDogRepeat()" title="Toggle Repeat"><i data-lucide="${sounddogState.repeatMode === 'one' ? 'repeat-1' : 'repeat'}"></i></button>
-            <button class="btn btn-icon btn-panel-control" onclick="triggerSoundDogOpenFiles()" title="Add / Load Audio Files"><i data-lucide="plus"></i></button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Compact Queue List -->
-      <div style="font-size: 10px; font-weight: 700; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center; padding: 2px 2px 0 2px; flex-shrink: 0;">
-        <span>PLAYLIST QUEUE (${sounddogState.queue.length})</span>
-        <button class="btn btn-xs" onclick="clearSoundDogQueue()" style="font-size: 9px; padding: 1px 5px;">Clear</button>
-      </div>
-      <div style="flex: 1; overflow-y: auto; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); padding: 4px; display: flex; flex-direction: column; gap: 2px;" id="docked-sounddog-queue-${paneIndex}">
-        ${sounddogState.queue.length === 0 ? `
-          <div style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 11px;">
-            Playlist empty. Double click audio files or load a folder.
-          </div>
-        ` : sounddogState.queue.map((t, idx) => `
-          <div class="audioplayer-pl-row ${idx === sounddogState.currentIndex ? 'playing' : ''}" 
-               onclick="loadSoundDogTrack(${idx}, true)" 
-               style="padding: 4px 6px; font-size: 10.5px; border-radius: 4px; cursor: pointer; display: flex; align-items: center; justify-content: space-between;">
-            <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1;">
-              <span class="audioplayer-pl-num" style="font-family: var(--font-mono); font-size: 9.5px; opacity: 0.6; min-width: 14px;">${idx + 1}.</span>
-              <span class="audioplayer-pl-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(t.artist ? `${t.artist} - ${t.title}` : (t.title || t.name))}</span>
-            </div>
-            <span class="audioplayer-pl-time" style="font-size: 9.5px; font-family: var(--font-mono); opacity: 0.7; margin-left: 6px;">${t.duration > 0 ? formatMediaTime(t.duration) : '--:--'}</span>
-          </div>
-        `).join('')}
-      </div>
-    </div>
-  `;
-
-  if (window.lucide) {
-    try { lucide.createIcons({ root: host }); } catch (e) {}
-  }
+  mountDockedMediaPlayer(paneIndex);
 }
+
+function setSoundDogVolume(val) {
+  changeMediaVolume(val);
+}
+
+function toggleSoundDogMute() {
+  toggleMediaMute();
+}
+
+function skipSoundDog(secs) {
+  skipMedia(secs);
+}
+
+function clearSoundDogQueue() {
+  clearMediaPlaylist();
+}
+
+function toggleSoundDogPlaylistDrawer() {
+  toggleMediaPlaylistDrawer();
+}
+
+function toggleSoundDogShuffle() {
+  toggleMediaShuffle();
+}
+
+function cycleSoundDogRepeat() {
+  cycleMediaLoop();
+}
+
+function loadSoundDogTrack(index, autoPlay = true) {
+  playMediaPlaylistItem(index);
+}
+
+function updateSoundDogHUD(track) {}
+function updateSoundDogPill() { updateMediaPill(); }
+function updateSoundDogDockedHUD() {}
+function renderSoundDogQueue() { renderMediaPlaylist(); }
+function startSoundDogVisualizer() {}
+function initSoundDogAudioEngine() {}
+function initSoundDogDragAndResize() {}
+function initSoundDogKeyboardShortcuts() {}
+function toggleSoundDogEqDrawer() {}
+function toggleSoundDogTimeMode() {}
+function parseSoundDogMetadata(track) {}
+function exportSoundDogM3U() {}
+function cycleSoundDogVizMode() {}
+function seekSoundDogFromEvent(event) { seekMediaFromBar(event); }
+function removeSoundDogSelectedTrack() {}
+function triggerSoundDogOpenFiles() {
+  const fileInput = document.getElementById('mediaplayer-file-picker');
+  if (fileInput) fileInput.click();
+}
+
 
 // ============================================================================
 // 🐶 COMMANDER FLEET: MULTI-HOST NODE SWITCHER & CLUSTER DIAGNOSTICS (#24)

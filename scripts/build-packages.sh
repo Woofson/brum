@@ -1,27 +1,32 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # Brum - Multi-Format Release Packaging Script
-# Generates: Standalone Tarballs (.tar.gz), Debian (.deb), Alpine (.apk), and Checksums
+# Generates: Standalone Tarballs (.tar.gz), Debian (.deb), Alpine (.apk),
+#            Windows Portable Zip (.zip), and Checksums
 # ==============================================================================
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+cd "${ROOT_DIR}"
+
 VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f2)
 ARCH=$(uname -m)
-DIST_DIR="./dist"
+DIST_DIR="${ROOT_DIR}/dist"
 
 echo "======================================================"
 echo "Building Brum Release Packages (v${VERSION})..."
 echo "======================================================"
 
-# 1. Compile Release Binary
-echo "Compiling standalone release binary..."
+# 1. Compile Release Binary (Linux)
+echo "Compiling standalone Linux release binary..."
 cargo build --release
 
 rm -rf "${DIST_DIR}"
 mkdir -p "${DIST_DIR}"
 
-# 2. Package Generic Tarball
+# 2. Package Generic Linux Tarball
 TARBALL_NAME="brum-v${VERSION}-linux-${ARCH}"
 TARBALL_DIR="/tmp/${TARBALL_NAME}"
 rm -rf "${TARBALL_DIR}"
@@ -32,6 +37,10 @@ cp "./config.toml" "${TARBALL_DIR}/"
 cp "./brum.service" "${TARBALL_DIR}/"
 cp "./LICENSE" "${TARBALL_DIR}/"
 cp "./README.md" "${TARBALL_DIR}/"
+if [ -d "./themes" ]; then
+    mkdir -p "${TARBALL_DIR}/themes"
+    cp ./themes/*.toml "${TARBALL_DIR}/themes/" 2>/dev/null || true
+fi
 if [ -d "./plugins" ]; then
     mkdir -p "${TARBALL_DIR}/plugins"
     cp ./plugins/*.grr "${TARBALL_DIR}/plugins/" 2>/dev/null || true
@@ -54,7 +63,7 @@ elif command -v dpkg-deb >/dev/null 2>&1; then
     echo "📦 Building Debian .deb package via dpkg-deb fallback..."
     DEB_DIR="/tmp/deb-pkg"
     rm -rf "${DEB_DIR}"
-    mkdir -p "${DEB_DIR}/DEBIAN" "${DEB_DIR}/usr/bin" "${DEB_DIR}/etc/brum" "${DEB_DIR}/usr/lib/systemd/system" "${DEB_DIR}/usr/share/pixmaps" "${DEB_DIR}/usr/share/applications" "${DEB_DIR}/usr/share/doc/brum" "${DEB_DIR}/usr/share/brum/plugins"
+    mkdir -p "${DEB_DIR}/DEBIAN" "${DEB_DIR}/usr/bin" "${DEB_DIR}/etc/brum" "${DEB_DIR}/etc/brum/themes" "${DEB_DIR}/usr/lib/systemd/system" "${DEB_DIR}/usr/share/pixmaps" "${DEB_DIR}/usr/share/applications" "${DEB_DIR}/usr/share/doc/brum" "${DEB_DIR}/usr/share/brum/plugins"
     cat << DEBEOF > "${DEB_DIR}/DEBIAN/control"
 Package: brum
 Version: ${VERSION}-1
@@ -69,6 +78,9 @@ Description: Multi-Pane Web Environment (File Commander/Manager)
 DEBEOF
     cp "./target/release/brum" "${DEB_DIR}/usr/bin/"
     cp "./config.toml" "${DEB_DIR}/etc/brum/config.toml"
+    if [ -d "./themes" ]; then
+        cp ./themes/*.toml "${DEB_DIR}/etc/brum/themes/" 2>/dev/null || true
+    fi
     cp "./brum.service" "${DEB_DIR}/usr/lib/systemd/system/"
     if [ -f "./brum.desktop" ]; then
         cp "./brum.desktop" "${DEB_DIR}/usr/share/applications/"
@@ -95,10 +107,13 @@ fi
 # 4. Build Alpine Linux (.apk) Package
 APK_DIR="/tmp/apk-pkg"
 rm -rf "${APK_DIR}"
-mkdir -p "${APK_DIR}/usr/bin" "${APK_DIR}/etc/brum" "${APK_DIR}/usr/share/pixmaps" "${APK_DIR}/usr/share/applications" "${APK_DIR}/usr/share/licenses/brum" "${APK_DIR}/usr/share/doc/brum" "${APK_DIR}/usr/share/brum/plugins"
+mkdir -p "${APK_DIR}/usr/bin" "${APK_DIR}/etc/brum" "${APK_DIR}/etc/brum/themes" "${APK_DIR}/usr/share/pixmaps" "${APK_DIR}/usr/share/applications" "${APK_DIR}/usr/share/licenses/brum" "${APK_DIR}/usr/share/doc/brum" "${APK_DIR}/usr/share/brum/plugins"
 
 cp "./target/release/brum" "${APK_DIR}/usr/bin/"
 cp "./config.toml" "${APK_DIR}/etc/brum/config.toml"
+if [ -d "./themes" ]; then
+    cp ./themes/*.toml "${APK_DIR}/etc/brum/themes/" 2>/dev/null || true
+fi
 if [ -f "./assets/brum.png" ]; then
     cp "./assets/brum.png" "${APK_DIR}/usr/share/pixmaps/brum.png"
 elif [ -f "./assets/128/brum-128.webp" ]; then
@@ -135,7 +150,49 @@ echo "📦 Creating Alpine .apk package (brum-${VERSION}-r0.${ARCH}.apk)..."
 tar -czf "${DIST_DIR}/brum-${VERSION}-r0.${ARCH}.apk" -C "${APK_DIR}" .PKGINFO usr etc
 rm -rf "${APK_DIR}"
 
-# 5. Generate SHA-256 Checksums
+# 5. Build Windows Portable ZIP Package
+echo "📦 Building Windows Portable Package (x86_64-pc-windows-gnu)..."
+if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+    cargo build --release --target x86_64-pc-windows-gnu
+    if [ -f "./target/x86_64-pc-windows-gnu/release/brum.exe" ]; then
+        WIN_DIR="/tmp/brum-v${VERSION}-windows-x86_64"
+        rm -rf "${WIN_DIR}"
+        mkdir -p "${WIN_DIR}" "${WIN_DIR}/themes" "${WIN_DIR}/plugins"
+
+        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/"
+        if command -v x86_64-w64-mingw32-strip >/dev/null 2>&1; then
+            x86_64-w64-mingw32-strip "${WIN_DIR}/brum.exe" 2>/dev/null || true
+        fi
+        cp "./config.toml" "${WIN_DIR}/"
+        cp "./LICENSE" "${WIN_DIR}/"
+        cp "./README.md" "${WIN_DIR}/"
+        if [ -d "./themes" ]; then
+            cp ./themes/*.toml "${WIN_DIR}/themes/" 2>/dev/null || true
+        fi
+        if [ -d "./plugins" ]; then
+            cp ./plugins/*.grr "${WIN_DIR}/plugins/" 2>/dev/null || true
+        fi
+        if [ -f "./packaging/windows/brum.ico" ]; then
+            cp "./packaging/windows/brum.ico" "${WIN_DIR}/"
+        fi
+        if [ -f "./packaging/windows/register-context-menu.reg" ]; then
+            cp "./packaging/windows/register-context-menu.reg" "${WIN_DIR}/"
+        fi
+        if [ -f "./packaging/windows/unregister-context-menu.reg" ]; then
+            cp "./packaging/windows/unregister-context-menu.reg" "${WIN_DIR}/"
+        fi
+
+        (
+            cd /tmp
+            zip -rq "${DIST_DIR}/brum-v${VERSION}-windows-x86_64.zip" "brum-v${VERSION}-windows-x86_64"
+            cp "${DIST_DIR}/brum-v${VERSION}-windows-x86_64.zip" "${DIST_DIR}/brum-windows-portable.zip"
+        )
+        rm -rf "${WIN_DIR}"
+        echo "✅ Created brum-v${VERSION}-windows-x86_64.zip and brum-windows-portable.zip"
+    fi
+fi
+
+# 6. Generate SHA-256 Checksums
 echo "🔒 Generating SHA-256 Checksums..."
 (
     cd "${DIST_DIR}"
@@ -148,4 +205,3 @@ echo "======================================================"
 echo "✅ Build Complete! Release artifacts generated in ./dist/:"
 ls -la "${DIST_DIR}"
 echo "======================================================"
-

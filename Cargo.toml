@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "1.6.0"
+version = "1.6.1"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -149,4 +149,14 @@ assets = [
     ["README.md", "usr/share/doc/brum/README.md", "644"],
     ["plugins/calculator.grr", "usr/share/brum/plugins/calculator.grr", "644"],
     ["plugins/tetrion.grr", "usr/share/brum/plugins/tetrion.grr", "644"],
+    ["themes/amber.toml", "etc/brum/themes/amber.toml", "644"],
+    ["themes/catppuccin.toml", "etc/brum/themes/catppuccin.toml", "644"],
+    ["themes/cyberpunk.toml", "etc/brum/themes/cyberpunk.toml", "644"],
+    ["themes/dracula.toml", "etc/brum/themes/dracula.toml", "644"],
+    ["themes/gruvbox.toml", "etc/brum/themes/gruvbox.toml", "644"],
+    ["themes/kittelsen.toml", "etc/brum/themes/kittelsen.toml", "644"],
+    ["themes/monokai.toml", "etc/brum/themes/monokai.toml", "644"],
+    ["themes/nord.toml", "etc/brum/themes/nord.toml", "644"],
+    ["themes/solarized.toml", "etc/brum/themes/solarized.toml", "644"],
+    ["themes/tokyo-night.toml", "etc/brum/themes/tokyo-night.toml", "644"],
 ]
