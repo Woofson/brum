@@ -21,8 +21,9 @@ Brum provides orthodox keyboard-driven power navigation paired with intuitive mo
 | **`F8`** / **`Delete`** | **Move to Trash** | Safely move selected items to Linux XDG Trash |
 | **`Shift+F8`** / **`Shift+Delete`** | **Permanent Delete** | Irreversibly delete selected files/folders immediately (bypassing Trash) |
 | **`F9`** / **`Ctrl+D`** | **Diff Engine** | Compare files or directories side-by-side |
-| **`F10`** | **Settings Hub** | Open Settings modal (General, Desktop, Themes, Bookmarks, Users, Chewtoys) |
+| **`F10`** | **Settings Hub** | Open Settings modal (General, Desktop, Themes, Bookmarks, Users, Chewtoys, Keybinds) |
 | **`F11`** | **Fullscreen Toggle** | Toggle browser fullscreen workspace |
+| **`Alt+Enter`** | **Properties Dialog** | Open comprehensive 7-tab file/folder properties, permissions, and checksums dialog |
 | **`Escape`** | **Close Modal / Window** | Dismiss active modal dialog, spotlight palette, or floating window |
 
 ---

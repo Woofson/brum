@@ -98,6 +98,7 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ## 5. Windows Filesystem Features
 
+- **Native Windows SAM Authentication (`LogonUserW`)**: Authenticate directly with local Windows accounts or domain credentials against the Windows Security Account Manager (SAM) with automatic `%USERPROFILE%` home directory mapping and Admin group detection.
 - **Drive Letter Navigation**: Switch seamlessly across `C:\`, `D:\`, `E:\`, `Z:\` in breadcrumbs and the quick jump menu.
 - **Environment Variable Expansion**: Navigate directly to `%USERPROFILE%`, `%APPDATA%`, `%LOCALAPPDATA%`, `%TEMP%`, or `~/`.
 - **Windows SMB & UNC Paths**: Open and browse network shares transparently using UNC format (`\\server\share\folder`) or orthodox `smb://user@server/share`.

@@ -79,6 +79,7 @@ todo.txt
 # --- Scratch & Cache Directories ---
 scratch/
 tmp/
+feedback/
 .cache/
 .tempmediaStorage/
 

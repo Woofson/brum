@@ -148,7 +148,7 @@
   <header class="app-header">
     <div class="logo-area" style="display: flex; align-items: center; gap: 8px;">
       <div class="logo-brand-btn" id="btn-logo-about" onclick="openAboutModal()" title="About Brum (Click to open)">
-        <img src="assets/brum_logo.webp" alt="Brum" class="header-logo-img">
+        <img src="assets/brum_happy.webp" alt="Brum" class="header-logo-img" id="header-brand-logo">
         <span class="app-logo-text" style="font-weight: 700;">Brum</span>
       </div>
       <div class="fleet-switcher-wrapper" id="fleet-switcher-wrapper">
@@ -493,7 +493,7 @@
 
   <!-- Windows-Style Comprehensive File & Folder Properties Modal -->
   <div class="modal-overlay" id="properties-modal" style="z-index: 2950;">
-    <div class="modal-box" style="width: 560px; max-width: 95vw; height: 580px; max-height: 90vh; display: flex; flex-direction: column;">
+    <div class="modal-box properties-modal-box" style="width: 620px; max-width: min(620px, 96vw); height: 580px; max-height: 90vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="padding: 10px 16px; border-bottom: 1px solid var(--border);">
         <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
           <span id="prop-header-icon" style="display: inline-flex; align-items: center; margin-right: 4px;"><span class="file-icon-custom-glyph icon-sm" style="color: var(--accent);"></span></span>
@@ -503,7 +503,7 @@
       </div>
 
       <!-- Properties Tabs Header -->
-      <div class="settings-tabs" style="overflow-x: auto; flex-wrap: nowrap;">
+      <div class="settings-tabs properties-tabs-header" style="overflow-x: auto; flex-wrap: nowrap;">
         <button class="settings-tab-btn active" id="btn-prop-tab-general" onclick="switchPropertiesTab('prop-tab-general')"><i data-lucide="info"></i> General</button>
         <button class="settings-tab-btn" id="btn-prop-tab-security" onclick="switchPropertiesTab('prop-tab-security')"><i data-lucide="shield"></i> Security</button>
         <button class="settings-tab-btn" id="btn-prop-tab-metadata" onclick="switchPropertiesTab('prop-tab-metadata')"><i data-lucide="file-text"></i> Metadata</button>
@@ -2742,7 +2742,7 @@
         <div class="settings-tab-content" id="tab-about">
           <!-- Hero Branding Card -->
           <div class="settings-group-card" style="text-align: center; padding: 22px 16px;">
-            <img src="assets/brum_logo.webp" alt="Brum" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 10px;">
+            <img src="assets/brum_happy.webp" id="about-settings-brand-logo" alt="Brum" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s ease;">
             <div style="font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
             <div style="font-size: 11px; color: var(--text-muted); margin: 4px 0 12px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
             <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
@@ -6984,7 +6984,7 @@
     <div class="login-card">
       <div class="login-card-header">
         <div class="login-brand-icon">
-          <img src="assets/brum_clean.webp" alt="Brum" class="login-brand-img" id="login-brand-logo">
+          <img src="assets/brum_happy.webp" alt="Brum" class="login-brand-img" id="login-brand-logo" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)" style="cursor: pointer;">
         </div>
         <div class="login-header-text">
           <h2 class="login-title">
@@ -7221,7 +7221,7 @@
       <div class="modal-body" style="padding: 20px; overflow-y: auto;">
         <!-- Banner & Version Header -->
         <div style="text-align: center; margin-bottom: 18px; padding: 16px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-          <img src="assets/brum_logo.webp" alt="Brum" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 8px;">
+          <img src="assets/brum_happy.webp" id="about-modal-brand-logo" alt="Brum" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 8px; cursor: pointer; transition: transform 0.15s ease;">
           <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
           <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
           <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">

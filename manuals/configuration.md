@@ -24,7 +24,7 @@ Brum discovers its configuration in the following order of precedence:
 
 ```toml
 # ==============================================================================
-# Brum Master Configuration (v1.2.1)
+# Brum Master Configuration (v1.6.0)
 # ==============================================================================
 
 [server]
@@ -132,7 +132,7 @@ global_summon_hotkey = "Super+C"
 default_theme = "amber-charcoal"
 
 [auth]
-# Authentication backend: "pam" (Linux system users) or "internal" (SQLite) or "mixed"
+# Authentication backend: "pam" (Linux PAM) or "windows" (Windows SAM / LogonUserW) or "internal" (SQLite) or "mixed"
 backend = "pam"
 
 # Allow guest / anonymous read-only browsing (default: false)

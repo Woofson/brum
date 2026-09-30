@@ -5,6 +5,32 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-09-30
+
+### Added
+- **Redesigned Login & Lock Screens with Customizable Branding** (Fixes #99):
+  - Modern centered authentication card layout with responsive vertical positioning.
+  - Seamless direct submission dispatch and Enter keypress handling for login and lock screen unlock flows.
+  - Brum mascot mood Easter egg (`brum_happy.webp` and `brum_fierce.webp`) with dynamic mood randomization on load and interactive click-to-toggle animations across header, login card, and About modals.
+- **Customizable Context Menus, Menu Builder & Keybinds Manager** (Fixes #98):
+  - Dynamic context menu customization in Settings Hub with toggleable actions and customizable download archive formats.
+  - Restored clean orthodox ordering with prominent first-level download actions for files (`Save / Download file(s)...`), folders (`Download Folder (.zip)`), and multi-selections (`Save / Download selection (.zip)`).
+  - Right-aligned monospace keyboard shortcut tags (`.context-shortcut`: `F3`, `F4`, `Ctrl+C`, `Ctrl+X`, `Ctrl+V`, `F2`, `F8`, `Alt+Enter`, `Ctrl+M`).
+  - Direct 7-tab Properties dialog modal trigger (`Alt+Enter`).
+- **Native Windows SAM Authentication (`LogonUserW`) & Unified Auth System** (Fixes #84):
+  - Native Windows Security Account Manager (SAM) login integration via `LogonUserW` for Windows local and domain accounts.
+  - Dynamic Windows SAM vs Linux PAM login badges, system username labels, and automatic admin role detection.
+- **Multi-Tab Pane Strip & Properties Dialog Polish**:
+  - Compact pane tab strip (`22px` height, `20px` tab items, `10px` font, `11px` icons) with clean corner geometry and artifact-free active tab states.
+  - Responsive 7-tab Properties window layout (`620px` width) with compact sub-header navigation fitting all tabs cleanly.
+  - Updated high-resolution application screenshots and documentation assets.
+
+### Fixed
+- **Authentication & Lock Screen Input Dispatch**:
+  - Resolved session lock input handling and restored clean lock screen logout flow.
+  - Added standalone and auth-disabled instant login bypass and fallback default admin authentication.
+  - Resolved dynamic Windows SAM vs Linux PAM auth labels and admin badges across UI components.
+
 ## [1.5.0] - 2026-09-29
 
 ### Added
