@@ -12442,31 +12442,29 @@ html.auth-ready .panes-container {
   display: flex !important;
 }
 
-/* Corner Branding */
+/* Corner Branding (Disabled in favor of card header branding) */
 .login-corner-brand {
-  display: none; /* Hidden on PC viewport */
-  position: absolute;
-  top: 24px;
-  left: 28px;
-  align-items: center;
-  gap: 12px;
-  user-select: none;
-  z-index: 10;
-  transition: opacity 0.2s ease;
+  display: none !important;
 }
 
-.login-corner-logo {
-  height: 34px;
-  width: auto;
+.lock-mascot-logo {
+  height: 38px;
+  width: 38px;
   object-fit: contain;
-  filter: drop-shadow(0 2px 10px rgba(245, 158, 11, 0.35));
+  cursor: pointer;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 8px rgba(245, 158, 11, 0.4));
+  transition: transform 0.15s ease, filter 0.15s ease;
+  user-select: none;
 }
 
-.login-corner-name {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--text-main, #f4f4f5);
+.lock-mascot-logo:hover {
+  transform: scale(1.1);
+  filter: drop-shadow(0 3px 12px rgba(245, 158, 11, 0.65));
+}
+
+.lock-mascot-logo:active {
+  transform: scale(0.94);
 }
 
 /* Responsive Auth Text Switches */
@@ -12540,7 +12538,7 @@ html.auth-ready .panes-container {
   }
 
   .login-corner-brand {
-    display: flex !important;
+    display: none !important;
   }
 
   .auth-text-pc {
@@ -12564,8 +12562,7 @@ html.auth-ready .panes-container {
   }
 
   .login-corner-brand {
-    top: 16px;
-    left: 16px;
+    display: none !important;
   }
   .login-corner-version-link {
     bottom: 14px;

@@ -3175,23 +3175,42 @@ const BRUM_MASCOT_LOGOS = [
   { id: 'fierce', src: 'assets/brum_fierce.webp', title: 'Brum (Fierce Mascot)', mood: 'Fierce' }
 ];
 
-function getRandomBrumMascot() {
-  const idx = Math.random() < 0.5 ? 0 : 1;
-  return BRUM_MASCOT_LOGOS[idx];
+let currentSessionBrumMascot = null;
+
+function getOrInitBrumMascot(forceNew = false) {
+  if (!currentSessionBrumMascot || forceNew) {
+    try {
+      const stored = sessionStorage.getItem('cd_session_mascot');
+      if (stored && !forceNew) {
+        currentSessionBrumMascot = BRUM_MASCOT_LOGOS.find(m => m.id === stored) || BRUM_MASCOT_LOGOS[0];
+      } else {
+        const idx = Math.random() < 0.5 ? 0 : 1;
+        currentSessionBrumMascot = BRUM_MASCOT_LOGOS[idx];
+        sessionStorage.setItem('cd_session_mascot', currentSessionBrumMascot.id);
+      }
+    } catch (_) {
+      const idx = Math.random() < 0.5 ? 0 : 1;
+      currentSessionBrumMascot = BRUM_MASCOT_LOGOS[idx];
+    }
+  }
+  return currentSessionBrumMascot;
 }
 
-function randomizeBrumMascot(targetEl = null) {
-  const mascot = getRandomBrumMascot();
+function randomizeBrumMascot(targetEl = null, forceNew = false) {
+  const mascot = getOrInitBrumMascot(forceNew);
   const elements = targetEl ? [targetEl] : [
     document.getElementById('header-brand-logo'),
     document.getElementById('login-brand-logo'),
+    document.getElementById('lock-mascot-logo'),
     document.getElementById('about-modal-brand-logo'),
     document.getElementById('about-settings-brand-logo')
   ].filter(Boolean);
 
   elements.forEach(el => {
     if (el) {
-      el.src = mascot.src;
+      if (el.getAttribute('src') !== mascot.src) {
+        el.src = mascot.src;
+      }
       el.dataset.mascotMood = mascot.id;
       el.title = `Brum (${mascot.mood}) — Click to toggle mood`;
     }
@@ -3204,15 +3223,15 @@ function toggleBrumMascot(event, el = null) {
     if (typeof event.stopPropagation === 'function') event.stopPropagation();
     if (typeof event.preventDefault === 'function') event.preventDefault();
   }
-  const target = el || event?.currentTarget || document.getElementById('login-brand-logo') || document.getElementById('header-brand-logo');
-  if (!target) return;
-
-  const currentMood = target.dataset.mascotMood || (target.src.includes('fierce') ? 'fierce' : 'happy');
+  const currentMood = currentSessionBrumMascot?.id || 'happy';
   const nextMascot = currentMood === 'fierce' ? BRUM_MASCOT_LOGOS[0] : BRUM_MASCOT_LOGOS[1];
+  currentSessionBrumMascot = nextMascot;
+  try { sessionStorage.setItem('cd_session_mascot', nextMascot.id); } catch (_) {}
 
   const allMascots = [
     document.getElementById('header-brand-logo'),
     document.getElementById('login-brand-logo'),
+    document.getElementById('lock-mascot-logo'),
     document.getElementById('about-modal-brand-logo'),
     document.getElementById('about-settings-brand-logo')
   ].filter(Boolean);

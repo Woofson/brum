@@ -101,6 +101,20 @@
             }
           }
 
+          // Early Mascot Mood Hydration (prevents jitter / flickering)
+          try {
+            var storedMascot = sessionStorage.getItem('cd_session_mascot');
+            if (!storedMascot) {
+              storedMascot = Math.random() < 0.5 ? 'happy' : 'fierce';
+              sessionStorage.setItem('cd_session_mascot', storedMascot);
+            }
+            var mascotSrc = storedMascot === 'fierce' ? 'assets/brum_fierce.webp' : 'assets/brum_happy.webp';
+            document.querySelectorAll('#header-brand-logo, #login-brand-logo, #lock-mascot-logo, #about-modal-brand-logo, #about-settings-brand-logo').forEach(function(img) {
+              img.src = mascotSrc;
+              img.dataset.mascotMood = storedMascot;
+            });
+          } catch (_) {}
+
           fetch('/api/system/status').then(function(r) { return r.json(); }).then(function(d) {
             if (d && d.version) {
               localStorage.setItem('cd_cached_version', d.version);
@@ -7964,6 +7978,7 @@
           <div class="lock-user-label" id="lock-username-label"><span id="lock-username-text">Brum User</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@localhost</span></div>
           <div class="lock-sub-text">Session is locked!</div>
         </div>
+        <img src="assets/brum_happy.webp" id="lock-mascot-logo" class="lock-mascot-logo" alt="Brum" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)">
       </div>
       <form id="unlock-form" onsubmit="event.preventDefault(); submitUnlockSession(); return false;">
         <div class="lock-card-body">
