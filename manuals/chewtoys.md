@@ -58,8 +58,8 @@
 │ Obsidian / Joplin      │ Notes Studio                │ Hierarchical Markdown notebook,     │
 │                        │                             │ checklists, revision diff history   │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Winamp / Foobar2000 /  │ Audio Player & Media        │ Windowshade mode, mini-pills,       │
-│ Audacious / XMPlay     │                             │ 10-band EQ, 60fps spectrum, .m3u PL │
+│ Winamp / Foobar2000 /  │ Media Player & Synthesizer  │ Native audio/video player, chiptunes, │
+│ Audacious / VLC / MPC  │                             │ MIDI synth, 60fps visualizer, pills │
 ├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
 │ trash-cli / Recycle    │ XDG Trash Suite & Restore   │ Linux XDG compliance, .trashinfo    │
 │ Bin & rm Safeguards    │ Engine (Places Hub)         │ metadata, 1-click safe restoration  │
@@ -132,11 +132,12 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 
 ---
 
-## 8. Audio Player & Media Player
-* **Modular Winamp-Style & Windowshade**: Compact player, 10-band studio graphic equalizer, and playlist editor.
-* **Floating Mini-Pill Badges**: Minimize playback into an interactive floating pill badge (`#audio-player-pill`) with live elapsed progress, track ticker, and quick play/pause.
-* **Zero-Copy Byte-Range Streaming**: Real-time seeking and scrubbing for multi-gigabyte `.mp3`, `.flac`, `.wav`, `.mp4`, `.webm`, and `.mkv` files.
-* **10-Band EQ & Spectrum Visualizer**: 60 FPS frequency analyzer with 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
+## 8. Media Player & Synthesizer Studio
+* **Unified Audio & Video Engine**: Comprehensive playback for HTML5 video/audio alongside full chiptune, tracker, and Meridian synthesizer playback (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.wma`, `.mid`, `.midi`, `.mod`, `.xm`, `.it`, `.s3m`, `.sid`, `.nsf`, `.vgm`, `.spc`, `.gbs`, `.gym`, `.rgm`, `.rsn`, `.frm`).
+* **Floating Mini-Pill Badges**: Minimize playback into an interactive floating pill badge (`#mediaplayer-pill`) with live elapsed progress, track ticker, and quick play/pause controls.
+* **Zero-Copy Byte-Range Streaming**: Real-time seeking and scrubbing for multi-gigabyte audio and video files.
+* **10-Band EQ & Real-Time Visualizer**: 60 FPS spectrum and waveform visualizers with 8 acoustic presets (*Flat, Bass Boost, Rock, Synthwave, Acoustic/Vocal, Jazz, Classical, Pop*).
+* **Playlists & Aspect Ratio**: Full queue management (`.m3u` export/import), video scaling (16:9, 4:3, Cover, Contain), and automatic subtitle detection.
 
 ---
 

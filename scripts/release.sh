@@ -125,6 +125,11 @@ if [ -f "frontend/index.html" ]; then
     sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+ (Desktop & Web)/v${TARGET_VERSION} (Desktop \& Web)/g" frontend/index.html
 fi
 
+# README.md version badge
+if [ -f "README.md" ]; then
+    sed -i "s/version-v[0-9]\+\.[0-9]\+\.[0-9]\+/version-v${TARGET_VERSION}/g" README.md
+fi
+
 # packaging/PKGBUILD
 if [ -f "packaging/PKGBUILD" ]; then
     sed -i "s/^pkgver=.*/pkgver=${TARGET_VERSION}/" packaging/PKGBUILD
@@ -186,6 +191,11 @@ git add -A
 git commit -m "release: v${TARGET_VERSION}" || echo "No changes to commit"
 git tag -fa "v${TARGET_VERSION}" -m "Release v${TARGET_VERSION}"
 git push origin main --tags -f
+
+if command -v gh >/dev/null 2>&1; then
+    echo "📦 Uploading assets to GitHub Release v${TARGET_VERSION}..."
+    gh release create "v${TARGET_VERSION}" dist/* --title "v${TARGET_VERSION}" --generate-notes || gh release upload "v${TARGET_VERSION}" dist/* --clobber || true
+fi
 
 # ------------------------------------------------------------------------------
 # 6. FETCH SOURCE TARBALL SHA256 & SYNC PKGBUILD

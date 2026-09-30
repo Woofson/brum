@@ -4,7 +4,7 @@
   <img src="assets/brum2.png" alt="Brum Web & Desktop Environment" width="800" />
   <p><em>Multi-Pane Web Environment (File Commander/Manager) — By Woofson</em></p>
   <p>
-    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.5.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
+    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.6.1-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
     <a href="https://crates.io/crates/brum"><img src="https://img.shields.io/crates/v/brum?style=flat-square&color=f59e0b" alt="Crates.io" /></a>
     <img src="https://img.shields.io/badge/rust-2021_edition-orange?style=flat-square" alt="Rust 2021" />
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License MIT" />
@@ -19,7 +19,7 @@
 ## Why Brum?
 
 * **Instant 0ms Orthodox Multi-Pane Manager**: 1-to-4 dynamic panels (`Alt+1`–`4`), orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), fast branch view, frame-0 optimistic pre-rendering, and directory fast caching.
-* **Dual-Mode Floating & Dockable Core Functions**: 19+ integrated native power tools that freely toggle between floating desktop windows and in-pane docking with zero iframe overhead (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage Analyzer, Notes, Audio Player, Media Player, Persistent Terminal, Duplicate Finder, Batch Renamer, Hex Editor, Tag Editor, Log Viewer, Format Converter, Delta Backup, and XDG Trash Suite).
+* **Dual-Mode Floating & Dockable Core Functions**: 19+ integrated native power tools that freely toggle between floating desktop windows and in-pane docking with zero iframe overhead (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage Analyzer, Notes, Media Player with Chiptune & MIDI Synthesizer, Persistent Terminal, Duplicate Finder, Batch Renamer, Hex Editor, Tag Editor, Log Viewer, Format Converter, Delta Backup, and XDG Trash Suite).
 * **Distributed Fleet Management & Reverse Proxy Gateway**: Connect, monitor, and manage remote Brum nodes across LAN/WAN with node-aware Places navigation, home auto-discovery, custom start paths, health diagnostics, and built-in Gateway Hub reverse proxy routing for REST and WebSockets.
 * **Removable & USB Storage Automation**: Native hardware auto-detection for USB sticks and external drives with one-click mount, unmount, and eject management.
 * **Modular Theme Engine & Custom Styling**: External `./themes/*.toml` theme files, live theme switching, custom UI gaps, border-radius, folder colors, and window title templates.
@@ -69,7 +69,7 @@ cargo run --release        # Open http://localhost:3140 in your browser
 | **Sharing Center** | Public file & folder link sharing, passcodes, expiration rules, client upload dropzones | Nextcloud Share / Dropbox |
 | **Disk Usage Analyzer** | Interactive disk usage analyzer, directory distribution bar charts & top files inspector | WinDirStat / Baobab / ncdu |
 | **Notes** | SQLite-backed Markdown notebook, checklists, version snapshots, and encrypted notes | Obsidian / Joplin |
-| **Audio Player & Media** | Audio player, mini-pills, windowshade mode, 10-band EQ, 60 FPS visualizer, .m3u playlists | Winamp / XMPlay |
+| **Media Player** | Multi-format audio & video player, chiptune/tracker/MIDI synth, visualizer, playlists & background pill | VLC / MPC-HC / Winamp |
 | **Bite! Terminal** | Persistent slide-up WebSocket PTY terminal with bundled JetBrainsMono Nerd Fonts | PuTTY / Web SSH |
 | **XDG Trash Suite** | Linux XDG specification-compliant trash bin, `.trashinfo` metadata & 1-click restore | trash-cli / Recycle Bin |
 | **Duplicate Finder** | Multi-stage hash scanner (Blake3, SHA-256, MD5) with smart cleanup and filters | Czkawka / DupeGuru |
@@ -89,8 +89,8 @@ cargo run --release        # Open http://localhost:3140 in your browser
 
 All operational runbooks, platform guides, and security manuals are available on the [**Official GitHub Wiki**](https://github.com/Woofson/brum/wiki) and organized in [**`manuals/`**](manuals/README.md):
 
-* [**Power Tools & Chewtoys Manual**](manuals/chewtoys.md) — 3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Audio Player, Terminal, Vaults.
-* [**Keyboard Shortcuts & Navigation**](manuals/shortcuts.md) — Orthodox <kbd>F1</kbd>–<kbd>F10</kbd> keys, audio player keys, touch gestures.
+* [**Power Tools & Chewtoys Manual**](manuals/chewtoys.md) — 3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Media Player, Terminal, Vaults.
+* [**Keyboard Shortcuts & Navigation**](manuals/shortcuts.md) — Orthodox <kbd>F1</kbd>–<kbd>F10</kbd> keys, media player keys, touch gestures.
 * [**Configuration Guide (`config.toml`)**](manuals/configuration.md) — Master config options, storage roots, sandboxing.
 * [**Remote Protocols & VFS Guide**](manuals/protocols.md) — SFTP, SMB, NFS, WebDAV, S3, Proton Drive, Hetzner.
 * [**Transparent Encrypted Vaults Guide**](manuals/vaults.md) — Argon2id + AES-256-GCM in-memory containers.

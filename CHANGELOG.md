@@ -5,6 +5,26 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.1] - 2026-09-30
+
+### Added
+- **Unified Media Player Engine & Core Function Consolidation** (Fixes #100):
+  - Consolidated Audioplayer and Media Player into a single, unified native **Media Player** Core Function with zero iframe overhead.
+  - Added comprehensive playback support for HTML5 video/audio alongside chiptunes, trackers, and Meridian synthesizer formats (`.mp3`, `.flac`, `.wav`, `.ogg`, `.m4a`, `.aac`, `.opus`, `.wma`, `.mid`, `.midi`, `.mod`, `.xm`, `.it`, `.s3m`, `.sid`, `.nsf`, `.vgm`, `.spc`, `.gbs`, `.gym`, `.rgm`, `.rsn`, `.frm`).
+  - Added real-time audio visualizers, 10-band graphic equalizer, playlist queuing (`addTracksToMediaPlaylist`, `addDirectoryToMediaPlaylist`), subtitle detection, and aspect ratio controls.
+  - Implemented intuitive window lifecycle: closing terminates playback and dismisses UI, while minimizing seamlessly transitions audio/video to the floating background pill (`#mediaplayer-pill`).
+  - Maintained backward-compatible API proxies and aliases for legacy callers and chewtoys.
+- **Enhanced Multi-Format Packaging & Theme Bundling**:
+  - Bundled all 10 theme presets (`themes/*.toml`) directly into Debian (`/etc/brum/themes/`), Alpine Linux, generic Linux tarballs, and Windows portable ZIP packages.
+  - Added automated Windows x86_64 portable ZIP distribution builder (`dist/brum-v1.6.1-windows-x86_64.zip` and `dist/brum-windows-portable.zip`).
+
+### Fixed
+- **UI & DOM Optimization**:
+  - Cleaned up over 3,000 lines of obsolete DOM elements, legacy Audioplayer CSS rules, and duplicate helper routines.
+  - Pruned unused 128x128 icons from embedded frontend assets to optimize binary size while preserving canonical packaging assets.
+- **Authentication & Mascot Polish** (Fixes #101):
+  - Resolved mascot layout jitter, corner branding alignment, and session lock avatar integration.
+
 ## [1.6.0] - 2026-09-30
 
 ### Added

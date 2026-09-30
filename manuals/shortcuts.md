@@ -64,7 +64,7 @@ Brum provides orthodox keyboard-driven power navigation paired with intuitive mo
 
 ---
 
-## Audio Player (Winamp 2.x Engine) Shortcuts
+## Media Player & Synthesizer Shortcuts
 
 | Key | Action |
 | :--- | :--- |
