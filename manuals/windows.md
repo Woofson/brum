@@ -38,14 +38,14 @@ scoop install brum
 ```
 
 ### C. Inno Setup Windows Installer (`.exe`)
-1. Download `Brum-Setup-v1.2.1.exe` from [GitHub Releases](https://github.com/Woofson/brum/releases).
+1. Download `Brum-Setup-v1.6.1.exe` from [GitHub Releases](https://github.com/Woofson/brum/releases).
 2. Choose between **Desktop GUI Application** or **Background Windows Service (SCM)** mode.
 3. Automatically sets up Start Menu items, Desktop shortcuts, Context Menu integrations, and `%PROGRAMDATA%\Brum\` configuration roots.
 
 ### D. Zero-Install Standalone Portable ZIP
-1. Download `brum-v1.2.1-windows-x86_64.zip`.
+1. Download `brum-windows-portable.zip` (or `brum-v1.6.1-windows-x86_64.zip`).
 2. Extract anywhere (e.g. `C:\Tools\Brum` or a USB drive).
-3. Double-click `Brum.exe` or `brum.exe` — settings and database are saved portably in the local folder or `%APPDATA%\Brum\`.
+3. Double-click `Brum.exe` or `brum.exe` — includes bundled `./themes/` folder and `config.toml`. Settings and database are saved portably in the local folder or `%APPDATA%\Brum\`.
 
 ---
 
@@ -111,8 +111,8 @@ reg import packaging\windows\unregister-context-menu.reg
 ## 6. Windows PE Metadata & Build Inspection
 
 Windows executables (`brum.exe` and `Brum.exe`) automatically embed PE Version Resources:
-* **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.2.1.419`).
-* **Product Version**: Formatted as full SemVer 2.0.0 metadata (e.g. `1.2.1+build.419.git.8f42092`).
+* **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.6.1.419`).
+* **Product Version**: Formatted as full SemVer 2.0.0 metadata (e.g. `1.6.1+build.419.git.8f42092`).
 * **File Properties**: Right-click `brum.exe` in Windows Explorer -> **Properties** -> **Details** tab to view the exact build number, product version, and lab copyright information.
 
 ---
@@ -168,8 +168,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 Build outputs are placed in `dist\windows\`:
-- `dist\windows\brum-v1.2.1-windows-x86_64.zip` (Portable Distribution)
-- `dist\windows\Brum-Setup-v1.2.1.exe` (Inno Setup Installer)
+- `dist\windows\brum-v1.6.1-windows-x86_64.zip` / `brum-windows-portable.zip` (Portable Distribution)
+- `dist\windows\Brum-Setup-v1.6.1.exe` (Inno Setup Installer)
 - `dist\windows\SHA256SUMS.txt` (Integrity Hashes)
 
 ---

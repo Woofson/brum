@@ -11,7 +11,7 @@ Welcome to the **Brum** manual and documentation index.
 ### Core Features & Usage
 | Manual | Description |
 | :--- | :--- |
-| [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for Native Core Functions & Chewtoys (3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Audio Player, Terminal, Format Converter, Batch Renamer, Vaults, Fleet Manager) |
+| [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for Native Core Functions & Chewtoys (3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Media Player, Terminal, Format Converter, Batch Renamer, Vaults, Fleet Manager) |
 | [**`plugin-development.md`**](plugin-development.md) | Modular Chewtoy & Plugin development guide: `.grr` package standard, `plugin.toml`, `window.Brum` SDK & Admin RBAC |
 | [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, player hotkeys, and mouse/touch gestures |
 | [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, fallback schemes, Fleet nodes, OIDC SSO, UI options) |

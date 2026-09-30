@@ -86,7 +86,7 @@ If you prefer using full Linux distributions on Android without Termux's custom 
    ```
 2. Inside Alpine Linux, install the official Brum `.apk` package:
    ```bash
-   apk add --allow-untrusted https://github.com/Woofson/brum/releases/download/v1.0.0/brum-1.0.0-r0.x86_64.apk
+   apk add --allow-untrusted https://github.com/Woofson/brum/releases/download/v1.6.1/brum-1.6.1-r0.x86_64.apk
    brum --host 0.0.0.0 --port 3140
    ```
 
@@ -94,9 +94,9 @@ If you prefer using full Linux distributions on Android without Termux's custom 
 1. Launch an Alpine or Debian session in UserLAnd.
 2. Download the generic Linux binary tarball:
    ```bash
-   curl -LO https://github.com/Woofson/brum/releases/latest/download/brum-v1.0.0-linux-x86_64.tar.gz
-   tar -xzf brum-v1.0.0-linux-x86_64.tar.gz
-   cd brum-v1.0.0-linux-x86_64
+   curl -LO https://github.com/Woofson/brum/releases/latest/download/brum-v1.6.1-linux-x86_64.tar.gz
+   tar -xzf brum-v1.6.1-linux-x86_64.tar.gz
+   cd brum-v1.6.1-linux-x86_64
    ./brum
    ```
 

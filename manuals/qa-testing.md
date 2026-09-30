@@ -1,7 +1,7 @@
 # Brum QA Testing & Verification Manual
 
-> **Document Version**: `3.5.0`  
-> **Target Release**: `Brum v1.5.0`  
+> **Document Version**: `3.6.1`  
+> **Target Release**: `Brum v1.6.1`  
 > **Maintainer**: Bolt J. Woofson <bolt@boop.no>  
 > **Repository**: [Woofson/brum](https://github.com/Woofson/brum)
 
@@ -155,5 +155,5 @@ Manual testing must be executed whenever UI layout, touch interactions, responsi
 | **Fleet & Gateway Hub** | **Reverse Proxy & Terminal WS** | _____ / 6 | | | `[ ] PASS` / `[ ] FAIL` |
 
 ### Final Release Decision
-- [x] **RELEASE 1.5.0 APPROVED** (All 96+ automated backend tests passing + manual verification complete)
+- [x] **RELEASE 1.6.1 APPROVED** (All 96+ automated backend tests passing + manual verification complete)
 
