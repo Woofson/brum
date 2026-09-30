@@ -47,10 +47,11 @@ At the end of every response after making changes, **always clearly inform the u
 * **Command: `"push and release"`**:
   * Commit, tag, push, and execute release automation across **ALL** distribution channels via `scripts/release.sh`:
     1. **GitHub Release & Tags**: Tagged release on GitHub.
-    2. **Arch Linux AUR**: `commanderdog` (source) and `commanderdog-bin` PKGBUILDs.
-    3. **Docker / GHCR**: `ghcr.io/woofson/commanderdog`.
-    4. **Crates.io**: `cargo publish` using the `arf-` prefix rule (`arf-cmdr`).
+    2. **Arch Linux AUR**: `brum` (source) and `brum-bin` PKGBUILDs.
+    3. **Docker / GHCR**: `ghcr.io/woofson/brum`.
+    4. **Crates.io**: `cargo publish` package.
     5. **Windows**: Scoop bucket and Winget package manifests (`packaging/windows/`).
+    6. **GitHub Wiki Synchronization**: Synchronize all Wiki pages (`Woofson/brum.wiki`), manual runbooks (`manuals/`), version badges, and release links via `scripts/sync-wiki.sh`.
 
 ---
 

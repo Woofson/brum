@@ -29,6 +29,7 @@ cd "${ROOT_DIR}"
 CURRENT_VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f2)
 SKIP_AUR=false
 SKIP_CRATES=false
+SKIP_WIKI=false
 TARGET_VERSION=""
 
 for arg in "$@"; do
@@ -38,6 +39,9 @@ for arg in "$@"; do
             ;;
         --skip-crates)
             SKIP_CRATES=true
+            ;;
+        --skip-wiki)
+            SKIP_WIKI=true
             ;;
         patch|minor|major)
             BUMP_TYPE="$arg"
@@ -168,6 +172,33 @@ if [ -f "packaging/windows/winget/Woofson.Brum.installer.yaml" ]; then
     sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.Brum.installer.yaml
     sed -i "s/download\/v[^\/]*\//download\/v${TARGET_VERSION}\//g" packaging/windows/winget/Woofson.Brum.installer.yaml
     sed -i "s/Brum_[0-9]\+\.[0-9]\+\.[0-9]\+[^_]*_/Brum_${TARGET_VERSION}_/g" packaging/windows/winget/Woofson.Brum.installer.yaml
+fi
+
+# manuals/*.md documentation version alignment
+if [ -f "manuals/windows.md" ]; then
+    sed -i "s/Brum-Setup-v[0-9]\+\.[0-9]\+\.[0-9]\+\.exe/Brum-Setup-v${TARGET_VERSION}.exe/g" manuals/windows.md
+    sed -i "s/brum-v[0-9]\+\.[0-9]\+\.[0-9]\+-windows/brum-v${TARGET_VERSION}-windows/g" manuals/windows.md
+    sed -i "s/e\.g\. [0-9]\+\.[0-9]\+\.[0-9]\+\.419/e.g. ${TARGET_VERSION}.419/g" manuals/windows.md
+    sed -i "s/e\.g\. [0-9]\+\.[0-9]\+\.[0-9]\++build/e.g. ${TARGET_VERSION}+build/g" manuals/windows.md
+fi
+if [ -f "manuals/configuration.md" ]; then
+    sed -i "s/Brum Master Configuration (v[0-9]\+\.[0-9]\+\.[0-9]\+)/Brum Master Configuration (v${TARGET_VERSION})/g" manuals/configuration.md
+    sed -i "s/Brum v[0-9]\+\.[0-9]\+\.[0-9]\+ (build/Brum v${TARGET_VERSION} (build/g" manuals/configuration.md
+fi
+if [ -f "manuals/qa-testing.md" ]; then
+    sed -i "s/Target Release\*\*: \`Brum v[0-9]\+\.[0-9]\+\.[0-9]\+\`/Target Release**: \`Brum v${TARGET_VERSION}\`/g" manuals/qa-testing.md
+    sed -i "s/RELEASE [0-9]\+\.[0-9]\+\.[0-9]\+ APPROVED/RELEASE ${TARGET_VERSION} APPROVED/g" manuals/qa-testing.md
+fi
+if [ -f "manuals/lxc-proxmox.md" ]; then
+    sed -i "s/brum_[0-9]\+\.[0-9]\+\.[0-9]\+-[0-9]\+_amd64\.deb/brum_${TARGET_VERSION}-1_amd64.deb/g" manuals/lxc-proxmox.md
+    sed -i "s/brum-v[0-9]\+\.[0-9]\+\.[0-9]\+-linux/brum-v${TARGET_VERSION}-linux/g" manuals/lxc-proxmox.md
+fi
+if [ -f "manuals/android-termux.md" ]; then
+    sed -i "s/brum-[0-9]\+\.[0-9]\+\.[0-9]\+-r[0-9]\+\.x86_64\.apk/brum-${TARGET_VERSION}-r0.x86_64.apk/g" manuals/android-termux.md
+    sed -i "s/brum-v[0-9]\+\.[0-9]\+\.[0-9]\+-linux/brum-v${TARGET_VERSION}-linux/g" manuals/android-termux.md
+fi
+if [ -f "manuals/docker.md" ]; then
+    sed -i "s/:v[0-9]\+\.[0-9]\+\.[0-9]\+/:v${TARGET_VERSION}/g" manuals/docker.md
 fi
 
 # ------------------------------------------------------------------------------
@@ -313,6 +344,18 @@ if [ "${SKIP_CRATES}" = false ]; then
     fi
 fi
 
+# ------------------------------------------------------------------------------
+# 9. GITHUB WIKI SYNCHRONIZATION
+# ------------------------------------------------------------------------------
+if [ "${SKIP_WIKI}" = false ]; then
+    echo "📖 Synchronizing GitHub Wiki with v${TARGET_VERSION} documentation..."
+    if bash "${SCRIPT_DIR}/sync-wiki.sh" "${TARGET_VERSION}"; then
+        echo "✅ GitHub Wiki synchronized successfully!"
+    else
+        echo "⚠️ Warning: GitHub Wiki synchronization failed or SSH key not configured."
+    fi
+fi
+
 # Final Cleanup
 rm -f parubrum*.txt parucommanderdog*.txt
 rm -rf /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/brum-* /tmp/commanderdog-*
@@ -320,6 +363,7 @@ rm -rf /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/brum-* /tmp/commanderdog-*
 echo "======================================================"
 echo "🎉 SUCCESS: Brum v${TARGET_VERSION} is released & published!"
 echo "   - GitHub: https://github.com/Woofson/brum"
+echo "   - Wiki:   https://github.com/Woofson/brum/wiki"
 echo "   - AUR Source: https://aur.archlinux.org/packages/brum"
 echo "   - AUR Bin:    https://aur.archlinux.org/packages/brum-bin"
 echo "   - Crates.io:  https://crates.io/crates/brum"
