@@ -630,6 +630,29 @@ fn extract_claims_or_local(
 
 pub fn normalize_path(path: &Path) -> PathBuf {
     let clean = crate::vfs::local::clean_path_buf(path);
+    let clean_str = clean.to_string_lossy();
+    if clean_str.starts_with(r"\\") || clean_str.starts_with("//") {
+        let is_forward = clean_str.starts_with("//");
+        let sep = if is_forward { '/' } else { '\\' };
+        let prefix = if is_forward { "//" } else { r"\\" };
+        let trimmed = clean_str.trim_start_matches(['\\', '/']);
+        let mut segments: Vec<&str> = Vec::new();
+        for seg in trimmed.split(['\\', '/']) {
+            if seg.is_empty() || seg == "." {
+                continue;
+            } else if seg == ".." {
+                segments.pop();
+            } else {
+                segments.push(seg);
+            }
+        }
+        if segments.is_empty() {
+            return PathBuf::from(prefix);
+        }
+        let joined = segments.join(&sep.to_string());
+        return PathBuf::from(format!("{}{}", prefix, joined));
+    }
+
     let mut components = Vec::new();
     for component in clean.components() {
         match component {
@@ -7691,6 +7714,14 @@ mod tests {
                 normalize_path(Path::new(r"\\?\UNC\server\share\data")),
                 Path::new(r"\\server\share\data")
             );
+            assert_eq!(
+                normalize_path(Path::new(r"\\meteorite")),
+                Path::new(r"\\meteorite")
+            );
+            assert_eq!(
+                normalize_path(Path::new(r"\\meteorite\")),
+                Path::new(r"\\meteorite")
+            );
         }
         #[cfg(not(windows))]
         {
@@ -7701,6 +7732,14 @@ mod tests {
             assert_eq!(
                 normalize_path(Path::new(r"\\?\UNC\server\share\data")),
                 Path::new("//server/share/data")
+            );
+            assert_eq!(
+                normalize_path(Path::new(r"\\meteorite")),
+                Path::new("//meteorite")
+            );
+            assert_eq!(
+                normalize_path(Path::new("//meteorite/")),
+                Path::new("//meteorite")
             );
         }
     }

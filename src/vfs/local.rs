@@ -294,20 +294,35 @@ pub fn clean_path_buf(path: &Path) -> PathBuf {
 
     #[cfg(windows)]
     {
-        if stripped_str.starts_with(r"\\") {
-            let clean_unc = stripped_str.trim_start_matches(r"\\");
-            let parts: Vec<&str> = clean_unc.split('\\').filter(|s| !s.is_empty()).collect();
-            if parts.len() == 2 {
+        if stripped_str.starts_with(r"\\") || stripped_str.starts_with("//") {
+            let clean_unc = stripped_str.trim_start_matches(['\\', '/']);
+            let parts: Vec<&str> = clean_unc.split(['\\', '/']).filter(|s| !s.is_empty()).collect();
+            if parts.len() == 1 {
+                return PathBuf::from(format!(r"\\{}", parts[0]));
+            } else if parts.len() == 2 {
                 return PathBuf::from(format!(r"\\{}\{}\", parts[0], parts[1]));
+            } else if parts.len() > 2 {
+                let rest = parts[2..].join("\\");
+                return PathBuf::from(format!(r"\\{}\{}\{}", parts[0], parts[1], rest));
             }
         }
     }
 
     #[cfg(not(windows))]
     {
-        // On non-Windows platforms, if path is a Windows path with backslashes (e.g. C:\Users\Bolt),
-        // convert backslashes to forward slashes so Path::components() properly parses segments in tests.
-        if (stripped_str.len() >= 2 && stripped_str.as_bytes()[1] == b':') || stripped_str.starts_with(r"\\") {
+        if stripped_str.starts_with(r"\\") || stripped_str.starts_with("//") {
+            let clean_unc = stripped_str.trim_start_matches(['\\', '/']);
+            let parts: Vec<&str> = clean_unc.split(['\\', '/']).filter(|s| !s.is_empty()).collect();
+            if parts.len() == 1 {
+                return PathBuf::from(format!("//{}", parts[0]));
+            } else if parts.len() == 2 {
+                return PathBuf::from(format!("//{}/{}/", parts[0], parts[1]));
+            } else if parts.len() > 2 {
+                let rest = parts[2..].join("/");
+                return PathBuf::from(format!("//{}/{}/{}", parts[0], parts[1], rest));
+            }
+        }
+        if stripped_str.len() >= 2 && stripped_str.as_bytes()[1] == b':' {
             let normalized = stripped_str.replace('\\', "/");
             return PathBuf::from(normalized);
         }
