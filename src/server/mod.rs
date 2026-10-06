@@ -5028,7 +5028,7 @@ fn build_bytes_range_response(
                     if let Some(et) = etag {
                         builder = builder
                             .header(header::ETAG, et)
-                            .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate");
+                            .header(header::CACHE_CONTROL, "no-cache, must-revalidate");
                     }
 
                     return builder
@@ -5059,7 +5059,7 @@ fn build_bytes_range_response(
     if let Some(et) = etag {
         builder = builder
             .header(header::ETAG, et)
-            .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate");
+            .header(header::CACHE_CONTROL, "no-cache, must-revalidate");
     }
 
     builder
@@ -5102,7 +5102,7 @@ async fn build_local_file_range_response(
                         .header(header::CONTENT_LENGTH, slice_len.to_string())
                         .header(header::ACCEPT_RANGES, "bytes")
                         .header(header::ETAG, etag)
-                        .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
+                        .header(header::CACHE_CONTROL, "no-cache, must-revalidate")
                         .header(header::CONTENT_ENCODING, "identity")
                         .body(body)
                         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -5137,7 +5137,7 @@ async fn build_local_file_range_response(
         .header(header::CONTENT_LENGTH, total_len.to_string())
         .header(header::ACCEPT_RANGES, "bytes")
         .header(header::ETAG, etag)
-        .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
+        .header(header::CACHE_CONTROL, "no-cache, must-revalidate")
         .header(header::CONTENT_ENCODING, "identity")
         .body(body)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -5307,6 +5307,7 @@ async fn handle_download(
                 .header(header::CONTENT_TYPE, "application/gzip")
                 .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", tar_name))
                 .header("X-Is-Directory", "true")
+                .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                 .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
                 .body(Body::from(file_bytes))
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -5333,6 +5334,7 @@ async fn handle_download(
                 .header(header::CONTENT_TYPE, "application/zip")
                 .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
                 .header("X-Is-Directory", "true")
+                .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
                 .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
                 .body(Body::from(file_bytes))
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -5356,7 +5358,7 @@ async fn handle_download(
             return Ok(Response::builder()
                 .status(StatusCode::NOT_MODIFIED)
                 .header(header::ETAG, etag)
-                .header(header::CACHE_CONTROL, "public, max-age=86400, must-revalidate")
+                .header(header::CACHE_CONTROL, "no-cache, must-revalidate")
                 .body(Body::empty())
                 .unwrap());
         }
@@ -5425,6 +5427,7 @@ async fn handle_download_batch(
     let response = Response::builder()
         .header(header::CONTENT_TYPE, "application/zip")
         .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
+        .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
         .body(Body::from(file_bytes))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
