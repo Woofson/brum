@@ -1,7 +1,12 @@
-use super::{is_archive_file, DirectoryListing, FileContentResponse, FileEntry, VfsResult};
-use std::process::Command;
+use super::{DirectoryListing, FileContentResponse, VfsResult};
 use std::fs;
+
+#[cfg(not(windows))]
+use super::{is_archive_file, FileEntry};
+#[cfg(not(windows))]
 use tempfile::NamedTempFile;
+#[cfg(not(windows))]
+use std::process::Command;
 
 pub struct SmbClient;
 
@@ -55,6 +60,30 @@ impl SmbParams {
             format!("smb://{}{}{}/{}/{}", self.auth_prefix(), self.host, self.port_suffix(), self.share, clean)
         }
     }
+}
+
+#[cfg(windows)]
+#[link(name = "mpr")]
+extern "system" {
+    fn WNetAddConnection2W(
+        lp_net_resource: *const NetResourceW,
+        lp_password: *const u16,
+        lp_user_name: *const u16,
+        dw_flags: u32,
+    ) -> u32;
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct NetResourceW {
+    dw_scope: u32,
+    dw_type: u32,
+    dw_display_type: u32,
+    dw_usage: u32,
+    lp_local_name: *const u16,
+    lp_remote_name: *const u16,
+    lp_comment: *const u16,
+    lp_provider: *const u16,
 }
 
 impl SmbClient {
@@ -129,6 +158,230 @@ impl SmbClient {
         })
     }
 
+    /// Read file contents from SMB share (with base64 binary support)
+    pub fn read_file(params: &SmbParams) -> VfsResult<FileContentResponse> {
+        let bytes = Self::read_bytes(params)?;
+        let file_name = params.subpath.rsplit('/').next().unwrap_or(&params.subpath).to_string();
+        let mime = mime_guess::from_path(&file_name).first_or_octet_stream().to_string();
+        let is_binary = bytes.iter().take(1024).any(|&b| b == 0);
+
+        let content = if is_binary {
+            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes)
+        } else {
+            String::from_utf8_lossy(&bytes).to_string()
+        };
+
+        Ok(FileContentResponse {
+            path: params.build_uri(&params.subpath),
+            name: file_name,
+            content,
+            is_binary,
+            size: bytes.len() as u64,
+            mime_type: mime,
+        })
+    }
+}
+
+// -----------------------------------------------------------------------------
+// WINDOWS NATIVE SMB IMPLEMENTATION (via Win32 WNet and OS filesystem)
+// -----------------------------------------------------------------------------
+#[cfg(windows)]
+impl SmbClient {
+    fn to_wide(s: &str) -> Vec<u16> {
+        s.encode_utf16().chain(std::iter::once(0)).collect()
+    }
+
+    /// Authenticate / establish network share connection on Windows
+    pub fn ensure_windows_connection(params: &SmbParams) -> VfsResult<()> {
+        let remote_unc = format!(r"\\{}\{}", params.host, params.share);
+        let remote_wide = Self::to_wide(&remote_unc);
+
+        let user_wide = params.username.as_ref().map(|u| {
+            let full_user = if let Some(ref dom) = params.domain {
+                if !dom.is_empty() && dom != "WORKGROUP" {
+                    format!("{}\\{}", dom, u)
+                } else {
+                    u.clone()
+                }
+            } else {
+                u.clone()
+            };
+            Self::to_wide(&full_user)
+        });
+
+        let pass_wide = params.password.as_ref().map(|p| Self::to_wide(p));
+
+        let net_res = NetResourceW {
+            dw_scope: 0,
+            dw_type: 1, // RESOURCETYPE_DISK
+            dw_display_type: 0,
+            dw_usage: 0,
+            lp_local_name: std::ptr::null(),
+            lp_remote_name: remote_wide.as_ptr(),
+            lp_comment: std::ptr::null(),
+            lp_provider: std::ptr::null(),
+        };
+
+        let user_ptr = user_wide.as_ref().map(|w| w.as_ptr()).unwrap_or(std::ptr::null());
+        let pass_ptr = pass_wide.as_ref().map(|w| w.as_ptr()).unwrap_or(std::ptr::null());
+
+        let res = unsafe {
+            WNetAddConnection2W(&net_res, pass_ptr, user_ptr, 0)
+        };
+
+        // 0 = NO_ERROR, 1219 = ERROR_SESSION_CREDENTIAL_CONFLICT (already connected with session),
+        // 85 = ERROR_ALREADY_ASSIGNED
+        if res == 0 || res == 1219 || res == 85 {
+            Ok(())
+        } else {
+            let unc_dir = format!(r"\\{}\{}\", params.host, params.share);
+            if std::path::Path::new(&unc_dir).exists() {
+                return Ok(());
+            }
+            let err_msg = match res {
+                5 => "Access is denied (os error 5). Incorrect username or password, or permission denied.",
+                1326 => "Logon failure (os error 1326): Unknown user name or bad password.",
+                53 => "Network path not found (os error 53): The host server could not be reached.",
+                67 => "Network name not found (os error 67): The share name does not exist on the server.",
+                _ => "Windows network connection failed",
+            };
+            Err(format!("SMB connection to '\\\\{}\\{}' failed (code {}): {}", params.host, params.share, res, err_msg))
+        }
+    }
+
+    /// Check if native Windows SMB is available (always true on Windows)
+    pub fn is_available() -> bool {
+        true
+    }
+
+    /// List directory contents over SMB/CIFS on Windows
+    pub fn list_dir(params: &SmbParams) -> VfsResult<DirectoryListing> {
+        let _ = Self::ensure_windows_connection(params);
+        let unc_path = if params.subpath.is_empty() {
+            format!(r"\\{}\{}\", params.host, params.share)
+        } else {
+            format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"))
+        };
+
+        let local_listing = crate::vfs::local::LocalFs::list_dir(&unc_path, false)
+            .map_err(|e| format!("SMB list failed: {}", e))?;
+
+        let mut entries = Vec::new();
+        for entry in local_listing.entries {
+            let full_subpath = if params.subpath.is_empty() {
+                entry.name.clone()
+            } else {
+                format!("{}/{}", params.subpath, entry.name)
+            };
+            let mut e = entry;
+            e.path = params.build_uri(&full_subpath);
+            entries.push(e);
+        }
+
+        let current_path = params.build_uri(&params.subpath);
+        let parent_path = if params.subpath.is_empty() {
+            None
+        } else {
+            let p = std::path::Path::new(&params.subpath);
+            let parent_sub = p.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
+            Some(params.build_uri(&parent_sub))
+        };
+
+        Ok(DirectoryListing {
+            current_path,
+            parent_path,
+            entries,
+            total_files: local_listing.total_files,
+            total_dirs: local_listing.total_dirs,
+            total_size: local_listing.total_size,
+            protocol: "smb".to_string(),
+            is_truncated: local_listing.is_truncated,
+            max_limit: local_listing.max_limit,
+        })
+    }
+
+    /// Read raw file bytes from SMB on Windows
+    pub fn read_bytes(params: &SmbParams) -> VfsResult<Vec<u8>> {
+        let _ = Self::ensure_windows_connection(params);
+        let unc_path = format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"));
+        fs::read(&unc_path).map_err(|e| format!("SMB read failed: {}", e))
+    }
+
+    /// Download file directly from SMB to local path on Windows
+    pub fn download_to_file(params: &SmbParams, local_dest: &std::path::Path) -> VfsResult<()> {
+        let _ = Self::ensure_windows_connection(params);
+        if let Some(parent) = local_dest.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        let unc_path = format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"));
+        fs::copy(&unc_path, local_dest).map_err(|e| format!("SMB download failed: {}", e))?;
+        Ok(())
+    }
+
+    /// Upload file directly from local path to SMB share on Windows
+    pub fn upload_from_file(params: &SmbParams, local_src: &std::path::Path) -> VfsResult<()> {
+        let _ = Self::ensure_windows_connection(params);
+        let unc_path = format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"));
+        if let Some(parent) = std::path::Path::new(&unc_path).parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        fs::copy(local_src, &unc_path).map_err(|e| format!("SMB upload failed: {}", e))?;
+        Ok(())
+    }
+
+    /// Write file contents to SMB share on Windows
+    pub fn write_file(params: &SmbParams, content: &[u8]) -> VfsResult<()> {
+        let _ = Self::ensure_windows_connection(params);
+        let unc_path = format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"));
+        if let Some(parent) = std::path::Path::new(&unc_path).parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        fs::write(&unc_path, content).map_err(|e| format!("SMB write failed: {}", e))
+    }
+
+    /// Create directory in SMB share on Windows
+    pub fn mkdir(params: &SmbParams) -> VfsResult<()> {
+        let _ = Self::ensure_windows_connection(params);
+        let unc_path = format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"));
+        fs::create_dir_all(&unc_path).map_err(|e| format!("SMB mkdir failed: {}", e))
+    }
+
+    /// Delete file or directory in SMB share on Windows
+    pub fn delete(params: &SmbParams, is_dir: bool) -> VfsResult<()> {
+        let _ = Self::ensure_windows_connection(params);
+        let unc_path = format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"));
+        if is_dir {
+            fs::remove_dir_all(&unc_path).map_err(|e| format!("SMB rmdir failed: {}", e))
+        } else {
+            fs::remove_file(&unc_path).map_err(|e| format!("SMB del failed: {}", e))
+        }
+    }
+
+    /// Rename file or directory in SMB share on Windows
+    pub fn rename(params: &SmbParams, new_subpath: &str) -> VfsResult<()> {
+        let _ = Self::ensure_windows_connection(params);
+        let old_unc = format!(r"\\{}\{}\{}", params.host, params.share, params.subpath.replace('/', "\\"));
+        let new_unc = format!(r"\\{}\{}\{}", params.host, params.share, new_subpath.replace('/', "\\"));
+        fs::rename(&old_unc, &new_unc).map_err(|e| format!("SMB rename failed: {}", e))
+    }
+
+    /// Test SMB connection on Windows
+    pub fn test_connection(params: &SmbParams) -> VfsResult<String> {
+        Self::ensure_windows_connection(params)?;
+        let unc_dir = format!(r"\\{}\{}\", params.host, params.share);
+        if std::path::Path::new(&unc_dir).exists() {
+            Ok(format!("✓ Successfully connected to SMB Share '\\\\{}\\{}'", params.host, params.share))
+        } else {
+            Err(format!("SMB share '\\\\{}\\{}' connected but directory is inaccessible", params.host, params.share))
+        }
+    }
+}
+
+// -----------------------------------------------------------------------------
+// NON-WINDOWS SMB IMPLEMENTATION (via smbclient CLI)
+// -----------------------------------------------------------------------------
+#[cfg(not(windows))]
+impl SmbClient {
     /// Format credentials argument for smbclient (-U "DOMAIN\user%pass" or -N)
     fn build_auth_arg(params: &SmbParams) -> Vec<String> {
         let mut args = Vec::new();
@@ -343,29 +596,6 @@ impl SmbClient {
         }
 
         fs::read(&tmp_path).map_err(|e| format!("Read temp file error: {}", e))
-    }
-
-    /// Read file contents from SMB share (with base64 binary support)
-    pub fn read_file(params: &SmbParams) -> VfsResult<FileContentResponse> {
-        let bytes = Self::read_bytes(params)?;
-        let file_name = params.subpath.rsplit('/').next().unwrap_or(&params.subpath).to_string();
-        let mime = mime_guess::from_path(&file_name).first_or_octet_stream().to_string();
-        let is_binary = bytes.iter().take(1024).any(|&b| b == 0);
-
-        let content = if is_binary {
-            base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &bytes)
-        } else {
-            String::from_utf8_lossy(&bytes).to_string()
-        };
-
-        Ok(FileContentResponse {
-            path: params.build_uri(&params.subpath),
-            name: file_name,
-            content,
-            is_binary,
-            size: bytes.len() as u64,
-            mime_type: mime,
-        })
     }
 
     /// Download file directly from SMB to local path

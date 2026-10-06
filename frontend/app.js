@@ -5551,7 +5551,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
         localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
       }
 
-      if ((cleanPath.startsWith('sftp://') || cleanPath.startsWith('ssh://') || cleanPath.startsWith('smb://')) && (resp.status === 401 || resp.status === 403 || errText.toLowerCase().includes('authentication failed') || errText.toLowerCase().includes('verify password'))) {
+      if ((cleanPath.startsWith('sftp://') || cleanPath.startsWith('ssh://') || cleanPath.startsWith('smb://') || cleanPath.startsWith('\\\\') || cleanPath.startsWith('//')) && (resp.status === 401 || resp.status === 403 || errText.toLowerCase().includes('authentication failed') || errText.toLowerCase().includes('verify password') || errText.toLowerCase().includes('access is denied') || errText.toLowerCase().includes('logon failure'))) {
         promptRemoteCredentials(paneIndex, cleanPath);
         return;
       }
@@ -21225,6 +21225,12 @@ function submitRemoteAuth() {
     const clean = targetPath.slice(6);
     const parts = clean.split('/');
     const host = parts[0].includes('@') ? parts[0].split('@')[1] : parts[0];
+    const rest = parts.slice(1).join('/');
+    authUri = `smb://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}/${rest}`;
+  } else if (targetPath.startsWith('\\\\') || targetPath.startsWith('//')) {
+    const clean = targetPath.replace(/^[\\\/]+/, '');
+    const parts = clean.split(/[\\\/]/);
+    const host = parts[0];
     const rest = parts.slice(1).join('/');
     authUri = `smb://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}/${rest}`;
   } else if (targetPath.startsWith('sftp://') || targetPath.startsWith('ssh://')) {
