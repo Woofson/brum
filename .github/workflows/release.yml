@@ -58,8 +58,8 @@ jobs:
           $DistDir = "dist\windows"
           New-Item -ItemType Directory -Path "$DistDir\brum" -Force | Out-Null
 
-          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum-cli.exe"
-          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum.exe"
+          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brumd.exe"
+          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum-cli.exe" -ErrorAction SilentlyContinue
           Copy-Item "target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
           Copy-Item "src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
           if (-not (Test-Path "$DistDir\brum\Brum.exe")) {
@@ -71,7 +71,13 @@ jobs:
           Copy-Item "README.md" "$DistDir\brum\"
           Copy-Item "packaging\windows\register-context-menu.reg" "$DistDir\brum\"
           Copy-Item "packaging\windows\unregister-context-menu.reg" "$DistDir\brum\"
+          Copy-Item "packaging\windows\create-shortcuts.bat" "$DistDir\brum\" -ErrorAction SilentlyContinue
+          Copy-Item "packaging\windows\create-shortcuts.ps1" "$DistDir\brum\" -ErrorAction SilentlyContinue
+          Copy-Item "packaging\windows\remove-shortcuts.bat" "$DistDir\brum\" -ErrorAction SilentlyContinue
+          Copy-Item "packaging\windows\WebView2Loader.dll" "$DistDir\brum\" -ErrorAction SilentlyContinue
           Copy-Item "assets\brum.ico" "$DistDir\brum\" -ErrorAction SilentlyContinue
+          Copy-Item -Recurse "themes" "$DistDir\brum\themes" -ErrorAction SilentlyContinue
+          Copy-Item -Recurse "plugins" "$DistDir\brum\plugins" -ErrorAction SilentlyContinue
 
           # 1. Create Portable Standalone ZIP
           $ZipName = "brum-v${Version}-windows-x86_64.zip"
