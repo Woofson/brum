@@ -5205,8 +5205,8 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
         // Server -> Client
         const srcEndpoint = getPaneEndpoint(srcIdx);
         const srcHeaders = getPaneAuthHeaders(srcIdx);
-        const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(resolveAuthUri(srcPath))}`;
-        const downloadResp = await fetch(dlUrl, { method: 'GET', headers: srcHeaders });
+        const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(resolveAuthUri(srcPath))}&_t=${Date.now()}`;
+        const downloadResp = await fetch(dlUrl, { method: 'GET', headers: srcHeaders, cache: 'no-store' });
         if (!downloadResp.ok) throw new Error(`Download failed (${downloadResp.status})`);
 
         const contentLength = parseInt(downloadResp.headers.get('content-length') || '0', 10);
@@ -10417,10 +10417,11 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
     try {
       // 1. Download stream from Source Node with real-time chunk progress
-      const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(resolveAuthUri(srcPath))}`;
+      const dlUrl = `${srcEndpoint}/api/fs/download?path=${encodeURIComponent(resolveAuthUri(srcPath))}&_t=${Date.now()}`;
       const downloadResp = await fetch(dlUrl, {
         method: 'GET',
-        headers: srcHeaders
+        headers: srcHeaders,
+        cache: 'no-store'
       });
 
       if (!downloadResp.ok) {
@@ -28531,7 +28532,11 @@ function getDownloadUrl(path, inline = false, paneIndex = null, format = null) {
   const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(pIdx) : '';
   const node = typeof getPaneNode === 'function' ? getPaneNode(pIdx) : null;
   let url = `${endpoint}/api/fs/download?path=${encodeURIComponent(resolved)}`;
-  if (inline) url += '&inline=true';
+  if (inline) {
+    url += '&inline=true';
+  } else {
+    url += `&_t=${Date.now()}`;
+  }
   if (format) url += `&format=${encodeURIComponent(format)}`;
   const token = (node && node.id !== 'local' && node.auth_token) ? node.auth_token.trim() : (App.token || localStorage.getItem('cd_token'));
   if (token) url += `&token=${encodeURIComponent(token)}`;
