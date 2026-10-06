@@ -10006,6 +10006,73 @@ async function revokeApiToken(tokenId, tokenName) {
 // ---------------- TRANSFERS & DRAG-AND-DROP ----------------
 let pendingInterpaneTransfer = null;
 
+async function scanFilesFromDataTransfer(dataTransfer) {
+  const files = [];
+  if (dataTransfer && dataTransfer.items && dataTransfer.items.length > 0) {
+    const entries = [];
+    for (let i = 0; i < dataTransfer.items.length; i++) {
+      const item = dataTransfer.items[i];
+      if (item.kind === 'file') {
+        const entry = item.webkitGetAsEntry ? item.webkitGetAsEntry() : null;
+        if (entry) {
+          entries.push(entry);
+        } else {
+          const f = item.getAsFile();
+          if (f) files.push(f);
+        }
+      }
+    }
+
+    if (entries.length > 0) {
+      async function readEntry(entry, pathSoFar = '') {
+        if (entry.isFile) {
+          return new Promise((resolve) => {
+            entry.file((file) => {
+              const relPath = pathSoFar ? `${pathSoFar}/${file.name}` : file.name;
+              try {
+                Object.defineProperty(file, 'relativePath', {
+                  value: relPath,
+                  writable: true,
+                  configurable: true
+                });
+              } catch (_) {
+                file.relativePath = relPath;
+              }
+              files.push(file);
+              resolve();
+            }, () => resolve());
+          });
+        } else if (entry.isDirectory) {
+          const dirReader = entry.createReader();
+          const readAllEntries = async () => {
+            const batch = await new Promise((resolve) => {
+              dirReader.readEntries(resolve, () => resolve([]));
+            });
+            if (batch && batch.length > 0) {
+              const currentPath = pathSoFar ? `${pathSoFar}/${entry.name}` : entry.name;
+              for (const childEntry of batch) {
+                await readEntry(childEntry, currentPath);
+              }
+              await readAllEntries();
+            }
+          };
+          await readAllEntries();
+        }
+      }
+
+      for (const entry of entries) {
+        await readEntry(entry, '');
+      }
+      return files;
+    }
+  }
+
+  if (dataTransfer && dataTransfer.files && dataTransfer.files.length > 0) {
+    return Array.from(dataTransfer.files);
+  }
+  return [];
+}
+
 async function handlePaneDrop(e, targetPaneIndex, subfolderPath) {
   e.preventDefault();
 
@@ -10028,70 +10095,23 @@ async function handlePaneDrop(e, targetPaneIndex, subfolderPath) {
 
   const destPath = subfolderPath || targetPane.path;
 
-  // OS Desktop Drag & Drop Upload
-  if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    if (typeof destPath === 'string' && destPath.startsWith('client://')) {
-      const fileCount = e.dataTransfer.files.length;
-      let successCount = 0;
-      for (let f of e.dataTransfer.files) {
-        try {
-          const itemUri = destPath.endsWith('/') ? `${destPath}${f.name}` : `${destPath}/${f.name}`;
-          const fileHandle = await resolveClientFileHandle(itemUri, true);
-          const writable = await fileHandle.createWritable();
-          await writable.write(f);
-          await writable.close();
-          successCount++;
-        } catch (err) {
-          console.error('Error dropping file to client local:', err);
-        }
-      }
-      showToast(`Saved ${successCount} file(s) to client local folder`, 'success');
-      refreshPane(targetPaneIndex);
-      return;
-    }
-
-    const fileArr = Array.from(e.dataTransfer.files);
-    const collisions = detectCollisions(fileArr, targetPane.entries || [], destPath);
-
-    if (collisions.length > 0) {
-      pendingConflictBatch = {
-        action: 'upload',
-        files: fileArr,
-        destination: destPath,
-        refreshTargetPaneIdx: targetPaneIndex,
-        sourcePaneIdx: targetPaneIndex,
-        collisions,
-        currentIndex: 0,
-        decisions: {},
-        uploadType: 'dnd'
-      };
-      renderCurrentConflictModal();
-      showModal('conflict-resolution-modal');
-      return;
-    }
-
-    executeUploadWithDecisions({
-      files: fileArr,
-      destination: destPath,
-      refreshTargetPaneIdx: targetPaneIndex,
-      decisions: {}
-    });
-    return;
-  }
-
-  // Inter-Pane Transfer
+  // 1. Inter-Pane Transfer Check
   let payloadObj = null;
   const rawData = e.dataTransfer ? (e.dataTransfer.getData('application/json') || e.dataTransfer.getData('text/plain')) : '';
   if (rawData) {
     try {
-      payloadObj = JSON.parse(rawData);
+      const parsed = JSON.parse(rawData);
+      if (parsed && Array.isArray(parsed.paths) && parsed.paths.length > 0) {
+        payloadObj = parsed;
+      }
     } catch (_) {}
   }
-  if (!payloadObj && window._activeDraggedPayload) {
+  if (!payloadObj && window._activeDraggedPayload && Array.isArray(window._activeDraggedPayload.paths) && window._activeDraggedPayload.paths.length > 0) {
     payloadObj = window._activeDraggedPayload;
   }
 
   if (payloadObj) {
+    window._activeDraggedPayload = null;
     try {
       const { sourcePane, paths } = payloadObj;
       if (!paths || paths.length === 0) return;
@@ -10157,6 +10177,65 @@ async function handlePaneDrop(e, targetPaneIndex, subfolderPath) {
     } catch (err) {
       console.error('Inter-pane transfer error:', err);
     }
+    return;
+  }
+
+  // 2. OS Desktop Drag & Drop Upload
+  const isOsFileDrop = (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0)
+    || (e.dataTransfer && e.dataTransfer.items && Array.from(e.dataTransfer.items).some(item => item.kind === 'file'))
+    || (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files'));
+
+  if (isOsFileDrop) {
+    if (typeof destPath === 'string' && destPath.startsWith('client://')) {
+      const fileCount = e.dataTransfer.files ? e.dataTransfer.files.length : 0;
+      let successCount = 0;
+      if (e.dataTransfer.files) {
+        for (let f of e.dataTransfer.files) {
+          try {
+            const itemUri = destPath.endsWith('/') ? `${destPath}${f.name}` : `${destPath}/${f.name}`;
+            const fileHandle = await resolveClientFileHandle(itemUri, true);
+            const writable = await fileHandle.createWritable();
+            await writable.write(f);
+            await writable.close();
+            successCount++;
+          } catch (err) {
+            console.error('Error dropping file to client local:', err);
+          }
+        }
+      }
+      showToast(`Saved ${successCount} file(s) to client local folder`, 'success');
+      refreshPane(targetPaneIndex);
+      return;
+    }
+
+    const fileArr = await scanFilesFromDataTransfer(e.dataTransfer);
+    if (!fileArr || fileArr.length === 0) return;
+    const collisions = detectCollisions(fileArr, targetPane.entries || [], destPath);
+
+    if (collisions.length > 0) {
+      pendingConflictBatch = {
+        action: 'upload',
+        files: fileArr,
+        destination: destPath,
+        refreshTargetPaneIdx: targetPaneIndex,
+        sourcePaneIdx: targetPaneIndex,
+        collisions,
+        currentIndex: 0,
+        decisions: {},
+        uploadType: 'dnd'
+      };
+      renderCurrentConflictModal();
+      showModal('conflict-resolution-modal');
+      return;
+    }
+
+    executeUploadWithDecisions({
+      files: fileArr,
+      destination: destPath,
+      refreshTargetPaneIdx: targetPaneIndex,
+      decisions: {}
+    });
+    return;
   }
 }
 
@@ -10406,11 +10485,32 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
         xnodeTask.paranoid = true;
       }
 
+      // Check if the downloaded payload is a directory ZIP archive
+      let isZip = false;
+      const respContentType = downloadResp.headers.get('content-type') || '';
+      const respDisposition = downloadResp.headers.get('content-disposition') || '';
+      const isDirHeader = downloadResp.headers.get('x-is-directory') || '';
+      if (isDirHeader === 'true' || isDirHeader === '1' || respContentType.includes('application/zip') || respContentType.includes('application/gzip') || respDisposition.includes('.zip') || respDisposition.includes('.tar.gz')) {
+        isZip = true;
+      } else if (blob.size >= 4) {
+        try {
+          const magicBuf = await blob.slice(0, 4).arrayBuffer();
+          const magicBytes = new Uint8Array(magicBuf);
+          if ((magicBytes[0] === 0x50 && magicBytes[1] === 0x4B && magicBytes[2] === 0x03 && magicBytes[3] === 0x04) || (magicBytes[0] === 0x1F && magicBytes[1] === 0x8B)) {
+            isZip = true;
+          }
+        } catch (_) {}
+      }
+
       // 2. Upload to Destination Node with XHR progress monitoring
       xnodeTask.phase = 'upload';
-      xnodeTask.phase_text = `📤 Uploading [${i + 1}/${totalItems}]: ${fileName}`;
+      xnodeTask.phase_text = isZip
+        ? `📂 Extracting directory [${i + 1}/${totalItems}]: ${fileName}`
+        : `📤 Uploading [${i + 1}/${totalItems}]: ${fileName}`;
       if (pillText) {
-        pillText.textContent = `📤 Uploading [${i + 1}/${totalItems}] ${fileName}...`;
+        pillText.textContent = isZip
+          ? `📂 Extracting [${i + 1}/${totalItems}] ${fileName}...`
+          : `📤 Uploading [${i + 1}/${totalItems}] ${fileName}...`;
       }
       updateTasksPillState(lastKnownTasksList);
       renderFloatingTaskManager(lastKnownTasksList);
@@ -10422,7 +10522,8 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}&no_task=1`;
+        const extractParam = isZip ? '&extract=1&is_dir=1' : '';
+        const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}${extractParam}&no_task=1`;
         xhr.open('POST', uploadUrl);
         for (const h in destHeaders) {
           xhr.setRequestHeader(h, destHeaders[h]);
@@ -10466,7 +10567,8 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
         xhr.onabort = () => reject(new Error('Upload aborted'));
 
         const formData = new FormData();
-        formData.append('files', blob, fileName);
+        const sendFileName = isZip ? `${fileName}.zip` : fileName;
+        formData.append('files', blob, sendFileName);
         xhr.send(formData);
       });
 
@@ -10775,17 +10877,19 @@ async function executeUploadWithDecisions(batch) {
   const formData = new FormData();
   let totalUploadBytes = 0;
   for (const f of activeFiles) {
-    formData.append('files', f);
+    const uploadPath = f.relativePath || f.webkitRelativePath || f.name;
+    formData.append('files', f, uploadPath);
     totalUploadBytes += (f.size || 0);
   }
 
   // Zero-latency optimistic task dispatch
   const optId = `opt_up_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+  const firstUploadName = activeFiles[0].relativePath || activeFiles[0].webkitRelativePath || activeFiles[0].name;
   const optTask = {
     id: optId,
     name: `Upload ${activeFiles.length} file(s)`,
     status: 'running',
-    source: activeFiles[0].name + (activeFiles.length > 1 ? ` (+${activeFiles.length - 1} more)` : ''),
+    source: firstUploadName + (activeFiles.length > 1 ? ` (+${activeFiles.length - 1} more)` : ''),
     destination: destination,
     total_files: activeFiles.length,
     files_processed: 0,
@@ -37105,6 +37209,11 @@ function closeDockedTool(paneIndex) {
   rebuildPaneDOM(paneIndex);
   showToast(`Closed docked ${tool.toUpperCase()} in Pane ${paneIndex + 1}`, 'info');
 }
+
+function renderDockedPaneTool(paneIndex) {
+  mountDockedTool(paneIndex);
+}
+window.renderDockedPaneTool = renderDockedPaneTool;
 
 function mountDockedTool(paneIndex) {
   const pane = App.panes[paneIndex];

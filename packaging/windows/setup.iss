@@ -58,6 +58,11 @@ Name: "contextmenu"; Description: "Windows Explorer Context Menu Integration ('O
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Components: standalone; Flags: unchecked
 Name: "startservice"; Description: "Start Brum Windows Service immediately after installation"; GroupDescription: "Service Options:"; Components: service
 
+[Dirs]
+Name: "{commonappdata}\{#MyAppName}"; Permissions: authusers-full
+Name: "{commonappdata}\{#MyAppName}\themes"; Permissions: authusers-full
+Name: "{app}"; Permissions: authusers-modify
+
 [Files]
 ; Core Binaries & Assets
 Source: "..\..\dist\windows\brum\brum-cli.exe"; DestDir: "{app}"; Flags: ignoreversion

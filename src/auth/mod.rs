@@ -178,6 +178,11 @@ impl AuthManager {
         default_admin_user: &str,
         default_admin_pass: &str,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
+        if let Some(parent) = std::path::Path::new(db_path).parent() {
+            if !parent.as_os_str().is_empty() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+        }
         let conn = Connection::open(db_path)?;
 
         // High-performance SQLite concurrency and memory pragmas

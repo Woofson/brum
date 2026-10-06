@@ -138,17 +138,52 @@ fn default_db_path() -> String {
             return env_path;
         }
     }
-    if Path::new("/data").is_dir() {
-        if Path::new("/data/commanderdog.db").is_file() && !Path::new("/data/brum.db").is_file() {
-            "/data/commanderdog.db".to_string()
-        } else {
-            "/data/brum.db".to_string()
+    #[cfg(windows)]
+    {
+        // 1. If explicit database file exists in current working directory, prefer it for local portable/dev use
+        if Path::new("brum.db").is_file() {
+            return "brum.db".to_string();
         }
-    } else {
-        if Path::new("commanderdog.db").is_file() && !Path::new("brum.db").is_file() {
-            "commanderdog.db".to_string()
+        if Path::new("commanderdog.db").is_file() {
+            return "commanderdog.db".to_string();
+        }
+
+        // 2. Check %PROGRAMDATA%\Brum\brum.db (e.g. C:\ProgramData\Brum\brum.db) - standard for Windows Service and installed apps
+        if let Ok(progdata) = std::env::var("ProgramData") {
+            let pdata_dir = Path::new(&progdata).join("Brum");
+            let pdata_db = pdata_dir.join("brum.db");
+            if pdata_db.is_file() {
+                return pdata_db.to_string_lossy().to_string();
+            }
+            if pdata_dir.is_dir() || std::fs::create_dir_all(&pdata_dir).is_ok() {
+                return pdata_db.to_string_lossy().to_string();
+            }
+        }
+
+        // 3. Check %APPDATA%\Brum\brum.db
+        if let Some(appdata) = dirs::data_dir() {
+            let app_dir = appdata.join("Brum");
+            let _ = std::fs::create_dir_all(&app_dir);
+            let app_db = app_dir.join("brum.db");
+            return app_db.to_string_lossy().to_string();
+        }
+
+        "brum.db".to_string()
+    }
+    #[cfg(not(windows))]
+    {
+        if Path::new("/data").is_dir() {
+            if Path::new("/data/commanderdog.db").is_file() && !Path::new("/data/brum.db").is_file() {
+                "/data/commanderdog.db".to_string()
+            } else {
+                "/data/brum.db".to_string()
+            }
         } else {
-            "brum.db".to_string()
+            if Path::new("commanderdog.db").is_file() && !Path::new("brum.db").is_file() {
+                "commanderdog.db".to_string()
+            } else {
+                "brum.db".to_string()
+            }
         }
     }
 }
@@ -316,10 +351,13 @@ fn default_user_home_template() -> String {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub struct StorageRoot {
+    #[serde(default)]
     pub id: String,
+    #[serde(default)]
     pub name: String,
+    #[serde(default)]
     pub path: String,
     #[serde(default)]
     pub read_only: bool,
@@ -1322,9 +1360,23 @@ impl ConfigManager {
                 root.path = trimmed;
             }
             if root.id.trim().is_empty() {
-                root.id = root.name.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+                if !root.name.trim().is_empty() {
+                    root.id = root.name.to_lowercase().replace(|c: char| !c.is_alphanumeric(), "-");
+                } else if !root.path.trim().is_empty() {
+                    root.id = Path::new(&root.path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "storage".to_string());
+                } else {
+                    root.id = "storage".to_string();
+                }
+            }
+            if root.name.trim().is_empty() {
+                root.name = if !root.path.trim().is_empty() {
+                    Path::new(&root.path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| root.id.clone())
+                } else {
+                    root.id.clone()
+                };
             }
         }
+        config.storage.roots.retain(|r| !r.path.trim().is_empty());
     }
 
     /// Returns all candidate config paths in priority order:
@@ -1911,5 +1963,31 @@ mod tests {
         let cfg_top: AppConfig = toml::from_str(toml_toplevel).unwrap();
         assert_eq!(cfg_top.get_sftp_config().host_key_checking, "auto_accept");
         assert_eq!(cfg_top.get_sftp_config().known_hosts_file, Some("~/.ssh/known_hosts".to_string()));
+    }
+
+    #[test]
+    fn test_storage_roots_resilient_parsing() {
+        let raw_toml = r#"
+            [[storage.roots]]
+            name = "Incomplete Root Without Path"
+
+            [[storage.roots]]
+            path = "/var/log"
+
+            [[storage.roots]]
+            id = "custom_id"
+            name = "Custom Name"
+            path = "/var/data"
+        "#;
+
+        let mut parsed = ConfigManager::parse_config_str(raw_toml).expect("Should parse even with missing fields");
+        ConfigManager::normalize_config_paths(&mut parsed);
+        assert_eq!(parsed.storage.roots.len(), 2);
+        assert_eq!(parsed.storage.roots[0].path, "/var/log");
+        assert_eq!(parsed.storage.roots[0].name, "log");
+        assert_eq!(parsed.storage.roots[0].id, "log");
+        assert_eq!(parsed.storage.roots[1].id, "custom_id");
+        assert_eq!(parsed.storage.roots[1].name, "Custom Name");
+        assert_eq!(parsed.storage.roots[1].path, "/var/data");
     }
 }

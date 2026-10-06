@@ -101,11 +101,9 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<d
 pub fn setup_linux_desktop_env() {
     #[cfg(target_os = "linux")]
     {
-        // 1. Fix WebKitGTK Error 71 (Protocol error) on Wayland compositors (Hyprland, Sway, KDE, GNOME)
-        // Disabling DMA-BUF renderer avoids Wayland wl_surface protocol errors
-        if std::env::var("WEBKIT_DISABLE_DMABUF_RENDERER").is_err() {
-            std::env::set_var("WEBKIT_DISABLE_DMABUF_RENDERER", "1");
-        }
+        // 1. Wayland & Desktop hardware acceleration configuration
+        // Note: Do not unconditionally force WEBKIT_DISABLE_DMABUF_RENDERER=1, allowing modern
+        // Wayland/Hyprland compositors (WebKitGTK 2.44+) to use GPU-accelerated DMA-BUF compositing.
         if std::env::var("__NV_DISABLE_EXPLICIT_SYNC").is_err() {
             std::env::set_var("__NV_DISABLE_EXPLICIT_SYNC", "1");
         }

@@ -680,6 +680,35 @@ pub fn sanitize_uploaded_file_name(raw: &str) -> String {
     }
 }
 
+pub fn sanitize_uploaded_relative_path(raw: &str) -> String {
+    let clean = raw.trim();
+    // Strip Windows drive letter prefix (e.g. "C:", "D:")
+    let without_drive = if clean.len() >= 2 && clean.as_bytes()[1] == b':' && clean.as_bytes()[0].is_ascii_alphabetic() {
+        &clean[2..]
+    } else {
+        clean
+    };
+
+    let mut parts = Vec::new();
+    for seg in without_drive.split(|c| c == '/' || c == '\\') {
+        let seg_clean = seg.trim();
+        if seg_clean.is_empty() || seg_clean == "." || seg_clean == ".." {
+            continue;
+        }
+        // Filter out control characters
+        let sanitized: String = seg_clean.chars().filter(|c| !c.is_control()).collect();
+        if !sanitized.is_empty() && sanitized != "." && sanitized != ".." {
+            parts.push(sanitized);
+        }
+    }
+
+    if parts.is_empty() {
+        "upload.bin".to_string()
+    } else {
+        parts.join("/")
+    }
+}
+
 pub fn path_starts_with_case_insensitive(path: &Path, prefix: &Path) -> bool {
     let path = crate::vfs::local::clean_path_buf(path);
     let prefix = crate::vfs::local::clean_path_buf(prefix);
@@ -4763,7 +4792,7 @@ async fn handle_upload(
     let conflict_mode = query.get("conflict").or_else(|| query.get("conflict_resolution")).map(|s| s.as_str()).unwrap_or("overwrite");
 
     while let Ok(Some(field)) = multipart.next_field().await {
-        let file_name = sanitize_uploaded_file_name(field.file_name().unwrap_or("upload.bin"));
+        let file_name = sanitize_uploaded_relative_path(field.file_name().unwrap_or("upload.bin"));
 
         if let Ok(data) = field.bytes().await {
             use sha2::{Digest, Sha256};
@@ -4787,6 +4816,35 @@ async fn handle_upload(
                     Some(&format!("SHA-256 Match: {}", sha256_hex)),
                     Some(&format!("Uploaded {} | SHA-256 Match: {}", file_name, sha256_hex)),
                 ).await;
+            }
+
+            let should_extract = query.get("extract").map(|v| v == "true" || v == "1").unwrap_or(false)
+                || query.get("unarchive").map(|v| v == "true" || v == "1").unwrap_or(false)
+                || query.get("is_dir").map(|v| v == "true" || v == "1").unwrap_or(false);
+
+            let is_zip_magic = data.len() >= 4 && &data[0..4] == b"PK\x03\x04";
+            let is_gzip_magic = data.len() >= 2 && &data[0..2] == b"\x1f\x8b";
+
+            if should_extract && (is_zip_magic || is_gzip_magic) && !dest_dir.starts_with("smb://") && !dest_dir.starts_with("sftp://") && !dest_dir.starts_with("ssh://") {
+                let suffix = if is_zip_magic { ".zip" } else { ".tar.gz" };
+                let temp_archive = tempfile::Builder::new()
+                    .prefix("brum_upload_extract_")
+                    .suffix(suffix)
+                    .tempfile()
+                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp archive error: {}", e)))?;
+                let temp_path = temp_archive.path().to_str().unwrap().to_string();
+                std::fs::write(&temp_path, &data)
+                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write temp archive: {}", e)))?;
+
+                if let Err(e) = ArchiveHandler::extract_archive(&temp_path, &dest_dir) {
+                    let err_msg = format!("Failed to extract uploaded directory archive: {}", e);
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
+                }
+                uploaded_files.push(file_name);
+                continue;
             }
 
             if dest_dir.starts_with("smb://") {
@@ -5241,6 +5299,7 @@ async fn handle_download(
             let response = Response::builder()
                 .header(header::CONTENT_TYPE, "application/gzip")
                 .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", tar_name))
+                .header("X-Is-Directory", "true")
                 .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
                 .body(Body::from(file_bytes))
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -5266,6 +5325,7 @@ async fn handle_download(
             let response = Response::builder()
                 .header(header::CONTENT_TYPE, "application/zip")
                 .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
+                .header("X-Is-Directory", "true")
                 .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
                 .body(Body::from(file_bytes))
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
@@ -7956,6 +8016,22 @@ description = "Test chewtoy package"
         assert_eq!(sanitize_uploaded_file_name(""), "upload.bin");
         assert_eq!(sanitize_uploaded_file_name("   "), "upload.bin");
         assert_eq!(sanitize_uploaded_file_name(r"D:\Data\Archive.tar.gz"), "Archive.tar.gz");
+    }
+
+    #[test]
+    fn test_sanitize_uploaded_relative_path() {
+        assert_eq!(sanitize_uploaded_relative_path(r"C:\Users\bolt\Documents\report.docx"), "Users/bolt/Documents/report.docx");
+        assert_eq!(sanitize_uploaded_relative_path("C:/Users/bolt/Documents/report.docx"), "Users/bolt/Documents/report.docx");
+        assert_eq!(sanitize_uploaded_relative_path("/home/bolt/file.txt"), "home/bolt/file.txt");
+        assert_eq!(sanitize_uploaded_relative_path("relative/path/sub/test.rs"), "relative/path/sub/test.rs");
+        assert_eq!(sanitize_uploaded_relative_path(r"relative\path\sub\test.rs"), "relative/path/sub/test.rs");
+        assert_eq!(sanitize_uploaded_relative_path("simple.png"), "simple.png");
+        assert_eq!(sanitize_uploaded_relative_path(r"..\..\etc\passwd"), "etc/passwd");
+        assert_eq!(sanitize_uploaded_relative_path("../../etc/passwd"), "etc/passwd");
+        assert_eq!(sanitize_uploaded_relative_path("folder/../sub/file.txt"), "folder/sub/file.txt");
+        assert_eq!(sanitize_uploaded_relative_path(r"C:\"), "upload.bin");
+        assert_eq!(sanitize_uploaded_relative_path(""), "upload.bin");
+        assert_eq!(sanitize_uploaded_relative_path("   "), "upload.bin");
     }
 }
 

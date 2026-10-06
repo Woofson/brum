@@ -16,6 +16,33 @@ use std::sync::Arc;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+async fn probe_running_brum_server(host: &str, port: u16) -> bool {
+    let probe_host = if host == "0.0.0.0" { "127.0.0.1" } else { host };
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(250))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    let status_url = format!("http://{}:{}/api/system/status", probe_host, port);
+    if let Ok(resp) = client.get(&status_url).send().await {
+        if resp.status().is_success() {
+            return true;
+        }
+    }
+
+    let config_url = format!("http://{}:{}/api/config", probe_host, port);
+    if let Ok(resp) = client.get(&config_url).send().await {
+        if resp.status().is_success() {
+            return true;
+        }
+    }
+
+    false
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     brum::setup_linux_desktop_env();
@@ -43,9 +70,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args: Vec<String> = std::env::args().collect();
     let mut is_server_mode = false;
     let mut auto_open = false;
+    let mut connect_url: Option<String> = None;
     let mut i = 1;
     while i < args.len() {
         match args[i].as_str() {
+            "--connect" | "-c" => {
+                if i + 1 < args.len() {
+                    let mut target = args[i + 1].clone();
+                    if !target.starts_with("http://") && !target.starts_with("https://") {
+                        target = format!("http://{}", target);
+                    }
+                    connect_url = Some(target);
+                    i += 1;
+                }
+            }
             "--windows-service" | "--service" => {
                 #[cfg(target_os = "windows")]
                 {
@@ -142,6 +180,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    brum service [COMMAND]");
                 println!();
                 println!("OPTIONS:");
+                println!("    -c, --connect <URL>    Connect desktop GUI/browser directly to an existing or remote Brum server");
                 println!("    -s, --standalone       Run in standalone desktop mode (auto-authenticates as local user, opens browser/window)");
                 println!("    -o, --open             Automatically open Brum in default web browser / webview");
                 println!("    -p, --port <PORT>      Override web server port (default: 3140 or config.toml setting)");
@@ -177,6 +216,65 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
         if !is_server_mode {
             auto_open = true;
+        }
+    }
+
+    if let Some(target_url) = connect_url {
+        info!("Connecting Brum client directly to server instance: {}", target_url);
+        #[cfg(feature = "gui")]
+        let has_display = std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok();
+        #[cfg(not(feature = "gui"))]
+        let has_display = false;
+
+        if has_display {
+            #[cfg(feature = "gui")]
+            {
+                let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
+                info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, target_url);
+                run_native_gui(&target_url, "Brum", config.ui.window_decorations)?;
+                return Ok(());
+            }
+            #[cfg(not(feature = "gui"))]
+            {
+                info!("Native GUI feature not compiled in. Opening via browser: {}", target_url);
+                let _ = open::that(&target_url);
+                return Ok(());
+            }
+        } else {
+            info!("No graphical display detected. Opening in browser: {}", target_url);
+            let _ = open::that(&target_url);
+            return Ok(());
+        }
+    }
+
+    if !is_server_mode && (config.server.standalone || auto_open) {
+        if probe_running_brum_server(&config.server.host, config.server.port).await {
+            let existing_url = format!("http://127.0.0.1:{}", config.server.port);
+            info!("Detected running Brum server on {}. Attaching desktop interface...", existing_url);
+            #[cfg(feature = "gui")]
+            let has_display = std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok();
+            #[cfg(not(feature = "gui"))]
+            let has_display = false;
+
+            if has_display {
+                #[cfg(feature = "gui")]
+                {
+                    let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
+                    info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, existing_url);
+                    run_native_gui(&existing_url, "Brum", config.ui.window_decorations)?;
+                    return Ok(());
+                }
+                #[cfg(not(feature = "gui"))]
+                {
+                    info!("Native GUI feature not compiled in. Opening via browser: {}", existing_url);
+                    let _ = open::that(&existing_url);
+                    return Ok(());
+                }
+            } else {
+                info!("Opening in browser: {}", existing_url);
+                let _ = open::that(&existing_url);
+                return Ok(());
+            }
         }
     }
 
