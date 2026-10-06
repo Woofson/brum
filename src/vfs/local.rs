@@ -32,6 +32,30 @@ use windows_sys::Win32::UI::Shell::{
     SHFILEOPSTRUCTW,
 };
 
+#[cfg(windows)]
+#[link(name = "netapi32")]
+extern "system" {
+    fn NetShareEnum(
+        servername: *const u16,
+        level: u32,
+        bufptr: *mut *mut u8,
+        prefmaxlen: u32,
+        entriesread: *mut u32,
+        totalentries: *mut u32,
+        resume_handle: *mut u32,
+    ) -> u32;
+
+    fn NetApiBufferFree(buf: *mut std::ffi::c_void) -> u32;
+}
+
+#[cfg(windows)]
+#[repr(C)]
+struct ShareInfo1 {
+    shi1_netname: *mut u16,
+    shi1_type: u32,
+    shi1_remark: *mut u16,
+}
+
 #[cfg(unix)]
 static USER_GROUP_CACHE: parking_lot::RwLock<Option<(Instant, HashMap<u32, String>, HashMap<u32, String>)>> =
     parking_lot::RwLock::new(None);
@@ -360,6 +384,202 @@ impl LocalFs {
         s
     }
 
+    /// Enumerate all available network shares on a remote UNC host (e.g. \\meteorite)
+    pub fn list_unc_server_shares(server: &str, show_hidden: bool) -> Result<DirectoryListing, std::io::Error> {
+        let clean_server = server.trim_start_matches(['\\', '/']).trim_end_matches(['\\', '/']);
+        #[cfg(windows)]
+        {
+            Self::list_windows_unc_server_shares(clean_server, show_hidden)
+        }
+        #[cfg(not(windows))]
+        {
+            Self::list_unix_unc_server_shares(clean_server, show_hidden)
+        }
+    }
+
+    #[cfg(windows)]
+    fn list_windows_unc_server_shares(server: &str, show_hidden: bool) -> Result<DirectoryListing, std::io::Error> {
+        let server_unc = format!(r"\\{}", server);
+        let server_wide: Vec<u16> = server_unc.encode_utf16().chain(std::iter::once(0)).collect();
+
+        let mut bufptr: *mut u8 = std::ptr::null_mut();
+        let mut entries_read: u32 = 0;
+        let mut total_entries: u32 = 0;
+        let mut resume_handle: u32 = 0;
+
+        let status = unsafe {
+            NetShareEnum(
+                server_wide.as_ptr(),
+                1,
+                &mut bufptr,
+                0xFFFFFFFF,
+                &mut entries_read,
+                &mut total_entries,
+                &mut resume_handle,
+            )
+        };
+
+        if status != 0 || bufptr.is_null() {
+            let err_msg = match status {
+                5 => "Access is denied (os error 5). Unable to enumerate shares on remote host without authentication.",
+                53 => "Network path not found (os error 53): The host server could not be reached.",
+                _ => "Failed to enumerate network shares on remote host",
+            };
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::PermissionDenied,
+                format!("Cannot list shares on '{}' (code {}): {}", server_unc, status, err_msg),
+            ));
+        }
+
+        let mut entries = Vec::new();
+        let mut total_dirs = 0;
+
+        unsafe {
+            let shares = bufptr as *const ShareInfo1;
+            for i in 0..entries_read {
+                let share_info = &*shares.add(i as usize);
+                let share_type = share_info.shi1_type & 0xFF; // STYPE_DISKTREE = 0
+                
+                if share_type == 0 {
+                    let mut len = 0;
+                    while *share_info.shi1_netname.add(len) != 0 {
+                        len += 1;
+                    }
+                    let slice = std::slice::from_raw_parts(share_info.shi1_netname, len);
+                    let share_name = String::from_utf16_lossy(slice);
+
+                    if !show_hidden && share_name.ends_with('$') {
+                        continue;
+                    }
+
+                    let full_path = format!(r"{}\{}\", server_unc, share_name);
+                    total_dirs += 1;
+                    entries.push(FileEntry {
+                        name: share_name,
+                        path: full_path,
+                        is_dir: true,
+                        is_symlink: false,
+                        is_empty: None,
+                        size: 0,
+                        modified: None,
+                        permissions: "drwxr-xr-x".to_string(),
+                        mode_octal: "0755".to_string(),
+                        owner: "network".to_string(),
+                        group: "share".to_string(),
+                        uid: 1000,
+                        gid: 1000,
+                        mime_type: None,
+                        is_archive: false,
+                    });
+                }
+            }
+            NetApiBufferFree(bufptr as *mut _);
+        }
+
+        entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+        Ok(DirectoryListing {
+            current_path: format!(r"{}\", server_unc),
+            parent_path: None,
+            entries,
+            total_files: 0,
+            total_dirs,
+            total_size: 0,
+            protocol: "local".to_string(),
+            is_truncated: None,
+            max_limit: None,
+        })
+    }
+
+    #[cfg(not(windows))]
+    fn list_unix_unc_server_shares(server: &str, show_hidden: bool) -> Result<DirectoryListing, std::io::Error> {
+        let cmd_out = std::process::Command::new("smbclient")
+            .arg("-L")
+            .arg(format!("//{}", server))
+            .arg("-N")
+            .output();
+
+        let output = cmd_out.map_err(|e| {
+            std::io::Error::new(
+                std::io::ErrorKind::NotFound,
+                format!("Failed to run smbclient to list shares on '//{}': {}", server, e),
+            )
+        })?;
+
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let msg = if stderr.trim().is_empty() { stdout.to_string() } else { stderr.to_string() };
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::ConnectionRefused,
+                format!("Failed to enumerate shares on '//{}': {}", server, msg.trim()),
+            ));
+        }
+
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        let mut entries = Vec::new();
+        let mut in_share_section = false;
+
+        for line in stdout.lines() {
+            let trimmed = line.trim();
+            if trimmed.contains("Sharename") && trimmed.contains("Type") {
+                in_share_section = true;
+                continue;
+            }
+            if in_share_section {
+                if trimmed.starts_with("---") {
+                    continue;
+                }
+                if trimmed.is_empty() || trimmed.contains("Server") || trimmed.contains("Workgroup") {
+                    break;
+                }
+                let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+                if tokens.len() >= 2 {
+                    let name = tokens[0].to_string();
+                    let share_type = tokens[1];
+                    if share_type.eq_ignore_ascii_case("Disk") {
+                        if !show_hidden && name.ends_with('$') {
+                            continue;
+                        }
+                        let full_path = format!("//{}/{}/", server, name);
+                        entries.push(FileEntry {
+                            name: name.clone(),
+                            path: full_path,
+                            is_dir: true,
+                            is_symlink: false,
+                            is_empty: None,
+                            size: 0,
+                            modified: None,
+                            permissions: "drwxr-xr-x".to_string(),
+                            mode_octal: "0755".to_string(),
+                            owner: "network".to_string(),
+                            group: "share".to_string(),
+                            uid: 1000,
+                            gid: 1000,
+                            mime_type: None,
+                            is_archive: false,
+                        });
+                    }
+                }
+            }
+        }
+
+        let total_dirs = entries.len();
+        entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+        Ok(DirectoryListing {
+            current_path: format!("//{}/", server),
+            parent_path: None,
+            entries,
+            total_files: 0,
+            total_dirs,
+            total_size: 0,
+            protocol: "local".to_string(),
+            is_truncated: None,
+            max_limit: None,
+        })
+    }
+
     pub fn resolve_local_path(p: &str) -> PathBuf {
         let trimmed = p.trim();
         if trimmed.is_empty() {
@@ -457,15 +677,14 @@ impl LocalFs {
     }
 
     pub fn list_dir(path_str: &str, show_hidden: bool) -> Result<DirectoryListing, std::io::Error> {
+        let clean_unc_host = path_str.trim_start_matches(['/', '\\']).trim_end_matches(['/', '\\']);
+        if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !clean_unc_host.contains('/') && !clean_unc_host.contains('\\') && !clean_unc_host.is_empty() {
+            return Self::list_unc_server_shares(clean_unc_host, show_hidden);
+        }
+
         let path = Self::resolve_local_path(path_str);
         if let Err(e) = fs::metadata(&path) {
             let trimmed = path_str.trim_matches(['/', '\\'].as_ref());
-            if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !trimmed.contains('/') && !trimmed.contains('\\') {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("UNC path missing share name: '{}'. Please specify a share (e.g. '\\\\{}\\\\<share>' or 'smb://{}/<share>')", path_str, trimmed, trimmed),
-                ));
-            }
             if path_str.starts_with(r"\\") || path_str.starts_with("//") {
                 #[cfg(windows)]
                 return Err(std::io::Error::new(
@@ -486,7 +705,22 @@ impl LocalFs {
 
         let canonical = dunce_canonicalize(&path).unwrap_or_else(|_| clean_path_buf(&path));
         let canonical_str = clean_path_str(&canonical);
-        let parent_path = canonical.parent().map(|p| clean_path_str(p));
+        let parent_path = if let Some(parent) = canonical.parent() {
+            Some(clean_path_str(parent))
+        } else {
+            let can_str = clean_path_str(&canonical);
+            if can_str.starts_with(r"\\") || can_str.starts_with("//") {
+                let clean_u = can_str.trim_start_matches(['\\', '/']).trim_end_matches(['\\', '/']);
+                let parts: Vec<&str> = clean_u.split(['\\', '/']).filter(|s| !s.is_empty()).collect();
+                if parts.len() == 2 {
+                    Some(format!(r"\\{}\", parts[0]))
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
         #[cfg(unix)]
         let (user_map, group_map) = Self::get_user_group_maps();
 
@@ -620,15 +854,14 @@ impl LocalFs {
         max_depth: Option<usize>,
         max_entries: Option<usize>,
     ) -> Result<DirectoryListing, std::io::Error> {
+        let clean_unc_host = path_str.trim_start_matches(['/', '\\']).trim_end_matches(['/', '\\']);
+        if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !clean_unc_host.contains('/') && !clean_unc_host.contains('\\') && !clean_unc_host.is_empty() {
+            return Self::list_unc_server_shares(clean_unc_host, show_hidden);
+        }
+
         let path = Self::resolve_local_path(path_str);
         if let Err(e) = fs::metadata(&path) {
             let trimmed = path_str.trim_matches(['/', '\\'].as_ref());
-            if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !trimmed.contains('/') && !trimmed.contains('\\') {
-                return Err(std::io::Error::new(
-                    std::io::ErrorKind::NotFound,
-                    format!("UNC path missing share name: '{}'. Please specify a share (e.g. '\\\\{}\\\\<share>' or 'smb://{}/<share>')", path_str, trimmed, trimmed),
-                ));
-            }
             if path_str.starts_with(r"\\") || path_str.starts_with("//") {
                 #[cfg(windows)]
                 return Err(std::io::Error::new(
@@ -1647,12 +1880,11 @@ mod tests {
     }
 
     #[test]
-    fn test_unc_missing_share_name_error() {
-        let res = LocalFs::list_dir(r"\\meteorite", false);
+    fn test_unc_host_share_enumeration_or_error() {
+        let res = LocalFs::list_dir(r"\\invalid_unresolvable_unc_host_xyz", false);
         assert!(res.is_err());
         let err_str = res.unwrap_err().to_string();
-        assert!(err_str.contains("UNC path missing share name"));
-        assert!(err_str.contains("meteorite"));
+        assert!(err_str.contains("invalid_unresolvable_unc_host_xyz"));
     }
 
     #[test]

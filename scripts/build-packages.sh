@@ -153,42 +153,26 @@ rm -rf "${APK_DIR}"
 # 5. Build Windows Portable ZIP Package
 echo "📦 Building Windows Portable Package (x86_64-pc-windows-gnu)..."
 if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
-    # 1. Build CLI / Server / Service Binary
+    # 1. Build Standalone Binary
     cargo build --release --target x86_64-pc-windows-gnu
-    # 2. Build Native Standalone Desktop Application (Tauri v2 + WebView2)
-    cargo build --release --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-gnu
 
     if [ -f "./target/x86_64-pc-windows-gnu/release/brum.exe" ]; then
         WIN_DIR="/tmp/brum-v${VERSION}-windows-x86_64"
         rm -rf "${WIN_DIR}"
         mkdir -p "${WIN_DIR}" "${WIN_DIR}/themes" "${WIN_DIR}/plugins"
 
-        # 1. Copy Standalone Desktop Application (Tauri v2 + WebView2) as Brum.exe
-        if [ -f "./src-tauri/target/x86_64-pc-windows-gnu/release/brum-desktop.exe" ]; then
-            cp "./src-tauri/target/x86_64-pc-windows-gnu/release/brum-desktop.exe" "${WIN_DIR}/Brum.exe"
-        fi
+        # Copy standalone binary as brum.exe
+        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/brum.exe"
 
-        # 2. Copy CLI / Server / Service binary as brum-cli.exe (or brum.exe only if standalone desktop was not built)
-        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/brum-cli.exe"
-        if [ ! -f "${WIN_DIR}/Brum.exe" ]; then
-            cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/brum.exe"
-        fi
-
-        # 3. Copy WebView2Loader.dll for Desktop GUI
-        if [ -f "./src-tauri/target/x86_64-pc-windows-gnu/release/WebView2Loader.dll" ]; then
-            cp "./src-tauri/target/x86_64-pc-windows-gnu/release/WebView2Loader.dll" "${WIN_DIR}/"
-        elif [ -f "./packaging/windows/WebView2Loader.dll" ]; then
+        # Copy WebView2Loader.dll if present
+        if [ -f "./packaging/windows/WebView2Loader.dll" ]; then
             cp "./packaging/windows/WebView2Loader.dll" "${WIN_DIR}/"
+        elif [ -f "./src-tauri/target/x86_64-pc-windows-gnu/release/WebView2Loader.dll" ]; then
+            cp "./src-tauri/target/x86_64-pc-windows-gnu/release/WebView2Loader.dll" "${WIN_DIR}/"
         fi
 
         if command -v x86_64-w64-mingw32-strip >/dev/null 2>&1; then
-            x86_64-w64-mingw32-strip "${WIN_DIR}/brum-cli.exe" 2>/dev/null || true
-            if [ -f "${WIN_DIR}/Brum.exe" ]; then
-                x86_64-w64-mingw32-strip "${WIN_DIR}/Brum.exe" 2>/dev/null || true
-            fi
-            if [ -f "${WIN_DIR}/brum.exe" ]; then
-                x86_64-w64-mingw32-strip "${WIN_DIR}/brum.exe" 2>/dev/null || true
-            fi
+            x86_64-w64-mingw32-strip "${WIN_DIR}/brum.exe" 2>/dev/null || true
         fi
         cp "./config.toml" "${WIN_DIR}/"
         cp "./LICENSE" "${WIN_DIR}/"

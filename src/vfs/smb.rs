@@ -54,7 +54,13 @@ impl SmbParams {
     /// Reconstructs full SMB URI preserving credentials
     pub fn build_uri(&self, subpath: &str) -> String {
         let clean = subpath.trim_matches('/');
-        if clean.is_empty() {
+        if self.share.is_empty() {
+            if clean.is_empty() {
+                format!("smb://{}{}{}/", self.auth_prefix(), self.host, self.port_suffix())
+            } else {
+                format!("smb://{}{}{}/{}", self.auth_prefix(), self.host, self.port_suffix(), clean)
+            }
+        } else if clean.is_empty() {
             format!("smb://{}{}{}/{}", self.auth_prefix(), self.host, self.port_suffix(), self.share)
         } else {
             format!("smb://{}{}{}/{}/{}", self.auth_prefix(), self.host, self.port_suffix(), self.share, clean)
@@ -143,10 +149,6 @@ impl SmbClient {
             (share_and_subpath, "")
         };
 
-        if share.is_empty() {
-            return Err("SMB URI missing share name (e.g. smb://host/share)".to_string());
-        }
-
         Ok(SmbParams {
             host,
             port,
@@ -193,6 +195,10 @@ impl SmbClient {
 
     /// Authenticate / establish network share connection on Windows
     pub fn ensure_windows_connection(params: &SmbParams) -> VfsResult<()> {
+        if params.share.is_empty() {
+            return Ok(());
+        }
+
         let remote_unc = format!(r"\\{}\{}", params.host, params.share);
         let remote_wide = Self::to_wide(&remote_unc);
 
@@ -256,6 +262,30 @@ impl SmbClient {
 
     /// List directory contents over SMB/CIFS on Windows
     pub fn list_dir(params: &SmbParams) -> VfsResult<DirectoryListing> {
+        if params.share.is_empty() {
+            let local_listing = crate::vfs::local::LocalFs::list_unc_server_shares(&params.host, false)
+                .map_err(|e| format!("SMB share enumeration failed: {}", e))?;
+
+            let mut entries = Vec::new();
+            for entry in local_listing.entries {
+                let mut e = entry;
+                e.path = params.build_uri(&e.name);
+                entries.push(e);
+            }
+
+            return Ok(DirectoryListing {
+                current_path: params.build_uri(""),
+                parent_path: None,
+                entries,
+                total_files: 0,
+                total_dirs: local_listing.total_dirs,
+                total_size: 0,
+                protocol: "smb".to_string(),
+                is_truncated: None,
+                max_limit: None,
+            });
+        }
+
         let _ = Self::ensure_windows_connection(params);
         let unc_path = if params.subpath.is_empty() {
             format!(r"\\{}\{}\", params.host, params.share)
@@ -280,7 +310,7 @@ impl SmbClient {
 
         let current_path = params.build_uri(&params.subpath);
         let parent_path = if params.subpath.is_empty() {
-            None
+            Some(format!("smb://{}{}{}/", params.auth_prefix(), params.host, params.port_suffix()))
         } else {
             let p = std::path::Path::new(&params.subpath);
             let parent_sub = p.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
@@ -367,6 +397,11 @@ impl SmbClient {
 
     /// Test SMB connection on Windows
     pub fn test_connection(params: &SmbParams) -> VfsResult<String> {
+        if params.share.is_empty() {
+            let res = crate::vfs::local::LocalFs::list_unc_server_shares(&params.host, false)
+                .map_err(|e| format!("SMB host '\\\\{}' connection failed: {}", params.host, e))?;
+            return Ok(format!("✓ Successfully connected to SMB Host '\\\\{}' (found {} shares)", params.host, res.entries.len()));
+        }
         Self::ensure_windows_connection(params)?;
         let unc_dir = format!(r"\\{}\{}\", params.host, params.share);
         if std::path::Path::new(&unc_dir).exists() {
@@ -428,6 +463,81 @@ impl SmbClient {
     pub fn list_dir(params: &SmbParams) -> VfsResult<DirectoryListing> {
         if !Self::is_available() {
             return Err("Samba client utility ('smbclient') is not installed on the host. Install it with: sudo apt install smbclient (Debian/Ubuntu) or sudo dnf install samba-client (Fedora/RHEL).".to_string());
+        }
+
+        if params.share.is_empty() {
+            let mut cmd = Command::new("smbclient");
+            cmd.arg("-L").arg(format!("//{}", params.host));
+            for a in Self::build_auth_arg(params) {
+                cmd.arg(a);
+            }
+            let output = cmd.output().map_err(|e| format!("Failed to execute smbclient: {}", e))?;
+            if !output.status.success() {
+                let err_msg = String::from_utf8_lossy(&output.stderr);
+                let out_msg = String::from_utf8_lossy(&output.stdout);
+                let combined = if err_msg.trim().is_empty() { out_msg.to_string() } else { err_msg.to_string() };
+                return Err(format!("SMB share enumeration failed: {}", combined.trim()));
+            }
+
+            let stdout = String::from_utf8_lossy(&output.stdout);
+            let mut entries = Vec::new();
+            let mut in_share_section = false;
+
+            for line in stdout.lines() {
+                let trimmed = line.trim();
+                if trimmed.contains("Sharename") && trimmed.contains("Type") {
+                    in_share_section = true;
+                    continue;
+                }
+                if in_share_section {
+                    if trimmed.starts_with("---") {
+                        continue;
+                    }
+                    if trimmed.is_empty() || trimmed.contains("Server") || trimmed.contains("Workgroup") {
+                        break;
+                    }
+                    let tokens: Vec<&str> = trimmed.split_whitespace().collect();
+                    if tokens.len() >= 2 {
+                        let name = tokens[0].to_string();
+                        let share_type = tokens[1];
+                        if share_type.eq_ignore_ascii_case("Disk") {
+                            let entry_path = params.build_uri(&name);
+                            entries.push(FileEntry {
+                                name: name.clone(),
+                                path: entry_path,
+                                is_dir: true,
+                                is_symlink: false,
+                                is_empty: None,
+                                size: 0,
+                                modified: None,
+                                permissions: "drwxr-xr-x".to_string(),
+                                mode_octal: "0755".to_string(),
+                                owner: "smb".to_string(),
+                                group: "smb".to_string(),
+                                uid: 1000,
+                                gid: 1000,
+                                mime_type: None,
+                                is_archive: false,
+                            });
+                        }
+                    }
+                }
+            }
+
+            let total_dirs = entries.len();
+            entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+
+            return Ok(DirectoryListing {
+                current_path: params.build_uri(""),
+                parent_path: None,
+                entries,
+                total_files: 0,
+                total_dirs,
+                total_size: 0,
+                protocol: "smb".to_string(),
+                is_truncated: None,
+                max_limit: None,
+            });
         }
 
         let share_target = format!("//{}/{}", params.host, params.share);
@@ -550,7 +660,7 @@ impl SmbClient {
 
         let current_path = params.build_uri(&params.subpath);
         let parent_path = if params.subpath.is_empty() {
-            None
+            Some(format!("smb://{}{}{}/", params.auth_prefix(), params.host, params.port_suffix()))
         } else {
             let p = std::path::Path::new(&params.subpath);
             let parent_sub = p.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_default();
@@ -795,22 +905,39 @@ impl SmbClient {
             return Err("Samba client ('smbclient') is not installed on the server.\nInstall with: sudo apt install smbclient".to_string());
         }
 
-        let share_target = format!("//{}/{}", params.host, params.share);
-        let mut cmd = Command::new("smbclient");
-        cmd.arg(&share_target);
-        for a in Self::build_auth_arg(params) {
-            cmd.arg(a);
-        }
-        cmd.arg("-c").arg("ls");
-
-        let output = cmd.output().map_err(|e| format!("Failed to run smbclient: {}", e))?;
-        if output.status.success() {
-            Ok(format!("✓ Successfully connected to SMB Share '//{}/{}'", params.host, params.share))
+        if params.share.is_empty() {
+            let mut cmd = Command::new("smbclient");
+            cmd.arg("-L").arg(format!("//{}", params.host));
+            for a in Self::build_auth_arg(params) {
+                cmd.arg(a);
+            }
+            let output = cmd.output().map_err(|e| format!("Failed to run smbclient: {}", e))?;
+            if output.status.success() {
+                Ok(format!("✓ Successfully connected to SMB Host '//{}'", params.host))
+            } else {
+                let err = String::from_utf8_lossy(&output.stderr);
+                let out = String::from_utf8_lossy(&output.stdout);
+                let msg = if err.trim().is_empty() { out.to_string() } else { err.to_string() };
+                Err(format!("SMB Connection Failed: {}", msg.trim()))
+            }
         } else {
-            let err = String::from_utf8_lossy(&output.stderr);
-            let out = String::from_utf8_lossy(&output.stdout);
-            let msg = if err.trim().is_empty() { out.to_string() } else { err.to_string() };
-            Err(format!("SMB Connection Failed: {}", msg.trim()))
+            let share_target = format!("//{}/{}", params.host, params.share);
+            let mut cmd = Command::new("smbclient");
+            cmd.arg(&share_target);
+            for a in Self::build_auth_arg(params) {
+                cmd.arg(a);
+            }
+            cmd.arg("-c").arg("ls");
+
+            let output = cmd.output().map_err(|e| format!("Failed to run smbclient: {}", e))?;
+            if output.status.success() {
+                Ok(format!("✓ Successfully connected to SMB Share '//{}/{}'", params.host, params.share))
+            } else {
+                let err = String::from_utf8_lossy(&output.stderr);
+                let out = String::from_utf8_lossy(&output.stdout);
+                let msg = if err.trim().is_empty() { out.to_string() } else { err.to_string() };
+                Err(format!("SMB Connection Failed: {}", msg.trim()))
+            }
         }
     }
 }
