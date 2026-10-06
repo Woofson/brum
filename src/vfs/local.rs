@@ -434,6 +434,13 @@ impl LocalFs {
     pub fn list_dir(path_str: &str, show_hidden: bool) -> Result<DirectoryListing, std::io::Error> {
         let path = Self::resolve_local_path(path_str);
         if !path.exists() {
+            let trimmed = path_str.trim_matches(['/', '\\'].as_ref());
+            if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !trimmed.contains('/') && !trimmed.contains('\\') {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("UNC path missing share name: '{}'. Please specify a share (e.g. '\\\\{}\\\\<share>' or 'smb://{}/<share>')", path_str, trimmed, trimmed),
+                ));
+            }
             return Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 format!("Directory not found: {}", path_str),
@@ -578,6 +585,13 @@ impl LocalFs {
     ) -> Result<DirectoryListing, std::io::Error> {
         let path = Self::resolve_local_path(path_str);
         if !path.exists() {
+            let trimmed = path_str.trim_matches(['/', '\\'].as_ref());
+            if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !trimmed.contains('/') && !trimmed.contains('\\') {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    format!("UNC path missing share name: '{}'. Please specify a share (e.g. '\\\\{}\\\\<share>' or 'smb://{}/<share>')", path_str, trimmed, trimmed),
+                ));
+            }
             return Err(std::io::Error::new(
                 std::io::ErrorKind::NotFound,
                 format!("Directory not found: {}", path_str),
@@ -1581,6 +1595,15 @@ mod tests {
         );
         assert!(res_del.is_ok());
         assert!(!renamed_file.exists());
+    }
+
+    #[test]
+    fn test_unc_missing_share_name_error() {
+        let res = LocalFs::list_dir(r"\\meteorite", false);
+        assert!(res.is_err());
+        let err_str = res.unwrap_err().to_string();
+        assert!(err_str.contains("UNC path missing share name"));
+        assert!(err_str.contains("meteorite"));
     }
 }
 
