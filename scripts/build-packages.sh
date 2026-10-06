@@ -186,6 +186,15 @@ if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
         if [ -f "./packaging/windows/brum.ico" ]; then
             cp "./packaging/windows/brum.ico" "${WIN_DIR}/"
         fi
+        if [ -f "./packaging/windows/create-shortcuts.ps1" ]; then
+            cp "./packaging/windows/create-shortcuts.ps1" "${WIN_DIR}/"
+        fi
+        if [ -f "./packaging/windows/create-shortcuts.bat" ]; then
+            cp "./packaging/windows/create-shortcuts.bat" "${WIN_DIR}/"
+        fi
+        if [ -f "./packaging/windows/remove-shortcuts.bat" ]; then
+            cp "./packaging/windows/remove-shortcuts.bat" "${WIN_DIR}/"
+        fi
         if [ -f "./packaging/windows/register-context-menu.reg" ]; then
             cp "./packaging/windows/register-context-menu.reg" "${WIN_DIR}/"
         fi

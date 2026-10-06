@@ -151,6 +151,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     return Ok(());
                 }
             }
+            "shortcut" => {
+                if i + 1 < args.len() {
+                    let subcmd = args[i + 1].clone();
+                    let with_desktop = args.iter().any(|a| a == "--desktop" || a == "-d" || a == "-Desktop");
+                    handle_shortcut_command(&subcmd, with_desktop)?;
+                    return Ok(());
+                } else {
+                    eprintln!("Usage: brum shortcut [install [--desktop] | uninstall]");
+                    return Ok(());
+                }
+            }
             "--minimized" | "--tray-only" => {
                 auto_open = false;
                 config.server.standalone = true;
@@ -178,6 +189,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("USAGE:");
                 println!("    brum [OPTIONS]");
                 println!("    brum service [COMMAND]");
+                println!("    brum shortcut [COMMAND] [--desktop]");
                 println!();
                 println!("OPTIONS:");
                 println!("    -c, --connect <URL>    Connect desktop GUI/browser directly to an existing or remote Brum server");
@@ -202,6 +214,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    restart                Restart background service");
                 println!("    status                 Query service running status");
                 println!("    run                    Execute service dispatcher directly");
+                println!();
+                println!("SHORTCUT COMMANDS:");
+                println!("    install [--desktop]    Create Start Menu shortcut (and optional Desktop shortcut)");
+                println!("    uninstall              Remove created shortcuts");
                 return Ok(());
             }
             _ => {}
@@ -607,5 +623,127 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
             _ => eprintln!("Unknown service command: {}. Available: install, uninstall, start, stop, restart, status, run", cmd),
         }
     }
+    Ok(())
+}
+
+fn handle_shortcut_command(action: &str, with_desktop: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    let exe = std::env::current_exe()?;
+
+    #[cfg(target_os = "windows")]
+    {
+        let exe_dir = exe.parent().unwrap_or(std::path::Path::new("."));
+        match action {
+            "install" | "create" => {
+                let ico_path = exe_dir.join("brum.ico");
+                let ico_arg = if ico_path.exists() {
+                    format!("$s.IconLocation = '{}'; ", ico_path.display())
+                } else {
+                    String::new()
+                };
+
+                let ps_script = format!(
+                    r#"$w = New-Object -ComObject WScript.Shell;
+$p = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Programs);
+$d = Join-Path $p 'Brum';
+if (-not (Test-Path $d)) {{ New-Item -ItemType Directory -Path $d -Force | Out-Null }};
+$s = $w.CreateShortcut((Join-Path $d 'Brum.lnk'));
+$s.TargetPath = '{}';
+$s.Arguments = '-s';
+$s.WorkingDirectory = '{}';
+$s.Description = 'Brum - File Commander & Manager (Standalone)';
+{}$s.Save();
+Write-Host 'Created Start Menu shortcut: ' (Join-Path $d 'Brum.lnk');
+if ('{}' -eq 'true') {{
+    $desk = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Desktop);
+    $ds = $w.CreateShortcut((Join-Path $desk 'Brum.lnk'));
+    $ds.TargetPath = '{}';
+    $ds.Arguments = '-s';
+    $ds.WorkingDirectory = '{}';
+    $ds.Description = 'Brum - File Commander & Manager (Standalone)';
+    {}$ds.Save();
+    Write-Host 'Created Desktop shortcut: ' (Join-Path $desk 'Brum.lnk');
+}};"#,
+                    exe.display(),
+                    exe_dir.display(),
+                    ico_arg,
+                    if with_desktop { "true" } else { "false" },
+                    exe.display(),
+                    exe_dir.display(),
+                    ico_arg
+                );
+
+                let status = std::process::Command::new("powershell.exe")
+                    .args(["-NoProfile", "-NonInteractive", "-Command", &ps_script])
+                    .status()?;
+                if status.success() {
+                    println!("Shortcuts created successfully.");
+                }
+            }
+            "uninstall" | "remove" => {
+                let ps_script = r#"$p = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Programs);
+$d = Join-Path $p 'Brum';
+if (Test-Path $d) { Remove-Item -Recurse -Force $d };
+$desk = [System.Environment]::GetFolderPath([System.Environment+SpecialFolder]::Desktop);
+$deskLink = Join-Path $desk 'Brum.lnk';
+if (Test-Path $deskLink) { Remove-Item -Force $deskLink };
+Write-Host 'Removed shortcuts.';"#;
+
+                let _ = std::process::Command::new("powershell.exe")
+                    .args(["-NoProfile", "-NonInteractive", "-Command", ps_script])
+                    .status();
+                println!("Shortcuts removed.");
+            }
+            _ => eprintln!("Unknown shortcut command: {}. Available: install [--desktop], uninstall", action),
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        match action {
+            "install" | "create" => {
+                if let Some(data_dir) = dirs::data_dir() {
+                    let apps_dir = data_dir.join("applications");
+                    let _ = std::fs::create_dir_all(&apps_dir)?;
+                    let desktop_file = apps_dir.join("brum.desktop");
+                    let content = format!(
+                        "[Desktop Entry]\nName=Brum\nComment=Multi-Pane Web Environment (File Commander/Manager)\nExec=\"{}\" -s\nTerminal=false\nType=Application\nIcon=brum\nCategories=Utility;FileManager;System;FileTools;\nStartupNotify=true\n",
+                        exe.display()
+                    );
+                    std::fs::write(&desktop_file, &content)?;
+                    println!("Created Start Menu / Application shortcut at {}", desktop_file.display());
+
+                    if with_desktop {
+                        if let Some(desk_dir) = dirs::desktop_dir() {
+                            let desk_file = desk_dir.join("brum.desktop");
+                            std::fs::write(&desk_file, &content)?;
+                            #[cfg(unix)]
+                            {
+                                use std::os::unix::fs::PermissionsExt;
+                                let _ = std::fs::set_permissions(&desk_file, std::fs::Permissions::from_mode(0o755));
+                            }
+                            println!("Created Desktop shortcut at {}", desk_file.display());
+                        }
+                    }
+                }
+            }
+            "uninstall" | "remove" => {
+                if let Some(data_dir) = dirs::data_dir() {
+                    let desktop_file = data_dir.join("applications/brum.desktop");
+                    if desktop_file.exists() {
+                        let _ = std::fs::remove_file(desktop_file);
+                    }
+                }
+                if let Some(desk_dir) = dirs::desktop_dir() {
+                    let desk_file = desk_dir.join("brum.desktop");
+                    if desk_file.exists() {
+                        let _ = std::fs::remove_file(desk_file);
+                    }
+                }
+                println!("Desktop shortcuts removed.");
+            }
+            _ => eprintln!("Unknown shortcut command: {}. Available: install [--desktop], uninstall", action),
+        }
+    }
+
     Ok(())
 }
