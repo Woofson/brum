@@ -221,6 +221,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     if let Some(target_url) = connect_url {
         info!("Connecting Brum client directly to server instance: {}", target_url);
+        #[allow(unused_variables)]
         let has_display = is_graphical_display_available();
 
         #[cfg(feature = "gui")]
@@ -240,6 +241,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if probe_running_brum_server(&config.server.host, config.server.port).await {
             let existing_url = format!("http://127.0.0.1:{}", config.server.port);
             info!("Detected running Brum server on {}. Attaching desktop interface...", existing_url);
+            #[allow(unused_variables)]
             let has_display = is_graphical_display_available();
 
             #[cfg(feature = "gui")]
@@ -325,6 +327,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bound_addr = listener.local_addr()?;
     let open_url = format!("http://127.0.0.1:{}", bound_addr.port());
     let is_standalone = config.server.standalone;
+    #[allow(unused_variables)]
     let has_display = is_graphical_display_available();
     let should_launch_gui = !is_server_mode && (is_standalone || auto_open);
 

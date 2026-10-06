@@ -55,7 +55,14 @@ pub fn create_router(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
         .allow_methods(Any)
-        .allow_headers(Any);
+        .allow_headers(Any)
+        .expose_headers([
+            header::HeaderName::from_static("x-is-directory"),
+            header::HeaderName::from_static("content-disposition"),
+            header::HeaderName::from_static("content-range"),
+            header::HeaderName::from_static("accept-ranges"),
+            header::HeaderName::from_static("etag"),
+        ]);
 
     Router::new()
         // System & Platform Status & Removable Storage

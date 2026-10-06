@@ -10485,30 +10485,19 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
         xnodeTask.paranoid = true;
       }
 
-      // Check if the downloaded payload is a directory ZIP archive
-      let isZip = false;
-      const respContentType = downloadResp.headers.get('content-type') || '';
-      const respDisposition = downloadResp.headers.get('content-disposition') || '';
-      const isDirHeader = downloadResp.headers.get('x-is-directory') || '';
-      if (isDirHeader === 'true' || isDirHeader === '1' || respContentType.includes('application/zip') || respContentType.includes('application/gzip') || respDisposition.includes('.zip') || respDisposition.includes('.tar.gz')) {
-        isZip = true;
-      } else if (blob.size >= 4) {
-        try {
-          const magicBuf = await blob.slice(0, 4).arrayBuffer();
-          const magicBytes = new Uint8Array(magicBuf);
-          if ((magicBytes[0] === 0x50 && magicBytes[1] === 0x4B && magicBytes[2] === 0x03 && magicBytes[3] === 0x04) || (magicBytes[0] === 0x1F && magicBytes[1] === 0x8B)) {
-            isZip = true;
-          }
-        } catch (_) {}
-      }
+      // Check if the source item is an actual Directory packed as a ZIP archive for transport
+      const srcEntry = srcPane.entries ? srcPane.entries.find(e => e.path === srcPath || e.name === fileName) : null;
+      const isDirHeader = (downloadResp.headers.get('x-is-directory') || '').toLowerCase();
+      const isServerPackedDir = isDirHeader === 'true' || isDirHeader === '1';
+      const isPackedDir = (srcEntry && srcEntry.is_dir === true) || isServerPackedDir;
 
       // 2. Upload to Destination Node with XHR progress monitoring
       xnodeTask.phase = 'upload';
-      xnodeTask.phase_text = isZip
+      xnodeTask.phase_text = isPackedDir
         ? `📂 Extracting directory [${i + 1}/${totalItems}]: ${fileName}`
         : `📤 Uploading [${i + 1}/${totalItems}]: ${fileName}`;
       if (pillText) {
-        pillText.textContent = isZip
+        pillText.textContent = isPackedDir
           ? `📂 Extracting [${i + 1}/${totalItems}] ${fileName}...`
           : `📤 Uploading [${i + 1}/${totalItems}] ${fileName}...`;
       }
@@ -10522,7 +10511,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
       await new Promise((resolve, reject) => {
         const xhr = new XMLHttpRequest();
-        const extractParam = isZip ? '&extract=1&is_dir=1' : '';
+        const extractParam = isPackedDir ? '&extract=1&is_dir=1' : '';
         const uploadUrl = `${destEndpoint}/api/fs/upload?destination=${encodeURIComponent(resolveAuthUri(destination))}${extractParam}&no_task=1`;
         xhr.open('POST', uploadUrl);
         for (const h in destHeaders) {
@@ -10567,7 +10556,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
         xhr.onabort = () => reject(new Error('Upload aborted'));
 
         const formData = new FormData();
-        const sendFileName = isZip ? `${fileName}.zip` : fileName;
+        const sendFileName = isPackedDir ? `${fileName}.zip` : fileName;
         formData.append('files', blob, sendFileName);
         xhr.send(formData);
       });
