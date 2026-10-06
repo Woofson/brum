@@ -5,6 +5,32 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.2] - 2026-10-06
+
+### Added
+- **Dual-Binary Windows Architecture & Service Separation**:
+  - Separated Windows distribution into `Brum.exe` (Tauri v2 + WebView2 desktop client) and `brumd.exe` (Brum daemon / headless server / service runner) to prevent NTFS case-insensitivity collisions.
+  - Added native Windows shortcut management via `brum shortcut install [--desktop]` and `brum shortcut uninstall`.
+  - Added helper batch and PowerShell scripts (`create-shortcuts.bat`, `create-shortcuts.ps1`, `remove-shortcuts.bat`) targeting `Brum.exe`.
+  - Added Windows NT Service management to `brumd.exe` (`brumd.exe service install|uninstall|start|stop|restart|status`).
+- **UNC Share Enumeration & Native Windows SMB**:
+  - Implemented Win32 `NetShareEnum` integration in `LocalFs::list_unc_server_shares` to enumerate all available shares on UNC host roots (e.g. `\\meteorite` and `\\meteorite\`).
+  - Added fallback Linux UNC share enumeration via `smbclient -L` for cross-platform parity.
+- **GitHub Wiki Synchronization Automation**:
+  - Added automated GitHub Wiki synchronization (`scripts/sync-wiki.sh`) to the release workflow.
+
+### Fixed
+- **HTTP Cache Control & Download Stale Serving**:
+  - Set `Cache-Control: no-cache, must-revalidate` and `no-cache, no-store, must-revalidate` across all file download endpoints to prevent browsers from caching modified files.
+  - Added timestamp cache-busters (`&_t=${Date.now()}`) and `cache: 'no-store'` in frontend file downloads and cross-node transfers.
+- **UNC Path Normalization & Breadcrumb Rendering**:
+  - Preserved single-host UNC roots (`\\meteorite` / `//meteorite`) in `clean_path_buf` and `normalize_path` to prevent path reduction to local drive roots.
+  - Resolved UNC root breadcrumb rendering to display clean host roots (`🖥️ \\meteorite\`) and multi-segment share hierarchies.
+- **Transfers & Archive Handling** (Fixes #102, #103, #104):
+  - Fixed cross-node directory transfers, folder uploads, and drag-and-drop.
+  - Resolved duplicate root folder nesting during archive extraction.
+  - Preserved archive files during cross-node copies without unintended unpacking.
+
 ## [1.6.1] - 2026-09-30
 
 ### Added
