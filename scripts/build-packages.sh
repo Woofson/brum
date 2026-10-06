@@ -212,10 +212,9 @@ if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
         (
             cd /tmp
             zip -rq "${DIST_DIR}/brum-v${VERSION}-windows-x86_64.zip" "brum-v${VERSION}-windows-x86_64"
-            cp "${DIST_DIR}/brum-v${VERSION}-windows-x86_64.zip" "${DIST_DIR}/brum-windows-portable.zip"
         )
         rm -rf "${WIN_DIR}"
-        echo "✅ Created brum-v${VERSION}-windows-x86_64.zip and brum-windows-portable.zip"
+        echo "✅ Created brum-v${VERSION}-windows-x86_64.zip"
     fi
 fi
 

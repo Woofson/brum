@@ -16,7 +16,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Maintained backward-compatible API proxies and aliases for legacy callers and chewtoys.
 - **Enhanced Multi-Format Packaging & Theme Bundling**:
   - Bundled all 10 theme presets (`themes/*.toml`) directly into Debian (`/etc/brum/themes/`), Alpine Linux, generic Linux tarballs, and Windows portable ZIP packages.
-  - Added automated Windows x86_64 portable ZIP distribution builder (`dist/brum-v1.6.1-windows-x86_64.zip` and `dist/brum-windows-portable.zip`).
+  - Added automated Windows x86_64 portable ZIP distribution builder (`dist/brum-v1.6.1-windows-x86_64.zip`).
 
 ### Fixed
 - **UI & DOM Optimization**:
