@@ -143,3 +143,29 @@ Whenever creating or modifying windows, modals, or docked tools, strictly adhere
 ### 4. Tool & Terminal Lifecycle Protocols
 * Interactive CLI tools (e.g., Bite! Terminal) must cleanly handle EOF (`Ctrl+D`), `logout`, and `exit` to automatically close the docked drawer/window and reset PTY state.
 * Tools must gracefully remember user preferences (active layouts, selected views, column sizes) via `localStorage` or backend configuration.
+
+---
+
+## 10. Binary Architecture & Packaging Specification (Windows vs Linux)
+
+To ensure smooth operation across platforms and prevent filesystem collisions, adhere strictly to the following binary structure:
+
+### 1. Windows Architecture (Case-Insensitive NTFS Collision Rule)
+* **NTFS Case-Insensitivity**: Windows treats `Brum.exe` and `brum.exe` as the exact same file path. They MUST NEVER be packaged together with identical spelling.
+* **`Brum.exe` (Native Standalone Desktop Client)**:
+  * Compiled from `src-tauri` (`cargo build --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-gnu`).
+  * Runs the standalone Microsoft WebView2 desktop window with system tray support, frameless/decorated window state persistence, and auto-backend spawning/service detection.
+  * Always targeted by Start Menu shortcuts, Desktop shortcuts, and Windows Explorer context menus.
+* **`brumd.exe` (Brum Daemon & Background Service)**:
+  * Compiled from root crate (`cargo build --target x86_64-pc-windows-gnu`).
+  * Runs the headless HTTP/WebSocket backend server, CLI tools, and Windows NT Service runner (`brumd.exe service install`, `brumd.exe service start`).
+
+### 2. Linux & Unix Architecture (Unified Single-Binary Design)
+* **`brum` (Unified Single Binary)**:
+  * Compiled from root crate (`cargo build --release`).
+  * On Linux/Unix, a single `brum` executable handles all modes seamlessly through CLI switches:
+    * `brum` / `brum -s` / `brum --standalone`: Standalone desktop mode (local user auto-auth, auto-opens interface).
+    * `brum --server`: Headless background daemon.
+    * `brum service [install|uninstall|start|stop|restart|status]`: systemd user service management.
+    * `brum shortcut [install|uninstall] [--desktop]`: Desktop and application menu shortcut creation.
+
