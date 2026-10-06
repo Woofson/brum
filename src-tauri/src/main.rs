@@ -91,26 +91,43 @@ fn main() {
         .setup(move |app| {
             let handle = app.handle().clone();
 
-            // Spawn embedded backend server in Tokio runtime
+            // Spawn embedded backend server in Tokio runtime or attach to running service
             tauri::async_runtime::spawn(async move {
-                match start_background_server(config).await {
-                    Ok(port) => {
-                        active_port_server.store(port, Ordering::Relaxed);
-                        let url = format!("http://127.0.0.1:{}", port);
-                        println!("Brum desktop backend bound to: {}", url);
+                let host = config.server.host.clone();
+                let configured_port = config.server.port;
 
-                        let saved_state = SavedWindowState::load();
-                        let win_width = saved_state.width.unwrap_or(1366.0).max(680.0);
-                        let win_height = saved_state.height.unwrap_or(840.0).max(480.0);
-                        let is_max = saved_state.is_maximized.unwrap_or(false);
+                let bound_port = if brum::probe_running_brum_server(&host, configured_port).await {
+                    println!("Detected running Brum server on http://127.0.0.1:{}. Attaching desktop interface...", configured_port);
+                    configured_port
+                } else {
+                    match start_background_server(config).await {
+                        Ok(port) => {
+                            println!("Brum desktop backend bound to: http://127.0.0.1:{}", port);
+                            port
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to start Brum backend server: {}", e);
+                            return;
+                        }
+                    }
+                };
 
-                        // Create the primary standalone window pointing to the local embedded server
-                        #[allow(unused_mut)]
-                        let mut win_builder = WebviewWindowBuilder::new(
-                            &handle,
-                            "main",
-                            WebviewUrl::External(url.parse().unwrap()),
-                        )
+                active_port_server.store(bound_port, Ordering::Relaxed);
+                let url = format!("http://127.0.0.1:{}", bound_port);
+                println!("Brum desktop interface connected to: {}", url);
+
+                let saved_state = SavedWindowState::load();
+                let win_width = saved_state.width.unwrap_or(1366.0).max(680.0);
+                let win_height = saved_state.height.unwrap_or(840.0).max(480.0);
+                let is_max = saved_state.is_maximized.unwrap_or(false);
+
+                // Create the primary standalone window pointing to the local embedded server
+                #[allow(unused_mut)]
+                let mut win_builder = WebviewWindowBuilder::new(
+                    &handle,
+                    "main",
+                    WebviewUrl::External(url.parse().unwrap()),
+                )
                         .title("Brum")
                         .inner_size(win_width, win_height)
                         .min_inner_size(680.0, 480.0)
@@ -194,11 +211,6 @@ fn main() {
                                 eprintln!("Failed to create main window: {}", e);
                             }
                         }
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to start Brum backend server: {}", e);
-                    }
-                }
             });
 
             // Configure System Tray

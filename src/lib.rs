@@ -58,6 +58,41 @@ pub fn create_app_state(config: &AppConfig) -> Result<AppState, Box<dyn std::err
     })
 }
 
+/// Probes whether a Brum server is actively running on the target host and port
+pub async fn probe_running_brum_server(host: &str, port: u16) -> bool {
+    let probe_host = if host.is_empty() || host == "0.0.0.0" { "127.0.0.1" } else { host };
+    let client = match reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(350))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+
+    let health_url = format!("http://{}:{}/api/health", probe_host, port);
+    if let Ok(resp) = client.get(&health_url).send().await {
+        if resp.status().is_success() {
+            return true;
+        }
+    }
+
+    let status_url = format!("http://{}:{}/api/system/status", probe_host, port);
+    if let Ok(resp) = client.get(&status_url).send().await {
+        if resp.status().is_success() {
+            return true;
+        }
+    }
+
+    let config_url = format!("http://{}:{}/api/config", probe_host, port);
+    if let Ok(resp) = client.get(&config_url).send().await {
+        if resp.status().is_success() {
+            return true;
+        }
+    }
+
+    false
+}
+
 /// Starts the Brum HTTP server in a background task and returns the bound port
 pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<dyn std::error::Error + Send + Sync>> {
     let state = create_app_state(&config)?;
