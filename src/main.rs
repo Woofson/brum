@@ -221,60 +221,38 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     if let Some(target_url) = connect_url {
         info!("Connecting Brum client directly to server instance: {}", target_url);
-        #[cfg(feature = "gui")]
-        let has_display = std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok();
-        #[cfg(not(feature = "gui"))]
-        let has_display = false;
+        let has_display = is_graphical_display_available();
 
+        #[cfg(feature = "gui")]
         if has_display {
-            #[cfg(feature = "gui")]
-            {
-                let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
-                info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, target_url);
-                run_native_gui(&target_url, "Brum", config.ui.window_decorations)?;
-                return Ok(());
-            }
-            #[cfg(not(feature = "gui"))]
-            {
-                info!("Native GUI feature not compiled in. Opening via browser: {}", target_url);
-                let _ = open::that(&target_url);
-                return Ok(());
-            }
-        } else {
-            info!("No graphical display detected. Opening in browser: {}", target_url);
-            let _ = open::that(&target_url);
+            let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
+            info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, target_url);
+            run_native_gui(&target_url, "Brum", config.ui.window_decorations)?;
             return Ok(());
         }
+
+        info!("Opening in browser: {}", target_url);
+        let _ = open::that(&target_url);
+        return Ok(());
     }
 
     if !is_server_mode && (config.server.standalone || auto_open) {
         if probe_running_brum_server(&config.server.host, config.server.port).await {
             let existing_url = format!("http://127.0.0.1:{}", config.server.port);
             info!("Detected running Brum server on {}. Attaching desktop interface...", existing_url);
-            #[cfg(feature = "gui")]
-            let has_display = std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok();
-            #[cfg(not(feature = "gui"))]
-            let has_display = false;
+            let has_display = is_graphical_display_available();
 
+            #[cfg(feature = "gui")]
             if has_display {
-                #[cfg(feature = "gui")]
-                {
-                    let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
-                    info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, existing_url);
-                    run_native_gui(&existing_url, "Brum", config.ui.window_decorations)?;
-                    return Ok(());
-                }
-                #[cfg(not(feature = "gui"))]
-                {
-                    info!("Native GUI feature not compiled in. Opening via browser: {}", existing_url);
-                    let _ = open::that(&existing_url);
-                    return Ok(());
-                }
-            } else {
-                info!("Opening in browser: {}", existing_url);
-                let _ = open::that(&existing_url);
+                let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
+                info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, existing_url);
+                run_native_gui(&existing_url, "Brum", config.ui.window_decorations)?;
                 return Ok(());
             }
+
+            info!("Opening in browser: {}", existing_url);
+            let _ = open::that(&existing_url);
+            return Ok(());
         }
     }
 
@@ -347,15 +325,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bound_addr = listener.local_addr()?;
     let open_url = format!("http://127.0.0.1:{}", bound_addr.port());
     let is_standalone = config.server.standalone;
+    let has_display = is_graphical_display_available();
+    let should_launch_gui = !is_server_mode && (is_standalone || auto_open);
 
-    #[cfg(feature = "gui")]
-    let has_display = std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok();
-    #[cfg(not(feature = "gui"))]
-    let has_display = false;
-
-    let should_launch_gui = !is_server_mode && (is_standalone || has_display);
-
-    if should_launch_gui && has_display {
+    if should_launch_gui {
         tokio::spawn(async move {
             if let Err(e) = axum::serve(listener, app).await {
                 tracing::error!("Brum server error: {}", e);
@@ -363,34 +336,34 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
 
         #[cfg(feature = "gui")]
-        {
+        if has_display {
             let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
             info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, open_url);
             run_native_gui(&open_url, "Brum", config.ui.window_decorations)?;
             return Ok(());
         }
-        #[cfg(not(feature = "gui"))]
-        {
-            info!("Native GUI feature not compiled in. Opening via browser launcher: {}", open_url);
-            let u = open_url.clone();
-            tokio::spawn(async move {
-                let _ = open::that(&u);
-            });
-        }
-    } else {
-        if auto_open {
-            let u = open_url.clone();
-            tokio::spawn(async move {
-                tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
-                info!("Opening Brum in browser: {}", u);
-                let _ = open::that(&u);
-            });
-        }
 
+        info!("Opening Brum in browser: {}", open_url);
+        let u = open_url.clone();
+        tokio::spawn(async move {
+            let _ = open::that(&u);
+        });
+
+        tokio::signal::ctrl_c().await?;
+        return Ok(());
+    } else {
         axum::serve(listener, app).await?;
     }
 
     Ok(())
+}
+
+fn is_graphical_display_available() -> bool {
+    if cfg!(target_os = "windows") || cfg!(target_os = "macos") {
+        true
+    } else {
+        std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok()
+    }
 }
 
 #[cfg(feature = "gui")]

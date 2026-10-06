@@ -153,15 +153,31 @@ rm -rf "${APK_DIR}"
 # 5. Build Windows Portable ZIP Package
 echo "📦 Building Windows Portable Package (x86_64-pc-windows-gnu)..."
 if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
+    # 1. Build CLI / Server / Service Binary
     cargo build --release --target x86_64-pc-windows-gnu
+    # 2. Build Native Standalone Desktop Application (Tauri v2 + WebView2)
+    cargo build --release --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-gnu
+
     if [ -f "./target/x86_64-pc-windows-gnu/release/brum.exe" ]; then
         WIN_DIR="/tmp/brum-v${VERSION}-windows-x86_64"
         rm -rf "${WIN_DIR}"
         mkdir -p "${WIN_DIR}" "${WIN_DIR}/themes" "${WIN_DIR}/plugins"
 
-        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/"
+        # Copy CLI / Server binary as both brum.exe and brum-cli.exe
+        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/brum.exe"
+        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/brum-cli.exe"
+
+        # Copy Standalone Desktop Application if built
+        if [ -f "./src-tauri/target/x86_64-pc-windows-gnu/release/brum-desktop.exe" ]; then
+            cp "./src-tauri/target/x86_64-pc-windows-gnu/release/brum-desktop.exe" "${WIN_DIR}/Brum.exe"
+        fi
+
         if command -v x86_64-w64-mingw32-strip >/dev/null 2>&1; then
             x86_64-w64-mingw32-strip "${WIN_DIR}/brum.exe" 2>/dev/null || true
+            x86_64-w64-mingw32-strip "${WIN_DIR}/brum-cli.exe" 2>/dev/null || true
+            if [ -f "${WIN_DIR}/Brum.exe" ]; then
+                x86_64-w64-mingw32-strip "${WIN_DIR}/Brum.exe" 2>/dev/null || true
+            fi
         fi
         cp "./config.toml" "${WIN_DIR}/"
         cp "./LICENSE" "${WIN_DIR}/"
