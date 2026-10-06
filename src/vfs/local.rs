@@ -268,6 +268,17 @@ pub fn clean_path_buf(path: &Path) -> PathBuf {
         path_str.to_string()
     };
 
+    #[cfg(windows)]
+    {
+        if stripped_str.starts_with(r"\\") {
+            let clean_unc = stripped_str.trim_start_matches(r"\\");
+            let parts: Vec<&str> = clean_unc.split('\\').filter(|s| !s.is_empty()).collect();
+            if parts.len() == 2 {
+                return PathBuf::from(format!(r"\\{}\{}\", parts[0], parts[1]));
+            }
+        }
+    }
+
     #[cfg(not(windows))]
     {
         // On non-Windows platforms, if path is a Windows path with backslashes (e.g. C:\Users\Bolt),
@@ -406,6 +417,20 @@ impl LocalFs {
                 format!(r"{}\", normalized)
             } else if normalized.len() == 3 && normalized.as_bytes()[1] == b':' && normalized.as_bytes()[2] == b'\\' {
                 normalized
+            } else if normalized.starts_with(r"\\") || normalized.starts_with("//") {
+                let clean_unc = normalized.trim_start_matches(['\\', '/']);
+                let parts: Vec<&str> = clean_unc.split(['\\', '/']).filter(|s| !s.is_empty()).collect();
+                if parts.len() == 2 {
+                    format!(r"\\{}\{}\", parts[0], parts[1])
+                } else if parts.len() > 2 {
+                    let mut p = format!(r"\\{}", parts.join("\\"));
+                    while p.ends_with('\\') {
+                        p.pop();
+                    }
+                    p
+                } else {
+                    normalized
+                }
             } else {
                 while normalized.len() > 3 && normalized.ends_with('\\') {
                     normalized.pop();
@@ -1628,6 +1653,31 @@ mod tests {
         let err_str = res.unwrap_err().to_string();
         assert!(err_str.contains("UNC path missing share name"));
         assert!(err_str.contains("meteorite"));
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn test_unc_share_root_trailing_slash_preservation() {
+        assert_eq!(
+            LocalFs::resolve_local_path(r"\\meteorite\stash"),
+            PathBuf::from(r"\\meteorite\stash\")
+        );
+        assert_eq!(
+            LocalFs::resolve_local_path(r"\\meteorite\stash\"),
+            PathBuf::from(r"\\meteorite\stash\")
+        );
+        assert_eq!(
+            clean_path_buf(Path::new(r"\\meteorite\stash")),
+            PathBuf::from(r"\\meteorite\stash\")
+        );
+        assert_eq!(
+            clean_path_buf(Path::new(r"\\meteorite\stash\")),
+            PathBuf::from(r"\\meteorite\stash\")
+        );
+        assert_eq!(
+            LocalFs::resolve_local_path(r"\\meteorite\stash\subfolder\"),
+            PathBuf::from(r"\\meteorite\stash\subfolder")
+        );
     }
 }
 
