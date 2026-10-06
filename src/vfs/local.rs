@@ -433,7 +433,7 @@ impl LocalFs {
 
     pub fn list_dir(path_str: &str, show_hidden: bool) -> Result<DirectoryListing, std::io::Error> {
         let path = Self::resolve_local_path(path_str);
-        if !path.exists() {
+        if let Err(e) = fs::metadata(&path) {
             let trimmed = path_str.trim_matches(['/', '\\'].as_ref());
             if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !trimmed.contains('/') && !trimmed.contains('\\') {
                 return Err(std::io::Error::new(
@@ -441,9 +441,21 @@ impl LocalFs {
                     format!("UNC path missing share name: '{}'. Please specify a share (e.g. '\\\\{}\\\\<share>' or 'smb://{}/<share>')", path_str, trimmed, trimmed),
                 ));
             }
+            if path_str.starts_with(r"\\") || path_str.starts_with("//") {
+                #[cfg(windows)]
+                return Err(std::io::Error::new(
+                    e.kind(),
+                    format!("Cannot access network share '{}': {}. If credentials are required, authenticate in Windows Explorer or run 'net use {} <password> /user:<user>', or use 'smb://{}' in Brum.", path_str, e, path_str, trimmed),
+                ));
+                #[cfg(not(windows))]
+                return Err(std::io::Error::new(
+                    e.kind(),
+                    format!("Cannot access UNC path '{}' directly on non-Windows host: {}. Please use 'smb://{}' to browse via Brum's native SMB client.", path_str, e, trimmed.replace('\\', "/")),
+                ));
+            }
             return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("Directory not found: {}", path_str),
+                e.kind(),
+                format!("Directory not found or inaccessible: {} ({})", path_str, e),
             ));
         }
 
@@ -584,7 +596,7 @@ impl LocalFs {
         max_entries: Option<usize>,
     ) -> Result<DirectoryListing, std::io::Error> {
         let path = Self::resolve_local_path(path_str);
-        if !path.exists() {
+        if let Err(e) = fs::metadata(&path) {
             let trimmed = path_str.trim_matches(['/', '\\'].as_ref());
             if (path_str.starts_with(r"\\") || path_str.starts_with("//")) && !trimmed.contains('/') && !trimmed.contains('\\') {
                 return Err(std::io::Error::new(
@@ -592,9 +604,21 @@ impl LocalFs {
                     format!("UNC path missing share name: '{}'. Please specify a share (e.g. '\\\\{}\\\\<share>' or 'smb://{}/<share>')", path_str, trimmed, trimmed),
                 ));
             }
+            if path_str.starts_with(r"\\") || path_str.starts_with("//") {
+                #[cfg(windows)]
+                return Err(std::io::Error::new(
+                    e.kind(),
+                    format!("Cannot access network share '{}': {}. If credentials are required, authenticate in Windows Explorer or run 'net use {} <password> /user:<user>', or use 'smb://{}' in Brum.", path_str, e, path_str, trimmed),
+                ));
+                #[cfg(not(windows))]
+                return Err(std::io::Error::new(
+                    e.kind(),
+                    format!("Cannot access UNC path '{}' directly on non-Windows host: {}. Please use 'smb://{}' to browse via Brum's native SMB client.", path_str, e, trimmed.replace('\\', "/")),
+                ));
+            }
             return Err(std::io::Error::new(
-                std::io::ErrorKind::NotFound,
-                format!("Directory not found: {}", path_str),
+                e.kind(),
+                format!("Directory not found or inaccessible: {} ({})", path_str, e),
             ));
         }
 
