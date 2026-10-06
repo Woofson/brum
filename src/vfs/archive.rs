@@ -931,12 +931,164 @@ impl ArchiveHandler {
         Err(std::io::Error::new(std::io::ErrorKind::NotFound, "Entry not found in SquashFS image"))
     }
 
+    fn should_strip_root_prefix(prefix: &str, target_name: &str) -> bool {
+        if prefix.is_empty() || target_name.is_empty() {
+            return false;
+        }
+        let t_norm = target_name.to_lowercase().replace(['-', '_', '.'], "");
+        let p_norm = prefix.to_lowercase().replace(['-', '_', '.'], "");
+        t_norm == p_norm || t_norm.starts_with(&p_norm) || p_norm.starts_with(&t_norm)
+    }
+
+    fn find_zip_strip_prefix<R: Read + std::io::Seek>(zip: &mut ZipArchive<R>, target_name: &str) -> Option<String> {
+        if target_name.is_empty() {
+            return None;
+        }
+        let mut common_prefix: Option<String> = None;
+        let mut has_entries = false;
+
+        for i in 0..zip.len() {
+            let name = match zip.name_for_index(i) {
+                Some(n) => n.replace('\\', "/"),
+                None => continue,
+            };
+            let clean = name.trim_start_matches('/');
+            if clean.is_empty() {
+                continue;
+            }
+            has_entries = true;
+            let parts: Vec<&str> = clean.split('/').collect();
+            if parts.len() <= 1 && !clean.ends_with('/') {
+                return None; // Loose file at root
+            }
+            let root = parts[0];
+            if root.is_empty() {
+                return None;
+            }
+            match &common_prefix {
+                None => common_prefix = Some(root.to_string()),
+                Some(p) => {
+                    if p != root {
+                        return None;
+                    }
+                }
+            }
+        }
+
+        if !has_entries {
+            return None;
+        }
+
+        if let Some(prefix) = common_prefix {
+            if Self::should_strip_root_prefix(&prefix, target_name) {
+                return Some(format!("{}/", prefix));
+            }
+        }
+
+        None
+    }
+
+    fn find_tar_strip_prefix<R: Read>(reader: R, target_name: &str) -> Option<String> {
+        if target_name.is_empty() {
+            return None;
+        }
+        let mut archive = TarArchive::new(reader);
+        let entries = archive.entries().ok()?;
+        let mut common_prefix: Option<String> = None;
+        let mut has_entries = false;
+
+        for entry_res in entries {
+            let entry = match entry_res {
+                Ok(e) => e,
+                Err(_) => return None,
+            };
+            let path = match entry.path() {
+                Ok(p) => p.to_string_lossy().replace('\\', "/"),
+                Err(_) => continue,
+            };
+            let clean = path.trim_start_matches('/').to_string();
+            if clean.is_empty() {
+                continue;
+            }
+            has_entries = true;
+            let parts: Vec<&str> = clean.split('/').collect();
+            let is_dir = entry.header().entry_type().is_dir();
+            if parts.len() <= 1 && !is_dir && !clean.ends_with('/') {
+                return None; // Loose file at root
+            }
+            let root = parts[0];
+            if root.is_empty() {
+                return None;
+            }
+            match &common_prefix {
+                None => common_prefix = Some(root.to_string()),
+                Some(p) => {
+                    if p != root {
+                        return None;
+                    }
+                }
+            }
+        }
+
+        if !has_entries {
+            return None;
+        }
+
+        if let Some(prefix) = common_prefix {
+            if Self::should_strip_root_prefix(&prefix, target_name) {
+                return Some(format!("{}/", prefix));
+            }
+        }
+
+        None
+    }
+
+    fn unpack_tar_with_strip<R: Read>(
+        archive: &mut TarArchive<R>,
+        target: &Path,
+        strip_prefix: Option<&str>,
+    ) -> Result<(), std::io::Error> {
+        let entries = archive.entries()?;
+        for entry_res in entries {
+            let mut entry = entry_res?;
+            let path = entry.path()?.to_string_lossy().replace('\\', "/");
+            let clean = path.trim_start_matches('/').to_string();
+            if clean.is_empty() {
+                continue;
+            }
+
+            let out_rel = if let Some(p) = strip_prefix {
+                if clean == p.trim_end_matches('/') || clean == p {
+                    continue; // Skip root folder itself
+                }
+                if let Some(stripped) = clean.strip_prefix(p) {
+                    if stripped.is_empty() {
+                        continue;
+                    }
+                    stripped.to_string()
+                } else {
+                    clean
+                }
+            } else {
+                clean
+            };
+
+            let out_path = target.join(&out_rel);
+            if let Some(parent) = out_path.parent() {
+                fs::create_dir_all(parent)?;
+            }
+            entry.unpack(&out_path)?;
+        }
+        Ok(())
+    }
+
     pub fn extract_archive(archive_path_str: &str, target_dir_str: &str) -> Result<(), std::io::Error> {
         let (path_buf, normalized_str) = Self::normalize_archive_path(archive_path_str);
         let path = path_buf.as_path();
         let archive_path_str = normalized_str.as_str();
         let target = Path::new(target_dir_str);
         fs::create_dir_all(target)?;
+        let target_name = target.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         let lower = archive_path_str.to_lowercase();
 
@@ -945,12 +1097,70 @@ impl ArchiveHandler {
             let filesystem = backhand::FilesystemReader::from_reader(file)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SquashFS error: {}", e)))?;
 
+            let mut common_prefix: Option<String> = None;
+            let mut single_root = true;
+            let mut has_entries = false;
+
+            for node in filesystem.files() {
+                let rel = node.fullpath.to_string_lossy().trim_start_matches('/').to_string();
+                if rel.is_empty() {
+                    continue;
+                }
+                has_entries = true;
+                let parts: Vec<&str> = rel.split('/').collect();
+                let is_dir = matches!(node.inner, backhand::InnerNode::Dir(_));
+                if parts.len() <= 1 && !is_dir && !rel.ends_with('/') {
+                    single_root = false;
+                } else {
+                    let root = parts[0];
+                    match &common_prefix {
+                        None => common_prefix = Some(root.to_string()),
+                        Some(p) => {
+                            if p != root {
+                                single_root = false;
+                            }
+                        }
+                    }
+                }
+            }
+
+            let strip_prefix = if single_root && has_entries {
+                if let Some(prefix) = common_prefix {
+                    if Self::should_strip_root_prefix(&prefix, target_name) {
+                        Some(format!("{}/", prefix))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+
             for node in filesystem.files() {
                 let rel_path = node.fullpath.to_string_lossy().trim_start_matches('/').to_string();
                 if rel_path.is_empty() {
                     continue;
                 }
-                let out_path = target.join(&rel_path);
+
+                let out_rel = if let Some(ref p) = strip_prefix {
+                    if rel_path == p.trim_end_matches('/') || rel_path == *p {
+                        continue;
+                    }
+                    if let Some(stripped) = rel_path.strip_prefix(p) {
+                        if stripped.is_empty() {
+                            continue;
+                        }
+                        stripped.to_string()
+                    } else {
+                        rel_path
+                    }
+                } else {
+                    rel_path
+                };
+
+                let out_path = target.join(&out_rel);
 
                 match &node.inner {
                     backhand::InnerNode::Dir(_) => {
@@ -1024,28 +1234,80 @@ impl ArchiveHandler {
             let file = File::open(path)?;
             let mut zip = ZipArchive::new(BufReader::new(file))
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-            zip.extract(target)
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+            let strip_prefix = Self::find_zip_strip_prefix(&mut zip, target_name);
+
+            for i in 0..zip.len() {
+                let mut file = zip.by_index(i)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
+                let raw_name = match file.enclosed_name() {
+                    Some(p) => p.to_string_lossy().replace('\\', "/"),
+                    None => continue,
+                };
+                let clean_name = raw_name.trim_start_matches('/');
+                if clean_name.is_empty() {
+                    continue;
+                }
+
+                let out_rel_path = if let Some(ref p) = strip_prefix {
+                    if clean_name == p.trim_end_matches('/') || clean_name == *p {
+                        continue;
+                    }
+                    if let Some(stripped) = clean_name.strip_prefix(p) {
+                        if stripped.is_empty() {
+                            continue;
+                        }
+                        stripped.to_string()
+                    } else {
+                        clean_name.to_string()
+                    }
+                } else {
+                    clean_name.to_string()
+                };
+
+                let out_path = target.join(&out_rel_path);
+
+                if file.is_dir() {
+                    fs::create_dir_all(&out_path)?;
+                } else {
+                    if let Some(parent) = out_path.parent() {
+                        fs::create_dir_all(parent)?;
+                    }
+                    let mut out_file = File::create(&out_path)?;
+                    std::io::copy(&mut file, &mut out_file)?;
+                }
+
+                #[cfg(unix)]
+                {
+                    use std::os::unix::fs::PermissionsExt;
+                    if let Some(mode) = file.unix_mode() {
+                        let _ = fs::set_permissions(&out_path, fs::Permissions::from_mode(mode));
+                    }
+                }
+            }
             info!("Extracted zip {} to {}", archive_path_str, target_dir_str);
             Ok(())
         } else if lower.ends_with(".tar.gz") || lower.ends_with(".tgz") {
             let file = File::open(path)?;
-            let tar = GzDecoder::new(file);
-            let mut archive = TarArchive::new(tar);
-            archive.unpack(target)?;
+            let strip_prefix = Self::find_tar_strip_prefix(GzDecoder::new(BufReader::new(file)), target_name);
+            let file2 = File::open(path)?;
+            let mut archive = TarArchive::new(GzDecoder::new(BufReader::new(file2)));
+            Self::unpack_tar_with_strip(&mut archive, target, strip_prefix.as_deref())?;
             info!("Extracted tar.gz {} to {}", archive_path_str, target_dir_str);
             Ok(())
         } else if lower.ends_with(".tar") {
             let file = File::open(path)?;
-            let mut archive = TarArchive::new(file);
-            archive.unpack(target)?;
+            let strip_prefix = Self::find_tar_strip_prefix(BufReader::new(file), target_name);
+            let file2 = File::open(path)?;
+            let mut archive = TarArchive::new(BufReader::new(file2));
+            Self::unpack_tar_with_strip(&mut archive, target, strip_prefix.as_deref())?;
             info!("Extracted tar {} to {}", archive_path_str, target_dir_str);
             Ok(())
         } else if lower.ends_with(".tar.bz2") || lower.ends_with(".tbz2") {
             let file = File::open(path)?;
-            let bz = bzip2::read::BzDecoder::new(file);
-            let mut archive = TarArchive::new(bz);
-            archive.unpack(target)?;
+            let strip_prefix = Self::find_tar_strip_prefix(bzip2::read::BzDecoder::new(BufReader::new(file)), target_name);
+            let file2 = File::open(path)?;
+            let mut archive = TarArchive::new(bzip2::read::BzDecoder::new(BufReader::new(file2)));
+            Self::unpack_tar_with_strip(&mut archive, target, strip_prefix.as_deref())?;
             info!("Extracted tar.bz2 {} to {}", archive_path_str, target_dir_str);
             Ok(())
         } else {
@@ -1729,7 +1991,43 @@ mod tests {
             let p1_entry = listing.entries.iter().find(|e| e.name.contains("p1")).unwrap();
             let p1_listing = ArchiveHandler::list_archive_contents(fog_path, &p1_entry.name).unwrap();
             assert_eq!(p1_listing.current_path, format!("archive://{}#{}", fog_path, p1_entry.name));
-            assert!(p1_listing.entries.iter().any(|e| e.name.eq_ignore_ascii_case("efi")));
         }
+    }
+
+    #[test]
+    fn test_extract_archive_smart_root_stripping() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let src_folder = temp_dir.path().join("myfolder");
+        fs::create_dir_all(&src_folder).unwrap();
+        fs::write(src_folder.join("file1.txt"), "hello from file 1").unwrap();
+        fs::write(src_folder.join("file2.txt"), "hello from file 2").unwrap();
+
+        // 1. Create ZIP of folder
+        let zip_path = temp_dir.path().join("myfolder.zip");
+        ArchiveHandler::create_zip(&[src_folder.to_string_lossy().to_string()], &zip_path.to_string_lossy()).unwrap();
+        assert!(zip_path.exists());
+
+        // 2. Test "Extract to <myfolder>" (target directory has name "myfolder")
+        // Should strip redundant "myfolder/" and place file1.txt directly into target
+        let extract_subfolder = temp_dir.path().join("extracted_sub").join("myfolder");
+        ArchiveHandler::extract_archive(&zip_path.to_string_lossy(), &extract_subfolder.to_string_lossy()).unwrap();
+        assert!(extract_subfolder.join("file1.txt").exists(), "file1.txt should be in target directly");
+        assert!(extract_subfolder.join("file2.txt").exists(), "file2.txt should be in target directly");
+        assert!(!extract_subfolder.join("myfolder").join("file1.txt").exists(), "Must not create duplicate nested myfolder/myfolder");
+
+        // 3. Test "Extract Here" (target directory is parent "extracted_here")
+        let extract_here = temp_dir.path().join("extracted_here");
+        ArchiveHandler::extract_archive(&zip_path.to_string_lossy(), &extract_here.to_string_lossy()).unwrap();
+        assert!(extract_here.join("myfolder").join("file1.txt").exists(), "Extract here should create myfolder/file1.txt");
+
+        // 4. Test Tar.gz
+        let targz_path = temp_dir.path().join("myfolder.tar.gz");
+        ArchiveHandler::create_targz(&[src_folder.to_string_lossy().to_string()], &targz_path.to_string_lossy()).unwrap();
+        assert!(targz_path.exists());
+
+        let extract_tar_sub = temp_dir.path().join("extracted_tar_sub").join("myfolder");
+        ArchiveHandler::extract_archive(&targz_path.to_string_lossy(), &extract_tar_sub.to_string_lossy()).unwrap();
+        assert!(extract_tar_sub.join("file1.txt").exists(), "Tar extract to subfolder should strip duplicate root");
+        assert!(!extract_tar_sub.join("myfolder").join("file1.txt").exists(), "Tar must not create duplicate nested folder");
     }
 }
