@@ -6107,7 +6107,7 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
 
   // Check if path is a Windows drive path (e.g. C:\ or C:/ or C:\Users\Bolt)
   const winDriveMatch = cleanCrumbPath.match(/^([a-zA-Z]:)[\\/]*(.*)$/);
-  const uncMatch = cleanCrumbPath.match(/^(\\\\[^\\\/]+[\\\/][^\\\/]+)(.*)$/) || cleanCrumbPath.match(/^(\/\/[^\/]+\/[^\/]+)(.*)$/);
+  const isUnc = cleanCrumbPath.startsWith('\\\\') || cleanCrumbPath.startsWith('//');
 
   if (winDriveMatch) {
     const driveLetter = winDriveMatch[1].toUpperCase();
@@ -6138,31 +6138,37 @@ function renderPaneBreadcrumbs(paneIndex, pathStr) {
     return;
   }
 
-  if (uncMatch) {
-    const shareRoot = uncMatch[1].replace(/\//g, '\\');
-    const rest = uncMatch[2];
-    const parts = rest.split(/[\\/]/).filter(Boolean);
+  if (isUnc) {
+    const isForward = cleanCrumbPath.startsWith('//');
+    const sepChar = isForward ? '/' : '\\';
+    const prefix = isForward ? '//' : '\\\\';
+    const cleanUnc = cleanCrumbPath.replace(/^[\\\/]+/, '');
+    const parts = cleanUnc.split(/[\\/]/).filter(Boolean);
 
-    const rootCrumb = makeRootCrumb(shareRoot, shareRoot, '🖥️');
-    container.appendChild(rootCrumb);
+    if (parts.length > 0) {
+      const host = parts[0];
+      const hostRoot = `${prefix}${host}${sepChar}`;
+      const hostCrumb = makeRootCrumb(hostRoot, hostRoot, '🖥️');
+      container.appendChild(hostCrumb);
 
-    let currentBuild = shareRoot;
-    parts.forEach(part => {
-      const sepParent = currentBuild;
-      const sep = makeSepDropdown('\\', sepParent);
-      container.appendChild(sep);
+      let currentBuild = `${prefix}${host}`;
+      for (let i = 1; i < parts.length; i++) {
+        const part = parts[i];
+        const sepParent = currentBuild + sepChar;
+        const sep = makeSepDropdown(sepChar, sepParent);
+        container.appendChild(sep);
 
-      currentBuild += '\\' + part;
-      const target = currentBuild;
-
-      const c = document.createElement('span');
-      c.className = 'crumb';
-      c.textContent = part;
-      c.onclick = (e) => { e.stopPropagation(); loadPaneDirectory(paneIndex, target); };
-      container.appendChild(c);
-    });
-    if (window.lucide) lucide.createIcons();
-    return;
+        currentBuild += sepChar + part;
+        const target = currentBuild + (i === 1 && parts.length === 2 ? sepChar : '');
+        const c = document.createElement('span');
+        c.className = 'crumb';
+        c.textContent = part;
+        c.onclick = (e) => { e.stopPropagation(); loadPaneDirectory(paneIndex, target); };
+        container.appendChild(c);
+      }
+      if (window.lucide) lucide.createIcons();
+      return;
+    }
   }
 
   const parts = pathStr.split('/').filter(Boolean);
