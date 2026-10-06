@@ -172,6 +172,13 @@ if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
             cp "./src-tauri/target/x86_64-pc-windows-gnu/release/brum-desktop.exe" "${WIN_DIR}/Brum.exe"
         fi
 
+        # Copy WebView2Loader.dll for Desktop GUI
+        if [ -f "./src-tauri/target/x86_64-pc-windows-gnu/release/WebView2Loader.dll" ]; then
+            cp "./src-tauri/target/x86_64-pc-windows-gnu/release/WebView2Loader.dll" "${WIN_DIR}/"
+        elif [ -f "./packaging/windows/WebView2Loader.dll" ]; then
+            cp "./packaging/windows/WebView2Loader.dll" "${WIN_DIR}/"
+        fi
+
         if command -v x86_64-w64-mingw32-strip >/dev/null 2>&1; then
             x86_64-w64-mingw32-strip "${WIN_DIR}/brum.exe" 2>/dev/null || true
             x86_64-w64-mingw32-strip "${WIN_DIR}/brum-cli.exe" 2>/dev/null || true
