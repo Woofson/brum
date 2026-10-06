@@ -168,8 +168,8 @@ if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
             cp "./src-tauri/target/x86_64-pc-windows-gnu/release/brum-desktop.exe" "${WIN_DIR}/Brum.exe"
         fi
 
-        # 2. Copy CLI / Server / Service binary as brum.exe
-        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/brum.exe"
+        # 2. Copy Daemon / Server / Service binary as brumd.exe
+        cp "./target/x86_64-pc-windows-gnu/release/brum.exe" "${WIN_DIR}/brumd.exe"
 
         # 3. Copy WebView2Loader.dll for Desktop GUI
         if [ -f "./src-tauri/target/x86_64-pc-windows-gnu/release/WebView2Loader.dll" ]; then
@@ -182,8 +182,8 @@ if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
             if [ -f "${WIN_DIR}/Brum.exe" ]; then
                 x86_64-w64-mingw32-strip "${WIN_DIR}/Brum.exe" 2>/dev/null || true
             fi
-            if [ -f "${WIN_DIR}/brum.exe" ]; then
-                x86_64-w64-mingw32-strip "${WIN_DIR}/brum.exe" 2>/dev/null || true
+            if [ -f "${WIN_DIR}/brumd.exe" ]; then
+                x86_64-w64-mingw32-strip "${WIN_DIR}/brumd.exe" 2>/dev/null || true
             fi
         fi
         cp "./config.toml" "${WIN_DIR}/"
