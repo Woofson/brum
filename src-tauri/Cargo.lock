@@ -414,7 +414,7 @@ dependencies = [
 
 [[package]]
 name = "brum"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "aes-gcm",
  "argon2",
@@ -481,7 +481,7 @@ dependencies = [
 
 [[package]]
 name = "brum-desktop"
-version = "1.6.1"
+version = "1.6.2"
 dependencies = [
  "brum",
  "dirs 5.0.1",

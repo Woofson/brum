@@ -24,7 +24,7 @@ Brum discovers its configuration in the following order of precedence:
 
 ```toml
 # ==============================================================================
-# Brum Master Configuration (v1.6.1)
+# Brum Master Configuration (v1.6.2)
 # ==============================================================================
 
 [server]
@@ -216,7 +216,7 @@ By setting `allow_entire_system = false`, Brum enforces strict sandboxing:
 
 Brum automatically embeds full build metadata at compile time adhering to **SemVer 2.0.0 (Section 10)**:
 * Query build details via CLI: `brum --version` or `brum.exe -v`
-  * Example output: `Brum v1.6.1 (build #419 · commit 8f42092 · 2026-09-30 14:00:00 UTC · x86_64-pc-windows-gnu)`
+  * Example output: `Brum v1.6.2 (build #419 · commit 8f42092 · 2026-09-30 14:00:00 UTC · x86_64-pc-windows-gnu)`
 * Query status and build info via REST API: `GET /api/system/status` or `GET /api/health`
 * Inspect build metadata in the UI: Open **Settings (Tab 10: About)** or the standalone **About Brum** modal to view the build number (`#419`), git commit hash, and UTC compilation timestamp.
 
