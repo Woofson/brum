@@ -158,8 +158,49 @@ fn default_allowed_roots_claims() -> Option<String> {
     Some("[\"*\"]".to_string())
 }
 
+pub struct PooledReadConn {
+    conn: Option<Connection>,
+    pool: Arc<Mutex<Vec<Connection>>>,
+}
+
+impl std::ops::Deref for PooledReadConn {
+    type Target = Connection;
+    fn deref(&self) -> &Self::Target {
+        self.conn.as_ref().expect("Pooled connection must exist")
+    }
+}
+
+impl Drop for PooledReadConn {
+    fn drop(&mut self) {
+        if let Some(conn) = self.conn.take() {
+            if let Ok(mut pool) = self.pool.lock() {
+                if pool.len() < 16 {
+                    pool.push(conn);
+                }
+            }
+        }
+    }
+}
+
+pub enum ReadConnGuard<'a> {
+    Pooled(PooledReadConn),
+    Locked(std::sync::MutexGuard<'a, Connection>),
+}
+
+impl<'a> std::ops::Deref for ReadConnGuard<'a> {
+    type Target = Connection;
+    fn deref(&self) -> &Self::Target {
+        match self {
+            ReadConnGuard::Pooled(p) => p.deref(),
+            ReadConnGuard::Locked(l) => l.deref(),
+        }
+    }
+}
+
 pub struct AuthManager {
     db: Arc<Mutex<Connection>>,
+    read_pool: Arc<Mutex<Vec<Connection>>>,
+    db_path: String,
     jwt_secret: String,
     session_hours: u64,
     auth_mode: String,
@@ -430,6 +471,8 @@ impl AuthManager {
 
         let auth = Self {
             db: Arc::new(Mutex::new(conn)),
+            read_pool: Arc::new(Mutex::new(Vec::new())),
+            db_path: db_path.to_string(),
             jwt_secret: effective_jwt_secret,
             session_hours,
             auth_mode: auth_mode.to_string(),
@@ -483,8 +526,37 @@ impl AuthManager {
         Ok(auth)
     }
 
+    pub fn get_read_conn(&self) -> Result<ReadConnGuard<'_>, Box<dyn std::error::Error + Send + Sync>> {
+        if self.db_path == ":memory:" || self.db_path.is_empty() {
+            let guard = self.db.lock().map_err(|_| "DB lock poisoned")?;
+            return Ok(ReadConnGuard::Locked(guard));
+        }
+
+        let mut pool = self.read_pool.lock().map_err(|_| "Read pool lock poisoned")?;
+        if let Some(conn) = pool.pop() {
+            Ok(ReadConnGuard::Pooled(PooledReadConn {
+                conn: Some(conn),
+                pool: self.read_pool.clone(),
+            }))
+        } else {
+            let conn = Connection::open(&self.db_path)?;
+            conn.execute_batch(
+                "PRAGMA journal_mode = WAL;
+                 PRAGMA synchronous = NORMAL;
+                 PRAGMA temp_store = MEMORY;
+                 PRAGMA cache_size = -8000;
+                 PRAGMA busy_timeout = 5000;
+                 PRAGMA query_only = ON;",
+            )?;
+            Ok(ReadConnGuard::Pooled(PooledReadConn {
+                conn: Some(conn),
+                pool: self.read_pool.clone(),
+            }))
+        }
+    }
+
     pub fn count_users(&self) -> Result<usize, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare("SELECT COUNT(*) FROM users")?;
         let count: i64 = stmt.query_row([], |row| row.get(0))?;
         Ok(count as usize)
@@ -585,7 +657,7 @@ impl AuthManager {
     }
 
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash FROM users WHERE username = ?1"
         )?;
@@ -630,7 +702,7 @@ impl AuthManager {
     }
 
     pub fn list_users(&self) -> Result<Vec<User>, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash FROM users ORDER BY username ASC"
         )?;
@@ -1379,7 +1451,7 @@ impl AuthManager {
 
     // Bookmarks Management
     pub fn list_bookmarks(&self, username: &str) -> Result<Vec<UserBookmark>, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
             "SELECT id, username, name, protocol, path, password, created_at
              FROM bookmarks WHERE username = ?1 OR username = '*' ORDER BY id ASC"
@@ -1449,7 +1521,7 @@ impl AuthManager {
 
     // User Preferences Management (Cross-Device Sync)
     pub fn get_user_preferences(&self, username: &str) -> Result<Option<String>, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare("SELECT preferences_json FROM user_preferences WHERE username = ?1")?;
         let mut rows = stmt.query(params![username])?;
         if let Some(row) = rows.next()? {
@@ -1483,7 +1555,7 @@ impl AuthManager {
 
     // Security Settings
     pub fn get_security_settings(&self) -> Result<SecuritySettings, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let auto_lock_enabled = conn.query_row("SELECT value FROM security_settings WHERE key = 'auto_lock_enabled'", [], |r| r.get::<_, String>(0)).unwrap_or_else(|_| "true".to_string()) == "true";
         let auto_lock_minutes = conn.query_row("SELECT value FROM security_settings WHERE key = 'auto_lock_minutes'", [], |r| r.get::<_, String>(0)).unwrap_or_else(|_| "15".to_string()).parse::<u32>().unwrap_or(15);
         let session_timeout_hours = conn.query_row("SELECT value FROM security_settings WHERE key = 'session_timeout_hours'", [], |r| r.get::<_, String>(0)).unwrap_or_else(|_| "8".to_string()).parse::<u32>().unwrap_or(8);
@@ -1748,7 +1820,7 @@ impl AuthManager {
     }
 
     pub fn list_shares(&self, username: &str, is_admin: bool) -> Result<Vec<ShareItem>, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let mut list = Vec::new();
 
         let query = if is_admin {
@@ -1837,7 +1909,7 @@ impl AuthManager {
     }
 
     pub fn get_share_by_token(&self, token: &str) -> Result<Option<ShareItem>, Box<dyn std::error::Error + Send + Sync>> {
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare("SELECT id, token, path, name, is_dir, allow_upload, allow_view, allow_download, password_hash, expires_at, created_by, created_at, download_count, max_downloads, allowed_emails, require_email, watermark_enabled, watermark_text, status FROM shares WHERE token = ?1")?;
         let mut rows = stmt.query(params![token])?;
 
