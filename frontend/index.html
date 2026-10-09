@@ -266,7 +266,7 @@
               <div style="font-size: 11px; color: var(--text-dim);" id="menu-user-email">user@localhost</div>
               <span class="user-role-badge" id="menu-role-badge" style="margin-top: 4px; display: inline-block;">ADMIN</span>
             </div>
-            <button type="button" class="profile-header-shield-btn" id="profile-paranoid-shield" onclick="openParanoidSettings()" title="Paranoid Mode Settings">
+            <button type="button" class="profile-header-shield-btn" id="profile-paranoid-shield" onclick="openParanoidSettings()" title="Security & Integrity Checks">
               <i data-lucide="shield-check"></i>
             </button>
           </div>
@@ -1187,6 +1187,7 @@
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-templates')"><i data-lucide="file-code-2"></i> Templates</button>
 
           <div class="settings-sidebar-group-title">System & Shortcuts</div>
+          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-security')"><i data-lucide="shield-check"></i> Security & Integrity</button>
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-bookmarks')"><i data-lucide="bookmark"></i> Bookmarks</button>
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-keys')"><i data-lucide="keyboard"></i> Keybindings</button>
           <button class="settings-nav-btn" onclick="switchSettingsTab('tab-about')"><img src="assets/amber-frameless-info.webp" alt="About" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> About Brum</button>
@@ -1415,8 +1416,8 @@
                 <label class="settings-checkbox-row">
                   <input type="checkbox" id="setting-dnd-paranoid-prompt" checked onchange="handleDndSettingChange()">
                   <div>
-                    <strong>Paranoid Mode Prompt on Drag-and-Drop</strong>
-                    <div class="settings-field-hint">Show confirmation dialog before initiating paranoid SHA-256 verification transfers.</div>
+                    <strong>Integrity Verification Prompt on Drag-and-Drop</strong>
+                    <div class="settings-field-hint">Show confirmation dialog before initiating SHA-256 verified transfers.</div>
                   </div>
                 </label>
 
@@ -2768,7 +2769,7 @@
           <!-- Description Card -->
           <div class="settings-group-card">
             <p style="font-size: 12px; color: var(--text-main); line-height: 1.6; margin: 0;">
-              <strong>Brum</strong> brings the speed, keyboard ergonomics, and multi-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the modern web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and paranoid cryptographic data verification.
+              <strong>Brum</strong> brings the speed, keyboard ergonomics, and multi-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the modern web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and cryptographic data integrity verification.
             </p>
           </div>
 
@@ -2923,6 +2924,108 @@
             </div>
           </div>
         </div>
+
+        <!-- Tab: Security & Integrity Checks -->
+        <div class="settings-tab-content" id="tab-security" style="padding: 16px;">
+          <!-- Card 1: File Integrity & Verification -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="shield-check"></i> File Integrity &amp; Verification
+              </h4>
+            </div>
+            <p class="settings-card-desc">Cryptographic checksum verification and transfer safety standards.</p>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-paranoid-enabled" checked onchange="handleUserParanoidToggle(this.checked)">
+                <div>
+                  <strong>Security &amp; Integrity Checks (Standard / Active)</strong>
+                  <div class="settings-field-hint">Enforces strict SHA-256 verification and dry-run safety checks on file copy and move operations.</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="settings-field" style="margin-top: 6px;">
+              <label class="settings-field-label" for="setting-user-checksum-algo">Checksum Verification Algorithm:</label>
+              <select id="setting-user-checksum-algo" class="settings-select" onchange="handleUserSecuritySettingChange()">
+                <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
+                <option value="md5">MD5 (Fast / Legacy)</option>
+                <option value="sha1">SHA-1</option>
+              </select>
+              <div class="settings-field-hint">Files copied or moved with integrity checks enabled are verified upon completion.</div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-dnd-paranoid-prompt" checked onchange="handleUserSecuritySettingChange()">
+                <div>
+                  <strong>Drag-and-Drop Verification Confirmation Dialog</strong>
+                  <div class="settings-field-hint">Show transaction pre-flight safety analysis when dragging files between panes.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Card 2: Transaction Safety & File Protection -->
+          <div class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="lock"></i> Transaction Safety &amp; Protection
+              </h4>
+            </div>
+            <p class="settings-card-desc">Atomic filesystem write operations and safe deletion policies.</p>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-atomic-writes" checked onchange="handleUserSecuritySettingChange()">
+                <div>
+                  <strong>Atomic File Writes</strong>
+                  <div class="settings-field-hint">Write to temporary files first and atomically swap upon completion to prevent incomplete corruption.</div>
+                </div>
+              </label>
+
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-trash-enabled" checked onchange="handleUserSecuritySettingChange()">
+                <div>
+                  <strong>Safe Trash Bin</strong>
+                  <div class="settings-field-hint">Move deleted files to the operating system Trash bin instead of permanent unrecoverable deletion.</div>
+                </div>
+              </label>
+
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-confirm-delete" checked onchange="handleUserSecuritySettingChange()">
+                <div>
+                  <strong>Confirm File Deletions (F8 / Delete)</strong>
+                  <div class="settings-field-hint">Show confirmation dialog before moving files to trash or deleting.</div>
+                </div>
+              </label>
+
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-confirm-overwrite" checked onchange="handleUserSecuritySettingChange()">
+                <div>
+                  <strong>Confirm File Overwrites</strong>
+                  <div class="settings-field-hint">Prompt when destination files already exist during copy and move operations.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Card 3: Server Administration Link (if admin) -->
+          <div class="settings-group-card" id="user-sec-admin-card" style="display: none;">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="shield-alert"></i> Server-Wide Security Policies
+              </h4>
+            </div>
+            <p class="settings-card-desc">As an Administrator, you can also manage server-wide auto-lock timers, token lifespans, and global defaults.</p>
+            <div style="margin-top: 6px;">
+              <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('settings-modal'); openAdminPanel(); switchAdminTab('admin-tab-security');" style="height: 28px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px;">
+                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i> Open Server Security &amp; Auto-Lock Policies
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -2950,7 +3053,7 @@
           <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-syncthing')"><i data-lucide="repeat"></i> Syncthing Global</button>
 
           <div class="settings-sidebar-group-title">Security & Config</div>
-          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-security')"><i data-lucide="shield-check"></i> Paranoid & Security</button>
+          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-security')"><i data-lucide="shield-check"></i> Security & Integrity</button>
           <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-config')"><i data-lucide="file-cog"></i> Server config.toml</button>
         </div>
 
@@ -3103,12 +3206,12 @@
             </div>
           </div>
 
-          <!-- Admin Tab 4: Security & Paranoid Defaults -->
+          <!-- Admin Tab 4: Security & Integrity Defaults -->
           <div class="settings-tab-content" id="admin-tab-security">
             <div class="settings-card-header" style="margin-bottom: 12px;">
               <div>
                 <h4 class="settings-section-title">
-                  <i data-lucide="shield-check"></i> Global File Safety, Paranoid Integrity & Auto-Lock
+                  <i data-lucide="shield-check"></i> Global File Safety, Integrity Checks & Auto-Lock
                 </h4>
                 <p class="settings-card-desc" style="margin-top: 2px;">
                   Configure default transaction rules, session timeout, auto-lock on workstation inactivity, and cryptographic validation.
@@ -3177,11 +3280,11 @@
                 </div>
               </div>
 
-              <!-- Card 2: Paranoid Mode & Integrity -->
+              <!-- Card 2: File Integrity & Transaction Safety -->
               <div class="settings-group-card">
                 <div class="settings-card-header">
                   <h4 class="settings-section-title">
-                    <i data-lucide="shield-check"></i> Paranoid Mode & Integrity
+                    <i data-lucide="shield-check"></i> File Integrity &amp; Transaction Safety
                   </h4>
                 </div>
                 <p class="settings-card-desc">Cryptographic validation and atomic file system operations.</p>
@@ -3190,8 +3293,8 @@
                   <label class="settings-checkbox-row">
                     <input type="checkbox" id="setting-paranoid-enabled" checked>
                     <div>
-                      <strong>Enable Paranoid File Handling Globally</strong>
-                      <div class="settings-field-hint">Enforces strict validation on all file copy/move operations.</div>
+                      <strong>Enable Strict File Integrity Checks Globally</strong>
+                      <div class="settings-field-hint">Enforces strict SHA-256 validation on all file copy and move operations.</div>
                     </div>
                   </label>
                 </div>
@@ -3203,7 +3306,7 @@
                     <option value="md5">MD5 (Legacy Fast)</option>
                     <option value="sha1">SHA-1</option>
                   </select>
-                  <div class="settings-field-hint">Files transferred in Paranoid mode have their checksum verified upon completion.</div>
+                  <div class="settings-field-hint">Files transferred with integrity checks have their checksum verified upon completion.</div>
                 </div>
 
                 <div style="display: flex; flex-direction: column; gap: 4px;">
@@ -6478,17 +6581,17 @@
     </div>
   </div>
 
-  <!-- Paranoid Dry Run & Verification Modal -->
+  <!-- File Safety & Integrity Verification Modal -->
   <div class="modal-overlay" id="paranoid-modal">
     <div class="modal-box" style="width: 550px;">
       <div class="modal-header" style="color: var(--accent);">
-        <span>🛡️ Paranoid File Operation Confirmation</span>
+        <span style="display: flex; align-items: center; gap: 7px;"><i data-lucide="shield-check" style="width: 16px; height: 16px;"></i> File Safety &amp; Integrity Verification</span>
         <button class="btn" onclick="closeModal('paranoid-modal')"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" id="paranoid-modal-body"></div>
       <div class="modal-footer">
         <button class="btn" onclick="closeModal('paranoid-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-paranoid-proceed">Proceed with Verification</button>
+        <button class="btn btn-accent" id="btn-paranoid-proceed">Proceed with Verified Transfer</button>
       </div>
     </div>
   </div>
@@ -7024,7 +7127,7 @@
 
         <!-- Description -->
         <p style="font-size: 12px; color: var(--text-main); line-height: 1.6; margin-bottom: 16px;">
-          <strong>Brum</strong> brings the speed, keyboard ergonomics, and dual/quad-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and paranoid cryptographic data verification.
+          <strong>Brum</strong> brings the speed, keyboard ergonomics, and dual/quad-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and cryptographic data integrity verification.
         </p>
 
         <!-- System & Runtime Details Card -->
@@ -7630,7 +7733,7 @@
         <img src="assets/task.webp" alt="Tasks" style="width: 16px; height: 16px; object-fit: contain;">
         <span class="task-status-indicator" id="task-status-indicator"></span>
         <span id="task-header-title" class="chewtoy-brand-text">Transfers (0 active)</span>
-        <span id="task-paranoid-badge" style="display: none; color: #22c55e; font-size: 12px; margin-left: 2px;" title="Paranoid SHA-256 Active">🛡️</span>
+        <span id="task-paranoid-badge" style="display: none; color: #22c55e; font-size: 12px; margin-left: 2px;" title="SHA-256 Integrity Active">🛡️</span>
         <span class="task-speed-badge" id="task-speed-badge">0 B/s</span>
       </div>
       <div class="task-win-controls" style="display: flex; align-items: center; gap: 4px;">

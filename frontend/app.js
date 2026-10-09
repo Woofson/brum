@@ -3411,7 +3411,8 @@ async function loadConfig() {
     const res = await fetch('/api/config');
     if (res.ok) {
       App.config = await res.json();
-      App.paranoidMode = App.config.paranoid.enabled;
+      const savedParanoid = localStorage.getItem('cd_paranoid_mode');
+      App.paranoidMode = savedParanoid !== null ? savedParanoid === 'true' : (App.config?.paranoid?.enabled ?? true);
       updateParanoidBadge();
       if (App.config.version) applyAppVersion(App.config.version);
 
@@ -9215,6 +9216,7 @@ function switchSettingsTab(tabId) {
   if (tabId === 'tab-templates') renderFileTemplatesList();
   if (tabId === 'tab-tools') renderToolsSettingsTab();
   if (tabId === 'tab-plugins') loadInstalledChewToys();
+  if (tabId === 'tab-security') renderSecuritySettingsTab();
   if (tabId === 'tab-about') updateAboutModalContent();
 
   if (window.lucide && typeof lucide.createIcons === 'function') {
@@ -22444,27 +22446,14 @@ function updateActiveLayoutUI(layoutName) {
 }
 
 function updateParanoidBadge() {
-  const badge = document.getElementById('paranoid-toggle');
-  if (badge) {
-    if (App.paranoidMode) {
-      badge.classList.remove('disabled');
-      const span = badge.querySelector('span');
-      if (span) span.textContent = 'PARANOID MODE: ON';
-    } else {
-      badge.classList.add('disabled');
-      const span = badge.querySelector('span');
-      if (span) span.textContent = 'PARANOID MODE: OFF';
-    }
-  }
-
   const shieldBtn = document.getElementById('profile-paranoid-shield');
   if (shieldBtn) {
     if (App.paranoidMode) {
       shieldBtn.classList.add('active');
-      shieldBtn.title = 'Paranoid Mode: Active (Click for Settings)';
+      shieldBtn.title = 'Security & Integrity Checks: Active (Click for Settings)';
     } else {
       shieldBtn.classList.remove('active');
-      shieldBtn.title = 'Paranoid Mode: Disabled (Click for Settings)';
+      shieldBtn.title = 'Security & Integrity Checks: Disabled (Click for Settings)';
     }
   }
 }
@@ -22474,6 +22463,67 @@ function openParanoidSettings() {
   if (profileMenu) profileMenu.classList.remove('active');
   openSettingsModal();
   switchSettingsTab('tab-security');
+}
+
+function renderSecuritySettingsTab() {
+  const chkParanoid = document.getElementById('setting-user-paranoid-enabled');
+  const chkAlgo = document.getElementById('setting-user-checksum-algo');
+  const chkDndPrompt = document.getElementById('setting-user-dnd-paranoid-prompt');
+  const chkAtomic = document.getElementById('setting-user-atomic-writes');
+  const chkTrash = document.getElementById('setting-user-trash-enabled');
+  const chkDel = document.getElementById('setting-user-confirm-delete');
+  const chkOvr = document.getElementById('setting-user-confirm-overwrite');
+  const adminCard = document.getElementById('user-sec-admin-card');
+
+  if (chkParanoid) chkParanoid.checked = App.paranoidMode !== false;
+  if (chkAlgo) chkAlgo.value = App.config?.paranoid?.checksum_algorithm || 'sha256';
+  if (chkDndPrompt) chkDndPrompt.checked = App.dndParanoidPrompt !== false;
+  if (chkAtomic) chkAtomic.checked = App.atomicWrites !== false;
+  if (chkTrash) chkTrash.checked = App.trashEnabled !== false;
+  if (chkDel) chkDel.checked = localStorage.getItem('cd_confirm_delete') !== 'false';
+  if (chkOvr) chkOvr.checked = localStorage.getItem('cd_confirm_overwrite') !== 'false';
+
+  if (adminCard) {
+    adminCard.style.display = (App.currentUser?.role === 'admin' || App.isStandalone) ? 'block' : 'none';
+  }
+}
+
+function handleUserParanoidToggle(enabled) {
+  App.paranoidMode = !!enabled;
+  localStorage.setItem('cd_paranoid_mode', enabled ? 'true' : 'false');
+  updateParanoidBadge();
+  showToast(`Security & Integrity Checks: ${enabled ? 'Enabled' : 'Disabled'}`, 'info');
+  queueSaveUserPreferencesToServer();
+}
+
+function handleUserSecuritySettingChange() {
+  const chkDndPrompt = document.getElementById('setting-user-dnd-paranoid-prompt');
+  const chkAtomic = document.getElementById('setting-user-atomic-writes');
+  const chkTrash = document.getElementById('setting-user-trash-enabled');
+  const chkDel = document.getElementById('setting-user-confirm-delete');
+  const chkOvr = document.getElementById('setting-user-confirm-overwrite');
+
+  if (chkDndPrompt) {
+    App.dndParanoidPrompt = chkDndPrompt.checked;
+    localStorage.setItem('cd_dnd_paranoid_prompt', chkDndPrompt.checked ? 'true' : 'false');
+    const generalDndChk = document.getElementById('setting-dnd-paranoid-prompt');
+    if (generalDndChk) generalDndChk.checked = chkDndPrompt.checked;
+  }
+  if (chkAtomic) {
+    App.atomicWrites = chkAtomic.checked;
+    localStorage.setItem('cd_atomic_writes', chkAtomic.checked ? 'true' : 'false');
+  }
+  if (chkTrash) {
+    App.trashEnabled = chkTrash.checked;
+    localStorage.setItem('cd_trash_enabled', chkTrash.checked ? 'true' : 'false');
+  }
+  if (chkDel) {
+    localStorage.setItem('cd_confirm_delete', chkDel.checked ? 'true' : 'false');
+  }
+  if (chkOvr) {
+    localStorage.setItem('cd_confirm_overwrite', chkOvr.checked ? 'true' : 'false');
+  }
+  queueSaveUserPreferencesToServer();
 }
 
 function applyBorderSettings(borderWidth, ringStyle, borderAngle, skipSync = false) {
@@ -35735,8 +35785,10 @@ async function testAndSaveSyncthingConfig() {
 
 function toggleParanoidMode() {
   App.paranoidMode = !App.paranoidMode;
+  localStorage.setItem('cd_paranoid_mode', App.paranoidMode ? 'true' : 'false');
   updateParanoidBadge();
-  showToast(`Paranoid Mode: ${App.paranoidMode ? 'ON' : 'OFF'}`, 'info');
+  showToast(`Security & Integrity Checks: ${App.paranoidMode ? 'Enabled' : 'Disabled'}`, 'info');
+  queueSaveUserPreferencesToServer();
 }
 
 function refreshAllPanes() {
