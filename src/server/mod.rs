@@ -1010,11 +1010,15 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
 
     let raw_home = claims.home_dir.trim();
 
+    // Sanitize username for template substitution
+    let safe_username: String = claims.sub.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-' || *c == '.').collect();
+    let sub_name = if safe_username.is_empty() { "user" } else { &safe_username };
+
     // Determine candidate path
     let candidate = if !raw_home.is_empty() && (!is_root_path(Path::new(raw_home)) || state.config.storage.allow_entire_system) {
         raw_home.to_string()
     } else {
-        state.config.storage.default_user_home_template.replace("{username}", &claims.sub)
+        state.config.storage.default_user_home_template.replace("{username}", sub_name)
     };
 
     let candidate_path = Path::new(&candidate);
@@ -1044,7 +1048,7 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
     // Fallback A: First accessible configured storage root
     for root in &state.config.storage.roots {
         let role_ok = root.allowed_roles.is_empty() || root.allowed_roles.iter().any(|r| r.eq_ignore_ascii_case(&claims.role));
-        let user_ok = is_admin || claims.allowed_roots.as_deref().map_or(true, |r| r.contains('*') || r.contains(&root.id) || r.contains(&root.path));
+        let user_ok = is_admin || claims.allowed_roots.as_deref().map_or(false, |r| r.contains('*') || r.contains(&root.id) || r.contains(&root.path));
         if role_ok && user_ok && Path::new(&root.path).is_dir() {
             return Some(root.path.clone());
         }
@@ -1052,7 +1056,7 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
 
     // Fallback B: Container /data directory
     if Path::new("/data").is_dir() {
-        let container_user_dir = format!("/data/users/{}", claims.sub);
+        let container_user_dir = format!("/data/users/{}", sub_name);
         if state.config.storage.auto_create_home_dirs {
             let _ = std::fs::create_dir_all(&container_user_dir);
         }
@@ -1071,7 +1075,7 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
 
     // Fallback D: App local data directory (~/.local/share/brum/users/{username} or %LOCALAPPDATA%/brum/users/{username})
     if let Some(data_dir) = dirs::data_local_dir() {
-        let app_user_dir = data_dir.join("brum").join("users").join(&claims.sub);
+        let app_user_dir = data_dir.join("brum").join("users").join(sub_name);
         if state.config.storage.auto_create_home_dirs {
             let _ = std::fs::create_dir_all(&app_user_dir);
         }
@@ -1087,6 +1091,23 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
     }
 }
 
+pub fn is_path_or_canonical_within(target: &Path, root: &Path) -> bool {
+    let norm_target = normalize_path(target);
+    let norm_root = normalize_path(root);
+    if path_starts_with_case_insensitive(&norm_target, &norm_root) {
+        if let Ok(canonical_target) = target.canonicalize() {
+            let canonical_root = root.canonicalize().unwrap_or_else(|_| norm_root.clone());
+            let clean_target = crate::vfs::local::clean_path_buf(&canonical_target);
+            let clean_root = crate::vfs::local::clean_path_buf(&canonical_root);
+            if !path_starts_with_case_insensitive(&clean_target, &clean_root) {
+                return false;
+            }
+        }
+        return true;
+    }
+    false
+}
+
 pub fn validate_path_access(
     state: &AppState,
     headers: &HeaderMap,
@@ -1096,15 +1117,28 @@ pub fn validate_path_access(
     let claims = extract_claims_or_local(state, headers)?;
     let user_role = claims.role.as_str();
     let effective_home_opt = resolve_effective_home(&claims, state);
-    let allowed_roots_json = claims.allowed_roots.as_deref().unwrap_or("[\"*\"]");
-    let allowed_roots: Vec<String> = serde_json::from_str(allowed_roots_json).unwrap_or_else(|_| vec!["*".to_string()]);
+    let allowed_roots: Vec<String> = claims.allowed_roots.as_deref()
+        .and_then(|json| serde_json::from_str(json).ok())
+        .unwrap_or_default();
 
-    if (user_role.eq_ignore_ascii_case("readonly")) && is_write {
+    if user_role.eq_ignore_ascii_case("readonly") && is_write {
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot modify or delete files".to_string()));
     }
 
-    // Remote protocols bypass local storage root checks
-    if raw_path.contains("://") {
+    // Remote protocols bypass local storage root checks only if they start with a valid scheme prefix
+    let is_remote_or_special_scheme = raw_path.starts_with("sftp://")
+        || raw_path.starts_with("webdav://")
+        || raw_path.starts_with("webdavs://")
+        || raw_path.starts_with("s3://")
+        || raw_path.starts_with("s3s://")
+        || raw_path.starts_with("smb://")
+        || raw_path.starts_with("samba://")
+        || raw_path.starts_with("vault://")
+        || raw_path.starts_with("archive://")
+        || raw_path.starts_with("image://")
+        || raw_path.starts_with("trash://");
+
+    if is_remote_or_special_scheme {
         return Ok(raw_path.to_string());
     }
 
@@ -1160,7 +1194,7 @@ pub fn validate_path_access(
     if let Some(ref effective_home) = effective_home_opt {
         let norm_home = normalize_path(Path::new(effective_home));
         if (!is_root_path(&norm_home) || state.config.storage.allow_entire_system)
-            && path_starts_with_case_insensitive(&normalized, &norm_home)
+            && is_path_or_canonical_within(&normalized, &norm_home)
         {
             return Ok(norm_str);
         }
@@ -1173,7 +1207,7 @@ pub fn validate_path_access(
 
         if role_ok && user_ok {
             let norm_root = normalize_path(Path::new(&root.path));
-            if path_starts_with_case_insensitive(&normalized, &norm_root) {
+            if is_path_or_canonical_within(&normalized, &norm_root) {
                 if is_write && root.read_only {
                     return Err((StatusCode::FORBIDDEN, format!("Storage root '{}' is configured as read-only", root.name)));
                 }

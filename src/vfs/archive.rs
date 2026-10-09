@@ -1048,13 +1048,47 @@ impl ArchiveHandler {
         target: &Path,
         strip_prefix: Option<&str>,
     ) -> Result<(), std::io::Error> {
+        const MAX_EXTRACTION_BYTES: u64 = 50 * 1024 * 1024 * 1024; // 50 GB
+        const MAX_EXTRACTION_ENTRIES: usize = 100_000;
+
+        let normalized_target = crate::server::normalize_path(target);
         let entries = archive.entries()?;
+        let mut total_bytes: u64 = 0;
+        let mut entry_count: usize = 0;
+
         for entry_res in entries {
             let mut entry = entry_res?;
-            let path = entry.path()?.to_string_lossy().replace('\\', "/");
-            let clean = path.trim_start_matches('/').to_string();
+            entry_count += 1;
+            if entry_count > MAX_EXTRACTION_ENTRIES {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Archive extraction exceeded maximum entry limit (possible zip/tar bomb)",
+                ));
+            }
+
+            let entry_size = entry.header().size()?;
+            total_bytes += entry_size;
+            if total_bytes > MAX_EXTRACTION_BYTES {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Archive extraction exceeded maximum uncompressed size (possible zip/tar bomb)",
+                ));
+            }
+
+            let raw_path = entry.path()?.to_string_lossy().replace('\\', "/");
+            let clean = raw_path.trim_start_matches('/').to_string();
             if clean.is_empty() {
                 continue;
+            }
+
+            // Reject paths attempting directory traversal
+            for component in Path::new(&clean).components() {
+                if matches!(component, std::path::Component::ParentDir) {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        format!("Security error: path traversal attempt in archive entry '{}'", raw_path),
+                    ));
+                }
             }
 
             let out_rel = if let Some(p) = strip_prefix {
@@ -1073,11 +1107,65 @@ impl ArchiveHandler {
                 clean
             };
 
+            // Verify traversal on stripped path
+            for component in Path::new(&out_rel).components() {
+                if matches!(component, std::path::Component::ParentDir | std::path::Component::RootDir | std::path::Component::Prefix(..)) {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        format!("Security error: path traversal attempt in archive entry '{}'", out_rel),
+                    ));
+                }
+            }
+
             let out_path = target.join(&out_rel);
+            let normalized_out = crate::server::normalize_path(&out_path);
+            if !crate::server::path_starts_with_case_insensitive(&normalized_out, &normalized_target) {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    format!("Security error: destination '{}' escapes extraction directory", out_rel),
+                ));
+            }
+
+            // Check symlink / hardlink targets
+            let entry_type = entry.header().entry_type();
+            if entry_type.is_symlink() || entry_type.is_hard_link() {
+                if let Ok(Some(link_target)) = entry.link_name() {
+                    let link_str = link_target.to_string_lossy().replace('\\', "/");
+                    let resolved_link = if link_target.is_absolute() {
+                        std::path::PathBuf::from(&link_str)
+                    } else if let Some(parent) = out_path.parent() {
+                        parent.join(&link_target)
+                    } else {
+                        target.join(&link_target)
+                    };
+                    let norm_link = crate::server::normalize_path(&resolved_link);
+                    if !crate::server::path_starts_with_case_insensitive(&norm_link, &normalized_target) {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::PermissionDenied,
+                            format!("Security error: symlink/hardlink target '{}' escapes extraction directory", link_str),
+                        ));
+                    }
+                }
+            }
+
             if let Some(parent) = out_path.parent() {
                 fs::create_dir_all(parent)?;
             }
             entry.unpack(&out_path)?;
+
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(metadata) = fs::symlink_metadata(&out_path) {
+                    if !metadata.file_type().is_symlink() {
+                        let mode = metadata.permissions().mode();
+                        let safe_mode = mode & 0o777; // strip setuid (0o4000) and setgid (0o2000)
+                        if mode != safe_mode {
+                            let _ = fs::set_permissions(&out_path, fs::Permissions::from_mode(safe_mode));
+                        }
+                    }
+                }
+            }
         }
         Ok(())
     }
@@ -1231,17 +1319,35 @@ impl ArchiveHandler {
         }
 
         if lower.ends_with(".zip") || lower.ends_with(".cbz") || lower.ends_with(".epub") {
+            const MAX_EXTRACTION_BYTES: u64 = 50 * 1024 * 1024 * 1024; // 50 GB
+            const MAX_EXTRACTION_ENTRIES: usize = 100_000;
+
             let file = File::open(path)?;
             let mut zip = ZipArchive::new(BufReader::new(file))
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
             let strip_prefix = Self::find_zip_strip_prefix(&mut zip, target_name);
+            let normalized_target = crate::server::normalize_path(target);
+
+            if zip.len() > MAX_EXTRACTION_ENTRIES {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::InvalidData,
+                    "Archive extraction exceeded maximum entry limit (possible zip bomb)",
+                ));
+            }
+
+            let mut total_bytes: u64 = 0;
 
             for i in 0..zip.len() {
                 let mut file = zip.by_index(i)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
                 let raw_name = match file.enclosed_name() {
                     Some(p) => p.to_string_lossy().replace('\\', "/"),
-                    None => continue,
+                    None => {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::PermissionDenied,
+                            format!("Security error: path traversal attempt in zip entry '{}'", file.name()),
+                        ));
+                    }
                 };
                 let clean_name = raw_name.trim_start_matches('/');
                 if clean_name.is_empty() {
@@ -1264,7 +1370,24 @@ impl ArchiveHandler {
                     clean_name.to_string()
                 };
 
+                // Check directory traversal
+                for component in Path::new(&out_rel_path).components() {
+                    if matches!(component, std::path::Component::ParentDir | std::path::Component::RootDir | std::path::Component::Prefix(..)) {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::PermissionDenied,
+                            format!("Security error: path traversal attempt in zip entry '{}'", out_rel_path),
+                        ));
+                    }
+                }
+
                 let out_path = target.join(&out_rel_path);
+                let normalized_out = crate::server::normalize_path(&out_path);
+                if !crate::server::path_starts_with_case_insensitive(&normalized_out, &normalized_target) {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::PermissionDenied,
+                        format!("Security error: destination '{}' escapes extraction directory", out_rel_path),
+                    ));
+                }
 
                 if file.is_dir() {
                     fs::create_dir_all(&out_path)?;
@@ -1272,6 +1395,16 @@ impl ArchiveHandler {
                     if let Some(parent) = out_path.parent() {
                         fs::create_dir_all(parent)?;
                     }
+
+                    let file_size = file.size();
+                    total_bytes += file_size;
+                    if total_bytes > MAX_EXTRACTION_BYTES {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Archive extraction exceeded maximum uncompressed size (possible zip bomb)",
+                        ));
+                    }
+
                     let mut out_file = File::create(&out_path)?;
                     std::io::copy(&mut file, &mut out_file)?;
                 }
@@ -1280,7 +1413,8 @@ impl ArchiveHandler {
                 {
                     use std::os::unix::fs::PermissionsExt;
                     if let Some(mode) = file.unix_mode() {
-                        let _ = fs::set_permissions(&out_path, fs::Permissions::from_mode(mode));
+                        let safe_mode = mode & 0o777; // strip setuid / setgid
+                        let _ = fs::set_permissions(&out_path, fs::Permissions::from_mode(safe_mode));
                     }
                 }
             }

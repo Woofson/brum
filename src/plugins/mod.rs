@@ -326,42 +326,78 @@ impl PluginManager {
             return Err("Plugin ID must only contain alphanumeric characters, hyphens, and underscores".to_string());
         }
 
+        const MAX_PLUGIN_BYTES: u64 = 100 * 1024 * 1024; // 100 MB
+        const MAX_PLUGIN_ENTRIES: usize = 2_000;
+
+        if archive.len() > MAX_PLUGIN_ENTRIES {
+            return Err("Plugin package exceeded maximum entry limit (possible zip bomb)".to_string());
+        }
+
         // 3. Extract to user_dir/plugin_id with Zip Slip protection
         let dest_dir = self.user_dir.join(plugin_id);
+        let clean_dest = crate::vfs::local::clean_path_buf(&dest_dir);
         fs::create_dir_all(&dest_dir).map_err(|e| format!("Failed to create plugin directory: {}", e))?;
 
-        for i in 0..archive.len() {
-            let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-            let raw_name = file.name().to_string();
-            
-            // Strip top-level directory prefix if present
-            let rel_name = if !root_prefix.is_empty() && raw_name.starts_with(&root_prefix) {
-                &raw_name[root_prefix.len()..]
-            } else {
-                &raw_name
-            };
+        let mut total_bytes: u64 = 0;
 
-            if rel_name.is_empty() {
-                continue;
-            }
+        let extract_result = (|| -> Result<(), String> {
+            for i in 0..archive.len() {
+                let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+                let enclosed = match file.enclosed_name() {
+                    Some(p) => p.to_string_lossy().replace('\\', "/"),
+                    None => {
+                        return Err(format!("Security error: path traversal attempt in plugin entry '{}'", file.name()));
+                    }
+                };
 
-            // Security: Prevent Zip Slip path traversal
-            let outpath = dest_dir.join(rel_name);
-            if !outpath.starts_with(&dest_dir) {
-                return Err(format!("Security error: path traversal attempt detected in entry '{}'", raw_name));
-            }
+                // Strip top-level directory prefix if present
+                let rel_name = if !root_prefix.is_empty() && enclosed.starts_with(&root_prefix) {
+                    &enclosed[root_prefix.len()..]
+                } else {
+                    &enclosed
+                };
 
-            if file.is_dir() || rel_name.ends_with('/') {
-                fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
-            } else {
-                if let Some(p) = outpath.parent() {
-                    if !p.exists() {
-                        fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                if rel_name.is_empty() {
+                    continue;
+                }
+
+                // Reject any parent directory traversal
+                for component in Path::new(&rel_name).components() {
+                    if matches!(component, std::path::Component::ParentDir | std::path::Component::RootDir | std::path::Component::Prefix(..)) {
+                        return Err(format!("Security error: path traversal attempt in plugin entry '{}'", rel_name));
                     }
                 }
-                let mut outfile = File::create(&outpath).map_err(|e| format!("Failed to write {}: {}", outpath.display(), e))?;
-                std::io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+
+                let outpath = dest_dir.join(rel_name);
+                let clean_out = crate::vfs::local::clean_path_buf(&outpath);
+                if !clean_out.starts_with(&clean_dest) {
+                    return Err(format!("Security error: entry '{}' escapes plugin directory", rel_name));
+                }
+
+                if file.is_dir() || rel_name.ends_with('/') {
+                    fs::create_dir_all(&outpath).map_err(|e| e.to_string())?;
+                } else {
+                    if let Some(p) = outpath.parent() {
+                        if !p.exists() {
+                            fs::create_dir_all(p).map_err(|e| e.to_string())?;
+                        }
+                    }
+
+                    total_bytes += file.size();
+                    if total_bytes > MAX_PLUGIN_BYTES {
+                        return Err("Plugin package exceeded maximum uncompressed size (possible zip bomb)".to_string());
+                    }
+
+                    let mut outfile = File::create(&outpath).map_err(|e| format!("Failed to write {}: {}", outpath.display(), e))?;
+                    std::io::copy(&mut file, &mut outfile).map_err(|e| e.to_string())?;
+                }
             }
+            Ok(())
+        })();
+
+        if let Err(e) = extract_result {
+            let _ = fs::remove_dir_all(&dest_dir);
+            return Err(e);
         }
 
         // Ensure index.html exists

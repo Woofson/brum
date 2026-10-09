@@ -146,41 +146,21 @@ pub fn extract_fleet_claims(
     ))
 }
 
-/// Resolves a fleet node by id from static configuration, user database, or request headers
+/// Resolves a fleet node by id from static configuration
 pub fn resolve_target_node(
     state: &AppState,
     node_id: &str,
-    headers: &HeaderMap,
+    _headers: &HeaderMap,
 ) -> Option<ResolvedFleetTarget> {
-    // 1. Check static configuration nodes
-    if let Some(n) = state.config.fleet.nodes.iter().find(|n| n.id == node_id) {
-        return Some(ResolvedFleetTarget {
+    // Strictly check configured fleet nodes by ID to prevent arbitrary SSRF
+    state.config.fleet.nodes.iter().find(|n| n.id == node_id).map(|n| {
+        ResolvedFleetTarget {
             id: n.id.clone(),
             name: n.name.clone(),
             endpoint_url: n.url.trim_end_matches('/').to_string(),
             auth_token: n.token.clone(),
-        });
-    }
-
-    // 2. Check X-Fleet-Target-Url header passed by UI
-    if let Some(target_url_hdr) = headers.get("X-Fleet-Target-Url").and_then(|v| v.to_str().ok()) {
-        let trimmed_url = target_url_hdr.trim().trim_end_matches('/').to_string();
-        if !trimmed_url.is_empty() {
-            let target_token = headers
-                .get("X-Fleet-Target-Token")
-                .and_then(|v| v.to_str().ok())
-                .map(|t| t.trim().to_string())
-                .filter(|t| !t.is_empty());
-            return Some(ResolvedFleetTarget {
-                id: node_id.to_string(),
-                name: node_id.to_string(),
-                endpoint_url: trimmed_url,
-                auth_token: target_token,
-            });
         }
-    }
-
-    None
+    })
 }
 
 /// Parses URI query into a key-value hash map
@@ -664,15 +644,12 @@ mod tests {
         let headers_empty = HeaderMap::new();
         assert!(resolve_target_node(&state, "unknown-node", &headers_empty).is_none());
 
-        // 2. With X-Fleet-Target-Url and X-Fleet-Target-Token
+        // 2. Unconfigured ad-hoc headers are rejected to prevent SSRF
         let mut headers_with_url = HeaderMap::new();
         headers_with_url.insert("X-Fleet-Target-Url", HeaderValue::from_static("http://192.168.1.50:3140/"));
         headers_with_url.insert("X-Fleet-Target-Token", HeaderValue::from_static("jwt-token-1234"));
 
-        let target = resolve_target_node(&state, "my-nas", &headers_with_url).unwrap();
-        assert_eq!(target.id, "my-nas");
-        assert_eq!(target.endpoint_url, "http://192.168.1.50:3140");
-        assert_eq!(target.auth_token, Some("jwt-token-1234".to_string()));
+        assert!(resolve_target_node(&state, "my-nas", &headers_with_url).is_none());
     }
 
     #[test]
