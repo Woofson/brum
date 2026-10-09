@@ -5,6 +5,39 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-10-09
+
+### Added
+- **Consolidated Layout Switcher Dropdown**:
+  - Replaced horizontal header layout buttons with a single dynamic header button (`#btn-layout-menu`) and stacked dropdown menu.
+  - Dynamically updates active layout icon, tooltip, and highlight state for Single, Dual Vertical/Horizontal, Triple Columns, Triple Split (1+2), and Quad Pane (2x2).
+  - Removed redundant global folder tree button from top application header; tree remains accessible via `Ctrl+T`, Spot!, and per-pane tools.
+- **Viewport-Aware Pane Settings & Borderless Minimal Mode**:
+  - Scoped "Switch Active Pane" and "Rearrange Position" in Pane Settings menu strictly to Phone & Tablet touch viewports (`<= 1024px`), keeping PC viewports streamlined.
+  - Added `0px (None)` border width option across Pane Settings dropdown and Theme Settings for borderless panel layouts.
+- **Security & Integrity Management Dashboard**:
+  - Added dedicated "Security & Integrity" tab in Admin Control Panel with configurable policies.
+  - Standardized File Integrity and Transaction Logging checks as active by default with clear toggles for SHA-256 verification and session auto-lock.
+  - Aligned cards with clean vertical stacking hierarchy.
+- **Server Config Editor & Live TOML Syntax Highlighting**:
+  - Expanded `config.toml` editor into a full-height workspace frame with real-time TOML syntax highlighting.
+
+### Fixed
+- **System User Badge & Authentication Identification**:
+  - Fixed system user badge incorrectly displaying "Windows/SAM" on Linux systems using PAM authentication.
+- **Security Hardening & Input Sanitization** (Fixes #105, #106, #107, #108, #109, #110, #111, #112):
+  - Implemented centralized authentication middleware (`AuthLayer`) across all HTTP & WebSocket endpoints.
+  - Sanitized configuration responses to prevent exposure of sensitive password hashes and master keys.
+  - Removed arbitrary CLI action runner from system controller.
+  - Hardened archive extraction and Chewtoy plugin installation against zip-slip and directory traversal.
+  - Enforced strict VFS sandbox canonicalization and SSRF protection in fleet proxy routing.
+
+### Changed
+- **Architecture & Performance Modernization** (Fixes #117, #118, #119):
+  - Modularized monolithic server handler into dedicated submodules (`handlers/`).
+  - Added SQLite connection pooling via `r2d2_sqlite` for thread-safe database concurrency.
+  - Wrapped heavy synchronous filesystem operations in `tokio::task::spawn_blocking` to avoid Tokio runtime worker starvation.
+
 ## [1.6.2] - 2026-10-06
 
 ### Added
