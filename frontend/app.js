@@ -9561,12 +9561,147 @@ async function deleteUserAccount(username) {
   }
 }
 
+function initPrismToml() {
+  if (typeof Prism === 'undefined') return;
+  if (Prism.languages.toml) return;
+
+  Prism.languages.toml = {
+    'comment': {
+      pattern: /#.*/,
+      greedy: true
+    },
+    'table': {
+      pattern: /^\s*\[{1,2}[^\]\r\n]+\]{1,2}/m,
+      alias: 'class-name'
+    },
+    'key': {
+      pattern: /(?:^\s*|,\s*)[A-Za-z0-9_.-]+(?=\s*=)/m,
+      alias: 'property'
+    },
+    'string': {
+      pattern: /"""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^\\"\r\n])*"|'(?:\\.|[^\\'\r\n])*'/,
+      greedy: true
+    },
+    'date': {
+      pattern: /\b\d{4}-\d{2}-\d{2}(?:[T\s]\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)?\b/i,
+      alias: 'number'
+    },
+    'boolean': /\b(?:true|false)\b/,
+    'number': /(?:\b0x[0-9a-fA-F_]+\b|\b0o[0-7_]+\b|\b0b[01_]+\b|[+-]?(?:\b\d[0-9_]*(?:\.[0-9_]+)?(?:[eE][+-]?[0-9_]+)?\b|\binf\b|\bnan\b))/,
+    'punctuation': /[{}[\]=,.]/
+  };
+}
+
+function renderAdminConfigHighlight(code) {
+  initPrismToml();
+  const codeEl = document.getElementById('admin-config-code');
+  const gutterEl = document.getElementById('admin-config-gutter');
+  const textarea = document.getElementById('admin-config-editor-textarea');
+  const val = typeof code === 'string' ? code : (textarea?.value || '');
+
+  if (codeEl) {
+    if (typeof Prism !== 'undefined' && Prism.languages && Prism.languages.toml) {
+      const formatted = val.endsWith('\n') ? val + ' ' : val;
+      codeEl.innerHTML = Prism.highlight(formatted, Prism.languages.toml, 'toml');
+    } else {
+      codeEl.textContent = val;
+    }
+  }
+
+  if (gutterEl) {
+    const lineCount = val.split('\n').length;
+    let linesStr = '';
+    for (let i = 1; i <= lineCount; i++) {
+      linesStr += i + '\n';
+    }
+    gutterEl.textContent = linesStr;
+  }
+}
+
+function syncAdminConfigScroll() {
+  const textarea = document.getElementById('admin-config-editor-textarea');
+  const highlight = document.getElementById('admin-config-highlight');
+  const gutter = document.getElementById('admin-config-gutter');
+  if (!textarea) return;
+
+  if (highlight) {
+    highlight.scrollTop = textarea.scrollTop;
+    highlight.scrollLeft = textarea.scrollLeft;
+  }
+  if (gutter) {
+    gutter.scrollTop = textarea.scrollTop;
+  }
+}
+
+function handleAdminConfigInput() {
+  const textarea = document.getElementById('admin-config-editor-textarea');
+  if (!textarea) return;
+  renderAdminConfigHighlight(textarea.value);
+  updateAdminConfigCursorStats();
+  syncAdminConfigScroll();
+}
+
+function updateAdminConfigCursorStats() {
+  const textarea = document.getElementById('admin-config-editor-textarea');
+  const statsEl = document.getElementById('admin-config-cursor-stats');
+  if (!textarea || !statsEl) return;
+
+  const text = textarea.value;
+  const selStart = textarea.selectionStart || 0;
+  const lines = text.substring(0, selStart).split('\n');
+  const lineNum = lines.length;
+  const colNum = lines[lines.length - 1].length + 1;
+  const totalLines = text.split('\n').length;
+
+  statsEl.textContent = `Ln ${lineNum}, Col ${colNum} | ${totalLines} lines`;
+}
+
+function handleAdminConfigKeyDown(e) {
+  const textarea = document.getElementById('admin-config-editor-textarea');
+  if (!textarea) return;
+
+  if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'S')) {
+    e.preventDefault();
+    saveMasterConfigFile();
+    return;
+  }
+
+  if (e.key === 'Tab') {
+    e.preventDefault();
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const val = textarea.value;
+
+    if (e.shiftKey) {
+      const before = val.substring(0, start);
+      const after = val.substring(end);
+      const lineStart = before.lastIndexOf('\n') + 1;
+      const currentLine = before.substring(lineStart);
+      if (currentLine.startsWith('  ')) {
+        textarea.value = before.substring(0, lineStart) + currentLine.substring(2) + after;
+        textarea.selectionStart = textarea.selectionEnd = Math.max(lineStart, start - 2);
+      } else if (currentLine.startsWith(' ')) {
+        textarea.value = before.substring(0, lineStart) + currentLine.substring(1) + after;
+        textarea.selectionStart = textarea.selectionEnd = Math.max(lineStart, start - 1);
+      }
+    } else {
+      textarea.value = val.substring(0, start) + '  ' + val.substring(end);
+      textarea.selectionStart = textarea.selectionEnd = start + 2;
+    }
+    handleAdminConfigInput();
+  }
+}
+
 async function loadMasterConfigEditor() {
   const textarea = document.getElementById('admin-config-editor-textarea');
   const pathBadge = document.getElementById('admin-config-path-badge');
   const statusEl = document.getElementById('admin-config-status');
 
-  if (textarea) textarea.value = '# Loading configuration file...';
+  if (textarea) {
+    textarea.value = '# Loading configuration file...';
+    renderAdminConfigHighlight(textarea.value);
+    updateAdminConfigCursorStats();
+  }
   if (statusEl) statusEl.style.display = 'none';
 
   try {
@@ -9575,7 +9710,11 @@ async function loadMasterConfigEditor() {
     });
     if (resp.ok) {
       const data = await resp.json();
-      if (textarea) textarea.value = data.content;
+      if (textarea) {
+        textarea.value = data.content;
+        renderAdminConfigHighlight(data.content);
+        updateAdminConfigCursorStats();
+      }
       if (pathBadge) pathBadge.textContent = data.path;
       if (!data.is_writable && statusEl) {
         statusEl.style.display = 'block';
@@ -9584,10 +9723,18 @@ async function loadMasterConfigEditor() {
       }
     } else {
       const err = await resp.text();
-      if (textarea) textarea.value = `# Error loading config: ${err}`;
+      if (textarea) {
+        textarea.value = `# Error loading config: ${err}`;
+        renderAdminConfigHighlight(textarea.value);
+        updateAdminConfigCursorStats();
+      }
     }
   } catch (e) {
-    if (textarea) textarea.value = `# Network error fetching config: ${e}`;
+    if (textarea) {
+      textarea.value = `# Network error fetching config: ${e}`;
+      renderAdminConfigHighlight(textarea.value);
+      updateAdminConfigCursorStats();
+    }
   }
 }
 
