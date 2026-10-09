@@ -18412,23 +18412,24 @@ function updateAboutModalContent() {
 
 function formatUserAuthType(user) {
   if (App.isStandalone || !App.token) return 'Local Standalone Mode';
-  const isWin = user?.auth_source === 'windows' || (user?.is_pam && (App.systemStatus?.os === 'windows' || navigator.userAgent?.toLowerCase().includes('win')));
-  if (user?.auth_source === 'windows' || (user?.is_pam && isWin)) return 'Windows / Local SAM Account';
+  if (user?.auth_source === 'windows') return 'Windows / Local SAM Account';
   if (user?.auth_source === 'oidc') return 'OIDC / SSO Enterprise Account';
-  if (user?.is_pam || user?.auth_source === 'pam') return 'PAM / Local Linux Account';
+  if (user?.auth_source === 'pam') return 'PAM / Local Linux Account';
+  if (user?.is_pam) {
+    return App.systemStatus?.os === 'windows' ? 'Windows / Local SAM Account' : 'PAM / Local Linux Account';
+  }
   return 'Internal Database Account';
 }
 
 function formatUserAuthBadge(u) {
   if (!u) return '<span class="badge" style="font-size:10px; background:rgba(245,158,11,0.15); color:var(--accent); border:1px solid rgba(245,158,11,0.3);">Database</span>';
-  const isWin = u.auth_source === 'windows' || (u.is_pam && (App.systemStatus?.os === 'windows' || navigator.userAgent?.toLowerCase().includes('win')));
-  if (u.auth_source === 'windows' || (u.is_pam && isWin)) {
+  if (u.auth_source === 'windows' || (u.is_pam && App.systemStatus?.os === 'windows')) {
     return '<span class="badge" style="font-size:10px; background:rgba(56,189,248,0.15); color:var(--info); border:1px solid rgba(56,189,248,0.3);">Windows / SAM</span>';
   }
   if (u.auth_source === 'oidc') {
     return '<span class="badge" style="font-size:10px; background:rgba(168,85,247,0.15); color:#a855f7; border:1px solid rgba(168,85,247,0.3);">OIDC / SSO</span>';
   }
-  if (u.is_pam || u.auth_source === 'pam') {
+  if (u.auth_source === 'pam' || u.is_pam) {
     return '<span class="badge" style="font-size:10px; background:rgba(56,189,248,0.15); color:var(--info); border:1px solid rgba(56,189,248,0.3);">PAM / Linux</span>';
   }
   return '<span class="badge" style="font-size:10px; background:rgba(245,158,11,0.15); color:var(--accent); border:1px solid rgba(245,158,11,0.3);">Database</span>';
