@@ -3208,10 +3208,10 @@
 
           <!-- Admin Tab 4: Security & Integrity Defaults -->
           <div class="settings-tab-content" id="admin-tab-security">
-            <div class="settings-card-header" style="margin-bottom: 12px;">
+            <div class="settings-card-header" style="margin-bottom: 14px;">
               <div>
                 <h4 class="settings-section-title">
-                  <i data-lucide="shield-check"></i> Global File Safety, Integrity Checks & Auto-Lock
+                  <i data-lucide="shield-check"></i> Global File Safety, Integrity Checks &amp; Auto-Lock
                 </h4>
                 <p class="settings-card-desc" style="margin-top: 2px;">
                   Configure default transaction rules, session timeout, auto-lock on workstation inactivity, and cryptographic validation.
@@ -3219,26 +3219,26 @@
               </div>
             </div>
 
-            <div class="settings-grid-2col">
-              <!-- Card 1: Session Auto-Lock & Inactivity -->
-              <div class="settings-group-card">
-                <div class="settings-card-header">
-                  <h4 class="settings-section-title">
-                    <i data-lucide="lock"></i> Session Auto-Lock & Inactivity
-                  </h4>
-                </div>
-                <p class="settings-card-desc">Locks screen on idle inactivity without interrupting background transfers or closing open files.</p>
+            <!-- Card 1: Session Auto-Lock & Inactivity -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="lock"></i> Session Auto-Lock &amp; Inactivity
+                </h4>
+              </div>
+              <p class="settings-card-desc">Locks screen on idle inactivity without interrupting background transfers or closing open files.</p>
 
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <label class="settings-checkbox-row">
-                    <input type="checkbox" id="setting-autolock-enabled" checked>
-                    <div>
-                      <strong>Enable Automatic Workstation Lock</strong>
-                      <div class="settings-field-hint">Enforces password prompt on idle session timeout.</div>
-                    </div>
-                  </label>
-                </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-autolock-enabled" checked>
+                  <div>
+                    <strong>Enable Automatic Workstation Lock</strong>
+                    <div class="settings-field-hint">Enforces password prompt on idle session timeout.</div>
+                  </div>
+                </label>
+              </div>
 
+              <div class="settings-grid-2col">
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-autolock-minutes">Auto-Lock Inactivity Timer:</label>
                   <select id="setting-autolock-minutes" class="settings-select">
@@ -3262,91 +3262,91 @@
                     <option value="168">7 Days</option>
                   </select>
                 </div>
-
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <label class="settings-checkbox-row">
-                    <input type="checkbox" id="setting-autolock-prevent-tasks" checked>
-                    <div>
-                      <strong>Prevent Lock during Active Transfers</strong>
-                      <div class="settings-field-hint">Do not lock while background file transfers/copy tasks are running.</div>
-                    </div>
-                  </label>
-                </div>
-
-                <div style="margin-top: 6px;">
-                  <button type="button" class="btn btn-accent btn-sm" onclick="saveAdminSecuritySettings()" style="height: 28px; display: flex; align-items: center; gap: 5px;">
-                    <i data-lucide="check" style="width: 13px; height: 13px;"></i> Save Auto-Lock Policies
-                  </button>
-                </div>
               </div>
 
-              <!-- Card 2: File Integrity & Transaction Safety -->
-              <div class="settings-group-card">
-                <div class="settings-card-header">
-                  <h4 class="settings-section-title">
-                    <i data-lucide="shield-check"></i> File Integrity &amp; Transaction Safety
-                  </h4>
-                </div>
-                <p class="settings-card-desc">Cryptographic validation and atomic file system operations.</p>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-autolock-prevent-tasks" checked>
+                  <div>
+                    <strong>Prevent Lock during Active Transfers</strong>
+                    <div class="settings-field-hint">Do not lock while background file transfers/copy tasks are running.</div>
+                  </div>
+                </label>
+              </div>
 
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <label class="settings-checkbox-row">
-                    <input type="checkbox" id="setting-paranoid-enabled" checked>
-                    <div>
-                      <strong>Enable Strict File Integrity Checks Globally</strong>
-                      <div class="settings-field-hint">Enforces strict SHA-256 validation on all file copy and move operations.</div>
-                    </div>
-                  </label>
-                </div>
+              <div style="margin-top: 4px;">
+                <button type="button" class="btn btn-accent btn-sm" onclick="saveAdminSecuritySettings()" style="height: 28px; display: inline-flex; align-items: center; gap: 5px;">
+                  <i data-lucide="check" style="width: 13px; height: 13px;"></i> Save Auto-Lock Policies
+                </button>
+              </div>
+            </div>
 
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-checksum-algo">Integrity Checksum Algorithm:</label>
-                  <select id="setting-checksum-algo" class="settings-select">
-                    <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
-                    <option value="md5">MD5 (Legacy Fast)</option>
-                    <option value="sha1">SHA-1</option>
-                  </select>
-                  <div class="settings-field-hint">Files transferred with integrity checks have their checksum verified upon completion.</div>
-                </div>
+            <!-- Card 2: File Integrity & Transaction Safety -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="shield-check"></i> File Integrity &amp; Transaction Safety
+                </h4>
+              </div>
+              <p class="settings-card-desc">Cryptographic validation and atomic file system operations.</p>
 
-                <div style="display: flex; flex-direction: column; gap: 4px;">
-                  <label class="settings-checkbox-row">
-                    <input type="checkbox" id="setting-atomic-writes" checked>
-                    <div>
-                      <strong>Atomic File Writes</strong>
-                      <div class="settings-field-hint">Write to hidden temporary file first, then atomically rename.</div>
-                    </div>
-                  </label>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-paranoid-enabled" checked>
+                  <div>
+                    <strong>Enable Strict File Integrity Checks Globally</strong>
+                    <div class="settings-field-hint">Enforces strict SHA-256 validation on all file copy and move operations.</div>
+                  </div>
+                </label>
+              </div>
 
-                  <label class="settings-checkbox-row">
-                    <input type="checkbox" id="setting-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
-                    <div>
-                      <strong id="admin-setting-trash-title">Safe Trash Bin</strong>
-                      <div class="settings-field-hint" id="admin-setting-trash-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
-                    </div>
-                  </label>
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-checksum-algo">Integrity Checksum Algorithm:</label>
+                <select id="setting-checksum-algo" class="settings-select">
+                  <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
+                  <option value="md5">MD5 (Legacy Fast)</option>
+                  <option value="sha1">SHA-1</option>
+                </select>
+                <div class="settings-field-hint">Files transferred with integrity checks have their checksum verified upon completion.</div>
+              </div>
 
-                  <label class="settings-checkbox-row windows-only-setting">
-                    <input type="checkbox" id="admin-setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
-                    <div>
-                      <strong>Windows Native Shell & Recycle Bin</strong>
-                      <div class="settings-field-hint">Use Windows Shell APIs ($Recycle.Bin, SHFileOperation) across Windows drives instead of POSIX trash.</div>
-                    </div>
-                  </label>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-atomic-writes" checked>
+                  <div>
+                    <strong>Atomic File Writes</strong>
+                    <div class="settings-field-hint">Write to hidden temporary file first, then atomically rename.</div>
+                  </div>
+                </label>
 
-                  <label class="settings-checkbox-row windows-only-setting">
-                    <input type="checkbox" id="admin-setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
-                    <div>
-                      <strong>Windows Process Lock Inspection</strong>
-                      <div class="settings-field-hint">Use Windows Restart Manager to report specific locking process names and PIDs on access violations.</div>
-                    </div>
-                  </label>
-                </div>
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
+                  <div>
+                    <strong id="admin-setting-trash-title">Safe Trash Bin</strong>
+                    <div class="settings-field-hint" id="admin-setting-trash-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
+                  </div>
+                </label>
 
-                <div class="settings-field" style="margin-top: 4px;">
-                  <label class="settings-field-label" for="setting-custom-trash-dir">Server Custom Trash Directory (Optional):</label>
-                  <input type="text" id="setting-custom-trash-dir" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
-                </div>
+                <label class="settings-checkbox-row windows-only-setting">
+                  <input type="checkbox" id="admin-setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
+                  <div>
+                    <strong>Windows Native Shell &amp; Recycle Bin</strong>
+                    <div class="settings-field-hint">Use Windows Shell APIs ($Recycle.Bin, SHFileOperation) across Windows drives instead of POSIX trash.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row windows-only-setting">
+                  <input type="checkbox" id="admin-setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
+                  <div>
+                    <strong>Windows Process Lock Inspection</strong>
+                    <div class="settings-field-hint">Use Windows Restart Manager to report specific locking process names and PIDs on access violations.</div>
+                  </div>
+                </label>
+              </div>
+
+              <div class="settings-field" style="margin-top: 4px;">
+                <label class="settings-field-label" for="setting-custom-trash-dir">Server Custom Trash Directory (Optional):</label>
+                <input type="text" id="setting-custom-trash-dir" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
               </div>
             </div>
           </div>
