@@ -4728,6 +4728,17 @@ html.fkeys-disabled .bottom-fkey-bar,
   flex-direction: column;
 }
 
+/* Phone & Tablet Viewports Only (<= 1024px) for Pane Settings Menu */
+.pane-settings-touch-only {
+  display: flex !important;
+}
+
+@media (min-width: 1025px) {
+  .pane-settings-touch-only {
+    display: none !important;
+  }
+}
+
 .desktop-header-tool,
 .desktop-only-tool {
   display: inline-flex;

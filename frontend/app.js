@@ -25728,7 +25728,7 @@ function openPaneSettingsMenu(e, paneIndex) {
   );
 
   const paneSwitchHtml = visibleCount > 1 ? `
-    <div style="display: flex; gap: 6px; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
+    <div class="pane-settings-touch-only" style="display: flex; gap: 6px; align-items: center; justify-content: space-between; padding-bottom: 8px; border-bottom: 1px solid var(--border);">
       <span style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Switch Active Pane</span>
       <div style="display: flex; gap: 4px;">
         ${Array.from({ length: visibleCount }).map((_, pIdx) => `
@@ -25827,8 +25827,8 @@ function openPaneSettingsMenu(e, paneIndex) {
       </div>
 
       ${visibleCount > 1 ? `
-        <!-- 3. Rearrange Panel Position -->
-        <div style="border-top: 1px solid var(--border); padding-top: 10px;">
+        <!-- 3. Rearrange Panel Position (Phone/Tablet viewports only) -->
+        <div class="pane-settings-touch-only" style="border-top: 1px solid var(--border); padding-top: 10px; flex-direction: column;">
           <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center;">
             <span>Rearrange Position</span>
             <span style="font-size: 9px; color: var(--text-dim);">Drag badge or click</span>
@@ -25844,7 +25844,7 @@ function openPaneSettingsMenu(e, paneIndex) {
             </button>
           </div>
           ${visibleCount > 2 ? `
-            <div style="display: flex; align-items: center; gap: 4px;">
+            <div style="display: flex; align-items: center; gap: 4px; margin-top: 6px;">
               <span style="font-size: 9.5px; color: var(--text-dim);">Swap with:</span>
               <div style="display: flex; gap: 4px; flex-wrap: wrap;">
                 ${Array.from({ length: visibleCount }).map((_, pIdx) => {
@@ -25864,9 +25864,9 @@ function openPaneSettingsMenu(e, paneIndex) {
       <!-- 4. Global Border Width, Ring & Angle Settings -->
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Border Width</div>
-        <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
-          ${['1px', '2px', '3px', '4px'].map(bw => `
-            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 10px;" onclick="applyBorderSettings('${bw}', null, null); openPaneSettingsMenu(null, ${paneIndex});">${bw}</button>
+        <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 8px;">
+          ${['0px', '1px', '2px', '3px', '4px'].map(bw => `
+            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 10px;" onclick="applyBorderSettings('${bw}', null, null); openPaneSettingsMenu(null, ${paneIndex});">${bw === '0px' ? '0px (None)' : bw}</button>
           `).join('')}
         </div>
 
