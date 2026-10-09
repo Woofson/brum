@@ -18220,12 +18220,35 @@ function toggleToolVisibility(id, visible) {
   }
 }
 
+function toggleLayoutMenu(e) {
+  e?.stopPropagation();
+  const menu = document.getElementById('layout-dropdown-menu');
+  const toolsMenu = document.getElementById('tools-dropdown-menu');
+  const profileMenu = document.getElementById('profile-dropdown-menu');
+  if (typeof closeFleetSwitcherDropdown === 'function') closeFleetSwitcherDropdown();
+  if (toolsMenu) toolsMenu.classList.remove('active');
+  if (profileMenu) profileMenu.classList.remove('active');
+  if (menu) {
+    menu.classList.toggle('active');
+    if (window.lucide) {
+      lucide.createIcons({ root: menu });
+    }
+  }
+}
+
+function closeLayoutMenu() {
+  const menu = document.getElementById('layout-dropdown-menu');
+  if (menu) menu.classList.remove('active');
+}
+
 function toggleToolsMenu(e) {
   e?.stopPropagation();
   const menu = document.getElementById('tools-dropdown-menu');
   const profileMenu = document.getElementById('profile-dropdown-menu');
+  const layoutMenu = document.getElementById('layout-dropdown-menu');
   if (typeof closeFleetSwitcherDropdown === 'function') closeFleetSwitcherDropdown();
   if (profileMenu) profileMenu.classList.remove('active');
+  if (layoutMenu) layoutMenu.classList.remove('active');
   if (menu) {
     renderToolsMenu();
     menu.classList.toggle('active');
@@ -18241,8 +18264,10 @@ function toggleProfileMenu(e) {
   e?.stopPropagation();
   const menu = document.getElementById('profile-dropdown-menu');
   const toolsMenu = document.getElementById('tools-dropdown-menu');
+  const layoutMenu = document.getElementById('layout-dropdown-menu');
   if (typeof closeFleetSwitcherDropdown === 'function') closeFleetSwitcherDropdown();
   if (toolsMenu) toolsMenu.classList.remove('active');
+  if (layoutMenu) layoutMenu.classList.remove('active');
   if (menu) menu.classList.toggle('active');
 }
 
@@ -18327,7 +18352,15 @@ function dismissGlobalPopoversAndMenus(e) {
     breadcrumbPopovers.forEach(p => p.remove());
   }
 
-  // 6. Header Tools Launchpad dropdown
+  // 7. Header Layout Switcher dropdown
+  const headerLayout = document.getElementById('layout-dropdown-menu');
+  if (headerLayout && headerLayout.classList.contains('active')) {
+    if (!target.closest('#btn-layout-menu') && !target.closest('#layout-dropdown-menu')) {
+      headerLayout.classList.remove('active');
+    }
+  }
+
+  // 8. Header Tools Launchpad dropdown
   const headerTools = document.getElementById('tools-dropdown-menu');
   if (headerTools && headerTools.classList.contains('active')) {
     if (!target.closest('#btn-tools-menu') && !target.closest('#tools-dropdown-menu')) {
@@ -18335,7 +18368,7 @@ function dismissGlobalPopoversAndMenus(e) {
     }
   }
 
-  // 7. Header User Profile dropdown
+  // 9. Header User Profile dropdown
   const headerProfile = document.getElementById('profile-dropdown-menu');
   if (headerProfile && headerProfile.classList.contains('active')) {
     if (!target.closest('#btn-user-profile') && !target.closest('#profile-dropdown-menu')) {
@@ -18343,14 +18376,14 @@ function dismissGlobalPopoversAndMenus(e) {
     }
   }
 
-  // 8. Fleet Cluster Switcher dropdown
+  // 10. Fleet Cluster Switcher dropdown
   const fleetDropdown = document.getElementById('fleet-switcher-dropdown');
   if (fleetDropdown && fleetDropdown.style.display !== 'none' && !target.closest('#fleet-switcher-wrapper')) {
     if (typeof closeFleetSwitcherDropdown === 'function') closeFleetSwitcherDropdown();
     else fleetDropdown.style.display = 'none';
   }
 
-  // 9. Editor Actions & Img Transform touch menus
+  // 11. Editor Actions & Img Transform touch menus
   const editorTouchMenu = document.getElementById('editor-actions-dropdown-menu');
   if (editorTouchMenu && editorTouchMenu.style.display === 'block' && !target.closest('#editor-actions-dropdown-container')) {
     editorTouchMenu.style.display = 'none';
@@ -18360,7 +18393,7 @@ function dismissGlobalPopoversAndMenus(e) {
     imgTouchMenu.style.display = 'none';
   }
 
-  // 10. MediaPlayer Subtitles dropdown
+  // 12. MediaPlayer Subtitles dropdown
   const subsDropdown = document.getElementById('mediaplayer-subtitles-dropdown');
   if (subsDropdown && subsDropdown.style.display === 'block' && !target.closest('.mediaplayer-dropdown') && !target.closest('#btn-mediaplayer-subtitles')) {
     subsDropdown.style.display = 'none';
@@ -22401,6 +22434,7 @@ function setupEventListeners() {
 }
 
 function switchLayout(layoutName) {
+  closeLayoutMenu();
   App.layout = layoutName;
   setLayoutForViewport(layoutName);
   updateActiveLayoutUI(layoutName);
@@ -22429,20 +22463,33 @@ function switchLayout(layoutName) {
 
 function updateActiveLayoutUI(layoutName) {
   const map = {
-    'layout-single': 'layout-1',
-    'layout-dual-vertical': 'layout-2v',
-    'layout-dual-horizontal': 'layout-2h',
-    'layout-triple': 'layout-3',
-    'layout-triple-stacked': 'layout-3s',
-    'layout-quad': 'layout-4'
+    'layout-single': { id: 'layout-1', icon: 'square', label: 'Single Pane' },
+    'layout-dual-vertical': { id: 'layout-2v', icon: 'columns-2', label: 'Dual Vertical Split' },
+    'layout-dual-horizontal': { id: 'layout-2h', icon: 'rows-2', label: 'Dual Horizontal Split' },
+    'layout-triple': { id: 'layout-3', icon: 'columns-3', label: 'Triple Columns' },
+    'layout-triple-stacked': { id: 'layout-3s', icon: 'custom-triple', label: 'Triple Split 1+2' },
+    'layout-quad': { id: 'layout-4', icon: 'grid-2x2', label: 'Quad Pane 2x2' }
   };
   ['layout-1', 'layout-2v', 'layout-2h', 'layout-3', 'layout-3s', 'layout-4'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
-  const activeId = map[layoutName] || 'layout-2v';
-  const activeEl = document.getElementById(activeId);
+  const current = map[layoutName] || map['layout-dual-vertical'];
+  const activeEl = document.getElementById(current.id);
   if (activeEl) activeEl.classList.add('active');
+
+  const btn = document.getElementById('btn-layout-menu');
+  if (btn) {
+    btn.title = `Layout: ${current.label} (Click to switch)`;
+    if (current.id === 'layout-3s') {
+      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" x2="12" y1="3" y2="21"/><line x1="12" x2="21" y1="12" y2="12"/></svg>`;
+    } else {
+      btn.innerHTML = `<i data-lucide="${current.icon}"></i>`;
+      if (window.lucide) {
+        lucide.createIcons({ root: btn });
+      }
+    }
+  }
 }
 
 function updateParanoidBadge() {

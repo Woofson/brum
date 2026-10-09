@@ -194,20 +194,39 @@
       <button class="btn btn-icon desktop-only" id="btn-refresh-all" style="display: none;" onclick="refreshAllPanes()" title="Refresh All Panels"><i data-lucide="rotate-cw"></i></button>
       <div class="header-sep desktop-only" id="sep-refresh-all" style="display: none;"></div>
 
-      <!-- 2. Layout Switcher (Desktop Only) -->
-      <div class="layout-btn-group desktop-only">
-        <button class="btn btn-icon" id="layout-1" title="Single Pane (Alt+1)"><i data-lucide="square"></i></button>
-        <button class="btn btn-icon" id="layout-2v" title="Dual Vertical Split (Alt+2)"><i data-lucide="columns-2"></i></button>
-        <button class="btn btn-icon" id="layout-2h" title="Dual Horizontal Split"><i data-lucide="rows-2"></i></button>
-        <button class="btn btn-icon" id="layout-3" title="Triple Columns (Alt+3)"><i data-lucide="columns-3"></i></button>
-        <button class="btn btn-icon" id="layout-3s" title="Triple Split 1+2 (1 Main + 2 Stacked)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" x2="12" y1="3" y2="21"/><line x1="12" x2="21" y1="12" y2="12"/></svg></button>
-        <button class="btn btn-icon" id="layout-4" title="Quad Pane 2x2 (Alt+4)"><i data-lucide="grid-2x2"></i></button>
+      <!-- 2. Consolidated Layout Switcher (Desktop Only) -->
+      <div class="layout-dropdown-wrapper desktop-only" id="layout-dropdown-wrapper">
+        <button class="btn btn-icon" id="btn-layout-menu" onclick="toggleLayoutMenu(event)" title="Panel Layouts">
+          <i data-lucide="columns-2" id="header-layout-icon"></i>
+        </button>
+        <div class="layout-dropdown-menu" id="layout-dropdown-menu">
+          <div class="layout-dropdown-title">Panel Layouts</div>
+          <button type="button" class="layout-dropdown-item" id="layout-1" onclick="switchLayout('layout-single');">
+            <span class="layout-item-icon"><i data-lucide="square"></i></span>
+            <span class="layout-item-label">Single Pane</span>
+          </button>
+          <button type="button" class="layout-dropdown-item" id="layout-2v" onclick="switchLayout('layout-dual-vertical');">
+            <span class="layout-item-icon"><i data-lucide="columns-2"></i></span>
+            <span class="layout-item-label">Dual Vertical Split</span>
+          </button>
+          <button type="button" class="layout-dropdown-item" id="layout-2h" onclick="switchLayout('layout-dual-horizontal');">
+            <span class="layout-item-icon"><i data-lucide="rows-2"></i></span>
+            <span class="layout-item-label">Dual Horizontal Split</span>
+          </button>
+          <button type="button" class="layout-dropdown-item" id="layout-3" onclick="switchLayout('layout-triple');">
+            <span class="layout-item-icon"><i data-lucide="columns-3"></i></span>
+            <span class="layout-item-label">Triple Columns</span>
+          </button>
+          <button type="button" class="layout-dropdown-item" id="layout-3s" onclick="switchLayout('layout-triple-stacked');">
+            <span class="layout-item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" x2="12" y1="3" y2="21"/><line x1="12" x2="21" y1="12" y2="12"/></svg></span>
+            <span class="layout-item-label">Triple Split 1+2</span>
+          </button>
+          <button type="button" class="layout-dropdown-item" id="layout-4" onclick="switchLayout('layout-quad');">
+            <span class="layout-item-icon"><i data-lucide="grid-2x2"></i></span>
+            <span class="layout-item-label">Quad Pane 2x2</span>
+          </button>
+        </div>
       </div>
-
-      <!-- Tree Sidebar Toggle Button -->
-      <button class="btn btn-icon desktop-only" id="btn-toggle-tree" onclick="toggleFolderTree()" title="Toggle Folder Tree (Ctrl+T)">
-        <i data-lucide="folder-tree"></i>
-      </button>
 
       <!-- Separator -->
       <div class="header-sep desktop-only"></div>
