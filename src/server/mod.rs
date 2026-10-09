@@ -86,7 +86,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/profile", post(handle_update_profile))
         .route("/api/auth/avatar/:username", get(handle_get_user_avatar))
         .route("/api/auth/users", get(handle_list_users).post(handle_create_user))
-        .route("/api/auth/users/:username", delete(handle_delete_user).post(handle_update_user_rbac))
+        .route("/api/auth/users/:username", delete(handle_delete_user).post(handle_update_user_rbac).put(handle_update_user_rbac))
         .route("/api/auth/tokens", get(handle_list_api_tokens).post(handle_create_api_token))
         .route("/api/auth/tokens/:id", delete(handle_revoke_api_token))
         // Transparent Encrypted Vaults API
@@ -183,7 +183,6 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/trash/empty", post(handle_trash_empty))
         .route("/api/tools/trash/delete", post(handle_trash_delete))
         .route("/api/tools/trash/open-native", post(handle_trash_open_native))
-        .route("/api/actions/run", post(handle_run_action))
         // NoteDog Notes & Markdown Studio Chewtoy
         .route("/api/tools/notedog/info", get(handle_notedog_info))
         .route("/api/tools/notedog/templates", get(handle_notedog_templates))
@@ -245,6 +244,7 @@ pub fn create_router(state: AppState) -> Router {
         // Embedded Frontend Fallback
         .fallback(handle_static_asset)
         .layer(DefaultBodyLimit::max(state.config.server.upload_max_size_mb * 1024 * 1024))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), auth_middleware))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
@@ -582,6 +582,159 @@ async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatu
         login_title: state.config.ui.login_title.clone(),
         login_subtitle_template: state.config.ui.login_subtitle_template.clone(),
     })
+}
+
+#[allow(dead_code)]
+pub fn require_admin(claims: &crate::auth::Claims) -> Result<(), (StatusCode, String)> {
+    if !claims.role.eq_ignore_ascii_case("admin") && !claims.role.eq_ignore_ascii_case("root") {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Forbidden: Administrative privileges required".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+#[allow(dead_code)]
+pub fn require_write(claims: &crate::auth::Claims) -> Result<(), (StatusCode, String)> {
+    if claims.role.eq_ignore_ascii_case("readonly") {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Forbidden: Write operations not permitted for read-only user".to_string(),
+        ));
+    }
+    Ok(())
+}
+
+pub fn is_public_route(path: &str) -> bool {
+    // Non-API routes are frontend SPA routes and embedded static assets
+    if !path.starts_with("/api/") {
+        return true;
+    }
+
+    if path == "/api/health"
+        || path == "/api/system/status"
+        || path == "/api/config"
+        || path == "/api/auth/login"
+        || path == "/api/auth/unlock"
+        || path == "/api/auth/oidc/config"
+        || path == "/api/auth/oidc/login"
+        || path == "/api/auth/oidc/callback"
+    {
+        return true;
+    }
+
+    if path.starts_with("/api/public/shares/") || path.starts_with("/share/") {
+        return true;
+    }
+
+    if path.starts_with("/api/auth/avatar/") {
+        return true;
+    }
+
+    false
+}
+
+pub async fn auth_middleware(
+    State(state): State<AppState>,
+    mut req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
+    let path = req.uri().path().to_string();
+
+    // 1. Standalone desktop or auth-disabled instances bypass auth checks with local admin claims
+    if !state.config.server.enable_auth || state.config.server.standalone {
+        let current_user = std::env::var("USERNAME")
+            .or_else(|_| std::env::var("USER"))
+            .unwrap_or_else(|_| "user".to_string());
+        let home_dir = dirs::home_dir()
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_else(|| "/".to_string());
+        let claims = crate::auth::Claims {
+            sub: current_user,
+            role: "admin".to_string(),
+            home_dir,
+            is_pam: false,
+            allowed_roots: Some("[\"*\"]".to_string()),
+            token_id: None,
+            exp: 9999999999,
+        };
+        req.extensions_mut().insert(claims);
+        return Ok(next.run(req).await);
+    }
+
+    let is_pub = is_public_route(&path);
+
+    // 2. Attempt to extract token from Authorization header, Cookie, or query
+    let token_opt = {
+        let headers = req.headers();
+        let from_header = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
+            .map(|s| s.trim().to_string());
+
+        let from_cookie = headers
+            .get(header::COOKIE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookie_str| {
+                for pair in cookie_str.split(';') {
+                    let pair = pair.trim();
+                    if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
+                        return Some(tok.trim().to_string());
+                    }
+                }
+                None
+            });
+
+        let from_query = req.uri().query().and_then(|q| {
+            for pair in q.split('&') {
+                if let Some(tok) = pair.strip_prefix("token=").or_else(|| pair.strip_prefix("cd_token=")) {
+                    return Some(tok.trim().to_string());
+                }
+            }
+            None
+        });
+
+        from_header.or(from_cookie).or(from_query)
+    };
+
+    match token_opt {
+        Some(token) if !token.is_empty() => {
+            match state.auth.verify_token(&token) {
+                Ok(claims) => {
+                    req.extensions_mut().insert(claims);
+                    Ok(next.run(req).await)
+                }
+                Err(err) => {
+                    if is_pub {
+                        Ok(next.run(req).await)
+                    } else {
+                        Err((
+                            StatusCode::UNAUTHORIZED,
+                            Json(serde_json::json!({
+                                "error": format!("Unauthorized: {}", err),
+                                "code": "UNAUTHORIZED"
+                            })),
+                        ))
+                    }
+                }
+            }
+        }
+        _ => {
+            if is_pub {
+                Ok(next.run(req).await)
+            } else {
+                Err((
+                    StatusCode::UNAUTHORIZED,
+                    Json(serde_json::json!({
+                        "error": "Unauthorized: Authentication required",
+                        "code": "UNAUTHORIZED"
+                    })),
+                ))
+            }
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -1412,8 +1565,11 @@ async fn handle_update_profile(
 #[derive(Deserialize)]
 struct UpdateUserRbacRequest {
     role: String,
+    #[serde(default)]
     allowed_services: Vec<String>,
+    #[serde(default)]
     allowed_roots: Option<Vec<String>>,
+    #[serde(default)]
     home_dir: Option<String>,
     #[serde(default)]
     can_install_plugins: Option<bool>,
@@ -1431,47 +1587,43 @@ async fn handle_update_user_rbac(
     AxumPath(username): AxumPath<String>,
     Json(payload): Json<UpdateUserRbacRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let claims = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        if claims.role != "admin" {
-            return Err((StatusCode::FORBIDDEN, "Only administrators can modify user roles and permissions".to_string()));
-        }
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
 
-        let services_json = serde_json::to_string(&payload.allowed_services).unwrap_or_else(|_| "[\"*\"]".to_string());
-        let roots_json = payload.allowed_roots.map(|r| serde_json::to_string(&r).unwrap_or_else(|_| "[\"*\"]".to_string()));
-        let allowed_plugins_json = payload.allowed_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[\"*\"]".to_string()));
-        let blocked_plugins_json = payload.blocked_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[]".to_string()));
+    let services_json = if payload.allowed_services.is_empty() {
+        "[\"*\"]".to_string()
+    } else {
+        serde_json::to_string(&payload.allowed_services).unwrap_or_else(|_| "[\"*\"]".to_string())
+    };
+    let roots_json = payload.allowed_roots.map(|r| serde_json::to_string(&r).unwrap_or_else(|_| "[\"*\"]".to_string()));
+    let allowed_plugins_json = payload.allowed_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[\"*\"]".to_string()));
+    let blocked_plugins_json = payload.blocked_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[]".to_string()));
 
-        let updated = state.auth.update_user_rbac(
-            &username,
-            &payload.role,
-            &services_json,
-            roots_json.as_deref(),
-            payload.home_dir.as_deref(),
-            payload.can_install_plugins,
-            allowed_plugins_json.as_deref(),
-            blocked_plugins_json.as_deref(),
-            payload.is_disabled.unwrap_or(false),
-        )
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update user RBAC: {}", e)))?;
+    let updated = state.auth.update_user_rbac(
+        &username,
+        &payload.role,
+        &services_json,
+        roots_json.as_deref(),
+        payload.home_dir.as_deref(),
+        payload.can_install_plugins,
+        allowed_plugins_json.as_deref(),
+        blocked_plugins_json.as_deref(),
+        payload.is_disabled.unwrap_or(false),
+    )
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update user RBAC: {}", e)))?;
 
-        return Ok(Json(serde_json::json!({ "success": updated })));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    Ok(Json(serde_json::json!({ "success": updated })))
 }
 
 async fn handle_list_users(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<Vec<User>>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        if let Ok(claims) = state.auth.verify_token(token_str) {
-            if claims.is_pam {
-                let _ = state.auth.sync_pam_user_to_db(&claims.sub, &claims.role, &claims.home_dir);
-            }
-        }
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+
+    if claims.is_pam {
+        let _ = state.auth.sync_pam_user_to_db(&claims.sub, &claims.role, &claims.home_dir);
     }
     state.auth.list_users().map(Json).map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to list users: {}", e))
@@ -1489,8 +1641,12 @@ struct CreateUserRequest {
 
 async fn handle_create_user(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<CreateUserRequest>,
 ) -> Result<Json<User>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+
     let final_home = payload.home_dir.unwrap_or_else(|| {
         state.config.storage.default_user_home_template.replace("{username}", &payload.username)
     });
@@ -1508,8 +1664,12 @@ async fn handle_create_user(
 
 async fn handle_delete_user(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(username): AxumPath<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+
     state.auth.delete_user(&username).map(|deleted| {
         Json(serde_json::json!({ "success": deleted }))
     }).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to delete user: {}", e)))
@@ -6639,14 +6799,6 @@ async fn handle_trash_delete(
     Ok(Json(res))
 }
 
-async fn handle_run_action(
-    Json(payload): Json<crate::tools::actions::ActionExecutionRequest>,
-) -> Result<Json<crate::tools::actions::ActionExecutionResult>, (StatusCode, String)> {
-    crate::tools::actions::ActionRunner::execute(payload).await
-        .map(Json)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Action execution error: {}", e)))
-}
-
 async fn handle_syncthing_status(
     State(state): State<AppState>,
 ) -> Json<crate::tools::syncthing::SyncthingStatusResponse> {
@@ -6675,8 +6827,8 @@ async fn handle_syncthing_scan(
 
 async fn handle_get_config(
     State(state): State<AppState>,
-) -> Json<AppConfig> {
-    Json((*state.config).clone())
+) -> Json<crate::config::ClientConfigDto> {
+    Json(state.config.to_client_dto())
 }
 
 #[derive(Serialize)]
@@ -6685,7 +6837,13 @@ struct SystemUsersGroups {
     groups: Vec<String>,
 }
 
-async fn handle_get_system_users_groups() -> Json<SystemUsersGroups> {
+async fn handle_get_system_users_groups(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<SystemUsersGroups>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+
     let mut users = Vec::new();
     let mut groups = Vec::new();
 
@@ -6710,7 +6868,7 @@ async fn handle_get_system_users_groups() -> Json<SystemUsersGroups> {
     users.sort();
     groups.sort();
 
-    Json(SystemUsersGroups { users, groups })
+    Ok(Json(SystemUsersGroups { users, groups }))
 }
 
 #[derive(Serialize)]
@@ -7070,6 +7228,13 @@ async fn handle_combine_files(
 
 async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
+    if uri.path().starts_with("/api/") || path.starts_with("api/") {
+        return Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .header(header::CONTENT_TYPE, "application/json")
+            .body(Body::from(r#"{"error":"Not Found","code":"NOT_FOUND"}"#))
+            .unwrap_or_else(|_| StatusCode::NOT_FOUND.into_response());
+    }
     let file_path = if path.is_empty() { "index.html" } else { path };
 
     let is_font_or_media = file_path.starts_with("assets/fonts/")
@@ -7304,35 +7469,46 @@ struct SetAutostartRequest {
     minimized: Option<bool>,
 }
 
-async fn handle_get_autostart() -> Json<AutostartStatus> {
+async fn handle_get_autostart(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<AutostartStatus>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+
     #[cfg(target_os = "windows")]
     {
         let output = std::process::Command::new("reg")
             .args(["query", "HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run", "/v", "Brum"])
             .output();
         let enabled = output.map_or(false, |o| o.status.success());
-        Json(AutostartStatus {
+        Ok(Json(AutostartStatus {
             enabled,
             platform: "windows".to_string(),
             target_path: std::env::current_exe().ok().map(|p| p.to_string_lossy().to_string()),
-        })
+        }))
     }
     #[cfg(not(target_os = "windows"))]
     {
         let autostart_file = dirs::config_dir()
             .map(|c| c.join("autostart/brum.desktop"));
         let enabled = autostart_file.as_ref().map_or(false, |p| p.exists());
-        Json(AutostartStatus {
+        Ok(Json(AutostartStatus {
             enabled,
             platform: std::env::consts::OS.to_string(),
             target_path: autostart_file.map(|p| p.to_string_lossy().to_string()),
-        })
+        }))
     }
 }
 
 async fn handle_set_autostart(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<SetAutostartRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+
     let exe_path = std::env::current_exe().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     let flags = if payload.minimized.unwrap_or(false) { " --minimized" } else { "" };
     let exec_cmd = format!("\"{}\"{}", exe_path.display(), flags);
@@ -7397,6 +7573,7 @@ async fn handle_open_with(
     headers: HeaderMap,
     Json(payload): Json<OpenWithRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
     let valid_path = validate_path_access(&state, &headers, &payload.file_path, false)?;
     let local_path = crate::vfs::local::LocalFs::resolve_local_path(&valid_path);
 
@@ -7413,6 +7590,7 @@ async fn handle_open_with(
 
     if let Some(cmd) = payload.command {
         if !cmd.trim().is_empty() {
+            require_admin(&claims)?;
             let replaced = cmd
                 .replace("%1", &format!("\"{}\"", path_str))
                 .replace("{file}", &format!("\"{}\"", path_str))
@@ -7457,6 +7635,9 @@ async fn handle_run_custom_action(
     headers: HeaderMap,
     Json(payload): Json<RunCustomActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+
     let valid_path = validate_path_access(&state, &headers, &payload.target_path, false)?;
     let local_path = crate::vfs::local::LocalFs::resolve_local_path(&valid_path);
     let target_str = local_path.to_string_lossy().to_string();

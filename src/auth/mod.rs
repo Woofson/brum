@@ -400,9 +400,37 @@ impl AuthManager {
         let _ = conn.execute("ALTER TABLE shares ADD COLUMN watermark_text TEXT", []);
         let _ = conn.execute("ALTER TABLE shares ADD COLUMN status TEXT DEFAULT 'active'", []);
 
+        // Dynamic 256-bit cryptographically secure JWT secret resolution
+        let effective_jwt_secret: String = if jwt_secret.trim().is_empty() || jwt_secret == "brum-super-secret-jwt-key-2026" {
+            let stored_secret: Option<String> = conn.query_row(
+                "SELECT value FROM security_settings WHERE key = 'jwt_secret'",
+                [],
+                |row| row.get(0),
+            ).optional()?;
+
+            match stored_secret {
+                Some(s) if !s.trim().is_empty() => s,
+                _ => {
+                    use rand::RngCore;
+                    let mut key_bytes = [0u8; 32];
+                    rand::rngs::OsRng.fill_bytes(&mut key_bytes);
+                    let gen_secret = hex::encode(key_bytes);
+                    conn.execute(
+                        "INSERT INTO security_settings (key, value) VALUES ('jwt_secret', ?1)
+                         ON CONFLICT(key) DO UPDATE SET value = ?1",
+                        params![gen_secret],
+                    )?;
+                    info!("Generated and persisted new 256-bit dynamic JWT secret.");
+                    gen_secret
+                }
+            }
+        } else {
+            jwt_secret.to_string()
+        };
+
         let auth = Self {
             db: Arc::new(Mutex::new(conn)),
-            jwt_secret: jwt_secret.to_string(),
+            jwt_secret: effective_jwt_secret,
             session_hours,
             auth_mode: auth_mode.to_string(),
             pam_service: pam_service.to_string(),
@@ -411,7 +439,6 @@ impl AuthManager {
 
         // Seed default admin user if database is empty
         if auth.count_users()? == 0 {
-            info!("No users found in database. Creating default admin user: {}", default_admin_user);
             #[cfg(windows)]
             let def_home = dirs::home_dir()
                 .filter(|p| !p.to_string_lossy().eq_ignore_ascii_case("C:\\") && !p.to_string_lossy().eq_ignore_ascii_case("C:/"))
@@ -423,7 +450,34 @@ impl AuthManager {
                 .map(|p| p.to_string_lossy().to_string())
                 .unwrap_or_else(|| format!("/home/{}", default_admin_user));
 
-            auth.create_user(default_admin_user, default_admin_pass, "admin", &def_home, Some("[\"*\"]"))?;
+            let (effective_admin_pass, is_generated_pass) = if default_admin_pass.trim().is_empty() || default_admin_pass == "brum" {
+                use rand::Rng;
+                let charset: &[u8] = b"abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*";
+                let mut rng = rand::rngs::OsRng;
+                let pass: String = (0..20)
+                    .map(|_| {
+                        let idx = rng.gen_range(0..charset.len());
+                        charset[idx] as char
+                    })
+                    .collect();
+                (pass, true)
+            } else {
+                (default_admin_pass.to_string(), false)
+            };
+
+            auth.create_user(default_admin_user, &effective_admin_pass, "admin", &def_home, Some("[\"*\"]"))?;
+
+            if is_generated_pass {
+                println!("\n================================================================================");
+                println!(" 🛡️  INITIAL ADMINISTRATIVE CREDENTIALS GENERATED");
+                println!("    Username : {}", default_admin_user);
+                println!("    Password : {}", effective_admin_pass);
+                println!("    Please change this password after login via Settings -> Security.");
+                println!("================================================================================\n");
+                info!("Initial administrative user '{}' created with dynamic password.", default_admin_user);
+            } else {
+                info!("Initial administrative user '{}' created.", default_admin_user);
+            }
         }
 
         Ok(auth)
@@ -719,8 +773,8 @@ impl AuthManager {
                         row.get::<_, Option<i64>>(12)?.unwrap_or(0) != 0,
                         row.get::<_, Option<String>>(13)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                         row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "[]".to_string()),
-                        row.get::<_, i64>(15)? != 0,
-                        row.get::<_, i64>(16)? != 0,
+                        row.get::<_, Option<i64>>(15)?.unwrap_or(0) != 0,
+                        row.get::<_, Option<i64>>(16)?.unwrap_or(0) != 0,
                     ))
                 }).optional()?
             };
@@ -1094,9 +1148,11 @@ impl AuthManager {
             &Validation::default(),
         )?;
 
-        // If it's a persistent API token with a token_id, check DB to ensure it's not revoked / expired
-        if let Some(ref tid) = token_data.claims.token_id {
-            let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let mut claims = token_data.claims;
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+
+        // 1. If it's a persistent API token with a token_id, check DB to ensure it's not revoked / expired
+        if let Some(ref tid) = claims.token_id {
             let token_row: Option<(Option<i64>, String)> = conn.query_row(
                 "SELECT expires_at, role FROM api_tokens WHERE id = ?1",
                 params![tid],
@@ -1122,7 +1178,28 @@ impl AuthManager {
             }
         }
 
-        Ok(token_data.claims)
+        // 2. For all user tokens, verify active status in database
+        let user_row: Option<(String, bool)> = conn.query_row(
+            "SELECT role, is_disabled FROM users WHERE username = ?1",
+            params![claims.sub],
+            |row| Ok((row.get(0)?, row.get::<_, Option<i64>>(1)?.unwrap_or(0) != 0)),
+        ).optional()?;
+
+        match user_row {
+            Some((db_role, is_disabled)) => {
+                if is_disabled {
+                    return Err("User account is disabled".into());
+                }
+                claims.role = db_role;
+            }
+            None => {
+                if !claims.is_pam {
+                    return Err("User account no longer exists".into());
+                }
+            }
+        }
+
+        Ok(claims)
     }
 
     pub fn verify_token_allow_expired(&self, token: &str) -> Result<Claims, Box<dyn std::error::Error + Send + Sync>> {
@@ -1134,9 +1211,11 @@ impl AuthManager {
             &validation,
         )?;
 
+        let mut claims = token_data.claims;
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+
         // If it's a persistent API token with a token_id, check DB to ensure it's not revoked
-        if let Some(ref tid) = token_data.claims.token_id {
-            let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        if let Some(ref tid) = claims.token_id {
             let token_row: Option<(Option<i64>, String)> = conn.query_row(
                 "SELECT expires_at, role FROM api_tokens WHERE id = ?1",
                 params![tid],
@@ -1148,7 +1227,20 @@ impl AuthManager {
             }
         }
 
-        Ok(token_data.claims)
+        let user_row: Option<(String, bool)> = conn.query_row(
+            "SELECT role, is_disabled FROM users WHERE username = ?1",
+            params![claims.sub],
+            |row| Ok((row.get(0)?, row.get::<_, i64>(1)? != 0)),
+        ).optional()?;
+
+        if let Some((db_role, is_disabled)) = user_row {
+            if is_disabled {
+                return Err("User account is disabled".into());
+            }
+            claims.role = db_role;
+        }
+
+        Ok(claims)
     }
 
     pub fn list_accessible_mounts(

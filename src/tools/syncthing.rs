@@ -5,6 +5,7 @@ use std::path::PathBuf;
 pub struct SyncthingConfig {
     pub enabled: bool,
     pub url: String,
+    #[serde(skip_serializing)]
     pub api_key: String,
 }
 

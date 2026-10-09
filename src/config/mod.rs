@@ -86,7 +86,7 @@ pub struct ServerConfig {
     pub enable_auth: bool,
     #[serde(default)]
     pub standalone: bool,
-    #[serde(default = "default_jwt_secret")]
+    #[serde(default = "default_jwt_secret", skip_serializing)]
     pub jwt_secret: String,
     #[serde(default = "default_session_hours")]
     pub session_duration_hours: u64,
@@ -198,7 +198,7 @@ pub struct AuthConfig {
     pub allow_guest: bool,
     #[serde(default = "default_admin_username")]
     pub default_admin_user: String,
-    #[serde(default = "default_admin_password")]
+    #[serde(default = "default_admin_password", skip_serializing)]
     pub default_admin_pass: String,
     #[serde(default)]
     pub oidc: OidcConfig,
@@ -214,7 +214,7 @@ pub struct OidcConfig {
     pub issuer_url: String, // e.g. "https://auth.example.com/application/o/brum/"
     #[serde(default)]
     pub client_id: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub client_secret: String,
     #[serde(default)]
     pub redirect_url: String, // e.g. "https://brum.example.com/api/auth/oidc/callback"
@@ -301,7 +301,7 @@ impl Default for SftpConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
-    #[serde(default = "default_true")]
+    #[serde(default = "default_false")]
     pub allow_entire_system: bool,
     #[serde(default = "default_user_home_template")]
     pub default_user_home_template: String,
@@ -322,7 +322,7 @@ fn default_home_fallback_scheme() -> String {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            allow_entire_system: true,
+            allow_entire_system: false,
             default_user_home_template: default_user_home_template(),
             home_fallback_scheme: default_home_fallback_scheme(),
             auto_create_home_dirs: true,
@@ -980,7 +980,7 @@ pub struct FleetNodeConfig {
     pub id: String,
     pub name: String,
     pub url: String,
-    #[serde(default)]
+    #[serde(default, skip_serializing)]
     pub token: Option<String>,
     #[serde(default)]
     pub start_path: Option<String>,
@@ -1189,6 +1189,155 @@ fn default_bookmarks() -> Vec<BookmarkConfig> {
             username: None,
         },
     ]
+}
+
+// ----------------------------------------------------------------------------
+// 🛡️ Public Client Configuration DTO (Sanitized, No Secrets)
+// ----------------------------------------------------------------------------
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientConfigDto {
+    pub version: String,
+    pub server: ClientServerConfigDto,
+    pub auth: ClientAuthConfigDto,
+    pub storage: StorageConfig,
+    pub themes: ThemeConfig,
+    pub paranoid: ParanoidConfig,
+    pub ui: UiConfig,
+    pub desktop: DesktopConfig,
+    pub custom_actions: Vec<CustomAction>,
+    pub open_with: Vec<OpenWithRule>,
+    pub bookmarks: Vec<BookmarkConfig>,
+    pub syncthing: ClientSyncthingConfigDto,
+    pub notedog: NoteDogConfig,
+    pub terminal: TerminalConfig,
+    pub plugins: PluginsConfig,
+    pub fleet: ClientFleetConfigDto,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientServerConfigDto {
+    pub host: String,
+    pub port: u16,
+    pub root_path: String,
+    pub upload_max_size_mb: usize,
+    pub enable_auth: bool,
+    pub standalone: bool,
+    pub session_duration_hours: u64,
+    pub server_name: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientAuthConfigDto {
+    pub mode: String,
+    pub pam_service: String,
+    pub allow_guest: bool,
+    pub default_admin_user: String,
+    pub oidc: ClientOidcConfigDto,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientOidcConfigDto {
+    pub enabled: bool,
+    pub provider_name: String,
+    pub issuer_url: String,
+    pub client_id: String,
+    pub redirect_url: String,
+    pub scopes: Vec<String>,
+    pub auto_provision: bool,
+    pub admin_group: String,
+    pub default_user_role: String,
+    pub default_home_template: String,
+    pub force_sso_only: bool,
+    pub button_icon: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientSyncthingConfigDto {
+    pub enabled: bool,
+    pub url: String,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientFleetConfigDto {
+    pub enabled: bool,
+    pub nodes: Vec<ClientFleetNodeConfigDto>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ClientFleetNodeConfigDto {
+    pub id: String,
+    pub name: String,
+    pub url: String,
+    pub start_path: Option<String>,
+    pub read_only: bool,
+    pub color_accent: Option<String>,
+    pub tags: Vec<String>,
+}
+
+impl AppConfig {
+    pub fn to_client_dto(&self) -> ClientConfigDto {
+        ClientConfigDto {
+            version: env!("CARGO_PKG_VERSION").to_string(),
+            server: ClientServerConfigDto {
+                host: self.server.host.clone(),
+                port: self.server.port,
+                root_path: self.server.root_path.clone(),
+                upload_max_size_mb: self.server.upload_max_size_mb,
+                enable_auth: self.server.enable_auth,
+                standalone: self.server.standalone,
+                session_duration_hours: self.server.session_duration_hours,
+                server_name: self.server.server_name.clone(),
+            },
+            auth: ClientAuthConfigDto {
+                mode: self.auth.mode.clone(),
+                pam_service: self.auth.pam_service.clone(),
+                allow_guest: self.auth.allow_guest,
+                default_admin_user: self.auth.default_admin_user.clone(),
+                oidc: ClientOidcConfigDto {
+                    enabled: self.auth.oidc.enabled,
+                    provider_name: self.auth.oidc.provider_name.clone(),
+                    issuer_url: self.auth.oidc.issuer_url.clone(),
+                    client_id: self.auth.oidc.client_id.clone(),
+                    redirect_url: self.auth.oidc.redirect_url.clone(),
+                    scopes: self.auth.oidc.scopes.clone(),
+                    auto_provision: self.auth.oidc.auto_provision,
+                    admin_group: self.auth.oidc.admin_group.clone(),
+                    default_user_role: self.auth.oidc.default_user_role.clone(),
+                    default_home_template: self.auth.oidc.default_home_template.clone(),
+                    force_sso_only: self.auth.oidc.force_sso_only,
+                    button_icon: self.auth.oidc.button_icon.clone(),
+                },
+            },
+            storage: self.storage.clone(),
+            themes: self.themes.clone(),
+            paranoid: self.paranoid.clone(),
+            ui: self.ui.clone(),
+            desktop: self.desktop.clone(),
+            custom_actions: self.custom_actions.clone(),
+            open_with: self.open_with.clone(),
+            bookmarks: self.bookmarks.clone(),
+            syncthing: ClientSyncthingConfigDto {
+                enabled: self.syncthing.enabled,
+                url: self.syncthing.url.clone(),
+            },
+            notedog: self.notedog.clone(),
+            terminal: self.terminal.clone(),
+            plugins: self.plugins.clone(),
+            fleet: ClientFleetConfigDto {
+                enabled: self.fleet.enabled,
+                nodes: self.fleet.nodes.iter().map(|n| ClientFleetNodeConfigDto {
+                    id: n.id.clone(),
+                    name: n.name.clone(),
+                    url: n.url.clone(),
+                    start_path: n.start_path.clone(),
+                    read_only: n.read_only,
+                    color_accent: n.color_accent.clone(),
+                    tags: n.tags.clone(),
+                }).collect(),
+            },
+        }
+    }
 }
 
 /// Preprocesses raw TOML text to automatically repair unescaped Windows backslashes in double-quoted strings.

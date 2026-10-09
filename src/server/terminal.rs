@@ -685,25 +685,13 @@ mod tests {
         config.server.database_path = tmp.path().join("term_test2.db").to_string_lossy().to_string();
 
         let state = create_test_state(config);
-        let user = crate::auth::User {
-            id: 1,
-            username: "testuser".to_string(),
-            nickname: None,
-            full_name: None,
-            bio: None,
-            email: None,
-            avatar_url: None,
-            role: "admin".to_string(),
-            home_dir: "/home/testuser".to_string(),
-            is_pam: false,
-            is_disabled: false,
-            allowed_services: "[\"*\"]".to_string(),
-            allowed_roots: "[\"*\"]".to_string(),
-            can_install_plugins: true,
-            allowed_plugins: "[\"*\"]".to_string(),
-            blocked_plugins: "[]".to_string(),
-            auth_source: None,
-        };
+        let user = state.auth.create_user(
+            "testuser",
+            "pass123",
+            "admin",
+            "/home/testuser",
+            Some("[\"*\"]"),
+        ).unwrap();
         let token = state.auth.generate_token(&user).unwrap();
 
         // 1. Missing token -> Unauthorized

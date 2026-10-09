@@ -35274,13 +35274,7 @@ async function saveModalTags() {
 async function runPredefinedAction(command, label) {
   const activePane = App.panes[App.activePaneIndex];
   const paths = getSelectedOrCursorPaths();
-
-  const req = {
-    command,
-    working_dir: activePane.path,
-    selected_files: paths.length > 0 ? paths : [activePane.path],
-    target_dir: activePane.path
-  };
+  const target = paths.length > 0 ? paths[0] : activePane.path;
 
   document.getElementById('action-output-title').textContent = `⚡ Action: ${label}`;
   document.getElementById('action-output-cmd').textContent = `$ ${command}`;
@@ -35291,27 +35285,39 @@ async function runPredefinedAction(command, label) {
 
   showModal('action-output-modal');
 
-  const resp = await fetch('/api/actions/run', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-    body: JSON.stringify(req)
-  });
+  try {
+    const resp = await fetch('/api/system/run-custom-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token || ''}` },
+      body: JSON.stringify({
+        command: command,
+        target_path: target,
+        selection: paths.length > 0 ? paths : [target],
+        target_pane_path: activePane.path
+      })
+    });
 
-  if (!resp.ok) {
-    document.getElementById('action-output-status').textContent = 'FAILED';
+    if (!resp.ok) {
+      const errText = await resp.text();
+      document.getElementById('action-output-status').textContent = 'FAILED';
+      document.getElementById('action-output-status').style.color = 'var(--danger)';
+      document.getElementById('action-output-text').textContent = errText;
+      return;
+    }
+
+    const res = await resp.json();
+    document.getElementById('action-output-status').textContent = res.success ? `SUCCESS` : `FAILED`;
+    document.getElementById('action-output-status').style.color = res.success ? 'var(--success)' : 'var(--danger)';
+    document.getElementById('action-output-duration').textContent = 'done';
+    document.getElementById('action-output-cmd').textContent = `$ ${res.executed || command}`;
+    document.getElementById('action-output-text').textContent = res.output || res.message || 'Action executed successfully.';
+
+    refreshAllPanes();
+  } catch (err) {
+    document.getElementById('action-output-status').textContent = 'ERROR';
     document.getElementById('action-output-status').style.color = 'var(--danger)';
-    document.getElementById('action-output-text').textContent = await resp.text();
-    return;
+    document.getElementById('action-output-text').textContent = String(err);
   }
-
-  const res = await resp.json();
-  document.getElementById('action-output-status').textContent = res.success ? `SUCCESS (Code ${res.exit_code || 0})` : `FAILED (Code ${res.exit_code || 1})`;
-  document.getElementById('action-output-status').style.color = res.success ? 'var(--success)' : 'var(--danger)';
-  document.getElementById('action-output-duration').textContent = `${res.duration_ms}ms`;
-  document.getElementById('action-output-cmd').textContent = `$ ${res.executed_command}`;
-  document.getElementById('action-output-text').textContent = (res.stdout || '') + (res.stderr ? `\n--- STDERR ---\n${res.stderr}` : '') || '(No output produced)';
-
-  refreshAllPanes();
 }
 
 function copyActionOutput() {
