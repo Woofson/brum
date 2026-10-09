@@ -147,6 +147,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             vaults: Arc::new(vault_mgr),
             backup: backup_mgr_arc,
             plugins: Arc::new(plugin_mgr),
+            rate_limiter: Arc::new(crate::server::RateLimiter::new()),
         };
 
         let app = crate::server::create_router(state);

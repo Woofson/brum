@@ -317,6 +317,20 @@ pub async fn handle_fleet_ws_proxy(
     AxumPath(node_id): AxumPath<String>,
     ws: WebSocketUpgrade,
 ) -> Result<Response, (StatusCode, String)> {
+    if let Some(origin_val) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
+        let origin_str = origin_val.trim();
+        if !origin_str.is_empty() && !crate::server::terminal::is_ws_origin_allowed(origin_str, &headers, &state) {
+            warn!(
+                origin = %origin_str,
+                "Fleet WebSocket proxy rejected: Origin header does not match Host or allowed origins (Anti-CSWSH)"
+            );
+            return Err((
+                StatusCode::FORBIDDEN,
+                "Cross-origin WebSocket connection forbidden".to_string(),
+            ));
+        }
+    }
+
     let claims = extract_fleet_claims(&state, &headers, &query)?;
 
     if !crate::server::terminal::is_role_permitted(&claims.role, &state.config.terminal.allow_roles) {
@@ -631,6 +645,7 @@ mod tests {
             vaults: vault_mgr,
             backup: backup_mgr,
             plugins: plugin_mgr,
+            rate_limiter: Arc::new(crate::server::RateLimiter::new()),
         }
     }
 

@@ -7,11 +7,14 @@ Wants=network-online.target
 Type=simple
 User=root
 WorkingDirectory=/etc/brum
-ExecStart=/usr/bin/brum
+ExecStart=/usr/bin/brum --server
 Restart=always
 RestartSec=5
 Environment=RUST_LOG=brum=info,tower_http=info
 LimitNOFILE=65536
+NoNewPrivileges=true
+ProtectSystem=full
+PrivateTmp=true
 
 [Install]
 WantedBy=multi-user.target

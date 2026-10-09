@@ -543,6 +543,47 @@ impl AuthManager {
         Ok(user)
     }
 
+    pub fn create_oidc_user(
+        &self,
+        username: &str,
+        role: &str,
+        home_dir: &str,
+        allowed_roots: Option<&str>,
+    ) -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let now = Utc::now().to_rfc3339();
+        let roots_json = allowed_roots.unwrap_or("[\"*\"]");
+
+        conn.execute(
+            "INSERT INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, 'OIDC_MANAGED', ?2, ?3, '[\"*\"]', ?4, 0, '[\"*\"]', '[]', 0, 0, ?5)",
+            params![username, role, home_dir, roots_json, now],
+        )?;
+
+        let id = conn.last_insert_rowid();
+
+        let mut user = User {
+            id,
+            username: username.to_string(),
+            nickname: None,
+            full_name: None,
+            bio: None,
+            email: None,
+            avatar_url: None,
+            role: role.to_string(),
+            home_dir: home_dir.to_string(),
+            is_pam: false,
+            is_disabled: false,
+            allowed_services: "[\"*\"]".to_string(),
+            allowed_roots: roots_json.to_string(),
+            can_install_plugins: false,
+            allowed_plugins: "[\"*\"]".to_string(),
+            blocked_plugins: "[]".to_string(),
+            auth_source: Some("oidc".to_string()),
+        };
+        user.resolve_avatar();
+        Ok(user)
+    }
+
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let mut stmt = conn.prepare(
@@ -1483,7 +1524,10 @@ impl AuthManager {
         watermark_enabled: bool,
         watermark_text: Option<&str>,
     ) -> Result<ShareItem, Box<dyn std::error::Error + Send + Sync>> {
-        let token = uuid::Uuid::new_v4().to_string().replace('-', "")[..16].to_string();
+        use rand::RngCore;
+        let mut token_bytes = [0u8; 16];
+        rand::rngs::OsRng.fill_bytes(&mut token_bytes);
+        let token = hex::encode(token_bytes);
         let now = Utc::now().to_rfc3339();
 
         let password_hash = if let Some(pass) = password {

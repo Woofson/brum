@@ -322,6 +322,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         vaults: Arc::new(vault_mgr),
         backup: backup_mgr_arc,
         plugins: Arc::new(plugin_mgr),
+        rate_limiter: Arc::new(crate::server::RateLimiter::new()),
     };
 
     let app = create_router(state);
@@ -590,7 +591,7 @@ fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + S
                     std::fs::create_dir_all(&systemd_dir)?;
                     let unit_path = systemd_dir.join("brum.service");
                     let content = format!(
-                        "[Unit]\nDescription=Brum Web Commander Server\nAfter=network.target\n\n[Service]\nExecStart=\"{}\" --server\nRestart=always\nRestartSec=5\n\n[Install]\nWantedBy=default.target\n",
+                        "[Unit]\nDescription=Brum Web Commander Server\nAfter=network.target\n\n[Service]\nExecStart=\"{}\" --server\nRestart=always\nRestartSec=5\nNoNewPrivileges=true\nPrivateTmp=true\n\n[Install]\nWantedBy=default.target\n",
                         exe.display()
                     );
                     std::fs::write(&unit_path, content)?;

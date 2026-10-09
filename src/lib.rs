@@ -55,6 +55,7 @@ pub fn create_app_state(config: &AppConfig) -> Result<AppState, Box<dyn std::err
         vaults: Arc::new(vault_mgr),
         backup: backup_mgr_arc,
         plugins: Arc::new(plugin_mgr),
+        rate_limiter: Arc::new(crate::server::RateLimiter::new()),
     })
 }
 

@@ -51,9 +51,34 @@ pub struct OidcTokenResponse {
     pub expires_in: Option<u64>,
 }
 
-#[derive(Debug, Clone, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct JwkKey {
+    pub kty: String,
+    #[serde(default)]
+    pub alg: Option<String>,
+    #[serde(default)]
+    pub kid: Option<String>,
+    #[serde(default)]
+    pub n: Option<String>,
+    #[serde(default)]
+    pub e: Option<String>,
+    #[serde(rename = "use", default)]
+    pub key_use: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct JwksResponse {
+    #[serde(default)]
+    pub keys: Vec<JwkKey>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OidcClaims {
+    pub iss: Option<String>,
+    pub aud: Option<serde_json::Value>,
+    pub exp: Option<i64>,
     pub sub: Option<String>,
+    pub nonce: Option<String>,
     pub preferred_username: Option<String>,
     pub username: Option<String>,
     pub nickname: Option<String>,
@@ -114,6 +139,7 @@ pub struct OidcManager {
     auth: Arc<AuthManager>,
     http_client: reqwest::Client,
     metadata_cache: Arc<RwLock<Option<OidcMetadata>>>,
+    jwks_cache: Arc<RwLock<Option<(i64, JwksResponse)>>>,
     pending_states: Arc<Mutex<HashMap<String, PendingOidcState>>>,
 }
 
@@ -129,6 +155,7 @@ impl OidcManager {
             auth,
             http_client,
             metadata_cache: Arc::new(RwLock::new(None)),
+            jwks_cache: Arc::new(RwLock::new(None)),
             pending_states: Arc::new(Mutex::new(HashMap::new())),
         }
     }
@@ -231,6 +258,32 @@ impl OidcManager {
         Ok((url.to_string(), state))
     }
 
+    pub async fn fetch_jwks(&self, jwks_uri: &str, force_refresh: bool) -> Result<JwksResponse, Box<dyn std::error::Error + Send + Sync>> {
+        let now = Utc::now().timestamp();
+        if !force_refresh {
+            let cache = self.jwks_cache.read().await;
+            if let Some((ts, jwks)) = &*cache {
+                if now - ts < 3600 {
+                    return Ok(jwks.clone());
+                }
+            }
+        }
+
+        info!("Fetching OIDC JWKS from: {}", jwks_uri);
+        let resp = self.http_client.get(jwks_uri).send().await?;
+        if !resp.status().is_success() {
+            return Err(format!("Failed to fetch JWKS from {}: HTTP {}", jwks_uri, resp.status()).into());
+        }
+
+        let jwks: JwksResponse = resp.json().await?;
+        {
+            let mut cache = self.jwks_cache.write().await;
+            *cache = Some((now, jwks.clone()));
+        }
+
+        Ok(jwks)
+    }
+
     pub async fn exchange_code_and_login(&self, code: &str, state: &str) -> Result<(String, User), Box<dyn std::error::Error + Send + Sync>> {
         let pending = {
             let mut map = self.pending_states.lock();
@@ -265,17 +318,80 @@ impl OidcManager {
 
         let token_data: OidcTokenResponse = token_resp.json().await?;
 
-        // 2. Decode claims from ID Token and/or userinfo endpoint
+        // 2. Decode & Validate claims from ID Token and/or userinfo endpoint
         let mut claims = OidcClaims::default();
 
         if let Some(id_token) = &token_data.id_token {
-            let parts: Vec<&str> = id_token.split('.').collect();
-            if parts.len() >= 2 {
-                if let Ok(decoded_bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1])
-                    .or_else(|_| base64::engine::general_purpose::STANDARD.decode(parts[1])) {
-                    if let Ok(parsed_claims) = serde_json::from_slice::<OidcClaims>(&decoded_bytes) {
-                        claims = parsed_claims;
+            let mut validated = false;
+            if let Some(jwks_uri) = &meta.jwks_uri {
+                if let Ok(jwt_header) = jsonwebtoken::decode_header(id_token) {
+                    let jwks = self.fetch_jwks(jwks_uri, false).await.ok();
+                    let find_key = |jwks: &JwksResponse, kid: Option<&str>| -> Option<JwkKey> {
+                        if let Some(target_kid) = kid {
+                            jwks.keys.iter().find(|k| k.kid.as_deref() == Some(target_kid)).cloned()
+                        } else {
+                            jwks.keys.iter().find(|k| k.kty.eq_ignore_ascii_case("RSA")).cloned()
+                        }
+                    };
+
+                    let mut matched_key = jwks.as_ref().and_then(|j| find_key(j, jwt_header.kid.as_deref()));
+                    if matched_key.is_none() {
+                        // Refresh JWKS once in case keys rotated
+                        if let Ok(refreshed) = self.fetch_jwks(jwks_uri, true).await {
+                            matched_key = find_key(&refreshed, jwt_header.kid.as_deref());
+                        }
                     }
+
+                    if let Some(key) = matched_key {
+                        if let (Some(n), Some(e)) = (&key.n, &key.e) {
+                            if let Ok(decoding_key) = jsonwebtoken::DecodingKey::from_rsa_components(n, e) {
+                                let mut validation = jsonwebtoken::Validation::new(jwt_header.alg);
+                                validation.set_issuer(&[&meta.issuer, meta.issuer.trim_end_matches('/')]);
+                                validation.set_audience(&[&self.config.client_id]);
+
+                                match jsonwebtoken::decode::<OidcClaims>(id_token, &decoding_key, &validation) {
+                                    Ok(token_data) => {
+                                        claims = token_data.claims;
+                                        validated = true;
+                                        info!("Successfully verified OIDC ID token cryptographic signature.");
+                                    }
+                                    Err(err) => {
+                                        return Err(format!("OIDC ID token signature verification failed: {}", err).into());
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            if !validated {
+                let parts: Vec<&str> = id_token.split('.').collect();
+                if parts.len() >= 2 {
+                    if let Ok(decoded_bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1])
+                        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(parts[1])) {
+                        if let Ok(parsed_claims) = serde_json::from_slice::<OidcClaims>(&decoded_bytes) {
+                            let now = Utc::now().timestamp();
+                            if let Some(exp) = parsed_claims.exp {
+                                if exp < now - 60 {
+                                    return Err("OIDC ID token is expired".into());
+                                }
+                            }
+                            if let Some(iss) = &parsed_claims.iss {
+                                if iss.trim_end_matches('/') != meta.issuer.trim_end_matches('/') {
+                                    return Err(format!("OIDC ID token issuer mismatch: expected '{}', got '{}'", meta.issuer, iss).into());
+                                }
+                            }
+                            claims = parsed_claims;
+                        }
+                    }
+                }
+            }
+
+            // Nonce verification to prevent replay / CSRF attacks
+            if let Some(token_nonce) = &claims.nonce {
+                if token_nonce != &pending.nonce {
+                    return Err("OIDC ID token nonce mismatch (possible replay or CSRF attack)".into());
                 }
             }
         }
@@ -344,6 +460,19 @@ impl OidcManager {
 
         let user = match existing_user {
             Some(mut u) => {
+                // Prevent Account Takeover: Native local / PAM / database users cannot be taken over by SSO
+                if u.auth_source.as_deref() != Some("oidc") {
+                    tracing::warn!(
+                        username = %username,
+                        auth_source = ?u.auth_source,
+                        "SSO login rejected: external OIDC user tried to claim existing native local account"
+                    );
+                    return Err(format!(
+                        "SSO identity cannot take over existing local account '{}'. Account takeover prevented.",
+                        username
+                    ).into());
+                }
+
                 info!(username = %username, role = %target_role, "User successfully authenticated via OIDC/SSO");
                 if u.role != target_role {
                     let _ = self.auth.update_user_rbac(
@@ -384,10 +513,8 @@ impl OidcManager {
                 let home_dir = self.config.default_home_template.replace("{username}", &username);
                 let _ = std::fs::create_dir_all(&home_dir);
 
-                let random_pwd = generate_random_string(32);
-                let mut created = self.auth.create_user(
+                let mut created = self.auth.create_oidc_user(
                     &username,
-                    &random_pwd,
                     target_role,
                     &home_dir,
                     Some("[\"*\"]"),

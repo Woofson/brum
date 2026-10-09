@@ -153,12 +153,69 @@ pub fn extract_terminal_claims(
     ))
 }
 
+pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState) -> bool {
+    let clean_origin = origin
+        .trim_start_matches("http://")
+        .trim_start_matches("https://")
+        .trim_start_matches("ws://")
+        .trim_start_matches("wss://")
+        .trim_end_matches('/');
+
+    let host_header = headers
+        .get("x-forwarded-host")
+        .or_else(|| headers.get(header::HOST))
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("")
+        .trim();
+
+    if !host_header.is_empty() {
+        if clean_origin == host_header || clean_origin.split(':').next() == host_header.split(':').next() {
+            return true;
+        }
+    }
+
+    let cfg_host = state.config.server.host.trim();
+    let cfg_port = state.config.server.port;
+    if clean_origin == format!("{}:{}", cfg_host, cfg_port) || clean_origin == cfg_host {
+        return true;
+    }
+
+    // Allow loopback origins and local Tauri/desktop webview
+    if clean_origin.starts_with("localhost")
+        || clean_origin.starts_with("127.0.0.1")
+        || clean_origin.starts_with("[::1]")
+        || origin == "null"
+        || origin.starts_with("tauri://")
+        || origin.starts_with("http://tauri.localhost")
+        || origin.starts_with("https://tauri.localhost")
+    {
+        return true;
+    }
+
+    false
+}
+
 pub async fn handle_terminal_ws(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(query): Query<TerminalQuery>,
     ws: WebSocketUpgrade,
 ) -> impl IntoResponse {
+    // 0. Verify Origin (Anti-CSWSH Protection)
+    if let Some(origin_val) = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok()) {
+        let origin_str = origin_val.trim();
+        if !origin_str.is_empty() && !is_ws_origin_allowed(origin_str, &headers, &state) {
+            warn!(
+                origin = %origin_str,
+                "Terminal WebSocket connection rejected: Origin header does not match Host or allowed origins (Anti-CSWSH)"
+            );
+            return (
+                StatusCode::FORBIDDEN,
+                "Cross-origin WebSocket connection forbidden",
+            ).into_response();
+        }
+    }
+
     // 1. Verify Authentication & Extract Claims
     let claims = match extract_terminal_claims(&state, &headers, &query) {
         Ok(c) => c,
@@ -653,6 +710,7 @@ mod tests {
             vaults: vault_mgr,
             backup: backup_mgr,
             plugins: plugin_mgr,
+            rate_limiter: Arc::new(crate::server::RateLimiter::new()),
         }
     }
 

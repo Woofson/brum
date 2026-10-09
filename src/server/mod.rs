@@ -39,6 +39,93 @@ struct Asset;
 #[folder = "manuals/"]
 struct ManualsAsset;
 
+use std::time::Instant;
+use parking_lot::Mutex;
+
+#[derive(Debug, Clone)]
+pub struct RateLimiter {
+    attempts: Arc<Mutex<HashMap<String, Vec<Instant>>>>,
+}
+
+impl RateLimiter {
+    pub fn new() -> Self {
+        Self {
+            attempts: Arc::new(Mutex::new(HashMap::new())),
+        }
+    }
+
+    pub fn check_and_record(&self, key: &str, max_attempts: usize, window_secs: u64) -> Result<(), u64> {
+        let mut map = self.attempts.lock();
+        let now = Instant::now();
+        let window = std::time::Duration::from_secs(window_secs);
+
+        let entry = map.entry(key.to_string()).or_insert_with(Vec::new);
+        entry.retain(|&t| now.duration_since(t) < window);
+
+        if entry.len() >= max_attempts {
+            let oldest = entry[0];
+            let elapsed = now.duration_since(oldest);
+            let retry_after = if elapsed < window {
+                (window - elapsed).as_secs().max(1)
+            } else {
+                1
+            };
+            return Err(retry_after);
+        }
+
+        entry.push(now);
+        Ok(())
+    }
+
+    pub fn reset(&self, key: &str) {
+        let mut map = self.attempts.lock();
+        map.remove(key);
+    }
+}
+
+impl Default for RateLimiter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+pub async fn security_headers_middleware(
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Response {
+    let mut resp = next.run(req).await;
+    let headers = resp.headers_mut();
+
+    headers.insert(
+        header::X_CONTENT_TYPE_OPTIONS,
+        axum::http::HeaderValue::from_static("nosniff"),
+    );
+    headers.insert(
+        header::X_FRAME_OPTIONS,
+        axum::http::HeaderValue::from_static("SAMEORIGIN"),
+    );
+    headers.insert(
+        header::REFERRER_POLICY,
+        axum::http::HeaderValue::from_static("strict-origin-when-cross-origin"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("x-xss-protection"),
+        axum::http::HeaderValue::from_static("1; mode=block"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("permissions-policy"),
+        axum::http::HeaderValue::from_static("geolocation=(), microphone=(), camera=()"),
+    );
+    headers.insert(
+        header::HeaderName::from_static("content-security-policy"),
+        axum::http::HeaderValue::from_static(
+            "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: wss:; frame-ancestors 'self';"
+        ),
+    );
+
+    resp
+}
+
 #[derive(Clone)]
 pub struct AppState {
     pub config: Arc<AppConfig>,
@@ -49,19 +136,38 @@ pub struct AppState {
     pub vaults: Arc<crate::vfs::vault::VaultManager>,
     pub backup: Arc<crate::tools::sync::BackupManager>,
     pub plugins: Arc<crate::plugins::PluginManager>,
+    pub rate_limiter: Arc<RateLimiter>,
 }
 
 pub fn create_router(state: AppState) -> Router {
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods(Any)
-        .allow_headers(Any)
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PUT,
+            axum::http::Method::DELETE,
+            axum::http::Method::OPTIONS,
+            axum::http::Method::HEAD,
+            axum::http::Method::PATCH,
+        ])
+        .allow_headers([
+            header::AUTHORIZATION,
+            header::CONTENT_TYPE,
+            header::ACCEPT,
+            header::COOKIE,
+            header::ORIGIN,
+            header::RANGE,
+            header::HeaderName::from_static("x-csrf-token"),
+            header::HeaderName::from_static("x-requested-with"),
+        ])
         .expose_headers([
             header::HeaderName::from_static("x-is-directory"),
             header::HeaderName::from_static("content-disposition"),
             header::HeaderName::from_static("content-range"),
             header::HeaderName::from_static("accept-ranges"),
             header::HeaderName::from_static("etag"),
+            header::SET_COOKIE,
         ]);
 
     Router::new()
@@ -244,6 +350,7 @@ pub fn create_router(state: AppState) -> Router {
         // Embedded Frontend Fallback
         .fallback(handle_static_asset)
         .layer(DefaultBodyLimit::max(state.config.server.upload_max_size_mb * 1024 * 1024))
+        .layer(axum::middleware::from_fn(security_headers_middleware))
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth_middleware))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -332,7 +439,7 @@ async fn handle_oidc_callback(
         Ok((token, user)) => {
             tracing::info!(username = %user.username, role = %user.role, "SSO login successful");
             let cookie_header = format!(
-                "cd_token={}; Path=/; SameSite=Lax; Max-Age=2592000",
+                "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000",
                 token
             );
             let mut response = axum::response::Redirect::temporary(&format!("/?token={}&sso_success=1", token)).into_response();
@@ -362,8 +469,19 @@ fn urlencoding_simple(s: &str) -> String {
 
 async fn handle_login(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, String)> {
+    let client_ip = extract_client_ip(&headers);
+    let rate_key = format!("login:{}", client_ip);
+    if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
+        tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on login endpoint");
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            format!("Too many login attempts. Please retry after {} seconds.", retry_after),
+        ));
+    }
+
     tracing::info!("Received login request for user '{}'...", payload.username);
 
     // Standalone / Auth Disabled bypass
@@ -405,12 +523,14 @@ async fn handle_login(
             }
         };
 
+        state.rate_limiter.reset(&rate_key);
         let token = state.auth.generate_token(&user).unwrap_or_default();
         return Ok(Json(LoginResponse { token, user }));
     }
 
     match state.auth.authenticate(&payload.username, &payload.password) {
         Ok(user) => {
+            state.rate_limiter.reset(&rate_key);
             tracing::info!(username = %user.username, is_pam = user.is_pam, role = %user.role, "User successfully authenticated");
             let token = state.auth.generate_token(&user).map_err(|e| {
                 (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e))
@@ -418,16 +538,6 @@ async fn handle_login(
             Ok(Json(LoginResponse { token, user }))
         }
         Err(e) => {
-            // Check fallback default admin user
-            if payload.username != state.config.auth.default_admin_user {
-                if let Ok(admin_user) = state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
-                    tracing::info!("Login fallback successful via default admin user '{}'", admin_user.username);
-                    let token = state.auth.generate_token(&admin_user).map_err(|e| {
-                        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e))
-                    })?;
-                    return Ok(Json(LoginResponse { token, user: admin_user }));
-                }
-            }
             tracing::warn!(username = %payload.username, error = %e, "Authentication failed");
             Err((StatusCode::UNAUTHORIZED, "Invalid username or password".to_string()))
         }
@@ -1326,8 +1436,13 @@ async fn handle_get_storage_roots(
     Ok(Json(accessible))
 }
 
-async fn handle_logout() -> Json<serde_json::Value> {
-    Json(serde_json::json!({ "success": true, "message": "Logged out" }))
+async fn handle_logout() -> impl IntoResponse {
+    let mut resp = Json(serde_json::json!({ "success": true, "message": "Logged out" })).into_response();
+    let clear_cookie = "cd_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    if let Ok(hv) = axum::http::HeaderValue::from_str(clear_cookie) {
+        resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+    }
+    resp
 }
 
 async fn handle_system_exit(
@@ -1828,6 +1943,16 @@ async fn handle_unlock_session(
     headers: HeaderMap,
     Json(payload): Json<UnlockRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let client_ip = extract_client_ip(&headers);
+    let rate_key = format!("unlock:{}", client_ip);
+    if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
+        tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on session unlock endpoint");
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            format!("Too many unlock attempts. Please retry after {} seconds.", retry_after),
+        ));
+    }
+
     // 0. Standalone / Auth Disabled mode
     if !state.config.server.enable_auth || state.config.server.standalone {
         let current_user = std::env::var("USER")
@@ -1863,6 +1988,7 @@ async fn handle_unlock_session(
             }
         };
 
+        state.rate_limiter.reset(&rate_key);
         let new_token = state.auth.generate_token(&user).unwrap_or_default();
         return Ok(Json(serde_json::json!({
             "success": true,
@@ -1882,55 +2008,29 @@ async fn handle_unlock_session(
         }
     }
 
-    if let Some(uname) = username {
-        tracing::info!("Processing session unlock request for user '{}'...", uname);
-        match state.auth.authenticate(&uname, &payload.password) {
-            Ok(user) => {
-                tracing::info!("Session unlocked successfully for user '{}'", user.username);
-                let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-                Ok(Json(serde_json::json!({
-                    "success": true,
-                    "message": "Session unlocked",
-                    "token": new_token,
-                    "user": user
-                })))
-            }
-            Err(e) => {
-                // Fallback to default admin user if username provided was display nickname or different
-                if uname != state.config.auth.default_admin_user {
-                    if let Ok(admin_user) = state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
-                        tracing::info!("Session unlocked successfully via fallback admin user '{}'", admin_user.username);
-                        let new_token = state.auth.generate_token(&admin_user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-                        return Ok(Json(serde_json::json!({
-                            "success": true,
-                            "message": "Session unlocked",
-                            "token": new_token,
-                            "user": admin_user
-                        })));
-                    }
-                }
-                tracing::warn!("Failed session unlock attempt for user '{}': {}", uname, e);
-                Err((StatusCode::UNAUTHORIZED, e.to_string()))
-            }
+    let uname = match username {
+        Some(u) if !u.trim().is_empty() => u,
+        _ => {
+            return Err((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()));
         }
-    } else {
-        // Fallback to default admin user
-        tracing::info!("Processing session unlock request with fallback default admin user...");
-        match state.auth.authenticate(&state.config.auth.default_admin_user, &payload.password) {
-            Ok(user) => {
-                tracing::info!("Session unlocked successfully for default admin user '{}'", user.username);
-                let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-                Ok(Json(serde_json::json!({
-                    "success": true,
-                    "message": "Session unlocked",
-                    "token": new_token,
-                    "user": user
-                })))
-            }
-            Err(e) => {
-                tracing::warn!("Failed session unlock for default admin: {}", e);
-                Err((StatusCode::UNAUTHORIZED, e.to_string()))
-            }
+    };
+
+    tracing::info!("Processing session unlock request for user '{}'...", uname);
+    match state.auth.authenticate(&uname, &payload.password) {
+        Ok(user) => {
+            state.rate_limiter.reset(&rate_key);
+            tracing::info!("Session unlocked successfully for user '{}'", user.username);
+            let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+            Ok(Json(serde_json::json!({
+                "success": true,
+                "message": "Session unlocked",
+                "token": new_token,
+                "user": user
+            })))
+        }
+        Err(e) => {
+            tracing::warn!("Failed session unlock attempt for user '{}': {}", uname, e);
+            Err((StatusCode::UNAUTHORIZED, "Invalid credentials".to_string()))
         }
     }
 }
@@ -2652,12 +2752,22 @@ async fn handle_public_verify_share(
     AxumPath(token): AxumPath<String>,
     Json(payload): Json<VerifyPassRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let ip = extract_client_ip(&headers);
+    let rate_key = format!("share_verify:{}:{}", token, ip);
+    if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
+        tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share password verification");
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            format!("Too many verification attempts. Please retry after {} seconds.", retry_after),
+        ));
+    }
+
     let valid = state.auth.verify_share_password(&token, &payload.password)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Verification error: {}", e)))?;
 
     if valid {
+        state.rate_limiter.reset(&rate_key);
         if let Ok(Some(share)) = state.auth.get_share_by_token(&token) {
-            let ip = extract_client_ip(&headers);
             let ua = extract_user_agent(&headers);
             let _ = state.auth.log_share_access(share.id, &token, None, &ip, ua.as_deref(), "visit", None);
         }
@@ -2673,12 +2783,22 @@ async fn handle_public_verify_email(
     AxumPath(token): AxumPath<String>,
     Json(payload): Json<VerifyEmailRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let ip = extract_client_ip(&headers);
+    let rate_key = format!("share_verify:{}:{}", token, ip);
+    if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
+        tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share email verification");
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            format!("Too many verification attempts. Please retry after {} seconds.", retry_after),
+        ));
+    }
+
     let valid = state.auth.verify_share_email(&token, &payload.email)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Email verification error: {}", e)))?;
 
     if valid {
+        state.rate_limiter.reset(&rate_key);
         if let Ok(Some(share)) = state.auth.get_share_by_token(&token) {
-            let ip = extract_client_ip(&headers);
             let ua = extract_user_agent(&headers);
             let _ = state.auth.log_share_access(share.id, &token, Some(&payload.email), &ip, ua.as_deref(), "visit", None);
         }
@@ -8023,6 +8143,7 @@ mod tests {
             backup: backup_mgr,
             plugins: plugin_mgr,
             oidc: oidc_mgr,
+            rate_limiter: std::sync::Arc::new(RateLimiter::new()),
         };
 
         let claims = crate::auth::Claims {
@@ -8161,6 +8282,7 @@ mod tests {
             vaults: vault_mgr,
             backup: backup_mgr,
             plugins: plugin_mgr,
+            rate_limiter: Arc::new(RateLimiter::new()),
         };
 
         let res = handle_health(State(state)).await;
@@ -8219,6 +8341,7 @@ mod tests {
             vaults: vault_mgr,
             backup: backup_mgr,
             plugins: plugin_mgr,
+            rate_limiter: Arc::new(RateLimiter::new()),
         };
 
         // Create a test .grr package
