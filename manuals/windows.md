@@ -38,12 +38,12 @@ scoop install brum
 ```
 
 ### C. Inno Setup Windows Installer (`.exe`)
-1. Download `Brum-Setup-v1.6.2.exe` from [GitHub Releases](https://github.com/Woofson/brum/releases).
+1. Download `Brum-Setup-v1.7.0.exe` from [GitHub Releases](https://github.com/Woofson/brum/releases).
 2. Choose between **Desktop GUI Application** or **Background Windows Service (SCM)** mode.
 3. Automatically sets up Start Menu items, Desktop shortcuts, Context Menu integrations, and `%PROGRAMDATA%\Brum\` configuration roots.
 
 ### D. Zero-Install Standalone Portable ZIP
-1. Download `brum-v1.6.2-windows-x86_64.zip` from [GitHub Releases](https://github.com/Woofson/brum/releases).
+1. Download `brum-v1.7.0-windows-x86_64.zip` from [GitHub Releases](https://github.com/Woofson/brum/releases).
 2. Extract anywhere (e.g. `C:\Tools\Brum` or a USB drive).
 3. Double-click `Brum.exe` (Desktop GUI) or run `brum-cli.exe` — includes bundled `./themes/` folder and `config.toml`. Settings and database are saved portably in the local folder or `%APPDATA%\Brum\`.
 
@@ -168,8 +168,8 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 ```
 
 Build outputs are placed in `dist\windows\`:
-- `dist\windows\brum-v1.6.2-windows-x86_64.zip` (Portable Distribution)
-- `dist\windows\Brum-Setup-v1.6.2.exe` (Inno Setup Installer)
+- `dist\windows\brum-v1.7.0-windows-x86_64.zip` (Portable Distribution)
+- `dist\windows\Brum-Setup-v1.7.0.exe` (Inno Setup Installer)
 - `dist\windows\SHA256SUMS.txt` (Integrity Hashes)
 
 ---

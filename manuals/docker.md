@@ -30,7 +30,7 @@ docker run -d \
   ghcr.io/woofson/brum:latest
 ```
 
-> **Image Details**: All official Docker images (`:latest`, `:alpine`, `:v1.6.2`) are built natively on Alpine Linux 3.20 with static musl binaries.
+> **Image Details**: All official Docker images (`:latest`, `:alpine`, `:v1.7.0`) are built natively on Alpine Linux 3.20 with static musl binaries.
 
 Open `http://<SERVER_IP>:3140` in your browser:
 - **Default Username**: `admin`
