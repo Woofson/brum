@@ -55,7 +55,12 @@ yay -S brum        # or: paru -S brum
 cargo run --release        # Open http://localhost:3140 in your browser
 ```
 
-> **Default Login**: Username `admin`, Password `brum` *(or log in directly with any Linux host system account via PAM)*.
+> [!NOTE]
+> **Administrative Credentials & Initial Setup**:
+> On first run with an uninitialized database, Brum dynamically generates a high-entropy random 20-character password for the `admin` account and outputs it to the server console (as well as `docker logs brum` or the logging directory).
+> - **Desktop & Standalone**: Standalone desktop mode (`brum` / `brum -s`) automatically authorizes the active local operating system user without requiring a password.
+> - **Linux Host Accounts (PAM)**: When running on Linux, any valid local system account can log in directly via PAM.
+> - **Existing Databases**: Upgrades and existing installations retain their previously configured passwords.
 
 ---
 

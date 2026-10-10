@@ -34,7 +34,7 @@ docker run -d \
 
 Open `http://<SERVER_IP>:3140` in your browser:
 - **Default Username**: `admin`
-- **Default Password**: `admin123` *(Change immediately in Settings > User Profile & Security!)*
+- **Initial Password**: Dynamically generated on first container start. View it by running `docker logs brum` (or check the rolling log directory in `/data/logs/`).
 
 ---
 

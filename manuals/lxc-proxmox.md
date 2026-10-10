@@ -24,7 +24,7 @@ curl -fsSL https://raw.githubusercontent.com/Woofson/brum/main/scripts/lxc-insta
 
 Once installed, Brum is running and enabled on boot:
 - **URL**: `http://<CONTAINER_IP>:3140`
-- **Default Credentials**: `admin` / `brum` (Change after first login!)
+- **Initial Credentials**: Username `admin`. The dynamic initial password is printed during install and logged in `journalctl -u brum` (or log in directly using your Linux container root/system user via PAM).
 
 ---
 
