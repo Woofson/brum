@@ -4,7 +4,7 @@
   <img src="assets/brum2.png" alt="Brum Web & Desktop Environment" width="800" />
   <p><em>Multi-Pane Web Environment (File Commander/Manager) — By Woofson</em></p>
   <p>
-    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.7.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
+    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.8.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
     <a href="https://crates.io/crates/brum"><img src="https://img.shields.io/crates/v/brum?style=flat-square&color=f59e0b" alt="Crates.io" /></a>
     <img src="https://img.shields.io/badge/rust-2021_edition-orange?style=flat-square" alt="Rust 2021" />
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License MIT" />
@@ -18,17 +18,15 @@
 
 ## Why Brum?
 
-* **Instant 0ms Orthodox Multi-Pane Manager**: 1-to-4 dynamic panels (`Alt+1`–`4`), orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), fast branch view, frame-0 optimistic pre-rendering, and directory fast caching.
-* **Dual-Mode Floating & Dockable Core Functions**: 19+ integrated native power tools that freely toggle between floating desktop windows and in-pane docking with zero iframe overhead (3D CAD Studio, File Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage Analyzer, Notes, Media Player with Chiptune & MIDI Synthesizer, Persistent Terminal, Duplicate Finder, Batch Renamer, Hex Editor, Tag Editor, Log Viewer, Format Converter, Delta Backup, and XDG Trash Suite).
-* **Distributed Fleet Management & Reverse Proxy Gateway**: Connect, monitor, and manage remote Brum nodes across LAN/WAN with node-aware Places navigation, home auto-discovery, custom start paths, health diagnostics, and built-in Gateway Hub reverse proxy routing for REST and WebSockets.
-* **Removable & USB Storage Automation**: Native hardware auto-detection for USB sticks and external drives with one-click mount, unmount, and eject management.
-* **Modular Theme Engine & Custom Styling**: External `./themes/*.toml` theme files, live theme switching, custom UI gaps, border-radius, folder colors, and window title templates.
-* **Synchronized Scrolling & Relative Navigation**: Mirrored viewport scrolling and relative subfolder navigation across active panels with loop prevention.
-* **Universal Remote & Client VFS**: Direct zero-leakage client for SFTP/SSH (with configurable TOFU / Known Hosts verification), SMB/Windows Shares, NFS, S3 Cloud Storage, WebDAV, Proton Drive, Hetzner Storage Box, and browser-native Client Local Folder mounts (`client://`).
-* **OpenID Connect (OIDC) & SSO Authentication**: Enterprise identity provider integration (Authentik, Keycloak, generic OIDC) with PKCE flow and token lifecycle management.
-* **Zero-Knowledge Encrypted Vaults**: Password-protected `.cdvault` containers with Argon2id + AES-256-GCM RAM-only virtual streaming (no plaintext ever touches disk).
-* **Automated SemVer Build Metadata**: Native compile-time build tracking (`+build.<N>.git.<hash>`), UTC timestamps, and target architecture visible across CLI, About modals, and API.
-* **Dual Mode & Windows Service**: Run as a standalone native desktop app (Windows & Linux with tiling WM support), headless web server, or background Windows Service (SCM integration).
+Brum is a fast, multi-pane file management environment built in Rust. It combines the keyboard precision and speed of classic orthodox file managers with a modern web and desktop workspace:
+
+* **Side-by-Side Multi-Pane Browsing**: Work across 1 to 4 customizable panels (`Alt+1`–`4`) simultaneously. Move, copy, and compare files effortlessly using orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), drag-and-drop, or touch controls.
+* **Built-in Power Tools Suite**: Everything you need is integrated directly into the workspace—no extra software required. Edit PDFs, inspect disk usage, batch rename files, play audio and video, view logs in real time, compare diffs, split large files, and launch a persistent terminal.
+* **Unified Local & Remote Storage**: Browse local disks, USB drives, and remote infrastructure in the same view. Connect directly to SFTP/SSH, SMB/Windows shares, WebDAV, S3 buckets, and NFS without mounting external filesystems.
+* **Direct File Sharing**: Create password-protected public share links with expiration rules and client upload dropzones straight from your browser—no third-party cloud subscription required.
+* **Encrypted Virtual Vaults**: Secure sensitive personal or corporate files inside encrypted vault containers that stream directly through RAM, ensuring unencrypted files never touch disk.
+* **Multi-Node Fleet Management**: Connect and monitor multiple Brum servers across your home lab, office network, or cloud VPS from a single unified web dashboard.
+* **Lightweight & Runs Anywhere**: Deploy as a standalone desktop app on Linux and Windows, self-host with Docker on a server or NAS, or run headless as a background system service with minimal resource usage.
 
 ---
 
