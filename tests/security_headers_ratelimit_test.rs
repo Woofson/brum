@@ -292,3 +292,98 @@ async fn test_websocket_origin_security() {
     assert!(!is_ws_origin_allowed("https://evil-hacker.xyz:8080", &headers, &state));
     assert!(!is_ws_origin_allowed("http://phishing.site", &headers, &state));
 }
+
+#[tokio::test]
+async fn test_rate_limiter_bounded_capacity_pruning() {
+    let limiter = brum::server::RateLimiter::new();
+
+    // Insert 6000 rotating keys (simulating memory exhaustion attack)
+    for i in 0..6000 {
+        limiter.record(&format!("attack_key_{}", i), 60);
+    }
+
+    // Capacity must be strictly bounded (capped at max 5000)
+    assert!(limiter.len() <= 5000, "RateLimiter leaked memory: size was {}", limiter.len());
+}
+
+#[tokio::test]
+async fn test_login_rate_limiting_ignores_spoofed_x_forwarded_for() {
+    let (port, _dir, admin_user, _admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // Send 10 failed login attempts, each with a different spoofed X-Forwarded-For header
+    for i in 1..=10 {
+        let resp = client
+            .post(format!("{}/api/auth/login", base_url))
+            .header("X-Forwarded-For", format!("198.51.100.{}", i))
+            .header("X-Real-IP", format!("198.51.100.{}", i))
+            .json(&json!({
+                "username": admin_user,
+                "password": "WrongPasswordAttempt!"
+            }))
+            .send()
+            .await
+            .unwrap();
+
+        assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
+    }
+
+    // 11th attempt with yet another spoofed IP must still be blocked by peer address
+    let rate_limited_resp = client
+        .post(format!("{}/api/auth/login", base_url))
+        .header("X-Forwarded-For", "203.0.113.99")
+        .header("X-Real-IP", "203.0.113.99")
+        .json(&json!({
+            "username": admin_user,
+            "password": "WrongPasswordAttempt!"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(
+        rate_limited_resp.status(),
+        reqwest::StatusCode::TOO_MANY_REQUESTS,
+        "Spoofed X-Forwarded-For allowed rate limit bypass!"
+    );
+}
+
+#[tokio::test]
+async fn test_login_user_lockout_on_failed_attempts() {
+    let (port, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    let target_user = "brute_force_target";
+
+    // 10 failed attempts against the specific user account
+    for _ in 0..10 {
+        let resp = client
+            .post(format!("{}/api/auth/login", base_url))
+            .json(&json!({
+                "username": target_user,
+                "password": "WrongPasswordAttempt!"
+            }))
+            .send()
+            .await
+            .unwrap();
+
+        // Could be 401 Unauthorized (or 429 if IP limit hits at the same threshold)
+        assert!(resp.status() == reqwest::StatusCode::UNAUTHORIZED || resp.status() == reqwest::StatusCode::TOO_MANY_REQUESTS);
+    }
+
+    // Next attempt must be rate-limited
+    let resp = client
+        .post(format!("{}/api/auth/login", base_url))
+        .json(&json!({
+            "username": target_user,
+            "password": "WrongPasswordAttempt!"
+        }))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(resp.status(), reqwest::StatusCode::TOO_MANY_REQUESTS);
+}
+

@@ -193,3 +193,65 @@ async fn test_vfs_path_access_scheme_and_roots_fail_closed() {
     let res_remote = validate_path_access(&state, &headers, real_remote, false);
     assert!(res_remote.is_ok(), "Real leading protocol prefix must be allowed!");
 }
+
+#[tokio::test]
+async fn test_symlink_escape_nonexistent_file_rejected() {
+    let tmp = tempdir().unwrap();
+    let safe_root = tmp.path().join("safe");
+    let outside_dir = tmp.path().join("outside");
+    fs::create_dir_all(&safe_root).unwrap();
+    fs::create_dir_all(&outside_dir).unwrap();
+
+    let symlink_dir = safe_root.join("symlink_to_outside");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside_dir, &symlink_dir).unwrap();
+    #[cfg(windows)]
+    let _ = std::os::windows::fs::symlink_dir(&outside_dir, &symlink_dir);
+
+    if !symlink_dir.exists() {
+        return;
+    }
+
+    let mut config = AppConfig::default();
+    config.server.enable_auth = true;
+    config.server.standalone = false;
+    config.server.database_path = tmp.path().join("test.db").to_string_lossy().to_string();
+    config.storage.allow_entire_system = false;
+    config.storage.roots.push(brum::config::StorageRoot {
+        id: "safe-root".to_string(),
+        name: "Safe Root".to_string(),
+        path: safe_root.to_string_lossy().to_string(),
+        read_only: false,
+        allowed_roles: vec!["user".to_string()],
+    });
+
+    let state = brum::create_app_state(&config, None).unwrap();
+    let user = state.auth.create_user(
+        "testuser",
+        "pass123",
+        "user",
+        &safe_root.to_string_lossy(),
+        Some("[\"safe-root\"]"),
+    ).unwrap();
+    let token = state.auth.generate_token(&user).unwrap();
+
+    let mut headers = HeaderMap::new();
+    headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {}", token).parse().unwrap());
+
+    // 1. Attempting to create a non-existent file through the symlink to outside must be FORBIDDEN
+    let malicious_target = symlink_dir.join("new_escape_file.txt");
+    let res_escape = validate_path_access(&state, &headers, &malicious_target.to_string_lossy(), true);
+    assert!(
+        res_escape.is_err(),
+        "Creating new file through symlink pointing outside root must be rejected with 403!"
+    );
+
+    // 2. Legitimate non-existent file inside safe_root must be ALLOWED
+    let legitimate_target = safe_root.join("valid_new_file.txt");
+    let res_legit = validate_path_access(&state, &headers, &legitimate_target.to_string_lossy(), true);
+    assert!(
+        res_legit.is_ok(),
+        "Creating new file directly inside authorized root must be permitted!"
+    );
+}
+

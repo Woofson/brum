@@ -1,12 +1,12 @@
 use axum::{
-    extract::{Path as AxumPath, Query, State},
+    extract::{ConnectInfo, Path as AxumPath, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Json},
 };
 use serde::{Deserialize, Serialize};
 use crate::auth::User;
 use crate::server::AppState;
-use crate::server::middleware::{extract_claims_or_local, extract_client_ip, require_admin};
+use crate::server::middleware::{extract_claims_or_local, extract_client_ip, resolve_client_ip, require_admin};
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -117,10 +117,12 @@ fn urlencoding_simple(s: &str) -> String {
 
 pub async fn handle_login(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
 ) -> Result<Json<LoginResponse>, (StatusCode, String)> {
-    let client_ip = extract_client_ip(&headers);
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let client_ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("login:{}", client_ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
         tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on login endpoint");
@@ -130,11 +132,22 @@ pub async fn handle_login(
         ));
     }
 
+    // Per-username lockout (protect individual account from distributed brute-force)
+    let user_rate_key = format!("login:user:{}", payload.username.to_lowercase());
+    if let Err(retry_after) = state.rate_limiter.check(&user_rate_key, 10, 300) {
+        tracing::warn!(username = %payload.username, "Rate limit exceeded for user account");
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            format!("Too many failed login attempts for this account. Please retry after {} seconds.", retry_after),
+        ));
+    }
+
     tracing::info!("Received login request for user '{}'...", payload.username);
 
     // Enforce private instance owner isolation
     if let Some(ref inst) = state.instance_info {
         if payload.username.to_lowercase() != inst.owner.to_lowercase() {
+            state.rate_limiter.record(&user_rate_key, 300);
             tracing::warn!(
                 "Rejected login attempt by user '{}' on private instance owned by '{}'",
                 payload.username, inst.owner
@@ -186,13 +199,25 @@ pub async fn handle_login(
         };
 
         state.rate_limiter.reset(&rate_key);
+        state.rate_limiter.reset(&user_rate_key);
         let token = state.auth.generate_token(&user).unwrap_or_default();
         return Ok(Json(LoginResponse { token, user }));
     }
 
-    match state.auth.authenticate(&payload.username, &payload.password) {
+    // Offload Argon2 password verification to blocking thread pool
+    let auth = state.auth.clone();
+    let uname = payload.username.clone();
+    let pwd = payload.password.clone();
+    let auth_res = tokio::task::spawn_blocking(move || {
+        auth.authenticate(&uname, &pwd)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Authentication task failed: {}", e)))?;
+
+    match auth_res {
         Ok(user) => {
             state.rate_limiter.reset(&rate_key);
+            state.rate_limiter.reset(&user_rate_key);
             tracing::info!(username = %user.username, is_pam = user.is_pam, role = %user.role, "User successfully authenticated");
             let token = state.auth.generate_token(&user).map_err(|e| {
                 (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e))
@@ -200,6 +225,7 @@ pub async fn handle_login(
             Ok(Json(LoginResponse { token, user }))
         }
         Err(e) => {
+            state.rate_limiter.record(&user_rate_key, 300);
             tracing::warn!(username = %payload.username, error = %e, "Authentication failed");
             Err((StatusCode::UNAUTHORIZED, "Invalid username or password".to_string()))
         }

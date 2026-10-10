@@ -12,7 +12,7 @@ use tracing::info;
 use crate::auth::{AuthManager, User};
 use crate::config::OidcConfig;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct OidcMetadata {
     pub issuer: String,
     pub authorization_endpoint: String,
@@ -319,82 +319,10 @@ impl OidcManager {
         let token_data: OidcTokenResponse = token_resp.json().await?;
 
         // 2. Decode & Validate claims from ID Token and/or userinfo endpoint
-        let mut claims = OidcClaims::default();
+        let id_token = token_data.id_token.as_ref()
+            .ok_or_else(|| "OIDC token exchange response did not include required id_token")?;
 
-        if let Some(id_token) = &token_data.id_token {
-            let mut validated = false;
-            if let Some(jwks_uri) = &meta.jwks_uri {
-                if let Ok(jwt_header) = jsonwebtoken::decode_header(id_token) {
-                    let jwks = self.fetch_jwks(jwks_uri, false).await.ok();
-                    let find_key = |jwks: &JwksResponse, kid: Option<&str>| -> Option<JwkKey> {
-                        if let Some(target_kid) = kid {
-                            jwks.keys.iter().find(|k| k.kid.as_deref() == Some(target_kid)).cloned()
-                        } else {
-                            jwks.keys.iter().find(|k| k.kty.eq_ignore_ascii_case("RSA")).cloned()
-                        }
-                    };
-
-                    let mut matched_key = jwks.as_ref().and_then(|j| find_key(j, jwt_header.kid.as_deref()));
-                    if matched_key.is_none() {
-                        // Refresh JWKS once in case keys rotated
-                        if let Ok(refreshed) = self.fetch_jwks(jwks_uri, true).await {
-                            matched_key = find_key(&refreshed, jwt_header.kid.as_deref());
-                        }
-                    }
-
-                    if let Some(key) = matched_key {
-                        if let (Some(n), Some(e)) = (&key.n, &key.e) {
-                            if let Ok(decoding_key) = jsonwebtoken::DecodingKey::from_rsa_components(n, e) {
-                                let mut validation = jsonwebtoken::Validation::new(jwt_header.alg);
-                                validation.set_issuer(&[&meta.issuer, meta.issuer.trim_end_matches('/')]);
-                                validation.set_audience(&[&self.config.client_id]);
-
-                                match jsonwebtoken::decode::<OidcClaims>(id_token, &decoding_key, &validation) {
-                                    Ok(token_data) => {
-                                        claims = token_data.claims;
-                                        validated = true;
-                                        info!("Successfully verified OIDC ID token cryptographic signature.");
-                                    }
-                                    Err(err) => {
-                                        return Err(format!("OIDC ID token signature verification failed: {}", err).into());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            if !validated {
-                let parts: Vec<&str> = id_token.split('.').collect();
-                if parts.len() >= 2 {
-                    if let Ok(decoded_bytes) = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1])
-                        .or_else(|_| base64::engine::general_purpose::STANDARD.decode(parts[1])) {
-                        if let Ok(parsed_claims) = serde_json::from_slice::<OidcClaims>(&decoded_bytes) {
-                            let now = Utc::now().timestamp();
-                            if let Some(exp) = parsed_claims.exp {
-                                if exp < now - 60 {
-                                    return Err("OIDC ID token is expired".into());
-                                }
-                            }
-                            if let Some(iss) = &parsed_claims.iss {
-                                if iss.trim_end_matches('/') != meta.issuer.trim_end_matches('/') {
-                                    return Err(format!("OIDC ID token issuer mismatch: expected '{}', got '{}'", meta.issuer, iss).into());
-                                }
-                            }
-                            claims = parsed_claims;
-                        }
-                    }
-                }
-            }
-
-            // Nonce verification to prevent replay / CSRF attacks
-            if let Some(token_nonce) = &claims.nonce {
-                if token_nonce != &pending.nonce {
-                    return Err("OIDC ID token nonce mismatch (possible replay or CSRF attack)".into());
-                }
-            }
-        }
+        let mut claims = self.verify_id_token_claims(id_token, &meta, &pending.nonce).await?;
 
         if let Some(userinfo_url) = &meta.userinfo_endpoint {
             if let Ok(u_resp) = self.http_client.get(userinfo_url)
@@ -546,6 +474,124 @@ impl OidcManager {
         let token = self.auth.generate_token(&user)?;
 
         Ok((token, user))
+    }
+
+    /// Cryptographically verify and validate an OIDC ID token
+    pub async fn verify_id_token_claims(
+        &self,
+        id_token: &str,
+        meta: &OidcMetadata,
+        pending_nonce: &str,
+    ) -> Result<OidcClaims, Box<dyn std::error::Error + Send + Sync>> {
+        let mut claims = OidcClaims::default();
+        let mut validated = false;
+
+        if let Some(jwks_uri) = &meta.jwks_uri {
+            if let Ok(jwt_header) = jsonwebtoken::decode_header(id_token) {
+                let jwks = self.fetch_jwks(jwks_uri, false).await.ok();
+                let find_key = |jwks: &JwksResponse, kid: Option<&str>| -> Option<JwkKey> {
+                    if let Some(target_kid) = kid {
+                        jwks.keys.iter().find(|k| k.kid.as_deref() == Some(target_kid)).cloned()
+                    } else {
+                        jwks.keys.iter().find(|k| k.kty.eq_ignore_ascii_case("RSA")).cloned()
+                    }
+                };
+
+                let mut matched_key = jwks.as_ref().and_then(|j| find_key(j, jwt_header.kid.as_deref()));
+                if matched_key.is_none() {
+                    // Refresh JWKS once in case keys rotated
+                    if let Ok(refreshed) = self.fetch_jwks(jwks_uri, true).await {
+                        matched_key = find_key(&refreshed, jwt_header.kid.as_deref());
+                    }
+                }
+
+                if let Some(key) = matched_key {
+                    if let (Some(n), Some(e)) = (&key.n, &key.e) {
+                        if let Ok(decoding_key) = jsonwebtoken::DecodingKey::from_rsa_components(n, e) {
+                            let mut validation = jsonwebtoken::Validation::new(jwt_header.alg);
+                            validation.set_issuer(&[&meta.issuer, meta.issuer.trim_end_matches('/')]);
+                            validation.set_audience(&[&self.config.client_id]);
+
+                            match jsonwebtoken::decode::<OidcClaims>(id_token, &decoding_key, &validation) {
+                                Ok(token_data) => {
+                                    claims = token_data.claims;
+                                    validated = true;
+                                    info!("Successfully verified OIDC ID token cryptographic signature.");
+                                }
+                                Err(err) => {
+                                    return Err(format!("OIDC ID token signature verification failed: {}", err).into());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Fail closed: if jwks_uri is configured, signature validation MUST succeed
+            if !validated {
+                return Err("OIDC ID token signature verification failed: could not validate token with JWKS keys".into());
+            }
+        }
+
+        if !validated {
+            let parts: Vec<&str> = id_token.split('.').collect();
+            if parts.len() < 2 {
+                return Err("Malformed OIDC ID token format".into());
+            }
+            let decoded_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD.decode(parts[1])
+                .or_else(|_| base64::engine::general_purpose::STANDARD.decode(parts[1]))
+                .map_err(|e| format!("Failed to base64-decode OIDC ID token payload: {}", e))?;
+            let parsed_claims = serde_json::from_slice::<OidcClaims>(&decoded_bytes)
+                .map_err(|e| format!("Failed to parse OIDC ID token claims: {}", e))?;
+
+            let now = Utc::now().timestamp();
+            if let Some(exp) = parsed_claims.exp {
+                if exp < now - 60 {
+                    return Err("OIDC ID token is expired".into());
+                }
+            } else {
+                return Err("OIDC ID token missing required 'exp' claim".into());
+            }
+
+            if let Some(iss) = &parsed_claims.iss {
+                if iss.trim_end_matches('/') != meta.issuer.trim_end_matches('/') {
+                    return Err(format!("OIDC ID token issuer mismatch: expected '{}', got '{}'", meta.issuer, iss).into());
+                }
+            } else {
+                return Err("OIDC ID token missing required 'iss' claim".into());
+            }
+
+            // Audience validation on fallback path
+            let aud_matches = match &parsed_claims.aud {
+                Some(serde_json::Value::String(s)) => s == &self.config.client_id,
+                Some(serde_json::Value::Array(arr)) => arr.iter().any(|v| v.as_str() == Some(&self.config.client_id)),
+                _ => false,
+            };
+            if !aud_matches {
+                return Err(format!("OIDC ID token audience mismatch: expected '{}'", self.config.client_id).into());
+            }
+
+            claims = parsed_claims;
+        }
+
+        // Nonce verification to prevent replay / CSRF attacks:
+        // The nonce claim is strictly required on all paths and must match the authorization request nonce
+        match &claims.nonce {
+            Some(token_nonce) if token_nonce == pending_nonce => {}
+            Some(_) => {
+                return Err("OIDC ID token nonce mismatch (possible replay or CSRF attack)".into());
+            }
+            None => {
+                return Err("OIDC ID token missing required nonce claim".into());
+            }
+        }
+
+        // Refuse unverified emails if email_verified claim is explicitly present and false
+        if claims.email_verified == Some(false) {
+            return Err("OIDC email address is not verified by provider".into());
+        }
+
+        Ok(claims)
     }
 }
 

@@ -179,7 +179,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             let _ = async_stop_tx.send(());
         });
 
-        let _ = axum::serve(listener, app)
+        let _ = axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>())
             .with_graceful_shutdown(async move {
                 let _ = async_stop_rx.await;
                 info!("Brum Windows Service stop requested. Shutting down HTTP server.");

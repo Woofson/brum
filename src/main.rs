@@ -382,7 +382,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     if should_launch_gui {
         tokio::spawn(async move {
-            if let Err(e) = axum::serve(listener, app).await {
+            if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await {
                 tracing::error!("Brum server error: {}", e);
             }
         });
@@ -409,7 +409,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         crate::instance::unregister_user_instance();
         return Ok(());
     } else {
-        let res = axum::serve(listener, app).await;
+        let res = axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await;
         crate::instance::unregister_user_instance();
         if let Err(e) = res {
             return Err(Box::<dyn std::error::Error + Send + Sync>::from(e));

@@ -97,6 +97,8 @@ pub struct ServerConfig {
     pub database_path: String,
     #[serde(default)]
     pub server_name: String,
+    #[serde(default)]
+    pub trusted_proxies: Vec<String>,
 }
 
 impl Default for ServerConfig {
@@ -112,6 +114,7 @@ impl Default for ServerConfig {
             session_duration_hours: default_session_hours(),
             database_path: default_db_path(),
             server_name: String::new(),
+            trusted_proxies: Vec::new(),
         }
     }
 }

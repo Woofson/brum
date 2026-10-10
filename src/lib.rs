@@ -151,7 +151,7 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<(u16, Opti
     info!("Brum embedded server listening on http://{}", local_addr);
 
     tokio::spawn(async move {
-        if let Err(e) = axum::serve(listener, app).await {
+        if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await {
             tracing::error!("Brum server error: {}", e);
         }
     });

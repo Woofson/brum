@@ -393,8 +393,15 @@ pub async fn handle_public_verify_share(
         ));
     }
 
-    let valid = state.auth.verify_share_password(&token, &payload.password)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Verification error: {}", e)))?;
+    let auth = state.auth.clone();
+    let t = token.clone();
+    let p = payload.password.clone();
+    let valid = tokio::task::spawn_blocking(move || {
+        auth.verify_share_password(&t, &p)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Verification worker error: {}", e)))?
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Verification error: {}", e)))?;
 
     if valid {
         state.rate_limiter.reset(&rate_key);

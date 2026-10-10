@@ -22,10 +22,73 @@ impl RateLimiter {
         }
     }
 
+    /// Check if key is currently rate limited without recording an attempt
+    pub fn check(&self, key: &str, max_attempts: usize, window_secs: u64) -> Result<(), u64> {
+        let mut map = self.attempts.lock();
+        let now = Instant::now();
+        let window = std::time::Duration::from_secs(window_secs);
+
+        if let Some(entry) = map.get_mut(key) {
+            entry.retain(|&t| now.duration_since(t) < window);
+            if entry.len() >= max_attempts {
+                let oldest = entry[0];
+                let elapsed = now.duration_since(oldest);
+                let retry_after = if elapsed < window {
+                    (window - elapsed).as_secs().max(1)
+                } else {
+                    1
+                };
+                return Err(retry_after);
+            }
+        }
+        Ok(())
+    }
+
+    /// Record an attempt under key with bounded map capacity and automatic pruning
+    pub fn record(&self, key: &str, window_secs: u64) {
+        let mut map = self.attempts.lock();
+        let now = Instant::now();
+        let window = std::time::Duration::from_secs(window_secs);
+
+        // Opportunistic pruning to prevent memory exhaustion under rotating keys
+        if map.len() > 1024 {
+            map.retain(|_, timestamps| {
+                timestamps.retain(|&t| now.duration_since(t) < window);
+                !timestamps.is_empty()
+            });
+            if map.len() >= 5000 {
+                let excess = map.len() - 4000;
+                let keys_to_remove: Vec<String> = map.keys().take(excess).cloned().collect();
+                for k in keys_to_remove {
+                    map.remove(&k);
+                }
+            }
+        }
+
+        let entry = map.entry(key.to_string()).or_insert_with(Vec::new);
+        entry.retain(|&t| now.duration_since(t) < window);
+        entry.push(now);
+    }
+
     pub fn check_and_record(&self, key: &str, max_attempts: usize, window_secs: u64) -> Result<(), u64> {
         let mut map = self.attempts.lock();
         let now = Instant::now();
         let window = std::time::Duration::from_secs(window_secs);
+
+        // Opportunistic pruning to prevent memory exhaustion
+        if map.len() > 1024 {
+            map.retain(|_, timestamps| {
+                timestamps.retain(|&t| now.duration_since(t) < window);
+                !timestamps.is_empty()
+            });
+            if map.len() >= 5000 {
+                let excess = map.len() - 4000;
+                let keys_to_remove: Vec<String> = map.keys().take(excess).cloned().collect();
+                for k in keys_to_remove {
+                    map.remove(&k);
+                }
+            }
+        }
 
         let entry = map.entry(key.to_string()).or_insert_with(Vec::new);
         entry.retain(|&t| now.duration_since(t) < window);
@@ -48,6 +111,10 @@ impl RateLimiter {
     pub fn reset(&self, key: &str) {
         let mut map = self.attempts.lock();
         map.remove(key);
+    }
+
+    pub fn len(&self) -> usize {
+        self.attempts.lock().len()
     }
 }
 
@@ -686,7 +753,39 @@ pub fn is_path_or_canonical_within(target: &Path, root: &Path) -> bool {
     let norm_target = normalize_path(target);
     let norm_root = normalize_path(root);
     if path_starts_with_case_insensitive(&norm_target, &norm_root) {
-        if let Ok(canonical_target) = target.canonicalize() {
+        let canonical_target = if let Ok(canonical) = target.canonicalize() {
+            Some(canonical)
+        } else {
+            let mut tail_components = Vec::new();
+            let mut curr = target;
+            while !curr.exists() {
+                if let Some(file_name) = curr.file_name() {
+                    tail_components.push(file_name.to_os_string());
+                } else {
+                    break;
+                }
+                if let Some(parent) = curr.parent() {
+                    curr = parent;
+                } else {
+                    break;
+                }
+            }
+
+            if curr.exists() {
+                if let Ok(mut canonical_ancestor) = curr.canonicalize() {
+                    for part in tail_components.into_iter().rev() {
+                        canonical_ancestor.push(part);
+                    }
+                    Some(canonical_ancestor)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        if let Some(canonical_target) = canonical_target {
             let canonical_root = root.canonicalize().unwrap_or_else(|_| norm_root.clone());
             let clean_target = crate::vfs::local::clean_path_buf(&canonical_target);
             let clean_root = crate::vfs::local::clean_path_buf(&canonical_root);
@@ -829,21 +928,56 @@ pub fn expand_tilde(path_str: &str) -> String {
     }
 }
 
-pub fn extract_client_ip(headers: &HeaderMap) -> String {
-    if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-        if let Some(first_ip) = forwarded.split(',').next() {
-            let trimmed = first_ip.trim();
+pub fn resolve_client_ip(
+    headers: &HeaderMap,
+    peer_addr: Option<std::net::SocketAddr>,
+    trusted_proxies: &[String],
+) -> String {
+    if let Some(peer) = peer_addr {
+        let peer_ip = peer.ip().to_string();
+        let is_trusted = trusted_proxies.iter().any(|p| p.trim() == peer_ip);
+
+        if is_trusted {
+            if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
+                if let Some(first_ip) = forwarded.split(',').next() {
+                    let trimmed = first_ip.trim();
+                    if !trimmed.is_empty() {
+                        return trimmed.to_string();
+                    }
+                }
+            }
+            if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
+                let trimmed = real_ip.trim();
+                if !trimmed.is_empty() {
+                    return trimmed.to_string();
+                }
+            }
+        }
+        return peer_ip;
+    }
+
+    // Fallback when peer socket address is not directly provided (e.g. unit tests)
+    if !trusted_proxies.is_empty() {
+        if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
+            if let Some(first_ip) = forwarded.split(',').next() {
+                let trimmed = first_ip.trim();
+                if !trimmed.is_empty() {
+                    return trimmed.to_string();
+                }
+            }
+        }
+        if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
+            let trimmed = real_ip.trim();
             if !trimmed.is_empty() {
                 return trimmed.to_string();
             }
         }
     }
-    if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
-        let trimmed = real_ip.trim();
-        if !trimmed.is_empty() {
-            return trimmed.to_string();
-        }
-    }
     "127.0.0.1".to_string()
 }
+
+pub fn extract_client_ip(headers: &HeaderMap) -> String {
+    resolve_client_ip(headers, None, &[])
+}
+
 
