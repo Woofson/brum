@@ -75,7 +75,8 @@ cd*.txt
 *output*.txt
 todo.txt
 brum-audit-report.md
-brum-reaudit-v1.7.0.md
+brum-reaudit*.md
+*audit*.md
 .vscode/
 
 # --- Scratch & Cache Directories ---
