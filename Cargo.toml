@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "1.7.0"
+version = "1.8.0"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -76,6 +76,7 @@ tokio-tungstenite = { version = "0.24", default-features = false, features = ["c
 tempfile = "3.16"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
 rusqlite = { version = "0.32", features = ["bundled"] }
 uuid = { version = "1.12", features = ["v4", "serde"] }
 parking_lot = "0.12"

@@ -646,6 +646,7 @@ mod tests {
             backup: backup_mgr,
             plugins: plugin_mgr,
             rate_limiter: Arc::new(crate::server::RateLimiter::new()),
+            instance_info: None,
         }
     }
 

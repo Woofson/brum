@@ -1,5 +1,7 @@
 pub mod auth;
 pub mod config;
+pub mod instance;
+pub mod logging;
 pub mod plugins;
 pub mod server;
 pub mod tools;
@@ -14,7 +16,10 @@ use std::sync::Arc;
 use tracing::info;
 
 /// Creates the shared AppState for Brum
-pub fn create_app_state(config: &AppConfig) -> Result<AppState, Box<dyn std::error::Error + Send + Sync>> {
+pub fn create_app_state(
+    config: &AppConfig,
+    instance_info: Option<Arc<crate::instance::UserInstanceInfo>>,
+) -> Result<AppState, Box<dyn std::error::Error + Send + Sync>> {
     let auth_mgr = AuthManager::new(
         &config.server.database_path,
         &config.server.jwt_secret,
@@ -56,6 +61,7 @@ pub fn create_app_state(config: &AppConfig) -> Result<AppState, Box<dyn std::err
         backup: backup_mgr_arc,
         plugins: Arc::new(plugin_mgr),
         rate_limiter: Arc::new(crate::server::RateLimiter::new()),
+        instance_info,
     })
 }
 
@@ -94,9 +100,23 @@ pub async fn probe_running_brum_server(host: &str, port: u16) -> bool {
     false
 }
 
-/// Starts the Brum HTTP server in a background task and returns the bound port
-pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<dyn std::error::Error + Send + Sync>> {
-    let state = create_app_state(&config)?;
+/// Starts the Brum HTTP server in a background task and returns the bound port and optional instance token
+pub async fn start_background_server(mut config: AppConfig) -> Result<(u16, Option<String>), Box<dyn std::error::Error + Send + Sync>> {
+    let instance_info = if config.server.standalone {
+        let token = crate::instance::generate_instance_token();
+        let owner = crate::instance::get_current_os_username();
+        Some(Arc::new(crate::instance::UserInstanceInfo {
+            pid: std::process::id(),
+            port: config.server.port,
+            owner,
+            instance_token: token,
+            started_at: chrono::Utc::now().to_rfc3339(),
+        }))
+    } else {
+        None
+    };
+
+    let state = create_app_state(&config, instance_info.clone())?;
     let app = create_router(state);
 
     let bind_host = if config.server.host.is_empty() {
@@ -122,6 +142,12 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<d
     let bound_port = local_addr.port();
     config.server.port = bound_port;
 
+    let mut token_out = None;
+    if let Some(ref inst) = instance_info {
+        token_out = Some(inst.instance_token.clone());
+        let _ = crate::instance::register_user_instance(bound_port, &inst.instance_token);
+    }
+
     info!("Brum embedded server listening on http://{}", local_addr);
 
     tokio::spawn(async move {
@@ -130,7 +156,7 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<u16, Box<d
         }
     });
 
-    Ok(bound_port)
+    Ok((bound_port, token_out))
 }
 
 /// Configures Linux desktop and Wayland/Hyprland environment variables before GTK/WebKit initializes

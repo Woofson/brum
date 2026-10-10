@@ -168,7 +168,7 @@ async fn test_vfs_path_access_scheme_and_roots_fail_closed() {
         allowed_roles: vec!["user".to_string()],
     });
 
-    let state = brum::create_app_state(&config).unwrap();
+    let state = brum::create_app_state(&config, None).unwrap();
 
     // 1. Path with fake scheme in filename (/safe/test://../../etc/passwd) must NOT bypass checks
     let mut headers = HeaderMap::new();

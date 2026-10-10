@@ -51,6 +51,7 @@ pub struct AppState {
     pub backup: Arc<crate::tools::sync::BackupManager>,
     pub plugins: Arc<crate::plugins::PluginManager>,
     pub rate_limiter: Arc<RateLimiter>,
+    pub instance_info: Option<Arc<crate::instance::UserInstanceInfo>>,
 }
 
 pub fn create_router(state: AppState) -> Router {
@@ -389,6 +390,7 @@ mod tests {
             plugins: plugin_mgr,
             oidc: oidc_mgr,
             rate_limiter: std::sync::Arc::new(RateLimiter::new()),
+            instance_info: None,
         };
 
         let claims = crate::auth::Claims {
@@ -528,6 +530,7 @@ mod tests {
             backup: backup_mgr,
             plugins: plugin_mgr,
             rate_limiter: Arc::new(RateLimiter::new()),
+            instance_info: None,
         };
 
         let res = handle_health(State(state)).await;
@@ -587,6 +590,7 @@ mod tests {
             backup: backup_mgr,
             plugins: plugin_mgr,
             rate_limiter: Arc::new(RateLimiter::new()),
+            instance_info: None,
         };
 
         // Create a test .grr package

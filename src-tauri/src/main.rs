@@ -79,6 +79,21 @@ fn main() {
         config.server.port = 3140; // Default preferred port
     }
 
+    let args: Vec<String> = std::env::args().collect();
+    let mut connect_url: Option<String> = None;
+    let mut i = 1;
+    while i < args.len() {
+        if (args[i] == "--connect" || args[i] == "-c") && i + 1 < args.len() {
+            let mut target = args[i + 1].clone();
+            if !target.starts_with("http://") && !target.starts_with("https://") {
+                target = format!("http://{}", target);
+            }
+            connect_url = Some(target);
+            i += 1;
+        }
+        i += 1;
+    }
+
     let active_port = Arc::new(AtomicU16::new(config.server.port));
     let active_port_server = active_port.clone();
     let active_port_tray = active_port.clone();
@@ -87,23 +102,33 @@ fn main() {
     let minimize_to_tray = config.desktop.minimize_to_tray;
     let start_minimized = config.desktop.start_minimized;
 
+    let connect_url_clone = connect_url.clone();
+
     tauri::Builder::default()
         .setup(move |app| {
             let handle = app.handle().clone();
 
             // Spawn embedded backend server in Tokio runtime or attach to running service
             tauri::async_runtime::spawn(async move {
-                let host = config.server.host.clone();
                 let configured_port = config.server.port;
 
-                let bound_port = if brum::probe_running_brum_server(&host, configured_port).await {
-                    println!("Detected running Brum server on http://127.0.0.1:{}. Attaching desktop interface...", configured_port);
-                    configured_port
+                let (target_url, bound_port) = if let Some(target) = connect_url_clone {
+                    println!("Connecting desktop window to explicit server target: {}", target);
+                    (target, 0)
+                } else if let Some(active_inst) = brum::instance::get_active_user_instance() {
+                    println!("Found active Brum instance for user '{}' on port {}", active_inst.owner, active_inst.port);
+                    let url = format!("http://127.0.0.1:{}?instance_token={}", active_inst.port, active_inst.instance_token);
+                    (url, active_inst.port)
                 } else {
                     match start_background_server(config).await {
-                        Ok(port) => {
+                        Ok((port, token)) => {
+                            let url = if let Some(tok) = token {
+                                format!("http://127.0.0.1:{}?instance_token={}", port, tok)
+                            } else {
+                                format!("http://127.0.0.1:{}", port)
+                            };
                             println!("Brum desktop backend bound to: http://127.0.0.1:{}", port);
-                            port
+                            (url, port)
                         }
                         Err(e) => {
                             eprintln!("Failed to start Brum backend server: {}", e);
@@ -112,9 +137,10 @@ fn main() {
                     }
                 };
 
-                active_port_server.store(bound_port, Ordering::Relaxed);
-                let url = format!("http://127.0.0.1:{}", bound_port);
-                println!("Brum desktop interface connected to: {}", url);
+                if bound_port != 0 {
+                    active_port_server.store(bound_port, Ordering::Relaxed);
+                }
+                println!("Brum desktop interface connected to: {}", target_url);
 
                 let saved_state = SavedWindowState::load();
                 let win_width = saved_state.width.unwrap_or(1366.0).max(680.0);
@@ -126,7 +152,7 @@ fn main() {
                 let mut win_builder = WebviewWindowBuilder::new(
                     &handle,
                     "main",
-                    WebviewUrl::External(url.parse().unwrap()),
+                    WebviewUrl::External(target_url.parse().unwrap()),
                 )
                         .title("Brum")
                         .inner_size(win_width, win_height)
@@ -266,6 +292,7 @@ fn main() {
                             }
                             state.save();
                         }
+                        brum::instance::unregister_user_instance();
                         app.exit(0);
                     }
                     _ => {}

@@ -4,7 +4,7 @@ use reqwest::header::AUTHORIZATION;
 use serde_json::json;
 use tempfile::tempdir;
 
-async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, tempfile::TempDir, String, String) {
+async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, Option<String>, tempfile::TempDir, String, String) {
     let dir = tempdir().expect("Failed to create tempdir");
     let db_path = dir.path().join("brum_test.db").to_string_lossy().to_string();
     let admin_user = "admin".to_string();
@@ -21,13 +21,13 @@ async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, tempfil
     config.plugins.directory = dir.path().join("plugins").to_string_lossy().to_string();
     config.plugins.user_directory = dir.path().join("user_plugins").to_string_lossy().to_string();
 
-    let bound_port = start_background_server(config).await.expect("Failed to start test server");
-    (bound_port, dir, admin_user, admin_pass)
+    let (bound_port, token) = start_background_server(config).await.expect("Failed to start test server");
+    (bound_port, token, dir, admin_user, admin_pass)
 }
 
 #[tokio::test]
 async fn test_public_endpoints_and_config_sanitization() {
-    let (port, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
+    let (port, _token, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
     let client = reqwest::Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
 
@@ -55,7 +55,7 @@ async fn test_public_endpoints_and_config_sanitization() {
 
 #[tokio::test]
 async fn test_unauthenticated_requests_blocked() {
-    let (port, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
+    let (port, _token, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
     let client = reqwest::Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
 
@@ -83,7 +83,7 @@ async fn test_unauthenticated_requests_blocked() {
 
 #[tokio::test]
 async fn test_removed_endpoints_not_found() {
-    let (port, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let (port, _token, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
     let client = reqwest::Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
 
@@ -117,7 +117,7 @@ async fn test_removed_endpoints_not_found() {
 
 #[tokio::test]
 async fn test_rbac_admin_vs_regular_user() {
-    let (port, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let (port, _token, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
     let client = reqwest::Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
 
@@ -208,7 +208,7 @@ async fn test_rbac_admin_vs_regular_user() {
 
 #[tokio::test]
 async fn test_user_disablement_revocation() {
-    let (port, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let (port, _token, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
     let client = reqwest::Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
 
@@ -296,11 +296,22 @@ async fn test_user_disablement_revocation() {
 
 #[tokio::test]
 async fn test_standalone_mode_behavior() {
-    let (port, _dir, _admin_user, _admin_pass) = setup_test_server(false, true).await;
+    let (port, token_opt, _dir, _admin_user, _admin_pass) = setup_test_server(false, true).await;
     let client = reqwest::Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
+    let inst_tok = token_opt.expect("Standalone server must produce an instance token");
 
-    // In standalone mode, protected endpoints succeed unauthenticated
-    let resp = client.get(format!("{}/api/system/disks", base_url)).send().await.unwrap();
-    assert_eq!(resp.status(), reqwest::StatusCode::OK);
+    // 1. Without instance token -> 403 Forbidden (protects loopback from unauthorized local users)
+    let resp_unauth = client.get(format!("{}/api/system/disks", base_url)).send().await.unwrap();
+    assert_eq!(resp_unauth.status(), reqwest::StatusCode::FORBIDDEN);
+
+    // 2. With valid instance token query parameter -> 200 OK
+    let resp_auth = client.get(format!("{}/api/system/disks?instance_token={}", base_url, inst_tok)).send().await.unwrap();
+    assert_eq!(resp_auth.status(), reqwest::StatusCode::OK);
+
+    // 3. With valid instance token header -> 200 OK
+    let resp_hdr = client.get(format!("{}/api/system/disks", base_url))
+        .header("X-Brum-Instance-Token", &inst_tok)
+        .send().await.unwrap();
+    assert_eq!(resp_hdr.status(), reqwest::StatusCode::OK);
 }

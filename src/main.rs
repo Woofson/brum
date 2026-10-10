@@ -1,5 +1,7 @@
 pub mod auth;
 pub mod config;
+pub mod instance;
+pub mod logging;
 pub mod plugins;
 pub mod server;
 pub mod tools;
@@ -11,11 +13,10 @@ mod windows_service_runner;
 use auth::AuthManager;
 use config::ConfigManager;
 use server::{create_router, AppState};
-use std::net::SocketAddr;
 use std::sync::Arc;
 use tracing::info;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+#[allow(dead_code)]
 async fn probe_running_brum_server(host: &str, port: u16) -> bool {
     let probe_host = if host == "0.0.0.0" { "127.0.0.1" } else { host };
     let client = match reqwest::Client::builder()
@@ -47,13 +48,8 @@ async fn probe_running_brum_server(host: &str, port: u16) -> bool {
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     brum::setup_linux_desktop_env();
 
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "brum=info,tower_http=info".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    let mut config = ConfigManager::load_all();
+    let _log_guard = crate::logging::init_logging(&config.logging);
 
     println!(r#"
 ▄▄▄▄· ▄▄▄  ▄• ▄▌• ▌ ▄ ·. 
@@ -63,8 +59,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 ·▀▀▀▀ .▀  ▀ ▀▀▀ ▀▀  █▪▀▀▀
          by Woofson
 "#);
-
-    let mut config = ConfigManager::load_all();
 
     // Parse CLI Arguments
     let args: Vec<String> = std::env::args().collect();
@@ -254,9 +248,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     if !is_server_mode && (config.server.standalone || auto_open) {
-        if probe_running_brum_server(&config.server.host, config.server.port).await {
-            let existing_url = format!("http://127.0.0.1:{}", config.server.port);
-            info!("Detected running Brum server on {}. Attaching desktop interface...", existing_url);
+        if let Some(active_inst) = crate::instance::get_active_user_instance() {
+            let existing_url = format!("http://127.0.0.1:{}?instance_token={}", active_inst.port, active_inst.instance_token);
+            info!("Detected running user Brum instance on {}. Attaching desktop interface...", existing_url);
             #[allow(unused_variables)]
             let has_display = is_graphical_display_available();
 
@@ -313,6 +307,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let auth_mgr_arc = Arc::new(auth_mgr);
     let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
 
+    let instance_info = if config.server.standalone {
+        let token = crate::instance::generate_instance_token();
+        let owner = crate::instance::get_current_os_username();
+        Some(Arc::new(crate::instance::UserInstanceInfo {
+            pid: std::process::id(),
+            port: config.server.port,
+            owner,
+            instance_token: token,
+            started_at: chrono::Utc::now().to_rfc3339(),
+        }))
+    } else {
+        None
+    };
+
     let state = AppState {
         config: Arc::new(config.clone()),
         auth: auth_mgr_arc,
@@ -323,16 +331,37 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         backup: backup_mgr_arc,
         plugins: Arc::new(plugin_mgr),
         rate_limiter: Arc::new(crate::server::RateLimiter::new()),
+        instance_info: instance_info.clone(),
     };
 
     let app = create_router(state);
 
-    let addr: SocketAddr = format!("{}:{}", config.server.host, config.server.port).parse()?;
-    info!("Brum Web Server listening on http://{}", addr);
+    let bind_host = if config.server.host.is_empty() {
+        "127.0.0.1"
+    } else {
+        &config.server.host
+    };
+
+    let addr_str = format!("{}:{}", bind_host, config.server.port);
+    let listener = match tokio::net::TcpListener::bind(&addr_str).await {
+        Ok(l) => l,
+        Err(e) if config.server.port != 0 && (config.server.standalone || !is_server_mode) => {
+            tracing::warn!(
+                "Preferred port {} is unavailable ({}), falling back to dynamic port",
+                config.server.port,
+                e
+            );
+            tokio::net::TcpListener::bind(format!("{}:0", bind_host)).await?
+        }
+        Err(e) => return Err(Box::<dyn std::error::Error + Send + Sync>::from(e)),
+    };
+    let bound_addr = listener.local_addr()?;
+    let bound_port = bound_addr.port();
+    config.server.port = bound_port;
+
+    info!("Brum Web Server listening on http://{}", bound_addr);
     if config.server.standalone || !config.server.enable_auth {
-        let current_user = std::env::var("USERNAME")
-            .or_else(|_| std::env::var("USER"))
-            .unwrap_or_else(|_| "user".to_string());
+        let current_user = crate::instance::get_current_os_username();
         info!("MODE: Standalone Desktop Mode (Running with local credentials for '{}')", current_user);
     } else {
         info!("Default Admin User: '{}' (Change password in settings)", config.auth.default_admin_user);
@@ -340,9 +369,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     info!("Default Theme: '{}'", config.themes.default_theme);
     info!("Paranoid File Verification: {}", if config.paranoid.enabled { "ENABLED" } else { "DISABLED" });
 
-    let listener = tokio::net::TcpListener::bind(addr).await?;
-    let bound_addr = listener.local_addr()?;
-    let open_url = format!("http://127.0.0.1:{}", bound_addr.port());
+    let open_url = if let Some(ref inst) = instance_info {
+        let _ = crate::instance::register_user_instance(bound_port, &inst.instance_token);
+        format!("http://127.0.0.1:{}?instance_token={}", bound_port, inst.instance_token)
+    } else {
+        format!("http://127.0.0.1:{}", bound_port)
+    };
     let is_standalone = config.server.standalone;
     #[allow(unused_variables)]
     let has_display = is_graphical_display_available();
@@ -359,7 +391,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if has_display {
             let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
             info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, open_url);
-            run_native_gui(&open_url, "Brum", config.ui.window_decorations)?;
+            let res = run_native_gui(&open_url, "Brum", config.ui.window_decorations);
+            crate::instance::unregister_user_instance();
+            if let Err(e) = res {
+                return Err(Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()));
+            }
             return Ok(());
         }
 
@@ -370,9 +406,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         });
 
         tokio::signal::ctrl_c().await?;
+        crate::instance::unregister_user_instance();
         return Ok(());
     } else {
-        axum::serve(listener, app).await?;
+        let res = axum::serve(listener, app).await;
+        crate::instance::unregister_user_instance();
+        if let Err(e) = res {
+            return Err(Box::<dyn std::error::Error + Send + Sync>::from(e));
+        }
     }
 
     Ok(())

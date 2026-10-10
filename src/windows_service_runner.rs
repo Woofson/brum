@@ -80,6 +80,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
     rt.block_on(async {
         let mut config = crate::config::ConfigManager::load_all();
         config.server.standalone = false;
+        let _log_guard = crate::logging::init_logging(&config.logging);
 
         info!(
             "Starting Brum Windows Service (v{} build #{}, commit: {}, target: {})...",
@@ -148,6 +149,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             backup: backup_mgr_arc,
             plugins: Arc::new(plugin_mgr),
             rate_limiter: Arc::new(crate::server::RateLimiter::new()),
+            instance_info: None,
         };
 
         let app = crate::server::create_router(state);

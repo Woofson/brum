@@ -152,7 +152,89 @@ pub async fn auth_middleware(
 ) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
     let path = req.uri().path().to_string();
 
-    // 1. Standalone desktop or auth-disabled instances bypass auth checks with local admin claims
+    // 1. Loopback Token Handshake for Private Per-User Desktop Instances
+    let mut query_has_instance_token = false;
+    let provided_instance_token = {
+        let headers = req.headers();
+        let from_header = headers
+            .get("x-brum-instance-token")
+            .or_else(|| headers.get("x-instance-token"))
+            .and_then(|v| v.to_str().ok())
+            .map(|s| s.trim().to_string());
+
+        let from_cookie = headers
+            .get(header::COOKIE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookie_str| {
+                for pair in cookie_str.split(';') {
+                    let pair = pair.trim();
+                    if let Some(tok) = pair.strip_prefix("brum_instance_token=") {
+                        return Some(tok.trim().to_string());
+                    }
+                }
+                None
+            });
+
+        let from_query = req.uri().query().and_then(|q| {
+            for pair in q.split('&') {
+                if let Some(tok) = pair.strip_prefix("instance_token=") {
+                    query_has_instance_token = true;
+                    return Some(tok.trim().to_string());
+                }
+            }
+            None
+        });
+
+        from_header.or(from_cookie).or(from_query)
+    };
+
+    if let Some(ref inst) = state.instance_info {
+        let is_valid_token = provided_instance_token.as_deref() == Some(&inst.instance_token);
+
+        if is_valid_token {
+            let home_dir = dirs::home_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "/".to_string());
+            let claims = crate::auth::Claims {
+                sub: inst.owner.clone(),
+                role: "admin".to_string(),
+                home_dir,
+                is_pam: false,
+                allowed_roots: Some("[\"*\"]".to_string()),
+                token_id: None,
+                exp: 9999999999,
+            };
+            req.extensions_mut().insert(claims);
+
+            let mut resp = next.run(req).await;
+            if query_has_instance_token {
+                let cookie_val = format!(
+                    "brum_instance_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=31536000",
+                    inst.instance_token
+                );
+                if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_val) {
+                    resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+                }
+            }
+            return Ok(resp);
+        }
+
+        // Token invalid or missing on private per-user instance:
+        // Allow public discovery and login endpoints, but block all protected data
+        if is_public_route(&path) {
+            return Ok(next.run(req).await);
+        }
+
+        return Err((
+            StatusCode::FORBIDDEN,
+            Json(serde_json::json!({
+                "error": "Unauthorized loopback access: instance token missing or invalid",
+                "owner": inst.owner
+            })),
+        ));
+    }
+
+    // 2. Standalone desktop or auth-disabled instances bypass auth checks with local admin claims
     if !state.config.server.enable_auth || state.config.server.standalone {
         let current_user = std::env::var("USERNAME")
             .or_else(|_| std::env::var("USER"))

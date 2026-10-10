@@ -517,7 +517,14 @@ impl AuthManager {
                 println!("    Password : {}", effective_admin_pass);
                 println!("    Please change this password after login via Settings -> Security.");
                 println!("================================================================================\n");
-                info!("Initial administrative user '{}' created with dynamic password.", default_admin_user);
+                let log_dir = crate::config::LoggingConfig::default().resolve_log_directory();
+                if let Ok(cred_path) = crate::logging::write_initial_admin_credentials(&log_dir, default_admin_user, &effective_admin_pass) {
+                    info!("Initial administrative credentials written to: '{}'", cred_path.display());
+                }
+                info!(
+                    "Initial administrative user '{}' created with dynamic password: '{}'",
+                    default_admin_user, effective_admin_pass
+                );
             } else {
                 info!("Initial administrative user '{}' created.", default_admin_user);
             }

@@ -36,6 +36,8 @@ pub struct AppConfig {
     #[serde(default)]
     pub fleet: FleetConfig,
     #[serde(default)]
+    pub logging: LoggingConfig,
+    #[serde(default)]
     pub sftp: Option<SftpConfig>,
 }
 
@@ -67,6 +69,7 @@ impl Default for AppConfig {
             terminal: TerminalConfig::default(),
             plugins: PluginsConfig::default(),
             fleet: FleetConfig::default(),
+            logging: LoggingConfig::default(),
             sftp: None,
         }
     }
@@ -277,6 +280,76 @@ fn default_oidc_scopes() -> Vec<String> { vec!["openid".to_string(), "profile".t
 fn default_oidc_admin_group() -> String { "brum-admins".to_string() }
 fn default_oidc_default_role() -> String { "user".to_string() }
 fn default_oidc_button_icon() -> String { "shield-check".to_string() }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct LoggingConfig {
+    #[serde(default = "default_log_level")]
+    pub level: String,
+    #[serde(default = "default_true")]
+    pub file_enabled: bool,
+    #[serde(default)]
+    pub directory: String,
+    #[serde(default = "default_log_rotation")]
+    pub rotation: String,
+    #[serde(default = "default_log_max_files")]
+    pub max_files: usize,
+    #[serde(default = "default_true")]
+    pub console_enabled: bool,
+}
+
+impl Default for LoggingConfig {
+    fn default() -> Self {
+        Self {
+            level: default_log_level(),
+            file_enabled: true,
+            directory: String::new(),
+            rotation: default_log_rotation(),
+            max_files: default_log_max_files(),
+            console_enabled: true,
+        }
+    }
+}
+
+fn default_log_level() -> String { "info".to_string() }
+fn default_log_rotation() -> String { "daily".to_string() }
+fn default_log_max_files() -> usize { 14 }
+
+impl LoggingConfig {
+    pub fn resolve_log_directory(&self) -> PathBuf {
+        if !self.directory.trim().is_empty() {
+            return PathBuf::from(self.directory.trim());
+        }
+
+        #[cfg(windows)]
+        {
+            if let Ok(progdata) = std::env::var("ProgramData") {
+                let pdata_dir = Path::new(&progdata).join("Brum");
+                if pdata_dir.is_dir() {
+                    return pdata_dir.join("logs");
+                }
+            }
+            if let Some(local_appdata) = dirs::data_local_dir() {
+                return local_appdata.join("Brum").join("logs");
+            }
+            if let Some(appdata) = dirs::data_dir() {
+                return appdata.join("Brum").join("logs");
+            }
+            PathBuf::from("logs")
+        }
+
+        #[cfg(not(windows))]
+        {
+            let var_log = Path::new("/var/log/brum");
+            if var_log.is_dir() {
+                return var_log.to_path_buf();
+            }
+            if let Some(data_dir) = dirs::data_local_dir().or_else(dirs::data_dir) {
+                return data_dir.join("brum").join("logs");
+            }
+            PathBuf::from("logs")
+        }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct SftpConfig {

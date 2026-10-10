@@ -30,6 +30,7 @@ pub struct TerminalQuery {
     pub rows: Option<u16>,
     pub token: Option<String>,
     pub cd_token: Option<String>,
+    pub instance_token: Option<String>,
 }
 
 #[cfg(unix)]
@@ -101,7 +102,42 @@ pub fn extract_terminal_claims(
     headers: &HeaderMap,
     query: &TerminalQuery,
 ) -> Result<Claims, (StatusCode, &'static str)> {
-    if !state.config.server.enable_auth || state.config.server.standalone {
+    if let Some(ref inst) = state.instance_info {
+        let has_valid_token = query.instance_token.as_deref()
+            .or_else(|| {
+                headers.get("x-brum-instance-token")
+                    .or_else(|| headers.get("x-instance-token"))
+                    .and_then(|v| v.to_str().ok())
+            })
+            .or_else(|| {
+                headers.get(header::COOKIE).and_then(|v| v.to_str().ok()).and_then(|cookie_hdr| {
+                    for pair in cookie_hdr.split(';') {
+                        let pair = pair.trim();
+                        if let Some(tok) = pair.strip_prefix("brum_instance_token=") {
+                            return Some(tok.trim());
+                        }
+                    }
+                    None
+                })
+            })
+            .map(|tok| tok == inst.instance_token)
+            .unwrap_or(false);
+
+        if has_valid_token {
+            let home_dir = dirs::home_dir()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_else(|| "/".to_string());
+            return Ok(Claims {
+                sub: inst.owner.clone(),
+                role: "admin".to_string(),
+                home_dir,
+                is_pam: false,
+                allowed_roots: Some("[\"*\"]".to_string()),
+                token_id: None,
+                exp: 9999999999,
+            });
+        }
+    } else if !state.config.server.enable_auth || state.config.server.standalone {
         let current_user = std::env::var("USERNAME")
             .or_else(|_| std::env::var("USER"))
             .unwrap_or_else(|_| "user".to_string());
@@ -711,6 +747,7 @@ mod tests {
             backup: backup_mgr,
             plugins: plugin_mgr,
             rate_limiter: Arc::new(crate::server::RateLimiter::new()),
+            instance_info: None,
         }
     }
 
@@ -730,6 +767,7 @@ mod tests {
             rows: None,
             token: None,
             cd_token: None,
+            instance_token: None,
         };
 
         let claims = extract_terminal_claims(&state, &headers, &query).unwrap();
@@ -760,6 +798,7 @@ mod tests {
             rows: None,
             token: None,
             cd_token: None,
+            instance_token: None,
         };
         assert!(extract_terminal_claims(&state, &headers, &query_empty).is_err());
 
@@ -770,6 +809,7 @@ mod tests {
             rows: None,
             token: Some(token.clone()),
             cd_token: None,
+            instance_token: None,
         };
         let claims = extract_terminal_claims(&state, &headers, &query_with_token).unwrap();
         assert_eq!(claims.sub, "testuser");
@@ -786,5 +826,66 @@ mod tests {
         headers_cookie.insert(header::COOKIE, format!("cd_token={}; other=123", token).parse().unwrap());
         let claims = extract_terminal_claims(&state, &headers_cookie, &query_empty).unwrap();
         assert_eq!(claims.sub, "testuser");
+    }
+
+    #[test]
+    fn test_extract_terminal_claims_with_instance_token() {
+        let mut config = crate::config::AppConfig::default();
+        config.server.standalone = true;
+        let tmp = tempfile::tempdir().unwrap();
+        config.server.database_path = tmp.path().join("term_inst.db").to_string_lossy().to_string();
+
+        let mut state = create_test_state(config);
+        let secret = "secret_instance_handshake_12345".to_string();
+        state.instance_info = Some(std::sync::Arc::new(crate::instance::UserInstanceInfo {
+            pid: std::process::id(),
+            port: 3140,
+            owner: "alice".to_string(),
+            instance_token: secret.clone(),
+            started_at: "2026-10-10T00:00:00Z".to_string(),
+        }));
+
+        let headers = HeaderMap::new();
+        let query_no_token = TerminalQuery {
+            cwd: None,
+            cols: None,
+            rows: None,
+            token: None,
+            cd_token: None,
+            instance_token: None,
+        };
+        // Without instance token -> Unauthorized
+        assert!(extract_terminal_claims(&state, &headers, &query_no_token).is_err());
+
+        // With invalid instance token -> Unauthorized
+        let query_bad_token = TerminalQuery {
+            cwd: None,
+            cols: None,
+            rows: None,
+            token: None,
+            cd_token: None,
+            instance_token: Some("wrong_token".to_string()),
+        };
+        assert!(extract_terminal_claims(&state, &headers, &query_bad_token).is_err());
+
+        // With valid instance token in query -> Success
+        let query_good_token = TerminalQuery {
+            cwd: None,
+            cols: None,
+            rows: None,
+            token: None,
+            cd_token: None,
+            instance_token: Some(secret.clone()),
+        };
+        let claims = extract_terminal_claims(&state, &headers, &query_good_token).unwrap();
+        assert_eq!(claims.sub, "alice");
+        assert_eq!(claims.role, "admin");
+
+        // With valid instance token in Cookie -> Success
+        let mut headers_cookie = HeaderMap::new();
+        headers_cookie.insert(header::COOKIE, format!("brum_instance_token={}", secret).parse().unwrap());
+        let claims = extract_terminal_claims(&state, &headers_cookie, &query_no_token).unwrap();
+        assert_eq!(claims.sub, "alice");
+        assert_eq!(claims.role, "admin");
     }
 }

@@ -2681,7 +2681,7 @@ async function checkAuthAndLoad() {
       updateStandaloneUI();
     }
 
-    const isStandalone = !!sysData?.standalone || isTauri;
+    const isStandalone = !!sysData?.standalone;
     const authDisabled = sysData?.auth_enabled === false;
 
     // 1. Authenticated via token or local standalone/auth-disabled user:

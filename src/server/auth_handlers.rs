@@ -132,6 +132,20 @@ pub async fn handle_login(
 
     tracing::info!("Received login request for user '{}'...", payload.username);
 
+    // Enforce private instance owner isolation
+    if let Some(ref inst) = state.instance_info {
+        if payload.username.to_lowercase() != inst.owner.to_lowercase() {
+            tracing::warn!(
+                "Rejected login attempt by user '{}' on private instance owned by '{}'",
+                payload.username, inst.owner
+            );
+            return Err((
+                StatusCode::FORBIDDEN,
+                format!("Access denied: this Brum instance is privately owned by '{}'.", inst.owner),
+            ));
+        }
+    }
+
     // Standalone / Auth Disabled bypass
     if !state.config.server.enable_auth || state.config.server.standalone {
         tracing::info!("Authentication disabled or standalone mode active - granting login for '{}'", payload.username);

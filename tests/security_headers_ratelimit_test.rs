@@ -20,7 +20,7 @@ async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, tempfil
     config.plugins.directory = dir.path().join("plugins").to_string_lossy().to_string();
     config.plugins.user_directory = dir.path().join("user_plugins").to_string_lossy().to_string();
 
-    let bound_port = start_background_server(config).await.expect("Failed to start test server");
+    let (bound_port, _token) = start_background_server(config).await.expect("Failed to start test server");
     (bound_port, dir, admin_user, admin_pass)
 }
 
@@ -273,6 +273,7 @@ async fn test_websocket_origin_security() {
         backup: backup_mgr,
         plugins: plugin_mgr,
         rate_limiter: Arc::new(brum::server::RateLimiter::new()),
+        instance_info: None,
     };
 
     let mut headers = HeaderMap::new();
