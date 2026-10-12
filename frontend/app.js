@@ -4419,15 +4419,11 @@ function shouldRouteViaGateway(node) {
   if (window.location.protocol === 'https:' && node.endpoint_url.startsWith('http://')) {
     return true;
   }
-  // If current origin differs from node endpoint and we are accessing through a public domain or proxy
+  // If current origin differs from node endpoint, route through Gateway Hub
   try {
     const nodeOrigin = new URL(node.endpoint_url).origin;
     if (nodeOrigin !== window.location.origin) {
-      const host = window.location.hostname;
-      const isLocalHost = host === 'localhost' || host === '127.0.0.1' || host === '::1';
-      if (!isLocalHost) {
-        return true;
-      }
+      return true;
     }
   } catch (_) {}
   return false;
