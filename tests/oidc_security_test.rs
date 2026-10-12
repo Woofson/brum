@@ -251,3 +251,63 @@ async fn test_oidc_rejects_unsupported_algorithm() {
     let err = res.unwrap_err().to_string();
     assert!(err.contains("Unsupported OIDC token algorithm"), "Unexpected error: {}", err);
 }
+
+#[tokio::test]
+async fn test_oidc_callback_missing_code_or_state_redirects() {
+    use axum::response::IntoResponse;
+    let tmp = tempdir().unwrap();
+    let db_path = tmp.path().join("test_cb.db").to_string_lossy().to_string();
+    let mut config = brum::config::AppConfig::default();
+    config.server.database_path = db_path;
+    config.auth.oidc.enabled = true;
+    let state = brum::create_app_state(&config, None).unwrap();
+
+    // 1. Missing code -> /?error=missing_code
+    let query_no_code = brum::server::auth_handlers::OidcCallbackQuery {
+        code: None,
+        state: Some("test-state".to_string()),
+        error: None,
+        error_description: None,
+    };
+    let resp = brum::server::auth_handlers::handle_oidc_callback(
+        axum::extract::State(state.clone()),
+        reqwest::header::HeaderMap::new(),
+        axum::extract::Query(query_no_code),
+    ).await.into_response();
+    assert_eq!(resp.status(), axum::http::StatusCode::TEMPORARY_REDIRECT);
+    let loc = resp.headers().get(axum::http::header::LOCATION).unwrap().to_str().unwrap();
+    assert_eq!(loc, "/?error=missing_code");
+
+    // 2. Missing state -> /?error=missing_state
+    let query_no_state = brum::server::auth_handlers::OidcCallbackQuery {
+        code: Some("test-code".to_string()),
+        state: None,
+        error: None,
+        error_description: None,
+    };
+    let resp = brum::server::auth_handlers::handle_oidc_callback(
+        axum::extract::State(state.clone()),
+        reqwest::header::HeaderMap::new(),
+        axum::extract::Query(query_no_state),
+    ).await.into_response();
+    assert_eq!(resp.status(), axum::http::StatusCode::TEMPORARY_REDIRECT);
+    let loc = resp.headers().get(axum::http::header::LOCATION).unwrap().to_str().unwrap();
+    assert_eq!(loc, "/?error=missing_state");
+
+    // 3. Provider error -> /?error=access_denied
+    let query_err = brum::server::auth_handlers::OidcCallbackQuery {
+        code: None,
+        state: None,
+        error: Some("access_denied".to_string()),
+        error_description: Some("User denied access".to_string()),
+    };
+    let resp = brum::server::auth_handlers::handle_oidc_callback(
+        axum::extract::State(state),
+        reqwest::header::HeaderMap::new(),
+        axum::extract::Query(query_err),
+    ).await.into_response();
+    assert_eq!(resp.status(), axum::http::StatusCode::TEMPORARY_REDIRECT);
+    let loc = resp.headers().get(axum::http::header::LOCATION).unwrap().to_str().unwrap();
+    assert_eq!(loc, "/?error=access_denied");
+}
+

@@ -2644,6 +2644,9 @@ async function checkAuthAndLoad() {
     if (ssoSuccess) {
       setTimeout(() => showToast('Successfully signed in via SSO', 'success'), 300);
     }
+  } else if (ssoSuccess) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+    setTimeout(() => showToast('Successfully signed in via SSO', 'success'), 300);
   } else if (urlError) {
     window.history.replaceState({}, document.title, window.location.pathname);
     setTimeout(() => {
@@ -2666,7 +2669,7 @@ async function checkAuthAndLoad() {
     // Parallelize system status and token verification
     const [sysResp, meResp] = await Promise.all([
       fetch('/api/system/status').catch(() => null),
-      (token || isTauri) ? fetch('/api/auth/me', { headers: meHeaders }).catch(() => null) : Promise.resolve(null)
+      fetch('/api/auth/me', { headers: meHeaders }).catch(() => null)
     ]);
 
     let sysData = null;
@@ -35893,7 +35896,10 @@ async function confirmExitBrum() {
   }
 }
 
-function logout() {
+async function logout() {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST' });
+  } catch (_) {}
   localStorage.removeItem('cd_token');
   localStorage.removeItem('cd_is_locked');
   try {
@@ -36037,7 +36043,7 @@ function checkResponsiveViewportLayout(force = false) {
   _lastVisiblePaneCount = targetCount;
 
   if (needsReRender && container) {
-    if (App.isLocked || localStorage.getItem('cd_is_locked') === 'true' || (!App.token && !App.isStandalone && App.systemStatus?.auth_enabled !== false)) {
+    if (App.isLocked || localStorage.getItem('cd_is_locked') === 'true' || (!App.user && !App.token && !App.isStandalone && App.systemStatus?.auth_enabled !== false)) {
       return;
     }
     const visibleCount = getVisiblePaneCount();

@@ -405,3 +405,102 @@ async fn test_instance_token_constant_time_comparison() {
         .send().await.unwrap();
     assert_eq!(resp_same_len.status(), reqwest::StatusCode::FORBIDDEN);
 }
+
+#[tokio::test]
+async fn test_query_token_scoping_and_cookie_auth() {
+    let (port, _token, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // 1. Authenticate to obtain a valid JWT token
+    let login_resp = client
+        .post(format!("{}/api/auth/login", base_url))
+        .json(&json!({
+            "username": admin_user,
+            "password": admin_pass
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(login_resp.status(), reqwest::StatusCode::OK);
+    let login_data: serde_json::Value = login_resp.json().await.unwrap();
+    let token = login_data["token"].as_str().unwrap();
+
+    // 2. Query parameter ?token=... on standard HTTP API must be REJECTED (401 Unauthorized)
+    let resp_query = client
+        .get(format!("{}/api/system/disks?token={}", base_url, token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        resp_query.status(),
+        reqwest::StatusCode::UNAUTHORIZED,
+        "Query parameter ?token= must not authenticate standard HTTP API requests"
+    );
+
+    // 3. Query parameter ?cd_token=... on standard HTTP API must also be REJECTED (401 Unauthorized)
+    let resp_cd_query = client
+        .get(format!("{}/api/system/disks?cd_token={}", base_url, token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(
+        resp_cd_query.status(),
+        reqwest::StatusCode::UNAUTHORIZED,
+        "Query parameter ?cd_token= must not authenticate standard HTTP API requests"
+    );
+
+    // 4. Authorization: Bearer <token> header must SUCCEED (200 OK)
+    let resp_bearer = client
+        .get(format!("{}/api/system/disks", base_url))
+        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp_bearer.status(), reqwest::StatusCode::OK);
+
+    // 5. Cookie cd_token=<token> header must SUCCEED (200 OK)
+    let resp_cookie = client
+        .get(format!("{}/api/system/disks", base_url))
+        .header(reqwest::header::COOKIE, format!("cd_token={}", token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp_cookie.status(), reqwest::StatusCode::OK);
+
+    // 6. /api/auth/me accepts Cookie cd_token=<token>
+    let resp_me = client
+        .get(format!("{}/api/auth/me", base_url))
+        .header(reqwest::header::COOKIE, format!("cd_token={}", token))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp_me.status(), reqwest::StatusCode::OK);
+    let me_data: serde_json::Value = resp_me.json().await.unwrap();
+    assert_eq!(me_data["username"], "admin");
+
+    // 7. /api/auth/logout is publicly accessible and returns Set-Cookie with Max-Age=0
+    let resp_logout = client
+        .post(format!("{}/api/auth/logout", base_url))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(resp_logout.status(), reqwest::StatusCode::OK);
+    let set_cookie = resp_logout.headers().get(reqwest::header::SET_COOKIE).expect("Set-Cookie header missing on logout");
+    let cookie_str = set_cookie.to_str().unwrap();
+    assert!(cookie_str.contains("Max-Age=0"), "Logout must clear cd_token cookie");
+}
+
+#[test]
+fn test_is_request_secure_detection() {
+    let mut headers = reqwest::header::HeaderMap::new();
+    assert!(!brum::server::is_request_secure(&headers));
+
+    headers.insert("x-forwarded-proto", "https".parse().unwrap());
+    assert!(brum::server::is_request_secure(&headers));
+
+    let mut headers_ssl = reqwest::header::HeaderMap::new();
+    headers_ssl.insert("x-forwarded-ssl", "on".parse().unwrap());
+    assert!(brum::server::is_request_secure(&headers_ssl));
+}
+

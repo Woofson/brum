@@ -197,6 +197,7 @@ pub fn is_public_route(path: &str) -> bool {
         || path == "/api/auth/oidc/config"
         || path == "/api/auth/oidc/login"
         || path == "/api/auth/oidc/callback"
+        || path == "/api/auth/logout"
     {
         return true;
     }
@@ -327,14 +328,15 @@ pub async fn auth_middleware(
 
     let is_pub = is_public_route(&path);
 
-    // 2. Attempt to extract token from Authorization header, Cookie, or query
+    // 2. Attempt to extract token from Authorization header, Cookie, or query (query token allowed ONLY on WebSocket upgrade)
     let token_opt = {
         let headers = req.headers();
         let from_header = headers
             .get(header::AUTHORIZATION)
             .and_then(|v| v.to_str().ok())
             .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
-            .map(|s| s.trim().to_string());
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && s != "undefined" && s != "null");
 
         let from_cookie = headers
             .get(header::COOKIE)
@@ -343,20 +345,39 @@ pub async fn auth_middleware(
                 for pair in cookie_str.split(';') {
                     let pair = pair.trim();
                     if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                        return Some(tok.trim().to_string());
+                        let trimmed = tok.trim();
+                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                            return Some(trimmed.to_string());
+                        }
                     }
                 }
                 None
             });
 
-        let from_query = req.uri().query().and_then(|q| {
-            for pair in q.split('&') {
-                if let Some(tok) = pair.strip_prefix("token=").or_else(|| pair.strip_prefix("cd_token=")) {
-                    return Some(tok.trim().to_string());
+        let is_ws_upgrade = path.starts_with("/api/ws/")
+            || path == "/api/terminal/ws"
+            || path.ends_with("/api/terminal/ws")
+            || path.ends_with("/ws")
+            || headers.get(header::UPGRADE)
+                .and_then(|v| v.to_str().ok())
+                .map(|v| v.eq_ignore_ascii_case("websocket"))
+                .unwrap_or(false);
+
+        let from_query = if is_ws_upgrade {
+            req.uri().query().and_then(|q| {
+                for pair in q.split('&') {
+                    if let Some(tok) = pair.strip_prefix("token=").or_else(|| pair.strip_prefix("cd_token=")) {
+                        let trimmed = tok.trim();
+                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                            return Some(trimmed.to_string());
+                        }
+                    }
                 }
-            }
+                None
+            })
+        } else {
             None
-        });
+        };
 
         from_header.or(from_cookie).or(from_query)
     };
@@ -422,9 +443,12 @@ pub fn extract_claims_or_local(
     }
 
     let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        if let Ok(claims) = state.auth.verify_token(token_str) {
-            return Ok(claims);
+    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h))) {
+        let trimmed = token_str.trim();
+        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+            if let Ok(claims) = state.auth.verify_token(trimmed) {
+                return Ok(claims);
+            }
         }
     }
 
@@ -432,8 +456,11 @@ pub fn extract_claims_or_local(
         for pair in cookie_hdr.split(';') {
             let pair = pair.trim();
             if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                if let Ok(claims) = state.auth.verify_token(tok) {
-                    return Ok(claims);
+                let trimmed = tok.trim();
+                if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                    if let Ok(claims) = state.auth.verify_token(trimmed) {
+                        return Ok(claims);
+                    }
                 }
             }
         }

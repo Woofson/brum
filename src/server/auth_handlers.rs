@@ -1,7 +1,7 @@
 use axum::{
     extract::{ConnectInfo, Path as AxumPath, Query, State},
     http::{header, HeaderMap, StatusCode},
-    response::{IntoResponse, Json},
+    response::{IntoResponse, Json, Response},
 };
 use serde::{Deserialize, Serialize};
 use crate::auth::User;
@@ -55,6 +55,25 @@ pub async fn handle_oidc_login(
     }
 }
 
+pub fn is_request_secure(headers: &HeaderMap) -> bool {
+    if let Some(proto) = headers.get("x-forwarded-proto").and_then(|v| v.to_str().ok()) {
+        if proto.split(',').next().unwrap_or("").trim().eq_ignore_ascii_case("https") {
+            return true;
+        }
+    }
+    if let Some(ssl) = headers.get("x-forwarded-ssl").and_then(|v| v.to_str().ok()) {
+        if ssl.trim().eq_ignore_ascii_case("on") {
+            return true;
+        }
+    }
+    if let Some(front_end) = headers.get("front-end-https").and_then(|v| v.to_str().ok()) {
+        if front_end.trim().eq_ignore_ascii_case("on") {
+            return true;
+        }
+    }
+    false
+}
+
 #[derive(Deserialize)]
 pub struct OidcCallbackQuery {
     pub code: Option<String>,
@@ -65,6 +84,7 @@ pub struct OidcCallbackQuery {
 
 pub async fn handle_oidc_callback(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<OidcCallbackQuery>,
 ) -> impl IntoResponse {
     if let Some(err) = query.error {
@@ -86,11 +106,15 @@ pub async fn handle_oidc_callback(
     match state.oidc.exchange_code_and_login(&code, &state_param).await {
         Ok((token, user)) => {
             tracing::info!(username = %user.username, role = %user.role, "SSO login successful");
+            let max_age_secs = state.config.server.session_duration_hours * 3600;
+            let secure_flag = if is_request_secure(&headers) { "; Secure" } else { "" };
             let cookie_header = format!(
-                "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age=2592000",
-                token
+                "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
+                token,
+                max_age_secs,
+                secure_flag
             );
-            let mut response = axum::response::Redirect::temporary(&format!("/?token={}&sso_success=1", token)).into_response();
+            let mut response = axum::response::Redirect::temporary("/?sso_success=1").into_response();
             if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
                 response.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
             }
@@ -284,9 +308,35 @@ pub async fn handle_get_me(
         }));
     }
 
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        match state.auth.verify_token(token_str) {
+    let token_opt = {
+        let from_header = headers
+            .get(header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && s != "undefined" && s != "null");
+
+        let from_cookie = headers
+            .get(header::COOKIE)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|cookie_str| {
+                for pair in cookie_str.split(';') {
+                    let pair = pair.trim();
+                    if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
+                        let trimmed = tok.trim();
+                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                            return Some(trimmed.to_string());
+                        }
+                    }
+                }
+                None
+            });
+
+        from_header.or(from_cookie)
+    };
+
+    if let Some(token_str) = token_opt {
+        match state.auth.verify_token(&token_str) {
             Ok(claims) => {
                 if let Ok(Some(mut user)) = state.auth.get_user_by_username(&claims.sub) {
                     user.resolve_avatar();
@@ -322,7 +372,7 @@ pub async fn handle_get_me(
             Err(_) => Err((StatusCode::UNAUTHORIZED, "Invalid token".to_string())),
         }
     } else {
-        Err((StatusCode::UNAUTHORIZED, "Missing authorization header".to_string()))
+        Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
     }
 }
 
@@ -610,7 +660,7 @@ pub async fn handle_unlock_session(
     connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     Json(payload): Json<UnlockRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
     let peer_addr = connect_info.map(|ci| ci.0);
     let client_ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("unlock:{}", client_ip);
@@ -664,14 +714,34 @@ pub async fn handle_unlock_session(
             "message": "Session unlocked (standalone)",
             "token": new_token,
             "user": user
-        })));
+        })).into_response());
     }
 
     let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
     let mut username = payload.username.clone();
 
+    let token_opt = auth_header
+        .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty() && *s != "undefined" && *s != "null")
+        .map(|s| s.to_string())
+        .or_else(|| {
+            headers.get(header::COOKIE).and_then(|v| v.to_str().ok()).and_then(|cookie_str| {
+                for pair in cookie_str.split(';') {
+                    let pair = pair.trim();
+                    if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
+                        let trimmed = tok.trim();
+                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                            return Some(trimmed.to_string());
+                        }
+                    }
+                }
+                None
+            })
+        });
+
     // If authorization token is present, extract claims (allowing expired token during lock)
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
+    if let Some(ref token_str) = token_opt {
         if let Ok(claims) = state.auth.verify_token_allow_expired(token_str) {
             username = Some(claims.sub);
         }
@@ -690,12 +760,24 @@ pub async fn handle_unlock_session(
             state.rate_limiter.reset(&rate_key);
             tracing::info!("Session unlocked successfully for user '{}'", user.username);
             let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-            Ok(Json(serde_json::json!({
+            let max_age_secs = state.config.server.session_duration_hours * 3600;
+            let secure_flag = if is_request_secure(&headers) { "; Secure" } else { "" };
+            let cookie_header = format!(
+                "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
+                new_token,
+                max_age_secs,
+                secure_flag
+            );
+            let mut resp = Json(serde_json::json!({
                 "success": true,
                 "message": "Session unlocked",
                 "token": new_token,
                 "user": user
-            })))
+            })).into_response();
+            if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
+                resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+            }
+            Ok(resp)
         }
         Err(e) => {
             tracing::warn!("Failed session unlock attempt for user '{}': {}", uname, e);
