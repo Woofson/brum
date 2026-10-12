@@ -5,6 +5,19 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.8] - 2026-10-12
+
+### Fixed
+- **Fleet Manager Dynamic UI Node Resolution & Probing**:
+  - Restored dynamic UI fleet node proxying and connection health checks (`/api/fleet/ping/probe`) for authenticated users via `X-Fleet-Target-Url` and `X-Fleet-Target-Token`.
+  - Maintained strict anti-SSRF protections by validating target hosts and rejecting prohibited loopback, link-local, and cloud metadata targets (`127.0.0.1`, `localhost`, `169.254.169.254`).
+  - Restored the ability to test and add fleet nodes on overlay networks directly in the web UI using API tokens.
+
+### Documentation & Configuration
+- **Overlay Networking & Master Configuration (`config.toml`)**:
+  - Documented homelab and encrypted mesh network topologies (Tailscale, NetBird, WireGuard, LAN).
+  - Added comprehensive references for `trusted_proxies`, `allowed_origins`, multi-node fleet definitions (`[fleet]`, `[[fleet.nodes]]`), Chewtoys plugins, rotating logs, and OIDC SSO.
+
 ## [1.8.7] - 2026-10-12
 
 ### Fixed
