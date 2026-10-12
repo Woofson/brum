@@ -409,7 +409,7 @@ pub async fn handle_fleet_ws_proxy(
         format!("?{}", query_pairs.join("&"))
     };
 
-    let remote_ws_url = format!("{}/api/terminal/ws{}", ws_base, q_str);
+    let remote_ws_url = format!("{}/api/ws/terminal{}", ws_base, q_str);
 
     Ok(ws.on_upgrade(move |client_socket| async move {
         tunnel_websocket(client_socket, remote_ws_url).await;

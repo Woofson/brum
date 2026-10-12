@@ -234,7 +234,6 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
                 return true;
             }
         }
-        return false;
     }
 
     // 4. Server's own bound address if specific (not wildcard 0.0.0.0 / ::)
@@ -249,9 +248,17 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
     // 5. Configured server_name if non-empty
     let srv_name = state.config.server.server_name.trim();
     if !srv_name.is_empty() {
-        if clean_origin.eq_ignore_ascii_case(srv_name)
-            || clean_origin.eq_ignore_ascii_case(&format!("{}:{}", srv_name, cfg_port))
-        {
+        let (origin_host, _) = clean_origin.split_once(':').unwrap_or((clean_origin, ""));
+        if origin_host.eq_ignore_ascii_case(srv_name) {
+            return true;
+        }
+    }
+
+    // 5b. System hostname (allow bare system hostname or with port)
+    let sys_hostname = crate::server::system_handlers::get_system_hostname();
+    if !sys_hostname.is_empty() && sys_hostname != "localhost" {
+        let (origin_host, _) = clean_origin.split_once(':').unwrap_or((clean_origin, ""));
+        if origin_host.eq_ignore_ascii_case(&sys_hostname) {
             return true;
         }
     }
@@ -278,6 +285,8 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
                 || req_host.ends_with(".local")
                 || req_host.ends_with(".lan")
                 || req_host.ends_with(".home.arpa")
+                || (!srv_name.is_empty() && req_host.eq_ignore_ascii_case(srv_name))
+                || (!sys_hostname.is_empty() && req_host.eq_ignore_ascii_case(&sys_hostname))
                 || if let Ok(ip) = req_host.parse::<std::net::IpAddr>() {
                     is_safe_local_or_overlay_ip(ip)
                 } else {
@@ -378,6 +387,12 @@ pub fn is_origin_allowed_by_pattern(pattern: &str, candidate: &str) -> bool {
     // 3. Verify host
     if pat_host == "*" {
         return true;
+    }
+
+    if let Some(prefix) = pat_host.strip_suffix('*') {
+        if cand_host.to_ascii_lowercase().starts_with(&prefix.to_ascii_lowercase()) {
+            return true;
+        }
     }
 
     if let Some(base_domain) = pat_host.strip_prefix("*.") {
@@ -1080,5 +1095,41 @@ mod tests {
         let claims = extract_terminal_claims(&state, &headers_cookie, &query_no_token).unwrap();
         assert_eq!(claims.sub, "alice");
         assert_eq!(claims.role, "admin");
+    }
+
+    #[test]
+    fn test_is_ws_origin_allowed_with_allowed_origins_and_server_name() {
+        let mut config = crate::config::AppConfig::default();
+        let tmp = tempfile::tempdir().unwrap();
+        config.server.database_path = tmp.path().join("term_origin.db").to_string_lossy().to_string();
+        config.server.server_name = "griffon".to_string();
+        config.server.port = 3140;
+        config.server.allowed_origins = vec![
+            "http://10.37.10.*:*".to_string(),
+            "http://100.117.*:*".to_string(),
+        ];
+
+        let state = create_test_state(config);
+        let mut headers = HeaderMap::new();
+
+        // 1. Loopback origin: always allowed
+        assert!(is_ws_origin_allowed("http://localhost:3140", &headers, &state));
+        assert!(is_ws_origin_allowed("http://127.0.0.1:3140", &headers, &state));
+
+        // 2. Overlay origin matching allowed_origins pattern: allowed
+        assert!(is_ws_origin_allowed("http://10.37.10.170:3140", &headers, &state));
+        assert!(is_ws_origin_allowed("http://10.37.10.217:3141", &headers, &state));
+
+        // 3. Server name: allowed even though not explicitly in allowed_origins list
+        assert!(is_ws_origin_allowed("http://griffon:3140", &headers, &state));
+        assert!(is_ws_origin_allowed("http://griffon", &headers, &state));
+
+        // 4. Same-origin Host matching for safe local/server host
+        headers.insert(header::HOST, "griffon:3140".parse().unwrap());
+        assert!(is_ws_origin_allowed("http://griffon:3140", &headers, &state));
+
+        // 5. Malicious external origin: rejected
+        assert!(!is_ws_origin_allowed("http://evil.com", &headers, &state));
+        assert!(!is_ws_origin_allowed("http://attacker.local.evil.com", &headers, &state));
     }
 }

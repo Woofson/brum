@@ -172,6 +172,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/fleet/nodes", get(fleet::handle_list_fleet_nodes))
         .route("/api/fleet/ping/:node_id", get(fleet::handle_fleet_ping))
         .route("/api/fleet/proxy/:node_id/api/terminal/ws", get(fleet::handle_fleet_ws_proxy))
+        .route("/api/fleet/proxy/:node_id/api/ws/terminal", get(fleet::handle_fleet_ws_proxy))
         .route("/api/fleet/proxy/:node_id/ws", get(fleet::handle_fleet_ws_proxy))
         .route("/api/fleet/proxy/:node_id/*path", any(fleet::handle_fleet_http_proxy))
         .route("/api/fleet/proxy/:node_id", any(fleet::handle_fleet_http_proxy_root))
@@ -261,6 +262,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tasks/clear-completed", post(handle_clear_completed_tasks))
         // Terminal WebSocket
         .route("/api/ws/terminal", get(terminal::handle_terminal_ws))
+        .route("/api/terminal/ws", get(terminal::handle_terminal_ws))
         // System & Config Information
         .route("/api/config", get(handle_get_config))
         .route("/api/system/users-groups", get(handle_get_system_users_groups))

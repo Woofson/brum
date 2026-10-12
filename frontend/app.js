@@ -27861,7 +27861,7 @@ function connectTerminal(cwd) {
   const token = App.token || localStorage.getItem('cd_token') || '';
   const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
 
-  const activePaneIdx = App.activePane ?? 0;
+  const activePaneIdx = (typeof App.activePaneIndex === 'number') ? App.activePaneIndex : (App.activePane ?? 0);
   const node = typeof getPaneNode === 'function' ? getPaneNode(activePaneIdx) : null;
   let url;
   if (node && node.id !== 'local') {
@@ -27871,7 +27871,7 @@ function connectTerminal(cwd) {
       const nodeWsBase = node.endpoint_url.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
       const nodeToken = node.auth_token || '';
       const remoteTokenParam = nodeToken ? `&token=${encodeURIComponent(nodeToken)}` : '';
-      url = `${nodeWsBase}/api/terminal/ws?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${remoteTokenParam}`;
+      url = `${nodeWsBase}/api/ws/terminal?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${remoteTokenParam}`;
     }
   } else {
     url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
@@ -27881,6 +27881,7 @@ function connectTerminal(cwd) {
     const thisWs = new WebSocket(url);
     termWs = thisWs;
     thisWs.binaryType = 'arraybuffer';
+    let hasReceivedData = false;
 
     thisWs.onopen = () => {
       if (termWs !== thisWs) return;
@@ -27896,6 +27897,7 @@ function connectTerminal(cwd) {
 
     thisWs.onmessage = (e) => {
       if (termWs !== thisWs) return;
+      hasReceivedData = true;
       if (termInstance) {
         if (e.data instanceof ArrayBuffer) {
           termInstance.write(new Uint8Array(e.data));
@@ -27912,9 +27914,26 @@ function connectTerminal(cwd) {
       console.warn('Terminal WebSocket error:', err);
     };
 
-    thisWs.onclose = () => {
+    thisWs.onclose = (event) => {
       if (termWs !== thisWs) return;
       termWs = null;
+
+      // If connection closed prematurely without receiving any data (handshake failure / rejection)
+      const connectDuration = Date.now() - termConnectTime;
+      if (!hasReceivedData && connectDuration < 4000) {
+        const code = event && event.code ? event.code : 1006;
+        const errorMsg = `\r\n\x1b[31m[Brum Terminal] Connection closed or rejected by host (code: ${code}).\x1b[0m\r\n\x1b[90mEnsure the terminal feature is enabled and allowed_origins includes your host.\x1b[0m\r\n`;
+        if (termInstance) {
+          termInstance.write(errorMsg);
+        } else {
+          appendTerminalTextFallback(errorMsg);
+        }
+        if (typeof showToast === 'function') {
+          showToast(`Terminal disconnected: connection rejected by host (${code})`, 'error');
+        }
+        return;
+      }
+
       const dockedPaneIdx = App.panes.findIndex(p => p && p.dockedTool === 'terminal');
       if (dockedPaneIdx !== -1) {
         closeDockedTool(dockedPaneIdx);
