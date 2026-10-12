@@ -762,6 +762,88 @@ pub fn is_path_or_canonical_within(target: &Path, root: &Path) -> bool {
             let mut tail_components = Vec::new();
             let mut curr = target;
             while !curr.exists() {
+                // If curr exists as a symlink (dangling symlink), resolve its target and enforce boundary checks
+                if let Ok(meta) = std::fs::symlink_metadata(curr) {
+                    if meta.file_type().is_symlink() {
+                        let link_target = match std::fs::read_link(curr) {
+                            Ok(t) => t,
+                            Err(_) => return false,
+                        };
+
+                        let mut resolved = if link_target.is_relative() {
+                            curr.parent().map(|p| p.join(&link_target)).unwrap_or(link_target)
+                        } else {
+                            link_target
+                        };
+
+                        // Follow chained symlinks up to max depth 32
+                        let mut depth = 0;
+                        while depth < 32 {
+                            if let Ok(m) = std::fs::symlink_metadata(&resolved) {
+                                if m.file_type().is_symlink() {
+                                    depth += 1;
+                                    if let Ok(next) = std::fs::read_link(&resolved) {
+                                        resolved = if next.is_relative() {
+                                            resolved.parent().map(|p| p.join(&next)).unwrap_or(next)
+                                        } else {
+                                            next
+                                        };
+                                        continue;
+                                    } else {
+                                        return false;
+                                    }
+                                }
+                            }
+                            break;
+                        }
+                        if depth >= 32 {
+                            return false;
+                        }
+
+                        // Append any trailing components that followed this dangling symlink
+                        for part in tail_components.into_iter().rev() {
+                            resolved.push(part);
+                        }
+
+                        let resolved_norm = normalize_path(&resolved);
+                        let canonical_resolved = if let Ok(can) = resolved_norm.canonicalize() {
+                            can
+                        } else {
+                            let mut d_tail = Vec::new();
+                            let mut d_curr = resolved_norm.as_path();
+                            while !d_curr.exists() {
+                                if let Some(name) = d_curr.file_name() {
+                                    d_tail.push(name.to_os_string());
+                                } else {
+                                    break;
+                                }
+                                if let Some(parent) = d_curr.parent() {
+                                    d_curr = parent;
+                                } else {
+                                    break;
+                                }
+                            }
+                            if d_curr.exists() {
+                                if let Ok(mut can_anc) = d_curr.canonicalize() {
+                                    for part in d_tail.into_iter().rev() {
+                                        can_anc.push(part);
+                                    }
+                                    can_anc
+                                } else {
+                                    crate::vfs::local::clean_path_buf(&resolved_norm)
+                                }
+                            } else {
+                                crate::vfs::local::clean_path_buf(&resolved_norm)
+                            }
+                        };
+
+                        let canonical_root = root.canonicalize().unwrap_or_else(|_| norm_root.clone());
+                        let clean_target = crate::vfs::local::clean_path_buf(&canonical_resolved);
+                        let clean_root = crate::vfs::local::clean_path_buf(&canonical_root);
+                        return path_starts_with_case_insensitive(&clean_target, &clean_root);
+                    }
+                }
+
                 if let Some(file_name) = curr.file_name() {
                     tail_components.push(file_name.to_os_string());
                 } else {

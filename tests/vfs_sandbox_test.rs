@@ -255,3 +255,114 @@ async fn test_symlink_escape_nonexistent_file_rejected() {
     );
 }
 
+#[tokio::test]
+async fn test_dangling_symlink_escape_rejected() {
+    let tmp = tempdir().unwrap();
+    let safe_root = tmp.path().join("safe");
+    let outside_dir = tmp.path().join("outside");
+    fs::create_dir_all(&safe_root).unwrap();
+    fs::create_dir_all(&outside_dir).unwrap();
+
+    let outside_target_file = outside_dir.join("nonexistent_escape.txt");
+    let dangling_symlink = safe_root.join("dangling_escape_link.txt");
+
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&outside_target_file, &dangling_symlink).unwrap();
+    #[cfg(windows)]
+    let _ = std::os::windows::fs::symlink_file(&outside_target_file, &dangling_symlink);
+
+    // If symlink creation is not permitted on host (e.g. unprivileged Windows), skip gracefully
+    if std::fs::symlink_metadata(&dangling_symlink).is_err() {
+        return;
+    }
+
+    assert!(!dangling_symlink.exists(), "Target file must not exist (must be a dangling symlink)");
+    assert!(
+        std::fs::symlink_metadata(&dangling_symlink).unwrap().file_type().is_symlink(),
+        "Link must exist as a symlink"
+    );
+
+    let mut config = AppConfig::default();
+    config.server.enable_auth = true;
+    config.server.standalone = false;
+    config.server.database_path = tmp.path().join("test.db").to_string_lossy().to_string();
+    config.storage.allow_entire_system = false;
+    config.storage.roots.push(brum::config::StorageRoot {
+        id: "safe-root".to_string(),
+        name: "Safe Root".to_string(),
+        path: safe_root.to_string_lossy().to_string(),
+        read_only: false,
+        allowed_roles: vec!["user".to_string()],
+    });
+
+    let state = brum::create_app_state(&config, None).unwrap();
+    let user = state.auth.create_user(
+        "testuser",
+        "pass123",
+        "user",
+        &safe_root.to_string_lossy(),
+        Some("[\"safe-root\"]"),
+    ).unwrap();
+    let token = state.auth.generate_token(&user).unwrap();
+
+    let mut headers = HeaderMap::new();
+    headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {}", token).parse().unwrap());
+
+    // 1. Absolute dangling symlink pointing to non-existent file outside root must be 403 Forbidden
+    let res_escape = validate_path_access(&state, &headers, &dangling_symlink.to_string_lossy(), true);
+    assert!(
+        res_escape.is_err(),
+        "Accessing or creating a file through a dangling symlink pointing outside root must be rejected!"
+    );
+    assert_eq!(res_escape.unwrap_err().0.as_u16(), 403);
+
+    // 2. Relative dangling symlink escaping root must also be 403 Forbidden
+    let rel_dangling_symlink = safe_root.join("rel_dangle.txt");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(std::path::Path::new("../outside/nonexistent_rel.txt"), &rel_dangling_symlink).unwrap();
+    #[cfg(windows)]
+    let _ = std::os::windows::fs::symlink_file(std::path::Path::new(r"..\outside\nonexistent_rel.txt"), &rel_dangling_symlink);
+
+    if std::fs::symlink_metadata(&rel_dangling_symlink).is_ok() {
+        let res_rel_escape = validate_path_access(&state, &headers, &rel_dangling_symlink.to_string_lossy(), true);
+        assert!(
+            res_rel_escape.is_err(),
+            "Relative dangling symlink escaping root must be rejected with 403!"
+        );
+        assert_eq!(res_rel_escape.unwrap_err().0.as_u16(), 403);
+    }
+
+    // 3. Dangling directory symlink pointing outside root with child path must also be 403 Forbidden
+    let dangling_dir_symlink = safe_root.join("dangling_dir");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(outside_dir.join("nonexistent_subdir"), &dangling_dir_symlink).unwrap();
+    #[cfg(windows)]
+    let _ = std::os::windows::fs::symlink_dir(outside_dir.join("nonexistent_subdir"), &dangling_dir_symlink);
+
+    if std::fs::symlink_metadata(&dangling_dir_symlink).is_ok() {
+        let child_target = dangling_dir_symlink.join("child_new_file.txt");
+        let res_dir_escape = validate_path_access(&state, &headers, &child_target.to_string_lossy(), true);
+        assert!(
+            res_dir_escape.is_err(),
+            "Child file through dangling directory symlink pointing outside root must be rejected with 403!"
+        );
+        assert_eq!(res_dir_escape.unwrap_err().0.as_u16(), 403);
+    }
+
+    // 4. Safe dangling symlink pointing to non-existent file strictly inside root must be allowed
+    let safe_dangling_symlink = safe_root.join("safe_dangle.txt");
+    let safe_future_file = safe_root.join("future_allowed_file.txt");
+    #[cfg(unix)]
+    std::os::unix::fs::symlink(&safe_future_file, &safe_dangling_symlink).unwrap();
+    #[cfg(windows)]
+    let _ = std::os::windows::fs::symlink_file(&safe_future_file, &safe_dangling_symlink);
+
+    if std::fs::symlink_metadata(&safe_dangling_symlink).is_ok() {
+        let res_safe = validate_path_access(&state, &headers, &safe_dangling_symlink.to_string_lossy(), true);
+        assert!(
+            res_safe.is_ok(),
+            "Dangling symlink pointing strictly inside root must be permitted!"
+        );
+    }
+}
+
