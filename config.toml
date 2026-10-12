@@ -19,6 +19,7 @@ enable_auth = true               # Enable authentication (automatically bypassed
 session_duration_hours = 72      # JWT session expiry duration in hours
 database_path = "brum.db"        # SQLite local metadata, sessions, and audit database
 server_name = ""                 # Optional friendly node name displayed in UI badges and fleet discovery (e.g. "Homelab NAS")
+# jwt_secret = "change-me-to-a-shared-fleet-secret" # Shared cluster secret across your fleet nodes for zero-token trust
 
 # --- Trusted Reverse Proxies ---
 # When Brum is placed behind a reverse proxy (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel,
