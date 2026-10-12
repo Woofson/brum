@@ -146,21 +146,51 @@ pub fn extract_fleet_claims(
     ))
 }
 
-/// Resolves a fleet node by id from static configuration
+/// Resolves a fleet node by id from static configuration or request headers (with anti-SSRF validation)
 pub fn resolve_target_node(
     state: &AppState,
     node_id: &str,
-    _headers: &HeaderMap,
+    headers: &HeaderMap,
 ) -> Option<ResolvedFleetTarget> {
-    // Strictly check configured fleet nodes by ID to prevent arbitrary SSRF
-    state.config.fleet.nodes.iter().find(|n| n.id == node_id).map(|n| {
-        ResolvedFleetTarget {
+    // 1. Check static configuration nodes
+    if let Some(n) = state.config.fleet.nodes.iter().find(|n| n.id == node_id) {
+        return Some(ResolvedFleetTarget {
             id: n.id.clone(),
             name: n.name.clone(),
             endpoint_url: n.url.trim_end_matches('/').to_string(),
             auth_token: n.token.clone(),
+        });
+    }
+
+    // 2. Check X-Fleet-Target-Url header for dynamically added UI nodes or connection probing
+    if let Some(target_url_hdr) = headers.get("X-Fleet-Target-Url").and_then(|v| v.to_str().ok()) {
+        let trimmed_url = target_url_hdr.trim().trim_end_matches('/').to_string();
+        if !trimmed_url.is_empty() {
+            // Anti-SSRF: reject prohibited loopback, link-local, and cloud metadata destinations
+            if let Some((_, host)) = crate::server::middleware::extract_remote_scheme_host(&trimmed_url) {
+                let allow_loopback = state.config.storage.allow_remote_loopback;
+                if crate::server::middleware::is_prohibited_remote_host(&host, allow_loopback) {
+                    warn!("Fleet proxy rejected prohibited SSRF target host: {}", host);
+                    return None;
+                }
+            }
+
+            let target_token = headers
+                .get("X-Fleet-Target-Token")
+                .and_then(|v| v.to_str().ok())
+                .map(|t| t.trim().to_string())
+                .filter(|t| !t.is_empty());
+
+            return Some(ResolvedFleetTarget {
+                id: node_id.to_string(),
+                name: node_id.to_string(),
+                endpoint_url: trimmed_url,
+                auth_token: target_token,
+            });
         }
-    })
+    }
+
+    None
 }
 
 /// Parses URI query into a key-value hash map
@@ -660,12 +690,20 @@ mod tests {
         let headers_empty = HeaderMap::new();
         assert!(resolve_target_node(&state, "unknown-node", &headers_empty).is_none());
 
-        // 2. Unconfigured ad-hoc headers are rejected to prevent SSRF
+        // 2. Prohibited loopback / cloud metadata targets are rejected for SSRF protection
+        let mut headers_loopback = HeaderMap::new();
+        headers_loopback.insert("X-Fleet-Target-Url", HeaderValue::from_static("http://127.0.0.1:3140/"));
+        assert!(resolve_target_node(&state, "probe", &headers_loopback).is_none());
+
+        // 3. Valid remote / overlay target is permitted for dynamic UI nodes & probing
         let mut headers_with_url = HeaderMap::new();
         headers_with_url.insert("X-Fleet-Target-Url", HeaderValue::from_static("http://192.168.1.50:3140/"));
         headers_with_url.insert("X-Fleet-Target-Token", HeaderValue::from_static("jwt-token-1234"));
 
-        assert!(resolve_target_node(&state, "my-nas", &headers_with_url).is_none());
+        let target = resolve_target_node(&state, "my-nas", &headers_with_url).unwrap();
+        assert_eq!(target.id, "my-nas");
+        assert_eq!(target.endpoint_url, "http://192.168.1.50:3140");
+        assert_eq!(target.auth_token, Some("jwt-token-1234".to_string()));
     }
 
     #[test]
