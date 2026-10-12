@@ -509,4 +509,37 @@ async fn test_remote_network_schemes_authorization_and_ssrf() {
     assert_eq!(res_metadata.unwrap_err().0.as_u16(), 403);
 }
 
+#[tokio::test]
+async fn test_archive_extraction_limits_and_subprocess_hardening() {
+    let tmp = tempdir().unwrap();
+    let safe_dir = tmp.path().join("extracted");
+    fs::create_dir_all(&safe_dir).unwrap();
+
+    // 1. Normal directory under limits passes
+    let file1 = safe_dir.join("file1.txt");
+    fs::write(&file1, b"hello world").unwrap();
+    assert!(ArchiveHandler::verify_extracted_dir_limits(&safe_dir).is_ok());
+
+    // 2. Extraction of archive with leading hyphen filename does not trigger flag parsing error
+    let archive_dir = tmp.path().join("archives");
+    fs::create_dir_all(&archive_dir).unwrap();
+    let hyphen_archive = archive_dir.join("-test_archive.zip");
+    
+    // Create simple zip
+    {
+        let file = File::create(&hyphen_archive).unwrap();
+        let mut zip = ZipWriter::new(file);
+        zip.start_file("sample.txt", SimpleFileOptions::default()).unwrap();
+        zip.write_all(b"sample content").unwrap();
+        zip.finish().unwrap();
+    }
+
+    let out_dir = tmp.path().join("hyphen_out");
+    fs::create_dir_all(&out_dir).unwrap();
+    let res_extract = ArchiveHandler::extract_archive(&hyphen_archive.to_string_lossy(), &out_dir.to_string_lossy());
+    assert!(res_extract.is_ok(), "Archive with leading hyphen in filename must extract safely without CLI flag confusion");
+    assert!(out_dir.join("sample.txt").exists());
+}
+
+
 

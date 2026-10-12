@@ -450,6 +450,20 @@ impl SmbClient {
         args
     }
 
+    /// Audits and strictly escapes arguments interpolated into smbclient -c command strings.
+    /// Rejects command delimiters (semicolons, newlines, carriage returns) and escapes double quotes.
+    pub fn escape_smb_cmd_arg(arg: &str) -> VfsResult<String> {
+        if arg.contains('\n') || arg.contains('\r') {
+            return Err("SMB path contains illegal newline or carriage return characters".to_string());
+        }
+        if arg.contains(';') {
+            return Err("SMB path contains illegal semicolon command delimiter".to_string());
+        }
+        // Strictly escape quotation marks to prevent breaking out of smbclient command strings
+        let escaped = arg.replace('"', "\\\"");
+        Ok(escaped)
+    }
+
     /// Check if smbclient is available in PATH
     pub fn is_available() -> bool {
         Command::new("smbclient")
@@ -544,7 +558,7 @@ impl SmbClient {
         let smb_cmd = if params.subpath.is_empty() {
             "ls".to_string()
         } else {
-            let win_path = params.subpath.replace('/', "\\");
+            let win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
             format!("cd \"{}\"; ls", win_path)
         };
 
@@ -690,8 +704,9 @@ impl SmbClient {
         let tmp_path = tmp_file.path().to_string_lossy().to_string();
 
         let share_target = format!("//{}/{}", params.host, params.share);
-        let win_path = params.subpath.replace('/', "\\");
-        let smb_cmd = format!("get \"{}\" \"{}\"", win_path, tmp_path);
+        let win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
+        let safe_tmp = Self::escape_smb_cmd_arg(&tmp_path)?;
+        let smb_cmd = format!("get \"{}\" \"{}\"", win_path, safe_tmp);
 
         let mut cmd = Command::new("smbclient");
         cmd.arg(&share_target);
@@ -719,9 +734,10 @@ impl SmbClient {
         }
 
         let share_target = format!("//{}/{}", params.host, params.share);
-        let win_path = params.subpath.replace('/', "\\");
+        let win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
         let dest_str = local_dest.to_string_lossy();
-        let smb_cmd = format!("get \"{}\" \"{}\"", win_path, dest_str);
+        let safe_dest = Self::escape_smb_cmd_arg(&dest_str)?;
+        let smb_cmd = format!("get \"{}\" \"{}\"", win_path, safe_dest);
 
         let mut cmd = Command::new("smbclient");
         cmd.arg(&share_target);
@@ -752,9 +768,10 @@ impl SmbClient {
         }
 
         let share_target = format!("//{}/{}", params.host, params.share);
-        let win_path = params.subpath.replace('/', "\\");
+        let win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
         let src_str = local_src.to_string_lossy();
-        let smb_cmd = format!("put \"{}\" \"{}\"", src_str, win_path);
+        let safe_src = Self::escape_smb_cmd_arg(&src_str)?;
+        let smb_cmd = format!("put \"{}\" \"{}\"", safe_src, win_path);
 
         let mut cmd = Command::new("smbclient");
         cmd.arg(&share_target);
@@ -785,8 +802,9 @@ impl SmbClient {
         fs::write(&tmp_path, content).map_err(|e| format!("Failed to write temp file: {}", e))?;
 
         let share_target = format!("//{}/{}", params.host, params.share);
-        let win_path = params.subpath.replace('/', "\\");
-        let smb_cmd = format!("put \"{}\" \"{}\"", tmp_path, win_path);
+        let win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
+        let safe_tmp = Self::escape_smb_cmd_arg(&tmp_path)?;
+        let smb_cmd = format!("put \"{}\" \"{}\"", safe_tmp, win_path);
 
         let mut cmd = Command::new("smbclient");
         cmd.arg(&share_target);
@@ -810,7 +828,7 @@ impl SmbClient {
         }
 
         let share_target = format!("//{}/{}", params.host, params.share);
-        let win_path = params.subpath.replace('/', "\\");
+        let win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
         let smb_cmd = format!("mkdir \"{}\"", win_path);
 
         let mut cmd = Command::new("smbclient");
@@ -835,7 +853,7 @@ impl SmbClient {
         }
 
         let share_target = format!("//{}/{}", params.host, params.share);
-        let win_path = params.subpath.replace('/', "\\");
+        let win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
         
         let smb_cmd = if is_dir {
             format!("deltree \"{}\"", win_path)
@@ -880,8 +898,8 @@ impl SmbClient {
         }
 
         let share_target = format!("//{}/{}", params.host, params.share);
-        let old_win_path = params.subpath.replace('/', "\\");
-        let new_win_path = new_subpath.replace('/', "\\");
+        let old_win_path = Self::escape_smb_cmd_arg(&params.subpath.replace('/', "\\"))?;
+        let new_win_path = Self::escape_smb_cmd_arg(&new_subpath.replace('/', "\\"))?;
         let smb_cmd = format!("rename \"{}\" \"{}\"", old_win_path, new_win_path);
 
         let mut cmd = Command::new("smbclient");
@@ -939,5 +957,47 @@ impl SmbClient {
                 Err(format!("SMB Connection Failed: {}", msg.trim()))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_escape_smb_cmd_arg_valid() {
+        assert_eq!(
+            SmbClient::escape_smb_cmd_arg("regular\\path\\file.txt").unwrap(),
+            "regular\\path\\file.txt"
+        );
+        assert_eq!(
+            SmbClient::escape_smb_cmd_arg("name with spaces.pdf").unwrap(),
+            "name with spaces.pdf"
+        );
+    }
+
+    #[test]
+    fn test_escape_smb_cmd_arg_escapes_quotes() {
+        assert_eq!(
+            SmbClient::escape_smb_cmd_arg("file_with_\"quote\".txt").unwrap(),
+            "file_with_\\\"quote\\\".txt"
+        );
+    }
+
+    #[test]
+    fn test_escape_smb_cmd_arg_rejects_semicolon_command_injection() {
+        let injected = "folder\"; deltree \"root; ls";
+        let res = SmbClient::escape_smb_cmd_arg(injected);
+        assert!(res.is_err(), "Semicolon injection must be rejected");
+        assert!(res.unwrap_err().contains("semicolon command delimiter"));
+    }
+
+    #[test]
+    fn test_escape_smb_cmd_arg_rejects_newlines_and_carriage_returns() {
+        let res_nl = SmbClient::escape_smb_cmd_arg("folder\ndeltree root");
+        assert!(res_nl.is_err(), "Newline injection must be rejected");
+
+        let res_cr = SmbClient::escape_smb_cmd_arg("folder\rdeltree root");
+        assert!(res_cr.is_err(), "Carriage return injection must be rejected");
     }
 }

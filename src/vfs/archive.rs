@@ -1445,28 +1445,37 @@ impl ArchiveHandler {
             info!("Extracted tar.bz2 {} to {}", archive_path_str, target_dir_str);
             Ok(())
         } else {
+            let abs_archive = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
+            let abs_target = std::fs::canonicalize(target).unwrap_or_else(|_| target.to_path_buf());
+            let archive_str = abs_archive.to_string_lossy();
+            let target_str = abs_target.to_string_lossy();
+
             let status = std::process::Command::new("tar")
-                .arg("-xf")
-                .arg(archive_path_str)
                 .arg("-C")
-                .arg(target_dir_str)
+                .arg(target_str.as_ref())
+                .arg("-xf")
+                .arg(archive_str.as_ref())
+                .arg("--")
                 .status();
 
             if let Ok(s) = status {
                 if s.success() {
+                    Self::verify_extracted_dir_limits(target)?;
                     return Ok(());
                 }
             }
 
             let status_7z = std::process::Command::new("7z")
                 .arg("x")
-                .arg(format!("-o{}", target_dir_str))
-                .arg(archive_path_str)
+                .arg(format!("-o{}", target_str))
                 .arg("-y")
+                .arg("--")
+                .arg(archive_str.as_ref())
                 .status();
 
             if let Ok(s) = status_7z {
                 if s.success() {
+                    Self::verify_extracted_dir_limits(target)?;
                     return Ok(());
                 }
             }
@@ -1476,6 +1485,50 @@ impl ArchiveHandler {
                 format!("Unsupported archive format for extraction: {}", archive_path_str),
             ))
         }
+    }
+
+    /// Verifies that extracted directory contents do not exceed safety limits (zip bomb defense)
+    pub fn verify_extracted_dir_limits(target: &Path) -> Result<(), std::io::Error> {
+        const MAX_EXTRACTION_BYTES: u64 = 50 * 1024 * 1024 * 1024; // 50 GB
+        const MAX_EXTRACTION_ENTRIES: usize = 100_000;
+
+        let mut total_bytes: u64 = 0;
+        let mut entry_count: usize = 0;
+
+        fn walk(
+            dir: &Path,
+            total_bytes: &mut u64,
+            entry_count: &mut usize,
+        ) -> Result<(), std::io::Error> {
+            if !dir.is_dir() {
+                return Ok(());
+            }
+            for entry in fs::read_dir(dir)? {
+                let entry = entry?;
+                *entry_count += 1;
+                if *entry_count > MAX_EXTRACTION_ENTRIES {
+                    return Err(std::io::Error::new(
+                        std::io::ErrorKind::InvalidData,
+                        "Archive extraction exceeded maximum entry limit (possible zip/tar bomb)",
+                    ));
+                }
+                let meta = entry.metadata()?;
+                if meta.is_file() {
+                    *total_bytes += meta.len();
+                    if *total_bytes > MAX_EXTRACTION_BYTES {
+                        return Err(std::io::Error::new(
+                            std::io::ErrorKind::InvalidData,
+                            "Archive extraction exceeded maximum uncompressed size (possible zip/tar bomb)",
+                        ));
+                    }
+                } else if meta.is_dir() {
+                    walk(&entry.path(), total_bytes, entry_count)?;
+                }
+            }
+            Ok(())
+        }
+
+        walk(target, &mut total_bytes, &mut entry_count)
     }
 
     pub fn create_zip(source_paths: &[String], target_archive: &str) -> Result<(), std::io::Error> {
