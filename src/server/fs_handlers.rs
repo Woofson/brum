@@ -834,8 +834,29 @@ pub struct TestRemoteRequest {
 }
 
 pub async fn handle_test_remote(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<TestRemoteRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let is_admin = claims.role.eq_ignore_ascii_case("admin");
+    if !is_admin {
+        return Err((StatusCode::FORBIDDEN, "Testing remote network connections is restricted to administrators".to_string()));
+    }
+
+    let host_to_check = if let Some((_, h)) = crate::server::middleware::extract_remote_scheme_host(&payload.host) {
+        h
+    } else {
+        payload.host.clone()
+    };
+    let allow_loopback = state.config.storage.allow_remote_loopback;
+    if crate::server::middleware::is_prohibited_remote_host(&host_to_check, allow_loopback) {
+        return Err((
+            StatusCode::FORBIDDEN,
+            format!("Access denied: Destination '{}' is a prohibited loopback, link-local, or cloud metadata target", host_to_check),
+        ));
+    }
+
     match payload.protocol.to_lowercase().as_str() {
         "sftp" => {
             let port = payload.port.unwrap_or(22);

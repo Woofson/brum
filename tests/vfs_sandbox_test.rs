@@ -188,10 +188,25 @@ async fn test_vfs_path_access_scheme_and_roots_fail_closed() {
     let res = validate_path_access(&state, &headers, fake_scheme_path, false);
     assert!(res.is_err(), "Fake scheme embedding inside path must not bypass sandbox validation!");
 
-    // Real remote scheme prefix
-    let real_remote = "sftp://user@host/path";
+    // Real remote scheme prefix without entitlement: non-admin MUST be rejected (403 Forbidden)
+    let real_remote = "sftp://user@remote.example.com/path";
     let res_remote = validate_path_access(&state, &headers, real_remote, false);
-    assert!(res_remote.is_ok(), "Real leading protocol prefix must be allowed!");
+    assert!(res_remote.is_err(), "Non-admin without explicit remote permission must be rejected!");
+    assert_eq!(res_remote.unwrap_err().0.as_u16(), 403);
+
+    // Admin user accessing valid remote scheme must be allowed
+    let admin_user = state.auth.create_user(
+        "adminuser",
+        "pass123",
+        "admin",
+        &tmp.path().join("home").to_string_lossy(),
+        Some("[\"*\"]"),
+    ).unwrap();
+    let admin_token = state.auth.generate_token(&admin_user).unwrap();
+    let mut admin_headers = HeaderMap::new();
+    admin_headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {}", admin_token).parse().unwrap());
+    let res_admin = validate_path_access(&state, &admin_headers, "sftp://user@remote.example.com/path", false);
+    assert!(res_admin.is_ok(), "Admin user must be allowed remote schemes!");
 }
 
 #[tokio::test]
@@ -365,4 +380,133 @@ async fn test_dangling_symlink_escape_rejected() {
         );
     }
 }
+
+#[tokio::test]
+async fn test_remote_network_schemes_authorization_and_ssrf() {
+    let tmp = tempdir().unwrap();
+    let mut config = AppConfig::default();
+    config.server.enable_auth = true;
+    config.server.standalone = false;
+    config.server.database_path = tmp.path().join("test_remote.db").to_string_lossy().to_string();
+    config.storage.roots = vec![
+        brum::config::StorageRoot {
+            id: "safe-root".to_string(),
+            name: "Safe Root".to_string(),
+            path: tmp.path().to_string_lossy().to_string(),
+            read_only: false,
+            allowed_roles: vec![],
+        },
+    ];
+
+    let state = brum::create_app_state(&config, None).unwrap();
+
+    // 1. Regular user without remote permissions
+    let normal_user = state.auth.create_user(
+        "regular_joe",
+        "pass123",
+        "user",
+        &tmp.path().to_string_lossy(),
+        Some("[\"safe-root\"]"),
+    ).unwrap();
+    let user_token = state.auth.generate_token(&normal_user).unwrap();
+    let mut user_headers = HeaderMap::new();
+    user_headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {}", user_token).parse().unwrap());
+
+    // Remote network schemes must all be blocked for non-admin
+    let blocked_schemes = [
+        "sftp://files.example.com/file.txt",
+        "ssh://host.example.com/path",
+        "smb://nas.corp/share",
+        "samba://nas.corp/share",
+        "webdav://storage.corp/data",
+        "webdavs://storage.corp/data",
+        "s3://my-bucket/key",
+        "s3s://my-bucket/key",
+        "nfs://nfs.corp/export",
+        "http://files.corp/download",
+        "https://files.corp/download",
+    ];
+
+    for uri in &blocked_schemes {
+        let res = validate_path_access(&state, &user_headers, uri, false);
+        assert!(res.is_err(), "Non-admin must be blocked from remote scheme: {}", uri);
+        assert_eq!(res.unwrap_err().0.as_u16(), 403, "Status code must be 403 Forbidden for {}", uri);
+    }
+
+    // Local virtual schemes are permitted
+    assert!(validate_path_access(&state, &user_headers, "vault://my-vault/secret", false).is_ok());
+    assert!(validate_path_access(&state, &user_headers, "archive:///tmp/test.zip#inner", false).is_ok());
+    assert!(validate_path_access(&state, &user_headers, "trash:///tmp/trash/item", false).is_ok());
+
+    // 2. Entitled non-admin user with explicit remote entitlement
+    let entitled_user = state.auth.create_user(
+        "entitled_joe",
+        "pass123",
+        "user",
+        &tmp.path().to_string_lossy(),
+        Some("[\"sftp://allowed.remote.org/\"]"),
+    ).unwrap();
+    let entitled_token = state.auth.generate_token(&entitled_user).unwrap();
+    let mut entitled_headers = HeaderMap::new();
+    entitled_headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {}", entitled_token).parse().unwrap());
+
+    assert!(
+        validate_path_access(&state, &entitled_headers, "sftp://allowed.remote.org/file.txt", false).is_ok(),
+        "Entitled user must be allowed on their granted remote root"
+    );
+    assert!(
+        validate_path_access(&state, &entitled_headers, "sftp://forbidden.remote.org/file.txt", false).is_err(),
+        "Entitled user must be blocked from other remote endpoints"
+    );
+
+    // 3. Admin user: allowed on legitimate external targets, but blocked from SSRF destinations
+    let admin_user = state.auth.create_user(
+        "superadmin",
+        "pass123",
+        "admin",
+        &tmp.path().to_string_lossy(),
+        Some("[\"*\"]"),
+    ).unwrap();
+    let admin_token = state.auth.generate_token(&admin_user).unwrap();
+    let mut admin_headers = HeaderMap::new();
+    admin_headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {}", admin_token).parse().unwrap());
+
+    // Legitimate remote destinations allowed
+    assert!(validate_path_access(&state, &admin_headers, "sftp://user@remote.example.com/path", false).is_ok());
+    assert!(validate_path_access(&state, &admin_headers, "smb://user@nas.example.com/share", false).is_ok());
+
+    // SSRF targets blocked even for admin
+    let ssrf_targets = [
+        "sftp://127.0.0.1/etc/passwd",
+        "sftp://127.0.0.2:22/path",
+        "sftp://localhost/path",
+        "sftp://[::1]:22/path",
+        "sftp://0.0.0.0/path",
+        "sftp://169.254.169.254/latest/meta-data",
+        "webdav://metadata.google.internal/computeMetadata",
+        "smb://instance-data/share",
+        "sftp://2130706433/path",     // Decimal 127.0.0.1
+        "sftp://0177.0.0.1/path",      // Octal 127.0.0.1
+        "sftp://0x7f.0.0.1/path",      // Hex 127.0.0.1
+    ];
+
+    for ssrf_uri in &ssrf_targets {
+        let res = validate_path_access(&state, &admin_headers, ssrf_uri, false);
+        assert!(res.is_err(), "SSRF target must be blocked: {}", ssrf_uri);
+        assert_eq!(res.unwrap_err().0.as_u16(), 403, "Status code must be 403 for SSRF target: {}", ssrf_uri);
+    }
+
+    // 4. Configuration override: allow_remote_loopback = true allows 127.0.0.1, but metadata remains blocked
+    let mut loopback_allowed_config = config.clone();
+    loopback_allowed_config.storage.allow_remote_loopback = true;
+    let loopback_state = brum::create_app_state(&loopback_allowed_config, None).unwrap();
+
+    let res_loopback = validate_path_access(&loopback_state, &admin_headers, "sftp://127.0.0.1/path", false);
+    assert!(res_loopback.is_ok(), "Loopback allowed when explicitly configured in storage config");
+
+    let res_metadata = validate_path_access(&loopback_state, &admin_headers, "sftp://169.254.169.254/latest/meta-data", false);
+    assert!(res_metadata.is_err(), "Cloud metadata must still be blocked even when allow_remote_loopback is enabled");
+    assert_eq!(res_metadata.unwrap_err().0.as_u16(), 403);
+}
+
 

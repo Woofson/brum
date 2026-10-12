@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::net::{IpAddr, Ipv4Addr, ToSocketAddrs};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use std::time::Instant;
@@ -910,6 +911,162 @@ pub fn is_path_or_canonical_within(target: &Path, root: &Path) -> bool {
     false
 }
 
+/// Determines if an IP address belongs to loopback, link-local, cloud metadata, or unspecified ranges.
+pub fn is_prohibited_remote_ip(ip: &IpAddr, allow_loopback: bool) -> bool {
+    match ip {
+        IpAddr::V4(v4) => {
+            let octets = v4.octets();
+            // Loopback: 127.0.0.0/8
+            if !allow_loopback && (octets[0] == 127 || v4.is_loopback()) {
+                return true;
+            }
+            // Link-local / Cloud Metadata: 169.254.0.0/16
+            if octets[0] == 169 && octets[1] == 254 {
+                return true;
+            }
+            // Current network / Unspecified: 0.0.0.0/8
+            if octets[0] == 0 || v4.is_unspecified() {
+                return true;
+            }
+            // Broadcast: 255.255.255.255
+            if v4.is_broadcast() {
+                return true;
+            }
+            false
+        }
+        IpAddr::V6(v6) => {
+            let octets = v6.octets();
+            // Loopback: ::1
+            if !allow_loopback && v6.is_loopback() {
+                return true;
+            }
+            // Unspecified: ::
+            if v6.is_unspecified() {
+                return true;
+            }
+            // Link-local: fe80::/10
+            if octets[0] == 0xfe && (octets[1] & 0xc0) == 0x80 {
+                return true;
+            }
+            // IPv4-mapped IPv6 (::ffff:x.x.x.x)
+            if octets[0..10] == [0; 10] && octets[10] == 0xff && octets[11] == 0xff {
+                let v4 = Ipv4Addr::new(octets[12], octets[13], octets[14], octets[15]);
+                return is_prohibited_remote_ip(&IpAddr::V4(v4), allow_loopback);
+            }
+            // IPv4-compatible IPv6 (::x.x.x.x)
+            if octets[0..12] == [0; 12] && (octets[12] != 0 || octets[13] != 0 || octets[14] != 0 || octets[15] > 1) {
+                let v4 = Ipv4Addr::new(octets[12], octets[13], octets[14], octets[15]);
+                return is_prohibited_remote_ip(&IpAddr::V4(v4), allow_loopback);
+            }
+            false
+        }
+    }
+}
+
+/// Validates whether a remote hostname/IP targets internal infrastructure (anti-SSRF check).
+pub fn is_prohibited_remote_host(host: &str, allow_loopback: bool) -> bool {
+    let clean_host = host
+        .trim()
+        .trim_matches('[')
+        .trim_matches(']')
+        .trim_end_matches('.')
+        .to_ascii_lowercase();
+
+    if clean_host.is_empty() {
+        return true;
+    }
+
+    // 1. Hostname checks for loopback and cloud metadata
+    if !allow_loopback && (clean_host == "localhost" || clean_host.ends_with(".localhost")) {
+        return true;
+    }
+    if clean_host == "metadata.google.internal"
+        || clean_host.ends_with(".metadata.google.internal")
+        || clean_host == "instance-data"
+        || clean_host.ends_with(".instance-data")
+    {
+        return true;
+    }
+
+    // 2. Direct IP parsing (standard IPv4 / IPv6)
+    if let Ok(ip) = clean_host.parse::<IpAddr>() {
+        return is_prohibited_remote_ip(&ip, allow_loopback);
+    }
+
+    // 3. Decimal integer notation (e.g. 2130706433 -> 127.0.0.1)
+    if let Ok(num) = clean_host.parse::<u32>() {
+        let v4 = Ipv4Addr::from(num);
+        return is_prohibited_remote_ip(&IpAddr::V4(v4), allow_loopback);
+    }
+
+    // 4. Hex / Octal dotted IPv4 parsing (e.g. 0177.0.0.1, 0x7f.0.0.1)
+    let parts: Vec<&str> = clean_host.split('.').collect();
+    if parts.len() == 4 {
+        let mut octets = [0u8; 4];
+        let mut parsed_all = true;
+        for (i, p) in parts.iter().enumerate() {
+            let val = if p.starts_with("0x") || p.starts_with("0X") {
+                u8::from_str_radix(&p[2..], 16).ok()
+            } else if p.starts_with('0') && p.len() > 1 {
+                u8::from_str_radix(&p[1..], 8).ok()
+            } else {
+                p.parse::<u8>().ok()
+            };
+            if let Some(v) = val {
+                octets[i] = v;
+            } else {
+                parsed_all = false;
+                break;
+            }
+        }
+        if parsed_all {
+            let v4 = Ipv4Addr::new(octets[0], octets[1], octets[2], octets[3]);
+            if is_prohibited_remote_ip(&IpAddr::V4(v4), allow_loopback) {
+                return true;
+            }
+        }
+    }
+
+    // 5. DNS resolution check (detect domains resolving to loopback/metadata targets)
+    if let Ok(addrs) = (clean_host.as_str(), 80).to_socket_addrs() {
+        for addr in addrs {
+            if is_prohibited_remote_ip(&addr.ip(), allow_loopback) {
+                return true;
+            }
+        }
+    }
+
+    false
+}
+
+/// Extracts the scheme and target host from a remote network URI.
+/// Returns Some((scheme, host)) if the path starts with a recognized network protocol.
+pub fn extract_remote_scheme_host(raw_path: &str) -> Option<(String, String)> {
+    let (scheme, remainder) = raw_path.split_once("://")?;
+    let scheme_lower = scheme.to_ascii_lowercase();
+    match scheme_lower.as_str() {
+        "sftp" | "ssh" | "smb" | "samba" | "webdav" | "webdavs" | "s3" | "s3s" | "nfs" | "http" | "https" => {}
+        _ => return None,
+    }
+
+    let authority = remainder.split(['/', '?', '#']).next().unwrap_or(remainder);
+    let host_port = authority.rsplit_once('@').map(|(_, h)| h).unwrap_or(authority);
+
+    let host = if host_port.starts_with('[') {
+        if let Some(end_bracket) = host_port.find(']') {
+            &host_port[1..end_bracket]
+        } else {
+            host_port
+        }
+    } else if let Some(colon_idx) = host_port.find(':') {
+        &host_port[..colon_idx]
+    } else {
+        host_port
+    };
+
+    Some((scheme_lower, host.trim().to_string()))
+}
+
 pub fn validate_path_access(
     state: &AppState,
     headers: &HeaderMap,
@@ -927,20 +1084,42 @@ pub fn validate_path_access(
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot modify or delete files".to_string()));
     }
 
-    // Remote protocols bypass local storage root checks only if they start with a valid scheme prefix
-    let is_remote_or_special_scheme = raw_path.starts_with("sftp://")
-        || raw_path.starts_with("webdav://")
-        || raw_path.starts_with("webdavs://")
-        || raw_path.starts_with("s3://")
-        || raw_path.starts_with("s3s://")
-        || raw_path.starts_with("smb://")
-        || raw_path.starts_with("samba://")
-        || raw_path.starts_with("vault://")
+    // 1. Remote network scheme check: enforce admin or explicit entitlement authorization, plus anti-SSRF protections
+    if let Some((scheme, host)) = extract_remote_scheme_host(raw_path) {
+        let is_admin = user_role.eq_ignore_ascii_case("admin");
+        let has_explicit_remote_perm = allowed_roots.iter().any(|r| {
+            r == "remote"
+                || r == "*://*"
+                || r.eq_ignore_ascii_case(&scheme)
+                || r.eq_ignore_ascii_case(&format!("{}://*", scheme))
+                || raw_path.starts_with(r)
+        });
+
+        if !is_admin && !has_explicit_remote_perm {
+            return Err((
+                StatusCode::FORBIDDEN,
+                format!("Access denied: Remote network scheme '{}' is restricted to administrators or explicitly authorized users", scheme),
+            ));
+        }
+
+        let allow_loopback = state.config.storage.allow_remote_loopback;
+        if is_prohibited_remote_host(&host, allow_loopback) {
+            return Err((
+                StatusCode::FORBIDDEN,
+                format!("Access denied: Remote destination '{}' is a prohibited loopback, link-local, or cloud metadata target", host),
+            ));
+        }
+
+        return Ok(raw_path.to_string());
+    }
+
+    // 2. Local virtual schemes (vault://, archive://, image://, trash://)
+    let is_local_virtual_scheme = raw_path.starts_with("vault://")
         || raw_path.starts_with("archive://")
         || raw_path.starts_with("image://")
         || raw_path.starts_with("trash://");
 
-    if is_remote_or_special_scheme {
+    if is_local_virtual_scheme {
         return Ok(raw_path.to_string());
     }
 

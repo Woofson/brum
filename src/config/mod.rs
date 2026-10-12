@@ -379,6 +379,8 @@ impl Default for SftpConfig {
 pub struct StorageConfig {
     #[serde(default = "default_false")]
     pub allow_entire_system: bool,
+    #[serde(default = "default_false")]
+    pub allow_remote_loopback: bool,
     #[serde(default = "default_user_home_template")]
     pub default_user_home_template: String,
     #[serde(default = "default_home_fallback_scheme")]
@@ -399,6 +401,7 @@ impl Default for StorageConfig {
     fn default() -> Self {
         Self {
             allow_entire_system: false,
+            allow_remote_loopback: false,
             default_user_home_template: default_user_home_template(),
             home_fallback_scheme: default_home_fallback_scheme(),
             auto_create_home_dirs: true,
