@@ -1149,6 +1149,22 @@ impl AuthManager {
         Ok(token)
     }
 
+    pub fn mint_token_for_claims(&self, claims: &Claims) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let mut claims = claims.clone();
+        if claims.exp <= Utc::now().timestamp() {
+            claims.exp = Utc::now()
+                .checked_add_signed(Duration::hours(self.session_hours as i64))
+                .expect("valid timestamp")
+                .timestamp();
+        }
+        let token = encode(
+            &Header::default(),
+            &claims,
+            &EncodingKey::from_secret(self.jwt_secret.as_bytes()),
+        )?;
+        Ok(token)
+    }
+
     pub fn create_api_token(
         &self,
         username: &str,

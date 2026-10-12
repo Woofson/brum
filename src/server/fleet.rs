@@ -158,7 +158,7 @@ pub fn resolve_target_node(
             id: n.id.clone(),
             name: n.name.clone(),
             endpoint_url: n.url.trim_end_matches('/').to_string(),
-            auth_token: n.token.clone(),
+            auth_token: n.token.clone().filter(|t| !t.trim().is_empty()),
         });
     }
 
@@ -287,17 +287,26 @@ async fn forward_fleet_http_request(
     }
 
     // Set Authorization header for remote node
-    if let Some(ref tok) = target.auth_token {
-        if !tok.trim().is_empty() {
-            req_builder = req_builder.header(
-                reqwest::header::AUTHORIZATION,
-                format!("Bearer {}", tok.trim()),
-            );
-        }
+    let effective_token = target
+        .auth_token
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty());
+
+    if let Some(tok) = effective_token {
+        req_builder = req_builder.header(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {}", tok),
+        );
     } else if let Some(auth_hdr) = headers.get(header::AUTHORIZATION) {
         if let Ok(val_str) = auth_hdr.to_str() {
             req_builder = req_builder.header(reqwest::header::AUTHORIZATION, val_str);
         }
+    } else if let Ok(minted) = state.auth.mint_token_for_claims(&_claims) {
+        req_builder = req_builder.header(
+            reqwest::header::AUTHORIZATION,
+            format!("Bearer {}", minted),
+        );
     }
 
     // Stream body
@@ -395,12 +404,42 @@ pub async fn handle_fleet_ws_proxy(
         .map(|(k, v)| format!("{}={}", urlencoding_encode(k), urlencoding_encode(v)))
         .collect();
 
-    if let Some(ref tok) = target.auth_token {
-        if !tok.trim().is_empty() {
-            query_pairs.push(format!("token={}", urlencoding_encode(tok.trim())));
-        }
-    } else if let Some(tok) = query.get("token").or_else(|| query.get("cd_token")) {
-        query_pairs.push(format!("token={}", urlencoding_encode(tok.trim())));
+    // Resolve token: target node token -> incoming token (query/header/cookie) -> minted token
+    let effective_token = target
+        .auth_token
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string())
+        .or_else(|| {
+            query.get("token")
+                .or_else(|| query.get("cd_token"))
+                .or_else(|| query.get("auth"))
+                .map(|s| s.trim().to_string())
+        })
+        .or_else(|| {
+            headers.get(header::AUTHORIZATION)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|v| v.strip_prefix("Bearer "))
+                .map(|s| s.trim().to_string())
+        })
+        .or_else(|| {
+            headers.get(header::COOKIE)
+                .and_then(|v| v.to_str().ok())
+                .and_then(|cookie_hdr| {
+                    for pair in cookie_hdr.split(';') {
+                        let pair = pair.trim();
+                        if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
+                            return Some(tok.trim().to_string());
+                        }
+                    }
+                    None
+                })
+        })
+        .or_else(|| state.auth.mint_token_for_claims(&claims).ok());
+
+    if let Some(ref tok) = effective_token {
+        query_pairs.push(format!("token={}", urlencoding_encode(tok)));
     }
 
     let q_str = if query_pairs.is_empty() {
@@ -427,6 +466,12 @@ async fn tunnel_websocket(client_socket: WebSocket, remote_ws_url: String) {
                 "Failed to establish remote fleet WebSocket connection to {}: {}",
                 remote_ws_url, e
             );
+            let mut client = client_socket;
+            let err_text = format!(
+                "\r\n\x1b[31m[Fleet Gateway] Failed to connect to remote node WebSocket:\x1b[0m\r\n\x1b[33m{}\x1b[0m\r\n\r\n\x1b[90mTarget: {}\x1b[0m\r\n",
+                e, remote_ws_url
+            );
+            let _ = client.send(AxumMessage::Text(err_text)).await;
             return;
         }
     };
