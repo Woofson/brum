@@ -16,6 +16,15 @@
 
 ---
 
+> [!WARNING]
+> **Network Security & Exposure Disclaimer**
+> Brum is designed and intended to run on **local workstations, homelabs, and private overlay networks** (such as Tailscale, NetBird, or WireGuard).
+>
+> **Never expose Brum directly to the public internet.**
+> As a comprehensive administrative environment featuring host filesystem management, integrated terminal PTY execution, and power tools, exposing Brum directly without a trusted VPN or authenticated overlay network introduces significant attack surface. If remote access is necessary, always access Brum through a private overlay mesh or an authenticated VPN. See the [Reverse Proxy & Mesh VPN Guide](manuals/reverse-proxy.md) for recommended deployment topologies.
+
+---
+
 ## Why Brum?
 
 Brum is a fast, multi-pane file management environment built in Rust. It combines the keyboard precision and speed of classic orthodox file managers with a modern web and desktop workspace:
