@@ -53,6 +53,9 @@ credentials.json
 service-account*.json
 *_secret*
 *_token*
+*-config.toml
+*griffon*
+*goshawk*
 
 # --- Runtime Logs, Dumps & Scratch Diagnostic Files ---
 *.log
