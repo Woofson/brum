@@ -51,6 +51,15 @@ pub fn create_app_state(
     let auth_mgr_arc = Arc::new(auth_mgr);
     let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
 
+    if instance_info.is_some() {
+        let bind_host = if config.server.host.is_empty() {
+            "127.0.0.1"
+        } else {
+            &config.server.host
+        };
+        crate::instance::assert_loopback_bind(bind_host)?;
+    }
+
     Ok(AppState {
         config: Arc::new(config.clone()),
         auth: auth_mgr_arc,

@@ -258,6 +258,16 @@ pub async fn auth_middleware(
     };
 
     if let Some(ref inst) = state.instance_info {
+        if !crate::instance::is_loopback_host(&state.config.server.host) {
+            tracing::warn!("Instance token rejected: server is not bound to a loopback address");
+            return Err((
+                StatusCode::FORBIDDEN,
+                Json(serde_json::json!({
+                    "error": "Access denied: Instance tokens are only valid on loopback bindings"
+                })),
+            ));
+        }
+
         let is_valid_token = provided_instance_token.as_deref().map_or(false, |tok| {
             use subtle::ConstantTimeEq;
             bool::from(tok.as_bytes().ct_eq(inst.instance_token.as_bytes()))
@@ -1076,9 +1086,10 @@ pub fn validate_path_access(
     let claims = extract_claims_or_local(state, headers)?;
     let user_role = claims.role.as_str();
     let effective_home_opt = resolve_effective_home(&claims, state);
-    let allowed_roots: Vec<String> = claims.allowed_roots.as_deref()
+    let mut allowed_roots: Vec<String> = claims.allowed_roots.as_deref()
         .and_then(|json| serde_json::from_str(json).ok())
         .unwrap_or_default();
+    allowed_roots.retain(|r| !r.trim().is_empty());
 
     if user_role.eq_ignore_ascii_case("readonly") && is_write {
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot modify or delete files".to_string()));
@@ -1088,11 +1099,15 @@ pub fn validate_path_access(
     if let Some((scheme, host)) = extract_remote_scheme_host(raw_path) {
         let is_admin = user_role.eq_ignore_ascii_case("admin");
         let has_explicit_remote_perm = allowed_roots.iter().any(|r| {
-            r == "remote"
-                || r == "*://*"
-                || r.eq_ignore_ascii_case(&scheme)
-                || r.eq_ignore_ascii_case(&format!("{}://*", scheme))
-                || raw_path.starts_with(r)
+            let r_clean = r.trim();
+            if r_clean.is_empty() {
+                return false;
+            }
+            r_clean == "remote"
+                || r_clean == "*://*"
+                || r_clean.eq_ignore_ascii_case(&scheme)
+                || r_clean.eq_ignore_ascii_case(&format!("{}://*", scheme))
+                || raw_path.starts_with(r_clean)
         });
 
         if !is_admin && !has_explicit_remote_perm {
@@ -1219,6 +1234,53 @@ pub fn expand_tilde(path_str: &str) -> String {
     }
 }
 
+/// Evaluates whether an IP address matches the trusted proxies whitelist,
+/// supporting both exact IP matches (e.g. "127.0.0.1", "::1") and CIDR subnets (e.g. "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16").
+pub fn is_ip_trusted(ip_str: &str, trusted_proxies: &[String]) -> bool {
+    let clean_ip = ip_str.trim();
+    if clean_ip.is_empty() {
+        return false;
+    }
+    let target_ip: std::net::IpAddr = match clean_ip.parse() {
+        Ok(ip) => ip,
+        Err(_) => return false,
+    };
+
+    for proxy in trusted_proxies {
+        let p = proxy.trim();
+        if p.is_empty() {
+            continue;
+        }
+        if p.eq_ignore_ascii_case(clean_ip) {
+            return true;
+        }
+        if let Some((cidr_ip_str, prefix_str)) = p.split_once('/') {
+            if let Ok(prefix) = prefix_str.parse::<u8>() {
+                match (target_ip, cidr_ip_str.trim().parse::<std::net::IpAddr>()) {
+                    (std::net::IpAddr::V4(t4), Ok(std::net::IpAddr::V4(c4))) => {
+                        if prefix <= 32 {
+                            let mask = if prefix == 0 { 0 } else { !0u32 << (32 - prefix) };
+                            if (u32::from(t4) & mask) == (u32::from(c4) & mask) {
+                                return true;
+                            }
+                        }
+                    }
+                    (std::net::IpAddr::V6(t6), Ok(std::net::IpAddr::V6(c6))) => {
+                        if prefix <= 128 {
+                            let mask = if prefix == 0 { 0 } else { !0u128 << (128 - prefix) };
+                            if (u128::from(t6) & mask) == (u128::from(c6) & mask) {
+                                return true;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+    false
+}
+
 fn find_rightmost_untrusted_ip<'a>(
     forwarded: &'a str,
     trusted_proxies: &[String],
@@ -1228,8 +1290,7 @@ fn find_rightmost_untrusted_ip<'a>(
         if ip.is_empty() {
             continue;
         }
-        let is_trusted = trusted_proxies.iter().any(|p| p.trim() == ip);
-        if !is_trusted {
+        if !is_ip_trusted(ip, trusted_proxies) {
             return Some(ip);
         }
     }
@@ -1243,7 +1304,7 @@ pub fn resolve_client_ip(
 ) -> String {
     if let Some(peer) = peer_addr {
         let peer_ip = peer.ip().to_string();
-        let is_trusted = trusted_proxies.iter().any(|p| p.trim() == peer_ip);
+        let is_trusted = is_ip_trusted(&peer_ip, trusted_proxies);
 
         if is_trusted {
             if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
@@ -1253,7 +1314,7 @@ pub fn resolve_client_ip(
             }
             if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
                 let trimmed = real_ip.trim();
-                let is_real_trusted = trusted_proxies.iter().any(|p| p.trim() == trimmed);
+                let is_real_trusted = is_ip_trusted(trimmed, trusted_proxies);
                 if !trimmed.is_empty() && !is_real_trusted {
                     return trimmed.to_string();
                 }
@@ -1271,7 +1332,7 @@ pub fn resolve_client_ip(
         }
         if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
             let trimmed = real_ip.trim();
-            let is_real_trusted = trusted_proxies.iter().any(|p| p.trim() == trimmed);
+            let is_real_trusted = is_ip_trusted(trimmed, trusted_proxies);
             if !trimmed.is_empty() && !is_real_trusted {
                 return trimmed.to_string();
             }

@@ -99,6 +99,8 @@ pub struct ServerConfig {
     pub server_name: String,
     #[serde(default)]
     pub trusted_proxies: Vec<String>,
+    #[serde(default)]
+    pub allowed_origins: Vec<String>,
 }
 
 impl Default for ServerConfig {
@@ -115,6 +117,7 @@ impl Default for ServerConfig {
             database_path: default_db_path(),
             server_name: String::new(),
             trusted_proxies: Vec::new(),
+            allowed_origins: Vec::new(),
         }
     }
 }

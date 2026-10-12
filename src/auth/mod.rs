@@ -212,6 +212,18 @@ pub struct AuthManager {
     cached_pam_service: Arc<std::sync::RwLock<Option<String>>>,
 }
 
+pub fn sanitize_roots_json(roots_opt: Option<&str>) -> String {
+    if let Some(r_str) = roots_opt {
+        if let Ok(vec) = serde_json::from_str::<Vec<String>>(r_str) {
+            let clean: Vec<String> = vec.into_iter().filter(|s| !s.trim().is_empty()).collect();
+            return serde_json::to_string(&clean).unwrap_or_else(|_| "[\"*\"]".to_string());
+        }
+        r_str.to_string()
+    } else {
+        "[\"*\"]".to_string()
+    }
+}
+
 impl AuthManager {
     pub fn new(
         db_path: &str,
@@ -606,7 +618,7 @@ impl AuthManager {
 
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let now = Utc::now().to_rfc3339();
-        let roots_json = allowed_roots.unwrap_or("[\"*\"]");
+        let roots_json = sanitize_roots_json(allowed_roots);
 
         conn.execute(
             "INSERT INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, ?2, ?3, ?4, '[\"*\"]', ?5, 0, '[\"*\"]', '[]', 0, 0, ?6)",
@@ -648,7 +660,7 @@ impl AuthManager {
     ) -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let now = Utc::now().to_rfc3339();
-        let roots_json = allowed_roots.unwrap_or("[\"*\"]");
+        let roots_json = sanitize_roots_json(allowed_roots);
 
         conn.execute(
             "INSERT INTO users (username, password_hash, role, home_dir, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, created_at) VALUES (?1, 'OIDC_MANAGED', ?2, ?3, '[\"*\"]', ?4, 0, '[\"*\"]', '[]', 0, 0, ?5)",
@@ -860,7 +872,8 @@ impl AuthManager {
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let dis_int = if is_disabled { 1 } else { 0 };
-        let roots_str = allowed_roots.unwrap_or("[\"*\"]");
+        let roots_sanitized = sanitize_roots_json(allowed_roots);
+        let roots_str = &roots_sanitized;
         let can_inst_int = if can_install_plugins.unwrap_or(false) { 1 } else { 0 };
         let allowed_plugs_str = allowed_plugins.unwrap_or("[\"*\"]");
         let blocked_plugs_str = blocked_plugins.unwrap_or("[]");

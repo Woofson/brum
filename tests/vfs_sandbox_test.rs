@@ -541,5 +541,94 @@ async fn test_archive_extraction_limits_and_subprocess_hardening() {
     assert!(out_dir.join("sample.txt").exists());
 }
 
+#[tokio::test]
+async fn test_empty_allowed_roots_rejected_and_cannot_bypass_sandbox() {
+    let tmp = tempdir().unwrap();
+    let safe_dir = tmp.path().join("safe");
+    fs::create_dir_all(&safe_dir).unwrap();
 
+    let mut config = AppConfig::default();
+    config.server.enable_auth = true;
+    config.server.standalone = false;
+    config.server.database_path = tmp.path().join("test_empty_roots.db").to_string_lossy().to_string();
+    config.storage.allow_entire_system = false;
+    config.storage.roots.push(brum::config::StorageRoot {
+        id: "safe-root".to_string(),
+        name: "Safe Root".to_string(),
+        path: safe_dir.to_string_lossy().to_string(),
+        read_only: false,
+        allowed_roles: vec!["user".to_string()],
+    });
 
+    let state = brum::create_app_state(&config, None).unwrap();
+
+    // 1. Creating user with empty roots or whitespace-only roots strips them out
+    let user = state
+        .auth
+        .create_user(
+            "blank_root_user",
+            "pass123",
+            "user",
+            &safe_dir.to_string_lossy(),
+            Some("[\"\", \"  \", \"safe-root\"]"),
+        )
+        .unwrap();
+
+    let user_roots: Vec<String> =
+        serde_json::from_str(&user.allowed_roots).unwrap_or_default();
+    assert_eq!(
+        user_roots,
+        vec!["safe-root".to_string()],
+        "Empty string and whitespace roots must be sanitized during user creation"
+    );
+
+    let token = state.auth.generate_token(&user).unwrap();
+    let mut headers = HeaderMap::new();
+    headers.insert(reqwest::header::AUTHORIZATION, format!("Bearer {}", token).parse().unwrap());
+
+    // 2. Validate path access works for safe root
+    let safe_file = safe_dir.join("hello.txt");
+    fs::write(&safe_file, b"data").unwrap();
+    assert!(validate_path_access(&state, &headers, &safe_file.to_string_lossy(), false).is_ok());
+
+    // 3. Remote scheme cannot be bypassed
+    let remote_uri = "sftp://user@remote.example.com/secret";
+    let res_remote = validate_path_access(&state, &headers, remote_uri, false);
+    assert!(res_remote.is_err(), "Empty root must not allow remote scheme access");
+    assert_eq!(res_remote.unwrap_err().0.as_u16(), 403);
+
+    // 4. User created solely with empty strings has empty allowed_roots and cannot access paths outside home or remote schemes
+    let no_root_user = state
+        .auth
+        .create_user(
+            "empty_user",
+            "pass123",
+            "user",
+            &safe_dir.to_string_lossy(),
+            Some("[\"\"]"),
+        )
+        .unwrap();
+    let no_root_roots: Vec<String> =
+        serde_json::from_str(&no_root_user.allowed_roots).unwrap_or_default();
+    assert!(no_root_roots.is_empty(), "Empty strings must result in an empty root list");
+
+    let no_root_token = state.auth.generate_token(&no_root_user).unwrap();
+    let mut no_root_headers = HeaderMap::new();
+    no_root_headers.insert(
+        reqwest::header::AUTHORIZATION,
+        format!("Bearer {}", no_root_token).parse().unwrap(),
+    );
+
+    let outside_dir = tmp.path().join("outside");
+    fs::create_dir_all(&outside_dir).unwrap();
+    let outside_file = outside_dir.join("forbidden.txt");
+    fs::write(&outside_file, b"forbidden").unwrap();
+
+    let res_unauth = validate_path_access(&state, &no_root_headers, &outside_file.to_string_lossy(), false);
+    assert!(res_unauth.is_err(), "User with no valid roots cannot access paths outside home");
+    assert_eq!(res_unauth.unwrap_err().0.as_u16(), 403);
+
+    let res_remote2 = validate_path_access(&state, &no_root_headers, "sftp://evil.com/leak", false);
+    assert!(res_remote2.is_err(), "User with no valid roots cannot access remote schemes");
+    assert_eq!(res_remote2.unwrap_err().0.as_u16(), 403);
+}

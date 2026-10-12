@@ -193,13 +193,80 @@ pub fn extract_terminal_claims(
 }
 
 pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState) -> bool {
-    let clean_origin = origin
+    let origin = origin.trim();
+    if origin.is_empty() || origin == "null" {
+        return false;
+    }
+
+    let norm_origin = origin.trim_end_matches('/');
+
+    // 1. Explicitly configured allowed_origins whitelist (highest priority)
+    if !state.config.server.allowed_origins.is_empty() {
+        for allowed in &state.config.server.allowed_origins {
+            let allowed_norm = allowed.trim().trim_end_matches('/');
+            if allowed_norm == "*" || allowed_norm.eq_ignore_ascii_case(norm_origin) {
+                return true;
+            }
+        }
+        // In standalone/desktop mode, still allow local webview
+        if state.config.server.standalone
+            && (origin.starts_with("tauri://")
+                || origin.starts_with("http://tauri.localhost")
+                || origin.starts_with("https://tauri.localhost"))
+        {
+            return true;
+        }
+        return false;
+    }
+
+    // 2. Local Tauri / Desktop webview origins (allowed in standalone/desktop mode)
+    if (state.config.server.standalone || cfg!(windows) || cfg!(target_os = "macos"))
+        && (origin.starts_with("tauri://")
+            || origin.starts_with("http://tauri.localhost")
+            || origin.starts_with("https://tauri.localhost"))
+    {
+        return true;
+    }
+
+    let clean_origin = norm_origin
         .trim_start_matches("http://")
         .trim_start_matches("https://")
         .trim_start_matches("ws://")
-        .trim_start_matches("wss://")
-        .trim_end_matches('/');
+        .trim_start_matches("wss://");
 
+    // 3. Loopback origins (e.g. http://localhost:3140, http://127.0.0.1:3140)
+    let is_loopback = clean_origin == "localhost"
+        || clean_origin.starts_with("localhost:")
+        || clean_origin == "127.0.0.1"
+        || clean_origin.starts_with("127.0.0.1:")
+        || clean_origin == "[::1]"
+        || clean_origin.starts_with("[::1]:");
+
+    if is_loopback {
+        return true;
+    }
+
+    // 4. Server's own bound address if specific (not wildcard 0.0.0.0 / ::)
+    let cfg_host = state.config.server.host.trim();
+    let cfg_port = state.config.server.port;
+    if !cfg_host.is_empty() && cfg_host != "0.0.0.0" && cfg_host != "::" && cfg_host != "[::]" {
+        if clean_origin == format!("{}:{}", cfg_host, cfg_port) || clean_origin == cfg_host {
+            return true;
+        }
+    }
+
+    // 5. Configured server_name if non-empty
+    let srv_name = state.config.server.server_name.trim();
+    if !srv_name.is_empty() {
+        if clean_origin.eq_ignore_ascii_case(srv_name)
+            || clean_origin.eq_ignore_ascii_case(&format!("{}:{}", srv_name, cfg_port))
+        {
+            return true;
+        }
+    }
+
+    // 6. Trusted private/internal LAN hosts (e.g. *.local, *.lan, *.home.arpa, or RFC1918 IPs)
+    // Only permit matching Host/X-Forwarded-Host if the host is a local/private network address or trusted proxy
     let host_header = headers
         .get("x-forwarded-host")
         .or_else(|| headers.get(header::HOST))
@@ -208,32 +275,31 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
         .trim();
 
     if !host_header.is_empty() {
-        if clean_origin == host_header || clean_origin.split(':').next() == host_header.split(':').next() {
-            return true;
+        let (origin_host, _) = clean_origin.split_once(':').unwrap_or((clean_origin, ""));
+        let (req_host, _) = host_header.split_once(':').unwrap_or((host_header, ""));
+
+        if origin_host.eq_ignore_ascii_case(req_host) {
+            // Guard against DNS rebinding (e.g. evil.com -> local IP):
+            // Only allow Host matching if host is a local IP, .local, .lan, .home.arpa, or localhost
+            let is_safe_local_host = req_host.eq_ignore_ascii_case("localhost")
+                || req_host == "127.0.0.1"
+                || req_host == "[::1]"
+                || req_host.ends_with(".local")
+                || req_host.ends_with(".lan")
+                || req_host.ends_with(".home.arpa")
+                || if let Ok(ip) = req_host.parse::<std::net::IpAddr>() {
+                    match ip {
+                        std::net::IpAddr::V4(ipv4) => ipv4.is_loopback() || ipv4.is_private() || ipv4.is_link_local(),
+                        std::net::IpAddr::V6(ipv6) => ipv6.is_loopback(),
+                    }
+                } else {
+                    false
+                };
+
+            if is_safe_local_host {
+                return true;
+            }
         }
-    }
-
-    let cfg_host = state.config.server.host.trim();
-    let cfg_port = state.config.server.port;
-    if clean_origin == format!("{}:{}", cfg_host, cfg_port) || clean_origin == cfg_host {
-        return true;
-    }
-
-    // Allow loopback origins and local Tauri/desktop webview
-    let is_loopback = clean_origin == "localhost"
-        || clean_origin.starts_with("localhost:")
-        || clean_origin == "127.0.0.1"
-        || clean_origin.starts_with("127.0.0.1:")
-        || clean_origin == "[::1]"
-        || clean_origin.starts_with("[::1]:");
-
-    if is_loopback
-        || origin == "null"
-        || origin.starts_with("tauri://")
-        || origin.starts_with("http://tauri.localhost")
-        || origin.starts_with("https://tauri.localhost")
-    {
-        return true;
     }
 
     false

@@ -450,8 +450,8 @@ impl SmbClient {
         args
     }
 
-    /// Audits and strictly escapes arguments interpolated into smbclient -c command strings.
-    /// Rejects command delimiters (semicolons, newlines, carriage returns) and escapes double quotes.
+    /// Audits arguments interpolated into smbclient -c command strings.
+    /// Rejects command delimiters (semicolons, newlines, carriage returns) and double quotation marks.
     pub fn escape_smb_cmd_arg(arg: &str) -> VfsResult<String> {
         if arg.contains('\n') || arg.contains('\r') {
             return Err("SMB path contains illegal newline or carriage return characters".to_string());
@@ -459,9 +459,10 @@ impl SmbClient {
         if arg.contains(';') {
             return Err("SMB path contains illegal semicolon command delimiter".to_string());
         }
-        // Strictly escape quotation marks to prevent breaking out of smbclient command strings
-        let escaped = arg.replace('"', "\\\"");
-        Ok(escaped)
+        if arg.contains('"') {
+            return Err("SMB path contains illegal double quotation mark characters".to_string());
+        }
+        Ok(arg.to_string())
     }
 
     /// Check if smbclient is available in PATH
@@ -977,11 +978,9 @@ mod tests {
     }
 
     #[test]
-    fn test_escape_smb_cmd_arg_escapes_quotes() {
-        assert_eq!(
-            SmbClient::escape_smb_cmd_arg("file_with_\"quote\".txt").unwrap(),
-            "file_with_\\\"quote\\\".txt"
-        );
+    fn test_escape_smb_cmd_arg_rejects_quotes() {
+        assert!(SmbClient::escape_smb_cmd_arg("file_with_\"quote\".txt").is_err());
+        assert!(SmbClient::escape_smb_cmd_arg("a\\\"; rm x").is_err());
     }
 
     #[test]

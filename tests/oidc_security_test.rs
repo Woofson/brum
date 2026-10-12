@@ -271,6 +271,7 @@ async fn test_oidc_callback_missing_code_or_state_redirects() {
     };
     let resp = brum::server::auth_handlers::handle_oidc_callback(
         axum::extract::State(state.clone()),
+        None,
         reqwest::header::HeaderMap::new(),
         axum::extract::Query(query_no_code),
     ).await.into_response();
@@ -287,6 +288,7 @@ async fn test_oidc_callback_missing_code_or_state_redirects() {
     };
     let resp = brum::server::auth_handlers::handle_oidc_callback(
         axum::extract::State(state.clone()),
+        None,
         reqwest::header::HeaderMap::new(),
         axum::extract::Query(query_no_state),
     ).await.into_response();
@@ -303,6 +305,7 @@ async fn test_oidc_callback_missing_code_or_state_redirects() {
     };
     let resp = brum::server::auth_handlers::handle_oidc_callback(
         axum::extract::State(state),
+        None,
         reqwest::header::HeaderMap::new(),
         axum::extract::Query(query_err),
     ).await.into_response();

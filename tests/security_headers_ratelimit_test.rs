@@ -454,6 +454,35 @@ async fn test_cors_restricts_unauthorized_foreign_origin() {
         "Foreign origin must NOT receive Access-Control-Allow-Origin header"
     );
 
+    // Request with null origin (sandboxed iframe / data URI / file URI)
+    let null_resp = client
+        .get(format!("{}/api/health", base_url))
+        .header("Origin", "null")
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(null_resp.status(), reqwest::StatusCode::OK);
+    assert!(
+        null_resp.headers().get("access-control-allow-origin").is_none(),
+        "Origin: null must NOT receive Access-Control-Allow-Origin header"
+    );
+
+    // Request with DNS-rebinding attempt (matching evil Host and Origin)
+    let rebinding_resp = client
+        .get(format!("{}/api/health", base_url))
+        .header("Host", "evil.attacker.com")
+        .header("Origin", "https://evil.attacker.com")
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(rebinding_resp.status(), reqwest::StatusCode::OK);
+    assert!(
+        rebinding_resp.headers().get("access-control-allow-origin").is_none(),
+        "DNS rebinding Host/Origin pair must NOT receive Access-Control-Allow-Origin header"
+    );
+
     // Request with loopback origin
     let loopback_resp = client
         .get(format!("{}/api/health", base_url))
@@ -475,7 +504,7 @@ fn test_resolve_client_ip_rightmost_untrusted_logic() {
     use brum::server::middleware::resolve_client_ip;
     use std::net::SocketAddr;
 
-    let trusted = vec!["127.0.0.1".to_string(), "10.0.0.1".to_string()];
+    let trusted = vec!["127.0.0.1".to_string(), "10.0.0.1".to_string(), "10.42.0.0/16".to_string()];
     let peer_addr: SocketAddr = "127.0.0.1:50000".parse().unwrap();
 
     // 1. Rightmost untrusted IP selected when spoofed prefix is prepended
@@ -491,6 +520,16 @@ fn test_resolve_client_ip_rightmost_untrusted_logic() {
     let untrusted_peer: SocketAddr = "198.51.100.50:50000".parse().unwrap();
     let resolved_untrusted = resolve_client_ip(&headers, Some(untrusted_peer), &trusted);
     assert_eq!(resolved_untrusted, "198.51.100.50");
+
+    // 3. Peer within CIDR subnet (10.42.1.88 within 10.42.0.0/16) is recognized as trusted proxy
+    let cidr_peer: SocketAddr = "10.42.1.88:43210".parse().unwrap();
+    let resolved_cidr = resolve_client_ip(&headers, Some(cidr_peer), &trusted);
+    assert_eq!(resolved_cidr, "203.0.113.195");
+
+    // 4. Peer outside CIDR subnet (10.43.1.88 outside 10.42.0.0/16) is untrusted
+    let outside_cidr_peer: SocketAddr = "10.43.1.88:43210".parse().unwrap();
+    let resolved_outside = resolve_client_ip(&headers, Some(outside_cidr_peer), &trusted);
+    assert_eq!(resolved_outside, "10.43.1.88");
 }
 
 #[tokio::test]

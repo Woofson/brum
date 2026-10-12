@@ -55,7 +55,18 @@ pub async fn handle_oidc_login(
     }
 }
 
-pub fn is_request_secure(headers: &HeaderMap) -> bool {
+pub fn is_request_secure_peer(
+    headers: &HeaderMap,
+    peer_addr: Option<std::net::SocketAddr>,
+    trusted_proxies: &[String],
+) -> bool {
+    // If peer_addr is provided, only trust proxy headers if the peer is in trusted_proxies
+    if let Some(peer) = peer_addr {
+        if !crate::server::middleware::is_ip_trusted(&peer.ip().to_string(), trusted_proxies) {
+            return false;
+        }
+    }
+
     if let Some(proto) = headers.get("x-forwarded-proto").and_then(|v| v.to_str().ok()) {
         if proto.split(',').next().unwrap_or("").trim().eq_ignore_ascii_case("https") {
             return true;
@@ -74,6 +85,10 @@ pub fn is_request_secure(headers: &HeaderMap) -> bool {
     false
 }
 
+pub fn is_request_secure(headers: &HeaderMap) -> bool {
+    is_request_secure_peer(headers, None, &[])
+}
+
 #[derive(Deserialize)]
 pub struct OidcCallbackQuery {
     pub code: Option<String>,
@@ -84,9 +99,11 @@ pub struct OidcCallbackQuery {
 
 pub async fn handle_oidc_callback(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     Query(query): Query<OidcCallbackQuery>,
 ) -> impl IntoResponse {
+    let peer_addr = connect_info.map(|ci| ci.0);
     if let Some(err) = query.error {
         let desc = query.error_description.unwrap_or_default();
         tracing::warn!("OIDC provider returned error: {} - {}", err, desc);
@@ -107,7 +124,7 @@ pub async fn handle_oidc_callback(
         Ok((token, user)) => {
             tracing::info!(username = %user.username, role = %user.role, "SSO login successful");
             let max_age_secs = state.config.server.session_duration_hours * 3600;
-            let secure_flag = if is_request_secure(&headers) { "; Secure" } else { "" };
+            let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
             let cookie_header = format!(
                 "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
                 token,
@@ -576,7 +593,10 @@ pub async fn handle_update_user_rbac(
     } else {
         serde_json::to_string(&payload.allowed_services).unwrap_or_else(|_| "[\"*\"]".to_string())
     };
-    let roots_json = payload.allowed_roots.map(|r| serde_json::to_string(&r).unwrap_or_else(|_| "[\"*\"]".to_string()));
+    let roots_json = payload.allowed_roots.map(|r| {
+        let clean: Vec<String> = r.into_iter().filter(|s| !s.trim().is_empty()).collect();
+        serde_json::to_string(&clean).unwrap_or_else(|_| "[\"*\"]".to_string())
+    });
     let allowed_plugins_json = payload.allowed_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[\"*\"]".to_string()));
     let blocked_plugins_json = payload.blocked_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[]".to_string()));
 
@@ -634,7 +654,10 @@ pub async fn handle_create_user(
 
     let _ = std::fs::create_dir_all(&final_home);
 
-    let roots_json = payload.allowed_roots.map(|r| serde_json::to_string(&r).unwrap_or_else(|_| "[\"*\"]".to_string()));
+    let roots_json = payload.allowed_roots.map(|r| {
+        let clean: Vec<String> = r.into_iter().filter(|s| !s.trim().is_empty()).collect();
+        serde_json::to_string(&clean).unwrap_or_else(|_| "[\"*\"]".to_string())
+    });
 
     let auth = state.auth.clone();
     let u = payload.username;
@@ -785,7 +808,7 @@ pub async fn handle_unlock_session(
             tracing::info!("Session unlocked successfully for user '{}'", user.username);
             let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
             let max_age_secs = state.config.server.session_duration_hours * 3600;
-            let secure_flag = if is_request_secure(&headers) { "; Secure" } else { "" };
+            let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
             let cookie_header = format!(
                 "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
                 new_token,

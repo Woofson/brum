@@ -255,13 +255,18 @@ When Brum runs behind a reverse proxy (e.g. Caddy, Nginx, Traefik, Apache), clie
 
 ```toml
 [server]
-# List of trusted reverse proxy IP addresses allowed to forward client IPs
-trusted_proxies = ["127.0.0.1", "::1"]
+# List of trusted reverse proxy IP addresses or CIDR subnets allowed to forward client IPs
+trusted_proxies = ["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+
+# Optional CORS and WebSocket origin whitelist (e.g. your proxied public/overlay domain)
+allowed_origins = ["https://files.yourdomain.com", "https://node.tailscale.ts.net"]
 ```
 
 ### Security Considerations:
-- **Default Safe State**: When `trusted_proxies` is empty (the default), Brum completely ignores incoming `X-Forwarded-For` and `X-Real-IP` headers and keys rate limits strictly by the direct peer socket address. This prevents external clients from bypassing rate limits with spoofed headers.
-- **Right-to-Left Traversal**: When connected from a configured trusted proxy, Brum parses `X-Forwarded-For` from right to left, skipping trusted proxy hops and selecting the first untrusted IP address. This guarantees that client-forged header prefixes are discarded.
+- **Default Safe State**: When `trusted_proxies` is empty (the default), Brum completely ignores incoming `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Proto` headers, keying rate limits and cookie flags strictly by direct peer socket state. This prevents external clients from bypassing rate limits with spoofed headers.
+- **Subnet & CIDR Support**: Both individual IP addresses (`"127.0.0.1"`, `"::1"`) and CIDR subnet blocks (`"172.17.0.0/16"`, `"10.42.0.0/16"`) are fully supported, simplifying Docker, Podman, and Kubernetes ingress deployments where proxy IPs dynamically allocate within container subnets.
+- **Right-to-Left Traversal**: When connected from a configured trusted proxy or trusted subnet, Brum parses `X-Forwarded-For` from right to left, skipping trusted proxy hops and selecting the first untrusted IP address. This guarantees that client-forged header prefixes are discarded.
+- **Origin Validation**: When `allowed_origins` is specified, CORS and WebSocket connections are strictly constrained to the whitelisted origins. Foreign origins and `Origin: null` are rejected.
 
 ---
 
