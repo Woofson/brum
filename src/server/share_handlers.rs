@@ -8,7 +8,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use crate::server::AppState;
 use crate::server::middleware::{resolve_client_ip, sanitize_uploaded_file_name};
-use crate::server::fs_handlers::build_local_file_range_response;
+use crate::server::fs_handlers::{build_local_file_range_response, CleanTempStream};
 use crate::vfs::archive::ArchiveHandler;
 
 fn extract_user_agent(headers: &HeaderMap) -> Option<String> {
@@ -651,19 +651,28 @@ pub async fn handle_public_download_share(
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
         let temp_path = temp_zip.path().to_str().unwrap().to_string();
 
-        ArchiveHandler::create_zip(&[share.path.clone()], &temp_path)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip creation failed: {}", e)))?;
+        let s_path = share.path.clone();
+        let t_path = temp_path.clone();
+        tokio::task::spawn_blocking(move || {
+            ArchiveHandler::create_zip(&[s_path], &t_path)
+        })
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip task join error: {}", e)))?
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip creation failed: {}", e)))?;
 
-        let file_bytes = tokio::fs::read(&temp_path).await.map_err(|e| {
-            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated zip: {}", e))
+        let std_file = temp_zip.reopen().map_err(|e| {
+            (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reopen generated zip: {}", e))
         })?;
+        let total_len = std_file.metadata().map(|m| m.len()).unwrap_or(0);
+        let file = tokio::fs::File::from_std(std_file);
+        let stream = CleanTempStream::new(file, temp_zip);
 
         let zip_name = format!("{}.zip", share.name);
         let response = Response::builder()
             .header(header::CONTENT_TYPE, "application/zip")
             .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
-            .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-            .body(Body::from(file_bytes))
+            .header(header::CONTENT_LENGTH, total_len.to_string())
+            .body(Body::from_stream(stream))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
         return Ok(response);

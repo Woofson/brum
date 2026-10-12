@@ -2,8 +2,11 @@ use std::path::Path;
 use std::fs;
 use std::sync::Arc;
 use std::collections::HashMap;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use futures_util::Stream;
 use axum::{
-    body::Body,
+    body::{Body, Bytes},
     extract::{Multipart, Path as AxumPath, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{Json, Response},
@@ -1301,6 +1304,30 @@ fn build_bytes_range_response(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))
 }
 
+/// A streaming response wrapper that holds ownership of an underlying NamedTempFile.
+/// When the stream finishes or drops (e.g. client disconnect), the temp file is cleanly removed.
+pub struct CleanTempStream {
+    inner: tokio_util::io::ReaderStream<tokio::fs::File>,
+    _temp: tempfile::NamedTempFile,
+}
+
+impl CleanTempStream {
+    pub fn new(file: tokio::fs::File, temp: tempfile::NamedTempFile) -> Self {
+        Self {
+            inner: tokio_util::io::ReaderStream::new(file),
+            _temp: temp,
+        }
+    }
+}
+
+impl Stream for CleanTempStream {
+    type Item = Result<Bytes, std::io::Error>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        Pin::new(&mut self.inner).poll_next(cx)
+    }
+}
+
 pub async fn build_local_file_range_response(
     path: &Path,
     total_len: u64,
@@ -1528,12 +1555,21 @@ pub async fn handle_download(
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
             let temp_path = temp_tar.path().to_str().unwrap().to_string();
 
-            ArchiveHandler::create_targz(&[path_str.clone()], &temp_path)
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Tar.gz creation failed: {}", e)))?;
+            let p_str = path_str.clone();
+            let t_path = temp_path.clone();
+            tokio::task::spawn_blocking(move || {
+                ArchiveHandler::create_targz(&[p_str], &t_path)
+            })
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Tar.gz task join error: {}", e)))?
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Tar.gz creation failed: {}", e)))?;
 
-            let file_bytes = tokio::fs::read(&temp_path).await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated tar.gz: {}", e))
+            let std_file = temp_tar.reopen().map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reopen generated tar.gz: {}", e))
             })?;
+            let total_len = std_file.metadata().map(|m| m.len()).unwrap_or(0);
+            let file = tokio::fs::File::from_std(std_file);
+            let stream = CleanTempStream::new(file, temp_tar);
 
             let tar_name = format!("{}.tar.gz", safe_name);
 
@@ -1542,8 +1578,8 @@ pub async fn handle_download(
                 .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", tar_name))
                 .header("X-Is-Directory", "true")
                 .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
-                .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-                .body(Body::from(file_bytes))
+                .header(header::CONTENT_LENGTH, total_len.to_string())
+                .body(Body::from_stream(stream))
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
             return Ok(response);
@@ -1555,12 +1591,21 @@ pub async fn handle_download(
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Temp file error: {}", e)))?;
             let temp_path = temp_zip.path().to_str().unwrap().to_string();
 
-            ArchiveHandler::create_zip(&[path_str.clone()], &temp_path)
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip creation failed: {}", e)))?;
+            let p_str = path_str.clone();
+            let t_path = temp_path.clone();
+            tokio::task::spawn_blocking(move || {
+                ArchiveHandler::create_zip(&[p_str], &t_path)
+            })
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip task join error: {}", e)))?
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Zip creation failed: {}", e)))?;
 
-            let file_bytes = tokio::fs::read(&temp_path).await.map_err(|e| {
-                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated zip: {}", e))
+            let std_file = temp_zip.reopen().map_err(|e| {
+                (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reopen generated zip: {}", e))
             })?;
+            let total_len = std_file.metadata().map(|m| m.len()).unwrap_or(0);
+            let file = tokio::fs::File::from_std(std_file);
+            let stream = CleanTempStream::new(file, temp_zip);
 
             let zip_name = format!("{}.zip", safe_name);
 
@@ -1569,8 +1614,8 @@ pub async fn handle_download(
                 .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
                 .header("X-Is-Directory", "true")
                 .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
-                .header(header::CONTENT_LENGTH, file_bytes.len().to_string())
-                .body(Body::from(file_bytes))
+                .header(header::CONTENT_LENGTH, total_len.to_string())
+                .body(Body::from_stream(stream))
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
             return Ok(response);
@@ -1651,9 +1696,12 @@ pub async fn handle_download_batch(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Batch task join error: {}", e)))?
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Batch zip creation failed: {}", e)))?;
 
-    let file_bytes = std::fs::read(&temp_path).map_err(|e| {
-        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to read generated zip: {}", e))
+    let std_file = temp_zip.reopen().map_err(|e| {
+        (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to reopen generated zip: {}", e))
     })?;
+    let total_len = std_file.metadata().map(|m| m.len()).unwrap_or(0);
+    let file = tokio::fs::File::from_std(std_file);
+    let stream = CleanTempStream::new(file, temp_zip);
 
     let timestamp = chrono::Local::now().format("%Y%m%d_%H%M%S");
     let zip_name = if validated_paths.len() == 1 {
@@ -1668,7 +1716,8 @@ pub async fn handle_download_batch(
         .header(header::CONTENT_TYPE, "application/zip")
         .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}\"", zip_name))
         .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate")
-        .body(Body::from(file_bytes))
+        .header(header::CONTENT_LENGTH, total_len.to_string())
+        .body(Body::from_stream(stream))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Response build error: {}", e)))?;
 
     Ok(response)
@@ -1753,5 +1802,34 @@ pub async fn handle_calculate_checksum(
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Checksum task join error: {}", e)))?
     .map(Json)
     .map_err(|e| (StatusCode::BAD_REQUEST, format!("Checksum failed: {}", e)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures_util::StreamExt;
+    use std::io::Write;
+
+    #[tokio::test]
+    async fn test_clean_temp_stream_lifecycle() {
+        let mut tmp = tempfile::NamedTempFile::new().unwrap();
+        tmp.write_all(b"CommanderDog Streaming Verification Content").unwrap();
+        let path = tmp.path().to_path_buf();
+        assert!(path.exists());
+
+        let std_file = tmp.reopen().unwrap();
+        let tokio_file = tokio::fs::File::from_std(std_file);
+        let mut stream = CleanTempStream::new(tokio_file, tmp);
+
+        let mut collected = Vec::new();
+        while let Some(chunk) = stream.next().await {
+            collected.extend_from_slice(&chunk.unwrap());
+        }
+        assert_eq!(&collected, b"CommanderDog Streaming Verification Content");
+
+        drop(stream);
+        // After drop, the underlying NamedTempFile must be unlinked from disk
+        assert!(!path.exists());
+    }
 }
 

@@ -6,7 +6,9 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{decode, encode, DecodingKey, EncodingKey, Header, Validation};
 use rusqlite::{params, Connection, OptionalExtension};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
+use std::time::{Duration as StdDuration, Instant};
 use tracing::info;
 
 pub mod pam;
@@ -200,6 +202,7 @@ impl<'a> std::ops::Deref for ReadConnGuard<'a> {
 pub struct AuthManager {
     db: Arc<Mutex<Connection>>,
     read_pool: Arc<Mutex<Vec<Connection>>>,
+    user_status_cache: Arc<Mutex<HashMap<String, (String, bool, Instant)>>>,
     db_path: String,
     jwt_secret: String,
     session_hours: u64,
@@ -472,6 +475,7 @@ impl AuthManager {
         let auth = Self {
             db: Arc::new(Mutex::new(conn)),
             read_pool: Arc::new(Mutex::new(Vec::new())),
+            user_status_cache: Arc::new(Mutex::new(HashMap::new())),
             db_path: db_path.to_string(),
             jwt_secret: effective_jwt_secret,
             session_hours,
@@ -569,6 +573,18 @@ impl AuthManager {
         Ok(count as usize)
     }
 
+    pub fn invalidate_user_cache(&self, username: &str) {
+        if let Ok(mut cache) = self.user_status_cache.lock() {
+            cache.remove(username);
+        }
+    }
+
+    pub fn invalidate_user_cache_all(&self) {
+        if let Ok(mut cache) = self.user_status_cache.lock() {
+            cache.clear();
+        }
+    }
+
     pub fn db(&self) -> Arc<Mutex<Connection>> {
         self.db.clone()
     }
@@ -619,6 +635,7 @@ impl AuthManager {
             auth_source: Some("database".to_string()),
         };
         user.resolve_avatar();
+        self.invalidate_user_cache(username);
         Ok(user)
     }
 
@@ -660,6 +677,7 @@ impl AuthManager {
             auth_source: Some("oidc".to_string()),
         };
         user.resolve_avatar();
+        self.invalidate_user_cache(username);
         Ok(user)
     }
 
@@ -774,6 +792,7 @@ impl AuthManager {
         )?;
 
         drop(conn);
+        self.invalidate_user_cache(username);
         let mut user = self.get_user_by_username(username)?
             .ok_or_else(|| format!("Failed to retrieve synced PAM user"))?;
         user.resolve_avatar();
@@ -802,6 +821,7 @@ impl AuthManager {
                 params![username, home_dir, nickname, full_name, bio, email, avatar_url],
             );
         }
+        self.invalidate_user_cache(username);
         Ok(true)
     }
 
@@ -822,6 +842,7 @@ impl AuthManager {
             "UPDATE users SET password_hash = ?1 WHERE username = ?2",
             params![password_hash, username],
         )?;
+        self.invalidate_user_cache(username);
         Ok(affected > 0)
     }
 
@@ -855,12 +876,14 @@ impl AuthManager {
                 params![role, allowed_services, roots_str, can_inst_int, allowed_plugs_str, blocked_plugs_str, dis_int, username],
             )?
         };
+        self.invalidate_user_cache(username);
         Ok(affected > 0)
     }
 
     pub fn delete_user(&self, username: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let affected = conn.execute("DELETE FROM users WHERE username = ?1", params![username])?;
+        self.invalidate_user_cache(username);
         Ok(affected > 0)
     }
 
@@ -1269,10 +1292,10 @@ impl AuthManager {
         )?;
 
         let mut claims = token_data.claims;
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
 
-        // 1. If it's a persistent API token with a token_id, check DB to ensure it's not revoked / expired
+        // 1. If it's a persistent API token with a token_id, check read pool to ensure it's not revoked / expired
         if let Some(ref tid) = claims.token_id {
+            let conn = self.get_read_conn()?;
             let token_row: Option<(Option<i64>, String)> = conn.query_row(
                 "SELECT expires_at, role FROM api_tokens WHERE id = ?1",
                 params![tid],
@@ -1286,11 +1309,14 @@ impl AuthManager {
                             return Err("API token expired".into());
                         }
                     }
-                    // Update last_used_at timestamp
-                    let _ = conn.execute(
-                        "UPDATE api_tokens SET last_used_at = ?1 WHERE id = ?2",
-                        params![Utc::now().timestamp(), tid],
-                    );
+                    drop(conn);
+                    // Update last_used_at timestamp on primary connection
+                    if let Ok(conn) = self.db.lock() {
+                        let _ = conn.execute(
+                            "UPDATE api_tokens SET last_used_at = ?1 WHERE id = ?2",
+                            params![Utc::now().timestamp(), tid],
+                        );
+                    }
                 }
                 None => {
                     return Err("API token has been revoked".into());
@@ -1298,26 +1324,55 @@ impl AuthManager {
             }
         }
 
-        // 2. For all user tokens, verify active status in database
-        let user_row: Option<(String, bool)> = conn.query_row(
-            "SELECT role, is_disabled FROM users WHERE username = ?1",
-            params![claims.sub],
-            |row| Ok((row.get(0)?, row.get::<_, Option<i64>>(1)?.unwrap_or(0) != 0)),
-        ).optional()?;
+        // 2. For user status, check TTL cache first (5 seconds TTL) to eliminate hot-path DB contention
+        let now = Instant::now();
+        let cached_status = {
+            if let Ok(cache) = self.user_status_cache.lock() {
+                if let Some((role, is_disabled, cached_at)) = cache.get(&claims.sub) {
+                    if now.duration_since(*cached_at) < StdDuration::from_secs(5) {
+                        Some((role.clone(), *is_disabled))
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
 
-        match user_row {
-            Some((db_role, is_disabled)) => {
-                if is_disabled {
-                    return Err("User account is disabled".into());
-                }
-                claims.role = db_role;
-            }
+        let (db_role, is_disabled) = match cached_status {
+            Some(status) => status,
             None => {
-                if !claims.is_pam {
-                    return Err("User account no longer exists".into());
+                let conn = self.get_read_conn()?;
+                let user_row: Option<(String, bool)> = conn.query_row(
+                    "SELECT role, is_disabled FROM users WHERE username = ?1",
+                    params![claims.sub],
+                    |row| Ok((row.get(0)?, row.get::<_, Option<i64>>(1)?.unwrap_or(0) != 0)),
+                ).optional()?;
+
+                match user_row {
+                    Some((role, disabled)) => {
+                        if let Ok(mut cache) = self.user_status_cache.lock() {
+                            cache.insert(claims.sub.clone(), (role.clone(), disabled, now));
+                        }
+                        (role, disabled)
+                    }
+                    None => {
+                        if !claims.is_pam {
+                            return Err("User account no longer exists".into());
+                        }
+                        (claims.role.clone(), false)
+                    }
                 }
             }
+        };
+
+        if is_disabled {
+            return Err("User account is disabled".into());
         }
+        claims.role = db_role;
 
         Ok(claims)
     }
@@ -1332,7 +1387,7 @@ impl AuthManager {
         )?;
 
         let mut claims = token_data.claims;
-        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let conn = self.get_read_conn()?;
 
         // If it's a persistent API token with a token_id, check DB to ensure it's not revoked
         if let Some(ref tid) = claims.token_id {
@@ -1350,7 +1405,7 @@ impl AuthManager {
         let user_row: Option<(String, bool)> = conn.query_row(
             "SELECT role, is_disabled FROM users WHERE username = ?1",
             params![claims.sub],
-            |row| Ok((row.get(0)?, row.get::<_, i64>(1)? != 0)),
+            |row| Ok((row.get(0)?, row.get::<_, Option<i64>>(1)?.unwrap_or(0) != 0)),
         ).optional()?;
 
         if let Some((db_role, is_disabled)) = user_row {
@@ -2968,6 +3023,43 @@ mod tests {
         assert_eq!(fetched.bio, Some("Lead engineer on CommanderDog project.".to_string()));
         assert_eq!(fetched.email, Some("admin@arf.ac".to_string()));
         assert_eq!(fetched.avatar_url, Some("https://assets.arf.ac/avatars/bolt.webp".to_string()));
+    }
+
+    #[test]
+    fn test_user_status_cache_and_invalidation() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("test_cache.db");
+        let auth = AuthManager::new(
+            &db_file.to_string_lossy(),
+            "secret-key-123456789012345678901234",
+            24,
+            "builtin",
+            "login",
+            "admin",
+            "admin",
+        ).unwrap();
+
+        let user = auth.create_user("alice", "password123", "user", "/home/alice", None).unwrap();
+        let token = auth.generate_token(&user).unwrap();
+
+        // 1. Initial verify populates cache
+        let claims = auth.verify_token(&token).unwrap();
+        assert_eq!(claims.role, "user");
+
+        // 2. Cache hit returns same role
+        let claims2 = auth.verify_token(&token).unwrap();
+        assert_eq!(claims2.role, "user");
+
+        // 3. Update user role in DB & verify cache is invalidated
+        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, false).unwrap();
+        let claims3 = auth.verify_token(&token).unwrap();
+        assert_eq!(claims3.role, "admin");
+
+        // 4. Disable user and verify immediate rejection
+        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, true).unwrap();
+        let err = auth.verify_token(&token);
+        assert!(err.is_err());
+        assert_eq!(err.unwrap_err().to_string(), "User account is disabled");
     }
 }
 

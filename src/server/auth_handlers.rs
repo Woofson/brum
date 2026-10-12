@@ -523,8 +523,15 @@ pub async fn handle_update_profile(
 
     if let Some(ref new_pass) = payload.new_password {
         if !new_pass.trim().is_empty() {
-            let _ = state.auth.update_user_password(&username, new_pass)
-                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
+            let auth = state.auth.clone();
+            let u = username.clone();
+            let p = new_pass.clone();
+            tokio::task::spawn_blocking(move || {
+                auth.update_user_password(&u, &p)
+            })
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Password update task failed: {}", e)))?
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
             crate::logging::cleanup_initial_admin_credentials();
         }
     }
@@ -629,11 +636,19 @@ pub async fn handle_create_user(
 
     let roots_json = payload.allowed_roots.map(|r| serde_json::to_string(&r).unwrap_or_else(|_| "[\"*\"]".to_string()));
 
-    state
-        .auth
-        .create_user(&payload.username, &payload.password, &payload.role, &final_home, roots_json.as_deref())
-        .map(Json)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create user: {}", e)))
+    let auth = state.auth.clone();
+    let u = payload.username;
+    let p = payload.password;
+    let r = payload.role;
+    let r_json = roots_json;
+    let fh = final_home;
+    tokio::task::spawn_blocking(move || {
+        auth.create_user(&u, &p, &r, &fh, r_json.as_deref())
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("User creation task failed: {}", e)))?
+    .map(Json)
+    .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create user: {}", e)))
 }
 
 pub async fn handle_delete_user(
@@ -755,7 +770,16 @@ pub async fn handle_unlock_session(
     };
 
     tracing::info!("Processing session unlock request for user '{}'...", uname);
-    match state.auth.authenticate(&uname, &payload.password) {
+    let auth = state.auth.clone();
+    let u = uname.clone();
+    let p = payload.password;
+    let auth_res = tokio::task::spawn_blocking(move || {
+        auth.authenticate(&u, &p)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Authentication task failed: {}", e)))?;
+
+    match auth_res {
         Ok(user) => {
             state.rate_limiter.reset(&rate_key);
             tracing::info!("Session unlocked successfully for user '{}'", user.username);
