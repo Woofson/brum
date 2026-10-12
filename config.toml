@@ -1,61 +1,122 @@
 # ==============================================================================
-# 🐕 Brum Master Configuration File
-# Location: ~/projects/brum/config.toml
+# Brum Master Configuration File
+# Location: /etc/brum/config.toml, ~/.config/brum/config.toml, or ./config.toml
+#
+# IMPORTANT SECURITY & TOPOLOGY DISCLAIMER:
+# Brum is engineered for homelabs, private LANs, and encrypted overlay mesh
+# networks (e.g. Tailscale, NetBird, WireGuard, ZeroTier, Nebula).
+# NEVER expose Brum directly to the public internet without an authenticating
+# reverse proxy (Caddy, Nginx, Traefik) or a private VPN/overlay tunnel.
 # ==============================================================================
 
 # --- Core Server Settings ---
 [server]
-host = "0.0.0.0"                 # "0.0.0.0" to listen on all network interfaces, "127.0.0.1" for local-only
+host = "0.0.0.0"                 # "0.0.0.0" to listen on all interfaces, "127.0.0.1" for local-only, or a specific overlay IP (e.g. "100.64.0.1")
 port = 3140                      # Brum standard default port
-root_path = "/"                  # Root filesystem path
-upload_max_size_mb = 20480       # Max file upload size in MB (10 GB)
-enable_auth = true               # Enable authentication (automatically disabled in --standalone mode)
+root_path = "/"                  # Root filesystem path ("/" on Linux, "C:\\" on Windows)
+upload_max_size_mb = 20480       # Max file upload size in MB (20 GB)
+enable_auth = true               # Enable authentication (automatically bypassed in --standalone desktop mode)
 session_duration_hours = 72      # JWT session expiry duration in hours
-database_path = "brum.db"        # SQLite local metadata and session database
+database_path = "brum.db"        # SQLite local metadata, sessions, and audit database
+server_name = ""                 # Optional friendly node name displayed in UI badges and fleet discovery (e.g. "Homelab NAS")
+
+# --- Trusted Reverse Proxies ---
+# When Brum is placed behind a reverse proxy (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel,
+# or Tailscale Ingress/Funnel), proxy headers (X-Forwarded-For, X-Forwarded-Host, X-Real-IP)
+# are only trusted if the connecting peer IP matches an entry in trusted_proxies.
+# Supports exact IP addresses and CIDR subnet notations:
+trusted_proxies = [
+    # "127.0.0.1",               # Local reverse proxy on same host
+    # "::1",                     # Local IPv6 reverse proxy
+    # "10.0.0.0/8",              # RFC 1918 Class A private subnet
+    # "172.16.0.0/12",           # RFC 1918 Class B private subnet / Docker network
+    # "192.168.0.0/16",          # RFC 1918 Class C private subnet / Homelab LAN
+    # "100.64.0.0/10",           # RFC 6598 CGNAT / Tailscale / NetBird mesh subnet
+]
+
+# --- Allowed CORS & WebSocket Origins ---
+# Origin whitelist for the Web Terminal (Bite!), remote fleet tunneling, and browser API calls.
+#
+# AUTOMATIC OVERLAY & LAN RECOGNITION:
+# By default (empty []), Brum automatically allows:
+#   - Loopback: localhost, 127.0.0.1, [::1]
+#   - Homelab & mDNS hostnames: *.local, *.lan, *.home.arpa
+#   - RFC 1918 private IPv4: 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
+#   - RFC 6598 CGNAT / Mesh overlay IPv4: 100.64.0.0/10 (Tailscale, NetBird)
+#   - RFC 4193 IPv6 ULA: fc00::/7
+#
+# When accessing Brum via custom public FQDNs, external reverse proxy hostnames,
+# or Tailscale MagicDNS domains, explicitly add your origin(s) here:
+# Patterns support exact origins, port wildcards, and subdomain wildcard patterns:
+allowed_origins = [
+    # "https://brum.tailnet-name.ts.net",      # Tailscale MagicDNS FQDN
+    # "https://*.ts.net",                     # Any Tailscale domain
+    # "https://*.netbird.cloud",              # NetBird managed overlay domain
+    # "https://files.homelab.internal",       # Internal homelab DNS
+    # "http://100.*:*",                       # Any Tailscale/NetBird IP with any port
+    # "*"                                     # Wildcard: permits ALL origins (dev labs only; logs security warning)
+]
 
 # --- Authentication & Access Control ---
 [auth]
 mode = "mixed"                   # Options: "mixed" (PAM + Built-in), "builtin", "pam", "none"
 pam_service = "login"            # Linux PAM service name
-allow_guest = false              # Allow anonymous guest access
+allow_guest = false              # Allow anonymous guest read-only access
 default_admin_user = "admin"     # Initial admin username
 default_admin_pass = "brum"      # Initial admin password
+
+# --- OpenID Connect (OIDC / SSO) ---
+[auth.oidc]
+enabled = false                  # Enable SSO authentication via Authentik, Keycloak, Authelia, or Okta
+provider_name = "Authentik"      # Display name on login button (e.g. "Authentik", "Keycloak", "SSO")
+issuer_url = ""                  # OIDC discovery issuer URL (e.g. "https://auth.homelab.lan/application/o/brum/")
+client_id = ""                   # OIDC OAuth2 Client ID
+client_secret = ""               # OIDC OAuth2 Client Secret
+redirect_url = ""                # Redirect callback URL (e.g. "https://brum.homelab.lan/api/auth/oidc/callback")
+scopes = ["openid", "profile", "email", "groups"]
+auto_provision = true            # Automatically create virtual Brum user accounts upon first successful SSO login
+admin_group = "brum-admins"      # IdP group mapped to Brum admin privileges
+default_user_role = "user"       # Default role assigned to newly provisioned users ("user", "admin")
+default_home_template = "/home/{username}"
+force_sso_only = false           # When true, hides standard username/password login form
+button_icon = "shield-check"     # Lucide icon for SSO button ("shield-check", "key-round", "lock")
 
 # --- Storage Roots & Filesystem Sandboxing ---
 [storage]
 allow_entire_system = true            # When true, admin users have unrestricted access to all local drives and system roots
+allow_remote_loopback = false         # Enforce SSRF protection by disallowing remote connections to loopback (127.0.0.1)
 default_user_home_template = "/home/{username}" # Template path for newly created virtual/DB users (e.g. "/data/users/{username}" or "C:/Users/{username}")
 home_fallback_scheme = "auto"         # Options: "auto" (smart auto-creation & fallback cascade), "roots_only" (pure storage roots, no home), "strict"
 auto_create_home_dirs = true          # Automatically create missing user home directories on login/init if writable
 
-# Linux / Standard Mount Example
-#[[storage.roots]]
-#id = "storage"
-#name = "Mass Storage"
-#path = "/mnt/storage"
-#read_only = false
+# Linux / Standard Mount Examples:
+# [[storage.roots]]
+# id = "storage"
+# name = "Mass Storage"
+# path = "/mnt/storage"
+# read_only = false
 # allowed_roles = ["admin", "user"]
 
-#[[storage.roots]]
-#id = "data"
-#name = "Application Data"
-#path = "/data"
-#read_only = false
+# [[storage.roots]]
+# id = "data"
+# name = "Application Data"
+# path = "/data"
+# read_only = false
 
-#[[storage.roots]]
-#id = "backups"
-#name = "Backups (Read-Only)"
-#path = "/mnt/backups"
-#read_only = true
+# [[storage.roots]]
+# id = "backups"
+# name = "Backups (Read-Only)"
+# path = "/mnt/backups"
+# read_only = true
 
-# Windows Local Drive Example (supports forward slashes "D:/Media", single quotes 'D:\Media', or escaped "D:\\Media")
+# Windows Local Drive Example (supports forward slashes "D:/Media", single quotes 'D:\Media', or escaped "D:\\Media"):
 # [[storage.roots]]
 # id = "d-drive"
 # name = "D: Media Storage"
 # path = "D:/Media"
 # read_only = false
 
-# Windows / Samba Network UNC Share Example (supports '//nas/share', '\\nas\share', or "\\\\nas\\share")
+# Windows / Samba Network UNC Share Example (supports '//nas/share', '\\nas\share', or "\\\\nas\\share"):
 # [[storage.roots]]
 # id = "nas-share"
 # name = "Samba Public Share"
@@ -67,6 +128,66 @@ auto_create_home_dirs = true          # Automatically create missing user home d
 host_key_checking = "tofu"          # Host key verification policy: "tofu" (Trust On First Use / auto-record), "strict" (must pre-exist in known_hosts), "auto_accept" (ignore/skip verification)
 # known_hosts_file = "~/.ssh/known_hosts" # Optional custom known_hosts path (defaults to ~/.ssh/known_hosts or ~/.config/brum/known_hosts)
 
+# ==============================================================================
+# Multi-Node Fleet Management
+# Connect multiple Brum nodes across LAN, Tailscale, NetBird, or WireGuard
+# into a unified command center.
+# ==============================================================================
+[fleet]
+enabled = true                      # Enable multi-node fleet gateway and node switcher
+
+# Example 1: Homelab NAS running over Tailscale mesh overlay network
+# [[fleet.nodes]]
+# id = "homelab-nas"
+# name = "Homelab NAS (Tailscale)"
+# url = "http://100.64.0.15:3140"    # Tailscale 100.64.0.0/10 IP, or MagicDNS "https://nas.tailnet.ts.net:3140"
+# token = "node_jwt_or_api_token"    # Leave empty if remote node has enable_auth = false or runs standalone
+# start_path = "/mnt/storage"        # Optional starting directory path on the remote node
+# read_only = false                  # Set true to enforce read-only safety for this remote node
+# color_accent = "#f59e0b"           # Custom accent color for UI badge ("#f59e0b" = amber)
+# tags = ["homelab", "nas", "tailscale"]
+
+# Example 2: Remote Cloud VPS over NetBird overlay network
+# [[fleet.nodes]]
+# id = "vps-backup"
+# name = "Offsite VPS Backup (NetBird)"
+# url = "http://100.100.0.5:3140"    # NetBird overlay IP or custom hostname
+# token = "node_jwt_or_api_token"
+# start_path = "/var/backups"
+# read_only = true                   # Read-only safeguard
+# color_accent = "#38bdf8"           # Sky blue accent
+# tags = ["vps", "backup", "netbird"]
+
+# Example 3: Local Homelab Server on standard RFC 1918 LAN
+# [[fleet.nodes]]
+# id = "rack-server"
+# name = "Compute Server (LAN)"
+# url = "http://192.168.1.50:3140"
+# token = ""
+# start_path = "/data"
+# read_only = false
+# color_accent = "#10b981"           # Emerald green accent
+# tags = ["compute", "lan"]
+
+# --- Modular Chewtoys & Plugins ---
+[plugins]
+enabled = true                      # Enable the Chewtoys modular plugin engine (.grr packages)
+directory = "/etc/brum/plugins"      # System plugins directory (/etc/brum/plugins or ./plugins)
+user_directory = "~/.config/brum/plugins" # Per-user plugin install directory
+allow_user_installs = false         # Allow non-admin users to install plugins
+default_policy = "allow_all"        # Policy: "allow_all", "whitelist", "blacklist"
+global_whitelist = ["*"]            # Allowed plugin IDs when using "whitelist" policy
+global_blacklist = []               # Disallowed plugin IDs when using "blacklist" policy
+
+# --- Logging & Diagnostics ---
+[logging]
+level = "info"                      # Log verbosity: "trace", "debug", "info", "warn", "error"
+file_enabled = true                 # Write logs to rotating log file
+directory = ""                      # Directory path for logs (leave empty for OS default: /var/log/brum or ~/.local/share/brum/logs)
+rotation = "daily"                  # Log rotation schedule: "daily", "hourly", "never"
+max_files = 14                      # Number of archived log files to retain before purging
+console_enabled = true              # Output logs to stdout/console
+
 # --- User Interface & Panels ---
 [ui]
 default_pane_count = 2           # Default number of visible panes on startup (1 to 4)
@@ -75,6 +196,13 @@ show_hidden_files = true         # Show hidden files and dotfiles (e.g. .bashrc,
 default_view_mode = "details"    # Options: "details", "compact", "grid"
 window_decorations = true        # Set to false for seamless borderless/frameless mode in Hyprland / tiling WMs
 show_global_refresh = false      # Minimal header (off by default; individual panes have dedicated refresh controls)
+show_hostname_badge = true       # Top header hostname badge toggle
+hostname_badge = ""              # Custom label for hostname badge (empty = auto host detection)
+hostname_color = "slate"         # Badge color: "amber", "emerald", "sky", "purple", "rose", "orange", "cyan", "slate"
+hostname_style = "text"          # Badge style: "text", "subtle", "solid", "outline", "pill", "glow"
+hostname_icon = "none"           # Badge icon: "server", "hard-drive", "cpu", "terminal", "cloud", "shield", "box", "home", "globe", "radio", "none"
+hostname_size = "md"             # Badge size: "sm", "md", "lg"
+window_title = ""                # Custom window title (empty = default "Brum - Multi-Pane Web Environment")
 
 # --- Web Terminal (Bite!) & PTY Security ---
 [terminal]
@@ -82,7 +210,7 @@ enabled = true                      # Enable / disable the web terminal feature
 allow_roles = ["admin", "root"]     # Roles allowed to spawn terminal shells ("admin", "user", "*" for all)
 allow_virtual_users = false         # Allow virtual/DB accounts without a local POSIX user (disabled by default for security)
 drop_privileges = true              # Drop root privileges to match authenticated user when running as root daemon
-# default_shell = "/bin/bash"       # Override default shell executable
+# default_shell = "/bin/bash"       # Override default shell executable (e.g. "/bin/zsh", "/usr/bin/fish")
 
 # --- Standalone Desktop Window & System Tray ---
 [desktop]
@@ -90,29 +218,36 @@ minimize_to_tray = true          # Minimize window to system tray when closed in
 enable_tray = true               # Enable system tray icon
 global_summon_hotkey = "Super+C" # System-wide shortcut to summon/focus Brum (e.g. "Super+C", "Ctrl+Alt+Space")
 start_minimized = false          # Launch directly to system tray on system boot / autostart
+# external_editor = "code \"%1\"" # Command for external editor (F4)
+# external_viewer = "open \"%1\"" # Command for external viewer (F3)
+# use_external_editor_f4 = false # Open external editor on F4 instead of built-in editor
+# use_external_viewer_f3 = false # Open external viewer on F3 instead of built-in viewer
 
 # --- Color Themes & Aesthetics ---
 [themes]
-default_theme = "amber-charcoal" # Active theme ID: "amber-charcoal", "zink", "catppuccin-mocha", "nord", "gruvbox", etc.
-                                 # Modular themes are located in themes/*.toml or ~/.config/brum/themes/*.toml
+default_theme = "amber-charcoal" # Active theme ID: "amber-charcoal" (Woofsons Amber Charcoal), "zink" (Woofsons Amber Zink),
+                                 # "catppuccin-mocha", "nord", "gruvbox", "tokyo-night", "dracula", "skumring", "demring", etc.
+                                 # Custom modular themes can be placed in themes/*.toml or ~/.config/brum/themes/*.toml
 
 # --- Paranoid File Integrity & Safety ---
 [paranoid]
 enabled = true                   # Pre-flight collision checks and integrity verification
-checksum_algorithm = "sha256"    # "sha256", "crc32"
+checksum_algorithm = "sha256"    # Checksum hash: "sha256", "crc32", "md5"
 verify_after_transfer = true     # Verify bit-for-bit checksums after copy/move
-atomic_writes = true             # Write to temp file first before renaming
+atomic_writes = true             # Write to temp file first before renaming into place
 trash_enabled = true             # Move to system trash instead of permanent delete
 confirm_delete = true            # Prompt before deleting files
 confirm_overwrite = true         # Prompt before overwriting existing files
+windows_native_file_ops = true   # Use native IFileOperation on Windows
+detect_locking_processes = true  # Detect and report processes locking files on Windows
 
 # --- Syncthing P2P Integration ---
 [syncthing]
-enabled = true
+enabled = true                   # Enable Syncthing folder status indicators and sync actions
 url = "http://127.0.0.1:8384"
 api_key = ""                     # Leave blank to auto-discover from ~/.config/syncthing/config.xml
 
-# --- NoteDog Notes & Markdown Studio ---
+# --- Notes & Markdown Studio ---
 [notedog]
 notes_folder = "~/Notes"         # Custom path to notes directory (e.g. "~/Notes", "/mnt/storage/Notes", "~/Documents/Notes")
 
@@ -150,12 +285,45 @@ applicable_to = "all"
 in_background = true
 
 [[custom_actions]]
+id = "compress-7z"
+label = "Compress to .7z"
+icon = "archive"
+command = "builtin:archive:7z"
+applicable_to = "all"
+in_background = true
+
+[[custom_actions]]
 id = "extract-here"
 label = "Extract Archive Here"
 icon = "unarchive"
 command = "builtin:archive:extract"
 applicable_to = "archive"
 in_background = true
+
+# --- File Associations (Open With Rules) ---
+[[open_with]]
+id = "editor-code"
+name = "VS Code / Cursor"
+extensions = ["rs", "js", "ts", "py", "json", "toml", "md", "txt", "html", "css", "sh", "c", "cpp"]
+command = "code \"%1\""
+icon = "code"
+is_default = false
+
+[[open_with]]
+id = "media-vlc"
+name = "VLC Media Player"
+extensions = ["mp4", "mkv", "avi", "webm", "mov", "mp3", "flac", "wav", "ogg", "m4a"]
+command = "vlc \"%1\""
+icon = "film"
+is_default = false
+
+[[open_with]]
+id = "image-viewer"
+name = "System Default Viewer"
+extensions = ["png", "jpg", "jpeg", "webp", "svg", "gif", "bmp", "ico"]
+command = "open \"%1\""
+icon = "image"
+is_default = false
 
 # --- Default Bookmarks & Favorite Paths ---
 [[bookmarks]]

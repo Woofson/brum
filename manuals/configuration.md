@@ -27,128 +27,57 @@ Brum discovers its configuration in the following order of precedence:
 # Brum Master Configuration (v1.8.7)
 # ==============================================================================
 
+# --- Core Server Settings ---
 [server]
-# Bind address and listening port
-host = "0.0.0.0"
-port = 3140
+host = "0.0.0.0"                 # "0.0.0.0" (all interfaces), "127.0.0.1" (local-only), or specific overlay IP (e.g. "100.64.0.1")
+port = 3140                      # Brum default port
+root_path = "/"                  # Root filesystem path ("/" on Linux, "C:\\" on Windows)
+upload_max_size_mb = 20480       # Max file upload size in MB (20 GB)
+enable_auth = true               # Enable authentication (automatically disabled in --standalone desktop mode)
+session_duration_hours = 72      # JWT session expiry duration in hours
+database_path = "brum.db"        # SQLite local database
+server_name = ""                 # Optional friendly node name displayed in UI badges and fleet discovery
 
-# Server display identifier (shown in header badge when enabled)
-server_name = "Brum Host"
+# --- Trusted Reverse Proxies ---
+# CIDRs or IP addresses of reverse proxies (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel, Tailscale Funnel)
+# Forwarded headers (X-Forwarded-For, X-Forwarded-Host, X-Real-IP) are only honored from these IPs.
+trusted_proxies = [
+    # "127.0.0.1",
+    # "::1",
+    # "10.0.0.0/8",
+    # "172.16.0.0/12",
+    # "192.168.0.0/16",
+    # "100.64.0.0/10",           # RFC 6598 CGNAT / Tailscale / NetBird
+]
 
-# Public URL for reverse proxy / tunnel setups (optional)
-# public_url = "https://files.example.com"
+# --- Allowed CORS & WebSocket Origins ---
+# Origins permitted for the Web Terminal (Bite!), remote fleet tunnels, and API calls.
+# Brum automatically permits loopback, *.local, *.lan, *.home.arpa, RFC 1918 LANs, and 100.64.0.0/10 overlay IPs.
+# For custom public FQDNs or MagicDNS domains, explicitly add them:
+allowed_origins = [
+    # "https://brum.tailnet-name.ts.net",
+    # "https://*.ts.net",
+    # "https://*.netbird.cloud",
+    # "https://files.homelab.internal",
+    # "http://100.*:*",
+]
 
-# Session timeout in minutes (default: 1440 = 24h, 0 for infinite)
-session_timeout = 1440
-
-[storage]
-# When true, users can navigate the root filesystem (subject to OS permissions).
-# When false, users are sandboxed strictly to their $HOME and [[storage.roots]].
-allow_entire_system = false
-
-# Default starting directory upon login (empty defaults to user $HOME)
-default_path = ""
-
-# Strategy when user home directory is missing or inaccessible:
-# - "user"     : Default standard user home (/home/<username> or C:\Users\<username>)
-# - "root"     : Fall back to first configured storage root
-# - "custom"   : Fall back to path specified in home_fallback_path
-# - "disabled" : Reject login if home directory does not exist
-home_fallback_scheme = "user"
-home_fallback_path = ""
-
-# Automatically provision missing user home directories on first login
-auto_create_home_dirs = true
-
-# Storage Roots: Explicit allowed volumes and mountpoints
-[[storage.roots]]
-id = "storage"
-name = "Mass Storage"
-path = "/mnt/storage"
-read_only = false
-# Optional: restrict to specific usernames (empty means accessible to all)
-# allowed_users = ["admin", "bolt"]
-
-[[storage.roots]]
-id = "backups"
-name = "Backup Volume"
-path = "/mnt/backups"
-read_only = true
-
-[ui]
-# Default number of panels on startup (1, 2, 3, 4)
-default_pane_count = 2
-
-# Default panel layout: "single", "dual-vertical", "dual-horizontal", "triple", "quad"
-default_layout = "dual-vertical"
-
-# Show hidden files (dotfiles) by default
-show_hidden_files = true
-
-# Fast optimistic cache for 0ms sub-millisecond panel directory rendering
-fast_cache = true
-
-# Startup directory restoration behavior:
-# - "last_state" : Restore the exact paths open in each panel when last closed
-# - "home"       : Open user $HOME in all panels
-# - "custom"     : Open explicit paths defined in startup_path_left / startup_path_right
-startup_mode = "last_state"
-startup_path_left = ""
-startup_path_right = ""
-
-# When startup_mode is "last_state", fall back to $HOME if the previous path was a remote host
-remote_startup_fallback = "home"
-
-# Window decorations (set to false for frameless mode on Hyprland/Sway/i3)
-window_decorations = true
-
-# Custom window title
-window_title = "Brum"
-
-# Show hostname badge in top header
-show_hostname_badge = true
-hostname_badge = "" # Custom override text (leave empty for auto OS/host detection)
-
-# Date display format: "iso" (YYYY-MM-DD), "us" (MM/DD/YYYY), "eu" (DD.MM.YYYY)
-date_format = "iso"
-
-[desktop]
-# Minimize application to system tray on window close (Native desktop mode)
-minimize_to_tray = true
-
-# Enable desktop system tray icon
-enable_tray = true
-
-# Global desktop hotkey to summon/hide Brum
-global_summon_hotkey = "Super+C"
-
-[themes]
-# Active default theme:
-# - "amber-charcoal" (Woofsons Amber Charcoal - Dark / Default)
-# - "zink" (Woofsons Amber Zink - Light)
-# - "skumring", "demring", "trollnatt", "myrtaake" (Larvikite series)
-# - "bergtatt", "soria-moria", "pestanatt", "sotslette" (Kittelsen series)
-# - "gruvbox", "catppuccin-mocha", "tokyo-night", "nord", "dracula", etc.
-default_theme = "amber-charcoal"
-
+# --- Authentication & Access Control ---
 [auth]
-# Authentication backend: "pam" (Linux PAM) or "windows" (Windows SAM / LogonUserW) or "internal" (SQLite) or "mixed"
-backend = "pam"
+mode = "mixed"                   # Options: "mixed" (PAM + Built-in), "builtin", "pam", "none"
+pam_service = "login"            # Linux PAM service name
+allow_guest = false              # Allow anonymous guest read-only access
+default_admin_user = "admin"
+default_admin_pass = "brum"
 
-# Allow guest / anonymous read-only browsing (default: false)
-allow_guest = false
-
-# Session inactivity lock timeout in minutes (0 to disable)
-inactivity_timeout = 15
-
+# --- OpenID Connect (OIDC / SSO) ---
 [auth.oidc]
-# OpenID Connect / Authentik / Keycloak / Authelia SSO
 enabled = false
-provider_name = "Authentik"
-issuer_url = "https://auth.example.com/application/o/brum/"
-client_id = "brum-sso"
-client_secret = "your-sso-client-secret"
-redirect_url = "https://files.example.com/api/auth/oidc/callback"
+provider_name = "Authentik"      # Display name on login button
+issuer_url = ""                  # e.g. "https://auth.homelab.lan/application/o/brum/"
+client_id = ""
+client_secret = ""
+redirect_url = ""                # e.g. "https://brum.homelab.lan/api/auth/oidc/callback"
 scopes = ["openid", "profile", "email", "groups"]
 auto_provision = true
 admin_group = "brum-admins"
@@ -157,48 +86,121 @@ default_home_template = "/home/{username}"
 force_sso_only = false
 button_icon = "shield-check"
 
-[sftp]
-# SSH/SFTP Host Key Verification:
-# - "strict"     : Strict host key checking against known_hosts (rejects unknown keys)
-# - "accept-new" : Trust On First Use (TOFU) - automatically accepts and saves new host keys
-# - "off"        : Disables host key verification (insecure, useful for lab testing)
-host_key_checking = "accept-new"
-# Optional explicit path to custom known_hosts file (defaults to ~/.ssh/known_hosts)
-known_hosts_file = ""
+# --- Storage Roots & Filesystem Sandboxing ---
+[storage]
+allow_entire_system = true
+allow_remote_loopback = false
+default_user_home_template = "/home/{username}"
+home_fallback_scheme = "auto"    # "auto", "roots_only", "strict"
+auto_create_home_dirs = true
 
-[usb]
-# Hardware USB & removable storage auto-detection
-enabled = true
-# Auto-mount discovered USB block devices upon insertion
-auto_mount = false
-# Mount parent directory for removable media
-mount_base = "/media/brum"
+# Storage Roots: Explicit allowed volumes and mountpoints
+# [[storage.roots]]
+# id = "storage"
+# name = "Mass Storage"
+# path = "/mnt/storage"
+# read_only = false
+# allowed_roles = ["admin", "user"]
 
+# [[storage.roots]]
+# id = "backups"
+# name = "Backups (Read-Only)"
+# path = "/mnt/backups"
+# read_only = true
+
+[storage.sftp]
+host_key_checking = "tofu"       # "tofu" (Trust On First Use), "strict", "auto_accept"
+# known_hosts_file = "~/.ssh/known_hosts"
+
+# --- Multi-Node Fleet Management ---
 [fleet]
-# Enable multi-node fleet manager and remote node auto-discovery
 enabled = true
 
-[[fleet.nodes]]
-id = "hetzner-backup"
-name = "Hetzner Storage Box"
-url = "https://backup.example.com:3140"
-token = "api_token_here"
-# Routing mode: "auto" | "proxy" | "direct"
-proxy_mode = "auto"
-# Optional default start path on this remote node (leave empty for auto home discovery)
-default_path = ""
-# Read-only fleet node flag
-read_only = false
+# [[fleet.nodes]]
+# id = "homelab-nas"
+# name = "Homelab NAS (Tailscale)"
+# url = "http://100.64.0.15:3140"
+# token = "node_token_here"
+# start_path = "/mnt/storage"
+# read_only = false
+# color_accent = "#f59e0b"
+# tags = ["homelab", "nas", "tailscale"]
 
+# --- Modular Chewtoys & Plugins ---
 [plugins]
-# Modular Chewtoy plugins configuration
 enabled = true
 directory = "/etc/brum/plugins"
-user_directory = "/data/plugins"
-allow_user_installs = true
-default_policy = "allow_all" # "allow_all" | "whitelist" | "blacklist"
+user_directory = "~/.config/brum/plugins"
+allow_user_installs = false
+default_policy = "allow_all"     # "allow_all", "whitelist", "blacklist"
 global_whitelist = ["*"]
 global_blacklist = []
+
+# --- Logging & Diagnostics ---
+[logging]
+level = "info"                   # "trace", "debug", "info", "warn", "error"
+file_enabled = true
+directory = ""                   # Empty defaults to /var/log/brum or ~/.local/share/brum/logs
+rotation = "daily"               # "daily", "hourly", "never"
+max_files = 14
+console_enabled = true
+
+# --- User Interface & Panels ---
+[ui]
+default_pane_count = 2           # 1 to 4
+default_layout = "dual-vertical" # "single", "dual-vertical", "dual-horizontal", "triple", "quad"
+show_hidden_files = true
+default_view_mode = "details"    # "details", "compact", "grid"
+window_decorations = true        # Set false for borderless/frameless mode in tiling WMs
+show_global_refresh = false
+show_hostname_badge = true
+hostname_badge = ""
+hostname_color = "slate"
+hostname_style = "text"
+hostname_icon = "none"
+hostname_size = "md"
+window_title = ""
+
+# --- Web Terminal (Bite!) & PTY Security ---
+[terminal]
+enabled = true
+allow_roles = ["admin", "root"]
+allow_virtual_users = false
+drop_privileges = true
+# default_shell = "/bin/bash"
+
+# --- Standalone Desktop Window & System Tray ---
+[desktop]
+minimize_to_tray = true
+enable_tray = true
+global_summon_hotkey = "Super+C"
+start_minimized = false
+
+# --- Color Themes & Aesthetics ---
+[themes]
+default_theme = "amber-charcoal" # "amber-charcoal", "zink", "catppuccin-mocha", "nord", "gruvbox", etc.
+
+# --- Paranoid File Integrity & Safety ---
+[paranoid]
+enabled = true
+checksum_algorithm = "sha256"
+verify_after_transfer = true
+atomic_writes = true
+trash_enabled = true
+confirm_delete = true
+confirm_overwrite = true
+windows_native_file_ops = true
+detect_locking_processes = true
+
+# --- Syncthing P2P Integration ---
+[syncthing]
+enabled = true
+url = "http://127.0.0.1:8384"
+api_key = ""
+
+# --- Notes & Markdown Studio ---
+[notedog]
+notes_folder = "~/Notes"
 ```
 
 ---

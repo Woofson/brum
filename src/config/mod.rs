@@ -2221,4 +2221,15 @@ mod tests {
         assert_eq!(parsed.storage.roots[1].name, "Custom Name");
         assert_eq!(parsed.storage.roots[1].path, "/var/data");
     }
+
+    #[test]
+    fn test_root_config_toml_parses_cleanly() {
+        if Path::new("config.toml").is_file() {
+            let content = fs::read_to_string("config.toml").expect("Should read config.toml");
+            let parsed = ConfigManager::parse_config_str(&content).expect("config.toml should parse cleanly into AppConfig");
+            assert_eq!(parsed.server.port, 3140);
+            assert!(parsed.fleet.enabled);
+            assert!(parsed.plugins.enabled);
+        }
+    }
 }
