@@ -928,6 +928,23 @@ pub fn expand_tilde(path_str: &str) -> String {
     }
 }
 
+fn find_rightmost_untrusted_ip<'a>(
+    forwarded: &'a str,
+    trusted_proxies: &[String],
+) -> Option<&'a str> {
+    for raw in forwarded.rsplit(',') {
+        let ip = raw.trim();
+        if ip.is_empty() {
+            continue;
+        }
+        let is_trusted = trusted_proxies.iter().any(|p| p.trim() == ip);
+        if !is_trusted {
+            return Some(ip);
+        }
+    }
+    None
+}
+
 pub fn resolve_client_ip(
     headers: &HeaderMap,
     peer_addr: Option<std::net::SocketAddr>,
@@ -939,16 +956,14 @@ pub fn resolve_client_ip(
 
         if is_trusted {
             if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-                if let Some(first_ip) = forwarded.split(',').next() {
-                    let trimmed = first_ip.trim();
-                    if !trimmed.is_empty() {
-                        return trimmed.to_string();
-                    }
+                if let Some(client_ip) = find_rightmost_untrusted_ip(forwarded, trusted_proxies) {
+                    return client_ip.to_string();
                 }
             }
             if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
                 let trimmed = real_ip.trim();
-                if !trimmed.is_empty() {
+                let is_real_trusted = trusted_proxies.iter().any(|p| p.trim() == trimmed);
+                if !trimmed.is_empty() && !is_real_trusted {
                     return trimmed.to_string();
                 }
             }
@@ -959,25 +974,19 @@ pub fn resolve_client_ip(
     // Fallback when peer socket address is not directly provided (e.g. unit tests)
     if !trusted_proxies.is_empty() {
         if let Some(forwarded) = headers.get("x-forwarded-for").and_then(|v| v.to_str().ok()) {
-            if let Some(first_ip) = forwarded.split(',').next() {
-                let trimmed = first_ip.trim();
-                if !trimmed.is_empty() {
-                    return trimmed.to_string();
-                }
+            if let Some(client_ip) = find_rightmost_untrusted_ip(forwarded, trusted_proxies) {
+                return client_ip.to_string();
             }
         }
         if let Some(real_ip) = headers.get("x-real-ip").and_then(|v| v.to_str().ok()) {
             let trimmed = real_ip.trim();
-            if !trimmed.is_empty() {
+            let is_real_trusted = trusted_proxies.iter().any(|p| p.trim() == trimmed);
+            if !trimmed.is_empty() && !is_real_trusted {
                 return trimmed.to_string();
             }
         }
     }
     "127.0.0.1".to_string()
-}
-
-pub fn extract_client_ip(headers: &HeaderMap) -> String {
-    resolve_client_ip(headers, None, &[])
 }
 
 

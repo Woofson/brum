@@ -249,6 +249,22 @@ In Fleet Manager (**Fleet Control ➔ Manage Fleet Nodes**), each node supports 
 
 ---
 
+## 10. Trusted Proxies & Rate Limiting (`trusted_proxies`)
+
+When Brum runs behind a reverse proxy (e.g. Caddy, Nginx, Traefik, Apache), client requests arrive with the reverse proxy's socket address as the peer IP. To accurately attribute client IP addresses for brute-force rate limiting and share access logs, configure `trusted_proxies` in `config.toml`:
+
+```toml
+[server]
+# List of trusted reverse proxy IP addresses allowed to forward client IPs
+trusted_proxies = ["127.0.0.1", "::1"]
+```
+
+### Security Considerations:
+- **Default Safe State**: When `trusted_proxies` is empty (the default), Brum completely ignores incoming `X-Forwarded-For` and `X-Real-IP` headers and keys rate limits strictly by the direct peer socket address. This prevents external clients from bypassing rate limits with spoofed headers.
+- **Right-to-Left Traversal**: When connected from a configured trusted proxy, Brum parses `X-Forwarded-For` from right to left, skipping trusted proxy hops and selecting the first untrusted IP address. This guarantees that client-forged header prefixes are discarded.
+
+---
+
 ## Verification Checklist
 
 Once deployed behind your reverse proxy or VPN, test:

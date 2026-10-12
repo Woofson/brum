@@ -3,7 +3,11 @@ use brum::start_background_server;
 use serde_json::json;
 use tempfile::tempdir;
 
-async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, tempfile::TempDir, String, String) {
+async fn setup_test_server_with_proxies(
+    enable_auth: bool,
+    standalone: bool,
+    trusted_proxies: Vec<String>,
+) -> (u16, tempfile::TempDir, String, String) {
     let dir = tempdir().expect("Failed to create tempdir");
     let db_path = dir.path().join("brum_test.db").to_string_lossy().to_string();
     let admin_user = "admin".to_string();
@@ -15,6 +19,7 @@ async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, tempfil
     config.server.database_path = db_path;
     config.server.enable_auth = enable_auth;
     config.server.standalone = standalone;
+    config.server.trusted_proxies = trusted_proxies;
     config.auth.default_admin_user = admin_user.clone();
     config.auth.default_admin_pass = admin_pass.clone();
     config.plugins.directory = dir.path().join("plugins").to_string_lossy().to_string();
@@ -22,6 +27,10 @@ async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, tempfil
 
     let (bound_port, _token) = start_background_server(config).await.expect("Failed to start test server");
     (bound_port, dir, admin_user, admin_pass)
+}
+
+async fn setup_test_server(enable_auth: bool, standalone: bool) -> (u16, tempfile::TempDir, String, String) {
+    setup_test_server_with_proxies(enable_auth, standalone, Vec::new()).await
 }
 
 #[tokio::test]
@@ -291,6 +300,8 @@ async fn test_websocket_origin_security() {
     assert!(!is_ws_origin_allowed("http://malicious-attacker.com", &headers, &state));
     assert!(!is_ws_origin_allowed("https://evil-hacker.xyz:8080", &headers, &state));
     assert!(!is_ws_origin_allowed("http://phishing.site", &headers, &state));
+    assert!(!is_ws_origin_allowed("http://localhost.attacker.com", &headers, &state));
+    assert!(!is_ws_origin_allowed("http://127.0.0.1.attacker.com", &headers, &state));
 }
 
 #[tokio::test]
@@ -385,5 +396,211 @@ async fn test_login_user_lockout_on_failed_attempts() {
         .unwrap();
 
     assert_eq!(resp.status(), reqwest::StatusCode::TOO_MANY_REQUESTS);
+}
+
+#[tokio::test]
+async fn test_security_headers_present_on_401_unauthorized() {
+    let (port, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // Request protected route without token (triggers 401 Unauthorized from auth_middleware)
+    let resp = client.get(format!("{}/api/auth/me", base_url)).send().await.unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
+
+    let headers = resp.headers();
+    assert_eq!(
+        headers.get("x-content-type-options").and_then(|v| v.to_str().ok()),
+        Some("nosniff"),
+        "401 response missing X-Content-Type-Options"
+    );
+    assert_eq!(
+        headers.get("x-frame-options").and_then(|v| v.to_str().ok()),
+        Some("SAMEORIGIN"),
+        "401 response missing X-Frame-Options"
+    );
+    assert_eq!(
+        headers.get("referrer-policy").and_then(|v| v.to_str().ok()),
+        Some("strict-origin-when-cross-origin"),
+        "401 response missing Referrer-Policy"
+    );
+    assert!(
+        headers.get("content-security-policy").is_some(),
+        "401 response missing Content-Security-Policy"
+    );
+    assert!(
+        headers.get("permissions-policy").is_some(),
+        "401 response missing Permissions-Policy"
+    );
+}
+
+#[tokio::test]
+async fn test_cors_restricts_unauthorized_foreign_origin() {
+    let (port, _dir, _admin_user, _admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // Request with foreign origin (e.g. malicious site)
+    let foreign_resp = client
+        .get(format!("{}/api/health", base_url))
+        .header("Origin", "https://malicious-attacker.com")
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(foreign_resp.status(), reqwest::StatusCode::OK);
+    assert!(
+        foreign_resp.headers().get("access-control-allow-origin").is_none(),
+        "Foreign origin must NOT receive Access-Control-Allow-Origin header"
+    );
+
+    // Request with loopback origin
+    let loopback_resp = client
+        .get(format!("{}/api/health", base_url))
+        .header("Origin", format!("http://127.0.0.1:{}", port))
+        .send()
+        .await
+        .unwrap();
+
+    assert_eq!(loopback_resp.status(), reqwest::StatusCode::OK);
+    assert_eq!(
+        loopback_resp.headers().get("access-control-allow-origin").and_then(|v| v.to_str().ok()),
+        Some(format!("http://127.0.0.1:{}", port).as_str())
+    );
+}
+
+#[test]
+fn test_resolve_client_ip_rightmost_untrusted_logic() {
+    use axum::http::{HeaderMap, HeaderValue};
+    use brum::server::middleware::resolve_client_ip;
+    use std::net::SocketAddr;
+
+    let trusted = vec!["127.0.0.1".to_string(), "10.0.0.1".to_string()];
+    let peer_addr: SocketAddr = "127.0.0.1:50000".parse().unwrap();
+
+    // 1. Rightmost untrusted IP selected when spoofed prefix is prepended
+    let mut headers = HeaderMap::new();
+    headers.insert(
+        "x-forwarded-for",
+        HeaderValue::from_static("1.2.3.4, 203.0.113.195, 10.0.0.1"),
+    );
+    let resolved = resolve_client_ip(&headers, Some(peer_addr), &trusted);
+    assert_eq!(resolved, "203.0.113.195");
+
+    // 2. Untrusted peer direct connection ignores X-Forwarded-For
+    let untrusted_peer: SocketAddr = "198.51.100.50:50000".parse().unwrap();
+    let resolved_untrusted = resolve_client_ip(&headers, Some(untrusted_peer), &trusted);
+    assert_eq!(resolved_untrusted, "198.51.100.50");
+}
+
+#[tokio::test]
+async fn test_unlock_and_share_separate_rate_limit_buckets_per_peer() {
+    let (port, _dir, admin_user, admin_pass) = setup_test_server_with_proxies(true, false, vec!["127.0.0.1".to_string()]).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // 1. Login to get token for unlock test
+    let login_resp = client
+        .post(format!("{}/api/auth/login", base_url))
+        .header("X-Forwarded-For", "198.51.100.99")
+        .json(&json!({
+            "username": admin_user,
+            "password": admin_pass
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(login_resp.status(), reqwest::StatusCode::OK);
+    let login_json: serde_json::Value = login_resp.json().await.unwrap();
+    let token = login_json["token"].as_str().unwrap();
+
+    // 2. Peer A performs 10 failed unlock attempts
+    for _ in 0..10 {
+        let resp = client
+            .post(format!("{}/api/auth/unlock", base_url))
+            .header("Authorization", format!("Bearer {}", token))
+            .header("X-Forwarded-For", "198.51.100.10")
+            .json(&json!({ "password": "WrongPasswordAttempt!" }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
+    }
+
+    // 11th attempt from Peer A must be rate-limited (429)
+    let peer_a_limited = client
+        .post(format!("{}/api/auth/unlock", base_url))
+        .header("Authorization", format!("Bearer {}", token))
+        .header("X-Forwarded-For", "198.51.100.10")
+        .json(&json!({ "password": "WrongPasswordAttempt!" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(peer_a_limited.status(), reqwest::StatusCode::TOO_MANY_REQUESTS);
+
+    // Peer B attempting unlock MUST NOT be blocked by Peer A's rate limit
+    let peer_b_unlock = client
+        .post(format!("{}/api/auth/unlock", base_url))
+        .header("Authorization", format!("Bearer {}", token))
+        .header("X-Forwarded-For", "198.51.100.20")
+        .json(&json!({ "password": "WrongPasswordAttempt!" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(peer_b_unlock.status(), reqwest::StatusCode::UNAUTHORIZED);
+
+    // 3. Create a share for share verification test
+    let share_resp = client
+        .post(format!("{}/api/shares", base_url))
+        .header("Authorization", format!("Bearer {}", token))
+        .json(&json!({
+            "path": "/",
+            "name": "Peer Rate Test Share",
+            "is_dir": true,
+            "allow_upload": false,
+            "allow_view": true,
+            "allow_download": true,
+            "password": "SharePassword123!",
+            "expires_at": null,
+            "max_downloads": 100
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(share_resp.status(), reqwest::StatusCode::OK);
+    let share_json: serde_json::Value = share_resp.json().await.unwrap();
+    let share_token = share_json["token"].as_str().unwrap();
+
+    // Peer A performs 10 failed share verify attempts
+    for _ in 0..10 {
+        let resp = client
+            .post(format!("{}/api/public/shares/{}/verify", base_url, share_token))
+            .header("X-Forwarded-For", "198.51.100.10")
+            .json(&json!({ "password": "WrongSharePass!" }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(resp.status(), reqwest::StatusCode::UNAUTHORIZED);
+    }
+
+    // 11th attempt from Peer A must be rate-limited (429)
+    let peer_a_share_limited = client
+        .post(format!("{}/api/public/shares/{}/verify", base_url, share_token))
+        .header("X-Forwarded-For", "198.51.100.10")
+        .json(&json!({ "password": "WrongSharePass!" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(peer_a_share_limited.status(), reqwest::StatusCode::TOO_MANY_REQUESTS);
+
+    // Peer B attempting share verify MUST NOT be blocked by Peer A's rate limit
+    let peer_b_share = client
+        .post(format!("{}/api/public/shares/{}/verify", base_url, share_token))
+        .header("X-Forwarded-For", "198.51.100.20")
+        .json(&json!({ "password": "WrongSharePass!" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(peer_b_share.status(), reqwest::StatusCode::UNAUTHORIZED);
 }
 

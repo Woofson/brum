@@ -6,7 +6,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use crate::auth::User;
 use crate::server::AppState;
-use crate::server::middleware::{extract_claims_or_local, extract_client_ip, resolve_client_ip, require_admin};
+use crate::server::middleware::{extract_claims_or_local, resolve_client_ip, require_admin};
 
 #[derive(Deserialize)]
 pub struct LoginRequest {
@@ -603,10 +603,12 @@ pub struct UnlockRequest {
 
 pub async fn handle_unlock_session(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     Json(payload): Json<UnlockRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let client_ip = extract_client_ip(&headers);
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let client_ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("unlock:{}", client_ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
         tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on session unlock endpoint");

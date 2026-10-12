@@ -217,9 +217,14 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
     }
 
     // Allow loopback origins and local Tauri/desktop webview
-    if clean_origin.starts_with("localhost")
-        || clean_origin.starts_with("127.0.0.1")
-        || clean_origin.starts_with("[::1]")
+    let is_loopback = clean_origin == "localhost"
+        || clean_origin.starts_with("localhost:")
+        || clean_origin == "127.0.0.1"
+        || clean_origin.starts_with("127.0.0.1:")
+        || clean_origin == "[::1]"
+        || clean_origin.starts_with("[::1]:");
+
+    if is_loopback
         || origin == "null"
         || origin.starts_with("tauri://")
         || origin.starts_with("http://tauri.localhost")

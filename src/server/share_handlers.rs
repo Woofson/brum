@@ -1,13 +1,13 @@
 use std::path::{Path, PathBuf};
 use axum::{
     body::Body,
-    extract::{Multipart, Path as AxumPath, Query, State},
+    extract::{ConnectInfo, Multipart, Path as AxumPath, Query, State},
     http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
 };
 use serde::{Deserialize, Serialize};
 use crate::server::AppState;
-use crate::server::middleware::{extract_client_ip, sanitize_uploaded_file_name};
+use crate::server::middleware::{resolve_client_ip, sanitize_uploaded_file_name};
 use crate::server::fs_handlers::build_local_file_range_response;
 use crate::vfs::archive::ArchiveHandler;
 
@@ -314,6 +314,7 @@ pub async fn handle_delete_share(
 
 pub async fn handle_public_get_share_meta(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
@@ -339,7 +340,8 @@ pub async fn handle_public_get_share_meta(
 
     // If share has no password and no email requirement, log public visit immediately
     if !share.has_password && !share.require_email {
-        let ip = extract_client_ip(&headers);
+        let peer_addr = connect_info.map(|ci| ci.0);
+        let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
         let ua = extract_user_agent(&headers);
         let _ = state.auth.log_share_access(share.id, &token, None, &ip, ua.as_deref(), "visit", None);
     }
@@ -379,11 +381,13 @@ pub async fn handle_public_get_share_meta(
 
 pub async fn handle_public_verify_share(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Json(payload): Json<VerifyPassRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let ip = extract_client_ip(&headers);
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("share_verify:{}:{}", token, ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
         tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share password verification");
@@ -417,11 +421,13 @@ pub async fn handle_public_verify_share(
 
 pub async fn handle_public_verify_email(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Json(payload): Json<VerifyEmailRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let ip = extract_client_ip(&headers);
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("share_verify:{}:{}", token, ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
         tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share email verification");
@@ -448,6 +454,7 @@ pub async fn handle_public_verify_email(
 
 pub async fn handle_public_preview_share(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Query(query): Query<SharePublicQuery>,
@@ -503,7 +510,8 @@ pub async fn handle_public_preview_share(
     }
 
     let file_name = target_path.file_name().unwrap_or_default().to_string_lossy().to_string();
-    let ip = extract_client_ip(&headers);
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let ua = extract_user_agent(&headers);
     let _ = state.auth.log_share_access(
         share.id,
@@ -534,6 +542,7 @@ pub async fn handle_public_preview_share(
 
 pub async fn handle_public_download_share(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Query(query): Query<SharePublicQuery>,
@@ -585,7 +594,8 @@ pub async fn handle_public_download_share(
 
     let _ = state.auth.increment_share_downloads(&token);
 
-    let ip = extract_client_ip(&headers);
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let ua = extract_user_agent(&headers);
 
     // If downloading a specific file from a shared folder
@@ -690,6 +700,7 @@ pub async fn handle_public_download_share(
 
 pub async fn handle_public_upload_share(
     State(state): State<AppState>,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Query(query): Query<SharePublicQuery>,
@@ -736,7 +747,8 @@ pub async fn handle_public_upload_share(
         return Err((StatusCode::NOT_FOUND, "Target dropbox folder does not exist on server".to_string()));
     }
 
-    let ip = extract_client_ip(&headers);
+    let peer_addr = connect_info.map(|ci| ci.0);
+    let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let ua = extract_user_agent(&headers);
     let mut saved_count = 0;
 

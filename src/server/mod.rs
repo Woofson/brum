@@ -22,14 +22,14 @@ use crate::tools::tasks::TaskManager;
 
 use axum::{
     extract::DefaultBodyLimit,
-    http::header,
+    http::{header, HeaderValue},
     routing::{any, delete, get, post, put},
     Router,
 };
 use rust_embed::RustEmbed;
 use std::sync::Arc;
 use tower_http::compression::CompressionLayer;
-use tower_http::cors::{Any, CorsLayer};
+use tower_http::cors::{AllowOrigin, CorsLayer};
 use tower_http::trace::TraceLayer;
 
 #[derive(RustEmbed)]
@@ -55,8 +55,15 @@ pub struct AppState {
 }
 
 pub fn create_router(state: AppState) -> Router {
+    let cors_state = state.clone();
     let cors = CorsLayer::new()
-        .allow_origin(Any)
+        .allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, parts: &axum::http::request::Parts| {
+            if let Ok(origin_str) = origin.to_str() {
+                crate::server::terminal::is_ws_origin_allowed(origin_str, &parts.headers, &cors_state)
+            } else {
+                false
+            }
+        }))
         .allow_methods([
             axum::http::Method::GET,
             axum::http::Method::POST,
@@ -265,8 +272,8 @@ pub fn create_router(state: AppState) -> Router {
         // Embedded Frontend Fallback
         .fallback(handle_static_asset)
         .layer(DefaultBodyLimit::max(state.config.server.upload_max_size_mb * 1024 * 1024))
-        .layer(axum::middleware::from_fn(security_headers_middleware))
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth_middleware))
+        .layer(axum::middleware::from_fn(security_headers_middleware))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
         .layer(CompressionLayer::new())
