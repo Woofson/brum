@@ -18,7 +18,6 @@ exclude = [
     ".github/**",
     "assets/**",
     "brumlogo/**",
-    "screenshot.png",
     "feedback/**",
     "tests/**",
     "frontend/assets/*.png",
