@@ -220,3 +220,34 @@ async fn test_oidc_accepts_valid_token() {
     assert_eq!(claims.preferred_username.as_deref(), Some("validuser"));
     assert_eq!(claims.sub.as_deref(), Some("user123"));
 }
+
+#[tokio::test]
+async fn test_oidc_rejects_unsupported_algorithm() {
+    let (manager, _tmp) = create_test_oidc_manager();
+    let mut meta = OidcMetadata::default();
+    meta.issuer = "https://auth.example.com".to_string();
+    meta.jwks_uri = Some("https://auth.example.com/jwks.json".to_string());
+
+    // Token with HS256 instead of RS family
+    let header = json!({
+        "alg": "HS256",
+        "typ": "JWT",
+        "kid": "key1"
+    });
+    let header_b64 = URL_SAFE_NO_PAD.encode(header.to_string().as_bytes());
+    let payload = json!({
+        "iss": "https://auth.example.com",
+        "aud": "brum-test-client",
+        "sub": "user123",
+        "nonce": "test-nonce-123",
+        "exp": chrono::Utc::now().timestamp() + 3600
+    });
+    let payload_b64 = URL_SAFE_NO_PAD.encode(payload.to_string().as_bytes());
+    let sig_b64 = URL_SAFE_NO_PAD.encode(b"mock_signature_bytes");
+    let token = format!("{}.{}.{}", header_b64, payload_b64, sig_b64);
+
+    let res = manager.verify_id_token_claims(&token, &meta, "test-nonce-123").await;
+    assert!(res.is_err(), "Must reject non-RS algorithm");
+    let err = res.unwrap_err().to_string();
+    assert!(err.contains("Unsupported OIDC token algorithm"), "Unexpected error: {}", err);
+}

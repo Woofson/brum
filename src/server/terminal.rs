@@ -120,7 +120,10 @@ pub fn extract_terminal_claims(
                     None
                 })
             })
-            .map(|tok| tok == inst.instance_token)
+            .map(|tok| {
+                use subtle::ConstantTimeEq;
+                bool::from(tok.as_bytes().ct_eq(inst.instance_token.as_bytes()))
+            })
             .unwrap_or(false);
 
         if has_valid_token {

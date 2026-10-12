@@ -218,6 +218,9 @@ pub async fn handle_login(
         Ok(user) => {
             state.rate_limiter.reset(&rate_key);
             state.rate_limiter.reset(&user_rate_key);
+            if user.role.eq_ignore_ascii_case("admin") {
+                crate::logging::cleanup_initial_admin_credentials();
+            }
             tracing::info!(username = %user.username, is_pam = user.is_pam, role = %user.role, "User successfully authenticated");
             let token = state.auth.generate_token(&user).map_err(|e| {
                 (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e))
@@ -472,6 +475,7 @@ pub async fn handle_update_profile(
         if !new_pass.trim().is_empty() {
             let _ = state.auth.update_user_password(&username, new_pass)
                 .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
+            crate::logging::cleanup_initial_admin_credentials();
         }
     }
 

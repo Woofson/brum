@@ -157,14 +157,36 @@ pub fn write_initial_admin_credentials(
         now, username, password
     );
 
-    fs::write(&target, content)?;
-
-    // Restrict permissions on Unix systems to owner-only read/write (0600)
     #[cfg(unix)]
     {
-        use std::os::unix::fs::PermissionsExt;
-        let _ = fs::set_permissions(&target, fs::Permissions::from_mode(0o600));
+        use std::os::unix::fs::OpenOptionsExt;
+        use std::io::Write;
+        let mut file = fs::OpenOptions::new()
+            .create(true)
+            .write(true)
+            .truncate(true)
+            .mode(0o600)
+            .open(&target)?;
+        file.write_all(content.as_bytes())?;
+    }
+    #[cfg(not(unix))]
+    {
+        fs::write(&target, content)?;
     }
 
     Ok(target)
+}
+
+/// Automatically removes the initial administrative credentials file once the admin
+/// has performed their first successful login or updated their password.
+pub fn cleanup_initial_admin_credentials() {
+    let log_dir = crate::config::LoggingConfig::default().resolve_log_directory();
+    let target = log_dir.join("initial_admin_credentials.txt");
+    if target.is_file() {
+        if let Err(e) = fs::remove_file(&target) {
+            tracing::warn!("Failed to remove initial admin credentials file: {}", e);
+        } else {
+            tracing::info!("Initial administrative credentials file cleaned up successfully.");
+        }
+    }
 }

@@ -102,7 +102,14 @@ pub async fn probe_running_brum_server(host: &str, port: u16) -> bool {
 
 /// Starts the Brum HTTP server in a background task and returns the bound port and optional instance token
 pub async fn start_background_server(mut config: AppConfig) -> Result<(u16, Option<String>), Box<dyn std::error::Error + Send + Sync>> {
+    let bind_host = if config.server.host.is_empty() {
+        "127.0.0.1"
+    } else {
+        &config.server.host
+    };
+
     let instance_info = if config.server.standalone {
+        crate::instance::assert_loopback_bind(bind_host)?;
         let token = crate::instance::generate_instance_token();
         let owner = crate::instance::get_current_os_username();
         Some(Arc::new(crate::instance::UserInstanceInfo {
@@ -118,12 +125,6 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<(u16, Opti
 
     let state = create_app_state(&config, instance_info.clone())?;
     let app = create_router(state);
-
-    let bind_host = if config.server.host.is_empty() {
-        "127.0.0.1"
-    } else {
-        &config.server.host
-    };
 
     let addr_str = format!("{}:{}", bind_host, config.server.port);
     let listener = match tokio::net::TcpListener::bind(&addr_str).await {

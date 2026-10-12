@@ -307,7 +307,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let auth_mgr_arc = Arc::new(auth_mgr);
     let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
 
+    let bind_host = if config.server.host.is_empty() {
+        "127.0.0.1"
+    } else {
+        &config.server.host
+    };
+
     let instance_info = if config.server.standalone {
+        crate::instance::assert_loopback_bind(bind_host)?;
         let token = crate::instance::generate_instance_token();
         let owner = crate::instance::get_current_os_username();
         Some(Arc::new(crate::instance::UserInstanceInfo {
@@ -335,12 +342,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     };
 
     let app = create_router(state);
-
-    let bind_host = if config.server.host.is_empty() {
-        "127.0.0.1"
-    } else {
-        &config.server.host
-    };
 
     let addr_str = format!("{}:{}", bind_host, config.server.port);
     let listener = match tokio::net::TcpListener::bind(&addr_str).await {

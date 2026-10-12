@@ -315,3 +315,93 @@ async fn test_standalone_mode_behavior() {
         .send().await.unwrap();
     assert_eq!(resp_hdr.status(), reqwest::StatusCode::OK);
 }
+
+#[tokio::test]
+async fn test_initial_admin_credentials_atomic_mode_and_cleanup_on_login() {
+    let dir = tempdir().expect("Failed to create tempdir");
+    let cred_dir = dir.path().join("logs");
+
+    // 1. Verify file is created with 0600 mode
+    let target = brum::logging::write_initial_admin_credentials(&cred_dir, "admin", "DynamicPass123!").expect("write creds failed");
+    assert!(target.is_file());
+
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let perms = std::fs::metadata(&target).unwrap().permissions();
+        assert_eq!(perms.mode() & 0o777, 0o600, "Initial admin credentials file was not created with mode 0600");
+    }
+
+    // 2. Set up test server
+    let (port, _token, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // Write credentials in default log directory to verify cleanup on login
+    let default_log_dir = brum::config::LoggingConfig::default().resolve_log_directory();
+    let default_cred_file = brum::logging::write_initial_admin_credentials(&default_log_dir, &admin_user, &admin_pass).unwrap();
+    assert!(default_cred_file.is_file());
+
+    // 3. Login as admin
+    let login_resp = client
+        .post(format!("{}/api/auth/login", base_url))
+        .json(&json!({
+            "username": admin_user,
+            "password": admin_pass
+        }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(login_resp.status(), reqwest::StatusCode::OK);
+
+    // 4. Credentials file must now be deleted
+    assert!(!default_cred_file.exists(), "Initial admin credentials file was not cleaned up after admin login!");
+}
+
+#[tokio::test]
+async fn test_standalone_mode_refuses_non_loopback_bind() {
+    let dir = tempdir().expect("Failed to create tempdir");
+    let db_path = dir.path().join("brum_test.db").to_string_lossy().to_string();
+
+    let mut config = AppConfig::default();
+    config.server.host = "192.168.1.50".to_string(); // Non-loopback address
+    config.server.port = 0;
+    config.server.database_path = db_path;
+    config.server.standalone = true; // Standalone desktop mode requires loopback bind
+
+    let res = start_background_server(config).await;
+    assert!(res.is_err(), "Standalone mode must refuse non-loopback bind address");
+    let err_str = res.unwrap_err().to_string();
+    assert!(err_str.contains("Standalone desktop instance cannot bind to non-loopback address"), "Unexpected error: {}", err_str);
+}
+
+#[tokio::test]
+async fn test_instance_token_constant_time_comparison() {
+    let (port, token_opt, _dir, _admin_user, _admin_pass) = setup_test_server(false, true).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+    let valid_token = token_opt.expect("Standalone server must produce an instance token");
+
+    // 1. Valid token -> 200 OK
+    let resp = client.get(format!("{}/api/system/disks", base_url))
+        .header("X-Brum-Instance-Token", &valid_token)
+        .send().await.unwrap();
+    assert_eq!(resp.status(), reqwest::StatusCode::OK);
+
+    // 2. Token with different length -> 403 Forbidden
+    let resp_diff_len = client.get(format!("{}/api/system/disks", base_url))
+        .header("X-Brum-Instance-Token", format!("{}short", valid_token))
+        .send().await.unwrap();
+    assert_eq!(resp_diff_len.status(), reqwest::StatusCode::FORBIDDEN);
+
+    // 3. Token with same length but altered byte -> 403 Forbidden
+    let mut bad_token = valid_token.clone();
+    let last_char = bad_token.pop().unwrap();
+    let replacement = if last_char == 'a' { 'b' } else { 'a' };
+    bad_token.push(replacement);
+
+    let resp_same_len = client.get(format!("{}/api/system/disks", base_url))
+        .header("X-Brum-Instance-Token", &bad_token)
+        .send().await.unwrap();
+    assert_eq!(resp_same_len.status(), reqwest::StatusCode::FORBIDDEN);
+}

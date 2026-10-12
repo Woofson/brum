@@ -488,6 +488,19 @@ impl OidcManager {
 
         if let Some(jwks_uri) = &meta.jwks_uri {
             if let Ok(jwt_header) = jsonwebtoken::decode_header(id_token) {
+                if !matches!(
+                    jwt_header.alg,
+                    jsonwebtoken::Algorithm::RS256
+                        | jsonwebtoken::Algorithm::RS384
+                        | jsonwebtoken::Algorithm::RS512
+                ) {
+                    return Err(format!(
+                        "Unsupported OIDC token algorithm '{:?}': only RS256, RS384, and RS512 are permitted",
+                        jwt_header.alg
+                    )
+                    .into());
+                }
+
                 let jwks = self.fetch_jwks(jwks_uri, false).await.ok();
                 let find_key = |jwks: &JwksResponse, kid: Option<&str>| -> Option<JwkKey> {
                     if let Some(target_kid) = kid {

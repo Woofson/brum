@@ -256,7 +256,10 @@ pub async fn auth_middleware(
     };
 
     if let Some(ref inst) = state.instance_info {
-        let is_valid_token = provided_instance_token.as_deref() == Some(&inst.instance_token);
+        let is_valid_token = provided_instance_token.as_deref().map_or(false, |tok| {
+            use subtle::ConstantTimeEq;
+            bool::from(tok.as_bytes().ct_eq(inst.instance_token.as_bytes()))
+        });
 
         if is_valid_token {
             let home_dir = dirs::home_dir()

@@ -75,17 +75,56 @@ pub fn register_user_instance(port: u16, instance_token: &str) -> std::io::Resul
 
         let json = serde_json::to_string_pretty(&info)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e.to_string()))?;
-        fs::write(&path, json)?;
 
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            let _ = fs::set_permissions(&path, fs::Permissions::from_mode(0o600));
+            use std::os::unix::fs::OpenOptionsExt;
+            use std::io::Write;
+            let mut file = fs::OpenOptions::new()
+                .create(true)
+                .write(true)
+                .truncate(true)
+                .mode(0o600)
+                .open(&path)?;
+            file.write_all(json.as_bytes())?;
+        }
+        #[cfg(not(unix))]
+        {
+            fs::write(&path, json)?;
         }
 
         return Ok(Some(path));
     }
     Ok(None)
+}
+
+/// Validates whether a given host string resolves to a local loopback address.
+pub fn is_loopback_host(host: &str) -> bool {
+    let clean = host.trim().to_lowercase();
+    if clean.is_empty() || clean == "localhost" {
+        return true;
+    }
+    if let Ok(ip) = clean.parse::<std::net::IpAddr>() {
+        ip.is_loopback()
+    } else {
+        false
+    }
+}
+
+/// Refuses startup if standalone desktop mode (auto-admin instance token)
+/// is bound to a non-loopback network interface.
+pub fn assert_loopback_bind(host: &str) -> Result<(), std::io::Error> {
+    if !is_loopback_host(host) {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!(
+                "Standalone desktop instance cannot bind to non-loopback address '{}'. \
+                 Instance tokens grant administrative system privileges and must only be served on loopback (127.0.0.1, ::1, or localhost).",
+                host
+            ),
+        ));
+    }
+    Ok(())
 }
 
 /// Removes the user's instance descriptor on clean process shutdown.
