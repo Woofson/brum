@@ -5,6 +5,44 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.6] - 2026-10-12
+
+### Security & Hardening
+- **Frontend Sandbox & Plugin Isolation (Fixes #140)**:
+  - Eliminated `allow-same-origin` from all ChewToy plugin and web preview iframes to prevent sandbox escapes and DOM/storage traversal.
+  - Added isolating `Content-Security-Policy` (`sandbox ...`) and `X-Content-Type-Options: nosniff` headers to backend plugin asset delivery endpoints.
+- **PostMessage Bridge Verification & Permission Enforcement (Fixes #140, #142)**:
+  - Enforced strict sender lookup in `window.addEventListener('message')`, ensuring messages originate exclusively from active, registered Chewtoy iframe elements and discarding unauthorized cross-window calls.
+  - Enforced declared manifest permissions (`fs:read`, `fs:write`, `ui:notify`) before allowing Chewtoy bridge operations.
+  - Removed `getToken()` from `window.Brum.auth`.
+- **DOMPurify Sanitization & Inline Handler Escaping (Fixes #141)**:
+  - Vendored official DOMPurify and wrapped all Markdown rendering output across Notes and Document Viewer previews.
+  - Escaped single quotes in `escapeHtml` and replaced all single-quoted inline event handlers across `app.js` with `escapeJsStr()`.
+- **Token Handling & Session Hardening (Fixes #126, #134, #142)**:
+  - Removed legacy URL query `?token=` parameter extraction and localStorage caching.
+  - Enforced atomic 0600 file modes on sensitive credential files, constant-time token comparison, and loopback bind validation in standalone mode.
+- **CORS, SSRF & VFS Sandbox Hardening (Fixes #123, #128, #132, #133, #135, #136, #137, #138, #139)**:
+  - Supported subdomain wildcards and overlay CGNAT IP ranges in CORS policies.
+  - Restricted remote network schemes (SFTP, SMB, NFS, S3, WebDAV) to administrative users and prevented internal SSRF.
+  - Hardened symlink resolution using `symlink_metadata` to reject dangling symlink escapes during file creation.
+  - Escaped SMB argument quotes and tightened proxy CIDR validation.
+  - Fail closed on OIDC verification failures and unverified email claims.
+
+### Added
+- **Per-User Instance Isolation & Rolling File Logging (Fixes #120, #121, #122)**:
+  - Added per-user data directory separation for multi-user daemon deployments.
+  - Integrated rolling file logging with daily rotation and configurable retention.
+  - Dual-mode installer support across Linux desktop and server profiles.
+
+### Performance & Optimization
+- **Authentication Caching & Streaming Downloads (Fixes #130)**:
+  - Optimized hot-path token verification with bounded cache lookup.
+  - Implemented streaming chunked archive downloads to avoid buffering large archives in memory.
+
+### Documentation & Maintenance
+- **Network Security Disclaimer**: Added prominent deployment guidance in `README.md` clarifying intended operation on homelabs, local workstations, and overlay networks (Tailscale, WireGuard, NetBird).
+- **Cleanup**: Consolidated deployment on `docker-compose.yml` and removed duplicate screenshot assets.
+
 ## [1.7.0] - 2026-10-09
 
 ### Added
