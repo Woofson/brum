@@ -1601,7 +1601,8 @@ pub async fn handle_plugin_asset(
         .header(header::CACHE_CONTROL, "no-cache, no-store, must-revalidate, max-age=0")
         .header(header::PRAGMA, "no-cache")
         .header(header::EXPIRES, "0")
-        .header(header::CONTENT_SECURITY_POLICY, "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;")
+        .header(header::CONTENT_SECURITY_POLICY, "sandbox allow-scripts allow-forms allow-modals allow-popups; default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob:;")
+        .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
         .body(Body::from(bytes))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 

@@ -1428,7 +1428,7 @@ function openPaneTabContextMenu(e, paneIndex, tabIndex) {
       <i data-lucide="copy"></i>
       <span class="context-label">Duplicate Tab</span>
     </div>
-    <div class="context-item" onclick="document.getElementById('pane-tab-context-menu')?.remove(); copyToClipboard('${escapeHtml(tabPath)}'); showToast('Path copied to clipboard');">
+    <div class="context-item" onclick="document.getElementById('pane-tab-context-menu')?.remove(); copyToClipboard(${escapeJsStr(tabPath)}); showToast('Path copied to clipboard');">
       <i data-lucide="clipboard"></i>
       <span class="context-label">Copy Tab Path</span>
     </div>
@@ -2630,21 +2630,13 @@ function updateStandaloneUI() {
 
 async function checkAuthAndLoad() {
   const urlParams = new URLSearchParams(window.location.search);
-  const urlToken = urlParams.get('token');
   const ssoSuccess = urlParams.get('sso_success');
   const urlError = urlParams.get('error');
 
-  if (urlToken) {
-    App.token = urlToken;
-    localStorage.setItem('cd_token', urlToken);
-    try {
-      document.cookie = `cd_token=${encodeURIComponent(urlToken)}; path=/; SameSite=Lax`;
-    } catch (e) {}
+  if (ssoSuccess) {
     window.history.replaceState({}, document.title, window.location.pathname);
-    if (ssoSuccess) {
-      setTimeout(() => showToast('Successfully signed in via SSO', 'success'), 300);
-    }
-  } else if (ssoSuccess) {
+    setTimeout(() => showToast('Successfully signed in via SSO', 'success'), 300);
+  } else if (urlError) {
     window.history.replaceState({}, document.title, window.location.pathname);
     setTimeout(() => showToast('Successfully signed in via SSO', 'success'), 300);
   } else if (urlError) {
@@ -4617,7 +4609,7 @@ async function showPaneNodeDropdown(event, paneIndex) {
       const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
 
       html += `
-        <div class="breadcrumb-popover-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, '${escapeHtml(n.id)}'); closeBreadcrumbPopovers();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div class="breadcrumb-popover-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, ${escapeJsStr(n.id)}); closeBreadcrumbPopovers();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
             <span class="pane-node-dot" style="background: ${dotColor}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
             <div style="min-width: 0; flex: 1;">
@@ -8444,7 +8436,7 @@ function createTreeNodeElement(paneIndex, name, path, iconName = 'folder') {
   const row = document.createElement('div');
   row.className = `tree-node-row ${isActive ? 'active' : ''}`;
   row.innerHTML = `
-    <span class="tree-expander" onclick="event.stopPropagation(); toggleTreeNodeExpand(this, ${paneIndex}, '${escapeHtml(path)}')">
+    <span class="tree-expander" onclick="event.stopPropagation(); toggleTreeNodeExpand(this, ${paneIndex}, ${escapeJsStr(path)})">
       <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
     </span>
     ${treeIconHtml}
@@ -8957,7 +8949,7 @@ function renderMenuBuilderCategory(category) {
   items.forEach((item, idx) => {
     html += `
       <div class="rule-config-row" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px;">
-        <input type="checkbox" ${item.enabled !== false ? 'checked' : ''} onchange="toggleMenuItemVisibility('${category}', '${escapeHtml(item.id)}', this.checked)" title="Toggle item visibility" style="cursor: pointer;">
+        <input type="checkbox" ${item.enabled !== false ? 'checked' : ''} onchange="toggleMenuItemVisibility('${category}', ${escapeJsStr(item.id)}, this.checked)" title="Toggle item visibility" style="cursor: pointer;">
         <i data-lucide="${item.icon || 'circle'}" style="width: 15px; height: 15px; color: ${item.enabled !== false ? 'var(--accent)' : 'var(--text-muted)'}; flex-shrink: 0;"></i>
         <div style="flex: 1; min-width: 0;">
           <div style="font-size: 12px; font-weight: 600; color: ${item.enabled !== false ? 'var(--text-main)' : 'var(--text-muted)'};">${escapeHtml(item.label)}</div>
@@ -9988,7 +9980,7 @@ async function loadAdminApiTokens() {
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-            <button type="button" class="btn btn-xs btn-outline" onclick="revokeApiToken('${escapeHtml(tok.id)}', '${escapeHtml(tok.name)}')" title="Revoke Token" style="height: 26px; padding: 0 8px; color: #ef4444; display: inline-flex; align-items: center; gap: 4px;">
+            <button type="button" class="btn btn-xs btn-outline" onclick="revokeApiToken(${escapeJsStr(tok.id)}, ${escapeJsStr(tok.name)})" title="Revoke Token" style="height: 26px; padding: 0 8px; color: #ef4444; display: inline-flex; align-items: center; gap: 4px;">
               <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Revoke
             </button>
           </div>
@@ -11398,8 +11390,8 @@ function renderKeybindingsTable() {
           ${item.isCustom ? '<span style="font-size: 10px; color: var(--accent); margin-left: 6px; font-weight: 600;">(Custom)</span>' : ''}
         </td>
         <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
-          <button class="btn btn-xs btn-outline" onclick="openKeyRecordModal('${escapeHtml(item.id)}')" title="Record new shortcut"><i data-lucide="edit-3" style="width: 11px; height: 11px;"></i> Rebind</button>
-          ${item.isCustom ? `<button class="btn btn-xs" onclick="resetSingleKeybind('${escapeHtml(item.id)}')" title="Reset to default (${escapeHtml(item.defaultKey)})"><i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i></button>` : ''}
+          <button class="btn btn-xs btn-outline" onclick="openKeyRecordModal(${escapeJsStr(item.id)})" title="Record new shortcut"><i data-lucide="edit-3" style="width: 11px; height: 11px;"></i> Rebind</button>
+          ${item.isCustom ? `<button class="btn btn-xs" onclick="resetSingleKeybind(${escapeJsStr(item.id)})" title="Reset to default (${escapeHtml(item.defaultKey)})"><i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i></button>` : ''}
         </td>
       </tr>
     `;
@@ -12931,7 +12923,7 @@ function renderCalcHistory() {
   }
 
   listEl.innerHTML = calcHistory.map(item => `
-    <div class="calc-history-item" onclick="calcLoadHistoryItem('${escapeHtml(item.result)}')">
+    <div class="calc-history-item" onclick="calcLoadHistoryItem(${escapeJsStr(item.result)})">
       <span style="color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">${escapeHtml(item.expr)}</span>
       <span style="font-weight: 700; color: var(--accent);">= ${escapeHtml(item.result)}</span>
     </div>
@@ -13539,7 +13531,7 @@ function renderDatabaseSidebar() {
       const isActive = cleanCat === (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim();
       const icon = isManualCat ? '📖' : '📚';
       return `
-        <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseCategory('${escapeHtml(cleanCat)}')" title="${escapeHtml(cleanCat)} (${count} notes)">
+        <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseCategory(${escapeJsStr(cleanCat)})" title="${escapeHtml(cleanCat)} (${count} notes)">
           <span>${icon}</span>
           <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanCat)}</span>
           <span class="notedog-item-count">${count}</span>
@@ -13560,7 +13552,7 @@ function renderDatabaseSidebar() {
         const isActive = cleanName === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim() || sec.name === notedogState.activeDbSection;
         const icon = getManualSectionIcon(sec.name);
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection('${escapeHtml(sec.name)}')" title="${escapeHtml(cleanName)} (${count} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection(${escapeJsStr(sec.name)})" title="${escapeHtml(cleanName)} (${count} notes)">
             <span>${icon}</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanName)}</span>
             <span class="notedog-item-count">${count}</span>
@@ -13575,7 +13567,7 @@ function renderDatabaseSidebar() {
         const count = catNotes.filter(n => (n.section || '').replace(/^[^\w\s&]+/, '').trim() === cleanSec).length;
         const isActive = cleanSec === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim();
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection('${escapeHtml(cleanSec)}')" title="${escapeHtml(cleanSec)} (${count} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection(${escapeJsStr(cleanSec)})" title="${escapeHtml(cleanSec)} (${count} notes)">
             <span>📂</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanSec)}</span>
             <span class="notedog-item-count">${count}</span>
@@ -13611,7 +13603,7 @@ function renderDatabaseSidebar() {
           const isActive = notedogState.activeNote && (notedogState.activeNote.path === note.path);
           const cleanTitle = note.name.replace(/^[^\w\s&]+/, '').trim();
           return `
-            <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath('${escapeHtml(note.path)}')" title="${escapeHtml(note.filename)}">
+            <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath(${escapeJsStr(note.path)})" title="${escapeHtml(note.filename)}">
               <span>📄</span>
               <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 <div>${escapeHtml(cleanTitle)}</div>
@@ -13813,7 +13805,7 @@ function renderDatabaseNoteTags(note) {
   container.innerHTML = tags.map(t => `
     <span class="notedog-tag-chip">
       #${escapeHtml(t)}
-      <span class="del-tag" onclick="removeNoteTag('${escapeHtml(t)}')" title="Remove tag">×</span>
+      <span class="del-tag" onclick="removeNoteTag(${escapeJsStr(t)})" title="Remove tag">×</span>
     </span>
   `).join('');
 }
@@ -14472,7 +14464,7 @@ function renderNoteDogSidebar() {
         const icon = nb.is_encrypted ? '🔒' : (isManualNb ? '📖' : '📚');
         const encLabel = nb.is_encrypted ? ' [Encrypted Notebook]' : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNotebook('${escapeHtml(nb.name)}')" title="${escapeHtml(cleanNb)}${encLabel} (${totalNotes} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNotebook(${escapeJsStr(nb.name)})" title="${escapeHtml(cleanNb)}${encLabel} (${totalNotes} notes)">
             <span>${icon}</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanNb)}</span>
             <span class="notedog-item-count">${totalNotes}</span>
@@ -14495,7 +14487,7 @@ function renderNoteDogSidebar() {
         const icon = sec.is_encrypted ? '🔒' : (isManualNb ? getManualSectionIcon(sec.name) : '📂');
         const encLabel = sec.is_encrypted ? ' [Encrypted Section]' : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogSection('${escapeHtml(sec.name)}')" title="${escapeHtml(cleanSec)}${encLabel} (${sec.notes.length} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogSection(${escapeJsStr(sec.name)})" title="${escapeHtml(cleanSec)}${encLabel} (${sec.notes.length} notes)">
             <span>${icon}</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanSec)}</span>
             <span class="notedog-item-count">${sec.notes.length}</span>
@@ -14533,7 +14525,7 @@ function renderNoteDogSidebar() {
         const cleanName = note.name.replace(/^[^\w\s&]+/, '').trim();
         const subtext = note.nbName ? `${note.nbName.replace(/^[^\w\s&]+/, '').trim()}/${note.secName.replace(/^[^\w\s&]+/, '').trim()}` : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath('${escapeHtml(note.path)}')" title="${escapeHtml(note.filename)}">
+          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath(${escapeJsStr(note.path)})" title="${escapeHtml(note.filename)}">
             <span>${icon}</span>
             <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               <div>${escapeHtml(cleanName)}</div>
@@ -15071,7 +15063,8 @@ function generateNoteDogMarkdownHtml(text) {
   if (typeof marked !== 'undefined' && marked.parse) {
     try {
       marked.setOptions({ gfm: true, breaks: true, headerIds: true, mangle: false });
-      return marked.parse(transformed);
+      const parsed = marked.parse(transformed);
+      return (typeof DOMPurify !== 'undefined' && DOMPurify.sanitize) ? DOMPurify.sanitize(parsed) : parsed;
     } catch (e) {
       console.warn('marked.parse error in notes:', e);
     }
@@ -15160,7 +15153,7 @@ function generateNoteDogMarkdownHtml(text) {
     }
   });
 
-  return html;
+  return (typeof DOMPurify !== 'undefined' && DOMPurify.sanitize) ? DOMPurify.sanitize(html) : html;
 }
 
 function renderNoteDogPreview(text) {
@@ -15890,7 +15883,7 @@ async function openNoteDogVersionsModal() {
 
       if (listEl) {
         listEl.innerHTML = versions.map((v, i) => `
-          <div class="notedog-item ${i === 0 ? 'active' : ''}" onclick="selectNoteDogVersion('${escapeHtml(v.path)}', '${escapeHtml(v.formatted_time)}', ${v.size_bytes})" style="padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <div class="notedog-item ${i === 0 ? 'active' : ''}" onclick="selectNoteDogVersion(${escapeJsStr(v.path)}, ${escapeJsStr(v.formatted_time)}, ${v.size_bytes})" style="padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);">
             <div style="flex:1;">
               <div style="font-weight:600; font-size:11px;">${escapeHtml(v.formatted_time)}</div>
               <div style="font-size:10px; color:var(--text-dim);">${formatFileSize(v.size_bytes)}</div>
@@ -16578,6 +16571,10 @@ function renderMarkdownToHtml(content) {
     html = fallbackRenderMarkdown(transformed);
   }
 
+  if (typeof DOMPurify !== 'undefined' && DOMPurify.sanitize) {
+    html = DOMPurify.sanitize(html);
+  }
+
   return html;
 }
 
@@ -17062,7 +17059,7 @@ function renderFolderDiff(diff, filter = 'all') {
               <td style="text-align: right; font-family: var(--font-mono); color: var(--text-muted);">${e.size_right !== null ? formatBytes(e.size_right) : '-'}</td>
               <td style="text-align: center;">
                 ${!e.is_dir && (e.status === 'modified' || e.status === 'identical') ? `
-                  <button class="btn btn-icon btn-sm" onclick="openFileDiffView('${escapeHtml(diff.dir_left)}/${escapeHtml(e.relative_path)}', '${escapeHtml(diff.dir_right)}/${escapeHtml(e.relative_path)}')" title="Inspect Side-by-Side Diff">
+                  <button class="btn btn-icon btn-sm" onclick="openFileDiffView(${escapeJsStr(diff.dir_left + '/' + e.relative_path)}, ${escapeJsStr(diff.dir_right + '/' + e.relative_path)})" title="Inspect Side-by-Side Diff">
                     <i data-lucide="eye" style="width:12px;"></i>
                   </button>
                 ` : ''}
@@ -17417,7 +17414,7 @@ function openUniversalFilePicker(options = {}) {
   const panesList = document.getElementById('converter-picker-panes-list');
   if (panesList) {
     panesList.innerHTML = App.panes.map((p, idx) => `
-      <button type="button" class="btn btn-xs" onclick="navigateConverterPickerPath('${escapeHtml(p.path || '/')}')" title="Pane ${idx + 1} (${p.nodeId || 'local'})">
+      <button type="button" class="btn btn-xs" onclick="navigateConverterPickerPath(${escapeJsStr(p.path || '/')})" title="Pane ${idx + 1} (${p.nodeId || 'local'})">
         Pane ${idx + 1}
       </button>
     `).join('');
@@ -17485,7 +17482,7 @@ async function navigateConverterPickerPath(newPath) {
             const fullPath = newPath.endsWith('/') ? `${newPath}${entry.name}` : `${newPath}/${entry.name}`;
             if (entry.is_dir) {
               return `
-                <div class="converter-file-picker-row" onclick="navigateConverterPickerPath('${escapeHtml(fullPath)}')">
+                <div class="converter-file-picker-row" onclick="navigateConverterPickerPath(${escapeJsStr(fullPath)})">
                   <span style="display: flex; align-items: center; gap: 6px;">
                     <i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent);"></i>
                     <span style="font-weight: 600;">${escapeHtml(entry.name)}</span>
@@ -17497,7 +17494,7 @@ async function navigateConverterPickerPath(newPath) {
               const icon = getConverterFileCategoryIcon(entry.name);
               const sizeStr = entry.size !== undefined ? formatFileSize(entry.size) : '';
               return `
-                <div class="converter-file-picker-row" onclick="selectConverterPickerFile('${escapeHtml(fullPath)}')">
+                <div class="converter-file-picker-row" onclick="selectConverterPickerFile(${escapeJsStr(fullPath)})">
                   <span style="display: flex; align-items: center; gap: 6px;">
                     <span style="font-size: 13px;">${icon}</span>
                     <span style="font-weight: 500;">${escapeHtml(entry.name)}</span>
@@ -18051,7 +18048,7 @@ function renderToolsMenu() {
     activeChewToys.forEach(p => {
       const iconUrl = getChewtoyIconUrl(p);
       html += `
-        <div class="dropdown-item" onclick="openDynamicChewToy('${escapeHtml(p.id)}'); closeToolsMenu();" style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="dropdown-item" onclick="openDynamicChewToy(${escapeJsStr(p.id)}); closeToolsMenu();" style="display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             ${renderToolIconHtml(iconUrl, '', 18)}
             <span>${escapeHtml(p.name || p.id)}</span>
@@ -18983,7 +18980,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
                   </div>
                   <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
                     ${isAct ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
-                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); unmountUsbDevice('${escapeHtml(part.mount_point || part.device_path)}', ${paneIndex});" title="Safely unmount & eject" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: var(--danger, #ef4444); border-radius: var(--radius);">
+                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); unmountUsbDevice(${escapeJsStr(part.mount_point || part.device_path)}, ${paneIndex});" title="Safely unmount & eject" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: var(--danger, #ef4444); border-radius: var(--radius);">
                       <i data-lucide="eject" style="width: 12px; height: 12px;"></i>
                     </button>
                   </div>
@@ -19009,7 +19006,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
-                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); mountUsbDevice('${escapeHtml(part.device_path)}', ${paneIndex});" title="Mount storage partition" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); color: #10b981; border-radius: var(--radius);">
+                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); mountUsbDevice(${escapeJsStr(part.device_path)}, ${paneIndex});" title="Mount storage partition" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); color: #10b981; border-radius: var(--radius);">
                       <i data-lucide="play" style="width: 11px; height: 11px;"></i>
                     </button>
                   </div>
@@ -19044,7 +19041,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
               </div>
               <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
                 ${isAct ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
-                <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); toggleHideDrive('${escapeHtml(d.path)}', ${paneIndex});" title="Hide from Places menu" style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; padding: 0; background: transparent; border: 1px solid transparent; color: var(--text-dim); opacity: 0.6;">
+                <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); toggleHideDrive(${escapeJsStr(d.path)}, ${paneIndex});" title="Hide from Places menu" style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; padding: 0; background: transparent; border: 1px solid transparent; color: var(--text-dim); opacity: 0.6;">
                   <i data-lucide="eye-off" style="width: 11px; height: 11px;"></i>
                 </button>
               </div>
@@ -19479,7 +19476,7 @@ function generateTemplateSubmenuItems() {
     return '<div style="color: var(--text-muted); font-size: 11px; padding: 4px 10px;">No templates configured</div>';
   }
   return templates.map(t => `
-    <div class="context-item" onclick="triggerCreateFromTemplate('${escapeHtml(t.id)}', App.contextPaneIndex ?? App.activePaneIndex); hideContextMenu();">
+    <div class="context-item" onclick="triggerCreateFromTemplate(${escapeJsStr(t.id)}, App.contextPaneIndex ?? App.activePaneIndex); hideContextMenu();">
       <i data-lucide="${escapeHtml(t.icon || 'file-text')}" style="width: 13px; color: var(--accent);"></i>
       <span>${escapeHtml(t.name)}</span>
     </div>
@@ -19771,10 +19768,10 @@ function renderFileTemplatesList() {
         </div>
 
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-          <button class="btn btn-xs" onclick="triggerCreateFromTemplate('${escapeHtml(t.id)}'); closeModal('settings-modal');" title="Test / Create File from this Template"><i data-lucide="play" style="width: 11px;"></i> Test</button>
-          <button class="btn btn-xs" onclick="editTemplateById('${escapeHtml(t.id)}')" title="Edit Template"><i data-lucide="edit-3" style="width: 11px;"></i> Edit</button>
-          <button class="btn btn-xs" onclick="duplicateFileTemplate('${escapeHtml(t.id)}')" title="Duplicate Template"><i data-lucide="copy" style="width: 11px;"></i></button>
-          ${!isBuiltin ? `<button class="btn btn-xs btn-danger" onclick="deleteFileTemplate('${escapeHtml(t.id)}')" title="Delete Custom Template"><i data-lucide="trash-2" style="width: 11px;"></i></button>` : ''}
+          <button class="btn btn-xs" onclick="triggerCreateFromTemplate(${escapeJsStr(t.id)}); closeModal('settings-modal');" title="Test / Create File from this Template"><i data-lucide="play" style="width: 11px;"></i> Test</button>
+          <button class="btn btn-xs" onclick="editTemplateById(${escapeJsStr(t.id)})" title="Edit Template"><i data-lucide="edit-3" style="width: 11px;"></i> Edit</button>
+          <button class="btn btn-xs" onclick="duplicateFileTemplate(${escapeJsStr(t.id)})" title="Duplicate Template"><i data-lucide="copy" style="width: 11px;"></i></button>
+          ${!isBuiltin ? `<button class="btn btn-xs btn-danger" onclick="deleteFileTemplate(${escapeJsStr(t.id)})" title="Delete Custom Template"><i data-lucide="trash-2" style="width: 11px;"></i></button>` : ''}
         </div>
       </div>
     `;
@@ -19898,11 +19895,11 @@ function showContextMenu(x, y) {
   }
 
   const favCopyItems = App.quickDestinations.map(d => `
-    <div class="context-item" onclick="quickTransferToPath('copy', '${escapeHtml(d.path)}')"><i data-lucide="folder" style="width:13px;"></i> ${escapeHtml(d.name)}</div>
+    <div class="context-item" onclick="quickTransferToPath('copy', ${escapeJsStr(d.path)})"><i data-lucide="folder" style="width:13px;"></i> ${escapeHtml(d.name)}</div>
   `).join('');
 
   const favMoveItems = App.quickDestinations.map(d => `
-    <div class="context-item" onclick="quickTransferToPath('move', '${escapeHtml(d.path)}')"><i data-lucide="folder" style="width:13px;"></i> ${escapeHtml(d.name)}</div>
+    <div class="context-item" onclick="quickTransferToPath('move', ${escapeJsStr(d.path)})"><i data-lucide="folder" style="width:13px;"></i> ${escapeHtml(d.name)}</div>
   `).join('');
 
   const targetPane = App.panes[App.contextPaneIndex ?? App.activePaneIndex];
@@ -19919,12 +19916,12 @@ function showContextMenu(x, y) {
   let openWithItems = '';
   if (matchingRules.length > 0) {
     matchingRules.forEach(r => {
-      openWithItems += `<div class="context-item" onclick="executeOpenWith('${escapeHtml(App.contextItem?.path || '')}', '${escapeHtml(r.cmd)}'); hideContextMenu();">
+      openWithItems += `<div class="context-item" onclick="executeOpenWith(${escapeJsStr(App.contextItem?.path || '')}, ${escapeJsStr(r.cmd)}); hideContextMenu();">
         <i data-lucide="${r.icon || 'external-link'}" style="width: 13px;"></i> ${escapeHtml(r.name)}
       </div>`;
     });
   } else {
-    openWithItems += `<div class="context-item" onclick="executeOpenWith('${escapeHtml(App.contextItem?.path || '')}', null); hideContextMenu();">
+    openWithItems += `<div class="context-item" onclick="executeOpenWith(${escapeJsStr(App.contextItem?.path || '')}, null); hideContextMenu();">
       <i data-lucide="external-link" style="width: 13px;"></i> System Default App
     </div>`;
   }
@@ -19935,7 +19932,7 @@ function showContextMenu(x, y) {
   let userCustomActions = '';
   if (CustomShellActions.length > 0) {
     CustomShellActions.forEach(a => {
-      userCustomActions += `<div class="context-item" onclick="executeCustomAction('${escapeHtml(a.cmd)}', '${escapeHtml(App.contextItem?.path || '')}'); hideContextMenu();">
+      userCustomActions += `<div class="context-item" onclick="executeCustomAction(${escapeJsStr(a.cmd)}, ${escapeJsStr(App.contextItem?.path || '')}); hideContextMenu();">
         <i data-lucide="${a.icon || 'terminal'}" style="width: 13px;"></i> ${escapeHtml(a.label)}
       </div>`;
     });
@@ -20890,7 +20887,7 @@ function renderPropTagsTab(path) {
         const pill = document.createElement('span');
         pill.className = 'file-tag-badge';
         pill.style.cssText = 'font-size: 12px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 6px;';
-        pill.innerHTML = `<span>#${escapeHtml(tag)}</span><i data-lucide="x" style="width: 12px; height: 12px; cursor: pointer;" onclick="removePropCustomTag('${escapeHtml(tag)}')"></i>`;
+        pill.innerHTML = `<span>#${escapeHtml(tag)}</span><i data-lucide="x" style="width: 12px; height: 12px; cursor: pointer;" onclick="removePropCustomTag(${escapeJsStr(tag)})"></i>`;
         container.appendChild(pill);
       });
     }
@@ -21150,10 +21147,10 @@ function showEmptySpaceContextMenu(x, y, paneIndex) {
     </div>
     <div class="context-item" onclick="refreshAllPanes(); hideContextMenu();"><i data-lucide="rotate-cw" style="width: 14px;"></i> Refresh Directory</div>
     <div class="context-sep"></div>
-    <div class="context-item" onclick="openTerminalInPath('${escapeHtml(pane.path)}'); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
+    <div class="context-item" onclick="openTerminalInPath(${escapeJsStr(pane.path)}); hideContextMenu();"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
     <div class="context-item" onclick="openSearchModal(); hideContextMenu();"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Search in Directory (Ctrl+F)</div>
     <div class="context-item" onclick="openSyncModal(); hideContextMenu();"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
-    <div class="context-item" onclick="openDiskUsageModal('${escapeHtml(pane.path)}'); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
+    <div class="context-item" onclick="openDiskUsageModal(${escapeJsStr(pane.path)}); hideContextMenu();"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
     <div class="context-item" onclick="openRemoteModal(${paneIndex}); hideContextMenu();"><i data-lucide="network" style="width: 14px;"></i> Mount Remote Storage Here...</div>
     ${pane.path.includes('://') ? `<div class="context-item" onclick="disconnectPaneRemote(${paneIndex}); hideContextMenu();" style="color: var(--danger, #ef4444);"><i data-lucide="log-out" style="width: 14px; color: var(--danger, #ef4444);"></i> Disconnect Remote Storage</div>` : ''}
     <div class="context-item" onclick="addCurrentPaneToQuickDest(); hideContextMenu();"><i data-lucide="bookmark-plus" style="width: 14px;"></i> Bookmark Current Path</div>
@@ -21535,7 +21532,7 @@ async function loadDriveVisibilitySettings() {
     return `
       <label style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" ${!isHidden ? 'checked' : ''} onchange="toggleHideDrive('${escapeHtml(d.path)}')" style="cursor: pointer; accent-color: var(--accent);">
+          <input type="checkbox" ${!isHidden ? 'checked' : ''} onchange="toggleHideDrive(${escapeJsStr(d.path)})" style="cursor: pointer; accent-color: var(--accent);">
           <span style="font-weight: 500; font-size: 12px; color: ${isHidden ? 'var(--text-dim)' : 'var(--text-main)'}; text-decoration: ${isHidden ? 'line-through' : 'none'};">${escapeHtml(label)}</span>
         </div>
         <span class="badge" style="font-size: 9px; ${isHidden ? 'background: rgba(239,68,68,0.15); color: #ef4444;' : 'background: rgba(16,185,129,0.15); color: #10b981;'}">${isHidden ? 'HIDDEN' : 'VISIBLE'}</span>
@@ -23271,7 +23268,7 @@ function renderCustomIconsTable() {
       <td style="padding: 6px 10px; font-family: var(--font-mono); font-size: 11px;">${escapeHtml(iconVal)}</td>
       <td style="padding: 6px 10px; text-align: center;">${formatCustomIconToHtml(iconVal, 'sm', ext === 'folder')}</td>
       <td style="padding: 6px 10px; text-align: right;">
-        <button class="btn btn-icon btn-xs btn-danger" onclick="removeCustomFileIconRule('${escapeHtml(ext)}')"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs btn-danger" onclick="removeCustomFileIconRule(${escapeJsStr(ext)})"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i></button>
       </td>
     `;
     tbody.appendChild(tr);
@@ -24933,7 +24930,7 @@ function renderSharesTable(shares) {
         <td style="text-align:right; white-space:nowrap;">
           <button class="btn btn-icon" style="width:26px; height:26px;" onclick="navigator.clipboard.writeText('${fullUrl}'); showToast('Share URL copied!', 'success');" title="Copy Public URL"><i data-lucide="copy" style="width:12px;"></i></button>
           <a href="${fullUrl}" target="_blank" class="btn btn-icon" style="width:26px; height:26px; text-decoration:none;" title="Open Share Link"><i data-lucide="external-link" style="width:12px;"></i></a>
-          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="openShareLogs(${s.id}, '${escapeHtml(s.name)}')" title="Visitor Audit Trail"><i data-lucide="activity" style="width:12px; color:#60a5fa;"></i></button>
+          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="openShareLogs(${s.id}, ${escapeJsStr(s.name)})" title="Visitor Audit Trail"><i data-lucide="activity" style="width:12px; color:#60a5fa;"></i></button>
           <button class="btn btn-icon" style="width:26px; height:26px;" onclick="toggleRevokeShare(${s.id}, ${isRevoked})" title="${isRevoked ? 'Reactivate Share' : 'Revoke Share'}" style="color:${isRevoked ? '#10b981' : '#f59e0b'};"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:12px;"></i></button>
           <button class="btn btn-icon btn-danger-hover" style="width:26px; height:26px;" onclick="deleteSharePermanent(${s.id})" title="Delete Share Permanently" style="color:var(--danger);"><i data-lucide="trash-2" style="width:12px;"></i></button>
         </td>
@@ -24971,7 +24968,7 @@ function renderDockedSharesList() {
             </div>
             <div style="display:flex; align-items:center; gap:3px;">
               <button class="btn btn-icon" style="width:22px; height:22px;" onclick="navigator.clipboard.writeText('${fullUrl}'); showToast('Share URL copied!', 'success');" title="Copy URL"><i data-lucide="copy" style="width:11px;"></i></button>
-              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="openShareLogs(${s.id}, '${escapeHtml(s.name)}')" title="Audit Trail"><i data-lucide="activity" style="width:11px; color:#60a5fa;"></i></button>
+              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="openShareLogs(${s.id}, ${escapeJsStr(s.name)})" title="Audit Trail"><i data-lucide="activity" style="width:11px; color:#60a5fa;"></i></button>
               <button class="btn btn-icon" style="width:22px; height:22px;" onclick="toggleRevokeShare(${s.id}, ${isRevoked})" title="${isRevoked ? 'Reactivate' : 'Revoke'}"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:11px;"></i></button>
             </div>
           </div>
@@ -26668,7 +26665,7 @@ function formatDate(timestampSec, compact = undefined) {
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
   if (typeof str !== 'string') str = String(str);
-  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 function escapeJsStr(str) {
@@ -33428,7 +33425,7 @@ function openSyncFolderPicker(targetInputId) {
   const panesList = document.getElementById('sync-picker-panes-list');
   if (panesList) {
     panesList.innerHTML = App.panes.map((p, idx) => `
-      <div class="sync-folder-picker-item" onclick="selectSyncPickerLocation('${escapeHtml(p.path || '/')}')">
+      <div class="sync-folder-picker-item" onclick="selectSyncPickerLocation(${escapeJsStr(p.path || '/')})">
         <span style="font-weight: 600;"><i data-lucide="layout" style="width: 12px; height: 12px; vertical-align: -1px;"></i> Pane ${idx + 1} (${p.nodeId || 'local'})</span>
         <span style="font-family: var(--font-mono); color: var(--text-muted); font-size: 11px;">${escapeHtml(p.path || '/')}</span>
       </div>
@@ -33473,7 +33470,7 @@ async function navigateSyncPickerPath(newPath) {
           container.innerHTML = dirs.map(d => {
             const fullSubPath = newPath.endsWith('/') ? `${newPath}${d.name}` : `${newPath}/${d.name}`;
             return `
-              <div class="sync-folder-picker-item" onclick="navigateSyncPickerPath('${escapeHtml(fullSubPath)}')">
+              <div class="sync-folder-picker-item" onclick="navigateSyncPickerPath(${escapeJsStr(fullSubPath)})">
                 <span style="display: flex; align-items: center; gap: 6px;">
                   <i data-lucide="folder" style="width: 13px; height: 13px; color: var(--accent);"></i>
                   <span>${escapeHtml(d.name)}</span>
@@ -33548,7 +33545,7 @@ function renderCustomExclusionTags() {
   container.innerHTML = syncCustomExclusions.map(pat => `
     <span class="sync-custom-tag">
       ${escapeHtml(pat)}
-      <span class="sync-custom-tag-remove" onclick="removeCustomExclusionTag('${escapeHtml(pat)}')">&times;</span>
+      <span class="sync-custom-tag-remove" onclick="removeCustomExclusionTag(${escapeJsStr(pat)})">&times;</span>
     </span>
   `).join('');
 }
@@ -34394,18 +34391,18 @@ function renderSystemDisksOverview() {
         </div>
 
         <div class="du-mount-actions">
-          <button type="button" class="btn btn-xs btn-outline" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="jumpToPaneFromDiskUsage('${escapeHtml(disk.mount_point)}')" title="Open this mount in active panel">
+          <button type="button" class="btn btn-xs btn-outline" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="jumpToPaneFromDiskUsage(${escapeJsStr(disk.mount_point)})" title="Open this mount in active panel">
             <i data-lucide="folder-open" style="width: 12px; height: 12px;"></i> Open in Panel
           </button>
-          <button type="button" class="btn btn-xs btn-accent" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="scanMountpointTreemap('${escapeHtml(disk.mount_point)}')" title="Run parallel Rayon deep scan on this mount point">
+          <button type="button" class="btn btn-xs btn-accent" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="scanMountpointTreemap(${escapeJsStr(disk.mount_point)})" title="Run parallel Rayon deep scan on this mount point">
             <i data-lucide="layout-grid" style="width: 12px; height: 12px;"></i> Deep Scan
           </button>
           ${disk.is_removable ? `
-            <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--danger, #ef4444); border-color: rgba(239,68,68,0.3);" onclick="unmountUsbDevice('${escapeHtml(disk.mount_point)}', App.activePaneIndex)" title="Safely unmount & eject">
+            <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--danger, #ef4444); border-color: rgba(239,68,68,0.3);" onclick="unmountUsbDevice(${escapeJsStr(disk.mount_point)}, App.activePaneIndex)" title="Safely unmount & eject">
               <i data-lucide="eject" style="width: 12px; height: 12px;"></i>
             </button>
           ` : ''}
-          <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="openTerminalFromDiskUsage('${escapeHtml(disk.mount_point)}')" title="Open Terminal here">
+          <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="openTerminalFromDiskUsage(${escapeJsStr(disk.mount_point)})" title="Open Terminal here">
             <i data-lucide="terminal" style="width: 12px; height: 12px;"></i>
           </button>
         </div>
@@ -34771,7 +34768,7 @@ function renderDiskUsageBreadcrumbs(path) {
     const isLast = idx === parts.length - 1;
     const p = currentAcc;
     html += `<span class="du-crumb-sep">/</span>`;
-    html += `<button class="du-crumb-btn ${isLast ? 'active' : ''}" onclick="runDiskUsageScan('${escapeHtml(p)}')" title="${escapeHtml(p)}">${escapeHtml(seg)}</button>`;
+    html += `<button class="du-crumb-btn ${isLast ? 'active' : ''}" onclick="runDiskUsageScan(${escapeJsStr(p)})" title="${escapeHtml(p)}">${escapeHtml(seg)}</button>`;
   });
 
   container.innerHTML = html;
@@ -34897,7 +34894,7 @@ function renderDiskUsageData() {
     multiBar.innerHTML = topSlices.map((it, idx) => {
       const color = DU_PALETTE[idx % DU_PALETTE.length];
       const pct = it.percentage.toFixed(1);
-      return `<div class="du-bar-segment" style="width: ${it.percentage}%; background: ${color.bar};" title="${escapeHtml(it.name)}: ${escapeHtml(it.formatted_size)} (${pct}%)" onclick="${it.is_dir ? `runDiskUsageScan('${escapeHtml(it.path)}')` : ''}"></div>`;
+      return `<div class="du-bar-segment" style="width: ${it.percentage}%; background: ${color.bar};" title="${escapeHtml(it.name)}: ${escapeHtml(it.formatted_size)} (${pct}%)" onclick="${it.is_dir ? `runDiskUsageScan(${escapeJsStr(it.path)})` : ''}"></div>`;
     }).join('');
   }
 
@@ -34918,7 +34915,7 @@ function renderDiskUsageData() {
           const icon = it.is_dir ? '📁' : '📄';
 
           return `
-            <div class="du-treemap-tile" style="flex: ${flexGrow} 1 ${flexBasis}px; background: ${color.bg}; border-color: ${color.border};" onclick="${it.is_dir ? `runDiskUsageScan('${escapeHtml(it.path)}')` : ''}" title="${escapeHtml(it.name)} • ${escapeHtml(it.formatted_size)} (${pct}%) ${it.is_dir ? '\nClick to drill down' : ''}">
+            <div class="du-treemap-tile" style="flex: ${flexGrow} 1 ${flexBasis}px; background: ${color.bg}; border-color: ${color.border};" onclick="${it.is_dir ? `runDiskUsageScan(${escapeJsStr(it.path)})` : ''}" title="${escapeHtml(it.name)} • ${escapeHtml(it.formatted_size)} (${pct}%) ${it.is_dir ? '\nClick to drill down' : ''}">
               <div class="du-treemap-title">
                 <span>${icon}</span>
                 <span>${escapeHtml(it.name)}</span>
@@ -34944,7 +34941,7 @@ function renderDiskUsageData() {
         const icon = it.is_dir ? '📁' : '📄';
         const subInfo = it.is_dir ? `${it.file_count.toLocaleString()} files • ${it.dir_count.toLocaleString()} subdirs` : 'Single file';
         const pct = Math.max(1, Math.min(100, Math.round(it.percentage)));
-        const clickAction = it.is_dir ? `runDiskUsageScan('${escapeHtml(it.path)}')` : '';
+        const clickAction = it.is_dir ? `runDiskUsageScan(${escapeJsStr(it.path)})` : '';
 
         return `
           <div class="du-item-row" onclick="${clickAction}" title="${it.is_dir ? 'Click to drill down into folder' : ''}">
@@ -34959,8 +34956,8 @@ function renderDiskUsageData() {
             <div class="du-item-size-col">${escapeHtml(it.formatted_size)}</div>
             <div class="du-item-pct-col" style="color: ${color.bar};">${it.percentage.toFixed(1)}%</div>
             <div class="du-item-actions" onclick="event.stopPropagation()">
-              <button class="du-action-btn" onclick="jumpToPaneFromDiskUsage('${escapeHtml(it.path)}')" title="Open in Active File Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
-              <button class="du-action-btn" onclick="openTerminalFromDiskUsage('${escapeHtml(it.path)}')" title="Open in Terminal"><i data-lucide="terminal" style="width: 12px; height: 12px;"></i></button>
+              <button class="du-action-btn" onclick="jumpToPaneFromDiskUsage(${escapeJsStr(it.path)})" title="Open in Active File Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
+              <button class="du-action-btn" onclick="openTerminalFromDiskUsage(${escapeJsStr(it.path)})" title="Open in Terminal"><i data-lucide="terminal" style="width: 12px; height: 12px;"></i></button>
             </div>
           </div>
         `;
@@ -34988,7 +34985,7 @@ function renderDiskUsageData() {
             <div class="du-item-size-col">${escapeHtml(it.formatted_size)}</div>
             <div class="du-item-pct-col" style="color: #38bdf8;">${it.percentage.toFixed(1)}%</div>
             <div class="du-item-actions">
-              <button class="du-action-btn" onclick="jumpToPaneFromDiskUsage('${escapeHtml(it.path.substring(0, it.path.lastIndexOf('/')) || '/')}')" title="Reveal in Active Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
+              <button class="du-action-btn" onclick="jumpToPaneFromDiskUsage(${escapeJsStr(it.path.substring(0, it.path.lastIndexOf('/')) || '/')})" title="Reveal in Active Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
             </div>
           </div>
         `;
@@ -35078,7 +35075,7 @@ async function runGlobalSearch() {
       <td class="file-cell-mono">${item.is_dir ? '<DIR>' : formatBytes(item.size)}</td>
       <td class="file-cell-mono">${item.modified ? formatDate(item.modified) : '-'}</td>
       <td>
-        <button class="btn btn-icon" onclick="jumpToSearchResult('${escapeHtml(item.path)}', ${item.is_dir})" title="Open / Jump"><i data-lucide="external-link" style="width:12px;"></i></button>
+        <button class="btn btn-icon" onclick="jumpToSearchResult(${escapeJsStr(item.path)}, ${item.is_dir})" title="Open / Jump"><i data-lucide="external-link" style="width:12px;"></i></button>
       </td>
     </tr>
   `).join('');
@@ -35442,7 +35439,7 @@ function renderModalTagChips() {
     const chip = document.createElement('span');
     chip.className = 'file-tag-badge';
     chip.style.cssText = 'font-size: 12px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 6px;';
-    chip.innerHTML = `<span>#${escapeHtml(t)}</span><i data-lucide="x" style="width: 12px; height: 12px; cursor: pointer;" onclick="removeModalTag('${escapeHtml(t)}')"></i>`;
+    chip.innerHTML = `<span>#${escapeHtml(t)}</span><i data-lucide="x" style="width: 12px; height: 12px; cursor: pointer;" onclick="removeModalTag(${escapeJsStr(t)})"></i>`;
     container.appendChild(chip);
   });
 
@@ -35730,7 +35727,7 @@ async function loadSyncthingDashboard() {
           return `
             <tr class="file-row">
               <td><b>${escapeHtml(f.label)}</b> <span style="font-size:10px; color:var(--text-muted);">(${escapeHtml(f.id)})</span></td>
-              <td><code style="cursor:pointer; color:var(--accent);" onclick="jumpToFolderInPane('${escapeHtml(f.path)}')" title="Click to open in active pane">${escapeHtml(f.path)}</code></td>
+              <td><code style="cursor:pointer; color:var(--accent);" onclick="jumpToFolderInPane(${escapeJsStr(f.path)})" title="Click to open in active pane">${escapeHtml(f.path)}</code></td>
               <td><span style="color:${statusColor}; font-weight:600;">${f.state.toUpperCase()}</span></td>
               <td>
                 <div style="display:flex; align-items:center; gap:6px;">
@@ -35742,7 +35739,7 @@ async function loadSyncthingDashboard() {
               </td>
               <td style="text-align:right;">
                 <button class="btn btn-sm" onclick="triggerSyncthingScan('${f.id}')" title="Scan Folder"><i data-lucide="rotate-cw"></i></button>
-                <button class="btn btn-sm" onclick="jumpToFolderInPane('${escapeHtml(f.path)}')" title="Open in Active Pane"><i data-lucide="folder-open"></i></button>
+                <button class="btn btn-sm" onclick="jumpToFolderInPane(${escapeJsStr(f.path)})" title="Open in Active Pane"><i data-lucide="folder-open"></i></button>
               </td>
             </tr>
           `;
@@ -37497,7 +37494,7 @@ function mountDockedTool(paneIndex) {
 
     mount.innerHTML = `
       <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
-        <iframe id="docked-chewtoy-frame-${paneIndex}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+        <iframe id="docked-chewtoy-frame-${paneIndex}" class="chewtoy-iframe" data-plugin-id="${escapeHtml(pluginId)}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
       </div>
     `;
     const frame = document.getElementById(`docked-chewtoy-frame-${paneIndex}`);
@@ -38305,11 +38302,11 @@ function renderGitFiles(files) {
     let statusClass = f.is_untracked ? 'untracked' : (f.is_staged ? 'staged' : (f.is_deleted ? 'deleted' : 'modified'));
     let statusChar = f.is_untracked ? '?' : (f.is_deleted ? 'D' : (f.is_staged ? '+' : 'M'));
     let actionBtn = f.is_staged
-      ? `<button class="btn btn-xs" onclick="event.stopPropagation(); gitUnstageFile('${escapeHtml(f.path)}')" title="Unstage file">−</button>`
-      : `<button class="btn btn-xs btn-accent" onclick="event.stopPropagation(); gitStageFile('${escapeHtml(f.path)}')" title="Stage file">+</button>`;
+      ? `<button class="btn btn-xs" onclick="event.stopPropagation(); gitUnstageFile(${escapeJsStr(f.path)})" title="Unstage file">−</button>`
+      : `<button class="btn btn-xs btn-accent" onclick="event.stopPropagation(); gitStageFile(${escapeJsStr(f.path)})" title="Stage file">+</button>`;
 
     return `
-      <div class="git-file-row ${currentGitDiffFile === f.path ? 'active' : ''}" onclick="selectGitFileDiff('${escapeHtml(f.path)}', ${f.is_staged})">
+      <div class="git-file-row ${currentGitDiffFile === f.path ? 'active' : ''}" onclick="selectGitFileDiff(${escapeJsStr(f.path)}, ${f.is_staged})">
         <span style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
           <span class="git-status-char ${statusClass}">${statusChar}</span>
           <span style="font-family: var(--font-mono); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(f.path)}</span>
@@ -42580,7 +42577,7 @@ function renderFleetSwitcherDropdown() {
     const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(n);
 
     html += `
-      <div class="fleet-node-item ${isAct ? 'active' : ''}" onclick="switchToFleetNode('${escapeHtml(n.id)}')">
+      <div class="fleet-node-item ${isAct ? 'active' : ''}" onclick="switchToFleetNode(${escapeJsStr(n.id)})">
         <div class="fleet-node-left">
           <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex}; flex-shrink: 0;"></i>
           <div class="fleet-node-info">
@@ -42596,7 +42593,7 @@ function renderFleetSwitcherDropdown() {
           ${getFleetNodeVersionBadge(n.version)}
           <span class="fleet-ping-dot ${dotClass}" title="${n.status || 'unknown'}"></span>
           <span class="fleet-node-latency">${latencyText}</span>
-          <button type="button" class="btn btn-xs btn-ghost" onclick="openFleetNodeWebUi('${escapeHtml(n.id)}', event)" title="Open ${escapeHtml(n.name)} Web UI in new tab" style="height: 20px; width: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0.7;">
+          <button type="button" class="btn btn-xs btn-ghost" onclick="openFleetNodeWebUi(${escapeJsStr(n.id)}, event)" title="Open ${escapeHtml(n.name)} Web UI in new tab" style="height: 20px; width: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0.7;">
             <i data-lucide="external-link" style="width: 11px; height: 11px;"></i>
           </button>
         </div>
@@ -42698,7 +42695,7 @@ function renderFleetManagerList() {
     const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(n);
 
     html += `
-      <div class="fleet-card ${isAct ? 'active' : ''}" style="border-left: 3px solid ${colorHex}; ${isEditing ? 'outline: 1.5px solid var(--accent);' : ''}" onclick="selectFleetNodeInManager('${escapeHtml(n.id)}')">
+      <div class="fleet-card ${isAct ? 'active' : ''}" style="border-left: 3px solid ${colorHex}; ${isEditing ? 'outline: 1.5px solid var(--accent);' : ''}" onclick="selectFleetNodeInManager(${escapeJsStr(n.id)})">
         <div class="fleet-card-header">
           <div class="fleet-card-name">
             <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex};"></i>
@@ -42718,10 +42715,10 @@ function renderFleetManagerList() {
             ${tagsHtml || '<span class="fleet-tag-pill" style="opacity: 0.6;">no tags</span>'}
           </div>
           <div style="display: flex; gap: 4px;">
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); openFleetNodeWebUi('${escapeHtml(n.id)}', event)" title="Open Node Web UI in New Tab" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="external-link" style="width: 11px; height: 11px;"></i></button>
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); pingFleetNode('${escapeHtml(n.id)}')" title="Ping Node" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i></button>
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); deleteFleetNodeProfile('${escapeHtml(n.id)}', event)" title="Delete Node" style="height: 22px; width: 22px; padding: 0; color: #ef4444;"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i></button>
-            ${!isAct ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode('${escapeHtml(n.id)}');" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
+            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); openFleetNodeWebUi(${escapeJsStr(n.id)}, event)" title="Open Node Web UI in New Tab" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="external-link" style="width: 11px; height: 11px;"></i></button>
+            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); pingFleetNode(${escapeJsStr(n.id)})" title="Ping Node" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i></button>
+            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); deleteFleetNodeProfile(${escapeJsStr(n.id)}, event)" title="Delete Node" style="height: 22px; width: 22px; padding: 0; color: #ef4444;"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i></button>
+            ${!isAct ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode(${escapeJsStr(n.id)});" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
           </div>
         </div>
       </div>
@@ -43379,10 +43376,6 @@ window.Brum = {
         role: App.user?.role || 'user',
         canInstall: canInst
       };
-    },
-
-    getToken: function() {
-      return App.token;
     }
   }
 };
@@ -43391,48 +43384,131 @@ window.Brum = {
 window.addEventListener('message', async (e) => {
   if (!e.data || e.data.type !== 'BRUM_REQ') return;
   const { reqId, action, payload } = e.data;
+
+  // 1. Verify that e.source originates from an authorized Chewtoy iframe (closes cross-origin window.open abuse - F2)
+  const frameEl = Array.from(document.querySelectorAll('iframe.chewtoy-iframe, iframe[id^="docked-chewtoy-frame-"], iframe[id^="dynamic-chewtoy-frame-"], iframe#dynamic-chewtoy-frame')).find(f => {
+    try {
+      return f.contentWindow === e.source;
+    } catch (_) {
+      return false;
+    }
+  });
+
+  if (!frameEl) {
+    // Silently ignore messages from untrusted/unregistered windows
+    return;
+  }
+
+  // 2. Identify the plugin and enforce manifest permissions (F6)
+  let pluginId = frameEl.getAttribute('data-plugin-id');
+  if (!pluginId && frameEl.id && frameEl.id.startsWith('dynamic-chewtoy-frame-')) {
+    pluginId = frameEl.id.substring('dynamic-chewtoy-frame-'.length);
+  }
+  if (!pluginId && frameEl.id && frameEl.id.startsWith('docked-chewtoy-frame-')) {
+    const paneIdx = parseInt(frameEl.id.substring('docked-chewtoy-frame-'.length), 10);
+    const pane = App.panes && App.panes[paneIdx];
+    if (pane && pane.dockedTool) {
+      pluginId = pane.dockedTool.replace(/^(plugin|chewtoy):/, '');
+    }
+  }
+  if (!pluginId) {
+    const winEl = frameEl.closest('.floating-chewtoy-window');
+    if (winEl) pluginId = winEl.getAttribute('data-plugin-id');
+  }
+  if (!pluginId) {
+    pluginId = window.activeDynamicChewToyId || null;
+  }
+
+  const plugin = (window.installedChewToys || []).find(p => p.id === pluginId);
+  const declaredPerms = plugin
+    ? (Array.isArray(plugin.permissions)
+        ? plugin.permissions
+        : (plugin.manifest?.permissions?.permissions || plugin.manifest?.permissions || []))
+    : [];
+
+  const hasPerm = (required) => {
+    if (!plugin) return false;
+    return declaredPerms.some(p => p === '*' || p === required || p === required.split(':')[0] || p === `${required.split(':')[0]}:*`);
+  };
+
   try {
     let result = null;
-    if (action === 'fs.readFile') result = await window.Brum.fs.readFile(payload.path, payload.opts);
-    else if (action === 'fs.writeFile') result = await window.Brum.fs.writeFile(payload.path, payload.content);
-    else if (action === 'fs.listDir') result = await window.Brum.fs.listDir(payload.path);
-    else if (action === 'fs.getActivePath') result = window.Brum.fs.getActivePath();
-    else if (action === 'fs.getSelectedFiles') result = window.Brum.fs.getSelectedFiles();
-    else if (action === 'fs.getTargetFile') result = window.Brum.fs.getTargetFile();
-    else if (action === 'ui.notify') { window.Brum.ui.notify(payload.message, payload.opts); result = true; }
-    else if (action === 'ui.getTheme') result = window.Brum.ui.getTheme();
-    else if (action === 'ui.showConfirm') result = await window.Brum.ui.showConfirm(payload.title, payload.message);
-    else if (action === 'window.dockTo') {
-      const frameEl = Array.from(document.querySelectorAll('iframe')).find(f => f.contentWindow === e.source);
-      const winEl = frameEl ? frameEl.closest('.floating-chewtoy-window') : null;
-      const pId = winEl ? winEl.getAttribute('data-plugin-id') : window.activeDynamicChewToyId;
-      dockActiveDynamicChewToy(payload.pane, pId);
+
+    if (action === 'fs.readFile') {
+      if (!hasPerm('fs:read')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'fs:read' permission`);
+      }
+      result = await window.Brum.fs.readFile(payload?.path, payload?.opts);
+    } else if (action === 'fs.writeFile') {
+      if (!hasPerm('fs:write')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'fs:write' permission`);
+      }
+      result = await window.Brum.fs.writeFile(payload?.path, payload?.content);
+    } else if (action === 'fs.listDir') {
+      if (!hasPerm('fs:read') && !hasPerm('fs:list')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'fs:read' permission`);
+      }
+      result = await window.Brum.fs.listDir(payload?.path);
+    } else if (action === 'fs.getActivePath') {
+      if (!hasPerm('fs:read')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'fs:read' permission`);
+      }
+      result = window.Brum.fs.getActivePath();
+    } else if (action === 'fs.getSelectedFiles') {
+      if (!hasPerm('fs:read')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'fs:read' permission`);
+      }
+      result = window.Brum.fs.getSelectedFiles();
+    } else if (action === 'fs.getTargetFile') {
+      if (!hasPerm('fs:read')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'fs:read' permission`);
+      }
+      result = window.Brum.fs.getTargetFile();
+    } else if (action === 'ui.notify') {
+      if (!hasPerm('ui:notify') && !hasPerm('ui')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'ui:notify' permission`);
+      }
+      window.Brum.ui.notify(payload?.message, payload?.opts);
       result = true;
-    }
-    else if (action === 'window.float') { window.Brum.window.float(); result = true; }
-    else if (action === 'window.close') {
-      const frameEl = Array.from(document.querySelectorAll('iframe')).find(f => f.contentWindow === e.source);
-      const winEl = frameEl ? frameEl.closest('.floating-chewtoy-window') : null;
-      const pId = winEl ? winEl.getAttribute('data-plugin-id') : window.activeDynamicChewToyId;
+    } else if (action === 'ui.getTheme') {
+      result = window.Brum.ui.getTheme();
+    } else if (action === 'ui.showConfirm') {
+      result = await window.Brum.ui.showConfirm(payload?.title, payload?.message);
+    } else if (action === 'window.dockTo') {
+      const winEl = frameEl.closest('.floating-chewtoy-window');
+      const pId = winEl ? winEl.getAttribute('data-plugin-id') : (pluginId || window.activeDynamicChewToyId);
+      dockActiveDynamicChewToy(payload?.pane, pId);
+      result = true;
+    } else if (action === 'window.float') {
+      window.Brum.window.float();
+      result = true;
+    } else if (action === 'window.close') {
+      const winEl = frameEl.closest('.floating-chewtoy-window');
+      const pId = winEl ? winEl.getAttribute('data-plugin-id') : (pluginId || window.activeDynamicChewToyId);
       closeDynamicChewToy(pId);
       result = true;
-    }
-    else if (action === 'window.setTitle') {
-      const frameEl = Array.from(document.querySelectorAll('iframe')).find(f => f.contentWindow === e.source);
-      const winEl = frameEl ? frameEl.closest('.floating-chewtoy-window') : null;
+    } else if (action === 'window.setTitle') {
+      const winEl = frameEl.closest('.floating-chewtoy-window');
       if (winEl) {
         const titleEl = winEl.querySelector('.chewtoy-brand-text');
-        if (titleEl) titleEl.textContent = payload.title;
+        if (titleEl) titleEl.textContent = payload?.title;
       } else {
-        window.Brum.window.setTitle(payload.title);
+        window.Brum.window.setTitle(payload?.title);
       }
       result = true;
+    } else if (action === 'auth.getUser') {
+      result = window.Brum.auth.getUser();
+    } else {
+      throw new Error(`Unknown action: ${action}`);
     }
-    else if (action === 'auth.getUser') result = window.Brum.auth.getUser();
 
-    e.source?.postMessage({ type: 'BRUM_RES', reqId, result, error: null }, '*');
+    if (e.source && typeof e.source.postMessage === 'function') {
+      e.source.postMessage({ type: 'BRUM_RES', reqId, result, error: null }, '*');
+    }
   } catch (err) {
-    e.source?.postMessage({ type: 'BRUM_RES', reqId, result: null, error: err.message || String(err) }, '*');
+    if (e.source && typeof e.source.postMessage === 'function') {
+      e.source.postMessage({ type: 'BRUM_RES', reqId, result: null, error: err.message || String(err) }, '*');
+    }
   }
 });
 
@@ -43543,10 +43619,10 @@ function renderInstalledChewToys(plugins) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; margin-top: 4px;">
           <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="btn btn-xs btn-accent" onclick="openDynamicChewToy('${escapeHtml(p.id)}')" ${!isEnabled ? 'disabled style="opacity:0.5;"' : ''} style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <button class="btn btn-xs btn-accent" onclick="openDynamicChewToy(${escapeJsStr(p.id)})" ${!isEnabled ? 'disabled style="opacity:0.5;"' : ''} style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
               <i data-lucide="play" style="width: 11px; height: 11px;"></i> Launch
             </button>
-            <button class="btn btn-xs btn-icon btn-danger" onclick="uninstallChewToy('${escapeHtml(p.id)}')" title="Uninstall Chewtoy" style="width: 24px; height: 24px;">
+            <button class="btn btn-xs btn-icon btn-danger" onclick="uninstallChewToy(${escapeJsStr(p.id)})" title="Uninstall Chewtoy" style="width: 24px; height: 24px;">
               <i data-lucide="trash-2" style="width: 11px; height: 11px;"></i>
             </button>
           </div>
@@ -43554,7 +43630,7 @@ function renderInstalledChewToys(plugins) {
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="font-size: 10.5px; color: var(--text-dim);">${isEnabled ? 'Enabled' : 'Disabled'}</span>
             <label class="admin-chip-checkbox ${isEnabled ? 'checked' : ''}" style="margin: 0; padding: 2px 8px; cursor: pointer;" title="Toggle Enabled / Disabled">
-              <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleChewToy('${escapeHtml(p.id)}', this.checked)" style="display: none;">
+              <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleChewToy(${escapeJsStr(p.id)}, this.checked)" style="display: none;">
               <span style="font-size: 10px; font-weight: 700;">${isEnabled ? 'ON' : 'OFF'}</span>
             </label>
           </div>
@@ -43753,23 +43829,27 @@ function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
     if (verEl) verEl.id = `dynamic-chewtoy-version-${pluginId}`;
 
     const frameEl = defaultWin.querySelector('#dynamic-chewtoy-frame');
-    if (frameEl) frameEl.id = `dynamic-chewtoy-frame-${pluginId}`;
+    if (frameEl) {
+      frameEl.id = `dynamic-chewtoy-frame-${pluginId}`;
+      frameEl.setAttribute('data-plugin-id', pluginId);
+      frameEl.classList.add('chewtoy-iframe');
+    }
 
     const dockBtn = defaultWin.querySelector('#btn-dynamic-chewtoy-dock');
     if (dockBtn) {
       dockBtn.id = `btn-dynamic-chewtoy-dock-${pluginId}`;
-      dockBtn.setAttribute('onclick', `dockActiveDynamicChewToy(undefined, '${pluginId}')`);
+      dockBtn.setAttribute('onclick', `dockActiveDynamicChewToy(undefined, ${escapeJsStr(pluginId)})`);
     }
 
     const maxBtn = defaultWin.querySelector('#btn-dynamic-chewtoy-maximize');
     if (maxBtn) {
       maxBtn.id = `btn-dynamic-chewtoy-maximize-${pluginId}`;
-      maxBtn.setAttribute('onclick', `toggleMaximizeDynamicChewToy('${pluginId}')`);
+      maxBtn.setAttribute('onclick', `toggleMaximizeDynamicChewToy(${escapeJsStr(pluginId)})`);
     }
 
     const closeBtn = defaultWin.querySelector('.modal-close-btn');
     if (closeBtn) {
-      closeBtn.setAttribute('onclick', `closeDynamicChewToy('${pluginId}')`);
+      closeBtn.setAttribute('onclick', `closeDynamicChewToy(${escapeJsStr(pluginId)})`);
     }
 
     return defaultWin;
@@ -43799,13 +43879,13 @@ function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
           <span id="dynamic-chewtoy-version-${pluginId}" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(version)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" onclick="dockActiveDynamicChewToy(undefined, '${pluginId}')" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize-${pluginId}" onclick="toggleMaximizeDynamicChewToy('${pluginId}')" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-          <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy('${pluginId}')" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" onclick="dockActiveDynamicChewToy(undefined, ${escapeJsStr(pluginId)})" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize-${pluginId}" onclick="toggleMaximizeDynamicChewToy(${escapeJsStr(pluginId)})" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+          <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy(${escapeJsStr(pluginId)})" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
         </div>
       </div>
       <div class="dynamic-chewtoy-body" style="flex: 1; position: relative; overflow: hidden; background: var(--bg-panel);">
-        <iframe id="dynamic-chewtoy-frame-${pluginId}" style="width: 100%; height: 100%; border: none; display: block; outline: none;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+        <iframe id="dynamic-chewtoy-frame-${pluginId}" class="chewtoy-iframe" data-plugin-id="${escapeHtml(pluginId)}" style="width: 100%; height: 100%; border: none; display: block; outline: none;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
       </div>
     </div>
   `;
@@ -45750,8 +45830,8 @@ function renderDuplicateGroups(container = null) {
       }
 
       return `
-        <div class="dup-file-row ${isSelected ? 'selected' : ''}" onclick="toggleDuplicateFile('${escapeHtml(file.path)}')">
-          <input type="checkbox" class="dup-file-checkbox" data-path="${escapeHtml(file.path)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleDuplicateFile('${escapeHtml(file.path)}')">
+        <div class="dup-file-row ${isSelected ? 'selected' : ''}" onclick="toggleDuplicateFile(${escapeJsStr(file.path)})">
+          <input type="checkbox" class="dup-file-checkbox" data-path="${escapeHtml(file.path)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleDuplicateFile(${escapeJsStr(file.path)})">
           ${thumbHtml}
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
             <div style="font-size: 11.5px; font-weight: 600; color: var(--text-main); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">${escapeHtml(file.name)}</div>
@@ -45759,7 +45839,7 @@ function renderDuplicateGroups(container = null) {
           </div>
           <span style="font-size: 10px; color: var(--text-dim); white-space: nowrap;">${mdate}</span>
           <div style="display: flex; gap: 4px; align-items: center;" onclick="event.stopPropagation()">
-            <button class="btn btn-icon btn-xs" onclick="openContainingFolder('${escapeHtml(file.path)}')" title="Open Containing Folder"><i data-lucide="folder" style="width: 11px; height: 11px;"></i></button>
+            <button class="btn btn-icon btn-xs" onclick="openContainingFolder(${escapeJsStr(file.path)})" title="Open Containing Folder"><i data-lucide="folder" style="width: 11px; height: 11px;"></i></button>
           </div>
         </div>
       `;

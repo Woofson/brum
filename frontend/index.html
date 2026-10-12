@@ -144,6 +144,7 @@
   <!-- Core Offline-Ready Icons & Syntax UI Dependencies -->
   <script src="assets/vendor/lucide.min.js"></script>
   <script src="assets/vendor/marked.min.js"></script>
+  <script src="assets/vendor/purify.min.js"></script>
   <link rel="stylesheet" href="assets/vendor/prism-tomorrow.min.css" />
   <script src="assets/vendor/prism.min.js"></script>
   <link rel="stylesheet" href="assets/vendor/xterm.min.css" />
@@ -4798,7 +4799,7 @@
       </div>
       <!-- Sandboxed iframe / container -->
       <div class="dynamic-chewtoy-body" style="flex: 1; position: relative; overflow: hidden; background: var(--bg-panel);">
-        <iframe id="dynamic-chewtoy-frame" style="width: 100%; height: 100%; border: none; display: block; outline: none;" sandbox="allow-scripts allow-forms allow-same-origin allow-popups allow-modals"></iframe>
+        <iframe id="dynamic-chewtoy-frame" class="chewtoy-iframe" style="width: 100%; height: 100%; border: none; display: block; outline: none;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
       </div>
     </div>
   </div>
@@ -7270,7 +7271,7 @@
 
         <!-- 4. Web & HTML Sandboxed Preview -->
         <div id="doc-view-web" class="doc-view-panel" style="display: none; width: 100%; height: 100%;">
-          <iframe id="doc-web-frame" sandbox="allow-scripts allow-same-origin" style="width: 100%; height: 100%; border: none; background: #ffffff;"></iframe>
+          <iframe id="doc-web-frame" sandbox="allow-scripts allow-forms allow-popups" style="width: 100%; height: 100%; border: none; background: #ffffff;"></iframe>
         </div>
 
         <!-- 5. Code & Raw Text Container -->
