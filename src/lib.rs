@@ -60,6 +60,12 @@ pub fn create_app_state(
         crate::instance::assert_loopback_bind(bind_host)?;
     }
 
+    if config.server.allowed_origins.iter().any(|o| o.trim() == "*") {
+        tracing::warn!(
+            "Security Warning: server.allowed_origins contains wildcard '*'. All origins are permitted, which disables cross-origin WebSocket and CSRF protections."
+        );
+    }
+
     Ok(AppState {
         config: Arc::new(config.clone()),
         auth: auth_mgr_arc,

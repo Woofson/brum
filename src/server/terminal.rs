@@ -200,23 +200,22 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
 
     let norm_origin = origin.trim_end_matches('/');
 
-    // 1. Explicitly configured allowed_origins whitelist (highest priority)
-    if !state.config.server.allowed_origins.is_empty() {
-        for allowed in &state.config.server.allowed_origins {
-            let allowed_norm = allowed.trim().trim_end_matches('/');
-            if allowed_norm == "*" || allowed_norm.eq_ignore_ascii_case(norm_origin) {
-                return true;
-            }
-        }
-        // In standalone/desktop mode, still allow local webview
-        if state.config.server.standalone
-            && (origin.starts_with("tauri://")
-                || origin.starts_with("http://tauri.localhost")
-                || origin.starts_with("https://tauri.localhost"))
-        {
-            return true;
-        }
-        return false;
+    let clean_origin = norm_origin
+        .trim_start_matches("http://")
+        .trim_start_matches("https://")
+        .trim_start_matches("ws://")
+        .trim_start_matches("wss://");
+
+    // 1. Loopback origins (always permitted to ensure local client/admin access)
+    let is_loopback = clean_origin == "localhost"
+        || clean_origin.starts_with("localhost:")
+        || clean_origin == "127.0.0.1"
+        || clean_origin.starts_with("127.0.0.1:")
+        || clean_origin == "[::1]"
+        || clean_origin.starts_with("[::1]:");
+
+    if is_loopback {
+        return true;
     }
 
     // 2. Local Tauri / Desktop webview origins (allowed in standalone/desktop mode)
@@ -228,22 +227,14 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
         return true;
     }
 
-    let clean_origin = norm_origin
-        .trim_start_matches("http://")
-        .trim_start_matches("https://")
-        .trim_start_matches("ws://")
-        .trim_start_matches("wss://");
-
-    // 3. Loopback origins (e.g. http://localhost:3140, http://127.0.0.1:3140)
-    let is_loopback = clean_origin == "localhost"
-        || clean_origin.starts_with("localhost:")
-        || clean_origin == "127.0.0.1"
-        || clean_origin.starts_with("127.0.0.1:")
-        || clean_origin == "[::1]"
-        || clean_origin.starts_with("[::1]:");
-
-    if is_loopback {
-        return true;
+    // 3. Explicitly configured allowed_origins whitelist (supports exact, wildcard, and subdomain patterns)
+    if !state.config.server.allowed_origins.is_empty() {
+        for allowed in &state.config.server.allowed_origins {
+            if is_origin_allowed_by_pattern(allowed, norm_origin) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // 4. Server's own bound address if specific (not wildcard 0.0.0.0 / ::)
@@ -265,7 +256,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
         }
     }
 
-    // 6. Trusted private/internal LAN hosts (e.g. *.local, *.lan, *.home.arpa, or RFC1918 IPs)
+    // 6. Trusted private/internal LAN & overlay hosts (e.g. *.local, *.lan, *.home.arpa, RFC1918 IPs, or RFC6598 CGNAT/Tailscale/NetBird IPs)
     // Only permit matching Host/X-Forwarded-Host if the host is a local/private network address or trusted proxy
     let host_header = headers
         .get("x-forwarded-host")
@@ -280,7 +271,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
 
         if origin_host.eq_ignore_ascii_case(req_host) {
             // Guard against DNS rebinding (e.g. evil.com -> local IP):
-            // Only allow Host matching if host is a local IP, .local, .lan, .home.arpa, or localhost
+            // Only allow Host matching if host is a local IP, .local, .lan, .home.arpa, localhost, or mesh overlay IP
             let is_safe_local_host = req_host.eq_ignore_ascii_case("localhost")
                 || req_host == "127.0.0.1"
                 || req_host == "[::1]"
@@ -288,10 +279,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
                 || req_host.ends_with(".lan")
                 || req_host.ends_with(".home.arpa")
                 || if let Ok(ip) = req_host.parse::<std::net::IpAddr>() {
-                    match ip {
-                        std::net::IpAddr::V4(ipv4) => ipv4.is_loopback() || ipv4.is_private() || ipv4.is_link_local(),
-                        std::net::IpAddr::V6(ipv6) => ipv6.is_loopback(),
-                    }
+                    is_safe_local_or_overlay_ip(ip)
                 } else {
                     false
                 };
@@ -303,6 +291,137 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
     }
 
     false
+}
+
+/// Helper to check if an IP address belongs to local loopback, RFC 1918 private IPv4,
+/// RFC 6598 Shared Address Space (100.64.0.0/10 used by Tailscale / NetBird / CGNAT),
+/// or RFC 4193 Unique Local Address (fc00::/7).
+pub fn is_safe_local_or_overlay_ip(ip: std::net::IpAddr) -> bool {
+    match ip {
+        std::net::IpAddr::V4(ipv4) => {
+            let octets = ipv4.octets();
+            ipv4.is_loopback()
+                || ipv4.is_private()
+                || ipv4.is_link_local()
+                // RFC 6598 Shared Address Space (100.64.0.0/10) used by Tailscale, NetBird, CGNAT
+                || (octets[0] == 100 && (octets[1] >= 64 && octets[1] <= 127))
+        }
+        std::net::IpAddr::V6(ipv6) => {
+            ipv6.is_loopback()
+                // RFC 4193 Unique Local Address (fc00::/7)
+                || (ipv6.octets()[0] & 0xfe == 0xfc)
+        }
+    }
+}
+
+/// Matches an origin pattern against a candidate origin string.
+/// Supports exact origins, global wildcard "*", wildcard ports (e.g. "https://*.arf.ac:*"),
+/// and subdomain wildcard patterns (e.g. "https://*.arf.ac") with strict label boundary checking.
+pub fn is_origin_allowed_by_pattern(pattern: &str, candidate: &str) -> bool {
+    let pat = pattern.trim().trim_end_matches('/');
+    let cand = candidate.trim().trim_end_matches('/');
+
+    if pat == "*" {
+        return true;
+    }
+    if pat.eq_ignore_ascii_case(cand) {
+        return true;
+    }
+
+    let (pat_scheme, pat_host, pat_port) = split_origin(pat);
+    let (cand_scheme, cand_host, cand_port) = split_origin(cand);
+
+    // 1. Verify scheme if specified in pattern
+    if let Some(ps) = pat_scheme {
+        match cand_scheme {
+            Some(cs) => {
+                if !ps.eq_ignore_ascii_case(cs) {
+                    return false;
+                }
+            }
+            None => return false,
+        }
+    }
+
+    // 2. Verify port
+    if let Some(pp) = pat_port {
+        if pp != "*" {
+            match cand_port {
+                Some(cp) => {
+                    if pp != cp {
+                        return false;
+                    }
+                }
+                None => {
+                    let default_port = match cand_scheme.unwrap_or("") {
+                        "http" | "ws" => "80",
+                        "https" | "wss" => "443",
+                        _ => "",
+                    };
+                    if pp != default_port {
+                        return false;
+                    }
+                }
+            }
+        }
+    } else if let Some(cp) = cand_port {
+        let default_port = match cand_scheme.unwrap_or("") {
+            "http" | "ws" => "80",
+            "https" | "wss" => "443",
+            _ => "",
+        };
+        if cp != default_port {
+            return false;
+        }
+    }
+
+    // 3. Verify host
+    if pat_host == "*" {
+        return true;
+    }
+
+    if let Some(base_domain) = pat_host.strip_prefix("*.") {
+        let base_clean = base_domain.trim_start_matches('.');
+        if cand_host.eq_ignore_ascii_case(base_clean) {
+            return true;
+        }
+        if cand_host.len() > base_clean.len() + 1
+            && cand_host.to_ascii_lowercase().ends_with(&base_clean.to_ascii_lowercase())
+            && cand_host.as_bytes()[cand_host.len() - base_clean.len() - 1] == b'.'
+        {
+            return true;
+        }
+        return false;
+    }
+
+    pat_host.eq_ignore_ascii_case(cand_host)
+}
+
+fn split_origin(origin: &str) -> (Option<&str>, &str, Option<&str>) {
+    let (scheme, rest) = if let Some(idx) = origin.find("://") {
+        (Some(&origin[..idx]), &origin[idx + 3..])
+    } else {
+        (None, origin)
+    };
+
+    if rest.starts_with('[') {
+        if let Some(end_bracket) = rest.find(']') {
+            let host = &rest[1..end_bracket];
+            let after = &rest[end_bracket + 1..];
+            let port = if let Some(p) = after.strip_prefix(':') {
+                Some(p)
+            } else {
+                None
+            };
+            (scheme, host, port)
+        } else {
+            (scheme, rest, None)
+        }
+    } else if let Some((h, p)) = rest.split_once(':') {
+        (scheme, h, Some(p))
+    } else {
+        (scheme, rest, None)
+    }
 }
 
 pub async fn handle_terminal_ws(

@@ -632,3 +632,36 @@ async fn test_empty_allowed_roots_rejected_and_cannot_bypass_sandbox() {
     assert!(res_remote2.is_err(), "User with no valid roots cannot access remote schemes");
     assert_eq!(res_remote2.unwrap_err().0.as_u16(), 403);
 }
+
+#[tokio::test]
+async fn test_non_admin_default_allowed_roots_empty() {
+    let tmp = tempdir().unwrap();
+    let mut config = AppConfig::default();
+    config.server.enable_auth = true;
+    config.server.database_path = tmp.path().join("test_nonadmin_roots.db").to_string_lossy().to_string();
+    config.storage.allow_entire_system = false;
+    let state = brum::create_app_state(&config, None).unwrap();
+
+    // 1. Non-admin user created with None allowed_roots defaults to empty "[]"
+    let normal_user = state
+        .auth
+        .create_user("plain_user", "pass123", "user", "/home/plain", None)
+        .unwrap();
+    let roots_vec: Vec<String> = serde_json::from_str(&normal_user.allowed_roots).unwrap();
+    assert!(
+        roots_vec.is_empty(),
+        "Non-admin user created with no roots must default to empty []"
+    );
+
+    // 2. Admin user created with None allowed_roots defaults to full wildcard ["*"]
+    let admin_user = state
+        .auth
+        .create_user("super_user", "pass123", "admin", "/home/admin", None)
+        .unwrap();
+    let admin_roots_vec: Vec<String> = serde_json::from_str(&admin_user.allowed_roots).unwrap();
+    assert_eq!(
+        admin_roots_vec,
+        vec!["*".to_string()],
+        "Admin user created with no roots must default to wildcard [*]"
+    );
+}

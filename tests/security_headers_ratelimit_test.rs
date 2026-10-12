@@ -643,3 +643,63 @@ async fn test_unlock_and_share_separate_rate_limit_buckets_per_peer() {
     assert_eq!(peer_b_share.status(), reqwest::StatusCode::UNAUTHORIZED);
 }
 
+#[tokio::test]
+async fn test_subdomain_wildcard_and_overlay_origin_matching() {
+    use brum::server::terminal::{is_origin_allowed_by_pattern, is_safe_local_or_overlay_ip, is_ws_origin_allowed};
+    use reqwest::header::HeaderMap;
+
+    // 1. Subdomain wildcard matching with strict label boundaries
+    let pattern = "https://*.arf.ac";
+    assert!(is_origin_allowed_by_pattern(pattern, "https://brum.arf.ac"));
+    assert!(is_origin_allowed_by_pattern(pattern, "https://deep.sub.arf.ac"));
+    assert!(is_origin_allowed_by_pattern(pattern, "https://arf.ac"));
+    
+    // Label boundary enforcement (prevent lookalikes like evilarf.ac)
+    assert!(!is_origin_allowed_by_pattern(pattern, "https://evilarf.ac"));
+    assert!(!is_origin_allowed_by_pattern(pattern, "https://evil-arf.ac"));
+    assert!(!is_origin_allowed_by_pattern(pattern, "http://brum.arf.ac")); // scheme mismatch
+    assert!(!is_origin_allowed_by_pattern(pattern, "https://brum.arf.ac:8443")); // port mismatch when default
+
+    // 2. Port specifications and wildcard port matching
+    let port_pattern = "https://*.arf.ac:8443";
+    assert!(is_origin_allowed_by_pattern(port_pattern, "https://brum.arf.ac:8443"));
+    assert!(!is_origin_allowed_by_pattern(port_pattern, "https://brum.arf.ac:3140"));
+
+    let any_port_pattern = "https://*.arf.ac:*";
+    assert!(is_origin_allowed_by_pattern(any_port_pattern, "https://brum.arf.ac:9999"));
+    assert!(is_origin_allowed_by_pattern(any_port_pattern, "https://brum.arf.ac:3140"));
+
+    // 3. RFC 6598 Shared Address Space (100.64.0.0/10) used by Tailscale / NetBird
+    let netbird_ip1: std::net::IpAddr = "100.64.0.1".parse().unwrap();
+    let netbird_ip2: std::net::IpAddr = "100.127.255.254".parse().unwrap();
+    let outside_cgnat1: std::net::IpAddr = "100.63.255.255".parse().unwrap();
+    let outside_cgnat2: std::net::IpAddr = "100.128.0.1".parse().unwrap();
+    let ula_ipv6: std::net::IpAddr = "fd00::1".parse().unwrap();
+
+    assert!(is_safe_local_or_overlay_ip(netbird_ip1));
+    assert!(is_safe_local_or_overlay_ip(netbird_ip2));
+    assert!(!is_safe_local_or_overlay_ip(outside_cgnat1));
+    assert!(!is_safe_local_or_overlay_ip(outside_cgnat2));
+    assert!(is_safe_local_or_overlay_ip(ula_ipv6));
+
+    // 4. Loopback retention: local loopback allowed even when allowed_origins is populated
+    let tmp = tempfile::tempdir().unwrap();
+    let mut config = brum::config::AppConfig::default();
+    config.server.database_path = tmp.path().join("test_orig.db").to_string_lossy().to_string();
+    config.server.allowed_origins = vec!["https://*.arf.ac".to_string()];
+    let state = brum::create_app_state(&config, None).unwrap();
+    let headers = HeaderMap::new();
+
+    // Loopback remains allowed
+    assert!(is_ws_origin_allowed("http://localhost:3140", &headers, &state));
+    assert!(is_ws_origin_allowed("http://127.0.0.1:3140", &headers, &state));
+    assert!(is_ws_origin_allowed("http://[::1]:3140", &headers, &state));
+
+    // Allowed origin matches pattern
+    assert!(is_ws_origin_allowed("https://brum.arf.ac", &headers, &state));
+
+    // Foreign untrusted origin rejected
+    assert!(!is_ws_origin_allowed("https://evil.attacker.com", &headers, &state));
+    assert!(!is_ws_origin_allowed("null", &headers, &state));
+}
+

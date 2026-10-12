@@ -258,15 +258,21 @@ When Brum runs behind a reverse proxy (e.g. Caddy, Nginx, Traefik, Apache), clie
 # List of trusted reverse proxy IP addresses or CIDR subnets allowed to forward client IPs
 trusted_proxies = ["127.0.0.1", "::1", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
 
-# Optional CORS and WebSocket origin whitelist (e.g. your proxied public/overlay domain)
-allowed_origins = ["https://files.yourdomain.com", "https://node.tailscale.ts.net"]
+# Optional CORS and WebSocket origin whitelist (supports exact domains, subdomain wildcards, and overlay networks)
+allowed_origins = [
+    "https://files.yourdomain.com",
+    "https://*.yourdomain.com",
+    "https://node.tailscale.ts.net",
+    "http://100.64.0.12:3140",
+]
 ```
 
 ### Security Considerations:
 - **Default Safe State**: When `trusted_proxies` is empty (the default), Brum completely ignores incoming `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Proto` headers, keying rate limits and cookie flags strictly by direct peer socket state. This prevents external clients from bypassing rate limits with spoofed headers.
 - **Subnet & CIDR Support**: Both individual IP addresses (`"127.0.0.1"`, `"::1"`) and CIDR subnet blocks (`"172.17.0.0/16"`, `"10.42.0.0/16"`) are fully supported, simplifying Docker, Podman, and Kubernetes ingress deployments where proxy IPs dynamically allocate within container subnets.
 - **Right-to-Left Traversal**: When connected from a configured trusted proxy or trusted subnet, Brum parses `X-Forwarded-For` from right to left, skipping trusted proxy hops and selecting the first untrusted IP address. This guarantees that client-forged header prefixes are discarded.
-- **Origin Validation**: When `allowed_origins` is specified, CORS and WebSocket connections are strictly constrained to the whitelisted origins. Foreign origins and `Origin: null` are rejected.
+- **Origin Validation & Subdomain Wildcards**: When `allowed_origins` is specified, CORS and WebSocket connections are strictly constrained to matching origins. `allowed_origins` natively supports exact matches, wildcard ports (e.g. `https://*.domain.com:*`), and subdomain wildcards (e.g. `https://*.yourdomain.com`) with strict label boundary checking (rejecting lookalike domains like `evilyourdomain.com`). Local loopback (`localhost`, `127.0.0.1`, `[::1]`) and native desktop webview origins are automatically retained.
+- **Overlay Networks (Tailscale & NetBird)**: RFC 6598 Shared Address Space (`100.64.0.0/10`) and IPv6 ULA (`fc00::/7`) overlay mesh IPs are recognized as safe local network addresses during host-matching origin checks.
 
 ---
 
