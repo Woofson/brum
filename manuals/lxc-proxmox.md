@@ -37,7 +37,7 @@ If you built or downloaded the `.deb` release package:
 apt-get update && apt-get install -y ca-certificates tar bzip2 7zip ffmpeg imagemagick
 
 # 2. Install Brum
-dpkg -i brum_1.8.6-1_amd64.deb # or dpkg -i brum_*_amd64.deb
+dpkg -i brum_1.8.7-1_amd64.deb # or dpkg -i brum_*_amd64.deb
 
 # 3. Enable and Start Systemd Service
 systemctl daemon-reload
@@ -53,9 +53,9 @@ systemctl status brum
 
 ```bash
 # 1. Download and extract release tarball
-wget https://github.com/Woofson/brum/releases/latest/download/brum-v1.8.6-linux-x86_64.tar.gz
-tar -xzf brum-v1.8.6-linux-x86_64.tar.gz
-cd brum-v1.8.6-linux-x86_64
+wget https://github.com/Woofson/brum/releases/latest/download/brum-v1.8.7-linux-x86_64.tar.gz
+tar -xzf brum-v1.8.7-linux-x86_64.tar.gz
+cd brum-v1.8.7-linux-x86_64
 
 # 2. Copy binary to system path
 install -m 755 brum /usr/bin/brum
