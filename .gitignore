@@ -59,6 +59,7 @@ service-account*.json
 *.log.*
 *.dump
 *.dmp
+*.fault
 *.tmp
 *.temp
 .build_counter

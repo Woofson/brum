@@ -5,6 +5,14 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.7] - 2026-10-12
+
+### Fixed
+- **Systemd Service Database Write Failure (`brum.service`)**:
+  - Resolved `SqliteFailure(ReadOnly, "attempt to write a readonly database")` on Linux daemon startup.
+  - Replaced `ProtectSystem=full` with `ProtectSystem=true` to prevent systemd from mounting `/etc` read-only when the database resides in `/etc/brum/brum.db`.
+  - Added explicit `ReadWritePaths=/etc/brum` to guarantee write access to Brum's working directory and database under hardened systemd sandboxing.
+
 ## [1.8.6] - 2026-10-12
 
 ### Security & Hardening

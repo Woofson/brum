@@ -13,7 +13,8 @@ RestartSec=5
 Environment=RUST_LOG=brum=info,tower_http=info
 LimitNOFILE=65536
 NoNewPrivileges=true
-ProtectSystem=full
+ProtectSystem=true
+ReadWritePaths=/etc/brum
 PrivateTmp=true
 
 [Install]
