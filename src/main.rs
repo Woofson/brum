@@ -16,7 +16,6 @@ use server::{create_router, AppState};
 use std::sync::Arc;
 use tracing::info;
 
-#[allow(dead_code)]
 async fn probe_running_brum_server(host: &str, port: u16) -> bool {
     let probe_host = if host == "0.0.0.0" { "127.0.0.1" } else { host };
     let client = match reqwest::Client::builder()
@@ -69,13 +68,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     while i < args.len() {
         match args[i].as_str() {
             "--connect" | "-c" => {
-                if i + 1 < args.len() {
+                if i + 1 < args.len() && !args[i + 1].starts_with('-') {
                     let mut target = args[i + 1].clone();
-                    if !target.starts_with("http://") && !target.starts_with("https://") {
+                    if target.chars().all(|c| c.is_ascii_digit()) {
+                        target = format!("http://127.0.0.1:{}", target);
+                    } else if !target.starts_with("http://") && !target.starts_with("https://") {
                         target = format!("http://{}", target);
                     }
                     connect_url = Some(target);
                     i += 1;
+                } else {
+                    connect_url = Some(format!("http://127.0.0.1:{}", config.server.port));
                 }
             }
             "--windows-service" | "--service" => {
@@ -251,6 +254,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         if let Some(active_inst) = crate::instance::get_active_user_instance() {
             let existing_url = format!("http://127.0.0.1:{}?instance_token={}", active_inst.port, active_inst.instance_token);
             info!("Detected running user Brum instance on {}. Attaching desktop interface...", existing_url);
+            #[allow(unused_variables)]
+            let has_display = is_graphical_display_available();
+
+            #[cfg(feature = "gui")]
+            if has_display {
+                let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
+                info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, existing_url);
+                run_native_gui(&existing_url, "Brum", config.ui.window_decorations)?;
+                return Ok(());
+            }
+
+            info!("Opening in browser: {}", existing_url);
+            let _ = open::that(&existing_url);
+            return Ok(());
+        } else if probe_running_brum_server(&config.server.host, config.server.port).await {
+            let probe_host = if config.server.host == "0.0.0.0" { "127.0.0.1" } else { &config.server.host };
+            let existing_url = format!("http://{}:{}", probe_host, config.server.port);
+            info!("Detected existing running Brum server on {}. Attaching desktop interface...", existing_url);
             #[allow(unused_variables)]
             let has_display = is_graphical_display_available();
 

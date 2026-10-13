@@ -83,13 +83,28 @@ fn main() {
     let mut connect_url: Option<String> = None;
     let mut i = 1;
     while i < args.len() {
-        if (args[i] == "--connect" || args[i] == "-c") && i + 1 < args.len() {
-            let mut target = args[i + 1].clone();
-            if !target.starts_with("http://") && !target.starts_with("https://") {
-                target = format!("http://{}", target);
+        match args[i].as_str() {
+            "--connect" | "-c" => {
+                if i + 1 < args.len() && !args[i + 1].starts_with('-') {
+                    let mut target = args[i + 1].clone();
+                    if target.chars().all(|c| c.is_ascii_digit()) {
+                        target = format!("http://127.0.0.1:{}", target);
+                    } else if !target.starts_with("http://") && !target.starts_with("https://") {
+                        target = format!("http://{}", target);
+                    }
+                    connect_url = Some(target);
+                    i += 1;
+                } else {
+                    connect_url = Some(format!("http://127.0.0.1:{}", config.server.port));
+                }
             }
-            connect_url = Some(target);
-            i += 1;
+            "--no-decorations" | "--frameless" => {
+                config.ui.window_decorations = false;
+            }
+            "--decorations" => {
+                config.ui.window_decorations = true;
+            }
+            _ => {}
         }
         i += 1;
     }
