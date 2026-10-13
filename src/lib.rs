@@ -11,7 +11,6 @@ use auth::AuthManager;
 use config::AppConfig;
 use plugins::PluginManager;
 use server::{create_router, AppState};
-use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::info;
 
@@ -35,8 +34,8 @@ pub fn create_app_state(
     let vault_mgr = vfs::vault::VaultManager::new();
     let backup_mgr = tools::sync::BackupManager::new(auth_mgr.db())?;
     let plugin_mgr = PluginManager::new(
-        PathBuf::from(&config.plugins.directory),
-        PathBuf::from(&config.plugins.user_directory),
+        config.plugins.resolve_system_directory(),
+        config.plugins.resolve_user_directory(),
         config.plugins.allow_user_installs,
         config.plugins.default_policy.clone(),
         config.plugins.global_whitelist.clone(),

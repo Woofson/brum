@@ -123,8 +123,8 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             }
         };
         let plugin_mgr = crate::plugins::PluginManager::new(
-            std::path::PathBuf::from(&config.plugins.directory),
-            std::path::PathBuf::from(&config.plugins.user_directory),
+            config.plugins.resolve_system_directory(),
+            config.plugins.resolve_user_directory(),
             config.plugins.allow_user_installs,
             config.plugins.default_policy.clone(),
             config.plugins.global_whitelist.clone(),

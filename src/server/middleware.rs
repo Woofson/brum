@@ -1255,19 +1255,9 @@ pub fn validate_path_access(
 }
 
 pub fn expand_tilde(path_str: &str) -> String {
-    if path_str == "~" {
-        dirs::home_dir()
-            .map(|h| h.to_string_lossy().to_string())
-            .unwrap_or_else(|| "~".to_string())
-    } else if let Some(stripped) = path_str.strip_prefix("~/") {
-        if let Some(home) = dirs::home_dir() {
-            home.join(stripped).to_string_lossy().to_string()
-        } else {
-            path_str.to_string()
-        }
-    } else {
-        path_str.to_string()
-    }
+    crate::config::expand_tilde_path(path_str)
+        .to_string_lossy()
+        .to_string()
 }
 
 /// Evaluates whether an IP address matches the trusted proxies whitelist,

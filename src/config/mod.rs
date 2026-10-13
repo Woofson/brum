@@ -127,6 +127,22 @@ impl Default for ServerConfig {
     }
 }
 
+/// Expands a leading tilde (`~` or `~/` or `~\`) to the current user's home directory.
+pub fn expand_tilde_path<P: AsRef<Path>>(path: P) -> PathBuf {
+    let p = path.as_ref();
+    let s = p.to_string_lossy();
+    if s == "~" {
+        if let Some(home) = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from)) {
+            return home;
+        }
+    } else if let Some(stripped) = s.strip_prefix("~/").or_else(|| s.strip_prefix("~\\")) {
+        if let Some(home) = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from)) {
+            return home.join(stripped);
+        }
+    }
+    p.to_path_buf()
+}
+
 fn default_host() -> String { "0.0.0.0".to_string() }
 fn default_port() -> u16 { 3140 }
 fn default_root_path() -> String {
@@ -328,7 +344,7 @@ fn default_log_max_files() -> usize { 14 }
 impl LoggingConfig {
     pub fn resolve_log_directory(&self) -> PathBuf {
         if !self.directory.trim().is_empty() {
-            return PathBuf::from(self.directory.trim());
+            return expand_tilde_path(self.directory.trim());
         }
 
         #[cfg(windows)]
@@ -1042,6 +1058,16 @@ impl Default for PluginsConfig {
             global_whitelist: default_global_whitelist(),
             global_blacklist: default_global_blacklist(),
         }
+    }
+}
+
+impl PluginsConfig {
+    pub fn resolve_system_directory(&self) -> PathBuf {
+        expand_tilde_path(&self.directory)
+    }
+
+    pub fn resolve_user_directory(&self) -> PathBuf {
+        expand_tilde_path(&self.user_directory)
     }
 }
 
@@ -2242,4 +2268,22 @@ mod tests {
             assert!(parsed.plugins.enabled);
         }
     }
+
+    #[test]
+    fn test_expand_tilde_path_and_plugins_dir_resolution() {
+        if let Some(home) = dirs::home_dir().or_else(|| std::env::var("HOME").ok().map(PathBuf::from)) {
+            assert_eq!(expand_tilde_path("~"), home);
+            assert_eq!(expand_tilde_path("~/"), home);
+            assert_eq!(expand_tilde_path("~/.config/brum/plugins"), home.join(".config/brum/plugins"));
+            assert_eq!(expand_tilde_path("~/custom/dir"), home.join("custom/dir"));
+
+            let plugins = PluginsConfig::default();
+            assert_eq!(plugins.resolve_user_directory(), home.join(".config/brum/plugins"));
+        }
+
+        // Non-tilde absolute paths should be unchanged
+        assert_eq!(expand_tilde_path("/etc/brum/plugins"), PathBuf::from("/etc/brum/plugins"));
+        assert_eq!(expand_tilde_path("relative/path"), PathBuf::from("relative/path"));
+    }
 }
+

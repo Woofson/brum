@@ -177,6 +177,8 @@ impl PluginManager {
         global_whitelist: Vec<String>,
         global_blacklist: Vec<String>,
     ) -> Self {
+        let system_dir = crate::config::expand_tilde_path(system_dir);
+        let user_dir = crate::config::expand_tilde_path(user_dir);
         let mgr = Self {
             system_dir,
             user_dir,

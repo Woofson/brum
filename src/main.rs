@@ -291,8 +291,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let vault_mgr = vfs::vault::VaultManager::new();
     let backup_mgr = tools::sync::BackupManager::new(auth_mgr.db())?;
     let plugin_mgr = plugins::PluginManager::new(
-        std::path::PathBuf::from(&config.plugins.directory),
-        std::path::PathBuf::from(&config.plugins.user_directory),
+        config.plugins.resolve_system_directory(),
+        config.plugins.resolve_user_directory(),
         config.plugins.allow_user_installs,
         config.plugins.default_policy.clone(),
         config.plugins.global_whitelist.clone(),
