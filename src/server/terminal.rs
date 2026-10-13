@@ -247,11 +247,18 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
         }
     }
 
-    // 5. Configured server_name if non-empty
+    // 5. Configured server_name if non-empty (resilient to optional http:// or https:// prefix)
     let srv_name = state.config.server.server_name.trim();
-    if !srv_name.is_empty() {
+    let clean_srv_host = srv_name
+        .trim_start_matches("http://")
+        .trim_start_matches("https://")
+        .trim_start_matches("ws://")
+        .trim_start_matches("wss://");
+    let (srv_host, _) = clean_srv_host.split_once(':').unwrap_or((clean_srv_host, ""));
+
+    if !srv_host.is_empty() {
         let (origin_host, _) = clean_origin.split_once(':').unwrap_or((clean_origin, ""));
-        if origin_host.eq_ignore_ascii_case(srv_name) {
+        if origin_host.eq_ignore_ascii_case(srv_host) {
             debug!(origin = %norm_origin, server_name = %srv_name, "Origin trusted via server_name match");
             return true;
         }
@@ -289,7 +296,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
                 || req_host.ends_with(".local")
                 || req_host.ends_with(".lan")
                 || req_host.ends_with(".home.arpa")
-                || (!srv_name.is_empty() && req_host.eq_ignore_ascii_case(srv_name))
+                || (!srv_host.is_empty() && req_host.eq_ignore_ascii_case(srv_host))
                 || (!sys_hostname.is_empty() && req_host.eq_ignore_ascii_case(&sys_hostname))
                 || if let Ok(ip) = req_host.parse::<std::net::IpAddr>() {
                     is_safe_local_or_overlay_ip(ip)
@@ -1137,5 +1144,29 @@ mod tests {
         // 5. Malicious external origin: rejected
         assert!(!is_ws_origin_allowed("http://evil.com", &headers, &state));
         assert!(!is_ws_origin_allowed("http://attacker.local.evil.com", &headers, &state));
+
+        // 6. Custom external FQDN without allowed_origins or server_name: rejected
+        let mut ext_headers = HeaderMap::new();
+        ext_headers.insert(header::HOST, "fe.nb.arf.ac".parse().unwrap());
+        assert!(!is_ws_origin_allowed("https://fe.nb.arf.ac", &ext_headers, &state));
+
+        // 7. Custom external FQDN with allowed_origins (bare domain or full URL or wildcard)
+        let mut cfg2 = crate::config::AppConfig::default();
+        cfg2.server.database_path = tmp.path().join("term_origin2.db").to_string_lossy().to_string();
+        cfg2.server.allowed_origins = vec![
+            "fe.nb.arf.ac".to_string(), // bare domain without scheme
+            "https://*.nb.arf.ac".to_string(), // with scheme and wildcard
+        ];
+        let state2 = create_test_state(cfg2);
+        assert!(is_ws_origin_allowed("https://fe.nb.arf.ac", &ext_headers, &state2));
+        assert!(is_ws_origin_allowed("http://fe.nb.arf.ac", &ext_headers, &state2));
+        assert!(is_ws_origin_allowed("https://node1.nb.arf.ac", &ext_headers, &state2));
+
+        // 8. Server name configured as full URL: scheme is gracefully stripped and matches
+        let mut cfg3 = crate::config::AppConfig::default();
+        cfg3.server.database_path = tmp.path().join("term_origin3.db").to_string_lossy().to_string();
+        cfg3.server.server_name = "https://fe.nb.arf.ac".to_string();
+        let state3 = create_test_state(cfg3);
+        assert!(is_ws_origin_allowed("https://fe.nb.arf.ac", &ext_headers, &state3));
     }
 }
