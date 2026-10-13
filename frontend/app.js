@@ -3449,6 +3449,9 @@ async function loadConfig() {
 
       // Configure Standalone Desktop Feature Isolation
       updateStandaloneUI();
+
+      // Synchronize static fleet nodes from config.toml into client fleet registry
+      syncConfigFleetNodes();
     }
   } catch (e) {
     console.error('Config fetch failed:', e);
@@ -42327,8 +42330,105 @@ function saveFleetNodes(nodes, skipServerSync = false) {
   }
 }
 
+function syncConfigFleetNodes() {
+  if (!App.config?.fleet?.enabled || !Array.isArray(App.config.fleet.nodes)) return;
+  const staticNodes = App.config.fleet.nodes;
+  if (staticNodes.length === 0) return;
+
+  let localNodes = loadFleetNodes();
+  let modified = false;
+
+  staticNodes.forEach(sn => {
+    const endpointUrl = sn.endpoint_url || sn.url;
+    if (!endpointUrl) return;
+
+    const existingIdx = localNodes.findIndex(l => l.id === sn.id || (l.endpoint_url && l.endpoint_url === endpointUrl));
+    if (existingIdx >= 0) {
+      const cur = localNodes[existingIdx];
+      if (!cur.endpoint_url || cur.endpoint_url !== endpointUrl) {
+        cur.endpoint_url = endpointUrl;
+        modified = true;
+      }
+      if (sn.name && cur.name !== sn.name) {
+        cur.name = sn.name;
+        modified = true;
+      }
+      if (sn.color_accent && !cur.color_accent) {
+        cur.color_accent = sn.color_accent;
+        modified = true;
+      }
+      if (sn.tags && (!cur.tags || cur.tags.length === 0)) {
+        cur.tags = sn.tags;
+        modified = true;
+      }
+      if (sn.start_path && !cur.start_path) {
+        cur.start_path = sn.start_path;
+        modified = true;
+      }
+      if (!cur.is_static) {
+        cur.is_static = true;
+        modified = true;
+      }
+    } else {
+      localNodes.push({
+        id: sn.id,
+        name: sn.name || sn.id,
+        endpoint_url: endpointUrl,
+        start_path: sn.start_path || undefined,
+        proxy_mode: 'auto',
+        color_accent: sn.color_accent || 'amber',
+        tags: sn.tags || [],
+        is_static: true,
+        created_at: Date.now(),
+        status: 'unknown',
+        latency_ms: null
+      });
+      modified = true;
+    }
+  });
+
+  if (modified) {
+    saveFleetNodes(localNodes, true);
+    if (typeof renderFleetSwitcherDropdown === 'function') {
+      renderFleetSwitcherDropdown();
+    }
+    const managerModal = document.getElementById('fleet-manager-modal');
+    if (managerModal && managerModal.classList.contains('active') && typeof renderFleetManagerList === 'function') {
+      renderFleetManagerList();
+    }
+  }
+}
+
 function getAllFleetNodes() {
-  return loadFleetNodes();
+  const local = loadFleetNodes();
+  if (App.config?.fleet?.enabled && Array.isArray(App.config.fleet.nodes) && App.config.fleet.nodes.length > 0) {
+    const staticNodes = App.config.fleet.nodes;
+    let merged = [...local];
+    staticNodes.forEach(sn => {
+      const endpointUrl = sn.endpoint_url || sn.url;
+      if (!endpointUrl) return;
+      const idx = merged.findIndex(m => m.id === sn.id || m.endpoint_url === endpointUrl);
+      if (idx >= 0) {
+        if (!merged[idx].endpoint_url) merged[idx].endpoint_url = endpointUrl;
+        merged[idx].is_static = true;
+      } else {
+        merged.push({
+          id: sn.id,
+          name: sn.name || sn.id,
+          endpoint_url: endpointUrl,
+          start_path: sn.start_path || undefined,
+          proxy_mode: 'auto',
+          color_accent: sn.color_accent || 'amber',
+          tags: sn.tags || [],
+          is_static: true,
+          status: 'unknown',
+          latency_ms: null
+        });
+      }
+    });
+    return merged;
+  }
+  return local;
 }
 
 function getFleetNodeById(id) {
@@ -42349,7 +42449,7 @@ function getActiveFleetNode() {
 
 // Ping a single node's /api/health endpoint
 async function pingFleetNode(nodeId) {
-  let nodes = loadFleetNodes();
+  let nodes = getAllFleetNodes();
   let node = nodes.find(n => n.id === nodeId);
   if (!node && nodeId !== 'local') return null;
 
@@ -42449,7 +42549,7 @@ async function pingFleetNode(nodeId) {
 
 // Ping all registered fleet nodes concurrently
 async function pingAllFleetNodes() {
-  const nodes = loadFleetNodes();
+  const nodes = getAllFleetNodes();
   const promises = nodes.map(n => pingFleetNode(n.id));
   await Promise.allSettled(promises);
   renderFleetSwitcherDropdown();
@@ -43121,6 +43221,11 @@ async function deleteFleetNodeProfile(id, event) {
   if (event) event.stopPropagation();
   const node = getFleetNodeById(id);
   if (!node) return;
+
+  if (node.is_static) {
+    showToast(`Node "${node.name}" is configured in config.toml. Remove it from config.toml to delete.`, 'warning');
+    return;
+  }
 
   const confirmed = await showConfirmDialog({
     title: 'Delete Fleet Node',
