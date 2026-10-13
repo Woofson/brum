@@ -10,7 +10,7 @@ depends=('glibc' 'sqlite' 'libssh2' 'openssl' 'ca-certificates')
 makedepends=('cargo' 'rust' 'pkgconf')
 options=('!lto')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('273e3a7a005a2647be4ad119d784b7b22473f254a2ca3b906f912a32e4e1ca63')
+sha256sums=('8c84d9f7d0447743ab191c0824c94821e96878c7863b6eaa104fa110307a7cb2')
 
 prepare() {
     cd "$pkgname-$pkgver"
