@@ -146,26 +146,22 @@ Whenever creating or modifying windows, modals, or docked tools, strictly adhere
 
 ---
 
-## 10. Binary Architecture & Packaging Specification (Windows vs Linux)
+## 10. Binary Architecture & Packaging Specification (Pure Web & Server Architecture)
 
-To ensure smooth operation across platforms and prevent filesystem collisions, adhere strictly to the following binary structure:
+Brum adheres to a pure, universal single-binary web and server architecture across all platforms:
 
-### 1. Windows Architecture (Case-Insensitive NTFS Collision Rule)
-* **NTFS Case-Insensitivity**: Windows treats `Brum.exe` and `brum.exe` as the exact same file path. They MUST NEVER be packaged together with identical spelling.
-* **`Brum.exe` (Native Standalone Desktop Client)**:
-  * Compiled from `src-tauri` (`cargo build --manifest-path src-tauri/Cargo.toml --target x86_64-pc-windows-gnu`).
-  * Runs the standalone Microsoft WebView2 desktop window with system tray support, frameless/decorated window state persistence, and auto-backend spawning/service detection.
-  * Always targeted by Start Menu shortcuts, Desktop shortcuts, and Windows Explorer context menus.
-* **`brumd.exe` (Brum Daemon & Background Service)**:
-  * Compiled from root crate (`cargo build --target x86_64-pc-windows-gnu`).
-  * Runs the headless HTTP/WebSocket backend server, CLI tools, and Windows NT Service runner (`brumd.exe service install`, `brumd.exe service start`).
+### 1. Unified Single Binary (`brum` / `brum.exe`)
+* **Pure Rust & Zero C-GUI Bloat**: Compiled directly from the root crate without graphical C dependencies (`wry`, `tao`, `gtk3`, `webkit2gtk`, `WebView2Loader.dll`).
+* **Universal Operation via CLI Switches**:
+  * `brum` / `brum -s` / `brum --standalone`: Standalone desktop mode (local user auto-auth, auto-opens interface in default browser or PWA).
+  * `brum -c <URL>` / `brum --connect <URL>`: Client connect mode (opens running server instance in browser).
+  * `brum --server`: Headless background daemon.
+  * `brum service [install|uninstall|start|stop|restart|status]`: Background service management (`systemd` user service on Linux, Windows NT Service on Windows).
+  * `brum shortcut [install|uninstall] [--desktop]`: Desktop and application menu shortcut creation.
 
-### 2. Linux & Unix Architecture (Unified Single-Binary Design)
-* **`brum` (Unified Single Binary)**:
-  * Compiled from root crate (`cargo build --release`).
-  * On Linux/Unix, a single `brum` executable handles all modes seamlessly through CLI switches:
-    * `brum` / `brum -s` / `brum --standalone`: Standalone desktop mode (local user auto-auth, auto-opens interface).
-    * `brum --server`: Headless background daemon.
-    * `brum service [install|uninstall|start|stop|restart|status]`: systemd user service management.
-    * `brum shortcut [install|uninstall] [--desktop]`: Desktop and application menu shortcut creation.
+### 2. Desktop Windowing Paradigm (PWA & Browser App Mode)
+* Modern browsers provide native frameless, isolated desktop windowing with zero bundled WebKit overhead:
+  * **Chromium / Chrome / Brave / Edge**: `chromium --app=http://127.0.0.1:3140` or `msedge.exe --app=http://127.0.0.1:3140`.
+  * **PWA ("Install Brum")**: Seamlessly pins Brum as an isolated desktop application to taskbar/dock and launcher.
+  * **Tiling WMs & Keyboard Browsers**: Works cleanly with Hyprland, Sway, i3, `qutebrowser`, and `udo`.
 

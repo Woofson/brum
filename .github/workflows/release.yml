@@ -20,7 +20,7 @@ jobs:
   # 🪟 WINDOWS NATIVE BUILD & PACKAGING
   # -------------------------------------------------------------
   build-windows:
-    name: Windows Native Desktop & Portable ZIP (x86_64-pc-windows-msvc)
+    name: Windows Portable ZIP (x86_64-pc-windows-msvc)
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -34,21 +34,10 @@ jobs:
       - name: Cache Cargo dependencies
         uses: Swatinem/rust-cache@v2
 
-      - name: Install Tauri CLI
-        run: cargo install tauri-cli --version "^2.0.0" --locked
-
-      - name: Build Core Brum Windows CLI
+      - name: Build Brum Windows Universal Binary
         run: cargo build --release --target x86_64-pc-windows-msvc
 
-      - name: Build Tauri Desktop Standalone & Installers (MSI + NSIS EXE)
-        run: |
-          cd src-tauri
-          cargo tauri build --target x86_64-pc-windows-msvc
-
-      - name: Install Inno Setup
-        run: choco install innosetup --no-progress
-
-      - name: Package Standalone Distribution & Inno Setup Installer
+      - name: Package Standalone Distribution
         shell: pwsh
         run: |
           $Version = "${{ github.ref_name }}".TrimStart('v')
@@ -58,14 +47,7 @@ jobs:
           $DistDir = "dist\windows"
           New-Item -ItemType Directory -Path "$DistDir\brum" -Force | Out-Null
 
-          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brumd.exe"
-          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum-cli.exe" -ErrorAction SilentlyContinue
-          Copy-Item "target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
-          Copy-Item "src-tauri\target\x86_64-pc-windows-msvc\release\brum-desktop.exe" "$DistDir\brum\Brum.exe" -ErrorAction SilentlyContinue
-          if (-not (Test-Path "$DistDir\brum\Brum.exe")) {
-            Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\Brum.exe"
-          }
-
+          Copy-Item "target\x86_64-pc-windows-msvc\release\brum.exe" "$DistDir\brum\brum.exe"
           Copy-Item "config.toml" "$DistDir\brum\"
           Copy-Item "LICENSE" "$DistDir\brum\"
           Copy-Item "README.md" "$DistDir\brum\"
@@ -74,7 +56,6 @@ jobs:
           Copy-Item "packaging\windows\create-shortcuts.bat" "$DistDir\brum\" -ErrorAction SilentlyContinue
           Copy-Item "packaging\windows\create-shortcuts.ps1" "$DistDir\brum\" -ErrorAction SilentlyContinue
           Copy-Item "packaging\windows\remove-shortcuts.bat" "$DistDir\brum\" -ErrorAction SilentlyContinue
-          Copy-Item "packaging\windows\WebView2Loader.dll" "$DistDir\brum\" -ErrorAction SilentlyContinue
           Copy-Item "assets\brum.ico" "$DistDir\brum\" -ErrorAction SilentlyContinue
           Copy-Item -Recurse "themes" "$DistDir\brum\themes" -ErrorAction SilentlyContinue
           Copy-Item -Recurse "plugins" "$DistDir\brum\plugins" -ErrorAction SilentlyContinue
@@ -83,14 +64,8 @@ jobs:
           $ZipName = "brum-v${Version}-windows-x86_64.zip"
           Compress-Archive -Path "$DistDir\brum\*" -DestinationPath "$DistDir\$ZipName" -Force
 
-          # 2. Compile Inno Setup Installer (Interactive Standalone vs Windows Service)
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$Version" "packaging\windows\setup.iss"
-
-          # 3. Copy Tauri MSI if available
-          Get-ChildItem -Path "src-tauri\target\x86_64-pc-windows-msvc\release\bundle\msi\*.msi" -ErrorAction SilentlyContinue | Copy-Item -Destination $DistDir
-
-          # 4. Generate SHA256 Checksums
-          Get-ChildItem -Path "$DistDir\*" -Include *.zip,*.exe,*.msi | ForEach-Object {
+          # 2. Generate SHA256 Checksums
+          Get-ChildItem -Path "$DistDir\*" -Include *.zip,*.exe | ForEach-Object {
             $h = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$h  $($_.Name)" | Out-File -FilePath "$DistDir\SHA256SUMS-windows.txt" -Append -Encoding ascii
           }
@@ -102,7 +77,6 @@ jobs:
           path: |
             dist/windows/*.zip
             dist/windows/*.exe
-            dist/windows/*.msi
             dist/windows/SHA256SUMS-windows.txt
 
   # -------------------------------------------------------------
@@ -118,7 +92,7 @@ jobs:
       - name: Install system build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y pkg-config libssl-dev libssh2-1-dev libsqlite3-dev libwebkit2gtk-4.1-dev libgtk-3-dev libayatana-appindicator3-dev
+          sudo apt-get install -y pkg-config libssl-dev libssh2-1-dev libsqlite3-dev
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable

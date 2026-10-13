@@ -114,16 +114,6 @@ echo "📝 Updating version to ${TARGET_VERSION} across all project files..."
 # Cargo.toml (root)
 sed -i "0,/^version = .*/s//version = \"${TARGET_VERSION}\"/" Cargo.toml
 
-# src-tauri/Cargo.toml
-if [ -f "src-tauri/Cargo.toml" ]; then
-    sed -i "0,/^version = .*/s//version = \"${TARGET_VERSION}\"/" src-tauri/Cargo.toml
-fi
-
-# src-tauri/tauri.conf.json
-if [ -f "src-tauri/tauri.conf.json" ]; then
-    sed -i "s/\"version\": \".*\"/\"version\": \"${TARGET_VERSION}\"/" src-tauri/tauri.conf.json
-fi
-
 # frontend/index.html badge
 if [ -f "frontend/index.html" ]; then
     sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+ (Desktop & Web)/v${TARGET_VERSION} (Desktop \& Web)/g" frontend/index.html
@@ -277,15 +267,11 @@ pkgbase = brum
 	makedepends = cargo
 	makedepends = rust
 	makedepends = pkgconf
-	makedepends = gtk3
-	makedepends = webkit2gtk-4.1
 	depends = glibc
 	depends = sqlite
 	depends = libssh2
 	depends = openssl
 	depends = ca-certificates
-	depends = gtk3
-	depends = webkit2gtk-4.1
 	options = !lto
 	source = brum-${TARGET_VERSION}.tar.gz::https://github.com/Woofson/brum/archive/refs/tags/v${TARGET_VERSION}.tar.gz
 	sha256sums = ${SOURCE_SHA256}

@@ -4,8 +4,6 @@
 
 # --- Build Targets & Distribution Packages ---
 /target
-src-tauri/target
-src-tauri/gen
 /dist
 /build
 /pkg

@@ -8,66 +8,65 @@ Welcome to the installation and compilation manual for **Brum** ("Multi-Pane Web
 
 | Deployment Target | Build / Command | Output Mode |
 | :--- | :--- | :--- |
-| **Native Desktop (Tiling WM / Linux)** | `cargo build --release --features gui`<br>`./target/release/brum -s --frameless` | Standalone native WebKit window (No browser, borderless) |
-| **Native Desktop (Standard Linux / Windowed)** | `cargo build --release --features gui`<br>`./target/release/brum -s` | Standalone native desktop window with titlebar |
-| **Arch Linux / CachyOS (AUR)** | `yay -S brum` | Pre-configured native desktop + CLI package |
-| **Windows Desktop** | `winget install Woofson.Brum`<br>or `scoop install brum` | Native Windows app (`Brum.exe` with System Tray) |
+| **Standalone Desktop (Linux / macOS)** | `cargo build --release`<br>`./target/release/brum -s` | Standalone browser/PWA window with local OS auto-auth |
+| **Tiling WMs (Hyprland / Sway / i3)** | `chromium --app=http://127.0.0.1:3140` | Dedicated borderless, isolated desktop window |
+| **Arch Linux / CachyOS (AUR)** | `yay -S brum` (or `yay -S brum-bin`) | Single binary package (`/usr/bin/brum`) |
+| **Windows Desktop & CLI** | `winget install Woofson.Brum`<br>or `scoop install brum` | Universal `brum.exe` binary with Windows NT service runner |
 | **Headless Server (Web Environment)** | `cargo build --release`<br>`./target/release/brum --server` | Background web service on `http://0.0.0.0:3140` |
 | **Docker / Proxmox Container** | `docker compose up -d` | Minimal container on Alpine Linux (`ghcr.io/woofson/brum:latest`) |
 
 ---
 
-## 1. Native Desktop Standalone Mode (Linux)
+## 1. Standalone Desktop & Tiling Window Managers
 
-### Build Dependencies (Debian / Ubuntu / Arch)
-Before compiling with the native GUI windowing engine (`wry` + `tao`), ensure GTK3 and WebKitGTK development headers are installed:
+Brum is built from the ground up as a pure web environment. It compiles as a single, universal Rust binary with zero C graphical dependencies (`wry`, `tao`, `gtk3`, `webkit2gtk`), allowing it to build and run seamlessly across desktop workstations and headless servers alike.
 
+### Compiling from Source
 ```bash
-# Arch Linux / CachyOS / Manjaro
-sudo pacman -S webkit2gtk-4.1 gtk3 pkg-config openssl libssh2 sqlite
-
-# Ubuntu 22.04+ / Debian 12+ / Linux Mint / Pop!_OS
-sudo apt-get install -y libwebkit2gtk-4.1-dev libgtk-3-dev pkg-config libssl-dev libssh2-1-dev libsqlite3-dev
-```
-
-### Compiling with Native Desktop GUI
-To compile the standalone binary with embedded WebKitGTK desktop windowing:
-
-```bash
-# Build optimized release binary
-cargo build --release --features gui
+# Build optimized release binary (Linux / macOS / Windows)
+cargo build --release
 
 # Binary is located at:
 ./target/release/brum
 ```
 
-### Launching on Tiling Window Managers (Hyprland, Sway, i3, bspwm)
-For tiling window managers, launch with `-s` (standalone local user) and `--frameless` (borderless mode without window titlebar):
+### Launching Standalone Desktop Mode
+Launch with `-s` (standalone local user) to automatically authorize your current local operating system account and open the interface:
 
 ```bash
-# Direct run
-./target/release/brum -s --frameless
+# Direct run (opens in your default browser or PWA)
+./target/release/brum -s
 
 # Or install globally into ~/.cargo/bin/
-cargo install --path . --features gui
-brum -s --frameless
+cargo install --path .
+brum -s
 ```
 
-#### Hyprland Window Rule Example (`hyprland.conf`)
-```ini
-# Floating or tiled window rules
-windowrulev2 = opacity 0.96 0.96, class:^(Brum)$
-bind = $mainMod, E, exec, brum -s --frameless
-```
+### Frameless Window Mode (Tiling WMs & Purist Browsers)
+For a completely borderless, isolated desktop window without browser tabs or URL bars:
+
+* **Chromium / Brave / Chrome / Edge**:
+  ```bash
+  chromium --app=http://127.0.0.1:3140
+  ```
+* **Hyprland Window Rule Example (`hyprland.conf`)**:
+  ```ini
+  windowrulev2 = opacity 0.96 0.96, class:^(chrome-127.0.0.1.*)$
+  bind = $mainMod, E, exec, brum -s && chromium --app=http://127.0.0.1:3140
+  ```
+* **Qutebrowser / Udo / Surf**:
+  ```bash
+  qutebrowser http://127.0.0.1:3140
+  ```
 
 ---
 
 ## 2. Arch Linux AUR Installation
 
-Brum is available in the Arch User Repository with automated compilation of the native desktop GUI:
+Brum is available in the Arch User Repository:
 
 ```bash
-# Using yay
+# Using yay (source build)
 yay -S brum
 
 # Using paru
@@ -79,9 +78,9 @@ yay -S brum-bin
 
 ---
 
-## 3. Windows Desktop Standalone
+## 3. Windows Desktop & CLI Standalone
 
-Windows users can install Brum via package managers or native installers:
+Windows users can install Brum via package managers or standalone portable ZIP:
 
 ### Via Winget
 ```powershell
@@ -95,7 +94,7 @@ scoop install brum
 ```
 
 ### Manual Release Installers
-Download standalone portable ZIP, NSIS setup `.exe`, or `.msi` from [GitHub Releases](https://github.com/Woofson/brum/releases). For more details, see [**`manuals/windows.md`**](manuals/windows.md).
+Download standalone portable `brum-v<VERSION>-windows-x86_64.zip` from [GitHub Releases](https://github.com/Woofson/brum/releases). For more details, see [**`manuals/windows.md`**](manuals/windows.md).
 
 ---
 

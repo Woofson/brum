@@ -4,21 +4,22 @@
   <img src="../assets/brum2.png" alt="Brum Windows Desktop Edition" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
 </div>
 
-> **Multi-Panel File Commander for Web & Native Windows Desktop**  
-> *Engineered in Rust & Microsoft WebView2 — High-Performance, Low Memory, Zero Electron Overhead.*
+> **Multi-Panel File Commander for Web & Windows**  
+> *Engineered in Rust — High-Performance, Low Memory, Zero Electron Overhead.*
 
 ---
 
 ## 1. Overview & Architecture
 
-Brum on Windows is distributed as:
-1. **Standalone Native Desktop Application (`Brum.exe`)**:
-   - Powered by Microsoft WebView2 (built into Windows 10 & 11).
-   - Instant startup, ~30MB RAM idle consumption, full hardware-accelerated rendering.
-   - Global System Tray icon with minimize-to-tray background operation.
-2. **High-Performance Background & CLI Server (`brum.exe`)**:
+Brum on Windows is distributed as a unified single binary (`brum.exe`):
+1. **Interactive Desktop Mode (`brum.exe -s` or `brum.exe --standalone`)**:
+   - Launches the local server with one-time desktop auto-authentication and immediately opens the user interface in your default browser or PWA window.
+   - Ultra-fast startup, ~30MB RAM idle consumption, full hardware-accelerated rendering in modern browsers (Edge, Chrome, Firefox).
+   - Seamlessly compatible with browser application mode (`msedge.exe --app=http://127.0.0.1:3140` or `chrome.exe --app=http://127.0.0.1:3140`) for an isolated, borderless window.
+2. **High-Performance Background & CLI Server (`brum.exe --server`)**:
    - Single-binary Axum async HTTP/WebSocket server.
    - Run as a headless background service, local server, or portable command-line tool.
+   - Manages native Windows NT Services directly via `brum.exe --install-service`, `--start-service`, etc.
 
 ---
 
@@ -39,13 +40,13 @@ scoop install brum
 
 ### C. Inno Setup Windows Installer (`.exe`)
 1. Download `Brum-Setup-v1.8.8.exe` from [GitHub Releases](https://github.com/Woofson/brum/releases).
-2. Choose between **Desktop GUI Application** or **Background Windows Service (SCM)** mode.
+2. Choose between **Desktop Mode** (browser / shortcut integration) or **Background Windows Service (SCM)** mode.
 3. Automatically sets up Start Menu items, Desktop shortcuts, Context Menu integrations, and `%PROGRAMDATA%\Brum\` configuration roots.
 
 ### D. Zero-Install Standalone Portable ZIP
 1. Download `brum-v1.8.8-windows-x86_64.zip` from [GitHub Releases](https://github.com/Woofson/brum/releases).
 2. Extract anywhere (e.g. `C:\Tools\Brum` or a USB drive).
-3. Double-click `Brum.exe` (Desktop GUI) or run `brum-cli.exe` — includes bundled `./themes/` folder and `config.toml`. Settings and database are saved portably in the local folder or `%APPDATA%\Brum\`.
+3. Run `brum.exe -s` (Desktop mode) or `brum.exe` — includes bundled `./themes/` folder and `config.toml`. Settings and database are saved portably in the local folder or `%APPDATA%\Brum\`.
 
 ---
 
@@ -110,7 +111,7 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ## 6. Windows PE Metadata & Build Inspection
 
-Windows executables (`brum.exe` and `Brum.exe`) automatically embed PE Version Resources:
+Windows executable (`brum.exe`) automatically embeds PE Version Resources:
 * **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.8.8.419`).
 * **Product Version**: Formatted as full SemVer 2.0.0 metadata (e.g. `1.8.8+build.419.git.8f42092`).
 * **File Properties**: Right-click `brum.exe` in Windows Explorer -> **Properties** -> **Details** tab to view the exact build number, product version, and lab copyright information.
@@ -154,7 +155,6 @@ If installing manually without a package manager:
 ### Prerequisites
 - [Rust & Cargo](https://rustup.rs/) (`stable-x86_64-pc-windows-msvc` or cross-compile with `x86_64-pc-windows-gnu`)
 - Visual Studio 2022 C++ Build Tools or MinGW-w64 toolchain
-- Microsoft WebView2 Runtime (Preinstalled on Windows 10/11)
 
 ### Cross-Compiling from Linux:
 ```bash

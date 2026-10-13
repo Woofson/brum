@@ -10,8 +10,8 @@
 #endif
 #define MyAppPublisher "Bolt J Woofson @ Woofsons Lab"
 #define MyAppURL "https://www.arf.ac"
-#define MyAppExeName "Brum.exe"
-#define MyCliExeName "brumd.exe"
+#define MyAppExeName "brum.exe"
+#define MyCliExeName "brum.exe"
 
 [Setup]
 AppId={{D37F8A1B-824E-4B02-990C-5B6A84F819FA}
@@ -44,14 +44,14 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Types]
-Name: "standalone"; Description: "Standalone Desktop Application (Single Computer)"
+Name: "standalone"; Description: "Standalone Desktop Mode (Single Computer)"
 Name: "service"; Description: "Windows Background Service (Headless Autostart Daemon / Fleet Server)"
-Name: "full"; Description: "Full Suite (Desktop Application + Background Service + Context Menu)"
+Name: "full"; Description: "Full Suite (Desktop Shortcuts + Background Service + Context Menu)"
 Name: "custom"; Description: "Custom Installation Options"; Flags: iscustom
 
 [Components]
-Name: "standalone"; Description: "Standalone Desktop Application (Brum.exe - Native Desktop UI & Shortcuts)"; Types: standalone full custom; Flags: checkablealone
-Name: "service"; Description: "Windows Background Service (brumd.exe autostart system daemon)"; Types: service full custom; Flags: checkablealone; Check: IsAdminInstallMode
+Name: "standalone"; Description: "Standalone Desktop Mode (brum.exe -s - Desktop Shortcuts)"; Types: standalone full custom; Flags: checkablealone
+Name: "service"; Description: "Windows Background Service (brum.exe autostart system daemon)"; Types: service full custom; Flags: checkablealone; Check: IsAdminInstallMode
 Name: "contextmenu"; Description: "Windows Explorer Context Menu Integration ('Open in Brum')"; Types: standalone service full custom
 
 [Tasks]
@@ -68,9 +68,7 @@ Name: "{app}"; Check: not IsAdminInstallMode
 
 [Files]
 ; Core Binaries & Assets
-Source: "..\..\dist\windows\brum\Brum.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\windows\brum\brumd.exe"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\..\dist\windows\brum\WebView2Loader.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+Source: "..\..\dist\windows\brum\brum.exe"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\windows\brum\config.toml"; DestDir: "{app}"; Flags: ignoreversion onlyifdoesntexist
 Source: "..\..\dist\windows\brum\LICENSE"; DestDir: "{app}"; Flags: ignoreversion
 Source: "..\..\dist\windows\brum\README.md"; DestDir: "{app}"; Flags: ignoreversion
@@ -79,27 +77,27 @@ Source: "register-context-menu.reg"; DestDir: "{app}"; Flags: ignoreversion; Com
 Source: "unregister-context-menu.reg"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\brum.ico"; Components: standalone
+Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; IconFilename: "{app}\brum.ico"; Components: standalone
 Name: "{group}\Brum (Web Console)"; Filename: "http://127.0.0.1:3140"; IconFilename: "{app}\brum.ico"
 Name: "{group}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\brum.ico"; Tasks: desktopicon; Components: standalone
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; IconFilename: "{app}\brum.ico"; Tasks: desktopicon; Components: standalone
 
 [Registry]
 ; Administrative Mode (All Users -> HKLM)
 Root: HKLM; Subkey: "Software\Classes\Directory\shell\Brum"; ValueType: string; ValueName: ""; ValueData: "Open in Brum"; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
 Root: HKLM; Subkey: "Software\Classes\Directory\shell\Brum"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\brum.ico"""; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
-Root: HKLM; Subkey: "Software\Classes\Directory\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Brum.exe"" ""%1"""; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
+Root: HKLM; Subkey: "Software\Classes\Directory\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" -s ""%1"""; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
 Root: HKLM; Subkey: "Software\Classes\Directory\Background\shell\Brum"; ValueType: string; ValueName: ""; ValueData: "Open in Brum"; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
 Root: HKLM; Subkey: "Software\Classes\Directory\Background\shell\Brum"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\brum.ico"""; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
-Root: HKLM; Subkey: "Software\Classes\Directory\Background\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Brum.exe"" ""%V"""; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
+Root: HKLM; Subkey: "Software\Classes\Directory\Background\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" -s ""%V"""; Flags: uninsdeletekey; Components: contextmenu; Check: IsAdminInstallMode
 
 ; Per-User Mode (Current User -> HKCU)
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\Brum"; ValueType: string; ValueName: ""; ValueData: "Open in Brum"; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
 Root: HKCU; Subkey: "Software\Classes\Directory\shell\Brum"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\brum.ico"""; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
-Root: HKCU; Subkey: "Software\Classes\Directory\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Brum.exe"" ""%1"""; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
+Root: HKCU; Subkey: "Software\Classes\Directory\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" -s ""%1"""; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Brum"; ValueType: string; ValueName: ""; ValueData: "Open in Brum"; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Brum"; ValueType: string; ValueName: "Icon"; ValueData: """{app}\brum.ico"""; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
-Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\Brum.exe"" ""%V"""; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
+Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" -s ""%V"""; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
 
 [Run]
 ; Install Windows Service if component selected (Administrative mode only)
@@ -107,7 +105,7 @@ Filename: "{app}\{#MyCliExeName}"; Parameters: "service install"; StatusMsg: "Re
 ; Start Windows Service if task selected
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service start"; StatusMsg: "Starting Brum Windows Service..."; Flags: runhidden waituntilterminated; Tasks: startservice; Components: service; Check: IsAdminInstallMode
 ; Post-install launch for standalone desktop app
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Components: standalone
+Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Components: standalone
 
 [UninstallRun]
 ; Stop and remove Windows Service cleanly if installed

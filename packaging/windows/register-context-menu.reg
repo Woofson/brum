@@ -7,22 +7,22 @@ Windows Registry Editor Version 5.00
 
 [HKEY_CLASSES_ROOT\Directory\shell\Brum]
 @="Open in Brum"
-"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\",0"
+"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\brum.exe\",0"
 
 [HKEY_CLASSES_ROOT\Directory\shell\Brum\command]
-@="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\" \"%1\""
+@="\"%LOCALAPPDATA%\\Programs\\Brum\\brum.exe\" -s \"%1\""
 
 [HKEY_CLASSES_ROOT\Directory\Background\shell\Brum]
 @="Open in Brum"
-"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\",0"
+"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\brum.exe\",0"
 
 [HKEY_CLASSES_ROOT\Directory\Background\shell\Brum\command]
-@="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\" \"%V\""
+@="\"%LOCALAPPDATA%\\Programs\\Brum\\brum.exe\" -s \"%V\""
 
 [HKEY_CLASSES_ROOT\Drive\shell\Brum]
 @="Open in Brum"
-"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\",0"
+"Icon"="\"%LOCALAPPDATA%\\Programs\\Brum\\brum.exe\",0"
 
 [HKEY_CLASSES_ROOT\Drive\shell\Brum\command]
-@="\"%LOCALAPPDATA%\\Programs\\Brum\\Brum.exe\" \"%1\""
+@="\"%LOCALAPPDATA%\\Programs\\Brum\\brum.exe\" -s \"%1\""
 

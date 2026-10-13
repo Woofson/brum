@@ -9,14 +9,15 @@ param(
 $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-$BrumExe = if (Test-Path (Join-Path $ScriptDir "Brum.exe")) {
-    Join-Path $ScriptDir "Brum.exe"
-} elseif (Test-Path (Join-Path $ScriptDir "brum.exe")) {
+$BrumExe = if (Test-Path (Join-Path $ScriptDir "brum.exe")) {
     Join-Path $ScriptDir "brum.exe"
+} elseif (Test-Path (Join-Path $ScriptDir "Brum.exe")) {
+    Join-Path $ScriptDir "Brum.exe"
 } else {
-    Write-Error "Neither Brum.exe nor brum.exe was found in $ScriptDir"
+    Write-Error "brum.exe was not found in $ScriptDir"
     exit 1
 }
+$BrumIco = Join-Path $ScriptDir "brum.ico"
 
 $WshShell = New-Object -ComObject WScript.Shell
 

@@ -234,18 +234,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     if let Some(target_url) = connect_url {
         info!("Connecting Brum client directly to server instance: {}", target_url);
-        #[allow(unused_variables)]
-        let has_display = is_graphical_display_available();
-
-        #[cfg(feature = "gui")]
-        if has_display {
-            let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
-            info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, target_url);
-            run_native_gui(&target_url, "Brum", config.ui.window_decorations)?;
-            return Ok(());
-        }
-
-        info!("Opening in browser: {}", target_url);
+        info!("Opening in default web browser: {}", target_url);
         let _ = open::that(&target_url);
         return Ok(());
     }
@@ -253,37 +242,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if !is_server_mode && (config.server.standalone || auto_open) {
         if let Some(active_inst) = crate::instance::get_active_user_instance() {
             let existing_url = format!("http://127.0.0.1:{}?instance_token={}", active_inst.port, active_inst.instance_token);
-            info!("Detected running user Brum instance on {}. Attaching desktop interface...", existing_url);
-            #[allow(unused_variables)]
-            let has_display = is_graphical_display_available();
-
-            #[cfg(feature = "gui")]
-            if has_display {
-                let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
-                info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, existing_url);
-                run_native_gui(&existing_url, "Brum", config.ui.window_decorations)?;
-                return Ok(());
-            }
-
-            info!("Opening in browser: {}", existing_url);
+            info!("Detected running user Brum instance on {}. Opening web interface...", existing_url);
             let _ = open::that(&existing_url);
             return Ok(());
         } else if probe_running_brum_server(&config.server.host, config.server.port).await {
             let probe_host = if config.server.host == "0.0.0.0" { "127.0.0.1" } else { &config.server.host };
             let existing_url = format!("http://{}:{}", probe_host, config.server.port);
-            info!("Detected existing running Brum server on {}. Attaching desktop interface...", existing_url);
-            #[allow(unused_variables)]
-            let has_display = is_graphical_display_available();
-
-            #[cfg(feature = "gui")]
-            if has_display {
-                let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
-                info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, existing_url);
-                run_native_gui(&existing_url, "Brum", config.ui.window_decorations)?;
-                return Ok(());
-            }
-
-            info!("Opening in browser: {}", existing_url);
+            info!("Detected existing running Brum server on {}. Opening web interface...", existing_url);
             let _ = open::that(&existing_url);
             return Ok(());
         }
@@ -398,28 +363,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         format!("http://127.0.0.1:{}", bound_port)
     };
     let is_standalone = config.server.standalone;
-    #[allow(unused_variables)]
-    let has_display = is_graphical_display_available();
-    let should_launch_gui = !is_server_mode && (is_standalone || auto_open);
+    let should_launch_browser = !is_server_mode && (is_standalone || auto_open);
 
-    if should_launch_gui {
+    if should_launch_browser {
         tokio::spawn(async move {
             if let Err(e) = axum::serve(listener, app.into_make_service_with_connect_info::<std::net::SocketAddr>()).await {
                 tracing::error!("Brum server error: {}", e);
             }
         });
-
-        #[cfg(feature = "gui")]
-        if has_display {
-            let dec_status = if config.ui.window_decorations { "enabled" } else { "disabled (borderless/tiling mode)" };
-            info!("Launching Brum native desktop window (decorations: {}): {}", dec_status, open_url);
-            let res = run_native_gui(&open_url, "Brum", config.ui.window_decorations);
-            crate::instance::unregister_user_instance();
-            if let Err(e) = res {
-                return Err(Box::<dyn std::error::Error + Send + Sync>::from(e.to_string()));
-            }
-            return Ok(());
-        }
 
         info!("Opening Brum in browser: {}", open_url);
         let u = open_url.clone();
@@ -439,149 +390,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     }
 
     Ok(())
-}
-
-fn is_graphical_display_available() -> bool {
-    if cfg!(target_os = "windows") || cfg!(target_os = "macos") {
-        true
-    } else {
-        std::env::var("DISPLAY").is_ok() || std::env::var("WAYLAND_DISPLAY").is_ok()
-    }
-}
-
-#[cfg(feature = "gui")]
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-struct GuiWindowState {
-    x: Option<i32>,
-    y: Option<i32>,
-    width: u32,
-    height: u32,
-    maximized: bool,
-}
-
-#[cfg(feature = "gui")]
-impl Default for GuiWindowState {
-    fn default() -> Self {
-        Self {
-            x: None,
-            y: None,
-            width: 1366,
-            height: 840,
-            maximized: false,
-        }
-    }
-}
-
-#[cfg(feature = "gui")]
-fn load_gui_window_state() -> GuiWindowState {
-    if let Some(config_dir) = dirs::config_dir() {
-        let state_file = config_dir.join("brum").join("window_state.json");
-        if let Ok(content) = std::fs::read_to_string(&state_file) {
-            if let Ok(state) = serde_json::from_str::<GuiWindowState>(&content) {
-                return state;
-            }
-        }
-    }
-    GuiWindowState::default()
-}
-
-#[cfg(feature = "gui")]
-fn save_gui_window_state(state: &GuiWindowState) {
-    if let Some(config_dir) = dirs::config_dir() {
-        let dir = config_dir.join("brum");
-        let _ = std::fs::create_dir_all(&dir);
-        let state_file = dir.join("window_state.json");
-        if let Ok(json) = serde_json::to_string_pretty(state) {
-            let _ = std::fs::write(state_file, json);
-        }
-    }
-}
-
-#[cfg(feature = "gui")]
-fn run_native_gui(url: &str, title: &str, decorations: bool) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    use tao::dpi::{LogicalPosition, LogicalSize};
-    use tao::event::{Event, WindowEvent};
-    use tao::event_loop::{ControlFlow, EventLoop};
-    use tao::window::WindowBuilder;
-    use wry::WebViewBuilder;
-
-    #[cfg(target_os = "linux")]
-    use tao::platform::unix::WindowExtUnix;
-    #[cfg(target_os = "linux")]
-    use wry::WebViewBuilderExtUnix;
-
-    let saved_state = load_gui_window_state();
-    let mut current_state = saved_state.clone();
-
-    let event_loop = EventLoop::new();
-    let mut win_builder = WindowBuilder::new()
-        .with_title(title)
-        .with_inner_size(LogicalSize::new(
-            (current_state.width.max(680)) as f64,
-            (current_state.height.max(480)) as f64,
-        ))
-        .with_min_inner_size(LogicalSize::new(680.0, 480.0))
-        .with_resizable(true)
-        .with_decorations(decorations)
-        .with_maximized(current_state.maximized);
-
-    if let (Some(x), Some(y)) = (current_state.x, current_state.y) {
-        win_builder = win_builder.with_position(LogicalPosition::new(x as f64, y as f64));
-    }
-
-    let window = win_builder.build(&event_loop)?;
-
-    let builder = WebViewBuilder::new().with_url(url);
-
-    #[cfg(target_os = "linux")]
-    let _webview = {
-        let vbox = window.default_vbox().ok_or("Failed to obtain GTK default vbox for Wayland/X11")?;
-        builder.build_gtk(vbox)?
-    };
-
-    #[cfg(not(target_os = "linux"))]
-    let _webview = builder.build(&window)?;
-
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
-        match event {
-            Event::WindowEvent {
-                event: WindowEvent::Moved(pos),
-                ..
-            } => {
-                if !window.is_maximized() {
-                    current_state.x = Some(pos.x);
-                    current_state.y = Some(pos.y);
-                }
-            }
-            Event::WindowEvent {
-                event: WindowEvent::Resized(size),
-                ..
-            } => {
-                let is_max = window.is_maximized();
-                current_state.maximized = is_max;
-                if !is_max && size.width > 0 && size.height > 0 {
-                    current_state.width = size.width;
-                    current_state.height = size.height;
-                }
-            }
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => {
-                current_state.maximized = window.is_maximized();
-                if let Ok(pos) = window.outer_position() {
-                    if !current_state.maximized {
-                        current_state.x = Some(pos.x);
-                        current_state.y = Some(pos.y);
-                    }
-                }
-                save_gui_window_state(&current_state);
-                *control_flow = ControlFlow::Exit;
-            }
-            _ => {}
-        }
-    });
 }
 
 fn handle_service_command(cmd: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
