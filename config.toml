@@ -19,6 +19,7 @@ enable_auth = true               # Enable authentication (automatically bypassed
 session_duration_hours = 72      # JWT session expiry duration in hours
 database_path = "brum.db"        # SQLite local metadata, sessions, and audit database
 server_name = ""                 # Optional friendly node name displayed in UI badges and fleet discovery (e.g. "Homelab NAS")
+allow_web_config_edit = true        # Allow viewing/editing config.toml via web UI (set false for strict CLI/SSH-only management)
 
 # --- Fleet Federation & Shared JWT Signing Key ---
 # Security Best Practice: Rather than storing your master cluster signing key in plaintext
@@ -61,7 +62,8 @@ allowed_origins = [
     # "https://*.netbird.cloud",              # NetBird managed overlay domain
     # "https://files.homelab.internal",       # Internal homelab DNS
     # "http://100.*:*",                       # Any Tailscale/NetBird IP with any port
-    # "*"                                     # Wildcard: permits ALL origins (dev labs only; logs security warning)
+    # "*",                                    # Wildcard: permits ALL origins (dev labs only; logs security warning)
+      "https://fe.nb.arf.ac"
 ]
 
 # --- Authentication & Access Control ---

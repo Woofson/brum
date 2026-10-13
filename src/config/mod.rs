@@ -3,6 +3,8 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
+pub mod mask;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     #[serde(default)]
@@ -101,6 +103,8 @@ pub struct ServerConfig {
     pub trusted_proxies: Vec<String>,
     #[serde(default)]
     pub allowed_origins: Vec<String>,
+    #[serde(default = "default_true")]
+    pub allow_web_config_edit: bool,
 }
 
 impl Default for ServerConfig {
@@ -118,6 +122,7 @@ impl Default for ServerConfig {
             server_name: String::new(),
             trusted_proxies: Vec::new(),
             allowed_origins: Vec::new(),
+            allow_web_config_edit: true,
         }
     }
 }
@@ -1307,6 +1312,7 @@ pub struct ClientServerConfigDto {
     pub standalone: bool,
     pub session_duration_hours: u64,
     pub server_name: String,
+    pub allow_web_config_edit: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1370,6 +1376,7 @@ impl AppConfig {
                 standalone: self.server.standalone,
                 session_duration_hours: self.server.session_duration_hours,
                 server_name: self.server.server_name.clone(),
+                allow_web_config_edit: self.server.allow_web_config_edit,
             },
             auth: ClientAuthConfigDto {
                 mode: self.auth.mode.clone(),
@@ -1754,6 +1761,9 @@ impl ConfigManager {
             if !jwt.trim().is_empty() {
                 config.server.jwt_secret = jwt.trim().to_string();
             }
+        }
+        if let Ok(v) = std::env::var("BRUM_ALLOW_WEB_CONFIG_EDIT").or_else(|_| std::env::var("ALLOW_WEB_CONFIG_EDIT")) {
+            config.server.allow_web_config_edit = v.eq_ignore_ascii_case("true") || v == "1";
         }
 
         // OIDC / SSO Environment Variable Overrides

@@ -9701,14 +9701,34 @@ async function loadMasterConfigEditor() {
     const resp = await fetch('/api/system/config-file', {
       headers: { 'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}` }
     });
+    if (resp.status === 403) {
+      if (textarea) {
+        textarea.value = '# Web-based configuration viewing and editing is disabled by host policy (allow_web_config_edit = false).\n#\n# To inspect or modify configuration, edit config.toml directly on the host filesystem via SSH or CLI.';
+        textarea.readOnly = true;
+        renderAdminConfigHighlight(textarea.value);
+        updateAdminConfigCursorStats();
+      }
+      const saveBtn = document.getElementById('btn-save-master-config');
+      if (saveBtn) saveBtn.disabled = true;
+      if (statusEl) {
+        statusEl.style.display = 'block';
+        statusEl.style.color = 'var(--accent)';
+        statusEl.textContent = '🔒 Web configuration editor is locked by policy (allow_web_config_edit = false).';
+      }
+      return;
+    }
+
     if (resp.ok) {
       const data = await resp.json();
       if (textarea) {
         textarea.value = data.content;
+        textarea.readOnly = !data.is_writable;
         renderAdminConfigHighlight(data.content);
         updateAdminConfigCursorStats();
       }
       if (pathBadge) pathBadge.textContent = data.path;
+      const saveBtn = document.getElementById('btn-save-master-config');
+      if (saveBtn) saveBtn.disabled = !data.is_writable;
       if (!data.is_writable && statusEl) {
         statusEl.style.display = 'block';
         statusEl.style.color = 'var(--accent)';

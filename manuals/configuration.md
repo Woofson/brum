@@ -37,6 +37,7 @@ enable_auth = true               # Enable authentication (automatically disabled
 session_duration_hours = 72      # JWT session expiry duration in hours
 database_path = "brum.db"        # SQLite local database
 server_name = ""                 # Optional friendly node name displayed in UI badges and fleet discovery
+allow_web_config_edit = true        # Allow viewing/editing config.toml via web UI (set false for strict CLI/SSH-only management)
 # jwt_secret = "..."             # Master cluster signing key (prefer setting via BRUM_JWT_SECRET env var)
 
 # --- Trusted Reverse Proxies ---

@@ -640,7 +640,7 @@ pub struct ConfigFileResponse {
 
 #[derive(Deserialize)]
 pub struct SaveConfigFileRequest {
-    content: String,
+    pub content: String,
 }
 
 pub fn resolve_active_config_path() -> PathBuf {
@@ -658,19 +658,30 @@ pub async fn handle_get_config_file(
         }
     }
 
+    if !state.config.server.allow_web_config_edit {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Web-based configuration viewing and editing is disabled by host policy (allow_web_config_edit = false)".to_string(),
+        ));
+    }
+
     let path = resolve_active_config_path();
     let is_writable = match fs::OpenOptions::new().write(true).open(&path) {
         Ok(_) => true,
         Err(_) => false,
     };
 
-    let content = match fs::read_to_string(&path) {
+    let raw_content = match fs::read_to_string(&path) {
         Ok(c) => c,
         Err(_) => {
             // Return active config serialized as toml
             toml::to_string_pretty(&*state.config).unwrap_or_default()
         }
     };
+
+    // Redact sensitive secrets with ******** placeholder
+    let content = crate::config::mask::redact_sensitive_config(&raw_content)
+        .unwrap_or(raw_content);
 
     Ok(Json(ConfigFileResponse {
         path: path.to_string_lossy().to_string(),
@@ -691,17 +702,32 @@ pub async fn handle_save_config_file(
         }
     }
 
-    // Validate TOML syntax before saving
-    let _: AppConfig = toml::from_str(&payload.content).map_err(|e| {
+    if !state.config.server.allow_web_config_edit {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Web-based configuration editing is disabled by host policy (allow_web_config_edit = false)".to_string(),
+        ));
+    }
+
+    let path = resolve_active_config_path();
+
+    // Read existing on-disk configuration to restore any preserved masked secrets
+    let existing_content = fs::read_to_string(&path).unwrap_or_default();
+
+    // Non-destructive merge: if payload has ********, retain disk secret
+    let merged_content = crate::config::mask::merge_masked_config(&payload.content, &existing_content)
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to merge masked configuration: {}", e)))?;
+
+    // Validate TOML syntax & schema of the final merged configuration before saving
+    let _: AppConfig = toml::from_str(&merged_content).map_err(|e| {
         (StatusCode::BAD_REQUEST, format!("Invalid TOML syntax: {}", e))
     })?;
 
-    let path = resolve_active_config_path();
     if let Some(parent) = path.parent() {
         let _ = fs::create_dir_all(parent);
     }
 
-    fs::write(&path, &payload.content).map_err(|e| {
+    fs::write(&path, &merged_content).map_err(|e| {
         (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write config file {}: {}", path.display(), e))
     })?;
 
@@ -723,6 +749,13 @@ pub async fn handle_reload_config(
         if claims.role != "admin" && claims.role != "Admin" {
             return Err((StatusCode::FORBIDDEN, "Only administrators can reload configuration".to_string()));
         }
+    }
+
+    if !state.config.server.allow_web_config_edit {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Web-based configuration reload is disabled by host policy (allow_web_config_edit = false)".to_string(),
+        ));
     }
 
     let new_cfg = ConfigManager::load_all();

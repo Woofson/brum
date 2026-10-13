@@ -678,4 +678,82 @@ description = "Test chewtoy package"
         assert_eq!(sanitize_uploaded_relative_path(""), "upload.bin");
         assert_eq!(sanitize_uploaded_relative_path("   "), "upload.bin");
     }
+
+    #[tokio::test]
+    async fn test_allow_web_config_edit_policy_enforcement() {
+        let temp = tempfile::tempdir().unwrap();
+        let db_path = temp.path().join("policy_test.db");
+        let mut config = crate::config::AppConfig::default();
+        config.server.database_path = db_path.to_string_lossy().to_string();
+        config.server.standalone = true;
+        config.server.allow_web_config_edit = false;
+
+        let auth = crate::auth::AuthManager::new(
+            &config.server.database_path,
+            &config.server.jwt_secret,
+            config.server.session_duration_hours,
+            &config.auth.mode,
+            &config.auth.pam_service,
+            &config.auth.default_admin_user,
+            &config.auth.default_admin_pass,
+        ).unwrap();
+        let db = auth.db();
+        let auth_arc = std::sync::Arc::new(auth);
+        let task_mgr = std::sync::Arc::new(crate::tools::tasks::TaskManager::new());
+        let tag_mgr = std::sync::Arc::new(crate::tools::tags::TagManager::new(db.clone()).unwrap());
+        let vault_mgr = std::sync::Arc::new(crate::vfs::vault::VaultManager::new());
+        let backup_mgr = std::sync::Arc::new(crate::tools::sync::BackupManager::new(db).unwrap());
+        let plugin_mgr = std::sync::Arc::new(crate::plugins::PluginManager::new(
+            temp.path().join("sys_plugins"),
+            temp.path().join("usr_plugins"),
+            false,
+            "allow_all".to_string(),
+            vec!["*".to_string()],
+            vec![],
+        ));
+        let oidc_mgr = std::sync::Arc::new(crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_arc.clone()));
+
+        let state = AppState {
+            config: std::sync::Arc::new(config),
+            auth: auth_arc,
+            tasks: task_mgr,
+            tags: tag_mgr,
+            vaults: vault_mgr,
+            backup: backup_mgr,
+            plugins: plugin_mgr,
+            oidc: oidc_mgr,
+            rate_limiter: std::sync::Arc::new(RateLimiter::new()),
+            instance_info: None,
+        };
+
+        let headers = HeaderMap::new();
+
+        // 1. GET /api/system/config-file is rejected with 403 Forbidden
+        let get_res = crate::server::system_handlers::handle_get_config_file(
+            State(state.clone()),
+            headers.clone(),
+        ).await;
+        assert!(get_res.is_err());
+        assert_eq!(get_res.err().unwrap().0, StatusCode::FORBIDDEN);
+
+        // 2. POST /api/system/config-file is rejected with 403 Forbidden
+        let save_req = crate::server::system_handlers::SaveConfigFileRequest {
+            content: "[server]\nport = 3140\n".to_string(),
+        };
+        let save_res = crate::server::system_handlers::handle_save_config_file(
+            State(state.clone()),
+            headers.clone(),
+            axum::Json(save_req),
+        ).await;
+        assert!(save_res.is_err());
+        assert_eq!(save_res.err().unwrap().0, StatusCode::FORBIDDEN);
+
+        // 3. POST /api/system/config-reload is rejected with 403 Forbidden
+        let reload_res = crate::server::system_handlers::handle_reload_config(
+            State(state.clone()),
+            headers.clone(),
+        ).await;
+        assert!(reload_res.is_err());
+        assert_eq!(reload_res.err().unwrap().0, StatusCode::FORBIDDEN);
+    }
 }
