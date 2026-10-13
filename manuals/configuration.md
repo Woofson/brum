@@ -37,6 +37,7 @@ enable_auth = true               # Enable authentication (automatically disabled
 session_duration_hours = 72      # JWT session expiry duration in hours
 database_path = "brum.db"        # SQLite local database
 server_name = ""                 # Optional friendly node name displayed in UI badges and fleet discovery
+# jwt_secret = "..."             # Master cluster signing key (prefer setting via BRUM_JWT_SECRET env var)
 
 # --- Trusted Reverse Proxies ---
 # CIDRs or IP addresses of reverse proxies (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel, Tailscale Funnel)
@@ -230,3 +231,30 @@ Brum achieves instantaneous UI rendering and directory browsing through:
 1. **Optimistic Local VFS Pre-Rendering**: Panes render immediately using fast cache metadata while asynchronous re-validation occurs in the background.
 2. **State Persistence**: When `startup_mode = "last_state"`, active panel tabs and directory paths restore seamlessly without UI flicker.
 3. **Remote Fallback Protection**: Setting `remote_startup_fallback = "home"` ensures that if a pane was previously connected to an unavailable remote node or SFTP server, Brum falls back to `$HOME` instantly rather than blocking on network timeouts.
+
+---
+
+## Fleet Federation & Secrets Hardening
+
+When running multiple Brum hosts across a mesh overlay or local network, nodes can federate seamlessly using a shared JWT secret key:
+
+### Preferred Pattern: Environment Variable Injection
+To prevent master cluster signing secrets from being stored in plaintext in `config.toml` (where administrative web sessions could view them via the Raw Config Editor), inject the secret via the environment:
+
+1. **Systemd Service Environment File** (`/etc/brum/brum.env`):
+   ```bash
+   BRUM_JWT_SECRET="c7e3f88f21908bf3a8f5bbbc8926c04f98129df6cb839bce1ad528da41e24741"
+   ```
+2. **Restrict Permissions**:
+   ```bash
+   chmod 600 /etc/brum/brum.env
+   ```
+3. **Include in Systemd Unit** (`/etc/systemd/system/brum.service` or user service):
+   ```ini
+   [Service]
+   EnvironmentFile=/etc/brum/brum.env
+   ExecStart=/usr/local/bin/brum
+   ```
+
+Nodes configured with identical `BRUM_JWT_SECRET` keys authenticate each other automatically through the Gateway Hub reverse proxy without requiring static per-node API tokens.
+
