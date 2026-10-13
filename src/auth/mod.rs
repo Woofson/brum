@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration as StdDuration, Instant};
-use tracing::info;
+use tracing::{info, warn};
 
 pub mod pam;
 pub mod oidc;
@@ -459,7 +459,29 @@ impl AuthManager {
         let _ = conn.execute("ALTER TABLE shares ADD COLUMN status TEXT DEFAULT 'active'", []);
 
         // Dynamic 256-bit cryptographically secure JWT secret resolution
+        let from_env = std::env::var("BRUM_JWT_SECRET")
+            .or_else(|_| std::env::var("CD_JWT_SECRET"))
+            .or_else(|_| std::env::var("JWT_SECRET"))
+            .map(|s| !s.trim().is_empty())
+            .unwrap_or(false);
+
         let effective_jwt_secret: String = if jwt_secret.trim().is_empty() || jwt_secret == "brum-super-secret-jwt-key-2026" {
+            // Check if /etc/brum/brum.env exists on disk but was empty or commented out
+            #[cfg(unix)]
+            {
+                for env_candidate in &["/etc/brum/brum.env", "/etc/default/brum"] {
+                    if let Ok(content) = std::fs::read_to_string(env_candidate) {
+                        let has_active_secret = content.lines().any(|l| {
+                            let trimmed = l.trim();
+                            !trimmed.starts_with('#') && trimmed.contains("BRUM_JWT_SECRET=") && !trimmed.ends_with("=\"\"")
+                        });
+                        if !has_active_secret {
+                            warn!("{} detected, but contains no active BRUM_JWT_SECRET assignment.", env_candidate);
+                        }
+                    }
+                }
+            }
+
             let stored_secret: Option<String> = conn.query_row(
                 "SELECT value FROM security_settings WHERE key = 'jwt_secret'",
                 [],
@@ -467,7 +489,10 @@ impl AuthManager {
             ).optional()?;
 
             match stored_secret {
-                Some(s) if !s.trim().is_empty() => s,
+                Some(s) if !s.trim().is_empty() => {
+                    info!("No cluster secret in BRUM_JWT_SECRET or config.toml; running with node-local persisted secret (standalone mode).");
+                    s
+                }
                 _ => {
                     use rand::RngCore;
                     let mut key_bytes = [0u8; 32];
@@ -478,11 +503,16 @@ impl AuthManager {
                          ON CONFLICT(key) DO UPDATE SET value = ?1",
                         params![gen_secret],
                     )?;
-                    info!("Generated and persisted new 256-bit dynamic JWT secret.");
+                    info!("Generated new 256-bit node-local JWT secret. For fleet trust, configure identical BRUM_JWT_SECRET in /etc/brum/brum.env.");
                     gen_secret
                 }
             }
         } else {
+            if from_env {
+                info!("Loaded fleet cluster JWT signing secret from environment (BRUM_JWT_SECRET). Fleet federation enabled.");
+            } else {
+                info!("Loaded cluster JWT signing secret from config.toml.");
+            }
             jwt_secret.to_string()
         };
 

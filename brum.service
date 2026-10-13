@@ -10,6 +10,7 @@ WorkingDirectory=/etc/brum
 ExecStart=/usr/bin/brum --server
 Restart=always
 RestartSec=5
+EnvironmentFile=-/etc/brum/brum.env
 Environment=RUST_LOG=brum=info,tower_http=info
 LimitNOFILE=65536
 NoNewPrivileges=true
