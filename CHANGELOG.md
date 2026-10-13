@@ -5,6 +5,31 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-10-13
+
+### Architecture & Performance
+- **Pure Web & Server Single-Binary Architecture (Fixes #145)**:
+  - Deprecated and pruned embedded desktop window wrappers (`src-tauri/`, `wry`, `tao`).
+  - Completely eliminated C library dependencies (`gtk3`, `webkit2gtk`, `WebView2Loader.dll`), cutting compilation times in half and enabling zero-bloat builds across minimal workstations and headless servers.
+  - Unified Windows packaging into a single `brum.exe` binary, eliminating NTFS case-insensitivity naming collisions.
+  - Streamlined desktop workflow: standalone mode (`brum -s` / `brum.exe -s`) auto-authenticates the local OS session and launches the interface in the default browser or borderless browser app mode (`chromium --app=...` / `msedge.exe --app=...`), with full PWA desktop support.
+
+### Features & Security Hardening
+- **Web Configuration & Secrets Hardening (Fixes #144)**:
+  - Implemented sensitive secret masking (`jwt_secret`, passwords, keys) across `/api/config` and `/api/fleet/sync` endpoints.
+  - Introduced `allow_web_config_edit` security toggle in `config.toml` to control web UI configuration modifications.
+  - Added support for `BRUM_JWT_SECRET` environment variable injection and `EnvironmentFile` configuration in systemd services.
+  - Enhanced connection diagnostics, origin validation, and client IP trust tracing.
+- **Fleet Manager Configuration Overrides**:
+  - Implemented fleet manager config override synchronization, enabling dynamic updates in `config.toml` (e.g. `start_path`) to propagate cleanly into node registries.
+  - Added gateway hub routing for remote fleet nodes accessed from localhost.
+
+### Fixed
+- **CLI & Bite Terminal Console**:
+  - Enhanced CLI auto-attaching to existing instances when running `brum -s` or `brum --connect`.
+  - Resolved bite terminal route mismatch, origin verification with scheme prefixes, and PTY connection handling.
+  - Fixed tilde path expansion (`~`) in ChewToy plugin directory resolution.
+
 ## [1.8.8] - 2026-10-12
 
 ### Fixed
