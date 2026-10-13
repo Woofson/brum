@@ -111,8 +111,8 @@ reg import packaging\windows\unregister-context-menu.reg
 ## 6. Windows PE Metadata & Build Inspection
 
 Windows executables (`brum.exe` and `Brum.exe`) automatically embed PE Version Resources:
-* **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.6.1.419`).
-* **Product Version**: Formatted as full SemVer 2.0.0 metadata (e.g. `1.6.1+build.419.git.8f42092`).
+* **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.8.8.419`).
+* **Product Version**: Formatted as full SemVer 2.0.0 metadata (e.g. `1.8.8+build.419.git.8f42092`).
 * **File Properties**: Right-click `brum.exe` in Windows Explorer -> **Properties** -> **Details** tab to view the exact build number, product version, and lab copyright information.
 
 ---

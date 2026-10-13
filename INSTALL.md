@@ -150,15 +150,48 @@ To unlock high-performance audio/video and image transcoding in **Format Convert
 
 ---
 
-## CLI Flags Reference
+## CLI Flags & Commands Reference
+
+```bash
+brum [OPTIONS]
+brum service [install|uninstall|start|stop|restart|status|run]
+brum shortcut [install|uninstall] [--desktop]
+```
+
+### Options
 
 | Flag | Description |
 | :--- | :--- |
-| `-s`, `--standalone` | Runs in standalone desktop mode (auto-authenticates as `$USER`, bypasses login) |
-| `--frameless`, `--no-decorations` | Launches without window titlebars/frame (ideal for tiling WMs) |
+| `-s`, `--standalone` | Runs in standalone desktop mode (auto-authenticates as local user `$USER`, opens default browser/window) |
+| `-c`, `--connect <URL>` | Connects desktop GUI/browser directly to an existing local or remote Brum server |
+| `-o`, `--open` | Automatically opens Brum in the default web browser or desktop webview |
+| `--frameless`, `--no-decorations` | Launches without window titlebars/frame (ideal for Hyprland, Sway, i3, and tiling WMs) |
 | `--decorations` | Explicitly forces window titlebar and borders |
+| `--minimized` | Launches minimized in system tray / background without opening window immediately |
 | `--server`, `--headless` | Runs in headless background server mode |
-| `-p`, `--port <PORT>` | Overrides server bind port (default: `3140` or `config.toml`) |
-| `--host <HOST>` | Overrides bind address (default: `0.0.0.0`) |
-| `--no-auth` | Disables authentication globally |
-| `-v`, `--version` | Displays current version |
+| `-p`, `--port <PORT>` | Overrides web server port (default: `3140` or `config.toml` setting) |
+| `--host <HOST>` | Overrides bind host address (default: `0.0.0.0`) |
+| `--no-auth` | Disables authentication globally and runs with local permissions |
+| `-v`, `--version` | Displays current version and build number |
+| `-h`, `--help` | Displays help message |
+
+### Service Commands (`brum service <cmd>`)
+
+Manages background services (systemd user service on Linux, Windows NT Service on Windows):
+
+| Command | Action |
+| :--- | :--- |
+| `install` | Registers Brum as a systemd user service (`~/.config/systemd/user/brum.service`) or Windows NT Service |
+| `uninstall` | Removes the registered background service unit |
+| `start` | Starts the background service |
+| `stop` | Stops the running background service |
+| `restart` | Restarts the background service |
+| `status` | Queries service execution status |
+| `run` | Executes the service dispatcher directly |
+
+### Shortcut Commands (`brum shortcut <cmd>`)
+
+| Command | Action |
+| :--- | :--- |
+| `install [--desktop]` | Installs desktop application menu shortcut (and optional Desktop shortcut) |
+| `uninstall` | Removes application menu and desktop shortcuts |

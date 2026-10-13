@@ -36,9 +36,9 @@ upload_max_size_mb = 20480       # Max file upload size in MB (20 GB)
 enable_auth = true               # Enable authentication (automatically disabled in --standalone desktop mode)
 session_duration_hours = 72      # JWT session expiry duration in hours
 database_path = "brum.db"        # SQLite local database
-server_name = ""                 # Optional friendly node name displayed in UI badges and fleet discovery
-allow_web_config_edit = true        # Allow viewing/editing config.toml via web UI (set false for strict CLI/SSH-only management)
-# jwt_secret = "..."             # Master cluster signing key (prefer setting via BRUM_JWT_SECRET env var)
+server_name = ""                 # Friendly node name; also matches WebSocket/CORS origins with/without http:// or https://
+allow_web_config_edit = true     # Web Configuration Editor toggle in Settings (sensitive secrets masked as ********)
+# jwt_secret = "..."             # Master cluster signing key (prefer injecting via BRUM_JWT_SECRET in /etc/brum/brum.env)
 
 # --- Trusted Reverse Proxies ---
 # CIDRs or IP addresses of reverse proxies (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel, Tailscale Funnel)
@@ -70,7 +70,7 @@ mode = "mixed"                   # Options: "mixed" (PAM + Built-in), "builtin",
 pam_service = "login"            # Linux PAM service name
 allow_guest = false              # Allow anonymous guest read-only access
 default_admin_user = "admin"
-default_admin_pass = "brum"
+default_admin_pass = "brum"      # Initial password for fresh DB only (generates random 20-char password if left as "brum" or blank)
 
 # --- OpenID Connect (OIDC / SSO) ---
 [auth.oidc]
@@ -122,8 +122,8 @@ enabled = true
 # id = "homelab-nas"
 # name = "Homelab NAS (Tailscale)"
 # url = "http://100.64.0.15:3140"
-# token = "node_token_here"
-# start_path = "/mnt/storage"
+# token = ""                       # Leave empty for shared BRUM_JWT_SECRET cluster federation; or provide a static API token
+# start_path = "/mnt/storage"      # Initial path (auto-syncs from config unless overridden by user in Fleet Manager)
 # read_only = false
 # color_accent = "#f59e0b"
 # tags = ["homelab", "nas", "tailscale"]
@@ -132,7 +132,7 @@ enabled = true
 [plugins]
 enabled = true
 directory = "/etc/brum/plugins"
-user_directory = "~/.config/brum/plugins"
+user_directory = "~/.config/brum/plugins" # Auto-expands leading tilde (~) to user's home directory
 allow_user_installs = false
 default_policy = "allow_all"     # "allow_all", "whitelist", "blacklist"
 global_whitelist = ["*"]
@@ -235,27 +235,71 @@ Brum achieves instantaneous UI rendering and directory browsing through:
 
 ---
 
-## Fleet Federation & Secrets Hardening
+## Web Configuration Editor & Sensitive Secrets Masking
 
-When running multiple Brum hosts across a mesh overlay or local network, nodes can federate seamlessly using a shared JWT secret key:
+Brum includes a built-in Web Configuration Editor accessible in **Settings -> Raw Config**:
 
-### Preferred Pattern: Environment Variable Injection
-To prevent master cluster signing secrets from being stored in plaintext in `config.toml` (where administrative web sessions could view them via the Raw Config Editor), inject the secret via the environment:
+* **Sensitive Secrets Masking**: When viewing the configuration in the Web UI or querying `/api/system/raw-config`, sensitive keys (`jwt_secret`, `default_admin_pass`, `client_secret`, etc.) are automatically redacted as `********`.
+* **Safe Secret Preservation**: When saving edits in the Web UI, Brum merges the updated TOML with the on-disk file. Any key left as `********` automatically preserves its existing secret value on disk, allowing administrators to edit unrelated settings without accidentally wiping secrets.
+* **Disabling Web Editing**: To enforce strict SSH/CLI-only administration, set `allow_web_config_edit = false` in `config.toml` or set the environment variable:
+  ```bash
+  BRUM_ALLOW_WEB_CONFIG_EDIT=false
+  ```
+  When disabled, the Web UI displays the configuration in read-only mode and rejects write attempts with `403 Forbidden`.
 
-1. **Systemd Service Environment File** (`/etc/brum/brum.env`):
-   ```bash
-   BRUM_JWT_SECRET="c7e3f88f21908bf3a8f5bbbc8926c04f98129df6cb839bce1ad528da41e24741"
-   ```
-2. **Restrict Permissions**:
-   ```bash
-   chmod 600 /etc/brum/brum.env
-   ```
-3. **Include in Systemd Unit** (`/etc/systemd/system/brum.service` or user service):
-   ```ini
-   [Service]
-   EnvironmentFile=/etc/brum/brum.env
-   ExecStart=/usr/local/bin/brum
-   ```
+---
 
-Nodes configured with identical `BRUM_JWT_SECRET` keys authenticate each other automatically through the Gateway Hub reverse proxy without requiring static per-node API tokens.
+## Initial Administrative Credentials & Seeding Protocol
+
+`default_admin_pass` in `config.toml` operates under specific security rules:
+
+1. **One-Time Database Seeding Only**:
+   The `default_admin_pass` setting is evaluated **only** on the very first startup when the SQLite database (`brum.db`) contains zero users. Once seeded, user credentials are stored as Argon2 hashes in the database. Editing `default_admin_pass` in `config.toml` afterwards has **no effect** on existing accounts. Passwords must be updated via the UI (**Settings -> Security**) or by modifying the database.
+2. **Insecure Default Guard (`"brum"` vs Custom Password)**:
+   * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It logs the credentials to stdout and writes them to `initial_admin_credentials.txt` in the configured log directory. Logging in with `admin` / `brum` will fail.
+   * **If set to a custom password before first boot**: The configured custom password is used verbatim for the initial account.
+
+---
+
+## Fleet Federation, Defaults & User Overrides
+
+When connecting multiple Brum instances across local subnets or overlay mesh networks (Tailscale, NetBird, WireGuard):
+
+### 1. Shared Cluster Secret (`BRUM_JWT_SECRET`)
+To federate nodes without managing static per-node API tokens:
+* Inject the identical `BRUM_JWT_SECRET` string on all nodes via `/etc/brum/brum.env` (`chmod 600`).
+* In `[[fleet.nodes]]`, set `token = ""` (or omit `token`).
+* When `token` is empty, Brum's Gateway Hub automatically forwards the caller's active session JWT. Because both nodes share the master signing secret, the remote node validates the signature and authenticates the user instantly.
+* **Static API Tokens**: If a remote node does *not* share the same secret key, create a static API Token on that node (**Settings -> Security -> API Tokens**) and set `token = "<your_token>"` in `config.toml`.
+
+### 2. Config Defaults vs Fleet Manager Overrides
+* **Automatic Ingestion**: Statically configured nodes in `config.toml` are automatically synced into the browser's UI (appearing in **Fleet Control** and the **Paw Menu**).
+* **Auto-Syncing Updates**: Modifying a node in `config.toml` (e.g. changing `start_path` or `url`) automatically updates the browser on next load, avoiding stale cached paths.
+* **User Overrides**: Users can customize a static node in the **Fleet Manager** (changing its start directory, display name, color accent, or routing mode) and click **Save Profile**. This tags the node with `user_override: true` and preserves personal preferences over `config.toml`.
+* **One-Click Reset**: To discard custom overrides and revert to `config.toml` settings, click the amber **Reset** button (`rotate-ccw`) on the node card in Fleet Manager.
+
+### 3. Zero CORS Requirements on Gateway Proxy
+When routed through the Fleet Gateway Hub (`/api/fleet/proxy/:node_id`), all communication is proxied server-to-server. Remote nodes **do not** require the coordinator's domain in their `allowed_origins` whitelist.
+
+---
+
+## Environment Variable Overrides Matrix
+
+Brum supports seamless runtime overrides across containerized, systemd, and homelab environments:
+
+| Environment Variable | Overrides Key | Description | Example |
+| :--- | :--- | :--- | :--- |
+| `BRUM_PORT` / `CD_PORT` / `PORT` | `server.port` | HTTP listening port | `3140` |
+| `BRUM_BIND` / `BRUM_HOST` / `HOST` | `server.host` | Network interface binding | `0.0.0.0` or `127.0.0.1` |
+| `BRUM_DATABASE_PATH` | `server.database_path` | SQLite database file location | `/var/lib/brum/brum.db` |
+| `BRUM_JWT_SECRET` | `server.jwt_secret` | Master cluster JWT signing key | `64-hex-char-secret` |
+| `BRUM_ALLOW_WEB_CONFIG_EDIT` | `server.allow_web_config_edit` | Enable/disable Web Config Editor | `true` or `false` |
+| `BRUM_OIDC_ENABLED` | `auth.oidc.enabled` | Enable OpenID Connect SSO | `true` or `false` |
+| `BRUM_OIDC_ISSUER_URL` | `auth.oidc.issuer_url` | OIDC IdP Discovery Issuer URL | `https://auth.domain.com/` |
+| `BRUM_OIDC_CLIENT_ID` | `auth.oidc.client_id` | OAuth2 Client ID | `brum-app` |
+| `BRUM_OIDC_CLIENT_SECRET` | `auth.oidc.client_secret` | OAuth2 Client Secret | `secret-string` |
+| `BRUM_OIDC_REDIRECT_URL` | `auth.oidc.redirect_url` | OAuth2 Callback Redirect URL | `https://domain.com/api/auth/oidc/callback` |
+| `BRUM_OIDC_ADMIN_GROUP` | `auth.oidc.admin_group` | IdP claim group mapped to admin | `brum-admins` |
+| `BRUM_OIDC_FORCE_SSO` | `auth.oidc.force_sso_only` | Disable local password login form | `true` or `false` |
+
 

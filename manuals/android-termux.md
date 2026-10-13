@@ -86,7 +86,7 @@ If you prefer using full Linux distributions on Android without Termux's custom 
    ```
 2. Inside Alpine Linux, install the official Brum `.apk` package:
    ```bash
-   apk add --allow-untrusted https://github.com/Woofson/brum/releases/download/v1.6.1/brum-1.8.8-r0.x86_64.apk
+   apk add --allow-untrusted https://github.com/Woofson/brum/releases/download/v1.8.8/brum-1.8.8-r0.x86_64.apk
    brum --host 0.0.0.0 --port 3140
    ```
 

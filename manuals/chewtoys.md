@@ -217,8 +217,13 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 ---
 
 ## 18. Distributed Fleet Manager & Node Diagnostics
-* **Remote Fleet Administration**: Centralized hub in Settings to connect, monitor, and manage remote Brum instances across LAN/WAN networks.
-* **Node Home Auto-Discovery & Custom Paths**: Automatically fetches the user's remote home path or opens configured custom start paths per node.
+* **Remote Fleet Administration**: Centralized hub in Settings (and the Paw header menu) to connect, monitor, and manage remote Brum instances across LAN, WAN, or private mesh networks.
+* **Declarative Config Defaults (`[[fleet.nodes]]`)**: Fleet nodes defined in `/etc/brum/config.toml` are automatically ingested into the Fleet Manager with `Config Default` badges. If updated in `config.toml`, changes automatically propagate into the UI upon service restart or reload.
+* **Granular User Overrides**: Editing node properties (such as display name, endpoint URL, start path, or auth credentials) in the Fleet Manager UI flags the profile with an `Override` badge and persists local customizations without mutating the master configuration file on disk.
+* **1-Click Reset to Config Defaults**: A dedicated reset button (`rotate-ccw`) in the Fleet Manager allows users to instantly clear local overrides and restore the pristine settings defined in `config.toml`.
+* **Zero-CORS Gateway Hub Relaying**: Nodes configured with `auto` or `proxy` routing route all REST API calls and WebSocket terminal sessions through the hub's `/api/fleet/proxy/:node_id` endpoint, preventing browser cross-origin CORS blocks and mixed-content HTTPS warnings.
+* **Shared Cluster Secret Federation**: With `BRUM_JWT_SECRET` configured in `/etc/brum/brum.env` across the cluster, nodes operate with `token = ""` for unified single sign-on without manual per-node token provisioning.
+* **Node Home Auto-Discovery & Custom Paths**: Automatically fetches the user's remote home directory or opens configured custom start paths per node.
 * **Node-Aware Places & Breadcrumbs**: Seamlessly switch active panel context to remote nodes; Places drawer automatically loads remote node bookmarks and favorites.
 * **Live Health & Version Drift Diagnostics**: Instant connection testing reporting real-time ping latency, remote OS/architecture, build number (`#<N>`), git commit, and UTC compile timestamp to quickly pinpoint outdated nodes across your fleet.
 
