@@ -22,15 +22,24 @@ pub fn init_logging(config: &LoggingConfig) -> Option<WorkerGuard> {
     // 1. Build EnvFilter from RUST_LOG environment variable or config level
     let target_level = config.level.to_lowercase();
     let filter_directives = match target_level.as_str() {
-        "trace" => "brum=trace,tower_http=debug",
+        "trace" | "strace" => "brum=trace,tower_http=debug",
         "debug" => "brum=debug,tower_http=info",
         "warn" => "brum=warn,tower_http=warn",
         "error" => "brum=error,tower_http=error",
         _ => "brum=info,tower_http=info",
     };
 
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(filter_directives));
+    let (env_filter, active_filter_desc) = match std::env::var("RUST_LOG") {
+        Ok(val) if !val.trim().is_empty() => {
+            let filter = EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| EnvFilter::new(filter_directives));
+            (filter, format!("RUST_LOG env ('{}')", val.trim()))
+        }
+        _ => (
+            EnvFilter::new(filter_directives),
+            format!("config.toml ('{}' -> '{}')", config.level, filter_directives),
+        ),
+    };
 
     let (file_layer, guard) = if config.file_enabled {
         let log_dir = config.resolve_log_directory();
@@ -80,10 +89,10 @@ pub fn init_logging(config: &LoggingConfig) -> Option<WorkerGuard> {
         .with(file_layer)
         .try_init();
 
-    if config.file_enabled {
+    if config.file_enabled || config.console_enabled {
         info!(
-            "Brum logging initialized. Log level: '{}', Log directory: '{}'",
-            config.level,
+            "Brum logging initialized. Filter: {}, Log directory: '{}'",
+            active_filter_desc,
             config.resolve_log_directory().display()
         );
     }

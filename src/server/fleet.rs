@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::time::{Duration, Instant};
 use tokio_tungstenite::tungstenite::Message as TungsteniteMessage;
-use tracing::{info, warn};
+use tracing::{debug, info, warn};
 
 use crate::auth::Claims;
 use crate::config::FleetNodeConfig;
@@ -314,6 +314,12 @@ async fn forward_fleet_http_request(
     req_builder = req_builder.body(reqwest::Body::wrap_stream(body_stream));
 
     // 6. Execute request
+    debug!(
+        caller = %_claims.sub,
+        node_id = %node_id,
+        target_url = %target_url,
+        "Forwarding fleet proxy request"
+    );
     let resp = req_builder.send().await.map_err(|e| {
         warn!("Fleet proxy request to '{}' failed: {}", target_url, e);
         (
@@ -449,6 +455,13 @@ pub async fn handle_fleet_ws_proxy(
     };
 
     let remote_ws_url = format!("{}/api/ws/terminal{}", ws_base, q_str);
+
+    debug!(
+        caller = %claims.sub,
+        node_id = %node_id,
+        remote_ws_url = %remote_ws_url,
+        "Tunneling fleet WebSocket"
+    );
 
     Ok(ws.on_upgrade(move |client_socket| async move {
         tunnel_websocket(client_socket, remote_ws_url).await;

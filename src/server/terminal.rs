@@ -15,9 +15,7 @@ use std::path::PathBuf;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{error, warn};
-#[cfg(not(windows))]
-use tracing::info;
+use tracing::{error, warn, debug, info};
 
 use crate::auth::Claims;
 use crate::config::TerminalConfig;
@@ -215,6 +213,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
         || clean_origin.starts_with("[::1]:");
 
     if is_loopback {
+        debug!(origin = %norm_origin, "Origin trusted via loopback address");
         return true;
     }
 
@@ -224,6 +223,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
             || origin.starts_with("http://tauri.localhost")
             || origin.starts_with("https://tauri.localhost"))
     {
+        debug!(origin = %norm_origin, "Origin trusted via local desktop webview");
         return true;
     }
 
@@ -231,6 +231,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
     if !state.config.server.allowed_origins.is_empty() {
         for allowed in &state.config.server.allowed_origins {
             if is_origin_allowed_by_pattern(allowed, norm_origin) {
+                debug!(origin = %norm_origin, pattern = %allowed, "Origin trusted via allowed_origins pattern");
                 return true;
             }
         }
@@ -241,6 +242,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
     let cfg_port = state.config.server.port;
     if !cfg_host.is_empty() && cfg_host != "0.0.0.0" && cfg_host != "::" && cfg_host != "[::]" {
         if clean_origin == format!("{}:{}", cfg_host, cfg_port) || clean_origin == cfg_host {
+            debug!(origin = %norm_origin, "Origin trusted via server bound host/port match");
             return true;
         }
     }
@@ -250,6 +252,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
     if !srv_name.is_empty() {
         let (origin_host, _) = clean_origin.split_once(':').unwrap_or((clean_origin, ""));
         if origin_host.eq_ignore_ascii_case(srv_name) {
+            debug!(origin = %norm_origin, server_name = %srv_name, "Origin trusted via server_name match");
             return true;
         }
     }
@@ -259,6 +262,7 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
     if !sys_hostname.is_empty() && sys_hostname != "localhost" {
         let (origin_host, _) = clean_origin.split_once(':').unwrap_or((clean_origin, ""));
         if origin_host.eq_ignore_ascii_case(&sys_hostname) {
+            debug!(origin = %norm_origin, hostname = %sys_hostname, "Origin trusted via system hostname match");
             return true;
         }
     }
@@ -294,11 +298,13 @@ pub fn is_ws_origin_allowed(origin: &str, headers: &HeaderMap, state: &AppState)
                 };
 
             if is_safe_local_host {
+                debug!(origin = %norm_origin, host = %req_host, "Origin trusted via safe local/private network host match");
                 return true;
             }
         }
     }
 
+    debug!(origin = %norm_origin, host = %host_header, "Origin rejected: does not match server_name, allowed_origins, or safe local network hosts");
     false
 }
 

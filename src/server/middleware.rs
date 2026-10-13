@@ -393,17 +393,41 @@ pub async fn auth_middleware(
         from_header.or(from_cookie).or(from_query)
     };
 
+    let client_ip = resolve_client_ip(req.headers(), None, &state.config.server.trusted_proxies);
+    let origin_str = req.headers().get(header::ORIGIN).and_then(|v| v.to_str().ok()).unwrap_or("-");
+
     match token_opt {
         Some(token) if !token.is_empty() => {
             match state.auth.verify_token(&token) {
                 Ok(claims) => {
+                    tracing::debug!(
+                        client_ip = %client_ip,
+                        user = %claims.sub,
+                        role = %claims.role,
+                        origin = %origin_str,
+                        path = %path,
+                        "Request authenticated"
+                    );
                     req.extensions_mut().insert(claims);
                     Ok(next.run(req).await)
                 }
                 Err(err) => {
                     if is_pub {
+                        tracing::trace!(
+                            client_ip = %client_ip,
+                            path = %path,
+                            origin = %origin_str,
+                            "Public route accessed with unverified token"
+                        );
                         Ok(next.run(req).await)
                     } else {
+                        tracing::warn!(
+                            client_ip = %client_ip,
+                            path = %path,
+                            origin = %origin_str,
+                            error = %err,
+                            "Unauthorized request: invalid token"
+                        );
                         Err((
                             StatusCode::UNAUTHORIZED,
                             Json(serde_json::json!({
@@ -417,8 +441,20 @@ pub async fn auth_middleware(
         }
         _ => {
             if is_pub {
+                tracing::trace!(
+                    client_ip = %client_ip,
+                    path = %path,
+                    origin = %origin_str,
+                    "Public route accessed"
+                );
                 Ok(next.run(req).await)
             } else {
+                tracing::warn!(
+                    client_ip = %client_ip,
+                    path = %path,
+                    origin = %origin_str,
+                    "Unauthorized request: authentication credentials missing"
+                );
                 Err((
                     StatusCode::UNAUTHORIZED,
                     Json(serde_json::json!({
