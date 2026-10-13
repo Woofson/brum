@@ -42345,25 +42345,29 @@ function syncConfigFleetNodes() {
     const existingIdx = localNodes.findIndex(l => l.id === sn.id || (l.endpoint_url && l.endpoint_url === endpointUrl));
     if (existingIdx >= 0) {
       const cur = localNodes[existingIdx];
-      if (!cur.endpoint_url || cur.endpoint_url !== endpointUrl) {
-        cur.endpoint_url = endpointUrl;
-        modified = true;
-      }
-      if (sn.name && cur.name !== sn.name) {
-        cur.name = sn.name;
-        modified = true;
-      }
-      if (sn.color_accent && !cur.color_accent) {
-        cur.color_accent = sn.color_accent;
-        modified = true;
-      }
-      if (sn.tags && (!cur.tags || cur.tags.length === 0)) {
-        cur.tags = sn.tags;
-        modified = true;
-      }
-      if (sn.start_path && !cur.start_path) {
-        cur.start_path = sn.start_path;
-        modified = true;
+      // Only keep user overrides if explicitly marked as overridden in Fleet Manager
+      if (!cur.user_override) {
+        if (cur.endpoint_url !== endpointUrl) {
+          cur.endpoint_url = endpointUrl;
+          modified = true;
+        }
+        if (sn.name && cur.name !== sn.name) {
+          cur.name = sn.name;
+          modified = true;
+        }
+        if (sn.color_accent && cur.color_accent !== sn.color_accent) {
+          cur.color_accent = sn.color_accent;
+          modified = true;
+        }
+        if (sn.tags && JSON.stringify(cur.tags || []) !== JSON.stringify(sn.tags)) {
+          cur.tags = sn.tags;
+          modified = true;
+        }
+        const snStartPath = (sn.start_path && sn.start_path.trim()) ? sn.start_path.trim() : undefined;
+        if (cur.start_path !== snStartPath) {
+          cur.start_path = snStartPath;
+          modified = true;
+        }
       }
       if (!cur.is_static) {
         cur.is_static = true;
@@ -42374,11 +42378,12 @@ function syncConfigFleetNodes() {
         id: sn.id,
         name: sn.name || sn.id,
         endpoint_url: endpointUrl,
-        start_path: sn.start_path || undefined,
+        start_path: (sn.start_path && sn.start_path.trim()) ? sn.start_path.trim() : undefined,
         proxy_mode: 'auto',
         color_accent: sn.color_accent || 'amber',
         tags: sn.tags || [],
         is_static: true,
+        user_override: false,
         created_at: Date.now(),
         status: 'unknown',
         latency_ms: null
@@ -42409,18 +42414,23 @@ function getAllFleetNodes() {
       if (!endpointUrl) return;
       const idx = merged.findIndex(m => m.id === sn.id || m.endpoint_url === endpointUrl);
       if (idx >= 0) {
-        if (!merged[idx].endpoint_url) merged[idx].endpoint_url = endpointUrl;
-        merged[idx].is_static = true;
+        const cur = merged[idx];
+        cur.is_static = true;
+        if (!cur.user_override) {
+          if (!cur.endpoint_url || cur.endpoint_url !== endpointUrl) cur.endpoint_url = endpointUrl;
+          if (sn.start_path) cur.start_path = sn.start_path.trim();
+        }
       } else {
         merged.push({
           id: sn.id,
           name: sn.name || sn.id,
           endpoint_url: endpointUrl,
-          start_path: sn.start_path || undefined,
+          start_path: (sn.start_path && sn.start_path.trim()) ? sn.start_path.trim() : undefined,
           proxy_mode: 'auto',
           color_accent: sn.color_accent || 'amber',
           tags: sn.tags || [],
           is_static: true,
+          user_override: false,
           status: 'unknown',
           latency_ms: null
         });
@@ -42837,6 +42847,7 @@ function renderFleetManagerList() {
             <span>${escapeHtml(n.name)}</span>
             ${getFleetNodeVersionBadge(n.version)}
             ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Active</span>' : ''}
+            ${n.is_static ? (n.user_override ? '<span class="fleet-tag-pill" style="font-size: 8.5px; background: rgba(245, 158, 11, 0.15); color: #f59e0b;" title="Custom overrides active (overrides config.toml)">Override</span>' : '<span class="fleet-tag-pill" style="font-size: 8.5px; opacity: 0.7;" title="Inherited from config.toml">Config</span>') : ''}
             ${isProxy ? '<span class="fleet-tag-pill" style="font-size: 8.5px; padding: 0 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);" title="Routed via Gateway Hub Reverse Proxy">Gateway</span>' : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
@@ -42852,7 +42863,7 @@ function renderFleetManagerList() {
           <div style="display: flex; gap: 4px;">
             <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); openFleetNodeWebUi(${escapeJsStr(n.id)}, event)" title="Open Node Web UI in New Tab" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="external-link" style="width: 11px; height: 11px;"></i></button>
             <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); pingFleetNode(${escapeJsStr(n.id)})" title="Ping Node" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i></button>
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); deleteFleetNodeProfile(${escapeJsStr(n.id)}, event)" title="Delete Node" style="height: 22px; width: 22px; padding: 0; color: #ef4444;"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i></button>
+            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); deleteFleetNodeProfile(${escapeJsStr(n.id)}, event)" title="${n.is_static ? (n.user_override ? 'Reset custom overrides to config.toml defaults' : 'Reset node to config.toml defaults') : 'Delete Node'}" style="height: 22px; width: 22px; padding: 0; color: ${n.is_static ? '#f59e0b' : '#ef4444'};"><i data-lucide="${n.is_static ? 'rotate-ccw' : 'trash-2'}" style="width: 11px; height: 11px;"></i></button>
             ${!isAct ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode(${escapeJsStr(n.id)});" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
           </div>
         </div>
@@ -42893,7 +42904,21 @@ function selectFleetNodeInManager(id) {
   const titleEl = document.getElementById('fleet-editor-title');
   if (titleEl) titleEl.textContent = `Edit: ${node.name}`;
   const badgeEl = document.getElementById('fleet-editor-badge');
-  if (badgeEl) badgeEl.textContent = 'Configured Node';
+  if (badgeEl) {
+    if (node.is_static && node.user_override) {
+      badgeEl.textContent = 'Config (Overridden)';
+      badgeEl.style.background = 'rgba(245, 158, 11, 0.18)';
+      badgeEl.style.color = '#f59e0b';
+    } else if (node.is_static) {
+      badgeEl.textContent = 'Config Default';
+      badgeEl.style.background = 'rgba(56, 189, 248, 0.15)';
+      badgeEl.style.color = '#38bdf8';
+    } else {
+      badgeEl.textContent = 'Custom Node';
+      badgeEl.style.background = '';
+      badgeEl.style.color = '';
+    }
+  }
 
   selectFleetColor(node.color_accent || 'amber');
 
@@ -43171,6 +43196,7 @@ function saveFleetNodeProfile() {
     // Update existing
     const existingIndex = nodes.findIndex(n => n.id === idInput);
     if (existingIndex >= 0) {
+      const isStatic = nodes[existingIndex].is_static || (App.config?.fleet?.nodes || []).some(sn => sn.id === idInput);
       nodes[existingIndex] = {
         ...nodes[existingIndex],
         name,
@@ -43180,10 +43206,12 @@ function saveFleetNodeProfile() {
         proxy_mode: proxyMode,
         color_accent: color,
         tags,
+        is_static: isStatic,
+        user_override: isStatic ? true : undefined,
         updated_at: Date.now()
       };
       saveFleetNodes(nodes);
-      showToast(`Updated node profile "${name}"`, 'success');
+      showToast(isStatic ? `Updated node overrides for "${name}"` : `Updated node profile "${name}"`, 'success');
       pingFleetNode(idInput);
     }
   } else {
@@ -43222,8 +43250,31 @@ async function deleteFleetNodeProfile(id, event) {
   const node = getFleetNodeById(id);
   if (!node) return;
 
-  if (node.is_static) {
-    showToast(`Node "${node.name}" is configured in config.toml. Remove it from config.toml to delete.`, 'warning');
+  const staticConfigNode = (App.config?.fleet?.nodes || []).find(sn => sn.id === id);
+
+  if (node.is_static || staticConfigNode) {
+    // This node comes from config.toml
+    const hasOverride = !!node.user_override;
+    const confirmed = await showConfirmDialog({
+      title: 'Reset Node Defaults',
+      subtitle: `Reset "${node.name}" to config.toml settings`,
+      message: hasOverride
+        ? `This node is defined in config.toml. Do you want to discard your custom overrides and restore the default settings (such as start path) from config.toml?`
+        : `This node is defined in config.toml. Its settings are currently running on config defaults. Resetting will reload fresh values from config.toml.`,
+      icon: 'rotate-ccw',
+      type: 'warning',
+      confirmText: 'Reset to Config Defaults'
+    });
+
+    if (!confirmed) return;
+
+    let nodes = loadFleetNodes().filter(n => n.id !== id);
+    saveFleetNodes(nodes, true);
+    syncConfigFleetNodes();
+    resetFleetNodeForm();
+    showToast(`Reset "${node.name}" to config.toml defaults`, 'success');
+    renderFleetManagerList();
+    renderFleetSwitcherDropdown();
     return;
   }
 
