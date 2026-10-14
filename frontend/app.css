@@ -8281,6 +8281,24 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   background: var(--bg-hover);
 }
 
+.diff-th-sortable {
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+
+.diff-th-sortable:hover {
+  color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.diff-sort-indicator {
+  display: inline-block;
+  margin-left: 3px;
+  color: var(--accent);
+  font-size: 10px;
+}
+
 /* File Diff View Styles */
 .diff-file-header-card {
   display: flex;

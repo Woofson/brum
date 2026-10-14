@@ -16946,6 +16946,11 @@ function replaceAllMatches() {
 
 let currentFolderDiffData = null;
 let currentDiffFilter = 'all';
+let currentDiffSortBy = localStorage.getItem('cd_diff_sort_by') || 'name';
+let currentDiffSortAsc = localStorage.getItem('cd_diff_sort_asc') !== 'false';
+let currentDiffFoldersFirst = localStorage.getItem('cd_diff_folders_first') !== 'false';
+let currentDiffShowDotfiles = localStorage.getItem('cd_diff_show_dotfiles') !== 'false';
+let currentDiffSearch = '';
 let currentTextDiffMode = 'split'; // 'split' or 'unified'
 let currentImageDiffMode = 'split'; // 'split', 'swipe', or 'blend'
 let currentFileDiffLeft = null;
@@ -17232,10 +17237,92 @@ async function triggerDiff(deepHash = false, targetContainer = null) {
   }
 }
 
+function isDotDiffEntry(relPath) {
+  if (!relPath) return false;
+  return relPath.split('/').some(part => part.startsWith('.'));
+}
+
 function setDiffFilter(filter) {
   currentDiffFilter = filter;
   if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
 }
+
+function sortDiffByColumn(col) {
+  if (currentDiffSortBy === col) {
+    currentDiffSortAsc = !currentDiffSortAsc;
+  } else {
+    currentDiffSortBy = col;
+    currentDiffSortAsc = true;
+  }
+  localStorage.setItem('cd_diff_sort_by', currentDiffSortBy);
+  localStorage.setItem('cd_diff_sort_asc', currentDiffSortAsc ? 'true' : 'false');
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+}
+
+function setDiffSortBy(sortBy) {
+  currentDiffSortBy = sortBy;
+  localStorage.setItem('cd_diff_sort_by', currentDiffSortBy);
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+}
+
+function toggleDiffSortDir() {
+  currentDiffSortAsc = !currentDiffSortAsc;
+  localStorage.setItem('cd_diff_sort_asc', currentDiffSortAsc ? 'true' : 'false');
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+}
+
+function toggleDiffFoldersFirst() {
+  currentDiffFoldersFirst = !currentDiffFoldersFirst;
+  localStorage.setItem('cd_diff_folders_first', currentDiffFoldersFirst ? 'true' : 'false');
+  showToast(`Folders first: ${currentDiffFoldersFirst ? 'Enabled' : 'Disabled'}`, 'info');
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+}
+
+function toggleDiffShowDotfiles() {
+  currentDiffShowDotfiles = !currentDiffShowDotfiles;
+  localStorage.setItem('cd_diff_show_dotfiles', currentDiffShowDotfiles ? 'true' : 'false');
+  showToast(`Dotfiles: ${currentDiffShowDotfiles ? 'Shown' : 'Hidden'}`, 'info');
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+}
+
+function handleDiffSearch(query) {
+  currentDiffSearch = query;
+  if (currentFolderDiffData) {
+    const input = document.getElementById('diff-search-input');
+    const start = input ? input.selectionStart : query.length;
+    renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+    const newInput = document.getElementById('diff-search-input');
+    if (newInput) {
+      newInput.focus();
+      try { newInput.setSelectionRange(start, start); } catch (_) {}
+    }
+  }
+}
+
+function clearDiffSearch() {
+  currentDiffSearch = '';
+  if (currentFolderDiffData) {
+    renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+  }
+}
+
+function renderDiffSortIndicator(col) {
+  if (currentDiffSortBy === col) {
+    return `<span class="diff-sort-indicator">${currentDiffSortAsc ? '▲' : '▼'}</span>`;
+  }
+  return '';
+}
+
+window.isDotDiffEntry = isDotDiffEntry;
+window.setDiffFilter = setDiffFilter;
+window.sortDiffByColumn = sortDiffByColumn;
+window.setDiffSortBy = setDiffSortBy;
+window.toggleDiffSortDir = toggleDiffSortDir;
+window.toggleDiffFoldersFirst = toggleDiffFoldersFirst;
+window.toggleDiffShowDotfiles = toggleDiffShowDotfiles;
+window.handleDiffSearch = handleDiffSearch;
+window.clearDiffSearch = clearDiffSearch;
+window.renderDiffSortIndicator = renderDiffSortIndicator;
 
 function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
   const body = targetContainer || document.getElementById('diff-modal-body');
@@ -17250,14 +17337,66 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
     }
   });
 
-  let filteredEntries = diff.entries || [];
+  let filteredEntries = (diff.entries || []).slice();
+
+  // 1. Status Filter
   if (filter === 'modified') filteredEntries = filteredEntries.filter(e => e.status === 'modified');
   else if (filter === 'left_only') filteredEntries = filteredEntries.filter(e => e.status === 'left_only');
   else if (filter === 'right_only') filteredEntries = filteredEntries.filter(e => e.status === 'right_only');
   else if (filter === 'identical') filteredEntries = filteredEntries.filter(e => e.status === 'identical');
 
+  // 2. Dotfiles / Hidden Filter (users decide)
+  if (!currentDiffShowDotfiles) {
+    filteredEntries = filteredEntries.filter(e => !isDotDiffEntry(e.relative_path));
+  }
+
+  // 3. Search Query Filter
+  if (currentDiffSearch && currentDiffSearch.trim()) {
+    const q = currentDiffSearch.trim().toLowerCase();
+    filteredEntries = filteredEntries.filter(e => e.relative_path.toLowerCase().includes(q));
+  }
+
+  // 4. Sorting Engine
+  filteredEntries.sort((a, b) => {
+    // Folders First rule: directories always precede files if enabled, even if dotfolders
+    if (currentDiffFoldersFirst && a.is_dir !== b.is_dir) {
+      return a.is_dir ? -1 : 1;
+    }
+
+    let cmp = 0;
+    if (currentDiffSortBy === 'status') {
+      const order = { 'modified': 1, 'left_only': 2, 'right_only': 3, 'identical': 4 };
+      cmp = (order[a.status] || 99) - (order[b.status] || 99);
+    } else if (currentDiffSortBy === 'size_left') {
+      cmp = (a.size_left ?? -1) - (b.size_left ?? -1);
+    } else if (currentDiffSortBy === 'size_right') {
+      cmp = (a.size_right ?? -1) - (b.size_right ?? -1);
+    } else if (currentDiffSortBy === 'delta') {
+      cmp = (a.size_delta ?? 0) - (b.size_delta ?? 0);
+    } else if (currentDiffSortBy === 'mtime_left') {
+      cmp = (a.mtime_left ?? 0) - (b.mtime_left ?? 0);
+    } else if (currentDiffSortBy === 'mtime_right') {
+      cmp = (a.mtime_right ?? 0) - (b.mtime_right ?? 0);
+    } else {
+      // Default: 'name'
+      cmp = a.relative_path.localeCompare(b.relative_path, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    // Tie-break by relative_path
+    if (cmp === 0 && currentDiffSortBy !== 'name') {
+      cmp = a.relative_path.localeCompare(b.relative_path, undefined, { numeric: true, sensitivity: 'base' });
+    }
+
+    return currentDiffSortAsc ? cmp : -cmp;
+  });
+
   const subtitle = document.getElementById('diff-header-subtitle');
-  if (subtitle) subtitle.textContent = `${diff.entries.length} items (${diff.modified_count} modified)`;
+  if (subtitle) {
+    const isFiltered = filteredEntries.length !== diff.entries.length;
+    subtitle.textContent = isFiltered
+      ? `${filteredEntries.length} of ${diff.entries.length} items (${diff.modified_count} modified)`
+      : `${diff.entries.length} items (${diff.modified_count} modified)`;
+  }
 
   body.innerHTML = `
     <!-- 1. Paths Bar with Quick Align Buttons -->
@@ -17291,23 +17430,62 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
       <button class="btn btn-xs btn-outline" onclick="calculateAllChecksums()" title="Calculate SHA-256 Checksums for all files on demand" style="font-size: 10.5px; height: 26px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> Checksums</button>
     </div>
 
-    <!-- 3. Filter Buttons Bar -->
-    <div class="diff-filter-bar" style="margin-bottom: 8px;">
-      <button class="diff-filter-btn ${filter === 'all' ? 'active' : ''}" onclick="setDiffFilter('all')">
-        All (${diff.entries.length})
-      </button>
-      <button class="diff-filter-btn ${filter === 'modified' ? 'active' : ''}" onclick="setDiffFilter('modified')">
-        <span style="color: var(--accent);">⚠️ Modified (${diff.modified_count})</span>
-      </button>
-      <button class="diff-filter-btn ${filter === 'left_only' ? 'active' : ''}" onclick="setDiffFilter('left_only')">
-        <span style="color: var(--info);">⬅ Left Only (${diff.left_only_count})</span>
-      </button>
-      <button class="diff-filter-btn ${filter === 'right_only' ? 'active' : ''}" onclick="setDiffFilter('right_only')">
-        <span style="color: var(--danger);">➡ Right Only (${diff.right_only_count})</span>
-      </button>
-      <button class="diff-filter-btn ${filter === 'identical' ? 'active' : ''}" onclick="setDiffFilter('identical')">
-        <span style="color: var(--success);">✔ Identical (${diff.identical_count})</span>
-      </button>
+    <!-- 3. Filter & Sort Bar -->
+    <div class="diff-filter-bar-container" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
+      <!-- Status Filter Buttons -->
+      <div class="diff-filter-bar" style="margin-bottom: 0;">
+        <button class="diff-filter-btn ${filter === 'all' ? 'active' : ''}" onclick="setDiffFilter('all')">
+          All (${diff.entries.length})
+        </button>
+        <button class="diff-filter-btn ${filter === 'modified' ? 'active' : ''}" onclick="setDiffFilter('modified')">
+          <span style="color: var(--accent);">⚠️ Modified (${diff.modified_count})</span>
+        </button>
+        <button class="diff-filter-btn ${filter === 'left_only' ? 'active' : ''}" onclick="setDiffFilter('left_only')">
+          <span style="color: var(--info);">⬅ Left Only (${diff.left_only_count})</span>
+        </button>
+        <button class="diff-filter-btn ${filter === 'right_only' ? 'active' : ''}" onclick="setDiffFilter('right_only')">
+          <span style="color: var(--danger);">➡ Right Only (${diff.right_only_count})</span>
+        </button>
+        <button class="diff-filter-btn ${filter === 'identical' ? 'active' : ''}" onclick="setDiffFilter('identical')">
+          <span style="color: var(--success);">✔ Identical (${diff.identical_count})</span>
+        </button>
+      </div>
+
+      <!-- Sort & Display Controls (Folders First, Dotfiles, Search, Sort Column & Direction) -->
+      <div class="diff-sort-bar" style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
+        <!-- Text Search / Filter Input -->
+        <div style="position: relative; display: inline-flex; align-items: center;">
+          <i data-lucide="search" style="position: absolute; left: 7px; width: 12px; height: 12px; color: var(--text-muted); pointer-events: none;"></i>
+          <input type="text" id="diff-search-input" placeholder="Filter..." value="${escapeHtml(currentDiffSearch)}" oninput="handleDiffSearch(this.value)" style="height: 26px; width: 110px; font-size: 11px; padding: 0 20px 0 23px; border-radius: var(--radius); background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border);">
+          ${currentDiffSearch ? `<button onclick="clearDiffSearch()" title="Clear filter" style="position: absolute; right: 5px; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: flex; align-items: center;"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>` : ''}
+        </div>
+
+        <!-- Folders First Toggle -->
+        <button class="btn btn-xs ${currentDiffFoldersFirst ? 'btn-accent' : ''}" onclick="toggleDiffFoldersFirst()" title="Folders First: ${currentDiffFoldersFirst ? 'Enabled (directories precede files, even dotfolders)' : 'Disabled (mixed folders and files)'}" style="height: 26px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+          <i data-lucide="folder" style="width: 12px; height: 12px;"></i> Folders First
+        </button>
+
+        <!-- Dotfiles Toggle -->
+        <button class="btn btn-xs ${currentDiffShowDotfiles ? 'btn-accent' : ''}" onclick="toggleDiffShowDotfiles()" title="Dotfiles: ${currentDiffShowDotfiles ? 'Shown (including .git, .env, etc.)' : 'Hidden'}" style="height: 26px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+          <i data-lucide="${currentDiffShowDotfiles ? 'eye' : 'eye-off'}" style="width: 12px; height: 12px;"></i> Dotfiles
+        </button>
+
+        <!-- Sort Column Selector -->
+        <select class="select-xs" onchange="setDiffSortBy(this.value)" title="Sort by column" style="height: 26px; font-size: 11px; border-radius: var(--radius); padding: 0 6px; background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border);">
+          <option value="name" ${currentDiffSortBy === 'name' ? 'selected' : ''}>Sort: Name</option>
+          <option value="status" ${currentDiffSortBy === 'status' ? 'selected' : ''}>Sort: Status</option>
+          <option value="size_left" ${currentDiffSortBy === 'size_left' ? 'selected' : ''}>Sort: Left Size</option>
+          <option value="size_right" ${currentDiffSortBy === 'size_right' ? 'selected' : ''}>Sort: Right Size</option>
+          <option value="delta" ${currentDiffSortBy === 'delta' ? 'selected' : ''}>Sort: Size Delta</option>
+          <option value="mtime_left" ${currentDiffSortBy === 'mtime_left' ? 'selected' : ''}>Sort: Left Date</option>
+          <option value="mtime_right" ${currentDiffSortBy === 'mtime_right' ? 'selected' : ''}>Sort: Right Date</option>
+        </select>
+
+        <!-- Sort Direction Toggle -->
+        <button class="btn btn-icon btn-xs" onclick="toggleDiffSortDir()" title="Order: ${currentDiffSortAsc ? 'Ascending (A-Z, 0-9)' : 'Descending (Z-A, 9-0)'}" style="width: 26px; height: 26px;">
+          <i data-lucide="${currentDiffSortAsc ? 'arrow-up-narrow-wide' : 'arrow-down-wide-narrow'}" style="width: 13px; height: 13px;"></i>
+        </button>
+      </div>
     </div>
 
     <!-- 4. Comparison Table with Dates, Sizes, Deltas, Checksums, and Row Actions -->
@@ -17315,17 +17493,27 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
       <table class="diff-table">
         <thead>
           <tr>
-            <th style="text-align: left;">Relative Path</th>
-            <th style="width: 80px; text-align: center;">Status</th>
-            <th style="width: 130px; text-align: right;">Left (Size / Date)</th>
-            <th style="width: 130px; text-align: right;">Right (Size / Date)</th>
-            <th style="width: 90px; text-align: center;">Delta</th>
+            <th class="diff-th-sortable" onclick="sortDiffByColumn('name')" style="text-align: left;" title="Click to sort by Relative Path (${currentDiffSortBy === 'name' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+              Relative Path ${renderDiffSortIndicator('name')}
+            </th>
+            <th class="diff-th-sortable" onclick="sortDiffByColumn('status')" style="width: 80px; text-align: center;" title="Click to sort by Status (${currentDiffSortBy === 'status' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+              Status ${renderDiffSortIndicator('status')}
+            </th>
+            <th class="diff-th-sortable" onclick="sortDiffByColumn('size_left')" style="width: 130px; text-align: right;" title="Click to sort by Left Size / Date (${currentDiffSortBy === 'size_left' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+              Left (Size / Date) ${renderDiffSortIndicator('size_left')}
+            </th>
+            <th class="diff-th-sortable" onclick="sortDiffByColumn('size_right')" style="width: 130px; text-align: right;" title="Click to sort by Right Size / Date (${currentDiffSortBy === 'size_right' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+              Right (Size / Date) ${renderDiffSortIndicator('size_right')}
+            </th>
+            <th class="diff-th-sortable" onclick="sortDiffByColumn('delta')" style="width: 90px; text-align: center;" title="Click to sort by Delta (${currentDiffSortBy === 'delta' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+              Delta ${renderDiffSortIndicator('delta')}
+            </th>
             <th style="width: 75px; text-align: center;">Checksum</th>
             <th style="width: 90px; text-align: center;">Actions</th>
           </tr>
         </thead>
         <tbody>
-          ${filteredEntries.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding: 32px; color: var(--text-dim);">No files match this filter.</td></tr>' : ''}
+          ${filteredEntries.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding: 32px; color: var(--text-dim);"><i data-lucide="filter" style="width: 20px; height: 20px; margin-bottom: 6px; opacity: 0.5;"></i><div>No files match the active filter or search query.</div></td></tr>' : ''}
           ${filteredEntries.map(e => {
             const badgeClass = e.status === 'identical' ? 'diff-badge-identical' : (e.status === 'modified' ? 'diff-badge-modified' : (e.status === 'left_only' ? 'diff-badge-left' : 'diff-badge-right'));
             const isLeftNewer = e.time_status === 'left_newer';
