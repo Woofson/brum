@@ -3937,7 +3937,9 @@ function createPaneElement(pane, index) {
         'cad': '<i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> 3D CAD Studio',
         'shares': '<img src="assets/sharemgr.webp" alt="Sharing Center" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center',
         'diskusage': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
-        'du': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage'
+        'du': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
+        'diff': '<img src="assets/diff.webp" alt="Compare & Diff" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare & Diff',
+        'compare': '<img src="assets/diff.webp" alt="Compare & Diff" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare & Diff'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
     }
@@ -16940,38 +16942,268 @@ function replaceAllMatches() {
 
 // ---------------- REVISED COMPARISON & DIFF ENGINE ----------------
 
+// ---------------- ⚖️ REVISED COMPARISON & DIFF ENGINE (RULE 9) ----------------
+
 let currentFolderDiffData = null;
 let currentDiffFilter = 'all';
+let currentTextDiffMode = 'split'; // 'split' or 'unified'
+let currentImageDiffMode = 'split'; // 'split', 'swipe', or 'blend'
+let currentFileDiffLeft = null;
+let currentFileDiffRight = null;
+let currentFileDiffData = null;
+let diffDragInitialized = false;
 
-async function triggerDiff(deepHash = false) {
+function initDiffDragResize() {
+  if (diffDragInitialized) return;
+  diffDragInitialized = true;
+
+  const win = document.getElementById('floating-diff-window');
+  const header = document.getElementById('diff-header');
+  if (!win || !header) return;
+
+  const savedLeft = localStorage.getItem('cd_diff_x');
+  const savedTop = localStorage.getItem('cd_diff_y');
+  const savedWidth = localStorage.getItem('cd_diff_w');
+  const savedHeight = localStorage.getItem('cd_diff_h');
+
+  if (savedLeft && savedTop && window.innerWidth > 1024) {
+    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
+    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
+  }
+  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(480, parseInt(savedWidth, 10)))}px`;
+  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(400, parseInt(savedHeight, 10)))}px`;
+
+  let isDragging = false;
+  let dragStartX = 0, dragStartY = 0;
+  let winStartX = 0, winStartY = 0;
+
+  header.addEventListener('mousedown', (e) => {
+    if (window.innerWidth <= 1024) return;
+    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
+    if (win.classList.contains('maximized')) return;
+    isDragging = true;
+    bringFloatingWindowToFront(win);
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    const rect = win.getBoundingClientRect();
+    winStartX = rect.left;
+    winStartY = rect.top;
+    document.body.style.userSelect = 'none';
+    document.body.style.cursor = 'move';
+  });
+
+  window.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - dragStartX;
+    const dy = e.clientY - dragStartY;
+    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
+    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
+    win.style.left = `${newX}px`;
+    win.style.top = `${newY}px`;
+  });
+
+  window.addEventListener('mouseup', () => {
+    if (isDragging) {
+      isDragging = false;
+      document.body.style.userSelect = '';
+      document.body.style.cursor = '';
+      if (win.style.left) localStorage.setItem('cd_diff_x', parseInt(win.style.left, 10));
+      if (win.style.top) localStorage.setItem('cd_diff_y', parseInt(win.style.top, 10));
+    }
+  });
+
+  const setupResizeHandle = (handleId, edge) => {
+    const handle = document.getElementById(handleId);
+    if (!handle) return;
+    let isResizing = false;
+    let startX = 0, startY = 0, startW = 0, startH = 0, startL = 0, startT = 0;
+
+    handle.addEventListener('mousedown', (e) => {
+      if (window.innerWidth <= 1024 || win.classList.contains('maximized')) return;
+      isResizing = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = win.getBoundingClientRect();
+      startW = rect.width;
+      startH = rect.height;
+      startL = rect.left;
+      startT = rect.top;
+      document.body.style.userSelect = 'none';
+      e.preventDefault();
+      e.stopPropagation();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+
+      if (edge.includes('right')) {
+        const newW = Math.max(340, Math.min(window.innerWidth - startL - 10, startW + dx));
+        win.style.width = `${newW}px`;
+      }
+      if (edge.includes('bottom')) {
+        const newH = Math.max(300, Math.min(window.innerHeight - startT - 10, startH + dy));
+        win.style.height = `${newH}px`;
+      }
+      if (edge.includes('left')) {
+        const newW = Math.max(340, startW - dx);
+        if (newW > 340) {
+          win.style.width = `${newW}px`;
+          win.style.left = `${startL + dx}px`;
+        }
+      }
+      if (edge.includes('top')) {
+        const newH = Math.max(300, startH - dy);
+        if (newH > 300) {
+          win.style.height = `${newH}px`;
+          win.style.top = `${startT + dy}px`;
+        }
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      if (isResizing) {
+        isResizing = false;
+        document.body.style.userSelect = '';
+        if (win.style.width) localStorage.setItem('cd_diff_w', parseInt(win.style.width, 10));
+        if (win.style.height) localStorage.setItem('cd_diff_h', parseInt(win.style.height, 10));
+        if (win.style.left) localStorage.setItem('cd_diff_x', parseInt(win.style.left, 10));
+        if (win.style.top) localStorage.setItem('cd_diff_y', parseInt(win.style.top, 10));
+      }
+    });
+  };
+
+  setupResizeHandle('diff-resize-top', 'top');
+  setupResizeHandle('diff-resize-bottom', 'bottom');
+  setupResizeHandle('diff-resize-left', 'left');
+  setupResizeHandle('diff-resize-right', 'right');
+  setupResizeHandle('diff-resize-corner', 'bottom-right');
+}
+
+function openFloatingDiff() {
+  const win = document.getElementById('floating-diff-window');
+  const pill = document.getElementById('diff-pill');
+  if (pill) pill.style.display = 'none';
+  if (!win) return;
+
+  win.style.display = 'flex';
+  bringFloatingWindowToFront(win);
+  initDiffDragResize();
+  if (window.lucide) lucide.createIcons({ root: win });
+  const body = document.getElementById('diff-modal-body');
+  if (body && !body.hasChildNodes() && currentFolderDiffData) {
+    renderFolderDiff(currentFolderDiffData, currentDiffFilter, body);
+  }
+}
+
+function closeFloatingDiff() {
+  const win = document.getElementById('floating-diff-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('diff-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function minimizeFloatingDiff() {
+  const win = document.getElementById('floating-diff-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('diff-pill');
+  if (pill) {
+    pill.style.display = 'flex';
+    if (window.lucide) lucide.createIcons({ root: pill });
+  }
+}
+
+function restoreFloatingDiff() {
+  openFloatingDiff();
+}
+
+function toggleMaximizeDiff() {
+  const win = document.getElementById('floating-diff-window');
+  if (!win) return;
+  win.classList.toggle('maximized');
+  const isMax = win.classList.contains('maximized');
+  const btn = document.getElementById('btn-diff-maximize');
+  if (btn) {
+    btn.innerHTML = isMax ? '<i data-lucide="minimize-2"></i>' : '<i data-lucide="maximize-2"></i>';
+    if (window.lucide) lucide.createIcons({ root: btn });
+  }
+}
+
+function dockDiffToActivePane() {
+  dockToolToPane('diff', App.activePaneIndex);
+}
+
+function isImageFileName(filename) {
+  if (!filename) return false;
+  const ext = filename.split('.').pop().toLowerCase();
+  return ['png', 'jpg', 'jpeg', 'webp', 'gif', 'svg', 'avif', 'bmp', 'ico'].includes(ext);
+}
+
+function formatDiffEpochSeconds(sec) {
+  if (!sec) return '-';
+  const d = new Date(sec * 1000);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function formatDiffSizeDelta(delta) {
+  if (delta === null || delta === undefined) return '-';
+  if (delta === 0) return '<span class="diff-delta-zero">±0 B</span>';
+  if (delta > 0) return `<span class="diff-delta-pos">+${formatBytes(delta)}</span>`;
+  return `<span class="diff-delta-neg">-${formatBytes(Math.abs(delta))}</span>`;
+}
+
+function formatDiffTimeStatus(status) {
+  if (!status) return '';
+  if (status === 'equal') return '<span class="diff-time-tag">Equal</span>';
+  if (status === 'left_newer') return '<span class="diff-time-tag newer" title="Left file modified more recently">◀ L Newer</span>';
+  if (status === 'right_newer') return '<span class="diff-time-tag newer" title="Right file modified more recently">R Newer ▶</span>';
+  return '';
+}
+
+async function triggerDiff(deepHash = false, targetContainer = null) {
   const paneA = App.panes[0];
   const paneB = App.panes[1] || App.panes[0];
 
-  // Scenario 1: User selected 1 file in Pane 1 and 1 file in Pane 2
   const selA = Array.from(paneA.selected);
   const selB = Array.from(paneB.selected);
-
   if (selA.length === 1 && selB.length === 1 && selA[0] !== selB[0]) {
-    return openFileDiffView(selA[0], selB[0]);
+    return openFileDiffView(selA[0], selB[0], targetContainer);
   }
 
-  // Scenario 2: User selected 2 files in the SAME active pane
   const activePane = App.panes[App.activePaneIndex];
   const activeSel = Array.from(activePane.selected);
   if (activeSel.length === 2) {
-    return openFileDiffView(activeSel[0], activeSel[1]);
+    return openFileDiffView(activeSel[0], activeSel[1], targetContainer);
   }
 
-  // Scenario 3: Folder Comparison (Fast Immediate Level by default, Deep SHA-256 on demand)
-  const modalBody = document.getElementById('diff-modal-body');
-  modalBody.innerHTML = `
-    <div style="padding: 24px; text-align: center; color: var(--accent);">
-      <div style="font-size: 20px; font-weight: 700; margin-bottom: 8px;">⚖️ Calculating Folder Comparison...</div>
-      <div style="font-size: 12px; color: var(--text-muted);">${escapeHtml(sanitizeCredentials(paneA.path))} ⟷ ${escapeHtml(sanitizeCredentials(paneB.path))}</div>
-      <div style="margin-top: 12px; font-size: 11px; color: var(--text-dim);">${deepHash ? 'Performing deep recursive SHA-256 integrity analysis...' : 'Comparing immediate directory entries (fast mode)...'}</div>
-    </div>
-  `;
-  showModal('diff-modal');
+  const dockedPaneIdx = App.panes.findIndex(p => p && (p.dockedTool === 'diff' || p.dockedTool === 'compare'));
+  const isDocked = dockedPaneIdx !== -1;
+  if (isDocked && !targetContainer) {
+    targetContainer = document.getElementById(`docked-diff-body-${dockedPaneIdx}`);
+  }
+  if (!isDocked && !targetContainer) {
+    openFloatingDiff();
+  }
+
+  const body = targetContainer || document.getElementById('diff-modal-body');
+  if (body) {
+    body.innerHTML = `
+      <div style="padding: 32px 16px; text-align: center; color: var(--accent); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+        <i data-lucide="loader" style="width: 28px; height: 28px; animation: spin 1s linear infinite; margin-bottom: 12px;"></i>
+        <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Comparing Directories...</div>
+        <div style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">${escapeHtml(sanitizeCredentials(paneA.path))} ⟷ ${escapeHtml(sanitizeCredentials(paneB.path))}</div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--text-dim);">${deepHash ? 'Calculating SHA-256 integrity checksums...' : 'Inspecting folder sizes and timestamps (fast mode)...'}</div>
+      </div>
+    `;
+    if (window.lucide) lucide.createIcons({ root: body });
+  }
+
+  const viewModes = document.getElementById('diff-view-modes');
+  if (viewModes) viewModes.style.display = 'none';
+  const subtitle = document.getElementById('diff-header-subtitle');
+  if (subtitle) subtitle.textContent = 'Folder Comparison';
 
   try {
     const selectedItems = activeSel.length > 0 ? activeSel.map(p => p.split('/').pop()) : null;
@@ -16991,12 +17223,12 @@ async function triggerDiff(deepHash = false) {
     if (resp.ok) {
       currentFolderDiffData = await resp.json();
       currentDiffFilter = 'all';
-      renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+      renderFolderDiff(currentFolderDiffData, currentDiffFilter, targetContainer);
     } else {
-      modalBody.innerHTML = `<div style="color: var(--danger); padding: 20px;">Diff calculation failed: ${await resp.text()}</div>`;
+      if (body) body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Directory comparison failed: ${escapeHtml(await resp.text())}</div>`;
     }
   } catch (e) {
-    modalBody.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error: ${e}</div>`;
+    if (body) body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error: ${escapeHtml(String(e))}</div>`;
   }
 }
 
@@ -17005,37 +17237,62 @@ function setDiffFilter(filter) {
   if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
 }
 
-function renderFolderDiff(diff, filter = 'all') {
-  const body = document.getElementById('diff-modal-body');
+function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
+  const body = targetContainer || document.getElementById('diff-modal-body');
   if (!body) return;
-  
+
+  App.panes.forEach((p, idx) => {
+    if (p.dockedTool === 'diff' && !targetContainer) {
+      const dockedHost = document.getElementById(`docked-diff-host-${idx}`);
+      if (dockedHost && dockedHost !== body) {
+        renderFolderDiff(diff, filter, dockedHost);
+      }
+    }
+  });
+
   let filteredEntries = diff.entries || [];
   if (filter === 'modified') filteredEntries = filteredEntries.filter(e => e.status === 'modified');
   else if (filter === 'left_only') filteredEntries = filteredEntries.filter(e => e.status === 'left_only');
   else if (filter === 'right_only') filteredEntries = filteredEntries.filter(e => e.status === 'right_only');
   else if (filter === 'identical') filteredEntries = filteredEntries.filter(e => e.status === 'identical');
 
+  const subtitle = document.getElementById('diff-header-subtitle');
+  if (subtitle) subtitle.textContent = `${diff.entries.length} items (${diff.modified_count} modified)`;
+
   body.innerHTML = `
-    <div class="diff-paths-card">
+    <!-- 1. Paths Bar with Quick Align Buttons -->
+    <div class="diff-paths-card" style="margin-bottom: 8px;">
       <div class="diff-path-chips">
         <div class="diff-path-chip" title="${escapeHtml(diff.dir_left)}">
           <span style="font-weight: 700; color: var(--info);">L:</span>
           <code>${escapeHtml(diff.dir_left)}</code>
+          <button class="btn btn-icon btn-xs" onclick="alignDiffPaths('lr')" title="Set Right Path = Left Path (L ➔ R Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-right" style="width: 10px; height: 10px;"></i></button>
         </div>
-        <span style="color: var(--text-dim); font-size: 11px;">⟷</span>
+        <button class="btn btn-icon btn-xs" onclick="swapDiffPaths()" title="Swap Left and Right Paths" style="width: 22px; height: 22px;"><i data-lucide="arrow-left-right" style="width: 11px; height: 11px;"></i></button>
         <div class="diff-path-chip" title="${escapeHtml(diff.dir_right)}">
           <span style="font-weight: 700; color: #c084fc;">R:</span>
           <code>${escapeHtml(diff.dir_right)}</code>
+          <button class="btn btn-icon btn-xs" onclick="alignDiffPaths('rl')" title="Set Left Path = Right Path (R ➔ L Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-left" style="width: 10px; height: 10px;"></i></button>
         </div>
       </div>
       <div class="diff-action-buttons">
-        <button class="btn btn-sm" onclick="triggerDiff(false)" title="Fast Immediate Compare"><i data-lucide="zap"></i> Fast</button>
+        <button class="btn btn-sm" onclick="triggerDiff(false)" title="Fast Immediate Compare (Size & Date)"><i data-lucide="zap"></i> Fast</button>
         <button class="btn btn-sm btn-accent" onclick="triggerDiff(true)" title="Deep Recursive SHA-256 Compare"><i data-lucide="shield-check"></i> Deep Hash</button>
       </div>
     </div>
 
-    <!-- Filter Buttons Bar -->
-    <div class="diff-filter-bar">
+    <!-- 2. Folder Content Alignment Bar (Batch Sync Actions) -->
+    <div class="diff-align-bar" style="margin-bottom: 8px;">
+      <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-right: 4px; display: flex; align-items: center; gap: 4px;"><i data-lucide="arrow-left-right" style="width: 13px; height: 13px; color: var(--accent);"></i> Align Folders:</span>
+      <button class="btn btn-xs diff-align-btn" onclick="executeFolderAlignment('right')" title="Copy Left-only and newer modified items to Right folder"><i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i> Align Right (L ➔ R)</button>
+      <button class="btn btn-xs diff-align-btn" onclick="executeFolderAlignment('left')" title="Copy Right-only and newer modified items to Left folder"><i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i> Align Left (R ➔ L)</button>
+      <button class="btn btn-xs diff-align-btn btn-accent" onclick="executeFolderAlignment('both')" title="Bi-directional alignment: copy missing and overwrite older"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Align Both (L ⟷ R)</button>
+      <div style="flex: 1;"></div>
+      <button class="btn btn-xs btn-outline" onclick="calculateAllChecksums()" title="Calculate SHA-256 Checksums for all files on demand" style="font-size: 10.5px; height: 26px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> Checksums</button>
+    </div>
+
+    <!-- 3. Filter Buttons Bar -->
+    <div class="diff-filter-bar" style="margin-bottom: 8px;">
       <button class="diff-filter-btn ${filter === 'all' ? 'active' : ''}" onclick="setDiffFilter('all')">
         All (${diff.entries.length})
       </button>
@@ -17053,51 +17310,353 @@ function renderFolderDiff(diff, filter = 'all') {
       </button>
     </div>
 
+    <!-- 4. Comparison Table with Dates, Sizes, Deltas, Checksums, and Row Actions -->
     <div class="diff-table-wrapper">
       <table class="diff-table">
         <thead>
           <tr>
             <th style="text-align: left;">Relative Path</th>
-            <th style="width: 85px; text-align: center;">Status</th>
-            <th style="width: 80px; text-align: right;">Left Size</th>
-            <th style="width: 80px; text-align: right;">Right Size</th>
-            <th style="width: 60px; text-align: center;">Diff</th>
+            <th style="width: 80px; text-align: center;">Status</th>
+            <th style="width: 130px; text-align: right;">Left (Size / Date)</th>
+            <th style="width: 130px; text-align: right;">Right (Size / Date)</th>
+            <th style="width: 90px; text-align: center;">Delta</th>
+            <th style="width: 75px; text-align: center;">Checksum</th>
+            <th style="width: 90px; text-align: center;">Actions</th>
           </tr>
         </thead>
         <tbody>
-          ${filteredEntries.length === 0 ? '<tr><td colspan="5" style="text-align:center; padding: 28px; color: var(--text-dim);">No files match this filter.</td></tr>' : ''}
-          ${filteredEntries.map(e => `
-            <tr>
-              <td style="font-family: var(--font-mono); max-width: 320px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(e.relative_path)}">
-                ${escapeHtml(e.relative_path)}
-              </td>
-              <td style="text-align: center; color: ${e.status === 'identical' ? 'var(--success)' : (e.status === 'modified' ? 'var(--accent)' : (e.status === 'left_only' ? 'var(--info)' : 'var(--danger)'))}; font-weight: 700; font-size: 10px;">
-                ${e.status.replace('_', ' ').toUpperCase()}
-              </td>
-              <td style="text-align: right; font-family: var(--font-mono); color: var(--text-muted);">${e.size_left !== null ? formatBytes(e.size_left) : '-'}</td>
-              <td style="text-align: right; font-family: var(--font-mono); color: var(--text-muted);">${e.size_right !== null ? formatBytes(e.size_right) : '-'}</td>
-              <td style="text-align: center;">
-                ${!e.is_dir && (e.status === 'modified' || e.status === 'identical') ? `
-                  <button class="btn btn-icon btn-sm" onclick="openFileDiffView(${escapeJsStr(diff.dir_left + '/' + e.relative_path)}, ${escapeJsStr(diff.dir_right + '/' + e.relative_path)})" title="Inspect Side-by-Side Diff">
-                    <i data-lucide="eye" style="width:12px;"></i>
-                  </button>
-                ` : ''}
-              </td>
-            </tr>
-          `).join('')}
+          ${filteredEntries.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding: 32px; color: var(--text-dim);">No files match this filter.</td></tr>' : ''}
+          ${filteredEntries.map(e => {
+            const badgeClass = e.status === 'identical' ? 'diff-badge-identical' : (e.status === 'modified' ? 'diff-badge-modified' : (e.status === 'left_only' ? 'diff-badge-left' : 'diff-badge-right'));
+            const isLeftNewer = e.time_status === 'left_newer';
+            const isRightNewer = e.time_status === 'right_newer';
+            const hashPreview = e.hash_left ? (e.hash_left === e.hash_right ? `<span title="${escapeHtml(e.hash_left)}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--success); font-weight: 700;">✔ SHA256</span>` : `<span title="L: ${escapeHtml(e.hash_left)}\nR: ${escapeHtml(e.hash_right || '')}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--accent); font-weight: 700;">≠ SHA256</span>`) : (!e.is_dir ? `<button class="btn btn-icon btn-xs" onclick="calculateRowChecksum(${escapeJsStr(e.relative_path)})" title="Calculate SHA-256 on demand" style="width: 20px; height: 20px; font-size: 9px;"><i data-lucide="hash" style="width: 11px; height: 11px;"></i></button>` : '-');
+
+            return `
+              <tr id="diff-row-${escapeHtml(e.relative_path.replace(/[^a-zA-Z0-9_-]/g, '_'))}">
+                <td style="font-family: var(--font-mono); max-width: 260px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(e.relative_path)}">
+                  <span style="display: flex; align-items: center; gap: 5px;">
+                    <i data-lucide="${e.is_dir ? 'folder' : (isImageFileName(e.relative_path) ? 'image' : 'file-text')}" style="width: 13px; height: 13px; color: ${e.is_dir ? 'var(--accent)' : 'var(--text-dim)'}; flex-shrink: 0;"></i>
+                    <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(e.relative_path)}</span>
+                  </span>
+                </td>
+                <td style="text-align: center;">
+                  <span class="diff-badge ${badgeClass}">${e.status.replace('_', ' ')}</span>
+                </td>
+                <td style="text-align: right; font-family: var(--font-mono); font-size: 10.5px;">
+                  <div>${e.size_left !== null ? formatBytes(e.size_left) : '-'}</div>
+                  <div class="diff-time-tag ${isLeftNewer ? 'newer' : ''}">${formatDiffEpochSeconds(e.mtime_left)}</div>
+                </td>
+                <td style="text-align: right; font-family: var(--font-mono); font-size: 10.5px;">
+                  <div>${e.size_right !== null ? formatBytes(e.size_right) : '-'}</div>
+                  <div class="diff-time-tag ${isRightNewer ? 'newer' : ''}">${formatDiffEpochSeconds(e.mtime_right)}</div>
+                </td>
+                <td style="text-align: center;">
+                  <div>${formatDiffSizeDelta(e.size_delta)}</div>
+                  <div>${formatDiffTimeStatus(e.time_status)}</div>
+                </td>
+                <td style="text-align: center;" class="diff-checksum-cell">
+                  ${hashPreview}
+                </td>
+                <td style="text-align: center;">
+                  <div class="diff-row-actions">
+                    ${!e.is_dir ? `
+                      <button class="btn btn-icon btn-xs diff-row-btn" onclick="openFileDiffView(${escapeJsStr(diff.dir_left + '/' + e.relative_path)}, ${escapeJsStr(diff.dir_right + '/' + e.relative_path)})" title="Inspect Side-by-Side Diff">
+                        <i data-lucide="eye" style="width: 12px; height: 12px;"></i>
+                      </button>
+                    ` : ''}
+                    ${e.status !== 'right_only' ? `
+                      <button class="btn btn-icon btn-xs diff-row-btn" onclick="copyDiffItem(${escapeJsStr(e.relative_path)}, 'lr')" title="Copy Left to Right (L ➔ R)">
+                        <i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i>
+                      </button>
+                    ` : ''}
+                    ${e.status !== 'left_only' ? `
+                      <button class="btn btn-icon btn-xs diff-row-btn" onclick="copyDiffItem(${escapeJsStr(e.relative_path)}, 'rl')" title="Copy Right to Left (R ➔ L)">
+                        <i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i>
+                      </button>
+                    ` : ''}
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('')}
         </tbody>
       </table>
     </div>
   `;
-  if (window.lucide) lucide.createIcons();
+  if (window.lucide) lucide.createIcons({ root: body });
 }
 
-async function openFileDiffView(fileL, fileR) {
-  showModal('diff-modal');
-  const body = document.getElementById('diff-modal-body');
+function alignDiffPaths(direction) {
+  if (!currentFolderDiffData) return;
+  if (direction === 'lr') {
+    App.panes[1].path = currentFolderDiffData.dir_left;
+    loadPaneDirectory(1, App.panes[1].path);
+    showToast('Aligned Right path to Left', 'info');
+  } else if (direction === 'rl') {
+    App.panes[0].path = currentFolderDiffData.dir_right;
+    loadPaneDirectory(0, App.panes[0].path);
+    showToast('Aligned Left path to Right', 'info');
+  }
+  setTimeout(() => triggerDiff(false), 200);
+}
+
+function swapDiffPaths() {
+  if (!currentFolderDiffData) return;
+  const tmp = App.panes[0].path;
+  App.panes[0].path = App.panes[1].path;
+  App.panes[1].path = tmp;
+  loadPaneDirectory(0, App.panes[0].path);
+  loadPaneDirectory(1, App.panes[1].path);
+  showToast('Swapped Left and Right paths', 'info');
+  setTimeout(() => triggerDiff(false), 200);
+}
+
+async function executeFolderAlignment(direction) {
+  if (!currentFolderDiffData) return;
+  const diff = currentFolderDiffData;
+  const leftDir = diff.dir_left;
+  const rightDir = diff.dir_right;
+
+  let toCopyLtoR = [];
+  let toCopyRtoL = [];
+
+  diff.entries.forEach(e => {
+    if (e.is_dir) return;
+    if (direction === 'right' || direction === 'both') {
+      if (e.status === 'left_only' || (e.status === 'modified' && e.time_status === 'left_newer')) {
+        toCopyLtoR.push(e.relative_path);
+      }
+    }
+    if (direction === 'left' || direction === 'both') {
+      if (e.status === 'right_only' || (e.status === 'modified' && e.time_status === 'right_newer')) {
+        toCopyRtoL.push(e.relative_path);
+      }
+    }
+  });
+
+  const total = toCopyLtoR.length + toCopyRtoL.length;
+  if (total === 0) {
+    showToast('Folders are already aligned! No files need syncing.', 'info');
+    return;
+  }
+
+  let promptMsg = `Align Folders:\n`;
+  if (toCopyLtoR.length > 0) promptMsg += `• Copy ${toCopyLtoR.length} files from Left to Right\n`;
+  if (toCopyRtoL.length > 0) promptMsg += `• Copy ${toCopyRtoL.length} files from Right to Left\n`;
+  promptMsg += `Proceed with alignment?`;
+
+  if (!confirm(promptMsg)) return;
+
+  showToast(`Synchronizing ${total} files...`, 'info');
+
+  try {
+    if (toCopyLtoR.length > 0) {
+      const sources = toCopyLtoR.map(p => `${leftDir}/${p}`);
+      await fetch('/api/fs/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        body: JSON.stringify({
+          sources,
+          destination: rightDir,
+          conflict_resolution: 'overwrite'
+        })
+      });
+    }
+
+    if (toCopyRtoL.length > 0) {
+      const sources = toCopyRtoL.map(p => `${rightDir}/${p}`);
+      await fetch('/api/fs/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        body: JSON.stringify({
+          sources,
+          destination: leftDir,
+          conflict_resolution: 'overwrite'
+        })
+      });
+    }
+
+    showToast(`Alignment complete! Synced ${total} files.`, 'success');
+    refreshAllPanes();
+    setTimeout(() => triggerDiff(false), 300);
+  } catch (err) {
+    showToast(`Alignment failed: ${err}`, 'danger');
+  }
+}
+
+async function copyDiffItem(relPath, direction, action = 'copy') {
+  if (!currentFolderDiffData) return;
+  const diff = currentFolderDiffData;
+  const isLeftToRight = direction === 'lr';
+  const src = isLeftToRight ? `${diff.dir_left}/${relPath}` : `${diff.dir_right}/${relPath}`;
+  const destDir = isLeftToRight ? diff.dir_right : diff.dir_left;
+
+  const endpoint = action === 'move' ? '/api/fs/move' : '/api/fs/copy';
+  try {
+    const resp = await fetch(endpoint, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      body: JSON.stringify({
+        sources: [src],
+        destination: destDir,
+        conflict_resolution: 'overwrite'
+      })
+    });
+
+    if (resp.ok) {
+      showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${relPath} ${isLeftToRight ? 'L ➔ R' : 'R ➔ L'}`, 'success');
+      refreshAllPanes();
+      setTimeout(() => triggerDiff(false), 200);
+    } else {
+      showToast(`Operation failed: ${await resp.text()}`, 'danger');
+    }
+  } catch (err) {
+    showToast(`Operation error: ${err}`, 'danger');
+  }
+}
+
+async function calculateRowChecksum(relPath) {
+  if (!currentFolderDiffData) return;
+  const diff = currentFolderDiffData;
+  showToast(`Calculating SHA-256 for ${relPath}...`, 'info');
+
+  try {
+    const resp = await fetch('/api/tools/diff/checksum', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      body: JSON.stringify({
+        dir_left: diff.dir_left,
+        dir_right: diff.dir_right,
+        relative_paths: [relPath]
+      })
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      if (data.results && data.results.length > 0) {
+        const r = data.results[0];
+        const entry = diff.entries.find(e => e.relative_path === relPath);
+        if (entry) {
+          entry.hash_left = r.hash_left;
+          entry.hash_right = r.hash_right;
+          if (entry.status !== 'left_only' && entry.status !== 'right_only') {
+            entry.status = r.is_identical ? 'identical' : 'modified';
+          }
+          renderFolderDiff(diff, currentDiffFilter);
+        }
+      }
+    }
+  } catch (err) {
+    showToast(`Checksum failed: ${err}`, 'danger');
+  }
+}
+
+async function calculateAllChecksums() {
+  if (!currentFolderDiffData) return;
+  const diff = currentFolderDiffData;
+  const fileEntries = diff.entries.filter(e => !e.is_dir);
+  if (fileEntries.length === 0) {
+    showToast('No files to calculate checksums for.', 'info');
+    return;
+  }
+
+  showToast(`Computing SHA-256 for ${fileEntries.length} files...`, 'info');
+  try {
+    const resp = await fetch('/api/tools/diff/checksum', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      body: JSON.stringify({
+        dir_left: diff.dir_left,
+        dir_right: diff.dir_right,
+        relative_paths: fileEntries.map(e => e.relative_path)
+      })
+    });
+
+    if (resp.ok) {
+      const data = await resp.json();
+      let identicalCount = 0;
+      let modifiedCount = 0;
+      data.results.forEach(r => {
+        const entry = diff.entries.find(e => e.relative_path === r.relative_path);
+        if (entry) {
+          entry.hash_left = r.hash_left;
+          entry.hash_right = r.hash_right;
+          if (entry.status !== 'left_only' && entry.status !== 'right_only') {
+            entry.status = r.is_identical ? 'identical' : 'modified';
+          }
+          if (entry.status === 'identical') identicalCount++;
+          if (entry.status === 'modified') modifiedCount++;
+        }
+      });
+      diff.identical_count = identicalCount;
+      diff.modified_count = modifiedCount;
+      showToast('Checksum calculations complete!', 'success');
+      renderFolderDiff(diff, currentDiffFilter);
+    }
+  } catch (err) {
+    showToast(`Checksum computation error: ${err}`, 'danger');
+  }
+}
+
+function setFileDiffMode(mode) {
+  if (isImageFileName(currentFileDiffLeft) && isImageFileName(currentFileDiffRight)) {
+    currentImageDiffMode = mode;
+    renderImageDiffView(currentFileDiffLeft, currentFileDiffRight, mode);
+  } else if (currentFileDiffData) {
+    currentTextDiffMode = mode;
+    renderTextDiffView(currentFileDiffData, mode);
+  }
+}
+
+async function openFileDiffView(fileL, fileR, targetContainer = null) {
+  currentFileDiffLeft = fileL;
+  currentFileDiffRight = fileR;
+
+  const isDocked = App.panes.some(p => p.dockedTool === 'diff');
+  if (!isDocked && !targetContainer) {
+    openFloatingDiff();
+  }
+
+  const body = targetContainer || document.getElementById('diff-modal-body');
   if (!body) return;
-  body.innerHTML = '<div style="padding: 30px; text-align: center; color: var(--accent);"><i data-lucide="loader"></i> Loading side-by-side file comparison...</div>';
-  if (window.lucide) lucide.createIcons();
+
+  body.innerHTML = `
+    <div style="padding: 30px; text-align: center; color: var(--accent); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
+      <i data-lucide="loader" style="width: 28px; height: 28px; animation: spin 1s linear infinite; margin-bottom: 12px;"></i>
+      <div style="font-size: 14px; font-weight: 700; color: var(--text-main);">Loading side-by-side comparison...</div>
+      <div style="font-size: 11px; color: var(--text-dim); margin-top: 4px;">${escapeHtml(getBasename(fileL))} ⟷ ${escapeHtml(getBasename(fileR))}</div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ root: body });
+
+  if (isImageFileName(fileL) && isImageFileName(fileR)) {
+    const subtitle = document.getElementById('diff-header-subtitle');
+    if (subtitle) subtitle.textContent = 'Image Comparison Studio';
+
+    const viewModes = document.getElementById('diff-view-modes');
+    if (viewModes) {
+      viewModes.style.display = 'flex';
+      const swipeBtn = document.getElementById('diff-mode-swipe');
+      if (swipeBtn) swipeBtn.style.display = 'inline-flex';
+      document.getElementById('diff-mode-split').title = 'Side-by-Side (2 Cards)';
+      document.getElementById('diff-mode-unified').title = 'Difference Blend Mode';
+    }
+
+    return renderImageDiffView(fileL, fileR, currentImageDiffMode, targetContainer);
+  }
+
+  const subtitle = document.getElementById('diff-header-subtitle');
+  if (subtitle) subtitle.textContent = 'Text Diff Inspector';
+
+  const viewModes = document.getElementById('diff-view-modes');
+  if (viewModes) {
+    viewModes.style.display = 'flex';
+    const swipeBtn = document.getElementById('diff-mode-swipe');
+    if (swipeBtn) swipeBtn.style.display = 'none';
+    document.getElementById('diff-mode-split').title = 'Side-by-Side (2 Columns)';
+    document.getElementById('diff-mode-unified').title = 'Unified (Inline)';
+  }
 
   try {
     let diffData;
@@ -17145,36 +17704,284 @@ async function openFileDiffView(fileL, fileR) {
       }
     }
 
-    body.innerHTML = `
-      <div class="diff-file-header-card">
-        <div class="diff-file-stats">
-          <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_left))}">
-            <span style="font-weight: 700; color: var(--info);">L:</span>
-            <code>${escapeHtml(getBasename(diffData.file_left))}</code>
-          </div>
-          <span style="color: var(--text-dim); font-size: 11px;">⟷</span>
-          <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_right))}">
-            <span style="font-weight: 700; color: #c084fc;">R:</span>
-            <code>${escapeHtml(getBasename(diffData.file_right))}</code>
-          </div>
-          <span style="margin-left: 6px; font-size: 10.5px; font-family: var(--font-mono); background: rgba(245, 158, 11, 0.15); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-weight: 700; white-space: nowrap;">
-            +${diffData.additions} / -${diffData.deletions}
-          </span>
+    currentFileDiffData = diffData;
+    renderTextDiffView(diffData, currentTextDiffMode, targetContainer);
+  } catch (e) {
+    body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error: ${escapeHtml(String(e))}</div>`;
+  }
+}
+
+function renderTextDiffView(diffData, mode = 'split', targetContainer = null) {
+  const body = targetContainer || document.getElementById('diff-modal-body');
+  if (!body) return;
+
+  const btnSplit = document.getElementById('diff-mode-split');
+  const btnUnified = document.getElementById('diff-mode-unified');
+  if (btnSplit) btnSplit.classList.toggle('active', mode === 'split');
+  if (btnUnified) btnUnified.classList.toggle('active', mode === 'unified');
+
+  let contentHtml = '';
+  if (mode === 'split') {
+    const leftLines = [];
+    const rightLines = [];
+    diffData.lines.forEach(line => {
+      if (line.tag === 'equal') {
+        leftLines.push({ num: line.line_num_left, content: line.content, type: 'equal' });
+        rightLines.push({ num: line.line_num_right, content: line.content, type: 'equal' });
+      } else if (line.tag === 'delete') {
+        leftLines.push({ num: line.line_num_left, content: line.content, type: 'delete' });
+        rightLines.push({ num: null, content: '', type: 'empty' });
+      } else if (line.tag === 'insert') {
+        leftLines.push({ num: null, content: '', type: 'empty' });
+        rightLines.push({ num: line.line_num_right, content: line.content, type: 'insert' });
+      }
+    });
+
+    contentHtml = `
+      <div class="diff-split-container">
+        <div class="diff-split-col" id="diff-split-col-left">
+          ${leftLines.map(l => `
+            <div class="diff-split-line ${l.type === 'delete' ? 'diff-line delete' : ''}" style="${l.type === 'empty' ? 'background: rgba(0,0,0,0.3);' : ''}">
+              <div class="diff-split-gutter">${l.num || ''}</div>
+              <div style="flex: 1; white-space: pre;">${l.type === 'delete' ? '- ' : '  '}${escapeHtml(l.content)}</div>
+            </div>
+          `).join('')}
         </div>
-        <button class="btn btn-sm" onclick="triggerDiff(false)"><i data-lucide="arrow-left"></i> Back</button>
+        <div class="diff-split-col" id="diff-split-col-right">
+          ${rightLines.map(r => `
+            <div class="diff-split-line ${r.type === 'insert' ? 'diff-line insert' : ''}" style="${r.type === 'empty' ? 'background: rgba(0,0,0,0.3);' : ''}">
+              <div class="diff-split-gutter">${r.num || ''}</div>
+              <div style="flex: 1; white-space: pre;">${r.type === 'insert' ? '+ ' : '  '}${escapeHtml(r.content)}</div>
+            </div>
+          `).join('')}
+        </div>
       </div>
+    `;
+  } else {
+    contentHtml = `
       <div class="diff-container">
         ${diffData.lines.map(line => `
           <div class="diff-line ${line.tag}">
             <div class="diff-gutter">${line.line_num_left || ''} | ${line.line_num_right || ''}</div>
-            <div>${line.tag === 'insert' ? '+ ' : (line.tag === 'delete' ? '- ' : '  ')}${escapeHtml(line.content)}</div>
+            <div style="flex: 1; white-space: pre;">${line.tag === 'insert' ? '+ ' : (line.tag === 'delete' ? '- ' : '  ')}${escapeHtml(line.content)}</div>
           </div>
         `).join('')}
       </div>
     `;
-    if (window.lucide) lucide.createIcons();
-  } catch (e) {
-    body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error: ${escapeHtml(String(e))}</div>`;
+  }
+
+  body.innerHTML = `
+    <div class="diff-file-header-card" style="margin-bottom: 8px;">
+      <div class="diff-file-stats">
+        <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_left))}">
+          <span style="font-weight: 700; color: var(--info);">L:</span>
+          <code>${escapeHtml(getBasename(diffData.file_left))}</code>
+        </div>
+        <span style="color: var(--text-dim); font-size: 11px;">⟷</span>
+        <div class="diff-path-chip" title="${escapeHtml(sanitizeCredentials(diffData.file_right))}">
+          <span style="font-weight: 700; color: #c084fc;">R:</span>
+          <code>${escapeHtml(getBasename(diffData.file_right))}</code>
+        </div>
+        <span style="margin-left: 6px; font-size: 10.5px; font-family: var(--font-mono); background: rgba(245, 158, 11, 0.15); color: var(--accent); padding: 2px 6px; border-radius: 3px; font-weight: 700; white-space: nowrap;">
+          +${diffData.additions} / -${diffData.deletions}
+        </span>
+      </div>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <button class="btn btn-sm" onclick="triggerDiff(false)"><i data-lucide="arrow-left"></i> Back to Folders</button>
+      </div>
+    </div>
+    ${contentHtml}
+  `;
+
+  if (mode === 'split') {
+    const colL = document.getElementById('diff-split-col-left');
+    const colR = document.getElementById('diff-split-col-right');
+    if (colL && colR) {
+      colL.onscroll = () => { colR.scrollTop = colL.scrollTop; colR.scrollLeft = colL.scrollLeft; };
+      colR.onscroll = () => { colL.scrollTop = colR.scrollTop; colL.scrollLeft = colR.scrollLeft; };
+    }
+  }
+
+  if (window.lucide) lucide.createIcons({ root: body });
+}
+
+async function renderImageDiffView(fileL, fileR, mode = 'split', targetContainer = null) {
+  const body = targetContainer || document.getElementById('diff-modal-body');
+  if (!body) return;
+
+  const urlL = getDownloadUrl(fileL, true);
+  const urlR = getDownloadUrl(fileR, true);
+
+  const [dimL, dimR] = await Promise.all([
+    getImageDimensions(urlL),
+    getImageDimensions(urlR)
+  ]);
+
+  const btnSplit = document.getElementById('diff-mode-split');
+  const btnUnified = document.getElementById('diff-mode-unified');
+  const btnSwipe = document.getElementById('diff-mode-swipe');
+  if (btnSplit) btnSplit.classList.toggle('active', mode === 'split' || mode === 'side-by-side');
+  if (btnUnified) btnUnified.classList.toggle('active', mode === 'blend' || mode === 'unified');
+  if (btnSwipe) btnSwipe.classList.toggle('active', mode === 'swipe');
+
+  let stageHtml = '';
+  if (mode === 'swipe') {
+    stageHtml = `
+      <div class="diff-swipe-container" id="diff-image-swipe-box" style="position: relative; width: 100%; height: 100%;">
+        <img src="${urlR}" class="diff-swipe-img" alt="Right Image" />
+        <div class="diff-swipe-overlay" style="width: 50%;">
+          <img src="${urlL}" class="diff-swipe-img" alt="Left Image" style="width: 100%;" />
+        </div>
+        <div class="diff-swipe-slider" style="left: 50%;">
+          <div class="diff-swipe-handle"><i data-lucide="split" style="width: 14px; height: 14px;"></i></div>
+        </div>
+      </div>
+    `;
+  } else if (mode === 'blend' || mode === 'unified') {
+    stageHtml = `
+      <div style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; background: #000; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;">
+        <img src="${urlL}" style="max-width: 90%; max-height: 90%; object-fit: contain; position: absolute;" alt="Left Base" />
+        <img src="${urlR}" style="max-width: 90%; max-height: 90%; object-fit: contain; position: absolute; mix-blend-mode: difference; filter: invert(1);" alt="Right Difference" />
+      </div>
+    `;
+  } else {
+    stageHtml = `
+      <div class="diff-image-cards">
+        <div class="diff-image-card">
+          <div class="diff-image-card-header">
+            <span style="color: var(--info); font-weight: 700;">Left: ${escapeHtml(getBasename(fileL))}</span>
+            <span class="badge" style="font-size: 10px;">${dimL.width}×${dimL.height}</span>
+          </div>
+          <div class="diff-image-card-body">
+            <img src="${urlL}" alt="${escapeHtml(fileL)}" />
+          </div>
+          <div class="diff-image-meta-bar">
+            <span>Dimensions: ${dimL.width}×${dimL.height}</span>
+            <span>${fileL.split('.').pop().toUpperCase()}</span>
+          </div>
+        </div>
+        <div class="diff-image-card">
+          <div class="diff-image-card-header">
+            <span style="color: #c084fc; font-weight: 700;">Right: ${escapeHtml(getBasename(fileR))}</span>
+            <span class="badge" style="font-size: 10px;">${dimR.width}×${dimR.height}</span>
+          </div>
+          <div class="diff-image-card-body">
+            <img src="${urlR}" alt="${escapeHtml(fileR)}" />
+          </div>
+          <div class="diff-image-meta-bar">
+            <span>Dimensions: ${dimR.width}×${dimR.height}</span>
+            <span>${fileR.split('.').pop().toUpperCase()}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  body.innerHTML = `
+    <div class="diff-file-header-card" style="margin-bottom: 8px;">
+      <div class="diff-file-stats">
+        <div class="diff-path-chip" title="${escapeHtml(fileL)}">
+          <span style="font-weight: 700; color: var(--info);">L:</span>
+          <code>${escapeHtml(getBasename(fileL))}</code>
+          <span class="badge" style="font-size: 9px; padding: 1px 4px; margin-left: 4px;">${dimL.width}×${dimL.height}</span>
+        </div>
+        <span style="color: var(--text-dim); font-size: 11px;">⟷</span>
+        <div class="diff-path-chip" title="${escapeHtml(fileR)}">
+          <span style="font-weight: 700; color: #c084fc;">R:</span>
+          <code>${escapeHtml(getBasename(fileR))}</code>
+          <span class="badge" style="font-size: 9px; padding: 1px 4px; margin-left: 4px;">${dimR.width}×${dimR.height}</span>
+        </div>
+        <span class="badge badge-accent" style="font-size: 9.5px; margin-left: 4px;">
+          ${dimL.width === dimR.width && dimL.height === dimR.height ? '✔ Same Dimensions' : '≠ Dimension Mismatch'}
+        </span>
+      </div>
+      <div style="display: flex; gap: 4px; align-items: center;">
+        <button class="btn btn-sm" onclick="triggerDiff(false)"><i data-lucide="arrow-left"></i> Back to Folders</button>
+      </div>
+    </div>
+    <div class="diff-image-studio">
+      ${stageHtml}
+    </div>
+  `;
+
+  if (mode === 'swipe') {
+    const swipeBox = document.getElementById('diff-image-swipe-box');
+    if (swipeBox) setupImageSwipeSlider(swipeBox);
+  }
+
+  if (window.lucide) lucide.createIcons({ root: body });
+}
+
+function setupImageSwipeSlider(container) {
+  if (!container) return;
+  const slider = container.querySelector('.diff-swipe-slider');
+  const overlay = container.querySelector('.diff-swipe-overlay');
+  if (!slider || !overlay) return;
+
+  let isSliding = false;
+  const setPosition = (clientX) => {
+    const rect = container.getBoundingClientRect();
+    const x = Math.max(0, Math.min(rect.width, clientX - rect.left));
+    const percent = (x / rect.width) * 100;
+    slider.style.left = `${percent}%`;
+    overlay.style.width = `${percent}%`;
+  };
+
+  slider.addEventListener('mousedown', (e) => {
+    isSliding = true;
+    e.preventDefault();
+  });
+  window.addEventListener('mousemove', (e) => {
+    if (isSliding) setPosition(e.clientX);
+  });
+  window.addEventListener('mouseup', () => {
+    isSliding = false;
+  });
+
+  slider.addEventListener('touchstart', (e) => {
+    isSliding = true;
+  }, { passive: true });
+  window.addEventListener('touchmove', (e) => {
+    if (isSliding && e.touches[0]) setPosition(e.touches[0].clientX);
+  }, { passive: true });
+  window.addEventListener('touchend', () => {
+    isSliding = false;
+  });
+}
+
+function getImageDimensions(url) {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight, ok: true });
+    img.onerror = () => resolve({ width: 0, height: 0, ok: false });
+    img.src = url;
+  });
+}
+
+function mountDockedDiff(paneIndex) {
+  const host = document.getElementById(`docked-diff-host-${paneIndex}`);
+  if (!host) return;
+
+  host.innerHTML = `
+    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+      <div class="diff-header" style="min-height: 36px; height: 36px; padding: 0 8px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
+        <div style="display: flex; align-items: center; gap: 6px;">
+          <img src="assets/diff.webp" alt="Compare" style="width: 15px; height: 15px; object-fit: contain;">
+          <span style="font-weight: 700; font-size: 12px; color: var(--text-main);">Compare & Diff</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button class="btn btn-icon" onclick="undockToolFromPane(${paneIndex})" title="Float into Window" style="width: 26px; height: 26px;"><i data-lucide="external-link" style="width: 13px; height: 13px;"></i></button>
+        </div>
+      </div>
+      <div id="docked-diff-body-${paneIndex}" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 8px;"></div>
+    </div>
+  `;
+  if (window.lucide) lucide.createIcons({ root: host });
+  const dockedBody = document.getElementById(`docked-diff-body-${paneIndex}`);
+  if (currentFolderDiffData) {
+    renderFolderDiff(currentFolderDiffData, currentDiffFilter, dockedBody);
+  } else {
+    triggerDiff(false, dockedBody);
   }
 }
 
@@ -37325,6 +38132,10 @@ function dockToolToPane(toolName, paneIndex) {
   else if (toolName === 'shares') {
     closeModal('shares-manager-modal');
   }
+  // 12. Compare & Diff: hide floating diff window & pill
+  else if (toolName === 'diff' || toolName === 'compare') {
+    closeFloatingDiff();
+  }
 
   rebuildPaneDOM(paneIndex);
   showToast(`Docked ${toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
@@ -37392,6 +38203,8 @@ function undockToolFromPane(paneIndex) {
     openPdfToolModal();
   } else if (tool === 'shares') {
     openSharesManager();
+  } else if (tool === 'diff' || tool === 'compare') {
+    openFloatingDiff();
   } else if (tool === 'diskusage' || tool === 'du') {
     openDiskUsageModal();
   } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
@@ -37977,6 +38790,15 @@ function mountDockedTool(paneIndex) {
     `;
     setTimeout(() => {
       mountDockedDiskUsage(paneIndex);
+    }, 50);
+  }
+  // 19. DOCKED COMPARE & DIFF TOOL
+  else if (tool === 'diff' || tool === 'compare') {
+    mount.innerHTML = `
+      <div class="docked-diff-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-diff-host-${paneIndex}"></div>
+    `;
+    setTimeout(() => {
+      mountDockedDiff(paneIndex);
     }, 50);
   }
 

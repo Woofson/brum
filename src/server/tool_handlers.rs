@@ -68,6 +68,28 @@ pub async fn handle_diff_folders(
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Folder diff failed: {}", e)))
 }
 
+#[derive(Deserialize)]
+pub struct DiffChecksumRequest {
+    pub dir_left: String,
+    pub dir_right: String,
+    pub relative_paths: Vec<String>,
+}
+
+pub async fn handle_diff_checksum(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<DiffChecksumRequest>,
+) -> Result<Json<crate::tools::diff::BatchChecksumResult>, (StatusCode, String)> {
+    let left = validate_path_access(&state, &headers, &payload.dir_left, false)?;
+    let right = validate_path_access(&state, &headers, &payload.dir_right, false)?;
+
+    Ok(Json(crate::tools::diff::calculate_checksums_for_entries(
+        &left,
+        &right,
+        &payload.relative_paths,
+    )))
+}
+
 pub async fn handle_convert_file(
     Json(payload): Json<crate::tools::converter::ConvertRequest>,
 ) -> Result<Json<crate::tools::converter::ConvertResponse>, (StatusCode, String)> {

@@ -4572,22 +4572,39 @@
     <span class="tetradog-pill-score" id="tetradog-pill-score">0</span>
   </div>
 
-  <!-- Diff & Comparison Modal -->
-  <div class="modal-overlay" id="diff-modal" style="z-index: 2840;">
-    <div class="modal-box diff-modal-box" id="diff-modal-box">
-      <div class="modal-header diff-modal-header">
-        <div class="diff-header-title-group" style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/diff.webp" alt="Compare" class="diff-header-icon" style="width: 16px; height: 16px; object-fit: contain;">
-          <span class="diff-header-title chewtoy-brand-text" style="font-weight: 700; font-size: 13px;">Comparison & Diff Engine</span>
-        </div>
-        <div class="diff-header-actions" style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon" id="diff-deep-btn" onclick="triggerDiff(true)" title="Deep Recursive SHA-256 Hash Compare"><i data-lucide="shield-check"></i></button>
-          <div class="header-sep"></div>
-          <button class="btn btn-icon modal-close-btn" onclick="closeModal('diff-modal')" title="Close Diff Engine (Esc)"><i data-lucide="x"></i></button>
-        </div>
-      </div>
-      <div class="modal-body diff-modal-body" id="diff-modal-body"></div>
+  <!-- ⚖️ Floating Compare / Diff Engine Window -->
+  <div class="floating-diff-window" id="floating-diff-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+    <div class="win-resize-handle win-resize-top" id="diff-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="diff-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="diff-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="diff-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="diff-resize-corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
     </div>
+
+    <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
+    <div class="modal-header diff-header" id="diff-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; cursor: grab;" id="diff-drag-handle">
+        <img src="assets/diff.webp" alt="Compare" class="diff-header-icon" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main); white-space: nowrap;">Compare & Diff</span>
+        <span id="diff-header-subtitle" class="badge" style="font-size: 10px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Folder Comparison</span>
+      </div>
+      <div class="diff-header-actions" style="display: flex; align-items: center; gap: 4px;">
+        <!-- Layout / View Switcher (for File Diffs: side-by-side vs unified vs swipe) -->
+        <div class="layout-btn-group" id="diff-view-modes" style="display: none; gap: 2px;">
+          <button class="btn btn-icon active" id="diff-mode-split" onclick="setFileDiffMode('split')" title="Side-by-Side (2 Columns)" style="width: 28px; height: 28px;"><i data-lucide="columns-2"></i></button>
+          <button class="btn btn-icon" id="diff-mode-unified" onclick="setFileDiffMode('unified')" title="Unified (Inline)" style="width: 28px; height: 28px;"><i data-lucide="align-justify"></i></button>
+          <button class="btn btn-icon" id="diff-mode-swipe" onclick="setFileDiffMode('swipe')" title="Swipe / Split Slider (Images)" style="width: 28px; height: 28px; display: none;"><i data-lucide="split"></i></button>
+        </div>
+        <button class="btn btn-icon desktop-only" id="btn-diff-dock" onclick="dockDiffToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-diff-maximize" onclick="toggleMaximizeDiff()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-diff-minimize" onclick="minimizeFloatingDiff()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" id="btn-diff-close" onclick="closeFloatingDiff()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+      </div>
+    </div>
+
+    <!-- 2. Window Content Body -->
+    <div class="diff-window-body" id="diff-modal-body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;"></div>
   </div>
 
   <!-- Floating Format Converter Window -->
@@ -7625,6 +7642,12 @@
   <div class="cad-pill" id="cad-pill" style="display: none;" onclick="restoreFloatingCadStudio()" title="Click to restore 3D CAD Studio">
     <i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="cad-pill-title" id="cad-pill-title">3D CAD Studio</span>
+  </div>
+
+  <!-- Compare & Diff Minimized Task Pill -->
+  <div class="diff-pill" id="diff-pill" style="display: none;" onclick="restoreFloatingDiff()" title="Click to restore Compare Tool (F9)">
+    <img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain;">
+    <span class="diff-pill-title" id="diff-pill-title">Compare Tool</span>
   </div>
 
   <!-- Comic Book (.cbz/.cbr) & EPUB In-Browser Reader Modal -->
