@@ -3094,6 +3094,14 @@
               </button>
             </div>
 
+            <!-- Shell Presets Datalist -->
+            <datalist id="terminal-shell-presets">
+              <option value="/usr/bin/fish"></option>
+              <option value="/bin/bash"></option>
+              <option value="/usr/bin/zsh"></option>
+              <option value="/bin/sh"></option>
+            </datalist>
+
             <!-- Modern User Cards Container -->
             <div id="users-cards-container" style="display: flex; flex-direction: column; gap: 14px;">
               <!-- Populated dynamically via JS -->
@@ -6892,6 +6900,10 @@
               <label style="font-size: 11px;">Home Directory:</label>
               <input type="text" id="new-user-home" class="pane-quick-filter" style="width: 100%; padding: 8px;" value="/" placeholder="/">
             </div>
+          </div>
+          <div class="form-group">
+            <label style="font-size: 11px;">Terminal Shell:</label>
+            <input type="text" id="new-user-shell" list="terminal-shell-presets" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="System Default (/etc/passwd)">
           </div>
           <div id="add-user-error" style="color: var(--danger); font-size: 11px; display: none;"></div>
         </div>

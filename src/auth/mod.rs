@@ -35,6 +35,8 @@ pub struct User {
     pub blocked_plugins: String,  // JSON array e.g. []
     #[serde(default)]
     pub auth_source: Option<String>,
+    #[serde(default)]
+    pub shell: Option<String>,
 }
 
 impl User {
@@ -154,6 +156,8 @@ pub struct Claims {
     #[serde(default)]
     pub token_id: Option<String>,
     pub exp: i64,
+    #[serde(default)]
+    pub shell: Option<String>,
 }
 
 fn default_allowed_roots_claims() -> Option<String> {
@@ -272,6 +276,7 @@ impl AuthManager {
                 blocked_plugins TEXT DEFAULT '[]',
                 is_pam INTEGER DEFAULT 0,
                 is_disabled INTEGER DEFAULT 0,
+                shell TEXT,
                 created_at TEXT NOT NULL
             )",
             [],
@@ -449,6 +454,7 @@ impl AuthManager {
         let _ = conn.execute("ALTER TABLE users ADD COLUMN can_install_plugins INTEGER DEFAULT 0", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN allowed_plugins TEXT DEFAULT '[\"*\"]'", []);
         let _ = conn.execute("ALTER TABLE users ADD COLUMN blocked_plugins TEXT DEFAULT '[]'", []);
+        let _ = conn.execute("ALTER TABLE users ADD COLUMN shell TEXT", []);
 
         let _ = conn.execute("ALTER TABLE shares ADD COLUMN allow_view INTEGER DEFAULT 1", []);
         let _ = conn.execute("ALTER TABLE shares ADD COLUMN allow_download INTEGER DEFAULT 1", []);
@@ -677,6 +683,7 @@ impl AuthManager {
             allowed_plugins: "[\"*\"]".to_string(),
             blocked_plugins: "[]".to_string(),
             auth_source: Some("database".to_string()),
+            shell: None,
         };
         user.resolve_avatar();
         self.invalidate_user_cache(username);
@@ -719,6 +726,7 @@ impl AuthManager {
             allowed_plugins: "[\"*\"]".to_string(),
             blocked_plugins: "[]".to_string(),
             auth_source: Some("oidc".to_string()),
+            shell: None,
         };
         user.resolve_avatar();
         self.invalidate_user_cache(username);
@@ -728,7 +736,7 @@ impl AuthManager {
     pub fn get_user_by_username(&self, username: &str) -> Result<Option<User>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash FROM users WHERE username = ?1"
+            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash, shell FROM users WHERE username = ?1"
         )?;
 
         let user = stmt.query_row(params![username], |row| {
@@ -762,6 +770,7 @@ impl AuthManager {
                 allowed_plugins: row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 blocked_plugins: row.get::<_, Option<String>>(15)?.unwrap_or_else(|| "[]".to_string()),
                 auth_source,
+                shell: row.get(17)?,
             };
             u.resolve_avatar();
             Ok(u)
@@ -773,7 +782,7 @@ impl AuthManager {
     pub fn list_users(&self) -> Result<Vec<User>, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.get_read_conn()?;
         let mut stmt = conn.prepare(
-            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash FROM users ORDER BY username ASC"
+            "SELECT id, username, nickname, full_name, bio, email, avatar_url, role, home_dir, is_pam, is_disabled, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, password_hash, shell FROM users ORDER BY username ASC"
         )?;
         let rows = stmt.query_map([], |row| {
             let is_pam = row.get::<_, i64>(9)? != 0;
@@ -806,6 +815,7 @@ impl AuthManager {
                 allowed_plugins: row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "[\"*\"]".to_string()),
                 blocked_plugins: row.get::<_, Option<String>>(15)?.unwrap_or_else(|| "[]".to_string()),
                 auth_source,
+                shell: row.get(17)?,
             };
             u.resolve_avatar();
             Ok(u)
@@ -901,6 +911,7 @@ impl AuthManager {
         allowed_plugins: Option<&str>,
         blocked_plugins: Option<&str>,
         is_disabled: bool,
+        shell: Option<Option<&str>>,
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let dis_int = if is_disabled { 1 } else { 0 };
@@ -921,6 +932,12 @@ impl AuthManager {
                 params![role, allowed_services, roots_str, can_inst_int, allowed_plugs_str, blocked_plugs_str, dis_int, username],
             )?
         };
+
+        if let Some(shell_opt) = shell {
+            let sh_val = shell_opt.map(|s| s.trim()).filter(|s| !s.is_empty());
+            conn.execute("UPDATE users SET shell = ?1 WHERE username = ?2", params![sh_val, username])?;
+        }
+
         self.invalidate_user_cache(username);
         Ok(affected > 0)
     }
@@ -942,7 +959,7 @@ impl AuthManager {
             let user_res = {
                 let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
                 let mut stmt = conn.prepare(
-                    "SELECT id, username, password_hash, role, home_dir, nickname, full_name, bio, email, avatar_url, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled FROM users WHERE username = ?1"
+                    "SELECT id, username, password_hash, role, home_dir, nickname, full_name, bio, email, avatar_url, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, shell FROM users WHERE username = ?1"
                 )?;
                 stmt.query_row(params![username], |row| {
                     Ok((
@@ -963,11 +980,12 @@ impl AuthManager {
                         row.get::<_, Option<String>>(14)?.unwrap_or_else(|| "[]".to_string()),
                         row.get::<_, Option<i64>>(15)?.unwrap_or(0) != 0,
                         row.get::<_, Option<i64>>(16)?.unwrap_or(0) != 0,
+                        row.get::<_, Option<String>>(17)?,
                     ))
                 }).optional()?
             };
 
-            if let Some((id, uname, hash_str, role, home_dir, nickname, full_name, bio, email, avatar_url, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled)) = user_res {
+            if let Some((id, uname, hash_str, role, home_dir, nickname, full_name, bio, email, avatar_url, allowed_services, allowed_roots, can_install_plugins, allowed_plugins, blocked_plugins, is_pam, is_disabled, shell)) = user_res {
                 if is_disabled {
                     return Err("Account is disabled. Please contact an administrator.".into());
                 }
@@ -994,6 +1012,7 @@ impl AuthManager {
                                 allowed_plugins,
                                 blocked_plugins,
                                 auth_source: Some("database".to_string()),
+                                shell,
                             };
                             u.resolve_avatar();
                             return Ok(u);
@@ -1095,6 +1114,7 @@ impl AuthManager {
                             allowed_plugins: "[\"*\"]".to_string(),
                             blocked_plugins: "[]".to_string(),
                             auth_source: Some("pam".to_string()),
+                            shell: None,
                         };
                         u.resolve_avatar();
                         return Ok(u);
@@ -1145,6 +1165,7 @@ impl AuthManager {
                     allowed_plugins: win_user.allowed_plugins,
                     blocked_plugins: win_user.blocked_plugins,
                     auth_source: Some("windows".to_string()),
+                    shell: None,
                 };
                 u.resolve_avatar();
                 return Ok(u);
@@ -1168,6 +1189,7 @@ impl AuthManager {
             allowed_roots: Some(user.allowed_roots.clone()),
             token_id: None,
             exp: expiration,
+            shell: user.shell.clone(),
         };
 
         let token = encode(
@@ -1227,6 +1249,7 @@ impl AuthManager {
             allowed_roots: Some(roots.clone()),
             token_id: Some(token_id.clone()),
             exp: exp_claim,
+            shell: None,
         };
 
         let raw_token = encode(
@@ -3112,12 +3135,14 @@ mod tests {
         assert_eq!(claims2.role, "user");
 
         // 3. Update user role in DB & verify cache is invalidated
-        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, false).unwrap();
+        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, false, Some(Some("/usr/bin/fish"))).unwrap();
         let claims3 = auth.verify_token(&token).unwrap();
         assert_eq!(claims3.role, "admin");
+        let user_updated = auth.get_user_by_username("alice").unwrap().unwrap();
+        assert_eq!(user_updated.shell.as_deref(), Some("/usr/bin/fish"));
 
         // 4. Disable user and verify immediate rejection
-        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, true).unwrap();
+        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, true, None).unwrap();
         let err = auth.verify_token(&token);
         assert!(err.is_err());
         assert_eq!(err.unwrap_err().to_string(), "User account is disabled");

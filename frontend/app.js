@@ -9369,6 +9369,10 @@ async function loadUsersTable() {
                   <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Home Directory Root</label>
                   <input type="text" id="user-home-${safeUname}" class="pane-quick-filter" value="${escapeHtml(u.home_dir || '/')}" style="width: 100%; height: 28px; padding: 4px 8px; font-size: 11px;" placeholder="/home/username">
                 </div>
+                <div>
+                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Terminal Shell</label>
+                  <input type="text" id="user-shell-${safeUname}" list="terminal-shell-presets" class="pane-quick-filter" value="${escapeHtml(u.shell || '')}" style="width: 100%; height: 28px; padding: 4px 8px; font-size: 11px;" placeholder="System Default (/etc/passwd)">
+                </div>
               </div>
 
               <div>
@@ -9477,9 +9481,11 @@ function toggleAllRootsCheck(username, checked) {
 async function saveUserRbac(username) {
   const roleSelect = document.getElementById(`user-role-${username}`);
   const homeInput = document.getElementById(`user-home-${username}`);
+  const shellInput = document.getElementById(`user-shell-${username}`);
   const disabledCb = document.getElementById(`user-disabled-${username}`);
   const role = roleSelect?.value || 'user';
   const home_dir = homeInput?.value || '/';
+  const shell = shellInput ? (shellInput.value.trim() || '') : null;
   const is_disabled = disabledCb ? disabledCb.checked : false;
 
   const services = ['local', 'smb', 'nfs', 's3', 'sftp', 'webdav', 'terminal', 'syncthing', 'converters', 'upload', 'download'];
@@ -9515,6 +9521,7 @@ async function saveUserRbac(username) {
         allowed_services: allowed_services,
         allowed_roots: allowed_roots.length > 0 ? allowed_roots : ['*'],
         home_dir: home_dir,
+        shell: shell,
         can_install_plugins: can_install_plugins,
         allowed_plugins: allowed_plugins.length > 0 ? allowed_plugins : ['*'],
         blocked_plugins: blocked_plugins,
@@ -9864,6 +9871,8 @@ function showAddUserPrompt() {
   document.getElementById('new-user-password').type = 'password';
   document.getElementById('new-user-role').value = 'user';
   document.getElementById('new-user-home').value = '/';
+  const shellInput = document.getElementById('new-user-shell');
+  if (shellInput) shellInput.value = '';
   const err = document.getElementById('add-user-error');
   if (err) {
     err.style.display = 'none';
@@ -9878,6 +9887,7 @@ async function submitAddUser() {
   const password = document.getElementById('new-user-password').value;
   const role = document.getElementById('new-user-role').value;
   const home_dir = document.getElementById('new-user-home').value.trim() || '/';
+  const shell = document.getElementById('new-user-shell')?.value.trim() || '';
   const err = document.getElementById('add-user-error');
 
   if (!username || !password) {
@@ -9892,7 +9902,7 @@ async function submitAddUser() {
     const resp = await fetch('/api/auth/users', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
-      body: JSON.stringify({ username, password, role, home_dir })
+      body: JSON.stringify({ username, password, role, home_dir, shell: shell || null })
     });
 
     if (resp.ok) {

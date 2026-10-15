@@ -316,6 +316,7 @@ pub async fn auth_middleware(
                 allowed_roots: Some("[\"*\"]".to_string()),
                 token_id: None,
                 exp: 9999999999,
+                shell: None,
             };
             req.extensions_mut().insert(claims);
 
@@ -363,6 +364,7 @@ pub async fn auth_middleware(
             allowed_roots: Some("[\"*\"]".to_string()),
             token_id: None,
             exp: 9999999999,
+            shell: None,
         };
         req.extensions_mut().insert(claims);
         return Ok(next.run(req).await);
@@ -556,6 +558,7 @@ pub fn extract_claims_or_local(
             allowed_roots: Some("[\"*\"]".to_string()),
             token_id: None,
             exp: 9999999999,
+            shell: None,
         });
     }
 

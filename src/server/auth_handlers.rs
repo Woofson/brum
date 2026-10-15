@@ -252,6 +252,7 @@ pub async fn handle_login(
                 allowed_plugins: "[\"*\"]".to_string(),
                 blocked_plugins: "[]".to_string(),
                 auth_source: None,
+                shell: None,
             }
         };
 
@@ -338,6 +339,7 @@ pub async fn handle_get_me(
             allowed_plugins: "[\"*\"]".to_string(),
             blocked_plugins: "[]".to_string(),
             auth_source: None,
+            shell: None,
         }));
     }
 
@@ -400,6 +402,7 @@ pub async fn handle_get_me(
                     allowed_plugins: "[\"*\"]".to_string(),
                     blocked_plugins: "[]".to_string(),
                     auth_source: if claims.is_pam { Some(if cfg!(windows) { "windows".to_string() } else { "pam".to_string() }) } else { None },
+                    shell: claims.shell,
                 }))
             }
             Err(_) => Err((StatusCode::UNAUTHORIZED, "Invalid token".to_string())),
@@ -586,6 +589,8 @@ pub struct UpdateUserRbacRequest {
     #[serde(default)]
     pub home_dir: Option<String>,
     #[serde(default)]
+    pub shell: Option<String>,
+    #[serde(default)]
     pub can_install_plugins: Option<bool>,
     #[serde(default)]
     pub allowed_plugins: Option<Vec<String>>,
@@ -616,6 +621,15 @@ pub async fn handle_update_user_rbac(
     let allowed_plugins_json = payload.allowed_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[\"*\"]".to_string()));
     let blocked_plugins_json = payload.blocked_plugins.map(|p| serde_json::to_string(&p).unwrap_or_else(|_| "[]".to_string()));
 
+    let shell_opt: Option<Option<&str>> = payload.shell.as_deref().map(|s| {
+        let trimmed = s.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed)
+        }
+    });
+
     let updated = state.auth.update_user_rbac(
         &username,
         &payload.role,
@@ -626,6 +640,7 @@ pub async fn handle_update_user_rbac(
         allowed_plugins_json.as_deref(),
         blocked_plugins_json.as_deref(),
         payload.is_disabled.unwrap_or(false),
+        shell_opt,
     )
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update user RBAC: {}", e)))?;
 
@@ -654,6 +669,8 @@ pub struct CreateUserRequest {
     pub role: String,
     pub home_dir: Option<String>,
     pub allowed_roots: Option<Vec<String>>,
+    #[serde(default)]
+    pub shell: Option<String>,
 }
 
 pub async fn handle_create_user(
@@ -681,8 +698,25 @@ pub async fn handle_create_user(
     let r = payload.role;
     let r_json = roots_json;
     let fh = final_home;
-    tokio::task::spawn_blocking(move || {
-        auth.create_user(&u, &p, &r, &fh, r_json.as_deref())
+    let shell_opt = payload.shell.filter(|s| !s.trim().is_empty());
+    tokio::task::spawn_blocking(move || -> Result<User, Box<dyn std::error::Error + Send + Sync>> {
+        let mut user = auth.create_user(&u, &p, &r, &fh, r_json.as_deref())?;
+        if let Some(sh) = shell_opt {
+            let _ = auth.update_user_rbac(
+                &u,
+                &r,
+                "[\"*\"]",
+                r_json.as_deref(),
+                Some(&fh),
+                None,
+                None,
+                None,
+                false,
+                Some(Some(&sh)),
+            );
+            user.shell = Some(sh);
+        }
+        Ok(user)
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("User creation task failed: {}", e)))?
@@ -758,6 +792,7 @@ pub async fn handle_unlock_session(
                 allowed_plugins: "[\"*\"]".to_string(),
                 blocked_plugins: "[]".to_string(),
                 auth_source: None,
+                shell: None,
             }
         };
 

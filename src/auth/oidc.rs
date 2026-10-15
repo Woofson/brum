@@ -413,6 +413,7 @@ impl OidcManager {
                         Some(&u.allowed_plugins),
                         Some(&u.blocked_plugins),
                         u.is_disabled,
+                        None,
                     );
                     u.role = target_role.to_string();
                 }

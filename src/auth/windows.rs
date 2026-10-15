@@ -181,6 +181,7 @@ pub fn authenticate_windows_user(
         allowed_plugins: "[\"*\"]".to_string(),
         blocked_plugins: "[]".to_string(),
         auth_source: Some("windows".to_string()),
+        shell: None,
     };
     user.resolve_avatar();
 

@@ -109,6 +109,7 @@ pub fn extract_fleet_claims(
             allowed_roots: Some("[\"*\"]".to_string()),
             token_id: None,
             exp: 9999999999,
+            shell: None,
         });
     }
 
