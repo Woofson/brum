@@ -158,17 +158,35 @@ pub fn extract_terminal_claims(
 
     // 1. Check Authorization: Bearer <token>
     if let Some(auth_header) = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok()) {
-        if let Some(token_str) = auth_header.strip_prefix("Bearer ") {
-            if let Ok(claims) = state.auth.verify_token(token_str.trim()) {
-                return Ok(claims);
+        if let Some(token_str) = auth_header.strip_prefix("Bearer ").or_else(|| Some(auth_header)) {
+            let trimmed = token_str.trim();
+            if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                if let Ok(claims) = state.auth.verify_token(trimmed) {
+                    return Ok(claims);
+                }
+                let decoded = crate::server::middleware::percent_decode(trimmed);
+                if decoded != trimmed {
+                    if let Ok(claims) = state.auth.verify_token(&decoded) {
+                        return Ok(claims);
+                    }
+                }
             }
         }
     }
 
     // 2. Check query parameter ?token=... or ?cd_token=...
     if let Some(tok) = query.token.as_deref().or(query.cd_token.as_deref()) {
-        if let Ok(claims) = state.auth.verify_token(tok.trim()) {
-            return Ok(claims);
+        let trimmed = tok.trim();
+        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+            if let Ok(claims) = state.auth.verify_token(trimmed) {
+                return Ok(claims);
+            }
+            let decoded = crate::server::middleware::percent_decode(trimmed);
+            if decoded != trimmed {
+                if let Ok(claims) = state.auth.verify_token(&decoded) {
+                    return Ok(claims);
+                }
+            }
         }
     }
 
@@ -177,8 +195,17 @@ pub fn extract_terminal_claims(
         for pair in cookie_hdr.split(';') {
             let pair = pair.trim();
             if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                if let Ok(claims) = state.auth.verify_token(tok.trim()) {
-                    return Ok(claims);
+                let trimmed = tok.trim();
+                if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                    if let Ok(claims) = state.auth.verify_token(trimmed) {
+                        return Ok(claims);
+                    }
+                    let decoded = crate::server::middleware::percent_decode(trimmed);
+                    if decoded != trimmed {
+                        if let Ok(claims) = state.auth.verify_token(&decoded) {
+                            return Ok(claims);
+                        }
+                    }
                 }
             }
         }
@@ -454,6 +481,7 @@ fn split_origin(origin: &str) -> (Option<&str>, &str, Option<&str>) {
 
 pub async fn handle_terminal_ws(
     State(state): State<AppState>,
+    claims_ext: Option<axum::extract::Extension<Claims>>,
     headers: HeaderMap,
     Query(query): Query<TerminalQuery>,
     ws: WebSocketUpgrade,
@@ -473,12 +501,16 @@ pub async fn handle_terminal_ws(
         }
     }
 
-    // 1. Verify Authentication & Extract Claims
-    let claims = match extract_terminal_claims(&state, &headers, &query) {
-        Ok(c) => c,
-        Err((code, msg)) => {
-            warn!("Terminal WebSocket unauthorized connection attempt: {}", msg);
-            return (code, msg).into_response();
+    // 1. Verify Authentication & Extract Claims (prefer claims already verified by auth_middleware)
+    let claims = if let Some(axum::extract::Extension(c)) = claims_ext {
+        c
+    } else {
+        match extract_terminal_claims(&state, &headers, &query) {
+            Ok(c) => c,
+            Err((code, msg)) => {
+                warn!("Terminal WebSocket unauthorized connection attempt: {}", msg);
+                return (code, msg).into_response();
+            }
         }
     };
 
@@ -1046,6 +1078,25 @@ mod tests {
         let mut headers_cookie = HeaderMap::new();
         headers_cookie.insert(header::COOKIE, format!("cd_token={}; other=123", token).parse().unwrap());
         let claims = extract_terminal_claims(&state, &headers_cookie, &query_empty).unwrap();
+        assert_eq!(claims.sub, "testuser");
+
+        // 5. Percent-encoded query token -> Success
+        let encoded_token = token.replace('.', "%2E");
+        let query_encoded = TerminalQuery {
+            cwd: None,
+            cols: None,
+            rows: None,
+            token: Some(encoded_token),
+            cd_token: None,
+            instance_token: None,
+        };
+        let claims = extract_terminal_claims(&state, &headers, &query_encoded).unwrap();
+        assert_eq!(claims.sub, "testuser");
+
+        // 6. Stale/invalid cookie + valid query token -> Success
+        let mut headers_stale_cookie = HeaderMap::new();
+        headers_stale_cookie.insert(header::COOKIE, "cd_token=invalid_stale_token_signature; other=123".parse().unwrap());
+        let claims = extract_terminal_claims(&state, &headers_stale_cookie, &query_with_token).unwrap();
         assert_eq!(claims.sub, "testuser");
     }
 

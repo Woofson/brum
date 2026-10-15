@@ -214,6 +214,37 @@ pub fn is_public_route(path: &str) -> bool {
     false
 }
 
+/// Safely percent-decodes a URL-encoded string without panicking on malformed sequences.
+pub(crate) fn percent_decode(s: &str) -> String {
+    let bytes_in = s.as_bytes();
+    let mut bytes_out = Vec::with_capacity(bytes_in.len());
+    let mut i = 0;
+    while i < bytes_in.len() {
+        if bytes_in[i] == b'%' && i + 2 < bytes_in.len() {
+            let h1 = match bytes_in[i + 1] {
+                b'0'..=b'9' => Some(bytes_in[i + 1] - b'0'),
+                b'a'..=b'f' => Some(bytes_in[i + 1] - b'a' + 10),
+                b'A'..=b'F' => Some(bytes_in[i + 1] - b'A' + 10),
+                _ => None,
+            };
+            let h2 = match bytes_in[i + 2] {
+                b'0'..=b'9' => Some(bytes_in[i + 2] - b'0'),
+                b'a'..=b'f' => Some(bytes_in[i + 2] - b'a' + 10),
+                b'A'..=b'F' => Some(bytes_in[i + 2] - b'A' + 10),
+                _ => None,
+            };
+            if let (Some(d1), Some(d2)) = (h1, h2) {
+                bytes_out.push((d1 << 4) | d2);
+                i += 3;
+                continue;
+            }
+        }
+        bytes_out.push(bytes_in[i]);
+        i += 1;
+    }
+    String::from_utf8_lossy(&bytes_out).to_string()
+}
+
 pub async fn auth_middleware(
     State(state): State<AppState>,
     mut req: axum::extract::Request,
@@ -339,130 +370,169 @@ pub async fn auth_middleware(
 
     let is_pub = is_public_route(&path);
 
-    // 2. Attempt to extract token from Authorization header, Cookie, or query (query token allowed ONLY on WebSocket upgrade)
-    let token_opt = {
-        let headers = req.headers();
-        let from_header = headers
-            .get(header::AUTHORIZATION)
+    // 2. Collect candidate tokens in prioritized order.
+    // On WebSocket upgrade requests, the browser cannot attach custom Authorization headers
+    // and sends ambient cookies automatically. If ambient cookies are stale, an explicit
+    // client-provided query token (?token=... or ?cd_token=...) MUST take precedence over cookies.
+    // In all cases, multiple candidate tokens are tried so a stale cookie does not block a valid token.
+    let is_ws_upgrade = path.starts_with("/api/ws/")
+        || path.contains("/api/ws/")
+        || path == "/api/terminal/ws"
+        || path.ends_with("/api/terminal/ws")
+        || path.ends_with("/ws")
+        || req.headers().get(header::UPGRADE)
             .and_then(|v| v.to_str().ok())
-            .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty() && s != "undefined" && s != "null");
+            .map(|v| v.eq_ignore_ascii_case("websocket"))
+            .unwrap_or(false);
 
-        let from_cookie = headers
-            .get(header::COOKIE)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|cookie_str| {
-                for pair in cookie_str.split(';') {
-                    let pair = pair.trim();
-                    if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                        let trimmed = tok.trim();
-                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
-                            return Some(trimmed.to_string());
-                        }
-                    }
+    let mut query_token = None;
+    if let Some(q) = req.uri().query() {
+        for pair in q.split('&') {
+            if let Some(tok) = pair.strip_prefix("token=").or_else(|| pair.strip_prefix("cd_token=")) {
+                let trimmed = tok.trim();
+                if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                    query_token = Some(trimmed.to_string());
+                    break;
                 }
-                None
-            });
+            }
+        }
+    }
 
-        let is_ws_upgrade = path.starts_with("/api/ws/")
-            || path == "/api/terminal/ws"
-            || path.ends_with("/api/terminal/ws")
-            || path.ends_with("/ws")
-            || headers.get(header::UPGRADE)
-                .and_then(|v| v.to_str().ok())
-                .map(|v| v.eq_ignore_ascii_case("websocket"))
-                .unwrap_or(false);
+    let mut candidates: Vec<String> = Vec::new();
 
-        let from_query = if is_ws_upgrade {
-            req.uri().query().and_then(|q| {
-                for pair in q.split('&') {
-                    if let Some(tok) = pair.strip_prefix("token=").or_else(|| pair.strip_prefix("cd_token=")) {
-                        let trimmed = tok.trim();
-                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
-                            return Some(trimmed.to_string());
-                        }
+    // A. Explicit Authorization header (Bearer ...)
+    if let Some(h) = req.headers()
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty() && *s != "undefined" && *s != "null")
+    {
+        let decoded = percent_decode(h);
+        if decoded != h {
+            candidates.push(decoded);
+        }
+        candidates.push(h.to_string());
+    }
+
+    // B. Query parameter (prioritized before ambient cookies on WebSocket upgrade requests)
+    if is_ws_upgrade {
+        if let Some(ref tok) = query_token {
+            let decoded = percent_decode(tok);
+            if decoded != *tok {
+                candidates.push(decoded);
+            }
+            candidates.push(tok.clone());
+        }
+    }
+
+    // C. Cookie header (cd_token=... or token=...)
+    if let Some(cookie_str) = req.headers().get(header::COOKIE).and_then(|v| v.to_str().ok()) {
+        for pair in cookie_str.split(';') {
+            let pair = pair.trim();
+            if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
+                let trimmed = tok.trim();
+                if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
+                    let decoded = percent_decode(trimmed);
+                    if decoded != trimmed {
+                        candidates.push(decoded);
                     }
+                    candidates.push(trimmed.to_string());
                 }
-                None
-            })
-        } else {
-            None
-        };
+            }
+        }
+    }
 
-        from_header.or(from_cookie).or(from_query)
-    };
+    // D. Query parameter fallback for non-WS requests (if applicable)
+    if !is_ws_upgrade {
+        if let Some(ref tok) = query_token {
+            let decoded = percent_decode(tok);
+            if decoded != *tok {
+                candidates.push(decoded);
+            }
+            candidates.push(tok.clone());
+        }
+    }
 
     let client_ip = resolve_client_ip(req.headers(), None, &state.config.server.trusted_proxies);
     let origin_str = req.headers().get(header::ORIGIN).and_then(|v| v.to_str().ok()).unwrap_or("-");
 
-    match token_opt {
-        Some(token) if !token.is_empty() => {
-            match state.auth.verify_token(&token) {
-                Ok(claims) => {
-                    tracing::debug!(
-                        client_ip = %client_ip,
-                        user = %claims.sub,
-                        role = %claims.role,
-                        origin = %origin_str,
-                        path = %path,
-                        "Request authenticated"
-                    );
-                    req.extensions_mut().insert(claims);
-                    Ok(next.run(req).await)
-                }
-                Err(err) => {
-                    if is_pub {
-                        tracing::trace!(
-                            client_ip = %client_ip,
-                            path = %path,
-                            origin = %origin_str,
-                            "Public route accessed with unverified token"
-                        );
-                        Ok(next.run(req).await)
-                    } else {
-                        tracing::warn!(
-                            client_ip = %client_ip,
-                            path = %path,
-                            origin = %origin_str,
-                            error = %err,
-                            "Unauthorized request: invalid token"
-                        );
-                        Err((
-                            StatusCode::UNAUTHORIZED,
-                            Json(serde_json::json!({
-                                "error": format!("Unauthorized: {}", err),
-                                "code": "UNAUTHORIZED"
-                            })),
-                        ))
-                    }
-                }
+    let mut last_err = None;
+    let mut verified_claims = None;
+
+    for candidate in &candidates {
+        match state.auth.verify_token(candidate) {
+            Ok(claims) => {
+                verified_claims = Some(claims);
+                break;
+            }
+            Err(err) => {
+                last_err = Some(err);
             }
         }
-        _ => {
-            if is_pub {
-                tracing::trace!(
-                    client_ip = %client_ip,
-                    path = %path,
-                    origin = %origin_str,
-                    "Public route accessed"
-                );
-                Ok(next.run(req).await)
-            } else {
-                tracing::warn!(
-                    client_ip = %client_ip,
-                    path = %path,
-                    origin = %origin_str,
-                    "Unauthorized request: authentication credentials missing"
-                );
-                Err((
-                    StatusCode::UNAUTHORIZED,
-                    Json(serde_json::json!({
-                        "error": "Unauthorized: Authentication required",
-                        "code": "UNAUTHORIZED"
-                    })),
-                ))
-            }
+    }
+
+    if let Some(claims) = verified_claims {
+        tracing::debug!(
+            client_ip = %client_ip,
+            user = %claims.sub,
+            role = %claims.role,
+            origin = %origin_str,
+            path = %path,
+            "Request authenticated"
+        );
+        req.extensions_mut().insert(claims);
+        return Ok(next.run(req).await);
+    }
+
+    if let Some(err) = last_err {
+        if is_pub {
+            tracing::trace!(
+                client_ip = %client_ip,
+                path = %path,
+                origin = %origin_str,
+                "Public route accessed with unverified token"
+            );
+            Ok(next.run(req).await)
+        } else {
+            tracing::warn!(
+                client_ip = %client_ip,
+                path = %path,
+                origin = %origin_str,
+                error = %err,
+                "Unauthorized request: invalid token"
+            );
+            Err((
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "error": format!("Unauthorized: {}", err),
+                    "code": "UNAUTHORIZED"
+                })),
+            ))
+        }
+    } else {
+        if is_pub {
+            tracing::trace!(
+                client_ip = %client_ip,
+                path = %path,
+                origin = %origin_str,
+                "Public route accessed"
+            );
+            Ok(next.run(req).await)
+        } else {
+            tracing::warn!(
+                client_ip = %client_ip,
+                path = %path,
+                origin = %origin_str,
+                "Unauthorized request: authentication credentials missing"
+            );
+            Err((
+                StatusCode::UNAUTHORIZED,
+                Json(serde_json::json!({
+                    "error": "Unauthorized: Authentication required",
+                    "code": "UNAUTHORIZED"
+                })),
+            ))
         }
     }
 }
@@ -496,6 +566,12 @@ pub fn extract_claims_or_local(
             if let Ok(claims) = state.auth.verify_token(trimmed) {
                 return Ok(claims);
             }
+            let decoded = percent_decode(trimmed);
+            if decoded != trimmed {
+                if let Ok(claims) = state.auth.verify_token(&decoded) {
+                    return Ok(claims);
+                }
+            }
         }
     }
 
@@ -507,6 +583,12 @@ pub fn extract_claims_or_local(
                 if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
                     if let Ok(claims) = state.auth.verify_token(trimmed) {
                         return Ok(claims);
+                    }
+                    let decoded = percent_decode(trimmed);
+                    if decoded != trimmed {
+                        if let Ok(claims) = state.auth.verify_token(&decoded) {
+                            return Ok(claims);
+                        }
                     }
                 }
             }
@@ -1365,6 +1447,109 @@ pub fn resolve_client_ip(
         }
     }
     "127.0.0.1".to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::sync::Arc;
+
+    #[test]
+    fn test_percent_decode_basic() {
+        assert_eq!(percent_decode(""), "");
+        assert_eq!(percent_decode("simple_token_123"), "simple_token_123");
+        assert_eq!(percent_decode("hello%20world"), "hello world");
+        assert_eq!(percent_decode("foo%2Bbar%3Dbaz%2Fqux"), "foo+bar=baz/qux");
+        assert_eq!(percent_decode("token%2Ewith%2Edots"), "token.with.dots");
+    }
+
+    #[test]
+    fn test_percent_decode_malformed() {
+        assert_eq!(percent_decode("%"), "%");
+        assert_eq!(percent_decode("%2"), "%2");
+        assert_eq!(percent_decode("%zz"), "%zz");
+        assert_eq!(percent_decode("test%2Gextra"), "test%2Gextra");
+    }
+
+    fn create_test_state(config: crate::config::AppConfig) -> AppState {
+        let auth = crate::auth::AuthManager::new(
+            &config.server.database_path,
+            &config.server.jwt_secret,
+            config.server.session_duration_hours,
+            &config.auth.mode,
+            &config.auth.pam_service,
+            &config.auth.default_admin_user,
+            &config.auth.default_admin_pass,
+        ).unwrap();
+        let db = auth.db();
+        let auth_arc = Arc::new(auth);
+        let task_mgr = Arc::new(crate::tools::tasks::TaskManager::new());
+        let tag_mgr = Arc::new(crate::tools::tags::TagManager::new(db.clone()).unwrap());
+        let vault_mgr = Arc::new(crate::vfs::vault::VaultManager::new());
+        let backup_mgr = Arc::new(crate::tools::sync::BackupManager::new(db).unwrap());
+        let plugin_mgr = Arc::new(crate::plugins::PluginManager::new(
+            std::path::PathBuf::from("/tmp/system_plugins"),
+            std::path::PathBuf::from("/tmp/user_plugins"),
+            false,
+            "allow_all".to_string(),
+            vec!["*".to_string()],
+            vec![],
+        ));
+        let oidc_mgr = Arc::new(crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_arc.clone()));
+        AppState {
+            config: Arc::new(config),
+            auth: auth_arc,
+            oidc: oidc_mgr,
+            tasks: task_mgr,
+            tags: tag_mgr,
+            vaults: vault_mgr,
+            backup: backup_mgr,
+            plugins: plugin_mgr,
+            rate_limiter: Arc::new(crate::server::RateLimiter::new()),
+            instance_info: None,
+        }
+    }
+
+    #[test]
+    fn test_extract_claims_or_local_and_percent_decoding() {
+        let mut config = crate::config::AppConfig::default();
+        let tmp = tempfile::tempdir().unwrap();
+        config.server.database_path = tmp.path().join("mid_test.db").to_string_lossy().to_string();
+
+        let state = create_test_state(config);
+        let user = state.auth.create_user(
+            "bob",
+            "secretpass",
+            "admin",
+            "/home/bob",
+            Some("[\"*\"]"),
+        ).unwrap();
+        let token = state.auth.generate_token(&user).unwrap();
+
+        // 1. Missing token -> Err
+        let headers_empty = HeaderMap::new();
+        assert!(extract_claims_or_local(&state, &headers_empty).is_err());
+
+        // 2. Authorization header -> Ok
+        let mut headers_auth = HeaderMap::new();
+        headers_auth.insert(header::AUTHORIZATION, format!("Bearer {}", token).parse().unwrap());
+        let claims = extract_claims_or_local(&state, &headers_auth).unwrap();
+        assert_eq!(claims.sub, "bob");
+
+        // 3. Percent-encoded authorization header -> Ok
+        let mut headers_encoded = HeaderMap::new();
+        let enc_token = token.replace('.', "%2E");
+        headers_encoded.insert(header::AUTHORIZATION, format!("Bearer {}", enc_token).parse().unwrap());
+        let claims = extract_claims_or_local(&state, &headers_encoded).unwrap();
+        assert_eq!(claims.sub, "bob");
+
+        // 4. Stale cookie + valid Authorization header -> Ok
+        let mut headers_stale = HeaderMap::new();
+        headers_stale.insert(header::AUTHORIZATION, format!("Bearer {}", token).parse().unwrap());
+        headers_stale.insert(header::COOKIE, "cd_token=stale_invalid_signature".parse().unwrap());
+        let claims = extract_claims_or_local(&state, &headers_stale).unwrap();
+        assert_eq!(claims.sub, "bob");
+    }
 }
 
 

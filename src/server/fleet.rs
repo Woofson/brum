@@ -123,8 +123,15 @@ pub fn extract_fleet_claims(
 
     // 2. Check query parameter ?token=... or ?cd_token=... or ?auth=...
     if let Some(tok) = query.get("token").or_else(|| query.get("cd_token")).or_else(|| query.get("auth")) {
-        if let Ok(claims) = state.auth.verify_token(tok.trim()) {
+        let trimmed = tok.trim();
+        if let Ok(claims) = state.auth.verify_token(trimmed) {
             return Ok(claims);
+        }
+        let decoded = crate::server::middleware::percent_decode(trimmed);
+        if decoded != trimmed {
+            if let Ok(claims) = state.auth.verify_token(&decoded) {
+                return Ok(claims);
+            }
         }
     }
 
@@ -133,8 +140,15 @@ pub fn extract_fleet_claims(
         for pair in cookie_hdr.split(';') {
             let pair = pair.trim();
             if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                if let Ok(claims) = state.auth.verify_token(tok.trim()) {
+                let trimmed = tok.trim();
+                if let Ok(claims) = state.auth.verify_token(trimmed) {
                     return Ok(claims);
+                }
+                let decoded = crate::server::middleware::percent_decode(trimmed);
+                if decoded != trimmed {
+                    if let Ok(claims) = state.auth.verify_token(&decoded) {
+                        return Ok(claims);
+                    }
                 }
             }
         }

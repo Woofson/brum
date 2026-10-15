@@ -161,7 +161,7 @@ pub async fn handle_login(
     connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     Json(payload): Json<LoginRequest>,
-) -> Result<Json<LoginResponse>, (StatusCode, String)> {
+) -> Result<impl IntoResponse, (StatusCode, String)> {
     let peer_addr = connect_info.map(|ci| ci.0);
     let client_ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("login:{}", client_ip);
@@ -199,6 +199,22 @@ pub async fn handle_login(
             ));
         }
     }
+
+    let make_login_response = |token: String, user: User| -> axum::response::Response {
+        let max_age_secs = state.config.server.session_duration_hours * 3600;
+        let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
+        let cookie_header = format!(
+            "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
+            token,
+            max_age_secs,
+            secure_flag
+        );
+        let mut resp = Json(LoginResponse { token, user }).into_response();
+        if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
+            resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+        }
+        resp
+    };
 
     // Standalone / Auth Disabled bypass
     if !state.config.server.enable_auth || state.config.server.standalone {
@@ -242,7 +258,7 @@ pub async fn handle_login(
         state.rate_limiter.reset(&rate_key);
         state.rate_limiter.reset(&user_rate_key);
         let token = state.auth.generate_token(&user).unwrap_or_default();
-        return Ok(Json(LoginResponse { token, user }));
+        return Ok(make_login_response(token, user));
     }
 
     // Offload Argon2 password verification to blocking thread pool
@@ -266,7 +282,7 @@ pub async fn handle_login(
             let token = state.auth.generate_token(&user).map_err(|e| {
                 (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e))
             })?;
-            Ok(Json(LoginResponse { token, user }))
+            Ok(make_login_response(token, user))
         }
         Err(e) => {
             state.rate_limiter.record(&user_rate_key, 300);

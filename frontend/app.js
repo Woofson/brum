@@ -3765,7 +3765,9 @@ function populateThemeSelectors() {
 
 async function loadSystemUsersGroups() {
   try {
-    const res = await fetch('/api/system/users-groups');
+    const token = App.token || localStorage.getItem('cd_token') || '';
+    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
+    const res = await fetch('/api/system/users-groups', { headers });
     if (res.ok) {
       const data = await res.json();
       App.systemUsers = data.users;
@@ -28877,7 +28879,7 @@ function connectTerminal(cwd) {
   const rows = (termInstance && termInstance.rows > 0) ? termInstance.rows : 24;
   const cleanCwd = (cwd && typeof cwd === 'string') ? cwd : '/';
   const token = App.token || localStorage.getItem('cd_token') || '';
-  const tokenParam = token ? `&token=${encodeURIComponent(token)}` : '';
+  const tokenParam = token ? `&token=${encodeURIComponent(token)}&cd_token=${encodeURIComponent(token)}` : '';
 
   const activePaneIdx = (typeof App.activePaneIndex === 'number') ? App.activePaneIndex : (App.activePane ?? 0);
   const node = typeof getPaneNode === 'function' ? getPaneNode(activePaneIdx) : null;
@@ -28888,7 +28890,7 @@ function connectTerminal(cwd) {
     } else {
       const nodeWsBase = node.endpoint_url.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
       const nodeToken = node.auth_token || '';
-      const remoteTokenParam = nodeToken ? `&token=${encodeURIComponent(nodeToken)}` : '';
+      const remoteTokenParam = nodeToken ? `&token=${encodeURIComponent(nodeToken)}&cd_token=${encodeURIComponent(nodeToken)}` : '';
       url = `${nodeWsBase}/api/ws/terminal?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${remoteTokenParam}`;
     }
   } else {
