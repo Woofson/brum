@@ -942,7 +942,7 @@ pub struct TerminalConfig {
     pub drop_privileges: bool,
     #[serde(default)]
     pub default_shell: Option<String>,
-    #[serde(default)]
+    #[serde(default, alias = "user_shell")]
     pub user_shells: HashMap<String, String>,
 }
 
@@ -2171,6 +2171,14 @@ mod tests {
         assert_eq!(config.terminal.default_shell, Some("/bin/bash".to_string()));
         assert_eq!(config.terminal.user_shells.get("bolt"), Some(&"/usr/bin/fish".to_string()));
         assert_eq!(config.terminal.user_shells.get("alice"), Some(&"/bin/zsh".to_string()));
+
+        // Also accepts singular [terminal.user_shell] alias
+        let singular_toml = r#"
+            [terminal.user_shell]
+            bolt = "/usr/bin/fish"
+        "#;
+        let singular_cfg: AppConfig = toml::from_str(singular_toml).unwrap();
+        assert_eq!(singular_cfg.terminal.user_shells.get("bolt"), Some(&"/usr/bin/fish".to_string()));
     }
 
     #[test]
