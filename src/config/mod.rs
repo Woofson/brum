@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 use tracing::{info, warn};
@@ -941,6 +942,8 @@ pub struct TerminalConfig {
     pub drop_privileges: bool,
     #[serde(default)]
     pub default_shell: Option<String>,
+    #[serde(default)]
+    pub user_shells: HashMap<String, String>,
 }
 
 impl Default for TerminalConfig {
@@ -951,6 +954,7 @@ impl Default for TerminalConfig {
             allow_virtual_users: false,
             drop_privileges: true,
             default_shell: None,
+            user_shells: HashMap::new(),
         }
     }
 }
@@ -2153,6 +2157,10 @@ mod tests {
             allow_virtual_users = false
             drop_privileges = true
             default_shell = "/bin/bash"
+
+            [terminal.user_shells]
+            bolt = "/usr/bin/fish"
+            alice = "/bin/zsh"
         "#;
 
         let config: AppConfig = toml::from_str(sample_toml).unwrap();
@@ -2161,6 +2169,8 @@ mod tests {
         assert_eq!(config.terminal.allow_virtual_users, false);
         assert_eq!(config.terminal.drop_privileges, true);
         assert_eq!(config.terminal.default_shell, Some("/bin/bash".to_string()));
+        assert_eq!(config.terminal.user_shells.get("bolt"), Some(&"/usr/bin/fish".to_string()));
+        assert_eq!(config.terminal.user_shells.get("alice"), Some(&"/bin/zsh".to_string()));
     }
 
     #[test]

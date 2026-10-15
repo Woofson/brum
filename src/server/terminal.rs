@@ -584,12 +584,24 @@ pub async fn handle_terminal_ws(
 }
 
 #[cfg(not(windows))]
-fn resolve_unix_shell(config: &TerminalConfig, user_shell: Option<&str>) -> String {
+fn resolve_unix_shell(config: &TerminalConfig, username: Option<&str>, user_shell: Option<&str>) -> String {
+    // 1. Check per-user shell override in config ([terminal.user_shells])
+    if let Some(user) = username {
+        if let Some(s) = config.user_shells.get(user) {
+            if Path::new(s).exists() {
+                return s.clone();
+            }
+        }
+    }
+
+    // 2. Check global default_shell in config ([terminal])
     if let Some(ref s) = config.default_shell {
         if Path::new(s).exists() {
             return s.clone();
         }
     }
+
+    // 3. Check user's POSIX shell from /etc/passwd
     if let Some(s) = user_shell {
         if !s.is_empty()
             && Path::new(s).exists()
@@ -600,11 +612,15 @@ fn resolve_unix_shell(config: &TerminalConfig, user_shell: Option<&str>) -> Stri
             return s.to_string();
         }
     }
+
+    // 4. Check SHELL environment variable
     if let Ok(shell_env) = std::env::var("SHELL") {
         if Path::new(&shell_env).exists() {
             return shell_env;
         }
     }
+
+    // 5. Fallback to standard system shells
     if Path::new("/bin/bash").exists() {
         "/bin/bash".to_string()
     } else if Path::new("/usr/bin/bash").exists() {
@@ -642,7 +658,9 @@ async fn handle_terminal_socket(
 
     #[cfg(windows)]
     let mut cmd = {
-        let shell = if let Some(ref s) = terminal_config.default_shell {
+        let shell = if let Some(s) = terminal_config.user_shells.get(&claims.sub) {
+            s.clone()
+        } else if let Some(ref s) = terminal_config.default_shell {
             s.clone()
         } else if let Ok(comspec) = std::env::var("COMSPEC") {
             comspec
@@ -689,16 +707,23 @@ async fn handle_terminal_socket(
                     let mut c = CommandBuilder::new(su_bin);
                     c.arg("-l");
                     c.arg(&pu.name);
-                    if let Some(ref custom_shell) = terminal_config.default_shell {
-                        c.arg("-s");
-                        c.arg(custom_shell);
+                    let effective_shell = terminal_config
+                        .user_shells
+                        .get(&pu.name)
+                        .or_else(|| terminal_config.user_shells.get(&claims.sub))
+                        .or(terminal_config.default_shell.as_ref());
+                    if let Some(custom_shell) = effective_shell {
+                        if Path::new(custom_shell).exists() {
+                            c.arg("-s");
+                            c.arg(custom_shell);
+                        }
                     }
                     c.env("TERM", "xterm-256color");
                     c.env("COLORTERM", "truecolor");
                     (c, user_home)
                 } else {
                     // Authenticated user is root
-                    let shell = resolve_unix_shell(&terminal_config, Some(&pu.shell));
+                    let shell = resolve_unix_shell(&terminal_config, Some(&claims.sub), Some(&pu.shell));
                     let mut c = CommandBuilder::new(&shell);
                     c.env("TERM", "xterm-256color");
                     c.env("COLORTERM", "truecolor");
@@ -709,7 +734,7 @@ async fn handle_terminal_socket(
                 }
             } else {
                 // Virtual user when allow_virtual_users is true
-                let shell = resolve_unix_shell(&terminal_config, None);
+                let shell = resolve_unix_shell(&terminal_config, Some(&claims.sub), None);
                 let mut c = CommandBuilder::new(&shell);
                 c.env("TERM", "xterm-256color");
                 c.env("COLORTERM", "truecolor");
@@ -721,7 +746,7 @@ async fn handle_terminal_socket(
         } else {
             // Running as regular unprivileged daemon or non-root user
             let user_shell = posix_user.as_ref().map(|u| u.shell.as_str());
-            let shell = resolve_unix_shell(&terminal_config, user_shell);
+            let shell = resolve_unix_shell(&terminal_config, Some(&claims.sub), user_shell);
             let mut c = CommandBuilder::new(&shell);
             c.env("TERM", "xterm-256color");
             c.env("COLORTERM", "truecolor");
@@ -1219,5 +1244,26 @@ mod tests {
         cfg3.server.server_name = "https://fe.nb.arf.ac".to_string();
         let state3 = create_test_state(cfg3);
         assert!(is_ws_origin_allowed("https://fe.nb.arf.ac", &ext_headers, &state3));
+    }
+
+    #[test]
+    #[cfg(not(windows))]
+    fn test_resolve_unix_shell_user_override() {
+        let mut config = TerminalConfig::default();
+        config.default_shell = Some("/bin/bash".to_string());
+        config.user_shells.insert("bolt".to_string(), "/bin/sh".to_string());
+
+        // 1. User with explicit override -> returns user override
+        let shell_bolt = resolve_unix_shell(&config, Some("bolt"), Some("/bin/bash"));
+        assert_eq!(shell_bolt, "/bin/sh");
+
+        // 2. User without override -> falls back to default_shell
+        let shell_alice = resolve_unix_shell(&config, Some("alice"), Some("/bin/dash"));
+        assert_eq!(shell_alice, "/bin/bash");
+
+        // 3. User with non-existent shell override -> falls back to default_shell
+        config.user_shells.insert("charlie".to_string(), "/nonexistent/path/xyz".to_string());
+        let shell_charlie = resolve_unix_shell(&config, Some("charlie"), Some("/bin/sh"));
+        assert_eq!(shell_charlie, "/bin/bash");
     }
 }
