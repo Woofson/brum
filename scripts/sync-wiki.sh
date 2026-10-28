@@ -93,8 +93,8 @@ link_map = {
     'INSTALL.md': 'Installation-Guide',
     '../CHANGELOG.md': 'https://github.com/Woofson/brum/blob/main/CHANGELOG.md',
     'CHANGELOG.md': 'https://github.com/Woofson/brum/blob/main/CHANGELOG.md',
-    '../GEMINI.md': 'https://github.com/Woofson/brum/blob/main/GEMINI.md',
-    'GEMINI.md': 'https://github.com/Woofson/brum/blob/main/GEMINI.md',
+    '../RULES.md': 'https://github.com/Woofson/brum/blob/main/RULES.md',
+    'RULES.md': 'https://github.com/Woofson/brum/blob/main/RULES.md',
 }
 
 for src_rel, wiki_file in mapping.items():

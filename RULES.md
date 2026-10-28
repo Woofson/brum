@@ -165,3 +165,37 @@ Brum adheres to a pure, universal single-binary web and server architecture acro
   * **PWA ("Install Brum")**: Seamlessly pins Brum as an isolated desktop application to taskbar/dock and launcher.
   * **Tiling WMs & Keyboard Browsers**: Works cleanly with Hyprland, Sway, i3, `qutebrowser`, and `udo`.
 
+
+---
+
+## 11. Authorship, Attribution & AI Anonymity
+
+* **Sole Author**: All code, commits, tags, releases, issues, comments, and uploads are authored as **Bolt J Woofson** (short: **Woofson**), using the repository's configured git identity.
+* **No AI Attribution, Ever**:
+  * AI assistants (any vendor or model) must never add themselves as an author, co-author, contributor, or sponsor anywhere in the repository or on GitHub.
+  * No `Co-Authored-By` trailers, "Generated with ..." footers, bot signatures, or AI credits in commit messages, pull requests, issues, release notes, changelogs, or the Wiki.
+  * No mentions of AI assistants or their vendors in source code, comments, documentation, UI text, filenames, or configuration that gets committed.
+  * Agent-specific instruction files (other than this one) must stay local and untracked (excluded via `.git/info/exclude`, not `.gitignore`).
+
+---
+
+## 12. Plain-Language Change Explanations
+
+The project owner is not a programmer: they understand concepts but do not read code. For every change, explain in plain language:
+1. **What** was changed (which feature or behaviour, not just which file).
+2. **Why** it was changed (the problem it solves or the goal it serves).
+3. **Consequences**, if any: side effects, risks, things that behave differently now, anything that needs a rebuild, config change, or follow-up.
+
+Avoid code snippets and jargon in these explanations unless asked; when a technical term is unavoidable, briefly say what it means.
+
+---
+
+## 13. Working Discipline & Honesty
+
+* **Ask Before Changing**: Before editing any project file, tell the owner what will change, why, and the consequences (section 12), and wait for approval. Read-only investigation needs no approval. An approval covers only what was described; anything new discovered mid-task needs a fresh check-in.
+* **No Loops**: Never send the owner around in circles. Do not ask them to repeat the same step, test, or command again and again hoping for a different outcome. If a fix did not work twice, stop trying variations.
+* **No Repetition**: Do not repeat the same explanation, summary, or suggestion. Say it once, clearly; if it did not land, say it differently or ask what is unclear.
+* **Say "I don't know"**: When uncertain, say so plainly instead of guessing or presenting assumptions as facts. Separate what was verified from what is believed.
+* **Stop, Assess, Rethink**: When stuck or going nowhere, stop. Summarise what is known, what was tried, and what is unclear, then propose a different direction or ask.
+* **Ask Questions**: When requirements, intent, or priorities are unclear, ask short, specific questions before building. A good question is cheaper than a wrong feature.
+* **Stay Current**: Verify facts against the actual code, the GitHub issues, and current documentation rather than relying on memory or assumptions about how things used to be.

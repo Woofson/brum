@@ -34,7 +34,7 @@
   font-display: swap;
 }
 
-/* 🐕 Woofson Design Tokens - Golden Amber Charcoal (Default) */
+/* Woofson Design Tokens - Golden Amber Charcoal (Default) */
 :root,
 :root[data-theme="charcoal"],
 :root[data-theme="amber-charcoal"] {
@@ -75,7 +75,7 @@
   --shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 }
 
-/* 🐕 Woofson Amber Zink (Light Theme) */
+/* Woofson Amber Zink (Light Theme) */
 :root[data-theme="zink"] {
   --bg-dark: #fafafa;
   --bg-panel: #ffffff;
@@ -116,7 +116,7 @@
   user-select: none;
 }
 
-/* 🐕 Standardized Form Controls (Harmonized across Dark & Light themes) */
+/* Standardized Form Controls (Harmonized across Dark & Light themes) */
 input[type="text"],
 input[type="password"],
 input[type="search"],
@@ -7785,7 +7785,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   font-family: var(--font-mono);
 }
 
-/* ---------------- ⚖️ FLOATING COMPARE & DIFF ENGINE (RULE 9) ---------------- */
+/* ---------------- FLOATING COMPARE & DIFF ENGINE (RULE 9) ---------------- */
 .floating-diff-window {
   position: fixed;
   top: 60px;
@@ -10577,7 +10577,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 /* ==========================================================================
-   🐶 NOTEDOG NOTES & MARKDOWN STUDIO CHEWTOY (FLOATING & DOCKED)
+   NOTES & MARKDOWN STUDIO CORE FUNCTION (FLOATING & DOCKED)
    ========================================================================== */
 .floating-notedog-window {
   position: fixed;
@@ -11226,7 +11226,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 /* ==========================================================================
-   🗄️ DATABASE NOTES & ATTACHMENTS TRAY DESIGN LANGUAGE
+   DATABASE NOTES & ATTACHMENTS TRAY DESIGN LANGUAGE
    ========================================================================== */
 
 .notedog-storage-mode-bar {
@@ -11443,7 +11443,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 /* ==========================================================================
-   📱 CHEWTOYS & FLOATING UTILITIES RESPONSIVE ARCHITECTURE (PHONE & TABLET)
+   CHEWTOYS & FLOATING UTILITIES RESPONSIVE ARCHITECTURE (PHONE & TABLET)
    ========================================================================== */
 
 /* 1. Tablet & Phone Unified Non-Floating Rules (max-width: 1024px) */
@@ -11847,7 +11847,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 /* ==========================================================================
-   👻 PHONE VIEWPORT PANE BACKGROUND GHOST WATERMARK INDICATOR
+   PHONE VIEWPORT PANE BACKGROUND GHOST WATERMARK INDICATOR
    ========================================================================== */
 .pane-ghost-watermark {
   display: none;
@@ -13538,7 +13538,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🕹️ TETRADOG: CLASSIC ARCADE CHEWTOY & LEADERBOARD STYLES
+   TETRION: CLASSIC ARCADE CHEWTOY & LEADERBOARD STYLES
    ========================================================================== */
 
 .floating-tetradog-window {
@@ -15293,7 +15293,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🎬 MEDIAPLAYER UNIVERSAL CHEWTOY (FLOATING & DOCKED)
+   MEDIA PLAYER CORE FUNCTION (FLOATING & DOCKED)
    ========================================================================== */
 .floating-mediaplayer-window {
   position: fixed;
@@ -16060,7 +16060,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ============================================================================
-   🧩 CHEWTOYS & PLUGINS EXTENSION MANAGER & DYNAMIC HOST (.grr)
+   CHEWTOYS & PLUGINS EXTENSION MANAGER & DYNAMIC HOST (.grr)
    ============================================================================ */
 
 .chewtoy-dropzone {
@@ -16165,7 +16165,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🧩 FLOATING CHEWTOY EXTENSION WINDOW (.grr)
+   FLOATING CHEWTOY EXTENSION WINDOW (.grr)
    ========================================================================== */
 .floating-chewtoy-window {
   position: fixed;
@@ -16220,7 +16220,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🔍 SPOT! GREP SNIPPETS & FILE RESULTS
+   SPOT! GREP SNIPPETS & FILE RESULTS
    ========================================================================== */
 .spotlight-grep-snippet {
   font-family: var(--font-mono);
@@ -16256,7 +16256,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🧩 FLOATING MULTI-PART FILE SPLITTER & COMBINER
+   FLOATING MULTI-PART FILE SPLITTER & COMBINER
    ========================================================================== */
 .floating-splitter-window {
   position: fixed;
@@ -16338,7 +16338,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   📑 FLOATING PURE-RUST PDF POWER STUDIO
+   FLOATING PURE-RUST PDF POWER STUDIO
    ========================================================================== */
 .floating-pdf-window {
   position: fixed;
@@ -16420,7 +16420,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🔗 FLOATING SHARE MANAGER & PUBLIC LINK STUDIO
+   FLOATING SHARE MANAGER & PUBLIC LINK STUDIO
    ========================================================================== */
 .floating-shares-window {
   position: fixed;
@@ -16502,7 +16502,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   💾 FLOATING DISK USAGE & TREEMAP ANALYZER
+   FLOATING DISK USAGE & TREEMAP ANALYZER
    ========================================================================== */
 .floating-diskusage-window {
   position: fixed;
@@ -16584,7 +16584,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🏷️ FLOATING BATCH RENAMER CHEWTOY (Ctrl+M)
+   FLOATING BATCH RENAMER CORE FUNCTION (Ctrl+M)
    ========================================================================== */
 .floating-renamer-window {
   position: fixed;
@@ -16848,7 +16848,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🔬 FLOATING HEX EDITOR CHEWTOY
+   FLOATING HEX EDITOR CORE FUNCTION
    ========================================================================== */
 .floating-hexeditor-window {
   position: fixed;
@@ -17061,7 +17061,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🔍 FLOATING DUPLICATE FINDER CORE FUNCTION
+   FLOATING DUPLICATE FINDER CORE FUNCTION
    ========================================================================== */
 .floating-duplicates-window {
   position: fixed;
@@ -17288,7 +17288,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🏷️ FLOATING TAG EDITOR CORE FUNCTION
+   FLOATING TAG EDITOR CORE FUNCTION
    ========================================================================== */
 .floating-tageditor-window {
   position: fixed;
@@ -17391,7 +17391,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   📜 FLOATING LOG VIEWER CORE FUNCTION
+   FLOATING LOG VIEWER CORE FUNCTION
    ========================================================================== */
 .floating-logviewer-window {
   position: fixed;
@@ -17530,7 +17530,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   📱 ADAPTIVE VIEWPORT RESPONSIVENESS (Phone <600px, Tablet 600-1024px, PC >1024px)
+   ADAPTIVE VIEWPORT RESPONSIVENESS (Phone <600px, Tablet 600-1024px, PC >1024px)
    ========================================================================== */
 
 /* 1. Tablet Viewports (601px - 1024px) */
@@ -17742,7 +17742,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🧊 3D CAD STUDIO & MODEL VIEWER CORE FUNCTION
+   3D CAD STUDIO & MODEL VIEWER CORE FUNCTION
    ========================================================================== */
 .floating-cad-window {
   position: fixed;
@@ -17985,7 +17985,7 @@ body.standalone-mode .server-only-setting {
 }
 
 /* ==========================================================================
-   🔄 FLOATING FORMAT CONVERTER WINDOW
+   FLOATING FORMAT CONVERTER WINDOW
    ========================================================================== */
 .floating-converter-window {
   position: fixed;
