@@ -5,6 +5,32 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.4] - 2026-10-30
+
+### Security
+- **Access Control Hardening**: Tool, share, Git, vault and API token requests now go through the shared permission layer. Upgrading is strongly recommended, especially for multi-user installs.
+  - Git hooks no longer run from the Git tool, and repositories with settings that launch programs are refused there. The terminal is unaffected.
+  - Existing API tokens are limited to what their owner can access.
+  - Restricted users can no longer reach paths outside their allowed folders through tools. Admins follow the same folder rules in these tools.
+- **Dependency Updates**: Updated `zip`, `lopdf`, `rustls`, `rustls-webpki`, `webpki-roots`, `quinn-proto` and `libz-sys`. Remaining `zstd` advisories are tracked in #150.
+
+### Features
+- **Triple Split 2+1 Layout (Fixes #148)**: Mirrored Triple Split with the large pane on the right.
+- **Per-User Terminal Shells**: Added `[terminal.user_shells]` mapping, a singular `[terminal.user_shell]` alias, and shell settings in Users & RBAC.
+- **Compare Tool**: Floating and docking, align actions, image viewer, sort filters, folders-first, dotfiles toggle and column sorting (Fixes #146).
+
+### Fixes
+- **Docked Terminal (Fixes #149)**: Refreshing panes no longer clears a docked terminal.
+- **Terminal Size**: A terminal docked right after opening now always reports its real size.
+- **tmux**: Brum terminals no longer inherit tmux session markers when Brum itself runs inside tmux.
+- **Firefox**: Double-click opens files and folders again in list, grid and compact views.
+- **Ko-fi Button**: Now served from local assets so the page security policy no longer blocks it.
+- **Terminal Sessions**: Query tokens are prioritized on WebSocket upgrades, and session cookies sync across reverse proxies.
+
+### Maintenance
+- Added an automated workflow running tests, code quality checks and a dependency audit on every push.
+- `scripts/release.sh` no longer deletes SQLite databases from the project folder during cleanup.
+
 ## [1.9.0] - 2026-10-13
 
 ### Architecture & Performance

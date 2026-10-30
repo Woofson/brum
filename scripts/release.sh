@@ -83,7 +83,7 @@ echo "======================================================"
 # 1. CLEANUP TEMPORARY FILES & SCRATCH ARTIFACTS
 # ------------------------------------------------------------------------------
 echo "🧹 Cleaning up temporary logs, scratch files, and build caches..."
-rm -f *.log *.tmp *.dump *.dmp parubrum*.txt brum*.txt parucommanderdog*.txt commanderdog*.txt *.db *.db-journal *.sqlite*
+rm -f *.log *.tmp *.dump *.dmp parubrum*.txt brum*.txt parucommanderdog*.txt commanderdog*.txt
 rm -rf dist /tmp/aur-* /tmp/deb-pkg /tmp/apk-pkg /tmp/brum-* /tmp/commanderdog-*
 
 # ------------------------------------------------------------------------------
