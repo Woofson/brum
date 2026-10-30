@@ -574,7 +574,7 @@ async fn save_uploaded_note_attachment(
     let attachments_dir = crate::tools::notedog::get_notes_attachments_dir();
     let _ = std::fs::create_dir_all(&attachments_dir);
 
-    while let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
+    if let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
         let original_name = sanitize_uploaded_file_name(field.file_name().unwrap_or("attachment"));
         let content_type = field.content_type().unwrap_or("application/octet-stream").to_string();
         let data = field.bytes().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;

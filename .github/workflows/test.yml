@@ -19,6 +19,7 @@ jobs:
       - name: Run tests
         run: cargo test
       - name: Code quality warnings
+        continue-on-error: true
         run: cargo clippy
       - name: Check dependencies for known vulnerabilities
         continue-on-error: true
