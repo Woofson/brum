@@ -143,8 +143,8 @@ impl PdfEngine {
             let objects = documents_objects.remove(&doc_idx).unwrap_or_default();
             for (obj_id, obj_val) in objects {
                 if let Ok(dict) = obj_val.as_dict() {
-                    let is_catalog = dict.get(b"Type").and_then(|t| t.as_name_str()).map_or(false, |n| n == "Catalog");
-                    let is_pages = dict.get(b"Type").and_then(|t| t.as_name_str()).map_or(false, |n| n == "Pages");
+                    let is_catalog = dict.get(b"Type").and_then(|t| t.as_name()).map_or(false, |n| n == b"Catalog");
+                    let is_pages = dict.get(b"Type").and_then(|t| t.as_name()).map_or(false, |n| n == b"Pages");
 
                     if is_catalog {
                         if catalog_object.is_none() {
