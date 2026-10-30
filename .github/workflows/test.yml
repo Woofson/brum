@@ -1,0 +1,27 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install system libraries
+        run: sudo apt-get update && sudo apt-get install -y pkg-config libssl-dev libssh2-1-dev libsqlite3-dev libpam0g-dev zlib1g-dev libbz2-dev cmake clang build-essential
+      - name: Run tests
+        run: cargo test
+      - name: Code quality warnings
+        run: cargo clippy
+      - name: Check dependencies for known vulnerabilities
+        continue-on-error: true
+        run: |
+          cargo install cargo-audit --locked
+          cargo audit
