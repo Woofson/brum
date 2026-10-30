@@ -1,6 +1,6 @@
 [package]
 name = "brum"
-version = "1.12.2"
+version = "1.12.3"
 edition = "2021"
 authors = ["Bolt J Woofson <bolt@boop.no>"]
 description = "Multi-Pane Web Environment (File Commander/Manager) - By Woofson"
@@ -64,7 +64,7 @@ chrono = { version = "0.4", features = ["serde"] }
 walkdir = "2.5"
 rayon = "1.10"
 similar = { version = "2.6", features = ["inline", "bytes"] }
-zip = { version = "2.2", default-features = false, features = ["deflate", "bzip2", "time"] }
+zip = { version = "9", default-features = false, features = ["deflate", "bzip2", "time"] }
 tar = "0.4"
 flate2 = "1.0"
 bzip2 = "0.4"

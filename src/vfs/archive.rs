@@ -117,7 +117,7 @@ impl ArchiveHandler {
             for i in 0..zip.len() {
                 let file = zip.by_index(i)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                let raw_name = file.name().to_string();
+                let raw_name = file.name().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?.to_string();
                 let is_dir = file.is_dir() || raw_name.ends_with('/');
                 let trimmed = raw_name.trim_matches('/');
 
@@ -644,7 +644,7 @@ impl ArchiveHandler {
             for i in 0..zip.len() {
                 let mut f = zip.by_index(i)
                     .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?;
-                if f.name().trim_matches('/') == clean_inner {
+                if f.name().map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))?.trim_matches('/') == clean_inner {
                     let mut buffer = Vec::new();
                     let size = f.size();
                     if max_bytes > 0 {
@@ -949,8 +949,8 @@ impl ArchiveHandler {
 
         for i in 0..zip.len() {
             let name = match zip.name_for_index(i) {
-                Some(n) => n.replace('\\', "/"),
-                None => continue,
+                Some(Ok(n)) => n.replace('\\', "/"),
+                _ => continue,
             };
             let clean = name.trim_start_matches('/');
             if clean.is_empty() {
@@ -1345,7 +1345,7 @@ impl ArchiveHandler {
                     None => {
                         return Err(std::io::Error::new(
                             std::io::ErrorKind::PermissionDenied,
-                            format!("Security error: path traversal attempt in zip entry '{}'", file.name()),
+                            format!("Security error: path traversal attempt in zip entry '{}'", file.name().unwrap_or_default()),
                         ));
                     }
                 };

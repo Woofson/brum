@@ -307,7 +307,7 @@ impl PluginManager {
 
         for i in 0..archive.len() {
             let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
-            let name = file.name().to_string();
+            let name = file.name().map_err(|e| e.to_string())?.to_string();
             if name == "plugin.toml" || name.ends_with("/plugin.toml") {
                 let mut buf = String::new();
                 file.read_to_string(&mut buf).map_err(|e| e.to_string())?;
@@ -348,7 +348,7 @@ impl PluginManager {
                 let enclosed = match file.enclosed_name() {
                     Some(p) => p.to_string_lossy().replace('\\', "/"),
                     None => {
-                        return Err(format!("Security error: path traversal attempt in plugin entry '{}'", file.name()));
+                        return Err(format!("Security error: path traversal attempt in plugin entry '{}'", file.name().unwrap_or_default()));
                     }
                 };
 
