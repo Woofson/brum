@@ -819,6 +819,20 @@ body {
   grid-row: 2 / 3;
 }
 
+/* Triple Split 2+1: mirrored variant, main pane (Panel 1) on the right */
+.panes-container.layout-triple-stacked.triple-mirrored {
+  grid-template-columns: minmax(0, var(--pane-split-triplestack-c1, 1fr)) minmax(0, var(--pane-split-triplestack-c0, 1fr));
+}
+
+.panes-container.layout-triple-stacked.triple-mirrored .pane:nth-child(1) {
+  grid-column: 2 / 3;
+}
+
+.panes-container.layout-triple-stacked.triple-mirrored .pane:nth-child(2),
+.panes-container.layout-triple-stacked.triple-mirrored .pane:nth-child(3) {
+  grid-column: 1 / 2;
+}
+
 .panes-container.layout-quad {
   grid-template-columns: minmax(0, var(--pane-split-quad-c0, 1fr)) minmax(0, var(--pane-split-quad-c1, 1fr));
   grid-template-rows: minmax(0, var(--pane-split-quad-r0, 1fr)) minmax(0, var(--pane-split-quad-r1, 1fr));
@@ -898,6 +912,12 @@ body {
   right: 0;
   width: 8px;
   cursor: col-resize;
+}
+
+/* Column split handle on the left edge (Triple Split 2+1) */
+.pane-resizer-handle-r.pane-resizer-handle-flip-l {
+  right: auto;
+  left: 0;
 }
 
 /* Horizontal Divider Handle (Row Split) */

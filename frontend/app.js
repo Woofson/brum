@@ -38,6 +38,16 @@ function setLayoutForViewport(layoutName, vp) {
   }
 }
 
+// Triple Split orientation: false = 1+2 (main pane left), true = 2+1 (main pane right)
+function isTripleMirrored() {
+  return localStorage.getItem('cd_triple_mirrored') === '1';
+}
+
+function switchTripleStacked(mirrored) {
+  localStorage.setItem('cd_triple_mirrored', mirrored ? '1' : '0');
+  switchLayout('layout-triple-stacked');
+}
+
 // ---------------- 📐 RESIZABLE PANES & SPLITTER DIVIDERS ----------------
 const DEFAULT_PANE_SPLITS = {
   'dual-v': [50, 50],
@@ -140,10 +150,12 @@ function attachPaneResizerHandles(paneEl, paneIndex, layout) {
       paneEl.appendChild(createHandle('triple-1', 'pane-resizer-handle-r', 'Drag to resize pane 2 & 3 (Double-click to reset)'));
     }
   } else if (currentLayout === 'layout-triple-stacked') {
+    const mirrored = isTripleMirrored();
     if (paneIndex === 0) {
-      paneEl.appendChild(createHandle('triplestack-col', 'pane-resizer-handle-r', 'Drag to resize columns (Double-click to reset 50/50)'));
+      const colHandleClass = mirrored ? 'pane-resizer-handle-r pane-resizer-handle-flip-l' : 'pane-resizer-handle-r';
+      paneEl.appendChild(createHandle('triplestack-col', colHandleClass, 'Drag to resize columns (Double-click to reset 50/50)'));
     } else if (paneIndex === 1) {
-      paneEl.appendChild(createHandle('triplestack-row', 'pane-resizer-handle-b', 'Drag to resize right rows (Double-click to reset 50/50)'));
+      paneEl.appendChild(createHandle('triplestack-row', 'pane-resizer-handle-b', `Drag to resize ${mirrored ? 'left' : 'right'} rows (Double-click to reset 50/50)`));
     }
   } else if (currentLayout === 'layout-quad') {
     if (paneIndex === 0) {
@@ -244,7 +256,10 @@ function attachPaneResizerEvents(handleEl) {
       } else if (resizerType === 'triplestack-col') {
         const minPct = Math.max(10, (120 / containerRect.width) * 100);
         const maxPct = 100 - minPct;
-        const pct = Math.min(Math.max((relX / containerRect.width) * 100, minPct), maxPct);
+        // Split is stored as [main pane, stacked column]; in 2+1 the main pane is on the right
+        const leftPct = (relX / containerRect.width) * 100;
+        const mainPct = isTripleMirrored() ? 100 - leftPct : leftPct;
+        const pct = Math.min(Math.max(mainPct, minPct), maxPct);
         currentSplits['triple-stacked-col'] = [pct, 100 - pct];
       } else if (resizerType === 'triplestack-row') {
         const minPct = Math.max(10, (80 / containerRect.height) * 100);
@@ -1622,6 +1637,7 @@ function getAllUserPreferences() {
     layout_pc: localStorage.getItem('cd_layout_pc') || localStorage.getItem('cd_layout') || 'layout-dual-vertical',
     layout_tablet: localStorage.getItem('cd_layout_tablet') || 'layout-dual-vertical',
     layout_phone: localStorage.getItem('cd_layout_phone') || 'layout-dual-vertical',
+    triple_mirrored: isTripleMirrored(),
     pane_start_paths: App.panes.map(p => p.path || null),
     pane_viewmodes: App.panes.map(p => p.viewMode || 'details'),
     pane_gridsizes: App.panes.map(p => p.gridSize || 'md'),
@@ -1776,6 +1792,7 @@ function applyAllUserPreferences(prefs) {
   if (prefs.layout_pc) localStorage.setItem('cd_layout_pc', prefs.layout_pc);
   if (prefs.layout_tablet) localStorage.setItem('cd_layout_tablet', prefs.layout_tablet);
   if (prefs.layout_phone) localStorage.setItem('cd_layout_phone', prefs.layout_phone);
+  if (typeof prefs.triple_mirrored === 'boolean') localStorage.setItem('cd_triple_mirrored', prefs.triple_mirrored ? '1' : '0');
   if (prefs.default_layout && !localStorage.getItem('cd_layout_pc')) {
     localStorage.setItem('cd_layout_pc', prefs.default_layout);
   }
@@ -3783,6 +3800,9 @@ function renderAllPanes(optimisticOnly = false) {
   const container = document.getElementById('panes-grid');
   if (!container) return;
   container.className = `panes-container ${App.layout}`;
+  if (App.layout === 'layout-triple-stacked' && isTripleMirrored()) {
+    container.classList.add('triple-mirrored');
+  }
   applyPaneSplits();
   container.innerHTML = '';
 
@@ -23407,7 +23427,8 @@ function setupEventListeners() {
   document.getElementById('layout-2v')?.addEventListener('click', () => switchLayout('layout-dual-vertical'));
   document.getElementById('layout-2h')?.addEventListener('click', () => switchLayout('layout-dual-horizontal'));
   document.getElementById('layout-3')?.addEventListener('click', () => switchLayout('layout-triple'));
-  document.getElementById('layout-3s')?.addEventListener('click', () => switchLayout('layout-triple-stacked'));
+  document.getElementById('layout-3s')?.addEventListener('click', () => switchTripleStacked(false));
+  document.getElementById('layout-3sm')?.addEventListener('click', () => switchTripleStacked(true));
   document.getElementById('layout-4')?.addEventListener('click', () => switchLayout('layout-quad'));
   updateActiveLayoutUI(App.layout);
 
@@ -23493,10 +23514,12 @@ function updateActiveLayoutUI(layoutName) {
     'layout-dual-vertical': { id: 'layout-2v', icon: 'columns-2', label: 'Dual Vertical Split' },
     'layout-dual-horizontal': { id: 'layout-2h', icon: 'rows-2', label: 'Dual Horizontal Split' },
     'layout-triple': { id: 'layout-3', icon: 'columns-3', label: 'Triple Columns' },
-    'layout-triple-stacked': { id: 'layout-3s', icon: 'custom-triple', label: 'Triple Split 1+2' },
+    'layout-triple-stacked': isTripleMirrored()
+      ? { id: 'layout-3sm', icon: 'custom-triple', label: 'Triple Split 2+1' }
+      : { id: 'layout-3s', icon: 'custom-triple', label: 'Triple Split 1+2' },
     'layout-quad': { id: 'layout-4', icon: 'grid-2x2', label: 'Quad Pane 2x2' }
   };
-  ['layout-1', 'layout-2v', 'layout-2h', 'layout-3', 'layout-3s', 'layout-4'].forEach(id => {
+  ['layout-1', 'layout-2v', 'layout-2h', 'layout-3', 'layout-3s', 'layout-3sm', 'layout-4'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
@@ -23507,8 +23530,11 @@ function updateActiveLayoutUI(layoutName) {
   const btn = document.getElementById('btn-layout-menu');
   if (btn) {
     btn.title = `Layout: ${current.label} (Click to switch)`;
-    if (current.id === 'layout-3s') {
-      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" x2="12" y1="3" y2="21"/><line x1="12" x2="21" y1="12" y2="12"/></svg>`;
+    if (current.id === 'layout-3s' || current.id === 'layout-3sm') {
+      const stackLine = current.id === 'layout-3sm'
+        ? '<line x1="3" x2="12" y1="12" y2="12"/>'
+        : '<line x1="12" x2="21" y1="12" y2="12"/>';
+      btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" x2="12" y1="3" y2="21"/>${stackLine}</svg>`;
     } else {
       btn.innerHTML = `<i data-lucide="${current.icon}"></i>`;
       if (window.lucide) {
