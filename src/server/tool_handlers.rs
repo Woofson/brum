@@ -15,7 +15,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use crate::server::AppState;
 use crate::server::middleware::{
-    extract_claims_or_local,
+    extract_claims_or_local, require_write, validate_custom_trash_dir,
     validate_path_access, sanitize_uploaded_file_name,
 };
 use crate::tools::diff::compare_files_text;
@@ -90,9 +90,39 @@ pub async fn handle_diff_checksum(
     )))
 }
 
+/// Validates a list of paths, stopping at the first one the caller may not access
+fn validate_paths(
+    state: &AppState,
+    headers: &HeaderMap,
+    paths: &[String],
+    is_write: bool,
+) -> Result<Vec<String>, (StatusCode, String)> {
+    paths.iter().map(|p| validate_path_access(state, headers, p, is_write)).collect()
+}
+
+/// Checks write access to the folder a tool writes into when no output path is given
+fn validate_sibling_output(
+    state: &AppState,
+    headers: &HeaderMap,
+    source_path: &str,
+) -> Result<(), (StatusCode, String)> {
+    let parent = Path::new(source_path).parent().unwrap_or(Path::new("."));
+    validate_path_access(state, headers, &parent.to_string_lossy(), true).map(|_| ())
+}
+
 pub async fn handle_convert_file(
-    Json(payload): Json<crate::tools::converter::ConvertRequest>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(mut payload): Json<crate::tools::converter::ConvertRequest>,
 ) -> Result<Json<crate::tools::converter::ConvertResponse>, (StatusCode, String)> {
+    payload.source_path = validate_path_access(&state, &headers, &payload.source_path, false)?;
+    payload.output_path = match payload.output_path.take().filter(|o| !o.trim().is_empty()) {
+        Some(output) => Some(validate_path_access(&state, &headers, &output, true)?),
+        None => {
+            validate_sibling_output(&state, &headers, &payload.source_path)?;
+            None
+        }
+    };
     crate::tools::converter::ConvertEngine::convert_file(&payload)
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Conversion failed: {}", e)))
@@ -106,9 +136,15 @@ pub struct DryRunRequest {
 }
 
 pub async fn handle_paranoid_dry_run(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<DryRunRequest>,
 ) -> Result<Json<crate::tools::paranoid::DryRunPreview>, (StatusCode, String)> {
-    ParanoidEngine::dry_run(&payload.action, &payload.sources, payload.destination.as_deref())
+    let sources = validate_paths(&state, &headers, &payload.sources, false)?;
+    let destination = payload.destination.as_deref()
+        .map(|d| validate_path_access(&state, &headers, d, false))
+        .transpose()?;
+    ParanoidEngine::dry_run(&payload.action, &sources, destination.as_deref())
         .map(Json)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Dry run failed: {}", e)))
 }
@@ -124,10 +160,15 @@ pub struct NoteDogInfoQuery {
 
 pub async fn handle_notedog_info(
     State(state): State<AppState>,
+    headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<NoteDogInfoQuery>,
 ) -> Result<Json<crate::tools::notedog::NoteDogInfo>, (StatusCode, String)> {
     let cfg_folder = state.config.notedog.notes_folder.as_str();
-    let info = crate::tools::notedog::scan_notedog_hierarchy(query.folder.as_deref(), Some(cfg_folder));
+    let folder = query.folder.as_deref()
+        .filter(|f| !f.trim().is_empty())
+        .map(|f| validate_path_access(&state, &headers, f, false))
+        .transpose()?;
+    let info = crate::tools::notedog::scan_notedog_hierarchy(folder.as_deref(), Some(cfg_folder));
     Ok(Json(info))
 }
 
@@ -141,10 +182,12 @@ pub struct NoteDogVersionsQuery {
 }
 
 pub async fn handle_notedog_versions(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     axum::extract::Query(query): axum::extract::Query<NoteDogVersionsQuery>,
-) -> Json<Vec<crate::tools::notedog::NoteVersionItem>> {
-    let p = Path::new(&query.path);
-    Json(crate::tools::notedog::list_note_versions(p))
+) -> Result<Json<Vec<crate::tools::notedog::NoteVersionItem>>, (StatusCode, String)> {
+    let valid_path = validate_path_access(&state, &headers, &query.path, false)?;
+    Ok(Json(crate::tools::notedog::list_note_versions(Path::new(&valid_path))))
 }
 
 #[derive(Deserialize)]
@@ -153,9 +196,12 @@ pub struct NoteDogSaveVersionRequest {
 }
 
 pub async fn handle_notedog_save_version(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogSaveVersionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let p = Path::new(&payload.path);
+    let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
+    let p = Path::new(&valid_path);
     if p.exists() {
         if let Ok(bytes) = std::fs::read(p) {
             let _ = crate::tools::notedog::create_note_snapshot(p, &bytes);
@@ -177,9 +223,12 @@ pub struct NoteDogDecryptResponse {
 }
 
 pub async fn handle_notedog_decrypt(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogDecryptRequest>,
 ) -> Result<Json<NoteDogDecryptResponse>, (StatusCode, String)> {
-    let p = Path::new(&payload.path);
+    let valid_path = validate_path_access(&state, &headers, &payload.path, false)?;
+    let p = Path::new(&valid_path);
     if !p.exists() {
         return Err((StatusCode::NOT_FOUND, "Note file not found".to_string()));
     }
@@ -187,7 +236,7 @@ pub async fn handle_notedog_decrypt(
     match crate::tools::notedog::decrypt_note_file(p, pass) {
         Ok(content) => Ok(Json(NoteDogDecryptResponse {
             content,
-            path: payload.path,
+            path: valid_path.clone(),
         })),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
@@ -209,9 +258,12 @@ pub struct NoteDogEncryptResponse {
 }
 
 pub async fn handle_notedog_encrypt(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogEncryptRequest>,
 ) -> Result<Json<NoteDogEncryptResponse>, (StatusCode, String)> {
-    let p = Path::new(&payload.path);
+    let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
+    let p = Path::new(&valid_path);
     let pass = payload.passphrase.as_deref().unwrap_or("notedog");
 
     if payload.convert_to_plain.unwrap_or(false) {
@@ -245,9 +297,12 @@ pub struct NoteDogCreateNoteRequest {
 }
 
 pub async fn handle_notedog_create_note(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogCreateNoteRequest>,
 ) -> Result<Json<crate::tools::notedog::NoteDogFile>, (StatusCode, String)> {
-    let sec_p = Path::new(&payload.section_path);
+    let valid_section = validate_path_access(&state, &headers, &payload.section_path, true)?;
+    let sec_p = Path::new(&valid_section);
     match crate::tools::notedog::create_new_note(
         sec_p,
         &payload.title,
@@ -268,9 +323,12 @@ pub struct NoteDogSectionActionRequest {
 }
 
 pub async fn handle_notedog_section_encrypt(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogSectionActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let p = Path::new(&payload.path);
+    let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
+    let p = Path::new(&valid_path);
     match crate::tools::notedog::encrypt_section_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
@@ -278,9 +336,12 @@ pub async fn handle_notedog_section_encrypt(
 }
 
 pub async fn handle_notedog_section_decrypt(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogSectionActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let p = Path::new(&payload.path);
+    let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
+    let p = Path::new(&valid_path);
     match crate::tools::notedog::decrypt_section_dir(p, &payload.passphrase) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
@@ -295,9 +356,12 @@ pub struct NoteDogNotebookActionRequest {
 }
 
 pub async fn handle_notedog_notebook_encrypt(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogNotebookActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let p = Path::new(&payload.path);
+    let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
+    let p = Path::new(&valid_path);
     match crate::tools::notedog::encrypt_notebook_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
@@ -305,9 +369,12 @@ pub async fn handle_notedog_notebook_encrypt(
 }
 
 pub async fn handle_notedog_notebook_decrypt(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<NoteDogNotebookActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let p = Path::new(&payload.path);
+    let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
+    let p = Path::new(&valid_path);
     match crate::tools::notedog::decrypt_notebook_dir(p, &payload.passphrase) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
@@ -973,23 +1040,44 @@ pub async fn handle_eject_usb(
 }
 
 pub async fn handle_search(
-    Json(payload): Json<crate::tools::search::SearchRequest>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(mut payload): Json<crate::tools::search::SearchRequest>,
 ) -> Result<Json<Vec<crate::tools::search::SearchResultItem>>, (StatusCode, String)> {
+    payload.path = validate_path_access(&state, &headers, &payload.path, false)?;
     crate::tools::search::SearchEngine::search(payload)
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Search failed: {}", e)))
 }
 
 pub async fn handle_duplicates_scan(
-    Json(payload): Json<crate::tools::duplicates::DuplicateScanRequest>,
-) -> Json<crate::tools::duplicates::DuplicateScanResponse> {
-    Json(crate::tools::duplicates::scan_duplicates(payload))
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(mut payload): Json<crate::tools::duplicates::DuplicateScanRequest>,
+) -> Result<Json<crate::tools::duplicates::DuplicateScanResponse>, (StatusCode, String)> {
+    payload.path = payload.path
+        .map(|p| validate_path_access(&state, &headers, &p, false))
+        .transpose()?;
+    payload.paths = payload.paths
+        .map(|paths| validate_paths(&state, &headers, &paths, false))
+        .transpose()?;
+    // With no folder given the scanner walks the whole disk
+    if payload.path.is_none() && payload.paths.as_ref().map_or(true, |p| p.is_empty()) {
+        validate_path_access(&state, &headers, "/", false)?;
+    }
+    Ok(Json(crate::tools::duplicates::scan_duplicates(payload)))
 }
 
 pub async fn handle_duplicates_clean(
-    Json(payload): Json<crate::tools::duplicates::DuplicateCleanRequest>,
-) -> Json<crate::tools::duplicates::DuplicateCleanResponse> {
-    Json(crate::tools::duplicates::clean_duplicates(payload))
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(mut payload): Json<crate::tools::duplicates::DuplicateCleanRequest>,
+) -> Result<Json<crate::tools::duplicates::DuplicateCleanResponse>, (StatusCode, String)> {
+    payload.files = payload.files
+        .map(|files| validate_paths(&state, &headers, &files, true))
+        .transpose()?;
+    payload.custom_trash_dir = validate_custom_trash_dir(&state, &headers, payload.custom_trash_dir.as_deref(), true)?;
+    Ok(Json(crate::tools::duplicates::clean_duplicates(payload)))
 }
 
 #[derive(Deserialize)]
@@ -998,30 +1086,49 @@ pub struct ReadMetadataQuery {
 }
 
 pub async fn handle_metadata_read(
+    State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<ReadMetadataQuery>,
 ) -> Result<Json<crate::tools::metadata::FileMetadataResponse>, (StatusCode, String)> {
-    crate::tools::metadata::read_file_metadata(&query.path)
+    let valid_path = validate_path_access(&state, &headers, &query.path, false)?;
+    crate::tools::metadata::read_file_metadata(&valid_path)
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, e))
 }
 
 pub async fn handle_metadata_update(
-    Json(payload): Json<crate::tools::metadata::UpdateMetadataRequest>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(mut payload): Json<crate::tools::metadata::UpdateMetadataRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    payload.path = validate_path_access(&state, &headers, &payload.path, true)?;
     crate::tools::metadata::update_file_metadata(payload)
         .map(|_| Json(serde_json::json!({ "success": true })))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
 }
 
 pub async fn handle_metadata_batch(
-    Json(payload): Json<crate::tools::metadata::BatchMetadataRequest>,
-) -> Json<crate::tools::metadata::BatchMetadataResponse> {
-    Json(crate::tools::metadata::batch_update_metadata(payload))
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(mut payload): Json<crate::tools::metadata::BatchMetadataRequest>,
+) -> Result<Json<crate::tools::metadata::BatchMetadataResponse>, (StatusCode, String)> {
+    payload.files = payload.files
+        .map(|files| validate_paths(&state, &headers, &files, true))
+        .transpose()?;
+    if let Some(updates) = payload.updates.as_mut() {
+        for update in updates.iter_mut() {
+            update.path = validate_path_access(&state, &headers, &update.path, true)?;
+        }
+    }
+    Ok(Json(crate::tools::metadata::batch_update_metadata(payload)))
 }
 
 pub async fn handle_logviewer_tail(
-    Query(payload): Query<crate::tools::logviewer::LogTailRequest>,
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(mut payload): Query<crate::tools::logviewer::LogTailRequest>,
 ) -> Result<Json<crate::tools::logviewer::LogTailResponse>, (StatusCode, String)> {
+    payload.path = validate_path_access(&state, &headers, &payload.path, false)?;
     crate::tools::logviewer::tail_log_file(payload)
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, e))
@@ -1040,7 +1147,8 @@ pub async fn handle_trash_summary(
     Query(query): Query<TrashQuery>,
 ) -> Result<Json<crate::tools::trash::TrashSummary>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
-    let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let requested_trash = validate_custom_trash_dir(&state, &headers, query.custom_trash_dir.as_deref(), false)?;
+    let custom_trash = requested_trash.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
     let use_native = query.windows_native_ops
         .or(query.windows_native_file_ops)
         .unwrap_or(state.config.paranoid.windows_native_file_ops);
@@ -1056,7 +1164,8 @@ pub async fn handle_trash_items(
     Query(query): Query<TrashQuery>,
 ) -> Result<Json<Vec<crate::tools::trash::TrashItem>>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
-    let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let requested_trash = validate_custom_trash_dir(&state, &headers, query.custom_trash_dir.as_deref(), false)?;
+    let custom_trash = requested_trash.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
     let use_native = query.windows_native_ops
         .or(query.windows_native_file_ops)
         .unwrap_or(state.config.paranoid.windows_native_file_ops);
@@ -1075,7 +1184,8 @@ pub async fn handle_trash_restore(
     if claims.role.eq_ignore_ascii_case("readonly") {
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot restore files".to_string()));
     }
-    let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let requested_trash = validate_custom_trash_dir(&state, &headers, payload.custom_trash_dir.as_deref(), true)?;
+    let custom_trash = requested_trash.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
     let use_native_ops = payload.windows_native_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
     let res = crate::tools::trash::TrashManager::restore_items(payload.items, custom_trash, Some(&claims.home_dir), use_native_ops);
     Ok(Json(res))
@@ -1090,7 +1200,8 @@ pub async fn handle_trash_empty(
     if claims.role.eq_ignore_ascii_case("readonly") {
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot empty trash".to_string()));
     }
-    let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let requested_trash = validate_custom_trash_dir(&state, &headers, payload.custom_trash_dir.as_deref(), true)?;
+    let custom_trash = requested_trash.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
     let use_native_ops = payload.windows_native_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
     let res = crate::tools::trash::TrashManager::empty_trash(custom_trash, Some(&claims.home_dir), use_native_ops);
     Ok(Json(res))
@@ -1130,7 +1241,8 @@ pub async fn handle_trash_delete(
     if claims.role.eq_ignore_ascii_case("readonly") {
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot delete items".to_string()));
     }
-    let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let requested_trash = validate_custom_trash_dir(&state, &headers, payload.custom_trash_dir.as_deref(), true)?;
+    let custom_trash = requested_trash.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
     let use_native_ops = payload.windows_native_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
     let res = crate::tools::trash::TrashManager::delete_items(payload.items, custom_trash, Some(&claims.home_dir), use_native_ops);
     Ok(Json(res))
@@ -1151,8 +1263,10 @@ pub struct SyncthingScanRequest {
 
 pub async fn handle_syncthing_scan(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Json(payload): Json<SyncthingScanRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    require_write(&extract_claims_or_local(&state, &headers)?)?;
     let client = crate::tools::syncthing::SyncthingClient::new(state.config.syncthing.clone());
     match client.trigger_scan(payload.folder_id.as_deref(), payload.subpath.as_deref()).await {
         Ok(msg) => Ok(Json(serde_json::json!({ "success": true, "message": msg }))),
@@ -1209,18 +1323,33 @@ pub struct GitPullRequest {
     path: String,
 }
 
+/// Gatekeeper for the Git tool: the folder and its repository must be accessible,
+/// and the repository's own settings must not ask Git to launch anything
+async fn authorize_git(
+    state: &AppState,
+    headers: &HeaderMap,
+    raw_path: &str,
+    is_write: bool,
+) -> Result<std::path::PathBuf, (StatusCode, String)> {
+    let valid_path = validate_path_access(state, headers, raw_path, is_write)?;
+    let repo = std::path::PathBuf::from(valid_path);
+    if let Some(root) = crate::tools::git::repo_root(&repo).await {
+        validate_path_access(state, headers, &root, is_write)?;
+    }
+    let is_admin = extract_claims_or_local(state, headers)?.role.eq_ignore_ascii_case("admin");
+    crate::tools::git::ensure_safe_repo_config(&repo, is_admin).await
+        .map_err(|e| (StatusCode::FORBIDDEN, e))?;
+    Ok(repo)
+}
+
 pub async fn handle_git_status(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(query): Query<GitPathQuery>,
 ) -> Result<Json<crate::tools::git::GitStatusResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::get_git_status(Path::new(&query.path)).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &query.path, false).await?;
+    let res = crate::tools::git::get_git_status(&repo).await;
+    Ok(Json(res))
 }
 
 pub async fn handle_git_diff(
@@ -1228,13 +1357,9 @@ pub async fn handle_git_diff(
     headers: HeaderMap,
     Query(query): Query<GitDiffQuery>,
 ) -> Result<Json<crate::tools::git::GitDiffResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::get_git_diff(Path::new(&query.path), query.file.as_deref(), query.staged.unwrap_or(false)).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &query.path, false).await?;
+    let res = crate::tools::git::get_git_diff(&repo, query.file.as_deref(), query.staged.unwrap_or(false)).await;
+    Ok(Json(res))
 }
 
 pub async fn handle_git_stage(
@@ -1242,13 +1367,9 @@ pub async fn handle_git_stage(
     headers: HeaderMap,
     Json(payload): Json<GitFilesRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::git_stage(Path::new(&payload.path), &payload.files).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let res = crate::tools::git::git_stage(&repo, &payload.files).await;
+    Ok(Json(res))
 }
 
 pub async fn handle_git_unstage(
@@ -1256,13 +1377,9 @@ pub async fn handle_git_unstage(
     headers: HeaderMap,
     Json(payload): Json<GitFilesRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::git_unstage(Path::new(&payload.path), &payload.files).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let res = crate::tools::git::git_unstage(&repo, &payload.files).await;
+    Ok(Json(res))
 }
 
 pub async fn handle_git_commit(
@@ -1270,13 +1387,9 @@ pub async fn handle_git_commit(
     headers: HeaderMap,
     Json(payload): Json<GitCommitRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::git_commit(Path::new(&payload.path), &payload.message).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let res = crate::tools::git::git_commit(&repo, &payload.message).await;
+    Ok(Json(res))
 }
 
 pub async fn handle_git_push(
@@ -1284,13 +1397,9 @@ pub async fn handle_git_push(
     headers: HeaderMap,
     Json(payload): Json<GitPushRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::git_push(Path::new(&payload.path), payload.remote.as_deref(), payload.branch.as_deref()).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let res = crate::tools::git::git_push(&repo, payload.remote.as_deref(), payload.branch.as_deref()).await;
+    Ok(Json(res))
 }
 
 pub async fn handle_git_pull(
@@ -1298,13 +1407,9 @@ pub async fn handle_git_pull(
     headers: HeaderMap,
     Json(payload): Json<GitPullRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::git_pull(Path::new(&payload.path)).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let res = crate::tools::git::git_pull(&repo).await;
+    Ok(Json(res))
 }
 
 pub async fn handle_git_log(
@@ -1312,13 +1417,9 @@ pub async fn handle_git_log(
     headers: HeaderMap,
     Query(query): Query<GitLogQuery>,
 ) -> Result<Json<Vec<crate::tools::git::GitCommitInfo>>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let res = crate::tools::git::get_git_log(Path::new(&query.path), query.count.unwrap_or(30)).await;
-        return Ok(Json(res));
-    }
-    Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
+    let repo = authorize_git(&state, &headers, &query.path, false).await?;
+    let res = crate::tools::git::get_git_log(&repo, query.count.unwrap_or(30)).await;
+    Ok(Json(res))
 }
 
 
@@ -1330,20 +1431,20 @@ pub async fn handle_split_file(
     headers: HeaderMap,
     Json(payload): Json<crate::tools::splitter::SplitRequest>,
 ) -> Result<Json<crate::tools::splitter::SplitResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let source_path = Path::new(&payload.source_path);
-        let dest_dir = payload.dest_dir.as_ref().map(|p| Path::new(p));
-        let chunk_size = payload.chunk_size_mb.max(1) * 1024 * 1024;
-        let gen_chk = payload.generate_checksum.unwrap_or(true);
+    let valid_source = validate_path_access(&state, &headers, &payload.source_path, false)?;
+    let valid_dest = match payload.dest_dir.as_deref() {
+        Some(dir) => Some(validate_path_access(&state, &headers, dir, true)?),
+        None => {
+            validate_sibling_output(&state, &headers, &valid_source)?;
+            None
+        }
+    };
+    let chunk_size = payload.chunk_size_mb.max(1) * 1024 * 1024;
+    let gen_chk = payload.generate_checksum.unwrap_or(true);
 
-        crate::tools::splitter::split_file_sync(source_path, dest_dir, chunk_size, gen_chk)
-            .map(Json)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
-    } else {
-        Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
-    }
+    crate::tools::splitter::split_file_sync(Path::new(&valid_source), valid_dest.as_deref().map(Path::new), chunk_size, gen_chk)
+        .map(Json)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 pub async fn handle_combine_files(
@@ -1351,18 +1452,15 @@ pub async fn handle_combine_files(
     headers: HeaderMap,
     Json(payload): Json<crate::tools::splitter::CombineRequest>,
 ) -> Result<Json<crate::tools::splitter::CombineResponse>, (StatusCode, String)> {
-    let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
-    if let Some(token_str) = auth_header.and_then(|h| h.strip_prefix("Bearer ")) {
-        let _ = state.auth.verify_token(token_str).map_err(|e| (StatusCode::UNAUTHORIZED, e.to_string()))?;
-        let parts: Vec<std::path::PathBuf> = payload.parts.iter().map(std::path::PathBuf::from).collect();
-        let dest_path = Path::new(&payload.dest_path);
+    let parts: Vec<std::path::PathBuf> = validate_paths(&state, &headers, &payload.parts, false)?
+        .into_iter()
+        .map(std::path::PathBuf::from)
+        .collect();
+    let valid_dest = validate_path_access(&state, &headers, &payload.dest_path, true)?;
 
-        crate::tools::splitter::combine_files_sync(&parts, dest_path, payload.expected_sha256.as_deref())
-            .map(Json)
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
-    } else {
-        Err((StatusCode::UNAUTHORIZED, "Missing authorization token".to_string()))
-    }
+    crate::tools::splitter::combine_files_sync(&parts, Path::new(&valid_dest), payload.expected_sha256.as_deref())
+        .map(Json)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 

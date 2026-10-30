@@ -4,7 +4,7 @@ use aes_gcm::{
     Aes256Gcm, Key, Nonce,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fs::{self, File};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -46,6 +46,7 @@ pub struct VaultManifest {
 }
 
 pub struct UnlockedVaultSession {
+    pub authorized_users: HashSet<String>,
     pub vault_path: PathBuf,
     pub master_key: [u8; KEY_LEN],
     pub manifest: VaultManifest,
@@ -173,6 +174,7 @@ impl VaultManager {
     /// Unlock a vault with password and cache session in memory
     pub fn unlock_vault(
         &self,
+        user: &str,
         vault_path: &Path,
         password: &str,
         auto_lock_secs: u64,
@@ -239,7 +241,18 @@ impl VaultManager {
         let auto_lock = Duration::from_secs(if auto_lock_secs == 0 { 900 } else { auto_lock_secs }); // Default 15 mins
 
         let mut sessions = self.sessions.write().map_err(|_| "Vault lock error".to_string())?;
+
+        // Another user already holds this vault open: join its session so both share one manifest
+        if let Some(session) = sessions.get_mut(&norm_path_str) {
+            if session.last_accessed.elapsed() < session.auto_lock_duration {
+                session.authorized_users.insert(user.to_string());
+                session.last_accessed = Instant::now();
+                return Ok(norm_path_str);
+            }
+        }
+
         sessions.insert(norm_path_str.clone(), UnlockedVaultSession {
+            authorized_users: HashSet::from([user.to_string()]),
             vault_path: vault_path.to_path_buf(),
             master_key,
             manifest,
@@ -252,28 +265,35 @@ impl VaultManager {
     }
 
     /// Check if a vault is currently unlocked and valid in memory
-    pub fn is_unlocked(&self, vault_path_str: &str) -> bool {
+    pub fn is_unlocked(&self, user: &str, vault_path_str: &str) -> bool {
         if let Ok(sessions) = self.sessions.read() {
             if let Some(session) = sessions.get(vault_path_str) {
-                return session.last_accessed.elapsed() < session.auto_lock_duration;
+                return session.authorized_users.contains(user)
+                    && session.last_accessed.elapsed() < session.auto_lock_duration;
             }
         }
         false
     }
 
-    /// Lock a vault and purge master key from memory immediately
-    pub fn lock_vault(&self, vault_path_str: &str) {
+    /// Lock a vault for this user; the key is purged once no user holds it open
+    pub fn lock_vault(&self, user: &str, vault_path_str: &str) {
         if let Ok(mut sessions) = self.sessions.write() {
-            if sessions.remove(vault_path_str).is_some() {
-                info!("Locked vault and purged key from RAM: {}", vault_path_str);
+            if let Some(session) = sessions.get_mut(vault_path_str) {
+                session.authorized_users.remove(user);
+                if session.authorized_users.is_empty() {
+                    sessions.remove(vault_path_str);
+                    info!("Locked vault and purged key from RAM: {}", vault_path_str);
+                }
             }
         }
     }
 
     /// List contents of unlocked vault under virtual subpath
-    pub fn list_vault_contents(&self, vault_path_str: &str, subpath_filter: &str) -> Result<DirectoryListing, String> {
+    pub fn list_vault_contents(&self, user: &str, vault_path_str: &str, subpath_filter: &str) -> Result<DirectoryListing, String> {
         let mut sessions = self.sessions.write().map_err(|_| "Vault lock error".to_string())?;
-        let session = sessions.get_mut(vault_path_str).ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
+        let session = sessions.get_mut(vault_path_str)
+            .filter(|s| s.authorized_users.contains(user))
+            .ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
 
         if session.last_accessed.elapsed() >= session.auto_lock_duration {
             sessions.remove(vault_path_str);
@@ -376,9 +396,11 @@ impl VaultManager {
     }
 
     /// Read and decrypt file content on-the-fly from vault
-    pub fn read_vault_file(&self, vault_path_str: &str, file_subpath: &str) -> Result<FileContentResponse, String> {
+    pub fn read_vault_file(&self, user: &str, vault_path_str: &str, file_subpath: &str) -> Result<FileContentResponse, String> {
         let mut sessions = self.sessions.write().map_err(|_| "Vault lock error".to_string())?;
-        let session = sessions.get_mut(vault_path_str).ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
+        let session = sessions.get_mut(vault_path_str)
+            .filter(|s| s.authorized_users.contains(user))
+            .ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
 
         if session.last_accessed.elapsed() >= session.auto_lock_duration {
             sessions.remove(vault_path_str);
@@ -417,12 +439,15 @@ impl VaultManager {
     /// Write or update file inside encrypted vault
     pub fn write_vault_file(
         &self,
+        user: &str,
         vault_path_str: &str,
         file_subpath: &str,
         plaintext: &[u8],
     ) -> Result<(), String> {
         let mut sessions = self.sessions.write().map_err(|_| "Vault lock error".to_string())?;
-        let session = sessions.get_mut(vault_path_str).ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
+        let session = sessions.get_mut(vault_path_str)
+            .filter(|s| s.authorized_users.contains(user))
+            .ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
 
         if session.last_accessed.elapsed() >= session.auto_lock_duration {
             sessions.remove(vault_path_str);
@@ -467,9 +492,11 @@ impl VaultManager {
     }
 
     /// Delete file or directory inside encrypted vault
-    pub fn delete_vault_file(&self, vault_path_str: &str, file_subpath: &str) -> Result<(), String> {
+    pub fn delete_vault_file(&self, user: &str, vault_path_str: &str, file_subpath: &str) -> Result<(), String> {
         let mut sessions = self.sessions.write().map_err(|_| "Vault lock error".to_string())?;
-        let session = sessions.get_mut(vault_path_str).ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
+        let session = sessions.get_mut(vault_path_str)
+            .filter(|s| s.authorized_users.contains(user))
+            .ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
 
         let clean_path = file_subpath.trim_matches('/');
         session.manifest.items.retain(|i| {
@@ -483,9 +510,11 @@ impl VaultManager {
     }
 
     /// Create directory inside encrypted vault
-    pub fn mkdir_vault(&self, vault_path_str: &str, dir_subpath: &str) -> Result<(), String> {
+    pub fn mkdir_vault(&self, user: &str, vault_path_str: &str, dir_subpath: &str) -> Result<(), String> {
         let mut sessions = self.sessions.write().map_err(|_| "Vault lock error".to_string())?;
-        let session = sessions.get_mut(vault_path_str).ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
+        let session = sessions.get_mut(vault_path_str)
+            .filter(|s| s.authorized_users.contains(user))
+            .ok_or_else(|| "Vault is locked. Enter password to access.".to_string())?;
 
         let clean_path = dir_subpath.trim_matches('/');
         let dir_name = clean_path.split('/').last().unwrap_or(clean_path).to_string();
@@ -759,31 +788,69 @@ mod tests {
 
         // 2. Unlock vault
         let mgr = VaultManager::new();
-        let norm_path = mgr.unlock_vault(&vault_file, password, 60).unwrap();
-        assert!(mgr.is_unlocked(&norm_path));
+        let norm_path = mgr.unlock_vault("alice", &vault_file, password, 60).unwrap();
+        assert!(mgr.is_unlocked("alice", &norm_path));
 
         // 3. Write file into encrypted vault
         let file_data = b"Hello from inside the encrypted vault! Sensitive Data 2026.";
-        mgr.write_vault_file(&norm_path, "passwords/wifi.txt", file_data).unwrap();
+        mgr.write_vault_file("alice", &norm_path, "passwords/wifi.txt", file_data).unwrap();
 
         // 4. List vault directory
-        let listing = mgr.list_vault_contents(&norm_path, "passwords").unwrap();
+        let listing = mgr.list_vault_contents("alice", &norm_path, "passwords").unwrap();
         assert_eq!(listing.entries.len(), 1);
         assert_eq!(listing.entries[0].name, "wifi.txt");
         assert_eq!(listing.entries[0].size, file_data.len() as u64);
 
         // 5. Read and decrypt file content in memory
-        let read_res = mgr.read_vault_file(&norm_path, "passwords/wifi.txt").unwrap();
+        let read_res = mgr.read_vault_file("alice", &norm_path, "passwords/wifi.txt").unwrap();
         assert_eq!(read_res.content, String::from_utf8_lossy(file_data));
 
         // 6. Lock vault
-        mgr.lock_vault(&norm_path);
-        assert!(!mgr.is_unlocked(&norm_path));
+        mgr.lock_vault("alice", &norm_path);
+        assert!(!mgr.is_unlocked("alice", &norm_path));
 
         // 7. Reading when locked must fail
-        assert!(mgr.read_vault_file(&norm_path, "passwords/wifi.txt").is_err());
+        assert!(mgr.read_vault_file("alice", &norm_path, "passwords/wifi.txt").is_err());
 
         // 8. Unlocking with wrong password must fail authentication
-        assert!(mgr.unlock_vault(&vault_file, "WrongPassword!", 60).is_err());
+        assert!(mgr.unlock_vault("alice", &vault_file, "WrongPassword!", 60).is_err());
+    }
+
+    #[test]
+    fn test_unlocked_vault_is_private_to_the_users_who_unlocked_it() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let vault_file = temp_dir.path().join("shared.cdvault");
+        let password = "SuperSecretPassword123!";
+        VaultManager::create_vault(&vault_file, password).unwrap();
+
+        let mgr = VaultManager::new();
+        let norm_path = mgr.unlock_vault("alice", &vault_file, password, 60).unwrap();
+        mgr.write_vault_file("alice", &norm_path, "secret.txt", b"alice data").unwrap();
+
+        // Bob has not entered the password
+        assert!(!mgr.is_unlocked("bob", &norm_path));
+        assert!(mgr.list_vault_contents("bob", &norm_path, "").is_err());
+        assert!(mgr.read_vault_file("bob", &norm_path, "secret.txt").is_err());
+        assert!(mgr.write_vault_file("bob", &norm_path, "x.txt", b"x").is_err());
+        assert!(mgr.delete_vault_file("bob", &norm_path, "secret.txt").is_err());
+        assert!(mgr.mkdir_vault("bob", &norm_path, "dir").is_err());
+
+        // Bob cannot lock Alice out
+        mgr.lock_vault("bob", &norm_path);
+        assert!(mgr.is_unlocked("alice", &norm_path));
+
+        // A wrong password does not let Bob join
+        assert!(mgr.unlock_vault("bob", &vault_file, "WrongPassword!", 60).is_err());
+        assert!(!mgr.is_unlocked("bob", &norm_path));
+
+        // With the password both share one session, and Alice's later writes stay visible to Bob
+        mgr.unlock_vault("bob", &vault_file, password, 60).unwrap();
+        mgr.write_vault_file("alice", &norm_path, "later.txt", b"more").unwrap();
+        assert_eq!(mgr.list_vault_contents("bob", &norm_path, "").unwrap().entries.len(), 2);
+
+        // Locking only ends that user's access until the last one leaves
+        mgr.lock_vault("alice", &norm_path);
+        assert!(!mgr.is_unlocked("alice", &norm_path));
+        assert!(mgr.is_unlocked("bob", &norm_path));
     }
 }

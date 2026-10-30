@@ -173,7 +173,6 @@ pub fn require_admin(claims: &crate::auth::Claims) -> Result<(), (StatusCode, St
     Ok(())
 }
 
-#[allow(dead_code)]
 pub fn require_write(claims: &crate::auth::Claims) -> Result<(), (StatusCode, String)> {
     if claims.role.eq_ignore_ascii_case("readonly") {
         return Err((
@@ -1198,6 +1197,32 @@ pub fn extract_remote_scheme_host(raw_path: &str) -> Option<(String, String)> {
     Some((scheme_lower, host.trim().to_string()))
 }
 
+/// Returns the on-disk file behind a vault://, archive:// or image:// path
+fn virtual_container_file(raw_path: &str) -> Option<String> {
+    if raw_path.starts_with("archive://") {
+        return Some(crate::vfs::archive::ArchiveHandler::normalize_archive_path(raw_path).1);
+    }
+    let rest = raw_path.strip_prefix("vault://").or_else(|| raw_path.strip_prefix("image://"))?;
+    Some(rest.split_once('#').map_or(rest, |(file, _)| file).to_string())
+}
+
+/// Validates a caller-supplied trash folder; the admin-configured folder is trusted as-is
+pub fn validate_custom_trash_dir(
+    state: &AppState,
+    headers: &HeaderMap,
+    requested: Option<&str>,
+    is_write: bool,
+) -> Result<Option<String>, (StatusCode, String)> {
+    let requested = match requested.map(str::trim).filter(|s| !s.is_empty()) {
+        Some(dir) => dir,
+        None => return Ok(None),
+    };
+    if state.config.paranoid.custom_trash_dir.as_deref() == Some(requested) {
+        return Ok(Some(requested.to_string()));
+    }
+    validate_path_access(state, headers, requested, is_write).map(Some)
+}
+
 pub fn validate_path_access(
     state: &AppState,
     headers: &HeaderMap,
@@ -1250,12 +1275,13 @@ pub fn validate_path_access(
     }
 
     // 2. Local virtual schemes (vault://, archive://, image://, trash://)
-    let is_local_virtual_scheme = raw_path.starts_with("vault://")
-        || raw_path.starts_with("archive://")
-        || raw_path.starts_with("image://")
-        || raw_path.starts_with("trash://");
+    if raw_path.starts_with("trash://") {
+        return Ok(raw_path.to_string());
+    }
 
-    if is_local_virtual_scheme {
+    // Containers are only as accessible as the file that backs them
+    if let Some(container) = virtual_container_file(raw_path) {
+        validate_path_access(state, headers, &container, is_write)?;
         return Ok(raw_path.to_string());
     }
 
@@ -1553,6 +1579,213 @@ mod tests {
         let claims = extract_claims_or_local(&state, &headers_stale).unwrap();
         assert_eq!(claims.sub, "bob");
     }
+
+    struct PermissionFixture {
+        _tmp: tempfile::TempDir,
+        state: AppState,
+        user_headers: HeaderMap,
+        readonly_headers: HeaderMap,
+        own_file: String,
+        readonly_file: String,
+        secret_file: String,
+        secret_dir: String,
+    }
+
+    fn bearer(token: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(header::AUTHORIZATION, format!("Bearer {}", token).parse().unwrap());
+        headers
+    }
+
+    fn permission_fixture() -> PermissionFixture {
+        let tmp = tempfile::tempdir().unwrap();
+        let base = tmp.path();
+        let user_home = base.join("alice");
+        let readonly_home = base.join("reader");
+        let secret_dir = base.join("private");
+        for dir in [&user_home, &readonly_home, &secret_dir] {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        let own_file = user_home.join("own.txt");
+        let readonly_file = readonly_home.join("own.txt");
+        let secret_file = secret_dir.join("secret.txt");
+        std::fs::write(&own_file, "mine").unwrap();
+        std::fs::write(&readonly_file, "mine").unwrap();
+        std::fs::write(&secret_file, "top secret").unwrap();
+
+        let mut config = crate::config::AppConfig::default();
+        config.server.database_path = base.join("perm.db").to_string_lossy().to_string();
+        config.server.enable_auth = true;
+        config.server.standalone = false;
+        config.storage.allow_entire_system = false;
+        config.storage.roots = vec![];
+        config.paranoid.custom_trash_dir = None;
+        let state = create_test_state(config);
+
+        let user = state.auth.create_user("alice", "secretpass", "user", user_home.to_str().unwrap(), Some("[]")).unwrap();
+        let reader = state.auth.create_user("reader", "secretpass", "readonly", readonly_home.to_str().unwrap(), Some("[]")).unwrap();
+        let user_headers = bearer(&state.auth.generate_token(&user).unwrap());
+        let readonly_headers = bearer(&state.auth.generate_token(&reader).unwrap());
+
+        PermissionFixture {
+            state,
+            user_headers,
+            readonly_headers,
+            own_file: own_file.to_string_lossy().to_string(),
+            readonly_file: readonly_file.to_string_lossy().to_string(),
+            secret_file: secret_file.to_string_lossy().to_string(),
+            secret_dir: secret_dir.to_string_lossy().to_string(),
+            _tmp: tmp,
+        }
+    }
+
+    #[track_caller]
+    fn assert_forbidden<T>(result: Result<T, (StatusCode, String)>) {
+        match result {
+            Err((status, _)) => assert_eq!(status, StatusCode::FORBIDDEN),
+            Ok(_) => panic!("request should have been refused"),
+        }
+    }
+
+    fn body<T: serde::de::DeserializeOwned>(value: serde_json::Value) -> T {
+        serde_json::from_value(value).unwrap()
+    }
+
+    #[tokio::test]
+    async fn test_tools_refuse_paths_outside_the_users_folders() {
+        use crate::server::share_handlers as sh;
+        use crate::server::tool_handlers as th;
+        use axum::extract::{Query, State};
+        use axum::response::Json;
+        use serde_json::json;
+
+        let f = permission_fixture();
+        let st = || State(f.state.clone());
+        let h = || f.user_headers.clone();
+        let secret = f.secret_file.as_str();
+        let dir = f.secret_dir.as_str();
+        let own = f.own_file.as_str();
+
+        // Reading
+        assert_forbidden(th::handle_logviewer_tail(st(), h(), Query(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_search(st(), h(), Json(body(json!({ "path": dir, "query": "secret" })))).await);
+        assert_forbidden(th::handle_duplicates_scan(st(), h(), Json(body(json!({ "paths": [dir] })))).await);
+        assert_forbidden(th::handle_duplicates_scan(st(), h(), Json(body(json!({})))).await);
+        assert_forbidden(th::handle_metadata_read(st(), h(), Query(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_notedog_decrypt(st(), h(), Json(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_notedog_versions(st(), h(), axum::extract::Query(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_notedog_info(st(), h(), axum::extract::Query(body(json!({ "folder": dir })))).await);
+        assert_forbidden(th::handle_paranoid_dry_run(st(), h(), Json(body(json!({ "action": "delete", "sources": [secret] })))).await);
+        assert_forbidden(th::handle_split_file(st(), h(), Json(body(json!({ "source_path": secret, "chunk_size_mb": 1 })))).await);
+        assert_forbidden(th::handle_combine_files(st(), h(), Json(body(json!({ "parts": [secret], "dest_path": format!("{}.out", own) })))).await);
+        assert_forbidden(th::handle_convert_file(st(), h(), Json(body(json!({ "source_path": secret, "target_format": "base64" })))).await);
+        assert_forbidden(th::handle_git_status(st(), h(), Query(body(json!({ "path": dir })))).await);
+        assert_forbidden(th::handle_git_log(st(), h(), Query(body(json!({ "path": dir })))).await);
+        assert_forbidden(th::handle_git_diff(st(), h(), Query(body(json!({ "path": dir })))).await);
+        assert_forbidden(th::handle_trash_items(st(), h(), Query(body(json!({ "custom_trash_dir": dir })))).await);
+        assert_forbidden(crate::server::fs_handlers::handle_get_file_tags(st(), h(), Query(body(json!({ "path": secret })))).await);
+
+        // Writing, including tools that send their output somewhere else
+        assert_forbidden(th::handle_duplicates_clean(st(), h(), Json(body(json!({ "files": [secret], "permanent": true })))).await);
+        assert_forbidden(th::handle_duplicates_clean(st(), h(), Json(body(json!({ "files": [own], "custom_trash_dir": dir })))).await);
+        assert_forbidden(th::handle_metadata_update(st(), h(), Json(body(json!({ "path": secret, "title": "x" })))).await);
+        assert_forbidden(th::handle_metadata_batch(st(), h(), Json(body(json!({ "files": [secret], "artist": "x" })))).await);
+        assert_forbidden(th::handle_notedog_save_version(st(), h(), Json(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_notedog_encrypt(st(), h(), Json(body(json!({ "path": secret, "content": "x" })))).await);
+        assert_forbidden(th::handle_notedog_create_note(st(), h(), Json(body(json!({ "section_path": dir, "title": "x" })))).await);
+        assert_forbidden(th::handle_notedog_section_encrypt(st(), h(), Json(body(json!({ "path": dir, "passphrase": "x" })))).await);
+        assert_forbidden(th::handle_notedog_notebook_decrypt(st(), h(), Json(body(json!({ "path": dir, "passphrase": "x" })))).await);
+        assert_forbidden(th::handle_split_file(st(), h(), Json(body(json!({ "source_path": own, "dest_dir": dir, "chunk_size_mb": 1 })))).await);
+        assert_forbidden(th::handle_combine_files(st(), h(), Json(body(json!({ "parts": [own], "dest_path": format!("{}/out", dir) })))).await);
+        assert_forbidden(th::handle_convert_file(st(), h(), Json(body(json!({ "source_path": own, "target_format": "base64", "output_path": format!("{}/out", dir) })))).await);
+        assert_forbidden(th::handle_git_commit(st(), h(), Json(body(json!({ "path": dir, "message": "x" })))).await);
+        assert_forbidden(th::handle_git_push(st(), h(), Json(body(json!({ "path": dir })))).await);
+        assert_forbidden(th::handle_trash_empty(st(), h(), Json(body(json!({ "custom_trash_dir": dir })))).await);
+        assert_forbidden(crate::server::fs_handlers::handle_set_tags(st(), h(), Json(body(json!({ "paths": [secret], "add_tags": ["x"] })))).await);
+
+        // Publishing
+        assert_forbidden(sh::handle_create_share(st(), h(), Json(body(json!({ "path": secret, "is_dir": false })))).await);
+
+        assert_eq!(std::fs::read_to_string(secret).unwrap(), "top secret");
+
+        // The user's own files keep working
+        assert!(th::handle_logviewer_tail(st(), h(), Query(body(json!({ "path": own })))).await.is_ok());
+        assert!(th::handle_git_status(st(), h(), Query(body(json!({ "path": Path::new(own).parent().unwrap() })))).await.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_readonly_users_cannot_change_their_own_files() {
+        use crate::server::share_handlers as sh;
+        use crate::server::tool_handlers as th;
+        use axum::extract::State;
+        use axum::response::Json;
+        use serde_json::json;
+
+        let f = permission_fixture();
+        let st = || State(f.state.clone());
+        let h = || f.readonly_headers.clone();
+        let own = f.readonly_file.as_str();
+        let home = Path::new(own).parent().unwrap().to_string_lossy().to_string();
+
+        assert_forbidden(th::handle_duplicates_clean(st(), h(), Json(body(json!({ "files": [own], "permanent": true })))).await);
+        assert_forbidden(th::handle_metadata_update(st(), h(), Json(body(json!({ "path": own, "title": "x" })))).await);
+        assert_forbidden(th::handle_notedog_encrypt(st(), h(), Json(body(json!({ "path": own, "content": "x" })))).await);
+        assert_forbidden(th::handle_git_commit(st(), h(), Json(body(json!({ "path": home, "message": "x" })))).await);
+        assert_forbidden(th::handle_syncthing_scan(st(), h(), Json(body(json!({})))).await);
+        assert_forbidden(crate::server::fs_handlers::handle_set_tags(st(), h(), Json(body(json!({ "paths": [own], "add_tags": ["x"] })))).await);
+        assert_forbidden(sh::handle_create_share(st(), h(), Json(body(json!({ "path": own, "is_dir": false, "allow_upload": true })))).await);
+        assert!(sh::handle_create_share(st(), h(), Json(body(json!({ "path": own, "is_dir": false })))).await.is_ok());
+    }
+
+    #[test]
+    fn test_virtual_paths_follow_the_permissions_of_their_backing_file() {
+        let f = permission_fixture();
+        let check = |path: String, headers: &HeaderMap, write: bool| validate_path_access(&f.state, headers, &path, write);
+
+        for scheme in ["archive", "image", "vault"] {
+            assert_forbidden(check(format!("{}://{}#inner", scheme, f.secret_file), &f.user_headers, false));
+            assert!(check(format!("{}://{}#inner", scheme, f.own_file), &f.user_headers, false).is_ok());
+        }
+        // Encoded and doubled prefixes must not slip past the check
+        let encoded = f.secret_file.replace('/', "%2F");
+        assert_forbidden(check(format!("archive://{}#", encoded), &f.user_headers, false));
+        assert_forbidden(check(format!("archive://archive://{}#", f.secret_file), &f.user_headers, false));
+        assert_forbidden(check(format!("vault://archive://{}#", f.secret_file), &f.user_headers, false));
+
+        // Read-only users may look inside but not change a container
+        assert!(check(format!("archive://{}#", f.readonly_file), &f.readonly_headers, false).is_ok());
+        assert_forbidden(check(format!("archive://{}#", f.readonly_file), &f.readonly_headers, true));
+    }
+
+    #[test]
+    fn test_api_tokens_never_exceed_their_owner() {
+        let f = permission_fixture();
+        let auth = &f.state.auth;
+
+        // Asking for admin and every folder must not widen a normal user's reach
+        let wide = auth.create_api_token("alice", "wide", "admin", Some("[\"*\"]".to_string()), None).unwrap();
+        let headers = bearer(&wide.token);
+        let claims = auth.verify_token(&wide.token).unwrap();
+        assert_eq!(claims.role, "user");
+        assert_ne!(claims.home_dir, "/");
+        assert_forbidden(validate_path_access(&f.state, &headers, &f.secret_file, false));
+        assert!(validate_path_access(&f.state, &headers, &f.own_file, false).is_ok());
+
+        // A token can be narrower than its owner
+        let admin = auth.create_user("root2", "secretpass", "admin", "/", Some("[\"*\"]")).unwrap();
+        let readonly = auth.create_api_token(&admin.username, "ro", "readonly", None, None).unwrap();
+        assert_eq!(auth.verify_token(&readonly.token).unwrap().role, "readonly");
+    }
+
+    #[tokio::test]
+    async fn test_public_share_page_has_no_inline_file_handlers() {
+        let response = crate::server::share_handlers::handle_public_share_page(
+            axum::extract::Path("token".to_string()),
+        ).await;
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let html = String::from_utf8_lossy(&bytes);
+        assert!(!html.contains(r#"onclick="openFilePreview"#));
+        assert!(!html.contains(r#"alt="${f.name}""#));
+        assert!(html.contains("replace(/'/g, '&#39;')"));
+    }
 }
-
-

@@ -7,7 +7,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use crate::server::AppState;
-use crate::server::middleware::{resolve_client_ip, sanitize_uploaded_file_name};
+use crate::server::middleware::{resolve_client_ip, sanitize_uploaded_file_name, validate_path_access};
 use crate::server::fs_handlers::{build_local_file_range_response, CleanTempStream};
 use crate::vfs::archive::ArchiveHandler;
 
@@ -154,8 +154,10 @@ pub async fn handle_create_share(
     let claims = state.auth.verify_token(token_str)
         .map_err(|e| (StatusCode::UNAUTHORIZED, format!("Invalid token: {}", e)))?;
 
+    let valid_path = validate_path_access(&state, &headers, &payload.path, payload.allow_upload.unwrap_or(false))?;
+
     let name = payload.name.unwrap_or_else(|| {
-        Path::new(&payload.path)
+        Path::new(&valid_path)
             .file_name()
             .unwrap_or_default()
             .to_string_lossy()
@@ -168,7 +170,7 @@ pub async fn handle_create_share(
 
     let share = state.auth.create_share(
         &claims.sub,
-        &payload.path,
+        &valid_path,
         &name,
         payload.is_dir,
         payload.allow_upload.unwrap_or(false),
@@ -201,6 +203,12 @@ pub async fn handle_update_share(
         .map_err(|e| (StatusCode::UNAUTHORIZED, format!("Invalid token: {}", e)))?;
 
     let is_admin = claims.role == "admin";
+    if payload.allow_upload.unwrap_or(false) {
+        let share = state.auth.get_share_by_id(id)
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+            .ok_or((StatusCode::NOT_FOUND, "Share not found".to_string()))?;
+        validate_path_access(&state, &headers, &share.path, true)?;
+    }
     let name = payload.name.unwrap_or_else(|| "Share".to_string());
 
     let expires_at_str = payload.expires_in_hours.map(|opt| {
@@ -1254,6 +1262,7 @@ pub async fn handle_public_share_page(
     let verifiedPassword = sessionStorage.getItem(`brum_share_pass_${{token}}`) || '';
     let verifiedEmail = sessionStorage.getItem(`brum_share_email_${{token}}`) || '';
     let currentViewMode = 'grid';
+    let renderedFiles = [];
     let currentPreviewFile = null;
 
     function formatBytes(bytes) {{
@@ -1408,7 +1417,8 @@ pub async fn handle_public_share_page(
         return;
       }}
 
-      container.innerHTML = files.map(f => {{
+      renderedFiles = files;
+      container.innerHTML = files.map((f, idx) => {{
         const type = getFileType(f.name, f.mime);
         let icon = '📄';
         if (type === 'image') icon = '🖼️';
@@ -1422,11 +1432,11 @@ pub async fn handle_public_share_page(
 
         if (currentViewMode === 'grid') {{
           const thumbHtml = type === 'image'
-            ? `<img src="${{previewUrl}}" alt="${{f.name}}" loading="lazy" onerror="this.outerHTML='<span class=\"type-icon\">🖼️</span>'">`
+            ? `<img src="${{previewUrl}}" alt="${{escapeHtml(f.name)}}" loading="lazy" onerror="this.outerHTML='<span class=\"type-icon\">🖼️</span>'">`
             : `<span class="type-icon">${{icon}}</span>`;
 
           return `
-            <div class="file-card" onclick="openFilePreview('${{encodeURIComponent(f.rel_path)}}', '${{escapeHtml(f.name)}}', '${{f.mime}}', ${{f.size}})">
+            <div class="file-card" data-file-index="${{idx}}">
               <div class="file-preview-thumb">${{thumbHtml}}</div>
               <div class="file-title" title="${{escapeHtml(f.name)}}">${{escapeHtml(f.name)}}</div>
               <div class="file-meta-row">
@@ -1437,7 +1447,7 @@ pub async fn handle_public_share_page(
           `;
         }} else {{
           return `
-            <div class="list-row" onclick="openFilePreview('${{encodeURIComponent(f.rel_path)}}', '${{escapeHtml(f.name)}}', '${{f.mime}}', ${{f.size}})">
+            <div class="list-row" data-file-index="${{idx}}">
               <div style="display: flex; align-items: center; gap: 12px; min-width: 0;">
                 <span style="font-size: 20px;">${{icon}}</span>
                 <div style="font-weight: 600; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${{escapeHtml(f.name)}}</div>
@@ -1769,8 +1779,15 @@ pub async fn handle_public_share_page(
       }}
     }}
 
+    document.addEventListener('click', (e) => {{
+      const row = e.target.closest('[data-file-index]');
+      if (!row) return;
+      const f = renderedFiles[Number(row.dataset.fileIndex)];
+      if (f) openFilePreview(encodeURIComponent(f.rel_path), f.name, f.mime, f.size);
+    }});
+
     function escapeHtml(str) {{
-      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }}
 
     window.addEventListener('resize', () => {{

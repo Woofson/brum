@@ -447,7 +447,8 @@ pub async fn handle_unlock_vault(
     let valid_path = validate_path_access(&state, &headers, &payload.path, false)?;
     let p = Path::new(&valid_path);
     let auto_lock = payload.auto_lock_secs.unwrap_or(900);
-    state.vaults.unlock_vault(p, &payload.password, auto_lock)
+    let user = extract_claims_or_local(&state, &headers)?.sub;
+    state.vaults.unlock_vault(&user, p, &payload.password, auto_lock)
         .map(|norm_path| Json(serde_json::json!({ "success": true, "path": norm_path })))
         .map_err(|e| (StatusCode::UNAUTHORIZED, e))
 }
@@ -463,7 +464,8 @@ pub async fn handle_lock_vault(
     Json(payload): Json<LockVaultRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, false)?;
-    state.vaults.lock_vault(&valid_path);
+    let user = extract_claims_or_local(&state, &headers)?.sub;
+    state.vaults.lock_vault(&user, &valid_path);
     Ok(Json(serde_json::json!({ "success": true, "path": valid_path })))
 }
 
@@ -478,7 +480,8 @@ pub async fn handle_vault_status(
     Query(query): Query<VaultStatusQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &query.path, false)?;
-    let is_unlocked = state.vaults.is_unlocked(&valid_path);
+    let user = extract_claims_or_local(&state, &headers)?.sub;
+    let is_unlocked = state.vaults.is_unlocked(&user, &valid_path);
     Ok(Json(serde_json::json!({ "unlocked": is_unlocked, "path": valid_path })))
 }
 

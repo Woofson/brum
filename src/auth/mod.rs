@@ -1456,9 +1456,59 @@ impl AuthManager {
         if is_disabled {
             return Err("User account is disabled".into());
         }
-        claims.role = db_role;
+        claims.role = if claims.token_id.is_some() {
+            Self::narrower_role(&claims.role, &db_role)
+        } else {
+            db_role
+        };
+        self.apply_owner_scope_to_api_token(&mut claims)?;
 
         Ok(claims)
+    }
+
+    /// An API token can reduce its owner's role, never raise it
+    fn narrower_role(token_role: &str, owner_role: &str) -> String {
+        let rank = |r: &str| match r.to_ascii_lowercase().as_str() {
+            "admin" => 2,
+            "readonly" => 0,
+            _ => 1,
+        };
+        if rank(token_role) < rank(owner_role) { token_role.to_string() } else { owner_role.to_string() }
+    }
+
+    /// Folders both the token and its owner may reach; `*` means "no limit of its own"
+    fn narrowed_roots(token_roots: Option<&str>, owner_roots: Option<&str>) -> String {
+        let parse = |raw: Option<&str>| -> Vec<String> {
+            raw.and_then(|json| serde_json::from_str(json).ok()).unwrap_or_default()
+        };
+        let token = parse(token_roots);
+        let owner = parse(owner_roots);
+        let is_any = |roots: &[String]| roots.iter().any(|r| r == "*");
+        let narrowed: Vec<String> = if is_any(&token) {
+            owner
+        } else if is_any(&owner) {
+            token
+        } else {
+            token.into_iter().filter(|r| owner.contains(r)).collect()
+        };
+        serde_json::to_string(&narrowed).unwrap_or_else(|_| "[]".to_string())
+    }
+
+    /// API tokens are signed with a home of `/`; they must act within their owner's folders
+    fn apply_owner_scope_to_api_token(&self, claims: &mut Claims) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        if claims.token_id.is_none() {
+            return Ok(());
+        }
+        let conn = self.get_read_conn()?;
+        let owner: Option<(String, Option<String>)> = conn.query_row(
+            "SELECT home_dir, allowed_roots FROM users WHERE username = ?1",
+            params![claims.sub],
+            |row| Ok((row.get(0)?, row.get(1)?)),
+        ).optional()?;
+        let (home_dir, owner_roots) = owner.ok_or("User account no longer exists")?;
+        claims.home_dir = home_dir;
+        claims.allowed_roots = Some(Self::narrowed_roots(claims.allowed_roots.as_deref(), owner_roots.as_deref()));
+        Ok(())
     }
 
     pub fn verify_token_allow_expired(&self, token: &str) -> Result<Claims, Box<dyn std::error::Error + Send + Sync>> {

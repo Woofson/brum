@@ -14,7 +14,7 @@ use axum::{
 use serde::Deserialize;
 use crate::server::{AppState, ManualsAsset};
 use crate::server::middleware::{
-    extract_claims_or_local, sanitize_uploaded_relative_path, validate_path_access,
+    extract_claims_or_local, sanitize_uploaded_relative_path, validate_custom_trash_dir, validate_path_access,
 };
 use crate::vfs::local::LocalFs;
 use crate::vfs::archive::ArchiveHandler;
@@ -48,10 +48,12 @@ pub struct GetTagsQuery {
 
 pub async fn handle_get_file_tags(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<GetTagsQuery>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     if let Some(p) = query.path {
-        let tag_info = state.tags.get_tags_for_path(&p);
+        let valid_path = validate_path_access(&state, &headers, &p, false)?;
+        let tag_info = state.tags.get_tags_for_path(&valid_path);
         Ok(Json(serde_json::json!({ "success": true, "tag": tag_info })))
     } else {
         let all = state.tags.get_all_tags().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
@@ -68,8 +70,12 @@ pub async fn handle_get_all_tags(
 
 pub async fn handle_set_tags(
     State(state): State<AppState>,
-    Json(payload): Json<crate::tools::tags::SetTagsRequest>,
+    headers: HeaderMap,
+    Json(mut payload): Json<crate::tools::tags::SetTagsRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    for path in payload.paths.iter_mut() {
+        *path = validate_path_access(&state, &headers, path, true)?;
+    }
     let count = state.tags.set_tags(payload).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(serde_json::json!({ "success": true, "count": count })))
 }
@@ -85,7 +91,8 @@ pub async fn handle_list_dir(
 
     if target_path == "trash://" || target_path == "recycle://" || target_path == "shell:recyclebinfolder" {
         let claims = extract_claims_or_local(&state, &headers)?;
-        let custom_trash = query.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+        let requested_trash = validate_custom_trash_dir(&state, &headers, query.custom_trash_dir.as_deref(), false)?;
+        let custom_trash = requested_trash.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
         let use_native = query.windows_native_ops
             .or(query.windows_native_file_ops)
             .unwrap_or(state.config.paranoid.windows_native_file_ops);
@@ -101,7 +108,7 @@ pub async fn handle_list_dir(
             Some((v, s)) => (v, s),
             None => (rest, ""),
         };
-        state.vaults.list_vault_contents(vault_file, subpath)
+        state.vaults.list_vault_contents(&extract_claims_or_local(&state, &headers)?.sub, vault_file, subpath)
             .map(Json)
             .map_err(|e| (StatusCode::BAD_REQUEST, e))
     } else if target_path.starts_with("archive://") {
@@ -219,7 +226,7 @@ pub async fn handle_read_file(
             Some((v, s)) => (v, s),
             None => (rest, ""),
         };
-        state.vaults.read_vault_file(vault_file, subpath)
+        state.vaults.read_vault_file(&extract_claims_or_local(&state, &headers)?.sub, vault_file, subpath)
             .map(Json)
             .map_err(|e| (StatusCode::BAD_REQUEST, e))
     } else if target_path.starts_with("archive://") {
@@ -328,7 +335,7 @@ pub async fn handle_write_file(
             Some((v, s)) => (v, s),
             None => (rest, ""),
         };
-        state.vaults.write_vault_file(vault_file, subpath, &raw_bytes)
+        state.vaults.write_vault_file(&extract_claims_or_local(&state, &headers)?.sub, vault_file, subpath, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
     } else if target_path.starts_with("smb://") {
@@ -375,7 +382,7 @@ pub async fn handle_mkdir(
             Some((v, s)) => (v, s),
             None => (rest, ""),
         };
-        state.vaults.mkdir_vault(vault_file, subpath)
+        state.vaults.mkdir_vault(&extract_claims_or_local(&state, &headers)?.sub, vault_file, subpath)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
     } else if target_path.starts_with("smb://") {
@@ -537,7 +544,8 @@ pub async fn handle_delete(
     Json(payload): Json<DeleteRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let use_trash = payload.use_trash.unwrap_or(state.config.paranoid.trash_enabled);
-    let custom_trash = payload.custom_trash_dir.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
+    let requested_trash = validate_custom_trash_dir(&state, &headers, payload.custom_trash_dir.as_deref(), true)?;
+    let custom_trash = requested_trash.as_deref().or(state.config.paranoid.custom_trash_dir.as_deref());
     let use_native_ops = payload.windows_native_file_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
     let detect_locks = payload.detect_locking_processes.unwrap_or(state.config.paranoid.detect_locking_processes);
     let mut deleted = Vec::new();
@@ -558,7 +566,7 @@ pub async fn handle_delete(
                 Some((v, s)) => (v, s),
                 None => (rest, ""),
             };
-            match state.vaults.delete_vault_file(vault_file, subpath) {
+            match state.vaults.delete_vault_file(&extract_claims_or_local(&state, &headers)?.sub, vault_file, subpath) {
                 Ok(_) => deleted.push(path.clone()),
                 Err(e) => errors.push(format!("{}: {}", path, e)),
             }
@@ -1432,7 +1440,7 @@ pub async fn handle_download(
             Some((v, s)) => (v, s),
             None => (rest, ""),
         };
-        let file_res = state.vaults.read_vault_file(vault_file, subpath)
+        let file_res = state.vaults.read_vault_file(&extract_claims_or_local(&state, &headers)?.sub, vault_file, subpath)
             .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
 
         use base64::Engine;

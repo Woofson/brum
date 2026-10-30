@@ -433,9 +433,12 @@ async fn test_remote_network_schemes_authorization_and_ssrf() {
         assert_eq!(res.unwrap_err().0.as_u16(), 403, "Status code must be 403 Forbidden for {}", uri);
     }
 
-    // Local virtual schemes are permitted
-    assert!(validate_path_access(&state, &user_headers, "vault://my-vault/secret", false).is_ok());
-    assert!(validate_path_access(&state, &user_headers, "archive:///tmp/test.zip#inner", false).is_ok());
+    // Containers follow the permissions of the file behind them
+    let inside = tmp.path().join("box.zip").to_string_lossy().to_string();
+    assert!(validate_path_access(&state, &user_headers, &format!("vault://{}#secret", inside), false).is_ok());
+    assert!(validate_path_access(&state, &user_headers, &format!("archive://{}#inner", inside), false).is_ok());
+    assert!(validate_path_access(&state, &user_headers, "vault:///etc/my-vault#secret", false).is_err());
+    assert!(validate_path_access(&state, &user_headers, "archive:///etc/test.zip#inner", false).is_err());
     assert!(validate_path_access(&state, &user_headers, "trash:///tmp/trash/item", false).is_ok());
 
     // 2. Entitled non-admin user with explicit remote entitlement

@@ -17,6 +17,7 @@ async fn setup_test_server_with_proxies(
     config.server.host = "127.0.0.1".to_string();
     config.server.port = 0; // Dynamic port allocation
     config.server.database_path = db_path;
+    config.storage.allow_entire_system = true;
     config.server.enable_auth = enable_auth;
     config.server.standalone = standalone;
     config.server.trusted_proxies = trusted_proxies;
