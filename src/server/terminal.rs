@@ -840,6 +840,11 @@ async fn handle_terminal_socket(
         }
     }
 
+    // Brum may itself run inside tmux; its terminals must not inherit that session
+    for var in ["TMUX", "TMUX_PANE", "TERM_PROGRAM", "TERM_PROGRAM_VERSION"] {
+        cmd.env_remove(var);
+    }
+
     let mut child = match pair.slave.spawn_command(cmd) {
         Ok(c) => c,
         Err(e) => {
