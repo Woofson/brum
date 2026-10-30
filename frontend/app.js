@@ -6637,6 +6637,10 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         const isTouch = window.innerWidth <= 768 || window.matchMedia('(pointer: coarse)').matches;
         if (isTouch) return;
         setActivePane(paneIndex);
+        if (isPlainSecondClick(e)) {
+          openFileByType(entry, paneIndex);
+          return;
+        }
         if (e.shiftKey) {
           const anchor = (typeof pane.anchorIndex === 'number' && pane.anchorIndex >= 0 && pane.anchorIndex < filtered.length)
             ? pane.anchorIndex
@@ -6662,10 +6666,6 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
           pane.cursorIndex = idx;
         }
         renderPaneTable(paneIndex);
-      };
-
-      card.ondblclick = () => {
-        openFileByType(entry, paneIndex);
       };
 
       card.oncontextmenu = (e) => {
@@ -6890,6 +6890,10 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         const isTouch = window.innerWidth <= 768 || window.matchMedia('(pointer: coarse)').matches;
         if (isTouch) return;
         setActivePane(paneIndex);
+        if (isPlainSecondClick(e)) {
+          openFileByType(entry, paneIndex);
+          return;
+        }
         if (e.shiftKey) {
           const anchor = (typeof pane.anchorIndex === 'number' && pane.anchorIndex >= 0 && pane.anchorIndex < filtered.length)
             ? pane.anchorIndex
@@ -6916,8 +6920,6 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         }
         renderPaneTable(paneIndex);
       };
-
-      item.ondblclick = () => openFileByType(entry, paneIndex);
 
       item.oncontextmenu = (e) => {
         e.preventDefault();
@@ -7225,6 +7227,10 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         if (isTouch) return;
 
         setActivePane(paneIndex);
+        if (isPlainSecondClick(e)) {
+          openFileByType(entry, paneIndex);
+          return;
+        }
         if (e.shiftKey) {
           const anchor = (typeof pane.anchorIndex === 'number' && pane.anchorIndex >= 0 && pane.anchorIndex < filtered.length)
             ? pane.anchorIndex
@@ -7251,10 +7257,6 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         }
         renderPaneTable(paneIndex);
         updateMobileBottomBar();
-      };
-
-      tr.ondblclick = () => {
-        openFileByType(entry, paneIndex);
       };
 
       tr.oncontextmenu = (e) => {
@@ -31169,6 +31171,11 @@ async function executeUnlockVault() {
       if (window.lucide) lucide.createIcons();
     }
   }
+}
+
+// The first click redraws the row, and Firefox then sends no dblclick for the replaced element
+function isPlainSecondClick(e) {
+  return e.detail === 2 && !e.shiftKey && !e.ctrlKey && !e.metaKey;
 }
 
 function openFileByType(entry, paneIndex) {
