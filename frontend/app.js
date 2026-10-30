@@ -28951,6 +28951,12 @@ function connectTerminal(cwd) {
           termInstance.focus();
         }
       }, 80);
+      // onResize ignores the start of a connection, so report the settled size once
+      setTimeout(() => {
+        if (termWs !== thisWs || thisWs.readyState !== WebSocket.OPEN || !termInstance) return;
+        try { if (termFitAddon) termFitAddon.fit(); } catch (e) {}
+        thisWs.send(JSON.stringify({ cols: termInstance.cols, rows: termInstance.rows, resize: true }));
+      }, 400);
     };
 
     thisWs.onmessage = (e) => {
