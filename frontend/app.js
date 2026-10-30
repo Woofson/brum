@@ -38671,6 +38671,10 @@ function mountDockedTool(paneIndex) {
   }
   // 2. DOCKED TERMINAL CONSOLE (REAL XTERM.JS PTY)
   else if (tool === 'terminal') {
+    // Already docked here: rebuilding would destroy the live terminal and its history
+    const liveOutput = document.getElementById('terminal-output');
+    if (liveOutput && mount.contains(liveOutput)) return;
+
     mount.innerHTML = `
       <div id="docked-term-host-${paneIndex}" style="flex: 1; width: 100%; height: 100%; position: relative; overflow: hidden; background: #090a0d;"></div>
     `;
