@@ -256,7 +256,7 @@ Brum includes a built-in Web Configuration Editor accessible in **Settings -> Ra
 1. **One-Time Database Seeding Only**:
    The `default_admin_pass` setting is evaluated **only** on the very first startup when the SQLite database (`brum.db`) contains zero users. Once seeded, user credentials are stored as Argon2 hashes in the database. Editing `default_admin_pass` in `config.toml` afterwards has **no effect** on existing accounts. Passwords must be updated via the UI (**Settings -> Security**) or by modifying the database.
 2. **Insecure Default Guard (`"brum"` vs Custom Password)**:
-   * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It logs the credentials to stdout and writes them to `initial_admin_credentials.txt` in the configured log directory. Logging in with `admin` / `brum` will fail.
+   * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It prints the credentials to stdout (so `docker logs` shows them) and writes them to `initial_admin_credentials.txt` in the same folder as the database (`brum.db`). The password is never written to the log files. The note is deleted after the first admin login or password change. Logging in with `admin` / `brum` will fail.
    * **If set to a custom password before first boot**: The configured custom password is used verbatim for the initial account.
 
 ---

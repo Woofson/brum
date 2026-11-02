@@ -56,16 +56,25 @@ pub async fn handle_get_file_tags(
         let tag_info = state.tags.get_tags_for_path(&valid_path);
         Ok(Json(serde_json::json!({ "success": true, "tag": tag_info })))
     } else {
-        let all = state.tags.get_all_tags().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
-        Ok(Json(serde_json::json!({ "success": true, "tags": all })))
+        Ok(Json(serde_json::json!({ "success": true, "tags": visible_tags(&state, &headers)? })))
     }
+}
+
+/// Tags are shared, but each user only sees those on paths they may open
+fn visible_tags(state: &AppState, headers: &HeaderMap) -> Result<Vec<crate::tools::tags::FileTagInfo>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(state, headers)?;
+    let all = state.tags.get_all_tags().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    if claims.role.eq_ignore_ascii_case("admin") {
+        return Ok(all);
+    }
+    Ok(all.into_iter().filter(|t| validate_path_access(state, headers, &t.path, false).is_ok()).collect())
 }
 
 pub async fn handle_get_all_tags(
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let all = state.tags.get_all_tags().map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
-    Ok(Json(serde_json::json!({ "success": true, "tags": all })))
+    Ok(Json(serde_json::json!({ "success": true, "tags": visible_tags(&state, &headers)? })))
 }
 
 pub async fn handle_set_tags(
@@ -733,6 +742,7 @@ pub async fn handle_copy(
         &validated_dest,
         0,
     ).await;
+    claim_task(&state, &headers, &task_id);
 
     let tasks_mgr = state.tasks.clone();
     let tid = task_id.clone();
@@ -772,7 +782,8 @@ pub async fn handle_deltacopy(
     }
     let validated_dest = validate_path_access(&state, &headers, &payload.destination, true)?;
 
-    let opts = payload.options.unwrap_or_default();
+    let mut opts = payload.options.unwrap_or_default();
+    opts.owner = Some(extract_claims_or_local(&state, &headers)?.sub);
     let tasks_mgr = state.tasks.clone();
     let cancel_token = Arc::new(std::sync::atomic::AtomicBool::new(false));
 
@@ -812,6 +823,7 @@ pub async fn handle_move(
         &validated_dest,
         0,
     ).await;
+    claim_task(&state, &headers, &task_id);
 
     let tasks_mgr = state.tasks.clone();
     let tid = task_id.clone();
@@ -974,51 +986,81 @@ pub async fn handle_proton_status() -> Json<crate::vfs::proton::ProtonStatus> {
     Json(crate::vfs::proton::ProtonDriveClient::check_status().await)
 }
 
+/// Marks a new task as belonging to the user making this request
+fn claim_task(state: &AppState, headers: &HeaderMap, task_id: &str) {
+    if let Ok(claims) = extract_claims_or_local(state, headers) {
+        state.tasks.set_owner(task_id, &claims.sub);
+    }
+}
+
+/// Admins see every task; other users only the ones they started
+fn can_see_task(claims: &crate::auth::Claims, task: &TaskInfo) -> bool {
+    claims.role.eq_ignore_ascii_case("admin") || task.owner.as_deref() == Some(claims.sub.as_str())
+}
+
+/// The task, if this user may see and control it. Other users' tasks look like missing ones.
+async fn owned_task(state: &AppState, headers: &HeaderMap, id: &str) -> Result<TaskInfo, (StatusCode, String)> {
+    let claims = extract_claims_or_local(state, headers)?;
+    state.tasks.get_task(id).await
+        .filter(|task| can_see_task(&claims, task))
+        .ok_or((StatusCode::NOT_FOUND, "Task not found".to_string()))
+}
+
 pub async fn handle_list_tasks(
     State(state): State<AppState>,
-) -> Json<Vec<TaskInfo>> {
-    Json(state.tasks.list_tasks().await)
+    headers: HeaderMap,
+) -> Result<Json<Vec<TaskInfo>>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let tasks = state.tasks.list_tasks().await;
+    Ok(Json(tasks.into_iter().filter(|t| can_see_task(&claims, t)).collect()))
 }
 
 pub async fn handle_get_task(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
 ) -> Result<Json<TaskInfo>, (StatusCode, String)> {
-    match state.tasks.get_task(&id).await {
-        Some(task) => Ok(Json(task)),
-        None => Err((StatusCode::NOT_FOUND, "Task not found".to_string())),
-    }
+    owned_task(&state, &headers, &id).await.map(Json)
 }
 
 pub async fn handle_cancel_task(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    owned_task(&state, &headers, &id).await?;
     let cancelled = state.tasks.cancel_task(&id).await;
-    Json(serde_json::json!({ "success": cancelled }))
+    Ok(Json(serde_json::json!({ "success": cancelled })))
 }
 
 pub async fn handle_pause_task(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    owned_task(&state, &headers, &id).await?;
     let paused = state.tasks.pause_task(&id).await;
-    Json(serde_json::json!({ "success": paused }))
+    Ok(Json(serde_json::json!({ "success": paused })))
 }
 
 pub async fn handle_resume_task(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
-) -> Json<serde_json::Value> {
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    owned_task(&state, &headers, &id).await?;
     let resumed = state.tasks.resume_task(&id).await;
-    Json(serde_json::json!({ "success": resumed }))
+    Ok(Json(serde_json::json!({ "success": resumed })))
 }
 
 pub async fn handle_clear_completed_tasks(
     State(state): State<AppState>,
-) -> Json<serde_json::Value> {
-    state.tasks.clear_completed().await;
-    Json(serde_json::json!({ "success": true }))
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let only_own = (!claims.role.eq_ignore_ascii_case("admin")).then_some(claims.sub.as_str());
+    state.tasks.clear_completed(only_own).await;
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 pub async fn handle_upload(
@@ -1036,7 +1078,9 @@ pub async fn handle_upload(
         || query.get("no_task").map(|v| v == "true" || v == "1").unwrap_or(false);
 
     let task_id_opt = if !is_silent {
-        Some(state.tasks.create_task("Upload Files", "upload", "Browser", &dest_dir, 0).await)
+        let id = state.tasks.create_task("Upload Files", "upload", "Browser", &dest_dir, 0).await;
+        claim_task(&state, &headers, &id);
+        Some(id)
     } else {
         None
     };

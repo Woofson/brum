@@ -186,16 +186,29 @@ pub fn write_initial_admin_credentials(
     Ok(target)
 }
 
+/// Folder for the credentials note: beside the database, so each Brum on a machine has its own.
+/// `None` for in-memory databases.
+pub fn credentials_note_dir(db_path: &str) -> Option<PathBuf> {
+    if db_path.is_empty() || db_path == ":memory:" {
+        return None;
+    }
+    let parent = Path::new(db_path).parent().filter(|p| !p.as_os_str().is_empty());
+    Some(parent.map(Path::to_path_buf).unwrap_or_else(|| PathBuf::from(".")))
+}
+
 /// Automatically removes the initial administrative credentials file once the admin
 /// has performed their first successful login or updated their password.
-pub fn cleanup_initial_admin_credentials() {
-    let log_dir = crate::config::LoggingConfig::default().resolve_log_directory();
-    let target = log_dir.join("initial_admin_credentials.txt");
-    if target.is_file() {
-        if let Err(e) = fs::remove_file(&target) {
-            tracing::warn!("Failed to remove initial admin credentials file: {}", e);
-        } else {
-            tracing::info!("Initial administrative credentials file cleaned up successfully.");
+pub fn cleanup_initial_admin_credentials(db_path: &str) {
+    // Older versions wrote the note into the shared log folder
+    let legacy_dir = crate::config::LoggingConfig::default().resolve_log_directory();
+    for dir in credentials_note_dir(db_path).into_iter().chain(std::iter::once(legacy_dir)) {
+        let target = dir.join("initial_admin_credentials.txt");
+        if target.is_file() {
+            if let Err(e) = fs::remove_file(&target) {
+                tracing::warn!("Failed to remove initial admin credentials file: {}", e);
+            } else {
+                tracing::info!("Initial administrative credentials file cleaned up successfully.");
+            }
         }
     }
 }

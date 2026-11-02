@@ -110,6 +110,8 @@ pub fn extract_fleet_claims(
             token_id: None,
             exp: 9999999999,
             shell: None,
+            session_gen: 0,
+            sid: None,
         });
     }
 

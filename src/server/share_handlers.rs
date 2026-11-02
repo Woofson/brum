@@ -7,12 +7,79 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 use crate::server::AppState;
+use crate::server::auth_handlers::is_request_secure_peer;
 use crate::server::middleware::{resolve_client_ip, sanitize_uploaded_file_name, validate_path_access};
 use crate::server::fs_handlers::{build_local_file_range_response, CleanTempStream};
 use crate::vfs::archive::ArchiveHandler;
 
 fn extract_user_agent(headers: &HeaderMap) -> Option<String> {
     headers.get(header::USER_AGENT).and_then(|v| v.to_str().ok()).map(|s| s.to_string())
+}
+
+const SHARE_PASS_COOKIE: &str = "brum_share_pass";
+const SHARE_EMAIL_COOKIE: &str = "brum_share_email";
+const SHARE_PASS_HOURS: i64 = 12;
+
+/// Share tokens are hex; anything else is refused before it reaches a page or a query
+fn is_valid_share_token(token: &str) -> bool {
+    !token.is_empty() && token.len() <= 64 && token.chars().all(|c| c.is_ascii_alphanumeric())
+}
+
+fn read_cookie(headers: &HeaderMap, name: &str) -> Option<String> {
+    headers.get_all(header::COOKIE).iter()
+        .filter_map(|v| v.to_str().ok())
+        .flat_map(|s| s.split(';'))
+        .filter_map(|pair| pair.trim().split_once('='))
+        .find(|(k, _)| *k == name)
+        .map(|(_, v)| v.trim().to_string())
+}
+
+fn with_cookie(mut resp: Response, cookie: &str) -> Response {
+    if let Ok(hv) = axum::http::HeaderValue::from_str(cookie) {
+        resp.headers_mut().append(header::SET_COOKIE, hv);
+    }
+    resp
+}
+
+/// Cookie that only travels with requests for this one share
+fn share_cookie(token: &str, name: &str, value: &str, secure: bool) -> String {
+    format!(
+        "{}={}; Path=/api/public/shares/{}; HttpOnly; SameSite=Strict; Max-Age={}{}",
+        name, value, token, SHARE_PASS_HOURS * 3600, if secure { "; Secure" } else { "" }
+    )
+}
+
+/// The visitor has passed the share's password and email gates. Returns the guest email for the access log.
+fn check_share_gates(state: &AppState, headers: &HeaderMap, token: &str, share: &crate::auth::ShareItem) -> Result<Option<String>, (StatusCode, String)> {
+    if share.has_password {
+        let pass = read_cookie(headers, SHARE_PASS_COOKIE).unwrap_or_default();
+        if !state.auth.verify_share_pass(token, &pass) {
+            return Err((StatusCode::UNAUTHORIZED, "Password required for this share".to_string()));
+        }
+    }
+    if share.require_email {
+        let pass = read_cookie(headers, SHARE_EMAIL_COOKIE).unwrap_or_default();
+        return match state.auth.verify_share_email_pass(token, &pass) {
+            Some(email) => Ok(Some(email)),
+            None => Err((StatusCode::FORBIDDEN, "Authorized email required for this share".to_string())),
+        };
+    }
+    Ok(None)
+}
+
+/// A free name in `dir`: `name`, else `name (1).ext`, `name (2).ext`, ...
+fn unused_upload_path(dir: &Path, name: &str) -> PathBuf {
+    let first = dir.join(name);
+    if std::fs::symlink_metadata(&first).is_err() {
+        return first;
+    }
+    let (stem, ext) = match name.rfind('.') {
+        Some(i) if i > 0 => (&name[..i], &name[i..]),
+        _ => (name, ""),
+    };
+    (1..).map(|n| dir.join(format!("{} ({}){}", stem, n, ext)))
+        .find(|p| std::fs::symlink_metadata(p).is_err())
+        .expect("unbounded range always yields a free name")
 }
 
 fn safe_join_share_path(base_dir: &Path, rel_path: &str) -> Result<PathBuf, (StatusCode, String)> {
@@ -137,8 +204,6 @@ pub struct VerifyEmailRequest {
 #[derive(Deserialize)]
 pub struct SharePublicQuery {
     file: Option<String>,
-    password: Option<String>,
-    email: Option<String>,
 }
 
 pub async fn handle_create_share(
@@ -361,7 +426,13 @@ pub async fn handle_public_get_share_meta(
         0
     };
 
-    let files = if share.is_dir && share.allow_view && p.exists() {
+    // Folder contents stay hidden until the visitor has passed the password and email gates
+    let password_ok = !share.has_password
+        || state.auth.verify_share_pass(&token, &read_cookie(&headers, SHARE_PASS_COOKIE).unwrap_or_default());
+    let email_ok = !share.require_email
+        || state.auth.verify_share_email_pass(&token, &read_cookie(&headers, SHARE_EMAIL_COOKIE).unwrap_or_default()).is_some();
+    let unlocked = password_ok && email_ok;
+    let files = if unlocked && share.is_dir && share.allow_view && p.exists() {
         list_share_dir_entries(p)
     } else {
         Vec::new()
@@ -384,6 +455,8 @@ pub async fn handle_public_get_share_meta(
         "created_at": share.created_at,
         "expires_at": share.expires_at,
         "files": files,
+        "unlocked": unlocked,
+        "needs_email": !email_ok,
     })))
 }
 
@@ -393,10 +466,10 @@ pub async fn handle_public_verify_share(
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Json(payload): Json<VerifyPassRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
     let peer_addr = connect_info.map(|ci| ci.0);
     let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
-    let rate_key = format!("share_verify:{}:{}", token, ip);
+    let rate_key = format!("share_verify_pass:{}:{}", token, ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
         tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share password verification");
         return Err((
@@ -421,7 +494,11 @@ pub async fn handle_public_verify_share(
             let ua = extract_user_agent(&headers);
             let _ = state.auth.log_share_access(share.id, &token, None, &ip, ua.as_deref(), "visit", None);
         }
-        Ok(Json(serde_json::json!({ "valid": true })))
+        let exp = chrono::Utc::now().timestamp() + SHARE_PASS_HOURS * 3600;
+        let pass = state.auth.sign_share_pass(&token, exp)
+            .ok_or((StatusCode::INTERNAL_SERVER_ERROR, "Could not issue share pass".to_string()))?;
+        let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
+        Ok(with_cookie(Json(serde_json::json!({ "valid": true })).into_response(), &share_cookie(&token, SHARE_PASS_COOKIE, &pass, secure)))
     } else {
         Err((StatusCode::UNAUTHORIZED, "Incorrect password for this share".to_string()))
     }
@@ -433,10 +510,10 @@ pub async fn handle_public_verify_email(
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
     Json(payload): Json<VerifyEmailRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Response, (StatusCode, String)> {
     let peer_addr = connect_info.map(|ci| ci.0);
     let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
-    let rate_key = format!("share_verify:{}:{}", token, ip);
+    let rate_key = format!("share_verify_email:{}:{}", token, ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
         tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share email verification");
         return Err((
@@ -454,7 +531,10 @@ pub async fn handle_public_verify_email(
             let ua = extract_user_agent(&headers);
             let _ = state.auth.log_share_access(share.id, &token, Some(&payload.email), &ip, ua.as_deref(), "visit", None);
         }
-        Ok(Json(serde_json::json!({ "valid": true })))
+        let exp = chrono::Utc::now().timestamp() + SHARE_PASS_HOURS * 3600;
+        let pass = state.auth.sign_share_email(&token, &payload.email, exp);
+        let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
+        Ok(with_cookie(Json(serde_json::json!({ "valid": true })).into_response(), &share_cookie(&token, SHARE_EMAIL_COOKIE, &pass, secure)))
     } else {
         Err((StatusCode::FORBIDDEN, "Email address is not authorized for this showcase share".to_string()))
     }
@@ -487,21 +567,7 @@ pub async fn handle_public_preview_share(
         return Err((StatusCode::FORBIDDEN, "Online file preview is disabled for this share".to_string()));
     }
 
-    if share.has_password {
-        let pass = query.password.as_deref().unwrap_or("");
-        let valid = state.auth.verify_share_password(&token, pass).unwrap_or(false);
-        if !valid {
-            return Err((StatusCode::UNAUTHORIZED, "Password required for preview".to_string()));
-        }
-    }
-
-    if share.require_email {
-        let email = query.email.as_deref().unwrap_or("");
-        let valid = state.auth.verify_share_email(&token, email).unwrap_or(false);
-        if !valid {
-            return Err((StatusCode::FORBIDDEN, "Authorized email required for preview".to_string()));
-        }
-    }
+    let guest_email = check_share_gates(&state, &headers, &token, &share)?;
 
     let target_path = if share.is_dir {
         if let Some(ref file_param) = query.file {
@@ -524,7 +590,7 @@ pub async fn handle_public_preview_share(
     let _ = state.auth.log_share_access(
         share.id,
         &token,
-        query.email.as_deref(),
+        guest_email.as_deref(),
         &ip,
         ua.as_deref(),
         "preview",
@@ -579,21 +645,7 @@ pub async fn handle_public_download_share(
         return Err((StatusCode::GONE, "This share link has reached its maximum download limit".to_string()));
     }
 
-    if share.has_password {
-        let pass = query.password.as_deref().unwrap_or("");
-        let valid = state.auth.verify_share_password(&token, pass).unwrap_or(false);
-        if !valid {
-            return Err((StatusCode::UNAUTHORIZED, "Password required for download".to_string()));
-        }
-    }
-
-    if share.require_email {
-        let email = query.email.as_deref().unwrap_or("");
-        let valid = state.auth.verify_share_email(&token, email).unwrap_or(false);
-        if !valid {
-            return Err((StatusCode::FORBIDDEN, "Authorized email required for download".to_string()));
-        }
-    }
+    let guest_email = check_share_gates(&state, &headers, &token, &share)?;
 
     let path = Path::new(&share.path);
     if !path.exists() {
@@ -618,7 +670,7 @@ pub async fn handle_public_download_share(
             let _ = state.auth.log_share_access(
                 share.id,
                 &token,
-                query.email.as_deref(),
+                guest_email.as_deref(),
                 &ip,
                 ua.as_deref(),
                 "download",
@@ -645,7 +697,7 @@ pub async fn handle_public_download_share(
         let _ = state.auth.log_share_access(
             share.id,
             &token,
-            query.email.as_deref(),
+            guest_email.as_deref(),
             &ip,
             ua.as_deref(),
             "download",
@@ -691,7 +743,7 @@ pub async fn handle_public_download_share(
     let _ = state.auth.log_share_access(
         share.id,
         &token,
-        query.email.as_deref(),
+        guest_email.as_deref(),
         &ip,
         ua.as_deref(),
         "download",
@@ -720,7 +772,6 @@ pub async fn handle_public_upload_share(
     connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     headers: HeaderMap,
     AxumPath(token): AxumPath<String>,
-    Query(query): Query<SharePublicQuery>,
     mut multipart: Multipart,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let share = state.auth.get_share_by_token(&token)
@@ -743,21 +794,7 @@ pub async fn handle_public_upload_share(
         }
     }
 
-    if share.has_password {
-        let pass = query.password.as_deref().unwrap_or("");
-        let valid = state.auth.verify_share_password(&token, pass).unwrap_or(false);
-        if !valid {
-            return Err((StatusCode::UNAUTHORIZED, "Password required for upload".to_string()));
-        }
-    }
-
-    if share.require_email {
-        let email = query.email.as_deref().unwrap_or("");
-        let valid = state.auth.verify_share_email(&token, email).unwrap_or(false);
-        if !valid {
-            return Err((StatusCode::FORBIDDEN, "Authorized email required for upload".to_string()));
-        }
-    }
+    let guest_email = check_share_gates(&state, &headers, &token, &share)?;
 
     let target_dir = Path::new(&share.path);
     if !target_dir.exists() || !target_dir.is_dir() {
@@ -771,20 +808,29 @@ pub async fn handle_public_upload_share(
 
     while let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
         let raw_name = field.file_name().unwrap_or("uploaded_file");
-        let safe_name = sanitize_uploaded_file_name(raw_name);
-        if safe_name.is_empty() {
-            continue;
-        }
+        // Guests can't create hidden start-up files such as `.bashrc`: the leading dots are dropped
+        let cleaned = sanitize_uploaded_file_name(raw_name);
+        let undotted = cleaned.trim_start_matches('.');
+        let base_name = if undotted.is_empty() { "upload.bin" } else { undotted };
 
-        let target_path = target_dir.join(&safe_name);
         let data = field.bytes().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
-        std::fs::write(&target_path, &data).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write file {}: {}", safe_name, e)))?;
+        // Never replace an existing file: `create_new` refuses if another upload claimed the name first
+        let (target_path, mut file) = loop {
+            let candidate = unused_upload_path(target_dir, base_name);
+            match std::fs::OpenOptions::new().write(true).create_new(true).open(&candidate) {
+                Ok(f) => break (candidate, f),
+                Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => continue,
+                Err(e) => return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write file {}: {}", base_name, e))),
+            }
+        };
+        let safe_name = target_path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        std::io::Write::write_all(&mut file, &data).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write file {}: {}", safe_name, e)))?;
         saved_count += 1;
 
         let _ = state.auth.log_share_access(
             share.id,
             &token,
-            query.email.as_deref(),
+            guest_email.as_deref(),
             &ip,
             ua.as_deref(),
             "upload",
@@ -798,6 +844,16 @@ pub async fn handle_public_upload_share(
 pub async fn handle_public_share_page(
     AxumPath(token): AxumPath<String>,
 ) -> Response {
+    // The token is written into the page's script, so only plain share tokens get a page
+    if !is_valid_share_token(&token) {
+        return (StatusCode::NOT_FOUND, "Share not found").into_response();
+    }
+    let nonce = {
+        use rand::RngCore;
+        let mut bytes = [0u8; 16];
+        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        hex::encode(bytes)
+    };
     let html = format!(r#"<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -1148,7 +1204,7 @@ pub async fn handle_public_share_page(
       </div>
     </div>
     <div class="nav-right" id="nav-actions">
-      <button class="btn btn-accent" id="btn-portal-download" style="display: none;" onclick="downloadMainShare()">
+      <button class="btn btn-accent" id="btn-portal-download" style="display: none;">
         ⬇️ Download All
       </button>
     </div>
@@ -1169,16 +1225,16 @@ pub async fn handle_public_share_page(
     <!-- Active Showcase Content -->
     <div id="showcase-content" style="display: none; flex-direction: column; gap: 20px;">
       <div class="toolbar-row">
-        <input type="text" id="file-search-input" class="search-input" placeholder="🔍 Filter files in showcase..." oninput="filterFiles(this.value)">
+        <input type="text" id="file-search-input" class="search-input" placeholder="🔍 Filter files in showcase...">
         <div style="display: flex; gap: 6px; align-items: center;">
-          <button class="btn btn-outline btn-icon" id="btn-view-grid" onclick="setViewMode('grid')" title="Grid View">▦</button>
-          <button class="btn btn-outline btn-icon" id="btn-view-list" onclick="setViewMode('list')" title="List View">☰</button>
+          <button class="btn btn-outline btn-icon" id="btn-view-grid" title="Grid View">▦</button>
+          <button class="btn btn-outline btn-icon" id="btn-view-list" title="List View">☰</button>
         </div>
       </div>
 
       <!-- Single File Card (if sharing single file) -->
       <div id="single-file-section" style="display: none;">
-        <div class="file-card" style="max-width: 460px; margin: 0 auto; text-align: center;" onclick="openSingleFilePreview()">
+        <div class="file-card" id="single-file-card" style="max-width: 460px; margin: 0 auto; text-align: center;">
           <div class="file-preview-thumb" id="single-thumb">
             <span class="type-icon" id="single-type-icon">📄</span>
           </div>
@@ -1196,8 +1252,8 @@ pub async fn handle_public_share_page(
 
       <!-- Guest Upload Dropzone -->
       <div id="guest-dropbox-container" style="display: none; margin-top: 20px;">
-        <div class="dropzone" id="dropzone" onclick="document.getElementById('file-input').click()">
-          <input type="file" id="file-input" multiple style="display:none;" onchange="handleGuestUpload(this.files)">
+        <div class="dropzone" id="dropzone">
+          <input type="file" id="file-input" multiple style="display:none;">
           <div style="font-size: 28px; margin-bottom: 8px;">📥</div>
           <div style="font-weight: 700; font-size: 14px;">Guest Upload Dropbox</div>
           <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">Drag & drop files here or click to browse</div>
@@ -1215,9 +1271,9 @@ pub async fn handle_public_share_page(
         <div style="font-weight: 700; font-size: 16px;">Password Protected Share</div>
       </div>
       <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">Enter the password provided by the author to unlock this showcase:</p>
-      <input type="password" id="gate-pass-input" class="search-input" style="width: 100%; margin-bottom: 14px;" placeholder="Enter password..." onkeydown="if(event.key==='Enter') submitPasswordGate()">
+      <input type="password" id="gate-pass-input" class="search-input" style="width: 100%; margin-bottom: 14px;" placeholder="Enter password...">
       <div id="gate-pass-error" style="color: #ef4444; font-size: 12px; margin-bottom: 10px; display: none;"></div>
-      <button class="btn btn-accent" style="width: 100%;" onclick="submitPasswordGate()">Unlock Showcase</button>
+      <button class="btn btn-accent" id="gate-pass-submit" style="width: 100%;">Unlock Showcase</button>
     </div>
   </div>
 
@@ -1229,9 +1285,9 @@ pub async fn handle_public_share_page(
         <div style="font-weight: 700; font-size: 16px;">Authorized Guest Access</div>
       </div>
       <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 14px;">This showcase requires an authorized guest email. Enter your email to proceed:</p>
-      <input type="email" id="gate-email-input" class="search-input" style="width: 100%; margin-bottom: 14px;" placeholder="name@company.com" onkeydown="if(event.key==='Enter') submitEmailGate()">
+      <input type="email" id="gate-email-input" class="search-input" style="width: 100%; margin-bottom: 14px;" placeholder="name@company.com">
       <div id="gate-email-error" style="color: #ef4444; font-size: 12px; margin-bottom: 10px; display: none;"></div>
-      <button class="btn btn-accent" style="width: 100%;" onclick="submitEmailGate()">Verify & Enter</button>
+      <button class="btn btn-accent" id="gate-email-submit" style="width: 100%;">Verify & Enter</button>
     </div>
   </div>
 
@@ -1244,11 +1300,11 @@ pub async fn handle_public_share_page(
           <div id="viewer-filename" style="font-weight: 700; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">filename</div>
         </div>
         <div style="display: flex; align-items: center; gap: 8px;">
-          <button class="btn btn-accent btn-sm" id="btn-viewer-download" style="display: none;" onclick="downloadCurrentPreviewFile()">⬇️ Download</button>
-          <button class="btn btn-outline btn-icon" onclick="closeViewerModal()" title="Close Viewer">✕</button>
+          <button class="btn btn-accent btn-sm" id="btn-viewer-download" style="display: none;">⬇️ Download</button>
+          <button class="btn btn-outline btn-icon" id="btn-viewer-close" title="Close Viewer">✕</button>
         </div>
       </div>
-      <div class="viewer-stage" id="viewer-stage" oncontextmenu="return !shareMeta?.watermark_enabled;">
+      <div class="viewer-stage" id="viewer-stage">
         <!-- Dynamic Watermark Canvas Overlay -->
         <canvas id="watermark-canvas" class="watermark-overlay" style="display: none;"></canvas>
         <div id="viewer-mount" style="width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; overflow: auto;"></div>
@@ -1256,10 +1312,10 @@ pub async fn handle_public_share_page(
     </div>
   </div>
 
-  <script>
+  <script nonce="{nonce}">
     const token = "{token}";
     let shareMeta = null;
-    let verifiedPassword = sessionStorage.getItem(`brum_share_pass_${{token}}`) || '';
+    // Shown in the watermark only; the server keeps its own signed record of the email
     let verifiedEmail = sessionStorage.getItem(`brum_share_email_${{token}}`) || '';
     let currentViewMode = 'grid';
     let renderedFiles = [];
@@ -1293,20 +1349,24 @@ pub async fn handle_public_share_page(
           return;
         }}
         shareMeta = await res.json();
-        
-        if (shareMeta.require_email && !verifiedEmail) {{
-          document.getElementById('email-gate-modal').style.display = 'flex';
-          return;
-        }}
 
-        if (shareMeta.has_password && !verifiedPassword) {{
-          document.getElementById('password-gate-modal').style.display = 'flex';
+        if (!shareMeta.unlocked) {{
+          showNextGate();
           return;
         }}
 
         initShowcaseView();
       }} catch (e) {{
         showError('Network error connecting to share portal');
+      }}
+    }}
+
+    // The server says which gate is still closed: email first, then password
+    function showNextGate() {{
+      if (shareMeta.needs_email) {{
+        document.getElementById('email-gate-modal').style.display = 'flex';
+      }} else {{
+        document.getElementById('password-gate-modal').style.display = 'flex';
       }}
     }}
 
@@ -1330,10 +1390,8 @@ pub async fn handle_public_share_page(
           body: JSON.stringify({{ password: pass }})
         }});
         if (res.ok) {{
-          verifiedPassword = pass;
-          sessionStorage.setItem(`brum_share_pass_${{token}}`, pass);
           document.getElementById('password-gate-modal').style.display = 'none';
-          initShowcaseView();
+          loadShare();
         }} else {{
           errEl.textContent = 'Incorrect password. Please try again.';
           errEl.style.display = 'block';
@@ -1360,11 +1418,7 @@ pub async fn handle_public_share_page(
           verifiedEmail = email;
           sessionStorage.setItem(`brum_share_email_${{token}}`, email);
           document.getElementById('email-gate-modal').style.display = 'none';
-          if (shareMeta.has_password && !verifiedPassword) {{
-            document.getElementById('password-gate-modal').style.display = 'flex';
-          }} else {{
-            initShowcaseView();
-          }}
+          loadShare();
         }} else {{
           errEl.textContent = 'Email address not authorized for this showcase.';
           errEl.style.display = 'block';
@@ -1428,11 +1482,11 @@ pub async fn handle_public_share_page(
         else if (type === '3d') icon = '🧊';
         else if (f.is_dir) icon = '📁';
 
-        const previewUrl = `/api/public/shares/${{token}}/preview?file=${{encodeURIComponent(f.rel_path)}}${{verifiedPassword ? '&password=' + encodeURIComponent(verifiedPassword) : ''}}${{verifiedEmail ? '&email=' + encodeURIComponent(verifiedEmail) : ''}}`;
+        const previewUrl = `/api/public/shares/${{token}}/preview?file=${{encodeURIComponent(f.rel_path)}}`;
 
         if (currentViewMode === 'grid') {{
           const thumbHtml = type === 'image'
-            ? `<img src="${{previewUrl}}" alt="${{escapeHtml(f.name)}}" loading="lazy" onerror="this.outerHTML='<span class=\"type-icon\">🖼️</span>'">`
+            ? `<img src="${{previewUrl}}" alt="${{escapeHtml(f.name)}}" loading="lazy" data-thumb>`
             : `<span class="type-icon">${{icon}}</span>`;
 
           return `
@@ -1496,10 +1550,7 @@ pub async fn handle_public_share_page(
 
       document.getElementById('viewer-modal').style.display = 'flex';
 
-      const fileParam = relPath ? `&file=${{relPath}}` : '';
-      const passParam = verifiedPassword ? `&password=${{encodeURIComponent(verifiedPassword)}}` : '';
-      const emailParam = verifiedEmail ? `&email=${{encodeURIComponent(verifiedEmail)}}` : '';
-      const previewUrl = `/api/public/shares/${{token}}/preview?${{fileParam ? fileParam.slice(1) : ''}}${{passParam}}${{emailParam}}`;
+      const previewUrl = `/api/public/shares/${{token}}/preview${{relPath ? `?file=${{relPath}}` : ''}}`;
 
       // Render Dynamic Watermark
       if (shareMeta.watermark_enabled) {{
@@ -1509,7 +1560,7 @@ pub async fn handle_public_share_page(
       }}
 
       if (type === 'image') {{
-        mount.innerHTML = `<img src="${{previewUrl}}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;" draggable="false" oncontextmenu="return false;">`;
+        mount.innerHTML = `<img src="${{previewUrl}}" style="max-width:100%; max-height:100%; object-fit:contain; border-radius:4px;" draggable="false">`;
       }} else if (type === 'video') {{
         mount.innerHTML = `<video src="${{previewUrl}}" controls autoplay playsinline style="max-width:100%; max-height:100%;"></video>`;
       }} else if (type === 'audio') {{
@@ -1548,7 +1599,7 @@ pub async fn handle_public_share_page(
             <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
             <div style="font-weight: 600; font-size: 14px; margin-bottom: 8px;">${{escapeHtml(filename)}}</div>
             <div style="font-size: 12px; margin-bottom: 16px;">Inline preview not supported for this file format.</div>
-            ${{shareMeta.allow_download ? `<button class="btn btn-accent" onclick="downloadCurrentPreviewFile()">⬇️ Download File (${{formatBytes(size)}})</button>` : ''}}
+            ${{shareMeta.allow_download ? `<button class="btn btn-accent" data-action="download-preview">⬇️ Download File (${{formatBytes(size)}})</button>` : ''}}
           </div>
         `;
       }}
@@ -1728,17 +1779,13 @@ pub async fn handle_public_share_page(
     }}
 
     function downloadMainShare() {{
-      const passParam = verifiedPassword ? `?password=${{encodeURIComponent(verifiedPassword)}}` : '';
-      const emailParam = verifiedEmail ? `${{passParam ? '&' : '?'}}email=${{encodeURIComponent(verifiedEmail)}}` : '';
-      window.location.href = `/api/public/shares/${{token}}/download${{passParam}}${{emailParam}}`;
+      window.location.href = `/api/public/shares/${{token}}/download`;
     }}
 
     function downloadCurrentPreviewFile() {{
       if (!currentPreviewFile) return;
-      const fileParam = currentPreviewFile.relPath ? `?file=${{encodeURIComponent(currentPreviewFile.relPath)}}` : '';
-      const passParam = verifiedPassword ? `${{fileParam ? '&' : '?'}}password=${{encodeURIComponent(verifiedPassword)}}` : '';
-      const emailParam = verifiedEmail ? `${{fileParam || passParam ? '&' : '?'}}email=${{encodeURIComponent(verifiedEmail)}}` : '';
-      window.location.href = `/api/public/shares/${{token}}/download${{fileParam}}${{passParam}}${{emailParam}}`;
+      const fileParam = currentPreviewFile.relPath ? `?file=${{currentPreviewFile.relPath}}` : '';
+      window.location.href = `/api/public/shares/${{token}}/download${{fileParam}}`;
     }}
 
     function setupDropzone() {{
@@ -1760,11 +1807,8 @@ pub async fn handle_public_share_page(
       const fd = new FormData();
       for (let f of files) fd.append('files', f);
 
-      const passParam = verifiedPassword ? `?password=${{encodeURIComponent(verifiedPassword)}}` : '';
-      const emailParam = verifiedEmail ? `${{passParam ? '&' : '?'}}email=${{encodeURIComponent(verifiedEmail)}}` : '';
-
       try {{
-        const res = await fetch(`/api/public/shares/${{token}}/upload${{passParam}}${{emailParam}}`, {{
+        const res = await fetch(`/api/public/shares/${{token}}/upload`, {{
           method: 'POST',
           body: fd
         }});
@@ -1780,10 +1824,43 @@ pub async fn handle_public_share_page(
     }}
 
     document.addEventListener('click', (e) => {{
+      if (e.target.closest('[data-action="download-preview"]')) {{
+        downloadCurrentPreviewFile();
+        return;
+      }}
       const row = e.target.closest('[data-file-index]');
       if (!row) return;
       const f = renderedFiles[Number(row.dataset.fileIndex)];
       if (f) openFilePreview(encodeURIComponent(f.rel_path), f.name, f.mime, f.size);
+    }});
+
+    // Thumbnails that fail to load fall back to an icon ('error' doesn't bubble, so listen while capturing)
+    document.getElementById('gallery-container').addEventListener('error', (e) => {{
+      if (!e.target.matches || !e.target.matches('img[data-thumb]')) return;
+      const icon = document.createElement('span');
+      icon.className = 'type-icon';
+      icon.textContent = '🖼️';
+      e.target.replaceWith(icon);
+    }}, true);
+
+    const onEnter = (fn) => (e) => {{ if (e.key === 'Enter') fn(); }};
+    document.getElementById('btn-portal-download').addEventListener('click', downloadMainShare);
+    document.getElementById('file-search-input').addEventListener('input', (e) => filterFiles(e.target.value));
+    document.getElementById('btn-view-grid').addEventListener('click', () => setViewMode('grid'));
+    document.getElementById('btn-view-list').addEventListener('click', () => setViewMode('list'));
+    document.getElementById('single-file-card').addEventListener('click', openSingleFilePreview);
+    document.getElementById('dropzone').addEventListener('click', (e) => {{
+      if (e.target.id !== 'file-input') document.getElementById('file-input').click();
+    }});
+    document.getElementById('file-input').addEventListener('change', (e) => handleGuestUpload(e.target.files));
+    document.getElementById('gate-pass-input').addEventListener('keydown', onEnter(submitPasswordGate));
+    document.getElementById('gate-pass-submit').addEventListener('click', submitPasswordGate);
+    document.getElementById('gate-email-input').addEventListener('keydown', onEnter(submitEmailGate));
+    document.getElementById('gate-email-submit').addEventListener('click', submitEmailGate);
+    document.getElementById('btn-viewer-download').addEventListener('click', downloadCurrentPreviewFile);
+    document.getElementById('btn-viewer-close').addEventListener('click', closeViewerModal);
+    document.getElementById('viewer-stage').addEventListener('contextmenu', (e) => {{
+      if (shareMeta && shareMeta.watermark_enabled) e.preventDefault();
     }});
 
     function escapeHtml(str) {{
@@ -1805,10 +1882,18 @@ pub async fn handle_public_share_page(
     loadShare();
   </script>
 </body>
-</html>"#, token = token);
+</html>"#, token = token, nonce = nonce);
 
+    // Only this page's own scripts may run, even if a file name ever slipped through unescaped
+    let csp = format!(
+        "default-src 'self'; script-src 'nonce-{}'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; \
+         media-src 'self' blob:; connect-src 'self'; frame-src 'self'; object-src 'none'; base-uri 'none'; \
+         form-action 'none'; frame-ancestors 'self'",
+        nonce
+    );
     Response::builder()
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+        .header(header::CONTENT_SECURITY_POLICY, csp)
         .body(Body::from(html))
         .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "HTML load error").into_response())
 }

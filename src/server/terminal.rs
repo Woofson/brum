@@ -137,6 +137,8 @@ pub fn extract_terminal_claims(
                 token_id: None,
                 exp: 9999999999,
                 shell: None,
+                session_gen: 0,
+                sid: None,
             });
         }
     } else if !state.config.server.enable_auth || state.config.server.standalone {
@@ -155,6 +157,8 @@ pub fn extract_terminal_claims(
             token_id: None,
             exp: 9999999999,
             shell: None,
+            session_gen: 0,
+            sid: None,
         });
     }
 

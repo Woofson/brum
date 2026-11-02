@@ -277,7 +277,7 @@ pub async fn handle_login(
             state.rate_limiter.reset(&rate_key);
             state.rate_limiter.reset(&user_rate_key);
             if user.role.eq_ignore_ascii_case("admin") {
-                crate::logging::cleanup_initial_admin_credentials();
+                crate::logging::cleanup_initial_admin_credentials(state.auth.db_path());
             }
             tracing::info!(username = %user.username, is_pam = user.is_pam, role = %user.role, "User successfully authenticated");
             let token = state.auth.generate_token(&user).map_err(|e| {
@@ -293,7 +293,20 @@ pub async fn handle_login(
     }
 }
 
-pub async fn handle_logout() -> impl IntoResponse {
+pub async fn handle_logout(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
+    // End this login on the server too, so a copied token stops working
+    if state.config.server.enable_auth && !state.config.server.standalone {
+        if let Ok(claims) = crate::server::middleware::extract_claims_or_local(&state, &headers) {
+            if claims.token_id.is_none() {
+                if let Err(e) = state.auth.revoke_session(&claims) {
+                    tracing::warn!(user = %claims.sub, error = %e, "Could not end session on logout");
+                }
+            }
+        }
+    }
     let mut resp = Json(serde_json::json!({ "success": true, "message": "Logged out" })).into_response();
     let clear_cookie = "cd_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
     if let Ok(hv) = axum::http::HeaderValue::from_str(clear_cookie) {
@@ -495,8 +508,9 @@ pub struct UpdateProfileRequest {
 pub async fn handle_update_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
     Json(payload): Json<UpdateProfileRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<axum::response::Response, (StatusCode, String)> {
     let username = if !state.config.server.enable_auth || state.config.server.standalone {
         let current_user = std::env::var("USER")
             .or_else(|_| std::env::var("USERNAME"))
@@ -568,7 +582,34 @@ pub async fn handle_update_profile(
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Password update task failed: {}", e)))?
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
-            crate::logging::cleanup_initial_admin_credentials();
+            crate::logging::cleanup_initial_admin_credentials(state.auth.db_path());
+
+            // The new password ended every login, so this browser gets a fresh one
+            if state.config.server.enable_auth && !state.config.server.standalone {
+                let user = state.auth.get_user_by_username(&username)
+                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+                    .ok_or((StatusCode::NOT_FOUND, "User not found".to_string()))?;
+                let token = state.auth.generate_token(&user)
+                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e)))?;
+                let peer_addr = connect_info.map(|ci| ci.0);
+                let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
+                let cookie_header = format!(
+                    "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
+                    token,
+                    state.config.server.session_duration_hours * 3600,
+                    secure_flag
+                );
+                let mut resp = Json(serde_json::json!({
+                    "success": true,
+                    "message": "Profile updated successfully",
+                    "avatar_url": effective_avatar_url,
+                    "token": token
+                })).into_response();
+                if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
+                    resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+                }
+                return Ok(resp);
+            }
         }
     }
 
@@ -576,7 +617,7 @@ pub async fn handle_update_profile(
         "success": true,
         "message": "Profile updated successfully",
         "avatar_url": effective_avatar_url
-    })))
+    })).into_response())
 }
 
 #[derive(Deserialize)]

@@ -30,6 +30,9 @@ pub struct TaskInfo {
     pub verified_files: u64,
     #[serde(default)]
     pub last_hash: Option<String>,
+    /// Brum user who started the task; tasks without one (scheduled, system) are for admins only
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 #[derive(Clone)]
@@ -111,12 +114,21 @@ impl TaskManager {
             paranoid: false,
             verified_files: 0,
             last_hash: None,
+            owner: None,
         };
 
         if let Ok(mut map) = self.tasks.write() {
             map.insert(id.clone(), task);
         }
         id
+    }
+
+    pub fn set_owner(&self, id: &str, owner: &str) {
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                task.owner = Some(owner.to_string());
+            }
+        }
     }
 
     pub async fn is_cancelled(&self, id: &str) -> bool {
@@ -342,9 +354,12 @@ impl TaskManager {
         false
     }
 
-    pub async fn clear_completed(&self) {
+    /// Clears finished tasks; with `owner`, only that user's
+    pub async fn clear_completed(&self, owner: Option<&str>) {
         if let Ok(mut map) = self.tasks.write() {
-            map.retain(|_, task| task.status == "running" || task.status == "paused");
+            map.retain(|_, task| {
+                task.status == "running" || task.status == "paused" || owner.is_some_and(|o| task.owner.as_deref() != Some(o))
+            });
         }
     }
 

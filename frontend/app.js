@@ -19647,6 +19647,7 @@ async function saveUserProfile() {
 
     if (resp.ok) {
       const data = await resp.json().catch(() => ({}));
+      adoptSessionToken(data.token);
       if (statusMsg) {
         statusMsg.style.color = 'var(--success)';
         statusMsg.textContent = 'Profile updated successfully!';
@@ -19821,6 +19822,7 @@ async function saveSettingsUserProfile() {
 
     if (resp.ok) {
       const data = await resp.json().catch(() => ({}));
+      adoptSessionToken(data.token);
       if (statusEl) {
         statusEl.style.color = '#34d399';
         statusEl.textContent = 'Profile details saved to server!';
@@ -29420,6 +29422,7 @@ async function pollTasks() {
       }
       return;
     }
+    if (res.status === 401) handleSessionEnded();
   } catch (e) {
     // Ignore polling errors
   }
@@ -29868,8 +29871,9 @@ function getDownloadUrl(path, inline = false, paneIndex = null, format = null) {
     url += `&_t=${Date.now()}`;
   }
   if (format) url += `&format=${encodeURIComponent(format)}`;
-  const token = (node && node.id !== 'local' && node.auth_token) ? node.auth_token.trim() : (App.token || localStorage.getItem('cd_token'));
-  if (token) url += `&token=${encodeURIComponent(token)}`;
+  // This Brum's own downloads ride on the login cookie; only remote Fleet nodes need their token in the address
+  const remoteToken = (node && node.id !== 'local' && node.auth_token) ? node.auth_token.trim() : '';
+  if (remoteToken) url += `&token=${encodeURIComponent(remoteToken)}`;
   return url;
 }
 
@@ -36977,9 +36981,33 @@ async function confirmExitBrum() {
   }
 }
 
+// Stores a login the server handed out, e.g. after a password change ended the old one
+function adoptSessionToken(token) {
+  if (!token) return;
+  App.token = token;
+  localStorage.setItem('cd_token', token);
+  try {
+    document.cookie = `cd_token=${encodeURIComponent(token)}; path=/; SameSite=Lax`;
+  } catch (_) {}
+}
+
+// The server no longer accepts this login (logged out elsewhere, password or access changed):
+// stop using it and go back to the login screen instead of retrying forever
+function handleSessionEnded() {
+  if (!App.token) return;
+  App.token = '';
+  localStorage.removeItem('cd_token');
+  try {
+    document.cookie = 'cd_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0;';
+  } catch (_) {}
+  showToast('Your session has ended. Please log in again.', 'warning');
+  setTimeout(() => location.reload(), 1500);
+}
+
 async function logout() {
   try {
-    await fetch('/api/auth/logout', { method: 'POST' });
+    const headers = App.token ? { 'Authorization': `Bearer ${App.token}` } : {};
+    await fetch('/api/auth/logout', { method: 'POST', headers });
   } catch (_) {}
   localStorage.removeItem('cd_token');
   localStorage.removeItem('cd_is_locked');

@@ -30,6 +30,9 @@ pub struct SyncOptions {
     pub retention_days: Option<u32>,
     #[serde(default)]
     pub exclusions: Vec<String>,
+    /// Brum user the sync runs for; set by the server, never by the request
+    #[serde(skip)]
+    pub owner: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -47,6 +50,7 @@ impl Default for SyncOptions {
             archive_dir: Some("_archive".to_string()),
             retention_days: Some(30),
             exclusions: Vec::new(),
+            owner: None,
         }
     }
 }
@@ -161,6 +165,9 @@ pub struct BackupProfile {
     pub created_at: i64,
     #[serde(default)]
     pub exclusions: Option<String>,
+    /// Brum user who made the profile; profiles from before owners existed are admin-only
+    #[serde(default)]
+    pub owner: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -525,6 +532,7 @@ impl DirectorySyncEngine {
             preserve_timestamps: true,
             preserve_permissions: true,
             delete_orphans: false,
+            owner: options.owner.clone(),
         };
 
         let forward_pairs: Vec<(PathBuf, PathBuf)> = analysis.files.iter()
@@ -652,6 +660,7 @@ impl BackupManager {
 
         // Migration: add exclusions column if it didn't exist in older databases
         let _ = conn.execute("ALTER TABLE backup_profiles ADD COLUMN exclusions TEXT", []);
+        let _ = conn.execute("ALTER TABLE backup_profiles ADD COLUMN owner TEXT", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS backup_history (
@@ -683,7 +692,7 @@ impl BackupManager {
         };
 
         let mut stmt = match conn.prepare(
-            "SELECT id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions FROM backup_profiles ORDER BY created_at DESC"
+            "SELECT id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner FROM backup_profiles ORDER BY created_at DESC"
         ) {
             Ok(s) => s,
             Err(_) => return Vec::new(),
@@ -710,6 +719,7 @@ impl BackupManager {
                 last_result: row.get(16)?,
                 created_at: row.get(17)?,
                 exclusions: row.get(18).ok().flatten(),
+                owner: row.get(19).ok().flatten(),
             })
         });
 
@@ -722,7 +732,7 @@ impl BackupManager {
     pub fn get_profile(&self, id: &str) -> Option<BackupProfile> {
         let conn = self.db.lock().ok()?;
         conn.query_row(
-            "SELECT id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions FROM backup_profiles WHERE id = ?1",
+            "SELECT id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner FROM backup_profiles WHERE id = ?1",
             params![id],
             |row| {
                 Ok(BackupProfile {
@@ -745,6 +755,7 @@ impl BackupManager {
                     last_result: row.get(16)?,
                     created_at: row.get(17)?,
                     exclusions: row.get(18).ok().flatten(),
+                    owner: row.get(19).ok().flatten(),
                 })
             }
         ).optional().ok().flatten()
@@ -760,8 +771,8 @@ impl BackupManager {
         }
 
         conn.execute(
-            "INSERT INTO backup_profiles (id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19)
+            "INSERT INTO backup_profiles (id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20)
              ON CONFLICT(id) DO UPDATE SET
                 name = excluded.name,
                 source_dir = excluded.source_dir,
@@ -797,6 +808,7 @@ impl BackupManager {
                 profile.last_result,
                 profile.created_at,
                 profile.exclusions,
+                profile.owner,
             ],
         ).map_err(|e| format!("Failed to save backup profile: {}", e))?;
 
@@ -962,6 +974,7 @@ impl BackupManager {
             archive_dir: profile.archive_dir.clone().or_else(|| Some("_archive".to_string())),
             retention_days: Some(profile.retention_days),
             exclusions,
+            owner: profile.owner.clone(),
         };
 
         info!("Starting backup profile execution: '{}' ({})", profile.name, profile.profile_mode);
@@ -1151,6 +1164,7 @@ mod tests {
             archive_dir: None,
             retention_days: None,
             exclusions: vec!["*.tmp".to_string(), "node_modules".to_string()],
+            owner: None,
         };
 
         let res = DirectorySyncEngine::execute_sync(
@@ -1178,6 +1192,7 @@ mod tests {
             archive_dir: Some("_archive".to_string()),
             retention_days: Some(30),
             exclusions: Vec::new(),
+            owner: None,
         };
 
         let sub_res = DirectorySyncEngine::execute_sync(
@@ -1223,6 +1238,7 @@ mod tests {
             last_result: None,
             created_at: 1725130000,
             exclusions: Some("node_modules, .git, target".to_string()),
+            owner: Some("alice".to_string()),
         };
 
         // Save

@@ -34,7 +34,7 @@ docker run -d \
 
 Open `http://<SERVER_IP>:3140` in your browser:
 - **Default Username**: `admin`
-- **Initial Password**: Dynamically generated on first container start. View it by running `docker logs brum` (or check the rolling log directory in `/data/logs/`).
+- **Initial Password**: Dynamically generated on first container start. View it by running `docker logs brum`, or read `/data/initial_admin_credentials.txt` (deleted after the first admin login).
 
 ---
 

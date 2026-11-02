@@ -27,6 +27,9 @@ pub struct DeltaCopyOptions {
     pub preserve_timestamps: bool,
     pub preserve_permissions: bool,
     pub delete_orphans: bool,    // Robocopy /MIR mirror mode
+    /// Brum user the transfer runs for; set by the server, never by the request
+    #[serde(skip)]
+    pub owner: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -46,6 +49,7 @@ impl Default for DeltaCopyOptions {
             preserve_timestamps: true,
             preserve_permissions: true,
             delete_orphans: false,
+            owner: None,
         }
     }
 }
@@ -95,6 +99,9 @@ impl DeltaCopyEngine {
             "Replication Destination",
             total_bytes,
         ).await;
+        if let Some(ref owner) = options.owner {
+            task_manager.set_owner(&task_id, owner);
+        }
 
         let mut stats = DeltaCopyStats {
             task_id: task_id.clone(),

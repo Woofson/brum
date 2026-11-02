@@ -276,6 +276,7 @@ pub fn create_router(state: AppState) -> Router {
         .fallback(handle_static_asset)
         .layer(DefaultBodyLimit::max(state.config.server.upload_max_size_mb * 1024 * 1024))
         .layer(axum::middleware::from_fn_with_state(state.clone(), auth_middleware))
+        .layer(axum::middleware::from_fn_with_state(state.clone(), crate::server::middleware::cross_site_guard))
         .layer(axum::middleware::from_fn(security_headers_middleware))
         .layer(cors)
         .layer(TraceLayer::new_for_http())
@@ -412,6 +413,8 @@ mod tests {
             token_id: None,
             exp: 9999999999,
             shell: None,
+            session_gen: 0,
+            sid: None,
         };
 
         // 1. "roots_only" scheme returns None for personal home

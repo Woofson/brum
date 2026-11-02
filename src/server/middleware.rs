@@ -152,8 +152,8 @@ pub async fn security_headers_middleware(
         header::HeaderName::from_static("permissions-policy"),
         axum::http::HeaderValue::from_static("geolocation=(), microphone=(), camera=()"),
     );
-    headers.insert(
-        header::HeaderName::from_static("content-security-policy"),
+    // Pages that set a stricter policy of their own (the public share page) keep it
+    headers.entry(header::CONTENT_SECURITY_POLICY).or_insert(
         axum::http::HeaderValue::from_static(
             "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: wss:; frame-ancestors 'self';"
         ),
@@ -211,6 +211,58 @@ pub fn is_public_route(path: &str) -> bool {
     }
 
     false
+}
+
+/// Blocks requests that change something when another site's page makes the browser send them.
+/// Sibling services under the same domain count as other sites. Requests that carry their own
+/// `Authorization` header (scripts, API tokens, Fleet) are not ambient and pass.
+pub async fn cross_site_guard(
+    State(state): State<AppState>,
+    req: axum::extract::Request,
+    next: axum::middleware::Next,
+) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
+    let safe_method = matches!(*req.method(), axum::http::Method::GET | axum::http::Method::HEAD | axum::http::Method::OPTIONS);
+    if safe_method || req.headers().contains_key(header::AUTHORIZATION) || is_same_origin_request(req.headers(), &state) {
+        return Ok(next.run(req).await);
+    }
+    let client_ip = resolve_client_ip(req.headers(), None, &state.config.server.trusted_proxies);
+    tracing::warn!(
+        client_ip = %client_ip,
+        path = %req.uri().path(),
+        origin = %req.headers().get(header::ORIGIN).and_then(|v| v.to_str().ok()).unwrap_or("-"),
+        "Blocked cross-site request"
+    );
+    Err((
+        StatusCode::FORBIDDEN,
+        Json(serde_json::json!({
+            "error": "Cross-site request blocked",
+            "code": "CROSS_SITE_BLOCKED"
+        })),
+    ))
+}
+
+/// Whether the browser says this request comes from Brum's own pages (or from an origin the admin trusts)
+pub fn is_same_origin_request(headers: &HeaderMap, state: &AppState) -> bool {
+    let origin = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok());
+    let trusted_origin = origin.is_some_and(|o| {
+        origin_matches_host(o, headers) || crate::server::terminal::is_ws_origin_allowed(o, headers, state)
+    });
+    // Modern browsers label every request; "none" means the user typed the address or used a bookmark
+    if let Some(site) = headers.get("sec-fetch-site").and_then(|v| v.to_str().ok()) {
+        return matches!(site, "same-origin" | "none") || trusted_origin;
+    }
+    match origin {
+        Some(_) => trusted_origin,
+        // No browser markers at all: not a browser (curl, scripts), so no cookie was sent behind anyone's back
+        None => true,
+    }
+}
+
+fn origin_matches_host(origin: &str, headers: &HeaderMap) -> bool {
+    let origin_host = origin.trim_end_matches('/').split_once("://").map(|(_, h)| h).unwrap_or("");
+    headers.get(header::HOST)
+        .and_then(|v| v.to_str().ok())
+        .is_some_and(|host| !origin_host.is_empty() && origin_host.eq_ignore_ascii_case(host.trim()))
 }
 
 /// Safely percent-decodes a URL-encoded string without panicking on malformed sequences.
@@ -316,6 +368,8 @@ pub async fn auth_middleware(
                 token_id: None,
                 exp: 9999999999,
                 shell: None,
+                session_gen: 0,
+                sid: None,
             };
             req.extensions_mut().insert(claims);
 
@@ -364,6 +418,8 @@ pub async fn auth_middleware(
             token_id: None,
             exp: 9999999999,
             shell: None,
+            session_gen: 0,
+            sid: None,
         };
         req.extensions_mut().insert(claims);
         return Ok(next.run(req).await);
@@ -444,16 +500,8 @@ pub async fn auth_middleware(
         }
     }
 
-    // D. Query parameter fallback for non-WS requests (if applicable)
-    if !is_ws_upgrade {
-        if let Some(ref tok) = query_token {
-            let decoded = percent_decode(tok);
-            if decoded != *tok {
-                candidates.push(decoded);
-            }
-            candidates.push(tok.clone());
-        }
-    }
+    // Other requests never take a token from the address: addresses end up in proxy logs,
+    // browser history and Referer headers. The browser's login cookie covers downloads and media.
 
     let client_ip = resolve_client_ip(req.headers(), None, &state.config.server.trusted_proxies);
     let origin_str = req.headers().get(header::ORIGIN).and_then(|v| v.to_str().ok()).unwrap_or("-");
@@ -558,6 +606,8 @@ pub fn extract_claims_or_local(
             token_id: None,
             exp: 9999999999,
             shell: None,
+            session_gen: 0,
+            sid: None,
         });
     }
 

@@ -158,6 +158,12 @@ pub struct Claims {
     pub exp: i64,
     #[serde(default)]
     pub shell: Option<String>,
+    /// The user's session generation when this login was issued; a newer generation ends it
+    #[serde(default)]
+    pub session_gen: i64,
+    /// Identifies this one login so logging out can end it
+    #[serde(default)]
+    pub sid: Option<String>,
 }
 
 fn default_allowed_roots_claims() -> Option<String> {
@@ -206,7 +212,7 @@ impl<'a> std::ops::Deref for ReadConnGuard<'a> {
 pub struct AuthManager {
     db: Arc<Mutex<Connection>>,
     read_pool: Arc<Mutex<Vec<Connection>>>,
-    user_status_cache: Arc<Mutex<HashMap<String, (String, bool, Instant)>>>,
+    user_status_cache: Arc<Mutex<HashMap<String, (String, bool, i64, Instant)>>>,
     db_path: String,
     jwt_secret: String,
     session_hours: u64,
@@ -306,6 +312,23 @@ impl AuthManager {
                 path TEXT NOT NULL,
                 password TEXT,
                 created_at TEXT NOT NULL
+            )",
+            [],
+        )?;
+
+        // Kept apart from `users` so a deleted and re-created account doesn't revive old logins
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS session_generations (
+                username TEXT PRIMARY KEY,
+                generation INTEGER NOT NULL DEFAULT 0
+            )",
+            [],
+        )?;
+
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS revoked_sessions (
+                sid TEXT PRIMARY KEY,
+                expires_at INTEGER NOT NULL
             )",
             [],
         )?;
@@ -571,14 +594,13 @@ impl AuthManager {
                 println!("    Password : {}", effective_admin_pass);
                 println!("    Please change this password after login via Settings -> Security.");
                 println!("================================================================================\n");
-                let log_dir = crate::config::LoggingConfig::default().resolve_log_directory();
-                if let Ok(cred_path) = crate::logging::write_initial_admin_credentials(&log_dir, default_admin_user, &effective_admin_pass) {
-                    info!("Initial administrative credentials written to: '{}'", cred_path.display());
+                // The password goes to the screen and the one-time note only, never into the log files
+                if let Some(note_dir) = crate::logging::credentials_note_dir(db_path) {
+                    if let Ok(cred_path) = crate::logging::write_initial_admin_credentials(&note_dir, default_admin_user, &effective_admin_pass) {
+                        info!("Initial administrative credentials written to: '{}'", cred_path.display());
+                    }
                 }
-                info!(
-                    "Initial administrative user '{}' created with dynamic password: '{}'",
-                    default_admin_user, effective_admin_pass
-                );
+                info!("Initial administrative user '{}' created with a generated password", default_admin_user);
             } else {
                 info!("Initial administrative user '{}' created.", default_admin_user);
             }
@@ -633,6 +655,60 @@ impl AuthManager {
         if let Ok(mut cache) = self.user_status_cache.lock() {
             cache.clear();
         }
+    }
+
+    fn session_generation(&self, username: &str) -> Result<i64, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.get_read_conn()?;
+        let generation: Option<i64> = conn.query_row(
+            "SELECT generation FROM session_generations WHERE username = ?1",
+            params![username],
+            |row| row.get(0),
+        ).optional()?;
+        Ok(generation.unwrap_or(0))
+    }
+
+    /// Ends every login the user has (API tokens are revoked separately)
+    pub fn end_all_sessions(&self, username: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        {
+            let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+            Self::bump_session_generation(&conn, username)?;
+        }
+        self.invalidate_user_cache(username);
+        Ok(())
+    }
+
+    fn bump_session_generation(conn: &Connection, username: &str) -> rusqlite::Result<usize> {
+        conn.execute(
+            "INSERT INTO session_generations (username, generation) VALUES (?1, 1)
+             ON CONFLICT(username) DO UPDATE SET generation = generation + 1",
+            params![username],
+        )
+    }
+
+    /// Ends one login, e.g. on logout. The record is dropped once the login would have expired anyway.
+    pub fn revoke_session(&self, claims: &Claims) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let Some(ref sid) = claims.sid else { return Ok(()) };
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        conn.execute("DELETE FROM revoked_sessions WHERE expires_at < ?1", params![Utc::now().timestamp()])?;
+        conn.execute(
+            "INSERT OR IGNORE INTO revoked_sessions (sid, expires_at) VALUES (?1, ?2)",
+            params![sid, claims.exp],
+        )?;
+        Ok(())
+    }
+
+    fn is_session_revoked(&self, sid: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.get_read_conn()?;
+        let found: Option<i64> = conn.query_row(
+            "SELECT 1 FROM revoked_sessions WHERE sid = ?1",
+            params![sid],
+            |row| row.get(0),
+        ).optional()?;
+        Ok(found.is_some())
+    }
+
+    pub fn db_path(&self) -> &str {
+        &self.db_path
     }
 
     pub fn db(&self) -> Arc<Mutex<Connection>> {
@@ -896,6 +972,7 @@ impl AuthManager {
             "UPDATE users SET password_hash = ?1 WHERE username = ?2",
             params![password_hash, username],
         )?;
+        Self::bump_session_generation(&conn, username)?;
         self.invalidate_user_cache(username);
         Ok(affected > 0)
     }
@@ -921,6 +998,12 @@ impl AuthManager {
         let allowed_plugs_str = allowed_plugins.unwrap_or("[\"*\"]");
         let blocked_plugs_str = blocked_plugins.unwrap_or("[]");
 
+        let before: Option<(String, Option<String>, String, i64)> = conn.query_row(
+            "SELECT role, allowed_roots, home_dir, is_disabled FROM users WHERE username = ?1",
+            params![username],
+            |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?, row.get::<_, Option<i64>>(3)?.unwrap_or(0))),
+        ).optional()?;
+
         let affected = if let Some(hd) = home_dir {
             conn.execute(
                 "UPDATE users SET role = ?1, allowed_services = ?2, allowed_roots = ?3, home_dir = ?4, can_install_plugins = ?5, allowed_plugins = ?6, blocked_plugins = ?7, is_disabled = ?8 WHERE username = ?9",
@@ -938,6 +1021,17 @@ impl AuthManager {
             conn.execute("UPDATE users SET shell = ?1 WHERE username = ?2", params![sh_val, username])?;
         }
 
+        // Logins carry the user's role and folders, so a change to either ends them
+        if let Some((old_role, old_roots, old_home, old_disabled)) = before {
+            let access_changed = old_role != role
+                || old_roots.as_deref() != Some(roots_str.as_str())
+                || home_dir.is_some_and(|hd| hd != old_home)
+                || old_disabled != dis_int;
+            if access_changed {
+                Self::bump_session_generation(&conn, username)?;
+            }
+        }
+
         self.invalidate_user_cache(username);
         Ok(affected > 0)
     }
@@ -945,6 +1039,7 @@ impl AuthManager {
     pub fn delete_user(&self, username: &str) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         let affected = conn.execute("DELETE FROM users WHERE username = ?1", params![username])?;
+        Self::bump_session_generation(&conn, username)?;
         self.invalidate_user_cache(username);
         Ok(affected > 0)
     }
@@ -1181,6 +1276,12 @@ impl AuthManager {
             .expect("valid timestamp")
             .timestamp();
 
+        let sid = {
+            use rand::RngCore;
+            let mut bytes = [0u8; 16];
+            rand::rngs::OsRng.fill_bytes(&mut bytes);
+            hex::encode(bytes)
+        };
         let claims = Claims {
             sub: user.username.clone(),
             role: user.role.clone(),
@@ -1190,6 +1291,8 @@ impl AuthManager {
             token_id: None,
             exp: expiration,
             shell: user.shell.clone(),
+            session_gen: self.session_generation(&user.username)?,
+            sid: Some(sid),
         };
 
         let token = encode(
@@ -1250,6 +1353,8 @@ impl AuthManager {
             token_id: Some(token_id.clone()),
             exp: exp_claim,
             shell: None,
+            session_gen: 0,
+            sid: None,
         };
 
         let raw_token = encode(
@@ -1412,9 +1517,9 @@ impl AuthManager {
         let now = Instant::now();
         let cached_status = {
             if let Ok(cache) = self.user_status_cache.lock() {
-                if let Some((role, is_disabled, cached_at)) = cache.get(&claims.sub) {
+                if let Some((role, is_disabled, generation, cached_at)) = cache.get(&claims.sub) {
                     if now.duration_since(*cached_at) < StdDuration::from_secs(5) {
-                        Some((role.clone(), *is_disabled))
+                        Some((role.clone(), *is_disabled, *generation))
                     } else {
                         None
                     }
@@ -1426,9 +1531,10 @@ impl AuthManager {
             }
         };
 
-        let (db_role, is_disabled) = match cached_status {
+        let (db_role, is_disabled, generation) = match cached_status {
             Some(status) => status,
             None => {
+                let generation = self.session_generation(&claims.sub)?;
                 let conn = self.get_read_conn()?;
                 let user_row: Option<(String, bool)> = conn.query_row(
                     "SELECT role, is_disabled FROM users WHERE username = ?1",
@@ -1439,15 +1545,15 @@ impl AuthManager {
                 match user_row {
                     Some((role, disabled)) => {
                         if let Ok(mut cache) = self.user_status_cache.lock() {
-                            cache.insert(claims.sub.clone(), (role.clone(), disabled, now));
+                            cache.insert(claims.sub.clone(), (role.clone(), disabled, generation, now));
                         }
-                        (role, disabled)
+                        (role, disabled, generation)
                     }
                     None => {
                         if !claims.is_pam {
                             return Err("User account no longer exists".into());
                         }
-                        (claims.role.clone(), false)
+                        (claims.role.clone(), false, generation)
                     }
                 }
             }
@@ -1455,6 +1561,16 @@ impl AuthManager {
 
         if is_disabled {
             return Err("User account is disabled".into());
+        }
+        if claims.token_id.is_none() {
+            if claims.session_gen != generation {
+                return Err("Session has ended. Please log in again.".into());
+            }
+            if let Some(ref sid) = claims.sid {
+                if self.is_session_revoked(sid)? {
+                    return Err("Session has ended. Please log in again.".into());
+                }
+            }
         }
         claims.role = if claims.token_id.is_some() {
             Self::narrower_role(&claims.role, &db_role)
@@ -2271,6 +2387,56 @@ impl AuthManager {
         } else {
             Ok(false)
         }
+    }
+
+    fn share_mac(&self, parts: &[&str]) -> String {
+        use hmac::{Hmac, Mac};
+        let mut mac = Hmac::<sha2::Sha256>::new_from_slice(self.jwt_secret.as_bytes()).expect("HMAC can take key of any size");
+        mac.update(b"brum-share-pass");
+        for part in parts {
+            mac.update(&[0]);
+            mac.update(part.as_bytes());
+        }
+        hex::encode(mac.finalize().into_bytes())
+    }
+
+    /// Signed proof that a visitor entered a share's password. Changing the password voids it.
+    pub fn sign_share_pass(&self, token: &str, exp: i64) -> Option<String> {
+        let hash = self.get_share_by_token(token).ok()??.password_hash?;
+        Some(format!("{}.{}", exp, self.share_mac(&["pass", token, &exp.to_string(), &hash])))
+    }
+
+    pub fn verify_share_pass(&self, token: &str, pass: &str) -> bool {
+        let Some((exp, mac)) = pass.split_once('.') else { return false };
+        let Ok(exp_num) = exp.parse::<i64>() else { return false };
+        if exp_num < Utc::now().timestamp() {
+            return false;
+        }
+        let Some(hash) = self.get_share_by_token(token).ok().flatten().and_then(|s| s.password_hash) else { return false };
+        use subtle::ConstantTimeEq;
+        bool::from(self.share_mac(&["pass", token, exp, &hash]).as_bytes().ct_eq(mac.as_bytes()))
+    }
+
+    /// Signed proof that a visitor gave an allowed guest email: `exp.hex(email).mac`
+    pub fn sign_share_email(&self, token: &str, email: &str, exp: i64) -> String {
+        let email_hex = hex::encode(email.trim().to_lowercase());
+        let mac = self.share_mac(&["email", token, &exp.to_string(), &email_hex]);
+        format!("{}.{}.{}", exp, email_hex, mac)
+    }
+
+    /// The guest email from a signed proof, if the proof is genuine, unexpired and the email is still allowed
+    pub fn verify_share_email_pass(&self, token: &str, pass: &str) -> Option<String> {
+        let mut it = pass.splitn(3, '.');
+        let (exp, email_hex, mac) = (it.next()?, it.next()?, it.next()?);
+        if exp.parse::<i64>().ok()? < Utc::now().timestamp() {
+            return None;
+        }
+        use subtle::ConstantTimeEq;
+        if !bool::from(self.share_mac(&["email", token, exp, email_hex]).as_bytes().ct_eq(mac.as_bytes())) {
+            return None;
+        }
+        let email = String::from_utf8(hex::decode(email_hex).ok()?).ok()?;
+        self.verify_share_email(token, &email).ok()?.then_some(email)
     }
 
     // ---------------- PERSISTENT DATABASE NOTES ENGINE ----------------
@@ -3184,16 +3350,21 @@ mod tests {
         let claims2 = auth.verify_token(&token).unwrap();
         assert_eq!(claims2.role, "user");
 
-        // 3. Update user role in DB & verify cache is invalidated
-        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, false, Some(Some("/usr/bin/fish"))).unwrap();
-        let claims3 = auth.verify_token(&token).unwrap();
-        assert_eq!(claims3.role, "admin");
+        // 3. A change that leaves access alone keeps the login
+        auth.update_user_rbac("alice", "user", "[\"*\"]", Some("[]"), None, None, None, None, false, Some(Some("/usr/bin/fish"))).unwrap();
+        assert!(auth.verify_token(&token).is_ok());
         let user_updated = auth.get_user_by_username("alice").unwrap().unwrap();
         assert_eq!(user_updated.shell.as_deref(), Some("/usr/bin/fish"));
 
-        // 4. Disable user and verify immediate rejection
-        auth.update_user_rbac("alice", "admin", "[\"*\"]", None, None, None, None, None, true, None).unwrap();
-        let err = auth.verify_token(&token);
+        // 4. A role change ends the login at once; a fresh login carries the new role
+        auth.update_user_rbac("alice", "admin", "[\"*\"]", Some("[\"*\"]"), None, None, None, None, false, None).unwrap();
+        assert!(auth.verify_token(&token).is_err());
+        let relogin = auth.generate_token(&auth.get_user_by_username("alice").unwrap().unwrap()).unwrap();
+        assert_eq!(auth.verify_token(&relogin).unwrap().role, "admin");
+
+        // 5. Disable user and verify immediate rejection
+        auth.update_user_rbac("alice", "admin", "[\"*\"]", Some("[\"*\"]"), None, None, None, None, true, None).unwrap();
+        let err = auth.verify_token(&relogin);
         assert!(err.is_err());
         assert_eq!(err.unwrap_err().to_string(), "User account is disabled");
     }

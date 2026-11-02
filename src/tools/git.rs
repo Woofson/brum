@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use std::path::Path;
 use tokio::process::Command;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -75,17 +74,61 @@ fn is_blocked_setting(key: &str, is_admin: bool) -> bool {
         || (!is_admin && NETWORK_HELPER_SETTINGS.iter().any(|p| setting_matches(&key, p)))
 }
 
+/// A system account to run Git as instead of the Brum process
+#[derive(Debug, Clone)]
+pub struct RunAs {
+    pub name: String,
+    pub uid: u32,
+    pub gid: u32,
+    pub home: std::path::PathBuf,
+}
+
+/// The folder Git works in, and whose account it runs under
+#[derive(Debug, Clone)]
+pub struct GitTarget {
+    pub dir: std::path::PathBuf,
+    /// `None` runs Git as the Brum process itself
+    pub run_as: Option<RunAs>,
+}
+
+impl GitTarget {
+    pub fn new(dir: impl Into<std::path::PathBuf>) -> Self {
+        Self { dir: dir.into(), run_as: None }
+    }
+}
+
 /// Every Git call goes through here so a repository can never switch hooks back on
-fn git_command() -> Command {
+fn git_command(target: &GitTarget) -> Command {
     let mut cmd = Command::new("git");
     cmd.args(["-c", "core.hooksPath=/dev/null", "-c", "core.fsmonitor=false", "-c", "protocol.ext.allow=never"]);
     cmd.env("GIT_TERMINAL_PROMPT", "0");
+    cmd.current_dir(&target.dir);
+    #[cfg(unix)]
+    if let Some(ref user) = target.run_as {
+        // Git then uses the user's own settings, keys and file ownership, not the server's
+        for var in ["XDG_CONFIG_HOME", "SSH_AUTH_SOCK", "GIT_SSH_COMMAND", "GIT_CONFIG_GLOBAL", "GIT_ASKPASS", "SSH_ASKPASS"] {
+            cmd.env_remove(var);
+        }
+        cmd.env("HOME", &user.home).env("USER", &user.name).env("LOGNAME", &user.name);
+        let name = std::ffi::CString::new(user.name.clone()).unwrap_or_default();
+        let (uid, gid) = (user.uid, user.gid);
+        // SAFETY: only async-signal-safe calls between fork and exec; `name` was allocated beforehand
+        unsafe {
+            cmd.pre_exec(move || {
+                if libc::initgroups(name.as_ptr(), gid as _) != 0 || libc::setgid(gid) != 0 || libc::setuid(uid) != 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                Ok(())
+            });
+        }
+    }
     cmd
 }
 
 /// Top folder of the repository containing `path`, if there is one
-pub async fn repo_root(path: &Path) -> Option<String> {
-    let out = git_command()
+pub async fn repo_root(target: &GitTarget) -> Option<String> {
+    let path = target.dir.as_path();
+    let out = git_command(target)
         .args(["rev-parse", "--show-toplevel"])
         .current_dir(path)
         .output()
@@ -96,8 +139,9 @@ pub async fn repo_root(path: &Path) -> Option<String> {
 
 /// Refuses repositories whose own settings would make Git launch a program.
 /// Git's system and per-user settings belong to the server owner and are not checked.
-pub async fn ensure_safe_repo_config(path: &Path, is_admin: bool) -> Result<(), String> {
-    let out = git_command()
+pub async fn ensure_safe_repo_config(target: &GitTarget, is_admin: bool) -> Result<(), String> {
+    let path = target.dir.as_path();
+    let out = git_command(target)
         .args(["config", "--list", "--show-scope", "--name-only", "--includes"])
         .current_dir(path)
         .output()
@@ -126,8 +170,9 @@ fn action_error(message: String) -> GitActionResponse {
 }
 
 /// Query real-time git status for any directory
-pub async fn get_git_status(path: &Path) -> GitStatusResponse {
-    let check_repo = git_command()
+pub async fn get_git_status(target: &GitTarget) -> GitStatusResponse {
+    let path = target.dir.as_path();
+    let check_repo = git_command(target)
         .arg("rev-parse")
         .arg("--show-toplevel")
         .current_dir(path)
@@ -156,7 +201,7 @@ pub async fn get_git_status(path: &Path) -> GitStatusResponse {
     };
 
     // Get current branch name
-    let branch_out = git_command()
+    let branch_out = git_command(target)
         .arg("branch")
         .arg("--show-current")
         .current_dir(path)
@@ -172,7 +217,7 @@ pub async fn get_git_status(path: &Path) -> GitStatusResponse {
 
     if branch.is_empty() {
         // Fallback for detached HEAD
-        let head_out = git_command()
+        let head_out = git_command(target)
             .arg("rev-parse")
             .arg("--short")
             .arg("HEAD")
@@ -191,7 +236,7 @@ pub async fn get_git_status(path: &Path) -> GitStatusResponse {
     let mut behind = 0;
     let mut upstream = None;
 
-    let ab_out = git_command()
+    let ab_out = git_command(target)
         .arg("rev-list")
         .arg("--left-right")
         .arg("--count")
@@ -211,7 +256,7 @@ pub async fn get_git_status(path: &Path) -> GitStatusResponse {
         }
     }
 
-    let up_out = git_command()
+    let up_out = git_command(target)
         .arg("rev-parse")
         .arg("--abbrev-ref")
         .arg("@{u}")
@@ -226,7 +271,7 @@ pub async fn get_git_status(path: &Path) -> GitStatusResponse {
     }
 
     // Parse porcelain status
-    let status_out = git_command()
+    let status_out = git_command(target)
         .arg("status")
         .arg("--porcelain=v1")
         .arg("-uall")
@@ -297,8 +342,9 @@ pub async fn get_git_status(path: &Path) -> GitStatusResponse {
 }
 
 /// Get git diff for entire repository or a specific file
-pub async fn get_git_diff(path: &Path, file_path: Option<&str>, staged: bool) -> GitDiffResponse {
-    let mut cmd = git_command();
+pub async fn get_git_diff(target: &GitTarget, file_path: Option<&str>, staged: bool) -> GitDiffResponse {
+    let path = target.dir.as_path();
+    let mut cmd = git_command(target);
     cmd.arg("diff");
     if staged {
         cmd.arg("--cached");
@@ -321,8 +367,9 @@ pub async fn get_git_diff(path: &Path, file_path: Option<&str>, staged: bool) ->
 }
 
 /// Stage files (`git add ...`)
-pub async fn git_stage(path: &Path, files: &[String]) -> GitActionResponse {
-    let mut cmd = git_command();
+pub async fn git_stage(target: &GitTarget, files: &[String]) -> GitActionResponse {
+    let path = target.dir.as_path();
+    let mut cmd = git_command(target);
     cmd.arg("add");
     if files.is_empty() || (files.len() == 1 && files[0] == ".") {
         cmd.arg("-A");
@@ -351,8 +398,9 @@ pub async fn git_stage(path: &Path, files: &[String]) -> GitActionResponse {
 }
 
 /// Unstage files (`git reset HEAD ...`)
-pub async fn git_unstage(path: &Path, files: &[String]) -> GitActionResponse {
-    let mut cmd = git_command();
+pub async fn git_unstage(target: &GitTarget, files: &[String]) -> GitActionResponse {
+    let path = target.dir.as_path();
+    let mut cmd = git_command(target);
     cmd.arg("restore").arg("--staged");
     if files.is_empty() || (files.len() == 1 && files[0] == ".") {
         cmd.arg(".");
@@ -383,8 +431,9 @@ pub async fn git_unstage(path: &Path, files: &[String]) -> GitActionResponse {
 }
 
 /// Commit staged changes
-pub async fn git_commit(path: &Path, message: &str) -> GitActionResponse {
-    let mut cmd = git_command();
+pub async fn git_commit(target: &GitTarget, message: &str) -> GitActionResponse {
+    let path = target.dir.as_path();
+    let mut cmd = git_command(target);
     cmd.arg("commit").arg("-m").arg(message).current_dir(path);
 
     match cmd.output().await {
@@ -407,14 +456,15 @@ pub async fn git_commit(path: &Path, message: &str) -> GitActionResponse {
 }
 
 /// Push commits to remote
-pub async fn git_push(path: &Path, remote: Option<&str>, branch: Option<&str>) -> GitActionResponse {
+pub async fn git_push(target: &GitTarget, remote: Option<&str>, branch: Option<&str>) -> GitActionResponse {
+    let path = target.dir.as_path();
     for (value, label) in [(remote, "remote"), (branch, "branch")] {
         if let Err(e) = value.map_or(Ok(()), |v| reject_option_like(v, label)) {
             return action_error(e);
         }
     }
 
-    let mut cmd = git_command();
+    let mut cmd = git_command(target);
     cmd.arg("push");
     if let Some(r) = remote {
         cmd.arg(r);
@@ -444,8 +494,9 @@ pub async fn git_push(path: &Path, remote: Option<&str>, branch: Option<&str>) -
 }
 
 /// Pull commits from remote
-pub async fn git_pull(path: &Path) -> GitActionResponse {
-    let mut cmd = git_command();
+pub async fn git_pull(target: &GitTarget) -> GitActionResponse {
+    let path = target.dir.as_path();
+    let mut cmd = git_command(target);
     cmd.arg("pull").current_dir(path);
 
     match cmd.output().await {
@@ -468,8 +519,9 @@ pub async fn git_pull(path: &Path) -> GitActionResponse {
 }
 
 /// Get git commit history log
-pub async fn get_git_log(path: &Path, max_count: usize) -> Vec<GitCommitInfo> {
-    let mut cmd = git_command();
+pub async fn get_git_log(target: &GitTarget, max_count: usize) -> Vec<GitCommitInfo> {
+    let path = target.dir.as_path();
+    let mut cmd = git_command(target);
     cmd.arg("log")
         .arg(format!("-n{}", max_count.max(1).min(100)))
         .arg("--pretty=format:%H%x1f%h%x1f%an%x1f%ae%x1f%ad%x1f%s%x1e")
@@ -512,6 +564,7 @@ mod tests {
     async fn test_git_status_and_actions() {
         let temp_dir = tempdir().unwrap();
         let repo_path = temp_dir.path();
+        let target = GitTarget::new(repo_path);
 
         // Initialize git repo in temp dir
         let init_out = std::process::Command::new("git")
@@ -530,7 +583,7 @@ mod tests {
         let _ = std::process::Command::new("git").args(["config", "user.email", "test@example.com"]).current_dir(repo_path).output();
 
         // Check clean status
-        let status = get_git_status(repo_path).await;
+        let status = get_git_status(&target).await;
         assert!(status.is_repo);
         assert!(status.is_clean);
 
@@ -539,28 +592,28 @@ mod tests {
         fs::write(&test_file, "Hello World\n").await.unwrap();
 
         // Check untracked file detected
-        let status2 = get_git_status(repo_path).await;
+        let status2 = get_git_status(&target).await;
         assert!(!status2.is_clean);
         assert_eq!(status2.untracked_count, 1);
 
         // Stage file
-        let stage_res = git_stage(repo_path, &["hello.txt".to_string()]).await;
+        let stage_res = git_stage(&target, &["hello.txt".to_string()]).await;
         assert!(stage_res.success);
 
         // Verify staged status
-        let status3 = get_git_status(repo_path).await;
+        let status3 = get_git_status(&target).await;
         assert_eq!(status3.staged_count, 1);
 
         // Commit
-        let commit_res = git_commit(repo_path, "feat: initial commit").await;
+        let commit_res = git_commit(&target, "feat: initial commit").await;
         assert!(commit_res.success);
 
         // Verify clean again
-        let status4 = get_git_status(repo_path).await;
+        let status4 = get_git_status(&target).await;
         assert!(status4.is_clean);
 
         // Check git log
-        let log = get_git_log(repo_path, 10).await;
+        let log = get_git_log(&target, 10).await;
         assert_eq!(log.len(), 1);
         assert_eq!(log[0].message, "feat: initial commit");
     }
@@ -569,29 +622,31 @@ mod tests {
     async fn test_repo_settings_that_launch_programs_are_refused() {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
+        let target = GitTarget::new(repo);
         let git = |args: &[&str]| {
             std::process::Command::new("git").args(args).current_dir(repo).output().unwrap();
         };
         git(&["init"]);
-        assert!(ensure_safe_repo_config(repo, false).await.is_ok());
+        assert!(ensure_safe_repo_config(&target, false).await.is_ok());
 
         for key in ["core.fsmonitor", "core.sshCommand", "filter.x.clean", "diff.x.textconv", "credential.helper"] {
             git(&["config", key, "touch /tmp/should-not-run"]);
-            assert!(ensure_safe_repo_config(repo, false).await.is_err(), "{} must be refused", key);
+            assert!(ensure_safe_repo_config(&target, false).await.is_err(), "{} must be refused", key);
             git(&["config", "--unset", key]);
         }
 
         // Admins keep their own push helpers, but never the settings that fire on status or diff
         git(&["config", "core.sshCommand", "ssh -i key"]);
-        assert!(ensure_safe_repo_config(repo, true).await.is_ok());
+        assert!(ensure_safe_repo_config(&target, true).await.is_ok());
         git(&["config", "core.fsmonitor", "touch /tmp/should-not-run"]);
-        assert!(ensure_safe_repo_config(repo, true).await.is_err());
+        assert!(ensure_safe_repo_config(&target, true).await.is_err());
     }
 
     #[tokio::test]
     async fn test_hooks_do_not_run() {
         let tmp = tempfile::tempdir().unwrap();
         let repo = tmp.path();
+        let target = GitTarget::new(repo);
         let git = |args: &[&str]| {
             std::process::Command::new("git").args(args).current_dir(repo).output().unwrap();
         };
@@ -610,8 +665,8 @@ mod tests {
         }
 
         std::fs::write(repo.join("a.txt"), "a").unwrap();
-        git_stage(repo, &[]).await;
-        let res = git_commit(repo, "first").await;
+        git_stage(&target, &[]).await;
+        let res = git_commit(&target, "first").await;
         assert!(res.success, "{:?}", res.error);
         assert!(!marker.exists());
     }
@@ -619,7 +674,7 @@ mod tests {
     #[tokio::test]
     async fn test_push_rejects_options_disguised_as_arguments() {
         let tmp = tempfile::tempdir().unwrap();
-        let res = git_push(tmp.path(), Some("--receive-pack=touch /tmp/x"), None).await;
+        let res = git_push(&GitTarget::new(tmp.path()), Some("--receive-pack=touch /tmp/x"), None).await;
         assert!(!res.success);
     }
 }

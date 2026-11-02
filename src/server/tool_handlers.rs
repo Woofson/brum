@@ -841,30 +841,59 @@ pub async fn handle_sync_execute(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let source = validate_path_access(&state, &headers, &payload.source, false)?;
     let destination = validate_path_access(&state, &headers, &payload.destination, true)?;
+    let mut options = payload.options;
+    options.owner = Some(extract_claims_or_local(&state, &headers)?.sub);
 
     crate::tools::sync::DirectorySyncEngine::execute_sync(
         state.tasks.clone(),
         &source,
         &destination,
-        payload.options,
+        options,
     ).await
     .map(Json)
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Sync execution failed: {}", e)))
 }
 
+/// Admins see every backup profile; other users only their own
+fn can_use_profile(claims: &crate::auth::Claims, profile: &crate::tools::sync::BackupProfile) -> bool {
+    claims.role.eq_ignore_ascii_case("admin") || profile.owner.as_deref() == Some(claims.sub.as_str())
+}
+
+/// The profile, if this user may see and control it. Other users' profiles look like missing ones.
+fn owned_profile(state: &AppState, headers: &HeaderMap, id: &str) -> Result<crate::tools::sync::BackupProfile, (StatusCode, String)> {
+    let claims = extract_claims_or_local(state, headers)?;
+    state.backup.get_profile(id)
+        .filter(|p| can_use_profile(&claims, p))
+        .ok_or((StatusCode::NOT_FOUND, "Backup profile not found".to_string()))
+}
+
 pub async fn handle_list_backup_profiles(
     State(state): State<AppState>,
-) -> Json<Vec<crate::tools::sync::BackupProfile>> {
-    Json(state.backup.list_profiles())
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::tools::sync::BackupProfile>>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    Ok(Json(state.backup.list_profiles().into_iter().filter(|p| can_use_profile(&claims, p)).collect()))
 }
 
 pub async fn handle_save_backup_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(profile): Json<crate::tools::sync::BackupProfile>,
+    Json(mut profile): Json<crate::tools::sync::BackupProfile>,
 ) -> Result<Json<crate::tools::sync::BackupProfile>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_write(&claims)?;
     validate_path_access(&state, &headers, &profile.source_dir, false)?;
     validate_path_access(&state, &headers, &profile.dest_dir, true)?;
+    if let Some(archive) = profile.archive_dir.as_deref().filter(|a| a.starts_with('/') || a.starts_with('~')) {
+        validate_path_access(&state, &headers, archive, true)?;
+    }
+
+    // Editing keeps the original owner; a new profile belongs to whoever made it
+    profile.owner = match state.backup.get_profile(&profile.id) {
+        Some(existing) if can_use_profile(&claims, &existing) => existing.owner,
+        Some(_) => return Err((StatusCode::NOT_FOUND, "Backup profile not found".to_string())),
+        None => Some(claims.sub.clone()),
+    };
 
     state.backup.save_profile(profile)
         .map(Json)
@@ -873,8 +902,10 @@ pub async fn handle_save_backup_profile(
 
 pub async fn handle_delete_backup_profile(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    owned_profile(&state, &headers, &id)?;
     state.backup.delete_profile(&id)
         .map(|_| Json(serde_json::json!({ "success": true })))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to delete backup profile: {}", e)))
@@ -882,8 +913,10 @@ pub async fn handle_delete_backup_profile(
 
 pub async fn handle_run_backup_profile(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    owned_profile(&state, &headers, &id)?;
     let mgr = state.backup.clone();
     let tasks = state.tasks.clone();
     
@@ -899,8 +932,10 @@ pub async fn handle_run_backup_profile(
 
 pub async fn handle_toggle_backup_profile(
     State(state): State<AppState>,
+    headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    owned_profile(&state, &headers, &id)?;
     state.backup.toggle_profile(&id)
         .map(|new_enabled| Json(serde_json::json!({ "success": true, "enabled": new_enabled })))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to toggle backup profile: {}", e)))
@@ -908,11 +943,29 @@ pub async fn handle_toggle_backup_profile(
 
 pub async fn handle_get_backup_history(
     State(state): State<AppState>,
+    headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
-) -> Json<Vec<crate::tools::sync::BackupHistoryItem>> {
+) -> Result<Json<Vec<crate::tools::sync::BackupHistoryItem>>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
     let profile_id = query.get("profile_id").map(|s| s.as_str());
     let limit = query.get("limit").and_then(|l| l.parse::<usize>().ok()).unwrap_or(50);
-    Json(state.backup.list_history(profile_id, limit))
+    if let Some(id) = profile_id {
+        owned_profile(&state, &headers, id)?;
+    }
+    if claims.role.eq_ignore_ascii_case("admin") {
+        return Ok(Json(state.backup.list_history(profile_id, limit)));
+    }
+    let own: std::collections::HashSet<String> = state.backup.list_profiles().into_iter()
+        .filter(|p| can_use_profile(&claims, p))
+        .map(|p| p.id)
+        .collect();
+    // Without a profile filter, read a larger window so the user's own entries still fill the page
+    let window = if profile_id.is_some() { limit } else { 100 };
+    let mut items: Vec<_> = state.backup.list_history(profile_id, window).into_iter()
+        .filter(|h| own.contains(&h.profile_id))
+        .collect();
+    items.truncate(limit.clamp(1, 100));
+    Ok(Json(items))
 }
 
 pub async fn handle_disk_usage(
@@ -1323,23 +1376,64 @@ pub struct GitPullRequest {
     path: String,
 }
 
+#[derive(PartialEq)]
+enum GitAccess {
+    Read,
+    Write,
+    /// Push and pull reach other servers with someone's keys
+    Network,
+}
+
+/// The system account Git should run as for this user, and whether that account is the user's own.
+/// A root server switches to the user's account; otherwise Git runs as the server, which is the
+/// user's own account only when both are the same.
+fn git_identity(claims: &crate::auth::Claims) -> (Option<crate::tools::git::RunAs>, bool) {
+    #[cfg(unix)]
+    {
+        let process_uid = unsafe { libc::getuid() };
+        match crate::server::terminal::lookup_posix_user(&claims.sub) {
+            Some(pu) if process_uid == 0 && pu.uid != 0 => (
+                Some(crate::tools::git::RunAs { name: pu.name, uid: pu.uid, gid: pu.gid, home: pu.dir }),
+                true,
+            ),
+            Some(pu) => (None, pu.uid == process_uid),
+            None => (None, false),
+        }
+    }
+    #[cfg(not(unix))]
+    {
+        let _ = claims;
+        (None, false)
+    }
+}
+
 /// Gatekeeper for the Git tool: the folder and its repository must be accessible,
 /// and the repository's own settings must not ask Git to launch anything
 async fn authorize_git(
     state: &AppState,
     headers: &HeaderMap,
     raw_path: &str,
-    is_write: bool,
-) -> Result<std::path::PathBuf, (StatusCode, String)> {
+    access: GitAccess,
+) -> Result<crate::tools::git::GitTarget, (StatusCode, String)> {
+    let is_write = access != GitAccess::Read;
+    let claims = extract_claims_or_local(state, headers)?;
+    let is_admin = claims.role.eq_ignore_ascii_case("admin");
+    let (run_as, own_account) = git_identity(&claims);
+    if access == GitAccess::Network && !is_admin && !own_account {
+        return Err((
+            StatusCode::FORBIDDEN,
+            "Push and pull need a system account of your own on this server. Ask an admin, or use the terminal.".to_string(),
+        ));
+    }
+
     let valid_path = validate_path_access(state, headers, raw_path, is_write)?;
-    let repo = std::path::PathBuf::from(valid_path);
-    if let Some(root) = crate::tools::git::repo_root(&repo).await {
+    let target = crate::tools::git::GitTarget { dir: std::path::PathBuf::from(valid_path), run_as };
+    if let Some(root) = crate::tools::git::repo_root(&target).await {
         validate_path_access(state, headers, &root, is_write)?;
     }
-    let is_admin = extract_claims_or_local(state, headers)?.role.eq_ignore_ascii_case("admin");
-    crate::tools::git::ensure_safe_repo_config(&repo, is_admin).await
+    crate::tools::git::ensure_safe_repo_config(&target, is_admin).await
         .map_err(|e| (StatusCode::FORBIDDEN, e))?;
-    Ok(repo)
+    Ok(target)
 }
 
 pub async fn handle_git_status(
@@ -1347,7 +1441,7 @@ pub async fn handle_git_status(
     headers: HeaderMap,
     Query(query): Query<GitPathQuery>,
 ) -> Result<Json<crate::tools::git::GitStatusResponse>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &query.path, false).await?;
+    let repo = authorize_git(&state, &headers, &query.path, GitAccess::Read).await?;
     let res = crate::tools::git::get_git_status(&repo).await;
     Ok(Json(res))
 }
@@ -1357,7 +1451,7 @@ pub async fn handle_git_diff(
     headers: HeaderMap,
     Query(query): Query<GitDiffQuery>,
 ) -> Result<Json<crate::tools::git::GitDiffResponse>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &query.path, false).await?;
+    let repo = authorize_git(&state, &headers, &query.path, GitAccess::Read).await?;
     let res = crate::tools::git::get_git_diff(&repo, query.file.as_deref(), query.staged.unwrap_or(false)).await;
     Ok(Json(res))
 }
@@ -1367,7 +1461,7 @@ pub async fn handle_git_stage(
     headers: HeaderMap,
     Json(payload): Json<GitFilesRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let repo = authorize_git(&state, &headers, &payload.path, GitAccess::Write).await?;
     let res = crate::tools::git::git_stage(&repo, &payload.files).await;
     Ok(Json(res))
 }
@@ -1377,7 +1471,7 @@ pub async fn handle_git_unstage(
     headers: HeaderMap,
     Json(payload): Json<GitFilesRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let repo = authorize_git(&state, &headers, &payload.path, GitAccess::Write).await?;
     let res = crate::tools::git::git_unstage(&repo, &payload.files).await;
     Ok(Json(res))
 }
@@ -1387,7 +1481,7 @@ pub async fn handle_git_commit(
     headers: HeaderMap,
     Json(payload): Json<GitCommitRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let repo = authorize_git(&state, &headers, &payload.path, GitAccess::Write).await?;
     let res = crate::tools::git::git_commit(&repo, &payload.message).await;
     Ok(Json(res))
 }
@@ -1397,7 +1491,7 @@ pub async fn handle_git_push(
     headers: HeaderMap,
     Json(payload): Json<GitPushRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let repo = authorize_git(&state, &headers, &payload.path, GitAccess::Network).await?;
     let res = crate::tools::git::git_push(&repo, payload.remote.as_deref(), payload.branch.as_deref()).await;
     Ok(Json(res))
 }
@@ -1407,7 +1501,7 @@ pub async fn handle_git_pull(
     headers: HeaderMap,
     Json(payload): Json<GitPullRequest>,
 ) -> Result<Json<crate::tools::git::GitActionResponse>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &payload.path, true).await?;
+    let repo = authorize_git(&state, &headers, &payload.path, GitAccess::Network).await?;
     let res = crate::tools::git::git_pull(&repo).await;
     Ok(Json(res))
 }
@@ -1417,7 +1511,7 @@ pub async fn handle_git_log(
     headers: HeaderMap,
     Query(query): Query<GitLogQuery>,
 ) -> Result<Json<Vec<crate::tools::git::GitCommitInfo>>, (StatusCode, String)> {
-    let repo = authorize_git(&state, &headers, &query.path, false).await?;
+    let repo = authorize_git(&state, &headers, &query.path, GitAccess::Read).await?;
     let res = crate::tools::git::get_git_log(&repo, query.count.unwrap_or(30)).await;
     Ok(Json(res))
 }
