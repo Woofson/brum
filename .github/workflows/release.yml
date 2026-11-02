@@ -63,8 +63,24 @@ jobs:
           # 1. Create Portable Standalone ZIP
           $ZipName = "brum-v${Version}-windows-x86_64.zip"
           Compress-Archive -Path "$DistDir\brum\*" -DestinationPath "$DistDir\$ZipName" -Force
+          "BRUM_VERSION=$Version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
-          # 2. Generate SHA256 Checksums
+      # A broken installer must not hold back the zip and the Linux packages
+      - name: Build Windows Setup Installer (Inno Setup)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $Iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $Iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $Iscc "/DMyAppVersion=$env:BRUM_VERSION" "packaging\windows\setup.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Generate Windows Checksums
+        shell: pwsh
+        run: |
+          $DistDir = "dist\windows"
           Get-ChildItem -Path "$DistDir\*" -Include *.zip,*.exe | ForEach-Object {
             $h = (Get-FileHash -Path $_.FullName -Algorithm SHA256).Hash.ToLower()
             "$h  $($_.Name)" | Out-File -FilePath "$DistDir\SHA256SUMS-windows.txt" -Append -Encoding ascii

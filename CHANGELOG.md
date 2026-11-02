@@ -5,6 +5,32 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-11-02
+
+### Security
+- **Security Hardening**: Shares, logins, per-user data, the Docker image and the page security policy were hardened. Upgrading is strongly recommended, especially for multi-user and internet-facing installs.
+  - Share passwords and email checks are remembered in a secure cookie instead of the link, and the file list stays hidden until a share is unlocked. Uploads to a share never overwrite existing files.
+  - Logging out, changing a password, and changing or removing a user now end the affected sessions on the server. Other sites can no longer send changes to Brum using your login.
+  - Tasks, backup profiles and tags are only visible to the user they belong to (admins see everything). Git push and pull need a system account of your own on the server, or admin rights.
+  - The generated admin password is no longer written to the log. It is kept in `initial_admin_credentials.txt` next to the database until first login.
+- **Docker Runs as a Normal User (Refs #7)**: The image starts Brum as `PUID`/`PGID` (default `1000:1000`) instead of root. On first start it hands `/data` to that user once; mounted host folders are never changed. Set `BRUM_RUN_AS_ROOT=true` for system-account logins or per-user terminal shells. See the Docker manual.
+- **Login-Off Mode (Refs #11)**: With login turned off, Brum only starts on `127.0.0.1` or behind proxies listed in `trusted_proxies`, and turns away requests that bypass the proxy.
+- **Page Security Policy (Refs #15)**: The main page no longer allows `eval`, plugins, or changing where links and forms send data.
+
+### Features
+- **Terminal Tabs (Fixes #151)**: Run up to 8 terminals side by side. "Open in Terminal" adds a tab for that folder, tabs follow the terminal when docked, and Fleet tabs show the node name.
+- **Terminal Clipboard**: Copying in tmux, vim and other programs that use OSC 52 now lands on your computer's clipboard. Programs can only write to it, never read it.
+- **Windows Installer**: Releases now include a Windows setup installer next to the portable zip.
+
+### Fixes
+- **Git Messages**: Stage, commit, push and pull show Git's real result and error message instead of always reporting success.
+- **Terminal Exit**: Typing `exit` now closes the terminal instead of leaving a dead session.
+
+### Upgrade Notes
+- **Docker**: Set `PUID`/`PGID` to the owner of your mounted folders, or `BRUM_RUN_AS_ROOT=true` to keep the old behaviour. Logs now persist under `/data/.local/share/brum/logs`.
+- **Shares**: Links that carried `?password=` or `?email=` no longer unlock a share; visitors enter it on the share page instead.
+- **Login off on a network address**: Add your login proxy to `trusted_proxies`, or Brum will refuse to start.
+
 ## [1.12.4] - 2026-10-30
 
 ### Security
