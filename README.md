@@ -27,15 +27,13 @@
 
 ## Why Brum?
 
-Brum is a fast, multi-pane file management environment built in Rust. It combines the keyboard precision and speed of classic orthodox file managers with a modern web and desktop workspace:
+Brum is a file manager you use in the browser, written in Rust. It follows the classic two-pane style of Total Commander and Midnight Commander, so the keyboard does most of the work, and adds a set of everyday tools (see [Built-in Tools](#built-in-tools)).
 
-* **Side-by-Side Multi-Pane Browsing**: Work across 1 to 4 customizable panels (`Alt+1`–`4`) simultaneously. Move, copy, and compare files effortlessly using orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), drag-and-drop, or touch controls.
-* **Built-in Power Tools Suite**: Everything you need is integrated directly into the workspace—no extra software required. Edit PDFs, inspect disk usage, batch rename files, play audio and video, view logs in real time, compare diffs, split large files, and launch a persistent terminal.
-* **Unified Local & Remote Storage**: Browse local disks, USB drives, and remote infrastructure in the same view. Connect directly to SFTP/SSH, SMB/Windows shares, WebDAV, S3 buckets, and NFS without mounting external filesystems.
-* **Direct File Sharing**: Create password-protected public share links with expiration rules and client upload dropzones straight from your browser—no third-party cloud subscription required.
-* **Encrypted Virtual Vaults**: Secure sensitive personal or corporate files inside encrypted vault containers that stream directly through RAM, ensuring unencrypted files never touch disk.
-* **Multi-Node Fleet Management**: Connect and monitor multiple Brum servers across your home lab, office network, or cloud VPS from a single unified web dashboard.
-* **Lightweight & Runs Anywhere**: Deploy as a standalone desktop app on Linux and Windows, self-host with Docker on a server or NAS, or run headless as a background system service with minimal resource usage.
+* **Up to four panes**, each with its own tabs. Copy, move and compare between them with the classic <kbd>F1</kbd>–<kbd>F10</kbd> keys, drag and drop, or touch.
+* **Local and remote in one view**: your disks and USB drives next to SFTP, SMB, WebDAV, S3, NFS and Proton Drive. You can also browse inside archives and disk images.
+* **Several users**, each limited to their own folders, with optional read-only accounts and sign-in through your own identity provider (OIDC).
+* **Fleet**: manage other Brum servers from the same window.
+* **Runs where you need it**: as a desktop app on Linux and Windows, in Docker on a server or NAS, or as a background service.
 
 ---
 
