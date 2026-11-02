@@ -45,6 +45,29 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
+    /// With login off everyone who reaches Brum is admin, so that is only allowed where nobody else
+    /// can reach it: on this machine only, or behind a reverse proxy that does the login (`trusted_proxies`)
+    pub fn check_login_off_is_safe(&self) -> Result<(), String> {
+        if self.server.enable_auth || self.server.standalone {
+            return Ok(());
+        }
+        if crate::instance::is_loopback_host(&self.server.host) {
+            return Ok(());
+        }
+        if self.server.trusted_proxies.iter().any(|p| !p.trim().is_empty()) {
+            tracing::warn!(
+                "Login is OFF. Only requests from this machine or the trusted proxies ({}) are accepted; the proxy must handle login",
+                self.server.trusted_proxies.join(", ")
+            );
+            return Ok(());
+        }
+        Err(format!(
+            "Refusing to start: login is off (--no-auth or enable_auth = false) while listening on '{}', which would give everyone on the network admin rights.\n\
+             Either turn login back on, listen on 127.0.0.1 only, or set server.trusted_proxies to the reverse proxy that handles login.",
+            self.server.host
+        ))
+    }
+
     pub fn get_sftp_config(&self) -> SftpConfig {
         if let Some(ref sftp) = self.sftp {
             sftp.clone()

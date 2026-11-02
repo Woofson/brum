@@ -24,6 +24,7 @@ RUN apk add --no-cache \
     gzip \
     7zip \
     openssh-client \
+    su-exec \
     tzdata
 
 WORKDIR /app
@@ -31,9 +32,14 @@ WORKDIR /app
 # Copy compiled musl release binary and master config.toml
 COPY target/x86_64-unknown-linux-musl/release/brum /usr/local/bin/brum
 COPY config.toml /etc/brum/config.toml
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
 # Setup storage and runtime directories
-RUN mkdir -p /data /data/admin /data/users /mnt
+RUN mkdir -p /data /data/admin /data/users /mnt /etc/brum/plugins \
+    && chmod 755 /usr/local/bin/docker-entrypoint.sh
+
+# Brum runs as user PUID:PGID (default 1000:1000); see docker-entrypoint.sh
+ENV PUID=1000 PGID=1000
 
 EXPOSE 3140
 
@@ -42,5 +48,5 @@ ENV RUST_LOG=brum=info,tower_http=info
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
   CMD curl -f http://localhost:3140/api/system/status || exit 1
 
-ENTRYPOINT ["/usr/local/bin/brum"]
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 

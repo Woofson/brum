@@ -90,6 +90,11 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             env!("BRUM_BUILD_TARGET")
         );
 
+        if let Err(e) = config.check_login_off_is_safe() {
+            error!("{}", e);
+            return;
+        }
+
         let auth_mgr = match crate::auth::AuthManager::new(
             &config.server.database_path,
             &config.server.jwt_secret,

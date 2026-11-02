@@ -301,6 +301,15 @@ tail -f /var/log/brum/brum.log
 ```
 If an untrusted proxy forwards headers, Brum logs a notice indicating that `X-Forwarded-For` was ignored because the connecting peer is not in `trusted_proxies`.
 
+### Turning Brum's Login Off Behind a Login Proxy
+
+With `enable_auth = false` (or `--no-auth`) everyone who reaches Brum is an admin. Since **v1.13.0** Brum only allows this where nobody else can reach it:
+
+- **Listening on `127.0.0.1` only** (this machine), or
+- **Behind a reverse proxy that does the login** (Authelia, Authentik forward-auth, ...): list that proxy in `trusted_proxies`. Brum then answers only requests coming from those addresses or from this machine, and turns everyone else away.
+
+In any other case Brum refuses to start and explains why. Prefer Brum's own login or SSO where you can.
+
 ---
 
 ## Verification Checklist

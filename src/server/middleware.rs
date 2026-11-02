@@ -155,7 +155,8 @@ pub async fn security_headers_middleware(
     // Pages that set a stricter policy of their own (the public share page) keep it
     headers.entry(header::CONTENT_SECURITY_POLICY).or_insert(
         axum::http::HeaderValue::from_static(
-            "default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: ws: wss:; frame-ancestors 'self';"
+            "default-src 'self' 'unsafe-inline' data: blob: ws: wss:; script-src 'self' 'unsafe-inline'; \
+             object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';"
         ),
     );
 
@@ -403,6 +404,24 @@ pub async fn auth_middleware(
 
     // 2. Standalone desktop or auth-disabled instances bypass auth checks with local admin claims
     if !state.config.server.enable_auth || state.config.server.standalone {
+        // Login off on a network address is only allowed behind a login-handling proxy:
+        // anyone reaching Brum around that proxy is turned away
+        if !state.config.server.standalone && !crate::instance::is_loopback_host(&state.config.server.host) {
+            let peer = req.extensions().get::<axum::extract::ConnectInfo<std::net::SocketAddr>>().map(|ci| ci.0.ip());
+            let via_proxy = peer.is_some_and(|ip| {
+                ip.is_loopback() || is_ip_trusted(&ip.to_string(), &state.config.server.trusted_proxies)
+            });
+            if !via_proxy {
+                tracing::warn!(peer = ?peer, path = %path, "Rejected request that bypassed the trusted proxy while login is off");
+                return Err((
+                    StatusCode::FORBIDDEN,
+                    Json(serde_json::json!({
+                        "error": "Login is off on this server; it only accepts requests through its trusted proxy",
+                        "code": "PROXY_REQUIRED"
+                    })),
+                ));
+            }
+        }
         let current_user = std::env::var("USERNAME")
             .or_else(|_| std::env::var("USER"))
             .unwrap_or_else(|_| "user".to_string());

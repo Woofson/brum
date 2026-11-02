@@ -194,7 +194,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    -o, --open             Automatically open Brum in default web browser / webview");
                 println!("    -p, --port <PORT>      Override web server port (default: 3140 or config.toml setting)");
                 println!("        --host <HOST>      Override web server bind host (default: 0.0.0.0)");
-                println!("        --no-auth          Disable login authentication and run with local permissions");
+                println!("        --no-auth          Disable login (only on 127.0.0.1, or behind trusted_proxies that handle login)");
                 println!("        --windows-service  Internal entry point for Windows Service Control Manager");
                 println!("        --minimized        Launch minimized in system tray / background without opening window");
                 println!("        --no-decorations   Launch without window titlebar/frame (ideal for Hyprland/tiling WMs)");
@@ -261,6 +261,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         env!("BRUM_BUILD_COMMIT"),
         env!("BRUM_BUILD_TARGET")
     );
+
+    if let Err(e) = config.check_login_off_is_safe() {
+        eprintln!("{}", e);
+        tracing::error!("{}", e);
+        std::process::exit(1);
+    }
 
     let auth_mgr = AuthManager::new(
         &config.server.database_path,

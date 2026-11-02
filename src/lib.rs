@@ -137,6 +137,7 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<(u16, Opti
         None
     };
 
+    config.check_login_off_is_safe()?;
     let state = create_app_state(&config, instance_info.clone())?;
     let app = create_router(state);
 

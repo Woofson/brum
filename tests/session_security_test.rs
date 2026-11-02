@@ -148,3 +148,38 @@ fn test_generated_admin_password_note_beside_database() {
     brum::logging::cleanup_initial_admin_credentials(&db.to_string_lossy());
     assert!(!note.exists());
 }
+
+fn login_off_config(host: &str, proxies: Vec<String>) -> (AppConfig, tempfile::TempDir) {
+    let dir = tempdir().unwrap();
+    let mut config = AppConfig::default();
+    config.server.host = host.to_string();
+    config.server.port = 0;
+    config.server.enable_auth = false;
+    config.server.trusted_proxies = proxies;
+    config.server.database_path = dir.path().join("brum_test.db").to_string_lossy().to_string();
+    config.auth.default_admin_pass = ADMIN_PASS.to_string();
+    config.plugins.directory = dir.path().join("plugins").to_string_lossy().to_string();
+    config.plugins.user_directory = dir.path().join("user_plugins").to_string_lossy().to_string();
+    (config, dir)
+}
+
+#[tokio::test]
+async fn test_login_off_refused_on_network_address() {
+    let (config, _dir) = login_off_config("0.0.0.0", Vec::new());
+    let err = start_background_server(config).await.err().expect("login off on 0.0.0.0 must not start");
+    assert!(err.to_string().contains("Refusing to start"), "{}", err);
+
+    // On this machine only, or behind a login-handling proxy, it may start
+    assert!(login_off_config("127.0.0.1", Vec::new()).0.check_login_off_is_safe().is_ok());
+    assert!(login_off_config("0.0.0.0", vec!["10.0.0.5".to_string()]).0.check_login_off_is_safe().is_ok());
+}
+
+#[tokio::test]
+async fn test_main_page_policy_has_no_eval() {
+    let (base, _dir) = start().await;
+    let resp = reqwest::get(format!("{}/", base)).await.unwrap();
+    let csp = resp.headers().get("content-security-policy").unwrap().to_str().unwrap().to_string();
+    assert!(!csp.contains("unsafe-eval"), "{}", csp);
+    assert!(csp.contains("object-src 'none'"), "{}", csp);
+    assert!(csp.contains("base-uri 'self'"), "{}", csp);
+}

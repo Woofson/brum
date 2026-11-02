@@ -7,6 +7,8 @@ services:
       - "3140:3140"
     environment:
       - TZ=UTC
+      - PUID=1000                 # owner of your files on the host (run `id`)
+      - PGID=1000
       - BRUM_PORT=3140
       - BRUM_BIND=0.0.0.0
       - BRUM_DATABASE_PATH=/data/brum.db

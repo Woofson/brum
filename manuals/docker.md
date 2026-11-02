@@ -23,6 +23,7 @@ docker run -d \
   --restart unless-stopped \
   -p 3140:3140 \
   -e TZ=Europe/Oslo \
+  -e PUID=1000 -e PGID=1000 \
   -e CD_DATABASE_PATH=/data/brum.db \
   -v brum_data:/data \
   -v /home:/mnt/home:rw \
@@ -53,6 +54,8 @@ services:
       - "3140:3140"
     environment:
       - TZ=Europe/Oslo
+      - PUID=1000                 # owner of your files on the host (run `id`)
+      - PGID=1000
       - CD_PORT=3140
       - CD_BIND=0.0.0.0
       - CD_DATABASE_PATH=/data/brum.db
@@ -94,7 +97,24 @@ docker compose up -d --force-recreate
 
 ---
 
-## 3. Database Persistence & Container Migration
+## 3. Running as a Normal User (PUID / PGID)
+
+Since **v1.13.0** the container starts Brum as an ordinary user instead of `root`, so a bug in Brum can only reach what that user can reach.
+
+| Variable | Default | Purpose |
+| :--- | :--- | :--- |
+| `PUID` | `1000` | User id Brum runs as |
+| `PGID` | `1000` | Group id Brum runs as |
+| `BRUM_RUN_AS_ROOT` | `false` | Set to `true` to keep the old behaviour (see below) |
+
+- **Set `PUID`/`PGID` to the owner of your files.** Run `id` on the host as that user to find the numbers. Brum can then read and write the folders you mount, like any other homelab container.
+- **Upgrading from an older image:** on first start Brum gives its own `/data` folder to `PUID:PGID` once (`chown`). Your mounted host folders are **never** changed; if Brum can't open one, give `PUID`/`PGID` access to it on the host.
+- **When you need root:** logging in with system (PAM) accounts and the terminal switching to each user's own account only work as root. Set `BRUM_RUN_AS_ROOT=true` if you rely on either.
+- Brum's home inside the container is `/data`, so logs and per-user settings now survive container updates (logs: `/data/.local/share/brum/logs`).
+
+---
+
+## 4. Database Persistence & Container Migration
 
 Brum automatically recognizes `/data` volumes:
 1. **Auto-Path Resolution**: When `/data` exists, the server automatically defaults to `/data/brum.db` and scans `/data/config.toml`.
@@ -117,7 +137,7 @@ docker compose up -d --force-recreate
 
 ---
 
-## 4. Deployment via Portainer Stacks
+## 5. Deployment via Portainer Stacks
 
 1. Open **Portainer** $\rightarrow$ Navigate to your Environment $\rightarrow$ **Stacks** $\rightarrow$ **Add stack**.
 2. Name the stack: `brum`.
@@ -127,7 +147,7 @@ docker compose up -d --force-recreate
 
 ---
 
-## 5. Reverse Proxy Integration (Traefik, Nginx, Caddy)
+## 6. Reverse Proxy Integration (Traefik, Nginx, Caddy)
 
 ### Caddy
 ```caddy

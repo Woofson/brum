@@ -28726,6 +28726,27 @@ function initTerminalUI() {
       console.error('Failed to open Terminal into container:', openErr);
     }
 
+    // OSC 52: tmux, vim and friends copy by asking the terminal to set the clipboard.
+    // Only writing is honoured; a program reading the clipboard ("?") is ignored.
+    try {
+      termInstance.parser.registerOscHandler(52, (data) => {
+        const payload = data.slice(data.indexOf(';') + 1);
+        if (!payload || payload === '?') return true;
+        let text;
+        try {
+          const bytes = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
+          text = new TextDecoder().decode(bytes);
+        } catch (_) {
+          return true;
+        }
+        copyTextToClipboard(text, 'Copied from terminal');
+        setTimeout(() => { try { termInstance.focus(); } catch (_) {} }, 0);
+        return true;
+      });
+    } catch (oscErr) {
+      console.warn('Could not enable terminal clipboard:', oscErr);
+    }
+
     if (document.fonts) {
       Promise.all([
         document.fonts.load('13px "JetBrainsMono Nerd Font"'),
@@ -39494,50 +39515,61 @@ function renderGitDiffOutput(rawDiff) {
   }).join('');
 }
 
+// Runs a Git action. Brum answers OK even when Git itself failed, so the reply's `success` decides.
+async function runGitAction(action, body) {
+  const resp = await fetch(`/api/git/${action}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body)
+  });
+  const text = await resp.text();
+  let data = null;
+  try { data = JSON.parse(text); } catch (_) {}
+  if (resp.ok && data && data.success) return { ok: true, output: data.output || '' };
+  const detail = (data && (data.error || data.output)) || text || `HTTP ${resp.status}`;
+  return { ok: false, error: String(detail).trim() };
+}
+
 async function gitStageFile(filePath) {
   try {
-    await fetch('/api/git/stage', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentGitRepoPath, files: [filePath] })
-    });
+    const res = await runGitAction('stage', { path: currentGitRepoPath, files: [filePath] });
+    if (!res.ok) showToast(`Stage failed: ${res.error}`, 'error');
     loadGitStatus(currentGitRepoPath);
-  } catch (e) {}
+  } catch (e) {
+    showToast('Stage failed', 'error');
+  }
 }
 
 async function gitUnstageFile(filePath) {
   try {
-    await fetch('/api/git/unstage', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentGitRepoPath, files: [filePath] })
-    });
+    const res = await runGitAction('unstage', { path: currentGitRepoPath, files: [filePath] });
+    if (!res.ok) showToast(`Unstage failed: ${res.error}`, 'error');
     loadGitStatus(currentGitRepoPath);
-  } catch (e) {}
+  } catch (e) {
+    showToast('Unstage failed', 'error');
+  }
 }
 
 async function gitStageAll() {
   try {
-    await fetch('/api/git/stage', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentGitRepoPath, files: ['.'] })
-    });
-    showToast('Staged all changes (+)', 'success');
+    const res = await runGitAction('stage', { path: currentGitRepoPath, files: ['.'] });
+    if (res.ok) showToast('Staged all changes (+)', 'success');
+    else showToast(`Stage failed: ${res.error}`, 'error');
     loadGitStatus(currentGitRepoPath);
-  } catch (e) {}
+  } catch (e) {
+    showToast('Stage failed', 'error');
+  }
 }
 
 async function gitUnstageAll() {
   try {
-    await fetch('/api/git/unstage', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentGitRepoPath, files: ['.'] })
-    });
-    showToast('Unstaged all changes', 'info');
+    const res = await runGitAction('unstage', { path: currentGitRepoPath, files: ['.'] });
+    if (res.ok) showToast('Unstaged all changes', 'info');
+    else showToast(`Unstage failed: ${res.error}`, 'error');
     loadGitStatus(currentGitRepoPath);
-  } catch (e) {}
+  } catch (e) {
+    showToast('Unstage failed', 'error');
+  }
 }
 
 async function gitCommitStaged() {
@@ -39549,19 +39581,13 @@ async function gitCommitStaged() {
   }
 
   try {
-    const resp = await fetch('/api/git/commit', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentGitRepoPath, message: msg })
-    });
-
-    if (resp.ok) {
+    const res = await runGitAction('commit', { path: currentGitRepoPath, message: msg });
+    if (res.ok) {
       if (msgInput) msgInput.value = '';
       showToast(`Committed: "${msg}"`, 'success');
       loadGitStatus(currentGitRepoPath);
     } else {
-      const err = await resp.text();
-      showToast(`Commit failed: ${err}`, 'error');
+      showToast(`Commit failed: ${res.error}`, 'error', 9000);
     }
   } catch (e) {
     showToast('Failed to commit', 'error');
@@ -39571,17 +39597,12 @@ async function gitCommitStaged() {
 async function gitPushCurrentRepo() {
   showToast('Pushing commits to remote repository...', 'info');
   try {
-    const resp = await fetch('/api/git/push', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentGitRepoPath })
-    });
-    if (resp.ok) {
-      showToast('Pushed commits successfully! 🚀', 'success');
+    const res = await runGitAction('push', { path: currentGitRepoPath });
+    if (res.ok) {
+      showToast('Pushed commits successfully', 'success');
       loadGitStatus(currentGitRepoPath);
     } else {
-      const err = await resp.text();
-      showToast(`Push failed: ${err}`, 'error');
+      showToast(`Push failed: ${res.error}`, 'error', 9000);
     }
   } catch (e) {
     showToast('Push failed', 'error');
@@ -39591,18 +39612,13 @@ async function gitPushCurrentRepo() {
 async function gitPullCurrentRepo() {
   showToast('Pulling latest changes from remote...', 'info');
   try {
-    const resp = await fetch('/api/git/pull', {
-      method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ path: currentGitRepoPath })
-    });
-    if (resp.ok) {
-      showToast('Pull complete! 📥', 'success');
+    const res = await runGitAction('pull', { path: currentGitRepoPath });
+    if (res.ok) {
+      showToast('Pull complete', 'success');
       loadGitStatus(currentGitRepoPath);
       renderAllPanes();
     } else {
-      const err = await resp.text();
-      showToast(`Pull failed: ${err}`, 'error');
+      showToast(`Pull failed: ${res.error}`, 'error', 9000);
     }
   } catch (e) {
     showToast('Pull failed', 'error');
