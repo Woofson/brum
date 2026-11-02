@@ -22333,9 +22333,17 @@ function triggerDirPermissions(paneIndex = App.activePaneIndex) {
 }
 
 function openTerminalInPath(path) {
-  toggleTerminal(true);
-  if (termWs && termWs.readyState === WebSocket.OPEN && path) {
-    termWs.send(`cd "${path.replace(/"/g, '\\"')}" && clear\n`);
+  let cwd = (path && !path.includes('://')) ? path : null;
+  // A file opens a terminal in its folder
+  if (cwd && App.contextItem && App.contextItem.path === path && !App.contextItem.is_dir) {
+    cwd = cwd.replace(/\/[^\/]*$/, '') || '/';
+  }
+  if (termTabs.length && cwd) {
+    // Keep what is running and open the folder in a tab of its own
+    toggleTerminal(true);
+    newTerminalTab(cwd);
+  } else {
+    toggleTerminal(true, cwd);
   }
 }
 
@@ -28605,11 +28613,48 @@ function disconnectPaneRemote(paneIndex) {
 }
 
 // ---------------- INTEGRATED TERMINAL (PTY & WEBSOCKET) ----------------
+// Several shells run side by side as tabs, each with its own xterm and socket.
+// termWs / termInstance / termFitAddon / termConnectTime always mirror the active tab.
+const TERM_MAX_TABS = 8;
+const TERM_THEME = {
+  background: '#090a0d',
+  foreground: '#f4f4f5',
+  cursor: '#f59e0b',
+  cursorAccent: '#090a0d',
+  selectionBackground: 'rgba(245, 158, 11, 0.35)',
+  black: '#18181b',
+  red: '#ef4444',
+  green: '#10b981',
+  yellow: '#f59e0b',
+  blue: '#38bdf8',
+  magenta: '#bd93f9',
+  cyan: '#7dcfff',
+  white: '#f4f4f5',
+  brightBlack: '#71717a',
+  brightRed: '#f87171',
+  brightGreen: '#34d399',
+  brightYellow: '#fbbf24',
+  brightBlue: '#60a5fa',
+  brightMagenta: '#c084fc',
+  brightCyan: '#a5f3fc',
+  brightWhite: '#ffffff',
+};
+let termTabs = [];
+let termActiveTab = null;
+let termTabSeq = 0;
 let termWs = null;
 let termOpen = false;
 let termInstance = null;
 let termFitAddon = null;
 let termConnectTime = 0;
+
+function syncActiveTerminal() {
+  const tab = termActiveTab;
+  termWs = tab ? tab.ws : null;
+  termInstance = tab ? tab.instance : null;
+  termFitAddon = tab ? tab.fit : null;
+  termConnectTime = tab ? tab.connectTime : 0;
+}
 
 function ensureTerminalOutputElement() {
   let termOutput = document.getElementById('terminal-output');
@@ -28620,11 +28665,17 @@ function ensureTerminalOutputElement() {
     termOutput.id = 'terminal-output';
     termOutput.tabIndex = 0;
     drawer.appendChild(termOutput);
-    if (termInstance) {
-      try { termInstance.dispose(); } catch (e) {}
-      termInstance = null;
-      termFitAddon = null;
+  }
+  if (termOutput) {
+    // A rebuilt container gets the tab bar and every running tab back
+    if (!termOutput.querySelector(':scope > .term-tabbar')) {
+      const bar = document.createElement('div');
+      bar.className = 'term-tabbar';
+      termOutput.prepend(bar);
     }
+    termTabs.forEach(t => {
+      if (t.host.parentNode !== termOutput) termOutput.appendChild(t.host);
+    });
   }
   return termOutput;
 }
@@ -28640,10 +28691,141 @@ function stashDockedTerminal() {
   }
 }
 
-function initTerminalUI() {
-  const container = ensureTerminalOutputElement();
-  if (!container) return;
+function currentTerminalCwd() {
+  const pane = App.panes[App.activePaneIndex];
+  return (pane && pane.path && !pane.path.includes('://')) ? pane.path : (getUserDefaultHomeDir() || '/');
+}
 
+function renderTerminalTabs() {
+  const out = ensureTerminalOutputElement();
+  if (!out) return;
+  const bar = out.querySelector(':scope > .term-tabbar');
+  bar.innerHTML = '';
+  termTabs.forEach(tab => {
+    const el = document.createElement('div');
+    el.className = 'term-tab' + (tab === termActiveTab ? ' active' : '');
+    el.title = tab.title;
+    const label = document.createElement('span');
+    label.className = 'term-tab-label';
+    label.textContent = tab.label;
+    const close = document.createElement('button');
+    close.className = 'term-tab-close';
+    close.title = 'Close this terminal';
+    close.textContent = '×';
+    close.addEventListener('click', (e) => {
+      e.stopPropagation();
+      closeTerminalTab(tab);
+    });
+    el.append(label, close);
+    el.addEventListener('click', () => activateTerminalTab(tab));
+    // Middle-click closes, like browser tabs
+    el.addEventListener('auxclick', (e) => {
+      if (e.button === 1) {
+        e.preventDefault();
+        closeTerminalTab(tab);
+      }
+    });
+    bar.appendChild(el);
+  });
+  const add = document.createElement('button');
+  add.className = 'term-tab-add';
+  add.title = termTabs.length >= TERM_MAX_TABS ? `Up to ${TERM_MAX_TABS} terminals` : 'New terminal';
+  add.textContent = '+';
+  add.disabled = termTabs.length >= TERM_MAX_TABS;
+  add.addEventListener('click', () => newTerminalTab());
+  bar.appendChild(add);
+  termTabs.forEach(t => {
+    t.host.style.display = t === termActiveTab ? 'flex' : 'none';
+  });
+}
+
+function activateTerminalTab(tab) {
+  if (!tab) return;
+  termActiveTab = tab;
+  syncActiveTerminal();
+  renderTerminalTabs();
+  const cwdEl = document.getElementById('terminal-cwd-indicator');
+  if (cwdEl) cwdEl.textContent = tab.title;
+  // A tab hidden during a resize catches up now
+  try { if (tab.fit) tab.fit.fit(); } catch (e) {}
+  setTimeout(() => {
+    if (termActiveTab !== tab) return;
+    try { if (tab.fit) tab.fit.fit(); } catch (e) {}
+    if (tab.instance) tab.instance.focus();
+  }, 80);
+}
+
+function newTerminalTab(cwd) {
+  if (termTabs.length >= TERM_MAX_TABS) {
+    showToast(`Up to ${TERM_MAX_TABS} terminals can be open at once`, 'warning');
+    return null;
+  }
+  const out = ensureTerminalOutputElement();
+  if (!out) return null;
+  const host = document.createElement('div');
+  host.className = 'term-tab-host';
+  out.appendChild(host);
+  const tab = { id: ++termTabSeq, host, ws: null, instance: null, fit: null, connectTime: 0, label: '', title: '' };
+  termTabs.push(tab);
+  createTerminalInstance(tab);
+  activateTerminalTab(tab);
+  connectTerminalTab(tab, cwd || currentTerminalCwd());
+  return tab;
+}
+
+function dropTerminalSocket(tab) {
+  const ws = tab.ws;
+  tab.ws = null;
+  if (termActiveTab === tab) termWs = null;
+  if (!ws) return;
+  ws.onopen = null;
+  ws.onmessage = null;
+  ws.onerror = null;
+  ws.onclose = null;
+  // Closing the socket ends the shell on the server
+  try { ws.close(); } catch (_) {}
+}
+
+function removeTerminalTab(tab) {
+  dropTerminalSocket(tab);
+  try { if (tab.instance) tab.instance.dispose(); } catch (e) {}
+  tab.host.remove();
+  termTabs = termTabs.filter(t => t !== tab);
+}
+
+function closeTerminalTab(tab) {
+  const idx = termTabs.indexOf(tab);
+  if (idx === -1) return;
+  removeTerminalTab(tab);
+  if (termTabs.length) {
+    if (termActiveTab === tab) {
+      activateTerminalTab(termTabs[Math.min(idx, termTabs.length - 1)]);
+    } else {
+      renderTerminalTabs();
+    }
+    return;
+  }
+
+  // Last terminal gone: put the drawer or docked pane away, as a single shell exiting always did
+  termActiveTab = null;
+  syncActiveTerminal();
+  renderTerminalTabs();
+  const dockedPaneIdx = App.panes.findIndex(p => p && p.dockedTool === 'terminal');
+  if (dockedPaneIdx !== -1) {
+    closeDockedTool(dockedPaneIdx);
+  } else {
+    toggleTerminal(false);
+  }
+}
+
+function closeAllTerminalTabs() {
+  [...termTabs].forEach(removeTerminalTab);
+  termActiveTab = null;
+  syncActiveTerminal();
+  renderTerminalTabs();
+}
+
+function createTerminalInstance(tab) {
   const TerminalCtor = (typeof Terminal !== 'undefined' && typeof Terminal === 'function')
     ? Terminal
     : (window.Terminal ? (window.Terminal.Terminal || window.Terminal) : null);
@@ -28653,149 +28835,115 @@ function initTerminalUI() {
     return;
   }
 
-  if (!termInstance || !termInstance.element || !container.contains(termInstance.element)) {
-    container.innerHTML = '';
-    if (termInstance) {
-      try { termInstance.dispose(); } catch (e) {}
-      termInstance = null;
-      termFitAddon = null;
-    }
+  let instance;
+  try {
+    instance = new TerminalCtor({
+      cursorBlink: true,
+      cursorStyle: 'bar',
+      fontFamily: '"JetBrainsMono Nerd Font", "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font Mono", "JetBrains Mono", monospace',
+      fontSize: 13,
+      lineHeight: 1.25,
+      scrollback: 5000,
+      theme: TERM_THEME,
+    });
+  } catch (ctorErr) {
+    console.error('Failed to instantiate Terminal:', ctorErr);
+    return;
+  }
+  tab.instance = instance;
+
+  const FitCtor = (typeof FitAddon !== 'undefined')
+    ? (FitAddon.FitAddon || FitAddon)
+    : (window.FitAddon ? (window.FitAddon.FitAddon || window.FitAddon) : null);
+  if (FitCtor) {
     try {
-      termInstance = new TerminalCtor({
-        cursorBlink: true,
-        cursorStyle: 'bar',
-        fontFamily: '"JetBrainsMono Nerd Font", "JetBrainsMono Nerd Font Mono", "Symbols Nerd Font Mono", "JetBrains Mono", monospace',
-        fontSize: 13,
-        lineHeight: 1.25,
-        scrollback: 5000,
-        theme: {
-          background: '#090a0d',
-          foreground: '#f4f4f5',
-          cursor: '#f59e0b',
-          cursorAccent: '#090a0d',
-          selectionBackground: 'rgba(245, 158, 11, 0.35)',
-          black: '#18181b',
-          red: '#ef4444',
-          green: '#10b981',
-          yellow: '#f59e0b',
-          blue: '#38bdf8',
-          magenta: '#bd93f9',
-          cyan: '#7dcfff',
-          white: '#f4f4f5',
-          brightBlack: '#71717a',
-          brightRed: '#f87171',
-          brightGreen: '#34d399',
-          brightYellow: '#fbbf24',
-          brightBlue: '#60a5fa',
-          brightMagenta: '#c084fc',
-          brightCyan: '#a5f3fc',
-          brightWhite: '#ffffff',
-        }
-      });
-    } catch (ctorErr) {
-      console.error('Failed to instantiate Terminal:', ctorErr);
+      tab.fit = new FitCtor();
+      instance.loadAddon(tab.fit);
+    } catch (fErr) {
+      console.warn('Could not load FitAddon:', fErr);
+    }
+  }
+
+  const WebLinksCtor = (typeof WebLinksAddon !== 'undefined')
+    ? (WebLinksAddon.WebLinksAddon || WebLinksAddon)
+    : (window.WebLinksAddon ? (window.WebLinksAddon.WebLinksAddon || window.WebLinksAddon) : null);
+  if (WebLinksCtor) {
+    try {
+      instance.loadAddon(new WebLinksCtor());
+    } catch (wErr) {
+      console.warn('Could not load WebLinksAddon:', wErr);
+    }
+  }
+
+  try {
+    instance.open(tab.host);
+  } catch (openErr) {
+    console.error('Failed to open Terminal into container:', openErr);
+  }
+
+  // OSC 52: tmux, vim and friends copy by asking the terminal to set the clipboard.
+  // Only writing is honoured; a program reading the clipboard ("?") is ignored.
+  try {
+    instance.parser.registerOscHandler(52, (data) => {
+      const payload = data.slice(data.indexOf(';') + 1);
+      if (!payload || payload === '?') return true;
+      let text;
+      try {
+        const bytes = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
+        text = new TextDecoder().decode(bytes);
+      } catch (_) {
+        return true;
+      }
+      copyTextToClipboard(text, 'Copied from terminal');
+      setTimeout(() => { try { instance.focus(); } catch (_) {} }, 0);
+      return true;
+    });
+  } catch (oscErr) {
+    console.warn('Could not enable terminal clipboard:', oscErr);
+  }
+
+  if (document.fonts) {
+    Promise.all([
+      document.fonts.load('13px "JetBrainsMono Nerd Font"'),
+      document.fonts.load('13px "JetBrainsMono Nerd Font Mono"'),
+      document.fonts.load('13px "Symbols Nerd Font Mono"'),
+      document.fonts.ready
+    ]).then(() => {
+      if (tab.fit && termActiveTab === tab) {
+        try {
+          tab.fit.fit();
+          instance.refresh(0, instance.rows - 1);
+        } catch (e) {}
+      }
+    });
+  }
+
+  instance.onData((data) => {
+    // Ignore residual Enter/newline keystroke leakage occurring during window open transition
+    if (Date.now() - tab.connectTime < 250 && (data === '\r' || data === '\n' || data === '\r\n')) {
       return;
     }
-
-    const FitCtor = (typeof FitAddon !== 'undefined')
-      ? (FitAddon.FitAddon || FitAddon)
-      : (window.FitAddon ? (window.FitAddon.FitAddon || window.FitAddon) : null);
-    if (FitCtor) {
-      try {
-        termFitAddon = new FitCtor();
-        termInstance.loadAddon(termFitAddon);
-      } catch (fErr) {
-        console.warn('Could not load FitAddon:', fErr);
-      }
+    if (tab.ws && tab.ws.readyState === WebSocket.OPEN) {
+      tab.ws.send(data);
     }
+  });
 
-    const WebLinksCtor = (typeof WebLinksAddon !== 'undefined')
-      ? (WebLinksAddon.WebLinksAddon || WebLinksAddon)
-      : (window.WebLinksAddon ? (window.WebLinksAddon.WebLinksAddon || window.WebLinksAddon) : null);
-    if (WebLinksCtor) {
-      try {
-        termInstance.loadAddon(new WebLinksCtor());
-      } catch (wErr) {
-        console.warn('Could not load WebLinksAddon:', wErr);
-      }
+  let resizeDebounceTimer = null;
+  instance.onResize(({ cols, rows }) => {
+    // Avoid premature SIGWINCH resize events immediately on initial startup handshake
+    if (Date.now() - tab.connectTime < 350) {
+      return;
     }
-
-    try {
-      termInstance.open(container);
-    } catch (openErr) {
-      console.error('Failed to open Terminal into container:', openErr);
-    }
-
-    // OSC 52: tmux, vim and friends copy by asking the terminal to set the clipboard.
-    // Only writing is honoured; a program reading the clipboard ("?") is ignored.
-    try {
-      termInstance.parser.registerOscHandler(52, (data) => {
-        const payload = data.slice(data.indexOf(';') + 1);
-        if (!payload || payload === '?') return true;
-        let text;
-        try {
-          const bytes = Uint8Array.from(atob(payload), c => c.charCodeAt(0));
-          text = new TextDecoder().decode(bytes);
-        } catch (_) {
-          return true;
-        }
-        copyTextToClipboard(text, 'Copied from terminal');
-        setTimeout(() => { try { termInstance.focus(); } catch (_) {} }, 0);
-        return true;
-      });
-    } catch (oscErr) {
-      console.warn('Could not enable terminal clipboard:', oscErr);
-    }
-
-    if (document.fonts) {
-      Promise.all([
-        document.fonts.load('13px "JetBrainsMono Nerd Font"'),
-        document.fonts.load('13px "JetBrainsMono Nerd Font Mono"'),
-        document.fonts.load('13px "Symbols Nerd Font Mono"'),
-        document.fonts.ready
-      ]).then(() => {
-        if (termFitAddon) {
-          try {
-            termFitAddon.fit();
-            if (termInstance) termInstance.refresh(0, termInstance.rows - 1);
-          } catch (e) {}
-        }
-      });
-    }
-
-    termInstance.onData((data) => {
-      // Ignore residual Enter/newline keystroke leakage occurring during window open transition
-      if (Date.now() - termConnectTime < 250 && (data === '\r' || data === '\n' || data === '\r\n')) {
-        return;
+    if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
+    resizeDebounceTimer = setTimeout(() => {
+      if (tab.ws && tab.ws.readyState === WebSocket.OPEN) {
+        tab.ws.send(JSON.stringify({ cols, rows, resize: true }));
       }
-      if (termWs && termWs.readyState === WebSocket.OPEN) {
-        termWs.send(data);
-      }
-    });
-
-    let resizeDebounceTimer = null;
-    termInstance.onResize(({ cols, rows }) => {
-      // Avoid premature SIGWINCH resize events immediately on initial startup handshake
-      if (Date.now() - termConnectTime < 350) {
-        return;
-      }
-      if (resizeDebounceTimer) clearTimeout(resizeDebounceTimer);
-      resizeDebounceTimer = setTimeout(() => {
-        if (termWs && termWs.readyState === WebSocket.OPEN) {
-          termWs.send(JSON.stringify({ cols, rows, resize: true }));
-        }
-      }, 50);
-    });
-  }
-
-  if (termFitAddon) {
-    setTimeout(() => {
-      try { termFitAddon.fit(); } catch (e) {}
     }, 50);
-  }
+  });
 }
 
-function toggleTerminal(forceState) {
+function toggleTerminal(forceState, cwd) {
   if (forceState && typeof forceState === 'object' && forceState.stopPropagation) {
     forceState.stopPropagation();
     forceState = undefined;
@@ -28806,7 +28954,6 @@ function toggleTerminal(forceState) {
   termOpen = typeof forceState === 'boolean' ? forceState : !termOpen;
 
   if (termOpen) {
-    termConnectTime = Date.now();
     localStorage.setItem('cd_terminal_open', '1');
     drawer.classList.add('active');
 
@@ -28829,23 +28976,10 @@ function toggleTerminal(forceState) {
       }
     });
 
-    const activePane = App.panes[App.activePaneIndex];
-    const cwd = (activePane && !activePane.path.includes('://')) ? activePane.path : (getUserDefaultHomeDir() || '/');
-    const cwdEl = document.getElementById('terminal-cwd-indicator');
-    if (cwdEl) cwdEl.textContent = cwd;
-
-    initTerminalUI();
-
-    const isWsActive = termWs && (termWs.readyState === WebSocket.OPEN || termWs.readyState === WebSocket.CONNECTING);
-    if (!isWsActive) {
-      connectTerminal(cwd);
+    if (!termTabs.length) {
+      newTerminalTab(cwd || currentTerminalCwd());
     } else {
-      setTimeout(() => {
-        if (termFitAddon) {
-          try { termFitAddon.fit(); } catch (e) {}
-        }
-        if (termInstance) termInstance.focus();
-      }, 80);
+      activateTerminalTab(termActiveTab || termTabs[0]);
     }
   } else {
     localStorage.setItem('cd_terminal_open', '0');
@@ -28871,9 +29005,6 @@ function clearTerminal() {
   if (termInstance) {
     termInstance.clear();
     termInstance.focus();
-  } else {
-    const out = document.getElementById('terminal-output');
-    if (out) out.innerHTML = '';
   }
 }
 
@@ -28915,37 +29046,32 @@ function getWsUrl(endpoint) {
   return `${protocol}//${window.location.host}${basePath}${cleanEndpoint}`;
 }
 
-function connectTerminal(cwd) {
-  termConnectTime = Date.now();
-  if (termWs) {
-    const oldWs = termWs;
-    termWs = null;
-    oldWs.onopen = null;
-    oldWs.onmessage = null;
-    oldWs.onerror = null;
-    oldWs.onclose = null;
-    try { oldWs.close(); } catch (_) {}
+function connectTerminalTab(tab, cwd) {
+  tab.connectTime = Date.now();
+  if (termActiveTab === tab) termConnectTime = tab.connectTime;
+  dropTerminalSocket(tab);
+
+  const instance = tab.instance;
+  if (tab.fit) {
+    try { tab.fit.fit(); } catch (e) {}
   }
 
-  // Reset any previous terminal buffer so a new session starts clean
-  if (termInstance) {
-    try { termInstance.reset(); } catch (_) {}
-  }
-
-  if (termFitAddon) {
-    try { termFitAddon.fit(); } catch (e) {}
-  }
-
-  const cols = (termInstance && termInstance.cols > 0) ? termInstance.cols : 100;
-  const rows = (termInstance && termInstance.rows > 0) ? termInstance.rows : 24;
+  const cols = (instance && instance.cols > 0) ? instance.cols : 100;
+  const rows = (instance && instance.rows > 0) ? instance.rows : 24;
   const cleanCwd = (cwd && typeof cwd === 'string') ? cwd : '/';
   const token = App.token || localStorage.getItem('cd_token') || '';
   const tokenParam = token ? `&token=${encodeURIComponent(token)}&cd_token=${encodeURIComponent(token)}` : '';
 
   const activePaneIdx = (typeof App.activePaneIndex === 'number') ? App.activePaneIndex : (App.activePane ?? 0);
   const node = typeof getPaneNode === 'function' ? getPaneNode(activePaneIdx) : null;
+  const folder = cleanCwd.replace(/\/+$/, '').split('/').pop() || '/';
+  const remote = node && node.id !== 'local';
+  tab.label = remote ? `${node.name || node.id}: ${folder}` : folder;
+  tab.title = remote ? `${node.name || node.id}: ${cleanCwd}` : cleanCwd;
+  if (termActiveTab === tab) activateTerminalTab(tab);
+
   let url;
-  if (node && node.id !== 'local') {
+  if (remote) {
     if (typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(node)) {
       url = `${getWsUrl(`/api/fleet/proxy/${encodeURIComponent(node.id)}/api/terminal/ws`)}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
     } else {
@@ -28960,60 +29086,59 @@ function connectTerminal(cwd) {
 
   try {
     const thisWs = new WebSocket(url);
-    termWs = thisWs;
+    tab.ws = thisWs;
+    if (termActiveTab === tab) termWs = thisWs;
     thisWs.binaryType = 'arraybuffer';
     let hasReceivedData = false;
 
     thisWs.onopen = () => {
-      if (termWs !== thisWs) return;
+      if (tab.ws !== thisWs) return;
       setTimeout(() => {
-        if (termFitAddon) {
-          try { termFitAddon.fit(); } catch (e) {}
-        }
-        if (termInstance) {
-          termInstance.focus();
-        }
+        if (termActiveTab !== tab) return;
+        try { if (tab.fit) tab.fit.fit(); } catch (e) {}
+        if (tab.instance) tab.instance.focus();
       }, 80);
       // onResize ignores the start of a connection, so report the settled size once
       setTimeout(() => {
-        if (termWs !== thisWs || thisWs.readyState !== WebSocket.OPEN || !termInstance) return;
-        try { if (termFitAddon) termFitAddon.fit(); } catch (e) {}
-        thisWs.send(JSON.stringify({ cols: termInstance.cols, rows: termInstance.rows, resize: true }));
+        if (tab.ws !== thisWs || thisWs.readyState !== WebSocket.OPEN || !tab.instance) return;
+        try { if (tab.fit && termActiveTab === tab) tab.fit.fit(); } catch (e) {}
+        thisWs.send(JSON.stringify({ cols: tab.instance.cols, rows: tab.instance.rows, resize: true }));
       }, 400);
     };
 
     thisWs.onmessage = (e) => {
-      if (termWs !== thisWs) return;
+      if (tab.ws !== thisWs) return;
       hasReceivedData = true;
-      if (termInstance) {
+      if (tab.instance) {
         if (e.data instanceof ArrayBuffer) {
-          termInstance.write(new Uint8Array(e.data));
+          tab.instance.write(new Uint8Array(e.data));
         } else {
-          termInstance.write(e.data);
+          tab.instance.write(e.data);
         }
       } else {
-        appendTerminalTextFallback(typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data));
+        appendTerminalTextFallback(tab, typeof e.data === 'string' ? e.data : new TextDecoder().decode(e.data));
       }
     };
 
     thisWs.onerror = (err) => {
-      if (termWs !== thisWs) return;
+      if (tab.ws !== thisWs) return;
       console.warn('Terminal WebSocket error:', err);
     };
 
     thisWs.onclose = (event) => {
-      if (termWs !== thisWs) return;
-      termWs = null;
+      if (tab.ws !== thisWs) return;
+      tab.ws = null;
+      if (termActiveTab === tab) termWs = null;
 
       // If connection closed prematurely without receiving any data (handshake failure / rejection)
-      const connectDuration = Date.now() - termConnectTime;
+      const connectDuration = Date.now() - tab.connectTime;
       if (!hasReceivedData && connectDuration < 4000) {
         const code = event && event.code ? event.code : 1006;
         const errorMsg = `\r\n\x1b[31m[Brum Terminal] Connection closed or rejected by host (code: ${code}).\x1b[0m\r\n\x1b[90mEnsure the terminal feature is enabled and allowed_origins includes your host.\x1b[0m\r\n`;
-        if (termInstance) {
-          termInstance.write(errorMsg);
+        if (tab.instance) {
+          tab.instance.write(errorMsg);
         } else {
-          appendTerminalTextFallback(errorMsg);
+          appendTerminalTextFallback(tab, errorMsg);
         }
         if (typeof showToast === 'function') {
           showToast(`Terminal disconnected: connection rejected by host (${code})`, 'error');
@@ -29021,26 +29146,17 @@ function connectTerminal(cwd) {
         return;
       }
 
-      const dockedPaneIdx = App.panes.findIndex(p => p && p.dockedTool === 'terminal');
-      if (dockedPaneIdx !== -1) {
-        closeDockedTool(dockedPaneIdx);
-      } else {
-        toggleTerminal(false);
-        if (termInstance) {
-          try { termInstance.reset(); } catch (e) {}
-        }
-      }
+      // The shell exited (e.g. `exit`): its tab goes with it
+      closeTerminalTab(tab);
     };
   } catch (wsErr) {
     console.error('Failed to create Terminal WebSocket:', wsErr);
   }
 }
 
-function appendTerminalTextFallback(str) {
-  const out = document.getElementById('terminal-output');
-  if (!out) return;
-  out.textContent += str;
-  out.scrollTop = out.scrollHeight;
+function appendTerminalTextFallback(tab, str) {
+  tab.host.textContent += str;
+  tab.host.scrollTop = tab.host.scrollHeight;
 }
 
 // ---------------- TERACOPY-STYLE FLOATING TASK & TRANSFER MANAGER ----------------
@@ -38596,15 +38712,7 @@ function closeDockedTool(paneIndex) {
     if (drawer && termOutput && !drawer.contains(termOutput)) {
       drawer.appendChild(termOutput);
     }
-    if (termWs) {
-      const oldWs = termWs;
-      termWs = null;
-      oldWs.onopen = null;
-      oldWs.onmessage = null;
-      oldWs.onerror = null;
-      oldWs.onclose = null;
-      try { oldWs.close(); } catch (_) {}
-    }
+    closeAllTerminalTabs();
   }
 
   rebuildPaneDOM(paneIndex);
@@ -38744,12 +38852,11 @@ function mountDockedTool(paneIndex) {
       termOutput.style.flexDirection = 'column';
     }
 
-    initTerminalUI();
-
     const cwd = (pane && !pane.path.includes('://')) ? pane.path : (getUserDefaultHomeDir() || '/');
-    const isWsActive = termWs && (termWs.readyState === WebSocket.OPEN || termWs.readyState === WebSocket.CONNECTING);
-    if (!isWsActive) {
-      connectTerminal(cwd);
+    if (!termTabs.length) {
+      newTerminalTab(cwd);
+    } else {
+      activateTerminalTab(termActiveTab || termTabs[0]);
     }
 
     // Dynamic resize observer keeping docked terminal & TUI apps (nano/vim) perfectly sized

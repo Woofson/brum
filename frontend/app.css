@@ -4258,6 +4258,85 @@ html.fkeys-disabled .bottom-fkey-bar,
   width: 100% !important;
 }
 
+/* Terminal tabs */
+.term-tabbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 0 4px;
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.term-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 200px;
+  flex-shrink: 0;
+  padding: 2px 2px 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: 11px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.term-tab:hover {
+  background: var(--bg-hover);
+}
+
+.term-tab.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.term-tab-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.term-tab-close,
+.term-tab-add {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1;
+  padding: 1px 5px;
+  border-radius: var(--radius);
+  cursor: pointer;
+}
+
+.term-tab-add {
+  color: var(--text-dim);
+  font-size: 16px;
+  padding: 0 8px;
+}
+
+.term-tab-close:hover,
+.term-tab-add:hover:not(:disabled) {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+
+.term-tab-add:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.term-tab-host {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
 .terminal-cursor {
   display: inline-block;
   width: 7px;

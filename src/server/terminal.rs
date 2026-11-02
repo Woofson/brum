@@ -898,7 +898,7 @@ async fn handle_terminal_socket(
 
     // Task forwarding PTY output -> WebSocket
     let ws_sender_clone = ws_sender.clone();
-    let pty_to_ws = tokio::spawn(async move {
+    let mut pty_to_ws = tokio::spawn(async move {
         while let Some(data) = pty_out_rx.recv().await {
             let mut sender = ws_sender_clone.lock().await;
             if sender.send(Message::Binary(data)).await.is_err() {
@@ -923,7 +923,7 @@ async fn handle_terminal_socket(
     let mut cur_rows = rows;
 
     // Task forwarding WebSocket input -> PTY master writer
-    let ws_to_pty = tokio::spawn(async move {
+    let mut ws_to_pty = tokio::spawn(async move {
         while let Some(Ok(msg)) = ws_receiver.next().await {
             match msg {
                 Message::Text(text) => {
@@ -982,9 +982,14 @@ async fn handle_terminal_socket(
     });
 
     tokio::select! {
-        _ = pty_to_ws => {},
-        _ = ws_to_pty => {},
+        _ = &mut pty_to_ws => {},
+        _ = &mut ws_to_pty => {},
     }
+
+    // Whichever side ended, end the other too: a shell that exits hangs up the page's connection
+    pty_to_ws.abort();
+    ws_to_pty.abort();
+    let _ = ws_sender.lock().await.send(Message::Close(None)).await;
 
     let _ = child.kill();
 }

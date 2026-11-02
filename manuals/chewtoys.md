@@ -144,6 +144,8 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 ## 9. Bite! Slide-Up PTY Terminal
 * **Native WebSocket PTY**: Full pseudo-terminal session attached directly to the active pane's directory.
 * **Persistent Drawer Sessions**: Toggling or hiding the terminal drawer keeps running processes and active shells alive in the background without restarting sessions.
+* **Terminal Tabs**: Run up to 8 shells side by side. **+** opens a new one in the active pane's folder, **×** or a middle-click closes one, and typing `exit` closes its tab. "Open in Terminal" adds a tab for that folder instead of replacing what is running. Tabs on Fleet nodes are labelled with the node's name, and all tabs move along when the terminal is docked into a pane.
+* **Clipboard**: Copying in tmux, vim and other programs that use OSC 52 lands on your computer's clipboard (HTTPS or localhost). Programs can only write to the clipboard, never read it.
 * **Shell Support**: Automatically detects and loads your default shell (`fish`, `zsh`, `bash`, `powershell`, `cmd.exe`).
 * **Bundled Nerd Fonts**: Embedded `JetBrainsMono Nerd Font` provides out-of-the-box support for `eza --icons`, `starship`, and powerline glyphs without missing boxes or tofu characters.
 * **Dynamic Geometry**: Automatic `ResizeObserver` recalculates dimensions and synchronizes `{ cols, rows }` across pane and window resizes.
