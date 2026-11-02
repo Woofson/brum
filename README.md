@@ -71,29 +71,54 @@ cargo run --release        # Open http://localhost:3140 in your browser
 
 ---
 
-## Built-in Native Core Functions & Chewtoys Suite
+## Built-in Tools
 
-| Core Function | Description | Replaced Utility |
-| :--- | :--- | :--- |
-| **3D CAD Studio** | Interactive 3D model & mesh viewer (STL, OBJ, DXF, PLY, STEP wireframe, slicing plane) | Blender / MeshLab / FreeCAD |
-| **File Splitter & Combiner** | Chunk-based binary file splitting, MD5/SHA-256 integrity checks, and recombining | HJSplit / GSplit / 7-Zip |
-| **PDF Studio** | Pure-Rust visual PDF page reordering, splitting, 90° rotation, page extraction & merger | PDFsam / Acrobat |
-| **Sharing Center** | Public file & folder link sharing, passcodes, expiration rules, client upload dropzones | Nextcloud Share / Dropbox |
-| **Disk Usage Analyzer** | Interactive disk usage analyzer, directory distribution bar charts & top files inspector | WinDirStat / Baobab / ncdu |
-| **Notes** | SQLite-backed Markdown notebook, checklists, version snapshots, and encrypted notes | Obsidian / Joplin |
-| **Media Player** | Multi-format audio & video player, chiptune/tracker/MIDI synth, visualizer, playlists & background pill | VLC / MPC-HC / Winamp |
-| **Bite! Terminal** | Persistent slide-up WebSocket PTY terminal with bundled JetBrainsMono Nerd Fonts | PuTTY / Web SSH |
-| **XDG Trash Suite** | Linux XDG specification-compliant trash bin, `.trashinfo` metadata & 1-click restore | trash-cli / Recycle Bin |
-| **Duplicate Finder** | Multi-stage hash scanner (Blake3, SHA-256, MD5) with smart cleanup and filters | Czkawka / DupeGuru |
-| **Batch Renamer** | Multi-pattern regex substitutions, auto-numbering, prefix/suffix, case transformations | Advanced Renamer |
-| **Hex Editor** | Hexadecimal & ASCII binary byte inspector with search, jump to offset, and in-place editing | HxD / Hex Fiend |
-| **Tag Editor & EXIF** | Audio ID3v1/ID3v2 metadata & album art editor, sequential auto-numberer & EXIF inspector | Mp3tag / ExifTool |
-| **Log Viewer** | Real-time log tailing, regex & inverted filters, log level parsing, and autoscroll | lnav / tail -f |
-| **Format Converter** | Browser-native image, audio, video, and document format transcoding | HandBrake / CloudConvert |
-| **Sync & Replication** | Block-level binary delta replication (4 profiles), scheduler, and webhooks | Bvckup 2 / SyncToy |
-| **Encrypted Vaults** | Zero-leakage AES-256-GCM in-memory encrypted virtual filesystem containers | Cryptomator / VeraCrypt |
-| **Diff & Comparison** | Side-by-side text/code diffs and cryptographic directory comparison matrix | Beyond Compare / WinMerge |
-| **Tetrion (Chewtoy)** | 60 FPS arcade canvas game, SRS rotation, DAS/ARR tuning & sync leaderboard | Desktop Distractions |
+Everything below ships inside the single Brum program. Tools that rely on a program installed on the server say so.
+
+**Files & folders**
+
+| Tool | What it does |
+| :--- | :--- |
+| **Search** | Find files by name, pattern or size, across folders. |
+| **Compare** | Compare two files or two folders side by side. |
+| **Duplicate Finder** | Find identical files (size, then SHA-256) and move the extras to a quarantine folder. |
+| **Batch Renamer** | Rename many files at once: find and replace, regex, numbering, upper/lower case. |
+| **Disk Usage** | See which folders and files take up the most space. |
+| **Trash** | Deleted files go to the standard Linux trash and can be restored. |
+| **Splitter & Combiner** | Split large files into parts and join them again, with checksum checks. |
+| **Hex Editor** | View and edit a file byte by byte. |
+| **Encrypted Vaults** | Password-protected containers (AES-256-GCM), opened in memory only. |
+
+**Sharing & backup**
+
+| Tool | What it does |
+| :--- | :--- |
+| **Sharing** | Public links to files or folders, with optional password, expiry date and upload drop box. |
+| **Backup & Sync** | Copy or mirror folders on a schedule, sending only the changed parts of files. |
+| **Syncthing** | See the status of Syncthing on the server and start folder rescans. |
+
+**Media & documents**
+
+| Tool | What it does |
+| :--- | :--- |
+| **Media Player** | Audio and video, including tracker, chiptune and MIDI music, with playlists and subtitles. |
+| **Tag Editor** | Edit music tags and album art; view photo EXIF data. |
+| **PDF Studio** | Merge, split, reorder, rotate and extract PDF pages. |
+| **Format Converter** | Convert images, audio and video (needs ImageMagick or FFmpeg on the server), and JSON/TOML/YAML files. |
+| **3D Model Viewer** | View STL, OBJ, PLY and DXF files, with a cross-section view. STEP and IGES show as a rough outline. Viewing only. |
+| **Notes** | Markdown notes with checklists, templates, version history and optional encryption. |
+
+**Working on the server**
+
+| Tool | What it does |
+| :--- | :--- |
+| **Terminal** | A shell in the browser, with tabs, as a slide-up panel or docked in a pane. |
+| **Editor** | Multi-tab text and code editor. |
+| **Log Viewer** | Follow a log file live, with filters. |
+| **Git** | Status, stage, commit, push and pull for a repository. |
+| **Calculator** | Includes storage units and conversions. |
+
+**Chewtoys** are small add-ons that run in a sandbox. Brum comes with **Tetrion**, a block-puzzle game, and you can add your own (see the [Chewtoys manual](manuals/chewtoys.md)).
 
 ---
 

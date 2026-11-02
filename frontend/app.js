@@ -448,12 +448,12 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
-  { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio()', desc: 'Interactive 3D model & CAD viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', visible: true },
+  { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio()', desc: '3D model viewer (STL, OBJ, PLY, DXF; STEP/IGES as outline)', visible: true },
   { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
   { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
   { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
   { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal audio, video, chiptune & tracker player with playlists and subtitles', visible: true },
-  { id: 'tetradog', label: 'Tetris', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
+  { id: 'tetradog', label: 'Tetrion', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
 ];
 
 // ---------------- FILE TEMPLATES ENGINE ----------------
@@ -3949,7 +3949,7 @@ function createPaneElement(pane, index) {
         'hexeditor': '<i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Hex Editor',
         'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src=\'assets/amber-frameless-apps.webp\'"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
-        'tetradog': '<img src="assets/amber-tetris.webp" alt="Tetris" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetris',
+        'tetradog': '<img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetrion',
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
         'splitter': '<i data-lucide="scissors" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> File Splitter & Combiner',
@@ -31101,7 +31101,7 @@ function isDocumentExtension(filename) {
 function isCadOr3dExtension(filename) {
   if (!filename) return false;
   const ext = filename.split('.').pop().toLowerCase();
-  return ['stl', 'obj', 'gltf', 'glb', '3mf', 'step', 'stp', 'iges', 'igs', 'dxf', 'ply', 'off'].includes(ext);
+  return ['stl', 'obj', 'step', 'stp', 'iges', 'igs', 'dxf', 'ply'].includes(ext);
 }
 
 function isAudioExtension(filename) {
@@ -37362,12 +37362,12 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'Format Converter', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDF Studio', sub: 'PDF Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
-  { id: 'cad', title: '3D CAD Studio', sub: '3D CAD Studio: interactive 3D model, mesh & CAD drawing viewer (STL, OBJ, GLTF, 3MF, STEP, DXF)', icon: 'box', cat: 'actions', action: () => openCadStudio() },
+  { id: 'cad', title: '3D CAD Studio', sub: '3D model viewer (STL, OBJ, PLY, DXF; STEP/IGES as outline)', icon: 'box', cat: 'actions', action: () => openCadStudio() },
   { id: 'duplicates', title: 'Duplicate Finder', sub: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', icon: 'copy-check', cat: 'actions', action: () => openDuplicateFinder() },
   { id: 'tageditor', title: 'Tag Editor', sub: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', icon: 'tag', cat: 'actions', action: () => openTagEditor() },
   { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
   { id: 'mediaplayer', title: 'Media Player', sub: 'Universal audio, video, chiptune & tracker player, subtitles, PiP popout & playlists', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
-  { id: 'tetradog', title: 'Tetris', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
+  { id: 'tetradog', title: 'Tetrion', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
@@ -48123,7 +48123,7 @@ function mountDockedLogViewer(paneIndex) {
 }
 
 // ==========================================
-// 🧊 3D CAD STUDIO & MODEL VIEWER (STL, OBJ, GLTF, 3MF, STEP, DXF, PLY)
+// 🧊 3D CAD STUDIO & MODEL VIEWER (STL, OBJ, PLY, DXF; STEP/IGES as wireframe)
 // ==========================================
 let cadStudioDragInit = false;
 let cadStudioActivePaneIndex = 0;

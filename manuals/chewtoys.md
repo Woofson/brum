@@ -1,74 +1,19 @@
 # Brum Native Core Functions & Chewtoys Manual
 
-**Brum** replaces a fragmented collection of separate desktop and command-line utilities with a unified, high-performance web and native desktop interface. These integrated tools are divided into **Native Core Functions** (embedded directly into the core DOM and Rust backend with zero iframe overhead) and **Chewtoys** (isolated, sandboxed modular `.grr` extension packages).
+Brum's tools come in two kinds:
 
-```
-┌────────────────────────────────────────────────────────────────────────────────────────────┐
-│ The Brum Core Function & Chewtoy Replacement Matrix                                        │
-├────────────────────────┬─────────────────────────────┬─────────────────────────────────────┤
-│ Legacy / External App  │ Native Brum Core Function   │ Replaced Capabilities               │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ FileZilla & Mountain D │ Native Multi-Protocol VFS   │ SFTP/SSH, SMB/CIFS, NFS, WebDAV,    │
-│                        │ & Client Local VFS          │ Hetzner Storage Box, Proton Drive,  │
-│                        │ (client://)                 │ Google Drive & S3 Object Storage    │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ rclone & rsync         │ DeltaCopy / RoboCopy        │ Differential delta streaming,       │
-│                        │ Engine & Background Tasks   │ bandwidth throttling & auto-retry   │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Bvckup 2 & SyncToy     │ Sync & Replication Studio   │ 4 replication profiles, in-place    │
-│                        │                             │ block deltas, snapshots & scheduler │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Syncthing              │ Syncthing Dashboard         │ Peer status, throughput charts,     │
-│                        │ & Direct Local/LAN Sync     │ folder scan triggers, P2P sync      │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ PuTTY & OpenSSH SCP    │ Bite! Terminal (PTY)        │ Embedded WebSocket pseudo-terminal  │
-│                        │                             │ (fish/zsh/bash/powershell) in path  │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Total / Multi / MC /   │ 1-to-4 Multi-Tab Dynamic    │ Orthodox keyboard shortcuts, dual-  │
-│ XYplorer / Directory O │ Panes & Orthodox Suite      │ pane power diff, batch rename,      │
-│                        │                             │ branch view, rich MIME icon suite   │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Blender / MeshLab /    │ 3D CAD Studio               │ Interactive WebGL CAD & mesh viewer │
-│ FreeCAD                │                             │ (STL, OBJ, DXF, PLY, STEP, slicing) │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ HJSplit / GSplit       │ File Splitter & Combiner    │ Multi-part chunk splitting, MD5/    │
-│                        │                             │ SHA-256 integrity check & combine   │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ PDFsam / Acrobat Split │ PDF Studio                  │ Pure-Rust visual merge, split,      │
-│                        │                             │ page reordering & rotation grid     │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Nextcloud / Dropbox    │ Sharing Center              │ Public links, passcodes, expiration,│
-│                        │                             │ access logs, client upload dropzone │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ WinDirStat / Baobab    │ Disk Usage Analyzer         │ Interactive storage visualizer,     │
-│                        │                             │ size bar charts & top file explorer │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Cryptomator / VeraCrypt│ AES-256-GCM Vaults          │ Zero-leakage in-memory containers   │
-│                        │ (.cdvault)                  │ (Argon2id + AES-GCM RAM-only VFS)   │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ VS Code / Sublime Text │ Text & Code Editor          │ Multi-tab syntax editor, live split │
-│                        │                             │ preview, template generator & diff  │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ HandBrake / FFmpeg GUI │ Format Converter            │ Browser-native image/audio/video/   │
-│                        │                             │ document conversion engine          │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ FastStone / Feh Viewer │ High-DPI Image Viewer       │ Mouse wheel browse, focal zoom,     │
-│                        │                             │ slideshow, format conversion        │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Obsidian / Joplin      │ Notes Studio                │ Hierarchical Markdown notebook,     │
-│                        │                             │ checklists, revision diff history   │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Winamp / Foobar2000 /  │ Media Player & Synthesizer  │ Native audio/video player, chiptunes, │
-│ Audacious / VLC / MPC  │                             │ MIDI synth, 60fps visualizer, pills │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ trash-cli / Recycle    │ XDG Trash Suite & Restore   │ Linux XDG compliance, .trashinfo    │
-│ Bin & rm Safeguards    │ Engine (Places Hub)         │ metadata, 1-click safe restoration  │
-├────────────────────────┼─────────────────────────────┼─────────────────────────────────────┤
-│ Classic Arcade Tetris  │ Tetrion (Chewtoy)           │ Authentic classic Tetris clone,     │
-│ & Desktop Distraction  │                             │ 60 FPS canvas engine, SRS/NES modes,│
-│                        │                             │ DAS/ARR tuning, high scores & audio │
-└────────────────────────┴─────────────────────────────┴─────────────────────────────────────┘
-```
+* **Built-in tools** are part of Brum itself and open as floating windows or docked into a pane.
+* **Chewtoys** are add-ons packaged as `.grr` files. They run in a sandbox with no access to your login or to Brum's pages.
+
+| Area | Tools in this manual |
+| :--- | :--- |
+| Files & folders | Splitter & Combiner, Disk Usage, Batch Renamer, Hex Editor, Encrypted Vaults, Trash, Transfer hub |
+| Sharing & backup | Sharing Center, Backup & Sync |
+| Media & documents | 3D Model Viewer (CAD Studio), PDF Studio, Notes, Media Player, Format Converter |
+| Server | Terminal, Fleet Manager |
+| Chewtoys | Tetrion (block-puzzle game) |
+
+For remote storage (SFTP, SMB, NFS, WebDAV, S3, Proton Drive), see the [Remote Protocols guide](protocols.md).
 
 ---
 
@@ -81,7 +26,8 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 ---
 
 ## 2. 3D CAD Studio & Mesh Viewer
-* **Format Support**: Direct visualization for Stereolithography (`.stl` binary and ASCII), Wavefront (`.obj`), AutoCAD (`.dxf`), Polygon File Format (`.ply`), and STEP / STP / IGES / 3MF wireframe models.
+* **Viewer Only**: CAD Studio displays and measures models; it does not create or edit them.
+* **Format Support**: Stereolithography (`.stl` binary and ASCII), Wavefront (`.obj`), AutoCAD (`.dxf`) and Polygon File Format (`.ply`). STEP and IGES files (`.step`, `.stp`, `.iges`, `.igs`) show as a rough outline built from the file's points, not as full solids.
 * **Viewport Presets & Shading**:
   * Camera views: Isometric (`ISO`), Top, Front, Right.
   * Shading shaders: Solid PBR, Smooth Shaded, Wireframe, Normal Map, Matcap Clay.
@@ -164,6 +110,7 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 ---
 
 ## 11. Format Converter
+* **Requirements**: Video and audio conversion uses FFmpeg; image conversion uses ImageMagick (or FFmpeg). These must be installed on the server. Data files (JSON, TOML, YAML) convert without extra programs.
 * **Multi-Format Conversion Matrix**:
   * **Video**: Transcode legacy containers and codecs (`.avi`, `.mkv`, `.mov`, `.flv`, `.wmv`, `.mpg`, `.m4v`, `.ts`) to web-optimized formats (`.mp4` with H.264 + AAC, `.webm` with VP9 + Opus).
   * **Audio**: Convert lossy and lossless audio files (`.flac`, `.wav`, `.aac`, `.m4a`, `.ogg`, `.wma`, `.opus`) to `.mp3`, `.ogg`, `.flac`, or `.wav`.
