@@ -8,6 +8,8 @@ LABEL org.opencontainers.image.title="Brum" \
       org.opencontainers.image.source="https://github.com/woofson/brum" \
       org.opencontainers.image.licenses="MIT"
 
+# ffmpeg/imagemagick: Format Converter; git: Git tool; samba-client/nfs-utils: SMB and NFS
+# browsing; rclone: Proton Drive; openssh-keygen/nano: SSH keys and editing in the terminal
 RUN apk add --no-cache \
     ca-certificates \
     curl \
@@ -24,8 +26,20 @@ RUN apk add --no-cache \
     gzip \
     7zip \
     openssh-client \
+    openssh-keygen \
+    nano \
     su-exec \
-    tzdata
+    tzdata \
+    ffmpeg \
+    imagemagick \
+    imagemagick-jpeg \
+    imagemagick-webp \
+    imagemagick-tiff \
+    imagemagick-heic \
+    git \
+    samba-client \
+    nfs-utils \
+    rclone
 
 WORKDIR /app
 

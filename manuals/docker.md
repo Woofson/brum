@@ -6,7 +6,8 @@
 
 ## Why Run Brum in Docker?
 
-- **Ultra-Lightweight & Minimal**: Statically linked musl binary packaged on **Alpine Linux 3.20**, resulting in a tiny **~30 MB image footprint** and using only **~20 MB of RAM**.
+- **Lightweight**: Statically linked musl binary on **Alpine Linux 3.20**, using only **~20 MB of RAM** when idle.
+- **Batteries Included**: The image ships the programs Brum's tools use: FFmpeg and ImageMagick (Format Converter), Git, `smbclient` (SMB shares), NFS utilities, rclone (Proton Drive), SSH, 7-Zip and Bash.
 - **Isolated & Secure**: Run in rootless/isolated containers with fine-grained host volume bind-mounts and `no-new-privileges: true`.
 - **Multi-Host Storage Management**: Mount `/mnt/storage`, `/mnt/nas`, USB drives, or NFS directly into Brum.
 - **Zero-Loss Upgrades**: Persistent `/data` volume keeps all SQLite databases, users, backup schedules, and configurations intact across image upgrades and container refreshes.
@@ -99,7 +100,7 @@ docker compose up -d --force-recreate
 
 ## 3. Running as a Normal User (PUID / PGID)
 
-Since **v1.13.0** the container starts Brum as an ordinary user instead of `root`, so a bug in Brum can only reach what that user can reach.
+Since **v1.15.0** the container starts Brum as an ordinary user instead of `root`, so a bug in Brum can only reach what that user can reach.
 
 | Variable | Default | Purpose |
 | :--- | :--- | :--- |
@@ -114,7 +115,50 @@ Since **v1.13.0** the container starts Brum as an ordinary user instead of `root
 
 ---
 
-## 4. Database Persistence & Container Migration
+## 4. The Terminal in Docker
+
+Brum's terminal opens a shell **inside the container**, not on the host. It runs as the Brum user (`PUID`), with `/data` as its home folder, and it sees `/data` plus every folder you mounted. That makes it a good place to edit files and work in your folders with `bash`, `nano`, `vi`, `git` and the other programs in the image.
+
+The host's own files, programs and services are not visible from there. To work on the host, or on any other machine, SSH out of the container:
+
+```bash
+ssh you@192.168.1.10          # the host's address on your network
+```
+
+### SSH keys that survive updates
+
+Because the terminal's home is `/data`, SSH keys and settings you create there are stored in `/data/.ssh` and kept across container updates and re-creation.
+
+```bash
+# In Brum's terminal, once:
+ssh-keygen -t ed25519            # creates /data/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub        # add this line to ~/.ssh/authorized_keys on the host
+```
+
+A short alias saves typing. Put this in `/data/.ssh/config`:
+
+```
+Host host
+    HostName 192.168.1.10
+    User you
+```
+
+After that, `ssh host` is enough.
+
+**Reaching the host by name:** add this to the Brum service in `docker-compose.yml`, then use `ssh you@host.docker.internal`:
+
+```yaml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+```
+
+**Keep in mind:**
+- Anyone who may open a terminal in Brum (admins only, by default) can use these keys. So can anyone who can read your `/data` backups. Use a key made just for Brum, and give it a passphrase if you want an extra lock.
+- With `BRUM_RUN_AS_ROOT=true`, the terminal's home is `/root` inside the container, which is **not** kept across updates. Mount a volume at `/root/.ssh` if you use SSH keys in that mode.
+
+---
+
+## 5. Database Persistence & Container Migration
 
 Brum automatically recognizes `/data` volumes:
 1. **Auto-Path Resolution**: When `/data` exists, the server automatically defaults to `/data/brum.db` and scans `/data/config.toml`.
@@ -137,7 +181,7 @@ docker compose up -d --force-recreate
 
 ---
 
-## 5. Deployment via Portainer Stacks
+## 6. Deployment via Portainer Stacks
 
 1. Open **Portainer** $\rightarrow$ Navigate to your Environment $\rightarrow$ **Stacks** $\rightarrow$ **Add stack**.
 2. Name the stack: `brum`.
@@ -147,7 +191,7 @@ docker compose up -d --force-recreate
 
 ---
 
-## 6. Reverse Proxy Integration (Traefik, Nginx, Caddy)
+## 7. Reverse Proxy Integration (Traefik, Nginx, Caddy)
 
 ### Caddy
 ```caddy
