@@ -16,7 +16,7 @@ use crate::server::middleware::{
 };
 
 pub fn get_system_hostname() -> String {
-    if let Ok(h) = std::env::var("CD_HOSTNAME") {
+    if let Ok(h) = std::env::var("BRUM_HOSTNAME").or_else(|_| std::env::var("CD_HOSTNAME")) {
         let trimmed = h.trim();
         if !trimmed.is_empty() {
             return trimmed.to_string();

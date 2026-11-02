@@ -25,7 +25,7 @@ docker run -d \
   -p 3140:3140 \
   -e TZ=Europe/Oslo \
   -e PUID=1000 -e PGID=1000 \
-  -e CD_DATABASE_PATH=/data/brum.db \
+  -e BRUM_DATABASE_PATH=/data/brum.db \
   -v brum_data:/data \
   -v /home:/mnt/home:rw \
   -v /mnt:/mnt/storage:rw \
@@ -57,9 +57,9 @@ services:
       - TZ=Europe/Oslo
       - PUID=1000                 # owner of your files on the host (run `id`)
       - PGID=1000
-      - CD_PORT=3140
-      - CD_BIND=0.0.0.0
-      - CD_DATABASE_PATH=/data/brum.db
+      - BRUM_PORT=3140
+      - BRUM_BIND=0.0.0.0
+      - BRUM_DATABASE_PATH=/data/brum.db
     volumes:
       # Data & Configuration persistence (database, custom themes, persistent profiles)
       - ./data:/data
@@ -165,10 +165,12 @@ Brum automatically recognizes `/data` volumes:
 2. **Environment Overrides**:
    | Variable | Default | Purpose |
    | :--- | :--- | :--- |
-   | `CD_DATABASE_PATH` | `/data/brum.db` (in container) | SQLite database storage path |
-   | `CD_PORT` | `3140` | Listening HTTP port |
-   | `CD_BIND` | `0.0.0.0` | Listening network interface |
-   | `CD_JWT_SECRET` | *(auto-generated)* | Signing key for auth tokens |
+   | `BRUM_DATABASE_PATH` | `/data/brum.db` (in container) | SQLite database storage path |
+   | `BRUM_PORT` | `3140` | Listening HTTP port |
+   | `BRUM_BIND` | `0.0.0.0` | Listening network interface |
+   | `BRUM_JWT_SECRET` | *(auto-generated)* | Signing key for auth tokens |
+
+   The older `CD_*` names (from Brum's CommanderDog days) still work; `BRUM_*` wins if both are set.
 
 3. **Migrating / Backing Up Existing Databases**:
 ```bash

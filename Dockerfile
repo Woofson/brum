@@ -1,4 +1,4 @@
-# Brum — Official Ultra-Minimal Container Image (Alpine Linux 3.20)
+# Brum — Official Container Image (Alpine Linux 3.20)
 FROM alpine:3.20
 
 LABEL org.opencontainers.image.title="Brum" \

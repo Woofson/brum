@@ -16,7 +16,7 @@ Brum discovers its configuration in the following order of precedence:
    - Windows: `%PROGRAMDATA%\Brum\config.toml` *(e.g. `C:\ProgramData\Brum\config.toml` for Windows Service)*
 4. **Local Directory Fallback**: `./config.toml`
 5. **Custom Themes**: `~/.config/brum/themes/*.toml`, `/etc/brum/themes/*.toml`, `%PROGRAMDATA%\Brum\themes\*.toml`
-6. **Environment Variables**: Overrides prefixed with `CD_` or `BRUM_` (e.g. `CD_PORT=3140`, `BRUM_OIDC_ENABLED=true`)
+6. **Environment Variables**: Overrides prefixed with `BRUM_` (e.g. `BRUM_PORT=3140`, `BRUM_OIDC_ENABLED=true`). The older `CD_` names still work for the server settings below; `BRUM_` wins if both are set
 
 ---
 
@@ -289,10 +289,11 @@ Brum supports seamless runtime overrides across containerized, systemd, and home
 
 | Environment Variable | Overrides Key | Description | Example |
 | :--- | :--- | :--- | :--- |
-| `BRUM_PORT` / `CD_PORT` / `PORT` | `server.port` | HTTP listening port | `3140` |
+| `BRUM_PORT` / `PORT` | `server.port` | HTTP listening port | `3140` |
 | `BRUM_BIND` / `BRUM_HOST` / `HOST` | `server.host` | Network interface binding | `0.0.0.0` or `127.0.0.1` |
-| `BRUM_DATABASE_PATH` | `server.database_path` | SQLite database file location | `/var/lib/brum/brum.db` |
-| `BRUM_JWT_SECRET` | `server.jwt_secret` | Master cluster JWT signing key | `64-hex-char-secret` |
+| `BRUM_DATABASE_PATH` / `DATABASE_PATH` | `server.database_path` | SQLite database file location | `/var/lib/brum/brum.db` |
+| `BRUM_HOSTNAME` | *(none)* | Server name shown in Brum (defaults to the machine's hostname) | `nas` |
+| `BRUM_JWT_SECRET` / `JWT_SECRET` | `server.jwt_secret` | Master cluster JWT signing key | `64-hex-char-secret` |
 | `BRUM_ALLOW_WEB_CONFIG_EDIT` | `server.allow_web_config_edit` | Enable/disable Web Config Editor | `true` or `false` |
 | `BRUM_OIDC_ENABLED` | `auth.oidc.enabled` | Enable OpenID Connect SSO | `true` or `false` |
 | `BRUM_OIDC_ISSUER_URL` | `auth.oidc.issuer_url` | OIDC IdP Discovery Issuer URL | `https://auth.domain.com/` |
