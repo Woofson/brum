@@ -11,12 +11,15 @@ use std::io;
 use std::path::{Path, PathBuf};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-pub const NOTEDOG_MAGIC_HEADER: &[u8] = b"NOTEDOG_ENC_V1";
-pub const NOTEDOG_SALT_LEN: usize = 16;
-pub const NOTEDOG_NONCE_LEN: usize = 12;
+/// Marks an encrypted note file. The bytes are stored in every encrypted note and must never change.
+pub const NOTES_MAGIC_HEADER: &[u8] = b"NOTEDOG_ENC_V1";
+/// Passphrase used when none is given. Existing encrypted notes rely on this exact value.
+pub const DEFAULT_NOTE_PASSPHRASE: &str = "notedog";
+pub const NOTES_SALT_LEN: usize = 16;
+pub const NOTES_NONCE_LEN: usize = 12;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NoteDogFile {
+pub struct NotesFile {
     pub name: String,
     pub filename: String,
     pub path: String,
@@ -27,25 +30,25 @@ pub struct NoteDogFile {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NoteDogSection {
+pub struct NotesSection {
     pub name: String,
     pub path: String,
     pub is_encrypted: bool,
-    pub notes: Vec<NoteDogFile>,
+    pub notes: Vec<NotesFile>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NoteDogNotebook {
+pub struct NotesNotebook {
     pub name: String,
     pub path: String,
     pub is_encrypted: bool,
-    pub sections: Vec<NoteDogSection>,
+    pub sections: Vec<NotesSection>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NoteDogInfo {
+pub struct NotesInfo {
     pub root_folder: String,
-    pub notebooks: Vec<NoteDogNotebook>,
+    pub notebooks: Vec<NotesNotebook>,
     pub total_notes: usize,
     pub total_notebooks: usize,
     pub total_sections: usize,
@@ -71,10 +74,10 @@ pub struct NoteTemplate {
 
 /// Resolve the Notes root directory.
 /// 1. If `override_path` is provided, expand and use that.
-/// 2. If `config_folder` is configured in Brum (e.g. `[notedog] notes_folder = "..."`), use that.
-/// 3. If `~/.config/notedog/notedog.toml` exists with `note_folder = "..."`, use that.
+/// 2. If `config_folder` is configured in Brum (e.g. `[notes] notes_folder = "..."`), use that.
+/// 3. If `~/.config/notedog/notedog.toml` (the separate NoteDog terminal app) exists with `note_folder = "..."`, use that.
 /// 4. Default to `~/Notes`.
-pub fn get_notedog_root_dir(override_path: Option<&str>, config_folder: Option<&str>) -> PathBuf {
+pub fn get_notes_root_dir(override_path: Option<&str>, config_folder: Option<&str>) -> PathBuf {
     let home_dir = dirs::home_dir().unwrap_or_else(|| PathBuf::from("/"));
 
     // 1. Override path if supplied
@@ -93,7 +96,7 @@ pub fn get_notedog_root_dir(override_path: Option<&str>, config_folder: Option<&
         }
     }
 
-    // 2. Check Brum config.toml [notedog] notes_folder
+    // 2. Check Brum config.toml [notes] notes_folder
     if let Some(cf) = config_folder {
         let trimmed = cf.trim();
         if !trimmed.is_empty() && trimmed != "~/Notes" {
@@ -171,9 +174,9 @@ Notes supports rich inline color tags that render beautifully in live preview **
     default_notes
 }
 
-/// Scan the NoteDog hierarchy
-pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option<&str>) -> NoteDogInfo {
-    let root = get_notedog_root_dir(override_path, config_folder);
+/// Scan the Notes hierarchy
+pub fn scan_notes_hierarchy(override_path: Option<&str>, config_folder: Option<&str>) -> NotesInfo {
+    let root = get_notes_root_dir(override_path, config_folder);
     let mut notebooks = Vec::new();
     let mut total_notes = 0;
     let mut total_sections = 0;
@@ -258,7 +261,7 @@ pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option
 
                             let relative_path = format!("{}/{}/{}", nb_name, sec_name, filename);
 
-                            notes.push(NoteDogFile {
+                            notes.push(NotesFile {
                                 name: clean_name,
                                 filename,
                                 path: note_path.to_string_lossy().to_string(),
@@ -275,7 +278,7 @@ pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option
                         || (!notes.is_empty() && notes.iter().all(|n| n.is_encrypted));
 
                     total_sections += 1;
-                    sections.push(NoteDogSection {
+                    sections.push(NotesSection {
                         name: sec_name,
                         path: sec_path.to_string_lossy().to_string(),
                         is_encrypted: sec_is_encrypted,
@@ -287,7 +290,7 @@ pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option
             let nb_is_encrypted = nb_path.join(".encrypted").exists()
                 || (!sections.is_empty() && sections.iter().all(|s| s.is_encrypted));
 
-            notebooks.push(NoteDogNotebook {
+            notebooks.push(NotesNotebook {
                 name: nb_name,
                 path: nb_path.to_string_lossy().to_string(),
                 is_encrypted: nb_is_encrypted,
@@ -304,7 +307,7 @@ pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option
     }
     notebooks.push(manuals_nb);
 
-    NoteDogInfo {
+    NotesInfo {
         root_folder: root.to_string_lossy().to_string(),
         total_notebooks: notebooks.len(),
         total_sections,
@@ -313,19 +316,19 @@ pub fn scan_notedog_hierarchy(override_path: Option<&str>, config_folder: Option
     }
 }
 
-/// Returns the built-in repository user manuals and QA test manuals as a virtual NoteDog notebook.
-pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
-    NoteDogNotebook {
+/// Returns the built-in repository user manuals and QA test manuals as a virtual Notes notebook.
+pub fn get_builtin_manuals_notebook() -> NotesNotebook {
+    NotesNotebook {
         name: "Manuals".to_string(),
         path: "manual://".to_string(),
         is_encrypted: false,
         sections: vec![
-            NoteDogSection {
+            NotesSection {
                 name: "User Manuals".to_string(),
                 path: "manual://user-manuals".to_string(),
                 is_encrypted: false,
                 notes: vec![
-                    NoteDogFile {
+                    NotesFile {
                         name: "01. Documentation Index".to_string(),
                         filename: "README.md".to_string(),
                         path: "manual://README.md".to_string(),
@@ -334,7 +337,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "02. Keyboard Shortcuts & Navigation".to_string(),
                         filename: "shortcuts.md".to_string(),
                         path: "manual://shortcuts.md".to_string(),
@@ -343,7 +346,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "03. Advanced Sharing & Client Portals".to_string(),
                         filename: "sharing.md".to_string(),
                         path: "manual://sharing.md".to_string(),
@@ -352,7 +355,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "04. Transparent Encrypted Vaults".to_string(),
                         filename: "vaults.md".to_string(),
                         path: "manual://vaults.md".to_string(),
@@ -361,7 +364,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "05. Remote Protocols & VFS Guide".to_string(),
                         filename: "protocols.md".to_string(),
                         path: "manual://protocols.md".to_string(),
@@ -370,7 +373,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "06. Design Specs & Amber Palette".to_string(),
                         filename: "themes-and-palette.md".to_string(),
                         path: "manual://themes-and-palette.md".to_string(),
@@ -381,12 +384,12 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                     },
                 ],
             },
-            NoteDogSection {
+            NotesSection {
                 name: "Deployment & Config".to_string(),
                 path: "manual://deployment".to_string(),
                 is_encrypted: false,
                 notes: vec![
-                    NoteDogFile {
+                    NotesFile {
                         name: "01. Configuration Reference (config.toml)".to_string(),
                         filename: "configuration.md".to_string(),
                         path: "manual://configuration.md".to_string(),
@@ -395,7 +398,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "02. Docker & Portainer Deployment".to_string(),
                         filename: "docker.md".to_string(),
                         path: "manual://docker.md".to_string(),
@@ -404,7 +407,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "03. Proxmox VE & Linux LXC".to_string(),
                         filename: "lxc-proxmox.md".to_string(),
                         path: "manual://lxc-proxmox.md".to_string(),
@@ -413,7 +416,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "04. Reverse Proxy & Mesh VPN Guide".to_string(),
                         filename: "reverse-proxy.md".to_string(),
                         path: "manual://reverse-proxy.md".to_string(),
@@ -422,7 +425,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "05. OpenID Connect & Authentik SSO".to_string(),
                         filename: "authentik-sso.md".to_string(),
                         path: "manual://authentik-sso.md".to_string(),
@@ -431,7 +434,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "06. Brum for Windows Guide".to_string(),
                         filename: "windows.md".to_string(),
                         path: "manual://windows.md".to_string(),
@@ -440,7 +443,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "07. Brum on Android & Termux".to_string(),
                         filename: "android-termux.md".to_string(),
                         path: "manual://android-termux.md".to_string(),
@@ -451,12 +454,12 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                     },
                 ],
             },
-            NoteDogSection {
+            NotesSection {
                 name: "Chewtoys & Plugins".to_string(),
                 path: "manual://chewtoys".to_string(),
                 is_encrypted: false,
                 notes: vec![
-                    NoteDogFile {
+                    NotesFile {
                         name: "01. Power Tools & Chewtoys Manual".to_string(),
                         filename: "chewtoys.md".to_string(),
                         path: "manual://chewtoys.md".to_string(),
@@ -465,7 +468,7 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                         modified_sec: 0,
                         size_bytes: 0,
                     },
-                    NoteDogFile {
+                    NotesFile {
                         name: "02. Chewtoy Plugin Development (.grr)".to_string(),
                         filename: "plugin-development.md".to_string(),
                         path: "manual://plugin-development.md".to_string(),
@@ -476,12 +479,12 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
                     },
                 ],
             },
-            NoteDogSection {
+            NotesSection {
                 name: "QA Testing Manuals".to_string(),
                 path: "manual://qa-testing".to_string(),
                 is_encrypted: false,
                 notes: vec![
-                    NoteDogFile {
+                    NotesFile {
                         name: "01. QA Testing & Verification Manual".to_string(),
                         filename: "qa-testing.md".to_string(),
                         path: "manual://qa-testing.md".to_string(),
@@ -496,14 +499,29 @@ pub fn get_builtin_manuals_notebook() -> NoteDogNotebook {
     }
 }
 
+/// Folder (inside the notes folder) that holds note snapshots
+pub const NOTE_VERSIONS_DIR: &str = ".notes_versions";
+/// Name used before 1.17; renamed on first use so existing history is kept
+const LEGACY_NOTE_VERSIONS_DIR: &str = ".notedog_versions";
+
+/// Renames the snapshot folder from its old name, unless the new one already exists
+pub fn migrate_legacy_versions_dir(root: &Path) {
+    let old = root.join(LEGACY_NOTE_VERSIONS_DIR);
+    let new = root.join(NOTE_VERSIONS_DIR);
+    if old.is_dir() && !new.exists() {
+        let _ = fs::rename(&old, &new);
+    }
+}
+
 /// Helper to get the version history directory for a note
 fn get_version_dir_for_note(note_path: &Path) -> PathBuf {
     let root = if let Some(parent3) = note_path.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
         parent3.to_path_buf()
     } else {
-        get_notedog_root_dir(None, None)
+        get_notes_root_dir(None, None)
     };
-    let versions_root = root.join(".notedog_versions");
+    let versions_root = root.join(NOTE_VERSIONS_DIR);
+    migrate_legacy_versions_dir(&root);
     let filename = note_path.file_name().unwrap_or_default().to_string_lossy().to_string();
     let parent = note_path
         .parent()
@@ -743,7 +761,7 @@ graph TD
     ]
 }
 
-// ---------------- NOTEDOG CRYPTO ENGINE (ChaCha20-Poly1305 + Argon2id) ----------------
+// ---------------- NOTES CRYPTO ENGINE (ChaCha20-Poly1305 + Argon2id) ----------------
 
 pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<[u8; 32], String> {
     let params = Params::new(19456, 2, 1, Some(32))
@@ -759,8 +777,8 @@ pub fn derive_key(passphrase: &str, salt: &[u8]) -> Result<[u8; 32], String> {
 }
 
 pub fn encrypt_note(plaintext: &str, passphrase: &str) -> Result<Vec<u8>, String> {
-    let mut salt = [0u8; NOTEDOG_SALT_LEN];
-    let mut nonce_bytes = [0u8; NOTEDOG_NONCE_LEN];
+    let mut salt = [0u8; NOTES_SALT_LEN];
+    let mut nonce_bytes = [0u8; NOTES_NONCE_LEN];
     rand::thread_rng().fill_bytes(&mut salt);
     rand::thread_rng().fill_bytes(&mut nonce_bytes);
 
@@ -773,8 +791,8 @@ pub fn encrypt_note(plaintext: &str, passphrase: &str) -> Result<Vec<u8>, String
         .encrypt(nonce, plaintext.as_bytes())
         .map_err(|e| format!("Encryption failed: {}", e))?;
 
-    let mut result = Vec::with_capacity(NOTEDOG_MAGIC_HEADER.len() + NOTEDOG_SALT_LEN + NOTEDOG_NONCE_LEN + ciphertext.len());
-    result.extend_from_slice(NOTEDOG_MAGIC_HEADER);
+    let mut result = Vec::with_capacity(NOTES_MAGIC_HEADER.len() + NOTES_SALT_LEN + NOTES_NONCE_LEN + ciphertext.len());
+    result.extend_from_slice(NOTES_MAGIC_HEADER);
     result.extend_from_slice(&salt);
     result.extend_from_slice(&nonce_bytes);
     result.extend_from_slice(&ciphertext);
@@ -783,18 +801,18 @@ pub fn encrypt_note(plaintext: &str, passphrase: &str) -> Result<Vec<u8>, String
 }
 
 pub fn decrypt_note(data: &[u8], passphrase: &str) -> Result<String, String> {
-    let header_len = NOTEDOG_MAGIC_HEADER.len();
-    if data.len() < header_len + NOTEDOG_SALT_LEN + NOTEDOG_NONCE_LEN {
+    let header_len = NOTES_MAGIC_HEADER.len();
+    if data.len() < header_len + NOTES_SALT_LEN + NOTES_NONCE_LEN {
         return Err("Encrypted payload too short".to_string());
     }
 
-    if &data[..header_len] != NOTEDOG_MAGIC_HEADER {
-        return Err("Invalid NoteDog file header".to_string());
+    if &data[..header_len] != NOTES_MAGIC_HEADER {
+        return Err("Invalid Notes file header".to_string());
     }
 
-    let salt = &data[header_len..header_len + NOTEDOG_SALT_LEN];
-    let nonce_bytes = &data[header_len + NOTEDOG_SALT_LEN..header_len + NOTEDOG_SALT_LEN + NOTEDOG_NONCE_LEN];
-    let ciphertext = &data[header_len + NOTEDOG_SALT_LEN + NOTEDOG_NONCE_LEN..];
+    let salt = &data[header_len..header_len + NOTES_SALT_LEN];
+    let nonce_bytes = &data[header_len + NOTES_SALT_LEN..header_len + NOTES_SALT_LEN + NOTES_NONCE_LEN];
+    let ciphertext = &data[header_len + NOTES_SALT_LEN + NOTES_NONCE_LEN..];
 
     let key = derive_key(passphrase, salt)?;
     let cipher = ChaCha20Poly1305::new_from_slice(&key)
@@ -809,7 +827,7 @@ pub fn decrypt_note(data: &[u8], passphrase: &str) -> Result<String, String> {
 }
 
 pub fn is_encrypted_data(data: &[u8]) -> bool {
-    data.len() >= NOTEDOG_MAGIC_HEADER.len() && &data[..NOTEDOG_MAGIC_HEADER.len()] == NOTEDOG_MAGIC_HEADER
+    data.len() >= NOTES_MAGIC_HEADER.len() && &data[..NOTES_MAGIC_HEADER.len()] == NOTES_MAGIC_HEADER
 }
 
 pub fn decrypt_note_file(path: &Path, passphrase: &str) -> Result<String, String> {
@@ -822,8 +840,8 @@ pub fn decrypt_note_file(path: &Path, passphrase: &str) -> Result<String, String
     match decrypt_note(&raw, passphrase) {
         Ok(text) => Ok(text),
         Err(err) => {
-            if passphrase != "notedog" {
-                if let Ok(text) = decrypt_note(&raw, "notedog") {
+            if passphrase != DEFAULT_NOTE_PASSPHRASE {
+                if let Ok(text) = decrypt_note(&raw, DEFAULT_NOTE_PASSPHRASE) {
                     return Ok(text);
                 }
             }
@@ -902,7 +920,7 @@ pub fn encrypt_section_dir(sec_path: &Path, passphrase: &str, cached_pass: Optio
                             }
                         }
                         if decrypted_text.is_none() {
-                            if let Ok(text) = decrypt_note(&raw, "notedog") {
+                            if let Ok(text) = decrypt_note(&raw, DEFAULT_NOTE_PASSPHRASE) {
                                 decrypted_text = Some(text);
                             }
                         }
@@ -919,7 +937,7 @@ pub fn encrypt_section_dir(sec_path: &Path, passphrase: &str, cached_pass: Optio
     }
 
     let marker = sec_path.join(".encrypted");
-    let _ = fs::write(marker, b"NOTEDOG_SECTION_ENC");
+    let _ = fs::write(marker, b"NOTES_SECTION_ENC");
     Ok(count)
 }
 
@@ -935,8 +953,8 @@ pub fn decrypt_section_dir(sec_path: &Path, passphrase: &str) -> Result<usize, S
             if filename.ends_with(".md.enc") && !filename.starts_with('.') {
                 if let Ok(raw) = fs::read(&path) {
                     let mut decrypted = decrypt_note(&raw, passphrase);
-                    if decrypted.is_err() && passphrase != "notedog" {
-                        decrypted = decrypt_note(&raw, "notedog");
+                    if decrypted.is_err() && passphrase != DEFAULT_NOTE_PASSPHRASE {
+                        decrypted = decrypt_note(&raw, DEFAULT_NOTE_PASSPHRASE);
                     }
 
                     match decrypted {
@@ -984,7 +1002,7 @@ pub fn encrypt_notebook_dir(nb_path: &Path, passphrase: &str, cached_pass: Optio
     }
 
     let marker = nb_path.join(".encrypted");
-    let _ = fs::write(marker, b"NOTEDOG_NOTEBOOK_ENC");
+    let _ = fs::write(marker, b"NOTES_NOTEBOOK_ENC");
     Ok(total_count)
 }
 
@@ -1015,7 +1033,7 @@ pub fn create_new_note(
     is_encrypted: bool,
     passphrase: Option<&str>,
     initial_content: Option<&str>,
-) -> Result<NoteDogFile, String> {
+) -> Result<NotesFile, String> {
     if !sec_path.exists() {
         fs::create_dir_all(sec_path).map_err(|e| format!("Failed to create section dir: {}", e))?;
     }
@@ -1046,7 +1064,7 @@ pub fn create_new_note(
     let body = initial_content.unwrap_or(&default_content);
 
     if is_encrypted {
-        let pass = passphrase.unwrap_or("notedog");
+        let pass = passphrase.unwrap_or(DEFAULT_NOTE_PASSPHRASE);
         let enc_bytes = encrypt_note(body, pass)?;
         fs::write(&target_path, &enc_bytes).map_err(|e| format!("Failed to write encrypted note: {}", e))?;
         let _ = create_note_snapshot(&target_path, &enc_bytes);
@@ -1068,7 +1086,7 @@ pub fn create_new_note(
     let sec_name = sec_path.file_name().unwrap_or_default().to_string_lossy().to_string();
     let relative_path = format!("{}/{}/{}", nb_name, sec_name, note_filename);
 
-    Ok(NoteDogFile {
+    Ok(NotesFile {
         name: clean_title.to_string(),
         filename: note_filename,
         path: target_path.to_string_lossy().to_string(),
@@ -1100,9 +1118,40 @@ pub fn get_notes_attachments_dir() -> PathBuf {
 mod tests {
     use super::*;
 
+    /// Encrypted notes written by any earlier version must stay readable
     #[test]
-    fn test_notedog_encryption_cycle() {
-        let text = "# Top Secret NoteDog Note\n\nConfidential content for CommanderDog.";
+    fn stored_encryption_values_never_change() {
+        assert_eq!(NOTES_MAGIC_HEADER, b"NOTEDOG_ENC_V1");
+        assert_eq!(DEFAULT_NOTE_PASSPHRASE, "notedog");
+        let encrypted = encrypt_note("old note", "notedog").unwrap();
+        assert!(encrypted.starts_with(b"NOTEDOG_ENC_V1"));
+        assert_eq!(decrypt_note(&encrypted, DEFAULT_NOTE_PASSPHRASE).unwrap(), "old note");
+    }
+
+    #[test]
+    fn note_history_folder_is_renamed_once_and_kept() {
+        let root = tempfile::tempdir().unwrap();
+        let note = root.path().join("Work").join("Ideas").join("plan.md");
+        std::fs::create_dir_all(note.parent().unwrap()).unwrap();
+        std::fs::write(&note, "v1").unwrap();
+        let old_snap = root.path().join(".notedog_versions/Work/Ideas/plan.md");
+        std::fs::create_dir_all(&old_snap).unwrap();
+        std::fs::write(old_snap.join("1767268800_a1.rev"), "older").unwrap();
+
+        let versions = list_note_versions(&note);
+        assert!(!root.path().join(".notedog_versions").exists(), "old folder still there");
+        assert!(root.path().join(".notes_versions/Work/Ideas/plan.md/1767268800_a1.rev").exists());
+        assert_eq!(versions.len(), 1, "existing snapshot not listed");
+
+        // Both present (e.g. after a downgrade and upgrade): nothing is overwritten
+        std::fs::create_dir_all(root.path().join(".notedog_versions")).unwrap();
+        migrate_legacy_versions_dir(root.path());
+        assert!(root.path().join(".notedog_versions").exists() && root.path().join(".notes_versions").exists());
+    }
+
+    #[test]
+    fn test_notes_encryption_cycle() {
+        let text = "# Top Secret Notes Note\n\nConfidential content for CommanderDog.";
         let pass = "DogSecretPass123!";
 
         let encrypted = encrypt_note(text, pass).expect("Encryption failed");
@@ -1113,7 +1162,7 @@ mod tests {
     }
 
     #[test]
-    fn test_notedog_wrong_password() {
+    fn test_notes_wrong_password() {
         let text = "Important Dog Data";
         let pass = "CorrectPass123";
         let wrong = "WrongPass";

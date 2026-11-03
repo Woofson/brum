@@ -72,7 +72,7 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 ## 7. Notes Studio
 * **Tree Hierarchy**: SQLite-backed Markdown notebook with folder trees, drag-and-drop organization, and full-text search indexing.
 * **Interactive Checklists**: Live `- [ ]` / `- [x]` interactive checklists with instant state persistence.
-* **Revision Snapshots**: Automated snapshot history in `.notedog_versions/` with side-by-side diff previews and 1-click restore.
+* **Revision Snapshots**: Automated snapshot history in `.notes_versions/` (named `.notedog_versions/` before Brum 1.17; renamed automatically) with side-by-side diff previews and 1-click restore.
 * **Templates**: Built-in templates for Project Plans, SOPs, Daily Logs, and Meeting Minutes.
 * **Encrypted Notes**: Seamless encryption and decryption support for `.md.enc` files.
 

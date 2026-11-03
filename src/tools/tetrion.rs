@@ -70,13 +70,13 @@ pub fn get_leaderboard(
     let mut scores = Vec::new();
     let query = if user_only {
         "SELECT id, username, player_name, score, lines_cleared, level, duration_seconds, mode, created_at
-         FROM tetradog_scores
+         FROM tetrion_scores
          WHERE username = ?1 AND mode = ?2
          ORDER BY score DESC, lines_cleared DESC, id ASC
          LIMIT ?3"
     } else {
         "SELECT id, username, player_name, score, lines_cleared, level, duration_seconds, mode, created_at
-         FROM tetradog_scores
+         FROM tetrion_scores
          WHERE mode = ?1
          ORDER BY score DESC, lines_cleared DESC, id ASC
          LIMIT ?2"
@@ -162,7 +162,7 @@ pub fn get_leaderboard(
 
     if let Ok(mut stmt) = conn.prepare(
         "SELECT id, username, player_name, score, lines_cleared, level, duration_seconds, mode, created_at
-         FROM tetradog_scores
+         FROM tetrion_scores
          WHERE username = ?1 AND mode = ?2
          ORDER BY score DESC, lines_cleared DESC, id ASC
          LIMIT 1"
@@ -199,7 +199,7 @@ pub fn get_leaderboard(
     // Aggregate user stats
     if let Ok(mut stmt) = conn.prepare(
         "SELECT MAX(score), MAX(level), SUM(lines_cleared), COUNT(*)
-         FROM tetradog_scores
+         FROM tetrion_scores
          WHERE username = ?1"
     ) {
         if let Ok(stats) = stmt.query_row(params![current_user], |row| {
@@ -219,7 +219,7 @@ pub fn get_leaderboard(
     // Determine rank of user's best score in global ranking
     if let Some(ref mut best) = user_best {
         if let Ok(mut stmt) = conn.prepare(
-            "SELECT COUNT(*) FROM tetradog_scores WHERE mode = ?1 AND (score > ?2 OR (score = ?2 AND id < ?3))"
+            "SELECT COUNT(*) FROM tetrion_scores WHERE mode = ?1 AND (score > ?2 OR (score = ?2 AND id < ?3))"
         ) {
             let higher_count: i64 = stmt.query_row(params![target_mode, best.score as i64, best.id], |r| r.get(0)).unwrap_or(0);
             let rank = (higher_count + 1) as usize;
@@ -229,7 +229,7 @@ pub fn get_leaderboard(
     }
 
     let total_entries: i64 = conn
-        .query_row("SELECT COUNT(*) FROM tetradog_scores WHERE mode = ?1", params![target_mode], |r| r.get(0))
+        .query_row("SELECT COUNT(*) FROM tetrion_scores WHERE mode = ?1", params![target_mode], |r| r.get(0))
         .unwrap_or(0);
 
     Ok(TetraLeaderboardResponse {
@@ -260,7 +260,7 @@ pub fn submit_score(
     // Check existing personal best before insert
     let prev_personal_best: i64 = conn
         .query_row(
-            "SELECT COALESCE(MAX(score), 0) FROM tetradog_scores WHERE username = ?1 AND mode = ?2",
+            "SELECT COALESCE(MAX(score), 0) FROM tetrion_scores WHERE username = ?1 AND mode = ?2",
             params![username, mode],
             |r| r.get(0),
         )
@@ -269,7 +269,7 @@ pub fn submit_score(
     // Check existing global top score
     let prev_global_best: i64 = conn
         .query_row(
-            "SELECT COALESCE(MAX(score), 0) FROM tetradog_scores WHERE mode = ?1",
+            "SELECT COALESCE(MAX(score), 0) FROM tetrion_scores WHERE mode = ?1",
             params![mode],
             |r| r.get(0),
         )
@@ -277,7 +277,7 @@ pub fn submit_score(
 
     // Insert new score record
     conn.execute(
-        "INSERT INTO tetradog_scores (username, player_name, score, lines_cleared, level, duration_seconds, mode, created_at)
+        "INSERT INTO tetrion_scores (username, player_name, score, lines_cleared, level, duration_seconds, mode, created_at)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
         params![
             username,
@@ -290,14 +290,14 @@ pub fn submit_score(
             now,
         ],
     )
-    .map_err(|e| format!("Failed to record TetraDog score: {}", e))?;
+    .map_err(|e| format!("Failed to record Tetrion score: {}", e))?;
 
     let inserted_id = conn.last_insert_rowid();
 
     // Calculate newly achieved rank
     let higher_count: i64 = conn
         .query_row(
-            "SELECT COUNT(*) FROM tetradog_scores WHERE mode = ?1 AND (score > ?2 OR (score = ?2 AND id < ?3))",
+            "SELECT COUNT(*) FROM tetrion_scores WHERE mode = ?1 AND (score > ?2 OR (score = ?2 AND id < ?3))",
             params![mode, score as i64, inserted_id],
             |r| r.get(0),
         )
@@ -322,13 +322,31 @@ pub fn submit_score(
 
 pub fn clear_scores(conn: &Connection, username_filter: Option<&str>) -> Result<usize, String> {
     let rows_affected = if let Some(user) = username_filter {
-        conn.execute("DELETE FROM tetradog_scores WHERE username = ?1", params![user])
+        conn.execute("DELETE FROM tetrion_scores WHERE username = ?1", params![user])
             .map_err(|e| e.to_string())?
     } else {
-        conn.execute("DELETE FROM tetradog_scores", [])
+        conn.execute("DELETE FROM tetrion_scores", [])
             .map_err(|e| e.to_string())?
     };
     Ok(rows_affected)
+}
+
+/// Renames the score table and its indexes from the names used before 1.17, keeping all scores
+pub fn migrate_legacy_scores_table(conn: &Connection) {
+    let exists = |name: &str| -> bool {
+        conn.query_row(
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?1",
+            params![name],
+            |r| r.get::<_, i64>(0),
+        )
+        .map(|n| n > 0)
+        .unwrap_or(false)
+    };
+    if exists("tetradog_scores") && !exists("tetrion_scores") {
+        let _ = conn.execute("ALTER TABLE tetradog_scores RENAME TO tetrion_scores", []);
+    }
+    let _ = conn.execute("DROP INDEX IF EXISTS idx_tetradog_scores", []);
+    let _ = conn.execute("DROP INDEX IF EXISTS idx_tetradog_user", []);
 }
 
 #[cfg(test)]
@@ -338,7 +356,7 @@ mod tests {
     fn setup_test_db() -> Connection {
         let conn = Connection::open_in_memory().unwrap();
         conn.execute(
-            "CREATE TABLE tetradog_scores (
+            "CREATE TABLE tetrion_scores (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
                 player_name TEXT NOT NULL,
@@ -356,7 +374,29 @@ mod tests {
     }
 
     #[test]
-    fn test_tetradog_scoring_and_leaderboard_multiuser() {
+    fn scores_from_the_old_table_are_kept() {
+        let conn = Connection::open_in_memory().unwrap();
+        conn.execute_batch(
+            "CREATE TABLE tetradog_scores (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL, player_name TEXT NOT NULL,
+               score INTEGER NOT NULL, lines_cleared INTEGER NOT NULL, level INTEGER NOT NULL,
+               duration_seconds INTEGER NOT NULL DEFAULT 0, mode TEXT NOT NULL DEFAULT 'marathon', created_at TEXT NOT NULL);
+             CREATE INDEX idx_tetradog_scores ON tetradog_scores (score DESC);
+             INSERT INTO tetradog_scores (username, player_name, score, lines_cleared, level, created_at)
+               VALUES ('bolt', 'Bolt', 4200, 30, 4, '2026-01-01T00:00:00Z');",
+        )
+        .unwrap();
+        migrate_legacy_scores_table(&conn);
+        migrate_legacy_scores_table(&conn); // running it again changes nothing
+        let score: i64 = conn.query_row("SELECT score FROM tetrion_scores WHERE username = 'bolt'", [], |r| r.get(0)).unwrap();
+        assert_eq!(score, 4200);
+        let old: i64 = conn
+            .query_row("SELECT COUNT(*) FROM sqlite_master WHERE name LIKE '%tetradog%'", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(old, 0);
+    }
+
+    #[test]
+    fn test_tetrion_scoring_and_leaderboard_multiuser() {
         let conn = setup_test_db();
 
         // 1. Bolt plays marathon

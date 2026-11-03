@@ -30,8 +30,9 @@ pub struct AppConfig {
     pub bookmarks: Vec<BookmarkConfig>,
     #[serde(default)]
     pub syncthing: crate::tools::syncthing::SyncthingConfig,
-    #[serde(default)]
-    pub notedog: NoteDogConfig,
+    /// `[notes]`; `[notedog]` from older configs is still read
+    #[serde(default, alias = "notedog")]
+    pub notes: NotesConfig,
     #[serde(default)]
     pub terminal: TerminalConfig,
     #[serde(default)]
@@ -91,7 +92,7 @@ impl Default for AppConfig {
             open_with: default_open_with(),
             bookmarks: default_bookmarks(),
             syncthing: crate::tools::syncthing::SyncthingConfig::default(),
-            notedog: NoteDogConfig::default(),
+            notes: NotesConfig::default(),
             terminal: TerminalConfig::default(),
             plugins: PluginsConfig::default(),
             fleet: FleetConfig::default(),
@@ -936,12 +937,12 @@ fn default_layout_name() -> String { "dual-vertical".to_string() }
 fn default_view_mode() -> String { "details".to_string() }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct NoteDogConfig {
+pub struct NotesConfig {
     #[serde(default = "default_notes_folder")]
     pub notes_folder: String,
 }
 
-impl Default for NoteDogConfig {
+impl Default for NotesConfig {
     fn default() -> Self {
         Self {
             notes_folder: default_notes_folder(),
@@ -1349,7 +1350,7 @@ pub struct ClientConfigDto {
     pub open_with: Vec<OpenWithRule>,
     pub bookmarks: Vec<BookmarkConfig>,
     pub syncthing: ClientSyncthingConfigDto,
-    pub notedog: NoteDogConfig,
+    pub notes: NotesConfig,
     pub terminal: TerminalConfig,
     pub plugins: PluginsConfig,
     pub fleet: ClientFleetConfigDto,
@@ -1463,7 +1464,7 @@ impl AppConfig {
                 enabled: self.syncthing.enabled,
                 url: self.syncthing.url.clone(),
             },
-            notedog: self.notedog.clone(),
+            notes: self.notes.clone(),
             terminal: self.terminal.clone(),
             plugins: self.plugins.clone(),
             fleet: ClientFleetConfigDto {
@@ -2030,6 +2031,14 @@ impl ConfigManager {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn notes_section_accepts_old_and_new_names() {
+        let old: AppConfig = toml::from_str("[notedog]\nnotes_folder = \"~/OldNotes\"\n").unwrap();
+        assert_eq!(old.notes.notes_folder, "~/OldNotes");
+        let new: AppConfig = toml::from_str("[notes]\nnotes_folder = \"~/NewNotes\"\n").unwrap();
+        assert_eq!(new.notes.notes_folder, "~/NewNotes");
+    }
 
     #[test]
     fn test_external_theme_flat_parsing() {

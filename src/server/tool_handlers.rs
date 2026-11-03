@@ -151,90 +151,90 @@ pub async fn handle_paranoid_dry_run(
 
 
 
-// ---------------- NOTEDOG CHEWTOY HANDLERS ----------------
+// ---------------- NOTES CHEWTOY HANDLERS ----------------
 
 #[derive(Deserialize)]
-pub struct NoteDogInfoQuery {
+pub struct NotesInfoQuery {
     folder: Option<String>,
 }
 
-pub async fn handle_notedog_info(
+pub async fn handle_notes_info(
     State(state): State<AppState>,
     headers: HeaderMap,
-    axum::extract::Query(query): axum::extract::Query<NoteDogInfoQuery>,
-) -> Result<Json<crate::tools::notedog::NoteDogInfo>, (StatusCode, String)> {
-    let cfg_folder = state.config.notedog.notes_folder.as_str();
+    axum::extract::Query(query): axum::extract::Query<NotesInfoQuery>,
+) -> Result<Json<crate::tools::notes::NotesInfo>, (StatusCode, String)> {
+    let cfg_folder = state.config.notes.notes_folder.as_str();
     let folder = query.folder.as_deref()
         .filter(|f| !f.trim().is_empty())
         .map(|f| validate_path_access(&state, &headers, f, false))
         .transpose()?;
-    let info = crate::tools::notedog::scan_notedog_hierarchy(folder.as_deref(), Some(cfg_folder));
+    let info = crate::tools::notes::scan_notes_hierarchy(folder.as_deref(), Some(cfg_folder));
     Ok(Json(info))
 }
 
-pub async fn handle_notedog_templates() -> Json<Vec<crate::tools::notedog::NoteTemplate>> {
-    Json(crate::tools::notedog::get_builtin_templates())
+pub async fn handle_notes_templates() -> Json<Vec<crate::tools::notes::NoteTemplate>> {
+    Json(crate::tools::notes::get_builtin_templates())
 }
 
 #[derive(Deserialize)]
-pub struct NoteDogVersionsQuery {
+pub struct NotesVersionsQuery {
     path: String,
 }
 
-pub async fn handle_notedog_versions(
+pub async fn handle_notes_versions(
     State(state): State<AppState>,
     headers: HeaderMap,
-    axum::extract::Query(query): axum::extract::Query<NoteDogVersionsQuery>,
-) -> Result<Json<Vec<crate::tools::notedog::NoteVersionItem>>, (StatusCode, String)> {
+    axum::extract::Query(query): axum::extract::Query<NotesVersionsQuery>,
+) -> Result<Json<Vec<crate::tools::notes::NoteVersionItem>>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &query.path, false)?;
-    Ok(Json(crate::tools::notedog::list_note_versions(Path::new(&valid_path))))
+    Ok(Json(crate::tools::notes::list_note_versions(Path::new(&valid_path))))
 }
 
 #[derive(Deserialize)]
-pub struct NoteDogSaveVersionRequest {
+pub struct NotesSaveVersionRequest {
     path: String,
 }
 
-pub async fn handle_notedog_save_version(
+pub async fn handle_notes_save_version(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogSaveVersionRequest>,
+    Json(payload): Json<NotesSaveVersionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
     if p.exists() {
         if let Ok(bytes) = std::fs::read(p) {
-            let _ = crate::tools::notedog::create_note_snapshot(p, &bytes);
+            let _ = crate::tools::notes::create_note_snapshot(p, &bytes);
         }
     }
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
 #[derive(Deserialize)]
-pub struct NoteDogDecryptRequest {
+pub struct NotesDecryptRequest {
     path: String,
     passphrase: Option<String>,
 }
 
 #[derive(Serialize)]
-pub struct NoteDogDecryptResponse {
+pub struct NotesDecryptResponse {
     content: String,
     path: String,
 }
 
-pub async fn handle_notedog_decrypt(
+pub async fn handle_notes_decrypt(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogDecryptRequest>,
-) -> Result<Json<NoteDogDecryptResponse>, (StatusCode, String)> {
+    Json(payload): Json<NotesDecryptRequest>,
+) -> Result<Json<NotesDecryptResponse>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, false)?;
     let p = Path::new(&valid_path);
     if !p.exists() {
         return Err((StatusCode::NOT_FOUND, "Note file not found".to_string()));
     }
-    let pass = payload.passphrase.as_deref().unwrap_or("notedog");
-    match crate::tools::notedog::decrypt_note_file(p, pass) {
-        Ok(content) => Ok(Json(NoteDogDecryptResponse {
+    let pass = payload.passphrase.as_deref().unwrap_or(crate::tools::notes::DEFAULT_NOTE_PASSPHRASE);
+    match crate::tools::notes::decrypt_note_file(p, pass) {
+        Ok(content) => Ok(Json(NotesDecryptResponse {
             content,
             path: valid_path.clone(),
         })),
@@ -243,7 +243,7 @@ pub async fn handle_notedog_decrypt(
 }
 
 #[derive(Deserialize)]
-pub struct NoteDogEncryptRequest {
+pub struct NotesEncryptRequest {
     path: String,
     content: String,
     passphrase: Option<String>,
@@ -251,24 +251,24 @@ pub struct NoteDogEncryptRequest {
 }
 
 #[derive(Serialize)]
-pub struct NoteDogEncryptResponse {
+pub struct NotesEncryptResponse {
     success: bool,
     path: String,
     is_encrypted: bool,
 }
 
-pub async fn handle_notedog_encrypt(
+pub async fn handle_notes_encrypt(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogEncryptRequest>,
-) -> Result<Json<NoteDogEncryptResponse>, (StatusCode, String)> {
+    Json(payload): Json<NotesEncryptRequest>,
+) -> Result<Json<NotesEncryptResponse>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
-    let pass = payload.passphrase.as_deref().unwrap_or("notedog");
+    let pass = payload.passphrase.as_deref().unwrap_or(crate::tools::notes::DEFAULT_NOTE_PASSPHRASE);
 
     if payload.convert_to_plain.unwrap_or(false) {
-        match crate::tools::notedog::decrypt_and_save_plain_note(p, pass) {
-            Ok(new_path) => Ok(Json(NoteDogEncryptResponse {
+        match crate::tools::notes::decrypt_and_save_plain_note(p, pass) {
+            Ok(new_path) => Ok(Json(NotesEncryptResponse {
                 success: true,
                 path: new_path.to_string_lossy().to_string(),
                 is_encrypted: false,
@@ -276,8 +276,8 @@ pub async fn handle_notedog_encrypt(
             Err(err) => Err((StatusCode::BAD_REQUEST, err)),
         }
     } else {
-        match crate::tools::notedog::encrypt_and_save_note(p, &payload.content, pass) {
-            Ok(new_path) => Ok(Json(NoteDogEncryptResponse {
+        match crate::tools::notes::encrypt_and_save_note(p, &payload.content, pass) {
+            Ok(new_path) => Ok(Json(NotesEncryptResponse {
                 success: true,
                 path: new_path.to_string_lossy().to_string(),
                 is_encrypted: true,
@@ -288,7 +288,7 @@ pub async fn handle_notedog_encrypt(
 }
 
 #[derive(Deserialize)]
-pub struct NoteDogCreateNoteRequest {
+pub struct NotesCreateNoteRequest {
     section_path: String,
     title: String,
     is_encrypted: Option<bool>,
@@ -296,14 +296,14 @@ pub struct NoteDogCreateNoteRequest {
     initial_content: Option<String>,
 }
 
-pub async fn handle_notedog_create_note(
+pub async fn handle_notes_create_note(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogCreateNoteRequest>,
-) -> Result<Json<crate::tools::notedog::NoteDogFile>, (StatusCode, String)> {
+    Json(payload): Json<NotesCreateNoteRequest>,
+) -> Result<Json<crate::tools::notes::NotesFile>, (StatusCode, String)> {
     let valid_section = validate_path_access(&state, &headers, &payload.section_path, true)?;
     let sec_p = Path::new(&valid_section);
-    match crate::tools::notedog::create_new_note(
+    match crate::tools::notes::create_new_note(
         sec_p,
         &payload.title,
         payload.is_encrypted.unwrap_or(false),
@@ -316,66 +316,66 @@ pub async fn handle_notedog_create_note(
 }
 
 #[derive(Deserialize)]
-pub struct NoteDogSectionActionRequest {
+pub struct NotesSectionActionRequest {
     path: String,
     passphrase: String,
     cached_pass: Option<String>,
 }
 
-pub async fn handle_notedog_section_encrypt(
+pub async fn handle_notes_section_encrypt(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogSectionActionRequest>,
+    Json(payload): Json<NotesSectionActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
-    match crate::tools::notedog::encrypt_section_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
+    match crate::tools::notes::encrypt_section_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
 
-pub async fn handle_notedog_section_decrypt(
+pub async fn handle_notes_section_decrypt(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogSectionActionRequest>,
+    Json(payload): Json<NotesSectionActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
-    match crate::tools::notedog::decrypt_section_dir(p, &payload.passphrase) {
+    match crate::tools::notes::decrypt_section_dir(p, &payload.passphrase) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
 
 #[derive(Deserialize)]
-pub struct NoteDogNotebookActionRequest {
+pub struct NotesNotebookActionRequest {
     path: String,
     passphrase: String,
     cached_pass: Option<String>,
 }
 
-pub async fn handle_notedog_notebook_encrypt(
+pub async fn handle_notes_notebook_encrypt(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogNotebookActionRequest>,
+    Json(payload): Json<NotesNotebookActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
-    match crate::tools::notedog::encrypt_notebook_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
+    match crate::tools::notes::encrypt_notebook_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
 
-pub async fn handle_notedog_notebook_decrypt(
+pub async fn handle_notes_notebook_decrypt(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<NoteDogNotebookActionRequest>,
+    Json(payload): Json<NotesNotebookActionRequest>,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
-    match crate::tools::notedog::decrypt_notebook_dir(p, &payload.passphrase) {
+    match crate::tools::notes::decrypt_notebook_dir(p, &payload.passphrase) {
         Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
@@ -571,7 +571,7 @@ async fn save_uploaded_note_attachment(
 ) -> Result<Json<crate::auth::DbNoteAttachment>, (StatusCode, String)> {
     use sha2::{Digest, Sha256};
     let claims = extract_claims_or_local(state, headers)?;
-    let attachments_dir = crate::tools::notedog::get_notes_attachments_dir();
+    let attachments_dir = crate::tools::notes::get_notes_attachments_dir();
     let _ = std::fs::create_dir_all(&attachments_dir);
 
     if let Some(field) = multipart.next_field().await.map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))? {
@@ -687,7 +687,7 @@ pub async fn handle_notes_migrate_export(
     let notes = state.auth.list_db_notes(&claims.sub, is_admin, None, None, None, None, false)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-    let root = crate::tools::notedog::get_notedog_root_dir(None, Some(&state.config.notedog.notes_folder));
+    let root = crate::tools::notes::get_notes_root_dir(None, Some(&state.config.notes.notes_folder));
     let mut exported_count = 0;
 
     for note in notes {
@@ -703,7 +703,7 @@ pub async fn handle_notes_migrate_export(
         let file_path = target_dir.join(format!("{}.md", base_name));
 
         if std::fs::write(&file_path, note.content.as_bytes()).is_ok() {
-            let _ = crate::tools::notedog::create_note_snapshot(&file_path, note.content.as_bytes());
+            let _ = crate::tools::notes::create_note_snapshot(&file_path, note.content.as_bytes());
             exported_count += 1;
         }
     }
@@ -720,7 +720,7 @@ pub async fn handle_notes_migrate_import(
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
-    let info = crate::tools::notedog::scan_notedog_hierarchy(None, Some(&state.config.notedog.notes_folder));
+    let info = crate::tools::notes::scan_notes_hierarchy(None, Some(&state.config.notes.notes_folder));
     let mut imported_count = 0;
 
     for nb in info.notebooks {
@@ -756,20 +756,20 @@ pub async fn handle_notes_migrate_import(
 
 
 
-// ---------------- TETRADOG CLASSIC ARCADE CHEWTOY & LEADERBOARD HANDLERS ----------------
+// ---------------- TETRION CLASSIC ARCADE CHEWTOY & LEADERBOARD HANDLERS ----------------
 
 #[derive(Deserialize)]
-pub struct TetraDogScoresQuery {
+pub struct TetrionScoresQuery {
     limit: Option<usize>,
     mode: Option<String>,
     user_only: Option<bool>,
 }
 
-pub async fn handle_tetradog_get_scores(
+pub async fn handle_tetrion_get_scores(
     State(state): State<AppState>,
     headers: HeaderMap,
-    axum::extract::Query(query): axum::extract::Query<TetraDogScoresQuery>,
-) -> Result<Json<crate::tools::tetradog::TetraLeaderboardResponse>, (StatusCode, String)> {
+    axum::extract::Query(query): axum::extract::Query<TetrionScoresQuery>,
+) -> Result<Json<crate::tools::tetrion::TetraLeaderboardResponse>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     let db_arc = state.auth.db();
     let conn = db_arc.lock().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database lock poisoned".to_string()))?;
@@ -777,26 +777,26 @@ pub async fn handle_tetradog_get_scores(
     let mode = query.mode.as_deref();
     let user_only = query.user_only.unwrap_or(false);
 
-    let resp = crate::tools::tetradog::get_leaderboard(&conn, &claims.sub, limit, mode, user_only)
+    let resp = crate::tools::tetrion::get_leaderboard(&conn, &claims.sub, limit, mode, user_only)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(resp))
 }
 
-pub async fn handle_tetradog_submit_score(
+pub async fn handle_tetrion_submit_score(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(payload): Json<crate::tools::tetradog::SubmitScoreRequest>,
-) -> Result<Json<crate::tools::tetradog::SubmitScoreResponse>, (StatusCode, String)> {
+    Json(payload): Json<crate::tools::tetrion::SubmitScoreRequest>,
+) -> Result<Json<crate::tools::tetrion::SubmitScoreResponse>, (StatusCode, String)> {
     let claims = extract_claims_or_local(&state, &headers)?;
     let db_arc = state.auth.db();
     let conn = db_arc.lock().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database lock poisoned".to_string()))?;
 
-    let resp = crate::tools::tetradog::submit_score(&conn, &claims.sub, payload)
+    let resp = crate::tools::tetrion::submit_score(&conn, &claims.sub, payload)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(resp))
 }
 
-pub async fn handle_tetradog_clear_scores(
+pub async fn handle_tetrion_clear_scores(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
@@ -805,7 +805,7 @@ pub async fn handle_tetradog_clear_scores(
     let conn = db_arc.lock().map_err(|_| (StatusCode::INTERNAL_SERVER_ERROR, "Database lock poisoned".to_string()))?;
 
     let user_filter = if claims.role == "admin" { None } else { Some(claims.sub.as_str()) };
-    let cleared = crate::tools::tetradog::clear_scores(&conn, user_filter)
+    let cleared = crate::tools::tetrion::clear_scores(&conn, user_filter)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))?;
     Ok(Json(serde_json::json!({ "success": true, "cleared_count": cleared })))
 }

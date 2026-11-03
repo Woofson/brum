@@ -557,8 +557,8 @@ pub async fn handle_delete_bookmark(
 
 // ---------------- MANUALS & DOCUMENTATION HANDLERS ----------------
 
-pub async fn handle_list_manuals() -> Json<crate::tools::notedog::NoteDogNotebook> {
-    Json(crate::tools::notedog::get_builtin_manuals_notebook())
+pub async fn handle_list_manuals() -> Json<crate::tools::notes::NotesNotebook> {
+    Json(crate::tools::notes::get_builtin_manuals_notebook())
 }
 
 /// Text of a built-in manual. Only names that ship with Brum are served; a `manuals/`

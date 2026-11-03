@@ -1795,9 +1795,9 @@ mod tests {
         assert_forbidden(th::handle_duplicates_scan(st(), h(), Json(body(json!({ "paths": [dir] })))).await);
         assert_forbidden(th::handle_duplicates_scan(st(), h(), Json(body(json!({})))).await);
         assert_forbidden(th::handle_metadata_read(st(), h(), Query(body(json!({ "path": secret })))).await);
-        assert_forbidden(th::handle_notedog_decrypt(st(), h(), Json(body(json!({ "path": secret })))).await);
-        assert_forbidden(th::handle_notedog_versions(st(), h(), axum::extract::Query(body(json!({ "path": secret })))).await);
-        assert_forbidden(th::handle_notedog_info(st(), h(), axum::extract::Query(body(json!({ "folder": dir })))).await);
+        assert_forbidden(th::handle_notes_decrypt(st(), h(), Json(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_notes_versions(st(), h(), axum::extract::Query(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_notes_info(st(), h(), axum::extract::Query(body(json!({ "folder": dir })))).await);
         assert_forbidden(th::handle_paranoid_dry_run(st(), h(), Json(body(json!({ "action": "delete", "sources": [secret] })))).await);
         assert_forbidden(th::handle_split_file(st(), h(), Json(body(json!({ "source_path": secret, "chunk_size_mb": 1 })))).await);
         assert_forbidden(th::handle_combine_files(st(), h(), Json(body(json!({ "parts": [secret], "dest_path": format!("{}.out", own) })))).await);
@@ -1813,11 +1813,11 @@ mod tests {
         assert_forbidden(th::handle_duplicates_clean(st(), h(), Json(body(json!({ "files": [own], "custom_trash_dir": dir })))).await);
         assert_forbidden(th::handle_metadata_update(st(), h(), Json(body(json!({ "path": secret, "title": "x" })))).await);
         assert_forbidden(th::handle_metadata_batch(st(), h(), Json(body(json!({ "files": [secret], "artist": "x" })))).await);
-        assert_forbidden(th::handle_notedog_save_version(st(), h(), Json(body(json!({ "path": secret })))).await);
-        assert_forbidden(th::handle_notedog_encrypt(st(), h(), Json(body(json!({ "path": secret, "content": "x" })))).await);
-        assert_forbidden(th::handle_notedog_create_note(st(), h(), Json(body(json!({ "section_path": dir, "title": "x" })))).await);
-        assert_forbidden(th::handle_notedog_section_encrypt(st(), h(), Json(body(json!({ "path": dir, "passphrase": "x" })))).await);
-        assert_forbidden(th::handle_notedog_notebook_decrypt(st(), h(), Json(body(json!({ "path": dir, "passphrase": "x" })))).await);
+        assert_forbidden(th::handle_notes_save_version(st(), h(), Json(body(json!({ "path": secret })))).await);
+        assert_forbidden(th::handle_notes_encrypt(st(), h(), Json(body(json!({ "path": secret, "content": "x" })))).await);
+        assert_forbidden(th::handle_notes_create_note(st(), h(), Json(body(json!({ "section_path": dir, "title": "x" })))).await);
+        assert_forbidden(th::handle_notes_section_encrypt(st(), h(), Json(body(json!({ "path": dir, "passphrase": "x" })))).await);
+        assert_forbidden(th::handle_notes_notebook_decrypt(st(), h(), Json(body(json!({ "path": dir, "passphrase": "x" })))).await);
         assert_forbidden(th::handle_split_file(st(), h(), Json(body(json!({ "source_path": own, "dest_dir": dir, "chunk_size_mb": 1 })))).await);
         assert_forbidden(th::handle_combine_files(st(), h(), Json(body(json!({ "parts": [own], "dest_path": format!("{}/out", dir) })))).await);
         assert_forbidden(th::handle_convert_file(st(), h(), Json(body(json!({ "source_path": own, "target_format": "base64", "output_path": format!("{}/out", dir) })))).await);
@@ -1852,7 +1852,7 @@ mod tests {
 
         assert_forbidden(th::handle_duplicates_clean(st(), h(), Json(body(json!({ "files": [own], "permanent": true })))).await);
         assert_forbidden(th::handle_metadata_update(st(), h(), Json(body(json!({ "path": own, "title": "x" })))).await);
-        assert_forbidden(th::handle_notedog_encrypt(st(), h(), Json(body(json!({ "path": own, "content": "x" })))).await);
+        assert_forbidden(th::handle_notes_encrypt(st(), h(), Json(body(json!({ "path": own, "content": "x" })))).await);
         assert_forbidden(th::handle_git_commit(st(), h(), Json(body(json!({ "path": home, "message": "x" })))).await);
         assert_forbidden(th::handle_syncthing_scan(st(), h(), Json(body(json!({})))).await);
         assert_forbidden(crate::server::fs_handlers::handle_set_tags(st(), h(), Json(body(json!({ "paths": [own], "add_tags": ["x"] })))).await);

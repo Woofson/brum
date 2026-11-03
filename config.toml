@@ -262,7 +262,7 @@ url = "http://127.0.0.1:8384"
 api_key = ""                     # Leave blank to auto-discover from ~/.config/syncthing/config.xml
 
 # --- Notes & Markdown Studio ---
-[notedog]
+[notes]                          # Older configs may say [notedog]; that still works
 notes_folder = "~/Notes"         # Custom path to notes directory (e.g. "~/Notes", "/mnt/storage/Notes", "~/Documents/Notes")
 
 # --- Context Menu Custom Script Actions ---

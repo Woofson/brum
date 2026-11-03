@@ -201,9 +201,11 @@ url = "http://127.0.0.1:8384"
 api_key = ""
 
 # --- Notes & Markdown Studio ---
-[notedog]
+[notes]
 notes_folder = "~/Notes"
 ```
+
+> Configs written before Brum 1.17 use `[notedog]` for this section. It is still read, so there is no need to change it.
 
 ---
 

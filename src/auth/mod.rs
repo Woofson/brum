@@ -393,8 +393,9 @@ impl AuthManager {
             [],
         )?;
 
+        crate::tools::tetrion::migrate_legacy_scores_table(&conn);
         conn.execute(
-            "CREATE TABLE IF NOT EXISTS tetradog_scores (
+            "CREATE TABLE IF NOT EXISTS tetrion_scores (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT NOT NULL,
                 player_name TEXT NOT NULL,
@@ -407,8 +408,8 @@ impl AuthManager {
             )",
             [],
         )?;
-        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetradog_scores ON tetradog_scores (score DESC)", []);
-        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetradog_user ON tetradog_scores (username)", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetrion_scores ON tetrion_scores (score DESC)", []);
+        let _ = conn.execute("CREATE INDEX IF NOT EXISTS idx_tetrion_user ON tetrion_scores (username)", []);
 
         conn.execute(
             "CREATE TABLE IF NOT EXISTS api_tokens (

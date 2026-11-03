@@ -17,7 +17,7 @@ Description: |
   Brum is a blazing-fast multi-pane web environment and file manager for Linux, Windows, macOS, and Docker.
   Features 1-to-4 toggleable panes, DeltaCopy bit-for-bit file verification, transparent
   encrypted vaults (AES-256-GCM / Argon2id), multi-cloud remotes (SMB, SFTP, S3, WebDAV),
-  dockable NoteDog / Editor power tools, and native desktop integration.
+  dockable Notes / Editor power tools, and native desktop integration.
 Moniker: brum
 Tags:
   - file-manager

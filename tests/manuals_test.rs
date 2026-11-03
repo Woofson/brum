@@ -87,3 +87,33 @@ async fn manuals_open_for_admins_and_users_and_stay_read_only() {
         .send().await.unwrap();
     assert_eq!(resp.status().as_u16(), 403);
 }
+
+/// Old /notedog/ and /tetradog/ addresses keep working next to the new ones
+#[tokio::test]
+async fn old_and_new_notes_and_tetrion_addresses_both_work() {
+    let dir = tempdir().unwrap();
+    let mut config = AppConfig::default();
+    config.server.host = "127.0.0.1".to_string();
+    config.server.port = 0;
+    config.server.database_path = dir.path().join("brum_test.db").to_string_lossy().to_string();
+    config.server.enable_auth = true;
+    config.auth.default_admin_user = "admin".to_string();
+    config.auth.default_admin_pass = "AdminSecretPass123!".to_string();
+    config.plugins.directory = dir.path().join("plugins").to_string_lossy().to_string();
+    config.plugins.user_directory = dir.path().join("user_plugins").to_string_lossy().to_string();
+    let (port, _) = start_background_server(config).await.unwrap();
+    let base = format!("http://127.0.0.1:{}", port);
+    let client = reqwest::Client::new();
+    let admin = login(&client, &base, "admin", "AdminSecretPass123!").await;
+    for path in [
+        "/api/tools/notes/templates",
+        "/api/tools/notedog/templates",
+        "/api/tools/tetrion/scores?mode=marathon",
+        "/api/tools/tetradog/scores?mode=marathon",
+        "/api/chewtoys/tetrion/scores?mode=marathon",
+        "/api/chewtoys/tetradog/scores?mode=marathon",
+    ] {
+        let resp = client.get(format!("{}{}", base, path)).bearer_auth(&admin).send().await.unwrap();
+        assert_eq!(resp.status().as_u16(), 200, "{path}");
+    }
+}
