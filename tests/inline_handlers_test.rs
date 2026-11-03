@@ -10,15 +10,17 @@ use std::fs;
 
 /// (file, highest allowed number of inline handlers)
 const CEILINGS: &[(&str, usize)] = &[
-    ("frontend/index.html", 29),
-    ("frontend/app.js", 60),
+    ("frontend/index.html", 0),
+    ("frontend/app.js", 0),
 ];
 
 fn count_inline_handlers(text: &str) -> usize {
     // `onclick="`, `onchange='`, and `onclick=\"` inside JS strings; whitespace before `on`
     // keeps names like `data-on-click=` and `el.onclick =` out of the count.
     let re = Regex::new(r#"(?i)\son[a-z]+\s*=\s*\\?["']"#).unwrap();
-    re.find_iter(text).count()
+    // handlers written from code: el.setAttribute('onclick', ...)
+    let set_attr = Regex::new(r#"(?i)setAttribute\(\s*['"]on[a-z]+['"]"#).unwrap();
+    re.find_iter(text).count() + set_attr.find_iter(text).count()
 }
 
 #[test]
@@ -132,4 +134,6 @@ fn counter_ignores_data_attributes_and_properties() {
     assert_eq!(count_inline_handlers("el.onclick = fn;"), 0);
     assert_eq!(count_inline_handlers(r#"<b onclick="x()">"#), 1);
     assert_eq!(count_inline_handlers(r#"html += '<b onchange=\"x()\">';"#), 1);
+    assert_eq!(count_inline_handlers(r#"btn.setAttribute('onclick', `x()`);"#), 1);
+    assert_eq!(count_inline_handlers(r#"btn.setAttribute('data-on-click', 'x');"#), 0);
 }

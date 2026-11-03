@@ -48,39 +48,40 @@ const BRUM_ACTIONS = new Set([
   'clearPaneFilter', 'clearPdfMergeList', 'clearPropCustomIcon', 'clearSpotlightInput',
   'clearTerminal', 'clickElementById', 'cloneDirectoryToOppositePane', 'closeAppDialog',
   'closeBreadcrumbPopovers', 'closeConverterModal', 'closeDocViewerModal', 'closeDockedEditorTab',
-  'closeDockedTool', 'closeEditorActionsDropdown', 'closeEditorModal', 'closeEditorTab',
-  'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio', 'closeFloatingCalculator',
-  'closeFloatingDiff', 'closeFloatingDiskUsage', 'closeFloatingDuplicateFinder',
-  'closeFloatingHexEditor', 'closeFloatingLogViewer', 'closeFloatingNoteDog', 'closeFloatingPdf',
-  'closeFloatingRenamer', 'closeFloatingShares', 'closeFloatingSplitter', 'closeFloatingTagEditor',
-  'closeFloatingTaskManager', 'closeImgTransformDropdown', 'closeKeyRecordModal',
-  'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer', 'closeOtherTabs', 'closePaneTab',
-  'closePaneTabOnMiddleClick', 'closeSpotlightModal', 'closeTabsToTheRight', 'closeTetraDog',
-  'confirmSyncFolderSelection', 'connectRemoteToActivePane', 'convertCurrentMediaToMp4',
-  'copyActionOutput', 'copyAndUseTokenInFleetForm', 'copyCalcResult', 'copyDiffItem',
-  'copyGeneratedApiToken', 'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl',
-  'copyTaskLogs', 'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag',
+  'closeDockedTool', 'closeDynamicChewToy', 'closeEditorActionsDropdown', 'closeEditorModal',
+  'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio',
+  'closeFloatingCalculator', 'closeFloatingDiff', 'closeFloatingDiskUsage',
+  'closeFloatingDuplicateFinder', 'closeFloatingHexEditor', 'closeFloatingLogViewer',
+  'closeFloatingNoteDog', 'closeFloatingPdf', 'closeFloatingRenamer', 'closeFloatingShares',
+  'closeFloatingSplitter', 'closeFloatingTagEditor', 'closeFloatingTaskManager',
+  'closeImgTransformDropdown', 'closeKeyRecordModal', 'closeMediaPlayer', 'closeModal',
+  'closeNoteDogDrawer', 'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick',
+  'closeSpotlightModal', 'closeTabsToTheRight', 'closeTetraDog', 'confirmSyncFolderSelection',
+  'connectRemoteToActivePane', 'convertCurrentMediaToMp4', 'copyActionOutput',
+  'copyAndUseTokenInFleetForm', 'copyCalcResult', 'copyDiffItem', 'copyGeneratedApiToken',
+  'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTaskLogs',
+  'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag', 'createNewDockedEditorTab',
   'createNewEditorTab', 'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio',
   'cycleMediaLoop', 'cycleMediaSpeed', 'cyclePaneColor', 'deleteBackupProfile', 'deleteBookmark',
   'deleteCustomAction', 'deleteFileTemplate', 'deleteFleetNodeProfile', 'deleteGlobalMount',
   'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems', 'deleteSharePermanent',
   'deleteUserAccount', 'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill',
   'docViewerCopyCurrent', 'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent',
-  'docViewerRenameCurrent', 'dockCadStudioToActivePane', 'dockCalculatorToActivePane',
-  'dockDiffToActivePane', 'dockDiskUsageToActivePane', 'dockDuplicateFinderToActivePane',
-  'dockEditorToActivePane', 'dockGitToActivePane', 'dockHexEditorToActivePane',
-  'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane', 'dockNoteDogToActivePane',
-  'dockPdfToActivePane', 'dockRenamerToActivePane', 'dockSharesToActivePane',
-  'dockSplitterToActivePane', 'dockTagEditorToActivePane', 'dockTasksToActivePane',
-  'dockTerminalToActivePane', 'dockTetraDogToActivePane', 'downloadCurrentMedia',
-  'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex', 'editCustomAction',
-  'editOpenWithRule', 'editTemplateById', 'enablePathInput', 'executeBatchRename',
-  'executeBulkRename', 'executeCompressArchive', 'executeCreateFromTemplate', 'executeCreateShare',
-  'executeCreateVault', 'executeCustomAction', 'executeDeltaCopy', 'executeDryRun',
-  'executeDuplicateClean', 'executeExtractArchive', 'executeFileCombine', 'executeFileConversion',
-  'executeFileSplit', 'executeFind', 'executeFolderAlignment', 'executeInterpaneDrop',
-  'executeOpenConfdAssembled', 'executeOpenConfdSeparateTabs', 'executeOpenWith',
-  'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun',
+  'docViewerRenameCurrent', 'dockActiveDynamicChewToy', 'dockCadStudioToActivePane',
+  'dockCalculatorToActivePane', 'dockDiffToActivePane', 'dockDiskUsageToActivePane',
+  'dockDuplicateFinderToActivePane', 'dockEditorToActivePane', 'dockGitToActivePane',
+  'dockHexEditorToActivePane', 'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane',
+  'dockNoteDogToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
+  'dockSharesToActivePane', 'dockSplitterToActivePane', 'dockTagEditorToActivePane',
+  'dockTasksToActivePane', 'dockTerminalToActivePane', 'dockTetraDogToActivePane',
+  'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex',
+  'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
+  'executeBatchRename', 'executeBulkRename', 'executeCompressArchive', 'executeCreateFromTemplate',
+  'executeCreateShare', 'executeCreateVault', 'executeCustomAction', 'executeDeltaCopy',
+  'executeDryRun', 'executeDuplicateClean', 'executeExtractArchive', 'executeFileCombine',
+  'executeFileConversion', 'executeFileSplit', 'executeFind', 'executeFolderAlignment',
+  'executeInterpaneDrop', 'executeOpenConfdAssembled', 'executeOpenConfdSeparateTabs',
+  'executeOpenWith', 'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun',
   'executeSpotlightIndex', 'executeStandardCopy', 'executeSync', 'executeUnlockNoteDogNote',
   'executeUnlockVault', 'exportCustomThemeToml', 'exportFleetNodesJson',
   'feedSearchResultsToActivePane', 'fetchLogViewerTail', 'fetchPdfSplitInfo',
@@ -143,19 +144,19 @@ const BRUM_ACTIONS = new Set([
   'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFileDiffView',
   'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator',
   'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager', 'openGitFromProperties',
-  'openGlobalRemoteModal', 'openHelpModal', 'openHexEditor', 'openInPaneWithToast',
-  'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin',
-  'openNoteDogColorPicker', 'openNoteDogMigrationMenu', 'openNoteDogNewMenu',
-  'openNoteDogTemplatePicker', 'openNoteDogVersionsModal', 'openNoteForContextItem',
-  'openPaneFavoritesMenu', 'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu',
-  'openPaneTransferMenu', 'openParanoidSettings', 'openPathInActivePane',
-  'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
+  'openGitManager', 'openGlobalRemoteModal', 'openHelpModal', 'openHexEditor',
+  'openInPaneWithToast', 'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer',
+  'openNativeRecycleBin', 'openNoteDogColorPicker', 'openNoteDogMigrationMenu',
+  'openNoteDogNewMenu', 'openNoteDogTemplatePicker', 'openNoteDogVersionsModal',
+  'openNoteForContextItem', 'openPaneFavoritesMenu', 'openPaneSettingsMenu',
+  'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu', 'openParanoidSettings',
+  'openPathInActivePane', 'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
   'openPropertiesColorTab', 'openRemoteModal', 'openSaveCurrentSyncAsProfile', 'openSearchModal',
   'openSettingsModal', 'openSettingsTab', 'openShareLogs', 'openSharesManager',
   'openSplitterFilePicker', 'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal',
   'openSyncthingModal', 'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath',
   'openTetraDog', 'openUserProfileModal', 'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes',
-  'pingFleetNode', 'playMediaPlaylistItem', 'populateMediaPlaylistFromActivePane',
+  'pingFleetNode', 'playMediaPlaylistItem', 'pollTasks', 'populateMediaPlaylistFromActivePane',
   'printDocViewer', 'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNoteDogFolder',
   'promptChangeNoteSection', 'promptClearTetraDogScores', 'promptCreateNote',
   'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
@@ -185,9 +186,9 @@ const BRUM_ACTIONS = new Set([
   'saveActiveEditorTab', 'saveActiveNoteDogNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
   'saveBackupProfileForm', 'saveBookmarkFromModal', 'saveCapturedKeybind',
   'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
-  'saveCustomShellAction', 'saveCustomTrashDir', 'saveFleetNodeProfile', 'saveGlobalFolderIcon',
-  'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile', 'saveModalTags',
-  'saveNoteDogFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
+  'saveCustomShellAction', 'saveCustomTrashDir', 'saveDockedEditorTab', 'saveFleetNodeProfile',
+  'saveGlobalFolderIcon', 'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile',
+  'saveModalTags', 'saveNoteDogFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
   'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal',
   'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias', 'saveUserProfile', 'saveUserRbac',
   'scanMountpointTreemap', 'scanPaneForCombineParts', 'scrollViewerToBottom', 'searchHexBytes',
@@ -210,59 +211,60 @@ const BRUM_ACTIONS = new Set([
   'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
   'switchGitTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchPdfTab',
   'switchPropertiesTab', 'switchSettingsTab', 'switchSplitterTab', 'switchSyncTab',
-  'switchToFleetNode', 'syncAdminConfigScroll', 'syncDockedNoteDogInput', 'syncGutterScroll',
-  'syncHetznerFields', 'syncNoteDogGutter', 'takeCadSnapshot', 'testAndSaveSyncthingConfig',
-  'testExternalProgram', 'testFleetNodeConnection', 'testRemoteConnection',
-  'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleAllRenamerItems', 'toggleAllRootsCheck',
-  'toggleBackupProfileActive', 'toggleBranchView', 'toggleBrumMascot', 'toggleCadAxes',
-  'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer', 'toggleCadTurntable', 'toggleCalcHistory',
-  'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility', 'toggleCompactDates',
-  'toggleContextColorPalette', 'toggleContextSubmenu', 'toggleCurrentNoteEncryption',
-  'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting', 'toggleDiffFoldersFirst',
-  'toggleDiffShowDotfiles', 'toggleDiffSortDir', 'toggleDiskUsageMaximize',
-  'toggleDocRawRenderMode', 'toggleDocViewerFloating', 'toggleDocViewerFullscreen',
-  'toggleDuplicateFile', 'toggleEditorActionsDropdown', 'toggleExclusionChip', 'toggleFKeyBar',
-  'toggleFileAction', 'toggleFileListMultiline', 'toggleFindBar', 'toggleFindOption',
-  'toggleFleetSwitcherDropdown', 'toggleFleetTokenVisibility', 'toggleFloatingTaskManager',
-  'toggleFolderTree', 'toggleGlobalDotfiles', 'toggleGlobalRefreshButton',
-  'toggleHapticFeedbackSetting', 'toggleHexInspector', 'toggleHideDrive',
-  'toggleHostnameBadgeSetting', 'toggleImageViewerFloating', 'toggleImgTransformDropdown',
-  'toggleImgWheelMode', 'toggleLayoutMenu', 'toggleLogFollow', 'toggleLogViewerInvert',
-  'toggleMaximizeCadStudio', 'toggleMaximizeDiff', 'toggleMaximizeDuplicateFinder',
-  'toggleMaximizeHexEditor', 'toggleMaximizeLogViewer', 'toggleMaximizePdf',
-  'toggleMaximizeRenamer', 'toggleMaximizeShares', 'toggleMaximizeSplitter',
-  'toggleMaximizeTagEditor', 'toggleMediaFullscreen', 'toggleMediaMute', 'toggleMediaPiP',
-  'toggleMediaPlay', 'toggleMediaPlaylistDrawer', 'toggleMediaShuffle', 'toggleMediaStopOnClose',
-  'toggleMediaSubtitlesDropdown', 'toggleMenuItemVisibility', 'toggleMinimizeToTray',
-  'toggleMountAllUsers', 'toggleNoteAttachmentsTray', 'toggleNoteDogCreateEncryptedFields',
-  'toggleNoteDogDrawer', 'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav',
-  'togglePaneSyncScroll', 'togglePaneTree', 'toggleParentClass', 'togglePasswordVisibility',
-  'togglePdfSplitModeUI', 'toggleProfileMenu', 'toggleRemoteGlobalMountUI', 'toggleRenamerItem',
-  'toggleRevokeShare', 'toggleShowDirTag', 'toggleStartMinimized', 'toggleStickyColHeaders',
-  'toggleSyncExclusionsPanel', 'toggleSyncNav', 'toggleSyncScroll', 'toggleTailFollow',
-  'toggleTerminal', 'toggleTerminalFullscreen', 'toggleTetraDogAudio', 'toggleTetraDogPlayPause',
-  'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting', 'toggleTreeNodeExpand',
-  'toggleUseExtEditor', 'toggleUseExtViewer', 'toggleViewerWordWrap', 'toggleWindowDecorations',
-  'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
-  'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
-  'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
-  'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions',
-  'triggerDownload', 'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory',
-  'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere', 'triggerExtractModal',
-  'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager',
-  'triggerImportFleetNodes', 'triggerMkdir', 'triggerMove', 'triggerNewFile',
-  'triggerNoteAttachmentUpload', 'triggerOidcLogin', 'triggerPaste', 'triggerProperties',
-  'triggerRename', 'triggerServerReload', 'triggerServerRestart', 'triggerShare',
-  'triggerShareDirectory', 'triggerSyncthingScan', 'triggerView', 'undoBatchRename',
-  'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice', 'updateAdminConfigCursorStats',
-  'updateBulkRenamePreview', 'updateBulkRenameUI', 'updateCadSlicePlane', 'updateCompressExt',
-  'updateDefaultCopyAction', 'updateHexInspector', 'updateMenuOption', 'updateMobileBottomBarMode',
-  'updatePaneCustomGradientPreview', 'updatePaneTabsMode', 'updatePermFromCheckboxes',
-  'updatePhoneTabletMaxPanes', 'updatePropPermFromCheckboxes', 'updateRemoteProtoUI',
-  'updateRenamerPreview', 'updateSplitEstimate', 'updateTemplateLivePreview',
-  'updateTetraDogConfig', 'updateTetraDogConfigInt', 'useActivePaneItemForConverter',
-  'useActivePaneItemForSplitter', 'useActivePanePath', 'useActivePaneSelectedPdf',
-  'useFallbackIcon', 'useInactivePanePath', 'writeClipboardText', 'zoomBookPage', 'zoomImage',
+  'switchToFleetNode', 'syncAdminConfigScroll', 'syncDockedEditorInput', 'syncDockedNoteDogInput',
+  'syncGutterScroll', 'syncHetznerFields', 'syncNoteDogGutter', 'takeCadSnapshot',
+  'testAndSaveSyncthingConfig', 'testExternalProgram', 'testFleetNodeConnection',
+  'testRemoteConnection', 'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleAllRenamerItems',
+  'toggleAllRootsCheck', 'toggleBackupProfileActive', 'toggleBranchView', 'toggleBrumMascot',
+  'toggleCadAxes', 'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer', 'toggleCadTurntable',
+  'toggleCalcHistory', 'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
+  'toggleCompactDates', 'toggleContextColorPalette', 'toggleContextSubmenu',
+  'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
+  'toggleDiffFoldersFirst', 'toggleDiffShowDotfiles', 'toggleDiffSortDir',
+  'toggleDiskUsageMaximize', 'toggleDocRawRenderMode', 'toggleDocViewerFloating',
+  'toggleDocViewerFullscreen', 'toggleDuplicateFile', 'toggleEditorActionsDropdown',
+  'toggleExclusionChip', 'toggleFKeyBar', 'toggleFileAction', 'toggleFileListMultiline',
+  'toggleFindBar', 'toggleFindOption', 'toggleFleetSwitcherDropdown', 'toggleFleetTokenVisibility',
+  'toggleFloatingTaskManager', 'toggleFolderTree', 'toggleGlobalDotfiles',
+  'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting', 'toggleHexInspector',
+  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleImageViewerFloating',
+  'toggleImgTransformDropdown', 'toggleImgWheelMode', 'toggleLayoutMenu', 'toggleLogFollow',
+  'toggleLogViewerInvert', 'toggleMaximizeCadStudio', 'toggleMaximizeDiff',
+  'toggleMaximizeDuplicateFinder', 'toggleMaximizeDynamicChewToy', 'toggleMaximizeHexEditor',
+  'toggleMaximizeLogViewer', 'toggleMaximizePdf', 'toggleMaximizeRenamer', 'toggleMaximizeShares',
+  'toggleMaximizeSplitter', 'toggleMaximizeTagEditor', 'toggleMediaFullscreen', 'toggleMediaMute',
+  'toggleMediaPiP', 'toggleMediaPlay', 'toggleMediaPlaylistDrawer', 'toggleMediaShuffle',
+  'toggleMediaStopOnClose', 'toggleMediaSubtitlesDropdown', 'toggleMenuItemVisibility',
+  'toggleMinimizeToTray', 'toggleMountAllUsers', 'toggleNoteAttachmentsTray',
+  'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer', 'togglePaneFilter',
+  'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
+  'toggleParentClass', 'togglePasswordVisibility', 'togglePdfSplitModeUI', 'toggleProfileMenu',
+  'toggleRemoteGlobalMountUI', 'toggleRenamerItem', 'toggleRevokeShare', 'toggleShowDirTag',
+  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncExclusionsPanel', 'toggleSyncNav',
+  'toggleSyncScroll', 'toggleTailFollow', 'toggleTerminal', 'toggleTerminalFullscreen',
+  'toggleTetraDogAudio', 'toggleTetraDogPlayPause', 'toggleToolVisibility', 'toggleToolsMenu',
+  'toggleTrashSetting', 'toggleTreeNodeExpand', 'toggleUseExtEditor', 'toggleUseExtViewer',
+  'toggleViewerWordWrap', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
+  'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
+  'triggerChecksum', 'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard',
+  'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload',
+  'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions', 'triggerDownload',
+  'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory', 'triggerEditTagsModal',
+  'triggerEditor', 'triggerExtractHere', 'triggerExtractModal', 'triggerExtractToFolder',
+  'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager', 'triggerImportFleetNodes',
+  'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerNoteAttachmentUpload',
+  'triggerOidcLogin', 'triggerPaste', 'triggerProperties', 'triggerRename', 'triggerServerReload',
+  'triggerServerRestart', 'triggerShare', 'triggerShareDirectory', 'triggerSyncthingScan',
+  'triggerView', 'undoBatchRename', 'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice',
+  'updateAdminConfigCursorStats', 'updateBulkRenamePreview', 'updateBulkRenameUI',
+  'updateCadSlicePlane', 'updateCompressExt', 'updateDefaultCopyAction', 'updateHexInspector',
+  'updateMenuOption', 'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview',
+  'updatePaneTabsMode', 'updatePermFromCheckboxes', 'updatePhoneTabletMaxPanes',
+  'updatePropPermFromCheckboxes', 'updateRemoteProtoUI', 'updateRenamerPreview',
+  'updateSplitEstimate', 'updateTemplateLivePreview', 'updateTetraDogConfig',
+  'updateTetraDogConfigInt', 'useActivePaneItemForConverter', 'useActivePaneItemForSplitter',
+  'useActivePanePath', 'useActivePaneSelectedPdf', 'useFallbackIcon', 'useInactivePanePath',
+  'writeClipboardText', 'zoomBookPage', 'zoomImage',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -427,6 +429,13 @@ function refreshDiskUsageView() {
 
 function runDiskUsageScanFromInput() {
   runDiskUsageScan(document.getElementById('du-path-input').value);
+}
+
+// Point an element at a (new) action from code; its one listener reads the attributes on each event
+function setElementAction(el, type, fnName, ...args) {
+  el.setAttribute(`data-on-${type}`, fnName);
+  el.setAttribute(`data-${type}-args`, JSON.stringify(args.map(encodeActionArg)));
+  bindActions(el);
 }
 
 function writeClipboardText(text) {
@@ -39346,6 +39355,7 @@ function mountDockedTool(paneIndex) {
         <iframe id="docked-chewtoy-frame-${paneIndex}" class="chewtoy-iframe" data-plugin-id="${escapeHtml(pluginId)}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
       </div>
     `;
+    bindActions(mount);
     const frame = document.getElementById(`docked-chewtoy-frame-${paneIndex}`);
     if (frame) {
       frame.addEventListener('load', () => {
@@ -39382,18 +39392,18 @@ function mountDockedTool(paneIndex) {
       <div class="docked-notedog-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
         <div class="notedog-workspace-header" style="padding: 4px 6px; min-height: 32px;">
           <div class="notedog-workspace-actions" style="display: flex; align-items: center; gap: 3px;">
-            <button class="btn btn-icon btn-accent" onclick="saveActiveNoteDogNote()" title="Save Note (Ctrl+S)"><i data-lucide="save"></i></button>
-            <button class="btn btn-icon" onclick="openNoteDogTemplatePicker(event)" title="Insert Template"><i data-lucide="layout-template"></i></button>
-            <button class="btn btn-icon" onclick="promptCreateNote()" title="New Note (Ctrl+N)"><i data-lucide="plus"></i></button>
-            <button class="btn btn-icon btn-danger-hover" onclick="promptDeleteCurrentNote()" title="Delete Current Note"><i data-lucide="trash-2"></i></button>
+            <button class="btn btn-icon btn-accent" data-on-click="saveActiveNoteDogNote" title="Save Note (Ctrl+S)"><i data-lucide="save"></i></button>
+            <button class="btn btn-icon" data-on-click="openNoteDogTemplatePicker" data-click-args="${actionArgs(ACTION_EVENT)}" title="Insert Template"><i data-lucide="layout-template"></i></button>
+            <button class="btn btn-icon" data-on-click="promptCreateNote" title="New Note (Ctrl+N)"><i data-lucide="plus"></i></button>
+            <button class="btn btn-icon btn-danger-hover" data-on-click="promptDeleteCurrentNote" title="Delete Current Note"><i data-lucide="trash-2"></i></button>
           </div>
           <div style="font-size: 11px; font-weight: 600; color: var(--text-main); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="docked-notedog-title-${paneIndex}">
             ${escapeHtml(notedogState.activeNote?.name || 'NoteDog')}
           </div>
           <div class="layout-btn-group" style="display: flex; gap: 2px;">
-            <button class="btn btn-icon notedog-mode-btn ${notedogState.viewMode === 'edit' ? 'active' : ''}" id="docked-notedog-mode-edit-${paneIndex}" onclick="setNoteDogViewMode('edit')" title="Editor Only"><i data-lucide="square"></i></button>
-            <button class="btn btn-icon notedog-mode-btn ${(!notedogState.viewMode || notedogState.viewMode === 'split') ? 'active' : ''}" id="docked-notedog-mode-split-${paneIndex}" onclick="setNoteDogViewMode('split')" title="Split View"><i data-lucide="columns-2"></i></button>
-            <button class="btn btn-icon notedog-mode-btn ${notedogState.viewMode === 'preview' ? 'active' : ''}" id="docked-notedog-mode-preview-${paneIndex}" onclick="setNoteDogViewMode('preview')" title="Preview"><i data-lucide="book-open"></i></button>
+            <button class="btn btn-icon notedog-mode-btn ${notedogState.viewMode === 'edit' ? 'active' : ''}" id="docked-notedog-mode-edit-${paneIndex}" data-on-click="setNoteDogViewMode" data-click-args="${actionArgs('edit')}" title="Editor Only"><i data-lucide="square"></i></button>
+            <button class="btn btn-icon notedog-mode-btn ${(!notedogState.viewMode || notedogState.viewMode === 'split') ? 'active' : ''}" id="docked-notedog-mode-split-${paneIndex}" data-on-click="setNoteDogViewMode" data-click-args="${actionArgs('split')}" title="Split View"><i data-lucide="columns-2"></i></button>
+            <button class="btn btn-icon notedog-mode-btn ${notedogState.viewMode === 'preview' ? 'active' : ''}" id="docked-notedog-mode-preview-${paneIndex}" data-on-click="setNoteDogViewMode" data-click-args="${actionArgs('preview')}" title="Preview"><i data-lucide="book-open"></i></button>
           </div>
         </div>
         <div style="flex: 1; display: flex; overflow: hidden; height: 100%;" id="docked-notedog-body-${paneIndex}">
@@ -39401,6 +39411,7 @@ function mountDockedTool(paneIndex) {
         </div>
       </div>
     `;
+    bindActions(mount);
     if (notedogState.notebooks.length === 0) {
       loadNoteDogHierarchy().then(() => mountDockedNoteDog(paneIndex));
     } else {
@@ -39413,8 +39424,8 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div style="padding: 6px 10px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; font-size: 11px;">
         <div style="display: flex; gap: 4px; align-items: center;">
-          <button class="btn btn-xs btn-accent" onclick="saveDockedEditorTab(${paneIndex})"><i data-lucide="save" style="width:11px; height:11px;"></i> Save</button>
-          <button class="btn btn-xs" onclick="createNewDockedEditorTab(${paneIndex})"><i data-lucide="plus" style="width:11px; height:11px;"></i> New</button>
+          <button class="btn btn-xs btn-accent" data-on-click="saveDockedEditorTab" data-click-args="${actionArgs((paneIndex))}"><i data-lucide="save" style="width:11px; height:11px;"></i> Save</button>
+          <button class="btn btn-xs" data-on-click="createNewDockedEditorTab" data-click-args="${actionArgs((paneIndex))}"><i data-lucide="plus" style="width:11px; height:11px;"></i> New</button>
         </div>
         <div style="font-size: 11px; color: var(--text-dim); max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" id="docked-editor-file-label-${paneIndex}">
           ${escapeHtml(activeTab ? activeTab.filename : 'Untitled')}
@@ -39424,9 +39435,10 @@ function mountDockedTool(paneIndex) {
         <div class="editor-tabs-scroll" id="docked-editor-tabs-${paneIndex}" style="display: flex; gap: 4px; padding: 2px 0;"></div>
       </div>
       <div style="flex: 1; position: relative; display: flex; overflow: hidden; height: 100%;">
-        <textarea id="docked-editor-textarea-${paneIndex}" class="editor-textarea" style="width: 100%; height: 100%; resize: none; background: #181a1f; color: #f8fafc; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; padding: 10px; border: none; outline: none; white-space: pre;" oninput="syncDockedEditorInput(${paneIndex}, this.value)"></textarea>
+        <textarea id="docked-editor-textarea-${paneIndex}" class="editor-textarea" style="width: 100%; height: 100%; resize: none; background: #181a1f; color: #f8fafc; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; padding: 10px; border: none; outline: none; white-space: pre;" data-on-input="syncDockedEditorInput" data-input-args="${actionArgs((paneIndex), ACTION_VALUE)}"></textarea>
       </div>
     `;
+    bindActions(mount);
 
     renderDockedEditorTabs(paneIndex);
     const textarea = document.getElementById(`docked-editor-textarea-${paneIndex}`);
@@ -39443,6 +39455,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div id="docked-term-host-${paneIndex}" style="flex: 1; width: 100%; height: 100%; position: relative; overflow: hidden; background: #090a0d;"></div>
     `;
+    bindActions(mount);
 
     const host = document.getElementById(`docked-term-host-${paneIndex}`);
     const termOutput = ensureTerminalOutputElement();
@@ -39494,7 +39507,7 @@ function mountDockedTool(paneIndex) {
           <div class="calc-expression-line" id="calc-expr-display">&nbsp;</div>
           <div class="calc-result-row">
             <input type="text" class="calc-result-input" id="calc-display-input" value="0" autocomplete="off" spellcheck="false" readonly />
-            <button class="btn btn-icon btn-xs calc-copy-btn" onclick="copyCalcResult()" title="Copy Result to Clipboard"><i data-lucide="copy" style="width: 13px;"></i></button>
+            <button class="btn btn-icon btn-xs calc-copy-btn" data-on-click="copyCalcResult" title="Copy Result to Clipboard"><i data-lucide="copy" style="width: 13px;"></i></button>
           </div>
         </div>
 
@@ -39508,54 +39521,55 @@ function mountDockedTool(paneIndex) {
 
         <!-- Mode & Quick Byte Multipliers Row -->
         <div class="calc-units-row">
-          <button class="btn btn-xs calc-unit-btn" onclick="calcAppendUnit('KB')" title="Multiply by 1024 (KB)">KB</button>
-          <button class="btn btn-xs calc-unit-btn" onclick="calcAppendUnit('MB')" title="Multiply by 1024² (MB)">MB</button>
-          <button class="btn btn-xs calc-unit-btn" onclick="calcAppendUnit('GB')" title="Multiply by 1024³ (GB)">GB</button>
-          <button class="btn btn-xs calc-unit-btn" onclick="calcAppendUnit('TB')" title="Multiply by 1024⁴ (TB)">TB</button>
-          <button class="btn btn-xs calc-unit-btn" onclick="calcAppendFunc('sqrt(')" title="Square Root">√</button>
-          <button class="btn btn-xs calc-unit-btn" onclick="calcAppendOp('^')" title="Exponent / Power">xʸ</button>
+          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('KB')}" title="Multiply by 1024 (KB)">KB</button>
+          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('MB')}" title="Multiply by 1024² (MB)">MB</button>
+          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('GB')}" title="Multiply by 1024³ (GB)">GB</button>
+          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('TB')}" title="Multiply by 1024⁴ (TB)">TB</button>
+          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendFunc" data-click-args="${actionArgs('sqrt(')}" title="Square Root">√</button>
+          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendOp" data-click-args="${actionArgs('^')}" title="Exponent / Power">xʸ</button>
         </div>
 
         <!-- Main Keypad Grid -->
         <div class="calc-keypad-grid">
-          <button class="btn calc-btn calc-btn-fn" onclick="calcClearAll()">C</button>
-          <button class="btn calc-btn calc-btn-fn" onclick="calcClearEntry()">CE</button>
-          <button class="btn calc-btn calc-btn-fn" onclick="calcBackspace()" title="Backspace"><i data-lucide="delete" style="width: 14px;"></i></button>
-          <button class="btn calc-btn calc-btn-op" onclick="calcAppendOp('/')">÷</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcClearAll">C</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcClearEntry">CE</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcBackspace" title="Backspace"><i data-lucide="delete" style="width: 14px;"></i></button>
+          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('/')}">÷</button>
 
-          <button class="btn calc-btn calc-btn-fn" onclick="calcAppendChar('(')">(</button>
-          <button class="btn calc-btn calc-btn-fn" onclick="calcAppendChar(')')">)</button>
-          <button class="btn calc-btn calc-btn-fn" onclick="calcAppendOp('%')">%</button>
-          <button class="btn calc-btn calc-btn-op" onclick="calcAppendOp('*')">×</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendChar" data-click-args="${actionArgs('(')}">(</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendChar" data-click-args="${actionArgs(')')}">)</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendOp" data-click-args="${actionArgs('%')}">%</button>
+          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('*')}">×</button>
 
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('7')">7</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('8')">8</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('9')">9</button>
-          <button class="btn calc-btn calc-btn-op" onclick="calcAppendOp('-')">−</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('7')}">7</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('8')}">8</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('9')}">9</button>
+          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('-')}">−</button>
 
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('4')">4</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('5')">5</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('6')">6</button>
-          <button class="btn calc-btn calc-btn-op" onclick="calcAppendOp('+')">+</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('4')}">4</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('5')}">5</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('6')}">6</button>
+          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('+')}">+</button>
 
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('1')">1</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('2')">2</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('3')">3</button>
-          <button class="btn calc-btn calc-btn-equals" onclick="calcEvaluate()">=</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('1')}">1</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('2')}">2</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('3')}">3</button>
+          <button class="btn calc-btn calc-btn-equals" data-on-click="calcEvaluate">=</button>
 
-          <button class="btn calc-btn calc-btn-fn" onclick="calcToggleSign()">±</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendNum('0')">0</button>
-          <button class="btn calc-btn calc-btn-num" onclick="calcAppendDot()">.</button>
-          <button class="btn calc-btn calc-btn-fn" onclick="calcAppendPi()" title="Pi (3.14159...)">π</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcToggleSign">±</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('0')}">0</button>
+          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendDot">.</button>
+          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendPi" title="Pi (3.14159...)">π</button>
         </div>
 
         <!-- History Tape Drawer Toggle -->
         <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px; border-top: 1px solid var(--border);">
-          <button class="btn btn-xs btn-outline" onclick="toggleCalcHistory()" style="font-size: 10px;"><i data-lucide="history" style="width: 11px; height: 11px;"></i> History</button>
+          <button class="btn btn-xs btn-outline" data-on-click="toggleCalcHistory" style="font-size: 10px;"><i data-lucide="history" style="width: 11px; height: 11px;"></i> History</button>
           <span style="font-size: 10px; color: var(--text-dim);">Keyboard Active</span>
         </div>
       </div>
     `;
+    bindActions(mount);
     calcUpdateDisplay();
   }
   // 4. DOCKED TASKS & BACKGROUND TRANSFERS
@@ -39569,7 +39583,7 @@ function mountDockedTool(paneIndex) {
             <span class="task-speed-badge" id="docked-task-speed-${paneIndex}">0 B/s</span>
           </div>
           <div style="display: flex; gap: 4px;">
-            <button class="btn btn-xs btn-outline" onclick="pollTasks()" title="Refresh Status"><i data-lucide="rotate-cw" style="width:11px; height:11px;"></i></button>
+            <button class="btn btn-xs btn-outline" data-on-click="pollTasks" title="Refresh Status"><i data-lucide="rotate-cw" style="width:11px; height:11px;"></i></button>
           </div>
         </div>
 
@@ -39609,6 +39623,7 @@ function mountDockedTool(paneIndex) {
         <div id="docked-task-queue-${paneIndex}" class="task-queue-list" style="flex: 1; min-height: 120px; max-height: none; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); padding: 6px; overflow-y: auto;"></div>
       </div>
     `;
+    bindActions(mount);
     if (lastKnownTasksList) {
       renderDockedTasksForPane(paneIndex, lastKnownTasksList);
     } else {
@@ -39621,11 +39636,12 @@ function mountDockedTool(paneIndex) {
       <div style="padding: 10px; display: flex; flex-direction: column; height: 100%; gap: 8px;">
         <div style="display: flex; justify-content: space-between; align-items: center;">
           <span style="font-weight: 700; font-size: 11px;">Git Working Tree: <span id="docked-git-branch" class="badge">main</span></span>
-          <button class="btn btn-xs btn-accent" onclick="openGitManager(${paneIndex})">Open Full Git Manager</button>
+          <button class="btn btn-xs btn-accent" data-on-click="openGitManager" data-click-args="${actionArgs((paneIndex))}">Open Full Git Manager</button>
         </div>
         <div id="docked-git-file-list" style="flex: 1; overflow-y: auto; background: var(--bg-dark); border-radius: 4px; border: 1px solid var(--border); padding: 4px;">Loading repository status...</div>
       </div>
     `;
+    bindActions(mount);
     loadGitStatusForDocked(paneIndex, pane.path);
   }
   // 6. DOCKED TETRADOG (CLASSIC ARCADE CHEWTOY)
@@ -39639,13 +39655,14 @@ function mountDockedTool(paneIndex) {
             <span class="tetradog-mode-badge" id="docked-tetradog-mode-${paneIndex}">MARATHON</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-xs btn-accent" onclick="startTetraDogGame()"><i data-lucide="play" style="width: 11px;"></i> Play</button>
-            <button class="btn btn-xs btn-outline" onclick="setTetraDogView('leaderboard')"><i data-lucide="trophy" style="width: 11px;"></i> Scores</button>
+            <button class="btn btn-xs btn-accent" data-on-click="startTetraDogGame"><i data-lucide="play" style="width: 11px;"></i> Play</button>
+            <button class="btn btn-xs btn-outline" data-on-click="setTetraDogView" data-click-args="${actionArgs('leaderboard')}"><i data-lucide="trophy" style="width: 11px;"></i> Scores</button>
           </div>
         </div>
         <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #090a0f; padding: 6px;" id="docked-tetradog-host-${paneIndex}"></div>
       </div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedTetraDog(paneIndex);
     }, 50);
@@ -39655,6 +39672,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-sounddog-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel); padding: 8px;" id="docked-sounddog-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedSoundDog(paneIndex);
     }, 50);
@@ -39665,12 +39683,12 @@ function mountDockedTool(paneIndex) {
       <div class="docked-mediaplayer-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: #000; position: relative;">
         <!-- Video Stage -->
         <div class="docked-mediaplayer-stage" style="flex: 1; display: flex; align-items: center; justify-content: center; position: relative; overflow: hidden; background: #000;" id="docked-mediaplayer-host-${paneIndex}">
-          <video id="docked-mediaplayer-video-${paneIndex}" playsinline style="width: 100%; height: 100%; object-fit: contain;" onclick="toggleMediaPlay()"></video>
+          <video id="docked-mediaplayer-video-${paneIndex}" playsinline style="width: 100%; height: 100%; object-fit: contain;" data-on-click="toggleMediaPlay"></video>
         </div>
         <!-- In-Pane Controls Toolbar -->
         <div class="docked-mediaplayer-controls" style="background: var(--bg-dark); border-top: 1px solid var(--border); padding: 6px 10px; display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
           <!-- Scrubber Progress Bar -->
-          <div class="mediaplayer-scrubber-wrapper" style="height: 12px; display: flex; align-items: center; cursor: pointer;" onclick="seekMedia(event)">
+          <div class="mediaplayer-scrubber-wrapper" style="height: 12px; display: flex; align-items: center; cursor: pointer;" data-on-click="seekMedia" data-click-args="${actionArgs(ACTION_EVENT)}">
             <div class="mediaplayer-scrubber-track" id="docked-mediaplayer-track-${paneIndex}" style="height: 4px; background: rgba(255,255,255,0.15); border-radius: 2px; width: 100%; position: relative; overflow: hidden;">
               <div class="mediaplayer-scrubber-progress" id="docked-mediaplayer-progress-${paneIndex}" style="height: 100%; background: var(--accent); width: 0%;"></div>
             </div>
@@ -39678,11 +39696,11 @@ function mountDockedTool(paneIndex) {
           <!-- Action Buttons & Time Row -->
           <div style="display: flex; align-items: center; justify-content: space-between; gap: 6px;">
             <div style="display: flex; align-items: center; gap: 4px; overflow: hidden; flex: 1;">
-              <button class="btn btn-icon btn-xs" onclick="navMediaPlaylist(-1)" title="Previous Track"><i data-lucide="skip-back" style="width: 12px; height: 12px;"></i></button>
-              <button class="btn btn-icon btn-xs" onclick="skipMedia(-10)" title="Rewind 10s"><i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i></button>
-              <button class="btn btn-accent btn-xs" id="docked-mediaplayer-play-btn-${paneIndex}" onclick="toggleMediaPlay()" title="Play/Pause"><i data-lucide="${mediaplayerState.isPlaying ? 'pause' : 'play'}" style="width: 12px; height: 12px;"></i></button>
-              <button class="btn btn-icon btn-xs" onclick="skipMedia(10)" title="Forward 10s"><i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i></button>
-              <button class="btn btn-icon btn-xs" onclick="navMediaPlaylist(1)" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="navMediaPlaylist" data-click-args="${actionArgs(-1)}" title="Previous Track"><i data-lucide="skip-back" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="skipMedia" data-click-args="${actionArgs(-10)}" title="Rewind 10s"><i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-accent btn-xs" id="docked-mediaplayer-play-btn-${paneIndex}" data-on-click="toggleMediaPlay" title="Play/Pause"><i data-lucide="${mediaplayerState.isPlaying ? 'pause' : 'play'}" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="skipMedia" data-click-args="${actionArgs(10)}" title="Forward 10s"><i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="navMediaPlaylist" data-click-args="${actionArgs(1)}" title="Next Track"><i data-lucide="skip-forward" style="width: 12px; height: 12px;"></i></button>
               <div class="mediaplayer-time-display" style="font-size: 10px; margin-left: 4px; white-space: nowrap;">
                 <span id="docked-mediaplayer-time-cur-${paneIndex}">00:00</span>
                 <span style="opacity: 0.4;">/</span>
@@ -39691,14 +39709,15 @@ function mountDockedTool(paneIndex) {
               <span id="docked-mediaplayer-track-title-${paneIndex}" style="font-size: 10.5px; font-weight: 600; color: var(--text-dim); margin-left: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"></span>
             </div>
             <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0;">
-              <button class="btn btn-icon btn-xs" onclick="toggleMediaMute()" title="Mute/Unmute"><i data-lucide="${mediaplayerState.isMuted ? 'volume-x' : 'volume-2'}" id="docked-mediaplayer-vol-icon-${paneIndex}" style="width: 12px; height: 12px;"></i></button>
-              <button class="btn btn-icon btn-xs" onclick="cycleMediaAspectRatio()" title="Aspect Ratio"><i data-lucide="ratio" style="width: 12px; height: 12px;"></i></button>
-              <button class="btn btn-icon btn-xs" onclick="toggleMediaFullscreen()" title="Fullscreen"><i data-lucide="maximize" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="toggleMediaMute" title="Mute/Unmute"><i data-lucide="${mediaplayerState.isMuted ? 'volume-x' : 'volume-2'}" id="docked-mediaplayer-vol-icon-${paneIndex}" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="cycleMediaAspectRatio" title="Aspect Ratio"><i data-lucide="ratio" style="width: 12px; height: 12px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="toggleMediaFullscreen" title="Fullscreen"><i data-lucide="maximize" style="width: 12px; height: 12px;"></i></button>
             </div>
           </div>
         </div>
       </div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedMediaPlayer(paneIndex);
     }, 50);
@@ -39708,6 +39727,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-renamer-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-renamer-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedRenamer(paneIndex);
     }, 50);
@@ -39717,6 +39737,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-hexeditor-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-hexeditor-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedHexEditor(paneIndex);
     }, 50);
@@ -39726,6 +39747,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-duplicates-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-duplicates-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedDuplicateFinder(paneIndex);
     }, 50);
@@ -39735,6 +39757,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-tageditor-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-tageditor-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedTagEditor(paneIndex);
     }, 50);
@@ -39744,6 +39767,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-logviewer-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-logviewer-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedLogViewer(paneIndex);
     }, 50);
@@ -39753,6 +39777,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-shares-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-shares-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedShares(paneIndex);
     }, 50);
@@ -39762,6 +39787,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-cad-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-cad-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedCadStudio(paneIndex);
     }, 50);
@@ -39771,6 +39797,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-splitter-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-splitter-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedSplitter(paneIndex);
     }, 50);
@@ -39780,6 +39807,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-pdf-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-pdf-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedPdf(paneIndex);
     }, 50);
@@ -39789,6 +39817,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-diskusage-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-diskusage-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedDiskUsage(paneIndex);
     }, 50);
@@ -39798,6 +39827,7 @@ function mountDockedTool(paneIndex) {
     mount.innerHTML = `
       <div class="docked-diff-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-diff-host-${paneIndex}"></div>
     `;
+    bindActions(mount);
     setTimeout(() => {
       mountDockedDiff(paneIndex);
     }, 50);
@@ -45835,6 +45865,9 @@ function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
     defaultWin.id = `dynamic-chewtoy-window-${pluginId}`;
     defaultWin.setAttribute('data-plugin-id', pluginId);
     defaultWin.classList.add('dynamic-chewtoy-window');
+    // This handler replaces the placeholder's own "bring to front" action
+    defaultWin.removeAttribute('data-on-click');
+    defaultWin.removeAttribute('data-click-args');
     defaultWin.onclick = function() {
       bringFloatingWindowToFront(this);
       window.activeDynamicChewToyId = pluginId;
@@ -45859,18 +45892,18 @@ function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
     const dockBtn = defaultWin.querySelector('#btn-dynamic-chewtoy-dock');
     if (dockBtn) {
       dockBtn.id = `btn-dynamic-chewtoy-dock-${pluginId}`;
-      dockBtn.setAttribute('onclick', `dockActiveDynamicChewToy(undefined, ${escapeJsStr(pluginId)})`);
+      setElementAction(dockBtn, 'click', 'dockActiveDynamicChewToy', undefined, pluginId);
     }
 
     const maxBtn = defaultWin.querySelector('#btn-dynamic-chewtoy-maximize');
     if (maxBtn) {
       maxBtn.id = `btn-dynamic-chewtoy-maximize-${pluginId}`;
-      maxBtn.setAttribute('onclick', `toggleMaximizeDynamicChewToy(${escapeJsStr(pluginId)})`);
+      setElementAction(maxBtn, 'click', 'toggleMaximizeDynamicChewToy', pluginId);
     }
 
     const closeBtn = defaultWin.querySelector('.modal-close-btn');
     if (closeBtn) {
-      closeBtn.setAttribute('onclick', `closeDynamicChewToy(${escapeJsStr(pluginId)})`);
+      setElementAction(closeBtn, 'click', 'closeDynamicChewToy', pluginId);
     }
 
     return defaultWin;
@@ -45895,14 +45928,14 @@ function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
     <div class="dynamic-chewtoy-box" id="dynamic-chewtoy-box-${pluginId}">
       <div class="modal-header dynamic-chewtoy-header" id="dynamic-chewtoy-header-${pluginId}" data-plugin-id="${pluginId}" style="height: 42px; min-height: 42px; cursor: grab; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg-dark);">
         <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
-          <img id="dynamic-chewtoy-icon-${pluginId}" src="${iconUrl}" onerror="this.src='assets/amber-frameless-apps.webp'" alt="${escapeHtml(title)}" style="width: 18px; height: 18px; object-fit: contain;">
+          <img id="dynamic-chewtoy-icon-${pluginId}" src="${iconUrl}" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL)}" alt="${escapeHtml(title)}" style="width: 18px; height: 18px; object-fit: contain;">
           <span id="dynamic-chewtoy-title-${pluginId}" class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(title)}</span>
           <span id="dynamic-chewtoy-version-${pluginId}" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(version)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" onclick="dockActiveDynamicChewToy(undefined, ${escapeJsStr(pluginId)})" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize-${pluginId}" onclick="toggleMaximizeDynamicChewToy(${escapeJsStr(pluginId)})" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-          <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy(${escapeJsStr(pluginId)})" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" data-on-click="dockActiveDynamicChewToy" data-click-args="${actionArgs(undefined, String((pluginId) ?? ''))}" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize-${pluginId}" data-on-click="toggleMaximizeDynamicChewToy" data-click-args="${actionArgs(String((pluginId) ?? ''))}" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+          <button class="btn btn-icon modal-close-btn" data-on-click="closeDynamicChewToy" data-click-args="${actionArgs(String((pluginId) ?? ''))}" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
         </div>
       </div>
       <div class="dynamic-chewtoy-body" style="flex: 1; position: relative; overflow: hidden; background: var(--bg-panel);">
@@ -45913,6 +45946,7 @@ function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
 
   document.body.appendChild(win);
   if (window.lucide) lucide.createIcons();
+  bindActions(win);
   return win;
 }
 

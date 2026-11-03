@@ -400,48 +400,8 @@
   <div id="context-menu-backdrop" class="context-menu-backdrop" data-on-click="hideContextMenu"></div>
 
   <!-- Right Click / Touch Context Menu -->
-  <div id="context-menu" class="context-menu">
-    <div class="context-item" id="ctx-item-view" onclick="triggerView()"><i data-lucide="eye" style="width: 14px;"></i> Quick View (F3)</div>
-    <div class="context-item" id="ctx-item-edit" onclick="triggerEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Edit File (F4)</div>
-    <div class="context-item context-submenu-parent" id="ctx-item-openwith" onmouseenter="populateOpenWithSubmenu()">
-      <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="external-link" style="width: 14px; color: var(--accent);"></i> Open With...</span>
-      <i data-lucide="chevron-right" style="width: 12px; margin-left: auto;"></i>
-      <div class="context-submenu" id="ctx-openwith-submenu"></div>
-    </div>
-    <div class="context-item context-submenu-parent" id="ctx-item-custom-actions" onmouseenter="populateCustomActionsSubmenu()" style="display: none;">
-      <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="terminal" style="width: 14px; color: var(--accent);"></i> Custom Actions...</span>
-      <i data-lucide="chevron-right" style="width: 12px; margin-left: auto;"></i>
-      <div class="context-submenu" id="ctx-custom-actions-submenu"></div>
-    </div>
-    <div class="context-item" id="ctx-item-download" onclick="triggerDownload()"><i data-lucide="download" style="width: 14px;"></i> Download / Batch Zip</div>
-    <div class="context-item" id="ctx-item-share" onclick="triggerShare()"><img src="assets/sharemgr.webp" alt="Share" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Share Link / Guest Dropbox...</div>
-    <div class="context-item" id="ctx-item-diff" onclick="triggerDiff()"><img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare / Diff</div>
-    <div class="context-sep"></div>
-    <div class="context-item" onclick="triggerPermissions()"><i data-lucide="lock" style="width: 14px;"></i> Permissions & Ownership</div>
-    <div class="context-item" onclick="triggerCopy()"><i data-lucide="copy" style="width: 14px;"></i> Copy to Target Pane (F5)</div>
-    <div class="context-item" onclick="triggerMove()"><i data-lucide="move" style="width: 14px;"></i> Move to Target Pane (F6)</div>
-    <div class="context-item" onclick="triggerRename()"><i data-lucide="edit-3" style="width: 14px;"></i> Rename (F2)</div>
-    <div class="context-item" onclick="triggerDelete()"><i data-lucide="trash-2" style="width: 14px;"></i> Delete / Move to Trash (F8)</div>
-    <div class="context-sep"></div>
-    <div class="context-item" onclick="triggerChecksum()"><i data-lucide="shield-check" style="width: 14px;"></i> Calculate SHA-256 Hash</div>
-    <div class="context-item" onclick="triggerConvertFile()"><img src="assets/convertx.webp" alt="Convert" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Format Converter (Transcode)...</div>
-    <div class="context-item" onclick="triggerCompressModal()"><i data-lucide="archive" style="width: 14px;"></i> Compress to Archive...</div>
-    <div class="context-item" onclick="triggerExtractModal()"><i data-lucide="folder-archive" style="width: 14px;"></i> Extract Archive...</div>
-    <div class="context-sep"></div>
-    <div class="context-item context-color-palette-item" style="display: flex; justify-content: space-between; align-items: center;" onclick="event.stopPropagation()">
-      <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="tag" style="width: 14px; color: var(--accent);"></i> Color Label:</span>
-      <div class="context-color-palette">
-        <span class="color-dot color-red" onclick="setContextFileColor('red')" title="Red (Urgent)"></span>
-        <span class="color-dot color-orange" onclick="setContextFileColor('orange')" title="Orange (Pending)"></span>
-        <span class="color-dot color-yellow" onclick="setContextFileColor('yellow')" title="Yellow (Review)"></span>
-        <span class="color-dot color-green" onclick="setContextFileColor('green')" title="Green (Approved)"></span>
-        <span class="color-dot color-blue" onclick="setContextFileColor('blue')" title="Blue (Important)"></span>
-        <span class="color-dot color-purple" onclick="setContextFileColor('purple')" title="Purple (Personal)"></span>
-        <span class="color-dot color-none" onclick="setContextFileColor('none')" title="Clear Label">✕</span>
-      </div>
-    </div>
-    <div class="context-item" onclick="triggerEditTagsModal()"><i data-lucide="tags" style="width: 14px;"></i> Edit Custom Tags...</div>
-  </div>
+  <!-- Filled by showContextMenu() / showEmptySpaceContextMenu() each time it opens -->
+  <div id="context-menu" class="context-menu"></div>
 
   <!-- Linux / Unix Permissions & Ownership Manager Modal -->
   <div class="modal-overlay" id="permissions-modal">
@@ -4811,7 +4771,7 @@
   </div>
 
   <!-- 🧩 Universal Dynamic Chewtoy Host Window (.grr) -->
-  <div class="floating-chewtoy-window" id="dynamic-chewtoy-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-chewtoy-window" id="dynamic-chewtoy-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="dynamic-chewtoy-box" id="dynamic-chewtoy-box">
       <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
       <div class="modal-header dynamic-chewtoy-header" id="dynamic-chewtoy-header" style="height: 42px; min-height: 42px; cursor: grab; padding: 0 12px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); background: var(--bg-dark);">
@@ -4821,9 +4781,9 @@
           <span id="dynamic-chewtoy-version" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">v1.0.0</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock" onclick="dockActiveDynamicChewToy()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize" onclick="toggleMaximizeDynamicChewToy()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-          <button class="btn btn-icon modal-close-btn" onclick="closeDynamicChewToy()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+          <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock" data-on-click="dockActiveDynamicChewToy" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+          <button class="btn btn-icon" id="btn-dynamic-chewtoy-maximize" data-on-click="toggleMaximizeDynamicChewToy" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+          <button class="btn btn-icon modal-close-btn" data-on-click="closeDynamicChewToy" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
         </div>
       </div>
       <!-- Sandboxed iframe / container -->
