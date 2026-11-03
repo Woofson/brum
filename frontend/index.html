@@ -171,7 +171,7 @@
           <div class="dropdown-item" data-on-click="openConverterModal"><img src="assets/convertx.webp" alt="Format Converter" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Format Converter</div>
           <div class="dropdown-item" data-on-click="openPdfToolModal"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> PDF Studio</div>
           <div class="dropdown-item" data-on-click="openMediaPlayer"><img src="assets/media.webp" alt="Media Player" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Media Player</div>
-          <div class="dropdown-item" data-on-click="openTetraDog"><img src="assets/amber-tetris.webp" alt="Tetra" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Tetra</div>
+          <div class="dropdown-item" data-on-click="openTetrion"><img src="assets/amber-tetris.webp" alt="Tetra" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Tetra</div>
           <div class="dropdown-item" data-on-click="openFloatingTaskManager"><img src="assets/task.webp" alt="Task Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Task Manager</div>
         </div>
       </div>
@@ -4038,107 +4038,107 @@
   </div>
 
   <!-- ========================================== -->
-  <!-- 🕹️ TETRADOG (CLASSIC ARCADE CHEWTOY & LEADERBOARD) -->
+  <!-- 🕹️ TETRION (CLASSIC ARCADE CHEWTOY & LEADERBOARD) -->
   <!-- ========================================== -->
-  <div class="floating-tetradog-window" id="floating-tetradog-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
-    <div class="win-resize-handle win-resize-top" id="tetradog-resize-top"></div>
-    <div class="win-resize-handle win-resize-bottom" id="tetradog-resize-bottom"></div>
-    <div class="win-resize-handle win-resize-left" id="tetradog-resize-left"></div>
-    <div class="win-resize-handle win-resize-right" id="tetradog-resize-right"></div>
-    <div class="win-resize-handle win-resize-corner" id="tetradog-resize-corner"></div>
+  <div class="floating-tetrion-window" id="floating-tetrion-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
+    <div class="win-resize-handle win-resize-top" id="tetrion-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="tetrion-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="tetrion-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="tetrion-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="tetrion-resize-corner"></div>
 
-    <!-- 1. TetraDog Header (42px standard drag handle) -->
-    <div class="modal-header tetradog-header" id="tetradog-header">
-      <div class="tetradog-header-left" style="display: flex; align-items: center; gap: 8px;">
-        <span class="tetradog-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
+    <!-- 1. Tetrion Header (42px standard drag handle) -->
+    <div class="modal-header tetrion-header" id="tetrion-header">
+      <div class="tetrion-header-left" style="display: flex; align-items: center; gap: 8px;">
+        <span class="tetrion-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
           <img src="assets/amber-tetris.webp" alt="Tetra" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
           <span class="chewtoy-brand-text">Tetra</span>
         </span>
       </div>
 
-      <div class="tetradog-header-actions" style="display: flex; align-items: center; gap: 4px;">
-        <div class="layout-btn-group" id="tetradog-view-toggle-group">
-          <button type="button" class="btn btn-icon tetradog-view-btn active" id="btn-tetradog-view-game" data-on-click="setTetraDogView" data-click-args='["game"]' title="Arcade Game View"><i data-lucide="gamepad-2"></i></button>
-          <button type="button" class="btn btn-icon tetradog-view-btn" id="btn-tetradog-view-leaderboard" data-on-click="setTetraDogView" data-click-args='["leaderboard"]' title="High Scores & Leaderboard (All Users)"><i data-lucide="trophy"></i></button>
-          <button type="button" class="btn btn-icon tetradog-view-btn" id="btn-tetradog-view-settings" data-on-click="setTetraDogView" data-click-args='["settings"]' title="TetraDog Settings & Controls"><i data-lucide="sliders"></i></button>
+      <div class="tetrion-header-actions" style="display: flex; align-items: center; gap: 4px;">
+        <div class="layout-btn-group" id="tetrion-view-toggle-group">
+          <button type="button" class="btn btn-icon tetrion-view-btn active" id="btn-tetrion-view-game" data-on-click="setTetrionView" data-click-args='["game"]' title="Arcade Game View"><i data-lucide="gamepad-2"></i></button>
+          <button type="button" class="btn btn-icon tetrion-view-btn" id="btn-tetrion-view-leaderboard" data-on-click="setTetrionView" data-click-args='["leaderboard"]' title="High Scores & Leaderboard (All Users)"><i data-lucide="trophy"></i></button>
+          <button type="button" class="btn btn-icon tetrion-view-btn" id="btn-tetrion-view-settings" data-on-click="setTetrionView" data-click-args='["settings"]' title="Tetrion Settings & Controls"><i data-lucide="sliders"></i></button>
         </div>
-        <button class="btn btn-icon desktop-only" data-on-click="dockTetraDogToActivePane" title="Dock TetraDog into Active Pane"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon desktop-only" data-on-click="minimizeTetraDog" title="Minimize to Pill"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon desktop-only" data-on-click="maximizeTetraDog" title="Maximize / Restore Window"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon modal-close-btn" data-on-click="closeTetraDog" title="Close TetraDog"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="dockTetrionToActivePane" title="Dock Tetrion into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeTetrion" title="Minimize to Pill"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="maximizeTetrion" title="Maximize / Restore Window"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeTetrion" title="Close Tetrion"><i data-lucide="x"></i></button>
       </div>
     </div>
 
-    <!-- 2. TetraDog Body Container -->
-    <div class="tetradog-body" id="tetradog-body">
+    <!-- 2. Tetrion Body Container -->
+    <div class="tetrion-body" id="tetrion-body">
       <!-- VIEW 1: ARCADE GAME -->
-      <div class="tetradog-view tetradog-game-view" id="tetradog-view-game">
-        <div class="tetradog-arena">
+      <div class="tetrion-view tetrion-game-view" id="tetrion-view-game">
+        <div class="tetrion-arena">
           <!-- Left Column: Hold & Stats (Desktop) / Mini Hold & Stats (Mobile) -->
-          <div class="tetradog-side-col tetradog-left-col">
-            <div class="tetradog-panel-card tetradog-hold-card">
-              <div class="tetradog-card-title">HOLD <span class="tetradog-key-hint desktop-only">C / Shift</span></div>
-              <div class="tetradog-canvas-wrap">
-                <canvas id="tetradog-hold-canvas" width="90" height="90"></canvas>
+          <div class="tetrion-side-col tetrion-left-col">
+            <div class="tetrion-panel-card tetrion-hold-card">
+              <div class="tetrion-card-title">HOLD <span class="tetrion-key-hint desktop-only">C / Shift</span></div>
+              <div class="tetrion-canvas-wrap">
+                <canvas id="tetrion-hold-canvas" width="90" height="90"></canvas>
               </div>
             </div>
 
-            <div class="tetradog-panel-card tetradog-stats-card desktop-only-card">
-              <div class="tetradog-mode-banner">
-                <span class="tetradog-mode-badge" id="tetradog-arena-mode-badge">MARATHON</span>
+            <div class="tetrion-panel-card tetrion-stats-card desktop-only-card">
+              <div class="tetrion-mode-banner">
+                <span class="tetrion-mode-badge" id="tetrion-arena-mode-badge">MARATHON</span>
               </div>
-              <div class="tetradog-stat-row">
-                <span class="tetradog-stat-label">TOP SCORE</span>
-                <span class="tetradog-stat-number tetradog-glow-gold" id="tetradog-stat-hiscore">0</span>
+              <div class="tetrion-stat-row">
+                <span class="tetrion-stat-label">TOP SCORE</span>
+                <span class="tetrion-stat-number tetrion-glow-gold" id="tetrion-stat-hiscore">0</span>
               </div>
-              <div class="tetradog-stat-row">
-                <span class="tetradog-stat-label">MODE</span>
-                <select id="tetradog-mode-select" class="tetradog-select" data-on-change="changeTetraDogMode" data-change-args='[{"$": "value"}]'>
+              <div class="tetrion-stat-row">
+                <span class="tetrion-stat-label">MODE</span>
+                <select id="tetrion-mode-select" class="tetrion-select" data-on-change="changeTetrionMode" data-change-args='[{"$": "value"}]'>
                   <option value="marathon">Marathon</option>
                   <option value="sprint">Sprint (40L)</option>
                   <option value="ultra">Ultra (3 Min)</option>
                 </select>
               </div>
-              <div class="tetradog-stat-row" id="tetradog-timer-row" style="display: none;">
-                <span class="tetradog-stat-label">TIME</span>
-                <span class="tetradog-stat-number" id="tetradog-stat-timer">00:00.0</span>
+              <div class="tetrion-stat-row" id="tetrion-timer-row" style="display: none;">
+                <span class="tetrion-stat-label">TIME</span>
+                <span class="tetrion-stat-number" id="tetrion-stat-timer">00:00.0</span>
               </div>
             </div>
 
-            <div class="tetradog-b2b-badge" id="tetradog-b2b-badge" style="display: none;">
+            <div class="tetrion-b2b-badge" id="tetrion-b2b-badge" style="display: none;">
               ⚡ BACK-TO-BACK
             </div>
-            <div class="tetradog-combo-badge" id="tetradog-combo-badge" style="display: none;">
-              COMBO ×<span id="tetradog-combo-count">0</span>
+            <div class="tetrion-combo-badge" id="tetrion-combo-badge" style="display: none;">
+              COMBO ×<span id="tetrion-combo-count">0</span>
             </div>
           </div>
 
           <!-- Center Column: Board Canvas & Overlays -->
-          <div class="tetradog-center-col">
+          <div class="tetrion-center-col">
             <!-- Mobile Center Mode & Top Score Badge (Mobile Only) -->
-            <div class="tetradog-mobile-center-hud mobile-only-flex">
-              <span class="tetradog-mode-badge" id="tetradog-mobile-mode-badge">MARATHON</span>
-              <div class="tetradog-mob-stat-row">
-                <span class="tetradog-mob-stat-lbl">TOP:</span>
-                <span class="tetradog-mob-stat-val tetradog-glow-gold" id="tetradog-mob-hiscore">0</span>
+            <div class="tetrion-mobile-center-hud mobile-only-flex">
+              <span class="tetrion-mode-badge" id="tetrion-mobile-mode-badge">MARATHON</span>
+              <div class="tetrion-mob-stat-row">
+                <span class="tetrion-mob-stat-lbl">TOP:</span>
+                <span class="tetrion-mob-stat-val tetrion-glow-gold" id="tetrion-mob-hiscore">0</span>
               </div>
             </div>
 
-            <div class="tetradog-canvas-container" id="tetradog-canvas-container">
-              <canvas id="tetradog-board-canvas" width="240" height="480" class="tetradog-main-canvas"></canvas>
-              <div class="tetradog-scanlines" id="tetradog-scanlines"></div>
+            <div class="tetrion-canvas-container" id="tetrion-canvas-container">
+              <canvas id="tetrion-board-canvas" width="240" height="480" class="tetrion-main-canvas"></canvas>
+              <div class="tetrion-scanlines" id="tetrion-scanlines"></div>
 
               <!-- Ready / Countdown Overlay -->
-              <div class="tetradog-overlay" id="tetradog-ready-overlay">
-                <div class="tetradog-overlay-box">
-                  <div class="tetradog-arcade-logo">TETRADOG</div>
-                  <div class="tetradog-arcade-sub">AUTHENTIC 60 FPS ARCADE CHEWTOY</div>
-                  <div class="tetradog-ready-action">
-                    <button class="btn btn-accent tetradog-btn-lg" data-on-click="startTetraDogGame">
+              <div class="tetrion-overlay" id="tetrion-ready-overlay">
+                <div class="tetrion-overlay-box">
+                  <div class="tetrion-arcade-logo">TETRION</div>
+                  <div class="tetrion-arcade-sub">AUTHENTIC 60 FPS ARCADE CHEWTOY</div>
+                  <div class="tetrion-ready-action">
+                    <button class="btn btn-accent tetrion-btn-lg" data-on-click="startTetrionGame">
                       <i data-lucide="play"></i> START GAME
                     </button>
                   </div>
-                  <div class="tetradog-key-legend desktop-only">
+                  <div class="tetrion-key-legend desktop-only">
                     <div><kbd>←</kbd> <kbd>→</kbd> Move</div>
                     <div><kbd>↑</kbd> / <kbd>X</kbd> Rotate CW</div>
                     <div><kbd>Z</kbd> / <kbd>Ctrl</kbd> Rotate CCW</div>
@@ -4151,47 +4151,47 @@
               </div>
 
               <!-- Pause Overlay -->
-              <div class="tetradog-overlay" id="tetradog-pause-overlay" style="display: none;">
-                <div class="tetradog-overlay-box">
-                  <div class="tetradog-overlay-title">PAUSED</div>
+              <div class="tetrion-overlay" id="tetrion-pause-overlay" style="display: none;">
+                <div class="tetrion-overlay-box">
+                  <div class="tetrion-overlay-title">PAUSED</div>
                   <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 12px;">Press <kbd>P</kbd> or <kbd>Esc</kbd> to resume</div>
                   <div style="display: flex; gap: 8px;">
-                    <button class="btn btn-accent" data-on-click="resumeTetraDogGame"><i data-lucide="play"></i> Resume</button>
-                    <button class="btn" data-on-click="restartTetraDogGame"><i data-lucide="rotate-ccw"></i> Restart</button>
+                    <button class="btn btn-accent" data-on-click="resumeTetrionGame"><i data-lucide="play"></i> Resume</button>
+                    <button class="btn" data-on-click="restartTetrionGame"><i data-lucide="rotate-ccw"></i> Restart</button>
                   </div>
                 </div>
               </div>
 
               <!-- Game Over Overlay -->
-              <div class="tetradog-overlay" id="tetradog-gameover-overlay" style="display: none;">
-                <div class="tetradog-overlay-box">
-                  <div class="tetradog-overlay-title tetradog-danger-glow" id="tetradog-gameover-title">GAME OVER</div>
-                  <div class="tetradog-go-stats">
-                    <div class="tetradog-go-stat-item">
-                      <div class="tetradog-go-label">FINAL SCORE</div>
-                      <div class="tetradog-go-val tetradog-accent-glow" id="tetradog-go-score">0</div>
+              <div class="tetrion-overlay" id="tetrion-gameover-overlay" style="display: none;">
+                <div class="tetrion-overlay-box">
+                  <div class="tetrion-overlay-title tetrion-danger-glow" id="tetrion-gameover-title">GAME OVER</div>
+                  <div class="tetrion-go-stats">
+                    <div class="tetrion-go-stat-item">
+                      <div class="tetrion-go-label">FINAL SCORE</div>
+                      <div class="tetrion-go-val tetrion-accent-glow" id="tetrion-go-score">0</div>
                     </div>
-                    <div class="tetradog-go-stat-item">
-                      <div class="tetradog-go-label">LEVEL</div>
-                      <div class="tetradog-go-val" id="tetradog-go-level">1</div>
+                    <div class="tetrion-go-stat-item">
+                      <div class="tetrion-go-label">LEVEL</div>
+                      <div class="tetrion-go-val" id="tetrion-go-level">1</div>
                     </div>
-                    <div class="tetradog-go-stat-item">
-                      <div class="tetradog-go-label">LINES</div>
-                      <div class="tetradog-go-val" id="tetradog-go-lines">0</div>
+                    <div class="tetrion-go-stat-item">
+                      <div class="tetrion-go-label">LINES</div>
+                      <div class="tetrion-go-val" id="tetrion-go-lines">0</div>
                     </div>
-                    <div class="tetradog-go-stat-item">
-                      <div class="tetradog-go-label">TIME</div>
-                      <div class="tetradog-go-val" id="tetradog-go-time">00:00</div>
+                    <div class="tetrion-go-stat-item">
+                      <div class="tetrion-go-label">TIME</div>
+                      <div class="tetrion-go-val" id="tetrion-go-time">00:00</div>
                     </div>
                   </div>
 
-                  <div class="tetradog-rank-banner" id="tetradog-rank-banner" style="display: none;">
-                    🏆 <span id="tetradog-rank-text">Achieved Rank #1!</span>
+                  <div class="tetrion-rank-banner" id="tetrion-rank-banner" style="display: none;">
+                    🏆 <span id="tetrion-rank-text">Achieved Rank #1!</span>
                   </div>
 
                   <div style="display: flex; gap: 8px; margin-top: 12px; width: 100%;">
-                    <button class="btn btn-accent" style="flex: 1;" data-on-click="restartTetraDogGame"><i data-lucide="rotate-ccw"></i> Play Again</button>
-                    <button class="btn" data-on-click="setTetraDogView" data-click-args='["leaderboard"]'><i data-lucide="trophy"></i> High Scores</button>
+                    <button class="btn btn-accent" style="flex: 1;" data-on-click="restartTetrionGame"><i data-lucide="rotate-ccw"></i> Play Again</button>
+                    <button class="btn" data-on-click="setTetrionView" data-click-args='["leaderboard"]'><i data-lucide="trophy"></i> High Scores</button>
                   </div>
                 </div>
               </div>
@@ -4199,19 +4199,19 @@
           </div>
 
           <!-- Right Column: Next Pieces & Quick Actions -->
-          <div class="tetradog-side-col tetradog-right-col">
-            <div class="tetradog-panel-card tetradog-next-card">
-              <div class="tetradog-card-title">NEXT</div>
-              <div class="tetradog-canvas-wrap">
-                <canvas id="tetradog-next-canvas" width="90" height="220"></canvas>
+          <div class="tetrion-side-col tetrion-right-col">
+            <div class="tetrion-panel-card tetrion-next-card">
+              <div class="tetrion-card-title">NEXT</div>
+              <div class="tetrion-canvas-wrap">
+                <canvas id="tetrion-next-canvas" width="90" height="220"></canvas>
               </div>
             </div>
 
-            <div class="tetradog-panel-card tetradog-actions-card desktop-only-card">
-              <button class="btn btn-accent btn-sm" id="btn-tetradog-start-pause" data-on-click="toggleTetraDogPlayPause" style="width: 100%;">
-                <i data-lucide="play" id="icon-tetradog-play-pause"></i> <span id="label-tetradog-play-pause">Play</span>
+            <div class="tetrion-panel-card tetrion-actions-card desktop-only-card">
+              <button class="btn btn-accent btn-sm" id="btn-tetrion-start-pause" data-on-click="toggleTetrionPlayPause" style="width: 100%;">
+                <i data-lucide="play" id="icon-tetrion-play-pause"></i> <span id="label-tetrion-play-pause">Play</span>
               </button>
-              <button class="btn btn-sm" data-on-click="restartTetraDogGame" style="width: 100%;">
+              <button class="btn btn-sm" data-on-click="restartTetrionGame" style="width: 100%;">
                 <i data-lucide="rotate-ccw"></i> Restart
               </button>
             </div>
@@ -4219,9 +4219,9 @@
         </div>
 
         <!-- Virtual NES-Style Thumb Controller for Mobile & Tablet Touch -->
-        <div class="tetradog-nes-controller" id="tetradog-nes-controller">
+        <div class="tetrion-nes-controller" id="tetrion-nes-controller">
           <!-- Left Zone: Authentic 4-Way Cross D-Pad -->
-          <div class="tetradog-dpad-cross">
+          <div class="tetrion-dpad-cross">
             <button class="dpad-btn dpad-up" id="tbtn-up" data-action="hardDrop" title="Hard Drop (Slam Piece)">
               <i data-lucide="chevrons-up"></i>
             </button>
@@ -4238,17 +4238,17 @@
           </div>
 
           <!-- Center Zone: SELECT (Hold) & START (Pause) -->
-          <div class="tetradog-nes-center-btns">
+          <div class="tetrion-nes-center-btns">
             <button class="nes-pill-btn" id="tbtn-hold" data-action="hold" title="Hold Piece">
               <span class="nes-pill-label">HOLD</span>
             </button>
-            <button class="nes-pill-btn" id="tbtn-pause" data-on-click="toggleTetraDogPlayPause" title="Play / Pause">
+            <button class="nes-pill-btn" id="tbtn-pause" data-on-click="toggleTetrionPlayPause" title="Play / Pause">
               <span class="nes-pill-label" id="tbtn-pause-label">PAUSE</span>
             </button>
           </div>
 
           <!-- Right Zone: B and A Action Buttons (Angled NES Layout) -->
-          <div class="tetradog-nes-actions">
+          <div class="tetrion-nes-actions">
             <button class="nes-round-btn nes-btn-b" id="tbtn-rot-ccw" data-action="rotateCCW" title="Rotate CCW (B Button)">
               <span class="nes-btn-name">B</span>
               <span class="nes-btn-sub">↺</span>
@@ -4262,47 +4262,47 @@
       </div>
 
       <!-- VIEW 2: LEADERBOARD & DB TOP SCORES -->
-      <div class="tetradog-view tetradog-leaderboard-view" id="tetradog-view-leaderboard" style="display: none;">
-        <div class="tetradog-lb-header-bar">
-          <div class="tetradog-lb-mode-pills">
-            <button class="btn btn-xs tetradog-lb-tab active" data-mode="marathon" data-on-click="loadTetraDogLeaderboard" data-click-args='["marathon"]'>Marathon</button>
-            <button class="btn btn-xs tetradog-lb-tab" data-mode="sprint" data-on-click="loadTetraDogLeaderboard" data-click-args='["sprint"]'>Sprint (40L)</button>
-            <button class="btn btn-xs tetradog-lb-tab" data-mode="ultra" data-on-click="loadTetraDogLeaderboard" data-click-args='["ultra"]'>Ultra (3 Min)</button>
+      <div class="tetrion-view tetrion-leaderboard-view" id="tetrion-view-leaderboard" style="display: none;">
+        <div class="tetrion-lb-header-bar">
+          <div class="tetrion-lb-mode-pills">
+            <button class="btn btn-xs tetrion-lb-tab active" data-mode="marathon" data-on-click="loadTetrionLeaderboard" data-click-args='["marathon"]'>Marathon</button>
+            <button class="btn btn-xs tetrion-lb-tab" data-mode="sprint" data-on-click="loadTetrionLeaderboard" data-click-args='["sprint"]'>Sprint (40L)</button>
+            <button class="btn btn-xs tetrion-lb-tab" data-mode="ultra" data-on-click="loadTetrionLeaderboard" data-click-args='["ultra"]'>Ultra (3 Min)</button>
           </div>
-          <div class="tetradog-lb-scope-toggle">
-            <label class="tetradog-scope-btn"><input type="radio" name="tetradog-scope" value="all" checked data-on-change="handleTetraDogScopeChange" data-change-args='[{"$": "value"}]'> 🌐 All Users</label>
-            <label class="tetradog-scope-btn"><input type="radio" name="tetradog-scope" value="mine" data-on-change="handleTetraDogScopeChange" data-change-args='[{"$": "value"}]'> 👤 My Best</label>
-            <button class="btn btn-icon btn-xs" data-on-click="refreshTetraDogLeaderboard" title="Refresh Scores"><i data-lucide="refresh-cw"></i></button>
+          <div class="tetrion-lb-scope-toggle">
+            <label class="tetrion-scope-btn"><input type="radio" name="tetrion-scope" value="all" checked data-on-change="handleTetrionScopeChange" data-change-args='[{"$": "value"}]'> 🌐 All Users</label>
+            <label class="tetrion-scope-btn"><input type="radio" name="tetrion-scope" value="mine" data-on-change="handleTetrionScopeChange" data-change-args='[{"$": "value"}]'> 👤 My Best</label>
+            <button class="btn btn-icon btn-xs" data-on-click="refreshTetrionLeaderboard" title="Refresh Scores"><i data-lucide="refresh-cw"></i></button>
           </div>
         </div>
 
         <!-- User Stats Summary Banner -->
-        <div class="tetradog-user-summary" id="tetradog-user-summary">
-          <div class="tetradog-summary-item">
-            <span class="tetradog-summary-lbl">PERSONAL BEST</span>
-            <span class="tetradog-summary-val tetradog-glow-gold" id="tetradog-sum-best">0</span>
+        <div class="tetrion-user-summary" id="tetrion-user-summary">
+          <div class="tetrion-summary-item">
+            <span class="tetrion-summary-lbl">PERSONAL BEST</span>
+            <span class="tetrion-summary-val tetrion-glow-gold" id="tetrion-sum-best">0</span>
           </div>
-          <div class="tetradog-summary-item">
-            <span class="tetradog-summary-lbl">GLOBAL RANK</span>
-            <span class="tetradog-summary-val" id="tetradog-sum-rank">-</span>
+          <div class="tetrion-summary-item">
+            <span class="tetrion-summary-lbl">GLOBAL RANK</span>
+            <span class="tetrion-summary-val" id="tetrion-sum-rank">-</span>
           </div>
-          <div class="tetradog-summary-item">
-            <span class="tetradog-summary-lbl">MAX LEVEL</span>
-            <span class="tetradog-summary-val" id="tetradog-sum-level">1</span>
+          <div class="tetrion-summary-item">
+            <span class="tetrion-summary-lbl">MAX LEVEL</span>
+            <span class="tetrion-summary-val" id="tetrion-sum-level">1</span>
           </div>
-          <div class="tetradog-summary-item">
-            <span class="tetradog-summary-lbl">TOTAL LINES</span>
-            <span class="tetradog-summary-val" id="tetradog-sum-lines">0</span>
+          <div class="tetrion-summary-item">
+            <span class="tetrion-summary-lbl">TOTAL LINES</span>
+            <span class="tetrion-summary-val" id="tetrion-sum-lines">0</span>
           </div>
-          <div class="tetradog-summary-item">
-            <span class="tetradog-summary-lbl">GAMES PLAYED</span>
-            <span class="tetradog-summary-val" id="tetradog-sum-games">0</span>
+          <div class="tetrion-summary-item">
+            <span class="tetrion-summary-lbl">GAMES PLAYED</span>
+            <span class="tetrion-summary-val" id="tetrion-sum-games">0</span>
           </div>
         </div>
 
         <!-- Leaderboard Table Container -->
-        <div class="tetradog-lb-table-wrap">
-          <table class="tetradog-table">
+        <div class="tetrion-lb-table-wrap">
+          <table class="tetrion-table">
             <thead>
               <tr>
                 <th style="width: 50px;">Rank</th>
@@ -4314,36 +4314,36 @@
                 <th style="text-align: right;">Date</th>
               </tr>
             </thead>
-            <tbody id="tetradog-leaderboard-tbody">
+            <tbody id="tetrion-leaderboard-tbody">
               <tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Loading top scores from database...</td></tr>
             </tbody>
           </table>
         </div>
 
         <!-- Leaderboard Bottom Alias Bar -->
-        <div class="tetradog-lb-footer">
+        <div class="tetrion-lb-footer">
           <div style="display: flex; align-items: center; gap: 8px;">
-            <label for="tetradog-player-alias" style="font-size: 11px; color: var(--text-dim);">Player Alias:</label>
-            <input type="text" id="tetradog-player-alias" class="pane-quick-filter" placeholder="Your Name" style="width: 140px; height: 26px; font-size: 11px;" data-on-change="saveTetraDogPlayerAlias" data-change-args='[{"$": "value"}]'>
-            <button class="btn btn-xs btn-outline" data-on-click="saveTetraDogAliasFromInput">Save</button>
+            <label for="tetrion-player-alias" style="font-size: 11px; color: var(--text-dim);">Player Alias:</label>
+            <input type="text" id="tetrion-player-alias" class="pane-quick-filter" placeholder="Your Name" style="width: 140px; height: 26px; font-size: 11px;" data-on-change="saveTetrionPlayerAlias" data-change-args='[{"$": "value"}]'>
+            <button class="btn btn-xs btn-outline" data-on-click="saveTetrionAliasFromInput">Save</button>
           </div>
           <div>
-            <button class="btn btn-xs btn-danger-action" data-on-click="promptClearTetraDogScores" title="Reset high scores"><i data-lucide="trash-2" style="width: 11px;"></i> Clear Scores</button>
+            <button class="btn btn-xs btn-danger-action" data-on-click="promptClearTetrionScores" title="Reset high scores"><i data-lucide="trash-2" style="width: 11px;"></i> Clear Scores</button>
           </div>
         </div>
       </div>
 
       <!-- VIEW 3: SETTINGS & CUSTOMIZATION -->
-      <div class="tetradog-view tetradog-settings-view" id="tetradog-view-settings" style="display: none;">
-        <div class="tetradog-settings-scroll">
-          <div class="tetradog-settings-section">
-            <div class="tetradog-section-title">🕹️ Gameplay & Controls</div>
-            <div class="tetradog-setting-row">
+      <div class="tetrion-view tetrion-settings-view" id="tetrion-view-settings" style="display: none;">
+        <div class="tetrion-settings-scroll">
+          <div class="tetrion-settings-section">
+            <div class="tetrion-section-title">🕹️ Gameplay & Controls</div>
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">Starting Level</div>
-                <div class="tetradog-setting-sub">Select starting gravity level (1 = standard, 10 = master speed)</div>
+                <div class="tetrion-setting-title">Starting Level</div>
+                <div class="tetrion-setting-sub">Select starting gravity level (1 = standard, 10 = master speed)</div>
               </div>
-              <select id="tetradog-cfg-start-level" class="tetradog-select" data-on-change="updateTetraDogConfigInt" data-change-args='["startLevel", {"$":"value"}]'>
+              <select id="tetrion-cfg-start-level" class="tetrion-select" data-on-change="updateTetrionConfigInt" data-change-args='["startLevel", {"$":"value"}]'>
                 <option value="1">Level 1 (Relaxed)</option>
                 <option value="3">Level 3 (Brisk)</option>
                 <option value="5">Level 5 (Fast)</option>
@@ -4351,114 +4351,114 @@
                 <option value="10">Level 10 (Master)</option>
               </select>
             </div>
-            <div class="tetradog-setting-row">
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">Rotation System</div>
-                <div class="tetradog-setting-sub">SRS (Super Rotation System with wall kicks) or NES Classic</div>
+                <div class="tetrion-setting-title">Rotation System</div>
+                <div class="tetrion-setting-sub">SRS (Super Rotation System with wall kicks) or NES Classic</div>
               </div>
-              <select id="tetradog-cfg-rotation" class="tetradog-select" data-on-change="updateTetraDogConfig" data-change-args='["rotationSystem", {"$": "value"}]'>
+              <select id="tetrion-cfg-rotation" class="tetrion-select" data-on-change="updateTetrionConfig" data-change-args='["rotationSystem", {"$": "value"}]'>
                 <option value="srs">Super Rotation System (SRS)</option>
                 <option value="nes">Classic NES (Single Rotation)</option>
               </select>
             </div>
-            <div class="tetradog-setting-row">
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">Ghost Piece Projection</div>
-                <div class="tetradog-setting-sub">Project translucent landing shadow on the board</div>
+                <div class="tetrion-setting-title">Ghost Piece Projection</div>
+                <div class="tetrion-setting-sub">Project translucent landing shadow on the board</div>
               </div>
-              <input type="checkbox" id="tetradog-cfg-ghost" checked data-on-change="updateTetraDogConfig" data-change-args='["ghostPiece", {"$": "checked"}]'>
+              <input type="checkbox" id="tetrion-cfg-ghost" checked data-on-change="updateTetrionConfig" data-change-args='["ghostPiece", {"$": "checked"}]'>
             </div>
-            <div class="tetradog-setting-row">
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">Delayed Auto Shift (DAS)</div>
-                <div class="tetradog-setting-sub">Initial delay before rapid piece shifting (<span id="tetradog-das-val">133</span>ms)</div>
+                <div class="tetrion-setting-title">Delayed Auto Shift (DAS)</div>
+                <div class="tetrion-setting-sub">Initial delay before rapid piece shifting (<span id="tetrion-das-val">133</span>ms)</div>
               </div>
-              <input type="range" min="60" max="250" step="5" value="133" id="tetradog-cfg-das" data-on-input="setElementText" data-input-args='["tetradog-das-val", {"$":"value"}]' data-input-steps='[["updateTetraDogConfigInt", "das", {"$":"value"}]]'>
+              <input type="range" min="60" max="250" step="5" value="133" id="tetrion-cfg-das" data-on-input="setElementText" data-input-args='["tetrion-das-val", {"$":"value"}]' data-input-steps='[["updateTetrionConfigInt", "das", {"$":"value"}]]'>
             </div>
-            <div class="tetradog-setting-row">
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">Auto Repeat Rate (ARR)</div>
-                <div class="tetradog-setting-sub">Continuous shift speed (<span id="tetradog-arr-val">16</span>ms)</div>
+                <div class="tetrion-setting-title">Auto Repeat Rate (ARR)</div>
+                <div class="tetrion-setting-sub">Continuous shift speed (<span id="tetrion-arr-val">16</span>ms)</div>
               </div>
-              <input type="range" min="0" max="50" step="2" value="16" id="tetradog-cfg-arr" data-on-input="setElementText" data-input-args='["tetradog-arr-val", {"$":"value"}]' data-input-steps='[["updateTetraDogConfigInt", "arr", {"$":"value"}]]'>
+              <input type="range" min="0" max="50" step="2" value="16" id="tetrion-cfg-arr" data-on-input="setElementText" data-input-args='["tetrion-arr-val", {"$":"value"}]' data-input-steps='[["updateTetrionConfigInt", "arr", {"$":"value"}]]'>
             </div>
           </div>
 
-          <div class="tetradog-settings-section">
-            <div class="tetradog-section-title">🎨 Audio & Visual Style</div>
-            <div class="tetradog-setting-row">
+          <div class="tetrion-settings-section">
+            <div class="tetrion-section-title">🎨 Audio & Visual Style</div>
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">Retro Theme Palette</div>
-                <div class="tetradog-setting-sub">Color palette for board canvas and tetrominoes</div>
+                <div class="tetrion-setting-title">Retro Theme Palette</div>
+                <div class="tetrion-setting-sub">Color palette for board canvas and tetrominoes</div>
               </div>
-              <select id="tetradog-cfg-theme" class="tetradog-select" data-on-change="setTetraDogTheme" data-change-args='[{"$": "value"}]'>
+              <select id="tetrion-cfg-theme" class="tetrion-select" data-on-change="setTetrionTheme" data-change-args='[{"$": "value"}]'>
                 <option value="amber">Woofsons Amber Charcoal</option>
                 <option value="gameboy">Game Boy Monochrome Green</option>
                 <option value="nes">NES 8-Bit Vibrant</option>
                 <option value="cyberpunk">Arcade Cyberpunk</option>
               </select>
             </div>
-            <div class="tetradog-setting-row">
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">CRT Scanlines & Glow</div>
-                <div class="tetradog-setting-sub">Subtle retro CRT screen scanline overlay</div>
+                <div class="tetrion-setting-title">CRT Scanlines & Glow</div>
+                <div class="tetrion-setting-sub">Subtle retro CRT screen scanline overlay</div>
               </div>
-              <input type="checkbox" id="tetradog-cfg-scanlines" checked data-on-change="updateTetraDogConfig" data-change-args='["scanlines", {"$": "checked"}]'>
+              <input type="checkbox" id="tetrion-cfg-scanlines" checked data-on-change="updateTetrionConfig" data-change-args='["scanlines", {"$": "checked"}]'>
             </div>
-            <div class="tetradog-setting-row">
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">8-Bit Sound Effects</div>
-                <div class="tetradog-setting-sub">Synthesized Web Audio sound effects</div>
+                <div class="tetrion-setting-title">8-Bit Sound Effects</div>
+                <div class="tetrion-setting-sub">Synthesized Web Audio sound effects</div>
               </div>
-              <input type="checkbox" id="tetradog-cfg-sound" checked data-on-change="updateTetraDogConfig" data-change-args='["soundEnabled", {"$": "checked"}]'>
+              <input type="checkbox" id="tetrion-cfg-sound" checked data-on-change="updateTetrionConfig" data-change-args='["soundEnabled", {"$": "checked"}]'>
             </div>
-            <div class="tetradog-setting-row">
+            <div class="tetrion-setting-row">
               <div>
-                <div class="tetradog-setting-title">Audio Volume (<span id="tetradog-vol-val">60</span>%)</div>
-                <div class="tetradog-setting-sub">Master volume level for synthesized audio</div>
+                <div class="tetrion-setting-title">Audio Volume (<span id="tetrion-vol-val">60</span>%)</div>
+                <div class="tetrion-setting-sub">Master volume level for synthesized audio</div>
               </div>
-              <input type="range" min="0" max="100" step="5" value="60" id="tetradog-cfg-volume" data-on-input="setElementText" data-input-args='["tetradog-vol-val", {"$":"value"}]' data-input-steps='[["updateTetraDogConfigInt", "volume", {"$":"value"}]]'>
+              <input type="range" min="0" max="100" step="5" value="60" id="tetrion-cfg-volume" data-on-input="setElementText" data-input-args='["tetrion-vol-val", {"$":"value"}]' data-input-steps='[["updateTetrionConfigInt", "volume", {"$":"value"}]]'>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- 3. TetraDog Bottom Status-Bar -->
-    <div class="tetradog-statusbar" id="tetradog-statusbar">
-      <div class="tetradog-sb-left">
-        <button class="tetradog-statusbar-sound-btn" id="btn-tetradog-audio" data-on-click="toggleTetraDogAudio" title="Sound Effects (Click to Mute/Unmute)">
-          <i data-lucide="volume-2" id="icon-tetradog-audio"></i>
+    <!-- 3. Tetrion Bottom Status-Bar -->
+    <div class="tetrion-statusbar" id="tetrion-statusbar">
+      <div class="tetrion-sb-left">
+        <button class="tetrion-statusbar-sound-btn" id="btn-tetrion-audio" data-on-click="toggleTetrionAudio" title="Sound Effects (Click to Mute/Unmute)">
+          <i data-lucide="volume-2" id="icon-tetrion-audio"></i>
         </button>
-        <span class="tetradog-sb-hint desktop-only">P / Esc: Pause</span>
+        <span class="tetrion-sb-hint desktop-only">P / Esc: Pause</span>
       </div>
 
-      <div class="tetradog-sb-center">
-        <div class="tetradog-sb-pill">
-          <span class="tetradog-sb-label">SCORE</span>
-          <span class="tetradog-sb-val" id="tetradog-sb-score-val">0</span>
+      <div class="tetrion-sb-center">
+        <div class="tetrion-sb-pill">
+          <span class="tetrion-sb-label">SCORE</span>
+          <span class="tetrion-sb-val" id="tetrion-sb-score-val">0</span>
         </div>
-        <div class="tetradog-sb-pill">
-          <span class="tetradog-sb-label">LEVEL</span>
-          <span class="tetradog-sb-val" id="tetradog-sb-lvl-val">1</span>
+        <div class="tetrion-sb-pill">
+          <span class="tetrion-sb-label">LEVEL</span>
+          <span class="tetrion-sb-val" id="tetrion-sb-lvl-val">1</span>
         </div>
-        <div class="tetradog-sb-pill">
-          <span class="tetradog-sb-label">LINES</span>
-          <span class="tetradog-sb-val" id="tetradog-sb-lines-val">0</span>
+        <div class="tetrion-sb-pill">
+          <span class="tetrion-sb-label">LINES</span>
+          <span class="tetrion-sb-val" id="tetrion-sb-lines-val">0</span>
         </div>
       </div>
 
-      <div class="tetradog-sb-right">
-        <span class="tetradog-sb-engine">60 FPS • SRS</span>
+      <div class="tetrion-sb-right">
+        <span class="tetrion-sb-engine">60 FPS • SRS</span>
       </div>
     </div>
   </div>
 
-  <!-- TetraDog Minimized Pill -->
-  <div class="tetradog-pill" id="tetradog-pill" style="display: none;" data-on-click="restoreTetraDog" title="Click to restore TetraDog">
-    <img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
-    <span id="tetradog-pill-text">TetraDog</span>
-    <span class="tetradog-pill-score" id="tetradog-pill-score">0</span>
+  <!-- Tetrion Minimized Pill -->
+  <div class="tetrion-pill" id="tetrion-pill" style="display: none;" data-on-click="restoreTetrion" title="Click to restore Tetrion">
+    <img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
+    <span id="tetrion-pill-text">Tetrion</span>
+    <span class="tetrion-pill-score" id="tetrion-pill-score">0</span>
   </div>
 
   <!-- ⚖️ Floating Compare / Diff Engine Window -->

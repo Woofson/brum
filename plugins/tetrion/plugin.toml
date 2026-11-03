@@ -1,7 +1,7 @@
 [plugin]
 id = "tetrion"
 name = "Tetrion"
-version = "1.0.0"
+version = "1.0.1"
 author = "Bolt J Woofson <bolt@arf.ac>"
 description = "Classic retro falling blocks puzzle Chewtoy with marathon, sprint, and high-score leaderboards."
 homepage = "https://www.arf.ac"

@@ -22,19 +22,24 @@
 // this exact value, so it keeps its old spelling.
 const DEFAULT_NOTE_PASSPHRASE = 'notedog';
 
-// One-time move of settings saved under the names used before 1.17 (NoteDog → Notes).
+// One-time move of settings saved under the names used before 1.17 (NoteDog → Notes,
+// TetraDog → Tetrion).
 // Runs before anything reads these settings.
-const LEGACY_TOOL_IDS = { notedog: 'notes' };
+const LEGACY_TOOL_IDS = { notedog: 'notes', tetradog: 'tetrion-classic' };
 (function migrateLegacySavedNames() {
   try {
-    const renames = [['cd_notedog_', 'cd_notes_']];
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
+    const renames = [['cd_notedog_', 'cd_notes_'], ['cd_tetradog_', 'cd_tetrion_']];
+    // Also read by older copies of the Tetrion add-on, so these old keys stay
+    const keepOld = new Set(['cd_tetradog_alias', 'cd_tetradog_theme']);
+    // Take the list first: adding keys while walking localStorage can reorder it
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) keys.push(localStorage.key(i));
+    for (const key of keys) {
       const rule = key && renames.find(([from]) => key.startsWith(from));
       if (!rule) continue;
       const newKey = rule[1] + key.slice(rule[0].length);
       if (localStorage.getItem(newKey) === null) localStorage.setItem(newKey, localStorage.getItem(key));
-      localStorage.removeItem(key);
+      if (!keepOld.has(key)) localStorage.removeItem(key);
     }
     // Tools docked into panes
     for (let i = 0; i < 8; i++) {
@@ -76,7 +81,7 @@ const BRUM_ACTIONS = new Set([
   'calcClearHistory', 'calcEvaluate', 'calcLoadHistoryItem', 'calcToggleSign',
   'calculateAllChecksums', 'calculatePropertiesChecksums', 'calculateRowChecksum',
   'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup', 'changeDocPdfZoom',
-  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines', 'changeTetraDogMode',
+  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines', 'changeTetrionMode',
   'clearAllCustomFileIcons', 'clearAllSyncExclusions', 'clearCapturedKeybind', 'clearCombineParts',
   'clearCompletedTasks', 'clearConverterSourceFile', 'clearDiffSearch', 'clearMediaPlaylist',
   'clearPaneFilter', 'clearPdfMergeList', 'clearPropCustomIcon', 'clearSpotlightInput',
@@ -90,7 +95,7 @@ const BRUM_ACTIONS = new Set([
   'closeFloatingSplitter', 'closeFloatingTagEditor', 'closeFloatingTaskManager',
   'closeImgTransformDropdown', 'closeKeyRecordModal', 'closeMediaPlayer', 'closeModal',
   'closeNotesDrawer', 'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick',
-  'closeSpotlightModal', 'closeTabsToTheRight', 'closeTetraDog', 'confirmSyncFolderSelection',
+  'closeSpotlightModal', 'closeTabsToTheRight', 'closeTetrion', 'confirmSyncFolderSelection',
   'connectRemoteToActivePane', 'convertCurrentMediaToMp4', 'copyActionOutput',
   'copyAndUseTokenInFleetForm', 'copyCalcResult', 'copyDiffItem', 'copyGeneratedApiToken',
   'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTaskLogs',
@@ -107,7 +112,7 @@ const BRUM_ACTIONS = new Set([
   'dockHexEditorToActivePane', 'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane',
   'dockNotesToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
   'dockSharesToActivePane', 'dockSplitterToActivePane', 'dockTagEditorToActivePane',
-  'dockTasksToActivePane', 'dockTerminalToActivePane', 'dockTetraDogToActivePane',
+  'dockTasksToActivePane', 'dockTerminalToActivePane', 'dockTetrionToActivePane',
   'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex',
   'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
   'executeBatchRename', 'executeBulkRename', 'executeCompressArchive', 'executeCreateFromTemplate',
@@ -142,7 +147,7 @@ const BRUM_ACTIONS = new Set([
   'handleSettingsAvatarFileUpload', 'handleShareModeChange', 'handleSharesFilterChange',
   'handleSplitPresetChange', 'handleSplitSourceChange', 'handleSpotlightInput',
   'handleSpotlightKey', 'handleStartupSettingChange', 'handleSyncModeChange',
-  'handleTagCoverArtSelected', 'handleTargetFormatChange', 'handleTetraDogScopeChange',
+  'handleTagCoverArtSelected', 'handleTargetFormatChange', 'handleTetrionScopeChange',
   'handleTitleTemplateChange', 'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver',
   'handleToolDragStart', 'handleToolDrop', 'handleUserDisabledToggle', 'handleUserParanoidToggle',
   'handleUserSecuritySettingChange', 'handleVaultOpen', 'handleWindowTitleSettingChange',
@@ -156,15 +161,15 @@ const BRUM_ACTIONS = new Set([
   'loadBackupHistory', 'loadBackupProfiles', 'loadEmojiPresets', 'loadInstalledChewToys',
   'loadMasterConfigEditor', 'loadNerdFontPresets', 'loadPaneDirectory', 'loadPaneDirectoryTree',
   'loadRenamerDirectory', 'loadSyncthingDashboard', 'loadSystemDisksOverview', 'loadTagEditorFile',
-  'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession', 'logout',
+  'loadTetrionLeaderboard', 'loadUserPreferencesFromServer', 'lockSession', 'logout',
   'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNotes',
-  'maximizeFloatingTaskManager', 'maximizeTetraDog', 'minimizeConverterModal',
+  'maximizeFloatingTaskManager', 'maximizeTetrion', 'minimizeConverterModal',
   'minimizeFloatingCadStudio', 'minimizeFloatingCalculator', 'minimizeFloatingDiff',
   'minimizeFloatingDiskUsage', 'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor',
   'minimizeFloatingHexEditor', 'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer',
   'minimizeFloatingNotes', 'minimizeFloatingPdf', 'minimizeFloatingRenamer',
   'minimizeFloatingShares', 'minimizeFloatingSplitter', 'minimizeFloatingTagEditor',
-  'minimizeFloatingTaskManager', 'minimizeTetraDog', 'mountUsbDevice', 'moveMenuItem',
+  'minimizeFloatingTaskManager', 'minimizeTetrion', 'mountUsbDevice', 'moveMenuItem',
   'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navBookPage', 'navImageViewer',
   'navMediaPlaylist', 'navigateConverterPickerFromInput', 'navigateConverterPickerHome',
   'navigateConverterPickerPath', 'navigateConverterPickerUp', 'navigateDiskUsageActivePane',
@@ -189,14 +194,14 @@ const BRUM_ACTIONS = new Set([
   'openSettingsModal', 'openSettingsTab', 'openShareLogs', 'openSharesManager',
   'openSplitterFilePicker', 'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal',
   'openSyncthingModal', 'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath',
-  'openTetraDog', 'openUserProfileModal', 'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes',
+  'openTetrion', 'openUserProfileModal', 'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes',
   'pingFleetNode', 'playMediaPlaylistItem', 'pollTasks', 'populateMediaPlaylistFromActivePane',
   'printDocViewer', 'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNotesFolder',
-  'promptChangeNoteSection', 'promptClearTetraDogScores', 'promptCreateNote',
+  'promptChangeNoteSection', 'promptClearTetrionScores', 'promptCreateNote',
   'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
   'promptEmptyTrash', 'promptToggleEncryptNotebook', 'promptToggleEncryptSection',
   'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshDiskUsageView',
-  'refreshDocViewerText', 'refreshFolderTree', 'refreshPane', 'refreshTetraDogLeaderboard',
+  'refreshDocViewerText', 'refreshFolderTree', 'refreshPane', 'refreshTetrionLeaderboard',
   'reloadPropertiesMetadata', 'reloadRenamerFiles', 'reloadTagEditorFiles', 'removeCombinePart',
   'removeCustomExclusionTag', 'removeCustomFileIconRule', 'removeElementById', 'removeModalTag',
   'removeNoteTag', 'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag',
@@ -206,15 +211,15 @@ const BRUM_ACTIONS = new Set([
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'restartTetraDogGame',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'restartTetrionGame',
   'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingCalculator',
   'restoreFloatingDiff', 'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder',
   'restoreFloatingEditor', 'restoreFloatingHexEditor', 'restoreFloatingLogViewer',
   'restoreFloatingMediaPlayer', 'restoreFloatingNotes', 'restoreFloatingPdf',
   'restoreFloatingRenamer', 'restoreFloatingShares', 'restoreFloatingSplitter',
   'restoreFloatingTagEditor', 'restoreFloatingTaskManager', 'restoreSelectedNotesVersion',
-  'restoreSelectedTrashItems', 'restoreTetraDog', 'resumeAllTasks', 'resumeTask',
-  'resumeTetraDogGame', 'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
+  'restoreSelectedTrashItems', 'restoreTetrion', 'resumeAllTasks', 'resumeTask',
+  'resumeTetrionGame', 'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
   'runBackupProfileNow', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runGlobalSearch',
   'runPropertiesStatsScan', 'runShellAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
   'saveActiveEditorTab', 'saveActiveNotesNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
@@ -224,7 +229,7 @@ const BRUM_ACTIONS = new Set([
   'saveGlobalFolderIcon', 'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile',
   'saveModalTags', 'saveNotesFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
   'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal',
-  'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias', 'saveUserProfile', 'saveUserRbac',
+  'saveTetrionAliasFromInput', 'saveTetrionPlayerAlias', 'saveUserProfile', 'saveUserRbac',
   'scanMountpointTreemap', 'scanPaneForCombineParts', 'scrollViewerToBottom', 'searchHexBytes',
   'seekMedia', 'selectConverterPickerFile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
   'selectDatabaseSection', 'selectElementText', 'selectFleetColor', 'selectFleetNodeInManager',
@@ -237,10 +242,10 @@ const BRUM_ACTIONS = new Set([
   'setElementValue', 'setFileDiffMode', 'setFontSizePreset', 'setLogLevelFilter',
   'setMediaSubtitleTrack', 'setNotesStorageMode', 'setNotesViewMode',
   'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setPropFileColor',
-  'setTaskVerbosity', 'setTetraDogTheme', 'setTetraDogView', 'setTitleTemplatePreset',
+  'setTaskVerbosity', 'setTetrionTheme', 'setTetrionView', 'setTitleTemplatePreset',
   'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf',
   'showToast', 'showTouchActionsMenu', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane',
-  'startDuplicateScan', 'startTetraDogGame', 'styleCheckboxPill', 'submitAddUser',
+  'startDuplicateScan', 'startTetrionGame', 'styleCheckboxPill', 'submitAddUser',
   'submitCreateApiToken', 'submitRemoteAuth', 'submitUnlockSession', 'swapDiffPaths', 'swapPanes',
   'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
   'switchGitTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchPdfTab',
@@ -276,7 +281,7 @@ const BRUM_ACTIONS = new Set([
   'toggleRemoteGlobalMountUI', 'toggleRenamerItem', 'toggleRevokeShare', 'toggleShowDirTag',
   'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncExclusionsPanel', 'toggleSyncNav',
   'toggleSyncScroll', 'toggleTailFollow', 'toggleTerminal', 'toggleTerminalFullscreen',
-  'toggleTetraDogAudio', 'toggleTetraDogPlayPause', 'toggleToolVisibility', 'toggleToolsMenu',
+  'toggleTetrionAudio', 'toggleTetrionPlayPause', 'toggleToolVisibility', 'toggleToolsMenu',
   'toggleTrashSetting', 'toggleTreeNodeExpand', 'toggleUseExtEditor', 'toggleUseExtViewer',
   'toggleViewerWordWrap', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
   'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
@@ -295,8 +300,8 @@ const BRUM_ACTIONS = new Set([
   'updateMenuOption', 'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview',
   'updatePaneTabsMode', 'updatePermFromCheckboxes', 'updatePhoneTabletMaxPanes',
   'updatePropPermFromCheckboxes', 'updateRemoteProtoUI', 'updateRenamerPreview',
-  'updateSplitEstimate', 'updateTemplateLivePreview', 'updateTetraDogConfig',
-  'updateTetraDogConfigInt', 'useActivePaneItemForConverter', 'useActivePaneItemForSplitter',
+  'updateSplitEstimate', 'updateTemplateLivePreview', 'updateTetrionConfig',
+  'updateTetrionConfigInt', 'useActivePaneItemForConverter', 'useActivePaneItemForSplitter',
   'useActivePanePath', 'useActivePaneSelectedPdf', 'useFallbackIcon', 'useInactivePanePath',
   'writeClipboardText', 'zoomBookPage', 'zoomImage',
 ]);
@@ -520,12 +525,12 @@ function navigateSyncPickerFromInput() {
   navigateSyncPickerPath(document.getElementById('sync-picker-path-input').value);
 }
 
-function saveTetraDogAliasFromInput() {
-  saveTetraDogPlayerAlias(document.getElementById('tetradog-player-alias').value);
+function saveTetrionAliasFromInput() {
+  saveTetrionPlayerAlias(document.getElementById('tetrion-player-alias').value);
 }
 
-function updateTetraDogConfigInt(key, value) {
-  updateTetraDogConfig(key, parseInt(value, 10));
+function updateTetrionConfigInt(key, value) {
+  updateTetrionConfig(key, parseInt(value, 10));
 }
 
 function clickElementById(id) {
@@ -1001,7 +1006,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
   { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
   { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer', desc: 'Universal audio, video, chiptune & tracker player with playlists and subtitles', visible: true },
-  { id: 'tetradog', label: 'Tetrion', icon: 'assets/amber-tetris.webp', action: 'openTetraDog', desc: 'Classic arcade block puzzle', visible: true }
+  { id: 'tetrion-classic', label: 'Tetrion', icon: 'assets/amber-tetris.webp', action: 'openTetrion', desc: 'Classic arcade block puzzle', visible: true }
 ];
 
 // ---------------- FILE TEMPLATES ENGINE ----------------
@@ -4511,7 +4516,7 @@ function createPaneElement(pane, index) {
         'hexeditor': '<i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Hex Editor',
         'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" data-on-error="useFallbackIcon" data-error-args="[{&quot;$&quot;:&quot;el&quot;}]"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
-        'tetradog': '<img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetrion',
+        'tetrion-classic': '<img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetrion',
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
         'splitter': '<i data-lucide="scissors" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> File Splitter & Combiner',
@@ -19836,7 +19841,7 @@ function renderToolsMenu() {
     if (item.visible === false) return false;
     // Omit legacy built-ins when corresponding decoupled Chewtoy is installed & active
     if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-    if (item.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
+    if (item.id === 'tetrion-classic' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
     return true;
   });
 
@@ -19910,7 +19915,7 @@ function renderToolsSettingsTab() {
 
   const config = getToolsMenuConfig().filter(item => {
     if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-    if (item.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
+    if (item.id === 'tetrion-classic' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
     return true;
   });
   const visibleCount = config.filter(item => item.visible !== false).length;
@@ -38088,7 +38093,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'tageditor', title: 'Tag Editor', sub: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', icon: 'tag', cat: 'actions', action: () => openTagEditor() },
   { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
   { id: 'mediaplayer', title: 'Media Player', sub: 'Universal audio, video, chiptune & tracker player, subtitles, PiP popout & playlists', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
-  { id: 'tetradog', title: 'Tetrion', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetraDog() },
+  { id: 'tetrion-classic', title: 'Tetrion', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetrion() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
@@ -38380,7 +38385,7 @@ function buildSpotlightItems() {
 
     pool.push(...SPOTLIGHT_STATIC_ACTIONS.filter(a => {
       if (a.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-      if (a.id === 'tetradog' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
+      if (a.id === 'tetrion-classic' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
       return true;
     }).map(a => ({
       title: a.title,
@@ -39144,8 +39149,8 @@ function dockGitToActivePane() {
   dockToolToPane('git', App.activePaneIndex);
 }
 
-function dockTetraDogToActivePane() {
-  dockToolToPane('tetradog', App.activePaneIndex);
+function dockTetrionToActivePane() {
+  dockToolToPane('tetrion-classic', App.activePaneIndex);
 }
 
 function dockSoundDogToActivePane() {
@@ -39230,11 +39235,11 @@ function dockToolToPane(toolName, paneIndex) {
   else if (toolName === 'git') {
     closeModal('git-modal');
   }
-  // 7. TetraDog: hide floating window & pill
-  else if (toolName === 'tetradog') {
-    const win = document.getElementById('floating-tetradog-window');
+  // 7. Tetrion: hide floating window & pill
+  else if (toolName === 'tetrion-classic') {
+    const win = document.getElementById('floating-tetrion-window');
     if (win) win.style.display = 'none';
-    const pill = document.getElementById('tetradog-pill');
+    const pill = document.getElementById('tetrion-pill');
     if (pill) pill.style.display = 'none';
   }
   // 8. SoundDog: hide floating window & pill
@@ -39309,8 +39314,8 @@ function undockToolFromPane(paneIndex) {
     openFloatingTaskManager();
   } else if (tool === 'git') {
     openGitManager(paneIndex, pane.path);
-  } else if (tool === 'tetradog') {
-    openTetraDog();
+  } else if (tool === 'tetrion-classic') {
+    openTetrion();
   } else if (tool === 'sounddog') {
     openSoundDog();
   } else if (tool === 'mediaplayer') {
@@ -39757,27 +39762,27 @@ function mountDockedTool(paneIndex) {
     bindActions(mount);
     loadGitStatusForDocked(paneIndex, pane.path);
   }
-  // 6. DOCKED TETRADOG (CLASSIC ARCADE CHEWTOY)
-  else if (tool === 'tetradog') {
+  // 6. DOCKED TETRION (CLASSIC ARCADE CHEWTOY)
+  else if (tool === 'tetrion-classic') {
     mount.innerHTML = `
-      <div class="docked-tetradog-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
+      <div class="docked-tetrion-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
         <div style="padding: 4px 8px; min-height: 32px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 6px;">
-            <img src="assets/amber-tetris.webp" alt="TetraDog" style="width: 14px; height: 14px; object-fit: contain;">
-            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">TetraDog</span>
-            <span class="tetradog-mode-badge" id="docked-tetradog-mode-${paneIndex}">MARATHON</span>
+            <img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain;">
+            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">Tetrion</span>
+            <span class="tetrion-mode-badge" id="docked-tetrion-mode-${paneIndex}">MARATHON</span>
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-xs btn-accent" data-on-click="startTetraDogGame"><i data-lucide="play" style="width: 11px;"></i> Play</button>
-            <button class="btn btn-xs btn-outline" data-on-click="setTetraDogView" data-click-args="${actionArgs('leaderboard')}"><i data-lucide="trophy" style="width: 11px;"></i> Scores</button>
+            <button class="btn btn-xs btn-accent" data-on-click="startTetrionGame"><i data-lucide="play" style="width: 11px;"></i> Play</button>
+            <button class="btn btn-xs btn-outline" data-on-click="setTetrionView" data-click-args="${actionArgs('leaderboard')}"><i data-lucide="trophy" style="width: 11px;"></i> Scores</button>
           </div>
         </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #090a0f; padding: 6px;" id="docked-tetradog-host-${paneIndex}"></div>
+        <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #090a0f; padding: 6px;" id="docked-tetrion-host-${paneIndex}"></div>
       </div>
     `;
     bindActions(mount);
     setTimeout(() => {
-      mountDockedTetraDog(paneIndex);
+      mountDockedTetrion(paneIndex);
     }, 50);
   }
   // 7. DOCKED AUDIOPLAYER (AUDIO PLAYER & JUKEBOX)
@@ -42334,10 +42339,10 @@ function mountDockedPdf(paneIndex) {
 }
 
 // ==========================================================================
-// 🕹️ TETRADOG: CLASSIC ARCADE CHEWTOY & LEADERBOARD ENGINE
+// 🕹️ TETRION: CLASSIC ARCADE CHEWTOY & LEADERBOARD ENGINE
 // ==========================================================================
 
-const TETRADOG_PIECES = {
+const TETRION_PIECES = {
   I: {
     matrix: [
       [0, 0, 0, 0],
@@ -42403,7 +42408,7 @@ const TETRADOG_PIECES = {
   }
 };
 
-const TETRADOG_SRS_KICKS_JLSTZ = {
+const TETRION_SRS_KICKS_JLSTZ = {
   '0->1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
   '1->0': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
   '1->2': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
@@ -42414,7 +42419,7 @@ const TETRADOG_SRS_KICKS_JLSTZ = {
   '0->3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
 };
 
-const TETRADOG_SRS_KICKS_I = {
+const TETRION_SRS_KICKS_I = {
   '0->1': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
   '1->0': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
   '1->2': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
@@ -42425,21 +42430,21 @@ const TETRADOG_SRS_KICKS_I = {
   '0->3': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
 };
 
-let tetradogState = {
+let tetrionState = {
   initialized: false,
   isMaximized: false,
   activeView: 'game',
-  theme: localStorage.getItem('cd_tetradog_theme') || 'amber',
-  soundEnabled: localStorage.getItem('cd_tetradog_sound') !== '0',
-  volume: parseInt(localStorage.getItem('cd_tetradog_vol') || '60', 10),
-  playerAlias: localStorage.getItem('cd_tetradog_alias') || '',
+  theme: localStorage.getItem('cd_tetrion_theme') || 'amber',
+  soundEnabled: localStorage.getItem('cd_tetrion_sound') !== '0',
+  volume: parseInt(localStorage.getItem('cd_tetrion_vol') || '60', 10),
+  playerAlias: localStorage.getItem('cd_tetrion_alias') || '',
   config: {
-    startLevel: parseInt(localStorage.getItem('cd_tetradog_start_lvl') || '1', 10),
-    rotationSystem: localStorage.getItem('cd_tetradog_rotation') || 'srs',
-    ghostPiece: localStorage.getItem('cd_tetradog_ghost') !== '0',
-    das: parseInt(localStorage.getItem('cd_tetradog_das') || '133', 10),
-    arr: parseInt(localStorage.getItem('cd_tetradog_arr') || '16', 10),
-    scanlines: localStorage.getItem('cd_tetradog_scanlines') !== '0',
+    startLevel: parseInt(localStorage.getItem('cd_tetrion_start_lvl') || '1', 10),
+    rotationSystem: localStorage.getItem('cd_tetrion_rotation') || 'srs',
+    ghostPiece: localStorage.getItem('cd_tetrion_ghost') !== '0',
+    das: parseInt(localStorage.getItem('cd_tetrion_das') || '133', 10),
+    arr: parseInt(localStorage.getItem('cd_tetrion_arr') || '16', 10),
+    scanlines: localStorage.getItem('cd_tetrion_scanlines') !== '0',
   },
   game: {
     boardWidth: 10,
@@ -42506,12 +42511,12 @@ function initTetraAudio() {
 }
 
 function playTetraSound(type) {
-  if (!tetradogState.soundEnabled) return;
+  if (!tetrionState.soundEnabled) return;
   try {
     initTetraAudio();
     if (!tetraAudioCtx) return;
 
-    const masterVol = (tetradogState.volume / 100) * 0.15;
+    const masterVol = (tetrionState.volume / 100) * 0.15;
     const now = tetraAudioCtx.currentTime;
 
     if (type === 'move') {
@@ -42633,15 +42638,15 @@ function playTetraSound(type) {
 }
 
 // ---------------- WINDOWING & LIFECYCLE ----------------
-function openTetraDog() {
+function openTetrion() {
   closeToolsMenu();
   const tetrionPlugin = (window.installedChewToys || []).find(p => (p.id === 'tetrion' || p.id === 'arcade-blocks') && (p.is_enabled !== undefined ? p.is_enabled : (p.enabled !== undefined ? p.enabled : true)));
   if (tetrionPlugin) {
     openDynamicChewToy(tetrionPlugin.id);
     return;
   }
-  const win = document.getElementById('floating-tetradog-window');
-  const pill = document.getElementById('tetradog-pill');
+  const win = document.getElementById('floating-tetrion-window');
+  const pill = document.getElementById('tetrion-pill');
   if (pill) pill.style.display = 'none';
 
   if (win) {
@@ -42650,19 +42655,19 @@ function openTetraDog() {
   }
 
   updateDynamicViewportHeight();
-  setTetraDogView('game');
-  initTetraDogDragAndResize();
-  initTetraDogInput();
-  applyTetraDogTheme();
+  setTetrionView('game');
+  initTetrionDragAndResize();
+  initTetrionInput();
+  applyTetrionTheme();
 
-  if (!tetradogState.initialized) {
-    initTetraDogGame();
-    tetradogState.initialized = true;
+  if (!tetrionState.initialized) {
+    initTetrionGame();
+    tetrionState.initialized = true;
   }
 
   // Auto-start game immediately on open if ready or gameover so pieces start falling!
-  if (tetradogState.game.status === 'ready' || tetradogState.game.status === 'gameover') {
-    startTetraDogGame();
+  if (tetrionState.game.status === 'ready' || tetrionState.game.status === 'gameover') {
+    startTetrionGame();
   }
 
   if (window.lucide) {
@@ -42670,144 +42675,144 @@ function openTetraDog() {
   }
 
   // Load hiscores from DB in background
-  loadTetraDogLeaderboard(tetradogState.game.mode, false);
+  loadTetrionLeaderboard(tetrionState.game.mode, false);
 }
 
-function closeTetraDog() {
-  const win = document.getElementById('floating-tetradog-window');
+function closeTetrion() {
+  const win = document.getElementById('floating-tetrion-window');
   if (win) win.style.display = 'none';
-  const pill = document.getElementById('tetradog-pill');
+  const pill = document.getElementById('tetrion-pill');
   if (pill) pill.style.display = 'none';
 
-  if (tetradogState.game.status === 'playing') {
-    pauseTetraDogGame();
+  if (tetrionState.game.status === 'playing') {
+    pauseTetrionGame();
   }
 }
 
-function minimizeTetraDog() {
-  const win = document.getElementById('floating-tetradog-window');
+function minimizeTetrion() {
+  const win = document.getElementById('floating-tetrion-window');
   if (win) win.style.display = 'none';
-  const pill = document.getElementById('tetradog-pill');
+  const pill = document.getElementById('tetrion-pill');
   if (pill) {
     pill.style.display = 'flex';
-    const scoreEl = document.getElementById('tetradog-pill-score');
-    if (scoreEl) scoreEl.textContent = tetradogState.game.score.toLocaleString();
+    const scoreEl = document.getElementById('tetrion-pill-score');
+    if (scoreEl) scoreEl.textContent = tetrionState.game.score.toLocaleString();
   }
 }
 
-function restoreTetraDog() {
-  openTetraDog();
+function restoreTetrion() {
+  openTetrion();
 }
 
-function maximizeTetraDog() {
-  const win = document.getElementById('floating-tetradog-window');
+function maximizeTetrion() {
+  const win = document.getElementById('floating-tetrion-window');
   if (!win) return;
-  tetradogState.isMaximized = !tetradogState.isMaximized;
-  win.classList.toggle('maximized', tetradogState.isMaximized);
+  tetrionState.isMaximized = !tetrionState.isMaximized;
+  win.classList.toggle('maximized', tetrionState.isMaximized);
 }
 
-function setTetraDogView(viewName) {
-  tetradogState.activeView = viewName;
+function setTetrionView(viewName) {
+  tetrionState.activeView = viewName;
   ['game', 'leaderboard', 'settings'].forEach(v => {
-    const el = document.getElementById(`tetradog-view-${v}`);
-    const btn = document.getElementById(`btn-tetradog-view-${v}`);
+    const el = document.getElementById(`tetrion-view-${v}`);
+    const btn = document.getElementById(`btn-tetrion-view-${v}`);
     if (el) el.style.display = (v === viewName) ? 'flex' : 'none';
     if (btn) btn.classList.toggle('active', v === viewName);
   });
 
   if (viewName === 'leaderboard') {
-    loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+    loadTetrionLeaderboard(tetrionState.leaderboard.mode);
   } else if (viewName === 'game') {
     renderTetraCanvas();
   }
 }
 
-function setTetraDogTheme(theme) {
-  tetradogState.theme = theme;
-  localStorage.setItem('cd_tetradog_theme', theme);
-  applyTetraDogTheme();
+function setTetrionTheme(theme) {
+  tetrionState.theme = theme;
+  localStorage.setItem('cd_tetrion_theme', theme);
+  applyTetrionTheme();
 }
 
-function cycleTetraDogTheme() {
+function cycleTetrionTheme() {
   const themes = ['amber', 'gameboy', 'nes', 'cyberpunk'];
-  const curIdx = themes.indexOf(tetradogState.theme);
+  const curIdx = themes.indexOf(tetrionState.theme);
   const nextTheme = themes[(curIdx + 1) % themes.length];
-  setTetraDogTheme(nextTheme);
-  showToast(`TetraDog Theme: ${nextTheme.toUpperCase()}`, 'info');
+  setTetrionTheme(nextTheme);
+  showToast(`Tetrion Theme: ${nextTheme.toUpperCase()}`, 'info');
 }
 
-function applyTetraDogTheme() {
-  const win = document.getElementById('floating-tetradog-window');
+function applyTetrionTheme() {
+  const win = document.getElementById('floating-tetrion-window');
   if (!win) return;
-  win.classList.remove('tetradog-theme-amber', 'tetradog-theme-gameboy', 'tetradog-theme-nes', 'tetradog-theme-cyberpunk');
-  win.classList.add(`tetradog-theme-${tetradogState.theme}`);
+  win.classList.remove('tetrion-theme-amber', 'tetrion-theme-gameboy', 'tetrion-theme-nes', 'tetrion-theme-cyberpunk');
+  win.classList.add(`tetrion-theme-${tetrionState.theme}`);
 
-  const themeSelect = document.getElementById('tetradog-cfg-theme');
-  if (themeSelect) themeSelect.value = tetradogState.theme;
+  const themeSelect = document.getElementById('tetrion-cfg-theme');
+  if (themeSelect) themeSelect.value = tetrionState.theme;
 
   renderTetraCanvas();
 }
 
-function toggleTetraDogAudio() {
-  tetradogState.soundEnabled = !tetradogState.soundEnabled;
-  localStorage.setItem('cd_tetradog_sound', tetradogState.soundEnabled ? '1' : '0');
+function toggleTetrionAudio() {
+  tetrionState.soundEnabled = !tetrionState.soundEnabled;
+  localStorage.setItem('cd_tetrion_sound', tetrionState.soundEnabled ? '1' : '0');
 
-  const icon = document.getElementById('icon-tetradog-audio');
-  const btn = document.getElementById('btn-tetradog-audio');
+  const icon = document.getElementById('icon-tetrion-audio');
+  const btn = document.getElementById('btn-tetrion-audio');
   if (icon) {
-    icon.setAttribute('data-lucide', tetradogState.soundEnabled ? 'volume-2' : 'volume-x');
+    icon.setAttribute('data-lucide', tetrionState.soundEnabled ? 'volume-2' : 'volume-x');
     if (window.lucide) lucide.createIcons({ root: icon.parentElement });
   }
   if (btn) {
-    btn.classList.toggle('muted', !tetradogState.soundEnabled);
-    btn.title = tetradogState.soundEnabled ? 'Sound Effects (Click to Mute)' : 'Sound Muted (Click to Unmute)';
+    btn.classList.toggle('muted', !tetrionState.soundEnabled);
+    btn.title = tetrionState.soundEnabled ? 'Sound Effects (Click to Mute)' : 'Sound Muted (Click to Unmute)';
   }
 
-  const chk = document.getElementById('tetradog-cfg-sound');
-  if (chk) chk.checked = tetradogState.soundEnabled;
+  const chk = document.getElementById('tetrion-cfg-sound');
+  if (chk) chk.checked = tetrionState.soundEnabled;
 
-  showToast(tetradogState.soundEnabled ? 'Sound Enabled' : 'Sound Muted', 'info');
+  showToast(tetrionState.soundEnabled ? 'Sound Enabled' : 'Sound Muted', 'info');
 }
 
-function updateTetraDogConfig(key, val) {
-  tetradogState.config[key] = val;
+function updateTetrionConfig(key, val) {
+  tetrionState.config[key] = val;
   if (key === 'startLevel') {
-    localStorage.setItem('cd_tetradog_start_lvl', val);
-    if (tetradogState.game.status === 'ready') {
-      tetradogState.game.level = val;
+    localStorage.setItem('cd_tetrion_start_lvl', val);
+    if (tetrionState.game.status === 'ready') {
+      tetrionState.game.level = val;
       updateTetraHeaderAndStats();
     }
   } else if (key === 'rotationSystem') {
-    localStorage.setItem('cd_tetradog_rotation', val);
+    localStorage.setItem('cd_tetrion_rotation', val);
   } else if (key === 'ghostPiece') {
-    localStorage.setItem('cd_tetradog_ghost', val ? '1' : '0');
+    localStorage.setItem('cd_tetrion_ghost', val ? '1' : '0');
     renderTetraCanvas();
   } else if (key === 'das') {
-    localStorage.setItem('cd_tetradog_das', val);
+    localStorage.setItem('cd_tetrion_das', val);
   } else if (key === 'arr') {
-    localStorage.setItem('cd_tetradog_arr', val);
+    localStorage.setItem('cd_tetrion_arr', val);
   } else if (key === 'scanlines') {
-    localStorage.setItem('cd_tetradog_scanlines', val ? '1' : '0');
-    const scanlinesEl = document.getElementById('tetradog-scanlines');
+    localStorage.setItem('cd_tetrion_scanlines', val ? '1' : '0');
+    const scanlinesEl = document.getElementById('tetrion-scanlines');
     if (scanlinesEl) scanlinesEl.style.display = val ? 'block' : 'none';
   } else if (key === 'volume') {
-    tetradogState.volume = val;
-    localStorage.setItem('cd_tetradog_vol', val);
+    tetrionState.volume = val;
+    localStorage.setItem('cd_tetrion_vol', val);
   }
 }
 
-function initTetraDogDragAndResize() {
+function initTetrionDragAndResize() {
   if (tetraDragInit) return;
   tetraDragInit = true;
 
-  const win = document.getElementById('floating-tetradog-window');
-  const header = document.getElementById('tetradog-header');
+  const win = document.getElementById('floating-tetrion-window');
+  const header = document.getElementById('tetrion-header');
   if (!win || !header) return;
 
-  const savedLeft = localStorage.getItem('cd_tetradog_x');
-  const savedTop = localStorage.getItem('cd_tetradog_y');
-  const savedW = localStorage.getItem('cd_tetradog_w');
-  const savedH = localStorage.getItem('cd_tetradog_h');
+  const savedLeft = localStorage.getItem('cd_tetrion_x');
+  const savedTop = localStorage.getItem('cd_tetrion_y');
+  const savedW = localStorage.getItem('cd_tetrion_w');
+  const savedH = localStorage.getItem('cd_tetrion_h');
 
   if (savedW) win.style.width = `${Math.max(440, parseInt(savedW, 10))}px`;
   if (savedH) win.style.height = `${Math.max(520, parseInt(savedH, 10))}px`;
@@ -42844,8 +42849,8 @@ function initTetraDogDragAndResize() {
     win.style.left = `${newLeft}px`;
     win.style.top = `${newTop}px`;
     win.style.right = 'auto';
-    localStorage.setItem('cd_tetradog_x', newLeft);
-    localStorage.setItem('cd_tetradog_y', newTop);
+    localStorage.setItem('cd_tetrion_x', newLeft);
+    localStorage.setItem('cd_tetrion_y', newTop);
   });
 
   window.addEventListener('mouseup', () => {
@@ -42857,11 +42862,11 @@ function initTetraDogDragAndResize() {
 
   // Window Resizers
   const handles = {
-    top: document.getElementById('tetradog-resize-top'),
-    bottom: document.getElementById('tetradog-resize-bottom'),
-    left: document.getElementById('tetradog-resize-left'),
-    right: document.getElementById('tetradog-resize-right'),
-    corner: document.getElementById('tetradog-resize-corner')
+    top: document.getElementById('tetrion-resize-top'),
+    bottom: document.getElementById('tetrion-resize-bottom'),
+    left: document.getElementById('tetrion-resize-left'),
+    right: document.getElementById('tetrion-resize-right'),
+    corner: document.getElementById('tetrion-resize-corner')
   };
 
   let resizeMode = null;
@@ -42895,20 +42900,20 @@ function initTetraDogDragAndResize() {
         if (resizeMode === 'right' || resizeMode === 'corner') {
           const newW = Math.max(minW, rStartW + dx);
           win.style.width = `${newW}px`;
-          localStorage.setItem('cd_tetradog_w', newW);
+          localStorage.setItem('cd_tetrion_w', newW);
         }
         if (resizeMode === 'bottom' || resizeMode === 'corner') {
           const newH = Math.max(minH, rStartH + dy);
           win.style.height = `${newH}px`;
-          localStorage.setItem('cd_tetradog_h', newH);
+          localStorage.setItem('cd_tetrion_h', newH);
         }
         if (resizeMode === 'left') {
           const newW = Math.max(minW, rStartW - dx);
           if (newW > minW) {
             win.style.width = `${newW}px`;
             win.style.left = `${rStartLeft + dx}px`;
-            localStorage.setItem('cd_tetradog_w', newW);
-            localStorage.setItem('cd_tetradog_x', rStartLeft + dx);
+            localStorage.setItem('cd_tetrion_w', newW);
+            localStorage.setItem('cd_tetrion_x', rStartLeft + dx);
           }
         }
         if (resizeMode === 'top') {
@@ -42916,8 +42921,8 @@ function initTetraDogDragAndResize() {
           if (newH > minH) {
             win.style.height = `${newH}px`;
             win.style.top = `${rStartTop + dy}px`;
-            localStorage.setItem('cd_tetradog_h', newH);
-            localStorage.setItem('cd_tetradog_y', rStartTop + dy);
+            localStorage.setItem('cd_tetrion_h', newH);
+            localStorage.setItem('cd_tetrion_y', rStartTop + dy);
           }
         }
       };
@@ -42936,8 +42941,8 @@ function initTetraDogDragAndResize() {
 }
 
 // ---------------- GAME ENGINE IMPLEMENTATION ----------------
-function initTetraDogGame() {
-  const g = tetradogState.game;
+function initTetrionGame() {
+  const g = tetrionState.game;
   g.boardWidth = 10;
   g.boardHeight = 20;
   g.visibleHeight = 20;
@@ -42947,7 +42952,7 @@ function initTetraDogGame() {
   g.canHold = true;
   g.score = 0;
   g.lines = 0;
-  g.level = tetradogState.config.startLevel;
+  g.level = tetrionState.config.startLevel;
   g.b2b = false;
   g.combo = 0;
   g.status = 'ready';
@@ -42994,9 +42999,9 @@ function getTetraGravityMs(level) {
   return Math.max(20, Math.floor(ms));
 }
 
-function startTetraDogGame() {
+function startTetrionGame() {
   initTetraAudio();
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   g.boardWidth = 10;
   g.boardHeight = 20;
   g.visibleHeight = 20;
@@ -43006,7 +43011,7 @@ function startTetraDogGame() {
   g.canHold = true;
   g.score = 0;
   g.lines = 0;
-  g.level = tetradogState.config.startLevel;
+  g.level = tetrionState.config.startLevel;
   g.b2b = false;
   g.combo = 0;
   g.dropInterval = getTetraGravityMs(g.level);
@@ -43026,11 +43031,11 @@ function startTetraDogGame() {
   spawnTetraPiece();
 
   // Hide Overlays
-  const readyOverlay = document.getElementById('tetradog-ready-overlay');
+  const readyOverlay = document.getElementById('tetrion-ready-overlay');
   if (readyOverlay) readyOverlay.style.display = 'none';
-  const pauseOverlay = document.getElementById('tetradog-pause-overlay');
+  const pauseOverlay = document.getElementById('tetrion-pause-overlay');
   if (pauseOverlay) pauseOverlay.style.display = 'none';
-  const goOverlay = document.getElementById('tetradog-gameover-overlay');
+  const goOverlay = document.getElementById('tetrion-gameover-overlay');
   if (goOverlay) goOverlay.style.display = 'none';
 
   updatePlayPauseButtons();
@@ -43043,42 +43048,42 @@ function startTetraDogGame() {
   }
 }
 
-function pauseTetraDogGame() {
-  const g = tetradogState.game;
+function pauseTetrionGame() {
+  const g = tetrionState.game;
   if (g.status !== 'playing') return;
   g.status = 'paused';
-  document.getElementById('tetradog-pause-overlay').style.display = 'flex';
+  document.getElementById('tetrion-pause-overlay').style.display = 'flex';
   updatePlayPauseButtons();
 }
 
-function resumeTetraDogGame() {
-  const g = tetradogState.game;
+function resumeTetrionGame() {
+  const g = tetrionState.game;
   if (g.status !== 'paused') return;
   g.status = 'playing';
   g.lastFrameTime = performance.now();
-  document.getElementById('tetradog-pause-overlay').style.display = 'none';
+  document.getElementById('tetrion-pause-overlay').style.display = 'none';
   updatePlayPauseButtons();
 }
 
-function toggleTetraDogPlayPause() {
-  const g = tetradogState.game;
+function toggleTetrionPlayPause() {
+  const g = tetrionState.game;
   if (g.status === 'ready' || g.status === 'gameover') {
-    startTetraDogGame();
+    startTetrionGame();
   } else if (g.status === 'playing') {
-    pauseTetraDogGame();
+    pauseTetrionGame();
   } else if (g.status === 'paused') {
-    resumeTetraDogGame();
+    resumeTetrionGame();
   }
 }
 
-function restartTetraDogGame() {
-  startTetraDogGame();
+function restartTetrionGame() {
+  startTetrionGame();
 }
 
 function updatePlayPauseButtons() {
-  const g = tetradogState.game;
-  const label = document.getElementById('label-tetradog-play-pause');
-  const icon = document.getElementById('icon-tetradog-play-pause');
+  const g = tetrionState.game;
+  const label = document.getElementById('label-tetrion-play-pause');
+  const icon = document.getElementById('icon-tetrion-play-pause');
   if (label && icon) {
     if (g.status === 'playing') {
       label.textContent = 'Pause';
@@ -43092,13 +43097,13 @@ function updatePlayPauseButtons() {
 }
 
 function spawnTetraPiece() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (g.nextQueue.length < 5) {
     g.nextQueue.push(...generateTetraBag());
   }
 
   const type = g.nextQueue.shift();
-  const def = TETRADOG_PIECES[type];
+  const def = TETRION_PIECES[type];
   const matrix = JSON.parse(JSON.stringify(def.matrix));
 
   const startX = Math.floor((g.boardWidth - matrix[0].length) / 2);
@@ -43120,7 +43125,7 @@ function spawnTetraPiece() {
 
   // Collision on spawn = Game Over (Top out)
   if (checkTetraCollision(g.grid, g.currentPiece)) {
-    endTetraDogGame('topout');
+    endTetrionGame('topout');
     return;
   }
 
@@ -43131,7 +43136,7 @@ function spawnTetraPiece() {
 }
 
 function holdTetraPiece() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (g.status !== 'playing' || !g.canHold || !g.currentPiece) return;
 
   playTetraSound('hold');
@@ -43140,7 +43145,7 @@ function holdTetraPiece() {
   if (g.holdPiece) {
     const swapType = g.holdPiece;
     g.holdPiece = curType;
-    const def = TETRADOG_PIECES[swapType];
+    const def = TETRION_PIECES[swapType];
     g.currentPiece = {
       type: swapType,
       matrix: JSON.parse(JSON.stringify(def.matrix)),
@@ -43160,7 +43165,7 @@ function holdTetraPiece() {
 }
 
 function moveTetraPiece(dx, dy) {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (g.status !== 'playing' || !g.currentPiece) return false;
 
   const testPiece = {
@@ -43193,7 +43198,7 @@ function moveTetraPiece(dx, dy) {
 }
 
 function rotateTetraPiece(dir = 1) { // 1 = CW, -1 = CCW
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (g.status !== 'playing' || !g.currentPiece) return;
 
   const p = g.currentPiece;
@@ -43203,11 +43208,11 @@ function rotateTetraPiece(dir = 1) { // 1 = CW, -1 = CCW
   const rotatedMatrix = rotateMatrix(p.matrix, dir);
 
   // SRS Wall Kick test
-  if (tetradogState.config.rotationSystem === 'srs') {
+  if (tetrionState.config.rotationSystem === 'srs') {
     const kickKey = `${oldRot}->${newRot}`;
     const kicks = (p.type === 'I')
-      ? (TETRADOG_SRS_KICKS_I[kickKey] || [[0, 0]])
-      : (TETRADOG_SRS_KICKS_JLSTZ[kickKey] || [[0, 0]]);
+      ? (TETRION_SRS_KICKS_I[kickKey] || [[0, 0]])
+      : (TETRION_SRS_KICKS_JLSTZ[kickKey] || [[0, 0]]);
 
     for (let i = 0; i < kicks.length; i++) {
       const [kx, ky] = kicks[i];
@@ -43273,7 +43278,7 @@ function rotateMatrix(matrix, dir = 1) {
 }
 
 function hardDropTetraPiece() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (g.status !== 'playing' || !g.currentPiece) return;
 
   let droppedRows = 0;
@@ -43288,7 +43293,7 @@ function hardDropTetraPiece() {
 }
 
 function calculateGhostY() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (!g.currentPiece) return;
 
   let gy = g.currentPiece.y;
@@ -43319,7 +43324,7 @@ function checkTetraCollision(grid, piece) {
 }
 
 function lockTetraPiece() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (!g.currentPiece) return;
 
   const { matrix, x, y, type } = g.currentPiece;
@@ -43339,7 +43344,7 @@ function lockTetraPiece() {
   }
 
   if (topOut) {
-    endTetraDogGame('topout');
+    endTetrionGame('topout');
     return;
   }
 
@@ -43352,7 +43357,7 @@ function lockTetraPiece() {
 }
 
 function checkLineClears() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   const fullRows = [];
 
   for (let r = 0; r < g.boardHeight; r++) {
@@ -43386,7 +43391,7 @@ function checkLineClears() {
     g.combo++;
 
     // Level up check
-    const newLevel = tetradogState.config.startLevel + Math.floor(g.lines / 10);
+    const newLevel = tetrionState.config.startLevel + Math.floor(g.lines / 10);
     if (newLevel > g.level) {
       g.level = newLevel;
       g.dropInterval = getTetraGravityMs(g.level);
@@ -43395,7 +43400,7 @@ function checkLineClears() {
 
     // Sprint Mode check (40 lines clear)
     if (g.mode === 'sprint' && g.lines >= 40) {
-      endTetraDogGame('sprint_complete');
+      endTetrionGame('sprint_complete');
       return;
     }
   } else {
@@ -43407,7 +43412,7 @@ function checkLineClears() {
 }
 
 function executeLineCollapse() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (g.animatingRows.length === 0) return;
 
   g.animatingRows.sort((a, b) => a - b);
@@ -43420,56 +43425,56 @@ function executeLineCollapse() {
   spawnTetraPiece();
 }
 
-function endTetraDogGame(reason = 'topout') {
-  const g = tetradogState.game;
+function endTetrionGame(reason = 'topout') {
+  const g = tetrionState.game;
   g.status = 'gameover';
   playTetraSound('gameover');
 
   const durationSec = Math.floor(g.elapsedMs / 1000);
 
-  const titleEl = document.getElementById('tetradog-gameover-title');
+  const titleEl = document.getElementById('tetrion-gameover-title');
   if (titleEl) {
     if (reason === 'sprint_complete') {
       titleEl.textContent = 'SPRINT FINISHED!';
-      titleEl.className = 'tetradog-overlay-title tetradog-accent-glow';
+      titleEl.className = 'tetrion-overlay-title tetrion-accent-glow';
     } else if (reason === 'time_up') {
       titleEl.textContent = 'TIME IS UP!';
-      titleEl.className = 'tetradog-overlay-title tetradog-accent-glow';
+      titleEl.className = 'tetrion-overlay-title tetrion-accent-glow';
     } else {
       titleEl.textContent = 'GAME OVER';
-      titleEl.className = 'tetradog-overlay-title tetradog-danger-glow';
+      titleEl.className = 'tetrion-overlay-title tetrion-danger-glow';
     }
   }
 
-  document.getElementById('tetradog-go-score').textContent = g.score.toLocaleString();
-  document.getElementById('tetradog-go-level').textContent = g.level;
-  document.getElementById('tetradog-go-lines').textContent = g.lines;
-  document.getElementById('tetradog-go-time').textContent = formatTetraTimer(g.elapsedMs);
+  document.getElementById('tetrion-go-score').textContent = g.score.toLocaleString();
+  document.getElementById('tetrion-go-level').textContent = g.level;
+  document.getElementById('tetrion-go-lines').textContent = g.lines;
+  document.getElementById('tetrion-go-time').textContent = formatTetraTimer(g.elapsedMs);
 
-  document.getElementById('tetradog-gameover-overlay').style.display = 'flex';
+  document.getElementById('tetrion-gameover-overlay').style.display = 'flex';
   updatePlayPauseButtons();
 
   // Submit high score to backend SQLite database
-  submitTetraDogScore(g.score, g.lines, g.level, durationSec, g.mode);
+  submitTetrionScore(g.score, g.lines, g.level, durationSec, g.mode);
 }
 
-function changeTetraDogMode(mode) {
-  tetradogState.game.mode = mode;
+function changeTetrionMode(mode) {
+  tetrionState.game.mode = mode;
   updateTetraHeaderAndStats();
 
-  const timerRow = document.getElementById('tetradog-timer-row');
+  const timerRow = document.getElementById('tetrion-timer-row');
   if (timerRow) {
     timerRow.style.display = (mode === 'sprint' || mode === 'ultra') ? 'flex' : 'none';
   }
 
-  if (tetradogState.game.status === 'ready') {
-    initTetraDogGame();
+  if (tetrionState.game.status === 'ready') {
+    initTetrionGame();
   }
 }
 
 // ---------------- GAME PHYSICS LOOP (60 FPS FIXED TIMESTEP) ----------------
 function tetraGameLoop(timestamp) {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   const delta = timestamp - (g.lastFrameTime || timestamp);
   g.lastFrameTime = timestamp;
 
@@ -43478,12 +43483,12 @@ function tetraGameLoop(timestamp) {
 
     // Ultra Mode countdown check (180 seconds)
     if (g.mode === 'ultra' && g.elapsedMs >= 180000) {
-      endTetraDogGame('time_up');
+      endTetrionGame('time_up');
       return;
     }
 
     // Timer display update
-    const timerEl = document.getElementById('tetradog-stat-timer');
+    const timerEl = document.getElementById('tetrion-stat-timer');
     if (timerEl && (g.mode === 'sprint' || g.mode === 'ultra')) {
       if (g.mode === 'ultra') {
         const remain = Math.max(0, 180000 - g.elapsedMs);
@@ -43530,13 +43535,13 @@ function tetraGameLoop(timestamp) {
 }
 
 function handleTetraContinuousInput(delta) {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
   if (!g.currentPiece || g.dasDir === 0) return;
 
   g.dasTimer += delta;
-  if (g.dasTimer >= tetradogState.config.das) {
+  if (g.dasTimer >= tetrionState.config.das) {
     g.arrTimer += delta;
-    const arrSpeed = Math.max(0, tetradogState.config.arr);
+    const arrSpeed = Math.max(0, tetrionState.config.arr);
 
     if (arrSpeed === 0) {
       // Instant shift
@@ -43550,21 +43555,21 @@ function handleTetraContinuousInput(delta) {
 
 // ---------------- CANVAS RENDERING ----------------
 function renderTetraCanvas() {
-  const canvas = document.getElementById('tetradog-board-canvas');
+  const canvas = document.getElementById('tetrion-board-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const g = tetradogState.game;
+  const g = tetrionState.game;
 
   const w = canvas.width;
   const h = canvas.height;
   const cellSize = w / g.boardWidth;
 
   // Clear background
-  ctx.fillStyle = (tetradogState.theme === 'gameboy') ? '#0f380f' : '#040507';
+  ctx.fillStyle = (tetrionState.theme === 'gameboy') ? '#0f380f' : '#040507';
   ctx.fillRect(0, 0, w, h);
 
   // Subtle Grid Lines
-  ctx.strokeStyle = (tetradogState.theme === 'gameboy') ? 'rgba(48, 98, 48, 0.3)' : 'rgba(255, 255, 255, 0.04)';
+  ctx.strokeStyle = (tetrionState.theme === 'gameboy') ? 'rgba(48, 98, 48, 0.3)' : 'rgba(255, 255, 255, 0.04)';
   ctx.lineWidth = 1;
   for (let c = 1; c < g.boardWidth; c++) {
     ctx.beginPath();
@@ -43588,7 +43593,7 @@ function renderTetraCanvas() {
         if (isFlashing) {
           drawTetraBlock(ctx, c * cellSize, r * cellSize, cellSize, '#ffffff', 'rgba(255, 255, 255, 0.8)');
         } else {
-          const pieceDef = TETRADOG_PIECES[type];
+          const pieceDef = TETRION_PIECES[type];
           if (pieceDef) {
             drawTetraBlock(ctx, c * cellSize, r * cellSize, cellSize, pieceDef.color, pieceDef.glow);
           }
@@ -43598,10 +43603,10 @@ function renderTetraCanvas() {
   }
 
   // Draw Ghost Piece
-  if (tetradogState.config.ghostPiece && g.currentPiece && (g.status === 'playing' || g.status === 'paused')) {
+  if (tetrionState.config.ghostPiece && g.currentPiece && (g.status === 'playing' || g.status === 'paused')) {
     const { matrix, x } = g.currentPiece;
     const gy = g.ghostY;
-    const pieceDef = TETRADOG_PIECES[g.currentPiece.type];
+    const pieceDef = TETRION_PIECES[g.currentPiece.type];
     for (let r = 0; r < matrix.length; r++) {
       for (let c = 0; c < matrix[r].length; c++) {
         if (matrix[r][c]) {
@@ -43617,7 +43622,7 @@ function renderTetraCanvas() {
   // Draw Active Falling Piece
   if (g.currentPiece && (g.status === 'playing' || g.status === 'paused')) {
     const { matrix, x, y, type } = g.currentPiece;
-    const pieceDef = TETRADOG_PIECES[type];
+    const pieceDef = TETRION_PIECES[type];
     if (pieceDef) {
       for (let r = 0; r < matrix.length; r++) {
         for (let c = 0; c < matrix[r].length; c++) {
@@ -43635,7 +43640,7 @@ function renderTetraCanvas() {
 
 function drawTetraBlock(ctx, x, y, size, color, glow) {
   ctx.save();
-  const theme = tetradogState.theme;
+  const theme = tetrionState.theme;
 
   if (theme === 'gameboy') {
     ctx.fillStyle = '#8bac0f';
@@ -43691,15 +43696,15 @@ function drawGhostBlock(ctx, x, y, size, color) {
 }
 
 function renderHoldCanvas() {
-  const canvas = document.getElementById('tetradog-hold-canvas');
+  const canvas = document.getElementById('tetrion-hold-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const holdType = tetradogState.game.holdPiece;
+  const holdType = tetrionState.game.holdPiece;
   if (!holdType) return;
 
-  const def = TETRADOG_PIECES[holdType];
+  const def = TETRION_PIECES[holdType];
   const matrix = def.matrix;
   const cellSize = 18;
   const offsetX = (canvas.width - matrix[0].length * cellSize) / 2;
@@ -43715,16 +43720,16 @@ function renderHoldCanvas() {
 }
 
 function renderNextCanvas() {
-  const canvas = document.getElementById('tetradog-next-canvas');
+  const canvas = document.getElementById('tetrion-next-canvas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const queue = tetradogState.game.nextQueue.slice(0, 3);
+  const queue = tetrionState.game.nextQueue.slice(0, 3);
   const cellSize = 16;
 
   queue.forEach((type, idx) => {
-    const def = TETRADOG_PIECES[type];
+    const def = TETRION_PIECES[type];
     const matrix = def.matrix;
     const offsetX = (canvas.width - matrix[0].length * cellSize) / 2;
     const offsetY = 12 + idx * 64 + (48 - matrix.length * cellSize) / 2;
@@ -43740,54 +43745,54 @@ function renderNextCanvas() {
 }
 
 function updateTetraHeaderAndStats() {
-  const g = tetradogState.game;
+  const g = tetrionState.game;
 
   // Status bar pills
-  const sbScore = document.getElementById('tetradog-sb-score-val');
-  const sbLvl = document.getElementById('tetradog-sb-lvl-val');
-  const sbLines = document.getElementById('tetradog-sb-lines-val');
+  const sbScore = document.getElementById('tetrion-sb-score-val');
+  const sbLvl = document.getElementById('tetrion-sb-lvl-val');
+  const sbLines = document.getElementById('tetrion-sb-lines-val');
   if (sbScore) sbScore.textContent = g.score.toLocaleString();
   if (sbLvl) sbLvl.textContent = g.level;
   if (sbLines) sbLines.textContent = g.lines;
 
   // Header pills fallback (if present)
-  const hdrScore = document.getElementById('tetradog-hdr-score-val');
-  const hdrLvl = document.getElementById('tetradog-hdr-lvl-val');
-  const hdrLines = document.getElementById('tetradog-hdr-lines-val');
+  const hdrScore = document.getElementById('tetrion-hdr-score-val');
+  const hdrLvl = document.getElementById('tetrion-hdr-lvl-val');
+  const hdrLines = document.getElementById('tetrion-hdr-lines-val');
   if (hdrScore) hdrScore.textContent = g.score.toLocaleString();
   if (hdrLvl) hdrLvl.textContent = g.level;
   if (hdrLines) hdrLines.textContent = g.lines;
 
   // Minimized pill
-  const pillScore = document.getElementById('tetradog-pill-score');
+  const pillScore = document.getElementById('tetrion-pill-score');
   if (pillScore) pillScore.textContent = g.score.toLocaleString();
 
   // Arena stats (Top score)
-  const hiScoreEl = document.getElementById('tetradog-stat-hiscore');
+  const hiScoreEl = document.getElementById('tetrion-stat-hiscore');
   if (hiScoreEl) hiScoreEl.textContent = g.highScore.toLocaleString();
-  const mobHiScore = document.getElementById('tetradog-mob-hiscore');
+  const mobHiScore = document.getElementById('tetrion-mob-hiscore');
   if (mobHiScore) mobHiScore.textContent = g.highScore.toLocaleString();
 
   // Arena mode badge & select
-  const arenaBadge = document.getElementById('tetradog-arena-mode-badge');
+  const arenaBadge = document.getElementById('tetrion-arena-mode-badge');
   if (arenaBadge) arenaBadge.textContent = g.mode.toUpperCase();
-  const mobModeBadge = document.getElementById('tetradog-mobile-mode-badge');
+  const mobModeBadge = document.getElementById('tetrion-mobile-mode-badge');
   if (mobModeBadge) mobModeBadge.textContent = g.mode.toUpperCase();
-  const modeSel = document.getElementById('tetradog-mode-select');
+  const modeSel = document.getElementById('tetrion-mode-select');
   if (modeSel && modeSel.value !== g.mode) modeSel.value = g.mode;
 
   // Sound button status styling
-  const soundBtn = document.getElementById('btn-tetradog-audio');
+  const soundBtn = document.getElementById('btn-tetrion-audio');
   if (soundBtn) {
-    soundBtn.classList.toggle('muted', !tetradogState.soundEnabled);
+    soundBtn.classList.toggle('muted', !tetrionState.soundEnabled);
   }
 
   // B2B & Combo Badges
-  const b2bBadge = document.getElementById('tetradog-b2b-badge');
+  const b2bBadge = document.getElementById('tetrion-b2b-badge');
   if (b2bBadge) b2bBadge.style.display = g.b2b ? 'block' : 'none';
 
-  const comboBadge = document.getElementById('tetradog-combo-badge');
-  const comboCnt = document.getElementById('tetradog-combo-count');
+  const comboBadge = document.getElementById('tetrion-combo-badge');
+  const comboCnt = document.getElementById('tetrion-combo-count');
   if (comboBadge && comboCnt) {
     if (g.combo > 1) {
       comboCnt.textContent = g.combo;
@@ -43807,32 +43812,32 @@ function formatTetraTimer(ms) {
 }
 
 // ---------------- INPUT EVENT LISTENERS (KEYBOARD & TOUCH) ----------------
-function initTetraDogInput() {
+function initTetrionInput() {
   if (window._tetraInputInitialized) return;
   window._tetraInputInitialized = true;
 
   window.addEventListener('keydown', (e) => {
-    const win = document.getElementById('floating-tetradog-window');
+    const win = document.getElementById('floating-tetrion-window');
     const isFloatingOpen = win && win.style.display !== 'none';
-    const isDocked = App.panes.some(p => p.dockedTool === 'tetradog');
+    const isDocked = App.panes.some(p => p.dockedTool === 'tetrion-classic');
     if (!isFloatingOpen && !isDocked) return;
-    if (tetradogState.activeView !== 'game') return;
+    if (tetrionState.activeView !== 'game') return;
 
     // Ignore if user is typing in an input
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
 
-    const g = tetradogState.game;
+    const g = tetrionState.game;
 
     if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
       e.preventDefault();
-      toggleTetraDogPlayPause();
+      toggleTetrionPlayPause();
       return;
     }
 
     if (g.status === 'ready' || g.status === 'gameover') {
       if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'w', 'a', 's', 'd', 'z', 'x', 'c'].includes(e.key)) {
         e.preventDefault();
-        startTetraDogGame();
+        startTetrionGame();
         return;
       }
     }
@@ -43874,7 +43879,7 @@ function initTetraDogInput() {
   });
 
   window.addEventListener('keyup', (e) => {
-    const g = tetradogState.game;
+    const g = tetrionState.game;
     if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
       if (g.dasDir === -1) g.dasDir = 0;
     } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
@@ -43886,15 +43891,15 @@ function initTetraDogInput() {
 
   // Touch Virtual D-Pad & NES Action buttons
   const touchMap = {
-    'tbtn-left': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); tetradogState.game.dasDir = -1; tetradogState.game.dasTimer = 0; moveTetraPiece(-1, 0); }, up: () => { if (tetradogState.game.dasDir === -1) tetradogState.game.dasDir = 0; } },
-    'tbtn-right': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); tetradogState.game.dasDir = 1; tetradogState.game.dasTimer = 0; moveTetraPiece(1, 0); }, up: () => { if (tetradogState.game.dasDir === 1) tetradogState.game.dasDir = 0; } },
-    'tbtn-down': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); tetradogState.game.softDropActive = true; }, up: () => { tetradogState.game.softDropActive = false; } },
-    'tbtn-up': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else hardDropTetraPiece(); } },
-    'tbtn-harddrop': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else hardDropTetraPiece(); } },
-    'tbtn-rot-cw': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else rotateTetraPiece(1); } },
-    'tbtn-rot-ccw': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else rotateTetraPiece(-1); } },
-    'tbtn-hold': { down: () => { if (tetradogState.game.status !== 'playing') startTetraDogGame(); else holdTetraPiece(); } },
-    'tbtn-pause': { down: () => { toggleTetraDogPlayPause(); } }
+    'tbtn-left': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); tetrionState.game.dasDir = -1; tetrionState.game.dasTimer = 0; moveTetraPiece(-1, 0); }, up: () => { if (tetrionState.game.dasDir === -1) tetrionState.game.dasDir = 0; } },
+    'tbtn-right': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); tetrionState.game.dasDir = 1; tetrionState.game.dasTimer = 0; moveTetraPiece(1, 0); }, up: () => { if (tetrionState.game.dasDir === 1) tetrionState.game.dasDir = 0; } },
+    'tbtn-down': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); tetrionState.game.softDropActive = true; }, up: () => { tetrionState.game.softDropActive = false; } },
+    'tbtn-up': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else hardDropTetraPiece(); } },
+    'tbtn-harddrop': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else hardDropTetraPiece(); } },
+    'tbtn-rot-cw': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else rotateTetraPiece(1); } },
+    'tbtn-rot-ccw': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else rotateTetraPiece(-1); } },
+    'tbtn-hold': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else holdTetraPiece(); } },
+    'tbtn-pause': { down: () => { toggleTetrionPlayPause(); } }
   };
 
   Object.entries(touchMap).forEach(([btnId, handlers]) => {
@@ -43928,12 +43933,12 @@ function initTetraDogInput() {
 }
 
 // ---------------- LEADERBOARD & DB SYNCHRONIZATION ----------------
-async function loadTetraDogLeaderboard(mode = 'marathon', showLoading = true) {
-  tetradogState.leaderboard.mode = mode;
-  const tbody = document.getElementById('tetradog-leaderboard-tbody');
+async function loadTetrionLeaderboard(mode = 'marathon', showLoading = true) {
+  tetrionState.leaderboard.mode = mode;
+  const tbody = document.getElementById('tetrion-leaderboard-tbody');
 
   // Update mode pills
-  document.querySelectorAll('.tetradog-lb-tab').forEach(b => {
+  document.querySelectorAll('.tetrion-lb-tab').forEach(b => {
     b.classList.toggle('active', b.getAttribute('data-mode') === mode);
   });
 
@@ -43941,8 +43946,8 @@ async function loadTetraDogLeaderboard(mode = 'marathon', showLoading = true) {
     tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Fetching top scores from server...</td></tr>`;
   }
 
-  const userOnly = tetradogState.leaderboard.scope === 'mine';
-  const url = `/api/chewtoys/tetradog/scores?mode=${encodeURIComponent(mode)}&user_only=${userOnly}&limit=50`;
+  const userOnly = tetrionState.leaderboard.scope === 'mine';
+  const url = `/api/chewtoys/tetrion/scores?mode=${encodeURIComponent(mode)}&user_only=${userOnly}&limit=50`;
 
   try {
     const resp = await fetch(url, {
@@ -43951,16 +43956,16 @@ async function loadTetraDogLeaderboard(mode = 'marathon', showLoading = true) {
 
     if (resp.ok) {
       const data = await resp.json();
-      tetradogState.leaderboard.list = data.leaderboard || [];
-      tetradogState.leaderboard.userStats = data.user_stats || null;
+      tetrionState.leaderboard.list = data.leaderboard || [];
+      tetrionState.leaderboard.userStats = data.user_stats || null;
 
       // Update personal top score in game
       if (data.user_best) {
-        tetradogState.game.highScore = data.user_best.score;
+        tetrionState.game.highScore = data.user_best.score;
         updateTetraHeaderAndStats();
       }
 
-      renderTetraDogLeaderboard(data);
+      renderTetrionLeaderboard(data);
     } else {
       if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load scores (${resp.status})</td></tr>`;
     }
@@ -43969,17 +43974,17 @@ async function loadTetraDogLeaderboard(mode = 'marathon', showLoading = true) {
   }
 }
 
-function renderTetraDogLeaderboard(data) {
-  const tbody = document.getElementById('tetradog-leaderboard-tbody');
+function renderTetrionLeaderboard(data) {
+  const tbody = document.getElementById('tetrion-leaderboard-tbody');
   if (!tbody) return;
 
   // Update Summary Banner
   if (data.user_stats) {
-    const bestEl = document.getElementById('tetradog-sum-best');
-    const rankEl = document.getElementById('tetradog-sum-rank');
-    const lvlEl = document.getElementById('tetradog-sum-level');
-    const linesEl = document.getElementById('tetradog-sum-lines');
-    const gamesEl = document.getElementById('tetradog-sum-games');
+    const bestEl = document.getElementById('tetrion-sum-best');
+    const rankEl = document.getElementById('tetrion-sum-rank');
+    const lvlEl = document.getElementById('tetrion-sum-level');
+    const linesEl = document.getElementById('tetrion-sum-lines');
+    const gamesEl = document.getElementById('tetrion-sum-games');
 
     if (bestEl) bestEl.textContent = data.user_stats.high_score.toLocaleString();
     if (rankEl) rankEl.textContent = data.user_stats.best_rank ? `#${data.user_stats.best_rank}` : '-';
@@ -43991,16 +43996,16 @@ function renderTetraDogLeaderboard(data) {
   // Populate Table Rows
   const scores = data.leaderboard || [];
   if (scores.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">No high scores recorded yet in ${data.user_stats ? tetradogState.leaderboard.mode : ''} mode. Be the first!</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">No high scores recorded yet in ${data.user_stats ? tetrionState.leaderboard.mode : ''} mode. Be the first!</td></tr>`;
     return;
   }
 
   let html = '';
   scores.forEach((row, idx) => {
     let rankBadge = `${idx + 1}`;
-    if (idx === 0) rankBadge = `<span class="tetradog-rank-medal rank-gold">🥇</span>`;
-    else if (idx === 1) rankBadge = `<span class="tetradog-rank-medal rank-silver">🥈</span>`;
-    else if (idx === 2) rankBadge = `<span class="tetradog-rank-medal rank-bronze">🥉</span>`;
+    if (idx === 0) rankBadge = `<span class="tetrion-rank-medal rank-gold">🥇</span>`;
+    else if (idx === 1) rankBadge = `<span class="tetrion-rank-medal rank-silver">🥈</span>`;
+    else if (idx === 2) rankBadge = `<span class="tetrion-rank-medal rank-bronze">🥉</span>`;
 
     const rowClass = row.is_current_user ? 'current-user-row' : '';
     const dateStr = row.created_at ? new Date(row.created_at).toLocaleDateString() : '-';
@@ -44022,28 +44027,28 @@ function renderTetraDogLeaderboard(data) {
   tbody.innerHTML = html;
 }
 
-function handleTetraDogScopeChange(scope) {
-  tetradogState.leaderboard.scope = scope;
-  loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+function handleTetrionScopeChange(scope) {
+  tetrionState.leaderboard.scope = scope;
+  loadTetrionLeaderboard(tetrionState.leaderboard.mode);
 }
 
-function refreshTetraDogLeaderboard() {
-  loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+function refreshTetrionLeaderboard() {
+  loadTetrionLeaderboard(tetrionState.leaderboard.mode);
 }
 
-function saveTetraDogPlayerAlias(alias) {
+function saveTetrionPlayerAlias(alias) {
   const clean = alias.trim();
-  tetradogState.playerAlias = clean;
-  localStorage.setItem('cd_tetradog_alias', clean);
+  tetrionState.playerAlias = clean;
+  localStorage.setItem('cd_tetrion_alias', clean);
   showToast(`Player alias saved as: ${clean || App.user?.username || 'Player'}`, 'success');
 }
 
-async function submitTetraDogScore(score, lines, level, duration, mode) {
+async function submitTetrionScore(score, lines, level, duration, mode) {
   if (score <= 0) return;
 
-  const playerAlias = tetradogState.playerAlias || App.user?.nickname || App.user?.username || '';
+  const playerAlias = tetrionState.playerAlias || App.user?.nickname || App.user?.username || '';
   try {
-    const resp = await fetch('/api/chewtoys/tetradog/scores', {
+    const resp = await fetch('/api/chewtoys/tetrion/scores', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${App.token}`,
@@ -44061,8 +44066,8 @@ async function submitTetraDogScore(score, lines, level, duration, mode) {
 
     if (resp.ok) {
       const result = await resp.json();
-      const rankBanner = document.getElementById('tetradog-rank-banner');
-      const rankText = document.getElementById('tetradog-rank-text');
+      const rankBanner = document.getElementById('tetrion-rank-banner');
+      const rankText = document.getElementById('tetrion-rank-text');
 
       if (rankBanner && rankText) {
         if (result.is_global_high_score) {
@@ -44078,17 +44083,17 @@ async function submitTetraDogScore(score, lines, level, duration, mode) {
       }
 
       // Update personal best in state
-      if (score > tetradogState.game.highScore) {
-        tetradogState.game.highScore = score;
+      if (score > tetrionState.game.highScore) {
+        tetrionState.game.highScore = score;
         updateTetraHeaderAndStats();
       }
     }
   } catch (e) {
-    console.debug('Failed to submit TetraDog score:', e);
+    console.debug('Failed to submit Tetrion score:', e);
   }
 }
 
-async function promptClearTetraDogScores() {
+async function promptClearTetrionScores() {
   const confirmed = await showConfirmDialog({
     title: 'Reset High Scores',
     subtitle: 'Tetrion Arcade Records',
@@ -44100,16 +44105,16 @@ async function promptClearTetraDogScores() {
   if (!confirmed) return;
 
   try {
-    const resp = await fetch('/api/tools/tetradog/scores', {
+    const resp = await fetch('/api/tools/tetrion/scores', {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${App.token}` }
     });
 
     if (resp.ok) {
-      showToast('TetraDog scores cleared successfully', 'success');
-      tetradogState.game.highScore = 0;
+      showToast('Tetrion scores cleared successfully', 'success');
+      tetrionState.game.highScore = 0;
       updateTetraHeaderAndStats();
-      loadTetraDogLeaderboard(tetradogState.leaderboard.mode);
+      loadTetrionLeaderboard(tetrionState.leaderboard.mode);
     } else {
       showToast(`Failed to clear scores: ${await resp.text()}`, 'error');
     }
@@ -44118,10 +44123,10 @@ async function promptClearTetraDogScores() {
   }
 }
 
-// ---------------- IN-PANE DOCKED TETRADOG ----------------
-function mountDockedTetraDog(paneIndex) {
-  const host = document.getElementById(`docked-tetradog-host-${paneIndex}`);
-  const arena = document.getElementById('tetradog-view-game');
+// ---------------- IN-PANE DOCKED TETRION ----------------
+function mountDockedTetrion(paneIndex) {
+  const host = document.getElementById(`docked-tetrion-host-${paneIndex}`);
+  const arena = document.getElementById('tetrion-view-game');
   if (!host || !arena) return;
 
   // Move game arena into pane host

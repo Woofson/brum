@@ -93,10 +93,10 @@ const ARCADE_SRS_KICKS_I = {
 let arcadeState = {
   initialized: false,
   activeView: 'game',
-  theme: localStorage.getItem('cd_arcade_theme') || localStorage.getItem('cd_tetradog_theme') || 'amber',
+  theme: localStorage.getItem('cd_arcade_theme') || localStorage.getItem('cd_tetrion_theme') || localStorage.getItem('cd_tetradog_theme') || 'amber',
   soundEnabled: localStorage.getItem('cd_arcade_sound') !== '0',
   volume: parseInt(localStorage.getItem('cd_arcade_vol') || '60', 10),
-  playerAlias: localStorage.getItem('cd_arcade_alias') || localStorage.getItem('cd_tetradog_alias') || '',
+  playerAlias: localStorage.getItem('cd_arcade_alias') || localStorage.getItem('cd_tetrion_alias') || localStorage.getItem('cd_tetradog_alias') || '',
   config: {
     startLevel: parseInt(localStorage.getItem('cd_arcade_start_lvl') || '1', 10),
     rotationSystem: localStorage.getItem('cd_arcade_rotation') || 'srs',
@@ -1398,7 +1398,7 @@ async function loadArcadeLeaderboard(mode = 'marathon', showLoading = true) {
 
   const userOnly = arcadeState.leaderboard.scope === 'mine';
   const token = getAuthToken();
-  const url = `/api/chewtoys/tetradog/scores?mode=${encodeURIComponent(mode)}&user_only=${userOnly}&limit=50`;
+  const url = `/api/chewtoys/tetrion/scores?mode=${encodeURIComponent(mode)}&user_only=${userOnly}&limit=50`;
 
   try {
     const headers = {};
@@ -1489,7 +1489,7 @@ function saveArcadePlayerAlias(alias) {
   const clean = alias.trim();
   arcadeState.playerAlias = clean;
   localStorage.setItem('cd_arcade_alias', clean);
-  localStorage.setItem('cd_tetradog_alias', clean);
+  localStorage.setItem('cd_tetrion_alias', clean);
 }
 
 async function submitArcadeScore(score, lines, level, duration, mode) {
@@ -1502,7 +1502,7 @@ async function submitArcadeScore(score, lines, level, duration, mode) {
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const resp = await fetch('/api/chewtoys/tetradog/scores', {
+    const resp = await fetch('/api/chewtoys/tetrion/scores', {
       method: 'POST',
       headers,
       body: JSON.stringify({
@@ -1551,7 +1551,7 @@ async function promptClearArcadeScores() {
     const headers = {};
     if (token) headers['Authorization'] = `Bearer ${token}`;
 
-    const resp = await fetch('/api/tools/tetradog/scores', {
+    const resp = await fetch('/api/tools/tetrion/scores', {
       method: 'DELETE',
       headers
     });
