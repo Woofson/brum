@@ -849,7 +849,7 @@
           <img src="assets/sharemgr.webp" alt="Share" style="width: 16px; height: 16px; object-fit: contain;">
           <span id="share-modal-heading">Advanced Sharing & Showcase Center</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" style="width: 28px; height: 28px;" onclick="closeModal('share-create-modal')" title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
+        <button class="btn btn-icon modal-close-btn" style="width: 28px; height: 28px;" data-on-click="closeModal" data-click-args='["share-create-modal"]' title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px;">
         <!-- Target Item Summary -->
@@ -867,7 +867,7 @@
           <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px;">
             <label class="share-mode-card" id="mode-card-full" style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px;">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="radio" name="share-mode" id="share-mode-full" value="full" checked onchange="handleShareModeChange()">
+                <input type="radio" name="share-mode" id="share-mode-full" value="full" checked data-on-change="handleShareModeChange">
                 <span style="font-weight: 700; font-size: 12px; color: var(--text-main);">Full Share</span>
               </div>
               <span style="font-size: 10px; color: var(--text-muted);">View & Download enabled</span>
@@ -875,7 +875,7 @@
 
             <label class="share-mode-card" id="mode-card-showcase" style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px;">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="radio" name="share-mode" id="share-mode-showcase" value="showcase" onchange="handleShareModeChange()">
+                <input type="radio" name="share-mode" id="share-mode-showcase" value="showcase" data-on-change="handleShareModeChange">
                 <span style="font-weight: 700; font-size: 12px; color: #10b981;">Showcase Mode</span>
               </div>
               <span style="font-size: 10px; color: var(--text-muted);">View-Only (No Download)</span>
@@ -883,7 +883,7 @@
 
             <label class="share-mode-card" id="mode-card-dropbox" style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px;">
               <div style="display: flex; align-items: center; gap: 6px;">
-                <input type="radio" name="share-mode" id="share-mode-dropbox" value="dropbox" onchange="handleShareModeChange()">
+                <input type="radio" name="share-mode" id="share-mode-dropbox" value="dropbox" data-on-change="handleShareModeChange">
                 <span style="font-weight: 700; font-size: 12px; color: #60a5fa;">Guest Dropbox</span>
               </div>
               <span style="font-size: 10px; color: var(--text-muted);">Upload dropzone</span>
@@ -921,7 +921,7 @@
 
           <div>
             <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); font-weight: 600;">
-              <input type="checkbox" id="share-require-email" onchange="document.getElementById('share-emails-box').style.display = this.checked ? 'block' : 'none'">
+              <input type="checkbox" id="share-require-email" data-on-change="showElementIf" data-change-args='["share-emails-box", {"$":"checked"}]'>
               <span>Require Guest Email Whitelist (Restricted Access)</span>
             </label>
             <div id="share-emails-box" style="display: none; margin-top: 6px;">
@@ -935,7 +935,7 @@
         <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 10px;">
           <div style="font-size: 11px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">💧 Anti-Leak Dynamic Watermarking</div>
           <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; color: var(--text-main); font-weight: 600;">
-            <input type="checkbox" id="share-watermark-toggle" onchange="document.getElementById('share-watermark-text-box').style.display = this.checked ? 'block' : 'none'">
+            <input type="checkbox" id="share-watermark-toggle" data-on-change="showElementIf" data-change-args='["share-watermark-text-box", {"$":"checked"}]'>
             <span>Enable Diagonal Watermark on Previews & Documents</span>
           </label>
           <div id="share-watermark-text-box" style="display: none;">
@@ -955,20 +955,20 @@
           <div style="font-size: 11px; font-weight: 700; color: var(--accent); margin-bottom: 6px;">Share Link Generated Successfully:</div>
           <div style="display: flex; gap: 8px;">
             <input type="text" id="share-result-url" readonly class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); font-size: 12px; padding: 6px 8px; color: var(--accent);">
-            <button class="btn btn-accent" style="height: 28px; padding: 0 10px;" onclick="copyShareUrl()"><i data-lucide="copy" style="width: 13px;"></i> Copy</button>
+            <button class="btn btn-accent" style="height: 28px; padding: 0 10px;" data-on-click="copyShareUrl"><i data-lucide="copy" style="width: 13px;"></i> Copy</button>
             <a id="share-result-open-btn" target="_blank" class="btn btn-outline" style="height: 28px; padding: 0 10px; text-decoration: none;" title="Open in New Tab"><i data-lucide="external-link" style="width: 13px;"></i></a>
           </div>
         </div>
       </div>
       <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: space-between; align-items: center;">
-        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" onclick="closeModal('share-create-modal')">Close</button>
-        <button class="btn btn-accent" id="btn-generate-share" style="height: 28px; font-size: 12px;" onclick="executeCreateShare()"><i data-lucide="link" style="width: 13px;"></i> Save & Generate Link</button>
+        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" data-on-click="closeModal" data-click-args='["share-create-modal"]'>Close</button>
+        <button class="btn btn-accent" id="btn-generate-share" style="height: 28px; font-size: 12px;" data-on-click="executeCreateShare"><i data-lucide="link" style="width: 13px;"></i> Save & Generate Link</button>
       </div>
     </div>
   </div>
 
   <!-- 🔗 Floating Share Manager & Public Link Studio Window -->
-  <div class="floating-shares-window" id="floating-shares-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-shares-window" id="floating-shares-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="shares-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="shares-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="shares-resize-left"></div>
@@ -980,15 +980,15 @@
     <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
     <div class="modal-header shares-header" id="shares-header">
       <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="shares-drag-handle">
-        <img src="assets/sharemgr.webp" alt="Shares" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;" onerror="this.src='assets/amber-frameless-apps.webp'">
+        <img src="assets/sharemgr.webp" alt="Shares" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;" data-on-error="useFallbackIcon" data-error-args='[{"$": "el"}]'>
         <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Sharing Center</span>
         <span class="badge badge-showcase" id="shares-count-badge" style="margin-left: 4px;">0 Active</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-shares-dock" onclick="dockSharesToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-shares-maximize" onclick="toggleMaximizeShares()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingShares()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingShares()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-shares-dock" data-on-click="dockSharesToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-shares-maximize" data-on-click="toggleMaximizeShares" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingShares" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingShares" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -1029,16 +1029,16 @@
 
         <!-- Filter & Search Toolbar -->
         <div style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-          <input type="text" id="shares-search-input" class="pane-quick-filter" style="padding: 4px 10px; font-size: 11.5px; min-width: 180px; flex: 1; height: 26px;" placeholder="🔍 Filter shares by name or path..." oninput="handleSharesFilterChange()">
-          <select id="shares-status-filter" class="pane-quick-filter" style="padding: 2px 8px; font-size: 11.5px; width: 130px; height: 26px;" onchange="handleSharesFilterChange()">
+          <input type="text" id="shares-search-input" class="pane-quick-filter" style="padding: 4px 10px; font-size: 11.5px; min-width: 180px; flex: 1; height: 26px;" placeholder="🔍 Filter shares by name or path..." data-on-input="handleSharesFilterChange">
+          <select id="shares-status-filter" class="pane-quick-filter" style="padding: 2px 8px; font-size: 11.5px; width: 130px; height: 26px;" data-on-change="handleSharesFilterChange">
             <option value="all">All Statuses</option>
             <option value="active" selected>Active Only</option>
             <option value="showcase">Showcase Mode</option>
             <option value="dropbox">Guest Dropboxes</option>
             <option value="revoked">Revoked</option>
           </select>
-          <button class="btn btn-accent btn-xs" style="height: 26px; font-size: 11.5px; padding: 0 10px;" onclick="triggerShare()"><i data-lucide="plus" style="width: 13px;"></i> New Share</button>
-          <button class="btn btn-outline btn-icon btn-xs" style="width: 26px; height: 26px;" onclick="loadActiveShares()" title="Refresh Shares"><i data-lucide="rotate-cw" style="width: 13px;"></i></button>
+          <button class="btn btn-accent btn-xs" style="height: 26px; font-size: 11.5px; padding: 0 10px;" data-on-click="triggerShare"><i data-lucide="plus" style="width: 13px;"></i> New Share</button>
+          <button class="btn btn-outline btn-icon btn-xs" style="width: 26px; height: 26px;" data-on-click="loadActiveShares" title="Refresh Shares"><i data-lucide="rotate-cw" style="width: 13px;"></i></button>
         </div>
 
         <!-- Shares List / Table -->
@@ -1067,14 +1067,14 @@
         <span style="font-size: 11px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;">
           <i data-lucide="info" style="width: 13px; height: 13px;"></i> Drag files or folders here to quickly create a share link
         </span>
-        <button class="btn btn-sm" onclick="closeFloatingShares()">Close</button>
+        <button class="btn btn-sm" data-on-click="closeFloatingShares">Close</button>
       </div>
     </div>
   </div>
 
   <!-- Taskbar Pill for Sharing Center -->
-  <div class="shares-pill" id="shares-pill" style="display: none;" onclick="restoreFloatingShares()" title="Click to restore Sharing Center">
-    <img src="assets/sharemgr.webp" alt="Shares" style="width: 14px; height: 14px; object-fit: contain;" onerror="this.src='assets/amber-frameless-apps.webp'">
+  <div class="shares-pill" id="shares-pill" style="display: none;" data-on-click="restoreFloatingShares" title="Click to restore Sharing Center">
+    <img src="assets/sharemgr.webp" alt="Shares" style="width: 14px; height: 14px; object-fit: contain;" data-on-error="useFallbackIcon" data-error-args='[{"$": "el"}]'>
     <span>Sharing Center</span>
   </div>
 
@@ -1087,7 +1087,7 @@
           <span style="font-weight: 700; color: var(--accent); font-size: 13px;">Visitor Audit Trail:</span>
           <span id="share-logs-title" style="font-size: 13px; color: var(--text-main); font-weight: 600;">Share Name</span>
         </div>
-        <button class="btn btn-icon modal-close-btn" style="width: 28px; height: 28px;" onclick="closeModal('share-logs-modal')" title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
+        <button class="btn btn-icon modal-close-btn" style="width: 28px; height: 28px;" data-on-click="closeModal" data-click-args='["share-logs-modal"]' title="Close"><i data-lucide="x" style="width: 14px;"></i></button>
       </div>
       <div class="modal-body" style="padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px;">
         <div style="overflow-x: auto; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border);">
@@ -1110,7 +1110,7 @@
         </div>
       </div>
       <div class="modal-footer" style="padding: 10px 16px; display: flex; justify-content: flex-end;">
-        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" onclick="closeModal('share-logs-modal')">Close</button>
+        <button class="btn btn-outline" style="height: 28px; font-size: 12px;" data-on-click="closeModal" data-click-args='["share-logs-modal"]'>Close</button>
       </div>
     </div>
   </div>
@@ -3064,21 +3064,21 @@
           <span style="font-weight: 700; color: var(--accent); font-size: 14px;">Administrator Control Panel</span>
           <span class="user-role-badge">GLOBAL SERVER CONFIG</span>
         </div>
-        <button class="btn" onclick="closeModal('admin-panel-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["admin-panel-modal"]'><i data-lucide="x"></i></button>
       </div>
 
       <div class="settings-modal-layout">
         <!-- Admin Sidebar Navigation -->
         <div class="settings-sidebar">
           <div class="settings-sidebar-group-title">Server Administration</div>
-          <button class="settings-nav-btn active" onclick="switchAdminTab('admin-tab-users')"><i data-lucide="users"></i> Users & RBAC</button>
-          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-tokens')"><i data-lucide="key-round"></i> API & Fleet Tokens</button>
-          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-storage')"><i data-lucide="server"></i> Remote Storage & Mounts</button>
-          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-syncthing')"><i data-lucide="repeat"></i> Syncthing Global</button>
+          <button class="settings-nav-btn active" data-on-click="switchAdminTab" data-click-args='["admin-tab-users"]'><i data-lucide="users"></i> Users & RBAC</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-tokens"]'><i data-lucide="key-round"></i> API & Fleet Tokens</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-storage"]'><i data-lucide="server"></i> Remote Storage & Mounts</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-syncthing"]'><i data-lucide="repeat"></i> Syncthing Global</button>
 
           <div class="settings-sidebar-group-title">Security & Config</div>
-          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-security')"><i data-lucide="shield-check"></i> Security & Integrity</button>
-          <button class="settings-nav-btn" onclick="switchAdminTab('admin-tab-config')"><i data-lucide="file-cog"></i> Server config.toml</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-config"]'><i data-lucide="file-cog"></i> Server config.toml</button>
         </div>
 
         <div class="settings-content-area">
@@ -3093,7 +3093,7 @@
                   Manage internal, Windows, and PAM system accounts, assign Admin privileges, and grant or restrict service access per user.
                 </p>
               </div>
-              <button type="button" class="btn btn-accent btn-sm" onclick="showAddUserPrompt()" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+              <button type="button" class="btn btn-accent btn-sm" data-on-click="showAddUserPrompt" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
                 <i data-lucide="user-plus" style="width: 13px; height: 13px;"></i> New User
               </button>
             </div>
@@ -3123,7 +3123,7 @@
                   Create and manage cryptographically signed long-lived Bearer tokens for Fleet Control nodes, backup daemons, and automated scripts.
                 </p>
               </div>
-              <button type="button" class="btn btn-accent btn-sm" onclick="openCreateApiTokenModal()" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+              <button type="button" class="btn btn-accent btn-sm" data-on-click="openCreateApiTokenModal" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
                 <i data-lucide="plus" style="width: 13px; height: 13px;"></i> Generate Token
               </button>
             </div>
@@ -3147,7 +3147,7 @@
                     Configure network shares and assign which users can access them via their Favorites menu.
                   </p>
                 </div>
-                <button type="button" class="btn btn-accent btn-sm" onclick="openRemoteModal(App.activePaneIndex, true)" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
+                <button type="button" class="btn btn-accent btn-sm" data-on-click="openGlobalRemoteModal" style="height: 28px; display: flex; align-items: center; gap: 5px; white-space: nowrap;">
                   <i data-lucide="plus" style="width: 13px; height: 13px;"></i> Add Global Mount
                 </button>
               </div>
@@ -3222,7 +3222,7 @@
                   <label class="settings-field-label" for="setting-syncthing-key">REST API Key:</label>
                   <div style="position: relative; display: flex; align-items: center;">
                     <input type="password" id="setting-syncthing-key" class="settings-input" style="padding-right: 32px;" placeholder="Leave empty for auto-discovery">
-                    <button type="button" class="btn btn-icon" onclick="togglePasswordVisibility('setting-syncthing-key')" style="position: absolute; right: 2px; width: 26px; height: 26px; background: transparent; border: none;">
+                    <button type="button" class="btn btn-icon" data-on-click="togglePasswordVisibility" data-click-args='["setting-syncthing-key"]' style="position: absolute; right: 2px; width: 26px; height: 26px; background: transparent; border: none;">
                       <i data-lucide="eye" style="width: 14px; height: 14px;"></i>
                     </button>
                   </div>
@@ -3230,7 +3230,7 @@
               </div>
 
               <div style="display: flex; gap: 8px; margin-top: 6px;">
-                <button type="button" class="btn btn-accent btn-sm" onclick="testAndSaveSyncthingConfig()" style="height: 28px; display: flex; align-items: center; gap: 5px;">
+                <button type="button" class="btn btn-accent btn-sm" data-on-click="testAndSaveSyncthingConfig" style="height: 28px; display: flex; align-items: center; gap: 5px;">
                   <i data-lucide="activity" style="width: 13px; height: 13px;"></i> Test Connection & Dashboard
                 </button>
               </div>
@@ -3307,7 +3307,7 @@
               </div>
 
               <div style="margin-top: 4px;">
-                <button type="button" class="btn btn-accent btn-sm" onclick="saveAdminSecuritySettings()" style="height: 28px; display: inline-flex; align-items: center; gap: 5px;">
+                <button type="button" class="btn btn-accent btn-sm" data-on-click="saveAdminSecuritySettings" style="height: 28px; display: inline-flex; align-items: center; gap: 5px;">
                   <i data-lucide="check" style="width: 13px; height: 13px;"></i> Save Auto-Lock Policies
                 </button>
               </div>
@@ -3352,7 +3352,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
+                  <input type="checkbox" id="setting-trash-enabled" checked data-on-change="toggleTrashSetting" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong id="admin-setting-trash-title">Safe Trash Bin</strong>
                     <div class="settings-field-hint" id="admin-setting-trash-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
@@ -3360,7 +3360,7 @@
                 </label>
 
                 <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="admin-setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
+                  <input type="checkbox" id="admin-setting-windows-native-ops" checked data-on-change="toggleWindowsNativeOpsSetting" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Windows Native Shell &amp; Recycle Bin</strong>
                     <div class="settings-field-hint">Use Windows Shell APIs ($Recycle.Bin, SHFileOperation) across Windows drives instead of POSIX trash.</div>
@@ -3368,7 +3368,7 @@
                 </label>
 
                 <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="admin-setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
+                  <input type="checkbox" id="admin-setting-detect-file-locks" checked data-on-change="toggleDetectFileLocksSetting" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Windows Process Lock Inspection</strong>
                     <div class="settings-field-hint">Use Windows Restart Manager to report specific locking process names and PIDs on access violations.</div>
@@ -3378,7 +3378,7 @@
 
               <div class="settings-field" style="margin-top: 4px;">
                 <label class="settings-field-label" for="setting-custom-trash-dir">Server Custom Trash Directory (Optional):</label>
-                <input type="text" id="setting-custom-trash-dir" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
+                <input type="text" id="setting-custom-trash-dir" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" data-on-change="saveCustomTrashDir" data-change-args='[{"$": "value"}]'>
               </div>
             </div>
           </div>
@@ -3397,16 +3397,16 @@
                   </p>
                 </div>
                 <div style="display: flex; gap: 6px; flex-wrap: wrap;">
-                  <button type="button" class="btn btn-sm btn-outline" onclick="loadMasterConfigEditor()" title="Discard unsaved changes and fetch fresh config from disk" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                  <button type="button" class="btn btn-sm btn-outline" data-on-click="loadMasterConfigEditor" title="Discard unsaved changes and fetch fresh config from disk" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
                     <i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i> Discard / Fetch
                   </button>
-                  <button type="button" class="btn btn-sm btn-outline" onclick="triggerServerReload()" title="Reload settings into running server memory" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                  <button type="button" class="btn btn-sm btn-outline" data-on-click="triggerServerReload" title="Reload settings into running server memory" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
                     <i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Reload Config
                   </button>
-                  <button type="button" class="btn btn-sm btn-danger-action" onclick="triggerServerRestart()" title="Restart Brum server process" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                  <button type="button" class="btn btn-sm btn-danger-action" data-on-click="triggerServerRestart" title="Restart Brum server process" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
                     <i data-lucide="power" style="width: 12px; height: 12px;"></i> Restart Server
                   </button>
-                  <button type="button" class="btn btn-sm btn-accent" onclick="saveMasterConfigFile()" id="btn-save-master-config" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                  <button type="button" class="btn btn-sm btn-accent" data-on-click="saveMasterConfigFile" id="btn-save-master-config" style="height: 28px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
                     <i data-lucide="save" style="width: 12px; height: 12px;"></i> Save config.toml
                   </button>
                 </div>
@@ -3416,7 +3416,7 @@
                 <div class="admin-config-gutter" id="admin-config-gutter">1</div>
                 <div class="admin-config-body-wrapper">
                   <pre class="admin-config-pre" id="admin-config-highlight" aria-hidden="true"><code class="admin-config-code language-toml" id="admin-config-code"></code></pre>
-                  <textarea id="admin-config-editor-textarea" class="admin-config-textarea" spellcheck="false" wrap="off" placeholder="# Loading master configuration..." oninput="handleAdminConfigInput()" onscroll="syncAdminConfigScroll()" onkeydown="handleAdminConfigKeyDown(event)" onclick="updateAdminConfigCursorStats()" onkeyup="updateAdminConfigCursorStats()"></textarea>
+                  <textarea id="admin-config-editor-textarea" class="admin-config-textarea" spellcheck="false" wrap="off" placeholder="# Loading master configuration..." data-on-input="handleAdminConfigInput" data-on-scroll="syncAdminConfigScroll" data-on-keydown="handleAdminConfigKeyDown" data-keydown-args='[{"$": "event"}]' data-on-click="updateAdminConfigCursorStats" data-on-keyup="updateAdminConfigCursorStats"></textarea>
                 </div>
               </div>
               <div class="admin-config-bottom-bar">
@@ -3440,17 +3440,17 @@
     <div class="modal-box" style="width: 480px;">
       <div class="modal-header">
         <span>👤 User Profile & Account Settings</span>
-        <button class="btn" onclick="closeModal('profile-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["profile-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px; background: var(--bg-header); padding: 12px; border-radius: var(--radius);">
           <div style="position: relative; display: inline-block;">
-            <div class="profile-avatar-large" id="profile-edit-avatar" onclick="document.getElementById('profile-avatar-file-input').click()" title="Click to upload profile photo" style="cursor: pointer;">👤</div>
-            <button type="button" class="btn btn-sm btn-icon" onclick="document.getElementById('profile-avatar-file-input').click()" title="Upload Photo" style="position: absolute; bottom: -3px; right: -3px; border-radius: 50%; width: 22px; height: 22px; background: var(--accent); color: #000; border: none; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer;">
+            <div class="profile-avatar-large" id="profile-edit-avatar" data-on-click="clickElementById" data-click-args='["profile-avatar-file-input"]' title="Click to upload profile photo" style="cursor: pointer;">👤</div>
+            <button type="button" class="btn btn-sm btn-icon" data-on-click="clickElementById" data-click-args='["profile-avatar-file-input"]' title="Upload Photo" style="position: absolute; bottom: -3px; right: -3px; border-radius: 50%; width: 22px; height: 22px; background: var(--accent); color: #000; border: none; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer;">
               <i data-lucide="camera" style="width: 12px; height: 12px;"></i>
             </button>
           </div>
-          <input type="file" id="profile-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" onchange="handleAvatarFileUpload(event)">
+          <input type="file" id="profile-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" data-on-change="handleAvatarFileUpload" data-change-args='[{"$": "event"}]'>
           <div style="flex: 1;">
             <div style="display: flex; justify-content: space-between; align-items: flex-start;">
               <div>
@@ -3460,8 +3460,8 @@
               <span class="user-role-badge" id="profile-edit-role-badge">ADMIN</span>
             </div>
             <div style="display: flex; gap: 6px; margin-top: 8px;">
-              <button type="button" class="btn btn-sm" onclick="document.getElementById('profile-avatar-file-input').click()"><i data-lucide="upload" style="width: 12px;"></i> Upload Photo</button>
-              <button type="button" class="btn btn-sm" onclick="resetAvatarToDefault()"><i data-lucide="rotate-ccw" style="width: 12px;"></i> Reset</button>
+              <button type="button" class="btn btn-sm" data-on-click="clickElementById" data-click-args='["profile-avatar-file-input"]'><i data-lucide="upload" style="width: 12px;"></i> Upload Photo</button>
+              <button type="button" class="btn btn-sm" data-on-click="resetAvatarToDefault"><i data-lucide="rotate-ccw" style="width: 12px;"></i> Reset</button>
             </div>
           </div>
         </div>
@@ -3488,7 +3488,7 @@
 
         <div class="form-group">
           <label>Avatar Emoji / URL / Image Data:</label>
-          <input type="text" id="profile-input-avatar" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. 🐕 or /api/auth/avatar/username" oninput="renderAvatarElement(document.getElementById('profile-edit-avatar'), this.value)">
+          <input type="text" id="profile-input-avatar" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. 🐕 or /api/auth/avatar/username" data-on-input="renderAvatarById" data-input-args='["profile-edit-avatar", {"$": "value"}]'>
         </div>
 
         <div class="form-group" id="profile-password-section">
@@ -3499,8 +3499,8 @@
         <div id="profile-status-msg" style="font-size: 12px; margin-top: 8px; display: none;"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('profile-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="saveUserProfile()"><i data-lucide="save"></i> Save Profile</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["profile-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="saveUserProfile"><i data-lucide="save"></i> Save Profile</button>
       </div>
     </div>
   </div>
@@ -3510,7 +3510,7 @@
     <div class="modal-box" style="width: 520px;">
       <div class="modal-header">
         <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);"><img src="assets/conf.webp" alt="Config" style="width: 16px; height: 16px; object-fit: contain;"> Modular Config Directory Detected</span>
-        <button class="btn" onclick="closeModal('confd-assembler-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["confd-assembler-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <div style="margin-bottom: 12px; font-size: 13px; line-height: 1.5;">
@@ -3523,8 +3523,8 @@
           How would you like Brum to open these configuration files?
         </div>
         <div style="display: flex; gap: 8px; justify-content: flex-end;">
-          <button class="btn" onclick="executeOpenConfdSeparateTabs()"><i data-lucide="folder-tree"></i> Open as Separate Tabs</button>
-          <button class="btn btn-accent" onclick="executeOpenConfdAssembled()"><i data-lucide="layers"></i> Assemble Ordered Config View</button>
+          <button class="btn" data-on-click="executeOpenConfdSeparateTabs"><i data-lucide="folder-tree"></i> Open as Separate Tabs</button>
+          <button class="btn btn-accent" data-on-click="executeOpenConfdAssembled"><i data-lucide="layers"></i> Assemble Ordered Config View</button>
         </div>
       </div>
     </div>
@@ -6204,9 +6204,9 @@
           <span class="user-role-badge" id="fleet-node-count-badge" style="background: rgba(245, 158, 11, 0.15); color: var(--accent); font-size: 10.5px;">1 Node</span>
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button type="button" class="btn btn-icon btn-sm" onclick="pingAllFleetNodes()" title="Ping All Nodes (Refresh Health)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
-          <button type="button" class="btn btn-icon btn-sm" onclick="resetFleetNodeForm()" title="New Node Profile" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="plus" style="width: 14px; height: 14px;"></i></button>
-          <button type="button" class="btn btn-icon btn-sm modal-close-btn" onclick="closeModal('fleet-manager-modal')" title="Close (Esc)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+          <button type="button" class="btn btn-icon btn-sm" data-on-click="pingAllFleetNodes" title="Ping All Nodes (Refresh Health)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
+          <button type="button" class="btn btn-icon btn-sm" data-on-click="resetFleetNodeForm" title="New Node Profile" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="plus" style="width: 14px; height: 14px;"></i></button>
+          <button type="button" class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeModal" data-click-args='["fleet-manager-modal"]' title="Close (Esc)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
         </div>
       </div>
 
@@ -6217,7 +6217,7 @@
           <div class="fleet-nodes-sidebar">
             <div style="display: flex; justify-content: space-between; align-items: center;">
               <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase;">Registered Nodes</span>
-              <button type="button" class="btn btn-xs btn-outline" onclick="pingAllFleetNodes()" style="height: 22px; font-size: 10.5px; padding: 0 6px;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i> Ping All</button>
+              <button type="button" class="btn btn-xs btn-outline" data-on-click="pingAllFleetNodes" style="height: 22px; font-size: 10.5px; padding: 0 6px;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i> Ping All</button>
             </div>
             
             <div class="fleet-nodes-list" id="fleet-manager-nodes-list">
@@ -6254,7 +6254,7 @@
                 <label class="settings-field-label" for="fleet-input-token">Auth Token / API Secret:</label>
                 <div style="display: flex; gap: 6px; align-items: center;">
                   <input type="password" id="fleet-input-token" class="settings-input" placeholder="Bearer JWT token or service secret for remote node" style="flex: 1; font-family: var(--font-mono); height: 28px;">
-                  <button type="button" class="btn btn-icon btn-sm btn-outline" id="btn-toggle-fleet-token" onclick="toggleFleetTokenVisibility()" title="Toggle Token Visibility" style="width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="eye" id="fleet-token-eye-icon" style="width: 14px; height: 14px; margin: 0;"></i></button>
+                  <button type="button" class="btn btn-icon btn-sm btn-outline" id="btn-toggle-fleet-token" data-on-click="toggleFleetTokenVisibility" title="Toggle Token Visibility" style="width: 28px; height: 28px; min-width: 28px; min-height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0;"><i data-lucide="eye" id="fleet-token-eye-icon" style="width: 14px; height: 14px; margin: 0;"></i></button>
                 </div>
                 <div class="settings-field-hint">Leave blank for unauthenticated or local node profiles.</div>
               </div>
@@ -6286,13 +6286,13 @@
             <div class="settings-field">
               <label class="settings-field-label">Node Accent Color:</label>
               <div class="fleet-color-radio-group" id="fleet-color-swatches">
-                <div class="fleet-color-swatch active" data-color="amber" style="background: #f59e0b;" onclick="selectFleetColor('amber')" title="Amber"></div>
-                <div class="fleet-color-swatch" data-color="emerald" style="background: #10b981;" onclick="selectFleetColor('emerald')" title="Emerald"></div>
-                <div class="fleet-color-swatch" data-color="sky" style="background: #0284c7;" onclick="selectFleetColor('sky')" title="Sky Blue"></div>
-                <div class="fleet-color-swatch" data-color="purple" style="background: #a855f7;" onclick="selectFleetColor('purple')" title="Purple"></div>
-                <div class="fleet-color-swatch" data-color="rose" style="background: #f43f5e;" onclick="selectFleetColor('rose')" title="Rose"></div>
-                <div class="fleet-color-swatch" data-color="cyan" style="background: #06b6d4;" onclick="selectFleetColor('cyan')" title="Cyan"></div>
-                <div class="fleet-color-swatch" data-color="slate" style="background: #64748b;" onclick="selectFleetColor('slate')" title="Slate"></div>
+                <div class="fleet-color-swatch active" data-color="amber" style="background: #f59e0b;" data-on-click="selectFleetColor" data-click-args='["amber"]' title="Amber"></div>
+                <div class="fleet-color-swatch" data-color="emerald" style="background: #10b981;" data-on-click="selectFleetColor" data-click-args='["emerald"]' title="Emerald"></div>
+                <div class="fleet-color-swatch" data-color="sky" style="background: #0284c7;" data-on-click="selectFleetColor" data-click-args='["sky"]' title="Sky Blue"></div>
+                <div class="fleet-color-swatch" data-color="purple" style="background: #a855f7;" data-on-click="selectFleetColor" data-click-args='["purple"]' title="Purple"></div>
+                <div class="fleet-color-swatch" data-color="rose" style="background: #f43f5e;" data-on-click="selectFleetColor" data-click-args='["rose"]' title="Rose"></div>
+                <div class="fleet-color-swatch" data-color="cyan" style="background: #06b6d4;" data-on-click="selectFleetColor" data-click-args='["cyan"]' title="Cyan"></div>
+                <div class="fleet-color-swatch" data-color="slate" style="background: #64748b;" data-on-click="selectFleetColor" data-click-args='["slate"]' title="Slate"></div>
               </div>
               <input type="hidden" id="fleet-input-color" value="amber">
             </div>
@@ -6303,7 +6303,7 @@
                 <span style="font-size: 11.5px; font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 5px;">
                   <i data-lucide="activity" style="width: 13px; height: 13px; color: var(--accent);"></i> Connection Diagnostics
                 </span>
-                <button type="button" class="btn btn-xs btn-outline" id="btn-fleet-test" onclick="testFleetNodeConnection()" style="height: 24px; font-size: 11px; padding: 0 8px;">
+                <button type="button" class="btn btn-xs btn-outline" id="btn-fleet-test" data-on-click="testFleetNodeConnection" style="height: 24px; font-size: 11px; padding: 0 8px;">
                   <i data-lucide="zap" style="width: 11px; height: 11px;"></i> Test Connection
                 </button>
               </div>
@@ -6314,8 +6314,8 @@
 
             <!-- Editor Action Buttons -->
             <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 4px;">
-              <button type="button" class="btn btn-sm btn-outline" onclick="resetFleetNodeForm()">Clear Form</button>
-              <button type="button" class="btn btn-sm btn-accent" onclick="saveFleetNodeProfile()" style="display: inline-flex; align-items: center; gap: 5px;">
+              <button type="button" class="btn btn-sm btn-outline" data-on-click="resetFleetNodeForm">Clear Form</button>
+              <button type="button" class="btn btn-sm btn-accent" data-on-click="saveFleetNodeProfile" style="display: inline-flex; align-items: center; gap: 5px;">
                 <i data-lucide="check" style="width: 13px; height: 13px;"></i> Save Node Profile
               </button>
             </div>
@@ -6329,11 +6329,11 @@
           <i data-lucide="shield-check" style="width: 13px; height: 13px; color: #10b981; flex-shrink: 0;"></i> Zero-Trust Fleet Control • HTTPS/WSS &amp; Mesh Overlays (Tailscale, NetBird, WireGuard)
         </span>
         <div class="fleet-footer-actions">
-          <button class="btn btn-sm btn-outline" onclick="openCreateApiTokenModal()" title="Generate API / Fleet Token on this local host"><i data-lucide="key-round" style="width: 12px; height: 12px;"></i> Generate Token</button>
-          <button class="btn btn-sm btn-outline" onclick="exportFleetNodesJson()" title="Export Fleet nodes to JSON">Export JSON</button>
-          <button class="btn btn-sm btn-outline" onclick="triggerImportFleetNodes()" title="Import Fleet nodes from JSON">Import JSON</button>
-          <input type="file" id="fleet-import-file" accept=".json" style="display: none;" onchange="handleFleetNodesImport(event)">
-          <button class="btn btn-accent btn-sm" onclick="closeModal('fleet-manager-modal')">Close</button>
+          <button class="btn btn-sm btn-outline" data-on-click="openCreateApiTokenModal" title="Generate API / Fleet Token on this local host"><i data-lucide="key-round" style="width: 12px; height: 12px;"></i> Generate Token</button>
+          <button class="btn btn-sm btn-outline" data-on-click="exportFleetNodesJson" title="Export Fleet nodes to JSON">Export JSON</button>
+          <button class="btn btn-sm btn-outline" data-on-click="triggerImportFleetNodes" title="Import Fleet nodes from JSON">Import JSON</button>
+          <input type="file" id="fleet-import-file" accept=".json" style="display: none;" data-on-change="handleFleetNodesImport" data-change-args='[{"$": "event"}]'>
+          <button class="btn btn-accent btn-sm" data-on-click="closeModal" data-click-args='["fleet-manager-modal"]'>Close</button>
         </div>
       </div>
     </div>
@@ -6348,7 +6348,7 @@
           <i data-lucide="key-round" style="width: 16px; height: 16px; color: var(--accent);"></i>
           <span style="font-weight: 700; font-size: 13.5px;">Generate API &amp; Fleet Token</span>
         </div>
-        <button type="button" class="btn btn-icon btn-sm modal-close-btn" onclick="closeModal('create-api-token-modal')" title="Close (Esc)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+        <button type="button" class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeModal" data-click-args='["create-api-token-modal"]' title="Close (Esc)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
       </div>
 
       <!-- Body Form View -->
@@ -6388,8 +6388,8 @@
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 6px;">
-          <button type="button" class="btn btn-sm btn-outline" onclick="closeModal('create-api-token-modal')">Cancel</button>
-          <button type="button" class="btn btn-sm btn-accent" id="btn-generate-token-submit" onclick="submitCreateApiToken()" style="display: inline-flex; align-items: center; gap: 5px;">
+          <button type="button" class="btn btn-sm btn-outline" data-on-click="closeModal" data-click-args='["create-api-token-modal"]'>Cancel</button>
+          <button type="button" class="btn btn-sm btn-accent" id="btn-generate-token-submit" data-on-click="submitCreateApiToken" style="display: inline-flex; align-items: center; gap: 5px;">
             <i data-lucide="sparkles" style="width: 13px; height: 13px;"></i> Generate Token
           </button>
         </div>
@@ -6407,8 +6407,8 @@
         <div class="settings-field">
           <label class="settings-field-label">Secret Bearer Token:</label>
           <div style="display: flex; gap: 6px;">
-            <input type="text" id="token-reveal-secret" class="settings-input" readonly style="font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); color: var(--accent); user-select: all;" onclick="this.select()">
-            <button type="button" class="btn btn-sm btn-accent" onclick="copyGeneratedApiToken()" title="Copy Token to Clipboard" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">
+            <input type="text" id="token-reveal-secret" class="settings-input" readonly style="font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); color: var(--accent); user-select: all;" data-on-click="selectElementText" data-click-args='[{"$":"el"}]'>
+            <button type="button" class="btn btn-sm btn-accent" data-on-click="copyGeneratedApiToken" title="Copy Token to Clipboard" style="white-space: nowrap; display: inline-flex; align-items: center; gap: 4px;">
               <i data-lucide="copy" style="width: 13px; height: 13px;"></i> Copy
             </button>
           </div>
@@ -6423,10 +6423,10 @@
         </div>
 
         <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;">
-          <button type="button" class="btn btn-sm btn-outline" onclick="copyAndUseTokenInFleetForm()" id="btn-use-in-fleet" style="display: none;">
+          <button type="button" class="btn btn-sm btn-outline" data-on-click="copyAndUseTokenInFleetForm" id="btn-use-in-fleet" style="display: none;">
             <i data-lucide="network" style="width: 13px; height: 13px;"></i> Paste into Fleet Manager
           </button>
-          <button type="button" class="btn btn-sm btn-accent" onclick="closeModal('create-api-token-modal')">Done</button>
+          <button type="button" class="btn btn-sm btn-accent" data-on-click="closeModal" data-click-args='["create-api-token-modal"]'>Done</button>
         </div>
       </div>
     </div>
@@ -6874,9 +6874,9 @@
     <div class="modal-box" style="width: 420px;">
       <div class="modal-header">
         <span style="color: var(--accent); font-weight: 700;">👤 Add New User Account</span>
-        <button class="btn" onclick="closeModal('add-user-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["add-user-modal"]'><i data-lucide="x"></i></button>
       </div>
-      <form id="add-user-form" onsubmit="event.preventDefault(); submitAddUser();">
+      <form id="add-user-form" data-submit-prevent data-on-submit="submitAddUser">
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
           <div class="form-group">
             <label style="font-size: 11px;">Username:</label>
@@ -6886,7 +6886,7 @@
             <label style="font-size: 11px;">Password:</label>
             <div style="position: relative;">
               <input type="password" id="new-user-password" class="pane-quick-filter" style="width: 100%; padding: 8px 32px 8px 8px;" placeholder="Enter secure password" required autocomplete="new-password">
-              <button type="button" class="btn btn-icon" onclick="togglePasswordVisibility('new-user-password')" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; border: none;" title="Toggle Visibility">
+              <button type="button" class="btn btn-icon" data-on-click="togglePasswordVisibility" data-click-args='["new-user-password"]' style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); background: transparent; border: none;" title="Toggle Visibility">
                 <i data-lucide="eye" style="width: 14px;"></i>
               </button>
             </div>
@@ -6912,7 +6912,7 @@
           <div id="add-user-error" style="color: var(--danger); font-size: 11px; display: none;"></div>
         </div>
         <div class="modal-footer">
-          <button type="button" class="btn" onclick="closeModal('add-user-modal')">Cancel</button>
+          <button type="button" class="btn" data-on-click="closeModal" data-click-args='["add-user-modal"]'>Cancel</button>
           <button type="submit" class="btn btn-accent" id="btn-save-user">Create User</button>
         </div>
       </form>

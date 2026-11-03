@@ -50,90 +50,99 @@ const BRUM_ACTIONS = new Set([
   'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio', 'closeFloatingCalculator',
   'closeFloatingDiff', 'closeFloatingDiskUsage', 'closeFloatingDuplicateFinder',
   'closeFloatingHexEditor', 'closeFloatingLogViewer', 'closeFloatingNoteDog', 'closeFloatingPdf',
-  'closeFloatingRenamer', 'closeFloatingSplitter', 'closeFloatingTagEditor',
+  'closeFloatingRenamer', 'closeFloatingShares', 'closeFloatingSplitter', 'closeFloatingTagEditor',
   'closeImgTransformDropdown', 'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer',
   'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
-  'closeTetraDog', 'confirmSyncFolderSelection', 'convertCurrentMediaToMp4', 'copyCalcResult',
-  'copyDiffItem', 'copyInspectorCoordinates', 'copyPropHash', 'copyTextToClipboard',
+  'closeTetraDog', 'confirmSyncFolderSelection', 'convertCurrentMediaToMp4',
+  'copyAndUseTokenInFleetForm', 'copyCalcResult', 'copyDiffItem', 'copyGeneratedApiToken',
+  'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTextToClipboard',
   'copyToClipboardText', 'copyVariableTag', 'createNewEditorTab', 'createPaneTab',
   'cycleEditorTabSize', 'cycleMediaAspectRatio', 'cycleMediaLoop', 'cycleMediaSpeed',
   'cyclePaneColor', 'deleteBackupProfile', 'deleteBookmark', 'deleteCustomAction',
-  'deleteFileTemplate', 'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems',
+  'deleteFileTemplate', 'deleteFleetNodeProfile', 'deleteGlobalMount', 'deleteNoteAttachment',
+  'deleteOpenWithRule', 'deleteSelectedTrashItems', 'deleteSharePermanent', 'deleteUserAccount',
   'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill', 'docViewerCopyCurrent',
   'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent', 'docViewerRenameCurrent',
   'dockCadStudioToActivePane', 'dockCalculatorToActivePane', 'dockDiffToActivePane',
   'dockDiskUsageToActivePane', 'dockDuplicateFinderToActivePane', 'dockEditorToActivePane',
   'dockHexEditorToActivePane', 'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane',
   'dockNoteDogToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
-  'dockSplitterToActivePane', 'dockTagEditorToActivePane', 'dockTetraDogToActivePane',
-  'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex',
-  'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
-  'executeBatchRename', 'executeBulkRename', 'executeCustomAction', 'executeDryRun',
-  'executeDuplicateClean', 'executeFileCombine', 'executeFileConversion', 'executeFileSplit',
-  'executeFind', 'executeFolderAlignment', 'executeOpenWith', 'executePane1ClickTransfer',
-  'executePdfActiveTab', 'executeRenamerDryRun', 'executeSync', 'executeUnlockNoteDogNote',
-  'exportCustomThemeToml', 'fetchLogViewerTail', 'fetchPdfSplitInfo', 'filterDiskUsageItems',
-  'filterDocCsv', 'filterInstalledChewToys', 'filterMediaPlaylist', 'filterSyncGrid',
-  'findNextMatch', 'findPrevMatch', 'flipImage', 'handleAppMarginChange', 'handleChewToyDragLeave',
+  'dockSharesToActivePane', 'dockSplitterToActivePane', 'dockTagEditorToActivePane',
+  'dockTetraDogToActivePane', 'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab',
+  'editBackupProfileByIndex', 'editCustomAction', 'editOpenWithRule', 'editTemplateById',
+  'enablePathInput', 'executeBatchRename', 'executeBulkRename', 'executeCreateShare',
+  'executeCustomAction', 'executeDryRun', 'executeDuplicateClean', 'executeFileCombine',
+  'executeFileConversion', 'executeFileSplit', 'executeFind', 'executeFolderAlignment',
+  'executeOpenConfdAssembled', 'executeOpenConfdSeparateTabs', 'executeOpenWith',
+  'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun', 'executeSync',
+  'executeUnlockNoteDogNote', 'exportCustomThemeToml', 'exportFleetNodesJson',
+  'fetchLogViewerTail', 'fetchPdfSplitInfo', 'filterDiskUsageItems', 'filterDocCsv',
+  'filterInstalledChewToys', 'filterMediaPlaylist', 'filterSyncGrid', 'findNextMatch',
+  'findPrevMatch', 'flipImage', 'handleAdminConfigInput', 'handleAdminConfigKeyDown',
+  'handleAppMarginChange', 'handleAvatarFileUpload', 'handleChewToyDragLeave',
   'handleChewToyDragOver', 'handleChewToyDrop', 'handleChewToyFileSelect',
   'handleConvertOutputNameInput', 'handleDiffSearch', 'handleDndSettingChange',
   'handleDockedNoteSelect', 'handleDockedNotebookChange', 'handleDockedSectionChange',
   'handleEditorClick', 'handleEditorInput', 'handleEditorKeyDown', 'handleEditorLanguageChange',
   'handleEditorViewModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
-  'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
-  'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHexGridKey',
-  'handleHostnameSettingChange', 'handleLogViewerFilterInput', 'handleLoginBrandingSettingChange',
-  'handleLogoutOrExit', 'handleMediaScrubberHover', 'handleMonoFontChange',
-  'handleNoteAttachmentFileSelected', 'handleNoteDogInput', 'handleNoteDogKeyDown',
-  'handleNoteDogSearch', 'handleNoteDogTitleChange', 'handlePaneBadgeClick',
-  'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel',
-  'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart',
-  'handlePathKey', 'handleRadiusChange', 'handleSansFontChange', 'handleScheduleTypeChange',
-  'handleSettingsAvatarFileUpload', 'handleSplitPresetChange', 'handleSplitSourceChange',
+  'handleFleetNodesImport', 'handleFolderColorChange', 'handleFolderColorCustomChange',
+  'handleFontSizeChange', 'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange',
+  'handleHexGridKey', 'handleHostnameSettingChange', 'handleLogViewerFilterInput',
+  'handleLoginBrandingSettingChange', 'handleLogoutOrExit', 'handleMediaScrubberHover',
+  'handleMonoFontChange', 'handleNoteAttachmentFileSelected', 'handleNoteDogInput',
+  'handleNoteDogKeyDown', 'handleNoteDogSearch', 'handleNoteDogTitleChange',
+  'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
+  'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
+  'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
+  'handleScheduleTypeChange', 'handleSettingsAvatarFileUpload', 'handleShareModeChange',
+  'handleSharesFilterChange', 'handleSplitPresetChange', 'handleSplitSourceChange',
   'handleStartupSettingChange', 'handleSyncModeChange', 'handleTagCoverArtSelected',
   'handleTargetFormatChange', 'handleTetraDogScopeChange', 'handleTitleTemplateChange',
   'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart',
-  'handleToolDrop', 'handleUserParanoidToggle', 'handleUserSecuritySettingChange',
-  'handleVaultOpen', 'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
-  'hideElement', 'hideMediaScrubberTooltip', 'hideOpenWithRuleForm', 'imageViewerCopyCurrent',
-  'imageViewerDeleteCurrent', 'imageViewerMoveCurrent', 'imageViewerRenameCurrent',
-  'initColResize', 'initTreeResize', 'insertAttachmentMarkdownById', 'insertNoteDogColorTag',
-  'insertNoteDogMarkdown', 'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertRenamerToken',
-  'insertTitleVar', 'inspectCurrentImage', 'jumpHexOffset', 'jumpToConfdSection',
-  'jumpToFolderInPane', 'jumpToPaneFromDiskUsage', 'loadBackupHistory', 'loadBackupProfiles',
-  'loadEmojiPresets', 'loadInstalledChewToys', 'loadNerdFontPresets', 'loadPaneDirectory',
-  'loadRenamerDirectory', 'loadSyncthingDashboard', 'loadSystemDisksOverview', 'loadTagEditorFile',
-  'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession',
+  'handleToolDrop', 'handleUserDisabledToggle', 'handleUserParanoidToggle',
+  'handleUserSecuritySettingChange', 'handleVaultOpen', 'handleWindowTitleSettingChange',
+  'hideContextMenu', 'hideCustomActionForm', 'hideElement', 'hideMediaScrubberTooltip',
+  'hideOpenWithRuleForm', 'imageViewerCopyCurrent', 'imageViewerDeleteCurrent',
+  'imageViewerMoveCurrent', 'imageViewerRenameCurrent', 'initColResize', 'initTreeResize',
+  'insertAttachmentMarkdownById', 'insertNoteDogColorTag', 'insertNoteDogMarkdown',
+  'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertRenamerToken', 'insertTitleVar',
+  'inspectCurrentImage', 'jumpHexOffset', 'jumpToConfdSection', 'jumpToFolderInPane',
+  'jumpToPaneFromDiskUsage', 'loadActiveShares', 'loadBackupHistory', 'loadBackupProfiles',
+  'loadEmojiPresets', 'loadInstalledChewToys', 'loadMasterConfigEditor', 'loadNerdFontPresets',
+  'loadPaneDirectory', 'loadRenamerDirectory', 'loadSyncthingDashboard', 'loadSystemDisksOverview',
+  'loadTagEditorFile', 'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession',
   'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNoteDog',
   'maximizeTetraDog', 'minimizeConverterModal', 'minimizeFloatingCadStudio',
   'minimizeFloatingCalculator', 'minimizeFloatingDiff', 'minimizeFloatingDiskUsage',
   'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor', 'minimizeFloatingHexEditor',
   'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer', 'minimizeFloatingNoteDog',
-  'minimizeFloatingPdf', 'minimizeFloatingRenamer', 'minimizeFloatingSplitter',
-  'minimizeFloatingTagEditor', 'minimizeTetraDog', 'mountUsbDevice', 'moveMenuItem',
-  'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navBookPage', 'navImageViewer',
-  'navMediaPlaylist', 'navigateConverterPickerFromInput', 'navigateConverterPickerHome',
-  'navigateConverterPickerPath', 'navigateConverterPickerUp', 'navigateDiskUsageActivePane',
-  'navigateDiskUsageParent', 'navigateSyncPickerFromInput', 'navigateSyncPickerPath',
-  'navigateSyncPickerUp', 'navigateToBookmark', 'openAboutModal', 'openAdminPanel',
-  'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager', 'openCadStudio',
-  'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openContainingFolder',
-  'openConverterFilePicker', 'openConverterModal', 'openCreateBackupProfileModal',
-  'openCreateTemplateModal', 'openCreateVaultModal', 'openCurrentMediaWithSystemPlayer',
-  'openCustomDestModal', 'openDiskUsageModal', 'openDuplicateFinder', 'openDynamicChewToy',
-  'openExternalTerminal', 'openFileDiffView', 'openFleetAddModal', 'openFleetManagerModal',
-  'openFleetNodeWebUi', 'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog',
-  'openFloatingTaskManager', 'openGitFromProperties', 'openHexEditor', 'openInPaneWithToast',
-  'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin',
-  'openNoteDogColorPicker', 'openNoteDogMigrationMenu', 'openNoteDogNewMenu',
-  'openNoteDogTemplatePicker', 'openNoteDogVersionsModal', 'openNoteForContextItem',
-  'openPaneFavoritesMenu', 'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu',
-  'openPaneTransferMenu', 'openParanoidSettings', 'openPdfReorderFilePicker',
+  'minimizeFloatingPdf', 'minimizeFloatingRenamer', 'minimizeFloatingShares',
+  'minimizeFloatingSplitter', 'minimizeFloatingTagEditor', 'minimizeTetraDog', 'mountUsbDevice',
+  'moveMenuItem', 'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navBookPage',
+  'navImageViewer', 'navMediaPlaylist', 'navigateConverterPickerFromInput',
+  'navigateConverterPickerHome', 'navigateConverterPickerPath', 'navigateConverterPickerUp',
+  'navigateDiskUsageActivePane', 'navigateDiskUsageParent', 'navigateSyncPickerFromInput',
+  'navigateSyncPickerPath', 'navigateSyncPickerUp', 'navigateToBookmark', 'openAboutModal',
+  'openAdminPanel', 'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager',
+  'openCadStudio', 'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openContainingFolder',
+  'openConverterFilePicker', 'openConverterModal', 'openCreateApiTokenModal',
+  'openCreateBackupProfileModal', 'openCreateTemplateModal', 'openCreateVaultModal',
+  'openCurrentMediaWithSystemPlayer', 'openCustomDestModal', 'openDiskUsageModal',
+  'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFileDiffView',
+  'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator',
+  'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager', 'openGitFromProperties',
+  'openGlobalRemoteModal', 'openHexEditor', 'openInPaneWithToast', 'openKeyRecordModal',
+  'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin', 'openNoteDogColorPicker',
+  'openNoteDogMigrationMenu', 'openNoteDogNewMenu', 'openNoteDogTemplatePicker',
+  'openNoteDogVersionsModal', 'openNoteForContextItem', 'openPaneFavoritesMenu',
+  'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu',
+  'openParanoidSettings', 'openPathInActivePane', 'openPdfReorderFilePicker',
   'openPdfSplitFilePicker', 'openPdfToolModal', 'openPropertiesColorTab', 'openRemoteModal',
   'openSaveCurrentSyncAsProfile', 'openSearchModal', 'openSettingsModal', 'openSettingsTab',
-  'openSharesManager', 'openSplitterFilePicker', 'openSpotlightModal', 'openSyncFolderPicker',
-  'openSyncModal', 'openSyncthingModal', 'openTagEditor', 'openTerminalFromDiskUsage',
-  'openTerminalInPath', 'openTetraDog', 'openUserProfileModal', 'playMediaPlaylistItem',
+  'openShareLogs', 'openSharesManager', 'openSplitterFilePicker', 'openSpotlightModal',
+  'openSyncFolderPicker', 'openSyncModal', 'openSyncthingModal', 'openTagEditor',
+  'openTerminalFromDiskUsage', 'openTerminalInPath', 'openTetraDog', 'openUserProfileModal',
+  'pingAllFleetNodes', 'pingFleetNode', 'playMediaPlaylistItem',
   'populateMediaPlaylistFromActivePane', 'printDocViewer', 'promptAddNoteTag',
   'promptChangeNoteCategory', 'promptChangeNoteDogFolder', 'promptChangeNoteSection',
   'promptClearTetraDogScores', 'promptCreateNote', 'promptCreateNotebookOrCategory',
@@ -145,28 +154,31 @@ const BRUM_ACTIONS = new Set([
   'removeCustomFileIconRule', 'removeElementById', 'removeModalTag', 'removeNoteTag',
   'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag', 'removeTagCoverArt',
   'renderAvatarById', 'renderHexEditorView', 'renderKeybindingsTable', 'replaceAllMatches',
-  'replaceCurrentMatch', 'resetAllColumnWidths', 'resetCadCamera', 'resetFileTemplatesToDefault',
-  'resetGlobalFolderIcon', 'resetHiddenDrives', 'resetImageTransform',
-  'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults',
-  'resetPaneName', 'resetRenamerRules', 'resetServerPreferences', 'resetSettingsAvatar',
-  'resetSingleKeybind', 'resetToolsMenuToDefault', 'resetWindowTitleSetting',
-  'restartTetraDogGame', 'restoreConverterModal', 'restoreFloatingCadStudio',
-  'restoreFloatingCalculator', 'restoreFloatingDiff', 'restoreFloatingDiskUsage',
-  'restoreFloatingDuplicateFinder', 'restoreFloatingEditor', 'restoreFloatingHexEditor',
-  'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer', 'restoreFloatingNoteDog',
-  'restoreFloatingPdf', 'restoreFloatingRenamer', 'restoreFloatingSplitter',
-  'restoreFloatingTagEditor', 'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems',
-  'restoreTetraDog', 'resumeTetraDogGame', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
+  'replaceCurrentMatch', 'resetAllColumnWidths', 'resetAvatarToDefault', 'resetCadCamera',
+  'resetFileTemplatesToDefault', 'resetFleetNodeForm', 'resetGlobalFolderIcon',
+  'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
+  'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
+  'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
+  'resetWindowTitleSetting', 'restartTetraDogGame', 'restoreConverterModal',
+  'restoreFloatingCadStudio', 'restoreFloatingCalculator', 'restoreFloatingDiff',
+  'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
+  'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
+  'restoreFloatingNoteDog', 'restoreFloatingPdf', 'restoreFloatingRenamer',
+  'restoreFloatingShares', 'restoreFloatingSplitter', 'restoreFloatingTagEditor',
+  'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems', 'restoreTetraDog',
+  'resumeTetraDogGame', 'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
   'runBackupProfileNow', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runPredefinedAction',
   'runPropertiesStatsScan', 'runToolsMenuChewtoy', 'runToolsMenuItem', 'saveActiveEditorTab',
-  'saveActiveNoteDogNote', 'saveAllEditorTabs', 'saveBackupProfileForm',
-  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
-  'saveCustomShellAction', 'saveCustomTrashDir', 'saveGlobalFolderIcon', 'saveHexEditorChanges',
-  'saveModalTags', 'saveNoteDogFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
+  'saveActiveNoteDogNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
+  'saveBackupProfileForm', 'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault',
+  'saveCustomBrowserTheme', 'saveCustomShellAction', 'saveCustomTrashDir', 'saveFleetNodeProfile',
+  'saveGlobalFolderIcon', 'saveHexEditorChanges', 'saveMasterConfigFile', 'saveModalTags',
+  'saveNoteDogFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
   'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTetraDogAliasFromInput',
-  'saveTetraDogPlayerAlias', 'scanMountpointTreemap', 'scanPaneForCombineParts',
-  'scrollViewerToBottom', 'searchHexBytes', 'seekMedia', 'selectConverterPickerFile',
-  'selectDatabaseCategory', 'selectDatabaseNoteById', 'selectDatabaseSection',
+  'saveTetraDogPlayerAlias', 'saveUserProfile', 'saveUserRbac', 'scanMountpointTreemap',
+  'scanPaneForCombineParts', 'scrollViewerToBottom', 'searchHexBytes', 'seekMedia',
+  'selectConverterPickerFile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
+  'selectDatabaseSection', 'selectElementText', 'selectFleetColor', 'selectFleetNodeInManager',
   'selectGlobalFolderPreset', 'selectNoteDogNoteByPath', 'selectNoteDogNotebook',
   'selectNoteDogSection', 'selectNoteDogVersion', 'selectSyncPickerLocation', 'setActivePane',
   'setCadCameraView', 'setCadMaterialTheme', 'setCadShadingMode', 'setCadSliceAxis',
@@ -176,58 +188,62 @@ const BRUM_ACTIONS = new Set([
   'setMediaSubtitleTrack', 'setNoteDogStorageMode', 'setNoteDogViewMode',
   'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setPropFileColor',
   'setTaskVerbosity', 'setTetraDogTheme', 'setTetraDogView', 'setTitleTemplatePreset',
-  'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'skipMedia', 'sortDiffByColumn',
-  'sortDocCsv', 'sortPane', 'startDuplicateScan', 'startTetraDogGame', 'swapDiffPaths',
-  'swapPanes', 'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
-  'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchPdfTab',
-  'switchPropertiesTab', 'switchSettingsTab', 'switchSplitterTab', 'switchSyncTab',
-  'switchToFleetNode', 'syncDockedNoteDogInput', 'syncGutterScroll', 'syncNoteDogGutter',
-  'takeCadSnapshot', 'testExternalProgram', 'toggleActivateOnHover', 'toggleActiveNotePin',
-  'toggleAllRenamerItems', 'toggleBackupProfileActive', 'toggleBranchView', 'toggleBrumMascot',
-  'toggleCadAxes', 'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer', 'toggleCadTurntable',
-  'toggleCalcHistory', 'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
-  'toggleCompactDates', 'toggleContextColorPalette', 'toggleContextSubmenu',
-  'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
-  'toggleDiffFoldersFirst', 'toggleDiffShowDotfiles', 'toggleDiffSortDir',
-  'toggleDiskUsageMaximize', 'toggleDocRawRenderMode', 'toggleDocViewerFloating',
-  'toggleDocViewerFullscreen', 'toggleDuplicateFile', 'toggleEditorActionsDropdown',
-  'toggleExclusionChip', 'toggleFKeyBar', 'toggleFileAction', 'toggleFileListMultiline',
-  'toggleFindBar', 'toggleFindOption', 'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager',
-  'toggleGlobalDotfiles', 'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting',
-  'toggleHexInspector', 'toggleHideDrive', 'toggleHostnameBadgeSetting',
-  'toggleImageViewerFloating', 'toggleImgTransformDropdown', 'toggleImgWheelMode',
-  'toggleLayoutMenu', 'toggleLogFollow', 'toggleLogViewerInvert', 'toggleMaximizeCadStudio',
-  'toggleMaximizeDiff', 'toggleMaximizeDuplicateFinder', 'toggleMaximizeHexEditor',
-  'toggleMaximizeLogViewer', 'toggleMaximizePdf', 'toggleMaximizeRenamer',
-  'toggleMaximizeSplitter', 'toggleMaximizeTagEditor', 'toggleMediaFullscreen', 'toggleMediaMute',
-  'toggleMediaPiP', 'toggleMediaPlay', 'toggleMediaPlaylistDrawer', 'toggleMediaShuffle',
-  'toggleMediaStopOnClose', 'toggleMediaSubtitlesDropdown', 'toggleMenuItemVisibility',
-  'toggleMinimizeToTray', 'toggleNoteAttachmentsTray', 'toggleNoteDogCreateEncryptedFields',
-  'toggleNoteDogDrawer', 'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav',
-  'togglePaneSyncScroll', 'togglePaneTree', 'togglePdfSplitModeUI', 'toggleProfileMenu',
-  'toggleRenamerItem', 'toggleShowDirTag', 'toggleStartMinimized', 'toggleStickyColHeaders',
-  'toggleSyncExclusionsPanel', 'toggleSyncNav', 'toggleSyncScroll', 'toggleTailFollow',
-  'toggleTerminal', 'toggleTetraDogAudio', 'toggleTetraDogPlayPause', 'toggleToolVisibility',
-  'toggleToolsMenu', 'toggleTrashSetting', 'toggleUseExtEditor', 'toggleUseExtViewer',
-  'toggleViewerWordWrap', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
-  'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
-  'triggerChecksum', 'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard',
-  'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload',
-  'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions', 'triggerDownloadContextItem',
-  'triggerDownloadCurrentDirectory', 'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere',
-  'triggerExtractModal', 'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit',
-  'triggerGitManager', 'triggerMkdir', 'triggerMove', 'triggerNewFile',
-  'triggerNoteAttachmentUpload', 'triggerPaste', 'triggerProperties', 'triggerRename',
+  'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf',
+  'showToast', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane', 'startDuplicateScan',
+  'startTetraDogGame', 'styleCheckboxPill', 'submitAddUser', 'submitCreateApiToken',
+  'swapDiffPaths', 'swapPanes', 'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab',
+  'switchDockedEditorTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab',
+  'switchPdfTab', 'switchPropertiesTab', 'switchSettingsTab', 'switchSplitterTab', 'switchSyncTab',
+  'switchToFleetNode', 'syncAdminConfigScroll', 'syncDockedNoteDogInput', 'syncGutterScroll',
+  'syncNoteDogGutter', 'takeCadSnapshot', 'testAndSaveSyncthingConfig', 'testExternalProgram',
+  'testFleetNodeConnection', 'toggleActivateOnHover', 'toggleActiveNotePin',
+  'toggleAllRenamerItems', 'toggleAllRootsCheck', 'toggleBackupProfileActive', 'toggleBranchView',
+  'toggleBrumMascot', 'toggleCadAxes', 'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer',
+  'toggleCadTurntable', 'toggleCalcHistory', 'toggleChewToy', 'toggleColSeparators',
+  'toggleColumnVisibility', 'toggleCompactDates', 'toggleContextColorPalette',
+  'toggleContextSubmenu', 'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator',
+  'toggleDetectFileLocksSetting', 'toggleDiffFoldersFirst', 'toggleDiffShowDotfiles',
+  'toggleDiffSortDir', 'toggleDiskUsageMaximize', 'toggleDocRawRenderMode',
+  'toggleDocViewerFloating', 'toggleDocViewerFullscreen', 'toggleDuplicateFile',
+  'toggleEditorActionsDropdown', 'toggleExclusionChip', 'toggleFKeyBar', 'toggleFileAction',
+  'toggleFileListMultiline', 'toggleFindBar', 'toggleFindOption', 'toggleFleetSwitcherDropdown',
+  'toggleFleetTokenVisibility', 'toggleFloatingTaskManager', 'toggleGlobalDotfiles',
+  'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting', 'toggleHexInspector',
+  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleImageViewerFloating',
+  'toggleImgTransformDropdown', 'toggleImgWheelMode', 'toggleLayoutMenu', 'toggleLogFollow',
+  'toggleLogViewerInvert', 'toggleMaximizeCadStudio', 'toggleMaximizeDiff',
+  'toggleMaximizeDuplicateFinder', 'toggleMaximizeHexEditor', 'toggleMaximizeLogViewer',
+  'toggleMaximizePdf', 'toggleMaximizeRenamer', 'toggleMaximizeShares', 'toggleMaximizeSplitter',
+  'toggleMaximizeTagEditor', 'toggleMediaFullscreen', 'toggleMediaMute', 'toggleMediaPiP',
+  'toggleMediaPlay', 'toggleMediaPlaylistDrawer', 'toggleMediaShuffle', 'toggleMediaStopOnClose',
+  'toggleMediaSubtitlesDropdown', 'toggleMenuItemVisibility', 'toggleMinimizeToTray',
+  'toggleNoteAttachmentsTray', 'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer',
+  'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll',
+  'togglePaneTree', 'toggleParentClass', 'togglePasswordVisibility', 'togglePdfSplitModeUI',
+  'toggleProfileMenu', 'toggleRenamerItem', 'toggleRevokeShare', 'toggleShowDirTag',
+  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncExclusionsPanel', 'toggleSyncNav',
+  'toggleSyncScroll', 'toggleTailFollow', 'toggleTerminal', 'toggleTetraDogAudio',
+  'toggleTetraDogPlayPause', 'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting',
+  'toggleUseExtEditor', 'toggleUseExtViewer', 'toggleViewerWordWrap', 'toggleWindowDecorations',
+  'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
+  'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
+  'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
+  'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions',
+  'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory', 'triggerEditTagsModal',
+  'triggerEditor', 'triggerExtractHere', 'triggerExtractModal', 'triggerExtractToFolder',
+  'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager', 'triggerImportFleetNodes',
+  'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerNoteAttachmentUpload', 'triggerPaste',
+  'triggerProperties', 'triggerRename', 'triggerServerReload', 'triggerServerRestart',
   'triggerShare', 'triggerShareDirectory', 'triggerSyncthingScan', 'triggerView',
   'undoBatchRename', 'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice',
-  'updateBulkRenamePreview', 'updateBulkRenameUI', 'updateCadSlicePlane',
-  'updateDefaultCopyAction', 'updateHexInspector', 'updateMenuOption', 'updateMobileBottomBarMode',
-  'updatePaneCustomGradientPreview', 'updatePaneTabsMode', 'updatePermFromCheckboxes',
-  'updatePhoneTabletMaxPanes', 'updatePropPermFromCheckboxes', 'updateRenamerPreview',
-  'updateSplitEstimate', 'updateTetraDogConfig', 'updateTetraDogConfigInt',
+  'updateAdminConfigCursorStats', 'updateBulkRenamePreview', 'updateBulkRenameUI',
+  'updateCadSlicePlane', 'updateDefaultCopyAction', 'updateHexInspector', 'updateMenuOption',
+  'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview', 'updatePaneTabsMode',
+  'updatePermFromCheckboxes', 'updatePhoneTabletMaxPanes', 'updatePropPermFromCheckboxes',
+  'updateRenamerPreview', 'updateSplitEstimate', 'updateTetraDogConfig', 'updateTetraDogConfigInt',
   'useActivePaneItemForConverter', 'useActivePaneItemForSplitter', 'useActivePanePath',
-  'useActivePaneSelectedPdf', 'useFallbackIcon', 'useInactivePanePath', 'zoomBookPage',
-  'zoomImage',
+  'useActivePaneSelectedPdf', 'useFallbackIcon', 'useInactivePanePath', 'writeClipboardText',
+  'zoomBookPage', 'zoomImage',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -391,6 +407,37 @@ function refreshDiskUsageView() {
 
 function runDiskUsageScanFromInput() {
   runDiskUsageScan(document.getElementById('du-path-input').value);
+}
+
+function writeClipboardText(text) {
+  navigator.clipboard.writeText(text);
+}
+
+function toggleParentClass(el, cls, on) {
+  el.parentElement.classList.toggle(cls, on);
+}
+
+// Permission pills in the user list: highlight while ticked
+function styleCheckboxPill(el) {
+  el.parentElement.style.borderColor = el.checked ? 'rgba(245, 158, 11, 0.35)' : 'var(--border)';
+  el.parentElement.style.color = el.checked ? 'var(--text-main)' : 'var(--text-muted)';
+}
+
+function openPathInActivePane(path) {
+  loadPaneDirectory(App.activePaneIndex, path);
+}
+
+function showElementIf(id, on) {
+  const el = document.getElementById(id);
+  if (el) el.style.display = on ? 'block' : 'none';
+}
+
+function openGlobalRemoteModal() {
+  openRemoteModal(App.activePaneIndex, true);
+}
+
+function selectElementText(el) {
+  el.select();
 }
 
 function setElementText(id, text, suffix = '') {
@@ -9812,14 +9859,14 @@ async function loadUsersTable() {
 
               <div class="admin-user-header-actions">
                 <label class="admin-user-status-chip ${isDisabled ? 'disabled' : 'active'}" id="user-status-chip-${safeUname}" style="cursor: pointer;" title="Toggle Account Active/Disabled">
-                  <input type="checkbox" id="user-disabled-${safeUname}" ${isDisabled ? 'checked' : ''} onchange="handleUserDisabledToggle('${safeUname}', this.checked)" style="display:none;">
+                  <input type="checkbox" id="user-disabled-${safeUname}" ${isDisabled ? 'checked' : ''} data-on-change="handleUserDisabledToggle" data-change-args="${actionArgs(u.username, ACTION_CHECKED)}" style="display:none;">
                   <i data-lucide="${isDisabled ? 'shield-ban' : 'shield-check'}" style="width: 13px; height: 13px;"></i>
                   <span id="user-disabled-badge-${safeUname}">${isDisabled ? 'Disabled' : 'Active'}</span>
                 </label>
-                <button type="button" class="btn btn-accent btn-sm" style="height: 28px; padding: 0 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" onclick="saveUserRbac('${safeUname}')" title="Save RBAC & Roots">
+                <button type="button" class="btn btn-accent btn-sm" style="height: 28px; padding: 0 10px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;" data-on-click="saveUserRbac" data-click-args="${actionArgs(u.username)}" title="Save RBAC & Roots">
                   <i data-lucide="save" style="width: 12px; height: 12px;"></i> Save
                 </button>
-                <button type="button" class="btn btn-danger btn-sm" style="height: 28px; padding: 0 8px; font-size: 11px; display: inline-flex; align-items: center;" onclick="deleteUserAccount('${safeUname}')" title="Delete User Account">
+                <button type="button" class="btn btn-danger btn-sm" style="height: 28px; padding: 0 8px; font-size: 11px; display: inline-flex; align-items: center;" data-on-click="deleteUserAccount" data-click-args="${actionArgs(u.username)}" title="Delete User Account">
                   <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
                 </button>
               </div>
@@ -9852,14 +9899,14 @@ async function loadUsersTable() {
                 </div>
                 <div class="admin-roots-selector-box">
                   <label class="admin-chip-checkbox ${hasAllRoots ? 'checked' : ''}" id="chip-root-all-${safeUname}">
-                    <input type="checkbox" class="user-root-cb-${safeUname}" value="*" ${hasAllRoots ? 'checked' : ''} onchange="toggleAllRootsCheck('${safeUname}', this.checked)">
+                    <input type="checkbox" class="user-root-cb-${safeUname}" value="*" ${hasAllRoots ? 'checked' : ''} data-on-change="toggleAllRootsCheck" data-change-args="${actionArgs(u.username, ACTION_CHECKED)}">
                     <span>⭐ All Storage Roots (*)</span>
                   </label>
                   ${storageRoots.filter(r => r.id !== 'system-root').map(r => {
                     const isChecked = hasAllRoots || allowedRoots.includes(r.id) || allowedRoots.includes(r.path);
                     return `
                       <label class="admin-chip-checkbox ${isChecked ? 'checked' : ''}" id="chip-root-${safeUname}-${escapeHtml(r.id)}">
-                        <input type="checkbox" class="user-root-cb-${safeUname}" value="${escapeHtml(r.id)}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.classList.toggle('checked', this.checked)">
+                        <input type="checkbox" class="user-root-cb-${safeUname}" value="${escapeHtml(r.id)}" ${isChecked ? 'checked' : ''} data-on-change="toggleParentClass" data-change-args="${actionArgs(ACTION_EL, 'checked', ACTION_CHECKED)}">
                         <span>${escapeHtml(r.name)} ${r.read_only ? '<small style="opacity:0.7;">(RO)</small>' : ''}</span>
                       </label>
                     `;
@@ -9877,7 +9924,7 @@ async function loadUsersTable() {
                     const isChecked = hasAll || allowed.includes(svc);
                     return `
                       <label class="admin-service-chip" style="${isChecked ? 'border-color: rgba(245, 158, 11, 0.35); color: var(--text-main);' : ''}">
-                        <input type="checkbox" id="svc-${safeUname}-${svc}" ${isChecked ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'rgba(245, 158, 11, 0.35)' : 'var(--border)'; this.parentElement.style.color = this.checked ? 'var(--text-main)' : 'var(--text-muted)';">
+                        <input type="checkbox" id="svc-${safeUname}-${svc}" ${isChecked ? 'checked' : ''} data-on-change="styleCheckboxPill" data-change-args="${actionArgs(ACTION_EL)}">
                         <span>${serviceLabels[svc]}</span>
                       </label>
                     `;
@@ -9892,7 +9939,7 @@ async function loadUsersTable() {
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                   <label class="admin-service-chip" style="width: fit-content; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; ${canInstallPlugins ? 'border-color: rgba(245, 158, 11, 0.35); color: var(--text-main);' : ''}">
-                    <input type="checkbox" id="user-plugin-install-${safeUname}" ${canInstallPlugins ? 'checked' : ''} onchange="this.parentElement.style.borderColor = this.checked ? 'rgba(245, 158, 11, 0.35)' : 'var(--border)'; this.parentElement.style.color = this.checked ? 'var(--text-main)' : 'var(--text-muted)';">
+                    <input type="checkbox" id="user-plugin-install-${safeUname}" ${canInstallPlugins ? 'checked' : ''} data-on-change="styleCheckboxPill" data-change-args="${actionArgs(ACTION_EL)}">
                     <span>Allow installing custom ChewToys (.grr)</span>
                   </label>
                   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
@@ -9912,6 +9959,7 @@ async function loadUsersTable() {
         `;
       }).join('');
       if (window.lucide) lucide.createIcons();
+      bindActions(container);
     }
   } catch (e) {
     console.error('loadUsersTable error:', e);
@@ -10428,10 +10476,11 @@ async function loadAdminApiTokens() {
           <i data-lucide="key-round" style="width: 28px; height: 28px; color: var(--text-dim); margin-bottom: 8px;"></i>
           <p style="margin: 0; font-size: 12.5px; color: var(--text-main);">No active API or fleet service tokens.</p>
           <p style="margin: 4px 0 12px 0; font-size: 11px; color: var(--text-dim);">Generate a token to authenticate remote Fleet Control nodes, headless daemons, or automation scripts.</p>
-          <button type="button" class="btn btn-accent btn-sm" onclick="openCreateApiTokenModal()"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Generate First Token</button>
+          <button type="button" class="btn btn-accent btn-sm" data-on-click="openCreateApiTokenModal"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Generate First Token</button>
         </div>
       `;
       if (window.lucide) lucide.createIcons({ root: container });
+      bindActions(container);
       return;
     }
 
@@ -10483,7 +10532,7 @@ async function loadAdminApiTokens() {
             </div>
           </div>
           <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-            <button type="button" class="btn btn-xs btn-outline" onclick="revokeApiToken(${escapeJsStr(tok.id)}, ${escapeJsStr(tok.name)})" title="Revoke Token" style="height: 26px; padding: 0 8px; color: #ef4444; display: inline-flex; align-items: center; gap: 4px;">
+            <button type="button" class="btn btn-xs btn-outline" data-on-click="revokeApiToken" data-click-args="${actionArgs(String((tok.id) ?? ''), String((tok.name) ?? ''))}" title="Revoke Token" style="height: 26px; padding: 0 8px; color: #ef4444; display: inline-flex; align-items: center; gap: 4px;">
               <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Revoke
             </button>
           </div>
@@ -10493,6 +10542,7 @@ async function loadAdminApiTokens() {
 
     container.innerHTML = html;
     if (window.lucide) lucide.createIcons({ root: container });
+    bindActions(container);
   } catch (err) {
     container.innerHTML = `<div class="settings-empty-state"><i data-lucide="alert-circle" style="color:#ef4444;"></i><p>Network error: ${escapeHtml(err.message)}</p></div>`;
     if (window.lucide) lucide.createIcons({ root: container });
@@ -26485,17 +26535,18 @@ function renderSharesTable(shares) {
         <td style="font-size:11px; color:var(--text-muted);">${expiryStr}</td>
         <td style="text-align:center;">${activityStats}</td>
         <td style="text-align:right; white-space:nowrap;">
-          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="navigator.clipboard.writeText('${fullUrl}'); showToast('Share URL copied!', 'success');" title="Copy Public URL"><i data-lucide="copy" style="width:12px;"></i></button>
+          <button class="btn btn-icon" style="width:26px; height:26px;" data-on-click="writeClipboardText" data-click-args="${actionArgs(fullUrl)}" data-click-steps="${actionSteps(['showToast', 'Share URL copied!', 'success'])}" title="Copy Public URL"><i data-lucide="copy" style="width:12px;"></i></button>
           <a href="${fullUrl}" target="_blank" class="btn btn-icon" style="width:26px; height:26px; text-decoration:none;" title="Open Share Link"><i data-lucide="external-link" style="width:12px;"></i></a>
-          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="openShareLogs(${s.id}, ${escapeJsStr(s.name)})" title="Visitor Audit Trail"><i data-lucide="activity" style="width:12px; color:#60a5fa;"></i></button>
-          <button class="btn btn-icon" style="width:26px; height:26px;" onclick="toggleRevokeShare(${s.id}, ${isRevoked})" title="${isRevoked ? 'Reactivate Share' : 'Revoke Share'}" style="color:${isRevoked ? '#10b981' : '#f59e0b'};"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:12px;"></i></button>
-          <button class="btn btn-icon btn-danger-hover" style="width:26px; height:26px;" onclick="deleteSharePermanent(${s.id})" title="Delete Share Permanently" style="color:var(--danger);"><i data-lucide="trash-2" style="width:12px;"></i></button>
+          <button class="btn btn-icon" style="width:26px; height:26px;" data-on-click="openShareLogs" data-click-args="${actionArgs((s.id), String((s.name) ?? ''))}" title="Visitor Audit Trail"><i data-lucide="activity" style="width:12px; color:#60a5fa;"></i></button>
+          <button class="btn btn-icon" style="width:26px; height:26px;" data-on-click="toggleRevokeShare" data-click-args="${actionArgs((s.id), (isRevoked))}" title="${isRevoked ? 'Reactivate Share' : 'Revoke Share'}" style="color:${isRevoked ? '#10b981' : '#f59e0b'};"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:12px;"></i></button>
+          <button class="btn btn-icon btn-danger-hover" style="width:26px; height:26px;" data-on-click="deleteSharePermanent" data-click-args="${actionArgs((s.id))}" title="Delete Share Permanently" style="color:var(--danger);"><i data-lucide="trash-2" style="width:12px;"></i></button>
         </td>
       </tr>
     `;
   }).join('');
 
   if (window.lucide) lucide.createIcons();
+  bindActions(tbody);
 }
 
 function renderDockedSharesList() {
@@ -26524,15 +26575,16 @@ function renderDockedSharesList() {
               </div>
             </div>
             <div style="display:flex; align-items:center; gap:3px;">
-              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="navigator.clipboard.writeText('${fullUrl}'); showToast('Share URL copied!', 'success');" title="Copy URL"><i data-lucide="copy" style="width:11px;"></i></button>
-              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="openShareLogs(${s.id}, ${escapeJsStr(s.name)})" title="Audit Trail"><i data-lucide="activity" style="width:11px; color:#60a5fa;"></i></button>
-              <button class="btn btn-icon" style="width:22px; height:22px;" onclick="toggleRevokeShare(${s.id}, ${isRevoked})" title="${isRevoked ? 'Reactivate' : 'Revoke'}"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:11px;"></i></button>
+              <button class="btn btn-icon" style="width:22px; height:22px;" data-on-click="writeClipboardText" data-click-args="${actionArgs(fullUrl)}" data-click-steps="${actionSteps(['showToast', 'Share URL copied!', 'success'])}" title="Copy URL"><i data-lucide="copy" style="width:11px;"></i></button>
+              <button class="btn btn-icon" style="width:22px; height:22px;" data-on-click="openShareLogs" data-click-args="${actionArgs((s.id), String((s.name) ?? ''))}" title="Audit Trail"><i data-lucide="activity" style="width:11px; color:#60a5fa;"></i></button>
+              <button class="btn btn-icon" style="width:22px; height:22px;" data-on-click="toggleRevokeShare" data-click-args="${actionArgs((s.id), (isRevoked))}" title="${isRevoked ? 'Reactivate' : 'Revoke'}"><i data-lucide="${isRevoked ? 'check-circle-2' : 'ban'}" style="width:11px;"></i></button>
             </div>
           </div>
         `;
       }).join('');
 
       if (window.lucide) lucide.createIcons();
+      bindActions(mount);
     }
   });
 }
@@ -28770,10 +28822,10 @@ async function loadAdminGlobalMounts() {
             </td>
             <td class="admin-user-cell" style="text-align: center;">
               <div style="display: flex; gap: 6px; justify-content: center;">
-                <button class="btn" style="padding: 5px 10px; font-size: 11px;" onclick="loadPaneDirectory(App.activePaneIndex, ${escapeJsStr(m.target_uri)}); closeModal('admin-panel-modal');" title="Open in active panel">
+                <button class="btn" style="padding: 5px 10px; font-size: 11px;" data-on-click="openPathInActivePane" data-click-args="${actionArgs(String((m.target_uri) ?? ''))}" data-click-steps="${actionSteps(['closeModal', 'admin-panel-modal'])}" title="Open in active panel">
                   <i data-lucide="folder-open" style="width: 12px;"></i> Open
                 </button>
-                <button class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" onclick="deleteGlobalMount(${m.id}, ${escapeJsStr(m.name)})" title="Delete Mount">
+                <button class="btn btn-danger" style="padding: 5px 8px; font-size: 11px;" data-on-click="deleteGlobalMount" data-click-args="${actionArgs((m.id), String((m.name) ?? ''))}" title="Delete Mount">
                   <i data-lucide="trash-2" style="width: 12px;"></i>
                 </button>
               </div>
@@ -28782,6 +28834,7 @@ async function loadAdminGlobalMounts() {
         `;
       }).join('');
       if (window.lucide) lucide.createIcons();
+      bindActions(tbody);
     }
   } catch (err) {
     tbody.innerHTML = `<tr><td colspan="5" style="color: var(--danger); padding: 16px;">Failed to load global mounts: ${err}</td></tr>`;
@@ -44529,7 +44582,7 @@ function renderFleetManagerList() {
   // Local Host Card
   const isLocalActive = !activeId || activeId === 'local';
   html += `
-    <div class="fleet-card ${isLocalActive ? 'active' : ''}" style="border-left: 3px solid #f59e0b;" onclick="resetFleetNodeForm()">
+    <div class="fleet-card ${isLocalActive ? 'active' : ''}" style="border-left: 3px solid #f59e0b;" data-on-click="resetFleetNodeForm">
       <div class="fleet-card-header">
         <div class="fleet-card-name">
           <i data-lucide="server" style="width: 14px; height: 14px; color: #f59e0b;"></i>
@@ -44549,7 +44602,7 @@ function renderFleetManagerList() {
           <span class="fleet-tag-pill">origin</span>
         </div>
         <div style="display: flex; gap: 4px;">
-          ${!isLocalActive ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode('local');" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
+          ${!isLocalActive ? `<button type="button" class="btn btn-xs btn-outline" data-click-stop data-on-click="switchToFleetNode" data-click-args="${actionArgs('local')}" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
         </div>
       </div>
     </div>
@@ -44578,7 +44631,7 @@ function renderFleetManagerList() {
     const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(n);
 
     html += `
-      <div class="fleet-card ${isAct ? 'active' : ''}" style="border-left: 3px solid ${colorHex}; ${isEditing ? 'outline: 1.5px solid var(--accent);' : ''}" onclick="selectFleetNodeInManager(${escapeJsStr(n.id)})">
+      <div class="fleet-card ${isAct ? 'active' : ''}" style="border-left: 3px solid ${colorHex}; ${isEditing ? 'outline: 1.5px solid var(--accent);' : ''}" data-on-click="selectFleetNodeInManager" data-click-args="${actionArgs(String((n.id) ?? ''))}">
         <div class="fleet-card-header">
           <div class="fleet-card-name">
             <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex};"></i>
@@ -44599,10 +44652,10 @@ function renderFleetManagerList() {
             ${tagsHtml || '<span class="fleet-tag-pill" style="opacity: 0.6;">no tags</span>'}
           </div>
           <div style="display: flex; gap: 4px;">
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); openFleetNodeWebUi(${escapeJsStr(n.id)}, event)" title="Open Node Web UI in New Tab" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="external-link" style="width: 11px; height: 11px;"></i></button>
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); pingFleetNode(${escapeJsStr(n.id)})" title="Ping Node" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i></button>
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); deleteFleetNodeProfile(${escapeJsStr(n.id)}, event)" title="${n.is_static ? (n.user_override ? 'Reset custom overrides to config.toml defaults' : 'Reset node to config.toml defaults') : 'Delete Node'}" style="height: 22px; width: 22px; padding: 0; color: ${n.is_static ? '#f59e0b' : '#ef4444'};"><i data-lucide="${n.is_static ? 'rotate-ccw' : 'trash-2'}" style="width: 11px; height: 11px;"></i></button>
-            ${!isAct ? `<button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); switchToFleetNode(${escapeJsStr(n.id)});" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
+            <button type="button" class="btn btn-xs btn-outline" data-click-stop data-on-click="openFleetNodeWebUi" data-click-args="${actionArgs(String((n.id) ?? ''), ACTION_EVENT)}" title="Open Node Web UI in New Tab" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="external-link" style="width: 11px; height: 11px;"></i></button>
+            <button type="button" class="btn btn-xs btn-outline" data-click-stop data-on-click="pingFleetNode" data-click-args="${actionArgs(String((n.id) ?? ''))}" title="Ping Node" style="height: 22px; width: 22px; padding: 0;"><i data-lucide="activity" style="width: 11px; height: 11px;"></i></button>
+            <button type="button" class="btn btn-xs btn-outline" data-click-stop data-on-click="deleteFleetNodeProfile" data-click-args="${actionArgs(String((n.id) ?? ''), ACTION_EVENT)}" title="${n.is_static ? (n.user_override ? 'Reset custom overrides to config.toml defaults' : 'Reset node to config.toml defaults') : 'Delete Node'}" style="height: 22px; width: 22px; padding: 0; color: ${n.is_static ? '#f59e0b' : '#ef4444'};"><i data-lucide="${n.is_static ? 'rotate-ccw' : 'trash-2'}" style="width: 11px; height: 11px;"></i></button>
+            ${!isAct ? `<button type="button" class="btn btn-xs btn-outline" data-click-stop data-on-click="switchToFleetNode" data-click-args="${actionArgs(String((n.id) ?? ''))}" style="height: 22px; font-size: 10px; padding: 0 6px;">Set Active</button>` : `<span style="font-size: 10px; color: var(--accent); font-weight: 600;">Active</span>`}
           </div>
         </div>
       </div>
@@ -44615,6 +44668,7 @@ function renderFleetManagerList() {
       lucide.createIcons({ root: container });
     }
   } catch (_) {}
+  bindActions(container);
 }
 
 function selectFleetNodeInManager(id) {
