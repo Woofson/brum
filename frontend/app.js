@@ -1,51 +1,82 @@
 // Brum Multi-Pane Web Environment - By Woofson
 
 // ---------------- BUTTON WIRING (replaces inline handlers, see #152) ----------------
-// Markup names its action instead of carrying script (<type> is click, mouseenter or error):
+// Markup names its actions instead of carrying script. <type> is the event (click, keydown...):
 //   data-on-<type>="functionName"       function to call
-//   data-<type>-args="..."              optional arguments, written with actionArgs(...)
-//   data-<type>-after="functionName"    second function to call afterwards (e.g. hideContextMenu)
+//   data-<type>-args="..."              its arguments, written with actionArgs(...)
+//   data-<type>-steps="..."             further calls, written with actionSteps([...], [...])
+//   data-<type>-after="functionName"    one further call without arguments (e.g. hideContextMenu)
 //   data-<type>-stop                    stop the event bubbling further (outside-click closers)
-// In actionArgs, ACTION_EVENT passes the event and ACTION_EL the element itself.
+//   data-<type>-prevent                 prevent the browser's default (e.g. its own right-click menu)
+//   data-<type>-key="Enter"             only act when this key was pressed
+// Markers in arguments: ACTION_EVENT (the event), ACTION_EL (the element), ACTION_VALUE
+// (its current value), ACTION_CHECKED (whether it is ticked).
 // Each element gets its own listener, so events keep the same order they had inline.
-// Call bindActions(container) after filling a container with innerHTML, and after
+// Call bindActions(container) right after filling a container with innerHTML, and after
 // lucide.createIcons() when the element carrying the action is an <i data-lucide> icon.
 // Only functions listed in BRUM_ACTIONS can be called this way.
-const BRUM_ACTION_EVENTS = ['click', 'mouseenter', 'error'];
+const BRUM_ACTION_EVENTS = [
+  'click', 'dblclick', 'auxclick', 'contextmenu', 'mousedown', 'pointerdown', 'mouseenter',
+  'touchstart', 'touchmove', 'touchend', 'touchcancel', 'dragstart', 'dragend',
+  'keydown', 'input', 'change', 'blur', 'error',
+];
+const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
+  .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
   'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest', 'addDirectoryToMediaPlaylist',
-  'addTracksToMediaPlaylist', 'createPaneTab', 'deleteSelectedTrashItems',
-  'disconnectPaneRemote', 'executeCustomAction', 'executeOpenWith', 'handleLogoutOrExit',
-  'handleVaultOpen', 'hideContextMenu', 'loadPaneDirectory', 'lockSession', 'openAboutModal',
-  'openAdminPanel', 'openBatchRenamer', 'openCadStudio', 'openChewtoyForFile',
-  'openConverterModal', 'openCreateTemplateModal', 'openCustomDestModal', 'openDiskUsageModal',
-  'openDuplicateFinder', 'openExternalTerminal', 'openFleetAddModal', 'openFleetManagerModal',
-  'openFleetNodeWebUi', 'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog',
-  'openFloatingTaskManager', 'openHexEditor', 'openInPaneWithToast', 'openLogViewer',
-  'openMediaPlayer', 'openNoteForContextItem', 'openParanoidSettings', 'openPdfToolModal',
-  'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal', 'openSettingsModal',
-  'openSettingsTab', 'openSharesManager', 'openSpotlightModal', 'openSyncModal',
-  'openSyncthingModal', 'openTagEditor', 'openTerminalInPath', 'openTetraDog',
-  'openUserProfileModal', 'promptEmptyTrash', 'quickTransferToPane', 'quickTransferToPath',
-  'refreshAllPanes', 'restoreSelectedTrashItems', 'runPredefinedAction', 'runToolsMenuChewtoy',
-  'runToolsMenuItem', 'saveContextItemAsTemplate', 'setContextFileColor', 'switchToFleetNode',
-  'toggleBranchView', 'toggleContextColorPalette', 'toggleContextSubmenu',
-  'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager', 'toggleLayoutMenu',
-  'toggleProfileMenu', 'toggleTerminal', 'toggleToolsMenu', 'triggerArchive7z',
-  'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename', 'triggerChecksum',
-  'triggerCompressModal', 'triggerCopyClipboard', 'triggerCreateFromTemplate',
-  'triggerCutClipboard', 'triggerDelete', 'triggerDiff', 'triggerDirPermissions',
-  'triggerDownloadContextItem', 'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere',
-  'triggerExtractModal', 'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit',
-  'triggerGitManager', 'triggerMkdir', 'triggerNewFile', 'triggerPaste', 'triggerProperties',
-  'triggerRename', 'triggerShare', 'triggerView', 'useFallbackIcon',
-  'triggerDeviceUpload', 'triggerDeviceFolderUpload', 'triggerDownloadCurrentDirectory',
-  'triggerShareDirectory', 'openCreateVaultModal',
+  'addTracksToMediaPlaylist', 'applyBorderSettings', 'applyPaneCustomTwoTone',
+  'applyPaneRenameFromInput', 'applyPaneStartPath', 'autoFitAllColumns', 'autoFitColumn',
+  'clearPaneFilter', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers', 'closeDockedTool',
+  'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
+  'copyTextToClipboard', 'createPaneTab', 'cyclePaneColor', 'deleteSelectedTrashItems',
+  'disablePathInput', 'disconnectPaneRemote', 'duplicatePaneTab', 'enablePathInput',
+  'executeCustomAction', 'executeOpenWith', 'executePane1ClickTransfer', 'handleFilterInput',
+  'handleFilterKey', 'handleLogoutOrExit', 'handlePaneBadgeClick', 'handlePaneBadgeDragEnd',
+  'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd',
+  'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart', 'handlePathKey', 'handleVaultOpen',
+  'hideContextMenu', 'initColResize', 'initTreeResize', 'loadPaneDirectory', 'lockSession',
+  'mountUsbDevice', 'openAboutModal', 'openAdminPanel', 'openApiTokensModal',
+  'openBatchRenamer', 'openBookmarksManager', 'openCadStudio', 'openChewtoyForFile',
+  'openColumnHeaderContextMenu', 'openConverterModal', 'openCreateTemplateModal',
+  'openCreateVaultModal', 'openCustomDestModal', 'openDiskUsageModal', 'openDuplicateFinder',
+  'openExternalTerminal', 'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi',
+  'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager',
+  'openHexEditor', 'openInPaneWithToast', 'openLogViewer', 'openMediaPlayer',
+  'openNativeRecycleBin', 'openNoteForContextItem', 'openPaneFavoritesMenu',
+  'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu',
+  'openParanoidSettings', 'openPdfToolModal', 'openPropertiesColorTab', 'openRemoteModal',
+  'openSearchModal', 'openSettingsModal', 'openSettingsTab', 'openSharesManager',
+  'openSpotlightModal', 'openSyncModal', 'openSyncthingModal', 'openTagEditor',
+  'openTerminalInPath', 'openTetraDog', 'openUserProfileModal', 'promptEmptyTrash',
+  'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshPane',
+  'removeElementById', 'resetAllColumnWidths', 'resetHiddenDrives', 'resetPaneName',
+  'restoreSelectedTrashItems', 'runPredefinedAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
+  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'setActivePane',
+  'setContextFileColor', 'setCustomAngleInput', 'setElementValue', 'setPane1ClickTransferAction',
+  'setPaneColorPref', 'setPaneViewMode', 'sortPane', 'swapPanes', 'switchPaneNode',
+  'switchPaneTab', 'switchToFleetNode', 'toggleBranchView', 'toggleColSeparators',
+  'toggleColumnVisibility', 'toggleCompactDates', 'toggleContextColorPalette',
+  'toggleContextSubmenu', 'toggleFileListMultiline', 'toggleFleetSwitcherDropdown',
+  'toggleFloatingTaskManager', 'toggleHideDrive', 'toggleLayoutMenu', 'togglePaneFilter',
+  'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree', 'toggleProfileMenu',
+  'toggleShowDirTag', 'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll',
+  'toggleTerminal', 'toggleToolsMenu', 'triggerArchive7z', 'triggerArchiveTarGz',
+  'triggerArchiveZip', 'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal',
+  'triggerCopy', 'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard',
+  'triggerDelete', 'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff',
+  'triggerDirPermissions', 'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory',
+  'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere', 'triggerExtractModal',
+  'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager',
+  'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerPaste', 'triggerProperties',
+  'triggerRename', 'triggerShare', 'triggerShareDirectory', 'triggerView', 'undockToolFromPane',
+  'unmountUsbDevice', 'updatePaneCustomGradientPreview', 'useFallbackIcon',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
 const ACTION_EVENT = { $: 'event' };
 const ACTION_EL = { $: 'el' };
+const ACTION_VALUE = { $: 'value' };
+const ACTION_CHECKED = { $: 'checked' };
 
 function encodeActionArg(a) {
   if (a === undefined) return { $: 'undefined' };
@@ -58,6 +89,8 @@ function decodeActionArg(a, ev, el) {
   if (a && typeof a === 'object' && Object.keys(a).length === 1 && '$' in a) {
     if (a.$ === 'event') return ev;
     if (a.$ === 'el') return el;
+    if (a.$ === 'value') return el.value;
+    if (a.$ === 'checked') return el.checked;
     if (a.$ === 'undefined') return undefined;
   }
   return a;
@@ -66,6 +99,11 @@ function decodeActionArg(a, ev, el) {
 // Arguments for data-<type>-args, escaped for a double-quoted HTML attribute
 function actionArgs(...args) {
   return escapeHtml(JSON.stringify(args.map(encodeActionArg)));
+}
+
+// Further calls for data-<type>-steps: each step is [functionName, ...arguments]
+function actionSteps(...steps) {
+  return escapeHtml(JSON.stringify(steps.map(st => st.map(encodeActionArg))));
 }
 
 function getBoundAction(name) {
@@ -77,39 +115,51 @@ function getBoundAction(name) {
   return fn;
 }
 
-function runBoundAction(el, type, ev) {
-  if (el.hasAttribute(`data-${type}-stop`)) ev.stopPropagation();
-  const name = el.getAttribute(`data-on-${type}`);
-  if (!name) return;
-  const fn = getBoundAction(name);
-  if (!fn) return;
-  let args = [];
-  const raw = el.getAttribute(`data-${type}-args`);
-  if (raw) {
-    try { args = JSON.parse(raw); } catch (e) {
-      console.error(`Brum: bad arguments for action "${name}"`, e);
-      return;
-    }
+function readActionJson(el, attr, name) {
+  const raw = el.getAttribute(attr);
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch (e) {
+    console.error(`Brum: bad ${attr} for action "${name}"`, e);
+    return null;
   }
-  fn.apply(el, args.map(a => decodeActionArg(a, ev, el)));
+}
+
+function runBoundAction(el, type, ev) {
+  const key = el.getAttribute(`data-${type}-key`);
+  if (key && ev.key !== key) return;
+  if (el.hasAttribute(`data-${type}-prevent`)) ev.preventDefault();
+  if (el.hasAttribute(`data-${type}-stop`)) ev.stopPropagation();
+  const calls = [];
+  const name = el.getAttribute(`data-on-${type}`);
+  if (name) {
+    const args = readActionJson(el, `data-${type}-args`, name);
+    if (args === null) return;
+    calls.push([name, ...args]);
+  }
+  const steps = readActionJson(el, `data-${type}-steps`, name || type);
+  if (steps === null) return;
+  calls.push(...steps);
   const after = el.getAttribute(`data-${type}-after`);
-  if (after) {
-    const afterFn = getBoundAction(after);
-    if (afterFn) afterFn();
+  if (after) calls.push([after]);
+  for (const [fnName, ...args] of calls) {
+    const fn = getBoundAction(fnName);
+    if (!fn) return;
+    fn.apply(el, args.map(a => decodeActionArg(a, ev, el)));
   }
 }
 
 function bindActions(root) {
   const scope = root || document;
-  for (const type of BRUM_ACTION_EVENTS) {
-    const sel = `[data-on-${type}], [data-${type}-stop]`;
-    const els = Array.from(scope.querySelectorAll(sel));
-    if (scope.matches && scope.matches(sel)) els.push(scope);
-    const flag = `brumBound_${type}`;
-    for (const el of els) {
-      if (el[flag]) continue;
-      el[flag] = true;
-      el.addEventListener(type, (ev) => runBoundAction(el, type, ev));
+  const els = Array.from(scope.querySelectorAll(BRUM_ACTION_SELECTOR));
+  if (scope.matches && scope.matches(BRUM_ACTION_SELECTOR)) els.push(scope);
+  for (const el of els) {
+    if (el.brumBound) continue;
+    el.brumBound = true;
+    for (const type of BRUM_ACTION_EVENTS) {
+      if (el.hasAttribute(`data-on-${type}`) || el.hasAttribute(`data-${type}-stop`) ||
+          el.hasAttribute(`data-${type}-prevent`) || el.hasAttribute(`data-${type}-steps`)) {
+        el.addEventListener(type, (ev) => runBoundAction(el, type, ev));
+      }
     }
   }
 }
@@ -131,10 +181,25 @@ function openChewtoyForFile(pluginId, targetFile) {
   openDynamicChewToy(pluginId, { targetFile, selectedFiles: getSelectedOrCursorPaths() });
 }
 
-function useFallbackIcon(img) {
+function useFallbackIcon(img, src = 'assets/amber-frameless-apps.webp') {
   if (img.dataset.fallbackUsed) return;
   img.dataset.fallbackUsed = '1';
-  img.src = 'assets/amber-frameless-apps.webp';
+  img.src = src;
+}
+
+function removeElementById(id) {
+  document.getElementById(id)?.remove();
+}
+
+function setElementValue(id, value) {
+  const el = document.getElementById(id);
+  if (el) el.value = value;
+}
+
+function closePaneTabOnMiddleClick(ev, paneIndex, tabIndex) {
+  if (ev.button !== 1) return;
+  ev.preventDefault();
+  closePaneTab(paneIndex, tabIndex, ev);
 }
 
 function isStandaloneMode() {
@@ -1571,30 +1636,30 @@ function openPaneTabContextMenu(e, paneIndex, tabIndex) {
   const hasRightTabs = tabIndex < pane.tabs.length - 1;
 
   menu.innerHTML = `
-    <div class="context-item" onclick="document.getElementById('pane-tab-context-menu')?.remove(); setActivePane(${paneIndex}); createPaneTab(${paneIndex});">
+    <div class="context-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tab-context-menu')}" data-click-steps="${actionSteps(['setActivePane', (paneIndex)], ['createPaneTab', (paneIndex)])}">
       <i data-lucide="plus"></i>
       <span class="context-label">New Tab</span>
       <span class="context-shortcut">Ctrl+T</span>
     </div>
-    <div class="context-item" onclick="document.getElementById('pane-tab-context-menu')?.remove(); duplicatePaneTab(${paneIndex}, ${tabIndex});">
+    <div class="context-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tab-context-menu')}" data-click-steps="${actionSteps(['duplicatePaneTab', (paneIndex), (tabIndex)])}">
       <i data-lucide="copy"></i>
       <span class="context-label">Duplicate Tab</span>
     </div>
-    <div class="context-item" onclick="document.getElementById('pane-tab-context-menu')?.remove(); copyToClipboard(${escapeJsStr(tabPath)}); showToast('Path copied to clipboard');">
+    <div class="context-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tab-context-menu')}" data-click-steps="${actionSteps(['copyTextToClipboard', String((tabPath) ?? ''), 'Path copied to clipboard'])}">
       <i data-lucide="clipboard"></i>
       <span class="context-label">Copy Tab Path</span>
     </div>
     <div class="context-sep"></div>
-    <div class="context-item ${!hasMultiple ? 'disabled' : ''}" onclick="if (${hasMultiple}) { document.getElementById('pane-tab-context-menu')?.remove(); closePaneTab(${paneIndex}, ${tabIndex}); }">
+    <div class="context-item ${!hasMultiple ? 'disabled' : ''}" ${hasMultiple ? `data-on-click="removeElementById" data-click-args="${actionArgs('pane-tab-context-menu')}" data-click-steps="${actionSteps(['closePaneTab', paneIndex, tabIndex])}"` : ''}>
       <i data-lucide="x" style="color: #ef4444;"></i>
       <span class="context-label">Close Tab</span>
       <span class="context-shortcut">Ctrl+W</span>
     </div>
-    <div class="context-item ${!hasMultiple ? 'disabled' : ''}" onclick="if (${hasMultiple}) { document.getElementById('pane-tab-context-menu')?.remove(); closeOtherTabs(${paneIndex}, ${tabIndex}); }">
+    <div class="context-item ${!hasMultiple ? 'disabled' : ''}" ${hasMultiple ? `data-on-click="removeElementById" data-click-args="${actionArgs('pane-tab-context-menu')}" data-click-steps="${actionSteps(['closeOtherTabs', paneIndex, tabIndex])}"` : ''}>
       <i data-lucide="x-circle"></i>
       <span class="context-label">Close Other Tabs</span>
     </div>
-    <div class="context-item ${!hasRightTabs ? 'disabled' : ''}" onclick="if (${hasRightTabs}) { document.getElementById('pane-tab-context-menu')?.remove(); closeTabsToTheRight(${paneIndex}, ${tabIndex}); }">
+    <div class="context-item ${!hasRightTabs ? 'disabled' : ''}" ${hasRightTabs ? `data-on-click="removeElementById" data-click-args="${actionArgs('pane-tab-context-menu')}" data-click-steps="${actionSteps(['closeTabsToTheRight', paneIndex, tabIndex])}"` : ''}>
       <i data-lucide="arrow-right-to-line"></i>
       <span class="context-label">Close Tabs to the Right</span>
     </div>
@@ -1604,6 +1669,7 @@ function openPaneTabContextMenu(e, paneIndex, tabIndex) {
   if (window.lucide && typeof lucide.createIcons === 'function') {
     lucide.createIcons({ root: menu });
   }
+  bindActions(menu);
 
   let posX = e.clientX || 100;
   let posY = e.clientY || 100;
@@ -1729,16 +1795,16 @@ function renderPaneTabs(paneIndex) {
     tabsHtml += `
       <div class="pane-tab-item ${isActive ? 'active' : ''}"
            id="pane-${paneIndex}-tab-${tIdx}"
-           onclick="setActivePane(${paneIndex}); switchPaneTab(${paneIndex}, ${tIdx});"
-           onauxclick="if (event.button === 1) { event.preventDefault(); closePaneTab(${paneIndex}, ${tIdx}, event); }"
-           oncontextmenu="event.preventDefault(); openPaneTabContextMenu(event, ${paneIndex}, ${tIdx});"
+           data-on-click="setActivePane" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['switchPaneTab', (paneIndex), (tIdx)])}"
+           data-on-auxclick="closePaneTabOnMiddleClick" data-auxclick-args="${actionArgs(ACTION_EVENT, paneIndex, tIdx)}"
+           data-contextmenu-prevent data-on-contextmenu="openPaneTabContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (paneIndex), (tIdx))}"
            title="${escapeHtml(tooltip)}">
         <span class="pane-tab-icon">
           <i data-lucide="${icon}" style="width: 11px; height: 11px;"></i>
         </span>
         <span class="pane-tab-title">${escapeHtml(title)}</span>
         ${showClose ? `
-          <button class="pane-tab-close" onclick="event.stopPropagation(); closePaneTab(${paneIndex}, ${tIdx}, event);" title="Close Tab (Ctrl+W / Middle-click)">✕</button>
+          <button class="pane-tab-close" data-click-stop data-on-click="closePaneTab" data-click-args="${actionArgs((paneIndex), (tIdx), ACTION_EVENT)}" title="Close Tab (Ctrl+W / Middle-click)">✕</button>
         ` : ''}
       </div>
     `;
@@ -1746,13 +1812,14 @@ function renderPaneTabs(paneIndex) {
 
   tabsHtml += '</div>';
   tabsHtml += `
-    <button class="btn-new-tab" onclick="event.stopPropagation(); setActivePane(${paneIndex}); createPaneTab(${paneIndex});" title="New Tab in this Pane (Ctrl+T)">
+    <button class="btn-new-tab" data-click-stop data-on-click="setActivePane" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['createPaneTab', (paneIndex)])}" title="New Tab in this Pane (Ctrl+T)">
       <i data-lucide="plus"></i>
     </button>
   `;
 
   stripEl.innerHTML = tabsHtml;
   if (window.lucide) lucide.createIcons();
+  bindActions(stripEl);
 
   const activeTabEl = document.getElementById(`pane-${paneIndex}-tab-${pane.activeTabIndex}`);
   if (activeTabEl) {
@@ -4064,7 +4131,7 @@ function createPaneElement(pane, index) {
   const resolved = typeof resolvePaneColorConfig === 'function' ? resolvePaneColorConfig(colorConf, globalAngle) : { activeC1: '#f59e0b', activeC2: '#f97316', angle: '45deg', id: 'default' };
   const activeHex = resolved.activeC1;
   const badgeGradient = `linear-gradient(${resolved.angle}, ${resolved.activeC1}, ${resolved.activeC2})`;
-  const isDraggableAttr = App.paneReorderEnabled !== false ? `draggable="true" ondragstart="handlePaneBadgeDragStart(event, ${index})" ondragend="handlePaneBadgeDragEnd(event, ${index})"` : '';
+  const isDraggableAttr = App.paneReorderEnabled !== false ? `draggable="true" data-on-dragstart="handlePaneBadgeDragStart" data-dragstart-args="${actionArgs(ACTION_EVENT, (index))}" data-on-dragend="handlePaneBadgeDragEnd" data-dragend-args="${actionArgs(ACTION_EVENT, (index))}"` : '';
   const badgeTitle = `Pane ${index + 1}: ${escapeHtml(paneTitle)} (${App.paneReorderEnabled !== false ? 'Drag: Reorder, ' : ''}Click / Long Press: Settings)`;
 
   if (pane.dockedTool) {
@@ -4075,7 +4142,7 @@ function createPaneElement(pane, index) {
       const pInfo = (window.installedChewToys || []).find(p => p.id === pId);
       const iconSrc = getChewtoyIconUrl(pInfo);
       const name = pInfo?.name || pId;
-      toolTitleHtml = `<img src="${escapeHtml(iconSrc)}" alt="${escapeHtml(name)}" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src='assets/amber-frameless-apps.webp'"> ${escapeHtml(name)}`;
+      toolTitleHtml = `<img src="${escapeHtml(iconSrc)}" alt="${escapeHtml(name)}" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL)}"> ${escapeHtml(name)}`;
     } else {
       const toolTitles = {
         'editor': '<img src="assets/edit.webp" alt="Editor" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Editor',
@@ -4084,13 +4151,13 @@ function createPaneElement(pane, index) {
         'calculator': '<img src="assets/calc.webp" alt="Calculator" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Calculator',
         'renamer': '<i data-lucide="file-signature" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Batch Renamer',
         'hexeditor': '<i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Hex Editor',
-        'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src=\'assets/amber-frameless-apps.webp\'"> Git Manager',
+        'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" data-on-error="useFallbackIcon" data-error-args="[{&quot;$&quot;:&quot;el&quot;}]"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
         'tetradog': '<img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetrion',
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
         'splitter': '<i data-lucide="scissors" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> File Splitter & Combiner',
-        'pdf': '<img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" onerror="this.src=\'assets/amber-frameless-apps.webp\'"> PDF Studio',
+        'pdf': '<img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" data-on-error="useFallbackIcon" data-error-args="[{&quot;$&quot;:&quot;el&quot;}]"> PDF Studio',
         'tageditor': '<i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Tag Editor',
         'logviewer': '<i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Log Viewer',
         'cad': '<i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> 3D CAD Studio',
@@ -4106,12 +4173,12 @@ function createPaneElement(pane, index) {
       <div class="pane-header">
         <button class="pane-badge-btn" id="pane-badge-btn-${index}"
                 ${isDraggableAttr}
-                ontouchstart="handlePaneBadgeTouchStart(event, ${index})"
-                ontouchmove="handlePaneBadgeTouchMove(event, ${index})"
-                ontouchend="handlePaneBadgeTouchEnd(event, ${index})"
-                ontouchcancel="handlePaneBadgeTouchCancel(event, ${index})"
-                onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
-                oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
+                data-on-touchstart="handlePaneBadgeTouchStart" data-touchstart-args="${actionArgs(ACTION_EVENT, (index))}"
+                data-on-touchmove="handlePaneBadgeTouchMove" data-touchmove-args="${actionArgs(ACTION_EVENT, (index))}"
+                data-on-touchend="handlePaneBadgeTouchEnd" data-touchend-args="${actionArgs(ACTION_EVENT, (index))}"
+                data-on-touchcancel="handlePaneBadgeTouchCancel" data-touchcancel-args="${actionArgs(ACTION_EVENT, (index))}"
+                data-click-stop data-on-click="handlePaneBadgeClick" data-click-args="${actionArgs(ACTION_EVENT, (index))}"
+                data-contextmenu-prevent data-contextmenu-stop data-on-contextmenu="openPaneSettingsMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}"
                 title="${badgeTitle}">
           <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${badgeGradient};"></span>
           <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
@@ -4120,8 +4187,8 @@ function createPaneElement(pane, index) {
           <span style="font-weight: 700; font-size: 12px; color: var(--accent);">${toolTitleHtml}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon btn-panel-control" onclick="event.stopPropagation(); undockToolFromPane(${index})" title="Undock to Floating Window (Float)"><i data-lucide="external-link"></i></button>
-          <button class="btn btn-icon btn-panel-control modal-close-btn" onclick="event.stopPropagation(); closeDockedTool(${index})" title="Close Docked Tool"><i data-lucide="x"></i></button>
+          <button class="btn btn-icon btn-panel-control" data-click-stop data-on-click="undockToolFromPane" data-click-args="${actionArgs((index))}" title="Undock to Floating Window (Float)"><i data-lucide="external-link"></i></button>
+          <button class="btn btn-icon btn-panel-control modal-close-btn" data-click-stop data-on-click="closeDockedTool" data-click-args="${actionArgs((index))}" title="Close Docked Tool"><i data-lucide="x"></i></button>
         </div>
       </div>
       <div class="pane-content" id="pane-content-${index}" style="padding: 0; overflow: hidden; display: flex; flex-direction: column; position: relative;">
@@ -4129,6 +4196,7 @@ function createPaneElement(pane, index) {
         <div id="docked-tool-mount-${index}" style="flex: 1; height: 100%; width: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; z-index: 1;"></div>
       </div>
     `;
+    bindActions(el);
     return el;
   }
 
@@ -4137,12 +4205,12 @@ function createPaneElement(pane, index) {
       <!-- Leftmost Unified Pane Number & Settings Badge Button (Desktop, Laptop, Tablet, Foldable, Phone) -->
       <button class="pane-badge-btn" id="pane-badge-btn-${index}"
               ${isDraggableAttr}
-              ontouchstart="handlePaneBadgeTouchStart(event, ${index})"
-              ontouchmove="handlePaneBadgeTouchMove(event, ${index})"
-              ontouchend="handlePaneBadgeTouchEnd(event, ${index})"
-              ontouchcancel="handlePaneBadgeTouchCancel(event, ${index})"
-              onclick="event.stopPropagation(); handlePaneBadgeClick(event, ${index})"
-              oncontextmenu="event.preventDefault(); event.stopPropagation(); openPaneSettingsMenu(event, ${index})"
+              data-on-touchstart="handlePaneBadgeTouchStart" data-touchstart-args="${actionArgs(ACTION_EVENT, (index))}"
+              data-on-touchmove="handlePaneBadgeTouchMove" data-touchmove-args="${actionArgs(ACTION_EVENT, (index))}"
+              data-on-touchend="handlePaneBadgeTouchEnd" data-touchend-args="${actionArgs(ACTION_EVENT, (index))}"
+              data-on-touchcancel="handlePaneBadgeTouchCancel" data-touchcancel-args="${actionArgs(ACTION_EVENT, (index))}"
+              data-click-stop data-on-click="handlePaneBadgeClick" data-click-args="${actionArgs(ACTION_EVENT, (index))}"
+              data-contextmenu-prevent data-contextmenu-stop data-on-contextmenu="openPaneSettingsMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}"
               title="${badgeTitle}">
         <span class="pane-badge-indicator" id="pane-badge-indicator-${index}" style="background:${badgeGradient};"></span>
         <span class="pane-badge-text" id="pane-badge-text-${index}">${escapeHtml(paneTitle)}</span>
@@ -4150,26 +4218,23 @@ function createPaneElement(pane, index) {
 
       <!-- Desktop Navigation & Tool Buttons (Hidden on touch viewports <= 1024px) -->
       <div class="pane-nav-btns desktop-only-tool">
-        <button onclick="navPaneHistory(${index}, -1)" title="Back"><i data-lucide="arrow-left"></i></button>
-        <button onclick="navPaneHistory(${index}, 1)" title="Forward"><i data-lucide="arrow-right"></i></button>
-        <button onclick="navPaneUp(${index})" title="Parent Directory (Backspace)"><i data-lucide="arrow-up"></i></button>
-        <button class="btn btn-icon pane-filter-toggle-btn ${App.panes[index]?.showFilter ? 'active' : ''}" id="btn-filter-toggle-${index}" onclick="event.stopPropagation(); togglePaneFilter(${index})" title="Toggle Quick Filter (/ or Ctrl+F)"><i data-lucide="filter"></i></button>
-        <button class="btn btn-icon pane-tree-btn desktop-header-tool ${App.panes[index]?.showTree ? 'active' : ''}" id="btn-tree-${index}" onclick="event.stopPropagation(); togglePaneTree(${index});" title="Toggle Folder Tree Sidebar"><i data-lucide="folder-tree"></i></button>
-        <button class="btn btn-icon pane-branch-btn desktop-header-tool ${App.panes[index]?.isBranchView ? 'active' : ''}" id="btn-branch-${index}" onclick="event.stopPropagation(); toggleBranchView(${index});" title="Toggle Flat Branch View (Ctrl+B)"><i data-lucide="git-branch"></i></button>
+        <button class="btn btn-icon pane-filter-toggle-btn ${App.panes[index]?.showFilter ? 'active' : ''}" id="btn-filter-toggle-${index}" data-click-stop data-on-click="togglePaneFilter" data-click-args="${actionArgs((index))}" title="Toggle Quick Filter (/ or Ctrl+F)"><i data-lucide="filter"></i></button>
+        <button class="btn btn-icon pane-tree-btn desktop-header-tool ${App.panes[index]?.showTree ? 'active' : ''}" id="btn-tree-${index}" data-click-stop data-on-click="togglePaneTree" data-click-args="${actionArgs((index))}" title="Toggle Folder Tree Sidebar"><i data-lucide="folder-tree"></i></button>
+        <button class="btn btn-icon pane-branch-btn desktop-header-tool ${App.panes[index]?.isBranchView ? 'active' : ''}" id="btn-branch-${index}" data-click-stop data-on-click="toggleBranchView" data-click-args="${actionArgs((index))}" title="Toggle Flat Branch View (Ctrl+B)"><i data-lucide="git-branch"></i></button>
       </div>
 
       <!-- Path bar & Breadcrumbs (Expanded with flexible width and touch scrolling) -->
-      <div class="pane-path-bar" onclick="enablePathInput(${index})">
+      <div class="pane-path-bar" data-on-click="enablePathInput" data-click-args="${actionArgs((index))}">
         <div class="pane-breadcrumbs" id="pane-crumbs-${index}"></div>
-        <input type="text" class="pane-path-input" id="pane-input-${index}" onkeydown="handlePathKey(event, ${index})" onblur="disablePathInput(${index})">
-        <button class="btn btn-icon pane-refresh-btn desktop-only-tool" id="btn-refresh-pane-${index}" onclick="event.stopPropagation(); refreshPane(${index});" title="Refresh Pane (${index === 0 ? 'F5' : 'Ctrl+R'})">
+        <input type="text" class="pane-path-input" id="pane-input-${index}" data-on-keydown="handlePathKey" data-keydown-args="${actionArgs(ACTION_EVENT, (index))}" data-on-blur="disablePathInput" data-blur-args="${actionArgs((index))}">
+        <button class="btn btn-icon pane-refresh-btn desktop-only-tool" id="btn-refresh-pane-${index}" data-click-stop data-on-click="refreshPane" data-click-args="${actionArgs((index))}" title="Refresh Pane (${index === 0 ? 'F5' : 'Ctrl+R'})">
           <i data-lucide="refresh-cw"></i>
         </button>
       </div>
 
       <!-- Unified Places Hub (Visible on ALL viewports: Phone, Tablet, Foldable, Desktop) -->
       <div class="pane-favorites-wrapper">
-        <button class="btn btn-icon pane-places-btn" id="btn-favorites-${index}" onclick="openPaneFavoritesMenu(event, ${index})" oncontextmenu="event.preventDefault(); openBookmarksManager();" title="Places, Bookmarks & Fleet Nodes (Left-click: Quick Jump, Right-click: Manage)">
+        <button class="btn btn-icon pane-places-btn" id="btn-favorites-${index}" data-on-click="openPaneFavoritesMenu" data-click-args="${actionArgs(ACTION_EVENT, (index))}" data-contextmenu-prevent data-on-contextmenu="openBookmarksManager" title="Places, Bookmarks & Fleet Nodes (Left-click: Quick Jump, Right-click: Manage)">
           <i data-lucide="paw-print"></i>
         </button>
       </div>
@@ -4177,10 +4242,10 @@ function createPaneElement(pane, index) {
       <!-- Transfer & Ingest Split Action Button (Desktop & Toolbar) -->
       <div class="pane-transfer-wrapper desktop-header-tool" id="pane-transfer-wrap-${index}">
         <div class="btn-group pane-transfer-group">
-          <button class="btn btn-icon pane-transfer-main-btn" id="btn-transfer-main-${index}" onclick="executePane1ClickTransfer(${index})" oncontextmenu="event.preventDefault(); openPaneTransferMenu(event, ${index})" title="${getPane1ClickTransferTooltip()}">
+          <button class="btn btn-icon pane-transfer-main-btn" id="btn-transfer-main-${index}" data-on-click="executePane1ClickTransfer" data-click-args="${actionArgs((index))}" data-contextmenu-prevent data-on-contextmenu="openPaneTransferMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" title="${getPane1ClickTransferTooltip()}">
             <i data-lucide="${getPane1ClickTransferIcon()}"></i>
           </button>
-          <button class="btn btn-icon pane-transfer-dropdown-btn" id="btn-transfer-menu-${index}" onclick="openPaneTransferMenu(event, ${index})" title="Transfer & Ingest Options (Upload, Download, Inter-Pane, Share)">
+          <button class="btn btn-icon pane-transfer-dropdown-btn" id="btn-transfer-menu-${index}" data-on-click="openPaneTransferMenu" data-click-args="${actionArgs(ACTION_EVENT, (index))}" title="Transfer & Ingest Options (Upload, Download, Inter-Pane, Share)">
             <i data-lucide="chevron-down" style="width: 10px; height: 10px;"></i>
           </button>
         </div>
@@ -4188,15 +4253,15 @@ function createPaneElement(pane, index) {
 
       <!-- Combined Pane Menu Button (Visible on ALL viewports, providing overflow for mobile/foldable) -->
       <div class="pane-tools-wrapper">
-        <button class="btn btn-icon pane-tools-btn" id="pane-tools-btn-${index}" onclick="openPaneToolsMenu(event, ${index})" title="Pane Actions & Tools">
+        <button class="btn btn-icon pane-tools-btn" id="pane-tools-btn-${index}" data-on-click="openPaneToolsMenu" data-click-args="${actionArgs(ACTION_EVENT, (index))}" title="Pane Actions & Tools">
           <i data-lucide="more-vertical"></i>
         </button>
       </div>
 
       <div class="pane-filter-wrapper" id="pane-filter-wrap-${index}" style="display: ${App.panes[index]?.showFilter ? 'flex' : 'none'};">
         <i data-lucide="search" class="pane-filter-icon"></i>
-        <input type="text" class="pane-quick-filter" placeholder="Filter (/)..." id="pane-filter-${index}" value="${escapeHtml(App.panes[index]?.filterText || '')}" oninput="handleFilterInput(${index}, this.value)" onkeydown="handleFilterKey(event, ${index})">
-        <button class="pane-filter-clear-btn" onclick="clearPaneFilter(${index})" title="Clear filter (Esc)">✕</button>
+        <input type="text" class="pane-quick-filter" placeholder="Filter (/)..." id="pane-filter-${index}" value="${escapeHtml(App.panes[index]?.filterText || '')}" data-on-input="handleFilterInput" data-input-args="${actionArgs((index), ACTION_VALUE)}" data-on-keydown="handleFilterKey" data-keydown-args="${actionArgs(ACTION_EVENT, (index))}">
+        <button class="pane-filter-clear-btn" data-on-click="clearPaneFilter" data-click-args="${actionArgs((index))}" title="Clear filter (Esc)">✕</button>
       </div>
     </div>
 
@@ -4205,7 +4270,7 @@ function createPaneElement(pane, index) {
     <div class="pane-content" id="pane-content-${index}">
       <div class="pane-split-wrapper" id="pane-split-${index}">
         <div class="pane-tree-sidebar" id="pane-tree-${index}" style="display: ${App.panes[index]?.showTree ? 'flex' : 'none'};"></div>
-        <div class="pane-tree-resizer" id="pane-tree-resizer-${index}" style="display: ${App.panes[index]?.showTree ? 'block' : 'none'};" onmousedown="initTreeResize(event, ${index})"></div>
+        <div class="pane-tree-resizer" id="pane-tree-resizer-${index}" style="display: ${App.panes[index]?.showTree ? 'block' : 'none'};" data-on-mousedown="initTreeResize" data-mousedown-args="${actionArgs(ACTION_EVENT, (index))}"></div>
         <div class="pane-main-view" id="pane-main-${index}">
           <div class="pane-ghost-watermark ${paneTitle.length > 2 ? 'pane-ghost-long' : ''}" id="pane-ghost-${index}" style="color: ${resolved.id !== 'default' ? resolved.activeC1 : 'var(--accent)'};" aria-hidden="true">${escapeHtml(paneTitle)}</div>
           <div class="pull-refresh-indicator" id="pull-refresh-${index}" style="display: none; height: 0px; overflow: hidden; justify-content: center; align-items: center; background: rgba(0,0,0,0.3); color: var(--accent); font-size: 11px; font-weight: 700; transition: height 0.1s linear; border-bottom: 1px dashed var(--border);">
@@ -4214,51 +4279,51 @@ function createPaneElement(pane, index) {
           </div>
           <table class="file-table" id="pane-table-${index}">
             <thead>
-              <tr id="pane-header-row-${index}" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
-                <th class="col-header col-icon" ondblclick="event.stopPropagation();">
-                  <button class="pane-col-config-btn" onclick="event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" oncontextmenu="event.preventDefault(); event.stopPropagation(); openColumnHeaderContextMenu(event, ${index});" title="Configure Table Columns & Auto-Fit">
+              <tr id="pane-header-row-${index}" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
+                <th class="col-header col-icon" data-dblclick-stop>
+                  <button class="pane-col-config-btn" data-click-stop data-on-click="openColumnHeaderContextMenu" data-click-args="${actionArgs(ACTION_EVENT, (index))}" data-contextmenu-prevent data-contextmenu-stop data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" title="Configure Table Columns & Auto-Fit">
                     <i data-lucide="sliders-horizontal"></i>
                   </button>
                 </th>
-                <th class="col-header col-name" id="col-header-${index}-name" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
-                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'name')" title="Sort by Name">Name</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'name')" ontouchstart="initColResize(event, ${index}, 'name')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'name')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-name" id="col-header-${index}-name" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
+                  <span class="col-header-text sortable" data-click-stop data-on-click="sortPane" data-click-args="${actionArgs((index), 'name')}" title="Sort by Name">Name</span>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'name')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'name')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'name')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-ext" id="col-header-${index}-ext" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
-                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'ext')" title="Sort by Extension">Ext</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'ext')" ontouchstart="initColResize(event, ${index}, 'ext')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'ext')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-ext" id="col-header-${index}-ext" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
+                  <span class="col-header-text sortable" data-click-stop data-on-click="sortPane" data-click-args="${actionArgs((index), 'ext')}" title="Sort by Extension">Ext</span>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'ext')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'ext')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'ext')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-size" id="col-header-${index}-size" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
-                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'size')" title="Sort by Size">Size</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'size')" ontouchstart="initColResize(event, ${index}, 'size')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'size')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-size" id="col-header-${index}-size" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
+                  <span class="col-header-text sortable" data-click-stop data-on-click="sortPane" data-click-args="${actionArgs((index), 'size')}" title="Sort by Size">Size</span>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'size')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'size')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'size')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-modified" id="col-header-${index}-modified" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
-                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'modified')" title="Sort by Modified Date">Modified</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'modified')" ontouchstart="initColResize(event, ${index}, 'modified')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'modified')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-modified" id="col-header-${index}-modified" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
+                  <span class="col-header-text sortable" data-click-stop data-on-click="sortPane" data-click-args="${actionArgs((index), 'modified')}" title="Sort by Modified Date">Modified</span>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'modified')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'modified')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'modified')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-created" id="col-header-${index}-created" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
-                  <span class="col-header-text sortable" onclick="event.stopPropagation(); sortPane(${index}, 'created')" title="Sort by Created Date">Created</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'created')" ontouchstart="initColResize(event, ${index}, 'created')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'created')" title="Drag to resize | Double-click to auto-fit"></div>
+                <th class="col-header col-created" id="col-header-${index}-created" style="display: none;" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
+                  <span class="col-header-text sortable" data-click-stop data-on-click="sortPane" data-click-args="${actionArgs((index), 'created')}" title="Sort by Created Date">Created</span>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'created')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'created')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'created')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-mode" id="col-header-${index}-mode" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                <th class="col-header col-mode" id="col-header-${index}-mode" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
                   <span class="col-header-text">Mode</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'mode')" ontouchstart="initColResize(event, ${index}, 'mode')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'mode')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'mode')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'mode')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'mode')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-owner" id="col-header-${index}-owner" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                <th class="col-header col-owner" id="col-header-${index}-owner" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
                   <span class="col-header-text">Owner</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'owner')" ontouchstart="initColResize(event, ${index}, 'owner')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'owner')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'owner')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'owner')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'owner')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-group" id="col-header-${index}-group" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                <th class="col-header col-group" id="col-header-${index}-group" style="display: none;" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
                   <span class="col-header-text">Group</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'group')" ontouchstart="initColResize(event, ${index}, 'group')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'group')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'group')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'group')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'group')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-hash" id="col-header-${index}-hash" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                <th class="col-header col-hash" id="col-header-${index}-hash" style="display: none;" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
                   <span class="col-header-text">SHA-256</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'hash')" ontouchstart="initColResize(event, ${index}, 'hash')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'hash')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'hash')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'hash')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'hash')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
-                <th class="col-header col-tags" id="col-header-${index}-tags" style="display: none;" oncontextmenu="event.preventDefault(); openColumnHeaderContextMenu(event, ${index});" ondblclick="event.stopPropagation();">
+                <th class="col-header col-tags" id="col-header-${index}-tags" style="display: none;" data-contextmenu-prevent data-on-contextmenu="openColumnHeaderContextMenu" data-contextmenu-args="${actionArgs(ACTION_EVENT, (index))}" data-dblclick-stop>
                   <span class="col-header-text">Tags</span>
-                  <div class="col-resizer" onpointerdown="initColResize(event, ${index}, 'tags')" ontouchstart="initColResize(event, ${index}, 'tags')" onclick="event.stopPropagation()" ondblclick="event.stopPropagation(); autoFitColumn(${index}, 'tags')" title="Drag to resize | Double-click to auto-fit"></div>
+                  <div class="col-resizer" data-on-pointerdown="initColResize" data-pointerdown-args="${actionArgs(ACTION_EVENT, (index), 'tags')}" data-on-touchstart="initColResize" data-touchstart-args="${actionArgs(ACTION_EVENT, (index), 'tags')}" data-click-stop data-dblclick-stop data-on-dblclick="autoFitColumn" data-dblclick-args="${actionArgs((index), 'tags')}" title="Drag to resize | Double-click to auto-fit"></div>
                 </th>
               </tr>
             </thead>
@@ -4278,13 +4343,14 @@ function createPaneElement(pane, index) {
         <span class="pane-footer-size" id="pane-footer-size-${index}">Total: 0 B</span>
         <div class="pane-footer-sep"></div>
         <div class="pane-footer-viewmodes">
-          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'details' ? 'active' : ''}" id="btn-view-details-${index}" onclick="event.stopPropagation(); setPaneViewMode(${index}, 'details');" title="Details Table View"><i data-lucide="list"></i></button>
-          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'grid' ? 'active' : ''}" id="btn-view-grid-${index}" onclick="event.stopPropagation(); setPaneViewMode(${index}, 'grid');" title="Thumbnail Gallery (Grid)"><i data-lucide="layout-grid"></i></button>
-          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact-${index}" onclick="event.stopPropagation(); setPaneViewMode(${index}, 'compact');" title="Compact Multi-Column List"><i data-lucide="columns-3"></i></button>
+          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'details' ? 'active' : ''}" id="btn-view-details-${index}" data-click-stop data-on-click="setPaneViewMode" data-click-args="${actionArgs((index), 'details')}" title="Details Table View"><i data-lucide="list"></i></button>
+          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'grid' ? 'active' : ''}" id="btn-view-grid-${index}" data-click-stop data-on-click="setPaneViewMode" data-click-args="${actionArgs((index), 'grid')}" title="Thumbnail Gallery (Grid)"><i data-lucide="layout-grid"></i></button>
+          <button class="pane-footer-view-btn ${App.panes[index]?.viewMode === 'compact' ? 'active' : ''}" id="btn-view-compact-${index}" data-click-stop data-on-click="setPaneViewMode" data-click-args="${actionArgs((index), 'compact')}" title="Compact Multi-Column List"><i data-lucide="columns-3"></i></button>
         </div>
       </div>
     </div>
   `;
+  bindActions(el);
 
   const content = el.querySelector('.pane-content');
   if (content) {
@@ -4739,7 +4805,7 @@ async function showPaneNodeDropdown(event, paneIndex) {
       <span>Pane ${paneIndex + 1} Target Node</span>
       <span style="font-size: 9px; opacity: 0.7; font-family: var(--font-mono);">${nodes.length + 1} Available</span>
     </div>
-    <div class="breadcrumb-popover-item ${currentNodeId === 'local' ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, 'local'); closeBreadcrumbPopovers();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+    <div class="breadcrumb-popover-item ${currentNodeId === 'local' ? 'active' : ''}" data-on-click="switchPaneNode" data-click-args="${actionArgs((paneIndex), 'local')}" data-click-steps="${actionSteps(['closeBreadcrumbPopovers'])}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
       <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
         <span class="pane-node-dot" style="background: #10b981; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
         <div style="min-width: 0; flex: 1;">
@@ -4769,7 +4835,7 @@ async function showPaneNodeDropdown(event, paneIndex) {
       const cleanUrl = (n.endpoint_url || '').replace(/^https?:\/\//, '');
 
       html += `
-        <div class="breadcrumb-popover-item ${isAct ? 'active' : ''}" onclick="switchPaneNode(${paneIndex}, ${escapeJsStr(n.id)}); closeBreadcrumbPopovers();" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
+        <div class="breadcrumb-popover-item ${isAct ? 'active' : ''}" data-on-click="switchPaneNode" data-click-args="${actionArgs((paneIndex), String((n.id) ?? ''))}" data-click-steps="${actionSteps(['closeBreadcrumbPopovers'])}" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
           <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
             <span class="pane-node-dot" style="background: ${dotColor}; width: 8px; height: 8px; border-radius: 50%; display: inline-block; flex-shrink: 0;"></span>
             <div style="min-width: 0; flex: 1;">
@@ -4794,10 +4860,10 @@ async function showPaneNodeDropdown(event, paneIndex) {
 
   html += `
     <div style="border-top: 1px solid var(--border); margin-top: 4px; padding-top: 4px;">
-      <div class="breadcrumb-popover-item" onclick="openFleetManagerModal(); closeBreadcrumbPopovers();" style="color: var(--accent); font-weight: 600;">
+      <div class="breadcrumb-popover-item" data-on-click="openFleetManagerModal" data-click-steps="${actionSteps(['closeBreadcrumbPopovers'])}" style="color: var(--accent); font-weight: 600;">
         <i data-lucide="server" style="width: 12px; height: 12px; margin-right: 4px;"></i> Manage Fleet Nodes...
       </div>
-      <div class="breadcrumb-popover-item" onclick="openApiTokensModal(); closeBreadcrumbPopovers();" style="color: var(--text-muted); font-size: 11px;">
+      <div class="breadcrumb-popover-item" data-on-click="openApiTokensModal" data-click-steps="${actionSteps(['closeBreadcrumbPopovers'])}" style="color: var(--text-muted); font-size: 11px;">
         <i data-lucide="key" style="width: 12px; height: 12px; margin-right: 4px;"></i> API & Fleet Tokens...
       </div>
     </div>
@@ -4808,6 +4874,7 @@ async function showPaneNodeDropdown(event, paneIndex) {
   if (window.lucide) {
     try { lucide.createIcons({ root: popover }); } catch (_) {}
   }
+  bindActions(popover);
 }
 
 function openApiTokensModal() {
@@ -6497,11 +6564,12 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
           <span class="branch-banner-count">&bull; ${count} items flattened</span>
           ${truncatedBadge}
         </div>
-        <button class="branch-banner-exit" onclick="toggleBranchView(${paneIndex})" title="Exit Flat Branch View and return to standard folder view (Ctrl+B)">
+        <button class="branch-banner-exit" data-on-click="toggleBranchView" data-click-args="${actionArgs((paneIndex))}" title="Exit Flat Branch View and return to standard folder view (Ctrl+B)">
           <i data-lucide="x" style="width: 12px; height: 12px;"></i>
           <span>Exit Branch View <kbd>Ctrl+B</kbd></span>
         </button>
       `;
+      bindActions(branchBanner);
     }
   } else if (branchBanner) {
     branchBanner.remove();
@@ -6533,24 +6601,25 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
           <span style="font-size: 11px; color: var(--text-dim);">&bull; ${count} item${count === 1 ? '' : 's'}</span>
           ${selectedCount > 0 ? `<span class="badge" style="font-size: 9px; padding: 1px 5px; background: rgba(245, 158, 11, 0.2); color: var(--accent);">${selectedCount} selected</span>` : ''}
         </div>
-        <div class="pane-trash-actions" style="display: flex; align-items: center; gap: 6px;" onmousedown="event.stopPropagation()">
+        <div class="pane-trash-actions" style="display: flex; align-items: center; gap: 6px;" data-mousedown-stop>
           ${isWinNative ? `
-            <button class="btn btn-xs btn-outline" onmousedown="event.stopPropagation()" onclick="openNativeRecycleBin()" title="Open Windows native Recycle Bin in Explorer" style="font-size: 10.5px; padding: 2px 8px; color: var(--text-dim); border-color: var(--border);">
+            <button class="btn btn-xs btn-outline" data-mousedown-stop data-on-click="openNativeRecycleBin" title="Open Windows native Recycle Bin in Explorer" style="font-size: 10.5px; padding: 2px 8px; color: var(--text-dim); border-color: var(--border);">
               <i data-lucide="external-link" style="width: 11px; height: 11px;"></i> Open in Windows
             </button>
           ` : ''}
-          <button class="btn btn-xs btn-outline" onmousedown="event.stopPropagation()" onclick="restoreSelectedTrashItems(${paneIndex})" title="Restore selected files (or highlighted file, or all files) back to original location" style="font-size: 10.5px; padding: 2px 8px; color: var(--accent); border-color: var(--accent);" ${count === 0 ? 'disabled' : ''}>
+          <button class="btn btn-xs btn-outline" data-mousedown-stop data-on-click="restoreSelectedTrashItems" data-click-args="${actionArgs((paneIndex))}" title="Restore selected files (or highlighted file, or all files) back to original location" style="font-size: 10.5px; padding: 2px 8px; color: var(--accent); border-color: var(--accent);" ${count === 0 ? 'disabled' : ''}>
             <i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i> ${selectedCount > 0 ? `Restore (${selectedCount})` : 'Restore'}
           </button>
-          <button class="btn btn-xs btn-outline" onmousedown="event.stopPropagation()" onclick="deleteSelectedTrashItems(${paneIndex})" title="Permanently delete selected files" style="font-size: 10.5px; padding: 2px 8px; color: var(--danger); border-color: rgba(239,68,68,0.4);" ${count === 0 ? 'disabled' : ''}>
+          <button class="btn btn-xs btn-outline" data-mousedown-stop data-on-click="deleteSelectedTrashItems" data-click-args="${actionArgs((paneIndex))}" title="Permanently delete selected files" style="font-size: 10.5px; padding: 2px 8px; color: var(--danger); border-color: rgba(239,68,68,0.4);" ${count === 0 ? 'disabled' : ''}>
             <i data-lucide="x-circle" style="width: 11px; height: 11px;"></i> ${selectedCount > 0 ? `Delete (${selectedCount})` : 'Delete Permanently'}
           </button>
-          <button class="btn btn-xs btn-danger-action" onmousedown="event.stopPropagation()" onclick="promptEmptyTrash(${paneIndex})" title="Permanently empty all items in ${escapeHtml(getTrashDisplayName(false).toLowerCase())}" style="font-size: 10.5px; padding: 2px 8px;" ${(isWinNative || count > 0) ? '' : 'disabled'}>
+          <button class="btn btn-xs btn-danger-action" data-mousedown-stop data-on-click="promptEmptyTrash" data-click-args="${actionArgs((paneIndex))}" title="Permanently empty all items in ${escapeHtml(getTrashDisplayName(false).toLowerCase())}" style="font-size: 10.5px; padding: 2px 8px;" ${(isWinNative || count > 0) ? '' : 'disabled'}>
             <i data-lucide="trash" style="width: 11px; height: 11px;"></i> ${isWinNative ? 'Empty Recycle Bin' : 'Empty Trash'}
           </button>
         </div>
       `;
       if (typeof lucide !== 'undefined' && lucide.createIcons) lucide.createIcons({ root: trashBanner });
+      bindActions(trashBanner);
     }
   } else if (trashBanner) {
     trashBanner.remove();
@@ -6641,7 +6710,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
 
       let thumbHtml = '';
       if (!entry.is_dir && isImageFile(entry.name)) {
-        thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" onerror="this.src='assets/brum_icon.webp'">`;
+        thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL, 'assets/brum_icon.webp')}">`;
       } else {
         thumbHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg');
       }
@@ -6651,6 +6720,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
         <div class="grid-card-name" title="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</div>
         <div class="grid-card-meta">${entry.is_dir ? '&lt;DIR&gt;' : formatBytes(entry.size)}</div>
       `;
+      bindActions(card);
 
       if (!isTouchDevice) {
         card.ondragstart = (e) => {
@@ -8419,8 +8489,8 @@ function openColumnHeaderContextMenu(e, paneIndex) {
     const isChecked = col.locked || !!ColumnConfig.visibility[col.key];
     const disabledAttr = col.locked ? 'disabled' : '';
     itemsHtml += `
-      <label class="col-chooser-item" onclick="event.stopPropagation()">
-        <input type="checkbox" ${isChecked ? 'checked' : ''} ${disabledAttr} onchange="toggleColumnVisibility('${col.key}', this.checked)">
+      <label class="col-chooser-item" data-click-stop>
+        <input type="checkbox" ${isChecked ? 'checked' : ''} ${disabledAttr} data-on-change="toggleColumnVisibility" data-change-args="${actionArgs(`${col.key}`, ACTION_CHECKED)}">
         <span>${escapeHtml(col.label)}</span>
       </label>
     `;
@@ -8429,31 +8499,31 @@ function openColumnHeaderContextMenu(e, paneIndex) {
   itemsHtml += `
     <div style="height: 1px; background: var(--border); margin: 6px 0;"></div>
     <div class="col-chooser-title" style="margin-top: 2px;">Display Options</div>
-    <label class="col-chooser-item" onclick="event.stopPropagation()">
-      <input type="checkbox" ${isStickyColHeaders ? 'checked' : ''} onchange="toggleStickyColHeaders(this.checked)">
+    <label class="col-chooser-item" data-click-stop>
+      <input type="checkbox" ${isStickyColHeaders ? 'checked' : ''} data-on-change="toggleStickyColHeaders" data-change-args="${actionArgs(ACTION_CHECKED)}">
       <span>Sticky header (Frosted Glass)</span>
     </label>
-    <label class="col-chooser-item" onclick="event.stopPropagation()">
-      <input type="checkbox" ${showColSeparators ? 'checked' : ''} onchange="toggleColSeparators(this.checked)">
+    <label class="col-chooser-item" data-click-stop>
+      <input type="checkbox" ${showColSeparators ? 'checked' : ''} data-on-change="toggleColSeparators" data-change-args="${actionArgs(ACTION_CHECKED)}">
       <span>Discrete column separators</span>
     </label>
-    <label class="col-chooser-item" onclick="event.stopPropagation()">
-      <input type="checkbox" ${showDirTag ? 'checked' : ''} onchange="toggleShowDirTag(this.checked)">
+    <label class="col-chooser-item" data-click-stop>
+      <input type="checkbox" ${showDirTag ? 'checked' : ''} data-on-change="toggleShowDirTag" data-change-args="${actionArgs(ACTION_CHECKED)}">
       <span>Show classic <code>&lt;DIR&gt;</code> tag</span>
     </label>
-    <label class="col-chooser-item" onclick="event.stopPropagation()">
-      <input type="checkbox" ${isCompactDates ? 'checked' : ''} onchange="toggleCompactDates(this.checked)">
+    <label class="col-chooser-item" data-click-stop>
+      <input type="checkbox" ${isCompactDates ? 'checked' : ''} data-on-change="toggleCompactDates" data-change-args="${actionArgs(ACTION_CHECKED)}">
       <span>Compact date format</span>
     </label>
-    <label class="col-chooser-item" onclick="event.stopPropagation()">
-      <input type="checkbox" ${isMultiLine ? 'checked' : ''} onchange="toggleFileListMultiline(this.checked)">
+    <label class="col-chooser-item" data-click-stop>
+      <input type="checkbox" ${isMultiLine ? 'checked' : ''} data-on-change="toggleFileListMultiline" data-change-args="${actionArgs(ACTION_CHECKED)}">
       <span>Multi-line subtext (Mobile)</span>
     </label>
     <div style="height: 1px; background: var(--border); margin: 6px 0;"></div>
-    <div class="col-chooser-action-btn" onclick="autoFitAllColumns(${paneIndex}); document.getElementById('col-chooser-popover')?.remove();">
+    <div class="col-chooser-action-btn" data-on-click="autoFitAllColumns" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'col-chooser-popover'])}">
       <i data-lucide="move-horizontal" style="width: 13px;"></i> Auto-Fit All Columns
     </div>
-    <div class="col-chooser-action-btn" onclick="resetAllColumnWidths(); document.getElementById('col-chooser-popover')?.remove();">
+    <div class="col-chooser-action-btn" data-on-click="resetAllColumnWidths" data-click-steps="${actionSteps(['removeElementById', 'col-chooser-popover'])}">
       <i data-lucide="rotate-ccw" style="width: 13px;"></i> Reset Default Columns
     </div>
   `;
@@ -8462,6 +8532,7 @@ function openColumnHeaderContextMenu(e, paneIndex) {
   document.body.appendChild(pop);
 
   if (window.lucide) lucide.createIcons({ root: pop });
+  bindActions(pop);
 
   const popW = 220;
   const popH = pop.offsetHeight || 340;
@@ -20117,8 +20188,8 @@ async function openPaneFavoritesMenu(e, paneIndex) {
     <div style="padding: 8px 12px; font-weight: 700; font-size: 11px; color: var(--accent); background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
       <span style="display: flex; align-items: center; gap: 6px;"><i data-lucide="paw-print" style="width: 14px; height: 14px;"></i> Places & Fleet ${isRemote ? `<span style="font-size: 10px; color: var(--text-dim); font-weight: normal;">(${escapeHtml(node.name)})</span>` : ''}</span>
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openBookmarksManager();">Bookmarks</span>
-        <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-favorites-popup')?.remove();">✕</span>
+        <span style="font-size: 10px; color: var(--accent); cursor: pointer; text-decoration: underline;" data-on-click="removeElementById" data-click-args="${actionArgs('pane-favorites-popup')}" data-click-steps="${actionSteps(['openBookmarksManager'])}">Bookmarks</span>
+        <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" data-on-click="removeElementById" data-click-args="${actionArgs('pane-favorites-popup')}">✕</span>
       </div>
     </div>
     <div class="pane-dropdown-body" style="padding: 4px 0;">
@@ -20185,7 +20256,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
                   </div>
                   <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
                     ${isAct ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
-                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); unmountUsbDevice(${escapeJsStr(part.mount_point || part.device_path)}, ${paneIndex});" title="Safely unmount & eject" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: var(--danger, #ef4444); border-radius: var(--radius);">
+                    <button type="button" class="btn btn-icon btn-xs" data-click-stop data-on-click="unmountUsbDevice" data-click-args="${actionArgs(String((part.mount_point || part.device_path) ?? ''), (paneIndex))}" title="Safely unmount & eject" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.25); color: var(--danger, #ef4444); border-radius: var(--radius);">
                       <i data-lucide="eject" style="width: 12px; height: 12px;"></i>
                     </button>
                   </div>
@@ -20211,7 +20282,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
                     </div>
                   </div>
                   <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
-                    <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); mountUsbDevice(${escapeJsStr(part.device_path)}, ${paneIndex});" title="Mount storage partition" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); color: #10b981; border-radius: var(--radius);">
+                    <button type="button" class="btn btn-icon btn-xs" data-click-stop data-on-click="mountUsbDevice" data-click-args="${actionArgs(String((part.device_path) ?? ''), (paneIndex))}" title="Mount storage partition" style="width: 22px; height: 22px; min-width: 22px; min-height: 22px; padding: 0; background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); color: #10b981; border-radius: var(--radius);">
                       <i data-lucide="play" style="width: 11px; height: 11px;"></i>
                     </button>
                   </div>
@@ -20226,7 +20297,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       ${visibleDrives.length > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
           <span>Drives & Partitions</span>
-          ${hiddenCount > 0 ? `<span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" onclick="resetHiddenDrives(${paneIndex});">Unhide ${hiddenCount}</span>` : ''}
+          ${hiddenCount > 0 ? `<span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" data-on-click="resetHiddenDrives" data-click-args="${actionArgs((paneIndex))}">Unhide ${hiddenCount}</span>` : ''}
         </div>
         ${visibleDrives.map(d => {
           const isAct = curPanePath.toUpperCase().startsWith(d.path.toUpperCase());
@@ -20246,7 +20317,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
               </div>
               <div style="display: flex; align-items: center; gap: 4px; flex-shrink: 0; margin-left: 6px;">
                 ${isAct ? '<span style="color: var(--accent); font-size: 11px;">✓</span>' : ''}
-                <button type="button" class="btn btn-icon btn-xs" onclick="event.stopPropagation(); toggleHideDrive(${escapeJsStr(d.path)}, ${paneIndex});" title="Hide from Places menu" style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; padding: 0; background: transparent; border: 1px solid transparent; color: var(--text-dim); opacity: 0.6;">
+                <button type="button" class="btn btn-icon btn-xs" data-click-stop data-on-click="toggleHideDrive" data-click-args="${actionArgs(String((d.path) ?? ''), (paneIndex))}" title="Hide from Places menu" style="width: 20px; height: 20px; min-width: 20px; min-height: 20px; padding: 0; background: transparent; border: 1px solid transparent; color: var(--text-dim); opacity: 0.6;">
                   <i data-lucide="eye-off" style="width: 11px; height: 11px;"></i>
                 </button>
               </div>
@@ -20257,7 +20328,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       ` : (hiddenCount > 0 ? `
         <div style="padding: 4px 12px; font-size: 10px; color: var(--text-dim); display: flex; justify-content: space-between; align-items: center;">
           <span>${hiddenCount} Drives Hidden</span>
-          <span style="color: var(--accent); cursor: pointer; text-decoration: underline; font-size: 9.5px;" onclick="resetHiddenDrives(${paneIndex});">Unhide All</span>
+          <span style="color: var(--accent); cursor: pointer; text-decoration: underline; font-size: 9.5px;" data-on-click="resetHiddenDrives" data-click-args="${actionArgs((paneIndex))}">Unhide All</span>
         </div>
         <div class="context-sep" style="margin: 4px 0;"></div>
       ` : '')}
@@ -20308,7 +20379,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       <!-- Fleet Control Nodes -->
       <div style="padding: 4px 12px; font-size: 10px; color: var(--accent); font-weight: 700; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
         <span>Fleet Control</span>
-        <span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" onclick="document.getElementById('pane-favorites-popup')?.remove(); openFleetManagerModal();">Manage</span>
+        <span style="font-size: 9px; opacity: 0.8; cursor: pointer; text-decoration: underline;" data-on-click="removeElementById" data-click-args="${actionArgs('pane-favorites-popup')}" data-click-steps="${actionSteps(['openFleetManagerModal'])}">Manage</span>
       </div>
       <div class="dropdown-item ${currentNodeId === 'local' ? 'active' : ''}" data-action="switch-node" data-pane="${paneIndex}" data-node-id="local" style="display: flex; align-items: center; justify-content: space-between; gap: 8px;">
         <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
@@ -20472,6 +20543,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
 
   document.body.appendChild(popup);
   if (window.lucide) lucide.createIcons();
+  bindActions(popup);
 
   setTimeout(() => {
     const closeFavHandler = (ev) => {
@@ -25412,12 +25484,12 @@ function openPaneTransferMenu(e, paneIndex) {
         <i data-lucide="arrow-right-left" style="width: 14px; height: 14px;"></i>
         Transfer & Ingest Hub (Pane ${paneIndex + 1})
       </span>
-      <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-transfer-popup')?.remove();">✕</span>
+      <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}">✕</span>
     </div>
     <div class="pane-dropdown-body" style="padding: 4px 0;">
       <!-- Dual-Pane Transfers -->
       <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Dual-Pane Transfers</div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); setActivePane(${paneIndex}); triggerCopy();">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}" data-click-steps="${actionSteps(['setActivePane', (paneIndex)], ['triggerCopy'])}">
         <i data-lucide="arrow-right-left" style="color: var(--accent);"></i>
         <div style="flex: 1;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -25427,7 +25499,7 @@ function openPaneTransferMenu(e, paneIndex) {
           <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">DeltaCopy or Standard to target pane</div>
         </div>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); setActivePane(${paneIndex}); triggerMove();">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}" data-click-steps="${actionSteps(['setActivePane', (paneIndex)], ['triggerMove'])}">
         <i data-lucide="arrow-right" style="color: var(--accent);"></i>
         <div style="flex: 1;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -25437,7 +25509,7 @@ function openPaneTransferMenu(e, paneIndex) {
           <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Move selected items to target pane</div>
         </div>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); cloneDirectoryToOppositePane(${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}" data-click-steps="${actionSteps(['cloneDirectoryToOppositePane', (paneIndex)])}">
         <i data-lucide="copy" style="color: var(--accent);"></i>
         <div style="flex: 1;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -25452,7 +25524,7 @@ function openPaneTransferMenu(e, paneIndex) {
 
       <!-- Device Ingest & Egress -->
       <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Device Ingest & Egress</div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerDeviceUpload(${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}" data-click-steps="${actionSteps(['triggerDeviceUpload', (paneIndex)])}">
         <i data-lucide="file-up" style="color: var(--accent);"></i>
         <div style="flex: 1;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -25462,7 +25534,7 @@ function openPaneTransferMenu(e, paneIndex) {
           <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Select files from local device</div>
         </div>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerDeviceFolderUpload(${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}" data-click-steps="${actionSteps(['triggerDeviceFolderUpload', (paneIndex)])}">
         <i data-lucide="folder-up" style="color: var(--accent);"></i>
         <div style="flex: 1;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -25472,7 +25544,7 @@ function openPaneTransferMenu(e, paneIndex) {
           <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">Upload directory hierarchy recursively</div>
         </div>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerDownloadCurrentDirectory(${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}" data-click-steps="${actionSteps(['triggerDownloadCurrentDirectory', (paneIndex)])}">
         <i data-lucide="archive"></i>
         <div style="flex: 1;">
           <div style="font-weight: 600; display: flex; align-items: center; justify-content: space-between;">
@@ -25487,7 +25559,7 @@ function openPaneTransferMenu(e, paneIndex) {
 
       <!-- Sharing & Links -->
       <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Sharing & Links</div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-transfer-popup')?.remove(); triggerShareDirectory(${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-transfer-popup')}" data-click-steps="${actionSteps(['triggerShareDirectory', (paneIndex)])}">
         <i data-lucide="share-2"></i>
         <div>
           <div style="font-weight: 600;">Share Folder / Dropbox...</div>
@@ -25498,7 +25570,7 @@ function openPaneTransferMenu(e, paneIndex) {
     <!-- 1-Click Action Config Footer -->
     <div style="padding: 6px 12px 6px; background: var(--bg-dark); border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
       <span style="font-size: 10px; color: var(--text-muted); font-weight: 600; white-space: nowrap;">1-Click Action:</span>
-      <select class="select" style="font-size: 11px; height: 22px; padding: 0 4px; border-radius: 4px; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border); flex: 1; max-width: 170px;" onchange="setPane1ClickTransferAction(this.value); document.getElementById('pane-transfer-popup')?.remove();">
+      <select class="select" style="font-size: 11px; height: 22px; padding: 0 4px; border-radius: 4px; background: var(--bg-panel); color: var(--text-main); border: 1px solid var(--border); flex: 1; max-width: 170px;" data-on-change="setPane1ClickTransferAction" data-change-args="${actionArgs(ACTION_VALUE)}" data-change-steps="${actionSteps(['removeElementById', 'pane-transfer-popup'])}">
         <option value="copy" ${curAction === 'copy' ? 'selected' : ''}>Copy (F5)</option>
         <option value="move" ${curAction === 'move' ? 'selected' : ''}>Move (F6)</option>
         <option value="clone_path" ${curAction === 'clone_path' ? 'selected' : ''}>Clone Path</option>
@@ -25525,6 +25597,7 @@ function openPaneTransferMenu(e, paneIndex) {
 
   document.body.appendChild(popup);
   if (window.lucide) lucide.createIcons();
+  bindActions(popup);
 
   const closeHandler = (ev) => {
     if (!popup.contains(ev.target) && !btn?.contains(ev.target)) {
@@ -26687,27 +26760,27 @@ function openPaneToolsMenu(e, paneIndex) {
         <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:${activeHex};"></span>
         Pane ${paneIndex + 1} Actions
       </span>
-      <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-tools-popup')?.remove();">✕</span>
+      <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tools-popup')}">✕</span>
     </div>
     <div class="pane-dropdown-body" style="padding: 4px 0;">
       <!-- Ingest & Transfers -->
       <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Ingest & Transfers</div>
-      <div class="dropdown-item" onclick="setActivePane(${paneIndex}); triggerCopy(); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="setActivePane" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['triggerCopy'], ['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="arrow-right-left"></i> <span>Transfer / Copy to Other Pane (F5)</span>
       </div>
-      <div class="dropdown-item" onclick="setActivePane(${paneIndex}); triggerMove(); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="setActivePane" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['triggerMove'], ['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="arrow-right"></i> <span>Transfer / Move to Other Pane (F6)</span>
       </div>
-      <div class="dropdown-item" onclick="triggerDeviceUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="triggerDeviceUpload" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="upload"></i> <span>Upload Files from Device...</span>
       </div>
-      <div class="dropdown-item" onclick="triggerDeviceFolderUpload(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="triggerDeviceFolderUpload" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="folder-up"></i> <span>Upload Folder from Device...</span>
       </div>
-      <div class="dropdown-item" onclick="triggerDownloadCurrentDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="triggerDownloadCurrentDirectory" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="download"></i> <span>Download Folder (.zip)</span>
       </div>
-      <div class="dropdown-item" onclick="triggerShareDirectory(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="triggerShareDirectory" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="share-2"></i> <span>Share Folder / Dropbox...</span>
       </div>
 
@@ -26715,19 +26788,19 @@ function openPaneToolsMenu(e, paneIndex) {
 
       <!-- View & Navigation -->
       <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">View & Navigation</div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); togglePaneFilter(${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tools-popup')}" data-click-steps="${actionSteps(['togglePaneFilter', (paneIndex)])}">
         <i data-lucide="filter"></i> <span>Toggle Quick Filter (/ or Ctrl+F)</span>
       </div>
-      <div class="dropdown-item" onclick="togglePaneTree(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="togglePaneTree" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="folder-tree"></i> <span>Toggle Folder Tree Sidebar (${App.panes[paneIndex]?.showTree ? 'Hide' : 'Show'})</span>
       </div>
-      <div class="dropdown-item" onclick="toggleBranchView(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="toggleBranchView" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="git-branch"></i> <span>Toggle Flat Branch View (${App.panes[paneIndex]?.isBranchView ? 'Disable' : 'Enable'})</span>
       </div>
-      <div class="dropdown-item" onclick="toggleSyncScroll(); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="toggleSyncScroll" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="unfold-vertical"></i> <span>Toggle Synchronized Scrolling (${App.syncScroll ? 'Disable' : 'Enable'})</span>
       </div>
-      <div class="dropdown-item" onclick="toggleSyncNav(); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="toggleSyncNav" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="git-compare"></i> <span>Toggle Synchronized Navigation (${App.syncNav ? 'Disable' : 'Enable'})</span>
       </div>
 
@@ -26735,16 +26808,16 @@ function openPaneToolsMenu(e, paneIndex) {
 
       <!-- Pane Customization -->
       <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Pane Customization</div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneSettingsMenu(event, ${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tools-popup')}" data-click-steps="${actionSteps(['openPaneSettingsMenu', ACTION_EVENT, (paneIndex)])}">
         <i data-lucide="sliders"></i> <span>Pane Settings & Customizer...</span>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openPaneFavoritesMenu(event, ${paneIndex});">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tools-popup')}" data-click-steps="${actionSteps(['openPaneFavoritesMenu', ACTION_EVENT, (paneIndex)])}">
         <i data-lucide="compass"></i> <span>Places, Bookmarks & Fleet...</span>
       </div>
-      <div class="dropdown-item" onclick="document.getElementById('pane-tools-popup')?.remove(); openBookmarksManager();">
+      <div class="dropdown-item" data-on-click="removeElementById" data-click-args="${actionArgs('pane-tools-popup')}" data-click-steps="${actionSteps(['openBookmarksManager'])}">
         <i data-lucide="bookmark"></i> <span>Bookmarks Manager...</span>
       </div>
-      <div class="dropdown-item" onclick="triggerDirPermissions(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="triggerDirPermissions" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="shield-check"></i> <span>Permissions & Ownership</span>
       </div>
 
@@ -26753,12 +26826,12 @@ function openPaneToolsMenu(e, paneIndex) {
       <!-- Storage & Remote -->
       <div style="padding: 6px 12px 2px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.5px;">Storage & Remote</div>
       ${App.panes[paneIndex]?.path?.includes('://') ? `
-        <div class="dropdown-item" onclick="disconnectPaneRemote(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
+        <div class="dropdown-item" data-on-click="disconnectPaneRemote" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}" style="color: var(--danger, #ef4444); background: rgba(239,68,68,0.08);">
           <i data-lucide="log-out" style="color: var(--danger, #ef4444);"></i> <span>Disconnect Remote Connection</span>
         </div>
         <div class="dropdown-sep" style="height: 1px; background: var(--border); margin: 4px 0;"></div>
       ` : ''}
-      <div class="dropdown-item" onclick="openRemoteModal(${paneIndex}); document.getElementById('pane-tools-popup')?.remove();">
+      <div class="dropdown-item" data-on-click="openRemoteModal" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['removeElementById', 'pane-tools-popup'])}">
         <i data-lucide="network"></i> <span>Connect Remote Storage (SFTP/SMB/WebDAV)...</span>
       </div>
     </div>
@@ -26774,6 +26847,7 @@ function openPaneToolsMenu(e, paneIndex) {
 
   document.body.appendChild(popup);
   if (window.lucide) lucide.createIcons();
+  bindActions(popup);
 
   const closeHandler = (ev) => {
     if (!popup.contains(ev.target) && !btn?.contains(ev.target)) {
@@ -26997,7 +27071,7 @@ function openPaneSettingsMenu(e, paneIndex) {
       <span style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase;">Switch Active Pane</span>
       <div style="display: flex; gap: 4px;">
         ${Array.from({ length: visibleCount }).map((_, pIdx) => `
-          <button type="button" class="btn btn-xs ${pIdx === paneIndex ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 8px; font-size: 10px; font-weight: 700;" onclick="setActivePane(${pIdx}); document.getElementById('pane-settings-popup')?.remove();">
+          <button type="button" class="btn btn-xs ${pIdx === paneIndex ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 8px; font-size: 10px; font-weight: 700;" data-on-click="setActivePane" data-click-args="${actionArgs((pIdx))}" data-click-steps="${actionSteps(['removeElementById', 'pane-settings-popup'])}">
             Pane ${pIdx + 1}
           </button>
         `).join('')}
@@ -27011,7 +27085,7 @@ function openPaneSettingsMenu(e, paneIndex) {
         <i data-lucide="sliders" style="width: 13px; height: 13px;"></i>
         Pane ${paneIndex + 1} Settings
       </span>
-      <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" onclick="document.getElementById('pane-settings-popup')?.remove();">✕</span>
+      <span style="font-size: 11px; color: var(--text-dim); cursor: pointer;" data-on-click="removeElementById" data-click-args="${actionArgs('pane-settings-popup')}">✕</span>
     </div>
     
     <div class="pane-dropdown-body" style="padding: 10px 12px; display: flex; flex-direction: column; gap: 12px;">
@@ -27020,9 +27094,9 @@ function openPaneSettingsMenu(e, paneIndex) {
       <div>
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Pane Name / Label</div>
         <div style="display: flex; gap: 6px;">
-          <input type="text" id="pane-setting-name-input-${paneIndex}" value="${escapeHtml(currentName)}" placeholder="${paneIndex + 1}" style="flex: 1; height: 26px; padding: 0 8px; font-size: 11px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main);" onkeydown="if(event.key==='Enter'){ applyPaneRenameFromInput(${paneIndex}); }">
-          <button type="button" class="btn btn-sm btn-accent" style="height: 26px; padding: 0 8px; font-size: 10px;" onclick="applyPaneRenameFromInput(${paneIndex})">Save</button>
-          <button type="button" class="btn btn-sm btn-outline" style="height: 26px; padding: 0 6px; font-size: 10px;" title="Reset to default ${paneIndex + 1}" onclick="resetPaneName(${paneIndex})">Reset</button>
+          <input type="text" id="pane-setting-name-input-${paneIndex}" value="${escapeHtml(currentName)}" placeholder="${paneIndex + 1}" style="flex: 1; height: 26px; padding: 0 8px; font-size: 11px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main);" data-keydown-key="Enter" data-on-keydown="applyPaneRenameFromInput" data-keydown-args="${actionArgs((paneIndex))}">
+          <button type="button" class="btn btn-sm btn-accent" style="height: 26px; padding: 0 8px; font-size: 10px;" data-on-click="applyPaneRenameFromInput" data-click-args="${actionArgs((paneIndex))}">Save</button>
+          <button type="button" class="btn btn-sm btn-outline" style="height: 26px; padding: 0 6px; font-size: 10px;" title="Reset to default ${paneIndex + 1}" data-on-click="resetPaneName" data-click-args="${actionArgs((paneIndex))}">Reset</button>
         </div>
       </div>
 
@@ -27030,7 +27104,7 @@ function openPaneSettingsMenu(e, paneIndex) {
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between;">
           <span>Two-Tone Color Presets</span>
-          <span style="color: var(--accent); cursor: pointer; text-transform: none; font-weight: 600;" onclick="cyclePaneColor(${paneIndex}); openPaneSettingsMenu(null, ${paneIndex});">Cycle ↻</span>
+          <span style="color: var(--accent); cursor: pointer; text-transform: none; font-weight: 600;" data-on-click="cyclePaneColor" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">Cycle ↻</span>
         </div>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
           ${Object.entries(PANE_COLOR_PRESETS).map(([pId, p]) => {
@@ -27038,7 +27112,7 @@ function openPaneSettingsMenu(e, paneIndex) {
             return `
               <button type="button" class="color-swatch-btn ${isSelected ? 'active' : ''}" 
                       style="display: flex; align-items: center; gap: 5px; padding: 4px 6px; background: var(--bg-panel); border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; border-radius: 4px; cursor: pointer; color: var(--text-main); font-size: 10px; width: 100%; text-align: left;"
-                      onclick="setPaneColorPref(${paneIndex}, '${pId}'); openPaneSettingsMenu(null, ${paneIndex});">
+                      data-on-click="setPaneColorPref" data-click-args="${actionArgs((paneIndex), `${pId}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">
                 <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: linear-gradient(135deg, ${p.c1}, ${p.c2}); border: 1px solid rgba(255,255,255,0.25); flex-shrink: 0; box-shadow: 0 0 3px rgba(0,0,0,0.4);"></span>
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ${isSelected ? 'font-weight: 700; color: var(--accent);' : ''}">${p.name}</span>
               </button>
@@ -27056,13 +27130,13 @@ function openPaneSettingsMenu(e, paneIndex) {
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 6px;">
             <!-- Color 1 -->
             <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px;">
-              <input type="color" id="pane-custom-c1-${paneIndex}" value="${customC1}" style="width: 20px; height: 20px; border: none; padding: 0; background: transparent; cursor: pointer; border-radius: 3px;" oninput="updatePaneCustomGradientPreview(${paneIndex});">
-              <input type="text" id="pane-custom-t1-${paneIndex}" value="${customC1}" placeholder="#f59e0b" style="width: 100%; border: none; background: transparent; font-family: var(--font-mono); font-size: 10px; color: var(--text-main); outline: none;" oninput="document.getElementById('pane-custom-c1-${paneIndex}').value = this.value; updatePaneCustomGradientPreview(${paneIndex});">
+              <input type="color" id="pane-custom-c1-${paneIndex}" value="${customC1}" style="width: 20px; height: 20px; border: none; padding: 0; background: transparent; cursor: pointer; border-radius: 3px;" data-on-input="updatePaneCustomGradientPreview" data-input-args="${actionArgs((paneIndex))}">
+              <input type="text" id="pane-custom-t1-${paneIndex}" value="${customC1}" placeholder="#f59e0b" style="width: 100%; border: none; background: transparent; font-family: var(--font-mono); font-size: 10px; color: var(--text-main); outline: none;" data-on-input="setElementValue" data-input-args="${actionArgs(`pane-custom-c1-${paneIndex}`, ACTION_VALUE)}" data-input-steps="${actionSteps(['updatePaneCustomGradientPreview', (paneIndex)])}">
             </div>
             <!-- Color 2 -->
             <div style="display: flex; align-items: center; gap: 4px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: 4px; padding: 2px 4px;">
-              <input type="color" id="pane-custom-c2-${paneIndex}" value="${customC2}" style="width: 20px; height: 20px; border: none; padding: 0; background: transparent; cursor: pointer; border-radius: 3px;" oninput="updatePaneCustomGradientPreview(${paneIndex});">
-              <input type="text" id="pane-custom-t2-${paneIndex}" value="${customC2}" placeholder="#f97316" style="width: 100%; border: none; background: transparent; font-family: var(--font-mono); font-size: 10px; color: var(--text-main); outline: none;" oninput="document.getElementById('pane-custom-c2-${paneIndex}').value = this.value; updatePaneCustomGradientPreview(${paneIndex});">
+              <input type="color" id="pane-custom-c2-${paneIndex}" value="${customC2}" style="width: 20px; height: 20px; border: none; padding: 0; background: transparent; cursor: pointer; border-radius: 3px;" data-on-input="updatePaneCustomGradientPreview" data-input-args="${actionArgs((paneIndex))}">
+              <input type="text" id="pane-custom-t2-${paneIndex}" value="${customC2}" placeholder="#f97316" style="width: 100%; border: none; background: transparent; font-family: var(--font-mono); font-size: 10px; color: var(--text-main); outline: none;" data-on-input="setElementValue" data-input-args="${actionArgs(`pane-custom-c2-${paneIndex}`, ACTION_VALUE)}" data-input-steps="${actionSteps(['updatePaneCustomGradientPreview', (paneIndex)])}">
             </div>
           </div>
 
@@ -27074,7 +27148,7 @@ function openPaneSettingsMenu(e, paneIndex) {
                 <button type="button" class="btn btn-xs ${customAngle === ang ? 'btn-accent' : 'btn-outline'}" 
                         id="pane-ang-btn-${paneIndex}-${ang}"
                         style="padding: 1px 4px; font-size: 9px; min-width: 24px;" 
-                        onclick="setCustomAngleInput(${paneIndex}, '${ang}')">${ang.replace('deg', '°')}</button>
+                        data-on-click="setCustomAngleInput" data-click-args="${actionArgs((paneIndex), `${ang}`)}">${ang.replace('deg', '°')}</button>
               `).join('')}
             </div>
             <input type="hidden" id="pane-custom-angle-${paneIndex}" value="${customAngle}">
@@ -27086,7 +27160,7 @@ function openPaneSettingsMenu(e, paneIndex) {
                  style="flex: 1; height: 24px; border-radius: 4px; background: linear-gradient(${customAngle}, ${customC1}, ${customC2}); border: 1px solid rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,0.8);">
               Gradient Preview
             </div>
-            <button type="button" class="btn btn-sm btn-accent" style="height: 24px; padding: 0 8px; font-size: 10px;" onclick="applyPaneCustomTwoTone(${paneIndex})">Apply</button>
+            <button type="button" class="btn btn-sm btn-accent" style="height: 24px; padding: 0 8px; font-size: 10px;" data-on-click="applyPaneCustomTwoTone" data-click-args="${actionArgs((paneIndex))}">Apply</button>
           </div>
         </div>
       </div>
@@ -27115,7 +27189,7 @@ function openPaneSettingsMenu(e, paneIndex) {
                 ${Array.from({ length: visibleCount }).map((_, pIdx) => {
                   if (pIdx === paneIndex) return '';
                   return `
-                    <button type="button" class="btn btn-xs btn-outline" style="padding: 2px 6px; font-size: 9.5px;" onclick="swapPanes(${paneIndex}, ${pIdx}); openPaneSettingsMenu(null, ${pIdx});">
+                    <button type="button" class="btn btn-xs btn-outline" style="padding: 2px 6px; font-size: 9.5px;" data-on-click="swapPanes" data-click-args="${actionArgs((paneIndex), (pIdx))}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (pIdx)])}">
                       Pane ${pIdx + 1}
                     </button>
                   `;
@@ -27131,21 +27205,21 @@ function openPaneSettingsMenu(e, paneIndex) {
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Border Width</div>
         <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 8px;">
           ${['0px', '1px', '2px', '3px', '4px'].map(bw => `
-            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 10px;" onclick="applyBorderSettings('${bw}', null, null); openPaneSettingsMenu(null, ${paneIndex});">${bw === '0px' ? '0px (None)' : bw}</button>
+            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 10px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(`${bw}`, null, null)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">${bw === '0px' ? '0px (None)' : bw}</button>
           `).join('')}
         </div>
 
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Active Ring Style</div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
           ${[['subtle', 'Subtle'], ['bold', 'Bold'], ['glow', 'Glow'], ['none', 'None']].map(([rKey, rName]) => `
-            <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" onclick="applyBorderSettings(null, '${rKey}', null); openPaneSettingsMenu(null, ${paneIndex});">${rName}</button>
+            <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, `${rKey}`, null)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">${rName}</button>
           `).join('')}
         </div>
 
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Global Border Angle</div>
         <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;">
           ${['45deg', '90deg', '135deg', '180deg', '270deg', '0deg'].map(ang => `
-            <button type="button" class="btn btn-xs ${globalAngle === ang ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 9px;" onclick="applyBorderSettings(null, null, '${ang}'); openPaneSettingsMenu(null, ${paneIndex});">${ang.replace('deg', '°')}</button>
+            <button type="button" class="btn btn-xs ${globalAngle === ang ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 9px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, null, `${ang}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">${ang.replace('deg', '°')}</button>
           `).join('')}
         </div>
       </div>
@@ -27154,8 +27228,8 @@ function openPaneSettingsMenu(e, paneIndex) {
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Start Directory</div>
         <div style="display: flex; gap: 6px; align-items: center;">
-          <input type="text" id="pane-setting-path-input-${paneIndex}" value="${escapeHtml(pane?.path || '/')}" placeholder="/" style="flex: 1; height: 26px; padding: 0 8px; font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main);" onkeydown="if(event.key==='Enter'){ applyPaneStartPath(${paneIndex}); }">
-          <button type="button" class="btn btn-sm btn-accent" style="height: 26px; padding: 0 8px; font-size: 10px;" title="Set as default start path for Pane ${paneIndex + 1}" onclick="applyPaneStartPath(${paneIndex})">Set Start</button>
+          <input type="text" id="pane-setting-path-input-${paneIndex}" value="${escapeHtml(pane?.path || '/')}" placeholder="/" style="flex: 1; height: 26px; padding: 0 8px; font-family: var(--font-mono); font-size: 11px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; color: var(--text-main);" data-keydown-key="Enter" data-on-keydown="applyPaneStartPath" data-keydown-args="${actionArgs((paneIndex))}">
+          <button type="button" class="btn btn-sm btn-accent" style="height: 26px; padding: 0 8px; font-size: 10px;" title="Set as default start path for Pane ${paneIndex + 1}" data-on-click="applyPaneStartPath" data-click-args="${actionArgs((paneIndex))}">Set Start</button>
         </div>
       </div>
 
@@ -27167,11 +27241,11 @@ function openPaneSettingsMenu(e, paneIndex) {
         </div>
         <div style="display: flex; flex-direction: column; gap: 6px;">
           <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; cursor: pointer; color: var(--text-main);">
-            <input type="checkbox" id="pane-setting-sync-scroll-${paneIndex}" ${pane?.syncScroll !== false ? 'checked' : ''} onchange="togglePaneSyncScroll(${paneIndex}, this.checked)">
+            <input type="checkbox" id="pane-setting-sync-scroll-${paneIndex}" ${pane?.syncScroll !== false ? 'checked' : ''} data-on-change="togglePaneSyncScroll" data-change-args="${actionArgs((paneIndex), ACTION_CHECKED)}">
             <span>Include Pane ${paneIndex + 1} in Scroll Sync</span>
           </label>
           <label style="display: flex; align-items: center; gap: 6px; font-size: 10.5px; cursor: pointer; color: var(--text-main);">
-            <input type="checkbox" id="pane-setting-sync-nav-${paneIndex}" ${pane?.syncNav !== false ? 'checked' : ''} onchange="togglePaneSyncNav(${paneIndex}, this.checked)">
+            <input type="checkbox" id="pane-setting-sync-nav-${paneIndex}" ${pane?.syncNav !== false ? 'checked' : ''} data-on-change="togglePaneSyncNav" data-change-args="${actionArgs((paneIndex), ACTION_CHECKED)}">
             <span>Include Pane ${paneIndex + 1} in Navigation Sync</span>
           </label>
         </div>
@@ -27180,7 +27254,7 @@ function openPaneSettingsMenu(e, paneIndex) {
       <!-- 7. Cloud Workspace Persistence (Web/Server Mode) -->
       <div class="web-only-setting server-only-setting" style="border-top: 1px solid var(--border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 10px; color: var(--text-dim);"><i data-lucide="cloud" style="width: 11px; height: 11px; vertical-align: -1px;"></i> Cross-Device Sync</span>
-        <button type="button" class="btn btn-xs btn-outline" style="font-size: 9.5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;" onclick="saveCurrentWorkspaceAsDefault(); openPaneSettingsMenu(null, ${paneIndex});">
+        <button type="button" class="btn btn-xs btn-outline" style="font-size: 9.5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;" data-on-click="saveCurrentWorkspaceAsDefault" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">
           Save All to Cloud
         </button>
       </div>
@@ -27202,6 +27276,7 @@ function openPaneSettingsMenu(e, paneIndex) {
 
   document.body.appendChild(popup);
   if (window.lucide) lucide.createIcons();
+  bindActions(popup);
 
   const inputEl = document.getElementById(`pane-setting-name-input-${paneIndex}`);
   if (inputEl) {
