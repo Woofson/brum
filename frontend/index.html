@@ -1450,6 +1450,14 @@
                 </div>
                 <div class="settings-field-hint">Also synchronized with <code>config.toml</code> (<code>[notedog] notes_folder</code>) and NoteDog TUI (<code>~/.config/notedog/notedog.toml</code>).</div>
               </div>
+
+              <div class="settings-field">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-notedog-show-manuals" data-on-change="setNoteDogManualsShown" data-change-args='[{"$": "checked"}]' checked>
+                  <span>Show Brum manuals in Notes</span>
+                </label>
+                <div class="settings-field-hint">Turn off to keep the built-in help pages out of your notebooks and categories. The manuals stay available from the Help buttons in Settings.</div>
+              </div>
             </div>
 
             <!-- Card 5: Columns & File List Display -->

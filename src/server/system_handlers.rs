@@ -561,27 +561,37 @@ pub async fn handle_list_manuals() -> Json<crate::tools::notedog::NoteDogNoteboo
     Json(crate::tools::notedog::get_builtin_manuals_notebook())
 }
 
+/// Text of a built-in manual. Only names that ship with Brum are served; a `manuals/`
+/// folder next to the server (development checkout) takes precedence for those names.
+pub fn read_builtin_manual(name: &str) -> Option<String> {
+    let name = name.trim_start_matches('/');
+    let embedded = ManualsAsset::get(name)?;
+    let on_disk = Path::new("manuals").join(name);
+    match fs::read_to_string(&on_disk) {
+        Ok(text) => Some(text),
+        Err(_) => Some(String::from_utf8_lossy(&embedded.data).to_string()),
+    }
+}
+
+/// A built-in manual as file content
+pub fn builtin_manual_response(name: &str) -> Result<crate::vfs::FileContentResponse, (StatusCode, String)> {
+    let clean_name = name.trim_start_matches('/');
+    let content = read_builtin_manual(clean_name)
+        .ok_or_else(|| (StatusCode::NOT_FOUND, format!("Manual '{}' not found", clean_name)))?;
+    Ok(crate::vfs::FileContentResponse {
+        path: format!("manual://{}", clean_name),
+        name: clean_name.to_string(),
+        size: content.len() as u64,
+        content,
+        is_binary: false,
+        mime_type: "text/markdown".to_string(),
+    })
+}
+
 pub async fn handle_get_manual(
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> Result<Json<crate::vfs::FileContentResponse>, (StatusCode, String)> {
-    let clean_name = name.trim_start_matches('/').replace("..", "");
-    let disk_path = Path::new("manuals").join(&clean_name);
-    let content_str = if disk_path.is_file() {
-        fs::read_to_string(&disk_path).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-    } else if let Some(file) = ManualsAsset::get(&clean_name) {
-        String::from_utf8_lossy(&file.data).to_string()
-    } else {
-        return Err((StatusCode::NOT_FOUND, format!("Manual '{}' not found", clean_name)));
-    };
-
-    Ok(Json(crate::vfs::FileContentResponse {
-        path: format!("manual://{}", clean_name),
-        name: clean_name,
-        content: content_str.clone(),
-        is_binary: false,
-        size: content_str.len() as u64,
-        mime_type: "text/markdown".to_string(),
-    }))
+    builtin_manual_response(&name).map(Json)
 }
 
 

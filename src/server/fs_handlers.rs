@@ -12,7 +12,7 @@ use axum::{
     response::{Json, Response},
 };
 use serde::Deserialize;
-use crate::server::{AppState, ManualsAsset};
+use crate::server::AppState;
 use crate::server::middleware::{
     extract_claims_or_local, sanitize_uploaded_relative_path, validate_custom_trash_dir, validate_path_access,
 };
@@ -279,25 +279,8 @@ pub async fn handle_read_file(
             mime_type: mime,
             is_binary: !is_text,
         }))
-    } else if target_path.starts_with("manual://") {
-        let clean_name = target_path.strip_prefix("manual://").unwrap().trim_start_matches('/').replace("..", "");
-        let disk_path = Path::new("manuals").join(&clean_name);
-        let content_str = if disk_path.is_file() {
-            fs::read_to_string(&disk_path).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        } else if let Some(file) = ManualsAsset::get(&clean_name) {
-            String::from_utf8_lossy(&file.data).to_string()
-        } else {
-            return Err((StatusCode::NOT_FOUND, format!("Manual '{}' not found", clean_name)));
-        };
-
-        Ok(Json(crate::vfs::FileContentResponse {
-            path: target_path,
-            name: clean_name,
-            content: content_str.clone(),
-            is_binary: false,
-            size: content_str.len() as u64,
-            mime_type: "text/markdown".to_string(),
-        }))
+    } else if let Some(name) = target_path.strip_prefix("manual://") {
+        crate::server::system_handlers::builtin_manual_response(name).map(Json)
     } else {
         let tp = target_path.clone();
         tokio::task::spawn_blocking(move || {

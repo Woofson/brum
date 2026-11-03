@@ -28,7 +28,7 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
-  'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
+  'setNoteDogManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomExclusionPattern', 'addCustomFileIconRule', 'addDirectoryToMediaPlaylist',
   'addModalTagFromInput', 'addNewBookmark', 'addPropCustomTag', 'addTracksToMediaPlaylist',
   'alignDiffPaths', 'analyzeSync', 'appendBpExclusion', 'applyBatchAutoTrackNumbers',
@@ -2178,6 +2178,7 @@ function getAllUserPreferences() {
 
     // 3. Hostname Badge & Window Title
     show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
+    notedog_show_manuals: localStorage.getItem('cd_notedog_show_manuals') !== 'false',
     custom_hostname: localStorage.getItem('cd_custom_hostname') || '',
     custom_app_title: localStorage.getItem('cd_custom_app_title') || '',
     login_title: localStorage.getItem('cd_login_title') || '',
@@ -2433,6 +2434,9 @@ function applyAllUserPreferences(prefs) {
   // 9. Hostname Badge Customizer & Window Title
   if (prefs.show_hostname_badge !== undefined) {
     localStorage.setItem('cd_show_hostname_badge', prefs.show_hostname_badge ? 'true' : 'false');
+  }
+  if (prefs.notedog_show_manuals !== undefined) {
+    localStorage.setItem('cd_notedog_show_manuals', prefs.notedog_show_manuals ? 'true' : 'false');
   }
   if (prefs.custom_hostname !== undefined) {
     if (prefs.custom_hostname) localStorage.setItem('cd_custom_hostname', prefs.custom_hostname);
@@ -13582,6 +13586,39 @@ function getNoteDogManualsNotebook() {
   return found || DEFAULT_MANUALS_NOTEBOOK;
 }
 
+// Users can hide Brum's built-in manuals from their notes lists (Settings → Notes)
+function noteDogManualsShown() {
+  return localStorage.getItem('cd_notedog_show_manuals') !== 'false';
+}
+
+function isManualsNotebook(nb) {
+  return !!nb && (nb.path?.startsWith('manual://') || (nb.name || '').replace(/^[^\w\s&]+/, '').trim() === 'Manuals');
+}
+
+function visibleNoteDogNotebooks(list) {
+  return noteDogManualsShown() ? list : list.filter(nb => !isManualsNotebook(nb));
+}
+
+function noteDogDefaultCategories() {
+  const cats = ['General', 'Work', 'Personal', 'Projects', 'Archive'];
+  return noteDogManualsShown() ? [...cats, 'Manuals'] : cats;
+}
+
+function setNoteDogManualsShown(show) {
+  localStorage.setItem('cd_notedog_show_manuals', show ? 'true' : 'false');
+  queueSaveUserPreferencesToServer();
+  if (!show && notedogState.activeNote && (notedogState.activeNote.is_manual || notedogState.activeNote.path?.startsWith('manual://'))) {
+    notedogState.activeNote = null;
+  }
+  if (!show && notedogState.activeCategory === 'Manuals') notedogState.activeCategory = '';
+  if (notedogState.storageMode === 'database') {
+    loadDatabaseNotesHierarchy();
+  } else {
+    loadNoteDogHierarchy();
+  }
+  showToast(show ? 'Brum manuals shown in Notes' : 'Brum manuals hidden from Notes', 'info');
+}
+
 function getManualSectionIcon(secName) {
   const s = (secName || '').toLowerCase();
   if (s.includes('qa') || s.includes('testing')) return '🧪';
@@ -13597,7 +13634,7 @@ const notedogState = {
   rootFolder: '',
   customFolder: localStorage.getItem('cd_notedog_folder') || '',
   // Filesystem notes
-  notebooks: [DEFAULT_MANUALS_NOTEBOOK],
+  notebooks: visibleNoteDogNotebooks([DEFAULT_MANUALS_NOTEBOOK]),
   activeNotebook: '',
   activeSection: '',
   activeNote: null,
@@ -13606,7 +13643,7 @@ const notedogState = {
   activeDbNote: null,
   activeCategory: 'General',
   activeDbSection: 'Default',
-  categories: ['General', 'Work', 'Personal', 'Projects', 'Archive', 'Manuals'],
+  categories: noteDogDefaultCategories(),
   sections: ['Default'],
   activeAttachments: [],
   // Common state
@@ -14024,14 +14061,15 @@ async function loadDatabaseNotesHierarchy(targetNoteId) {
     notedogState.dbNotes = notes || [];
 
     // Extract categories
-    const defaultCats = ['General', 'Work', 'Personal', 'Projects', 'Archive', 'Manuals'];
-    const foundCats = new Set(defaultCats);
+    const foundCats = new Set(noteDogDefaultCategories());
     notedogState.dbNotes.forEach(n => {
       if (n.category) foundCats.add(n.category.replace(/^[^\w\s&]+/, '').trim());
     });
     notedogState.categories = Array.from(foundCats);
 
-    if (!notedogState.activeCategory || !notedogState.categories.includes(notedogState.activeCategory)) {
+    // Manuals opened on purpose (Help buttons) stay open even when hidden from the list
+    const openedManuals = notedogState.activeCategory === 'Manuals';
+    if (!notedogState.activeCategory || (!notedogState.categories.includes(notedogState.activeCategory) && !openedManuals)) {
       notedogState.activeCategory = notedogState.categories[0] || 'General';
     }
 
@@ -14976,7 +15014,7 @@ async function loadNoteDogHierarchy(targetNotePath) {
     if (!resp.ok) return;
     const data = await resp.json();
     notedogState.rootFolder = data.root_folder;
-    notedogState.notebooks = data.notebooks || [];
+    notedogState.notebooks = visibleNoteDogNotebooks(data.notebooks || []);
 
     // Resolve initial active notebook / section / note
     if (targetNotePath) {
@@ -16546,7 +16584,7 @@ function mountDockedNoteDog(paneIndex) {
   const mountBody = document.getElementById(`docked-notedog-body-${paneIndex}`);
   if (!mountBody) return;
 
-  const nbs = (notedogState.notebooks && notedogState.notebooks.length > 0) ? notedogState.notebooks : [DEFAULT_MANUALS_NOTEBOOK];
+  const nbs = (notedogState.notebooks && notedogState.notebooks.length > 0) ? notedogState.notebooks : visibleNoteDogNotebooks([DEFAULT_MANUALS_NOTEBOOK]);
   const currentNb = nbs.find(nb => nb.name === notedogState.activeNotebook || nb.name.replace(/^[^\w\s&]+/, '').trim() === (notedogState.activeNotebook || '').replace(/^[^\w\s&]+/, '').trim()) || nbs[0];
   const currentSec = (currentNb?.sections || []).find(s => s.name === notedogState.activeSection || s.name.replace(/^[^\w\s&]+/, '').trim() === (notedogState.activeSection || '').replace(/^[^\w\s&]+/, '').trim()) || currentNb?.sections?.[0];
   const currentNote = (currentSec?.notes || []).find(n => n.path === notedogState.activeNote?.path) || currentSec?.notes?.[0];
@@ -24745,6 +24783,8 @@ function openSettingsModal() {
   if (notedogFolderInput) {
     notedogFolderInput.value = localStorage.getItem('cd_notedog_folder') || notedogState.rootFolder || '~/Notes';
   }
+  const showManualsBox = document.getElementById('setting-notedog-show-manuals');
+  if (showManualsBox) showManualsBox.checked = noteDogManualsShown();
 
   const dndActionSel = document.getElementById('setting-dnd-default-action');
   if (dndActionSel) {

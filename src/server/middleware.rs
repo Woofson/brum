@@ -1394,6 +1394,14 @@ pub fn validate_path_access(
         return Ok(raw_path.to_string());
     }
 
+    // Brum's built-in manuals: read-only help pages that every user may read
+    if raw_path.starts_with("manual://") {
+        if is_write {
+            return Err((StatusCode::FORBIDDEN, "Built-in manuals are read-only".to_string()));
+        }
+        return Ok(raw_path.to_string());
+    }
+
     // Containers are only as accessible as the file that backs them
     if let Some(container) = virtual_container_file(raw_path) {
         validate_path_access(state, headers, &container, is_write)?;
