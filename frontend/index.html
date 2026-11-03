@@ -4834,7 +4834,7 @@
   </div>
 
   <!-- 🏷️ Floating Batch Renamer Chewtoy Window (Ctrl+M) -->
-  <div class="floating-renamer-window" id="floating-renamer-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-renamer-window" id="floating-renamer-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="renamer-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="renamer-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="renamer-resize-left"></div>
@@ -4851,10 +4851,10 @@
         <span class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">Ctrl+M</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-renamer-dock" onclick="dockRenamerToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-renamer-maximize" onclick="toggleMaximizeRenamer()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingRenamer()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingRenamer()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-renamer-dock" data-on-click="dockRenamerToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-renamer-maximize" data-on-click="toggleMaximizeRenamer" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingRenamer" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingRenamer" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -4865,8 +4865,8 @@
         <div class="renamer-source-bar">
           <span id="renamer-source-info" style="font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Loading items...</span>
           <div style="display: flex; gap: 4px; flex-shrink: 0;">
-            <button class="btn btn-xs" onclick="reloadRenamerFiles()" title="Reload selection from active pane"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Selected</button>
-            <button class="btn btn-xs" onclick="loadRenamerDirectory()" title="Load all files in active directory"><i data-lucide="folder" style="width: 11px; height: 11px;"></i> All Files</button>
+            <button class="btn btn-xs" data-on-click="reloadRenamerFiles" title="Reload selection from active pane"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Selected</button>
+            <button class="btn btn-xs" data-on-click="loadRenamerDirectory" title="Load all files in active directory"><i data-lucide="folder" style="width: 11px; height: 11px;"></i> All Files</button>
           </div>
         </div>
 
@@ -4875,13 +4875,13 @@
           <div class="renamer-rule-col">
             <label class="renamer-field-label">Find / Search Pattern</label>
             <div class="renamer-input-wrap">
-              <input type="text" id="renamer-find-input" class="pane-quick-filter" placeholder="Find text or regex (e.g. IMG_(\d+))..." oninput="updateRenamerPreview()">
+              <input type="text" id="renamer-find-input" class="pane-quick-filter" placeholder="Find text or regex (e.g. IMG_(\d+))..." data-on-input="updateRenamerPreview">
             </div>
           </div>
           <div class="renamer-rule-col">
             <label class="renamer-field-label">Replace With</label>
             <div class="renamer-input-wrap">
-              <input type="text" id="renamer-replace-input" class="pane-quick-filter" placeholder="Replace string or $1, [001]..." oninput="updateRenamerPreview()">
+              <input type="text" id="renamer-replace-input" class="pane-quick-filter" placeholder="Replace string or $1, [001]..." data-on-input="updateRenamerPreview">
             </div>
           </div>
         </div>
@@ -4889,14 +4889,14 @@
         <!-- Options & Case Transformation Row -->
         <div class="renamer-options-row">
           <label class="renamer-checkbox-label" title="Use Regular Expressions in Find/Replace">
-            <input type="checkbox" id="renamer-regex-check" onchange="updateRenamerPreview()"> Regex
+            <input type="checkbox" id="renamer-regex-check" data-on-change="updateRenamerPreview"> Regex
           </label>
           <label class="renamer-checkbox-label" title="Case Sensitive Matching">
-            <input type="checkbox" id="renamer-case-check" onchange="updateRenamerPreview()"> Match Case
+            <input type="checkbox" id="renamer-case-check" data-on-change="updateRenamerPreview"> Match Case
           </label>
           <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
             <span style="font-size: 10.5px; color: var(--text-muted);">Case:</span>
-            <select id="renamer-casing-select" class="pane-quick-filter renamer-select" onchange="updateRenamerPreview()">
+            <select id="renamer-casing-select" class="pane-quick-filter renamer-select" data-on-change="updateRenamerPreview">
               <option value="none">Preserve</option>
               <option value="lower">lowercase</option>
               <option value="upper">UPPERCASE</option>
@@ -4909,7 +4909,7 @@
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">
             <span style="font-size: 10.5px; color: var(--text-muted);">Ext:</span>
-            <select id="renamer-ext-select" class="pane-quick-filter renamer-select" onchange="updateRenamerPreview()">
+            <select id="renamer-ext-select" class="pane-quick-filter renamer-select" data-on-change="updateRenamerPreview">
               <option value="none">Preserve</option>
               <option value="lower">lowercase (.jpg)</option>
               <option value="upper">UPPERCASE (.JPG)</option>
@@ -4922,21 +4922,21 @@
         <div class="renamer-tokens-bar">
           <span style="font-size: 10.5px; font-weight: 600; color: var(--text-muted); flex-shrink: 0;">Tokens:</span>
           <div class="renamer-tokens-chips">
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[N]')">[N] Counter</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[01]')">[01]</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[001]')">[001]</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[0001]')">[0001]</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[NAME]')">[NAME]</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[EXT]')">[EXT]</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[YYYY]')">[YYYY]</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[MM]')">[MM]</button>
-            <button type="button" class="btn btn-xs renamer-token-chip" onclick="insertRenamerToken('[DD]')">[DD]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[N]"]'>[N] Counter</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[01]"]'>[01]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[001]"]'>[001]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[0001]"]'>[0001]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[NAME]"]'>[NAME]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[EXT]"]'>[EXT]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[YYYY]"]'>[YYYY]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[MM]"]'>[MM]</button>
+            <button type="button" class="btn btn-xs renamer-token-chip" data-on-click="insertRenamerToken" data-click-args='["[DD]"]'>[DD]</button>
           </div>
           <div style="display: flex; align-items: center; gap: 4px; margin-left: auto; flex-shrink: 0;">
             <span style="font-size: 10px; color: var(--text-dim);">Start:</span>
-            <input type="number" id="renamer-counter-start" class="pane-quick-filter" value="1" min="0" style="width: 48px; height: 22px; padding: 0 4px; font-size: 11px;" oninput="updateRenamerPreview()">
+            <input type="number" id="renamer-counter-start" class="pane-quick-filter" value="1" min="0" style="width: 48px; height: 22px; padding: 0 4px; font-size: 11px;" data-on-input="updateRenamerPreview">
             <span style="font-size: 10px; color: var(--text-dim);">Step:</span>
-            <input type="number" id="renamer-counter-step" class="pane-quick-filter" value="1" min="1" style="width: 42px; height: 22px; padding: 0 4px; font-size: 11px;" oninput="updateRenamerPreview()">
+            <input type="number" id="renamer-counter-step" class="pane-quick-filter" value="1" min="1" style="width: 42px; height: 22px; padding: 0 4px; font-size: 11px;" data-on-input="updateRenamerPreview">
           </div>
         </div>
       </div>
@@ -4946,7 +4946,7 @@
         <table class="renamer-table" id="renamer-table">
           <thead>
             <tr>
-              <th style="width: 32px; text-align: center;"><input type="checkbox" id="renamer-select-all" checked onchange="toggleAllRenamerItems(this.checked)"></th>
+              <th style="width: 32px; text-align: center;"><input type="checkbox" id="renamer-select-all" checked data-on-change="toggleAllRenamerItems" data-change-args='[{"$": "checked"}]'></th>
               <th>Original Filename</th>
               <th style="width: 24px; text-align: center;">➔</th>
               <th>New Filename</th>
@@ -4963,17 +4963,17 @@
       <div class="renamer-footer-bar">
         <div id="renamer-status-summary" style="font-size: 11px; font-weight: 600; color: var(--text-main);">0 items</div>
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button class="btn btn-sm btn-outline" onclick="resetRenamerRules()" title="Reset All Rules"><i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset</button>
-          <button class="btn btn-sm btn-outline" id="renamer-undo-btn" onclick="undoBatchRename()" disabled title="Undo Last Batch Rename"><i data-lucide="undo" style="width: 12px; height: 12px;"></i> Undo (<span id="renamer-undo-count">0</span>)</button>
-          <button class="btn btn-sm btn-outline" id="renamer-dryrun-btn" onclick="executeRenamerDryRun()" title="Simulate batch rename operations without modifying files on disk"><i data-lucide="play-circle" style="width: 12px; height: 12px;"></i> Dry Run</button>
-          <button class="btn btn-sm btn-accent" id="renamer-execute-btn" onclick="executeBatchRename()"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Rename</button>
+          <button class="btn btn-sm btn-outline" data-on-click="resetRenamerRules" title="Reset All Rules"><i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset</button>
+          <button class="btn btn-sm btn-outline" id="renamer-undo-btn" data-on-click="undoBatchRename" disabled title="Undo Last Batch Rename"><i data-lucide="undo" style="width: 12px; height: 12px;"></i> Undo (<span id="renamer-undo-count">0</span>)</button>
+          <button class="btn btn-sm btn-outline" id="renamer-dryrun-btn" data-on-click="executeRenamerDryRun" title="Simulate batch rename operations without modifying files on disk"><i data-lucide="play-circle" style="width: 12px; height: 12px;"></i> Dry Run</button>
+          <button class="btn btn-sm btn-accent" id="renamer-execute-btn" data-on-click="executeBatchRename"><i data-lucide="check" style="width: 12px; height: 12px;"></i> Rename</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- 🔬 Floating Hex Editor Chewtoy Window -->
-  <div class="floating-hexeditor-window" id="floating-hexeditor-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-hexeditor-window" id="floating-hexeditor-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="hexeditor-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="hexeditor-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="hexeditor-resize-left"></div>
@@ -4991,12 +4991,12 @@
         <span id="hexeditor-dirty-badge" class="badge badge-accent" style="display: none; font-size: 9px; padding: 1px 4px;">MODIFIED</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-xs btn-accent" id="hexeditor-save-btn" onclick="saveHexEditorChanges()" title="Save / Patch File (Ctrl+S)" style="height: 28px; padding: 0 8px;"><i data-lucide="save" style="width: 12px; height: 12px;"></i> Save</button>
-        <button class="btn btn-icon" id="hexeditor-inspector-toggle" onclick="toggleHexInspector()" title="Toggle Data Inspector" style="width: 28px; height: 28px;"><i data-lucide="sidebar"></i></button>
-        <button class="btn btn-icon desktop-only" id="btn-hexeditor-dock" onclick="dockHexEditorToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-hexeditor-maximize" onclick="toggleMaximizeHexEditor()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingHexEditor()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingHexEditor()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-xs btn-accent" id="hexeditor-save-btn" data-on-click="saveHexEditorChanges" title="Save / Patch File (Ctrl+S)" style="height: 28px; padding: 0 8px;"><i data-lucide="save" style="width: 12px; height: 12px;"></i> Save</button>
+        <button class="btn btn-icon" id="hexeditor-inspector-toggle" data-on-click="toggleHexInspector" title="Toggle Data Inspector" style="width: 28px; height: 28px;"><i data-lucide="sidebar"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-hexeditor-dock" data-on-click="dockHexEditorToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-hexeditor-maximize" data-on-click="toggleMaximizeHexEditor" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingHexEditor" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingHexEditor" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -5004,31 +5004,31 @@
     <div class="hexeditor-toolbar">
       <div style="display: flex; align-items: center; gap: 4px;">
         <span style="font-size: 10.5px; color: var(--text-muted);">Bytes/Row:</span>
-        <select id="hexeditor-bytes-per-row" class="pane-quick-filter renamer-select" onchange="renderHexEditorView()" style="height: 26px;">
+        <select id="hexeditor-bytes-per-row" class="pane-quick-filter renamer-select" data-on-change="renderHexEditorView" style="height: 26px;">
           <option value="8">8</option>
           <option value="16" selected>16</option>
           <option value="32">32</option>
         </select>
         <span style="font-size: 10.5px; color: var(--text-muted); margin-left: 4px;">Endian:</span>
-        <select id="hexeditor-endian-select" class="pane-quick-filter renamer-select" onchange="updateHexInspector()" style="height: 26px;">
+        <select id="hexeditor-endian-select" class="pane-quick-filter renamer-select" data-on-change="updateHexInspector" style="height: 26px;">
           <option value="le" selected>Little Endian (LE)</option>
           <option value="be">Big Endian (BE)</option>
         </select>
       </div>
 
       <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
-        <input type="text" id="hexeditor-goto-input" class="pane-quick-filter" placeholder="Goto 0x00..." style="width: 75px; height: 26px; font-size: 11px;" onkeydown="if(event.key==='Enter') jumpHexOffset()">
-        <button class="btn btn-xs" onclick="jumpHexOffset()" style="height: 26px;">Go</button>
+        <input type="text" id="hexeditor-goto-input" class="pane-quick-filter" placeholder="Goto 0x00..." style="width: 75px; height: 26px; font-size: 11px;" data-keydown-key="Enter" data-on-keydown="jumpHexOffset">
+        <button class="btn btn-xs" data-on-click="jumpHexOffset" style="height: 26px;">Go</button>
         <div class="header-sep"></div>
-        <input type="text" id="hexeditor-search-input" class="pane-quick-filter" placeholder="Search hex/text..." style="width: 110px; height: 26px; font-size: 11px;" onkeydown="if(event.key==='Enter') searchHexBytes()">
-        <button class="btn btn-xs" onclick="searchHexBytes()" style="height: 26px;"><i data-lucide="search" style="width: 11px; height: 11px;"></i></button>
+        <input type="text" id="hexeditor-search-input" class="pane-quick-filter" placeholder="Search hex/text..." style="width: 110px; height: 26px; font-size: 11px;" data-keydown-key="Enter" data-on-keydown="searchHexBytes">
+        <button class="btn btn-xs" data-on-click="searchHexBytes" style="height: 26px;"><i data-lucide="search" style="width: 11px; height: 11px;"></i></button>
       </div>
     </div>
 
     <!-- Hex Editor Main Body (Split Grid + Inspector) -->
     <div class="hexeditor-body">
       <!-- Virtualized / Paginated Hex View Grid -->
-      <div class="hexeditor-grid-container" id="hexeditor-grid-container" tabindex="0" onkeydown="handleHexGridKey(event)">
+      <div class="hexeditor-grid-container" id="hexeditor-grid-container" tabindex="0" data-on-keydown="handleHexGridKey" data-keydown-args='[{"$": "event"}]'>
         <!-- Rendered via JS -->
       </div>
 
@@ -5050,8 +5050,8 @@
 
         <div class="hex-inspector-section-title" style="margin-top: 10px;">File Checksums</div>
         <div class="hex-inspector-grid">
-          <div class="hex-insp-label">SHA-256:</div><div class="hex-insp-val font-mono text-truncate" id="hex-hash-sha256" title="Click to copy" onclick="copyTextToClipboard(this.textContent)">-</div>
-          <div class="hex-insp-label">CRC32:</div><div class="hex-insp-val font-mono" id="hex-hash-crc32" title="Click to copy" onclick="copyTextToClipboard(this.textContent)">-</div>
+          <div class="hex-insp-label">SHA-256:</div><div class="hex-insp-val font-mono text-truncate" id="hex-hash-sha256" title="Click to copy" data-on-click="copyTextToClipboard" data-click-args='[{"$": "text"}]'>-</div>
+          <div class="hex-insp-label">CRC32:</div><div class="hex-insp-val font-mono" id="hex-hash-crc32" title="Click to copy" data-on-click="copyTextToClipboard" data-click-args='[{"$": "text"}]'>-</div>
           <div class="hex-insp-label">Size:</div><div class="hex-insp-val" id="hex-file-size">0 B</div>
         </div>
       </div>
@@ -5533,14 +5533,14 @@
     <div class="modal-box bulk-renamer-box">
       <div class="modal-header">
         <span style="color: var(--accent); font-weight: 700;">🏷️ Advanced Multi-File Batch Renamer</span>
-        <button class="btn" onclick="closeModal('bulk-rename-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["bulk-rename-modal"]'><i data-lucide="x"></i></button>
       </div>
 
       <div class="modal-body" style="padding: 14px; display: flex; flex-direction: column; gap: 10px;">
         <!-- Renaming Mode Selector -->
         <div class="rename-rule-panel">
           <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-            <select id="bulk-rename-mode" class="pane-quick-filter" style="width: 220px; font-weight: 600;" onchange="updateBulkRenameUI()">
+            <select id="bulk-rename-mode" class="pane-quick-filter" style="width: 220px; font-weight: 600;" data-on-change="updateBulkRenameUI">
               <option value="replace" selected>🔍 Find & Replace</option>
               <option value="sequence">🔢 Sequential Numbering</option>
               <option value="prefix-suffix">➕ Add Prefix / Suffix</option>
@@ -5554,16 +5554,16 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               <div>
                 <label style="font-size: 11px;">Find Text / Regex Pattern:</label>
-                <input type="text" id="rename-find" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. img_ or (\d{4})" oninput="updateBulkRenamePreview()">
+                <input type="text" id="rename-find" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. img_ or (\d{4})" data-on-input="updateBulkRenamePreview">
               </div>
               <div>
                 <label style="font-size: 11px;">Replace With:</label>
-                <input type="text" id="rename-replace" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. photo_ or $1" oninput="updateBulkRenamePreview()">
+                <input type="text" id="rename-replace" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. photo_ or $1" data-on-input="updateBulkRenamePreview">
               </div>
             </div>
             <div style="display: flex; gap: 14px; font-size: 11px;">
-              <label style="cursor: pointer;"><input type="checkbox" id="rename-match-case" onchange="updateBulkRenamePreview()"> Match Case</label>
-              <label style="cursor: pointer;"><input type="checkbox" id="rename-use-regex" onchange="updateBulkRenamePreview()"> Use Regular Expressions (Regex)</label>
+              <label style="cursor: pointer;"><input type="checkbox" id="rename-match-case" data-on-change="updateBulkRenamePreview"> Match Case</label>
+              <label style="cursor: pointer;"><input type="checkbox" id="rename-use-regex" data-on-change="updateBulkRenamePreview"> Use Regular Expressions (Regex)</label>
             </div>
           </div>
 
@@ -5572,19 +5572,19 @@
             <div style="display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px;">
               <div>
                 <label style="font-size: 11px;">Base Name:</label>
-                <input type="text" id="rename-seq-base" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. Vacation_" oninput="updateBulkRenamePreview()">
+                <input type="text" id="rename-seq-base" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. Vacation_" data-on-input="updateBulkRenamePreview">
               </div>
               <div>
                 <label style="font-size: 11px;">Start Number:</label>
-                <input type="number" id="rename-seq-start" class="pane-quick-filter" style="width: 100%;" value="1" oninput="updateBulkRenamePreview()">
+                <input type="number" id="rename-seq-start" class="pane-quick-filter" style="width: 100%;" value="1" data-on-input="updateBulkRenamePreview">
               </div>
               <div>
                 <label style="font-size: 11px;">Step (+):</label>
-                <input type="number" id="rename-seq-step" class="pane-quick-filter" style="width: 100%;" value="1" oninput="updateBulkRenamePreview()">
+                <input type="number" id="rename-seq-step" class="pane-quick-filter" style="width: 100%;" value="1" data-on-input="updateBulkRenamePreview">
               </div>
               <div>
                 <label style="font-size: 11px;">Padding Digits:</label>
-                <input type="number" id="rename-seq-pad" class="pane-quick-filter" style="width: 100%;" value="3" min="1" max="6" oninput="updateBulkRenamePreview()">
+                <input type="number" id="rename-seq-pad" class="pane-quick-filter" style="width: 100%;" value="3" min="1" max="6" data-on-input="updateBulkRenamePreview">
               </div>
             </div>
           </div>
@@ -5594,11 +5594,11 @@
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
               <div>
                 <label style="font-size: 11px;">Prepend Prefix:</label>
-                <input type="text" id="rename-prefix" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. 2026_08_" oninput="updateBulkRenamePreview()">
+                <input type="text" id="rename-prefix" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. 2026_08_" data-on-input="updateBulkRenamePreview">
               </div>
               <div>
                 <label style="font-size: 11px;">Append Suffix (Before Ext):</label>
-                <input type="text" id="rename-suffix" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. _final" oninput="updateBulkRenamePreview()">
+                <input type="text" id="rename-suffix" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. _final" data-on-input="updateBulkRenamePreview">
               </div>
             </div>
           </div>
@@ -5606,7 +5606,7 @@
           <!-- Mode 4: Case Conversion -->
           <div id="rule-mode-case" style="display: none; gap: 8px; align-items: center;">
             <label style="font-size: 11px;">Case Style:</label>
-            <select id="rename-case-style" class="pane-quick-filter" style="width: 200px;" onchange="updateBulkRenamePreview()">
+            <select id="rename-case-style" class="pane-quick-filter" style="width: 200px;" data-on-change="updateBulkRenamePreview">
               <option value="lower">lowercase.ext</option>
               <option value="upper">UPPERCASE.EXT</option>
               <option value="title">Title Case.ext</option>
@@ -5618,8 +5618,8 @@
           <!-- Mode 5: Extension Modifier -->
           <div id="rule-mode-extension" style="display: none; gap: 8px; align-items: center;">
             <label style="font-size: 11px;">New Extension (without dot):</label>
-            <input type="text" id="rename-new-ext" class="pane-quick-filter" style="width: 150px;" placeholder="e.g. jpg or txt" oninput="updateBulkRenamePreview()">
-            <label style="font-size: 11px; cursor: pointer;"><input type="checkbox" id="rename-ext-lower" checked onchange="updateBulkRenamePreview()"> Always lowercase extension</label>
+            <input type="text" id="rename-new-ext" class="pane-quick-filter" style="width: 150px;" placeholder="e.g. jpg or txt" data-on-input="updateBulkRenamePreview">
+            <label style="font-size: 11px; cursor: pointer;"><input type="checkbox" id="rename-ext-lower" checked data-on-change="updateBulkRenamePreview"> Always lowercase extension</label>
           </div>
         </div>
 
@@ -5644,8 +5644,8 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('bulk-rename-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-execute-bulk-rename" onclick="executeBulkRename()">⚡ Apply Batch Rename</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["bulk-rename-modal"]'>Cancel</button>
+        <button class="btn btn-accent" id="btn-execute-bulk-rename" data-on-click="executeBulkRename">⚡ Apply Batch Rename</button>
       </div>
     </div>
   </div>
@@ -7625,13 +7625,13 @@
   </div>
 
   <!-- Batch Renamer Minimized Task Pill -->
-  <div class="renamer-pill" id="renamer-pill" style="display: none;" onclick="restoreFloatingRenamer()" title="Click to restore Batch Renamer (Ctrl+M)">
+  <div class="renamer-pill" id="renamer-pill" style="display: none;" data-on-click="restoreFloatingRenamer" title="Click to restore Batch Renamer (Ctrl+M)">
     <i data-lucide="file-signature" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="renamer-pill-title" id="renamer-pill-title">Batch Renamer</span>
   </div>
 
   <!-- Hex Editor Minimized Task Pill -->
-  <div class="hexeditor-pill" id="hexeditor-pill" style="display: none;" onclick="restoreFloatingHexEditor()" title="Click to restore Hex Editor">
+  <div class="hexeditor-pill" id="hexeditor-pill" style="display: none;" data-on-click="restoreFloatingHexEditor" title="Click to restore Hex Editor">
     <i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="hexeditor-pill-title" id="hexeditor-pill-title">Hex Editor</span>
   </div>
@@ -8151,7 +8151,7 @@
   </div>
 
   <!-- 🧩 Floating Multi-Part File Splitter & Combiner Window -->
-  <div class="floating-splitter-window" id="floating-splitter-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-splitter-window" id="floating-splitter-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="splitter-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="splitter-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="splitter-resize-left"></div>
@@ -8167,10 +8167,10 @@
         <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">File Splitter & Combiner</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-splitter-dock" onclick="dockSplitterToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-splitter-maximize" onclick="toggleMaximizeSplitter()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingSplitter()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingSplitter()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-splitter-dock" data-on-click="dockSplitterToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-splitter-maximize" data-on-click="toggleMaximizeSplitter" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingSplitter" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingSplitter" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -8178,15 +8178,15 @@
     <div class="splitter-body" id="splitter-body" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; height: calc(100% - 42px);">
       <!-- Tabs Header -->
       <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 10px; background: var(--bg-dark); flex-shrink: 0;">
-        <button class="settings-tab-btn active" id="btn-splitter-tab-split" onclick="switchSplitterTab('split')"><i data-lucide="scissors"></i> Split File</button>
-        <button class="settings-tab-btn" id="btn-splitter-tab-combine" onclick="switchSplitterTab('combine')"><i data-lucide="merge"></i> Combine Parts</button>
+        <button class="settings-tab-btn active" id="btn-splitter-tab-split" data-on-click="switchSplitterTab" data-click-args='["split"]'><i data-lucide="scissors"></i> Split File</button>
+        <button class="settings-tab-btn" id="btn-splitter-tab-combine" data-on-click="switchSplitterTab" data-click-args='["combine"]'><i data-lucide="merge"></i> Combine Parts</button>
       </div>
 
       <div class="splitter-scroll-content" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 11px;">
         <!-- Tab 1: Split File -->
         <div id="splitter-tab-split" class="splitter-tab-content" style="display: flex; flex-direction: column; flex: 1;">
           <!-- Dropzone & Quick Selector -->
-          <div class="converter-dropzone" id="splitter-dropzone" style="min-height: 60px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer;" onclick="if(!event.target.closest('button')) openSplitterFilePicker();" title="Drag & drop a file here or click to browse">
+          <div class="converter-dropzone" id="splitter-dropzone" style="min-height: 60px; padding: 10px 12px; margin-bottom: 10px; cursor: pointer;" data-click-unless="button" data-on-click="openSplitterFilePicker" title="Drag & drop a file here or click to browse">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 10px; overflow: hidden; flex: 1;">
                 <div style="width: 32px; height: 32px; border-radius: 6px; background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.3); display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
@@ -8198,21 +8198,21 @@
                 </div>
               </div>
               <div style="display: flex; gap: 4px; flex-shrink: 0;">
-                <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); useActivePaneItemForSplitter();" title="Use file selected in active pane" style="font-size: 10.5px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="layout" style="width: 11px; height: 11px;"></i> Pane</button>
-                <button type="button" class="btn btn-xs btn-accent" onclick="event.stopPropagation(); openSplitterFilePicker();" title="Browse / Select File" style="font-size: 10.5px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
+                <button type="button" class="btn btn-xs" data-click-stop data-on-click="useActivePaneItemForSplitter" title="Use file selected in active pane" style="font-size: 10.5px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="layout" style="width: 11px; height: 11px;"></i> Pane</button>
+                <button type="button" class="btn btn-xs btn-accent" data-click-stop data-on-click="openSplitterFilePicker" title="Browse / Select File" style="font-size: 10.5px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
               </div>
             </div>
           </div>
 
           <div class="form-group" style="margin-bottom: 10px;">
             <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Source Path:</label>
-            <input type="text" id="split-source-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="/path/to/large-archive.tar.gz" oninput="handleSplitSourceChange(this.value)" />
+            <input type="text" id="split-source-path" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="/path/to/large-archive.tar.gz" data-on-input="handleSplitSourceChange" data-input-args='[{"$": "value"}]' />
           </div>
 
           <div class="form-group" style="margin-bottom: 10px;">
             <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Chunk Size:</label>
             <div style="display: flex; gap: 8px;">
-              <select id="split-size-preset" class="pane-quick-filter" style="flex: 1; font-size: 11.5px;" onchange="handleSplitPresetChange(this.value)">
+              <select id="split-size-preset" class="pane-quick-filter" style="flex: 1; font-size: 11.5px;" data-on-change="handleSplitPresetChange" data-change-args='[{"$": "value"}]'>
                 <option value="10">10 MB (Small Chunks)</option>
                 <option value="50">50 MB (Discord / Email)</option>
                 <option value="100" selected>100 MB (Standard Parts)</option>
@@ -8221,7 +8221,7 @@
                 <option value="1024">1 GB (Large Chunks)</option>
                 <option value="custom">Custom Size (MB)...</option>
               </select>
-              <input type="number" id="split-size-custom" class="pane-quick-filter" style="width: 90px; display: none; font-size: 11.5px;" min="1" placeholder="MB" value="100" oninput="updateSplitEstimate()" />
+              <input type="number" id="split-size-custom" class="pane-quick-filter" style="width: 90px; display: none; font-size: 11.5px;" min="1" placeholder="MB" value="100" data-on-input="updateSplitEstimate" />
             </div>
           </div>
 
@@ -8242,8 +8242,8 @@
           </div>
 
           <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto;">
-            <button class="btn btn-sm" onclick="closeFloatingSplitter()">Close</button>
-            <button class="btn btn-sm btn-accent" id="btn-run-split" onclick="executeFileSplit()"><i data-lucide="scissors" style="width: 13px; height: 13px;"></i> Split File</button>
+            <button class="btn btn-sm" data-on-click="closeFloatingSplitter">Close</button>
+            <button class="btn btn-sm btn-accent" id="btn-run-split" data-on-click="executeFileSplit"><i data-lucide="scissors" style="width: 13px; height: 13px;"></i> Split File</button>
           </div>
         </div>
 
@@ -8253,8 +8253,8 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label style="font-weight: 600; font-size: 11.5px; color: var(--text-dim);">Detected Parts to Join (Drag files here):</label>
               <div style="display: flex; gap: 4px;">
-                <button type="button" class="btn btn-xs" onclick="scanPaneForCombineParts()" title="Scan active pane for .001, .part1 files" style="font-size: 10.5px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Scan Pane</button>
-                <button type="button" class="btn btn-xs btn-outline" onclick="clearCombineParts()" title="Clear list" style="font-size: 10.5px; padding: 2px 7px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
+                <button type="button" class="btn btn-xs" data-on-click="scanPaneForCombineParts" title="Scan active pane for .001, .part1 files" style="font-size: 10.5px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i> Scan Pane</button>
+                <button type="button" class="btn btn-xs btn-outline" data-on-click="clearCombineParts" title="Clear list" style="font-size: 10.5px; padding: 2px 7px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
               </div>
             </div>
             <div id="combine-parts-list" style="min-height: 85px; max-height: 150px; overflow-y: auto; padding: 6px; background: var(--bg-dark); border: 1px dashed var(--border); border-radius: 6px; font-size: 11px; font-family: var(--font-mono); display: flex; flex-direction: column; gap: 3px;">
@@ -8275,8 +8275,8 @@
           <div id="combine-result-box" style="display: none; padding: 8px 10px; background: var(--bg-dark); border-radius: 6px; border: 1px solid var(--border); font-size: 11px; margin-bottom: 8px;"></div>
 
           <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto;">
-            <button class="btn btn-sm" onclick="closeFloatingSplitter()">Close</button>
-            <button class="btn btn-sm btn-accent" id="btn-run-combine" onclick="executeFileCombine()"><i data-lucide="merge" style="width: 13px; height: 13px;"></i> Join & Verify</button>
+            <button class="btn btn-sm" data-on-click="closeFloatingSplitter">Close</button>
+            <button class="btn btn-sm btn-accent" id="btn-run-combine" data-on-click="executeFileCombine"><i data-lucide="merge" style="width: 13px; height: 13px;"></i> Join & Verify</button>
           </div>
         </div>
       </div>
@@ -8284,13 +8284,13 @@
   </div>
 
   <!-- Taskbar Pill for Splitter -->
-  <div class="splitter-pill" id="splitter-pill" style="display: none;" onclick="restoreFloatingSplitter()" title="Click to restore File Splitter & Combiner">
+  <div class="splitter-pill" id="splitter-pill" style="display: none;" data-on-click="restoreFloatingSplitter" title="Click to restore File Splitter & Combiner">
     <i data-lucide="scissors" style="width: 13px; height: 13px; color: var(--accent);"></i>
     <span>Splitter & Combiner</span>
   </div>
 
   <!-- 📑 Floating PDF Studio Window (Pure-Rust PDF Power Studio) -->
-  <div class="floating-pdf-window" id="floating-pdf-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-pdf-window" id="floating-pdf-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="pdf-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="pdf-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="pdf-resize-left"></div>
@@ -8302,14 +8302,14 @@
     <!-- Rule 9: 42px Header with Grab Handle & 28px Controls -->
     <div class="modal-header pdf-header" id="pdf-header">
       <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="pdf-drag-handle">
-        <img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;" onerror="this.src='assets/amber-frameless-apps.webp'">
+        <img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;" data-on-error="useFallbackIcon" data-error-args='[{"$": "el"}]'>
         <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">PDF Studio</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-pdf-dock" onclick="dockPdfToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-pdf-maximize" onclick="toggleMaximizePdf()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingPdf()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingPdf()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-pdf-dock" data-on-click="dockPdfToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-pdf-maximize" data-on-click="toggleMaximizePdf" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingPdf" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingPdf" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -8317,9 +8317,9 @@
     <div class="pdf-body" id="pdf-body" style="display: flex; flex-direction: column; flex: 1; overflow: hidden; height: calc(100% - 42px);">
       <!-- Tabs Header -->
       <div class="settings-tabs" style="border-bottom: 1px solid var(--border); padding: 0 10px; background: var(--bg-dark); flex-shrink: 0;">
-        <button class="settings-tab-btn active" id="btn-pdf-tab-merge" onclick="switchPdfTab('merge')"><i data-lucide="merge"></i> Merge PDFs</button>
-        <button class="settings-tab-btn" id="btn-pdf-tab-split" onclick="switchPdfTab('split')"><i data-lucide="scissors"></i> Split PDF</button>
-        <button class="settings-tab-btn" id="btn-pdf-tab-reorder" onclick="switchPdfTab('reorder')"><i data-lucide="rotate-cw"></i> Reorder & Rotate</button>
+        <button class="settings-tab-btn active" id="btn-pdf-tab-merge" data-on-click="switchPdfTab" data-click-args='["merge"]'><i data-lucide="merge"></i> Merge PDFs</button>
+        <button class="settings-tab-btn" id="btn-pdf-tab-split" data-on-click="switchPdfTab" data-click-args='["split"]'><i data-lucide="scissors"></i> Split PDF</button>
+        <button class="settings-tab-btn" id="btn-pdf-tab-reorder" data-on-click="switchPdfTab" data-click-args='["reorder"]'><i data-lucide="rotate-cw"></i> Reorder & Rotate</button>
       </div>
 
       <div class="pdf-scroll-content" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
@@ -8329,8 +8329,8 @@
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
               <label style="font-weight: 600; font-size: 11.5px; color: var(--text-dim);">PDF Documents to Merge (Drag files here):</label>
               <div style="display: flex; gap: 4px;">
-                <button type="button" class="btn btn-xs" onclick="addActivePanePdfFiles()" title="Add selected PDFs from active pane" style="font-size: 10.5px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="plus" style="width: 11px; height: 11px;"></i> Add From Pane</button>
-                <button type="button" class="btn btn-xs btn-outline" onclick="clearPdfMergeList()" title="Clear list" style="font-size: 10.5px; padding: 2px 7px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
+                <button type="button" class="btn btn-xs" data-on-click="addActivePanePdfFiles" title="Add selected PDFs from active pane" style="font-size: 10.5px; padding: 2px 7px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="plus" style="width: 11px; height: 11px;"></i> Add From Pane</button>
+                <button type="button" class="btn btn-xs btn-outline" data-on-click="clearPdfMergeList" title="Clear list" style="font-size: 10.5px; padding: 2px 7px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
               </div>
             </div>
             <div id="pdf-merge-file-list" class="converter-dropzone" style="min-height: 110px; max-height: 200px; overflow-y: auto; padding: 6px; background: var(--bg-dark); border: 1px dashed var(--border); border-radius: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 11px;">
@@ -8349,15 +8349,15 @@
           </div>
 
           <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto;">
-            <button class="btn btn-sm" onclick="closeFloatingPdf()">Close</button>
-            <button class="btn btn-sm btn-accent" id="btn-pdf-execute-merge" onclick="executePdfActiveTab()"><i data-lucide="merge" style="width: 13px; height: 13px;"></i> Merge PDFs</button>
+            <button class="btn btn-sm" data-on-click="closeFloatingPdf">Close</button>
+            <button class="btn btn-sm btn-accent" id="btn-pdf-execute-merge" data-on-click="executePdfActiveTab"><i data-lucide="merge" style="width: 13px; height: 13px;"></i> Merge PDFs</button>
           </div>
         </div>
 
         <!-- Tab 2: Split PDF -->
         <div id="pdf-tab-split" class="pdf-tab-content" style="display: none; flex-direction: column; flex: 1; gap: 10px;">
           <!-- Dropzone & Quick Selector for PDF to split -->
-          <div class="converter-dropzone" id="pdf-split-dropzone" style="min-height: 55px; padding: 8px 12px; cursor: pointer;" onclick="if(!event.target.closest('button')) openPdfSplitFilePicker();" title="Drag & drop a PDF here or click to browse">
+          <div class="converter-dropzone" id="pdf-split-dropzone" style="min-height: 55px; padding: 8px 12px; cursor: pointer;" data-click-unless="button" data-on-click="openPdfSplitFilePicker" title="Drag & drop a PDF here or click to browse">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
                 <i data-lucide="file-text" style="color: #ef4444; width: 18px; height: 18px; flex-shrink: 0;"></i>
@@ -8367,21 +8367,21 @@
                 </div>
               </div>
               <div style="display: flex; gap: 4px; flex-shrink: 0;">
-                <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); useActivePaneSelectedPdf('split');" title="Use currently focused PDF in active pane"><i data-lucide="target" style="width: 11px; height: 11px;"></i> Active Pane</button>
-                <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); openPdfSplitFilePicker();" title="Browse file"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
+                <button type="button" class="btn btn-xs" data-click-stop data-on-click="useActivePaneSelectedPdf" data-click-args='["split"]' title="Use currently focused PDF in active pane"><i data-lucide="target" style="width: 11px; height: 11px;"></i> Active Pane</button>
+                <button type="button" class="btn btn-xs" data-click-stop data-on-click="openPdfSplitFilePicker" title="Browse file"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
               </div>
             </div>
           </div>
 
           <div class="form-group" style="margin-bottom: 0;">
             <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Source PDF Path:</label>
-            <input type="text" id="pdf-split-source" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="/path/to/document.pdf" onchange="fetchPdfSplitInfo(this.value)" />
+            <input type="text" id="pdf-split-source" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono); font-size: 11px;" placeholder="/path/to/document.pdf" data-on-change="fetchPdfSplitInfo" data-change-args='[{"$": "value"}]' />
             <div id="pdf-split-info-badge" style="display: none; margin-top: 4px; font-size: 11px; font-family: var(--font-mono); color: var(--accent);"></div>
           </div>
 
           <div class="form-group" style="margin-bottom: 0;">
             <label style="font-weight: 600; font-size: 11.5px; margin-bottom: 4px; display: block; color: var(--text-dim);">Split Mode:</label>
-            <select id="pdf-split-mode" class="pane-quick-filter" style="width: 100%; font-size: 11.5px;" onchange="togglePdfSplitModeUI(this.value)">
+            <select id="pdf-split-mode" class="pane-quick-filter" style="width: 100%; font-size: 11.5px;" data-on-change="togglePdfSplitModeUI" data-change-args='[{"$": "value"}]'>
               <option value="ranges" selected>Custom Page Ranges (e.g. 1-3, 5, 8-10)</option>
               <option value="each_page">Extract Every Page as an Individual PDF</option>
               <option value="page_count">Split into N-Page Bundles</option>
@@ -8409,15 +8409,15 @@
           </div>
 
           <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto;">
-            <button class="btn btn-sm" onclick="closeFloatingPdf()">Close</button>
-            <button class="btn btn-sm btn-accent" id="btn-pdf-execute-split" onclick="executePdfActiveTab()"><i data-lucide="scissors" style="width: 13px; height: 13px;"></i> Split PDF</button>
+            <button class="btn btn-sm" data-on-click="closeFloatingPdf">Close</button>
+            <button class="btn btn-sm btn-accent" id="btn-pdf-execute-split" data-on-click="executePdfActiveTab"><i data-lucide="scissors" style="width: 13px; height: 13px;"></i> Split PDF</button>
           </div>
         </div>
 
         <!-- Tab 3: Reorder & Rotate -->
         <div id="pdf-tab-reorder" class="pdf-tab-content" style="display: none; flex-direction: column; flex: 1; gap: 10px;">
           <!-- Dropzone for Reorder PDF -->
-          <div class="converter-dropzone" id="pdf-reorder-dropzone" style="min-height: 55px; padding: 8px 12px; cursor: pointer;" onclick="if(!event.target.closest('button')) openPdfReorderFilePicker();" title="Drag & drop a PDF here or click to browse">
+          <div class="converter-dropzone" id="pdf-reorder-dropzone" style="min-height: 55px; padding: 8px 12px; cursor: pointer;" data-click-unless="button" data-on-click="openPdfReorderFilePicker" title="Drag & drop a PDF here or click to browse">
             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 8px;">
               <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
                 <i data-lucide="rotate-cw" style="color: var(--accent); width: 18px; height: 18px; flex-shrink: 0;"></i>
@@ -8427,8 +8427,8 @@
                 </div>
               </div>
               <div style="display: flex; gap: 4px; flex-shrink: 0;">
-                <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); useActivePaneSelectedPdf('reorder');" title="Use currently focused PDF in active pane"><i data-lucide="target" style="width: 11px; height: 11px;"></i> Active Pane</button>
-                <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); openPdfReorderFilePicker();" title="Browse file"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
+                <button type="button" class="btn btn-xs" data-click-stop data-on-click="useActivePaneSelectedPdf" data-click-args='["reorder"]' title="Use currently focused PDF in active pane"><i data-lucide="target" style="width: 11px; height: 11px;"></i> Active Pane</button>
+                <button type="button" class="btn btn-xs" data-click-stop data-on-click="openPdfReorderFilePicker" title="Browse file"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
               </div>
             </div>
           </div>
@@ -8449,8 +8449,8 @@
           </div>
 
           <div class="modal-footer" style="padding-top: 6px; display: flex; justify-content: flex-end; gap: 8px; margin-top: auto;">
-            <button class="btn btn-sm" onclick="closeFloatingPdf()">Close</button>
-            <button class="btn btn-sm btn-accent" id="btn-pdf-execute-reorder" onclick="executePdfActiveTab()"><i data-lucide="check" style="width: 13px; height: 13px;"></i> Export PDF</button>
+            <button class="btn btn-sm" data-on-click="closeFloatingPdf">Close</button>
+            <button class="btn btn-sm btn-accent" id="btn-pdf-execute-reorder" data-on-click="executePdfActiveTab"><i data-lucide="check" style="width: 13px; height: 13px;"></i> Export PDF</button>
           </div>
         </div>
 
@@ -8460,8 +8460,8 @@
   </div>
 
   <!-- Taskbar Pill for PDF Studio -->
-  <div class="pdf-pill" id="pdf-pill" style="display: none;" onclick="restoreFloatingPdf()" title="Click to restore PDF Studio">
-    <img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain;" onerror="this.src='assets/amber-frameless-apps.webp'">
+  <div class="pdf-pill" id="pdf-pill" style="display: none;" data-on-click="restoreFloatingPdf" title="Click to restore PDF Studio">
+    <img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain;" data-on-error="useFallbackIcon" data-error-args='[{"$": "el"}]'>
     <span>PDF Studio</span>
   </div>
 

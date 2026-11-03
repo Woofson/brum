@@ -10,8 +10,8 @@ use std::fs;
 
 /// (file, highest allowed number of inline handlers)
 const CEILINGS: &[(&str, usize)] = &[
-    ("frontend/index.html", 682),
-    ("frontend/app.js", 208),
+    ("frontend/index.html", 571),
+    ("frontend/app.js", 197),
 ];
 
 fn count_inline_handlers(text: &str) -> usize {
@@ -60,7 +60,7 @@ fn every_wired_event_type_is_listened_for() {
     let app = read("frontend/app.js");
     let page = read("frontend/index.html");
     let events = js_list(&app, "const BRUM_ACTION_EVENTS = [");
-    let re = Regex::new(r"data-(?:on-([a-z]+)=|([a-z]+)-(?:args|steps|after|stop|prevent|key)\b)").unwrap();
+    let re = Regex::new(r"data-(?:on-([a-z]+)=|([a-z]+)-(?:args|steps|after|stop|prevent|key|unless)\b)").unwrap();
     let mut missing = Vec::new();
     for text in [&app, &page] {
         for c in re.captures_iter(text) {

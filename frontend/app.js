@@ -9,8 +9,10 @@
 //   data-<type>-stop                    stop the event bubbling further (outside-click closers)
 //   data-<type>-prevent                 prevent the browser's default (e.g. its own right-click menu)
 //   data-<type>-key="Enter"             only act when this key was pressed
+//   data-<type>-unless="button"         do nothing when the event started inside a matching element
 // Markers in arguments: ACTION_EVENT (the event), ACTION_EL (the element), ACTION_VALUE
-// (its current value), ACTION_CHECKED (whether it is ticked), ACTION_FILES (files picked in it).
+// (its current value), ACTION_CHECKED (whether it is ticked), ACTION_FILES (files picked in it),
+// ACTION_TEXT (its text).
 // Each element gets its own listener, so events keep the same order they had inline.
 // Call bindActions(container) right after filling a container with innerHTML, and after
 // lucide.createIcons() when the element carrying the action is an <i data-lucide> icon.
@@ -25,72 +27,82 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
-  'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest', 'addCustomFileIconRule',
-  'addDirectoryToMediaPlaylist', 'addNewBookmark', 'addTracksToMediaPlaylist',
-  'applyBorderSettings', 'applyCustomBadgePreset', 'applyExternalProgramPreset',
-  'applyPaneCustomTwoTone', 'applyPaneRenameFromInput', 'applyPaneStartPath', 'applyTheme',
-  'autoFitAllColumns', 'autoFitColumn', 'blurElement', 'bringFloatingWindowToFront',
-  'browseNoteDogFolder', 'calcAppendChar', 'calcAppendDot', 'calcAppendFunc', 'calcAppendNum',
-  'calcAppendOp', 'calcAppendPi', 'calcAppendUnit', 'calcBackspace', 'calcClearAll',
-  'calcClearEntry', 'calcClearHistory', 'calcEvaluate', 'calcLoadHistoryItem', 'calcToggleSign',
-  'captureCurrentPathsForCustomStartup', 'changeGlobalIconTheme', 'changeMediaVolume',
-  'changeTetraDogMode', 'clearAllCustomFileIcons', 'clearMediaPlaylist', 'clearPaneFilter',
+  'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
+  'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addNewBookmark',
+  'addTracksToMediaPlaylist', 'applyBorderSettings', 'applyCustomBadgePreset',
+  'applyExternalProgramPreset', 'applyPaneCustomTwoTone', 'applyPaneRenameFromInput',
+  'applyPaneStartPath', 'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'blurElement',
+  'bringFloatingWindowToFront', 'browseNoteDogFolder', 'calcAppendChar', 'calcAppendDot',
+  'calcAppendFunc', 'calcAppendNum', 'calcAppendOp', 'calcAppendPi', 'calcAppendUnit',
+  'calcBackspace', 'calcClearAll', 'calcClearEntry', 'calcClearHistory', 'calcEvaluate',
+  'calcLoadHistoryItem', 'calcToggleSign', 'captureCurrentPathsForCustomStartup',
+  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTetraDogMode', 'clearAllCustomFileIcons',
+  'clearCombineParts', 'clearMediaPlaylist', 'clearPaneFilter', 'clearPdfMergeList',
   'clickElementById', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers',
   'closeDockedEditorTab', 'closeDockedTool', 'closeEditorActionsDropdown', 'closeEditorModal',
   'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCalculator',
-  'closeFloatingNoteDog', 'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer', 'closeOtherTabs',
-  'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight', 'closeTetraDog',
-  'convertCurrentMediaToMp4', 'copyCalcResult', 'copyInspectorCoordinates', 'copyTextToClipboard',
-  'copyToClipboardText', 'copyVariableTag', 'createNewEditorTab', 'createPaneTab',
-  'cycleEditorTabSize', 'cycleMediaAspectRatio', 'cycleMediaLoop', 'cycleMediaSpeed',
-  'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction', 'deleteFileTemplate',
-  'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems', 'disablePathInput',
-  'disconnectPaneRemote', 'dismissMediaPill', 'dockCalculatorToActivePane',
-  'dockEditorToActivePane', 'dockMediaPlayerToActivePane', 'dockNoteDogToActivePane',
-  'dockTetraDogToActivePane', 'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab',
-  'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
-  'executeCustomAction', 'executeFind', 'executeOpenWith', 'executePane1ClickTransfer',
-  'executeUnlockNoteDogNote', 'exportCustomThemeToml', 'filterInstalledChewToys',
-  'filterMediaPlaylist', 'findNextMatch', 'findPrevMatch', 'handleAppMarginChange',
-  'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
+  'closeFloatingHexEditor', 'closeFloatingNoteDog', 'closeFloatingPdf', 'closeFloatingRenamer',
+  'closeFloatingSplitter', 'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer',
+  'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
+  'closeTetraDog', 'convertCurrentMediaToMp4', 'copyCalcResult', 'copyInspectorCoordinates',
+  'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag', 'createNewEditorTab',
+  'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio', 'cycleMediaLoop',
+  'cycleMediaSpeed', 'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction',
+  'deleteFileTemplate', 'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems',
+  'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill', 'dockCalculatorToActivePane',
+  'dockEditorToActivePane', 'dockHexEditorToActivePane', 'dockMediaPlayerToActivePane',
+  'dockNoteDogToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
+  'dockSplitterToActivePane', 'dockTetraDogToActivePane', 'downloadCurrentMedia',
+  'duplicateFileTemplate', 'duplicatePaneTab', 'editCustomAction', 'editOpenWithRule',
+  'editTemplateById', 'enablePathInput', 'executeBatchRename', 'executeBulkRename',
+  'executeCustomAction', 'executeFileCombine', 'executeFileSplit', 'executeFind',
+  'executeOpenWith', 'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun',
+  'executeUnlockNoteDogNote', 'exportCustomThemeToml', 'fetchPdfSplitInfo',
+  'filterInstalledChewToys', 'filterMediaPlaylist', 'findNextMatch', 'findPrevMatch',
+  'handleAppMarginChange', 'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
   'handleChewToyFileSelect', 'handleDndSettingChange', 'handleDockedNoteSelect',
   'handleDockedNotebookChange', 'handleDockedSectionChange', 'handleEditorClick',
   'handleEditorInput', 'handleEditorKeyDown', 'handleEditorLanguageChange',
   'handleEditorViewModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
   'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
-  'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHostnameSettingChange',
-  'handleLoginBrandingSettingChange', 'handleLogoutOrExit', 'handleMediaScrubberHover',
-  'handleMonoFontChange', 'handleNoteAttachmentFileSelected', 'handleNoteDogInput',
-  'handleNoteDogKeyDown', 'handleNoteDogSearch', 'handleNoteDogTitleChange',
+  'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHexGridKey',
+  'handleHostnameSettingChange', 'handleLoginBrandingSettingChange', 'handleLogoutOrExit',
+  'handleMediaScrubberHover', 'handleMonoFontChange', 'handleNoteAttachmentFileSelected',
+  'handleNoteDogInput', 'handleNoteDogKeyDown', 'handleNoteDogSearch', 'handleNoteDogTitleChange',
   'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
   'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
   'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
-  'handleSettingsAvatarFileUpload', 'handleStartupSettingChange', 'handleTetraDogScopeChange',
-  'handleTitleTemplateChange', 'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver',
-  'handleToolDragStart', 'handleToolDrop', 'handleUserParanoidToggle',
-  'handleUserSecuritySettingChange', 'handleVaultOpen', 'handleWindowTitleSettingChange',
-  'hideContextMenu', 'hideCustomActionForm', 'hideMediaScrubberTooltip', 'hideOpenWithRuleForm',
-  'initColResize', 'initTreeResize', 'insertAttachmentMarkdownById', 'insertNoteDogColorTag',
-  'insertNoteDogMarkdown', 'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertTitleVar',
-  'jumpToConfdSection', 'loadEmojiPresets', 'loadInstalledChewToys', 'loadNerdFontPresets',
-  'loadPaneDirectory', 'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession',
-  'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNoteDog',
-  'maximizeTetraDog', 'minimizeFloatingCalculator', 'minimizeFloatingEditor',
-  'minimizeFloatingMediaPlayer', 'minimizeFloatingNoteDog', 'minimizeTetraDog', 'mountUsbDevice',
-  'moveMenuItem', 'moveToolItem', 'navMediaPlaylist', 'navigateToBookmark', 'openAboutModal',
-  'openAdminPanel', 'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager',
-  'openCadStudio', 'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openConverterModal',
-  'openCreateTemplateModal', 'openCreateVaultModal', 'openCurrentMediaWithSystemPlayer',
-  'openCustomDestModal', 'openDiskUsageModal', 'openDuplicateFinder', 'openDynamicChewToy',
-  'openExternalTerminal', 'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi',
-  'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager',
-  'openHexEditor', 'openInPaneWithToast', 'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer',
+  'handleSettingsAvatarFileUpload', 'handleSplitPresetChange', 'handleSplitSourceChange',
+  'handleStartupSettingChange', 'handleTetraDogScopeChange', 'handleTitleTemplateChange',
+  'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart',
+  'handleToolDrop', 'handleUserParanoidToggle', 'handleUserSecuritySettingChange',
+  'handleVaultOpen', 'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
+  'hideMediaScrubberTooltip', 'hideOpenWithRuleForm', 'initColResize', 'initTreeResize',
+  'insertAttachmentMarkdownById', 'insertNoteDogColorTag', 'insertNoteDogMarkdown',
+  'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertRenamerToken', 'insertTitleVar',
+  'jumpHexOffset', 'jumpToConfdSection', 'loadEmojiPresets', 'loadInstalledChewToys',
+  'loadNerdFontPresets', 'loadPaneDirectory', 'loadRenamerDirectory', 'loadTetraDogLeaderboard',
+  'loadUserPreferencesFromServer', 'lockSession', 'maximizeFloatingEditor',
+  'maximizeFloatingMediaPlayer', 'maximizeFloatingNoteDog', 'maximizeTetraDog',
+  'minimizeFloatingCalculator', 'minimizeFloatingEditor', 'minimizeFloatingHexEditor',
+  'minimizeFloatingMediaPlayer', 'minimizeFloatingNoteDog', 'minimizeFloatingPdf',
+  'minimizeFloatingRenamer', 'minimizeFloatingSplitter', 'minimizeTetraDog', 'mountUsbDevice',
+  'moveMenuItem', 'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navMediaPlaylist',
+  'navigateToBookmark', 'openAboutModal', 'openAdminPanel', 'openApiTokensModal',
+  'openBatchRenamer', 'openBookmarksManager', 'openCadStudio', 'openChewtoyForFile',
+  'openColumnHeaderContextMenu', 'openConverterModal', 'openCreateTemplateModal',
+  'openCreateVaultModal', 'openCurrentMediaWithSystemPlayer', 'openCustomDestModal',
+  'openDiskUsageModal', 'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal',
+  'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator',
+  'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager', 'openHexEditor',
+  'openInPaneWithToast', 'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer',
   'openNativeRecycleBin', 'openNoteDogColorPicker', 'openNoteDogMigrationMenu',
   'openNoteDogNewMenu', 'openNoteDogTemplatePicker', 'openNoteDogVersionsModal',
   'openNoteForContextItem', 'openPaneFavoritesMenu', 'openPaneSettingsMenu',
   'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu', 'openParanoidSettings',
-  'openPdfToolModal', 'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal',
-  'openSettingsModal', 'openSettingsTab', 'openSharesManager', 'openSpotlightModal',
+  'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
+  'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal', 'openSettingsModal',
+  'openSettingsTab', 'openSharesManager', 'openSplitterFilePicker', 'openSpotlightModal',
   'openSyncModal', 'openSyncthingModal', 'openTagEditor', 'openTerminalInPath', 'openTetraDog',
   'openUserProfileModal', 'playMediaPlaylistItem', 'populateMediaPlaylistFromActivePane',
   'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNoteDogFolder',
@@ -98,20 +110,24 @@ const BRUM_ACTIONS = new Set([
   'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
   'promptEmptyTrash', 'promptToggleEncryptNotebook', 'promptToggleEncryptSection',
   'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshPane',
-  'refreshTetraDogLeaderboard', 'removeElementById', 'removeNoteTag', 'renderAvatarById',
-  'renderKeybindingsTable', 'replaceAllMatches', 'replaceCurrentMatch', 'resetAllColumnWidths',
-  'resetFileTemplatesToDefault', 'resetGlobalFolderIcon', 'resetHiddenDrives',
-  'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults',
-  'resetPaneName', 'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind',
-  'resetToolsMenuToDefault', 'resetWindowTitleSetting', 'restartTetraDogGame',
-  'restoreFloatingCalculator', 'restoreFloatingEditor', 'restoreFloatingMediaPlayer',
-  'restoreFloatingNoteDog', 'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems',
-  'restoreTetraDog', 'resumeTetraDogGame', 'runPredefinedAction', 'runToolsMenuChewtoy',
-  'runToolsMenuItem', 'saveActiveEditorTab', 'saveActiveNoteDogNote', 'saveAllEditorTabs',
-  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
-  'saveCustomShellAction', 'saveCustomTrashDir', 'saveGlobalFolderIcon',
-  'saveNoteDogFolderSetting', 'saveOpenWithRule', 'saveSettingsUserProfile',
-  'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias', 'seekMedia', 'selectDatabaseCategory',
+  'refreshTetraDogLeaderboard', 'reloadRenamerFiles', 'removeCombinePart', 'removeElementById',
+  'removeNoteTag', 'removePdfMergeItem', 'removePdfOrganizerPage', 'renderAvatarById',
+  'renderHexEditorView', 'renderKeybindingsTable', 'replaceAllMatches', 'replaceCurrentMatch',
+  'resetAllColumnWidths', 'resetFileTemplatesToDefault', 'resetGlobalFolderIcon',
+  'resetHiddenDrives', 'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault',
+  'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules', 'resetServerPreferences',
+  'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
+  'resetWindowTitleSetting', 'restartTetraDogGame', 'restoreFloatingCalculator',
+  'restoreFloatingEditor', 'restoreFloatingHexEditor', 'restoreFloatingMediaPlayer',
+  'restoreFloatingNoteDog', 'restoreFloatingPdf', 'restoreFloatingRenamer',
+  'restoreFloatingSplitter', 'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems',
+  'restoreTetraDog', 'resumeTetraDogGame', 'rotatePdfOrganizerPage', 'runPredefinedAction',
+  'runToolsMenuChewtoy', 'runToolsMenuItem', 'saveActiveEditorTab', 'saveActiveNoteDogNote',
+  'saveAllEditorTabs', 'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault',
+  'saveCustomBrowserTheme', 'saveCustomShellAction', 'saveCustomTrashDir', 'saveGlobalFolderIcon',
+  'saveHexEditorChanges', 'saveNoteDogFolderSetting', 'saveOpenWithRule',
+  'saveSettingsUserProfile', 'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias',
+  'scanPaneForCombineParts', 'searchHexBytes', 'seekMedia', 'selectDatabaseCategory',
   'selectDatabaseNoteById', 'selectDatabaseSection', 'selectGlobalFolderPreset',
   'selectNoteDogNoteByPath', 'selectNoteDogNotebook', 'selectNoteDogSection',
   'selectNoteDogVersion', 'setActivePane', 'setContextFileColor', 'setCustomAngleInput',
@@ -121,38 +137,42 @@ const BRUM_ACTIONS = new Set([
   'setTetraDogTheme', 'setTetraDogView', 'setTitleTemplatePreset', 'showAddCustomActionPrompt',
   'showAddOpenWithRulePrompt', 'skipMedia', 'sortPane', 'startTetraDogGame', 'swapPanes',
   'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab', 'switchMenuBuilderCategory',
-  'switchPaneNode', 'switchPaneTab', 'switchSettingsTab', 'switchToFleetNode',
-  'syncDockedNoteDogInput', 'syncGutterScroll', 'syncNoteDogGutter', 'testExternalProgram',
-  'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleBranchView', 'toggleBrumMascot',
-  'toggleCalcHistory', 'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
-  'toggleCompactDates', 'toggleContextColorPalette', 'toggleContextSubmenu',
-  'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
-  'toggleEditorActionsDropdown', 'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFindBar',
-  'toggleFindOption', 'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager',
-  'toggleGlobalDotfiles', 'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting',
-  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleLayoutMenu', 'toggleMediaFullscreen',
+  'switchPaneNode', 'switchPaneTab', 'switchPdfTab', 'switchSettingsTab', 'switchSplitterTab',
+  'switchToFleetNode', 'syncDockedNoteDogInput', 'syncGutterScroll', 'syncNoteDogGutter',
+  'testExternalProgram', 'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleAllRenamerItems',
+  'toggleBranchView', 'toggleBrumMascot', 'toggleCalcHistory', 'toggleChewToy',
+  'toggleColSeparators', 'toggleColumnVisibility', 'toggleCompactDates',
+  'toggleContextColorPalette', 'toggleContextSubmenu', 'toggleCurrentNoteEncryption',
+  'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting', 'toggleEditorActionsDropdown',
+  'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFindBar', 'toggleFindOption',
+  'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager', 'toggleGlobalDotfiles',
+  'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting', 'toggleHexInspector',
+  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleLayoutMenu', 'toggleMaximizeHexEditor',
+  'toggleMaximizePdf', 'toggleMaximizeRenamer', 'toggleMaximizeSplitter', 'toggleMediaFullscreen',
   'toggleMediaMute', 'toggleMediaPiP', 'toggleMediaPlay', 'toggleMediaPlaylistDrawer',
   'toggleMediaShuffle', 'toggleMediaStopOnClose', 'toggleMediaSubtitlesDropdown',
   'toggleMenuItemVisibility', 'toggleMinimizeToTray', 'toggleNoteAttachmentsTray',
   'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer', 'togglePaneFilter',
   'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
-  'toggleProfileMenu', 'toggleShowDirTag', 'toggleStartMinimized', 'toggleStickyColHeaders',
-  'toggleSyncNav', 'toggleSyncScroll', 'toggleTerminal', 'toggleTetraDogAudio',
-  'toggleTetraDogPlayPause', 'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting',
-  'toggleUseExtEditor', 'toggleUseExtViewer', 'toggleWindowDecorations',
-  'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
-  'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
-  'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
-  'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions',
-  'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory', 'triggerEditTagsModal',
-  'triggerEditor', 'triggerExtractHere', 'triggerExtractModal', 'triggerExtractToFolder',
-  'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager', 'triggerMkdir', 'triggerMove',
-  'triggerNewFile', 'triggerNoteAttachmentUpload', 'triggerPaste', 'triggerProperties',
-  'triggerRename', 'triggerShare', 'triggerShareDirectory', 'triggerView', 'undockToolFromPane',
-  'uninstallChewToy', 'unmountUsbDevice', 'updateDefaultCopyAction', 'updateMenuOption',
-  'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview', 'updatePaneTabsMode',
-  'updatePhoneTabletMaxPanes', 'updateTetraDogConfig', 'updateTetraDogConfigInt',
-  'useFallbackIcon',
+  'togglePdfSplitModeUI', 'toggleProfileMenu', 'toggleRenamerItem', 'toggleShowDirTag',
+  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll',
+  'toggleTerminal', 'toggleTetraDogAudio', 'toggleTetraDogPlayPause', 'toggleToolVisibility',
+  'toggleToolsMenu', 'toggleTrashSetting', 'toggleUseExtEditor', 'toggleUseExtViewer',
+  'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting', 'triggerArchive7z',
+  'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename', 'triggerChecksum',
+  'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard', 'triggerCreateFromTemplate',
+  'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload', 'triggerDeviceUpload',
+  'triggerDiff', 'triggerDirPermissions', 'triggerDownloadContextItem',
+  'triggerDownloadCurrentDirectory', 'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere',
+  'triggerExtractModal', 'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit',
+  'triggerGitManager', 'triggerMkdir', 'triggerMove', 'triggerNewFile',
+  'triggerNoteAttachmentUpload', 'triggerPaste', 'triggerProperties', 'triggerRename',
+  'triggerShare', 'triggerShareDirectory', 'triggerView', 'undoBatchRename', 'undockToolFromPane',
+  'uninstallChewToy', 'unmountUsbDevice', 'updateBulkRenamePreview', 'updateBulkRenameUI',
+  'updateDefaultCopyAction', 'updateHexInspector', 'updateMenuOption', 'updateMobileBottomBarMode',
+  'updatePaneCustomGradientPreview', 'updatePaneTabsMode', 'updatePhoneTabletMaxPanes',
+  'updateRenamerPreview', 'updateSplitEstimate', 'updateTetraDogConfig', 'updateTetraDogConfigInt',
+  'useActivePaneItemForSplitter', 'useActivePaneSelectedPdf', 'useFallbackIcon',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -161,6 +181,7 @@ const ACTION_EL = { $: 'el' };
 const ACTION_VALUE = { $: 'value' };
 const ACTION_CHECKED = { $: 'checked' };
 const ACTION_FILES = { $: 'files' };
+const ACTION_TEXT = { $: 'text' };
 
 function encodeActionArg(a) {
   if (a === undefined) return { $: 'undefined' };
@@ -176,6 +197,7 @@ function decodeActionArg(a, ev, el) {
     if (a.$ === 'value') return el.value;
     if (a.$ === 'checked') return el.checked;
     if (a.$ === 'files') return el.files;
+    if (a.$ === 'text') return el.textContent;
     if (a.$ === 'undefined') return undefined;
   }
   return a;
@@ -212,6 +234,8 @@ function readActionJson(el, attr, name) {
 function runBoundAction(el, type, ev) {
   const key = el.getAttribute(`data-${type}-key`);
   if (key && ev.key !== key) return;
+  const unless = el.getAttribute(`data-${type}-unless`);
+  if (unless && ev.target.closest && ev.target.closest(unless)) return;
   if (el.hasAttribute(`data-${type}-prevent`)) ev.preventDefault();
   if (el.hasAttribute(`data-${type}-stop`)) ev.stopPropagation();
   const calls = [];
@@ -253,7 +277,7 @@ bindActions(document);
 
 // Content cleaned by DOMPurify (notes, markdown and document previews) is written by users and
 // guests. It must never carry named actions, so the wiring attributes are always removed.
-const ACTION_ATTR_RE = /^data-(on-[a-z]+|[a-z]+-(args|steps|after|stop|prevent|key))$/;
+const ACTION_ATTR_RE = /^data-(on-[a-z]+|[a-z]+-(args|steps|after|stop|prevent|key|unless))$/;
 if (typeof DOMPurify !== 'undefined' && DOMPurify.addHook) {
   DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
     if (ACTION_ATTR_RE.test(data.attrName)) data.keepAttr = false;
@@ -40716,10 +40740,11 @@ function setCombinerParts(partsList) {
             <span title="${escapeHtml(p)}" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 360px;">
               <span style="color: var(--accent); font-weight: 700; margin-right: 4px;">#${idx + 1}</span> ${escapeHtml(basename)}
             </span>
-            <button type="button" class="btn btn-icon btn-xs" style="width: 20px; height: 20px; padding: 0;" onclick="removeCombinePart(${idx})" title="Remove"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
+            <button type="button" class="btn btn-icon btn-xs" style="width: 20px; height: 20px; padding: 0;" data-on-click="removeCombinePart" data-click-args="${actionArgs((idx))}" title="Remove"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
           </div>
         `;
       }).join('');
+      bindActions(partsBox);
       if (window.lucide) lucide.createIcons({ root: partsBox });
     }
   }
@@ -41566,12 +41591,13 @@ function renderPdfMergeList() {
         <span style="font-family: var(--font-mono); font-size: 11px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(p)}</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon btn-sm" onclick="movePdfMergeItem(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up"><i data-lucide="arrow-up" style="width:11px;"></i></button>
-        <button class="btn btn-icon btn-sm" onclick="movePdfMergeItem(${idx}, 1)" ${idx === currentPdfMergeList.length - 1 ? 'disabled' : ''} title="Move Down"><i data-lucide="arrow-down" style="width:11px;"></i></button>
-        <button class="btn btn-icon btn-sm" onclick="removePdfMergeItem(${idx})" title="Remove"><i data-lucide="x" style="width:11px; color: var(--danger);"></i></button>
+        <button class="btn btn-icon btn-sm" data-on-click="movePdfMergeItem" data-click-args="${actionArgs((idx), -1)}" ${idx === 0 ? 'disabled' : ''} title="Move Up"><i data-lucide="arrow-up" style="width:11px;"></i></button>
+        <button class="btn btn-icon btn-sm" data-on-click="movePdfMergeItem" data-click-args="${actionArgs((idx), 1)}" ${idx === currentPdfMergeList.length - 1 ? 'disabled' : ''} title="Move Down"><i data-lucide="arrow-down" style="width:11px;"></i></button>
+        <button class="btn btn-icon btn-sm" data-on-click="removePdfMergeItem" data-click-args="${actionArgs((idx))}" title="Remove"><i data-lucide="x" style="width:11px; color: var(--danger);"></i></button>
       </div>
     </div>
   `).join('');
+  bindActions(box);
 
   if (window.lucide) lucide.createIcons();
 }
@@ -41773,13 +41799,14 @@ function renderPdfPageOrganizerGrid() {
         <span style="color: black; font-size: 10px; font-family: var(--font-mono); font-weight: 700;">#${p.page_num}</span>
       </div>
       <div style="display: flex; gap: 2px; margin-top: 2px;">
-        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px;" onclick="rotatePdfOrganizerPage(${idx}, 90)" title="Rotate 90°">↻</button>
-        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px;" onclick="movePdfOrganizerPage(${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Left">◀</button>
-        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px;" onclick="movePdfOrganizerPage(${idx}, 1)" ${idx === currentPdfOrganizerPages.length - 1 ? 'disabled' : ''} title="Move Right">▶</button>
-        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px; color: var(--danger);" onclick="removePdfOrganizerPage(${idx})" title="Delete Page">✕</button>
+        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px;" data-on-click="rotatePdfOrganizerPage" data-click-args="${actionArgs((idx), 90)}" title="Rotate 90°">↻</button>
+        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px;" data-on-click="movePdfOrganizerPage" data-click-args="${actionArgs((idx), -1)}" ${idx === 0 ? 'disabled' : ''} title="Move Left">◀</button>
+        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px;" data-on-click="movePdfOrganizerPage" data-click-args="${actionArgs((idx), 1)}" ${idx === currentPdfOrganizerPages.length - 1 ? 'disabled' : ''} title="Move Right">▶</button>
+        <button class="btn btn-icon btn-sm" style="padding: 2px 4px; font-size: 9px; color: var(--danger);" data-on-click="removePdfOrganizerPage" data-click-args="${actionArgs((idx))}" title="Delete Page">✕</button>
       </div>
     </div>
   `).join('');
+  bindActions(grid);
 }
 
 function rotatePdfOrganizerPage(idx, deg) {
@@ -46547,7 +46574,7 @@ function updateRenamerPreview(isDryRun = false) {
 
         return `
           <tr class="${rowClass}">
-            <td style="text-align: center;"><input type="checkbox" ${it.isChecked ? 'checked' : ''} onchange="toggleRenamerItem(${idx}, this.checked)"></td>
+            <td style="text-align: center;"><input type="checkbox" ${it.isChecked ? 'checked' : ''} data-on-change="toggleRenamerItem" data-change-args="${actionArgs((idx), ACTION_CHECKED)}"></td>
             <td title="${escapeHtml(it.name)}" style="max-width: 200px;"><i data-lucide="${it.is_dir ? 'folder' : 'file'}" style="width: 12px; height: 12px; vertical-align: middle; margin-right: 4px;"></i> ${escapeHtml(it.name)}</td>
             <td style="text-align: center; color: var(--text-dim);">➔</td>
             <td class="renamer-col-new" title="${escapeHtml(it.newName)}" style="max-width: 220px;">${escapeHtml(it.newName)}</td>
@@ -46555,6 +46582,7 @@ function updateRenamerPreview(isDryRun = false) {
           </tr>
         `;
       }).join('');
+      bindActions(tbody);
       if (window.lucide) lucide.createIcons({ root: tbody });
     }
   }
@@ -46927,14 +46955,14 @@ function renderHexEditorView(targetMount = null) {
         if (isSelected) hexCls += ' selected';
         if (isModified) hexCls += ' modified';
 
-        hexParts.push(`<span class="${hexCls}" data-offset="${byteOffset}" onclick="selectHexByte(${byteOffset})">${hexStr}</span>`);
+        hexParts.push(`<span class="${hexCls}" data-offset="${byteOffset}">${hexStr}</span>`);
 
         const char = (b >= 32 && b <= 126) ? String.fromCharCode(b) : '·';
         let ascCls = 'hex-ascii-char';
         if (isSelected) ascCls += ' selected';
         if (isModified) ascCls += ' modified';
 
-        asciiParts.push(`<span class="${ascCls}" data-offset="${byteOffset}" onclick="selectHexByte(${byteOffset})">${escapeHtml(char)}</span>`);
+        asciiParts.push(`<span class="${ascCls}" data-offset="${byteOffset}">${escapeHtml(char)}</span>`);
       } else {
         hexParts.push(`<span class="hex-byte" style="opacity: 0.2;">--</span>`);
         asciiParts.push(`<span class="hex-ascii-char" style="opacity: 0.2;"> </span>`);
@@ -46952,6 +46980,14 @@ function renderHexEditorView(targetMount = null) {
   }
 
   container.innerHTML = rows.join('');
+  // Clicking a byte selects it; one listener covers every byte in this view
+  if (!container.dataset.hexClickBound) {
+    container.dataset.hexClickBound = '1';
+    container.addEventListener('click', (e) => {
+      const byteEl = e.target.closest('[data-offset]');
+      if (byteEl && container.contains(byteEl)) selectHexByte(parseInt(byteEl.dataset.offset, 10));
+    });
+  }
   updateHexInspector();
 
   const dirtyBadge = document.getElementById('hexeditor-dirty-badge');
