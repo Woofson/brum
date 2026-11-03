@@ -152,10 +152,13 @@ pub async fn security_headers_middleware(
         header::HeaderName::from_static("permissions-policy"),
         axum::http::HeaderValue::from_static("geolocation=(), microphone=(), camera=()"),
     );
-    // Pages that set a stricter policy of their own (the public share page) keep it
+    // Pages that set a stricter policy of their own (the public share page) keep it.
+    // Scripts: only Brum's own files (no inline script or inline event handlers, see #152).
+    // Images: Brum's own, plus OpenStreetMap tiles for the Media Inspector map.
     headers.entry(header::CONTENT_SECURITY_POLICY).or_insert(
         axum::http::HeaderValue::from_static(
-            "default-src 'self' 'unsafe-inline' data: blob: ws: wss:; script-src 'self' 'unsafe-inline'; \
+            "default-src 'self' 'unsafe-inline' data: blob: ws: wss:; script-src 'self'; \
+             img-src 'self' data: blob: https://*.tile.openstreetmap.org; \
              object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self';"
         ),
     );
@@ -1899,6 +1902,38 @@ mod tests {
         assert!(!html.contains(r#"onclick="openFilePreview"#));
         assert!(!html.contains(r#"alt="${f.name}""#));
         assert!(html.contains("replace(/'/g, '&#39;')"));
+    }
+
+    #[tokio::test]
+    async fn test_public_share_page_scripts_are_local_and_carry_the_nonce() {
+        let response = crate::server::share_handlers::handle_public_share_page(
+            axum::extract::Path("token".to_string()),
+        ).await;
+        let csp = response.headers().get(header::CONTENT_SECURITY_POLICY)
+            .and_then(|v| v.to_str().ok()).unwrap().to_string();
+        let nonce = csp.split("'nonce-").nth(1).and_then(|r| r.split('\'').next()).unwrap().to_string();
+        let bytes = axum::body::to_bytes(response.into_body(), usize::MAX).await.unwrap();
+        let html = String::from_utf8_lossy(&bytes);
+        let tags: Vec<&str> = html.match_indices("<script").map(|(i, _)| &html[i..i + html[i..].find('>').unwrap()]).collect();
+        assert!(!tags.is_empty());
+        for tag in tags {
+            assert!(tag.contains(&format!("nonce=\"{nonce}\"")), "script without the page nonce: {tag}");
+            assert!(!tag.contains("http://") && !tag.contains("https://"), "script loaded from outside Brum: {tag}");
+        }
+    }
+
+    #[test]
+    fn test_bundled_libraries_are_embedded() {
+        for path in [
+            "assets/vendor/mermaid.min.js",
+            "assets/vendor/three.min.js",
+            "assets/vendor/leaflet/leaflet.js",
+            "assets/vendor/leaflet/leaflet.css",
+            "assets/vendor/leaflet/images/marker-icon.png",
+            "assets/boot.js",
+        ] {
+            assert!(crate::server::Asset::get(path).is_some(), "{path} is not embedded in the binary");
+        }
     }
 
     fn headers_with(pairs: &[(&'static str, &str)]) -> HeaderMap {

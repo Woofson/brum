@@ -27526,11 +27526,11 @@ function openPaneSettingsMenu(e, paneIndex) {
           </div>
           <div style="display: flex; gap: 6px; margin-bottom: ${visibleCount > 2 ? '6px' : '0'};">
             <button type="button" class="btn btn-xs btn-outline" style="flex: 1; padding: 4px 6px; font-size: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; ${paneIndex === 0 ? 'opacity: 0.4; cursor: not-allowed;' : ''}"
-                    ${paneIndex === 0 ? 'disabled' : `onclick="swapPanes(${paneIndex}, ${paneIndex - 1}); openPaneSettingsMenu(null, ${paneIndex - 1});"`}>
+                    ${paneIndex === 0 ? 'disabled' : `data-on-click="swapPanes" data-click-args="${actionArgs(paneIndex, paneIndex - 1)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, paneIndex - 1])}"`}>
               <i data-lucide="arrow-left" style="width: 12px; height: 12px;"></i> Move Left
             </button>
             <button type="button" class="btn btn-xs btn-outline" style="flex: 1; padding: 4px 6px; font-size: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; ${paneIndex >= visibleCount - 1 ? 'opacity: 0.4; cursor: not-allowed;' : ''}"
-                    ${paneIndex >= visibleCount - 1 ? 'disabled' : `onclick="swapPanes(${paneIndex}, ${paneIndex + 1}); openPaneSettingsMenu(null, ${paneIndex + 1});"`}>
+                    ${paneIndex >= visibleCount - 1 ? 'disabled' : `data-on-click="swapPanes" data-click-args="${actionArgs(paneIndex, paneIndex + 1)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, paneIndex + 1])}"`}>
               Move Right <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
             </button>
           </div>

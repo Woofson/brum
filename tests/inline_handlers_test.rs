@@ -17,7 +17,8 @@ const CEILINGS: &[(&str, usize)] = &[
 fn count_inline_handlers(text: &str) -> usize {
     // `onclick="`, `onchange='`, and `onclick=\"` inside JS strings; whitespace before `on`
     // keeps names like `data-on-click=` and `el.onclick =` out of the count.
-    let re = Regex::new(r#"(?i)\son[a-z]+\s*=\s*\\?["']"#).unwrap();
+    // any character that cannot be part of a name before `on`: space, quote, backtick, `>` ...
+    let re = Regex::new(r#"(?i)(?:^|[^\w.-])on[a-z]+\s*=\s*\\?["']"#).unwrap();
     // handlers written from code: el.setAttribute('onclick', ...)
     let set_attr = Regex::new(r#"(?i)setAttribute\(\s*['"]on[a-z]+['"]"#).unwrap();
     re.find_iter(text).count() + set_attr.find_iter(text).count()
@@ -135,5 +136,7 @@ fn counter_ignores_data_attributes_and_properties() {
     assert_eq!(count_inline_handlers(r#"<b onclick="x()">"#), 1);
     assert_eq!(count_inline_handlers(r#"html += '<b onchange=\"x()\">';"#), 1);
     assert_eq!(count_inline_handlers(r#"btn.setAttribute('onclick', `x()`);"#), 1);
+    assert_eq!(count_inline_handlers(r#"${ok ? '' : `onclick="x()"`}"#), 1);
+    assert_eq!(count_inline_handlers(r#"<b class="a"onclick="x()">"#), 1);
     assert_eq!(count_inline_handlers(r#"btn.setAttribute('data-on-click', 'x');"#), 0);
 }

@@ -862,7 +862,7 @@ pub async fn handle_public_share_page(
   <title>CommanderDog Showcase Portal</title>
   <link rel="icon" type="image/png" href="/assets/favicon.png">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
+  <script src="/assets/vendor/three.min.js" nonce="{nonce}"></script>
   <style>
     :root {{
       --bg-dark: #121214;

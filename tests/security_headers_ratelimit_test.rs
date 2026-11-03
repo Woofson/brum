@@ -61,10 +61,12 @@ async fn test_security_headers_injected() {
         Some("strict-origin-when-cross-origin"),
         "Missing or incorrect Referrer-Policy"
     );
-    assert!(
-        headers.get("content-security-policy").is_some(),
-        "Missing Content-Security-Policy header"
-    );
+    let csp = headers.get("content-security-policy").and_then(|v| v.to_str().ok())
+        .expect("Missing Content-Security-Policy header");
+    // Only Brum's own script files may run: no inline script, no inline event handlers
+    let script_src = csp.split(';').map(str::trim).find(|d| d.starts_with("script-src"))
+        .expect("CSP has no script-src");
+    assert_eq!(script_src, "script-src 'self'", "script-src must allow only Brum's own files: {csp}");
     assert!(
         headers.get("permissions-policy").is_some(),
         "Missing Permissions-Policy header"
