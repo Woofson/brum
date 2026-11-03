@@ -448,7 +448,7 @@
     <div class="modal-box" style="width: 500px;">
       <div class="modal-header">
         <span>🔒 Unix Permissions & Ownership Manager</span>
-        <button class="btn" onclick="closeModal('permissions-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["permissions-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
@@ -472,21 +472,21 @@
           <tbody>
             <tr>
               <td style="font-weight: 600; color: var(--accent);">Owner (User)</td>
-              <td><input type="checkbox" id="perm-u-r" onchange="updatePermFromCheckboxes()"></td>
-              <td><input type="checkbox" id="perm-u-w" onchange="updatePermFromCheckboxes()"></td>
-              <td><input type="checkbox" id="perm-u-x" onchange="updatePermFromCheckboxes()"></td>
+              <td><input type="checkbox" id="perm-u-r" data-on-change="updatePermFromCheckboxes"></td>
+              <td><input type="checkbox" id="perm-u-w" data-on-change="updatePermFromCheckboxes"></td>
+              <td><input type="checkbox" id="perm-u-x" data-on-change="updatePermFromCheckboxes"></td>
             </tr>
             <tr>
               <td style="font-weight: 600; color: var(--info);">Group</td>
-              <td><input type="checkbox" id="perm-g-r" onchange="updatePermFromCheckboxes()"></td>
-              <td><input type="checkbox" id="perm-g-w" onchange="updatePermFromCheckboxes()"></td>
-              <td><input type="checkbox" id="perm-g-x" onchange="updatePermFromCheckboxes()"></td>
+              <td><input type="checkbox" id="perm-g-r" data-on-change="updatePermFromCheckboxes"></td>
+              <td><input type="checkbox" id="perm-g-w" data-on-change="updatePermFromCheckboxes"></td>
+              <td><input type="checkbox" id="perm-g-x" data-on-change="updatePermFromCheckboxes"></td>
             </tr>
             <tr>
               <td style="font-weight: 600; color: var(--text-muted);">Others (Public)</td>
-              <td><input type="checkbox" id="perm-o-r" onchange="updatePermFromCheckboxes()"></td>
-              <td><input type="checkbox" id="perm-o-w" onchange="updatePermFromCheckboxes()"></td>
-              <td><input type="checkbox" id="perm-o-x" onchange="updatePermFromCheckboxes()"></td>
+              <td><input type="checkbox" id="perm-o-r" data-on-change="updatePermFromCheckboxes"></td>
+              <td><input type="checkbox" id="perm-o-w" data-on-change="updatePermFromCheckboxes"></td>
+              <td><input type="checkbox" id="perm-o-x" data-on-change="updatePermFromCheckboxes"></td>
             </tr>
           </tbody>
         </table>
@@ -495,11 +495,11 @@
         <div style="margin-top: 10px;">
           <span style="font-size: 11px; color: var(--text-muted); font-weight: 600;">1-Click Presets:</span>
           <div class="perm-preset-container">
-            <button class="perm-chip" onclick="applyPermPreset(0o644)">📄 Standard File (0644)</button>
-            <button class="perm-chip" onclick="applyPermPreset(0o755)">⚡ Executable / Script (0755)</button>
-            <button class="perm-chip" onclick="applyPermPreset(0o600)">🔒 Private & Secure (0600)</button>
-            <button class="perm-chip" onclick="applyPermPreset(0o700)"><span class="file-icon-custom-glyph icon-sm" style="color: var(--accent); margin-right: 4px;"></span> Private Dir / SSH (0700)</button>
-            <button class="perm-chip" onclick="applyPermPreset(0o777)">🌐 Full Public (0777)</button>
+            <button class="perm-chip" data-on-click="applyPermPreset" data-click-args='[420]'>📄 Standard File (0644)</button>
+            <button class="perm-chip" data-on-click="applyPermPreset" data-click-args='[493]'>⚡ Executable / Script (0755)</button>
+            <button class="perm-chip" data-on-click="applyPermPreset" data-click-args='[384]'>🔒 Private & Secure (0600)</button>
+            <button class="perm-chip" data-on-click="applyPermPreset" data-click-args='[448]'><span class="file-icon-custom-glyph icon-sm" style="color: var(--accent); margin-right: 4px;"></span> Private Dir / SSH (0700)</button>
+            <button class="perm-chip" data-on-click="applyPermPreset" data-click-args='[511]'>🌐 Full Public (0777)</button>
           </div>
         </div>
 
@@ -522,7 +522,7 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('permissions-modal')">Cancel</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["permissions-modal"]'>Cancel</button>
         <button class="btn btn-accent" id="btn-save-permissions">Apply Permissions</button>
       </div>
     </div>
@@ -536,18 +536,18 @@
           <span id="prop-header-icon" style="display: inline-flex; align-items: center; margin-right: 4px;"><span class="file-icon-custom-glyph icon-sm" style="color: var(--accent);"></span></span>
           <span id="prop-header-title" style="font-weight: 700; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">Properties</span>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('properties-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["properties-modal"]'><i data-lucide="x"></i></button>
       </div>
 
       <!-- Properties Tabs Header -->
       <div class="settings-tabs properties-tabs-header" style="overflow-x: auto; flex-wrap: nowrap;">
-        <button class="settings-tab-btn active" id="btn-prop-tab-general" onclick="switchPropertiesTab('prop-tab-general')"><i data-lucide="info"></i> General</button>
-        <button class="settings-tab-btn" id="btn-prop-tab-security" onclick="switchPropertiesTab('prop-tab-security')"><i data-lucide="shield"></i> Security</button>
-        <button class="settings-tab-btn" id="btn-prop-tab-metadata" onclick="switchPropertiesTab('prop-tab-metadata')"><i data-lucide="file-text"></i> Metadata</button>
-        <button class="settings-tab-btn" id="btn-prop-tab-stats" onclick="switchPropertiesTab('prop-tab-stats')"><i data-lucide="pie-chart"></i> Stats</button>
-        <button class="settings-tab-btn" id="btn-prop-tab-checksums" onclick="switchPropertiesTab('prop-tab-checksums')"><i data-lucide="hash"></i> Checksums</button>
-        <button class="settings-tab-btn" id="btn-prop-tab-tags" onclick="switchPropertiesTab('prop-tab-tags')"><i data-lucide="tag"></i> Customize</button>
-        <button class="settings-tab-btn" id="btn-prop-tab-git" onclick="switchPropertiesTab('prop-tab-git')"><i data-lucide="git-branch"></i> Git</button>
+        <button class="settings-tab-btn active" id="btn-prop-tab-general" data-on-click="switchPropertiesTab" data-click-args='["prop-tab-general"]'><i data-lucide="info"></i> General</button>
+        <button class="settings-tab-btn" id="btn-prop-tab-security" data-on-click="switchPropertiesTab" data-click-args='["prop-tab-security"]'><i data-lucide="shield"></i> Security</button>
+        <button class="settings-tab-btn" id="btn-prop-tab-metadata" data-on-click="switchPropertiesTab" data-click-args='["prop-tab-metadata"]'><i data-lucide="file-text"></i> Metadata</button>
+        <button class="settings-tab-btn" id="btn-prop-tab-stats" data-on-click="switchPropertiesTab" data-click-args='["prop-tab-stats"]'><i data-lucide="pie-chart"></i> Stats</button>
+        <button class="settings-tab-btn" id="btn-prop-tab-checksums" data-on-click="switchPropertiesTab" data-click-args='["prop-tab-checksums"]'><i data-lucide="hash"></i> Checksums</button>
+        <button class="settings-tab-btn" id="btn-prop-tab-tags" data-on-click="switchPropertiesTab" data-click-args='["prop-tab-tags"]'><i data-lucide="tag"></i> Customize</button>
+        <button class="settings-tab-btn" id="btn-prop-tab-git" data-on-click="switchPropertiesTab" data-click-args='["prop-tab-git"]'><i data-lucide="git-branch"></i> Git</button>
       </div>
 
       <!-- Properties Modal Body -->
@@ -601,12 +601,12 @@
               <span style="font-size: 10px; font-weight: 400; text-transform: none; color: var(--text-dim);">Click to apply preset</span>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-              <button type="button" class="btn btn-xs" onclick="applyPropPermPreset(0o755)" title="rwxr-xr-x: Executables, Folders, Standard Read/Exec"><code>755</code> Exec/Dir</button>
-              <button type="button" class="btn btn-xs" onclick="applyPropPermPreset(0o644)" title="rw-r--r--: Standard text & document files"><code>644</code> File</button>
-              <button type="button" class="btn btn-xs" onclick="applyPropPermPreset(0o700)" title="rwx------: Private owner only"><code>700</code> Private Dir</button>
-              <button type="button" class="btn btn-xs" onclick="applyPropPermPreset(0o600)" title="rw-------: Private keys and secrets"><code>600</code> Private File</button>
-              <button type="button" class="btn btn-xs" onclick="applyPropPermPreset(0o777)" title="rwxrwxrwx: Full read/write/execute for all"><code>777</code> Full Open</button>
-              <button type="button" class="btn btn-xs" onclick="applyPropPermPreset(0o666)" title="rw-rw-rw-: Read/write for all"><code>666</code> Read/Write</button>
+              <button type="button" class="btn btn-xs" data-on-click="applyPropPermPreset" data-click-args='[493]' title="rwxr-xr-x: Executables, Folders, Standard Read/Exec"><code>755</code> Exec/Dir</button>
+              <button type="button" class="btn btn-xs" data-on-click="applyPropPermPreset" data-click-args='[420]' title="rw-r--r--: Standard text & document files"><code>644</code> File</button>
+              <button type="button" class="btn btn-xs" data-on-click="applyPropPermPreset" data-click-args='[448]' title="rwx------: Private owner only"><code>700</code> Private Dir</button>
+              <button type="button" class="btn btn-xs" data-on-click="applyPropPermPreset" data-click-args='[384]' title="rw-------: Private keys and secrets"><code>600</code> Private File</button>
+              <button type="button" class="btn btn-xs" data-on-click="applyPropPermPreset" data-click-args='[511]' title="rwxrwxrwx: Full read/write/execute for all"><code>777</code> Full Open</button>
+              <button type="button" class="btn btn-xs" data-on-click="applyPropPermPreset" data-click-args='[438]' title="rw-rw-rw-: Read/write for all"><code>666</code> Read/Write</button>
             </div>
           </div>
 
@@ -627,21 +627,21 @@
             <tbody>
               <tr>
                 <td style="font-weight: 600; color: var(--accent);">Owner (u)</td>
-                <td><input type="checkbox" id="prop-perm-u-r" onchange="updatePropPermFromCheckboxes()"></td>
-                <td><input type="checkbox" id="prop-perm-u-w" onchange="updatePropPermFromCheckboxes()"></td>
-                <td><input type="checkbox" id="prop-perm-u-x" onchange="updatePropPermFromCheckboxes()"></td>
+                <td><input type="checkbox" id="prop-perm-u-r" data-on-change="updatePropPermFromCheckboxes"></td>
+                <td><input type="checkbox" id="prop-perm-u-w" data-on-change="updatePropPermFromCheckboxes"></td>
+                <td><input type="checkbox" id="prop-perm-u-x" data-on-change="updatePropPermFromCheckboxes"></td>
               </tr>
               <tr>
                 <td style="font-weight: 600; color: var(--info);">Group (g)</td>
-                <td><input type="checkbox" id="prop-perm-g-r" onchange="updatePropPermFromCheckboxes()"></td>
-                <td><input type="checkbox" id="prop-perm-g-w" onchange="updatePropPermFromCheckboxes()"></td>
-                <td><input type="checkbox" id="prop-perm-g-x" onchange="updatePropPermFromCheckboxes()"></td>
+                <td><input type="checkbox" id="prop-perm-g-r" data-on-change="updatePropPermFromCheckboxes"></td>
+                <td><input type="checkbox" id="prop-perm-g-w" data-on-change="updatePropPermFromCheckboxes"></td>
+                <td><input type="checkbox" id="prop-perm-g-x" data-on-change="updatePropPermFromCheckboxes"></td>
               </tr>
               <tr>
                 <td style="font-weight: 600; color: var(--text-muted);">Others (o)</td>
-                <td><input type="checkbox" id="prop-perm-o-r" onchange="updatePropPermFromCheckboxes()"></td>
-                <td><input type="checkbox" id="prop-perm-o-w" onchange="updatePropPermFromCheckboxes()"></td>
-                <td><input type="checkbox" id="prop-perm-o-x" onchange="updatePropPermFromCheckboxes()"></td>
+                <td><input type="checkbox" id="prop-perm-o-r" data-on-change="updatePropPermFromCheckboxes"></td>
+                <td><input type="checkbox" id="prop-perm-o-w" data-on-change="updatePropPermFromCheckboxes"></td>
+                <td><input type="checkbox" id="prop-perm-o-x" data-on-change="updatePropPermFromCheckboxes"></td>
               </tr>
             </tbody>
           </table>
@@ -663,14 +663,14 @@
             </label>
           </div>
 
-          <button class="btn btn-accent btn-sm" onclick="savePropertiesSecurity()"><i data-lucide="check"></i> Apply Security Changes</button>
+          <button class="btn btn-accent btn-sm" data-on-click="savePropertiesSecurity"><i data-lucide="check"></i> Apply Security Changes</button>
         </div>
 
         <!-- Tab 3: Dynamic Metadata (EXIF, ID3, PDF, Tags) -->
         <div class="settings-tab-content" id="prop-tab-metadata">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-weight: 600; font-size: 12px; color: var(--accent);">File Metadata, Tags & EXIF</span>
-            <button class="btn btn-xs" onclick="reloadPropertiesMetadata()"><i data-lucide="refresh-cw" style="width: 11px;"></i> Refresh</button>
+            <button class="btn btn-xs" data-on-click="reloadPropertiesMetadata"><i data-lucide="refresh-cw" style="width: 11px;"></i> Refresh</button>
           </div>
           <div id="prop-metadata-container" style="display: flex; flex-direction: column; gap: 8px;">
             <div style="color: var(--text-muted); font-size: 11px;">Loading extended metadata...</div>
@@ -681,7 +681,7 @@
         <div class="settings-tab-content" id="prop-tab-stats">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-weight: 600; font-size: 12px; color: var(--accent);">Folder Disk Usage & Stats</span>
-            <button class="btn btn-xs btn-accent" onclick="runPropertiesStatsScan()"><i data-lucide="play" style="width: 11px;"></i> Scan Folder</button>
+            <button class="btn btn-xs btn-accent" data-on-click="runPropertiesStatsScan"><i data-lucide="play" style="width: 11px;"></i> Scan Folder</button>
           </div>
           <div id="prop-stats-container" style="display: flex; flex-direction: column; gap: 8px;">
             <div style="color: var(--text-muted); font-size: 11px;">Click 'Scan Folder' to analyze recursive disk usage and file distribution.</div>
@@ -692,7 +692,7 @@
         <div class="settings-tab-content" id="prop-tab-checksums">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-weight: 600; font-size: 12px; color: var(--accent);">File Checksums & Integrity</span>
-            <button class="btn btn-sm" onclick="calculatePropertiesChecksums()"><i data-lucide="play"></i> Compute Checksums</button>
+            <button class="btn btn-sm" data-on-click="calculatePropertiesChecksums"><i data-lucide="play"></i> Compute Checksums</button>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -700,21 +700,21 @@
               <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">SHA-256 Checksum:</label>
               <div style="display: flex; gap: 6px; margin-top: 2px;">
                 <input type="text" id="prop-hash-sha256" class="pane-quick-filter" readonly style="flex: 1; font-family: var(--font-mono); font-size: 11px;" value="-">
-                <button class="btn btn-icon btn-sm" onclick="copyPropHash('prop-hash-sha256')" title="Copy SHA-256"><i data-lucide="copy"></i></button>
+                <button class="btn btn-icon btn-sm" data-on-click="copyPropHash" data-click-args='["prop-hash-sha256"]' title="Copy SHA-256"><i data-lucide="copy"></i></button>
               </div>
             </div>
             <div>
               <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">MD5 Checksum:</label>
               <div style="display: flex; gap: 6px; margin-top: 2px;">
                 <input type="text" id="prop-hash-md5" class="pane-quick-filter" readonly style="flex: 1; font-family: var(--font-mono); font-size: 11px;" value="-">
-                <button class="btn btn-icon btn-sm" onclick="copyPropHash('prop-hash-md5')" title="Copy MD5"><i data-lucide="copy"></i></button>
+                <button class="btn btn-icon btn-sm" data-on-click="copyPropHash" data-click-args='["prop-hash-md5"]' title="Copy MD5"><i data-lucide="copy"></i></button>
               </div>
             </div>
             <div>
               <label style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; font-weight: 700;">SHA-1 Checksum:</label>
               <div style="display: flex; gap: 6px; margin-top: 2px;">
                 <input type="text" id="prop-hash-sha1" class="pane-quick-filter" readonly style="flex: 1; font-family: var(--font-mono); font-size: 11px;" value="-">
-                <button class="btn btn-icon btn-sm" onclick="copyPropHash('prop-hash-sha1')" title="Copy SHA-1"><i data-lucide="copy"></i></button>
+                <button class="btn btn-icon btn-sm" data-on-click="copyPropHash" data-click-args='["prop-hash-sha1"]' title="Copy SHA-1"><i data-lucide="copy"></i></button>
               </div>
             </div>
           </div>
@@ -726,13 +726,13 @@
           <div class="form-group">
             <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Color Label:</label>
             <div class="context-color-palette" style="display: flex; gap: 8px; margin-top: 4px;">
-              <span class="color-dot color-red" onclick="setPropFileColor('red')" title="Red (Urgent)"></span>
-              <span class="color-dot color-orange" onclick="setPropFileColor('orange')" title="Orange (Pending)"></span>
-              <span class="color-dot color-yellow" onclick="setPropFileColor('yellow')" title="Review)"></span>
-              <span class="color-dot color-green" onclick="setPropFileColor('green')" title="Green (Approved)"></span>
-              <span class="color-dot color-blue" onclick="setPropFileColor('blue')" title="Blue (Important)"></span>
-              <span class="color-dot color-purple" onclick="setPropFileColor('purple')" title="Purple (Personal)"></span>
-              <span class="color-dot color-none" onclick="setPropFileColor('none')" title="Clear Label">✕</span>
+              <span class="color-dot color-red" data-on-click="setPropFileColor" data-click-args='["red"]' title="Red (Urgent)"></span>
+              <span class="color-dot color-orange" data-on-click="setPropFileColor" data-click-args='["orange"]' title="Orange (Pending)"></span>
+              <span class="color-dot color-yellow" data-on-click="setPropFileColor" data-click-args='["yellow"]' title="Review)"></span>
+              <span class="color-dot color-green" data-on-click="setPropFileColor" data-click-args='["green"]' title="Green (Approved)"></span>
+              <span class="color-dot color-blue" data-on-click="setPropFileColor" data-click-args='["blue"]' title="Blue (Important)"></span>
+              <span class="color-dot color-purple" data-on-click="setPropFileColor" data-click-args='["purple"]' title="Purple (Personal)"></span>
+              <span class="color-dot color-none" data-on-click="setPropFileColor" data-click-args='["none"]' title="Clear Label">✕</span>
             </div>
           </div>
 
@@ -754,8 +754,8 @@
             <!-- Custom Input Box -->
             <div style="display: flex; gap: 6px; align-items: center;">
               <input type="text" id="prop-input-custom-icon" class="pane-quick-filter" placeholder="Paste any emoji (📁, 🚀), Nerd Font (, ), lucide:star, or img:path..." style="flex: 1; padding: 6px 8px; font-family: var(--font-mono), sans-serif; font-size: 12px;">
-              <button class="btn btn-sm btn-accent" onclick="applyPropCustomIconInput()"><i data-lucide="check"></i> Apply</button>
-              <button class="btn btn-sm" onclick="clearPropCustomIcon()"><i data-lucide="rotate-ccw"></i> Reset</button>
+              <button class="btn btn-sm btn-accent" data-on-click="applyPropCustomIconInput"><i data-lucide="check"></i> Apply</button>
+              <button class="btn btn-sm" data-on-click="clearPropCustomIcon"><i data-lucide="rotate-ccw"></i> Reset</button>
             </div>
             <div class="form-hint" style="margin-top: 5px; font-size: 11px; color: var(--text-dim);">
               Custom icon is saved specifically for this path and displayed across tables, compact, grid, and tree views.
@@ -767,8 +767,8 @@
             <label style="font-weight: 600; font-size: 12px; margin-bottom: 6px; display: block;">Custom Tags:</label>
             <div id="prop-tags-container" style="display: flex; gap: 6px; flex-wrap: wrap; margin: 8px 0; min-height: 28px;"></div>
             <div style="display: flex; gap: 6px; margin-top: 6px;">
-              <input type="text" id="prop-input-new-tag" class="pane-quick-filter" placeholder="Add tag (e.g. docs, urgent)..." style="flex: 1;" onkeydown="if(event.key==='Enter')addPropCustomTag()">
-              <button class="btn btn-sm btn-accent" onclick="addPropCustomTag()"><i data-lucide="plus"></i> Add</button>
+              <input type="text" id="prop-input-new-tag" class="pane-quick-filter" placeholder="Add tag (e.g. docs, urgent)..." style="flex: 1;" data-keydown-key="Enter" data-on-keydown="addPropCustomTag">
+              <button class="btn btn-sm btn-accent" data-on-click="addPropCustomTag"><i data-lucide="plus"></i> Add</button>
             </div>
           </div>
         </div>
@@ -777,7 +777,7 @@
         <div class="settings-tab-content" id="prop-tab-git">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-weight: 600; font-size: 12px; color: var(--accent);">Git Status & Version Control</span>
-            <button class="btn btn-xs btn-accent" onclick="openGitFromProperties()"><i data-lucide="git-branch" style="width: 11px;"></i> Open Git Manager</button>
+            <button class="btn btn-xs btn-accent" data-on-click="openGitFromProperties"><i data-lucide="git-branch" style="width: 11px;"></i> Open Git Manager</button>
           </div>
           <div id="prop-git-container" style="display: flex; flex-direction: column; gap: 8px;">
             <div style="color: var(--text-muted); font-size: 11px;">Inspecting Git repository status...</div>
@@ -786,7 +786,7 @@
       </div>
 
       <div class="modal-footer" style="padding: 10px 16px; border-top: 1px solid var(--border);">
-        <button class="btn btn-accent btn-sm" onclick="closeModal('properties-modal')">Close</button>
+        <button class="btn btn-accent btn-sm" data-on-click="closeModal" data-click-args='["properties-modal"]'>Close</button>
       </div>
     </div>
   </div>
@@ -4804,7 +4804,7 @@
     <div class="modal-box" style="width: 70vw; max-height: 80vh;">
       <div class="modal-header">
         <span id="preview-title">File Preview</span>
-        <button class="btn" onclick="closeModal('preview-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["preview-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" id="preview-body" style="font-family: var(--font-mono); font-size: 12px; white-space: pre-wrap; overflow: auto; max-height: 65vh;"></div>
     </div>
@@ -5471,54 +5471,54 @@
         </div>
 
         <div class="image-viewer-nav-pill">
-          <button class="btn btn-icon btn-sm" onclick="navImageViewer(-1)" title="Previous Image (Left Arrow)"><i data-lucide="chevron-left"></i></button>
+          <button class="btn btn-icon btn-sm" data-on-click="navImageViewer" data-click-args='[-1]' title="Previous Image (Left Arrow)"><i data-lucide="chevron-left"></i></button>
           <span id="img-viewer-counter" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-dim); min-width: 42px; text-align: center;">1 / 1</span>
-          <button class="btn btn-icon btn-sm" onclick="navImageViewer(1)" title="Next Image (Right Arrow)"><i data-lucide="chevron-right"></i></button>
+          <button class="btn btn-icon btn-sm" data-on-click="navImageViewer" data-click-args='[1]' title="Next Image (Right Arrow)"><i data-lucide="chevron-right"></i></button>
         </div>
 
         <div class="image-viewer-actions-group">
           <!-- Desktop Direct Transform Buttons (Layout Switcher / Transform Group) -->
           <div class="layout-btn-group desktop-only" id="img-transform-btn-group">
-            <button class="btn btn-icon" onclick="zoomImage(0.2)" title="Zoom In (+)"><i data-lucide="zoom-in"></i></button>
-            <button class="btn btn-icon" onclick="zoomImage(-0.2)" title="Zoom Out (-)"><i data-lucide="zoom-out"></i></button>
-            <button class="btn btn-icon" onclick="resetImageTransform()" title="Reset 1:1 View (0)"><i data-lucide="refresh-cw"></i></button>
-            <button class="btn btn-icon" onclick="rotateImage(90)" title="Rotate Clockwise 90° (R)"><i data-lucide="rotate-cw"></i></button>
-            <button class="btn btn-icon" onclick="flipImage('h')" title="Flip Horizontal"><i data-lucide="flip-horizontal"></i></button>
-            <button class="btn btn-icon" onclick="flipImage('v')" title="Flip Vertical"><i data-lucide="flip-vertical"></i></button>
+            <button class="btn btn-icon" data-on-click="zoomImage" data-click-args='[0.2]' title="Zoom In (+)"><i data-lucide="zoom-in"></i></button>
+            <button class="btn btn-icon" data-on-click="zoomImage" data-click-args='[-0.2]' title="Zoom Out (-)"><i data-lucide="zoom-out"></i></button>
+            <button class="btn btn-icon" data-on-click="resetImageTransform" title="Reset 1:1 View (0)"><i data-lucide="refresh-cw"></i></button>
+            <button class="btn btn-icon" data-on-click="rotateImage" data-click-args='[90]' title="Rotate Clockwise 90° (R)"><i data-lucide="rotate-cw"></i></button>
+            <button class="btn btn-icon" data-on-click="flipImage" data-click-args='["h"]' title="Flip Horizontal"><i data-lucide="flip-horizontal"></i></button>
+            <button class="btn btn-icon" data-on-click="flipImage" data-click-args='["v"]' title="Flip Vertical"><i data-lucide="flip-vertical"></i></button>
           </div>
 
           <!-- Desktop File Operations Group (Rename, Copy, Move, Delete) -->
           <div class="layout-btn-group desktop-only" id="img-file-actions-group">
-            <button class="btn btn-icon" onclick="imageViewerRenameCurrent()" title="Rename Image (F2)"><i data-lucide="edit-3"></i></button>
-            <button class="btn btn-icon" onclick="imageViewerCopyCurrent()" title="Copy to Opposite Panel (F5)"><i data-lucide="copy"></i></button>
-            <button class="btn btn-icon" onclick="imageViewerMoveCurrent()" title="Move to Opposite Panel (F6)"><i data-lucide="folder-input"></i></button>
-            <button class="btn btn-icon" onclick="imageViewerDeleteCurrent()" title="Delete / Move to Trash (F8 / Del)" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
+            <button class="btn btn-icon" data-on-click="imageViewerRenameCurrent" title="Rename Image (F2)"><i data-lucide="edit-3"></i></button>
+            <button class="btn btn-icon" data-on-click="imageViewerCopyCurrent" title="Copy to Opposite Panel (F5)"><i data-lucide="copy"></i></button>
+            <button class="btn btn-icon" data-on-click="imageViewerMoveCurrent" title="Move to Opposite Panel (F6)"><i data-lucide="folder-input"></i></button>
+            <button class="btn btn-icon" data-on-click="imageViewerDeleteCurrent" title="Delete / Move to Trash (F8 / Del)" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
           </div>
 
           <!-- Mobile / Foldable Consolidated Transform & Action Dropdown -->
           <div class="dropdown-container mobile-only" id="img-transform-dropdown-container" style="position: relative;">
-            <button class="btn btn-icon" onclick="toggleImgTransformDropdown(event)" title="Transform & Actions"><i data-lucide="sliders-horizontal"></i></button>
+            <button class="btn btn-icon" data-on-click="toggleImgTransformDropdown" data-click-args='[{"$": "event"}]' title="Transform & Actions"><i data-lucide="sliders-horizontal"></i></button>
             <div class="dropdown-menu" id="img-transform-dropdown-menu" style="display: none; right: 0; min-width: 180px;">
-              <div class="dropdown-item" onclick="imageViewerRenameCurrent(); closeImgTransformDropdown();"><i data-lucide="edit-3"></i> Rename (F2)</div>
-              <div class="dropdown-item" onclick="imageViewerCopyCurrent(); closeImgTransformDropdown();"><i data-lucide="copy"></i> Copy to Panel (F5)</div>
-              <div class="dropdown-item" onclick="imageViewerMoveCurrent(); closeImgTransformDropdown();"><i data-lucide="folder-input"></i> Move to Panel (F6)</div>
-              <div class="dropdown-item" onclick="imageViewerDeleteCurrent(); closeImgTransformDropdown();" style="color: var(--danger);"><i data-lucide="trash-2"></i> Delete / Trash (F8)</div>
+              <div class="dropdown-item" data-on-click="imageViewerRenameCurrent" data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="edit-3"></i> Rename (F2)</div>
+              <div class="dropdown-item" data-on-click="imageViewerCopyCurrent" data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="copy"></i> Copy to Panel (F5)</div>
+              <div class="dropdown-item" data-on-click="imageViewerMoveCurrent" data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="folder-input"></i> Move to Panel (F6)</div>
+              <div class="dropdown-item" data-on-click="imageViewerDeleteCurrent" data-click-steps='[["closeImgTransformDropdown"]]' style="color: var(--danger);"><i data-lucide="trash-2"></i> Delete / Trash (F8)</div>
               <div class="dropdown-divider"></div>
-              <div class="dropdown-item" onclick="zoomImage(0.2); closeImgTransformDropdown();"><i data-lucide="zoom-in"></i> Zoom In (+)</div>
-              <div class="dropdown-item" onclick="zoomImage(-0.2); closeImgTransformDropdown();"><i data-lucide="zoom-out"></i> Zoom Out (-)</div>
-              <div class="dropdown-item" onclick="resetImageTransform(); closeImgTransformDropdown();"><i data-lucide="refresh-cw"></i> Reset (1:1)</div>
-              <div class="dropdown-item" onclick="rotateImage(90); closeImgTransformDropdown();"><i data-lucide="rotate-cw"></i> Rotate 90°</div>
-              <div class="dropdown-item" onclick="flipImage('h'); closeImgTransformDropdown();"><i data-lucide="flip-horizontal"></i> Flip Horizontal</div>
-              <div class="dropdown-item" onclick="flipImage('v'); closeImgTransformDropdown();"><i data-lucide="flip-vertical"></i> Flip Vertical</div>
+              <div class="dropdown-item" data-on-click="zoomImage" data-click-args='[0.2]' data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="zoom-in"></i> Zoom In (+)</div>
+              <div class="dropdown-item" data-on-click="zoomImage" data-click-args='[-0.2]' data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="zoom-out"></i> Zoom Out (-)</div>
+              <div class="dropdown-item" data-on-click="resetImageTransform" data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="refresh-cw"></i> Reset (1:1)</div>
+              <div class="dropdown-item" data-on-click="rotateImage" data-click-args='[90]' data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="rotate-cw"></i> Rotate 90°</div>
+              <div class="dropdown-item" data-on-click="flipImage" data-click-args='["h"]' data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="flip-horizontal"></i> Flip Horizontal</div>
+              <div class="dropdown-item" data-on-click="flipImage" data-click-args='["v"]' data-click-steps='[["closeImgTransformDropdown"]]'><i data-lucide="flip-vertical"></i> Flip Vertical</div>
             </div>
           </div>
 
           <div class="header-sep desktop-only"></div>
-          <button class="btn btn-icon" id="btn-img-wheel-mode" onclick="toggleImgWheelMode()" title="Toggle Wheel Mode: Browse Images vs Direct Zoom"><i data-lucide="mouse"></i></button>
-          <button class="btn btn-icon" onclick="inspectCurrentImage()" title="Inspect EXIF & GPS Metadata"><i data-lucide="info"></i></button>
+          <button class="btn btn-icon" id="btn-img-wheel-mode" data-on-click="toggleImgWheelMode" title="Toggle Wheel Mode: Browse Images vs Direct Zoom"><i data-lucide="mouse"></i></button>
+          <button class="btn btn-icon" data-on-click="inspectCurrentImage" title="Inspect EXIF & GPS Metadata"><i data-lucide="info"></i></button>
           <a id="img-viewer-download-link" class="btn btn-icon" href="#" download title="Download Image"><i data-lucide="download"></i></a>
-          <button class="btn btn-icon desktop-only" id="btn-img-viewer-float" onclick="toggleImageViewerFloating()" title="Toggle Floating Window / Overlay (⇱ / ⇲)"><i data-lucide="picture-in-picture"></i></button>
-          <button class="btn btn-icon modal-close-btn" onclick="closeModal('image-viewer-modal')" title="Close Viewer (Esc)"><i data-lucide="x"></i></button>
+          <button class="btn btn-icon desktop-only" id="btn-img-viewer-float" data-on-click="toggleImageViewerFloating" title="Toggle Floating Window / Overlay (⇱ / ⇲)"><i data-lucide="picture-in-picture"></i></button>
+          <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["image-viewer-modal"]' title="Close Viewer (Esc)"><i data-lucide="x"></i></button>
         </div>
       </div>
 
@@ -7267,17 +7267,17 @@
 
           <!-- Right: Universal Actions (Pinned on mobile) -->
           <div class="doc-viewer-actions-right">
-            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerRenameCurrent()" title="Rename File (F2)"><i data-lucide="edit-3"></i></button>
-            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerCopyCurrent()" title="Copy to Opposite Panel (F5)"><i data-lucide="copy"></i></button>
-            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerMoveCurrent()" title="Move to Opposite Panel (F6)"><i data-lucide="folder-input"></i></button>
-            <button class="btn btn-icon btn-sm desktop-only" onclick="docViewerDeleteCurrent()" title="Delete / Move to Trash (F8 / Del)" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" data-on-click="docViewerRenameCurrent" title="Rename File (F2)"><i data-lucide="edit-3"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" data-on-click="docViewerCopyCurrent" title="Copy to Opposite Panel (F5)"><i data-lucide="copy"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" data-on-click="docViewerMoveCurrent" title="Move to Opposite Panel (F6)"><i data-lucide="folder-input"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" data-on-click="docViewerDeleteCurrent" title="Delete / Move to Trash (F8 / Del)" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
             <div class="header-sep desktop-only" style="width: 1px; height: 18px; background: var(--border); margin: 0 2px;"></div>
-            <button class="btn btn-icon btn-sm" id="doc-viewer-edit-btn" onclick="docViewerEditFile()" title="Edit in EditorDog (F4)"><i data-lucide="code"></i></button>
+            <button class="btn btn-icon btn-sm" id="doc-viewer-edit-btn" data-on-click="docViewerEditFile" title="Edit in EditorDog (F4)"><i data-lucide="code"></i></button>
             <a id="doc-viewer-download" class="btn btn-icon btn-sm" href="#" download title="Download File"><i data-lucide="download"></i></a>
             <a id="doc-viewer-external" class="btn btn-icon btn-sm desktop-only" href="#" target="_blank" title="Open in New Tab"><i data-lucide="external-link"></i></a>
-            <button class="btn btn-icon btn-sm desktop-only" id="btn-doc-viewer-float" onclick="toggleDocViewerFloating()" title="Toggle Floating Window / Overlay (⇱ / ⇲)"><i data-lucide="picture-in-picture"></i></button>
-            <button class="btn btn-icon btn-sm desktop-only" id="doc-viewer-fullscreen" onclick="toggleDocViewerFullscreen()" title="Toggle Fullscreen"><i data-lucide="maximize-2"></i></button>
-            <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeDocViewerModal()" title="Close (Esc)"><i data-lucide="x"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" id="btn-doc-viewer-float" data-on-click="toggleDocViewerFloating" title="Toggle Floating Window / Overlay (⇱ / ⇲)"><i data-lucide="picture-in-picture"></i></button>
+            <button class="btn btn-icon btn-sm desktop-only" id="doc-viewer-fullscreen" data-on-click="toggleDocViewerFullscreen" title="Toggle Fullscreen"><i data-lucide="maximize-2"></i></button>
+            <button class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeDocViewerModal" title="Close (Esc)"><i data-lucide="x"></i></button>
           </div>
         </div>
 
@@ -7676,11 +7676,11 @@
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <span id="book-reader-counter" style="font-size: 11px; font-family: var(--font-mono); color: var(--accent); margin-right: 6px;">Page 1 / 1</span>
-          <button class="btn btn-icon" onclick="navBookPage(-1)" title="Previous Page (Left Arrow)"><i data-lucide="chevron-left" style="width: 14px;"></i></button>
-          <button class="btn btn-icon" onclick="navBookPage(1)" title="Next Page (Right Arrow)"><i data-lucide="chevron-right" style="width: 14px;"></i></button>
-          <button class="btn btn-icon" onclick="zoomBookPage(-0.1)" title="Zoom Out"><i data-lucide="zoom-out" style="width: 13px;"></i></button>
-          <button class="btn btn-icon" onclick="zoomBookPage(0.1)" title="Zoom In"><i data-lucide="zoom-in" style="width: 13px;"></i></button>
-          <button class="btn btn-icon" onclick="closeModal('book-reader-modal')"><i data-lucide="x" style="width: 13px;"></i></button>
+          <button class="btn btn-icon" data-on-click="navBookPage" data-click-args='[-1]' title="Previous Page (Left Arrow)"><i data-lucide="chevron-left" style="width: 14px;"></i></button>
+          <button class="btn btn-icon" data-on-click="navBookPage" data-click-args='[1]' title="Next Page (Right Arrow)"><i data-lucide="chevron-right" style="width: 14px;"></i></button>
+          <button class="btn btn-icon" data-on-click="zoomBookPage" data-click-args='[-0.1]' title="Zoom Out"><i data-lucide="zoom-out" style="width: 13px;"></i></button>
+          <button class="btn btn-icon" data-on-click="zoomBookPage" data-click-args='[0.1]' title="Zoom In"><i data-lucide="zoom-in" style="width: 13px;"></i></button>
+          <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["book-reader-modal"]'><i data-lucide="x" style="width: 13px;"></i></button>
         </div>
       </div>
       <div class="comic-reader-viewport" id="book-reader-viewport">
@@ -8046,7 +8046,7 @@
           <i data-lucide="tag" style="width: 16px; height: 16px; color: var(--accent);"></i>
           <span style="font-weight: 700;">Custom Tags</span>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('tags-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["tags-modal"]'><i data-lucide="x"></i></button>
       </div>
 
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
@@ -8065,16 +8065,16 @@
         <div>
           <label style="font-size: 11px; font-weight: 600; display: block; margin-bottom: 6px;">Add New Tag(s):</label>
           <div style="display: flex; gap: 6px;">
-            <input type="text" id="tags-modal-input" class="pane-quick-filter" style="flex: 1;" placeholder="e.g. invoice, project, urgent" onkeydown="if (event.key === 'Enter') { event.preventDefault(); addModalTagFromInput(); }">
-            <button class="btn btn-accent btn-sm" onclick="addModalTagFromInput()"><i data-lucide="plus" style="width: 13px;"></i> Add</button>
+            <input type="text" id="tags-modal-input" class="pane-quick-filter" style="flex: 1;" placeholder="e.g. invoice, project, urgent" data-keydown-prevent data-keydown-key="Enter" data-on-keydown="addModalTagFromInput">
+            <button class="btn btn-accent btn-sm" data-on-click="addModalTagFromInput"><i data-lucide="plus" style="width: 13px;"></i> Add</button>
           </div>
           <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px;">Separate multiple tags with commas or press Enter to add</div>
         </div>
       </div>
 
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('tags-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="saveModalTags()"><i data-lucide="check"></i> Save Tags</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["tags-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="saveModalTags"><i data-lucide="check"></i> Save Tags</button>
       </div>
     </div>
   </div>
