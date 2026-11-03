@@ -5,6 +5,7 @@ pub mod share_handlers;
 pub mod tool_handlers;
 pub mod system_handlers;
 pub mod terminal;
+pub mod shell_command;
 pub mod fleet;
 
 pub use middleware::*;

@@ -1111,27 +1111,20 @@ pub async fn handle_open_with(
     if let Some(cmd) = payload.command {
         if !cmd.trim().is_empty() {
             require_admin(&claims)?;
-            let replaced = cmd
-                .replace("%1", &format!("\"{}\"", path_str))
-                .replace("{file}", &format!("\"{}\"", path_str))
-                .replace("{dir}", &format!("\"{}\"", dir_str));
-            #[cfg(target_os = "windows")]
-            {
-                let _ = std::process::Command::new("cmd")
-                    .args(["/C", &replaced])
-                    .current_dir(&dir_str)
-                    .spawn()
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to spawn process: {}", e)))?;
-            }
-            #[cfg(not(target_os = "windows"))]
-            {
-                let _ = std::process::Command::new("sh")
-                    .args(["-c", &replaced])
-                    .current_dir(&dir_str)
-                    .spawn()
-                    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to spawn process: {}", e)))?;
-            }
-            return Ok(Json(serde_json::json!({ "success": true, "command": replaced, "working_dir": dir_str })));
+            let selection = vec![path_str.clone()];
+            let values = crate::server::shell_command::CommandValues {
+                file: &path_str,
+                dir: &dir_str,
+                target_pane: "",
+                selection: &selection,
+            };
+            // File names reach the shell as values, never as command text
+            let _ = crate::server::shell_command::build_command(&cmd, &values)
+                .map_err(|e| (StatusCode::BAD_REQUEST, e))?
+                .spawn()
+                .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to spawn process: {}", e)))?;
+            let shown = crate::server::shell_command::display_command(&cmd, &values);
+            return Ok(Json(serde_json::json!({ "success": true, "command": shown, "working_dir": dir_str })));
         }
     }
 
@@ -1167,33 +1160,21 @@ pub async fn handle_run_custom_action(
         local_path.parent().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| target_str.clone())
     };
 
-    let selection_joined = payload.selection
-        .as_ref()
-        .map(|list| list.iter().map(|s| format!("\"{}\"", s)).collect::<Vec<_>>().join(" "))
-        .unwrap_or_else(|| format!("\"{}\"", target_str));
-
+    let selection = payload.selection.unwrap_or_else(|| vec![target_str.clone()]);
     let target_pane_str = payload.target_pane_path.unwrap_or_default();
+    let values = crate::server::shell_command::CommandValues {
+        file: &target_str,
+        dir: &dir_str,
+        target_pane: &target_pane_str,
+        selection: &selection,
+    };
 
-    let exec_cmd = payload.command
-        .replace("{file}", &format!("\"{}\"", target_str))
-        .replace("{dir}", &format!("\"{}\"", dir_str))
-        .replace("{selection}", &selection_joined)
-        .replace("{target_pane}", &format!("\"{}\"", target_pane_str))
-        .replace("%1", &format!("\"{}\"", target_str));
-
-    #[cfg(target_os = "windows")]
-    let child = std::process::Command::new("cmd")
-        .args(["/C", &exec_cmd])
-        .current_dir(&dir_str)
-        .spawn();
-
-    #[cfg(not(target_os = "windows"))]
-    let child = std::process::Command::new("sh")
-        .args(["-c", &exec_cmd])
-        .current_dir(&dir_str)
-        .spawn();
-
-    child.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to run action: {}", e)))?;
+    // File names reach the shell as values, never as command text
+    crate::server::shell_command::build_command(&payload.command, &values)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?
+        .spawn()
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to run action: {}", e)))?;
+    let exec_cmd = crate::server::shell_command::display_command(&payload.command, &values);
 
     Ok(Json(serde_json::json!({
         "success": true,
