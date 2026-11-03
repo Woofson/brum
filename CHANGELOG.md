@@ -5,6 +5,26 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-11-03
+
+### Security
+- **Shell Actions, Custom Actions and Open With (GHSA-vqc6-335r-r2m4)**: File names, folders and selections are handed to these commands as separate values instead of being written into the command text, so a file name can never run as a command. Existing commands, including the `{file}`, `{dir}`, `{selection}`, `{target_pane}` and `%1` tokens, keep working. Upgrading is strongly recommended, especially if guests can upload through dropbox shares.
+- **Strict Page Policy (Closes #152)**: The main app now runs only Brum's own script files. Every button, menu and dialog was rewired from inline handlers to named actions, so injected script cannot run even if a page shows untrusted text by mistake. Note and document previews can never carry actions.
+- **Log Levels**: Access messages are logged at a level that fits. Brum's own page checking the session while logged out, expired logins and ended sessions are info; requests from elsewhere without a login, and forged or revoked tokens are warnings; login, unlock and share password or email rate limits are errors.
+
+### Fixes
+- **Diagrams, Maps and 3D**: Mermaid diagrams, the Media Inspector map and the 3D CAD viewer work again. Mermaid 10.9.8, Leaflet 1.9.4 and three.js 0.160.0 are now bundled with Brum instead of loaded from the internet, which the page policy had blocked since v1.15.0. 3D previews on share pages work again too.
+- **Usernames and Messages with an Apostrophe**: Admin user buttons (enable/disable, save permissions, delete, all folders), copying a task fault message, and Chewtoy entries in the right-click menu no longer break on names with an apostrophe.
+- **Chewtoy Window Buttons**: Dock, maximize and close work on the first Chewtoy window you open.
+- **Settings Links**: "Configure Handlers", "Manage Shell Actions" and "Manage Templates" in the right-click menu open Settings, and "Copy Path" in the panel tab menu copies the path.
+- **Checksum Dialog**: Shows the file, size and SHA-256 hash as plain lines instead of raw HTML tags.
+- **Shell Actions with Spaces**: Built-in Shell Actions (line count, MD5 and others) work on file names that contain spaces.
+- **Docker**: The image includes the programs Brum's tools need, and the terminal in Docker is documented.
+
+### Changes
+- **Panel Header**: The Back, Forward and Up buttons are removed. Go up with the `..` row, a double-click on empty space, Backspace, or the mouse back button.
+- **Hex Editor**: One click listener per byte view instead of one per byte, which keeps large files responsive.
+
 ## [1.15.0] - 2026-11-02
 
 ### Security
