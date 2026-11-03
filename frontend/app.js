@@ -1,5 +1,67 @@
 // Brum Multi-Pane Web Environment - By Woofson
 
+// ---------------- BUTTON WIRING (replaces inline handlers, see #152) ----------------
+// Markup names its action instead of carrying script:
+//   data-on-click="functionName"        function to call on click
+//   data-click-args='["a", "$event"]'   optional JSON arguments; "$event" passes the event
+//   data-click-stop                     stop the click bubbling further (outside-click closers)
+// Each element gets its own listener, so clicks keep the same order they had inline.
+// Only functions listed in BRUM_ACTIONS can be called this way.
+const BRUM_ACTION_EVENTS = ['click'];
+const BRUM_ACTIONS = new Set([
+  'handleLogoutOrExit', 'lockSession', 'openAboutModal', 'openAdminPanel', 'openConverterModal',
+  'openDiskUsageModal', 'openFleetAddModal', 'openFleetManagerModal', 'openFloatingCalculator',
+  'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager', 'openMediaPlayer',
+  'openParanoidSettings', 'openPdfToolModal', 'openSearchModal', 'openSettingsModal',
+  'openSharesManager', 'openSpotlightModal', 'openSyncModal', 'openSyncthingModal', 'openTetraDog',
+  'openUserProfileModal', 'refreshAllPanes', 'toggleFleetSwitcherDropdown',
+  'toggleFloatingTaskManager', 'toggleLayoutMenu', 'toggleProfileMenu', 'toggleTerminal',
+  'toggleToolsMenu', 'triggerDiff',
+  'runToolsMenuItem', 'runToolsMenuChewtoy', 'switchToFleetNode', 'openFleetNodeWebUi',
+]);
+
+// Arguments for data-click-args, escaped for a double-quoted HTML attribute
+function actionArgs(...args) {
+  return escapeHtml(JSON.stringify(args));
+}
+
+function runBoundAction(el, type, ev) {
+  if (el.hasAttribute(`data-${type}-stop`)) ev.stopPropagation();
+  const name = el.getAttribute(`data-on-${type}`);
+  if (!name) return;
+  const fn = window[name];
+  if (!BRUM_ACTIONS.has(name) || typeof fn !== 'function') {
+    console.error(`Brum: no action named "${name}"`);
+    return;
+  }
+  let args = [];
+  const raw = el.getAttribute(`data-${type}-args`);
+  if (raw) {
+    try { args = JSON.parse(raw); } catch (e) {
+      console.error(`Brum: bad arguments for action "${name}"`, e);
+      return;
+    }
+  }
+  return fn.apply(el, args.map(a => (a === '$event' ? ev : a)));
+}
+
+function bindActions(root) {
+  const scope = root || document;
+  for (const type of BRUM_ACTION_EVENTS) {
+    const sel = `[data-on-${type}], [data-${type}-stop]`;
+    const els = Array.from(scope.querySelectorAll(sel));
+    if (scope.matches && scope.matches(sel)) els.push(scope);
+    const flag = `brumBound_${type}`;
+    for (const el of els) {
+      if (el[flag]) continue;
+      el[flag] = true;
+      el.addEventListener(type, (ev) => runBoundAction(el, type, ev));
+    }
+  }
+}
+
+bindActions(document);
+
 function isStandaloneMode() {
   return (typeof window !== 'undefined' && window.App && (window.App.isStandalone === true || window.App.config?.server?.standalone === true || window.App.systemStatus?.standalone === true)) || 
          (typeof window !== 'undefined' && (window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined || window.__WRY__ !== undefined)) || 
@@ -433,27 +495,27 @@ let ColumnConfig = {
 
 // ---------------- TOOLS & LAUNCHPAD MENU CUSTOMIZER ----------------
 const DEFAULT_TOOLS_MENU = [
-  { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog()', desc: 'Notes, checklists, templates & markdown studio', visible: true },
-  { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator()', desc: 'Storage units, conversions & live history', visible: true },
-  { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', iconColor: 'var(--accent)', action: 'openBatchRenamer()', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
-  { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', iconColor: 'var(--accent)', action: 'openHexEditor()', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
-  { id: 'splitter', label: 'File Splitter & Combiner', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal()', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
-  { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal()', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
-  { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor()', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
-  { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff()', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
-  { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal()', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
-  { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager()', desc: 'Manage public share links and guest dropboxes', visible: true },
-  { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal()', desc: 'Two-way sync, mirrors, snapshot archives & replication', visible: true },
-  { id: 'du', label: 'Disk Usage', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal()', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
-  { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal()', desc: 'Continuous peer-to-peer file synchronization', visible: true },
-  { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal()', desc: 'Batch file format conversions for media & docs', visible: true },
-  { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal()', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
-  { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio()', desc: '3D model viewer (STL, OBJ, PLY, DXF; STEP/IGES as outline)', visible: true },
-  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder()', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
-  { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor()', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
-  { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer()', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
-  { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer()', desc: 'Universal audio, video, chiptune & tracker player with playlists and subtitles', visible: true },
-  { id: 'tetradog', label: 'Tetrion', icon: 'assets/amber-tetris.webp', action: 'openTetraDog()', desc: 'Classic arcade block puzzle', visible: true }
+  { id: 'notedog', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNoteDog', desc: 'Notes, checklists, templates & markdown studio', visible: true },
+  { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator', desc: 'Storage units, conversions & live history', visible: true },
+  { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', iconColor: 'var(--accent)', action: 'openBatchRenamer', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
+  { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', iconColor: 'var(--accent)', action: 'openHexEditor', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
+  { id: 'splitter', label: 'File Splitter & Combiner', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
+  { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
+  { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
+  { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
+  { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
+  { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager', desc: 'Manage public share links and guest dropboxes', visible: true },
+  { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal', desc: 'Two-way sync, mirrors, snapshot archives & replication', visible: true },
+  { id: 'du', label: 'Disk Usage', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
+  { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal', desc: 'Continuous peer-to-peer file synchronization', visible: true },
+  { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal', desc: 'Batch file format conversions for media & docs', visible: true },
+  { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
+  { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio', desc: '3D model viewer (STL, OBJ, PLY, DXF; STEP/IGES as outline)', visible: true },
+  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
+  { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
+  { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
+  { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer', desc: 'Universal audio, video, chiptune & tracker player with playlists and subtitles', visible: true },
+  { id: 'tetradog', label: 'Tetrion', icon: 'assets/amber-tetris.webp', action: 'openTetraDog', desc: 'Classic arcade block puzzle', visible: true }
 ];
 
 // ---------------- FILE TEMPLATES ENGINE ----------------
@@ -19083,7 +19145,7 @@ function renderToolsMenu() {
   let html = '';
   visibleItems.forEach(item => {
     html += `
-      <div class="dropdown-item" onclick="${item.action}; closeToolsMenu();">
+      <div class="dropdown-item" data-on-click="runToolsMenuItem" data-click-args="${actionArgs(item.id)}">
         ${renderToolIconHtml(item.icon, item.iconColor, 18)}
         <span>${escapeHtml(item.label)}</span>
       </div>
@@ -19096,7 +19158,7 @@ function renderToolsMenu() {
     activeChewToys.forEach(p => {
       const iconUrl = getChewtoyIconUrl(p);
       html += `
-        <div class="dropdown-item" onclick="openDynamicChewToy(${escapeJsStr(p.id)}); closeToolsMenu();" style="display: flex; align-items: center; justify-content: space-between;">
+        <div class="dropdown-item" data-on-click="runToolsMenuChewtoy" data-click-args="${actionArgs(p.id)}" style="display: flex; align-items: center; justify-content: space-between;">
           <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
             ${renderToolIconHtml(iconUrl, '', 18)}
             <span>${escapeHtml(p.name || p.id)}</span>
@@ -19108,9 +19170,27 @@ function renderToolsMenu() {
   }
 
   menu.innerHTML = html;
+  bindActions(menu);
   if (window.lucide) {
     lucide.createIcons({ root: menu });
   }
+}
+
+// Tools menu entries run their tool, then close the menu
+function runToolsMenuItem(id) {
+  const def = DEFAULT_TOOLS_MENU.find(d => d.id === id);
+  const fn = def && window[def.action];
+  if (typeof fn !== 'function') {
+    console.error(`Brum: tools menu entry "${id}" has no action`);
+    return;
+  }
+  fn();
+  closeToolsMenu();
+}
+
+function runToolsMenuChewtoy(pluginId) {
+  openDynamicChewToy(pluginId);
+  closeToolsMenu();
 }
 
 function openToolsMenuCustomizer(e) {
@@ -43903,7 +43983,7 @@ function renderFleetSwitcherDropdown() {
   // 1. Local Node
   const isLocalActive = !activeId || activeId === 'local';
   html += `
-    <div class="fleet-node-item ${isLocalActive ? 'active' : ''}" onclick="switchToFleetNode('local')">
+    <div class="fleet-node-item ${isLocalActive ? 'active' : ''}" data-on-click="switchToFleetNode" data-click-args="${actionArgs('local')}">
       <div class="fleet-node-left">
         <i data-lucide="server" style="width: 14px; height: 14px; color: var(--accent); flex-shrink: 0;"></i>
         <div class="fleet-node-info">
@@ -43938,7 +44018,7 @@ function renderFleetSwitcherDropdown() {
     const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(n);
 
     html += `
-      <div class="fleet-node-item ${isAct ? 'active' : ''}" onclick="switchToFleetNode(${escapeJsStr(n.id)})">
+      <div class="fleet-node-item ${isAct ? 'active' : ''}" data-on-click="switchToFleetNode" data-click-args="${actionArgs(n.id)}">
         <div class="fleet-node-left">
           <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex}; flex-shrink: 0;"></i>
           <div class="fleet-node-info">
@@ -43954,7 +44034,7 @@ function renderFleetSwitcherDropdown() {
           ${getFleetNodeVersionBadge(n.version)}
           <span class="fleet-ping-dot ${dotClass}" title="${n.status || 'unknown'}"></span>
           <span class="fleet-node-latency">${latencyText}</span>
-          <button type="button" class="btn btn-xs btn-ghost" onclick="openFleetNodeWebUi(${escapeJsStr(n.id)}, event)" title="Open ${escapeHtml(n.name)} Web UI in new tab" style="height: 20px; width: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0.7;">
+          <button type="button" class="btn btn-xs btn-ghost" data-on-click="openFleetNodeWebUi" data-click-args="${actionArgs(n.id, '$event')}" title="Open ${escapeHtml(n.name)} Web UI in new tab" style="height: 20px; width: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; opacity: 0.7;">
             <i data-lucide="external-link" style="width: 11px; height: 11px;"></i>
           </button>
         </div>
@@ -43963,6 +44043,7 @@ function renderFleetSwitcherDropdown() {
   });
 
   container.innerHTML = html;
+  bindActions(container);
   try {
     if (window.lucide && typeof lucide.createIcons === 'function') {
       lucide.createIcons({ root: container });

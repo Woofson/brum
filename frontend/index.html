@@ -162,18 +162,18 @@
   <!-- Top Application Header -->
   <header class="app-header">
     <div class="logo-area" style="display: flex; align-items: center; gap: 8px;">
-      <div class="logo-brand-btn" id="btn-logo-about" onclick="openAboutModal()" title="About Brum (Click to open)">
+      <div class="logo-brand-btn" id="btn-logo-about" data-on-click="openAboutModal" title="About Brum (Click to open)">
         <img src="assets/brum_happy.webp" alt="Brum" class="header-logo-img" id="header-brand-logo">
         <span class="app-logo-text" style="font-weight: 700;">Brum</span>
       </div>
       <div class="fleet-switcher-wrapper" id="fleet-switcher-wrapper">
-        <span class="header-hostname-badge style-text color-slate" id="header-hostname-badge" onclick="toggleFleetSwitcherDropdown(event)" title="Fleet Control (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
+        <span class="header-hostname-badge style-text color-slate" id="header-hostname-badge" data-on-click="toggleFleetSwitcherDropdown" data-click-args='["$event"]' title="Fleet Control (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
           <i data-lucide="server" id="header-hostname-icon" style="display: none;"></i>
           <span id="header-hostname-text">@localhost</span>
           <i data-lucide="chevron-down" class="header-hostname-chevron" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.6;"></i>
         </span>
         <!-- Dropdown Menu -->
-        <div class="fleet-switcher-dropdown" id="fleet-switcher-dropdown" style="display: none;" onclick="event.stopPropagation()">
+        <div class="fleet-switcher-dropdown" id="fleet-switcher-dropdown" style="display: none;" data-click-stop>
           <div class="fleet-dropdown-header">
             <span class="fleet-dropdown-title"><i data-lucide="network" style="width: 13px; height: 13px; color: var(--accent);"></i> Fleet Control</span>
             <span class="fleet-dropdown-status" id="fleet-active-node-tag">Local Node</span>
@@ -182,8 +182,8 @@
             <!-- Dynamic Fleet Nodes rendered here -->
           </div>
           <div class="fleet-dropdown-actions">
-            <button type="button" class="fleet-dropdown-action-btn" onclick="openFleetAddModal()"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Add Node</button>
-            <button type="button" class="fleet-dropdown-action-btn" onclick="openFleetManagerModal()"><i data-lucide="settings" style="width: 12px; height: 12px;"></i> Manage Fleet</button>
+            <button type="button" class="fleet-dropdown-action-btn" data-on-click="openFleetAddModal"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Add Node</button>
+            <button type="button" class="fleet-dropdown-action-btn" data-on-click="openFleetManagerModal"><i data-lucide="settings" style="width: 12px; height: 12px;"></i> Manage Fleet</button>
           </div>
         </div>
       </div>
@@ -192,41 +192,41 @@
     <!-- Right-Aligned Tools & Controls (Desktop & Mobile) -->
     <div class="header-actions header-actions-right">
       <!-- 1. Refresh All Button (Desktop Only, Toggleable via Settings) -->
-      <button class="btn btn-icon desktop-only" id="btn-refresh-all" style="display: none;" onclick="refreshAllPanes()" title="Refresh All Panels"><i data-lucide="rotate-cw"></i></button>
+      <button class="btn btn-icon desktop-only" id="btn-refresh-all" style="display: none;" data-on-click="refreshAllPanes" title="Refresh All Panels"><i data-lucide="rotate-cw"></i></button>
       <div class="header-sep desktop-only" id="sep-refresh-all" style="display: none;"></div>
 
       <!-- 2. Consolidated Layout Switcher (Desktop Only) -->
       <div class="layout-dropdown-wrapper desktop-only" id="layout-dropdown-wrapper">
-        <button class="btn btn-icon" id="btn-layout-menu" onclick="toggleLayoutMenu(event)" title="Panel Layouts">
+        <button class="btn btn-icon" id="btn-layout-menu" data-on-click="toggleLayoutMenu" data-click-args='["$event"]' title="Panel Layouts">
           <i data-lucide="columns-2" id="header-layout-icon"></i>
         </button>
         <div class="layout-dropdown-menu" id="layout-dropdown-menu">
           <div class="layout-dropdown-title">Panel Layouts</div>
-          <button type="button" class="layout-dropdown-item" id="layout-1" onclick="switchLayout('layout-single');">
+          <button type="button" class="layout-dropdown-item" id="layout-1">
             <span class="layout-item-icon"><i data-lucide="square"></i></span>
             <span class="layout-item-label">Single Pane</span>
           </button>
-          <button type="button" class="layout-dropdown-item" id="layout-2v" onclick="switchLayout('layout-dual-vertical');">
+          <button type="button" class="layout-dropdown-item" id="layout-2v">
             <span class="layout-item-icon"><i data-lucide="columns-2"></i></span>
             <span class="layout-item-label">Dual Vertical Split</span>
           </button>
-          <button type="button" class="layout-dropdown-item" id="layout-2h" onclick="switchLayout('layout-dual-horizontal');">
+          <button type="button" class="layout-dropdown-item" id="layout-2h">
             <span class="layout-item-icon"><i data-lucide="rows-2"></i></span>
             <span class="layout-item-label">Dual Horizontal Split</span>
           </button>
-          <button type="button" class="layout-dropdown-item" id="layout-3" onclick="switchLayout('layout-triple');">
+          <button type="button" class="layout-dropdown-item" id="layout-3">
             <span class="layout-item-icon"><i data-lucide="columns-3"></i></span>
             <span class="layout-item-label">Triple Columns</span>
           </button>
-          <button type="button" class="layout-dropdown-item" id="layout-3s" onclick="switchTripleStacked(false);">
+          <button type="button" class="layout-dropdown-item" id="layout-3s">
             <span class="layout-item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" x2="12" y1="3" y2="21"/><line x1="12" x2="21" y1="12" y2="12"/></svg></span>
             <span class="layout-item-label">Triple Split 1+2</span>
           </button>
-          <button type="button" class="layout-dropdown-item" id="layout-3sm" onclick="switchTripleStacked(true);">
+          <button type="button" class="layout-dropdown-item" id="layout-3sm">
             <span class="layout-item-icon"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" x2="12" y1="3" y2="21"/><line x1="3" x2="12" y1="12" y2="12"/></svg></span>
             <span class="layout-item-label">Triple Split 2+1</span>
           </button>
-          <button type="button" class="layout-dropdown-item" id="layout-4" onclick="switchLayout('layout-quad');">
+          <button type="button" class="layout-dropdown-item" id="layout-4">
             <span class="layout-item-icon"><i data-lucide="grid-2x2"></i></span>
             <span class="layout-item-label">Quad Pane 2x2</span>
           </button>
@@ -237,39 +237,39 @@
       <div class="header-sep desktop-only"></div>
 
       <!-- Spotlight Quick-Switcher Button -->
-      <button class="btn btn-icon" id="btn-header-spotlight" onclick="openSpotlightModal()" title="Spot! Quick-Switcher & Unified Search (Ctrl+K)">
+      <button class="btn btn-icon" id="btn-header-spotlight" data-on-click="openSpotlightModal" title="Spot! Quick-Switcher & Unified Search (Ctrl+K)">
         <img src="assets/spot.webp" alt="Spot!" style="width: 17px; height: 17px; object-fit: contain;">
       </button>
 
       <!-- 4. Application Tools Suite & Launchpad -->
       <div class="tools-dropdown-wrapper">
-        <button class="btn btn-icon" id="btn-tools-menu" onclick="toggleToolsMenu(event)" title="ChewToys & Tools (Terminal, Edit, Calculator, Backup, Search)">
+        <button class="btn btn-icon" id="btn-tools-menu" data-on-click="toggleToolsMenu" data-click-args='["$event"]' title="ChewToys & Tools (Terminal, Edit, Calculator, Backup, Search)">
           <img src="assets/amber-frameless-apps.webp" alt="ChewToys & Tools" style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
         </button>
         <div class="tools-dropdown-menu" id="tools-dropdown-menu">
-          <div class="dropdown-item" onclick="openSpotlightModal()"><img src="assets/spot.webp" alt="Spot!" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Spot! (Ctrl+K)</div>
-          <div class="dropdown-item" onclick="openFloatingNoteDog()"><img src="assets/note.webp" alt="Notes" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Notes</div>
-          <div class="dropdown-item" onclick="openFloatingNoteDog('manual://README.md')"><i data-lucide="book-open" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Manuals & Docs</div>
-          <div class="dropdown-item" onclick="openFloatingCalculator()"><img src="assets/calc.webp" alt="Calculator" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Calculator</div>
-          <div class="dropdown-item" onclick="toggleTerminal()"><img src="assets/term.webp" alt="Terminal" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Terminal (`)</div>
-          <div class="dropdown-item" onclick="openFloatingEditor()"><img src="assets/edit.webp" alt="Edit" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Edit (F4)</div>
-          <div class="dropdown-item" onclick="triggerDiff()"><img src="assets/diff.webp" alt="Compare" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Compare (F9)</div>
-          <div class="dropdown-item" onclick="openSearchModal()"><img src="assets/search.webp" alt="Search" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Search (Ctrl+F)</div>
-          <div class="dropdown-item" onclick="openFleetManagerModal()"><i data-lucide="network" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Fleet</div>
-          <div class="dropdown-item" onclick="openSharesManager()"><img src="assets/sharemgr.webp" alt="Share Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Share Manager</div>
-          <div class="dropdown-item" onclick="openSyncModal()"><img src="assets/sync.webp" alt="Backup" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Backup</div>
-          <div class="dropdown-item" onclick="openDiskUsageModal()"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Stats</div>
-          <div class="dropdown-item" onclick="openSyncthingModal()"><img src="assets/syncthing.webp" alt="Syncthing" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Syncthing</div>
-          <div class="dropdown-item" onclick="openConverterModal()"><img src="assets/convertx.webp" alt="Format Converter" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Format Converter</div>
-          <div class="dropdown-item" onclick="openPdfToolModal()"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> PDF Studio</div>
-          <div class="dropdown-item" onclick="openMediaPlayer()"><img src="assets/media.webp" alt="Media Player" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Media Player</div>
-          <div class="dropdown-item" onclick="openTetraDog()"><img src="assets/amber-tetris.webp" alt="Tetra" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Tetra</div>
-          <div class="dropdown-item" onclick="openFloatingTaskManager()"><img src="assets/task.webp" alt="Task Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Task Manager</div>
+          <div class="dropdown-item" data-on-click="openSpotlightModal"><img src="assets/spot.webp" alt="Spot!" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Spot! (Ctrl+K)</div>
+          <div class="dropdown-item" data-on-click="openFloatingNoteDog"><img src="assets/note.webp" alt="Notes" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Notes</div>
+          <div class="dropdown-item" data-on-click="openFloatingNoteDog" data-click-args='["manual://README.md"]'><i data-lucide="book-open" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Manuals & Docs</div>
+          <div class="dropdown-item" data-on-click="openFloatingCalculator"><img src="assets/calc.webp" alt="Calculator" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Calculator</div>
+          <div class="dropdown-item" data-on-click="toggleTerminal"><img src="assets/term.webp" alt="Terminal" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Terminal (`)</div>
+          <div class="dropdown-item" data-on-click="openFloatingEditor"><img src="assets/edit.webp" alt="Edit" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Edit (F4)</div>
+          <div class="dropdown-item" data-on-click="triggerDiff"><img src="assets/diff.webp" alt="Compare" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Compare (F9)</div>
+          <div class="dropdown-item" data-on-click="openSearchModal"><img src="assets/search.webp" alt="Search" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Search (Ctrl+F)</div>
+          <div class="dropdown-item" data-on-click="openFleetManagerModal"><i data-lucide="network" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Fleet</div>
+          <div class="dropdown-item" data-on-click="openSharesManager"><img src="assets/sharemgr.webp" alt="Share Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Share Manager</div>
+          <div class="dropdown-item" data-on-click="openSyncModal"><img src="assets/sync.webp" alt="Backup" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Backup</div>
+          <div class="dropdown-item" data-on-click="openDiskUsageModal"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Stats</div>
+          <div class="dropdown-item" data-on-click="openSyncthingModal"><img src="assets/syncthing.webp" alt="Syncthing" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Syncthing</div>
+          <div class="dropdown-item" data-on-click="openConverterModal"><img src="assets/convertx.webp" alt="Format Converter" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Format Converter</div>
+          <div class="dropdown-item" data-on-click="openPdfToolModal"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> PDF Studio</div>
+          <div class="dropdown-item" data-on-click="openMediaPlayer"><img src="assets/media.webp" alt="Media Player" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Media Player</div>
+          <div class="dropdown-item" data-on-click="openTetraDog"><img src="assets/amber-tetris.webp" alt="Tetra" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Tetra</div>
+          <div class="dropdown-item" data-on-click="openFloatingTaskManager"><img src="assets/task.webp" alt="Task Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Task Manager</div>
         </div>
       </div>
 
       <!-- 5. Task-List Header Button (Desktop & Mobile) -->
-      <button class="btn header-task-btn" id="btn-header-tasks" onclick="toggleFloatingTaskManager()" title="Background Tasks & Transfers (Click to toggle)">
+      <button class="btn header-task-btn" id="btn-header-tasks" data-on-click="toggleFloatingTaskManager" title="Background Tasks & Transfers (Click to toggle)">
         <img src="assets/task.webp" id="header-task-icon" alt="Tasks" style="width: 15px; height: 15px; object-fit: contain; vertical-align: middle;">
         <span class="header-task-badge" id="header-task-count">0</span>
         <span class="header-task-speed" id="header-task-speed" style="display: none;">0 B/s</span>
@@ -277,34 +277,34 @@
 
       <!-- 6. User Profile & Admin Menu (Compact Avatar on Mobile, Full on Desktop) -->
       <div class="profile-dropdown-wrapper">
-        <button class="btn profile-btn" id="btn-user-profile" onclick="toggleProfileMenu(event)" title="User Profile">
+        <button class="btn profile-btn" id="btn-user-profile" data-on-click="toggleProfileMenu" data-click-args='["$event"]' title="User Profile">
           <div class="profile-avatar-thumb" id="header-avatar-thumb">👤</div>
           <span class="desktop-only" id="header-username-label">User</span>
           <i data-lucide="chevron-down" class="desktop-only" style="width: 12px; margin-left: 2px;"></i>
         </button>
         <div class="profile-dropdown-menu" id="profile-dropdown-menu">
           <div class="profile-dropdown-header">
-            <div class="profile-avatar-large profile-avatar-clickable" id="menu-avatar-large" onclick="openUserProfileModal()" title="Edit profile">👤</div>
+            <div class="profile-avatar-large profile-avatar-clickable" id="menu-avatar-large" data-on-click="openUserProfileModal" title="Edit profile">👤</div>
             <div style="overflow: hidden; flex: 1;">
               <div style="font-weight: 700; font-size: 13px;" id="menu-user-name">User</div>
               <div style="font-size: 11px; color: var(--text-dim);" id="menu-user-email">user@localhost</div>
               <span class="user-role-badge" id="menu-role-badge" style="margin-top: 4px; display: inline-block;">ADMIN</span>
             </div>
-            <button type="button" class="profile-header-shield-btn" id="profile-paranoid-shield" onclick="openParanoidSettings()" title="Security & Integrity Checks">
+            <button type="button" class="profile-header-shield-btn" id="profile-paranoid-shield" data-on-click="openParanoidSettings" title="Security & Integrity Checks">
               <i data-lucide="shield-check"></i>
             </button>
           </div>
-          <div class="dropdown-item" id="menu-admin-panel-item" onclick="openAdminPanel()"><img src="assets/amber-frameless-admin.webp" alt="Admin" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Admin Control Panel</div>
-          <div class="dropdown-item" onclick="openSettingsModal()"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Settings (F10)</div>
-          <div class="dropdown-item" onclick="openAboutModal()"><img src="assets/amber-frameless-info.webp" alt="About" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> About Brum</div>
-          
+          <div class="dropdown-item" id="menu-admin-panel-item" data-on-click="openAdminPanel"><img src="assets/amber-frameless-admin.webp" alt="Admin" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Admin Control Panel</div>
+          <div class="dropdown-item" data-on-click="openSettingsModal"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Settings (F10)</div>
+          <div class="dropdown-item" data-on-click="openAboutModal"><img src="assets/amber-frameless-info.webp" alt="About" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> About Brum</div>
+
           <!-- Bottom Action Buttons: Lock Session & Logout Icons -->
           <div class="profile-dropdown-footer">
-            <button type="button" class="profile-action-btn" onclick="lockSession()" title="Lock Session (Ctrl+Alt+L)">
+            <button type="button" class="profile-action-btn" data-on-click="lockSession" title="Lock Session (Ctrl+Alt+L)">
               <i data-lucide="lock"></i>
               <span>Lock</span>
             </button>
-            <button type="button" class="profile-action-btn btn-danger-action" id="btn-profile-logout" onclick="handleLogoutOrExit()" title="Log Out">
+            <button type="button" class="profile-action-btn btn-danger-action" id="btn-profile-logout" data-on-click="handleLogoutOrExit" title="Log Out">
               <i data-lucide="log-out" id="icon-profile-logout"></i>
               <span id="label-profile-logout">Log Out</span>
             </button>
