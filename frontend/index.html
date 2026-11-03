@@ -1190,31 +1190,31 @@
     <div class="modal-box settings-modal-box">
       <div class="modal-header">
         <span style="display: flex; align-items: center; gap: 7px;"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 16px; height: 16px; object-fit: contain;"> User Settings & Preferences</span>
-        <button class="btn" onclick="closeModal('settings-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["settings-modal"]'><i data-lucide="x"></i></button>
       </div>
       
       <div class="settings-modal-layout">
         <!-- Sidebar Navigation -->
         <div class="settings-sidebar">
           <div class="settings-sidebar-group-title">Appearance & UI</div>
-          <button class="settings-nav-btn active" onclick="switchSettingsTab('tab-general')"><i data-lucide="sliders"></i> General</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-account')"><i data-lucide="user"></i> Account & Profile</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-palette')"><i data-lucide="palette"></i> Themes</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-icons')"><i data-lucide="sparkles"></i> Icons & Filetypes</button>
+          <button class="settings-nav-btn active" data-on-click="switchSettingsTab" data-click-args='["tab-general"]'><i data-lucide="sliders"></i> General</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-account"]'><i data-lucide="user"></i> Account & Profile</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-palette"]'><i data-lucide="palette"></i> Themes</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-icons"]'><i data-lucide="sparkles"></i> Icons & Filetypes</button>
 
           <div class="settings-sidebar-group-title">Workflow & Chewtoys</div>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-plugins')"><i data-lucide="puzzle"></i> Chewtoys & Extensions</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-tools')"><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> Tools Menu</button>
-          <button class="settings-nav-btn desktop-only-setting" id="settings-nav-desktop-apps" onclick="switchSettingsTab('tab-desktop-apps')"><i data-lucide="monitor"></i> External Programs</button>
-          <button class="settings-nav-btn desktop-only-setting" id="settings-nav-openwith" onclick="switchSettingsTab('tab-openwith')"><i data-lucide="external-link"></i> Open With</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-context')"><i data-lucide="mouse-pointer"></i> Context Menu</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-templates')"><i data-lucide="file-code-2"></i> Templates</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-plugins"]'><i data-lucide="puzzle"></i> Chewtoys & Extensions</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-tools"]'><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> Tools Menu</button>
+          <button class="settings-nav-btn desktop-only-setting" id="settings-nav-desktop-apps" data-on-click="switchSettingsTab" data-click-args='["tab-desktop-apps"]'><i data-lucide="monitor"></i> External Programs</button>
+          <button class="settings-nav-btn desktop-only-setting" id="settings-nav-openwith" data-on-click="switchSettingsTab" data-click-args='["tab-openwith"]'><i data-lucide="external-link"></i> Open With</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-context"]'><i data-lucide="mouse-pointer"></i> Context Menu</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-templates"]'><i data-lucide="file-code-2"></i> Templates</button>
 
           <div class="settings-sidebar-group-title">System & Shortcuts</div>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-security')"><i data-lucide="shield-check"></i> Security & Integrity</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-bookmarks')"><i data-lucide="bookmark"></i> Bookmarks</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-keys')"><i data-lucide="keyboard"></i> Keybindings</button>
-          <button class="settings-nav-btn" onclick="switchSettingsTab('tab-about')"><img src="assets/amber-frameless-info.webp" alt="About" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> About Brum</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-bookmarks"]'><i data-lucide="bookmark"></i> Bookmarks</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-keys"]'><i data-lucide="keyboard"></i> Keybindings</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-about"]'><img src="assets/amber-frameless-info.webp" alt="About" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> About Brum</button>
         </div>
 
         <div class="settings-content-area">
@@ -1245,7 +1245,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-phone-tablet-max-panes">Phone & Tablet Maximum Panels:</label>
-                  <select id="setting-phone-tablet-max-panes" class="settings-select" onchange="updatePhoneTabletMaxPanes(this.value)">
+                  <select id="setting-phone-tablet-max-panes" class="settings-select" data-on-change="updatePhoneTabletMaxPanes" data-change-args='[{"$": "value"}]'>
                     <option value="2" selected>2 Panels (Default: Cap at Dual Panels for Mobile & Tablets)</option>
                     <option value="1">1 Panel (Single Panel Focus Only)</option>
                     <option value="3">3 Panels (Allow Triple Layout on Tablets/Foldables)</option>
@@ -1255,7 +1255,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-pane-tabs-mode">Multi-Tab Panels (Tab Strips):</label>
-                  <select id="setting-pane-tabs-mode" class="settings-select" onchange="updatePaneTabsMode(this.value)">
+                  <select id="setting-pane-tabs-mode" class="settings-select" data-on-change="updatePaneTabsMode" data-change-args='[{"$": "value"}]'>
                     <option value="pc_only" selected>PC &amp; Desktop Only (&gt;1024px)</option>
                     <option value="always">All Viewports (PC, Tablet &amp; Phone)</option>
                     <option value="pc_tablet">PC &amp; Tablet (&ge;600px)</option>
@@ -1265,7 +1265,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-mobile-bottom-bar-mode">Mobile &amp; Tablet Bottom Actions Bar:</label>
-                  <select id="setting-mobile-bottom-bar-mode" class="settings-select" onchange="updateMobileBottomBarMode(this.value)">
+                  <select id="setting-mobile-bottom-bar-mode" class="settings-select" data-on-change="updateMobileBottomBarMode" data-change-args='[{"$": "value"}]'>
                     <option value="icons_text" selected>Icons and Text (Default)</option>
                     <option value="icons_only">Icons Only</option>
                     <option value="off">Off (Hidden)</option>
@@ -1276,7 +1276,7 @@
 
               <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-pane-reorder" onchange="togglePaneReordering(this.checked)" checked>
+                  <input type="checkbox" id="setting-pane-reorder" data-on-change="togglePaneReordering" data-change-args='[{"$": "checked"}]' checked>
                   <div>
                     <strong>Drag-and-Drop Panel Rearrangement</strong>
                     <div class="settings-field-hint">Allow dragging the panel number badge (1, 2, 3, 4) in the header to swap and reorder panels.</div>
@@ -1284,7 +1284,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-activate-on-hover" onchange="toggleActivateOnHover(this.checked)">
+                  <input type="checkbox" id="setting-activate-on-hover" data-on-change="toggleActivateOnHover" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Activate Panel on Mouse Hover (Focus Follows Mouse)</strong>
                     <div class="settings-field-hint">Automatically activate panel and switch keyboard focus when hovering the mouse over it.</div>
@@ -1292,7 +1292,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-sync-scroll" onchange="toggleSyncScroll(this.checked)">
+                  <input type="checkbox" id="setting-sync-scroll" data-on-change="toggleSyncScroll" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Synchronize Pane Scrolling (Sync Scroll)</strong>
                     <div class="settings-field-hint">Mirror vertical and horizontal scroll positions across all visible file panels.</div>
@@ -1300,7 +1300,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-sync-nav" onchange="toggleSyncNav(this.checked)">
+                  <input type="checkbox" id="setting-sync-nav" data-on-change="toggleSyncNav" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Synchronize Directory Navigation (Sync Nav)</strong>
                     <div class="settings-field-hint">Mirror relative subfolder and parent folder traversal across visible panels.</div>
@@ -1308,7 +1308,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-fkeys" onchange="toggleFKeyBar(this.checked)">
+                  <input type="checkbox" id="setting-show-fkeys" data-on-change="toggleFKeyBar" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Bottom Function Key Bar (F1..F10)</strong>
                     <div class="settings-field-hint">Display classic orthodox commander function key shortcuts at the bottom.</div>
@@ -1316,7 +1316,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-media-stop-on-close" onchange="toggleMediaStopOnClose(this.checked)" checked>
+                  <input type="checkbox" id="setting-media-stop-on-close" data-on-change="toggleMediaStopOnClose" data-change-args='[{"$": "checked"}]' checked>
                   <div>
                     <strong>Stop Playback on Close (Media Player)</strong>
                     <div class="settings-field-hint">Stop audio and video playback when closing the Media Player. Use the Minimize button (-) to keep playing in the background pill.</div>
@@ -1337,7 +1337,7 @@
               <div class="settings-grid-2col">
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-startup-mode">Startup Panel Directories:</label>
-                  <select id="setting-startup-mode" class="settings-select" onchange="handleStartupSettingChange()">
+                  <select id="setting-startup-mode" class="settings-select" data-on-change="handleStartupSettingChange">
                     <option value="restore" selected>🔄 Restore Last Session (Remember and restore last opened folders)</option>
                     <option value="home">🏠 User Home (Always open Home ~ across all panels)</option>
                     <option value="root">📁 Filesystem Root (Always open Root / or C:\ across all panels)</option>
@@ -1348,7 +1348,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-startup-remote-fallback">Remote Host on Startup:</label>
-                  <select id="setting-startup-remote-fallback" class="settings-select" onchange="handleStartupSettingChange()">
+                  <select id="setting-startup-remote-fallback" class="settings-select" data-on-change="handleStartupSettingChange">
                     <option value="home_fallback" selected>🏠 Reset to Local Home (Fast boot, avoid network lag/timeouts)</option>
                     <option value="reconnect">🌐 Reconnect to Remote Node (May delay startup if host is offline)</option>
                   </select>
@@ -1360,26 +1360,26 @@
               <div id="wrapper-startup-custom-presets" class="settings-field" style="display: none; margin-top: 8px; padding: 10px; background: rgba(0, 0, 0, 0.15); border: 1px solid var(--border); border-radius: var(--radius);">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
                   <label class="settings-field-label" style="margin-bottom: 0;"><strong>Panel Custom Startup Folders:</strong></label>
-                  <button type="button" class="btn btn-xs btn-outline" onclick="captureCurrentPathsForCustomStartup()" style="height: 24px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                  <button type="button" class="btn btn-xs btn-outline" data-on-click="captureCurrentPathsForCustomStartup" style="height: 24px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
                     <i data-lucide="folder-check" style="width: 12px; height: 12px;"></i> Use Current Panel Paths
                   </button>
                 </div>
                 <div class="settings-grid-2col" style="gap: 8px;">
                   <div>
                     <label class="settings-field-label" style="font-size: 11px;">Panel 1 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-0" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                    <input type="text" id="setting-startup-custom-path-0" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
                   </div>
                   <div>
                     <label class="settings-field-label" style="font-size: 11px;">Panel 2 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-1" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                    <input type="text" id="setting-startup-custom-path-1" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
                   </div>
                   <div>
                     <label class="settings-field-label" style="font-size: 11px;">Panel 3 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-2" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                    <input type="text" id="setting-startup-custom-path-2" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
                   </div>
                   <div>
                     <label class="settings-field-label" style="font-size: 11px;">Panel 4 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-3" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" onchange="handleStartupSettingChange()">
+                    <input type="text" id="setting-startup-custom-path-3" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
                   </div>
                 </div>
               </div>
@@ -1397,7 +1397,7 @@
               <div class="settings-grid-2col">
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-default-copy-action">Default Copy (F5) Engine:</label>
-                  <select id="setting-default-copy-action" class="settings-select" onchange="updateDefaultCopyAction(this.value)">
+                  <select id="setting-default-copy-action" class="settings-select" data-on-change="updateDefaultCopyAction" data-change-args='[{"$": "value"}]'>
                     <option value="deltacopy" selected>⚡ DeltaCopy (Resume & Checksums)</option>
                     <option value="standard">Standard Copy (Direct Transfer)</option>
                   </select>
@@ -1406,7 +1406,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-task-verbosity">Transfer Manager Display Detail:</label>
-                  <select id="setting-task-verbosity" class="settings-select" onchange="setTaskVerbosity(this.value)">
+                  <select id="setting-task-verbosity" class="settings-select" data-on-change="setTaskVerbosity" data-change-args='[{"$": "value"}]'>
                     <option value="detailed" selected>Detailed (TeraCopy Stream, Files & Hashes)</option>
                     <option value="compact">Compact (Overall Progress & Speed Only)</option>
                     <option value="log">Diagnostic Stream / Verbose Logs</option>
@@ -1418,7 +1418,7 @@
               <div class="settings-grid-2col" style="margin-top: 4px;">
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-dnd-default-action">Default Drag-and-Drop Action:</label>
-                  <select id="setting-dnd-default-action" class="settings-select" onchange="handleDndSettingChange()">
+                  <select id="setting-dnd-default-action" class="settings-select" data-on-change="handleDndSettingChange">
                     <option value="ask">❓ Ask Every Time (Prompt for Move / Copy)</option>
                     <option value="move">📦 Move (Move items to destination)</option>
                     <option value="copy">📋 Copy (Copy items to destination)</option>
@@ -1428,7 +1428,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-dnd-prompt-mode">Drag-and-Drop Confirmation:</label>
-                  <select id="setting-dnd-prompt-mode" class="settings-select" onchange="handleDndSettingChange()">
+                  <select id="setting-dnd-prompt-mode" class="settings-select" data-on-change="handleDndSettingChange">
                     <option value="ask">💬 Always Ask / Show Confirmation Dialog</option>
                     <option value="direct">⚡ Direct Execution (No Asking / Silent Action)</option>
                   </select>
@@ -1438,7 +1438,7 @@
 
               <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-dnd-paranoid-prompt" checked onchange="handleDndSettingChange()">
+                  <input type="checkbox" id="setting-dnd-paranoid-prompt" checked data-on-change="handleDndSettingChange">
                   <div>
                     <strong>Integrity Verification Prompt on Drag-and-Drop</strong>
                     <div class="settings-field-hint">Show confirmation dialog before initiating SHA-256 verified transfers.</div>
@@ -1466,7 +1466,7 @@
 
               <div style="display: flex; flex-direction: column; gap: 4px;">
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-hidden" onchange="toggleGlobalDotfiles(this.checked)">
+                  <input type="checkbox" id="setting-show-hidden" data-on-change="toggleGlobalDotfiles" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Show Hidden Files & Dotfiles</strong>
                     <div class="settings-field-hint">Display hidden files (e.g. <code>.bashrc</code>, <code>.git</code>) across all directory panels.</div>
@@ -1490,7 +1490,7 @@
                 </label>
 
                 <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="setting-windows-native-ops" checked onchange="toggleWindowsNativeOpsSetting(this.checked)">
+                  <input type="checkbox" id="setting-windows-native-ops" checked data-on-change="toggleWindowsNativeOpsSetting" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Windows Native Shell & Recycle Bin</strong>
                     <div class="settings-field-hint">Use Windows native functions ($Recycle.Bin, SHFileOperation) instead of Brum's internal POSIX filesystem engine.</div>
@@ -1498,7 +1498,7 @@
                 </label>
 
                 <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="setting-detect-file-locks" checked onchange="toggleDetectFileLocksSetting(this.checked)">
+                  <input type="checkbox" id="setting-detect-file-locks" checked data-on-change="toggleDetectFileLocksSetting" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Identify Locking Processes (Restart Manager)</strong>
                     <div class="settings-field-hint">Inspect and report active applications/processes (e.g. Explorer, Excel, Thumbs.db) locking files on Windows.</div>
@@ -1530,7 +1530,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-haptic-feedback" checked onchange="toggleHapticFeedbackSetting(this.checked)">
+                  <input type="checkbox" id="setting-haptic-feedback" checked data-on-change="toggleHapticFeedbackSetting" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Haptic Touch Feedback</strong>
                     <div class="settings-field-hint">Vibration feedback on touch swipes, row selections & pull-to-refresh on mobile devices.</div>
@@ -1538,7 +1538,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-global-refresh" onchange="toggleGlobalRefreshButton(this.checked)">
+                  <input type="checkbox" id="setting-show-global-refresh" data-on-change="toggleGlobalRefreshButton" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Global Header Refresh Button</strong>
                     <div class="settings-field-hint">Show global "Refresh All" button in the top header bar (off by default).</div>
@@ -1549,7 +1549,7 @@
               <!-- Trash bin sub-section -->
               <div style="padding-top: 10px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 8px;">
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-user-trash-enabled" checked onchange="toggleTrashSetting(this.checked)">
+                  <input type="checkbox" id="setting-user-trash-enabled" checked data-on-change="toggleTrashSetting" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Enable Safe Trash Bin</strong>
                     <div class="settings-field-hint">Move deleted items to trash directory instead of immediate permanent deletion.</div>
@@ -1558,7 +1558,7 @@
 
                 <div id="wrapper-custom-trash-dir" class="settings-field" style="margin-left: 28px;">
                   <label class="settings-field-label" for="setting-user-custom-trash">Custom Trash Directory (Optional):</label>
-                  <input type="text" id="setting-user-custom-trash" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" onchange="saveCustomTrashDir(this.value)">
+                  <input type="text" id="setting-user-custom-trash" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" data-on-change="saveCustomTrashDir" data-change-args='[{"$": "value"}]'>
                   <div class="settings-field-hint">When a custom directory is set, deleted files are safely timestamped and preserved in that folder.</div>
                 </div>
               </div>
@@ -1575,8 +1575,8 @@
 
               <div class="settings-field">
                 <div style="display: flex; gap: 8px; align-items: center;">
-                  <input type="text" id="setting-notedog-folder" class="settings-input" style="flex: 1; font-family: var(--font-mono);" placeholder="~/Notes" onchange="saveNoteDogFolderSetting(this.value)">
-                  <button type="button" class="btn btn-sm btn-outline" onclick="browseNoteDogFolder()" title="Use active pane's current path as notes folder" style="height: 28px; white-space: nowrap; display: flex; align-items: center; gap: 5px;">
+                  <input type="text" id="setting-notedog-folder" class="settings-input" style="flex: 1; font-family: var(--font-mono);" placeholder="~/Notes" data-on-change="saveNoteDogFolderSetting" data-change-args='[{"$": "value"}]'>
+                  <button type="button" class="btn btn-sm btn-outline" data-on-click="browseNoteDogFolder" title="Use active pane's current path as notes folder" style="height: 28px; white-space: nowrap; display: flex; align-items: center; gap: 5px;">
                     <i data-lucide="folder-check" style="width: 13px; height: 13px;"></i> Use Active Pane
                   </button>
                 </div>
@@ -1590,7 +1590,7 @@
                 <h4 class="settings-section-title">
                   <i data-lucide="columns-3"></i> Columns & File List Display
                 </h4>
-                <button type="button" class="btn btn-xs btn-outline" onclick="resetAllColumnWidths()" style="display: flex; align-items: center; gap: 4px; height: 26px;">
+                <button type="button" class="btn btn-xs btn-outline" data-on-click="resetAllColumnWidths" style="display: flex; align-items: center; gap: 4px; height: 26px;">
                   <i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset Column Widths
                 </button>
               </div>
@@ -1600,21 +1600,21 @@
                 <label class="settings-field-label">Default Panel View Mode:</label>
                 <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
                   <label class="settings-checkbox-row">
-                    <input type="radio" name="setting-view-mode" value="details" checked onchange="setDefaultViewMode(this.value)">
+                    <input type="radio" name="setting-view-mode" value="details" checked data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
                     <div>
                       <strong>Details Table</strong>
                       <div class="settings-field-hint">Orthodox table with Name, Ext, Size, Modified, Mode, Owner, Group, SHA-256.</div>
                     </div>
                   </label>
                   <label class="settings-checkbox-row">
-                    <input type="radio" name="setting-view-mode" value="grid" onchange="setDefaultViewMode(this.value)">
+                    <input type="radio" name="setting-view-mode" value="grid" data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
                     <div>
                       <strong>Thumbnail Gallery / Grid</strong>
                       <div class="settings-field-hint">Visual preview cards for photos, media & documents.</div>
                     </div>
                   </label>
                   <label class="settings-checkbox-row">
-                    <input type="radio" name="setting-view-mode" value="compact" onchange="setDefaultViewMode(this.value)">
+                    <input type="radio" name="setting-view-mode" value="compact" data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
                     <div>
                       <strong>Compact Multi-Column List</strong>
                       <div class="settings-field-hint">High-density multi-column filename browser.</div>
@@ -1627,21 +1627,21 @@
                 <label class="settings-field-label">Visible Table Columns (Details Mode):</label>
                 <div class="settings-grid-2col" style="margin-top: 4px;" id="column-visibility-checkboxes">
                   <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-name" checked disabled> <strong>File Name</strong> (Always Visible)</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-ext" onchange="toggleColumnVisibility('ext', this.checked)"> File Extension (.ext)</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-size" checked onchange="toggleColumnVisibility('size', this.checked)"> File Size</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-modified" checked onchange="toggleColumnVisibility('modified', this.checked)"> Date Modified</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-created" onchange="toggleColumnVisibility('created', this.checked)"> Date Created</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-mode" checked onchange="toggleColumnVisibility('mode', this.checked)"> Permissions / Mode</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-owner" checked onchange="toggleColumnVisibility('owner', this.checked)"> Owner</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-group" onchange="toggleColumnVisibility('group', this.checked)"> Group</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-hash" onchange="toggleColumnVisibility('hash', this.checked)"> SHA-256 Checksum</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-tags" onchange="toggleColumnVisibility('tags', this.checked)"> Tags & Colors</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-ext" data-on-change="toggleColumnVisibility" data-change-args='["ext", {"$": "checked"}]'> File Extension (.ext)</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-size" checked data-on-change="toggleColumnVisibility" data-change-args='["size", {"$": "checked"}]'> File Size</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-modified" checked data-on-change="toggleColumnVisibility" data-change-args='["modified", {"$": "checked"}]'> Date Modified</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-created" data-on-change="toggleColumnVisibility" data-change-args='["created", {"$": "checked"}]'> Date Created</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-mode" checked data-on-change="toggleColumnVisibility" data-change-args='["mode", {"$": "checked"}]'> Permissions / Mode</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-owner" checked data-on-change="toggleColumnVisibility" data-change-args='["owner", {"$": "checked"}]'> Owner</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-group" data-on-change="toggleColumnVisibility" data-change-args='["group", {"$": "checked"}]'> Group</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-hash" data-on-change="toggleColumnVisibility" data-change-args='["hash", {"$": "checked"}]'> SHA-256 Checksum</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-tags" data-on-change="toggleColumnVisibility" data-change-args='["tags", {"$": "checked"}]'> Tags & Colors</label>
                 </div>
               </div>
 
               <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-sticky-col-headers" checked onchange="toggleStickyColHeaders(this.checked)">
+                  <input type="checkbox" id="setting-sticky-col-headers" checked data-on-change="toggleStickyColHeaders" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Sticky Column Headers (Frosted Glass)</strong>
                     <div class="settings-field-hint">Pin column header to the top when scrolling with a dynamic frosted glass effect.</div>
@@ -1649,7 +1649,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-col-separators" checked onchange="toggleColSeparators(this.checked)">
+                  <input type="checkbox" id="setting-col-separators" checked data-on-change="toggleColSeparators" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Discrete Column Separators</strong>
                     <div class="settings-field-hint">Display subtle vertical dividers between table columns.</div>
@@ -1657,7 +1657,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-compact-dates" checked onchange="toggleCompactDates(this.checked)">
+                  <input type="checkbox" id="setting-compact-dates" checked data-on-change="toggleCompactDates" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Compact Date Format</strong>
                     <div class="settings-field-hint">Use short, space-saving timestamps (e.g. <code>09-08 09:15</code> / <code>YYYY-MM-DD</code>).</div>
@@ -1665,7 +1665,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-dir-tag" onchange="toggleShowDirTag(this.checked)">
+                  <input type="checkbox" id="setting-show-dir-tag" data-on-change="toggleShowDirTag" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Show classic &lt;DIR&gt; tag</strong>
                     <div class="settings-field-hint">Display classic <code>&lt;DIR&gt;</code> in file size column for directories (leave unchecked for clean blank folder sizes).</div>
@@ -1673,7 +1673,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-file-list-multiline" onchange="toggleFileListMultiline(this.checked)">
+                  <input type="checkbox" id="setting-file-list-multiline" data-on-change="toggleFileListMultiline" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Multi-Line Subtext on Phone Screens</strong>
                     <div class="settings-field-hint">Wrap secondary metadata into a second subtext line on narrow phone screens.</div>
@@ -1693,10 +1693,10 @@
               <p class="settings-card-desc">Your pane custom names, colors, active layout, and start directories persist across your phones, tablets, laptops, and desktop browsers.</p>
               
               <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;">
-                <button type="button" class="btn btn-sm btn-accent" onclick="saveCurrentWorkspaceAsDefault()" style="font-size: 11px; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px;">
+                <button type="button" class="btn btn-sm btn-accent" data-on-click="saveCurrentWorkspaceAsDefault" style="font-size: 11px; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 12px;">
                   <i data-lucide="save" style="width: 13px; height: 13px;"></i> Save Current Workspace as Default
                 </button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="resetServerPreferences()" style="font-size: 11px; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px;">
+                <button type="button" class="btn btn-sm btn-outline" data-on-click="resetServerPreferences" style="font-size: 11px; display: flex; align-items: center; gap: 5px; height: 28px; padding: 0 10px;">
                   <i data-lucide="rotate-ccw" style="width: 13px; height: 13px;"></i> Reset Server Defaults
                 </button>
               </div>
@@ -1714,7 +1714,7 @@
 
               <div style="display: flex; flex-direction: column; gap: 4px;">
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-minimize-tray" checked onchange="toggleMinimizeToTray(this.checked)">
+                  <input type="checkbox" id="setting-minimize-tray" checked data-on-change="toggleMinimizeToTray" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Minimize to System Tray on Close</strong>
                     <div class="settings-field-hint">Closing the window keeps Brum running in the background system tray.</div>
@@ -1722,7 +1722,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-start-minimized" onchange="toggleStartMinimized(this.checked)">
+                  <input type="checkbox" id="setting-start-minimized" data-on-change="toggleStartMinimized" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Start Minimized</strong>
                     <div class="settings-field-hint">Launch directly to system tray on system boot / autostart.</div>
@@ -1730,7 +1730,7 @@
                 </label>
 
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-desktop-decorations" checked onchange="toggleWindowDecorations(this.checked)">
+                  <input type="checkbox" id="setting-desktop-decorations" checked data-on-change="toggleWindowDecorations" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Native Window Frame & Decorations</strong>
                     <div class="settings-field-hint">Uncheck for a clean frameless window that tiles seamlessly without header waste in Hyprland. Launch with <code>brum --no-decorations</code>.</div>
@@ -1767,21 +1767,21 @@
             <label style="font-weight: 700; color: var(--text);">External Text & Code Editor (F4):</label>
             <div style="display: flex; gap: 8px; margin-bottom: 6px;">
               <input type="text" id="setting-ext-editor" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. code "%1" or gedit "%1" or kate "%1" or subl "%1"'>
-              <button class="btn btn-sm" onclick="testExternalProgram('editor')" title="Test launching the configured editor"><i data-lucide="play"></i> Test</button>
+              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["editor"]' title="Test launching the configured editor"><i data-lucide="play"></i> Test</button>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
               <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'code &quot;%1&quot;')">VS Code</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'codium &quot;%1&quot;')">VSCodium</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'gedit &quot;%1&quot;')">Gedit</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'kate &quot;%1&quot;')">Kate</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'subl &quot;%1&quot;')">Sublime</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'notepad++ &quot;%1&quot;')">Notepad++</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'nvim-qt &quot;%1&quot;')">Neovim GUI</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('editor', 'xdg-open &quot;%1&quot;')">System Default</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "code \"%1\""]'>VS Code</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "codium \"%1\""]'>VSCodium</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "gedit \"%1\""]'>Gedit</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "kate \"%1\""]'>Kate</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "subl \"%1\""]'>Sublime</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "notepad++ \"%1\""]'>Notepad++</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "nvim-qt \"%1\""]'>Neovim GUI</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "xdg-open \"%1\""]'>System Default</button>
             </div>
             <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="setting-use-ext-editor-f4" onchange="toggleUseExtEditor(this.checked)">
+              <input type="checkbox" id="setting-use-ext-editor-f4" data-on-change="toggleUseExtEditor" data-change-args='[{"$": "checked"}]'>
               <span><b>Override F4 (Edit):</b> Launch external editor when pressing F4 or clicking Edit (instead of built-in EditorDog)</span>
             </label>
           </div>
@@ -1791,19 +1791,19 @@
             <label style="font-weight: 700; color: var(--text);">External Document & Media Viewer (F3):</label>
             <div style="display: flex; gap: 8px; margin-bottom: 6px;">
               <input type="text" id="setting-ext-viewer" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. xdg-open "%1" or vlc "%1" or mpv "%1" or eog "%1"'>
-              <button class="btn btn-sm" onclick="testExternalProgram('viewer')" title="Test launching the configured viewer"><i data-lucide="play"></i> Test</button>
+              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["viewer"]' title="Test launching the configured viewer"><i data-lucide="play"></i> Test</button>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
               <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('viewer', 'xdg-open &quot;%1&quot;')">System Default (xdg-open / open)</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('viewer', 'vlc &quot;%1&quot;')">VLC Media Player</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('viewer', 'mpv &quot;%1&quot;')">MPV Video Player</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('viewer', 'eog &quot;%1&quot;')">Eye of GNOME (eog)</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('viewer', 'feh &quot;%1&quot;')">Feh Image Viewer</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('viewer', 'zathura &quot;%1&quot;')">Zathura PDF</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "xdg-open \"%1\""]'>System Default (xdg-open / open)</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "vlc \"%1\""]'>VLC Media Player</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "mpv \"%1\""]'>MPV Video Player</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "eog \"%1\""]'>Eye of GNOME (eog)</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "feh \"%1\""]'>Feh Image Viewer</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "zathura \"%1\""]'>Zathura PDF</button>
             </div>
             <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="setting-use-ext-viewer-f3" onchange="toggleUseExtViewer(this.checked)">
+              <input type="checkbox" id="setting-use-ext-viewer-f3" data-on-change="toggleUseExtViewer" data-change-args='[{"$": "checked"}]'>
               <span><b>Override F3 (Quick View):</b> Launch external viewer when pressing F3 or clicking Quick View</span>
             </label>
           </div>
@@ -1813,16 +1813,16 @@
             <label style="font-weight: 700; color: var(--text);">External Terminal Emulator:</label>
             <div style="display: flex; gap: 8px; margin-bottom: 6px;">
               <input type="text" id="setting-ext-terminal" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. alacritty --working-directory "%1" or kitty --directory "%1"'>
-              <button class="btn btn-sm" onclick="testExternalProgram('terminal')" title="Test launching the configured terminal"><i data-lucide="terminal"></i> Test</button>
+              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["terminal"]' title="Test launching the configured terminal"><i data-lucide="terminal"></i> Test</button>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 6px;">
               <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('terminal', 'alacritty --working-directory &quot;%1&quot;')">Alacritty</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('terminal', 'kitty --directory &quot;%1&quot;')">Kitty</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('terminal', 'gnome-terminal --working-directory=&quot;%1&quot;')">GNOME Terminal</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('terminal', 'konsole --workdir &quot;%1&quot;')">Konsole</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('terminal', 'wezterm start --cwd &quot;%1&quot;')">WezTerm</button>
-              <button type="button" class="ext-preset-btn" onclick="applyExternalProgramPreset('terminal', 'x-terminal-emulator')">XTerm / Default</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "alacritty --working-directory \"%1\""]'>Alacritty</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "kitty --directory \"%1\""]'>Kitty</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "gnome-terminal --working-directory=\"%1\""]'>GNOME Terminal</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "konsole --workdir \"%1\""]'>Konsole</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "wezterm start --cwd \"%1\""]'>WezTerm</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "x-terminal-emulator"]'>XTerm / Default</button>
             </div>
           </div>
 
@@ -1845,7 +1845,7 @@
               <h4 style="color: var(--accent); margin: 0;">Open With & External Application Handlers</h4>
               <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Map file extensions to external desktop applications and custom launchers.</p>
             </div>
-            <button class="btn btn-accent btn-sm" onclick="showAddOpenWithRulePrompt()"><i data-lucide="plus"></i> Add Handler</button>
+            <button class="btn btn-accent btn-sm" data-on-click="showAddOpenWithRulePrompt"><i data-lucide="plus"></i> Add Handler</button>
           </div>
 
           <div id="openwith-rules-list" style="margin-top: 12px;">
@@ -1870,8 +1870,8 @@
               <input type="text" id="openwith-input-cmd" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono);" placeholder='e.g. vlc "%1" or code "%1"'>
             </div>
             <div style="display: flex; gap: 8px;">
-              <button class="btn btn-accent btn-sm" onclick="saveOpenWithRule()"><i data-lucide="check"></i> Save Rule</button>
-              <button class="btn btn-sm" onclick="hideOpenWithRuleForm()">Cancel</button>
+              <button class="btn btn-accent btn-sm" data-on-click="saveOpenWithRule"><i data-lucide="check"></i> Save Rule</button>
+              <button class="btn btn-sm" data-on-click="hideOpenWithRuleForm">Cancel</button>
             </div>
           </div>
         </div>
@@ -1886,19 +1886,19 @@
               <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Personalize and reorder Folder Context, File Context, App Menu, Spot! launcher, and default download formats.</p>
             </div>
             <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm btn-accent" onclick="showAddCustomActionPrompt()"><i data-lucide="plus"></i> New Shell Action</button>
-              <button class="btn btn-sm" onclick="resetMenuConfigToDefaults()"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
+              <button class="btn btn-sm btn-accent" data-on-click="showAddCustomActionPrompt"><i data-lucide="plus"></i> New Shell Action</button>
+              <button class="btn btn-sm" data-on-click="resetMenuConfigToDefaults"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
             </div>
           </div>
 
           <!-- Menu Category Selector -->
           <div style="display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 4px; border-bottom: 1px solid var(--border);">
-            <button type="button" class="btn btn-sm btn-outline active" id="btn-menu-cat-folder" onclick="switchMenuBuilderCategory('folder')"><i data-lucide="folder"></i> Context Folder</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-file" onclick="switchMenuBuilderCategory('file')"><i data-lucide="file"></i> Context File</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-app" onclick="switchMenuBuilderCategory('app')"><i data-lucide="layout-grid"></i> App Menu</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-spot" onclick="switchMenuBuilderCategory('spot')"><i data-lucide="zap"></i> Spot! Launcher</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-options" onclick="switchMenuBuilderCategory('options')"><i data-lucide="settings"></i> Options</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-shell" onclick="switchMenuBuilderCategory('shell')"><i data-lucide="terminal"></i> Shell Actions</button>
+            <button type="button" class="btn btn-sm btn-outline active" id="btn-menu-cat-folder" data-on-click="switchMenuBuilderCategory" data-click-args='["folder"]'><i data-lucide="folder"></i> Context Folder</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-file" data-on-click="switchMenuBuilderCategory" data-click-args='["file"]'><i data-lucide="file"></i> Context File</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-app" data-on-click="switchMenuBuilderCategory" data-click-args='["app"]'><i data-lucide="layout-grid"></i> App Menu</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-spot" data-on-click="switchMenuBuilderCategory" data-click-args='["spot"]'><i data-lucide="zap"></i> Spot! Launcher</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-options" data-on-click="switchMenuBuilderCategory" data-click-args='["options"]'><i data-lucide="settings"></i> Options</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-shell" data-on-click="switchMenuBuilderCategory" data-click-args='["shell"]'><i data-lucide="terminal"></i> Shell Actions</button>
           </div>
 
           <!-- Menu Builder Content Area -->
@@ -1924,8 +1924,8 @@
               <input type="text" id="custom-action-input-cmd" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono);" placeholder="e.g. git -C {dir} pull or 7z a -tzip archive.zip {selection}">
             </div>
             <div style="display: flex; gap: 8px;">
-              <button class="btn btn-accent btn-sm" onclick="saveCustomShellAction()"><i data-lucide="check"></i> Save Action</button>
-              <button class="btn btn-sm" onclick="hideCustomActionForm()">Cancel</button>
+              <button class="btn btn-accent btn-sm" data-on-click="saveCustomShellAction"><i data-lucide="check"></i> Save Action</button>
+              <button class="btn btn-sm" data-on-click="hideCustomActionForm">Cancel</button>
             </div>
           </div>
         </div>
@@ -1940,22 +1940,22 @@
               <div class="form-hint" style="margin-top: 2px;">Create new files with boilerplate headers, dynamic dates, and variable replacement anywhere via right-click.</div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm btn-accent" onclick="openCreateTemplateModal()"><i data-lucide="plus"></i> + New Template</button>
-              <button class="btn btn-sm" onclick="resetFileTemplatesToDefault()"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
+              <button class="btn btn-sm btn-accent" data-on-click="openCreateTemplateModal"><i data-lucide="plus"></i> + New Template</button>
+              <button class="btn btn-sm" data-on-click="resetFileTemplatesToDefault"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
             </div>
           </div>
 
           <div style="margin-bottom: 14px; padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 11px;">
             <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">Dynamic Template Variables:</div>
             <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-              <span class="var-chip" onclick="copyVariableTag('{{TITLE}}')"><code>{{TITLE}}</code> Title</span>
-              <span class="var-chip" onclick="copyVariableTag('{{FILENAME}}')"><code>{{FILENAME}}</code> Filename</span>
-              <span class="var-chip" onclick="copyVariableTag('{{NAME}}')"><code>{{NAME}}</code> Base Name</span>
-              <span class="var-chip" onclick="copyVariableTag('{{DATE}}')"><code>{{DATE}}</code> YYYY-MM-DD</span>
-              <span class="var-chip" onclick="copyVariableTag('{{TIME}}')"><code>{{TIME}}</code> HH:MM:SS</span>
-              <span class="var-chip" onclick="copyVariableTag('{{USER}}')"><code>{{USER}}</code> Username</span>
-              <span class="var-chip" onclick="copyVariableTag('{{ISO_DATE}}')"><code>{{ISO_DATE}}</code> ISO8601</span>
-              <span class="var-chip" onclick="copyVariableTag('{{YEAR}}')"><code>{{YEAR}}</code> Year</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{TITLE}}"]'><code>{{TITLE}}</code> Title</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{FILENAME}}"]'><code>{{FILENAME}}</code> Filename</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{NAME}}"]'><code>{{NAME}}</code> Base Name</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{DATE}}"]'><code>{{DATE}}</code> YYYY-MM-DD</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{TIME}}"]'><code>{{TIME}}</code> HH:MM:SS</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{USER}}"]'><code>{{USER}}</code> Username</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{ISO_DATE}}"]'><code>{{ISO_DATE}}</code> ISO8601</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{YEAR}}"]'><code>{{YEAR}}</code> Year</span>
             </div>
           </div>
 
@@ -1976,16 +1976,16 @@
               </div>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="file" id="input-chewtoy-file" accept=".grr,.zip" style="display: none;" onchange="handleChewToyFileSelect(event)">
-              <button class="btn btn-sm" id="btn-install-chewtoy" onclick="document.getElementById('input-chewtoy-file').click()" style="display: flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.15); border-color: var(--accent); color: var(--accent); font-weight: 600;">
+              <input type="file" id="input-chewtoy-file" accept=".grr,.zip" style="display: none;" data-on-change="handleChewToyFileSelect" data-change-args='[{"$": "event"}]'>
+              <button class="btn btn-sm" id="btn-install-chewtoy" data-on-click="clickElementById" data-click-args='["input-chewtoy-file"]' style="display: flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.15); border-color: var(--accent); color: var(--accent); font-weight: 600;">
                 <i data-lucide="plus"></i> Install Chewtoy (.grr)
               </button>
-              <button class="btn btn-sm btn-icon" onclick="loadInstalledChewToys(true)" title="Refresh Chewtoys"><i data-lucide="rotate-ccw"></i></button>
+              <button class="btn btn-sm btn-icon" data-on-click="loadInstalledChewToys" data-click-args='[true]' title="Refresh Chewtoys"><i data-lucide="rotate-ccw"></i></button>
             </div>
           </div>
 
           <!-- 1-Click Drag-and-Drop Dropzone -->
-          <div class="chewtoy-dropzone" id="chewtoy-dropzone" ondragover="handleChewToyDragOver(event)" ondragleave="handleChewToyDragLeave(event)" ondrop="handleChewToyDrop(event)" onclick="document.getElementById('input-chewtoy-file').click()">
+          <div class="chewtoy-dropzone" id="chewtoy-dropzone" data-on-dragover="handleChewToyDragOver" data-dragover-args='[{"$": "event"}]' data-on-dragleave="handleChewToyDragLeave" data-dragleave-args='[{"$": "event"}]' data-on-drop="handleChewToyDrop" data-drop-args='[{"$": "event"}]' data-on-click="clickElementById" data-click-args='["input-chewtoy-file"]'>
             <div class="chewtoy-dropzone-icon"><i data-lucide="upload-cloud"></i></div>
             <div style="font-weight: 600; font-size: 12.5px; color: var(--text-main);">Drag & Drop <code style="color: var(--accent); background: rgba(245,158,11,0.12); padding: 1px 6px; border-radius: 4px;">.grr</code> Chewtoy package here</div>
             <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">or click to browse from your computer</div>
@@ -1998,7 +1998,7 @@
               <span class="badge" id="chewtoys-count-badge" style="font-size: 10px; padding: 1px 6px; background: rgba(245,158,11,0.2); color: var(--accent);">0</span>
             </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="chewtoy-filter-input" placeholder="Filter Chewtoys..." oninput="filterInstalledChewToys(this.value)" class="form-input" style="height: 26px; font-size: 11.5px; width: 160px; padding: 2px 8px;">
+              <input type="text" id="chewtoy-filter-input" placeholder="Filter Chewtoys..." data-on-input="filterInstalledChewToys" data-input-args='[{"$": "value"}]' class="form-input" style="height: 26px; font-size: 11.5px; width: 160px; padding: 2px 8px;">
             </div>
           </div>
 
@@ -2018,7 +2018,7 @@
               <div class="form-hint" style="margin-top: 2px;">Rearrange tool order, toggle menu visibility, or reset the Tools & Utilities launchpad dropdown.</div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm" onclick="resetToolsMenuToDefault()"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
+              <button class="btn btn-sm" data-on-click="resetToolsMenuToDefault"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
             </div>
           </div>
 
@@ -2041,7 +2041,7 @@
               <h4 class="settings-section-title">
                 <i data-lucide="palette"></i> Brum Theme & Visual Palette
               </h4>
-              <button type="button" class="btn btn-xs btn-outline" onclick="toggleCustomThemeCreator()" style="display: flex; align-items: center; gap: 4px; height: 26px;">
+              <button type="button" class="btn btn-xs btn-outline" data-on-click="toggleCustomThemeCreator" style="display: flex; align-items: center; gap: 4px; height: 26px;">
                 <i data-lucide="plus" style="width: 12px; height: 12px;"></i> Custom Theme
               </button>
             </div>
@@ -2049,7 +2049,7 @@
 
             <div class="settings-field">
               <label class="settings-field-label" for="settings-theme-selector">Active Theme:</label>
-              <select id="settings-theme-selector" class="settings-select" onchange="applyTheme(this.value)">
+              <select id="settings-theme-selector" class="settings-select" data-on-change="applyTheme" data-change-args='[{"$": "value"}]'>
                 <option value="amber-charcoal">Woofsons Amber Charcoal</option>
                 <option value="zink">Woofsons Amber Zink</option>
                 <option value="gruvbox">Gruvbox Dark</option>
@@ -2094,29 +2094,29 @@
                 <div class="settings-field">
                   <label class="settings-field-label">Accent Highlight:</label>
                   <div class="settings-color-swatch-input">
-                    <input type="color" id="custom-theme-accent" value="#00e5ff" oninput="document.getElementById('custom-theme-accent-txt').value = this.value">
-                    <input type="text" id="custom-theme-accent-txt" value="#00e5ff" oninput="document.getElementById('custom-theme-accent').value = this.value">
+                    <input type="color" id="custom-theme-accent" value="#00e5ff" data-on-input="setElementValue" data-input-args='["custom-theme-accent-txt", {"$": "value"}]'>
+                    <input type="text" id="custom-theme-accent-txt" value="#00e5ff" data-on-input="setElementValue" data-input-args='["custom-theme-accent", {"$": "value"}]'>
                   </div>
                 </div>
                 <div class="settings-field">
                   <label class="settings-field-label">Dark Background:</label>
                   <div class="settings-color-swatch-input">
-                    <input type="color" id="custom-theme-bg-dark" value="#0b0f14" oninput="document.getElementById('custom-theme-bg-dark-txt').value = this.value">
-                    <input type="text" id="custom-theme-bg-dark-txt" value="#0b0f14" oninput="document.getElementById('custom-theme-bg-dark').value = this.value">
+                    <input type="color" id="custom-theme-bg-dark" value="#0b0f14" data-on-input="setElementValue" data-input-args='["custom-theme-bg-dark-txt", {"$": "value"}]'>
+                    <input type="text" id="custom-theme-bg-dark-txt" value="#0b0f14" data-on-input="setElementValue" data-input-args='["custom-theme-bg-dark", {"$": "value"}]'>
                   </div>
                 </div>
                 <div class="settings-field">
                   <label class="settings-field-label">Panel Background:</label>
                   <div class="settings-color-swatch-input">
-                    <input type="color" id="custom-theme-bg-panel" value="#111822" oninput="document.getElementById('custom-theme-bg-panel-txt').value = this.value">
-                    <input type="text" id="custom-theme-bg-panel-txt" value="#111822" oninput="document.getElementById('custom-theme-bg-panel').value = this.value">
+                    <input type="color" id="custom-theme-bg-panel" value="#111822" data-on-input="setElementValue" data-input-args='["custom-theme-bg-panel-txt", {"$": "value"}]'>
+                    <input type="text" id="custom-theme-bg-panel-txt" value="#111822" data-on-input="setElementValue" data-input-args='["custom-theme-bg-panel", {"$": "value"}]'>
                   </div>
                 </div>
               </div>
               <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button type="button" class="btn btn-accent btn-sm" onclick="saveCustomBrowserTheme()"><i data-lucide="check"></i> Save & Apply</button>
-                <button type="button" class="btn btn-sm btn-outline" onclick="exportCustomThemeToml()"><i data-lucide="download"></i> Export TOML</button>
-                <button type="button" class="btn btn-sm" onclick="toggleCustomThemeCreator()">Cancel</button>
+                <button type="button" class="btn btn-accent btn-sm" data-on-click="saveCustomBrowserTheme"><i data-lucide="check"></i> Save & Apply</button>
+                <button type="button" class="btn btn-sm btn-outline" data-on-click="exportCustomThemeToml"><i data-lucide="download"></i> Export TOML</button>
+                <button type="button" class="btn btn-sm" data-on-click="toggleCustomThemeCreator">Cancel</button>
               </div>
             </div>
           </div>
@@ -2133,20 +2133,20 @@
 
             <div class="settings-field">
               <div class="slider-container">
-                <input type="range" min="10" max="18" value="13" class="range-slider" id="setting-font-size-slider" oninput="handleFontSizeChange(this.value)">
+                <input type="range" min="10" max="18" value="13" class="range-slider" id="setting-font-size-slider" data-on-input="handleFontSizeChange" data-input-args='[{"$": "value"}]'>
               </div>
               <div class="perm-preset-container font-preset-container" style="margin-top: 8px;">
-                <button type="button" class="perm-chip font-preset-chip" data-size="11" onclick="setFontSizePreset(11)">Compact (11px)</button>
-                <button type="button" class="perm-chip font-preset-chip" data-size="13" onclick="setFontSizePreset(13)">Standard (13px)</button>
-                <button type="button" class="perm-chip font-preset-chip" data-size="15" onclick="setFontSizePreset(15)">Medium (15px)</button>
-                <button type="button" class="perm-chip font-preset-chip" data-size="17" onclick="setFontSizePreset(17)">Large (17px)</button>
+                <button type="button" class="perm-chip font-preset-chip" data-size="11" data-on-click="setFontSizePreset" data-click-args='[11]'>Compact (11px)</button>
+                <button type="button" class="perm-chip font-preset-chip" data-size="13" data-on-click="setFontSizePreset" data-click-args='[13]'>Standard (13px)</button>
+                <button type="button" class="perm-chip font-preset-chip" data-size="15" data-on-click="setFontSizePreset" data-click-args='[15]'>Medium (15px)</button>
+                <button type="button" class="perm-chip font-preset-chip" data-size="17" data-on-click="setFontSizePreset" data-click-args='[17]'>Large (17px)</button>
               </div>
             </div>
 
             <div class="settings-grid-3col" style="margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-font-sans">UI Font Family:</label>
-                <select id="setting-font-sans" class="settings-select" onchange="handleSansFontChange(this.value)">
+                <select id="setting-font-sans" class="settings-select" data-on-change="handleSansFontChange" data-change-args='[{"$": "value"}]'>
                   <option value="default" selected>System Default (San Francisco / Segoe UI / Roboto)</option>
                   <option value="Inter, -apple-system, BlinkMacSystemFont, sans-serif">Inter</option>
                   <option value="'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif">Segoe UI</option>
@@ -2160,7 +2160,7 @@
 
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-font-mono">Code / Terminal Font:</label>
-                <select id="setting-font-mono" class="settings-select" onchange="handleMonoFontChange(this.value)">
+                <select id="setting-font-mono" class="settings-select" data-on-change="handleMonoFontChange" data-change-args='[{"$": "value"}]'>
                   <option value="default" selected>JetBrainsMono Nerd Font (Bundled / Default)</option>
                   <option value="'Cascadia Code', 'JetBrainsMono Nerd Font', monospace">Cascadia Code</option>
                   <option value="'Fira Code', 'JetBrainsMono Nerd Font', monospace">Fira Code</option>
@@ -2173,7 +2173,7 @@
 
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-font-weight">Font Weight:</label>
-                <select id="setting-font-weight" class="settings-select" onchange="handleFontWeightChange(this.value)">
+                <select id="setting-font-weight" class="settings-select" data-on-change="handleFontWeightChange" data-change-args='[{"$": "value"}]'>
                   <option value="default" selected>Standard (400 / Normal)</option>
                   <option value="500">Medium (500)</option>
                   <option value="600">Semi-Bold (600)</option>
@@ -2195,7 +2195,7 @@
             <div class="settings-grid-3col">
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-border-width">Panel Border Width:</label>
-                <select id="setting-border-width" class="settings-select" onchange="applyBorderSettings(this.value, null, null)">
+                <select id="setting-border-width" class="settings-select" data-on-change="applyBorderSettings" data-change-args='[{"$": "value"}, null, null]'>
                   <option value="0px">0px (Borderless / Minimal)</option>
                   <option value="0.5px">0.5px (Ultra Hairline)</option>
                   <option value="1px" selected>1px (Subtle Hairline - Default)</option>
@@ -2206,7 +2206,7 @@
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-ring-style">Active Focus Highlight Style:</label>
-                <select id="setting-ring-style" class="settings-select" onchange="applyBorderSettings(null, this.value, null)">
+                <select id="setting-ring-style" class="settings-select" data-on-change="applyBorderSettings" data-change-args='[null, {"$": "value"}, null]'>
                   <option value="none">Border Color Only (No Extra Ring)</option>
                   <option value="subtle" selected>Subtle (1px Accent Ring)</option>
                   <option value="bold">Bold (2px Crisp Accent Ring)</option>
@@ -2215,7 +2215,7 @@
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-border-angle">Border Gradient Angle:</label>
-                <select id="setting-border-angle" class="settings-select" onchange="applyBorderSettings(null, null, this.value)">
+                <select id="setting-border-angle" class="settings-select" data-on-change="applyBorderSettings" data-change-args='[null, null, {"$": "value"}]'>
                   <option value="45deg" selected>45° Diagonal (↗ Default)</option>
                   <option value="90deg">90° Horizontal (→)</option>
                   <option value="135deg">135° Diagonal (↘)</option>
@@ -2241,7 +2241,7 @@
             <div class="settings-grid-2col">
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-0">Pane 1 Color:</label>
-                <select id="setting-pane-color-0" class="settings-select" onchange="setPaneColorPref(0, this.value)">
+                <select id="setting-pane-color-0" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[0, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
                   <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
@@ -2255,7 +2255,7 @@
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-1">Pane 2 Color:</label>
-                <select id="setting-pane-color-1" class="settings-select" onchange="setPaneColorPref(1, this.value)">
+                <select id="setting-pane-color-1" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[1, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
                   <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
@@ -2269,7 +2269,7 @@
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-2">Pane 3 Color:</label>
-                <select id="setting-pane-color-2" class="settings-select" onchange="setPaneColorPref(2, this.value)">
+                <select id="setting-pane-color-2" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[2, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
                   <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
@@ -2283,7 +2283,7 @@
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-pane-color-3">Pane 4 Color:</label>
-                <select id="setting-pane-color-3" class="settings-select" onchange="setPaneColorPref(3, this.value)">
+                <select id="setting-pane-color-3" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[3, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
                   <option value="emerald">Emerald Cyan (#10b981 → #06b6d4)</option>
@@ -2304,7 +2304,7 @@
               <h4 class="settings-section-title">
                 <i data-lucide="layout-grid"></i> Panel Gaps, Outer Margins & Corner Rounding
               </h4>
-              <button type="button" class="btn btn-xs btn-outline" onclick="resetLayoutGapsToDefault()" style="height: 24px; padding: 0 6px; font-size: 10.5px;">Reset Spacing Defaults</button>
+              <button type="button" class="btn btn-xs btn-outline" data-on-click="resetLayoutGapsToDefault" style="height: 24px; padding: 0 6px; font-size: 10.5px;">Reset Spacing Defaults</button>
             </div>
             <p class="settings-card-desc">Define horizontal/vertical spacing between panels, outer window margin, corner rounding, and folder icon accents.</p>
 
@@ -2314,12 +2314,12 @@
                   <label class="settings-field-label" style="margin: 0;">Horizontal Panel Gap:</label>
                   <span class="slider-val-badge" id="setting-gap-x-val">6px</span>
                 </div>
-                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-gap-x-slider" oninput="handleGapXChange(this.value)">
+                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-gap-x-slider" data-on-input="handleGapXChange" data-input-args='[{"$": "value"}]'>
                 <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button type="button" class="perm-chip" onclick="handleGapXChange(0)">0px (Flush)</button>
-                  <button type="button" class="perm-chip" onclick="handleGapXChange(4)">4px</button>
-                  <button type="button" class="perm-chip" onclick="handleGapXChange(6)">6px</button>
-                  <button type="button" class="perm-chip" onclick="handleGapXChange(12)">12px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapXChange" data-click-args='[0]'>0px (Flush)</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapXChange" data-click-args='[4]'>4px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapXChange" data-click-args='[6]'>6px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapXChange" data-click-args='[12]'>12px</button>
                 </div>
               </div>
 
@@ -2328,12 +2328,12 @@
                   <label class="settings-field-label" style="margin: 0;">Vertical Panel Gap:</label>
                   <span class="slider-val-badge" id="setting-gap-y-val">6px</span>
                 </div>
-                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-gap-y-slider" oninput="handleGapYChange(this.value)">
+                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-gap-y-slider" data-on-input="handleGapYChange" data-input-args='[{"$": "value"}]'>
                 <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button type="button" class="perm-chip" onclick="handleGapYChange(0)">0px (Flush)</button>
-                  <button type="button" class="perm-chip" onclick="handleGapYChange(4)">4px</button>
-                  <button type="button" class="perm-chip" onclick="handleGapYChange(6)">6px</button>
-                  <button type="button" class="perm-chip" onclick="handleGapYChange(12)">12px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapYChange" data-click-args='[0]'>0px (Flush)</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapYChange" data-click-args='[4]'>4px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapYChange" data-click-args='[6]'>6px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleGapYChange" data-click-args='[12]'>12px</button>
                 </div>
               </div>
 
@@ -2342,12 +2342,12 @@
                   <label class="settings-field-label" style="margin: 0;">Outer Window Margin:</label>
                   <span class="slider-val-badge" id="setting-app-margin-val">6px</span>
                 </div>
-                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-app-margin-slider" oninput="handleAppMarginChange(this.value)">
+                <input type="range" min="0" max="24" value="6" class="range-slider" id="setting-app-margin-slider" data-on-input="handleAppMarginChange" data-input-args='[{"$": "value"}]'>
                 <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(0)">0px (Flush)</button>
-                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(4)">4px</button>
-                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(6)">6px</button>
-                  <button type="button" class="perm-chip" onclick="handleAppMarginChange(12)">12px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleAppMarginChange" data-click-args='[0]'>0px (Flush)</button>
+                  <button type="button" class="perm-chip" data-on-click="handleAppMarginChange" data-click-args='[4]'>4px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleAppMarginChange" data-click-args='[6]'>6px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleAppMarginChange" data-click-args='[12]'>12px</button>
                 </div>
               </div>
             </div>
@@ -2358,20 +2358,20 @@
                   <label class="settings-field-label" style="margin: 0;">Corner Rounding Radius:</label>
                   <span class="slider-val-badge" id="setting-radius-val">6px</span>
                 </div>
-                <input type="range" min="0" max="20" value="6" class="range-slider" id="setting-radius-slider" oninput="handleRadiusChange(this.value)">
+                <input type="range" min="0" max="20" value="6" class="range-slider" id="setting-radius-slider" data-on-input="handleRadiusChange" data-input-args='[{"$": "value"}]'>
                 <div class="perm-preset-container" style="margin-top: 6px; display: flex; gap: 4px; flex-wrap: wrap;">
-                  <button type="button" class="perm-chip" onclick="handleRadiusChange(0)">0px (Square)</button>
-                  <button type="button" class="perm-chip" onclick="handleRadiusChange(4)">4px</button>
-                  <button type="button" class="perm-chip" onclick="handleRadiusChange(6)">6px (Default)</button>
-                  <button type="button" class="perm-chip" onclick="handleRadiusChange(10)">10px</button>
-                  <button type="button" class="perm-chip" onclick="handleRadiusChange(16)">16px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleRadiusChange" data-click-args='[0]'>0px (Square)</button>
+                  <button type="button" class="perm-chip" data-on-click="handleRadiusChange" data-click-args='[4]'>4px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleRadiusChange" data-click-args='[6]'>6px (Default)</button>
+                  <button type="button" class="perm-chip" data-on-click="handleRadiusChange" data-click-args='[10]'>10px</button>
+                  <button type="button" class="perm-chip" data-on-click="handleRadiusChange" data-click-args='[16]'>16px</button>
                 </div>
               </div>
 
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-folder-color">Folder Icon Color Accent:</label>
                 <div style="display: flex; gap: 8px; align-items: center;">
-                  <select id="setting-folder-color" class="settings-select" style="flex: 1;" onchange="handleFolderColorChange(this.value)">
+                  <select id="setting-folder-color" class="settings-select" style="flex: 1;" data-on-change="handleFolderColorChange" data-change-args='[{"$": "value"}]'>
                     <option value="default" selected>Follow Theme Accent (Dynamic)</option>
                     <option value="#f59e0b">Amber Gold (#f59e0b)</option>
                     <option value="#38bdf8">Sky Blue (#38bdf8)</option>
@@ -2382,7 +2382,7 @@
                     <option value="#94a3b8">Slate Neutral (#94a3b8)</option>
                     <option value="custom">Custom Hex Color...</option>
                   </select>
-                  <input type="color" id="setting-folder-custom-color" value="#f59e0b" style="display: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;" oninput="handleFolderColorCustomChange(this.value)">
+                  <input type="color" id="setting-folder-custom-color" value="#f59e0b" style="display: none; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;" data-on-input="handleFolderColorCustomChange" data-input-args='[{"$": "value"}]'>
                 </div>
                 <div class="settings-field-hint">Customizes directory folder icon tint across dual panes, tree drawers, and Places menu.</div>
               </div>
@@ -2401,17 +2401,17 @@
 
             <div class="settings-field">
               <label class="settings-field-label" for="setting-title-template">Title Template String:</label>
-              <input type="text" id="setting-title-template" class="settings-input" placeholder="Brum — $path ($hostname)" oninput="handleTitleTemplateChange(this.value)">
+              <input type="text" id="setting-title-template" class="settings-input" placeholder="Brum — $path ($hostname)" data-on-input="handleTitleTemplateChange" data-input-args='[{"$": "value"}]'>
               <div style="display: flex; gap: 4px; flex-wrap: wrap; margin-top: 6px;">
-                <button type="button" class="perm-chip" onclick="insertTitleVar('$hostname')" title="Insert Hostname">$hostname</button>
-                <button type="button" class="perm-chip" onclick="insertTitleVar('$path')" title="Insert Active Pane Directory Path">$path</button>
-                <button type="button" class="perm-chip" onclick="insertTitleVar('$os')" title="Insert Operating System">$os</button>
-                <button type="button" class="perm-chip" onclick="insertTitleVar('$kernel')" title="Insert Kernel Version">$kernel</button>
-                <button type="button" class="perm-chip" onclick="insertTitleVar('$version')" title="Insert Brum Version">$version</button>
-                <button type="button" class="perm-chip" onclick="insertTitleVar('$user')" title="Insert Username">$user</button>
-                <button type="button" class="perm-chip" onclick="setTitleTemplatePreset('Brum — $path ($hostname)')">Default</button>
-                <button type="button" class="perm-chip" onclick="setTitleTemplatePreset('[$user@$hostname] $path ($os)')">Terminal Style</button>
-                <button type="button" class="perm-chip" onclick="setTitleTemplatePreset('Brum v$version · $path')">Minimal</button>
+                <button type="button" class="perm-chip" data-on-click="insertTitleVar" data-click-args='["$hostname"]' title="Insert Hostname">$hostname</button>
+                <button type="button" class="perm-chip" data-on-click="insertTitleVar" data-click-args='["$path"]' title="Insert Active Pane Directory Path">$path</button>
+                <button type="button" class="perm-chip" data-on-click="insertTitleVar" data-click-args='["$os"]' title="Insert Operating System">$os</button>
+                <button type="button" class="perm-chip" data-on-click="insertTitleVar" data-click-args='["$kernel"]' title="Insert Kernel Version">$kernel</button>
+                <button type="button" class="perm-chip" data-on-click="insertTitleVar" data-click-args='["$version"]' title="Insert Brum Version">$version</button>
+                <button type="button" class="perm-chip" data-on-click="insertTitleVar" data-click-args='["$user"]' title="Insert Username">$user</button>
+                <button type="button" class="perm-chip" data-on-click="setTitleTemplatePreset" data-click-args='["Brum — $path ($hostname)"]'>Default</button>
+                <button type="button" class="perm-chip" data-on-click="setTitleTemplatePreset" data-click-args='["[$user@$hostname] $path ($os)"]'>Terminal Style</button>
+                <button type="button" class="perm-chip" data-on-click="setTitleTemplatePreset" data-click-args='["Brum v$version · $path"]'>Minimal</button>
               </div>
             </div>
           </div>
@@ -2433,7 +2433,7 @@
             <p class="settings-card-desc">Display and style a custom environment/hostname prompt or badge next to the logo in the top header (e.g. <code>@nas-prod</code>, <code>@homelab</code>, <code>@dev-box</code>).</p>
 
             <label class="settings-checkbox-row">
-              <input type="checkbox" id="setting-show-hostname-badge" checked onchange="toggleHostnameBadgeSetting(this.checked)">
+              <input type="checkbox" id="setting-show-hostname-badge" checked data-on-change="toggleHostnameBadgeSetting" data-change-args='[{"$": "checked"}]'>
               <div>
                 <strong>Show Hostname Indicator in Header</strong>
                 <div class="settings-field-hint">Display host status / fleet prompt next to the Brum logo.</div>
@@ -2444,14 +2444,14 @@
             <div id="wrapper-custom-hostname" style="display: flex; flex-direction: column; gap: 12px; margin-top: 4px; padding-top: 10px; border-top: 1px dashed var(--border);">
               <div class="settings-field">
                 <label class="settings-field-label" for="setting-custom-hostname-label">Custom Environment / Hostname Label (Optional):</label>
-                <input type="text" id="setting-custom-hostname-label" class="settings-input" style="font-family: var(--font-mono);" placeholder="Leave empty for auto-detected system hostname" oninput="handleHostnameSettingChange()">
+                <input type="text" id="setting-custom-hostname-label" class="settings-input" style="font-family: var(--font-mono);" placeholder="Leave empty for auto-detected system hostname" data-on-input="handleHostnameSettingChange">
                 <div class="settings-field-hint">Customize the label shown in the header prompt (e.g. <code>@nas-prod</code>, <code>@homelab-01</code>, <code>@dev-box</code>).</div>
               </div>
 
               <div class="settings-grid-auto">
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-hostname-color">Indicator Color:</label>
-                  <select id="setting-hostname-color" class="settings-select" onchange="handleHostnameSettingChange()">
+                  <select id="setting-hostname-color" class="settings-select" data-on-change="handleHostnameSettingChange">
                     <option value="slate" selected>⚪ Slate / Dim Text (Default)</option>
                     <option value="amber">🔶 Amber Accent</option>
                     <option value="emerald">🟢 Emerald Green</option>
@@ -2466,7 +2466,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-hostname-style">Visual Style:</label>
-                  <select id="setting-hostname-style" class="settings-select" onchange="handleHostnameSettingChange()">
+                  <select id="setting-hostname-style" class="settings-select" data-on-change="handleHostnameSettingChange">
                     <option value="text" selected>Text Prompt (@host) (Default)</option>
                     <option value="subtle">Subtle Tint Badge</option>
                     <option value="solid">Solid Fill Badge</option>
@@ -2478,7 +2478,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-hostname-icon">Icon / Prefix:</label>
-                  <select id="setting-hostname-icon" class="settings-select" onchange="handleHostnameSettingChange()">
+                  <select id="setting-hostname-icon" class="settings-select" data-on-change="handleHostnameSettingChange">
                     <option value="none" selected>🚫 No Icon (Text Only, Default)</option>
                     <option value="server">🖥️ Server</option>
                     <option value="hard-drive">💽 Hard Drive (NAS)</option>
@@ -2495,7 +2495,7 @@
 
                 <div class="settings-field">
                   <label class="settings-field-label" for="setting-hostname-size">Text Size:</label>
-                  <select id="setting-hostname-size" class="settings-select" onchange="handleHostnameSettingChange()">
+                  <select id="setting-hostname-size" class="settings-select" data-on-change="handleHostnameSettingChange">
                     <option value="sm">Small (Compact 18px)</option>
                     <option value="md" selected>Medium (Standard 22px)</option>
                     <option value="lg">Large (Prominent 26px)</option>
@@ -2508,11 +2508,11 @@
                 <div style="font-size: 11.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; justify-content: space-between;">
                   <span style="display: flex; align-items: center; gap: 5px;"><i data-lucide="palette" style="width: 14px; height: 14px;"></i> Custom Badge Colors (Free-form Hex / RGBA)</span>
                   <div style="display: flex; gap: 4px; flex-wrap: wrap;">
-                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#f59e0b', 'rgba(245, 158, 11, 0.15)', 'rgba(245, 158, 11, 0.35)', 'rgba(245, 158, 11, 0.4)')">Amber</button>
-                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#06b6d4', 'rgba(6, 182, 212, 0.15)', 'rgba(6, 182, 212, 0.35)', 'rgba(6, 182, 212, 0.4)')">Cyan</button>
-                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#10b981', 'rgba(16, 185, 129, 0.15)', 'rgba(16, 185, 129, 0.35)', 'rgba(16, 185, 129, 0.4)')">Emerald</button>
-                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#c084fc', 'rgba(192, 132, 252, 0.15)', 'rgba(192, 132, 252, 0.35)', 'rgba(192, 132, 252, 0.4)')">Purple</button>
-                    <button type="button" class="perm-chip" onclick="applyCustomBadgePreset('#f43f5e', 'rgba(244, 63, 94, 0.15)', 'rgba(244, 63, 94, 0.35)', 'rgba(244, 63, 94, 0.4)')">Rose</button>
+                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#f59e0b", "rgba(245, 158, 11, 0.15)", "rgba(245, 158, 11, 0.35)", "rgba(245, 158, 11, 0.4)"]'>Amber</button>
+                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#06b6d4", "rgba(6, 182, 212, 0.15)", "rgba(6, 182, 212, 0.35)", "rgba(6, 182, 212, 0.4)"]'>Cyan</button>
+                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#10b981", "rgba(16, 185, 129, 0.15)", "rgba(16, 185, 129, 0.35)", "rgba(16, 185, 129, 0.4)"]'>Emerald</button>
+                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#c084fc", "rgba(192, 132, 252, 0.15)", "rgba(192, 132, 252, 0.35)", "rgba(192, 132, 252, 0.4)"]'>Purple</button>
+                    <button type="button" class="perm-chip" data-on-click="applyCustomBadgePreset" data-click-args='["#f43f5e", "rgba(244, 63, 94, 0.15)", "rgba(244, 63, 94, 0.35)", "rgba(244, 63, 94, 0.4)"]'>Rose</button>
                   </div>
                 </div>
 
@@ -2520,32 +2520,32 @@
                   <div class="settings-field">
                     <label class="settings-field-label">Text & Icon Color:</label>
                     <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-text-picker" value="#f59e0b" oninput="document.getElementById('setting-hostname-custom-text').value = this.value; handleHostnameSettingChange();">
-                      <input type="text" id="setting-hostname-custom-text" value="#f59e0b" placeholder="#f59e0b" oninput="handleHostnameSettingChange();">
+                      <input type="color" id="setting-hostname-custom-text-picker" value="#f59e0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-text", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
+                      <input type="text" id="setting-hostname-custom-text" value="#f59e0b" placeholder="#f59e0b" data-on-input="handleHostnameSettingChange">
                     </div>
                   </div>
 
                   <div class="settings-field">
                     <label class="settings-field-label">Background Color / Tint:</label>
                     <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-bg-picker" value="#261b0b" oninput="document.getElementById('setting-hostname-custom-bg').value = this.value; handleHostnameSettingChange();">
-                      <input type="text" id="setting-hostname-custom-bg" value="rgba(245, 158, 11, 0.15)" placeholder="rgba(...) or #hex" oninput="handleHostnameSettingChange();">
+                      <input type="color" id="setting-hostname-custom-bg-picker" value="#261b0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-bg", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
+                      <input type="text" id="setting-hostname-custom-bg" value="rgba(245, 158, 11, 0.15)" placeholder="rgba(...) or #hex" data-on-input="handleHostnameSettingChange">
                     </div>
                   </div>
 
                   <div class="settings-field">
                     <label class="settings-field-label">Border Color:</label>
                     <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-border-picker" value="#f59e0b" oninput="document.getElementById('setting-hostname-custom-border').value = this.value; handleHostnameSettingChange();">
-                      <input type="text" id="setting-hostname-custom-border" value="rgba(245, 158, 11, 0.35)" placeholder="rgba(...) or #hex" oninput="handleHostnameSettingChange();">
+                      <input type="color" id="setting-hostname-custom-border-picker" value="#f59e0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-border", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
+                      <input type="text" id="setting-hostname-custom-border" value="rgba(245, 158, 11, 0.35)" placeholder="rgba(...) or #hex" data-on-input="handleHostnameSettingChange">
                     </div>
                   </div>
 
                   <div class="settings-field">
                     <label class="settings-field-label">Glow / Neon Shadow:</label>
                     <div class="settings-color-swatch-input">
-                      <input type="color" id="setting-hostname-custom-glow-picker" value="#f59e0b" oninput="document.getElementById('setting-hostname-custom-glow').value = this.value; handleHostnameSettingChange();">
-                      <input type="text" id="setting-hostname-custom-glow" value="rgba(245, 158, 11, 0.4)" placeholder="rgba(...) or #hex" oninput="handleHostnameSettingChange();">
+                      <input type="color" id="setting-hostname-custom-glow-picker" value="#f59e0b" data-on-input="setElementValue" data-input-args='["setting-hostname-custom-glow", {"$": "value"}]' data-input-steps='[["handleHostnameSettingChange"]]'>
+                      <input type="text" id="setting-hostname-custom-glow" value="rgba(245, 158, 11, 0.4)" placeholder="rgba(...) or #hex" data-on-input="handleHostnameSettingChange">
                     </div>
                   </div>
                 </div>
@@ -2565,8 +2565,8 @@
             <div class="settings-field">
               <label class="settings-field-label" for="setting-custom-window-title">Custom Window / Document Title (Optional):</label>
               <div style="display: flex; gap: 8px;">
-                <input type="text" id="setting-custom-window-title" class="settings-input" style="flex: 1;" placeholder="Brum - Multi-Pane Web Environment" oninput="handleWindowTitleSettingChange()">
-                <button type="button" class="btn btn-sm btn-outline" style="white-space: nowrap;" onclick="resetWindowTitleSetting()">Reset Default</button>
+                <input type="text" id="setting-custom-window-title" class="settings-input" style="flex: 1;" placeholder="Brum - Multi-Pane Web Environment" data-on-input="handleWindowTitleSettingChange">
+                <button type="button" class="btn btn-sm btn-outline" style="white-space: nowrap;" data-on-click="resetWindowTitleSetting">Reset Default</button>
               </div>
               <div class="settings-field-hint">Leave empty to use the default <code>Brum - Multi-Pane Web Environment</code> or server configuration.</div>
             </div>
@@ -2583,13 +2583,13 @@
 
             <div class="settings-field">
               <label class="settings-field-label" for="setting-custom-login-title">Custom Login Screen Title (Optional):</label>
-              <input type="text" id="setting-custom-login-title" class="settings-input" placeholder="Brum (Default)" oninput="handleLoginBrandingSettingChange()">
+              <input type="text" id="setting-custom-login-title" class="settings-input" placeholder="Brum (Default)" data-on-input="handleLoginBrandingSettingChange">
               <div class="settings-field-hint">Defaults to <code>Brum</code> if left empty.</div>
             </div>
 
             <div class="settings-field" style="margin-top: 10px;">
               <label class="settings-field-label" for="setting-custom-login-subtitle">Custom Subtitle Template (Optional):</label>
-              <input type="text" id="setting-custom-login-subtitle" class="settings-input" style="font-family: var(--font-mono);" placeholder="$hostname, running Brum" oninput="handleLoginBrandingSettingChange()">
+              <input type="text" id="setting-custom-login-subtitle" class="settings-input" style="font-family: var(--font-mono);" placeholder="$hostname, running Brum" data-on-input="handleLoginBrandingSettingChange">
               <div class="settings-field-hint">
                 Supported dynamic tokens: <code>$hostname</code>, <code>$ip</code>, <code>$os</code>, <code>$arch</code>, <code>$version</code>. Default: <code>$hostname, running Brum</code> (where Brum links to GitHub).
               </div>
@@ -2607,7 +2607,7 @@
         <div class="settings-tab-content" id="tab-bookmarks">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-weight: 600;">Saved Bookmarks & Favorite Paths</span>
-            <button class="btn btn-accent" onclick="addNewBookmark()"><i data-lucide="plus"></i> Add Bookmark</button>
+            <button class="btn btn-accent" data-on-click="addNewBookmark"><i data-lucide="plus"></i> Add Bookmark</button>
           </div>
           <table class="file-table">
             <thead>
@@ -2635,7 +2635,7 @@
               <h4 class="settings-section-title">
                 <i data-lucide="hard-drive"></i> Drives & Partitions Visibility
               </h4>
-              <button type="button" class="btn btn-xs" onclick="resetHiddenDrives()" title="Reset all drives to visible"><i data-lucide="rotate-ccw" style="width:11px; height:11px;"></i> Show All</button>
+              <button type="button" class="btn btn-xs" data-on-click="resetHiddenDrives" title="Reset all drives to visible"><i data-lucide="rotate-ccw" style="width:11px; height:11px;"></i> Show All</button>
             </div>
             <p class="settings-card-desc">Show or hide specific drive letters, disk partitions, and storage roots from the Places menu.</p>
             <div id="drive-visibility-list" style="display: flex; flex-direction: column; gap: 6px; margin-top: 8px;">
@@ -2654,8 +2654,8 @@
               <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Customize keyboard shortcuts, remap functions, detect conflicts, and sync preferences.</p>
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <input type="text" id="keybinds-search-input" class="pane-quick-filter" style="width: 180px; padding: 5px 8px; font-size: 12px;" placeholder="Filter shortcuts..." oninput="renderKeybindingsTable()" />
-              <select id="keybinds-category-filter" class="pane-quick-filter" style="padding: 5px 8px; font-size: 12px;" onchange="renderKeybindingsTable()">
+              <input type="text" id="keybinds-search-input" class="pane-quick-filter" style="width: 180px; padding: 5px 8px; font-size: 12px;" placeholder="Filter shortcuts..." data-on-input="renderKeybindingsTable" />
+              <select id="keybinds-category-filter" class="pane-quick-filter" style="padding: 5px 8px; font-size: 12px;" data-on-change="renderKeybindingsTable">
                 <option value="all">All Categories</option>
                 <option value="Navigation">Navigation</option>
                 <option value="File Actions">File Actions</option>
@@ -2664,7 +2664,7 @@
                 <option value="Selection">Selection</option>
                 <option value="System">System</option>
               </select>
-              <button type="button" class="btn btn-sm" onclick="resetKeybindingsToDefaults()"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
+              <button type="button" class="btn btn-sm" data-on-click="resetKeybindingsToDefaults"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
             </div>
           </div>
 
@@ -2690,8 +2690,8 @@
               <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Access all 16 built-in guides and QA test manuals natively in Notes.</div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <button type="button" class="btn btn-sm btn-accent" onclick="closeModal('settings-modal'); openFloatingNoteDog('manual://README.md');"><i data-lucide="book-open"></i> Open Manuals</button>
-              <button type="button" class="btn btn-sm btn-outline" onclick="closeModal('settings-modal'); openFloatingNoteDog('manual://qa-testing.md');"><i data-lucide="flask-conical"></i> QA Manual</button>
+              <button type="button" class="btn btn-sm btn-accent" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openFloatingNoteDog", "manual://README.md"]]'><i data-lucide="book-open"></i> Open Manuals</button>
+              <button type="button" class="btn btn-sm btn-outline" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openFloatingNoteDog", "manual://qa-testing.md"]]'><i data-lucide="flask-conical"></i> QA Manual</button>
             </div>
           </div>
         </div>
@@ -2701,7 +2701,7 @@
           <!-- Global Theme Preset -->
           <div class="form-group">
             <label style="font-weight: 700; font-size: 12px;">Global Icon Theme:</label>
-            <select id="setting-icon-theme" class="pane-quick-filter" style="width: 340px; padding: 6px;" onchange="changeGlobalIconTheme(this.value)">
+            <select id="setting-icon-theme" class="pane-quick-filter" style="width: 340px; padding: 6px;" data-on-change="changeGlobalIconTheme" data-change-args='[{"$": "value"}]'>
               <option value="default" selected>Default (Woofson Classic Lucide + Assets)</option>
               <option value="nerdfont">Nerd Font Developer Suite (     )</option>
               <option value="emoji">Rich Emoji Suite (📁 🦀 🐍 ⚡ 📦 📝 🎬)</option>
@@ -2715,18 +2715,18 @@
             <label style="font-weight: 700; font-size: 12px;">Global Default Folder Icon / Emote:</label>
             <div style="display: flex; gap: 8px; align-items: center;">
               <input type="text" id="setting-global-folder-icon" class="pane-quick-filter" style="width: 240px; padding: 6px 8px; font-family: var(--font-mono), sans-serif;" placeholder="Default folder (e.g. , 📁, , 📂)">
-              <button class="btn btn-sm btn-accent" onclick="saveGlobalFolderIcon()"><i data-lucide="check"></i> Save</button>
-              <button class="btn btn-sm" onclick="resetGlobalFolderIcon()"><i data-lucide="rotate-ccw"></i> Reset</button>
+              <button class="btn btn-sm btn-accent" data-on-click="saveGlobalFolderIcon"><i data-lucide="check"></i> Save</button>
+              <button class="btn btn-sm" data-on-click="resetGlobalFolderIcon"><i data-lucide="rotate-ccw"></i> Reset</button>
             </div>
             <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;" id="setting-folder-icon-presets">
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('')">Default ( Nerd Glyph)</span>
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('📁')">📁 Yellow Folder</span>
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('📂')">📂 Open Folder</span>
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('🗂️')">🗂️ Card Dividers</span>
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('')"> Nerd Font Dir</span>
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('')"> Nerd Font Folder</span>
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('📦')">📦 Box Package</span>
-              <span class="icon-preset-chip" onclick="selectGlobalFolderPreset('🚀')">🚀 Rocket Project</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'>Default ( Nerd Glyph)</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📁"]'>📁 Yellow Folder</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📂"]'>📂 Open Folder</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["🗂️"]'>🗂️ Card Dividers</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'> Nerd Font Dir</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'> Nerd Font Folder</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📦"]'>📦 Box Package</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["🚀"]'>🚀 Rocket Project</span>
             </div>
           </div>
 
@@ -2738,9 +2738,9 @@
                 <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Map specific file extensions (e.g. <code>rs</code>, <code>py</code>, <code>md</code>, <code>iso</code>) to any custom emoji, emote, or Nerd Font glyph.</div>
               </div>
               <div style="display: flex; gap: 6px;">
-                <button class="btn btn-xs" onclick="loadNerdFontPresets()"><i data-lucide="code"></i> Load Nerd Fonts</button>
-                <button class="btn btn-xs" onclick="loadEmojiPresets()"><i data-lucide="smile"></i> Load Emojis</button>
-                <button class="btn btn-xs btn-danger" onclick="clearAllCustomFileIcons()"><i data-lucide="trash-2"></i> Clear All</button>
+                <button class="btn btn-xs" data-on-click="loadNerdFontPresets"><i data-lucide="code"></i> Load Nerd Fonts</button>
+                <button class="btn btn-xs" data-on-click="loadEmojiPresets"><i data-lucide="smile"></i> Load Emojis</button>
+                <button class="btn btn-xs btn-danger" data-on-click="clearAllCustomFileIcons"><i data-lucide="trash-2"></i> Clear All</button>
               </div>
             </div>
 
@@ -2754,7 +2754,7 @@
                 <span style="font-size: 11px; color: var(--text-muted);">Icon/Emote:</span>
                 <input type="text" id="setting-new-icon-val" class="pane-quick-filter" placeholder="e.g. 🦀, 🐍, , , lucide:code" style="flex: 1; padding: 4px 6px; font-family: var(--font-mono), sans-serif; font-size: 11px;">
               </div>
-              <button class="btn btn-sm btn-accent" onclick="addCustomFileIconRule()"><i data-lucide="plus"></i> Add Rule</button>
+              <button class="btn btn-sm btn-accent" data-on-click="addCustomFileIconRule"><i data-lucide="plus"></i> Add Rule</button>
             </div>
 
             <!-- Custom file icon rules table -->
@@ -2780,7 +2780,7 @@
         <div class="settings-tab-content" id="tab-about">
           <!-- Hero Branding Card -->
           <div class="settings-group-card" style="text-align: center; padding: 22px 16px;">
-            <img src="assets/brum_happy.webp" id="about-settings-brand-logo" alt="Brum" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s ease;">
+            <img src="assets/brum_happy.webp" id="about-settings-brand-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s ease;">
             <div style="font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
             <div style="font-size: 11px; color: var(--text-muted); margin: 4px 0 12px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
             <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
@@ -2871,18 +2871,18 @@
 
             <div style="display: flex; align-items: center; gap: 16px; margin: 8px 0 14px 0; background: var(--bg-header); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border);">
               <div style="position: relative; display: inline-block;">
-                <div class="profile-avatar-large" id="settings-account-avatar-preview" onclick="document.getElementById('settings-avatar-file-input').click()" title="Click to upload profile photo" style="cursor: pointer;">👤</div>
-                <button type="button" class="btn btn-sm btn-icon" onclick="document.getElementById('settings-avatar-file-input').click()" title="Upload Photo" style="position: absolute; bottom: -3px; right: -3px; border-radius: 50%; width: 22px; height: 22px; background: var(--accent); color: #000; border: none; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer;">
+                <div class="profile-avatar-large" id="settings-account-avatar-preview" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]' title="Click to upload profile photo" style="cursor: pointer;">👤</div>
+                <button type="button" class="btn btn-sm btn-icon" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]' title="Upload Photo" style="position: absolute; bottom: -3px; right: -3px; border-radius: 50%; width: 22px; height: 22px; background: var(--accent); color: #000; border: none; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer;">
                   <i data-lucide="camera" style="width: 12px; height: 12px;"></i>
                 </button>
               </div>
-              <input type="file" id="settings-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" onchange="handleSettingsAvatarFileUpload(event)">
+              <input type="file" id="settings-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" data-on-change="handleSettingsAvatarFileUpload" data-change-args='[{"$": "event"}]'>
               <div style="flex: 1;">
                 <div style="font-weight: 700; font-size: 15px;" id="settings-account-username-label">User</div>
                 <div style="font-size: 11px; color: var(--text-dim);" id="settings-account-auth-type-label">Internal Database Account</div>
                 <div style="display: flex; gap: 6px; margin-top: 8px;">
-                  <button type="button" class="btn btn-sm" onclick="document.getElementById('settings-avatar-file-input').click()"><i data-lucide="upload" style="width: 12px;"></i> Upload Photo</button>
-                  <button type="button" class="btn btn-sm" onclick="resetSettingsAvatar()"><i data-lucide="rotate-ccw" style="width: 12px;"></i> Reset Avatar</button>
+                  <button type="button" class="btn btn-sm" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]'><i data-lucide="upload" style="width: 12px;"></i> Upload Photo</button>
+                  <button type="button" class="btn btn-sm" data-on-click="resetSettingsAvatar"><i data-lucide="rotate-ccw" style="width: 12px;"></i> Reset Avatar</button>
                 </div>
               </div>
             </div>
@@ -2911,7 +2911,7 @@
 
             <div class="settings-field" style="margin-top: 10px;">
               <label class="settings-field-label" for="settings-profile-avatar-url">Avatar Emoji / URL / Custom Data:</label>
-              <input type="text" id="settings-profile-avatar-url" class="settings-input" placeholder="e.g. 🐕 or /api/auth/avatar/username" oninput="renderAvatarElement(document.getElementById('settings-account-avatar-preview'), this.value)">
+              <input type="text" id="settings-profile-avatar-url" class="settings-input" placeholder="e.g. 🐕 or /api/auth/avatar/username" data-on-input="renderAvatarById" data-input-args='["settings-account-avatar-preview", {"$": "value"}]'>
             </div>
 
             <div class="settings-grid-2col" style="margin-top: 10px;" id="settings-profile-password-section">
@@ -2927,7 +2927,7 @@
 
             <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
               <span id="settings-profile-save-status" style="font-size: 12px; font-weight: 600; display: none;"></span>
-              <button type="button" class="btn btn-accent" onclick="saveSettingsUserProfile()"><i data-lucide="save"></i> Save Profile Details</button>
+              <button type="button" class="btn btn-accent" data-on-click="saveSettingsUserProfile"><i data-lucide="save"></i> Save Profile Details</button>
             </div>
           </div>
 
@@ -2942,9 +2942,9 @@
             <p class="settings-card-desc">All multi-pane arrangements, custom pane names, colors, open tabs, themes, and bookmarks are synchronized with your user account in the server database for seamless cross-device continuity.</p>
 
             <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
-              <button type="button" class="btn btn-sm btn-accent" onclick="saveCurrentWorkspaceAsDefault()"><i data-lucide="cloud-upload"></i> Save Current Workspace to Profile</button>
-              <button type="button" class="btn btn-sm" onclick="loadUserPreferencesFromServer()"><i data-lucide="refresh-cw"></i> Sync Workspace from Server</button>
-              <button type="button" class="btn btn-sm btn-danger" onclick="resetServerPreferences()"><i data-lucide="rotate-ccw"></i> Reset Server Profile</button>
+              <button type="button" class="btn btn-sm btn-accent" data-on-click="saveCurrentWorkspaceAsDefault"><i data-lucide="cloud-upload"></i> Save Current Workspace to Profile</button>
+              <button type="button" class="btn btn-sm" data-on-click="loadUserPreferencesFromServer"><i data-lucide="refresh-cw"></i> Sync Workspace from Server</button>
+              <button type="button" class="btn btn-sm btn-danger" data-on-click="resetServerPreferences"><i data-lucide="rotate-ccw"></i> Reset Server Profile</button>
             </div>
           </div>
         </div>
@@ -2962,7 +2962,7 @@
 
             <div style="display: flex; flex-direction: column; gap: 4px;">
               <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-paranoid-enabled" checked onchange="handleUserParanoidToggle(this.checked)">
+                <input type="checkbox" id="setting-user-paranoid-enabled" checked data-on-change="handleUserParanoidToggle" data-change-args='[{"$": "checked"}]'>
                 <div>
                   <strong>Security &amp; Integrity Checks (Standard / Active)</strong>
                   <div class="settings-field-hint">Enforces strict SHA-256 verification and dry-run safety checks on file copy and move operations.</div>
@@ -2972,7 +2972,7 @@
 
             <div class="settings-field" style="margin-top: 6px;">
               <label class="settings-field-label" for="setting-user-checksum-algo">Checksum Verification Algorithm:</label>
-              <select id="setting-user-checksum-algo" class="settings-select" onchange="handleUserSecuritySettingChange()">
+              <select id="setting-user-checksum-algo" class="settings-select" data-on-change="handleUserSecuritySettingChange">
                 <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
                 <option value="md5">MD5 (Fast / Legacy)</option>
                 <option value="sha1">SHA-1</option>
@@ -2982,7 +2982,7 @@
 
             <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
               <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-dnd-paranoid-prompt" checked onchange="handleUserSecuritySettingChange()">
+                <input type="checkbox" id="setting-user-dnd-paranoid-prompt" checked data-on-change="handleUserSecuritySettingChange">
                 <div>
                   <strong>Drag-and-Drop Verification Confirmation Dialog</strong>
                   <div class="settings-field-hint">Show transaction pre-flight safety analysis when dragging files between panes.</div>
@@ -3002,7 +3002,7 @@
 
             <div style="display: flex; flex-direction: column; gap: 4px;">
               <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-atomic-writes" checked onchange="handleUserSecuritySettingChange()">
+                <input type="checkbox" id="setting-user-atomic-writes" checked data-on-change="handleUserSecuritySettingChange">
                 <div>
                   <strong>Atomic File Writes</strong>
                   <div class="settings-field-hint">Write to temporary files first and atomically swap upon completion to prevent incomplete corruption.</div>
@@ -3010,7 +3010,7 @@
               </label>
 
               <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-trash-enabled" checked onchange="handleUserSecuritySettingChange()">
+                <input type="checkbox" id="setting-user-trash-enabled" checked data-on-change="handleUserSecuritySettingChange">
                 <div>
                   <strong>Safe Trash Bin</strong>
                   <div class="settings-field-hint">Move deleted files to the operating system Trash bin instead of permanent unrecoverable deletion.</div>
@@ -3018,7 +3018,7 @@
               </label>
 
               <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-confirm-delete" checked onchange="handleUserSecuritySettingChange()">
+                <input type="checkbox" id="setting-user-confirm-delete" checked data-on-change="handleUserSecuritySettingChange">
                 <div>
                   <strong>Confirm File Deletions (F8 / Delete)</strong>
                   <div class="settings-field-hint">Show confirmation dialog before moving files to trash or deleting.</div>
@@ -3026,7 +3026,7 @@
               </label>
 
               <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-confirm-overwrite" checked onchange="handleUserSecuritySettingChange()">
+                <input type="checkbox" id="setting-user-confirm-overwrite" checked data-on-change="handleUserSecuritySettingChange">
                 <div>
                   <strong>Confirm File Overwrites</strong>
                   <div class="settings-field-hint">Prompt when destination files already exist during copy and move operations.</div>
@@ -3044,7 +3044,7 @@
             </div>
             <p class="settings-card-desc">As an Administrator, you can also manage server-wide auto-lock timers, token lifespans, and global defaults.</p>
             <div style="margin-top: 6px;">
-              <button type="button" class="btn btn-outline btn-sm" onclick="closeModal('settings-modal'); openAdminPanel(); switchAdminTab('admin-tab-security');" style="height: 28px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px;">
+              <button type="button" class="btn btn-outline btn-sm" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openAdminPanel"], ["switchAdminTab", "admin-tab-security"]]' style="height: 28px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px;">
                 <i data-lucide="external-link" style="width: 12px; height: 12px;"></i> Open Server Security &amp; Auto-Lock Policies
               </button>
             </div>

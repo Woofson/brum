@@ -16,60 +16,96 @@
 // lucide.createIcons() when the element carrying the action is an <i data-lucide> icon.
 // Only functions listed in BRUM_ACTIONS can be called this way.
 const BRUM_ACTION_EVENTS = [
-  'click', 'dblclick', 'auxclick', 'contextmenu', 'mousedown', 'pointerdown', 'mouseenter',
-  'touchstart', 'touchmove', 'touchend', 'touchcancel', 'dragstart', 'dragend',
-  'keydown', 'input', 'change', 'blur', 'error',
+  'click', 'dblclick', 'auxclick', 'contextmenu', 'mousedown', 'mouseup', 'mousemove',
+  'mouseenter', 'mouseleave', 'pointerdown', 'wheel', 'scroll',
+  'touchstart', 'touchmove', 'touchend', 'touchcancel',
+  'dragstart', 'dragend', 'dragenter', 'dragover', 'dragleave', 'drop',
+  'keydown', 'keyup', 'input', 'change', 'focus', 'blur', 'submit', 'error',
 ];
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
-  'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest', 'addDirectoryToMediaPlaylist',
-  'addTracksToMediaPlaylist', 'applyBorderSettings', 'applyPaneCustomTwoTone',
-  'applyPaneRenameFromInput', 'applyPaneStartPath', 'autoFitAllColumns', 'autoFitColumn',
-  'clearPaneFilter', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers', 'closeDockedTool',
-  'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
-  'copyTextToClipboard', 'createPaneTab', 'cyclePaneColor', 'deleteSelectedTrashItems',
-  'disablePathInput', 'disconnectPaneRemote', 'duplicatePaneTab', 'enablePathInput',
-  'executeCustomAction', 'executeOpenWith', 'executePane1ClickTransfer', 'handleFilterInput',
-  'handleFilterKey', 'handleLogoutOrExit', 'handlePaneBadgeClick', 'handlePaneBadgeDragEnd',
-  'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd',
-  'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart', 'handlePathKey', 'handleVaultOpen',
-  'hideContextMenu', 'initColResize', 'initTreeResize', 'loadPaneDirectory', 'lockSession',
-  'mountUsbDevice', 'openAboutModal', 'openAdminPanel', 'openApiTokensModal',
+  'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest', 'addCustomFileIconRule',
+  'addDirectoryToMediaPlaylist', 'addNewBookmark', 'addTracksToMediaPlaylist',
+  'applyBorderSettings', 'applyCustomBadgePreset', 'applyExternalProgramPreset',
+  'applyPaneCustomTwoTone', 'applyPaneRenameFromInput', 'applyPaneStartPath', 'applyTheme',
+  'autoFitAllColumns', 'autoFitColumn', 'browseNoteDogFolder',
+  'captureCurrentPathsForCustomStartup', 'changeGlobalIconTheme', 'clearAllCustomFileIcons',
+  'clearPaneFilter', 'clickElementById', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers',
+  'closeDockedTool', 'closeModal', 'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick',
+  'closeTabsToTheRight', 'copyTextToClipboard', 'copyVariableTag', 'createPaneTab',
+  'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction', 'deleteFileTemplate',
+  'deleteOpenWithRule', 'deleteSelectedTrashItems', 'disablePathInput', 'disconnectPaneRemote',
+  'duplicateFileTemplate', 'duplicatePaneTab', 'editCustomAction', 'editOpenWithRule',
+  'editTemplateById', 'enablePathInput', 'executeCustomAction', 'executeOpenWith',
+  'executePane1ClickTransfer', 'exportCustomThemeToml', 'filterInstalledChewToys',
+  'handleAppMarginChange', 'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
+  'handleChewToyFileSelect', 'handleDndSettingChange', 'handleFilterInput', 'handleFilterKey',
+  'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
+  'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHostnameSettingChange',
+  'handleLoginBrandingSettingChange', 'handleLogoutOrExit', 'handleMonoFontChange',
+  'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
+  'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
+  'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
+  'handleSettingsAvatarFileUpload', 'handleStartupSettingChange', 'handleTitleTemplateChange',
+  'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart',
+  'handleToolDrop', 'handleUserParanoidToggle', 'handleUserSecuritySettingChange',
+  'handleVaultOpen', 'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
+  'hideOpenWithRuleForm', 'initColResize', 'initTreeResize', 'insertTitleVar', 'loadEmojiPresets',
+  'loadInstalledChewToys', 'loadNerdFontPresets', 'loadPaneDirectory',
+  'loadUserPreferencesFromServer', 'lockSession', 'mountUsbDevice', 'moveMenuItem', 'moveToolItem',
+  'navigateToBookmark', 'openAboutModal', 'openAdminPanel', 'openApiTokensModal',
   'openBatchRenamer', 'openBookmarksManager', 'openCadStudio', 'openChewtoyForFile',
   'openColumnHeaderContextMenu', 'openConverterModal', 'openCreateTemplateModal',
   'openCreateVaultModal', 'openCustomDestModal', 'openDiskUsageModal', 'openDuplicateFinder',
-  'openExternalTerminal', 'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi',
-  'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager',
-  'openHexEditor', 'openInPaneWithToast', 'openLogViewer', 'openMediaPlayer',
-  'openNativeRecycleBin', 'openNoteForContextItem', 'openPaneFavoritesMenu',
-  'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu',
-  'openParanoidSettings', 'openPdfToolModal', 'openPropertiesColorTab', 'openRemoteModal',
-  'openSearchModal', 'openSettingsModal', 'openSettingsTab', 'openSharesManager',
-  'openSpotlightModal', 'openSyncModal', 'openSyncthingModal', 'openTagEditor',
-  'openTerminalInPath', 'openTetraDog', 'openUserProfileModal', 'promptEmptyTrash',
-  'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshPane',
-  'removeElementById', 'resetAllColumnWidths', 'resetHiddenDrives', 'resetPaneName',
+  'openDynamicChewToy', 'openExternalTerminal', 'openFleetAddModal', 'openFleetManagerModal',
+  'openFleetNodeWebUi', 'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog',
+  'openFloatingTaskManager', 'openHexEditor', 'openInPaneWithToast', 'openKeyRecordModal',
+  'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin', 'openNoteForContextItem',
+  'openPaneFavoritesMenu', 'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu',
+  'openPaneTransferMenu', 'openParanoidSettings', 'openPdfToolModal', 'openPropertiesColorTab',
+  'openRemoteModal', 'openSearchModal', 'openSettingsModal', 'openSettingsTab',
+  'openSharesManager', 'openSpotlightModal', 'openSyncModal', 'openSyncthingModal',
+  'openTagEditor', 'openTerminalInPath', 'openTetraDog', 'openUserProfileModal',
+  'promptEmptyTrash', 'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes',
+  'refreshPane', 'removeElementById', 'renderAvatarById', 'renderKeybindingsTable',
+  'resetAllColumnWidths', 'resetFileTemplatesToDefault', 'resetGlobalFolderIcon',
+  'resetHiddenDrives', 'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault',
+  'resetMenuConfigToDefaults', 'resetPaneName', 'resetServerPreferences', 'resetSettingsAvatar',
+  'resetSingleKeybind', 'resetToolsMenuToDefault', 'resetWindowTitleSetting',
   'restoreSelectedTrashItems', 'runPredefinedAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
-  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'setActivePane',
-  'setContextFileColor', 'setCustomAngleInput', 'setElementValue', 'setPane1ClickTransferAction',
-  'setPaneColorPref', 'setPaneViewMode', 'sortPane', 'swapPanes', 'switchPaneNode',
-  'switchPaneTab', 'switchToFleetNode', 'toggleBranchView', 'toggleColSeparators',
+  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
+  'saveCustomShellAction', 'saveCustomTrashDir', 'saveGlobalFolderIcon',
+  'saveNoteDogFolderSetting', 'saveOpenWithRule', 'saveSettingsUserProfile',
+  'selectGlobalFolderPreset', 'setActivePane', 'setContextFileColor', 'setCustomAngleInput',
+  'setDefaultViewMode', 'setElementValue', 'setFontSizePreset', 'setPane1ClickTransferAction',
+  'setPaneColorPref', 'setPaneViewMode', 'setTaskVerbosity', 'setTitleTemplatePreset',
+  'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'sortPane', 'swapPanes',
+  'switchAdminTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab',
+  'switchSettingsTab', 'switchToFleetNode', 'testExternalProgram', 'toggleActivateOnHover',
+  'toggleBranchView', 'toggleBrumMascot', 'toggleChewToy', 'toggleColSeparators',
   'toggleColumnVisibility', 'toggleCompactDates', 'toggleContextColorPalette',
-  'toggleContextSubmenu', 'toggleFileListMultiline', 'toggleFleetSwitcherDropdown',
-  'toggleFloatingTaskManager', 'toggleHideDrive', 'toggleLayoutMenu', 'togglePaneFilter',
-  'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree', 'toggleProfileMenu',
-  'toggleShowDirTag', 'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll',
-  'toggleTerminal', 'toggleToolsMenu', 'triggerArchive7z', 'triggerArchiveTarGz',
-  'triggerArchiveZip', 'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal',
-  'triggerCopy', 'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard',
-  'triggerDelete', 'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff',
-  'triggerDirPermissions', 'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory',
-  'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere', 'triggerExtractModal',
-  'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager',
-  'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerPaste', 'triggerProperties',
-  'triggerRename', 'triggerShare', 'triggerShareDirectory', 'triggerView', 'undockToolFromPane',
-  'unmountUsbDevice', 'updatePaneCustomGradientPreview', 'useFallbackIcon',
+  'toggleContextSubmenu', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
+  'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFleetSwitcherDropdown',
+  'toggleFloatingTaskManager', 'toggleGlobalDotfiles', 'toggleGlobalRefreshButton',
+  'toggleHapticFeedbackSetting', 'toggleHideDrive', 'toggleHostnameBadgeSetting',
+  'toggleLayoutMenu', 'toggleMediaStopOnClose', 'toggleMenuItemVisibility', 'toggleMinimizeToTray',
+  'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll',
+  'togglePaneTree', 'toggleProfileMenu', 'toggleShowDirTag', 'toggleStartMinimized',
+  'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll', 'toggleTerminal',
+  'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting', 'toggleUseExtEditor',
+  'toggleUseExtViewer', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
+  'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
+  'triggerChecksum', 'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard',
+  'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload',
+  'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions', 'triggerDownloadContextItem',
+  'triggerDownloadCurrentDirectory', 'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere',
+  'triggerExtractModal', 'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit',
+  'triggerGitManager', 'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerPaste',
+  'triggerProperties', 'triggerRename', 'triggerShare', 'triggerShareDirectory', 'triggerView',
+  'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice', 'updateDefaultCopyAction',
+  'updateMenuOption', 'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview',
+  'updatePaneTabsMode', 'updatePhoneTabletMaxPanes', 'useFallbackIcon',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -194,6 +230,20 @@ function removeElementById(id) {
 function setElementValue(id, value) {
   const el = document.getElementById(id);
   if (el) el.value = value;
+}
+
+function clickElementById(id) {
+  document.getElementById(id)?.click();
+}
+
+function renderAvatarById(id, value) {
+  renderAvatarElement(document.getElementById(id), value);
+}
+
+// The tab button that opens tabId, written either way (named action or old inline handler)
+function findTabButton(modal, opener, tabId) {
+  return modal.querySelector(`[data-on-click="${opener}"][data-click-args='${JSON.stringify([tabId])}']`) ||
+    modal.querySelector(`[onclick*="${tabId}"]`);
 }
 
 function closePaneTabOnMiddleClick(ev, paneIndex, tabIndex) {
@@ -8820,12 +8870,13 @@ function renderOpenWithRules() {
           <span style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted);">${escapeHtml(r.cmd || 'System Default')}</span>
         </div>
       </div>
-      <button class="btn btn-icon btn-sm" onclick="editOpenWithRule(${idx})" title="Edit"><i data-lucide="edit-3" style="width: 13px;"></i></button>
-      <button class="btn btn-icon btn-sm" onclick="deleteOpenWithRule(${idx})" title="Delete"><i data-lucide="trash-2" style="width: 13px; color: var(--danger);"></i></button>
+      <button class="btn btn-icon btn-sm" data-on-click="editOpenWithRule" data-click-args="${actionArgs((idx))}" title="Edit"><i data-lucide="edit-3" style="width: 13px;"></i></button>
+      <button class="btn btn-icon btn-sm" data-on-click="deleteOpenWithRule" data-click-args="${actionArgs((idx))}" title="Delete"><i data-lucide="trash-2" style="width: 13px; color: var(--danger);"></i></button>
     </div>
   `).join('');
 
   if (window.lucide) lucide.createIcons();
+  bindActions(list);
 }
 
 function showAddOpenWithRulePrompt() {
@@ -9150,7 +9201,7 @@ function renderMenuBuilderCategory(category) {
       <div style="display: flex; flex-direction: column; gap: 14px;">
         <div class="form-group">
           <label style="font-weight: 700; font-size: 12px;">Default Folder Download Compression Format:</label>
-          <select id="opt-menu-download-format" class="pane-quick-filter" style="width: 320px; padding: 6px 8px;" onchange="updateMenuOption('defaultDownloadArchive', this.value)">
+          <select id="opt-menu-download-format" class="pane-quick-filter" style="width: 320px; padding: 6px 8px;" data-on-change="updateMenuOption" data-change-args="${actionArgs('defaultDownloadArchive', ACTION_VALUE)}">
             <option value="zip" ${opts.defaultDownloadArchive === 'zip' ? 'selected' : ''}>Standard Zip (.zip - Fastest & Universal)</option>
             <option value="tar.gz" ${opts.defaultDownloadArchive === 'tar.gz' ? 'selected' : ''}>Gzipped Tarball (.tar.gz - Linux / Unix)</option>
             <option value="7z" ${opts.defaultDownloadArchive === '7z' ? 'selected' : ''}>7-Zip Archive (.7z - High Compression)</option>
@@ -9160,7 +9211,7 @@ function renderMenuBuilderCategory(category) {
 
         <div class="form-group" style="margin-top: 4px;">
           <label style="font-weight: 700; font-size: 12px; display: flex; align-items: center; gap: 8px; cursor: pointer;">
-            <input type="checkbox" id="opt-menu-quick-header" ${opts.showQuickActionButtons ? 'checked' : ''} onchange="updateMenuOption('showQuickActionButtons', this.checked)">
+            <input type="checkbox" id="opt-menu-quick-header" ${opts.showQuickActionButtons ? 'checked' : ''} data-on-change="updateMenuOption" data-change-args="${actionArgs('showQuickActionButtons', ACTION_CHECKED)}">
             Show Quick Header Action Buttons in Context Menu (Bookmark + Notes)
           </label>
           <div class="form-hint">Displays instantaneous Bookmark to Places and Open in Notes shortcuts directly in the context menu header row.</div>
@@ -9168,6 +9219,7 @@ function renderMenuBuilderCategory(category) {
       </div>
     `;
     if (window.lucide) lucide.createIcons();
+    bindActions(container);
     return;
   }
 
@@ -9182,15 +9234,15 @@ function renderMenuBuilderCategory(category) {
   items.forEach((item, idx) => {
     html += `
       <div class="rule-config-row" style="display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px;">
-        <input type="checkbox" ${item.enabled !== false ? 'checked' : ''} onchange="toggleMenuItemVisibility('${category}', ${escapeJsStr(item.id)}, this.checked)" title="Toggle item visibility" style="cursor: pointer;">
+        <input type="checkbox" ${item.enabled !== false ? 'checked' : ''} data-on-change="toggleMenuItemVisibility" data-change-args="${actionArgs(`${category}`, String((item.id) ?? ''), ACTION_CHECKED)}" title="Toggle item visibility" style="cursor: pointer;">
         <i data-lucide="${item.icon || 'circle'}" style="width: 15px; height: 15px; color: ${item.enabled !== false ? 'var(--accent)' : 'var(--text-muted)'}; flex-shrink: 0;"></i>
         <div style="flex: 1; min-width: 0;">
           <div style="font-size: 12px; font-weight: 600; color: ${item.enabled !== false ? 'var(--text-main)' : 'var(--text-muted)'};">${escapeHtml(item.label)}</div>
           <div style="font-size: 10px; color: var(--text-dim); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(item.desc || '')}</div>
         </div>
         <div style="display: flex; gap: 4px; flex-shrink: 0;">
-          <button class="btn btn-icon btn-xs" onclick="moveMenuItem('${category}', ${idx}, -1)" ${idx === 0 ? 'disabled' : ''} title="Move Up"><i data-lucide="arrow-up" style="width: 12px; height: 12px;"></i></button>
-          <button class="btn btn-icon btn-xs" onclick="moveMenuItem('${category}', ${idx}, 1)" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down"><i data-lucide="arrow-down" style="width: 12px; height: 12px;"></i></button>
+          <button class="btn btn-icon btn-xs" data-on-click="moveMenuItem" data-click-args="${actionArgs(`${category}`, (idx), -1)}" ${idx === 0 ? 'disabled' : ''} title="Move Up"><i data-lucide="arrow-up" style="width: 12px; height: 12px;"></i></button>
+          <button class="btn btn-icon btn-xs" data-on-click="moveMenuItem" data-click-args="${actionArgs(`${category}`, (idx), 1)}" ${idx === items.length - 1 ? 'disabled' : ''} title="Move Down"><i data-lucide="arrow-down" style="width: 12px; height: 12px;"></i></button>
         </div>
       </div>
     `;
@@ -9200,6 +9252,7 @@ function renderMenuBuilderCategory(category) {
   container.innerHTML = html;
 
   if (window.lucide) lucide.createIcons();
+  bindActions(container);
 }
 
 function updateMenuOption(key, value) {
@@ -9269,12 +9322,13 @@ function renderCustomActionsList() {
         <div style="font-weight: 600; font-size: 12px;">${escapeHtml(a.label)}</div>
         <div style="font-family: var(--font-mono); font-size: 11px; color: var(--text-muted); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(a.cmd)}</div>
       </div>
-      <button class="btn btn-icon btn-xs" onclick="editCustomAction(${idx})" title="Edit"><i data-lucide="edit-3" style="width: 12px; height: 12px;"></i></button>
-      <button class="btn btn-icon btn-xs" onclick="deleteCustomAction(${idx})" title="Delete"><i data-lucide="trash-2" style="width: 12px; height: 12px; color: var(--danger);"></i></button>
+      <button class="btn btn-icon btn-xs" data-on-click="editCustomAction" data-click-args="${actionArgs((idx))}" title="Edit"><i data-lucide="edit-3" style="width: 12px; height: 12px;"></i></button>
+      <button class="btn btn-icon btn-xs" data-on-click="deleteCustomAction" data-click-args="${actionArgs((idx))}" title="Delete"><i data-lucide="trash-2" style="width: 12px; height: 12px; color: var(--danger);"></i></button>
     </div>
   `).join('');
 
   if (window.lucide) lucide.createIcons();
+  bindActions(list);
 }
 
 function showAddCustomActionPrompt() {
@@ -9423,7 +9477,7 @@ function switchSettingsTab(tabId) {
   if (window.event && window.event.currentTarget && (window.event.currentTarget.classList.contains('settings-tab-btn') || window.event.currentTarget.classList.contains('settings-nav-btn'))) {
     activeBtn = window.event.currentTarget;
   } else {
-    activeBtn = modal.querySelector(`[onclick*="${tabId}"]`);
+    activeBtn = findTabButton(modal, 'switchSettingsTab', tabId);
   }
 
   if (activeBtn) {
@@ -9462,7 +9516,7 @@ function switchAdminTab(tabId) {
   if (window.event && window.event.currentTarget && (window.event.currentTarget.classList.contains('settings-tab-btn') || window.event.currentTarget.classList.contains('settings-nav-btn'))) {
     activeBtn = window.event.currentTarget;
   } else {
-    activeBtn = modal.querySelector(`[onclick*="${tabId}"]`);
+    activeBtn = findTabButton(modal, 'switchAdminTab', tabId);
   }
 
   if (activeBtn) {
@@ -11653,14 +11707,15 @@ function renderKeybindingsTable() {
           ${item.isCustom ? '<span style="font-size: 10px; color: var(--accent); margin-left: 6px; font-weight: 600;">(Custom)</span>' : ''}
         </td>
         <td style="padding: 8px 10px; text-align: right; white-space: nowrap;">
-          <button class="btn btn-xs btn-outline" onclick="openKeyRecordModal(${escapeJsStr(item.id)})" title="Record new shortcut"><i data-lucide="edit-3" style="width: 11px; height: 11px;"></i> Rebind</button>
-          ${item.isCustom ? `<button class="btn btn-xs" onclick="resetSingleKeybind(${escapeJsStr(item.id)})" title="Reset to default (${escapeHtml(item.defaultKey)})"><i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i></button>` : ''}
+          <button class="btn btn-xs btn-outline" data-on-click="openKeyRecordModal" data-click-args="${actionArgs(String((item.id) ?? ''))}" title="Record new shortcut"><i data-lucide="edit-3" style="width: 11px; height: 11px;"></i> Rebind</button>
+          ${item.isCustom ? `<button class="btn btn-xs" data-on-click="resetSingleKeybind" data-click-args="${actionArgs(String((item.id) ?? ''))}" title="Reset to default (${escapeHtml(item.defaultKey)})"><i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i></button>` : ''}
         </td>
       </tr>
     `;
   }).join('');
 
   if (window.lucide) lucide.createIcons();
+  bindActions(tbody);
 }
 
 function formatShortcutToKbd(shortcutStr) {
@@ -19376,16 +19431,16 @@ function renderToolsSettingsTab() {
            draggable="true" 
            data-tool-id="${item.id}" 
            data-index="${idx}"
-           ondragstart="handleToolDragStart(event, ${idx})"
-           ondragover="handleToolDragOver(event, ${idx})"
-           ondragleave="handleToolDragLeave(event)"
-           ondrop="handleToolDrop(event, ${idx})"
-           ondragend="handleToolDragEnd(event)">
+           data-on-dragstart="handleToolDragStart" data-dragstart-args="${actionArgs(ACTION_EVENT, (idx))}"
+           data-on-dragover="handleToolDragOver" data-dragover-args="${actionArgs(ACTION_EVENT, (idx))}"
+           data-on-dragleave="handleToolDragLeave" data-dragleave-args="${actionArgs(ACTION_EVENT)}"
+           data-on-drop="handleToolDrop" data-drop-args="${actionArgs(ACTION_EVENT, (idx))}"
+           data-on-dragend="handleToolDragEnd" data-dragend-args="${actionArgs(ACTION_EVENT)}">
         
         <!-- Left: Drag handle, checkbox, icon, label & description -->
         <div style="display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1;">
           <span class="tool-drag-handle" title="Drag up or down to reorder">⋮⋮</span>
-          <input type="checkbox" ${isVisible ? 'checked' : ''} onchange="toggleToolVisibility('${item.id}', this.checked)" title="Toggle Visibility in Tools Menu" style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent);">
+          <input type="checkbox" ${isVisible ? 'checked' : ''} data-on-change="toggleToolVisibility" data-change-args="${actionArgs(`${item.id}`, ACTION_CHECKED)}" title="Toggle Visibility in Tools Menu" style="cursor: pointer; width: 15px; height: 15px; accent-color: var(--accent);">
           <span style="display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; flex-shrink: 0;">
             ${renderToolIconHtml(item.icon, item.iconColor, 18)}
           </span>
@@ -19400,16 +19455,16 @@ function renderToolsSettingsTab() {
 
         <!-- Right: ChewToy standard 26px action controls (Top, Up, Down, Bottom) -->
         <div style="display: flex; align-items: center; gap: 3px; flex-shrink: 0; margin-left: 10px;">
-          <button class="btn btn-icon btn-sm" onclick="moveToolItem('${item.id}', 'top')" ${isFirst ? 'disabled style="opacity:0.3;"' : ''} title="Move to Top (⤒)" style="width: 26px; height: 26px; padding: 0;">
+          <button class="btn btn-icon btn-sm" data-on-click="moveToolItem" data-click-args="${actionArgs(`${item.id}`, 'top')}" ${isFirst ? 'disabled style="opacity:0.3;"' : ''} title="Move to Top (⤒)" style="width: 26px; height: 26px; padding: 0;">
             <i data-lucide="arrow-up-to-line" style="width: 13px; height: 13px;"></i>
           </button>
-          <button class="btn btn-icon btn-sm" onclick="moveToolItem('${item.id}', 'up')" ${isFirst ? 'disabled style="opacity:0.3;"' : ''} title="Move Up (▲)" style="width: 26px; height: 26px; padding: 0;">
+          <button class="btn btn-icon btn-sm" data-on-click="moveToolItem" data-click-args="${actionArgs(`${item.id}`, 'up')}" ${isFirst ? 'disabled style="opacity:0.3;"' : ''} title="Move Up (▲)" style="width: 26px; height: 26px; padding: 0;">
             <i data-lucide="arrow-up" style="width: 13px; height: 13px;"></i>
           </button>
-          <button class="btn btn-icon btn-sm" onclick="moveToolItem('${item.id}', 'down')" ${isLast ? 'disabled style="opacity:0.3;"' : ''} title="Move Down (▼)" style="width: 26px; height: 26px; padding: 0;">
+          <button class="btn btn-icon btn-sm" data-on-click="moveToolItem" data-click-args="${actionArgs(`${item.id}`, 'down')}" ${isLast ? 'disabled style="opacity:0.3;"' : ''} title="Move Down (▼)" style="width: 26px; height: 26px; padding: 0;">
             <i data-lucide="arrow-down" style="width: 13px; height: 13px;"></i>
           </button>
-          <button class="btn btn-icon btn-sm" onclick="moveToolItem('${item.id}', 'bottom')" ${isLast ? 'disabled style="opacity:0.3;"' : ''} title="Move to Bottom (⤓)" style="width: 26px; height: 26px; padding: 0;">
+          <button class="btn btn-icon btn-sm" data-on-click="moveToolItem" data-click-args="${actionArgs(`${item.id}`, 'bottom')}" ${isLast ? 'disabled style="opacity:0.3;"' : ''} title="Move to Bottom (⤓)" style="width: 26px; height: 26px; padding: 0;">
             <i data-lucide="arrow-down-to-line" style="width: 13px; height: 13px;"></i>
           </button>
         </div>
@@ -19420,6 +19475,7 @@ function renderToolsSettingsTab() {
   if (window.lucide) {
     lucide.createIcons({ root: container });
   }
+  bindActions(container);
 }
 
 function handleToolDragStart(e, index) {
@@ -21045,16 +21101,17 @@ function renderFileTemplatesList() {
         </div>
 
         <div style="display: flex; align-items: center; gap: 6px; flex-shrink: 0;">
-          <button class="btn btn-xs" onclick="triggerCreateFromTemplate(${escapeJsStr(t.id)}); closeModal('settings-modal');" title="Test / Create File from this Template"><i data-lucide="play" style="width: 11px;"></i> Test</button>
-          <button class="btn btn-xs" onclick="editTemplateById(${escapeJsStr(t.id)})" title="Edit Template"><i data-lucide="edit-3" style="width: 11px;"></i> Edit</button>
-          <button class="btn btn-xs" onclick="duplicateFileTemplate(${escapeJsStr(t.id)})" title="Duplicate Template"><i data-lucide="copy" style="width: 11px;"></i></button>
-          ${!isBuiltin ? `<button class="btn btn-xs btn-danger" onclick="deleteFileTemplate(${escapeJsStr(t.id)})" title="Delete Custom Template"><i data-lucide="trash-2" style="width: 11px;"></i></button>` : ''}
+          <button class="btn btn-xs" data-on-click="triggerCreateFromTemplate" data-click-args="${actionArgs(String((t.id) ?? ''))}" data-click-steps="${actionSteps(['closeModal', 'settings-modal'])}" title="Test / Create File from this Template"><i data-lucide="play" style="width: 11px;"></i> Test</button>
+          <button class="btn btn-xs" data-on-click="editTemplateById" data-click-args="${actionArgs(String((t.id) ?? ''))}" title="Edit Template"><i data-lucide="edit-3" style="width: 11px;"></i> Edit</button>
+          <button class="btn btn-xs" data-on-click="duplicateFileTemplate" data-click-args="${actionArgs(String((t.id) ?? ''))}" title="Duplicate Template"><i data-lucide="copy" style="width: 11px;"></i></button>
+          ${!isBuiltin ? `<button class="btn btn-xs btn-danger" data-on-click="deleteFileTemplate" data-click-args="${actionArgs(String((t.id) ?? ''))}" title="Delete Custom Template"><i data-lucide="trash-2" style="width: 11px;"></i></button>` : ''}
         </div>
       </div>
     `;
   }).join('');
 
   if (window.lucide) lucide.createIcons({ root: container });
+  bindActions(container);
 }
 
 // ---------------- CONTEXT MENU & UI ACTIONS ----------------
@@ -23184,10 +23241,10 @@ async function loadBookmarksList() {
             <td><code>${escapeHtml(safePath)}</code></td>
             <td>
               <div style="display: flex; gap: 4px;">
-                <button class="btn btn-sm ${isWeb ? 'btn-accent' : ''}" onclick="navigateToBookmark('${encodeURIComponent(b.path)}', ${b.has_password}, '${b.protocol}'); closeModal('settings-modal');" title="${isWeb ? 'Open URL in new tab' : 'Jump to destination'}">
+                <button class="btn btn-sm ${isWeb ? 'btn-accent' : ''}" data-on-click="navigateToBookmark" data-click-args="${actionArgs(`${encodeURIComponent(b.path)}`, (b.has_password), `${b.protocol}`)}" data-click-steps="${actionSteps(['closeModal', 'settings-modal'])}" title="${isWeb ? 'Open URL in new tab' : 'Jump to destination'}">
                   <i data-lucide="${jumpIcon}" style="width: 12px; height: 12px;"></i> ${jumpLabel}
                 </button>
-                <button class="btn btn-sm btn-icon btn-danger" onclick="deleteBookmark(${b.id})" title="Delete Bookmark">
+                <button class="btn btn-sm btn-icon btn-danger" data-on-click="deleteBookmark" data-click-args="${actionArgs((b.id))}" title="Delete Bookmark">
                   <i data-lucide="trash-2" style="width: 12px; height: 12px;"></i>
                 </button>
               </div>
@@ -23197,6 +23254,7 @@ async function loadBookmarksList() {
       }).join('');
 
       if (window.lucide) lucide.createIcons();
+      bindActions(tbody);
     }
   } catch (e) {
     console.error('Failed to load bookmarks:', e);
@@ -45207,6 +45265,7 @@ function renderInstalledChewToys(plugins) {
       </div>
     `;
     if (window.lucide) lucide.createIcons();
+    bindActions(container);
     return;
   }
 
@@ -45223,7 +45282,7 @@ function renderInstalledChewToys(plugins) {
       <div class="chewtoy-card" id="chewtoy-card-${escapeHtml(p.id)}" style="${!isEnabled ? 'opacity: 0.75;' : ''}">
         <div>
           <div class="chewtoy-card-header">
-            <img src="${escapeHtml(iconUrl)}" alt="Icon" class="chewtoy-card-icon" onerror="this.src='assets/amber-frameless-apps.webp'">
+            <img src="${escapeHtml(iconUrl)}" alt="Icon" class="chewtoy-card-icon" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL)}">
             <div style="flex: 1; min-width: 0;">
               <div class="chewtoy-card-title">
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(p.name || p.id)}</span>
@@ -45256,10 +45315,10 @@ function renderInstalledChewToys(plugins) {
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 8px; margin-top: 4px;">
           <div style="display: flex; gap: 6px; align-items: center;">
-            <button class="btn btn-xs btn-accent" onclick="openDynamicChewToy(${escapeJsStr(p.id)})" ${!isEnabled ? 'disabled style="opacity:0.5;"' : ''} style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
+            <button class="btn btn-xs btn-accent" data-on-click="openDynamicChewToy" data-click-args="${actionArgs(String((p.id) ?? ''))}" ${!isEnabled ? 'disabled style="opacity:0.5;"' : ''} style="display: inline-flex; align-items: center; gap: 4px; cursor: pointer;">
               <i data-lucide="play" style="width: 11px; height: 11px;"></i> Launch
             </button>
-            <button class="btn btn-xs btn-icon btn-danger" onclick="uninstallChewToy(${escapeJsStr(p.id)})" title="Uninstall Chewtoy" style="width: 24px; height: 24px;">
+            <button class="btn btn-xs btn-icon btn-danger" data-on-click="uninstallChewToy" data-click-args="${actionArgs(String((p.id) ?? ''))}" title="Uninstall Chewtoy" style="width: 24px; height: 24px;">
               <i data-lucide="trash-2" style="width: 11px; height: 11px;"></i>
             </button>
           </div>
@@ -45267,7 +45326,7 @@ function renderInstalledChewToys(plugins) {
           <div style="display: flex; align-items: center; gap: 6px;">
             <span style="font-size: 10.5px; color: var(--text-dim);">${isEnabled ? 'Enabled' : 'Disabled'}</span>
             <label class="admin-chip-checkbox ${isEnabled ? 'checked' : ''}" style="margin: 0; padding: 2px 8px; cursor: pointer;" title="Toggle Enabled / Disabled">
-              <input type="checkbox" ${isEnabled ? 'checked' : ''} onchange="toggleChewToy(${escapeJsStr(p.id)}, this.checked)" style="display: none;">
+              <input type="checkbox" ${isEnabled ? 'checked' : ''} data-on-change="toggleChewToy" data-change-args="${actionArgs(String((p.id) ?? ''), ACTION_CHECKED)}" style="display: none;">
               <span style="font-size: 10px; font-weight: 700;">${isEnabled ? 'ON' : 'OFF'}</span>
             </label>
           </div>
@@ -45277,6 +45336,7 @@ function renderInstalledChewToys(plugins) {
   }).join('');
 
   if (window.lucide) lucide.createIcons();
+  bindActions(container);
 }
 
 /**
