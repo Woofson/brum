@@ -4585,7 +4585,7 @@
   </div>
 
   <!-- ⚖️ Floating Compare / Diff Engine Window -->
-  <div class="floating-diff-window" id="floating-diff-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-diff-window" id="floating-diff-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="diff-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="diff-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="diff-resize-left"></div>
@@ -4604,14 +4604,14 @@
       <div class="diff-header-actions" style="display: flex; align-items: center; gap: 4px;">
         <!-- Layout / View Switcher (for File Diffs: side-by-side vs unified vs swipe) -->
         <div class="layout-btn-group" id="diff-view-modes" style="display: none; gap: 2px;">
-          <button class="btn btn-icon active" id="diff-mode-split" onclick="setFileDiffMode('split')" title="Side-by-Side (2 Columns)" style="width: 28px; height: 28px;"><i data-lucide="columns-2"></i></button>
-          <button class="btn btn-icon" id="diff-mode-unified" onclick="setFileDiffMode('unified')" title="Unified (Inline)" style="width: 28px; height: 28px;"><i data-lucide="align-justify"></i></button>
-          <button class="btn btn-icon" id="diff-mode-swipe" onclick="setFileDiffMode('swipe')" title="Swipe / Split Slider (Images)" style="width: 28px; height: 28px; display: none;"><i data-lucide="split"></i></button>
+          <button class="btn btn-icon active" id="diff-mode-split" data-on-click="setFileDiffMode" data-click-args='["split"]' title="Side-by-Side (2 Columns)" style="width: 28px; height: 28px;"><i data-lucide="columns-2"></i></button>
+          <button class="btn btn-icon" id="diff-mode-unified" data-on-click="setFileDiffMode" data-click-args='["unified"]' title="Unified (Inline)" style="width: 28px; height: 28px;"><i data-lucide="align-justify"></i></button>
+          <button class="btn btn-icon" id="diff-mode-swipe" data-on-click="setFileDiffMode" data-click-args='["swipe"]' title="Swipe / Split Slider (Images)" style="width: 28px; height: 28px; display: none;"><i data-lucide="split"></i></button>
         </div>
-        <button class="btn btn-icon desktop-only" id="btn-diff-dock" onclick="dockDiffToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-diff-maximize" onclick="toggleMaximizeDiff()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" id="btn-diff-minimize" onclick="minimizeFloatingDiff()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" id="btn-diff-close" onclick="closeFloatingDiff()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-diff-dock" data-on-click="dockDiffToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-diff-maximize" data-on-click="toggleMaximizeDiff" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-diff-minimize" data-on-click="minimizeFloatingDiff" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" id="btn-diff-close" data-on-click="closeFloatingDiff" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -5066,7 +5066,7 @@
   </div>
 
   <!-- 🔍 Floating Duplicate Finder Core Function Window -->
-  <div class="floating-duplicates-window" id="floating-duplicates-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-duplicates-window" id="floating-duplicates-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="duplicates-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="duplicates-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="duplicates-resize-left"></div>
@@ -5082,10 +5082,10 @@
         <span class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">SHA-256</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-duplicates-dock" onclick="dockDuplicateFinderToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-duplicates-maximize" onclick="toggleMaximizeDuplicateFinder()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingDuplicateFinder()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingDuplicateFinder()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-duplicates-dock" data-on-click="dockDuplicateFinderToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-duplicates-maximize" data-on-click="toggleMaximizeDuplicateFinder" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingDuplicateFinder" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingDuplicateFinder" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -5095,9 +5095,9 @@
         <div class="dup-path-row">
           <div class="dup-path-input-wrap">
             <i data-lucide="folder" class="dup-path-icon"></i>
-            <input type="text" id="dup-path-input" class="dup-path-input" placeholder="Directory path to scan (e.g. /home/user/downloads)..." spellcheck="false" autocomplete="off" onkeydown="if(event.key==='Enter') startDuplicateScan()">
+            <input type="text" id="dup-path-input" class="dup-path-input" placeholder="Directory path to scan (e.g. /home/user/downloads)..." spellcheck="false" autocomplete="off" data-keydown-key="Enter" data-on-keydown="startDuplicateScan">
           </div>
-          <button class="btn btn-xs" id="btn-dup-use-pane" onclick="setDuplicateFinderPathToActivePane()" title="Use directory of active pane"><i data-lucide="folder-symlink" style="width: 12px; height: 12px;"></i> Active Pane</button>
+          <button class="btn btn-xs" id="btn-dup-use-pane" data-on-click="setDuplicateFinderPathToActivePane" title="Use directory of active pane"><i data-lucide="folder-symlink" style="width: 12px; height: 12px;"></i> Active Pane</button>
         </div>
 
         <!-- Filter Criteria & Find Action Row -->
@@ -5129,17 +5129,17 @@
 
           <label class="renamer-checkbox-label" style="font-size: 11px; margin-left: 2px;" title="Include dotfiles and hidden folders"><input type="checkbox" id="dup-include-hidden"> Hidden Files</label>
 
-          <button class="btn btn-sm btn-accent" id="btn-start-dup-scan" onclick="startDuplicateScan()" style="margin-left: auto; height: 26px; padding: 0 12px; font-weight: 600;"><i data-lucide="search" style="width: 13px; height: 13px;"></i> Find Duplicates</button>
+          <button class="btn btn-sm btn-accent" id="btn-start-dup-scan" data-on-click="startDuplicateScan" style="margin-left: auto; height: 26px; padding: 0 12px; font-weight: 600;"><i data-lucide="search" style="width: 13px; height: 13px;"></i> Find Duplicates</button>
         </div>
 
         <!-- Presets Row -->
         <div class="dup-presets-bar">
           <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim); margin-right: 4px;">Auto-Select:</span>
-          <button class="btn btn-xs" onclick="autoSelectDuplicates('keep_newest')">Keep Newest</button>
-          <button class="btn btn-xs" onclick="autoSelectDuplicates('keep_oldest')">Keep Oldest</button>
-          <button class="btn btn-xs" onclick="autoSelectDuplicates('keep_shortest')">Keep Shortest Path</button>
-          <button class="btn btn-xs" onclick="autoSelectDuplicates('all_duplicates')">Select All Duplicates</button>
-          <button class="btn btn-xs btn-outline" onclick="autoSelectDuplicates('deselect_all')">Deselect All</button>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_newest"]'>Keep Newest</button>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_oldest"]'>Keep Oldest</button>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_shortest"]'>Keep Shortest Path</button>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["all_duplicates"]'>Select All Duplicates</button>
+          <button class="btn btn-xs btn-outline" data-on-click="autoSelectDuplicates" data-click-args='["deselect_all"]'>Deselect All</button>
         </div>
       </div>
 
@@ -5160,14 +5160,14 @@
             <option value="trash" id="dup-action-trash-option" selected>Move to Trash (.local/share/Trash)</option>
             <option value="delete">Delete Permanently</option>
           </select>
-          <button class="btn btn-sm btn-danger" id="btn-execute-dup-clean" onclick="executeDuplicateClean()" disabled><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clean Selected</button>
+          <button class="btn btn-sm btn-danger" id="btn-execute-dup-clean" data-on-click="executeDuplicateClean" disabled><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clean Selected</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- 🏷️ Floating Tag Editor Core Function Window -->
-  <div class="floating-tageditor-window" id="floating-tageditor-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-tageditor-window" id="floating-tageditor-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="tageditor-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="tageditor-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="tageditor-resize-left"></div>
@@ -5183,11 +5183,11 @@
         <span id="tageditor-active-file-badge" class="badge" style="font-size: 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No file</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-xs btn-accent" onclick="saveTagEditorChanges()" title="Save Tags (Ctrl+S)" style="height: 28px; padding: 0 8px;"><i data-lucide="save" style="width: 12px; height: 12px;"></i> Save</button>
-        <button class="btn btn-icon desktop-only" id="btn-tageditor-dock" onclick="dockTagEditorToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-tageditor-maximize" onclick="toggleMaximizeTagEditor()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingTagEditor()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingTagEditor()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-xs btn-accent" data-on-click="saveTagEditorChanges" title="Save Tags (Ctrl+S)" style="height: 28px; padding: 0 8px;"><i data-lucide="save" style="width: 12px; height: 12px;"></i> Save</button>
+        <button class="btn btn-icon desktop-only" id="btn-tageditor-dock" data-on-click="dockTagEditorToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-tageditor-maximize" data-on-click="toggleMaximizeTagEditor" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingTagEditor" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingTagEditor" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -5195,7 +5195,7 @@
       <div class="tageditor-file-list-col">
         <div style="padding: 6px 8px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
           <span style="font-size: 10.5px; font-weight: 600; color: var(--text-muted);">Files (<span id="tageditor-file-count">0</span>)</span>
-          <button class="btn btn-xs" onclick="reloadTagEditorFiles()" title="Reload"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i></button>
+          <button class="btn btn-xs" data-on-click="reloadTagEditorFiles" title="Reload"><i data-lucide="refresh-cw" style="width: 11px; height: 11px;"></i></button>
         </div>
         <div style="flex: 1; overflow-y: auto;" id="tageditor-file-list"></div>
       </div>
@@ -5203,15 +5203,15 @@
       <div class="tageditor-main-col">
         <div style="display: flex; gap: 14px; align-items: flex-start;">
           <div style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
-            <div class="tageditor-art-box" id="tageditor-art-box" onclick="document.getElementById('tageditor-art-file').click()" title="Click to upload album artwork">
+            <div class="tageditor-art-box" id="tageditor-art-box" data-on-click="clickElementById" data-click-args='["tageditor-art-file"]' title="Click to upload album artwork">
               <img id="tageditor-art-preview" class="tageditor-art-img" style="display: none;" src="" alt="Album Art">
               <div id="tageditor-art-placeholder" style="display: flex; flex-direction: column; align-items: center; gap: 4px; color: var(--text-dim); font-size: 10px;">
                 <i data-lucide="image" style="width: 24px; height: 24px;"></i>
                 <span>Cover Art</span>
               </div>
             </div>
-            <input type="file" id="tageditor-art-file" accept="image/jpeg,image/png,image/webp" style="display: none;" onchange="handleTagCoverArtSelected(event)">
-            <button class="btn btn-xs" id="btn-remove-cover-art" onclick="removeTagCoverArt()" style="display: none; font-size: 10px; height: 20px;">Remove</button>
+            <input type="file" id="tageditor-art-file" accept="image/jpeg,image/png,image/webp" style="display: none;" data-on-change="handleTagCoverArtSelected" data-change-args='[{"$": "event"}]'>
+            <button class="btn btn-xs" id="btn-remove-cover-art" data-on-click="removeTagCoverArt" style="display: none; font-size: 10px; height: 20px;">Remove</button>
           </div>
 
           <div style="flex: 1; display: flex; flex-direction: column; gap: 8px;">
@@ -5261,9 +5261,9 @@
         <div style="padding: 8px 10px; background: var(--bg-header); border: 1px solid var(--border); border-radius: 6px; display: flex; align-items: center; justify-content: space-between; margin-top: 4px;">
           <span style="font-size: 11px; font-weight: 600; color: var(--text-main);">Batch Actions across all loaded files:</span>
           <div style="display: flex; gap: 6px;">
-            <button class="btn btn-xs" onclick="applyBatchAutoTrackNumbers()"><i data-lucide="hash" style="width: 11px; height: 11px;"></i> Auto-Number (1..N)</button>
-            <button class="btn btn-xs" onclick="applyBatchTagField('artist')">Apply Artist to All</button>
-            <button class="btn btn-xs" onclick="applyBatchTagField('album')">Apply Album to All</button>
+            <button class="btn btn-xs" data-on-click="applyBatchAutoTrackNumbers"><i data-lucide="hash" style="width: 11px; height: 11px;"></i> Auto-Number (1..N)</button>
+            <button class="btn btn-xs" data-on-click="applyBatchTagField" data-click-args='["artist"]'>Apply Artist to All</button>
+            <button class="btn btn-xs" data-on-click="applyBatchTagField" data-click-args='["album"]'>Apply Album to All</button>
           </div>
         </div>
       </div>
@@ -5271,7 +5271,7 @@
   </div>
 
   <!-- 📜 Floating Log Viewer Core Function Window -->
-  <div class="floating-logviewer-window" id="floating-logviewer-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-logviewer-window" id="floating-logviewer-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="logviewer-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="logviewer-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="logviewer-resize-left"></div>
@@ -5287,17 +5287,17 @@
         <span id="logviewer-file-badge" class="badge" style="font-size: 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No file</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-logviewer-dock" onclick="dockLogViewerToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-logviewer-maximize" onclick="toggleMaximizeLogViewer()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingLogViewer()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingLogViewer()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-logviewer-dock" data-on-click="dockLogViewerToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-logviewer-maximize" data-on-click="toggleMaximizeLogViewer" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingLogViewer" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingLogViewer" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
     <div class="logviewer-toolbar">
       <div style="display: flex; align-items: center; gap: 4px;">
         <span style="font-size: 10.5px; color: var(--text-muted);">Lines:</span>
-        <select id="logviewer-lines-select" class="pane-quick-filter renamer-select" onchange="fetchLogViewerTail()" style="height: 26px;">
+        <select id="logviewer-lines-select" class="pane-quick-filter renamer-select" data-on-change="fetchLogViewerTail" style="height: 26px;">
           <option value="100">100</option>
           <option value="250">250</option>
           <option value="500" selected>500</option>
@@ -5308,19 +5308,19 @@
       </div>
 
       <div style="display: flex; align-items: center; gap: 4px; flex: 1; min-width: 140px;">
-        <input type="text" id="logviewer-filter-input" class="pane-quick-filter" placeholder="Filter regex / text..." style="height: 26px; font-size: 11px; flex: 1;" oninput="handleLogViewerFilterInput()">
-        <button class="btn btn-xs" id="btn-logviewer-invert" onclick="toggleLogViewerInvert()" title="Invert Filter Match" style="height: 26px;">!</button>
+        <input type="text" id="logviewer-filter-input" class="pane-quick-filter" placeholder="Filter regex / text..." style="height: 26px; font-size: 11px; flex: 1;" data-on-input="handleLogViewerFilterInput">
+        <button class="btn btn-xs" id="btn-logviewer-invert" data-on-click="toggleLogViewerInvert" title="Invert Filter Match" style="height: 26px;">!</button>
       </div>
 
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-xs log-level-btn active" id="btn-log-lvl-all" onclick="setLogLevelFilter('ALL')" style="height: 26px;">All</button>
-        <button class="btn btn-xs log-level-btn" id="btn-log-lvl-err" onclick="setLogLevelFilter('ERROR')" style="height: 26px; color: #ef4444;">Errors (<span id="log-count-err">0</span>)</button>
-        <button class="btn btn-xs log-level-btn" id="btn-log-lvl-warn" onclick="setLogLevelFilter('WARN')" style="height: 26px; color: #f59e0b;">Warn (<span id="log-count-warn">0</span>)</button>
+        <button class="btn btn-xs log-level-btn active" id="btn-log-lvl-all" data-on-click="setLogLevelFilter" data-click-args='["ALL"]' style="height: 26px;">All</button>
+        <button class="btn btn-xs log-level-btn" id="btn-log-lvl-err" data-on-click="setLogLevelFilter" data-click-args='["ERROR"]' style="height: 26px; color: #ef4444;">Errors (<span id="log-count-err">0</span>)</button>
+        <button class="btn btn-xs log-level-btn" id="btn-log-lvl-warn" data-on-click="setLogLevelFilter" data-click-args='["WARN"]' style="height: 26px; color: #f59e0b;">Warn (<span id="log-count-warn">0</span>)</button>
       </div>
 
       <div style="display: flex; align-items: center; gap: 4px; margin-left: auto;">
-        <button class="btn btn-xs" id="btn-log-follow" onclick="toggleLogFollow()" style="height: 26px;" title="Follow log stream in real time"><i data-lucide="play" style="width: 11px; height: 11px;"></i> Follow</button>
-        <button class="btn btn-xs" onclick="fetchLogViewerTail()" style="height: 26px;" title="Refresh (R)"><i data-lucide="rotate-cw" style="width: 11px; height: 11px;"></i></button>
+        <button class="btn btn-xs" id="btn-log-follow" data-on-click="toggleLogFollow" style="height: 26px;" title="Follow log stream in real time"><i data-lucide="play" style="width: 11px; height: 11px;"></i> Follow</button>
+        <button class="btn btn-xs" data-on-click="fetchLogViewerTail" style="height: 26px;" title="Refresh (R)"><i data-lucide="rotate-cw" style="width: 11px; height: 11px;"></i></button>
       </div>
     </div>
 
@@ -6028,7 +6028,7 @@
   </div>
 
   <!-- 💾 Floating Disk Usage & Storage Treemap Analyzer Window -->
-  <div class="floating-diskusage-window" id="floating-diskusage-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-diskusage-window" id="floating-diskusage-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="diskusage-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="diskusage-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="diskusage-resize-left"></div>
@@ -6049,19 +6049,19 @@
       <div style="display: flex; align-items: center; gap: 6px;">
         <!-- View Switcher -->
         <div class="layout-btn-group" id="du-view-switcher" style="display: flex; gap: 2px; background: rgba(0,0,0,0.25); padding: 2px; border-radius: 6px; border: 1px solid var(--border);">
-          <button class="btn btn-icon btn-sm active" id="du-view-btn-mounts" onclick="setDiskUsageViewMode('mounts')" title="Drives & Mounted Storage Overview" style="width: 28px; height: 28px;"><i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i></button>
-          <button class="btn btn-icon btn-sm" id="du-view-btn-split" onclick="setDiskUsageViewMode('split')" title="Split View: Treemap & Item List" style="width: 28px; height: 28px;"><i data-lucide="columns-2" style="width: 14px; height: 14px;"></i></button>
-          <button class="btn btn-icon btn-sm" id="du-view-btn-treemap" onclick="setDiskUsageViewMode('treemap')" title="Treemap Tiles View" style="width: 28px; height: 28px;"><i data-lucide="layout-grid" style="width: 14px; height: 14px;"></i></button>
-          <button class="btn btn-icon btn-sm" id="du-view-btn-list" onclick="setDiskUsageViewMode('list')" title="Detailed List View" style="width: 28px; height: 28px;"><i data-lucide="list" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm active" id="du-view-btn-mounts" data-on-click="setDiskUsageViewMode" data-click-args='["mounts"]' title="Drives & Mounted Storage Overview" style="width: 28px; height: 28px;"><i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm" id="du-view-btn-split" data-on-click="setDiskUsageViewMode" data-click-args='["split"]' title="Split View: Treemap & Item List" style="width: 28px; height: 28px;"><i data-lucide="columns-2" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm" id="du-view-btn-treemap" data-on-click="setDiskUsageViewMode" data-click-args='["treemap"]' title="Treemap Tiles View" style="width: 28px; height: 28px;"><i data-lucide="layout-grid" style="width: 14px; height: 14px;"></i></button>
+          <button class="btn btn-icon btn-sm" id="du-view-btn-list" data-on-click="setDiskUsageViewMode" data-click-args='["list"]' title="Detailed List View" style="width: 28px; height: 28px;"><i data-lucide="list" style="width: 14px; height: 14px;"></i></button>
         </div>
 
         <div class="header-sep desktop-only"></div>
 
-        <button class="btn btn-icon btn-sm" id="du-rescan-btn" onclick="if(duViewMode==='mounts'){ loadSystemDisksOverview(true); } else { runDiskUsageScan(document.getElementById('du-path-input').value); }" title="Refresh / Rescan" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
-        <button class="btn btn-icon btn-sm desktop-only" id="btn-du-dock" onclick="dockDiskUsageToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon btn-sm" id="du-maximize-btn" onclick="toggleDiskUsageMaximize()" title="Toggle Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon btn-sm desktop-only" onclick="minimizeFloatingDiskUsage()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon btn-sm modal-close-btn" onclick="closeFloatingDiskUsage()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon btn-sm" id="du-rescan-btn" data-on-click="refreshDiskUsageView" title="Refresh / Rescan" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm desktop-only" id="btn-du-dock" data-on-click="dockDiskUsageToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon btn-sm" id="du-maximize-btn" data-on-click="toggleDiskUsageMaximize" title="Toggle Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon btn-sm desktop-only" data-on-click="minimizeFloatingDiskUsage" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeFloatingDiskUsage" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -6071,16 +6071,16 @@
       <div class="du-top-bar" id="du-top-bar">
         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
           <!-- Jump Actions -->
-          <button class="btn btn-xs" onclick="navigateDiskUsageParent()" title="Go to Parent Directory (Backspace / Alt+Up)" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
+          <button class="btn btn-xs" data-on-click="navigateDiskUsageParent" title="Go to Parent Directory (Backspace / Alt+Up)" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px; font-weight: 600;">
             <i data-lucide="arrow-up" style="width: 13px; height: 13px;"></i> Up (..)
           </button>
-          <button class="btn btn-xs" onclick="navigateDiskUsageActivePane()" title="Scan Active File Panel Path" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;">
+          <button class="btn btn-xs" data-on-click="navigateDiskUsageActivePane" title="Scan Active File Panel Path" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;">
             <i data-lucide="columns-2" style="width: 13px; height: 13px;"></i> Current Pane
           </button>
-          <button class="btn btn-xs" onclick="runDiskUsageScan('~')" title="Scan Home Directory" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;">
+          <button class="btn btn-xs" data-on-click="runDiskUsageScan" data-click-args='["~"]' title="Scan Home Directory" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;">
             <i data-lucide="home" style="width: 13px; height: 13px;"></i> Home
           </button>
-          <button class="btn btn-xs" onclick="runDiskUsageScan('/')" title="Scan Root Directory (/)" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;">
+          <button class="btn btn-xs" data-on-click="runDiskUsageScan" data-click-args='["/"]' title="Scan Root Directory (/)" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;">
             <i data-lucide="hard-drive" style="width: 13px; height: 13px;"></i> /
           </button>
 
@@ -6088,7 +6088,7 @@
           <div style="margin-left: auto; display: flex; align-items: center; gap: 6px;">
             <div style="position: relative; display: flex; align-items: center;">
               <i data-lucide="filter" style="position: absolute; left: 7px; width: 12px; height: 12px; color: var(--text-muted); pointer-events: none;"></i>
-              <input type="text" id="du-filter-input" class="pane-quick-filter" style="width: 160px; height: 26px; padding-left: 24px; font-size: 11px;" placeholder="Filter items..." oninput="filterDiskUsageItems(this.value)">
+              <input type="text" id="du-filter-input" class="pane-quick-filter" style="width: 160px; height: 26px; padding-left: 24px; font-size: 11px;" placeholder="Filter items..." data-on-input="filterDiskUsageItems" data-input-args='[{"$": "value"}]'>
             </div>
           </div>
         </div>
@@ -6097,8 +6097,8 @@
         <div style="display: flex; align-items: center; gap: 6px;">
           <div class="du-breadcrumbs" id="du-breadcrumbs" style="flex: 1;"></div>
           <div style="display: flex; align-items: center; gap: 4px;">
-            <input type="text" id="du-path-input" class="pane-quick-filter" style="width: 220px; font-family: var(--font-mono); height: 26px; font-size: 11px;" placeholder="/path/to/folder" onkeydown="if(event.key==='Enter') runDiskUsageScan(this.value)">
-            <button class="btn btn-xs btn-accent" onclick="runDiskUsageScan(document.getElementById('du-path-input').value)" style="height: 26px; padding: 0 10px; font-weight: 600;"><i data-lucide="search" style="width: 12px; margin-right: 4px;"></i> Scan</button>
+            <input type="text" id="du-path-input" class="pane-quick-filter" style="width: 220px; font-family: var(--font-mono); height: 26px; font-size: 11px;" placeholder="/path/to/folder" data-keydown-key="Enter" data-on-keydown="runDiskUsageScan" data-keydown-args='[{"$": "value"}]'>
+            <button class="btn btn-xs btn-accent" data-on-click="runDiskUsageScanFromInput" style="height: 26px; padding: 0 10px; font-weight: 600;"><i data-lucide="search" style="width: 12px; margin-right: 4px;"></i> Scan</button>
           </div>
         </div>
       </div>
@@ -6135,7 +6135,7 @@
               <i data-lucide="hard-drive" style="width: 14px; height: 14px;"></i> Mounted Storage & Filesystems Overview (<span id="du-mounts-count">0</span> volumes)
             </div>
             <div style="display: flex; gap: 6px; align-items: center;">
-              <button class="btn btn-xs btn-outline" onclick="loadSystemDisksOverview(true)" style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;" title="Refresh Mounts">
+              <button class="btn btn-xs btn-outline" data-on-click="loadSystemDisksOverview" data-click-args='[true]' style="height: 26px; padding: 0 8px; display: inline-flex; align-items: center; gap: 4px;" title="Refresh Mounts">
                 <i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i> Refresh
               </button>
             </div>
@@ -6182,13 +6182,13 @@
         <span style="font-size: 11px; color: var(--text-dim); display: inline-flex; align-items: center; gap: 6px;">
           <i data-lucide="info" style="width: 13px; height: 13px;"></i> Click any folder to drill down • Click "Open in Pane" to jump in Brum
         </span>
-        <button class="btn btn-accent btn-sm" onclick="closeFloatingDiskUsage()">Close</button>
+        <button class="btn btn-accent btn-sm" data-on-click="closeFloatingDiskUsage">Close</button>
       </div>
     </div>
   </div>
 
   <!-- Taskbar Pill for Disk Usage -->
-  <div class="diskusage-pill" id="diskusage-pill" style="display: none;" onclick="restoreFloatingDiskUsage()" title="Click to restore Disk Usage">
+  <div class="diskusage-pill" id="diskusage-pill" style="display: none;" data-on-click="restoreFloatingDiskUsage" title="Click to restore Disk Usage">
     <img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain;">
     <span>Disk Usage</span>
   </div>
@@ -7637,19 +7637,19 @@
   </div>
 
   <!-- Duplicate Finder Minimized Task Pill -->
-  <div class="duplicates-pill" id="duplicates-pill" style="display: none;" onclick="restoreFloatingDuplicateFinder()" title="Click to restore Duplicate Finder">
+  <div class="duplicates-pill" id="duplicates-pill" style="display: none;" data-on-click="restoreFloatingDuplicateFinder" title="Click to restore Duplicate Finder">
     <i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="duplicates-pill-title" id="duplicates-pill-title">Duplicate Finder</span>
   </div>
 
   <!-- Tag Editor Minimized Task Pill -->
-  <div class="tageditor-pill" id="tageditor-pill" style="display: none;" onclick="restoreFloatingTagEditor()" title="Click to restore Tag Editor">
+  <div class="tageditor-pill" id="tageditor-pill" style="display: none;" data-on-click="restoreFloatingTagEditor" title="Click to restore Tag Editor">
     <i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="tageditor-pill-title" id="tageditor-pill-title">Tag Editor</span>
   </div>
 
   <!-- Log Viewer Minimized Task Pill -->
-  <div class="logviewer-pill" id="logviewer-pill" style="display: none;" onclick="restoreFloatingLogViewer()" title="Click to restore Log Viewer">
+  <div class="logviewer-pill" id="logviewer-pill" style="display: none;" data-on-click="restoreFloatingLogViewer" title="Click to restore Log Viewer">
     <i data-lucide="scroll-text" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="logviewer-pill-title" id="logviewer-pill-title">Log Viewer</span>
   </div>
@@ -7661,7 +7661,7 @@
   </div>
 
   <!-- Compare & Diff Minimized Task Pill -->
-  <div class="diff-pill" id="diff-pill" style="display: none;" onclick="restoreFloatingDiff()" title="Click to restore Compare Tool (F9)">
+  <div class="diff-pill" id="diff-pill" style="display: none;" data-on-click="restoreFloatingDiff" title="Click to restore Compare Tool (F9)">
     <img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain;">
     <span class="diff-pill-title" id="diff-pill-title">Compare Tool</span>
   </div>

@@ -29,70 +29,81 @@ const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
 const BRUM_ACTIONS = new Set([
   'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addNewBookmark',
-  'addTracksToMediaPlaylist', 'applyBorderSettings', 'applyCustomBadgePreset',
-  'applyExternalProgramPreset', 'applyPaneCustomTwoTone', 'applyPaneRenameFromInput',
-  'applyPaneStartPath', 'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'blurElement',
+  'addTracksToMediaPlaylist', 'alignDiffPaths', 'applyBatchAutoTrackNumbers', 'applyBatchTagField',
+  'applyBorderSettings', 'applyCustomBadgePreset', 'applyExternalProgramPreset',
+  'applyPaneCustomTwoTone', 'applyPaneRenameFromInput', 'applyPaneStartPath', 'applyTheme',
+  'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'blurElement',
   'bringFloatingWindowToFront', 'browseNoteDogFolder', 'calcAppendChar', 'calcAppendDot',
   'calcAppendFunc', 'calcAppendNum', 'calcAppendOp', 'calcAppendPi', 'calcAppendUnit',
   'calcBackspace', 'calcClearAll', 'calcClearEntry', 'calcClearHistory', 'calcEvaluate',
-  'calcLoadHistoryItem', 'calcToggleSign', 'captureCurrentPathsForCustomStartup',
-  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTetraDogMode', 'clearAllCustomFileIcons',
-  'clearCombineParts', 'clearMediaPlaylist', 'clearPaneFilter', 'clearPdfMergeList',
-  'clickElementById', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers',
-  'closeDockedEditorTab', 'closeDockedTool', 'closeEditorActionsDropdown', 'closeEditorModal',
-  'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCalculator',
-  'closeFloatingHexEditor', 'closeFloatingNoteDog', 'closeFloatingPdf', 'closeFloatingRenamer',
-  'closeFloatingSplitter', 'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer',
-  'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
-  'closeTetraDog', 'convertCurrentMediaToMp4', 'copyCalcResult', 'copyInspectorCoordinates',
-  'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag', 'createNewEditorTab',
-  'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio', 'cycleMediaLoop',
-  'cycleMediaSpeed', 'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction',
-  'deleteFileTemplate', 'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems',
-  'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill', 'dockCalculatorToActivePane',
-  'dockEditorToActivePane', 'dockHexEditorToActivePane', 'dockMediaPlayerToActivePane',
-  'dockNoteDogToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
-  'dockSplitterToActivePane', 'dockTetraDogToActivePane', 'downloadCurrentMedia',
+  'calcLoadHistoryItem', 'calcToggleSign', 'calculateAllChecksums', 'calculateRowChecksum',
+  'captureCurrentPathsForCustomStartup', 'changeGlobalIconTheme', 'changeMediaVolume',
+  'changeTetraDogMode', 'clearAllCustomFileIcons', 'clearCombineParts', 'clearDiffSearch',
+  'clearMediaPlaylist', 'clearPaneFilter', 'clearPdfMergeList', 'clickElementById',
+  'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers', 'closeDockedEditorTab',
+  'closeDockedTool', 'closeEditorActionsDropdown', 'closeEditorModal', 'closeEditorTab',
+  'closeEditorTabOnMiddleClick', 'closeFloatingCalculator', 'closeFloatingDiff',
+  'closeFloatingDiskUsage', 'closeFloatingDuplicateFinder', 'closeFloatingHexEditor',
+  'closeFloatingLogViewer', 'closeFloatingNoteDog', 'closeFloatingPdf', 'closeFloatingRenamer',
+  'closeFloatingSplitter', 'closeFloatingTagEditor', 'closeMediaPlayer', 'closeModal',
+  'closeNoteDogDrawer', 'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick',
+  'closeTabsToTheRight', 'closeTetraDog', 'convertCurrentMediaToMp4', 'copyCalcResult',
+  'copyDiffItem', 'copyInspectorCoordinates', 'copyTextToClipboard', 'copyToClipboardText',
+  'copyVariableTag', 'createNewEditorTab', 'createPaneTab', 'cycleEditorTabSize',
+  'cycleMediaAspectRatio', 'cycleMediaLoop', 'cycleMediaSpeed', 'cyclePaneColor', 'deleteBookmark',
+  'deleteCustomAction', 'deleteFileTemplate', 'deleteNoteAttachment', 'deleteOpenWithRule',
+  'deleteSelectedTrashItems', 'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill',
+  'dockCalculatorToActivePane', 'dockDiffToActivePane', 'dockDiskUsageToActivePane',
+  'dockDuplicateFinderToActivePane', 'dockEditorToActivePane', 'dockHexEditorToActivePane',
+  'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane', 'dockNoteDogToActivePane',
+  'dockPdfToActivePane', 'dockRenamerToActivePane', 'dockSplitterToActivePane',
+  'dockTagEditorToActivePane', 'dockTetraDogToActivePane', 'downloadCurrentMedia',
   'duplicateFileTemplate', 'duplicatePaneTab', 'editCustomAction', 'editOpenWithRule',
   'editTemplateById', 'enablePathInput', 'executeBatchRename', 'executeBulkRename',
-  'executeCustomAction', 'executeFileCombine', 'executeFileSplit', 'executeFind',
-  'executeOpenWith', 'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun',
-  'executeUnlockNoteDogNote', 'exportCustomThemeToml', 'fetchPdfSplitInfo',
+  'executeCustomAction', 'executeDuplicateClean', 'executeFileCombine', 'executeFileSplit',
+  'executeFind', 'executeFolderAlignment', 'executeOpenWith', 'executePane1ClickTransfer',
+  'executePdfActiveTab', 'executeRenamerDryRun', 'executeUnlockNoteDogNote',
+  'exportCustomThemeToml', 'fetchLogViewerTail', 'fetchPdfSplitInfo', 'filterDiskUsageItems',
   'filterInstalledChewToys', 'filterMediaPlaylist', 'findNextMatch', 'findPrevMatch',
   'handleAppMarginChange', 'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
-  'handleChewToyFileSelect', 'handleDndSettingChange', 'handleDockedNoteSelect',
-  'handleDockedNotebookChange', 'handleDockedSectionChange', 'handleEditorClick',
-  'handleEditorInput', 'handleEditorKeyDown', 'handleEditorLanguageChange',
+  'handleChewToyFileSelect', 'handleDiffSearch', 'handleDndSettingChange',
+  'handleDockedNoteSelect', 'handleDockedNotebookChange', 'handleDockedSectionChange',
+  'handleEditorClick', 'handleEditorInput', 'handleEditorKeyDown', 'handleEditorLanguageChange',
   'handleEditorViewModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
   'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
   'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHexGridKey',
-  'handleHostnameSettingChange', 'handleLoginBrandingSettingChange', 'handleLogoutOrExit',
-  'handleMediaScrubberHover', 'handleMonoFontChange', 'handleNoteAttachmentFileSelected',
-  'handleNoteDogInput', 'handleNoteDogKeyDown', 'handleNoteDogSearch', 'handleNoteDogTitleChange',
-  'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
-  'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
-  'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
-  'handleSettingsAvatarFileUpload', 'handleSplitPresetChange', 'handleSplitSourceChange',
-  'handleStartupSettingChange', 'handleTetraDogScopeChange', 'handleTitleTemplateChange',
+  'handleHostnameSettingChange', 'handleLogViewerFilterInput', 'handleLoginBrandingSettingChange',
+  'handleLogoutOrExit', 'handleMediaScrubberHover', 'handleMonoFontChange',
+  'handleNoteAttachmentFileSelected', 'handleNoteDogInput', 'handleNoteDogKeyDown',
+  'handleNoteDogSearch', 'handleNoteDogTitleChange', 'handlePaneBadgeClick',
+  'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel',
+  'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart',
+  'handlePathKey', 'handleRadiusChange', 'handleSansFontChange', 'handleSettingsAvatarFileUpload',
+  'handleSplitPresetChange', 'handleSplitSourceChange', 'handleStartupSettingChange',
+  'handleTagCoverArtSelected', 'handleTetraDogScopeChange', 'handleTitleTemplateChange',
   'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart',
   'handleToolDrop', 'handleUserParanoidToggle', 'handleUserSecuritySettingChange',
   'handleVaultOpen', 'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
-  'hideMediaScrubberTooltip', 'hideOpenWithRuleForm', 'initColResize', 'initTreeResize',
-  'insertAttachmentMarkdownById', 'insertNoteDogColorTag', 'insertNoteDogMarkdown',
-  'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertRenamerToken', 'insertTitleVar',
-  'jumpHexOffset', 'jumpToConfdSection', 'loadEmojiPresets', 'loadInstalledChewToys',
-  'loadNerdFontPresets', 'loadPaneDirectory', 'loadRenamerDirectory', 'loadTetraDogLeaderboard',
-  'loadUserPreferencesFromServer', 'lockSession', 'maximizeFloatingEditor',
-  'maximizeFloatingMediaPlayer', 'maximizeFloatingNoteDog', 'maximizeTetraDog',
-  'minimizeFloatingCalculator', 'minimizeFloatingEditor', 'minimizeFloatingHexEditor',
-  'minimizeFloatingMediaPlayer', 'minimizeFloatingNoteDog', 'minimizeFloatingPdf',
-  'minimizeFloatingRenamer', 'minimizeFloatingSplitter', 'minimizeTetraDog', 'mountUsbDevice',
+  'hideElement', 'hideMediaScrubberTooltip', 'hideOpenWithRuleForm', 'initColResize',
+  'initTreeResize', 'insertAttachmentMarkdownById', 'insertNoteDogColorTag',
+  'insertNoteDogMarkdown', 'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertRenamerToken',
+  'insertTitleVar', 'jumpHexOffset', 'jumpToConfdSection', 'jumpToPaneFromDiskUsage',
+  'loadEmojiPresets', 'loadInstalledChewToys', 'loadNerdFontPresets', 'loadPaneDirectory',
+  'loadRenamerDirectory', 'loadSystemDisksOverview', 'loadTagEditorFile',
+  'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession',
+  'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNoteDog',
+  'maximizeTetraDog', 'minimizeFloatingCalculator', 'minimizeFloatingDiff',
+  'minimizeFloatingDiskUsage', 'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor',
+  'minimizeFloatingHexEditor', 'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer',
+  'minimizeFloatingNoteDog', 'minimizeFloatingPdf', 'minimizeFloatingRenamer',
+  'minimizeFloatingSplitter', 'minimizeFloatingTagEditor', 'minimizeTetraDog', 'mountUsbDevice',
   'moveMenuItem', 'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navMediaPlaylist',
-  'navigateToBookmark', 'openAboutModal', 'openAdminPanel', 'openApiTokensModal',
-  'openBatchRenamer', 'openBookmarksManager', 'openCadStudio', 'openChewtoyForFile',
-  'openColumnHeaderContextMenu', 'openConverterModal', 'openCreateTemplateModal',
-  'openCreateVaultModal', 'openCurrentMediaWithSystemPlayer', 'openCustomDestModal',
-  'openDiskUsageModal', 'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal',
+  'navigateDiskUsageActivePane', 'navigateDiskUsageParent', 'navigateToBookmark', 'openAboutModal',
+  'openAdminPanel', 'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager',
+  'openCadStudio', 'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openContainingFolder',
+  'openConverterModal', 'openCreateTemplateModal', 'openCreateVaultModal',
+  'openCurrentMediaWithSystemPlayer', 'openCustomDestModal', 'openDiskUsageModal',
+  'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFileDiffView',
   'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator',
   'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager', 'openHexEditor',
   'openInPaneWithToast', 'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer',
@@ -103,39 +114,45 @@ const BRUM_ACTIONS = new Set([
   'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
   'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal', 'openSettingsModal',
   'openSettingsTab', 'openSharesManager', 'openSplitterFilePicker', 'openSpotlightModal',
-  'openSyncModal', 'openSyncthingModal', 'openTagEditor', 'openTerminalInPath', 'openTetraDog',
-  'openUserProfileModal', 'playMediaPlaylistItem', 'populateMediaPlaylistFromActivePane',
-  'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNoteDogFolder',
-  'promptChangeNoteSection', 'promptClearTetraDogScores', 'promptCreateNote',
-  'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
-  'promptEmptyTrash', 'promptToggleEncryptNotebook', 'promptToggleEncryptSection',
-  'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshPane',
-  'refreshTetraDogLeaderboard', 'reloadRenamerFiles', 'removeCombinePart', 'removeElementById',
-  'removeNoteTag', 'removePdfMergeItem', 'removePdfOrganizerPage', 'renderAvatarById',
+  'openSyncModal', 'openSyncthingModal', 'openTagEditor', 'openTerminalFromDiskUsage',
+  'openTerminalInPath', 'openTetraDog', 'openUserProfileModal', 'playMediaPlaylistItem',
+  'populateMediaPlaylistFromActivePane', 'promptAddNoteTag', 'promptChangeNoteCategory',
+  'promptChangeNoteDogFolder', 'promptChangeNoteSection', 'promptClearTetraDogScores',
+  'promptCreateNote', 'promptCreateNotebookOrCategory', 'promptCreateSection',
+  'promptDeleteCurrentNote', 'promptEmptyTrash', 'promptToggleEncryptNotebook',
+  'promptToggleEncryptSection', 'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes',
+  'refreshDiskUsageView', 'refreshPane', 'refreshTetraDogLeaderboard', 'reloadRenamerFiles',
+  'reloadTagEditorFiles', 'removeCombinePart', 'removeElementById', 'removeNoteTag',
+  'removePdfMergeItem', 'removePdfOrganizerPage', 'removeTagCoverArt', 'renderAvatarById',
   'renderHexEditorView', 'renderKeybindingsTable', 'replaceAllMatches', 'replaceCurrentMatch',
   'resetAllColumnWidths', 'resetFileTemplatesToDefault', 'resetGlobalFolderIcon',
   'resetHiddenDrives', 'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault',
   'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules', 'resetServerPreferences',
   'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
   'resetWindowTitleSetting', 'restartTetraDogGame', 'restoreFloatingCalculator',
-  'restoreFloatingEditor', 'restoreFloatingHexEditor', 'restoreFloatingMediaPlayer',
-  'restoreFloatingNoteDog', 'restoreFloatingPdf', 'restoreFloatingRenamer',
-  'restoreFloatingSplitter', 'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems',
-  'restoreTetraDog', 'resumeTetraDogGame', 'rotatePdfOrganizerPage', 'runPredefinedAction',
-  'runToolsMenuChewtoy', 'runToolsMenuItem', 'saveActiveEditorTab', 'saveActiveNoteDogNote',
-  'saveAllEditorTabs', 'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault',
-  'saveCustomBrowserTheme', 'saveCustomShellAction', 'saveCustomTrashDir', 'saveGlobalFolderIcon',
-  'saveHexEditorChanges', 'saveNoteDogFolderSetting', 'saveOpenWithRule',
-  'saveSettingsUserProfile', 'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias',
+  'restoreFloatingDiff', 'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder',
+  'restoreFloatingEditor', 'restoreFloatingHexEditor', 'restoreFloatingLogViewer',
+  'restoreFloatingMediaPlayer', 'restoreFloatingNoteDog', 'restoreFloatingPdf',
+  'restoreFloatingRenamer', 'restoreFloatingSplitter', 'restoreFloatingTagEditor',
+  'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems', 'restoreTetraDog',
+  'resumeTetraDogGame', 'rotatePdfOrganizerPage', 'runDiskUsageScan', 'runDiskUsageScanFromInput',
+  'runPredefinedAction', 'runToolsMenuChewtoy', 'runToolsMenuItem', 'saveActiveEditorTab',
+  'saveActiveNoteDogNote', 'saveAllEditorTabs', 'saveContextItemAsTemplate',
+  'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme', 'saveCustomShellAction',
+  'saveCustomTrashDir', 'saveGlobalFolderIcon', 'saveHexEditorChanges', 'saveNoteDogFolderSetting',
+  'saveOpenWithRule', 'saveSettingsUserProfile', 'saveTagEditorChanges',
+  'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias', 'scanMountpointTreemap',
   'scanPaneForCombineParts', 'searchHexBytes', 'seekMedia', 'selectDatabaseCategory',
   'selectDatabaseNoteById', 'selectDatabaseSection', 'selectGlobalFolderPreset',
   'selectNoteDogNoteByPath', 'selectNoteDogNotebook', 'selectNoteDogSection',
   'selectNoteDogVersion', 'setActivePane', 'setContextFileColor', 'setCustomAngleInput',
-  'setDefaultViewMode', 'setElementText', 'setElementValue', 'setFontSizePreset',
-  'setMediaSubtitleTrack', 'setNoteDogStorageMode', 'setNoteDogViewMode',
-  'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setTaskVerbosity',
-  'setTetraDogTheme', 'setTetraDogView', 'setTitleTemplatePreset', 'showAddCustomActionPrompt',
-  'showAddOpenWithRulePrompt', 'skipMedia', 'sortPane', 'startTetraDogGame', 'swapPanes',
+  'setDefaultViewMode', 'setDiffFilter', 'setDiffSortBy', 'setDiskUsageViewMode',
+  'setDuplicateFinderPathToActivePane', 'setElementText', 'setElementValue', 'setFileDiffMode',
+  'setFontSizePreset', 'setLogLevelFilter', 'setMediaSubtitleTrack', 'setNoteDogStorageMode',
+  'setNoteDogViewMode', 'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode',
+  'setTaskVerbosity', 'setTetraDogTheme', 'setTetraDogView', 'setTitleTemplatePreset',
+  'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'skipMedia', 'sortDiffByColumn',
+  'sortPane', 'startDuplicateScan', 'startTetraDogGame', 'swapDiffPaths', 'swapPanes',
   'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab', 'switchMenuBuilderCategory',
   'switchPaneNode', 'switchPaneTab', 'switchPdfTab', 'switchSettingsTab', 'switchSplitterTab',
   'switchToFleetNode', 'syncDockedNoteDogInput', 'syncGutterScroll', 'syncNoteDogGutter',
@@ -143,26 +160,29 @@ const BRUM_ACTIONS = new Set([
   'toggleBranchView', 'toggleBrumMascot', 'toggleCalcHistory', 'toggleChewToy',
   'toggleColSeparators', 'toggleColumnVisibility', 'toggleCompactDates',
   'toggleContextColorPalette', 'toggleContextSubmenu', 'toggleCurrentNoteEncryption',
-  'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting', 'toggleEditorActionsDropdown',
-  'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFindBar', 'toggleFindOption',
-  'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager', 'toggleGlobalDotfiles',
-  'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting', 'toggleHexInspector',
-  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleLayoutMenu', 'toggleMaximizeHexEditor',
-  'toggleMaximizePdf', 'toggleMaximizeRenamer', 'toggleMaximizeSplitter', 'toggleMediaFullscreen',
-  'toggleMediaMute', 'toggleMediaPiP', 'toggleMediaPlay', 'toggleMediaPlaylistDrawer',
-  'toggleMediaShuffle', 'toggleMediaStopOnClose', 'toggleMediaSubtitlesDropdown',
-  'toggleMenuItemVisibility', 'toggleMinimizeToTray', 'toggleNoteAttachmentsTray',
-  'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer', 'togglePaneFilter',
-  'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
-  'togglePdfSplitModeUI', 'toggleProfileMenu', 'toggleRenamerItem', 'toggleShowDirTag',
-  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll',
-  'toggleTerminal', 'toggleTetraDogAudio', 'toggleTetraDogPlayPause', 'toggleToolVisibility',
-  'toggleToolsMenu', 'toggleTrashSetting', 'toggleUseExtEditor', 'toggleUseExtViewer',
-  'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting', 'triggerArchive7z',
-  'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename', 'triggerChecksum',
-  'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard', 'triggerCreateFromTemplate',
-  'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload', 'triggerDeviceUpload',
-  'triggerDiff', 'triggerDirPermissions', 'triggerDownloadContextItem',
+  'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting', 'toggleDiffFoldersFirst',
+  'toggleDiffShowDotfiles', 'toggleDiffSortDir', 'toggleDiskUsageMaximize', 'toggleDuplicateFile',
+  'toggleEditorActionsDropdown', 'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFindBar',
+  'toggleFindOption', 'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager',
+  'toggleGlobalDotfiles', 'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting',
+  'toggleHexInspector', 'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleLayoutMenu',
+  'toggleLogFollow', 'toggleLogViewerInvert', 'toggleMaximizeDiff',
+  'toggleMaximizeDuplicateFinder', 'toggleMaximizeHexEditor', 'toggleMaximizeLogViewer',
+  'toggleMaximizePdf', 'toggleMaximizeRenamer', 'toggleMaximizeSplitter',
+  'toggleMaximizeTagEditor', 'toggleMediaFullscreen', 'toggleMediaMute', 'toggleMediaPiP',
+  'toggleMediaPlay', 'toggleMediaPlaylistDrawer', 'toggleMediaShuffle', 'toggleMediaStopOnClose',
+  'toggleMediaSubtitlesDropdown', 'toggleMenuItemVisibility', 'toggleMinimizeToTray',
+  'toggleNoteAttachmentsTray', 'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer',
+  'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll',
+  'togglePaneTree', 'togglePdfSplitModeUI', 'toggleProfileMenu', 'toggleRenamerItem',
+  'toggleShowDirTag', 'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncNav',
+  'toggleSyncScroll', 'toggleTerminal', 'toggleTetraDogAudio', 'toggleTetraDogPlayPause',
+  'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting', 'toggleUseExtEditor',
+  'toggleUseExtViewer', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
+  'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
+  'triggerChecksum', 'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard',
+  'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload',
+  'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions', 'triggerDownloadContextItem',
   'triggerDownloadCurrentDirectory', 'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere',
   'triggerExtractModal', 'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit',
   'triggerGitManager', 'triggerMkdir', 'triggerMove', 'triggerNewFile',
@@ -320,6 +340,22 @@ function blurElement(el) {
 
 function closeEditorTabOnMiddleClick(ev, tabId) {
   if (ev.button === 1) closeEditorTab(tabId);
+}
+
+function hideElement(el) {
+  el.style.display = 'none';
+}
+
+function refreshDiskUsageView() {
+  if (duViewMode === 'mounts') {
+    loadSystemDisksOverview(true);
+  } else {
+    runDiskUsageScan(document.getElementById('du-path-input').value);
+  }
+}
+
+function runDiskUsageScanFromInput() {
+  runDiskUsageScan(document.getElementById('du-path-input').value);
 }
 
 function setElementText(id, text) {
@@ -17819,48 +17855,48 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
         <div class="diff-path-chip" title="${escapeHtml(diff.dir_left)}">
           <span style="font-weight: 700; color: var(--info);">L:</span>
           <code>${escapeHtml(diff.dir_left)}</code>
-          <button class="btn btn-icon btn-xs" onclick="alignDiffPaths('lr')" title="Set Right Path = Left Path (L ➔ R Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-right" style="width: 10px; height: 10px;"></i></button>
+          <button class="btn btn-icon btn-xs" data-on-click="alignDiffPaths" data-click-args="${actionArgs('lr')}" title="Set Right Path = Left Path (L ➔ R Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-right" style="width: 10px; height: 10px;"></i></button>
         </div>
-        <button class="btn btn-icon btn-xs" onclick="swapDiffPaths()" title="Swap Left and Right Paths" style="width: 22px; height: 22px;"><i data-lucide="arrow-left-right" style="width: 11px; height: 11px;"></i></button>
+        <button class="btn btn-icon btn-xs" data-on-click="swapDiffPaths" title="Swap Left and Right Paths" style="width: 22px; height: 22px;"><i data-lucide="arrow-left-right" style="width: 11px; height: 11px;"></i></button>
         <div class="diff-path-chip" title="${escapeHtml(diff.dir_right)}">
           <span style="font-weight: 700; color: #c084fc;">R:</span>
           <code>${escapeHtml(diff.dir_right)}</code>
-          <button class="btn btn-icon btn-xs" onclick="alignDiffPaths('rl')" title="Set Left Path = Right Path (R ➔ L Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-left" style="width: 10px; height: 10px;"></i></button>
+          <button class="btn btn-icon btn-xs" data-on-click="alignDiffPaths" data-click-args="${actionArgs('rl')}" title="Set Left Path = Right Path (R ➔ L Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-left" style="width: 10px; height: 10px;"></i></button>
         </div>
       </div>
       <div class="diff-action-buttons">
-        <button class="btn btn-sm" onclick="triggerDiff(false)" title="Fast Immediate Compare (Size & Date)"><i data-lucide="zap"></i> Fast</button>
-        <button class="btn btn-sm btn-accent" onclick="triggerDiff(true)" title="Deep Recursive SHA-256 Compare"><i data-lucide="shield-check"></i> Deep Hash</button>
+        <button class="btn btn-sm" data-on-click="triggerDiff" data-click-args="${actionArgs(false)}" title="Fast Immediate Compare (Size & Date)"><i data-lucide="zap"></i> Fast</button>
+        <button class="btn btn-sm btn-accent" data-on-click="triggerDiff" data-click-args="${actionArgs(true)}" title="Deep Recursive SHA-256 Compare"><i data-lucide="shield-check"></i> Deep Hash</button>
       </div>
     </div>
 
     <!-- 2. Folder Content Alignment Bar (Batch Sync Actions) -->
     <div class="diff-align-bar" style="margin-bottom: 8px;">
       <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-right: 4px; display: flex; align-items: center; gap: 4px;"><i data-lucide="arrow-left-right" style="width: 13px; height: 13px; color: var(--accent);"></i> Align Folders:</span>
-      <button class="btn btn-xs diff-align-btn" onclick="executeFolderAlignment('right')" title="Copy Left-only and newer modified items to Right folder"><i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i> Align Right (L ➔ R)</button>
-      <button class="btn btn-xs diff-align-btn" onclick="executeFolderAlignment('left')" title="Copy Right-only and newer modified items to Left folder"><i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i> Align Left (R ➔ L)</button>
-      <button class="btn btn-xs diff-align-btn btn-accent" onclick="executeFolderAlignment('both')" title="Bi-directional alignment: copy missing and overwrite older"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Align Both (L ⟷ R)</button>
+      <button class="btn btn-xs diff-align-btn" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('right')}" title="Copy Left-only and newer modified items to Right folder"><i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i> Align Right (L ➔ R)</button>
+      <button class="btn btn-xs diff-align-btn" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('left')}" title="Copy Right-only and newer modified items to Left folder"><i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i> Align Left (R ➔ L)</button>
+      <button class="btn btn-xs diff-align-btn btn-accent" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('both')}" title="Bi-directional alignment: copy missing and overwrite older"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Align Both (L ⟷ R)</button>
       <div style="flex: 1;"></div>
-      <button class="btn btn-xs btn-outline" onclick="calculateAllChecksums()" title="Calculate SHA-256 Checksums for all files on demand" style="font-size: 10.5px; height: 26px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> Checksums</button>
+      <button class="btn btn-xs btn-outline" data-on-click="calculateAllChecksums" title="Calculate SHA-256 Checksums for all files on demand" style="font-size: 10.5px; height: 26px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> Checksums</button>
     </div>
 
     <!-- 3. Filter & Sort Bar -->
     <div class="diff-filter-bar-container" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
       <!-- Status Filter Buttons -->
       <div class="diff-filter-bar" style="margin-bottom: 0;">
-        <button class="diff-filter-btn ${filter === 'all' ? 'active' : ''}" onclick="setDiffFilter('all')">
+        <button class="diff-filter-btn ${filter === 'all' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('all')}">
           All (${diff.entries.length})
         </button>
-        <button class="diff-filter-btn ${filter === 'modified' ? 'active' : ''}" onclick="setDiffFilter('modified')">
+        <button class="diff-filter-btn ${filter === 'modified' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('modified')}">
           <span style="color: var(--accent);">⚠️ Modified (${diff.modified_count})</span>
         </button>
-        <button class="diff-filter-btn ${filter === 'left_only' ? 'active' : ''}" onclick="setDiffFilter('left_only')">
+        <button class="diff-filter-btn ${filter === 'left_only' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('left_only')}">
           <span style="color: var(--info);">⬅ Left Only (${diff.left_only_count})</span>
         </button>
-        <button class="diff-filter-btn ${filter === 'right_only' ? 'active' : ''}" onclick="setDiffFilter('right_only')">
+        <button class="diff-filter-btn ${filter === 'right_only' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('right_only')}">
           <span style="color: var(--danger);">➡ Right Only (${diff.right_only_count})</span>
         </button>
-        <button class="diff-filter-btn ${filter === 'identical' ? 'active' : ''}" onclick="setDiffFilter('identical')">
+        <button class="diff-filter-btn ${filter === 'identical' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('identical')}">
           <span style="color: var(--success);">✔ Identical (${diff.identical_count})</span>
         </button>
       </div>
@@ -17870,22 +17906,22 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
         <!-- Text Search / Filter Input -->
         <div style="position: relative; display: inline-flex; align-items: center;">
           <i data-lucide="search" style="position: absolute; left: 7px; width: 12px; height: 12px; color: var(--text-muted); pointer-events: none;"></i>
-          <input type="text" id="diff-search-input" placeholder="Filter..." value="${escapeHtml(currentDiffSearch)}" oninput="handleDiffSearch(this.value)" style="height: 26px; width: 110px; font-size: 11px; padding: 0 20px 0 23px; border-radius: var(--radius); background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border);">
-          ${currentDiffSearch ? `<button onclick="clearDiffSearch()" title="Clear filter" style="position: absolute; right: 5px; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: flex; align-items: center;"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>` : ''}
+          <input type="text" id="diff-search-input" placeholder="Filter..." value="${escapeHtml(currentDiffSearch)}" data-on-input="handleDiffSearch" data-input-args="${actionArgs(ACTION_VALUE)}" style="height: 26px; width: 110px; font-size: 11px; padding: 0 20px 0 23px; border-radius: var(--radius); background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border);">
+          ${currentDiffSearch ? `<button data-on-click="clearDiffSearch" title="Clear filter" style="position: absolute; right: 5px; background: none; border: none; color: var(--text-muted); cursor: pointer; padding: 0; display: flex; align-items: center;"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>` : ''}
         </div>
 
         <!-- Folders First Toggle -->
-        <button class="btn btn-xs ${currentDiffFoldersFirst ? 'btn-accent' : ''}" onclick="toggleDiffFoldersFirst()" title="Folders First: ${currentDiffFoldersFirst ? 'Enabled (directories precede files, even dotfolders)' : 'Disabled (mixed folders and files)'}" style="height: 26px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+        <button class="btn btn-xs ${currentDiffFoldersFirst ? 'btn-accent' : ''}" data-on-click="toggleDiffFoldersFirst" title="Folders First: ${currentDiffFoldersFirst ? 'Enabled (directories precede files, even dotfolders)' : 'Disabled (mixed folders and files)'}" style="height: 26px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
           <i data-lucide="folder" style="width: 12px; height: 12px;"></i> Folders First
         </button>
 
         <!-- Dotfiles Toggle -->
-        <button class="btn btn-xs ${currentDiffShowDotfiles ? 'btn-accent' : ''}" onclick="toggleDiffShowDotfiles()" title="Dotfiles: ${currentDiffShowDotfiles ? 'Shown (including .git, .env, etc.)' : 'Hidden'}" style="height: 26px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
+        <button class="btn btn-xs ${currentDiffShowDotfiles ? 'btn-accent' : ''}" data-on-click="toggleDiffShowDotfiles" title="Dotfiles: ${currentDiffShowDotfiles ? 'Shown (including .git, .env, etc.)' : 'Hidden'}" style="height: 26px; font-size: 11px; display: inline-flex; align-items: center; gap: 4px;">
           <i data-lucide="${currentDiffShowDotfiles ? 'eye' : 'eye-off'}" style="width: 12px; height: 12px;"></i> Dotfiles
         </button>
 
         <!-- Sort Column Selector -->
-        <select class="select-xs" onchange="setDiffSortBy(this.value)" title="Sort by column" style="height: 26px; font-size: 11px; border-radius: var(--radius); padding: 0 6px; background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border);">
+        <select class="select-xs" data-on-change="setDiffSortBy" data-change-args="${actionArgs(ACTION_VALUE)}" title="Sort by column" style="height: 26px; font-size: 11px; border-radius: var(--radius); padding: 0 6px; background: var(--bg-dark); color: var(--text-main); border: 1px solid var(--border);">
           <option value="name" ${currentDiffSortBy === 'name' ? 'selected' : ''}>Sort: Name</option>
           <option value="status" ${currentDiffSortBy === 'status' ? 'selected' : ''}>Sort: Status</option>
           <option value="size_left" ${currentDiffSortBy === 'size_left' ? 'selected' : ''}>Sort: Left Size</option>
@@ -17896,7 +17932,7 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
         </select>
 
         <!-- Sort Direction Toggle -->
-        <button class="btn btn-icon btn-xs" onclick="toggleDiffSortDir()" title="Order: ${currentDiffSortAsc ? 'Ascending (A-Z, 0-9)' : 'Descending (Z-A, 9-0)'}" style="width: 26px; height: 26px;">
+        <button class="btn btn-icon btn-xs" data-on-click="toggleDiffSortDir" title="Order: ${currentDiffSortAsc ? 'Ascending (A-Z, 0-9)' : 'Descending (Z-A, 9-0)'}" style="width: 26px; height: 26px;">
           <i data-lucide="${currentDiffSortAsc ? 'arrow-up-narrow-wide' : 'arrow-down-wide-narrow'}" style="width: 13px; height: 13px;"></i>
         </button>
       </div>
@@ -17907,19 +17943,19 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
       <table class="diff-table">
         <thead>
           <tr>
-            <th class="diff-th-sortable" onclick="sortDiffByColumn('name')" style="text-align: left;" title="Click to sort by Relative Path (${currentDiffSortBy === 'name' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+            <th class="diff-th-sortable" data-on-click="sortDiffByColumn" data-click-args="${actionArgs('name')}" style="text-align: left;" title="Click to sort by Relative Path (${currentDiffSortBy === 'name' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
               Relative Path ${renderDiffSortIndicator('name')}
             </th>
-            <th class="diff-th-sortable" onclick="sortDiffByColumn('status')" style="width: 80px; text-align: center;" title="Click to sort by Status (${currentDiffSortBy === 'status' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+            <th class="diff-th-sortable" data-on-click="sortDiffByColumn" data-click-args="${actionArgs('status')}" style="width: 80px; text-align: center;" title="Click to sort by Status (${currentDiffSortBy === 'status' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
               Status ${renderDiffSortIndicator('status')}
             </th>
-            <th class="diff-th-sortable" onclick="sortDiffByColumn('size_left')" style="width: 130px; text-align: right;" title="Click to sort by Left Size / Date (${currentDiffSortBy === 'size_left' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+            <th class="diff-th-sortable" data-on-click="sortDiffByColumn" data-click-args="${actionArgs('size_left')}" style="width: 130px; text-align: right;" title="Click to sort by Left Size / Date (${currentDiffSortBy === 'size_left' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
               Left (Size / Date) ${renderDiffSortIndicator('size_left')}
             </th>
-            <th class="diff-th-sortable" onclick="sortDiffByColumn('size_right')" style="width: 130px; text-align: right;" title="Click to sort by Right Size / Date (${currentDiffSortBy === 'size_right' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+            <th class="diff-th-sortable" data-on-click="sortDiffByColumn" data-click-args="${actionArgs('size_right')}" style="width: 130px; text-align: right;" title="Click to sort by Right Size / Date (${currentDiffSortBy === 'size_right' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
               Right (Size / Date) ${renderDiffSortIndicator('size_right')}
             </th>
-            <th class="diff-th-sortable" onclick="sortDiffByColumn('delta')" style="width: 90px; text-align: center;" title="Click to sort by Delta (${currentDiffSortBy === 'delta' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
+            <th class="diff-th-sortable" data-on-click="sortDiffByColumn" data-click-args="${actionArgs('delta')}" style="width: 90px; text-align: center;" title="Click to sort by Delta (${currentDiffSortBy === 'delta' ? (currentDiffSortAsc ? 'Ascending' : 'Descending') : 'Sort'})">
               Delta ${renderDiffSortIndicator('delta')}
             </th>
             <th style="width: 75px; text-align: center;">Checksum</th>
@@ -17932,7 +17968,7 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
             const badgeClass = e.status === 'identical' ? 'diff-badge-identical' : (e.status === 'modified' ? 'diff-badge-modified' : (e.status === 'left_only' ? 'diff-badge-left' : 'diff-badge-right'));
             const isLeftNewer = e.time_status === 'left_newer';
             const isRightNewer = e.time_status === 'right_newer';
-            const hashPreview = e.hash_left ? (e.hash_left === e.hash_right ? `<span title="${escapeHtml(e.hash_left)}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--success); font-weight: 700;">✔ SHA256</span>` : `<span title="L: ${escapeHtml(e.hash_left)}\nR: ${escapeHtml(e.hash_right || '')}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--accent); font-weight: 700;">≠ SHA256</span>`) : (!e.is_dir ? `<button class="btn btn-icon btn-xs" onclick="calculateRowChecksum(${escapeJsStr(e.relative_path)})" title="Calculate SHA-256 on demand" style="width: 20px; height: 20px; font-size: 9px;"><i data-lucide="hash" style="width: 11px; height: 11px;"></i></button>` : '-');
+            const hashPreview = e.hash_left ? (e.hash_left === e.hash_right ? `<span title="${escapeHtml(e.hash_left)}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--success); font-weight: 700;">✔ SHA256</span>` : `<span title="L: ${escapeHtml(e.hash_left)}\nR: ${escapeHtml(e.hash_right || '')}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--accent); font-weight: 700;">≠ SHA256</span>`) : (!e.is_dir ? `<button class="btn btn-icon btn-xs" data-on-click="calculateRowChecksum" data-click-args="${actionArgs(String((e.relative_path) ?? ''))}" title="Calculate SHA-256 on demand" style="width: 20px; height: 20px; font-size: 9px;"><i data-lucide="hash" style="width: 11px; height: 11px;"></i></button>` : '-');
 
             return `
               <tr id="diff-row-${escapeHtml(e.relative_path.replace(/[^a-zA-Z0-9_-]/g, '_'))}">
@@ -17963,17 +17999,17 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
                 <td style="text-align: center;">
                   <div class="diff-row-actions">
                     ${!e.is_dir ? `
-                      <button class="btn btn-icon btn-xs diff-row-btn" onclick="openFileDiffView(${escapeJsStr(diff.dir_left + '/' + e.relative_path)}, ${escapeJsStr(diff.dir_right + '/' + e.relative_path)})" title="Inspect Side-by-Side Diff">
+                      <button class="btn btn-icon btn-xs diff-row-btn" data-on-click="openFileDiffView" data-click-args="${actionArgs(String((diff.dir_left + '/' + e.relative_path) ?? ''), String((diff.dir_right + '/' + e.relative_path) ?? ''))}" title="Inspect Side-by-Side Diff">
                         <i data-lucide="eye" style="width: 12px; height: 12px;"></i>
                       </button>
                     ` : ''}
                     ${e.status !== 'right_only' ? `
-                      <button class="btn btn-icon btn-xs diff-row-btn" onclick="copyDiffItem(${escapeJsStr(e.relative_path)}, 'lr')" title="Copy Left to Right (L ➔ R)">
+                      <button class="btn btn-icon btn-xs diff-row-btn" data-on-click="copyDiffItem" data-click-args="${actionArgs(String((e.relative_path) ?? ''), 'lr')}" title="Copy Left to Right (L ➔ R)">
                         <i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i>
                       </button>
                     ` : ''}
                     ${e.status !== 'left_only' ? `
-                      <button class="btn btn-icon btn-xs diff-row-btn" onclick="copyDiffItem(${escapeJsStr(e.relative_path)}, 'rl')" title="Copy Right to Left (R ➔ L)">
+                      <button class="btn btn-icon btn-xs diff-row-btn" data-on-click="copyDiffItem" data-click-args="${actionArgs(String((e.relative_path) ?? ''), 'rl')}" title="Copy Right to Left (R ➔ L)">
                         <i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i>
                       </button>
                     ` : ''}
@@ -17987,6 +18023,7 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
     </div>
   `;
   if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
 }
 
 function alignDiffPaths(direction) {
@@ -18389,7 +18426,7 @@ function renderTextDiffView(diffData, mode = 'split', targetContainer = null) {
         </span>
       </div>
       <div style="display: flex; gap: 4px; align-items: center;">
-        <button class="btn btn-sm" onclick="triggerDiff(false)"><i data-lucide="arrow-left"></i> Back to Folders</button>
+        <button class="btn btn-sm" data-on-click="triggerDiff" data-click-args="${actionArgs(false)}"><i data-lucide="arrow-left"></i> Back to Folders</button>
       </div>
     </div>
     ${contentHtml}
@@ -18405,6 +18442,7 @@ function renderTextDiffView(diffData, mode = 'split', targetContainer = null) {
   }
 
   if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
 }
 
 async function renderImageDiffView(fileL, fileR, mode = 'split', targetContainer = null) {
@@ -18498,7 +18536,7 @@ async function renderImageDiffView(fileL, fileR, mode = 'split', targetContainer
         </span>
       </div>
       <div style="display: flex; gap: 4px; align-items: center;">
-        <button class="btn btn-sm" onclick="triggerDiff(false)"><i data-lucide="arrow-left"></i> Back to Folders</button>
+        <button class="btn btn-sm" data-on-click="triggerDiff" data-click-args="${actionArgs(false)}"><i data-lucide="arrow-left"></i> Back to Folders</button>
       </div>
     </div>
     <div class="diff-image-studio">
@@ -18512,6 +18550,7 @@ async function renderImageDiffView(fileL, fileR, mode = 'split', targetContainer
   }
 
   if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
 }
 
 function setupImageSwipeSlider(container) {
@@ -18572,13 +18611,14 @@ function mountDockedDiff(paneIndex) {
           <span style="font-weight: 700; font-size: 12px; color: var(--text-main);">Compare & Diff</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon" onclick="undockToolFromPane(${paneIndex})" title="Float into Window" style="width: 26px; height: 26px;"><i data-lucide="external-link" style="width: 13px; height: 13px;"></i></button>
+          <button class="btn btn-icon" data-on-click="undockToolFromPane" data-click-args="${actionArgs((paneIndex))}" title="Float into Window" style="width: 26px; height: 26px;"><i data-lucide="external-link" style="width: 13px; height: 13px;"></i></button>
         </div>
       </div>
       <div id="docked-diff-body-${paneIndex}" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 8px;"></div>
     </div>
   `;
   if (window.lucide) lucide.createIcons({ root: host });
+  bindActions(host);
   const dockedBody = document.getElementById(`docked-diff-body-${paneIndex}`);
   if (currentFolderDiffData) {
     renderFolderDiff(currentFolderDiffData, currentDiffFilter, dockedBody);
@@ -36022,24 +36062,25 @@ function renderSystemDisksOverview() {
         </div>
 
         <div class="du-mount-actions">
-          <button type="button" class="btn btn-xs btn-outline" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="jumpToPaneFromDiskUsage(${escapeJsStr(disk.mount_point)})" title="Open this mount in active panel">
+          <button type="button" class="btn btn-xs btn-outline" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" data-on-click="jumpToPaneFromDiskUsage" data-click-args="${actionArgs(String((disk.mount_point) ?? ''))}" title="Open this mount in active panel">
             <i data-lucide="folder-open" style="width: 12px; height: 12px;"></i> Open in Panel
           </button>
-          <button type="button" class="btn btn-xs btn-accent" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" onclick="scanMountpointTreemap(${escapeJsStr(disk.mount_point)})" title="Run parallel Rayon deep scan on this mount point">
+          <button type="button" class="btn btn-xs btn-accent" style="flex: 1; height: 26px; padding: 0 6px; font-size: 10.5px; display: inline-flex; align-items: center; justify-content: center; gap: 4px;" data-on-click="scanMountpointTreemap" data-click-args="${actionArgs(String((disk.mount_point) ?? ''))}" title="Run parallel Rayon deep scan on this mount point">
             <i data-lucide="layout-grid" style="width: 12px; height: 12px;"></i> Deep Scan
           </button>
           ${disk.is_removable ? `
-            <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--danger, #ef4444); border-color: rgba(239,68,68,0.3);" onclick="unmountUsbDevice(${escapeJsStr(disk.mount_point)}, App.activePaneIndex)" title="Safely unmount & eject">
+            <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--danger, #ef4444); border-color: rgba(239,68,68,0.3);" data-on-click="unmountUsbDevice" data-click-args="${actionArgs(String((disk.mount_point) ?? ''), App.activePaneIndex)}" title="Safely unmount & eject">
               <i data-lucide="eject" style="width: 12px; height: 12px;"></i>
             </button>
           ` : ''}
-          <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" onclick="openTerminalFromDiskUsage(${escapeJsStr(disk.mount_point)})" title="Open Terminal here">
+          <button type="button" class="btn btn-xs btn-outline" style="width: 26px; height: 26px; padding: 0; display: inline-flex; align-items: center; justify-content: center;" data-on-click="openTerminalFromDiskUsage" data-click-args="${actionArgs(String((disk.mount_point) ?? ''))}" title="Open Terminal here">
             <i data-lucide="terminal" style="width: 12px; height: 12px;"></i>
           </button>
         </div>
       </div>
     `;
   }).join('');
+  bindActions(container);
 
   if (window.lucide) lucide.createIcons();
 }
@@ -36391,7 +36432,7 @@ function renderDiskUsageBreadcrumbs(path) {
 
   const clean = sanitizeCredentials(path);
   const parts = clean.split('/').filter(Boolean);
-  let html = `<button class="du-crumb-btn ${parts.length === 0 ? 'active' : ''}" onclick="runDiskUsageScan('/')" title="Root (/)"><i data-lucide="hard-drive" style="width: 12px; height: 12px;"></i> /</button>`;
+  let html = `<button class="du-crumb-btn ${parts.length === 0 ? 'active' : ''}" data-on-click="runDiskUsageScan" data-click-args="${actionArgs('/')}" title="Root (/)"><i data-lucide="hard-drive" style="width: 12px; height: 12px;"></i> /</button>`;
 
   let currentAcc = '';
   parts.forEach((seg, idx) => {
@@ -36399,11 +36440,12 @@ function renderDiskUsageBreadcrumbs(path) {
     const isLast = idx === parts.length - 1;
     const p = currentAcc;
     html += `<span class="du-crumb-sep">/</span>`;
-    html += `<button class="du-crumb-btn ${isLast ? 'active' : ''}" onclick="runDiskUsageScan(${escapeJsStr(p)})" title="${escapeHtml(p)}">${escapeHtml(seg)}</button>`;
+    html += `<button class="du-crumb-btn ${isLast ? 'active' : ''}" data-on-click="runDiskUsageScan" data-click-args="${actionArgs(String((p) ?? ''))}" title="${escapeHtml(p)}">${escapeHtml(seg)}</button>`;
   });
 
   container.innerHTML = html;
   if (window.lucide) lucide.createIcons();
+  bindActions(container);
 }
 
 function filterDiskUsageItems(val) {
@@ -36525,8 +36567,9 @@ function renderDiskUsageData() {
     multiBar.innerHTML = topSlices.map((it, idx) => {
       const color = DU_PALETTE[idx % DU_PALETTE.length];
       const pct = it.percentage.toFixed(1);
-      return `<div class="du-bar-segment" style="width: ${it.percentage}%; background: ${color.bar};" title="${escapeHtml(it.name)}: ${escapeHtml(it.formatted_size)} (${pct}%)" onclick="${it.is_dir ? `runDiskUsageScan(${escapeJsStr(it.path)})` : ''}"></div>`;
+      return `<div class="du-bar-segment" style="width: ${it.percentage}%; background: ${color.bar};" title="${escapeHtml(it.name)}: ${escapeHtml(it.formatted_size)} (${pct}%)" ${it.is_dir ? `data-on-click="runDiskUsageScan" data-click-args="${actionArgs(it.path)}"` : ''}></div>`;
     }).join('');
+    bindActions(multiBar);
   }
 
   // 2. Render Interactive Proportional Treemap Tiles
@@ -36546,7 +36589,7 @@ function renderDiskUsageData() {
           const icon = it.is_dir ? '📁' : '📄';
 
           return `
-            <div class="du-treemap-tile" style="flex: ${flexGrow} 1 ${flexBasis}px; background: ${color.bg}; border-color: ${color.border};" onclick="${it.is_dir ? `runDiskUsageScan(${escapeJsStr(it.path)})` : ''}" title="${escapeHtml(it.name)} • ${escapeHtml(it.formatted_size)} (${pct}%) ${it.is_dir ? '\nClick to drill down' : ''}">
+            <div class="du-treemap-tile" style="flex: ${flexGrow} 1 ${flexBasis}px; background: ${color.bg}; border-color: ${color.border};" ${it.is_dir ? `data-on-click="runDiskUsageScan" data-click-args="${actionArgs(it.path)}"` : ''} title="${escapeHtml(it.name)} • ${escapeHtml(it.formatted_size)} (${pct}%) ${it.is_dir ? '\nClick to drill down' : ''}">
               <div class="du-treemap-title">
                 <span>${icon}</span>
                 <span>${escapeHtml(it.name)}</span>
@@ -36558,6 +36601,7 @@ function renderDiskUsageData() {
             </div>
           `;
         }).join('');
+        bindActions(treemapContainer);
       }
     }
   }
@@ -36572,10 +36616,9 @@ function renderDiskUsageData() {
         const icon = it.is_dir ? '📁' : '📄';
         const subInfo = it.is_dir ? `${it.file_count.toLocaleString()} files • ${it.dir_count.toLocaleString()} subdirs` : 'Single file';
         const pct = Math.max(1, Math.min(100, Math.round(it.percentage)));
-        const clickAction = it.is_dir ? `runDiskUsageScan(${escapeJsStr(it.path)})` : '';
 
         return `
-          <div class="du-item-row" onclick="${clickAction}" title="${it.is_dir ? 'Click to drill down into folder' : ''}">
+          <div class="du-item-row" ${it.is_dir ? `data-on-click="runDiskUsageScan" data-click-args="${actionArgs(it.path)}"` : ''} title="${it.is_dir ? 'Click to drill down into folder' : ''}">
             <div style="font-size: 15px; flex-shrink: 0;">${icon}</div>
             <div class="du-item-name-col">
               <div class="du-item-name">${escapeHtml(it.name)}</div>
@@ -36586,13 +36629,14 @@ function renderDiskUsageData() {
             </div>
             <div class="du-item-size-col">${escapeHtml(it.formatted_size)}</div>
             <div class="du-item-pct-col" style="color: ${color.bar};">${it.percentage.toFixed(1)}%</div>
-            <div class="du-item-actions" onclick="event.stopPropagation()">
-              <button class="du-action-btn" onclick="jumpToPaneFromDiskUsage(${escapeJsStr(it.path)})" title="Open in Active File Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
-              <button class="du-action-btn" onclick="openTerminalFromDiskUsage(${escapeJsStr(it.path)})" title="Open in Terminal"><i data-lucide="terminal" style="width: 12px; height: 12px;"></i></button>
+            <div class="du-item-actions" data-click-stop>
+              <button class="du-action-btn" data-on-click="jumpToPaneFromDiskUsage" data-click-args="${actionArgs(String((it.path) ?? ''))}" title="Open in Active File Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
+              <button class="du-action-btn" data-on-click="openTerminalFromDiskUsage" data-click-args="${actionArgs(String((it.path) ?? ''))}" title="Open in Terminal"><i data-lucide="terminal" style="width: 12px; height: 12px;"></i></button>
             </div>
           </div>
         `;
       }).join('');
+      bindActions(itemsList);
     }
   }
 
@@ -36616,11 +36660,12 @@ function renderDiskUsageData() {
             <div class="du-item-size-col">${escapeHtml(it.formatted_size)}</div>
             <div class="du-item-pct-col" style="color: #38bdf8;">${it.percentage.toFixed(1)}%</div>
             <div class="du-item-actions">
-              <button class="du-action-btn" onclick="jumpToPaneFromDiskUsage(${escapeJsStr(it.path.substring(0, it.path.lastIndexOf('/')) || '/')})" title="Reveal in Active Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
+              <button class="du-action-btn" data-on-click="jumpToPaneFromDiskUsage" data-click-args="${actionArgs(String((it.path.substring(0, it.path.lastIndexOf('/')) || '/') ?? ''))}" title="Reveal in Active Panel"><i data-lucide="folder-input" style="width: 12px; height: 12px;"></i></button>
             </div>
           </div>
         `;
       }).join('');
+      bindActions(largestList);
     }
   }
 
@@ -47654,22 +47699,22 @@ function renderDuplicateGroups(container = null) {
 
       let thumbHtml = '';
       if (isImage) {
-        thumbHtml = `<img src="/api/fs/preview?path=${encodedPath}" loading="lazy" style="width: 24px; height: 24px; object-fit: cover; border-radius: 3px; border: 1px solid var(--border); flex-shrink: 0;" onerror="this.style.display='none'">`;
+        thumbHtml = `<img src="/api/fs/preview?path=${encodedPath}" loading="lazy" style="width: 24px; height: 24px; object-fit: cover; border-radius: 3px; border: 1px solid var(--border); flex-shrink: 0;" data-on-error="hideElement" data-error-args="${actionArgs(ACTION_EL)}">`;
       } else {
         thumbHtml = `<i data-lucide="file" style="width: 15px; height: 15px; color: var(--text-dim); flex-shrink: 0;"></i>`;
       }
 
       return `
-        <div class="dup-file-row ${isSelected ? 'selected' : ''}" onclick="toggleDuplicateFile(${escapeJsStr(file.path)})">
-          <input type="checkbox" class="dup-file-checkbox" data-path="${escapeHtml(file.path)}" ${isSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleDuplicateFile(${escapeJsStr(file.path)})">
+        <div class="dup-file-row ${isSelected ? 'selected' : ''}" data-on-click="toggleDuplicateFile" data-click-args="${actionArgs(String((file.path) ?? ''))}">
+          <input type="checkbox" class="dup-file-checkbox" data-path="${escapeHtml(file.path)}" ${isSelected ? 'checked' : ''} data-click-stop data-on-click="toggleDuplicateFile" data-click-args="${actionArgs(String((file.path) ?? ''))}">
           ${thumbHtml}
           <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px;">
             <div style="font-size: 11.5px; font-weight: 600; color: var(--text-main); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;">${escapeHtml(file.name)}</div>
             <div style="font-size: 10px; color: var(--text-muted); text-overflow: ellipsis; white-space: nowrap; overflow: hidden;" title="${escapeHtml(file.path)}">${escapeHtml(file.path)}</div>
           </div>
           <span style="font-size: 10px; color: var(--text-dim); white-space: nowrap;">${mdate}</span>
-          <div style="display: flex; gap: 4px; align-items: center;" onclick="event.stopPropagation()">
-            <button class="btn btn-icon btn-xs" onclick="openContainingFolder(${escapeJsStr(file.path)})" title="Open Containing Folder"><i data-lucide="folder" style="width: 11px; height: 11px;"></i></button>
+          <div style="display: flex; gap: 4px; align-items: center;" data-click-stop>
+            <button class="btn btn-icon btn-xs" data-on-click="openContainingFolder" data-click-args="${actionArgs(String((file.path) ?? ''))}" title="Open Containing Folder"><i data-lucide="folder" style="width: 11px; height: 11px;"></i></button>
           </div>
         </div>
       `;
@@ -47693,6 +47738,7 @@ function renderDuplicateGroups(container = null) {
   }).join('');
 
   target.innerHTML = html;
+  bindActions(target);
   if (window.lucide) lucide.createIcons({ root: target });
   updateDuplicateFooter();
 }
@@ -47981,12 +48027,13 @@ function renderTagEditorFileList() {
     const activeCls = idx === tagEditorState.activeFileIndex ? 'active' : '';
 
     return `
-      <div class="tageditor-file-item ${activeCls}" onclick="loadTagEditorFile(${idx})">
+      <div class="tageditor-file-item ${activeCls}" data-on-click="loadTagEditorFile" data-click-args="${actionArgs((idx))}">
         <i data-lucide="${icon}" style="width: 13px; height: 13px; color: var(--accent); flex-shrink: 0;"></i>
         <span style="font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;">${escapeHtml(f.name)}</span>
       </div>
     `;
   }).join('');
+  bindActions(listEl);
 
   if (window.lucide) lucide.createIcons({ root: listEl });
 }

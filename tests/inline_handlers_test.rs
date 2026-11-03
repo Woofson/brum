@@ -10,8 +10,8 @@ use std::fs;
 
 /// (file, highest allowed number of inline handlers)
 const CEILINGS: &[(&str, usize)] = &[
-    ("frontend/index.html", 571),
-    ("frontend/app.js", 197),
+    ("frontend/index.html", 499),
+    ("frontend/app.js", 146),
 ];
 
 fn count_inline_handlers(text: &str) -> usize {
