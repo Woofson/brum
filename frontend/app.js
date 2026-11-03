@@ -30,20 +30,28 @@ const BRUM_ACTIONS = new Set([
   'applyBorderSettings', 'applyCustomBadgePreset', 'applyExternalProgramPreset',
   'applyPaneCustomTwoTone', 'applyPaneRenameFromInput', 'applyPaneStartPath', 'applyTheme',
   'autoFitAllColumns', 'autoFitColumn', 'blurElement', 'bringFloatingWindowToFront',
-  'browseNoteDogFolder', 'captureCurrentPathsForCustomStartup', 'changeGlobalIconTheme',
-  'clearAllCustomFileIcons', 'clearPaneFilter', 'clickElementById', 'cloneDirectoryToOppositePane',
-  'closeBreadcrumbPopovers', 'closeDockedEditorTab', 'closeDockedTool',
-  'closeEditorActionsDropdown', 'closeEditorModal', 'closeEditorTab',
-  'closeEditorTabOnMiddleClick', 'closeFloatingNoteDog', 'closeModal', 'closeNoteDogDrawer',
-  'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
-  'copyTextToClipboard', 'copyVariableTag', 'createNewEditorTab', 'createPaneTab',
-  'cycleEditorTabSize', 'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction',
-  'deleteFileTemplate', 'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems',
-  'disablePathInput', 'disconnectPaneRemote', 'dockEditorToActivePane', 'dockNoteDogToActivePane',
-  'duplicateFileTemplate', 'duplicatePaneTab', 'editCustomAction', 'editOpenWithRule',
-  'editTemplateById', 'enablePathInput', 'executeCustomAction', 'executeFind', 'executeOpenWith',
-  'executePane1ClickTransfer', 'executeUnlockNoteDogNote', 'exportCustomThemeToml',
-  'filterInstalledChewToys', 'findNextMatch', 'findPrevMatch', 'handleAppMarginChange',
+  'browseNoteDogFolder', 'calcAppendChar', 'calcAppendDot', 'calcAppendFunc', 'calcAppendNum',
+  'calcAppendOp', 'calcAppendPi', 'calcAppendUnit', 'calcBackspace', 'calcClearAll',
+  'calcClearEntry', 'calcClearHistory', 'calcEvaluate', 'calcLoadHistoryItem', 'calcToggleSign',
+  'captureCurrentPathsForCustomStartup', 'changeGlobalIconTheme', 'changeMediaVolume',
+  'changeTetraDogMode', 'clearAllCustomFileIcons', 'clearMediaPlaylist', 'clearPaneFilter',
+  'clickElementById', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers',
+  'closeDockedEditorTab', 'closeDockedTool', 'closeEditorActionsDropdown', 'closeEditorModal',
+  'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCalculator',
+  'closeFloatingNoteDog', 'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer', 'closeOtherTabs',
+  'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight', 'closeTetraDog',
+  'convertCurrentMediaToMp4', 'copyCalcResult', 'copyInspectorCoordinates', 'copyTextToClipboard',
+  'copyToClipboardText', 'copyVariableTag', 'createNewEditorTab', 'createPaneTab',
+  'cycleEditorTabSize', 'cycleMediaAspectRatio', 'cycleMediaLoop', 'cycleMediaSpeed',
+  'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction', 'deleteFileTemplate',
+  'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems', 'disablePathInput',
+  'disconnectPaneRemote', 'dismissMediaPill', 'dockCalculatorToActivePane',
+  'dockEditorToActivePane', 'dockMediaPlayerToActivePane', 'dockNoteDogToActivePane',
+  'dockTetraDogToActivePane', 'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab',
+  'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
+  'executeCustomAction', 'executeFind', 'executeOpenWith', 'executePane1ClickTransfer',
+  'executeUnlockNoteDogNote', 'exportCustomThemeToml', 'filterInstalledChewToys',
+  'filterMediaPlaylist', 'findNextMatch', 'findPrevMatch', 'handleAppMarginChange',
   'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
   'handleChewToyFileSelect', 'handleDndSettingChange', 'handleDockedNoteSelect',
   'handleDockedNotebookChange', 'handleDockedSectionChange', 'handleEditorClick',
@@ -51,76 +59,87 @@ const BRUM_ACTIONS = new Set([
   'handleEditorViewModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
   'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
   'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHostnameSettingChange',
-  'handleLoginBrandingSettingChange', 'handleLogoutOrExit', 'handleMonoFontChange',
-  'handleNoteAttachmentFileSelected', 'handleNoteDogInput', 'handleNoteDogKeyDown',
-  'handleNoteDogSearch', 'handleNoteDogTitleChange', 'handlePaneBadgeClick',
-  'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel',
-  'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart',
-  'handlePathKey', 'handleRadiusChange', 'handleSansFontChange', 'handleSettingsAvatarFileUpload',
-  'handleStartupSettingChange', 'handleTitleTemplateChange', 'handleToolDragEnd',
-  'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart', 'handleToolDrop',
-  'handleUserParanoidToggle', 'handleUserSecuritySettingChange', 'handleVaultOpen',
-  'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
-  'hideOpenWithRuleForm', 'initColResize', 'initTreeResize', 'insertAttachmentMarkdownById',
-  'insertNoteDogColorTag', 'insertNoteDogMarkdown', 'insertNoteDogMermaid',
-  'insertNoteDogTimestamp', 'insertTitleVar', 'jumpToConfdSection', 'loadEmojiPresets',
-  'loadInstalledChewToys', 'loadNerdFontPresets', 'loadPaneDirectory',
-  'loadUserPreferencesFromServer', 'lockSession', 'maximizeFloatingEditor',
-  'maximizeFloatingNoteDog', 'minimizeFloatingEditor', 'minimizeFloatingNoteDog', 'mountUsbDevice',
-  'moveMenuItem', 'moveToolItem', 'navigateToBookmark', 'openAboutModal', 'openAdminPanel',
-  'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager', 'openCadStudio',
-  'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openConverterModal',
-  'openCreateTemplateModal', 'openCreateVaultModal', 'openCustomDestModal', 'openDiskUsageModal',
-  'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFleetAddModal',
-  'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator', 'openFloatingEditor',
-  'openFloatingNoteDog', 'openFloatingTaskManager', 'openHexEditor', 'openInPaneWithToast',
-  'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin',
-  'openNoteDogColorPicker', 'openNoteDogMigrationMenu', 'openNoteDogNewMenu',
-  'openNoteDogTemplatePicker', 'openNoteDogVersionsModal', 'openNoteForContextItem',
-  'openPaneFavoritesMenu', 'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu',
-  'openPaneTransferMenu', 'openParanoidSettings', 'openPdfToolModal', 'openPropertiesColorTab',
-  'openRemoteModal', 'openSearchModal', 'openSettingsModal', 'openSettingsTab',
-  'openSharesManager', 'openSpotlightModal', 'openSyncModal', 'openSyncthingModal',
-  'openTagEditor', 'openTerminalInPath', 'openTetraDog', 'openUserProfileModal',
+  'handleLoginBrandingSettingChange', 'handleLogoutOrExit', 'handleMediaScrubberHover',
+  'handleMonoFontChange', 'handleNoteAttachmentFileSelected', 'handleNoteDogInput',
+  'handleNoteDogKeyDown', 'handleNoteDogSearch', 'handleNoteDogTitleChange',
+  'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
+  'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
+  'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
+  'handleSettingsAvatarFileUpload', 'handleStartupSettingChange', 'handleTetraDogScopeChange',
+  'handleTitleTemplateChange', 'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver',
+  'handleToolDragStart', 'handleToolDrop', 'handleUserParanoidToggle',
+  'handleUserSecuritySettingChange', 'handleVaultOpen', 'handleWindowTitleSettingChange',
+  'hideContextMenu', 'hideCustomActionForm', 'hideMediaScrubberTooltip', 'hideOpenWithRuleForm',
+  'initColResize', 'initTreeResize', 'insertAttachmentMarkdownById', 'insertNoteDogColorTag',
+  'insertNoteDogMarkdown', 'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertTitleVar',
+  'jumpToConfdSection', 'loadEmojiPresets', 'loadInstalledChewToys', 'loadNerdFontPresets',
+  'loadPaneDirectory', 'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession',
+  'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNoteDog',
+  'maximizeTetraDog', 'minimizeFloatingCalculator', 'minimizeFloatingEditor',
+  'minimizeFloatingMediaPlayer', 'minimizeFloatingNoteDog', 'minimizeTetraDog', 'mountUsbDevice',
+  'moveMenuItem', 'moveToolItem', 'navMediaPlaylist', 'navigateToBookmark', 'openAboutModal',
+  'openAdminPanel', 'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager',
+  'openCadStudio', 'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openConverterModal',
+  'openCreateTemplateModal', 'openCreateVaultModal', 'openCurrentMediaWithSystemPlayer',
+  'openCustomDestModal', 'openDiskUsageModal', 'openDuplicateFinder', 'openDynamicChewToy',
+  'openExternalTerminal', 'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi',
+  'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager',
+  'openHexEditor', 'openInPaneWithToast', 'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer',
+  'openNativeRecycleBin', 'openNoteDogColorPicker', 'openNoteDogMigrationMenu',
+  'openNoteDogNewMenu', 'openNoteDogTemplatePicker', 'openNoteDogVersionsModal',
+  'openNoteForContextItem', 'openPaneFavoritesMenu', 'openPaneSettingsMenu',
+  'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu', 'openParanoidSettings',
+  'openPdfToolModal', 'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal',
+  'openSettingsModal', 'openSettingsTab', 'openSharesManager', 'openSpotlightModal',
+  'openSyncModal', 'openSyncthingModal', 'openTagEditor', 'openTerminalInPath', 'openTetraDog',
+  'openUserProfileModal', 'playMediaPlaylistItem', 'populateMediaPlaylistFromActivePane',
   'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNoteDogFolder',
-  'promptChangeNoteSection', 'promptCreateNote', 'promptCreateNotebookOrCategory',
-  'promptCreateSection', 'promptDeleteCurrentNote', 'promptEmptyTrash',
-  'promptToggleEncryptNotebook', 'promptToggleEncryptSection', 'quickTransferToPane',
-  'quickTransferToPath', 'refreshAllPanes', 'refreshPane', 'removeElementById', 'removeNoteTag',
-  'renderAvatarById', 'renderKeybindingsTable', 'replaceAllMatches', 'replaceCurrentMatch',
-  'resetAllColumnWidths', 'resetFileTemplatesToDefault', 'resetGlobalFolderIcon',
-  'resetHiddenDrives', 'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault',
-  'resetMenuConfigToDefaults', 'resetPaneName', 'resetServerPreferences', 'resetSettingsAvatar',
-  'resetSingleKeybind', 'resetToolsMenuToDefault', 'resetWindowTitleSetting',
-  'restoreFloatingEditor', 'restoreFloatingNoteDog', 'restoreSelectedNoteDogVersion',
-  'restoreSelectedTrashItems', 'runPredefinedAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
-  'saveActiveEditorTab', 'saveActiveNoteDogNote', 'saveAllEditorTabs', 'saveContextItemAsTemplate',
-  'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme', 'saveCustomShellAction',
-  'saveCustomTrashDir', 'saveGlobalFolderIcon', 'saveNoteDogFolderSetting', 'saveOpenWithRule',
-  'saveSettingsUserProfile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
-  'selectDatabaseSection', 'selectGlobalFolderPreset', 'selectNoteDogNoteByPath',
-  'selectNoteDogNotebook', 'selectNoteDogSection', 'selectNoteDogVersion', 'setActivePane',
-  'setContextFileColor', 'setCustomAngleInput', 'setDefaultViewMode', 'setElementValue',
-  'setFontSizePreset', 'setNoteDogStorageMode', 'setNoteDogViewMode',
+  'promptChangeNoteSection', 'promptClearTetraDogScores', 'promptCreateNote',
+  'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
+  'promptEmptyTrash', 'promptToggleEncryptNotebook', 'promptToggleEncryptSection',
+  'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshPane',
+  'refreshTetraDogLeaderboard', 'removeElementById', 'removeNoteTag', 'renderAvatarById',
+  'renderKeybindingsTable', 'replaceAllMatches', 'replaceCurrentMatch', 'resetAllColumnWidths',
+  'resetFileTemplatesToDefault', 'resetGlobalFolderIcon', 'resetHiddenDrives',
+  'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults',
+  'resetPaneName', 'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind',
+  'resetToolsMenuToDefault', 'resetWindowTitleSetting', 'restartTetraDogGame',
+  'restoreFloatingCalculator', 'restoreFloatingEditor', 'restoreFloatingMediaPlayer',
+  'restoreFloatingNoteDog', 'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems',
+  'restoreTetraDog', 'resumeTetraDogGame', 'runPredefinedAction', 'runToolsMenuChewtoy',
+  'runToolsMenuItem', 'saveActiveEditorTab', 'saveActiveNoteDogNote', 'saveAllEditorTabs',
+  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
+  'saveCustomShellAction', 'saveCustomTrashDir', 'saveGlobalFolderIcon',
+  'saveNoteDogFolderSetting', 'saveOpenWithRule', 'saveSettingsUserProfile',
+  'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias', 'seekMedia', 'selectDatabaseCategory',
+  'selectDatabaseNoteById', 'selectDatabaseSection', 'selectGlobalFolderPreset',
+  'selectNoteDogNoteByPath', 'selectNoteDogNotebook', 'selectNoteDogSection',
+  'selectNoteDogVersion', 'setActivePane', 'setContextFileColor', 'setCustomAngleInput',
+  'setDefaultViewMode', 'setElementText', 'setElementValue', 'setFontSizePreset',
+  'setMediaSubtitleTrack', 'setNoteDogStorageMode', 'setNoteDogViewMode',
   'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setTaskVerbosity',
-  'setTitleTemplatePreset', 'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'sortPane',
-  'swapPanes', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
-  'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchSettingsTab',
-  'switchToFleetNode', 'syncDockedNoteDogInput', 'syncGutterScroll', 'syncNoteDogGutter',
-  'testExternalProgram', 'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleBranchView',
-  'toggleBrumMascot', 'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
+  'setTetraDogTheme', 'setTetraDogView', 'setTitleTemplatePreset', 'showAddCustomActionPrompt',
+  'showAddOpenWithRulePrompt', 'skipMedia', 'sortPane', 'startTetraDogGame', 'swapPanes',
+  'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab', 'switchMenuBuilderCategory',
+  'switchPaneNode', 'switchPaneTab', 'switchSettingsTab', 'switchToFleetNode',
+  'syncDockedNoteDogInput', 'syncGutterScroll', 'syncNoteDogGutter', 'testExternalProgram',
+  'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleBranchView', 'toggleBrumMascot',
+  'toggleCalcHistory', 'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
   'toggleCompactDates', 'toggleContextColorPalette', 'toggleContextSubmenu',
   'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
   'toggleEditorActionsDropdown', 'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFindBar',
   'toggleFindOption', 'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager',
   'toggleGlobalDotfiles', 'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting',
-  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleLayoutMenu', 'toggleMediaStopOnClose',
+  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleLayoutMenu', 'toggleMediaFullscreen',
+  'toggleMediaMute', 'toggleMediaPiP', 'toggleMediaPlay', 'toggleMediaPlaylistDrawer',
+  'toggleMediaShuffle', 'toggleMediaStopOnClose', 'toggleMediaSubtitlesDropdown',
   'toggleMenuItemVisibility', 'toggleMinimizeToTray', 'toggleNoteAttachmentsTray',
   'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer', 'togglePaneFilter',
   'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
   'toggleProfileMenu', 'toggleShowDirTag', 'toggleStartMinimized', 'toggleStickyColHeaders',
-  'toggleSyncNav', 'toggleSyncScroll', 'toggleTerminal', 'toggleToolVisibility', 'toggleToolsMenu',
-  'toggleTrashSetting', 'toggleUseExtEditor', 'toggleUseExtViewer', 'toggleWindowDecorations',
+  'toggleSyncNav', 'toggleSyncScroll', 'toggleTerminal', 'toggleTetraDogAudio',
+  'toggleTetraDogPlayPause', 'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting',
+  'toggleUseExtEditor', 'toggleUseExtViewer', 'toggleWindowDecorations',
   'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
   'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
   'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
@@ -132,7 +151,8 @@ const BRUM_ACTIONS = new Set([
   'triggerRename', 'triggerShare', 'triggerShareDirectory', 'triggerView', 'undockToolFromPane',
   'uninstallChewToy', 'unmountUsbDevice', 'updateDefaultCopyAction', 'updateMenuOption',
   'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview', 'updatePaneTabsMode',
-  'updatePhoneTabletMaxPanes', 'useFallbackIcon',
+  'updatePhoneTabletMaxPanes', 'updateTetraDogConfig', 'updateTetraDogConfigInt',
+  'useFallbackIcon',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -276,6 +296,19 @@ function blurElement(el) {
 
 function closeEditorTabOnMiddleClick(ev, tabId) {
   if (ev.button === 1) closeEditorTab(tabId);
+}
+
+function setElementText(id, text) {
+  const el = document.getElementById(id);
+  if (el) el.textContent = text;
+}
+
+function saveTetraDogAliasFromInput() {
+  saveTetraDogPlayerAlias(document.getElementById('tetradog-player-alias').value);
+}
+
+function updateTetraDogConfigInt(key, value) {
+  updateTetraDogConfig(key, parseInt(value, 10));
 }
 
 function clickElementById(id) {
@@ -13287,11 +13320,12 @@ function renderCalcHistory() {
   }
 
   listEl.innerHTML = calcHistory.map(item => `
-    <div class="calc-history-item" onclick="calcLoadHistoryItem(${escapeJsStr(item.result)})">
+    <div class="calc-history-item" data-on-click="calcLoadHistoryItem" data-click-args="${actionArgs(String((item.result) ?? ''))}">
       <span style="color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">${escapeHtml(item.expr)}</span>
       <span style="font-weight: 700; color: var(--accent);">= ${escapeHtml(item.result)}</span>
     </div>
   `).join('');
+  bindActions(listEl);
 }
 
 function calcLoadHistoryItem(resVal) {
@@ -34024,7 +34058,7 @@ function renderMediaPlaylist() {
     const isActive = t.originalIndex === mediaplayerState.currentIndex;
     const ext = t.name.split('.').pop();
     return `
-      <div class="mediaplayer-playlist-item ${isActive ? 'active' : ''}" onclick="playMediaPlaylistItem(${t.originalIndex})">
+      <div class="mediaplayer-playlist-item ${isActive ? 'active' : ''}" data-on-click="playMediaPlaylistItem" data-click-args="${actionArgs((t.originalIndex))}">
         <div style="display: flex; align-items: center; gap: 6px; overflow: hidden; flex: 1;">
           <i data-lucide="${t.isVideo ? 'video' : 'music'}" style="width: 12px; height: 12px; color: ${isActive ? 'var(--accent)' : 'var(--text-dim)'}; flex-shrink: 0;"></i>
           <span class="mediaplayer-playlist-item-title">${escapeHtml(t.name)}</span>
@@ -34033,6 +34067,7 @@ function renderMediaPlaylist() {
       </div>
     `;
   }).join('');
+  bindActions(listEl);
 
   if (window.lucide) {
     try { lucide.createIcons({ root: listEl }); } catch (e) {}
@@ -34178,7 +34213,7 @@ function renderSubtitlesDropdown() {
   }
 
   let html = `
-    <div class="mediaplayer-sub-item ${mediaplayerState.currentSubtitleIndex === -1 ? 'active' : ''}" onclick="setMediaSubtitleTrack(-1)">
+    <div class="mediaplayer-sub-item ${mediaplayerState.currentSubtitleIndex === -1 ? 'active' : ''}" data-on-click="setMediaSubtitleTrack" data-click-args="${actionArgs(-1)}">
       <span>Off</span>
       ${mediaplayerState.currentSubtitleIndex === -1 ? '<i data-lucide="check" style="width: 12px;"></i>' : ''}
     </div>
@@ -34187,7 +34222,7 @@ function renderSubtitlesDropdown() {
   mediaplayerState.subtitles.forEach((sub, idx) => {
     const isActive = mediaplayerState.currentSubtitleIndex === idx;
     html += `
-      <div class="mediaplayer-sub-item ${isActive ? 'active' : ''}" onclick="setMediaSubtitleTrack(${idx})">
+      <div class="mediaplayer-sub-item ${isActive ? 'active' : ''}" data-on-click="setMediaSubtitleTrack" data-click-args="${actionArgs((idx))}">
         <span>${escapeHtml(sub.label)}</span>
         ${isActive ? '<i data-lucide="check" style="width: 12px;"></i>' : ''}
       </div>
@@ -34195,6 +34230,7 @@ function renderSubtitlesDropdown() {
   });
 
   list.innerHTML = html;
+  bindActions(list);
   if (window.lucide) {
     try { lucide.createIcons({ root: list }); } catch (e) {}
   }
@@ -38399,8 +38435,9 @@ async function openMediaInspector(filePath) {
         const colors = extractDominantColors(thumbImg);
         if (paletteRow && colors.length > 0) {
           paletteRow.innerHTML = colors.map(hex => `
-            <div class="inspector-color-swatch" style="background: ${hex};" title="Click to copy ${hex}" onclick="copyToClipboardText('${hex}')"></div>
+            <div class="inspector-color-swatch" style="background: ${hex};" title="Click to copy ${hex}" data-on-click="copyToClipboardText" data-click-args="${actionArgs(`${hex}`)}"></div>
           `).join('');
+          bindActions(paletteRow);
         }
       };
     }
