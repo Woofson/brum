@@ -13614,6 +13614,10 @@ body:not(.standalone-mode) .standalone-only {
   display: none !important;
 }
 
+body:not(.same-computer) .same-computer-setting {
+  display: none !important;
+}
+
 body.standalone-mode .web-only-setting,
 body.standalone-mode .server-only-setting {
   display: none !important;

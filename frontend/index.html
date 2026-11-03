@@ -1073,8 +1073,8 @@
           <div class="settings-sidebar-group-title">Workflow & Chewtoys</div>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-plugins"]'><i data-lucide="puzzle"></i> Chewtoys & Extensions</button>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-tools"]'><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> Tools Menu</button>
-          <button class="settings-nav-btn desktop-only-setting" id="settings-nav-desktop-apps" data-on-click="switchSettingsTab" data-click-args='["tab-desktop-apps"]'><i data-lucide="monitor"></i> External Programs</button>
-          <button class="settings-nav-btn desktop-only-setting" id="settings-nav-openwith" data-on-click="switchSettingsTab" data-click-args='["tab-openwith"]'><i data-lucide="external-link"></i> Open With</button>
+          <button class="settings-nav-btn same-computer-setting" id="settings-nav-desktop-apps" data-on-click="switchSettingsTab" data-click-args='["tab-desktop-apps"]'><i data-lucide="monitor"></i> External Programs</button>
+          <button class="settings-nav-btn same-computer-setting" id="settings-nav-openwith" data-on-click="switchSettingsTab" data-click-args='["tab-openwith"]'><i data-lucide="external-link"></i> Open With</button>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-context"]'><i data-lucide="mouse-pointer"></i> Context Menu</button>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-templates"]'><i data-lucide="file-code-2"></i> Templates</button>
 
@@ -1627,7 +1627,7 @@
           </div>
 
         <!-- Tab: External Programs & Desktop Handlers -->
-        <div class="settings-tab-content desktop-only-setting" id="tab-desktop-apps" style="padding: 16px;">
+        <div class="settings-tab-content same-computer-setting" id="tab-desktop-apps" style="padding: 16px;">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
             <div>
               <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
@@ -1715,11 +1715,11 @@
         </div>
 
         <!-- Tab: Open With & External Handlers -->
-        <div class="settings-tab-content desktop-only-setting" id="tab-openwith">
+        <div class="settings-tab-content same-computer-setting" id="tab-openwith">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
             <div>
               <h4 style="color: var(--accent); margin: 0;">Open With & External Application Handlers</h4>
-              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Map file extensions to external desktop applications and custom launchers.</p>
+              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Map file extensions to external desktop applications and custom launchers. Programs open on the computer Brum runs on, so this is offered in the desktop app and when Brum is opened as localhost. Handlers with their own command are for admins.</p>
             </div>
             <button class="btn btn-accent btn-sm" data-on-click="showAddOpenWithRulePrompt"><i data-lucide="plus"></i> Add Handler</button>
           </div>
@@ -1739,6 +1739,7 @@
               <div>
                 <label style="font-size: 11px; display: block; margin-bottom: 4px;">Matching Extensions (comma-separated):</label>
                 <input type="text" id="openwith-input-exts" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. mp4, mkv, avi, webm">
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 3px;">Use <code>*</code> for every file and folder, or <code>folder</code> for folders.</div>
               </div>
             </div>
             <div style="margin-bottom: 10px;">

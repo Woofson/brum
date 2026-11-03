@@ -214,6 +214,81 @@ pub fn build_command(template: &str, v: &CommandValues) -> Result<Command, Strin
     }
 }
 
+/// What a command printed while Brum waited for it
+pub struct RunOutcome {
+    pub output: String,
+    /// Exit code, or `None` while the command is still running (or was ended by a signal)
+    pub exit_code: Option<i32>,
+    pub still_running: bool,
+    pub truncated: bool,
+}
+
+/// Runs a command and collects its combined output for up to `wait`. A command that takes
+/// longer (for example one that opens a program) keeps running in the background.
+pub async fn run_collecting_output(cmd: Command, wait: std::time::Duration, cap: usize) -> std::io::Result<RunOutcome> {
+    use std::sync::{Arc, Mutex};
+    use tokio::io::AsyncReadExt;
+
+    let mut cmd = tokio::process::Command::from(cmd);
+    cmd.stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::piped())
+        .stderr(std::process::Stdio::piped());
+    let mut child = cmd.spawn()?;
+
+    let buf = Arc::new(Mutex::new((Vec::<u8>::new(), false)));
+    let mut readers = Vec::new();
+    let pipes: Vec<Box<dyn tokio::io::AsyncRead + Unpin + Send>> = [
+        child.stdout.take().map(|p| Box::new(p) as Box<dyn tokio::io::AsyncRead + Unpin + Send>),
+        child.stderr.take().map(|p| Box::new(p) as Box<dyn tokio::io::AsyncRead + Unpin + Send>),
+    ]
+    .into_iter()
+    .flatten()
+    .collect();
+    for mut pipe in pipes {
+        let buf = buf.clone();
+        // Keep reading past the cap, so a chatty command never stalls on a full pipe
+        readers.push(tokio::spawn(async move {
+            let mut chunk = [0u8; 8192];
+            while let Ok(n) = pipe.read(&mut chunk).await {
+                if n == 0 {
+                    break;
+                }
+                let mut b = buf.lock().unwrap();
+                let room = cap.saturating_sub(b.0.len());
+                if n > room {
+                    b.1 = true;
+                }
+                let take = n.min(room);
+                b.0.extend_from_slice(&chunk[..take]);
+            }
+        }));
+    }
+
+    let finished = tokio::time::timeout(wait, child.wait()).await;
+    if finished.is_ok() {
+        // Programs started by the command may keep the output open; collect what is
+        // already there, without waiting for them
+        let _ = tokio::time::timeout(std::time::Duration::from_millis(300), async {
+            for r in readers {
+                let _ = r.await;
+            }
+        })
+        .await;
+    }
+
+    let (exit_code, still_running) = match finished {
+        Ok(status) => (status?.code(), false),
+        Err(_) => (None, true),
+    };
+    let b = buf.lock().unwrap();
+    Ok(RunOutcome {
+        output: String::from_utf8_lossy(&b.0).to_string(),
+        exit_code,
+        still_running,
+        truncated: b.1,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -282,6 +357,33 @@ mod tests {
     fn file_with_spaces_is_one_argument() {
         let (stdout, _) = run_with_hostile_names("wc -l \"{file}\"");
         assert!(stdout.trim_start().starts_with('2'), "unexpected: {stdout}");
+    }
+
+    #[cfg(unix)]
+    #[tokio::test]
+    async fn output_is_collected_and_long_commands_keep_running() {
+        let quick = build_command("echo hello; echo oops >&2; exit 3", &CommandValues { file: "", dir: "/tmp", target_pane: "", selection: &[] }).unwrap();
+        let r = run_collecting_output(quick, std::time::Duration::from_secs(5), 1024).await.unwrap();
+        assert!(r.output.contains("hello") && r.output.contains("oops"), "output: {}", r.output);
+        assert_eq!(r.exit_code, Some(3));
+        assert!(!r.still_running && !r.truncated);
+
+        let slow = build_command("echo started; sleep 3", &CommandValues { file: "", dir: "/tmp", target_pane: "", selection: &[] }).unwrap();
+        let r = run_collecting_output(slow, std::time::Duration::from_millis(500), 1024).await.unwrap();
+        assert!(r.still_running);
+        assert!(r.output.contains("started"));
+
+        let chatty = build_command("yes | head -c 100000", &CommandValues { file: "", dir: "/tmp", target_pane: "", selection: &[] }).unwrap();
+        let r = run_collecting_output(chatty, std::time::Duration::from_secs(5), 1000).await.unwrap();
+        assert_eq!(r.output.len(), 1000);
+        assert!(r.truncated && !r.still_running);
+
+        // A command that starts a long-lived program returns without waiting for it
+        let launcher = build_command("echo launched; sleep 5 &", &CommandValues { file: "", dir: "/tmp", target_pane: "", selection: &[] }).unwrap();
+        let t = std::time::Instant::now();
+        let r = run_collecting_output(launcher, std::time::Duration::from_secs(4), 1024).await.unwrap();
+        assert!(t.elapsed() < std::time::Duration::from_secs(2), "waited for the started program");
+        assert!(r.output.contains("launched") && !r.still_running);
     }
 
     #[test]

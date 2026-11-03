@@ -1145,6 +1145,11 @@ pub async fn handle_open_with(
     Ok(Json(serde_json::json!({ "success": true, "path": path_str })))
 }
 
+/// How long a Custom Action may run before Brum stops waiting for its output
+const CUSTOM_ACTION_WAIT_SECS: u64 = 15;
+/// Most output shown for one action
+const CUSTOM_ACTION_OUTPUT_CAP: usize = 256 * 1024;
+
 #[derive(Deserialize)]
 pub struct RunCustomActionRequest {
     command: String,
@@ -1180,16 +1185,25 @@ pub async fn handle_run_custom_action(
     };
 
     // File names reach the shell as values, never as command text
-    crate::server::shell_command::build_command(&payload.command, &values)
-        .map_err(|e| (StatusCode::BAD_REQUEST, e))?
-        .spawn()
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to run action: {}", e)))?;
+    let cmd = crate::server::shell_command::build_command(&payload.command, &values)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
     let exec_cmd = crate::server::shell_command::display_command(&payload.command, &values);
+    let outcome = crate::server::shell_command::run_collecting_output(
+        cmd,
+        std::time::Duration::from_secs(CUSTOM_ACTION_WAIT_SECS),
+        CUSTOM_ACTION_OUTPUT_CAP,
+    )
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to run action: {}", e)))?;
 
     Ok(Json(serde_json::json!({
-        "success": true,
+        "success": outcome.still_running || outcome.exit_code == Some(0),
         "executed": exec_cmd,
-        "working_dir": dir_str
+        "working_dir": dir_str,
+        "output": outcome.output,
+        "exit_code": outcome.exit_code,
+        "still_running": outcome.still_running,
+        "truncated": outcome.truncated,
     })))
 }
 

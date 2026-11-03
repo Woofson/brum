@@ -77,7 +77,7 @@ const BRUM_ACTIONS = new Set([
   'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex',
   'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
   'executeBatchRename', 'executeBulkRename', 'executeCompressArchive', 'executeCreateFromTemplate',
-  'executeCreateShare', 'executeCreateVault', 'executeCustomAction', 'executeDeltaCopy',
+  'executeCreateShare', 'executeCreateVault', 'executeDeltaCopy',
   'executeDryRun', 'executeDuplicateClean', 'executeExtractArchive', 'executeFileCombine',
   'executeFileConversion', 'executeFileSplit', 'executeFind', 'executeFolderAlignment',
   'executeInterpaneDrop', 'executeOpenConfdAssembled', 'executeOpenConfdSeparateTabs',
@@ -182,7 +182,7 @@ const BRUM_ACTIONS = new Set([
   'restoreSelectedTrashItems', 'restoreTetraDog', 'resumeAllTasks', 'resumeTask',
   'resumeTetraDogGame', 'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
   'runBackupProfileNow', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runGlobalSearch',
-  'runPredefinedAction', 'runPropertiesStatsScan', 'runToolsMenuChewtoy', 'runToolsMenuItem',
+  'runPropertiesStatsScan', 'runShellAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
   'saveActiveEditorTab', 'saveActiveNoteDogNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
   'saveBackupProfileForm', 'saveBookmarkFromModal', 'saveCapturedKeybind',
   'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
@@ -3147,6 +3147,11 @@ function updateStandaloneUI() {
   document.body.classList.toggle('standalone-mode', isStandalone);
   document.querySelectorAll('.desktop-only-setting, .standalone-only').forEach(el => {
     el.style.display = isStandalone ? '' : 'none';
+  });
+  const sameComputer = isOnServerComputer();
+  document.body.classList.toggle('same-computer', sameComputer);
+  document.querySelectorAll('.same-computer-setting').forEach(el => {
+    el.style.display = sameComputer ? '' : 'none';
   });
   document.querySelectorAll('.web-only-setting, .server-only-setting').forEach(el => {
     el.style.display = isStandalone ? 'none' : '';
@@ -9231,7 +9236,168 @@ async function executeOpenWith(filePath, command) {
   }
 }
 
-// ---------------- EXTERNAL DESKTOP PROGRAMS (STANDALONE ONLY) ----------------
+// ---------------- OPEN WITH & CUSTOM ACTIONS IN THE RIGHT-CLICK MENUS ----------------
+
+// Open With and External Programs start programs on the computer Brum's server runs on.
+// That only helps when the browser is on that same computer: the desktop app, or a page
+// opened as localhost.
+function isOnServerComputer() {
+  if (isStandaloneMode()) return true;
+  const host = (window.location.hostname || '').toLowerCase();
+  return host === 'localhost' || host === '127.0.0.1' || host === '[::1]' || host === '::1' || host.endsWith('.localhost');
+}
+
+// Commands only run for admins (the server refuses everyone else)
+function isAdminUser() {
+  return String(App.user?.role || '').toLowerCase() === 'admin';
+}
+
+// Rules for a file or folder. A folder matches rules for `*` or `folder`.
+// Rules with their own command are admin-only; the system default app is for everyone.
+function openWithRulesFor(item) {
+  const ext = item.is_dir ? null : ((item.name || '').includes('.') ? item.name.split('.').pop().toLowerCase() : '');
+  return OpenWithRules.filter(r => {
+    const exts = (r.exts || []).map(e => String(e).toLowerCase());
+    const matches = exts.includes('*') || (item.is_dir ? exts.includes('folder') : exts.includes(ext));
+    return matches && (!r.cmd || isAdminUser());
+  });
+}
+
+function buildOpenWithSubmenu(item) {
+  if (!item || !isOnServerComputer()) return '';
+  const rules = openWithRulesFor(item);
+  let items = rules.map(r => `<div class="context-item" data-on-click="executeOpenWith" data-click-args="${actionArgs(String(item.path || ''), r.cmd ? String(r.cmd) : null)}" data-click-after="hideContextMenu">
+      <i data-lucide="${escapeHtml(r.icon || 'external-link')}" style="width: 13px;"></i> <span class="context-label">${escapeHtml(r.name)}</span>
+    </div>`).join('');
+  if (!rules.some(r => !r.cmd)) {
+    items += `<div class="context-item" data-on-click="executeOpenWith" data-click-args="${actionArgs(String(item.path || ''), null)}" data-click-after="hideContextMenu">
+      <i data-lucide="external-link" style="width: 13px;"></i> <span class="context-label">System Default App</span>
+    </div>`;
+  }
+  if (isAdminUser()) {
+    items += `<div class="context-sep"></div><div class="context-item" data-on-click="openSettingsTab" data-click-args="${actionArgs('tab-openwith')}" data-click-after="hideContextMenu">
+      <i data-lucide="settings" style="width: 13px; color: var(--accent);"></i> <span class="context-label">Configure Handlers...</span>
+    </div>`;
+  }
+  return `
+    <div class="context-item has-submenu" data-on-click="toggleContextSubmenu" data-click-args="${actionArgs(ACTION_EVENT, ACTION_EL)}">
+      <div style="display:flex; align-items:center; gap:8px; flex:1;"><i data-lucide="external-link" style="color: var(--accent);"></i> <span class="context-label">Open with...</span></div>
+      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+      <div class="context-submenu">${items}</div>
+    </div>`;
+}
+
+// Built-in Shell Actions; `scopes` says where each one makes sense:
+// file, folder, multi (several selected items), space (empty space in a pane)
+const BUILTIN_SHELL_ACTIONS = [
+  { label: 'Make Executable (chmod +x)', icon: 'shield', cmd: 'chmod +x {selection}', scopes: ['file', 'multi'] },
+  { label: 'Inspect Stat (stat)', icon: 'info', cmd: 'stat {selection}', scopes: ['file', 'folder', 'multi'] },
+  { label: 'Check Disk Usage (du -sh)', icon: 'hard-drive', cmd: 'du -sh {selection}', scopes: ['file', 'folder', 'multi'] },
+  { label: 'Check Disk Usage of This Folder (du -sh)', icon: 'hard-drive', cmd: 'du -sh "{dir}"', scopes: ['space'] },
+  { label: 'Git Recent Log (git log)', icon: 'git-branch', cmd: 'git -C "{dir}" log -n 10 --oneline --graph', scopes: ['file', 'folder', 'multi', 'space'] },
+  { label: 'Calculate MD5 Hash', icon: 'hash', cmd: 'md5sum {selection}', scopes: ['file', 'multi'] },
+  { label: 'Count Lines (wc -l)', icon: 'list-ordered', cmd: 'wc -l {selection}', scopes: ['file', 'multi'] },
+];
+
+function buildCustomActionsSubmenu(scope) {
+  if (!isAdminUser()) return '';
+  const item = (a, icon) => `<div class="context-item" data-on-click="runShellAction" data-click-args="${actionArgs(String(a.cmd ?? ''), String(a.label ?? ''))}" data-click-after="hideContextMenu">
+      <i data-lucide="${escapeHtml(icon)}" style="width: 13px;"></i> <span class="context-label">${escapeHtml(a.label)}</span>
+    </div>`;
+  const userItems = CustomShellActions.length > 0
+    ? CustomShellActions.map(a => item(a, a.icon || 'terminal')).join('')
+    : '<div style="color: var(--text-muted); font-size: 11px; padding: 4px 8px;">No custom actions yet</div>';
+  // The built-in ones are Unix commands
+  const builtins = isWindowsHost() ? [] : BUILTIN_SHELL_ACTIONS.filter(a => a.scopes.includes(scope));
+  return `
+    <div class="context-item has-submenu" data-on-click="toggleContextSubmenu" data-click-args="${actionArgs(ACTION_EVENT, ACTION_EL)}">
+      <div style="display:flex; align-items:center; gap:8px; flex:1;"><i data-lucide="terminal-square" style="color: var(--accent);"></i> <span class="context-label">Custom Actions</span></div>
+      <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
+      <div class="context-submenu">
+        <div class="submenu-header">User Actions</div>
+        ${userItems}
+        ${builtins.length ? `<div class="context-sep"></div><div class="submenu-header">Shell Actions</div>${builtins.map(a => item(a, a.icon)).join('')}` : ''}
+        <div class="context-sep"></div>
+        <div class="context-item" data-on-click="openSettingsTab" data-click-args="${actionArgs('tab-context')}" data-click-after="hideContextMenu">
+          <i data-lucide="settings" style="width: 13px; color: var(--accent);"></i> <span class="context-label">Manage Shell Actions...</span>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Runs a Custom or Shell Action on the right-clicked items (or the pane, for empty space)
+// and shows what it printed
+async function runShellAction(command, label) {
+  const paneIdx = App.contextPaneIndex ?? App.activePaneIndex;
+  const pane = App.panes[paneIdx];
+  if (!pane) return;
+  let selection;
+  let target;
+  if (App.contextItem) {
+    selection = getSelectedOrCursorPaths();
+    target = selection[0] || pane.path;
+  } else {
+    selection = pane.selected && pane.selected.size > 0 ? Array.from(pane.selected) : [];
+    target = pane.path;
+  }
+  // {target_pane}: the next visible pane, as for copy and move
+  const visible = getVisiblePaneCount();
+  const otherPane = visible > 1 ? App.panes[(paneIdx + 1) % visible] : null;
+
+  const setStatus = (text, color) => {
+    const el = document.getElementById('action-output-status');
+    el.textContent = text;
+    el.style.color = color;
+  };
+  document.getElementById('action-output-title').textContent = `⚡ Action: ${label}`;
+  document.getElementById('action-output-cmd').textContent = `$ ${command}`;
+  setStatus('RUNNING...', 'var(--accent)');
+  document.getElementById('action-output-duration').textContent = '...';
+  document.getElementById('action-output-text').textContent = 'Running on the server...';
+  showModal('action-output-modal');
+
+  const started = performance.now();
+  try {
+    const resp = await fetch('/api/system/run-custom-action', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token || ''}` },
+      body: JSON.stringify({
+        command,
+        target_path: target,
+        selection,
+        target_pane_path: otherPane ? otherPane.path : pane.path,
+      }),
+    });
+    document.getElementById('action-output-duration').textContent = `${Math.round(performance.now() - started)} ms`;
+    if (!resp.ok) {
+      const errText = await resp.text();
+      setStatus('FAILED', 'var(--danger)');
+      document.getElementById('action-output-text').textContent = errText;
+      return;
+    }
+    const res = await resp.json();
+    if (res.executed) document.getElementById('action-output-cmd').textContent = `$ ${res.executed}`;
+    if (res.still_running) {
+      setStatus('STILL RUNNING', 'var(--accent)');
+    } else if (res.exit_code === 0) {
+      setStatus('SUCCESS (Code 0)', 'var(--success)');
+    } else {
+      setStatus(res.exit_code === null || res.exit_code === undefined ? 'STOPPED' : `FAILED (Code ${res.exit_code})`, 'var(--danger)');
+    }
+    let text = res.output || '';
+    if (res.truncated) text += '\n… output shortened';
+    if (res.still_running) {
+      text += (text ? '\n\n' : '') + 'The command is still running in the background. Output after this point is not shown.';
+    }
+    document.getElementById('action-output-text').textContent = text || 'The command finished without output.';
+    refreshAllPanes();
+  } catch (err) {
+    setStatus('ERROR', 'var(--danger)');
+    document.getElementById('action-output-text').textContent = String(err);
+  }
+}
+
+// ---------------- EXTERNAL DESKTOP PROGRAMS (SAME COMPUTER ONLY) ----------------
 
 function applyExternalProgramPreset(type, cmd) {
   if (type === 'editor') {
@@ -9657,38 +9823,6 @@ function deleteCustomAction(index) {
   localStorage.setItem('cd_custom_shell_actions', JSON.stringify(CustomShellActions));
   renderCustomActionsList();
   showToast('Action deleted', 'info');
-}
-
-async function executeCustomAction(cmd, targetPath) {
-  const pane = App.panes[App.activePaneIndex];
-  const selection = pane && pane.selected && pane.selected.size > 0 ? Array.from(pane.selected) : null;
-  const targetPane = App.panes[App.activePaneIndex === 0 ? 1 : 0];
-  const targetPanePath = targetPane ? targetPane.path : null;
-
-  try {
-    const res = await fetch('/api/system/run-custom-action', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token || ''}`,
-      },
-      body: JSON.stringify({
-        command: cmd,
-        target_path: targetPath,
-        selection: selection,
-        target_pane_path: targetPanePath,
-      }),
-    });
-    const data = await res.json();
-    if (!res.ok) {
-      showToast(data.error || 'Execution failed', 'error');
-    } else {
-      showToast(`Action finished: ${data.executed}`, 'success');
-      refreshAllPanes();
-    }
-  } catch (err) {
-    showToast('Failed to run action on host', 'error');
-  }
 }
 
 function addCurrentOrContextItemToQuickDest() {
@@ -21565,40 +21699,9 @@ function showContextMenu(x, y) {
   const isDir = App.contextItem ? !!App.contextItem.is_dir : false;
   const filename = App.contextItem?.name || '';
   const ext = filename.includes('.') ? filename.split('.').pop().toLowerCase() : '';
-  const matchingRules = OpenWithRules.filter(r => r.exts.includes('*') || r.exts.map(e => e.toLowerCase()).includes(ext));
 
   const clipInfo = App.clipboard ? `(${App.clipboard.paths.length} item${App.clipboard.paths.length > 1 ? 's' : ''})` : '';
   const oppositeIdx = visibleCount > 1 ? (currentIdx + 1) % visibleCount : null;
-
-  let openWithItems = '';
-  if (matchingRules.length > 0) {
-    matchingRules.forEach(r => {
-      openWithItems += `<div class="context-item" data-on-click="executeOpenWith" data-click-args="${actionArgs(String(App.contextItem?.path || ''), String(r.cmd ?? ''))}" data-click-after="hideContextMenu">
-        <i data-lucide="${r.icon || 'external-link'}" style="width: 13px;"></i> ${escapeHtml(r.name)}
-      </div>`;
-    });
-  } else {
-    openWithItems += `<div class="context-item" data-on-click="executeOpenWith" data-click-args="${actionArgs(String(App.contextItem?.path || ''), null)}" data-click-after="hideContextMenu">
-      <i data-lucide="external-link" style="width: 13px;"></i> System Default App
-    </div>`;
-  }
-  openWithItems += `<div class="context-sep"></div><div class="context-item" data-on-click="openSettingsTab" data-click-args="${actionArgs('tab-openwith')}" data-click-after="hideContextMenu">
-    <i data-lucide="settings" style="width: 13px; color: var(--accent);"></i> Configure Handlers...
-  </div>`;
-
-  let userCustomActions = '';
-  if (CustomShellActions.length > 0) {
-    CustomShellActions.forEach(a => {
-      userCustomActions += `<div class="context-item" data-on-click="executeCustomAction" data-click-args="${actionArgs(String(a.cmd ?? ''), String(App.contextItem?.path || ''))}" data-click-after="hideContextMenu">
-        <i data-lucide="${a.icon || 'terminal'}" style="width: 13px;"></i> ${escapeHtml(a.label)}
-      </div>`;
-    });
-  } else {
-    userCustomActions = '<div style="color: var(--text-muted); font-size: 11px; padding: 4px 8px;">No custom actions</div>';
-  }
-  userCustomActions += `<div class="context-sep"></div><div class="context-item" data-on-click="openSettingsTab" data-click-args="${actionArgs('tab-context')}" data-click-after="hideContextMenu">
-    <i data-lucide="settings" style="width: 13px; color: var(--accent);"></i> Manage Shell Actions...
-  </div>`;
 
   const curTagInfo = App.contextItem ? fileTagsMap.get(App.contextItem.path) : null;
   const curColor = curTagInfo?.color_label;
@@ -21706,12 +21809,14 @@ function showContextMenu(x, y) {
           <div class="context-item" data-on-click="triggerChecksum" data-click-after="hideContextMenu"><i data-lucide="shield-check"></i> <span class="context-label">Calculate Checksums</span></div>
         </div>
       </div>
+      ${buildCustomActionsSubmenu('multi')}
       <div class="context-item" data-on-click="triggerShare" data-click-after="hideContextMenu"><i data-lucide="share-2" style="color: var(--accent);"></i> <span class="context-label">Share Selection...</span></div>
     `;
   }
   // Case B: Dedicated Folder Context Menu (FolderMenu.txt)
   else if (isDir) {
     bodyHtml = `
+      ${buildOpenWithSubmenu(App.contextItem)}
       <!-- Top Primary Actions -->
       <div class="context-item" data-on-click="triggerCopyClipboard" data-click-after="hideContextMenu"><i data-lucide="clipboard-copy"></i> <span class="context-label">Copy</span> <span class="context-shortcut">Ctrl+C</span></div>
       <div class="context-item has-submenu" data-on-click="toggleContextSubmenu" data-click-args="${actionArgs(ACTION_EVENT, ACTION_EL)}">
@@ -21782,6 +21887,8 @@ function showContextMenu(x, y) {
         </div>
       </div>
 
+      ${buildCustomActionsSubmenu('folder')}
+
       <!-- Submenu 2: New -->
       <div class="context-item has-submenu" data-on-click="toggleContextSubmenu" data-click-args="${actionArgs(ACTION_EVENT, ACTION_EL)}">
         <div style="display:flex; align-items:center; gap:8px; flex:1;"><i data-lucide="plus-circle" style="color: var(--accent);"></i> <span class="context-label">New...</span></div>
@@ -21816,15 +21923,7 @@ function showContextMenu(x, y) {
   // Case C: Dedicated File Context Menu (FileMenu.txt)
   else {
     bodyHtml = `
-      ${isStandaloneMode() ? `
-        <div class="context-item has-submenu" data-on-click="toggleContextSubmenu" data-click-args="${actionArgs(ACTION_EVENT, ACTION_EL)}">
-          <div style="display:flex; align-items:center; gap:8px; flex:1;"><i data-lucide="external-link" style="color: var(--accent);"></i> <span class="context-label">Open with...</span></div>
-          <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-          <div class="context-submenu">
-            ${openWithItems}
-          </div>
-        </div>
-      ` : ''}
+      ${buildOpenWithSubmenu(App.contextItem)}
       <div class="context-item" data-on-click="triggerView" data-click-after="hideContextMenu"><i data-lucide="eye"></i> <span class="context-label">Quick View</span> <span class="context-shortcut">F3</span></div>
       ${App.contextItem && !App.contextItem.path?.startsWith('archive://') && !App.contextItem.path?.startsWith('vault://') && (isArchiveFile(App.contextItem.name) || App.contextItem.is_archive || App.contextItem.name.startsWith('d1') || App.contextItem.name.endsWith('.partitions') || App.contextItem.name.endsWith('.img') || App.contextItem.name.endsWith('.iso')) ? `
         <div class="context-item" data-on-click="loadPaneDirectory" data-click-args="${actionArgs((App.contextPaneIndex ?? App.activePaneIndex), 'archive://' + App.contextItem?.path + '#')}" data-click-after="hideContextMenu"><i data-lucide="disc" style="color: var(--accent);"></i> <span class="context-label">Browse as Disk Image / Archive</span></div>
@@ -21886,29 +21985,13 @@ function showContextMenu(x, y) {
             <div class="context-item" data-on-click="openPdfToolModal" data-click-args="${actionArgs(App.contextItem?.path)}" data-click-after="hideContextMenu"><img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">PDF Studio (Merge & Split)</span></div>
           ` : ''}
           ${renderChewToyContextMenuItems(App.contextItem)}
-          ${isStandaloneMode() ? `
+          ${isOnServerComputer() && isAdminUser() ? `
             <div class="context-item" data-on-click="openExternalTerminal" data-click-args="${actionArgs(App.contextItem?.path)}" data-click-after="hideContextMenu"><i data-lucide="terminal" style="color: var(--accent);"></i> <span class="context-label">Open in External Terminal</span></div>
             <div class="context-sep"></div>
           ` : ''}
           <div class="context-item" data-on-click="openSearchModal" data-click-after="hideContextMenu"><img src="assets/search.webp" alt="Search" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Advanced Search</span> <span class="context-shortcut">Ctrl+F</span></div>
           <div class="context-item" data-on-click="triggerDiff" data-click-after="hideContextMenu"><img src="assets/diff.webp" alt="Compare" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Compare / Diff</span> <span class="context-shortcut">F9</span></div>
           <div class="context-item" data-on-click="triggerBulkRename" data-click-after="hideContextMenu"><i data-lucide="tags"></i> <span class="context-label">Advanced Rename</span> <span class="context-shortcut">Shift+F6</span></div>
-          <div class="context-item has-submenu" data-on-click="toggleContextSubmenu" data-click-args="${actionArgs(ACTION_EVENT, ACTION_EL)}">
-            <div style="display:flex; align-items:center; gap:8px; flex:1;"><i data-lucide="terminal-square" style="color: var(--accent);"></i> <span class="context-label">Custom Script Actions</span></div>
-            <i data-lucide="chevron-right" class="submenu-chevron" style="width: 12px;"></i>
-            <div class="context-submenu">
-              <div class="submenu-header">User Actions</div>
-              ${userCustomActions}
-              <div class="context-sep"></div>
-              <div class="submenu-header">Shell Actions</div>
-              <div class="context-item" data-on-click="runPredefinedAction" data-click-args="${actionArgs('chmod +x \"{file}\"', 'Make Executable (chmod +x)')}" data-click-after="hideContextMenu"><i data-lucide="shield"></i> <span class="context-label">Make Executable (chmod +x)</span></div>
-              <div class="context-item" data-on-click="runPredefinedAction" data-click-args="${actionArgs('stat \"{file}\"', 'File Stat Info')}" data-click-after="hideContextMenu"><i data-lucide="info"></i> <span class="context-label">Inspect Stat (stat)</span></div>
-              <div class="context-item" data-on-click="runPredefinedAction" data-click-args="${actionArgs('du -sh \"{file}\"', 'Disk Usage')}" data-click-after="hideContextMenu"><i data-lucide="hard-drive"></i> <span class="context-label">Check Disk Usage (du -sh)</span></div>
-              <div class="context-item" data-on-click="runPredefinedAction" data-click-args="${actionArgs('git -C \"{dir}\" log -n 10 --oneline --graph', 'Git Log')}" data-click-after="hideContextMenu"><i data-lucide="git-branch"></i> <span class="context-label">Git Recent Log (git log)</span></div>
-              <div class="context-item" data-on-click="runPredefinedAction" data-click-args="${actionArgs('md5sum \"{file}\"', 'MD5 Hash')}" data-click-after="hideContextMenu"><i data-lucide="hash"></i> <span class="context-label">Calculate MD5 Hash</span></div>
-              <div class="context-item" data-on-click="runPredefinedAction" data-click-args="${actionArgs('wc -l \"{file}\"', 'Line Count')}" data-click-after="hideContextMenu"><i data-lucide="list-ordered"></i> <span class="context-label">Count Lines (wc -l)</span></div>
-            </div>
-          </div>
           <div class="context-item" data-on-click="triggerFileSplit" data-click-after="hideContextMenu"><i data-lucide="scissors"></i> <span class="context-label">Split Large File...</span></div>
           <div class="context-item" data-on-click="triggerFileCombine" data-click-after="hideContextMenu"><i data-lucide="merge"></i> <span class="context-label">Combine Part Files (.001, .002)...</span></div>
           <div class="context-item" data-on-click="openSyncModal" data-click-after="hideContextMenu"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Backup (Sync & Replication)...</span></div>
@@ -21920,6 +22003,8 @@ function showContextMenu(x, y) {
           <div class="context-item" data-on-click="openSharesManager" data-click-after="hideContextMenu"><img src="assets/sharemgr.webp" alt="Sharing" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Sharing Center (Manage Shares)...</span></div>
         </div>
       </div>
+
+      ${buildCustomActionsSubmenu('file')}
 
       <!-- Submenu 2: New -->
       <div class="context-item has-submenu" data-on-click="toggleContextSubmenu" data-click-args="${actionArgs(ACTION_EVENT, ACTION_EL)}">
@@ -22815,7 +22900,7 @@ function showEmptySpaceContextMenu(x, y, paneIndex) {
     <div class="context-item" data-on-click="addCurrentPaneToQuickDest" data-click-after="hideContextMenu"><i data-lucide="bookmark-plus" style="width: 14px;"></i> Bookmark Current Path</div>
     <div class="context-sep"></div>
     <div class="context-item" data-on-click="triggerDirPermissions" data-click-args="${actionArgs((paneIndex))}" data-click-after="hideContextMenu"><i data-lucide="lock" style="width: 14px;"></i> Directory Permissions & Ownership</div>
-    <div class="context-item" data-on-click="runPredefinedAction" data-click-args="${actionArgs('du -sh \"{dir}\"', 'Directory Disk Usage')}" data-click-after="hideContextMenu"><i data-lucide="hard-drive" style="width: 14px;"></i> Check Disk Usage (du -sh)</div>
+    ${buildCustomActionsSubmenu('space')}
   `;
 
   if (window.lucide) lucide.createIcons();
@@ -25044,8 +25129,8 @@ function triggerView() {
     return;
   }
 
-  // Standalone desktop mode: override F3 with external viewer if enabled
-  if (isStandaloneMode()) {
+  // Same computer as the server: override F3 with external viewer if enabled
+  if (isOnServerComputer()) {
     const saved = localStorage.getItem('cd_use_ext_viewer_f3');
     const useExtViewer = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_viewer_f3 === true);
     if (useExtViewer) {
@@ -25087,8 +25172,8 @@ function triggerEditor() {
   const pane = App.panes[App.activePaneIndex];
   const item = App.contextItem || pane.entries[pane.cursorIndex];
 
-  // Standalone desktop mode: override F4 with external editor if enabled
-  if (item && !item.is_dir && isStandaloneMode()) {
+  // Same computer as the server: override F4 with external editor if enabled
+  if (item && !item.is_dir && isOnServerComputer()) {
     const saved = localStorage.getItem('cd_use_ext_editor_f4');
     const useExtEditor = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_editor_f4 === true);
     if (useExtEditor) {
@@ -37386,55 +37471,6 @@ async function saveModalTags() {
 }
 
 // ---------------- CUSTOM SCRIPT ACTIONS RUNNER ----------------
-
-async function runPredefinedAction(command, label) {
-  const activePane = App.panes[App.activePaneIndex];
-  const paths = getSelectedOrCursorPaths();
-  const target = paths.length > 0 ? paths[0] : activePane.path;
-
-  document.getElementById('action-output-title').textContent = `⚡ Action: ${label}`;
-  document.getElementById('action-output-cmd').textContent = `$ ${command}`;
-  document.getElementById('action-output-status').textContent = 'RUNNING...';
-  document.getElementById('action-output-status').style.color = 'var(--accent)';
-  document.getElementById('action-output-duration').textContent = '...';
-  document.getElementById('action-output-text').textContent = 'Executing command on server...';
-
-  showModal('action-output-modal');
-
-  try {
-    const resp = await fetch('/api/system/run-custom-action', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token || ''}` },
-      body: JSON.stringify({
-        command: command,
-        target_path: target,
-        selection: paths.length > 0 ? paths : [target],
-        target_pane_path: activePane.path
-      })
-    });
-
-    if (!resp.ok) {
-      const errText = await resp.text();
-      document.getElementById('action-output-status').textContent = 'FAILED';
-      document.getElementById('action-output-status').style.color = 'var(--danger)';
-      document.getElementById('action-output-text').textContent = errText;
-      return;
-    }
-
-    const res = await resp.json();
-    document.getElementById('action-output-status').textContent = res.success ? `SUCCESS` : `FAILED`;
-    document.getElementById('action-output-status').style.color = res.success ? 'var(--success)' : 'var(--danger)';
-    document.getElementById('action-output-duration').textContent = 'done';
-    document.getElementById('action-output-cmd').textContent = `$ ${res.executed || command}`;
-    document.getElementById('action-output-text').textContent = res.output || res.message || 'Action executed successfully.';
-
-    refreshAllPanes();
-  } catch (err) {
-    document.getElementById('action-output-status').textContent = 'ERROR';
-    document.getElementById('action-output-status').style.color = 'var(--danger)';
-    document.getElementById('action-output-text').textContent = String(err);
-  }
-}
 
 function copyActionOutput() {
   const text = document.getElementById('action-output-text').textContent;
