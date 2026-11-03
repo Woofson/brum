@@ -4620,7 +4620,7 @@
   </div>
 
   <!-- Floating Format Converter Window -->
-  <div class="floating-converter-window" id="floating-converter-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-converter-window" id="floating-converter-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <!-- 1. Top Header (Draggable Handle) -->
     <div class="modal-header converter-header" id="converter-header">
       <div class="converter-header-left" style="display: flex; align-items: center; gap: 8px;">
@@ -4630,8 +4630,8 @@
         </span>
       </div>
       <div class="converter-header-actions" style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-convert-minimize" onclick="minimizeConverterModal()" title="Minimize to Taskbar (-)"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeConverterModal()" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-convert-minimize" data-on-click="minimizeConverterModal" title="Minimize to Taskbar (-)"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeConverterModal" title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -4639,7 +4639,7 @@
     <div class="converter-window-body" style="padding: 14px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 12px;">
       
       <!-- Interactive Source File Dropzone & Selector -->
-      <div class="converter-dropzone" id="converter-dropzone" onclick="if(event.target.closest('button')) return; openConverterFilePicker();" title="Drag & Drop a file here or click to browse">
+      <div class="converter-dropzone" id="converter-dropzone" data-click-unless="button" data-on-click="openConverterFilePicker" title="Drag & Drop a file here or click to browse">
         
         <!-- State A: File is Selected -->
         <div id="converter-selected-card" style="display: none; align-items: center; gap: 10px; width: 100%;">
@@ -4655,8 +4655,8 @@
             <div style="font-size: 10.5px; color: var(--accent); margin-top: 1px;" id="convert-source-size">1.2 MB</div>
           </div>
           <div style="display: flex; flex-direction: column; gap: 4px; flex-shrink: 0;">
-            <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); openConverterFilePicker();" title="Browse / Select Different File" style="font-size: 10px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Change</button>
-            <button type="button" class="btn btn-xs btn-outline" onclick="event.stopPropagation(); clearConverterSourceFile();" title="Clear Selected File" style="font-size: 10px; padding: 3px 8px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
+            <button type="button" class="btn btn-xs" data-click-stop data-on-click="openConverterFilePicker" title="Browse / Select Different File" style="font-size: 10px; padding: 3px 8px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Change</button>
+            <button type="button" class="btn btn-xs btn-outline" data-click-stop data-on-click="clearConverterSourceFile" title="Clear Selected File" style="font-size: 10px; padding: 3px 8px; color: var(--danger);"><i data-lucide="trash-2" style="width: 11px; height: 11px;"></i> Clear</button>
           </div>
         </div>
 
@@ -4670,8 +4670,8 @@
             <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Supports Images, Video, Audio, Documents & Structured Data</div>
           </div>
           <div style="display: flex; gap: 6px; margin-top: 4px; flex-wrap: wrap; justify-content: center;">
-            <button type="button" class="btn btn-xs btn-accent" onclick="event.stopPropagation(); openConverterFilePicker();" style="font-size: 11px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 12px; height: 12px;"></i> Browse Files...</button>
-            <button type="button" class="btn btn-xs" onclick="event.stopPropagation(); useActivePaneItemForConverter();" title="Use file under cursor in active pane" style="font-size: 11px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="layout" style="width: 12px; height: 12px;"></i> From Active Pane</button>
+            <button type="button" class="btn btn-xs btn-accent" data-click-stop data-on-click="openConverterFilePicker" style="font-size: 11px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="folder-open" style="width: 12px; height: 12px;"></i> Browse Files...</button>
+            <button type="button" class="btn btn-xs" data-click-stop data-on-click="useActivePaneItemForConverter" title="Use file under cursor in active pane" style="font-size: 11px; padding: 4px 10px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="layout" style="width: 12px; height: 12px;"></i> From Active Pane</button>
           </div>
         </div>
       </div>
@@ -4681,14 +4681,14 @@
         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
           <label style="font-weight: 700; font-size: 11.5px; color: var(--text-main); margin-bottom: 0;">Target Format:</label>
           <div class="converter-quick-formats" style="display: flex; gap: 4px;">
-            <button type="button" class="ext-preset-btn" onclick="setConverterTargetFormat('webp')">WebP</button>
-            <button type="button" class="ext-preset-btn" onclick="setConverterTargetFormat('png')">PNG</button>
-            <button type="button" class="ext-preset-btn" onclick="setConverterTargetFormat('mp4')">MP4</button>
-            <button type="button" class="ext-preset-btn" onclick="setConverterTargetFormat('mp3')">MP3</button>
-            <button type="button" class="ext-preset-btn" onclick="setConverterTargetFormat('yaml')">YAML</button>
+            <button type="button" class="ext-preset-btn" data-on-click="setConverterTargetFormat" data-click-args='["webp"]'>WebP</button>
+            <button type="button" class="ext-preset-btn" data-on-click="setConverterTargetFormat" data-click-args='["png"]'>PNG</button>
+            <button type="button" class="ext-preset-btn" data-on-click="setConverterTargetFormat" data-click-args='["mp4"]'>MP4</button>
+            <button type="button" class="ext-preset-btn" data-on-click="setConverterTargetFormat" data-click-args='["mp3"]'>MP3</button>
+            <button type="button" class="ext-preset-btn" data-on-click="setConverterTargetFormat" data-click-args='["yaml"]'>YAML</button>
           </div>
         </div>
-        <select id="convert-target-format" class="pane-quick-filter" style="width: 100%; padding: 7px 10px; font-size: 12px;" onchange="handleTargetFormatChange(this.value)">
+        <select id="convert-target-format" class="pane-quick-filter" style="width: 100%; padding: 7px 10px; font-size: 12px;" data-on-change="handleTargetFormatChange" data-change-args='[{"$": "value"}]'>
           <optgroup label="Images">
             <option value="webp" selected>WebP (Optimized Next-Gen)</option>
             <option value="png">PNG (Lossless)</option>
@@ -4727,7 +4727,7 @@
       <!-- Output Filename & Destination Preview -->
       <div class="form-group" style="margin-bottom: 0;">
         <label for="convert-output-filename" style="font-weight: 700; font-size: 11.5px; color: var(--text-main);">Output Filename & Destination:</label>
-        <input type="text" id="convert-output-filename" class="pane-quick-filter" placeholder="e.g. video_converted.mp4" style="width: 100%; padding: 7px 10px; font-family: var(--font-mono); font-size: 11px;" oninput="handleConvertOutputNameInput()">
+        <input type="text" id="convert-output-filename" class="pane-quick-filter" placeholder="e.g. video_converted.mp4" style="width: 100%; padding: 7px 10px; font-family: var(--font-mono); font-size: 11px;" data-on-input="handleConvertOutputNameInput">
         <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px; font-family: var(--font-mono); word-break: break-all;" id="convert-output-preview-path">Destination: ...</div>
       </div>
 
@@ -4738,7 +4738,7 @@
             <label style="font-size: 11px; font-weight: 600; margin-bottom: 0;">Quality Compression (1..100):</label>
             <span class="slider-val-badge" id="convert-quality-val" style="font-size: 10px; padding: 1px 6px;">85%</span>
           </div>
-          <input type="range" min="10" max="100" value="85" class="range-slider" id="convert-quality-slider" oninput="document.getElementById('convert-quality-val').textContent = this.value + '%'">
+          <input type="range" min="10" max="100" value="85" class="range-slider" id="convert-quality-slider" data-on-input="setElementText" data-input-args='["convert-quality-val", {"$":"value"}, "%"]'>
         </div>
 
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -4758,10 +4758,10 @@
 
     <!-- 3. Window Footer Actions -->
     <div class="modal-footer" id="convert-modal-footer" style="padding: 10px 14px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-shrink: 0;">
-      <button class="btn btn-sm" id="btn-convert-cancel" onclick="closeConverterModal()">Cancel</button>
-      <button class="btn btn-sm" id="btn-convert-background" style="display: none;" onclick="minimizeConverterModal()"><i data-lucide="minimize-2"></i> Run in Background</button>
-      <button class="btn btn-sm btn-accent" id="btn-run-convert" onclick="executeFileConversion()"><i data-lucide="play"></i> Convert Now</button>
-      <button class="btn btn-sm btn-accent" id="btn-convert-ok" style="display: none;" onclick="closeConverterModal()"><i data-lucide="check"></i> OK</button>
+      <button class="btn btn-sm" id="btn-convert-cancel" data-on-click="closeConverterModal">Cancel</button>
+      <button class="btn btn-sm" id="btn-convert-background" style="display: none;" data-on-click="minimizeConverterModal"><i data-lucide="minimize-2"></i> Run in Background</button>
+      <button class="btn btn-sm btn-accent" id="btn-run-convert" data-on-click="executeFileConversion"><i data-lucide="play"></i> Convert Now</button>
+      <button class="btn btn-sm btn-accent" id="btn-convert-ok" style="display: none;" data-on-click="closeConverterModal"><i data-lucide="check"></i> OK</button>
     </div>
   </div>
 
@@ -4773,22 +4773,22 @@
           <i data-lucide="folder-search" style="width: 16px; height: 16px; color: var(--accent);"></i>
           <span style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Select File to Convert</span>
         </div>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('converter-file-picker-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["converter-file-picker-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 12px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow: hidden;">
         <!-- Quick Pane Location Shortcuts -->
         <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
           <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim);">Jump to:</span>
           <div id="converter-picker-panes-list" style="display: flex; gap: 6px; flex-wrap: wrap;"></div>
-          <button type="button" class="btn btn-xs" onclick="navigateConverterPickerPath(getUserDefaultHomeDir() || '/')">Home (~)</button>
-          <button type="button" class="btn btn-xs" onclick="navigateConverterPickerPath('/')">Root (/)</button>
+          <button type="button" class="btn btn-xs" data-on-click="navigateConverterPickerHome">Home (~)</button>
+          <button type="button" class="btn btn-xs" data-on-click="navigateConverterPickerPath" data-click-args='["/"]'>Root (/)</button>
         </div>
 
         <!-- Breadcrumb / Path Bar -->
         <div style="display: flex; align-items: center; gap: 6px;">
-          <button class="btn btn-sm" onclick="navigateConverterPickerUp()" title="Go to Parent Folder"><i data-lucide="arrow-up"></i></button>
-          <input type="text" id="converter-picker-path-input" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); font-size: 11px; padding: 6px 10px;" onkeydown="if(event.key==='Enter'){event.preventDefault();navigateConverterPickerPath(this.value);}">
-          <button class="btn btn-sm" onclick="navigateConverterPickerPath(document.getElementById('converter-picker-path-input').value)">Go</button>
+          <button class="btn btn-sm" data-on-click="navigateConverterPickerUp" title="Go to Parent Folder"><i data-lucide="arrow-up"></i></button>
+          <input type="text" id="converter-picker-path-input" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); font-size: 11px; padding: 6px 10px;" data-keydown-prevent data-keydown-key="Enter" data-on-keydown="navigateConverterPickerPath" data-keydown-args='[{"$": "value"}]'>
+          <button class="btn btn-sm" data-on-click="navigateConverterPickerFromInput">Go</button>
         </div>
 
         <!-- Directory & Files List Container -->
@@ -5332,7 +5332,7 @@
   <!-- ========================================== -->
   <!-- 🧊 3D CAD STUDIO & MODEL VIEWER -->
   <!-- ========================================== -->
-  <div class="floating-cad-window" id="floating-cad-window" style="display: none;" onclick="bringFloatingWindowToFront(this)">
+  <div class="floating-cad-window" id="floating-cad-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <div class="win-resize-handle win-resize-top" id="cad-resize-top"></div>
     <div class="win-resize-handle win-resize-bottom" id="cad-resize-bottom"></div>
     <div class="win-resize-handle win-resize-left" id="cad-resize-left"></div>
@@ -5349,20 +5349,20 @@
         <span id="cad-file-badge" class="badge" style="font-size: 10px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">No model</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-cad-dock" onclick="dockCadStudioToActivePane()" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-cad-maximize" onclick="toggleMaximizeCadStudio()" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="minimizeFloatingCadStudio()" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="closeFloatingCadStudio()" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" id="btn-cad-dock" data-on-click="dockCadStudioToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon" id="btn-cad-maximize" data-on-click="toggleMaximizeCadStudio" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingCadStudio" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingCadStudio" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
       </div>
     </div>
 
     <!-- CAD Toolbar -->
     <div class="cad-toolbar" id="cad-toolbar">
       <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 3px;">
-        <button class="btn btn-xs" id="btn-cad-view-iso" onclick="setCadCameraView('iso')" style="height: 26px; font-weight: 600;" title="Isometric View">ISO</button>
-        <button class="btn btn-xs" id="btn-cad-view-top" onclick="setCadCameraView('top')" style="height: 26px; font-weight: 600;" title="Top View (Z+)">TOP</button>
-        <button class="btn btn-xs" id="btn-cad-view-front" onclick="setCadCameraView('front')" style="height: 26px; font-weight: 600;" title="Front View (Y-)">FRONT</button>
-        <button class="btn btn-xs" id="btn-cad-view-right" onclick="setCadCameraView('right')" style="height: 26px; font-weight: 600;" title="Right View (X+)">RIGHT</button>
+        <button class="btn btn-xs" id="btn-cad-view-iso" data-on-click="setCadCameraView" data-click-args='["iso"]' style="height: 26px; font-weight: 600;" title="Isometric View">ISO</button>
+        <button class="btn btn-xs" id="btn-cad-view-top" data-on-click="setCadCameraView" data-click-args='["top"]' style="height: 26px; font-weight: 600;" title="Top View (Z+)">TOP</button>
+        <button class="btn btn-xs" id="btn-cad-view-front" data-on-click="setCadCameraView" data-click-args='["front"]' style="height: 26px; font-weight: 600;" title="Front View (Y-)">FRONT</button>
+        <button class="btn btn-xs" id="btn-cad-view-right" data-on-click="setCadCameraView" data-click-args='["right"]' style="height: 26px; font-weight: 600;" title="Right View (X+)">RIGHT</button>
       </div>
 
       <div class="cad-toolbar-divider"></div>
@@ -5370,7 +5370,7 @@
       <!-- Shading Mode -->
       <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 4px;">
         <span style="font-size: 10.5px; color: var(--text-muted);">Shading:</span>
-        <select id="cad-shading-select" class="pane-quick-filter" onchange="setCadShadingMode(this.value)" style="height: 26px; font-size: 11px;">
+        <select id="cad-shading-select" class="pane-quick-filter" data-on-change="setCadShadingMode" data-change-args='[{"$": "value"}]' style="height: 26px; font-size: 11px;">
           <option value="solid" selected>Solid (Studio)</option>
           <option value="smooth">Smooth</option>
           <option value="wireframe">Wireframe</option>
@@ -5382,7 +5382,7 @@
       <!-- Color Palette / Material -->
       <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 4px;">
         <span style="font-size: 10.5px; color: var(--text-muted);">Material:</span>
-        <select id="cad-material-select" class="pane-quick-filter" onchange="setCadMaterialTheme(this.value)" style="height: 26px; font-size: 11px;">
+        <select id="cad-material-select" class="pane-quick-filter" data-on-change="setCadMaterialTheme" data-change-args='[{"$": "value"}]' style="height: 26px; font-size: 11px;">
           <option value="amber-charcoal" selected>Amber Charcoal</option>
           <option value="amber-gold">Amber Gold</option>
           <option value="steel">Polished Steel</option>
@@ -5396,14 +5396,14 @@
 
       <!-- Slicing / Cross-Section Plane -->
       <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-xs" id="btn-cad-slice-toggle" onclick="toggleCadSlicer()" style="height: 26px;" title="Cross-Section Slicing Plane"><i data-lucide="scissors" style="width: 11px; height: 11px;"></i> Slice</button>
+        <button class="btn btn-xs" id="btn-cad-slice-toggle" data-on-click="toggleCadSlicer" style="height: 26px;" title="Cross-Section Slicing Plane"><i data-lucide="scissors" style="width: 11px; height: 11px;"></i> Slice</button>
         <div id="cad-slice-controls" style="display: none; align-items: center; gap: 4px;">
-          <select id="cad-slice-axis" class="pane-quick-filter" onchange="setCadSliceAxis(this.value)" style="height: 24px; font-size: 10.5px;">
+          <select id="cad-slice-axis" class="pane-quick-filter" data-on-change="setCadSliceAxis" data-change-args='[{"$": "value"}]' style="height: 24px; font-size: 10.5px;">
             <option value="z" selected>Z (Height)</option>
             <option value="y">Y (Depth)</option>
             <option value="x">X (Width)</option>
           </select>
-          <input type="range" id="cad-slice-slider" min="0" max="100" value="100" oninput="updateCadSlicePlane(this.value)" style="width: 80px; height: 16px; accent-color: var(--accent); cursor: pointer;">
+          <input type="range" id="cad-slice-slider" min="0" max="100" value="100" data-on-input="updateCadSlicePlane" data-input-args='[{"$": "value"}]' style="width: 80px; height: 16px; accent-color: var(--accent); cursor: pointer;">
         </div>
       </div>
 
@@ -5411,12 +5411,12 @@
 
       <!-- Toggles & Action Tools -->
       <div class="cad-toolbar-group" style="display: flex; align-items: center; gap: 3px; margin-left: auto;">
-        <button class="btn btn-icon btn-xs active" id="btn-cad-grid" onclick="toggleCadGrid()" title="Toggle Build Plate Grid" style="width: 26px; height: 26px;"><i data-lucide="grid" style="width: 12px; height: 12px;"></i></button>
-        <button class="btn btn-icon btn-xs active" id="btn-cad-axes" onclick="toggleCadAxes()" title="Toggle Coordinate Axes" style="width: 26px; height: 26px;"><i data-lucide="compass" style="width: 12px; height: 12px;"></i></button>
-        <button class="btn btn-icon btn-xs" id="btn-cad-edges" onclick="toggleCadEdges()" title="Toggle Geometric Edges Overlay" style="width: 26px; height: 26px;"><i data-lucide="box-select" style="width: 12px; height: 12px;"></i></button>
-        <button class="btn btn-icon btn-xs" id="btn-cad-turntable" onclick="toggleCadTurntable()" title="Auto-Rotate / Turntable" style="width: 26px; height: 26px;"><i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i></button>
-        <button class="btn btn-icon btn-xs" id="btn-cad-recenter" onclick="resetCadCamera()" title="Fit Model to View (F)" style="width: 26px; height: 26px;"><i data-lucide="focus" style="width: 12px; height: 12px;"></i></button>
-        <button class="btn btn-icon btn-xs" id="btn-cad-snapshot" onclick="takeCadSnapshot()" title="Export PNG Snapshot" style="width: 26px; height: 26px;"><i data-lucide="camera" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs active" id="btn-cad-grid" data-on-click="toggleCadGrid" title="Toggle Build Plate Grid" style="width: 26px; height: 26px;"><i data-lucide="grid" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs active" id="btn-cad-axes" data-on-click="toggleCadAxes" title="Toggle Coordinate Axes" style="width: 26px; height: 26px;"><i data-lucide="compass" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-edges" data-on-click="toggleCadEdges" title="Toggle Geometric Edges Overlay" style="width: 26px; height: 26px;"><i data-lucide="box-select" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-turntable" data-on-click="toggleCadTurntable" title="Auto-Rotate / Turntable" style="width: 26px; height: 26px;"><i data-lucide="rotate-cw" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-recenter" data-on-click="resetCadCamera" title="Fit Model to View (F)" style="width: 26px; height: 26px;"><i data-lucide="focus" style="width: 12px; height: 12px;"></i></button>
+        <button class="btn btn-icon btn-xs" id="btn-cad-snapshot" data-on-click="takeCadSnapshot" title="Export PNG Snapshot" style="width: 26px; height: 26px;"><i data-lucide="camera" style="width: 12px; height: 12px;"></i></button>
       </div>
     </div>
 
@@ -5659,14 +5659,14 @@
           <img src="assets/sync.webp" alt="Backup" style="width: 18px; height: 18px; object-fit: contain;">
           <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 14px; color: var(--text-main);">Backup & Sync</span>
         </div>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('sync-modal')" title="Close Backup & Sync (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["sync-modal"]' title="Close Backup & Sync (Esc)"><i data-lucide="x"></i></button>
       </div>
 
       <!-- Navigation Tabs Bar Under Header -->
       <div class="settings-tabs sync-tabs">
-        <button class="settings-tab-btn sync-tab-btn active" id="sync-tab-btn-diff" onclick="switchSyncTab('diff')"><i data-lucide="split"></i> Live Diff</button>
-        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-profiles" onclick="switchSyncTab('profiles')"><i data-lucide="layers"></i> Backup Jobs</button>
-        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-history" onclick="switchSyncTab('history')"><i data-lucide="history"></i> Run Logs</button>
+        <button class="settings-tab-btn sync-tab-btn active" id="sync-tab-btn-diff" data-on-click="switchSyncTab" data-click-args='["diff"]'><i data-lucide="split"></i> Live Diff</button>
+        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-profiles" data-on-click="switchSyncTab" data-click-args='["profiles"]'><i data-lucide="layers"></i> Backup Jobs</button>
+        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-history" data-on-click="switchSyncTab" data-click-args='["history"]'><i data-lucide="history"></i> Run Logs</button>
       </div>
 
       <!-- TAB 1: Live Diff & Replication Studio -->
@@ -5677,15 +5677,15 @@
             <div class="sync-path-input-group" style="flex: 1; display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;">
               <span class="sync-pane-badge" style="font-size: 10px; font-weight: 700; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px;">Source (Left)</span>
               <input type="text" id="sync-src-input" class="pane-quick-filter" style="flex: 1; border: none; background: transparent; outline: none; font-size: 12px; font-family: var(--font-mono);" placeholder="/path/to/source">
-              <button class="btn btn-xs" onclick="useActivePanePath('sync-src-input')" title="Use Active Pane Path" style="font-size: 10px; padding: 2px 6px;">Current</button>
-              <button class="btn btn-xs btn-outline" onclick="openSyncFolderPicker('sync-src-input')" title="Browse Source Folder" style="font-size: 10px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
+              <button class="btn btn-xs" data-on-click="useActivePanePath" data-click-args='["sync-src-input"]' title="Use Active Pane Path" style="font-size: 10px; padding: 2px 6px;">Current</button>
+              <button class="btn btn-xs btn-outline" data-on-click="openSyncFolderPicker" data-click-args='["sync-src-input"]' title="Browse Source Folder" style="font-size: 10px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
             </div>
-            <button class="btn btn-icon" onclick="swapSyncPaths()" title="Swap Left & Right Directories" style="padding: 6px;"><i data-lucide="arrow-left-right"></i></button>
+            <button class="btn btn-icon" data-on-click="swapSyncPaths" title="Swap Left & Right Directories" style="padding: 6px;"><i data-lucide="arrow-left-right"></i></button>
             <div class="sync-path-input-group" style="flex: 1; display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;">
               <span class="sync-pane-badge" style="font-size: 10px; font-weight: 700; background: rgba(168, 85, 247, 0.2); color: #c084fc; padding: 2px 6px; border-radius: 4px;">Destination (Right)</span>
               <input type="text" id="sync-dest-input" class="pane-quick-filter" style="flex: 1; border: none; background: transparent; outline: none; font-size: 12px; font-family: var(--font-mono);" placeholder="/path/to/destination">
-              <button class="btn btn-xs" onclick="useInactivePanePath('sync-dest-input')" title="Use Inactive Pane Path" style="font-size: 10px; padding: 2px 6px;">Target</button>
-              <button class="btn btn-xs btn-outline" onclick="openSyncFolderPicker('sync-dest-input')" title="Browse Destination Folder" style="font-size: 10px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
+              <button class="btn btn-xs" data-on-click="useInactivePanePath" data-click-args='["sync-dest-input"]' title="Use Inactive Pane Path" style="font-size: 10px; padding: 2px 6px;">Target</button>
+              <button class="btn btn-xs btn-outline" data-on-click="openSyncFolderPicker" data-click-args='["sync-dest-input"]' title="Browse Destination Folder" style="font-size: 10px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
             </div>
           </div>
 
@@ -5693,12 +5693,12 @@
           <div class="sync-template-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
             <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span style="font-weight: 700; font-size: 11px; color: var(--accent); display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="sparkles" style="width: 13px; height: 13px;"></i> Presets:</span>
-              <button class="btn sync-template-btn" onclick="applySyncTemplate('nas_mirror')" title="NAS Mirror: One-way exact replica with checksum verification, deleting orphan files on destination">🪞 NAS Mirror</button>
-              <button class="btn sync-template-btn" onclick="applySyncTemplate('code_sync')" title="Codebase Sync: Two-way developer sync excluding node_modules, .git, target, .cache, and dist">💻 Codebase Sync</button>
-              <button class="btn sync-template-btn" onclick="applySyncTemplate('snapshot_archive')" title="Snapshot Vault: Versioned backup keeping 30-day historical file snapshots in _archive/">📦 Snapshot Vault</button>
-              <button class="btn sync-template-btn" onclick="applySyncTemplate('media_vault')" title="Media Backup: Additive one-way backup that never deletes pictures/videos from destination">📸 Media Backup</button>
+              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["nas_mirror"]' title="NAS Mirror: One-way exact replica with checksum verification, deleting orphan files on destination">🪞 NAS Mirror</button>
+              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["code_sync"]' title="Codebase Sync: Two-way developer sync excluding node_modules, .git, target, .cache, and dist">💻 Codebase Sync</button>
+              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["snapshot_archive"]' title="Snapshot Vault: Versioned backup keeping 30-day historical file snapshots in _archive/">📦 Snapshot Vault</button>
+              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["media_vault"]' title="Media Backup: Additive one-way backup that never deletes pictures/videos from destination">📸 Media Backup</button>
             </div>
-            <button class="btn btn-xs" id="btn-toggle-sync-exclusions" onclick="toggleSyncExclusionsPanel()" title="Toggle Visual File & Folder Exclusion Filters" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
+            <button class="btn btn-xs" id="btn-toggle-sync-exclusions" data-on-click="toggleSyncExclusionsPanel" title="Toggle Visual File & Folder Exclusion Filters" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
               <i data-lucide="filter" style="width: 12px; height: 12px;"></i>
               <span>Exclusions (<span id="sync-exclusions-badge">0</span>)</span>
             </button>
@@ -5715,23 +5715,23 @@
             </div>
             <!-- Preset Exclusion Chips -->
             <div class="sync-exclusion-preset-chips" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px;">
-              <span class="sync-chip" data-pattern="node_modules" onclick="toggleExclusionChip(this)">node_modules</span>
-              <span class="sync-chip" data-pattern=".git" onclick="toggleExclusionChip(this)">.git</span>
-              <span class="sync-chip" data-pattern="target" onclick="toggleExclusionChip(this)">target/</span>
-              <span class="sync-chip" data-pattern=".cache" onclick="toggleExclusionChip(this)">.cache/</span>
-              <span class="sync-chip" data-pattern="tmp" onclick="toggleExclusionChip(this)">tmp/</span>
-              <span class="sync-chip" data-pattern="*.tmp" onclick="toggleExclusionChip(this)">*.tmp</span>
-              <span class="sync-chip" data-pattern=".DS_Store" onclick="toggleExclusionChip(this)">.DS_Store</span>
-              <span class="sync-chip" data-pattern="Thumbs.db" onclick="toggleExclusionChip(this)">Thumbs.db</span>
-              <span class="sync-chip" data-pattern="*.log" onclick="toggleExclusionChip(this)">*.log</span>
-              <span class="sync-chip" data-pattern="dist" onclick="toggleExclusionChip(this)">dist/</span>
-              <span class="sync-chip" data-pattern="*.bak" onclick="toggleExclusionChip(this)">*.bak</span>
+              <span class="sync-chip" data-pattern="node_modules" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>node_modules</span>
+              <span class="sync-chip" data-pattern=".git" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>.git</span>
+              <span class="sync-chip" data-pattern="target" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>target/</span>
+              <span class="sync-chip" data-pattern=".cache" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>.cache/</span>
+              <span class="sync-chip" data-pattern="tmp" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>tmp/</span>
+              <span class="sync-chip" data-pattern="*.tmp" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>*.tmp</span>
+              <span class="sync-chip" data-pattern=".DS_Store" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>.DS_Store</span>
+              <span class="sync-chip" data-pattern="Thumbs.db" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>Thumbs.db</span>
+              <span class="sync-chip" data-pattern="*.log" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>*.log</span>
+              <span class="sync-chip" data-pattern="dist" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>dist/</span>
+              <span class="sync-chip" data-pattern="*.bak" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>*.bak</span>
             </div>
             <!-- Custom Pattern Input and Active Tags -->
             <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-              <input type="text" id="sync-custom-exclusion-input" class="pane-quick-filter" style="flex: 1; padding: 4px 8px; font-size: 11px; font-family: var(--font-mono);" placeholder="Add custom pattern (e.g. *.iso, build/, secret.key) and press Enter" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomExclusionPattern();}">
-              <button class="btn btn-xs" onclick="addCustomExclusionPattern()"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Add</button>
-              <button class="btn btn-xs btn-outline" onclick="clearAllSyncExclusions()"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clear All</button>
+              <input type="text" id="sync-custom-exclusion-input" class="pane-quick-filter" style="flex: 1; padding: 4px 8px; font-size: 11px; font-family: var(--font-mono);" placeholder="Add custom pattern (e.g. *.iso, build/, secret.key) and press Enter" data-keydown-prevent data-keydown-key="Enter" data-on-keydown="addCustomExclusionPattern">
+              <button class="btn btn-xs" data-on-click="addCustomExclusionPattern"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Add</button>
+              <button class="btn btn-xs btn-outline" data-on-click="clearAllSyncExclusions"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clear All</button>
             </div>
             <div id="sync-active-custom-tags" style="display: flex; flex-wrap: wrap; gap: 4px;"></div>
           </div>
@@ -5739,28 +5739,28 @@
           <!-- 4 Core Replication Mode Cards -->
           <div class="sync-mode-cards" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
             <label class="sync-profile-card active" id="card-mode-sync">
-              <input type="radio" name="sync-mode" value="synchronize" checked onchange="handleSyncModeChange()">
+              <input type="radio" name="sync-mode" value="synchronize" checked data-on-change="handleSyncModeChange">
               <div class="sync-card-body">
                 <div class="sync-card-title">🔄 Two-Way Sync</div>
                 <div class="sync-card-desc">Reconciles additions, edits, and deletions bidirectionally between both folders.</div>
               </div>
             </label>
             <label class="sync-profile-card" id="card-mode-echo">
-              <input type="radio" name="sync-mode" value="echo" onchange="handleSyncModeChange()">
+              <input type="radio" name="sync-mode" value="echo" data-on-change="handleSyncModeChange">
               <div class="sync-card-body">
                 <div class="sync-card-title">🪞 Mirror / Echo</div>
                 <div class="sync-card-desc">One-way exact replica. Replaces changed files and deletes orphan files on destination.</div>
               </div>
             </label>
             <label class="sync-profile-card" id="card-mode-contribute">
-              <input type="radio" name="sync-mode" value="contribute" onchange="handleSyncModeChange()">
+              <input type="radio" name="sync-mode" value="contribute" data-on-change="handleSyncModeChange">
               <div class="sync-card-body">
                 <div class="sync-card-title">➕ Contribute</div>
                 <div class="sync-card-desc">One-way additive backup. Copies new and modified files, never deleting destination files.</div>
               </div>
             </label>
             <label class="sync-profile-card" id="card-mode-subscribe">
-              <input type="radio" name="sync-mode" value="subscribe" onchange="handleSyncModeChange()">
+              <input type="radio" name="sync-mode" value="subscribe" data-on-change="handleSyncModeChange">
               <div class="sync-card-body">
                 <div class="sync-card-title">📦 Snapshot Archive</div>
                 <div class="sync-card-desc">Historical versioning. Archives modified and deleted files into timestamped snapshot vaults.</div>
@@ -5785,12 +5785,12 @@
               </div>
             </div>
             <div class="sync-filter-toggles" style="display: flex; gap: 4px;">
-              <button class="btn btn-xs sync-filter-btn active" id="btn-sync-filter-all" onclick="filterSyncGrid('all')">All (<span id="sync-cnt-all">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-left" onclick="filterSyncGrid('left')">➔ Right (<span id="sync-cnt-left">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-right" onclick="filterSyncGrid('right')">⬅ Left (<span id="sync-cnt-right">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-mod" onclick="filterSyncGrid('modified')">⚡ Diff (<span id="sync-cnt-mod">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-archive" onclick="filterSyncGrid('archive')">📦 Archive (<span id="sync-cnt-archive">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-eq" onclick="filterSyncGrid('identical')">✔ Equal (<span id="sync-cnt-eq">0</span>)</button>
+              <button class="btn btn-xs sync-filter-btn active" id="btn-sync-filter-all" data-on-click="filterSyncGrid" data-click-args='["all"]'>All (<span id="sync-cnt-all">0</span>)</button>
+              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-left" data-on-click="filterSyncGrid" data-click-args='["left"]'>➔ Right (<span id="sync-cnt-left">0</span>)</button>
+              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-right" data-on-click="filterSyncGrid" data-click-args='["right"]'>⬅ Left (<span id="sync-cnt-right">0</span>)</button>
+              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-mod" data-on-click="filterSyncGrid" data-click-args='["modified"]'>⚡ Diff (<span id="sync-cnt-mod">0</span>)</button>
+              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-archive" data-on-click="filterSyncGrid" data-click-args='["archive"]'>📦 Archive (<span id="sync-cnt-archive">0</span>)</button>
+              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-eq" data-on-click="filterSyncGrid" data-click-args='["identical"]'>✔ Equal (<span id="sync-cnt-eq">0</span>)</button>
             </div>
           </div>
         </div>
@@ -5819,10 +5819,10 @@
             Ready to compare directories.
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="btn btn-sm" onclick="openSaveCurrentSyncAsProfile()"><i data-lucide="bookmark"></i> Save Job</button>
-            <button class="btn btn-sm" onclick="analyzeSync(false)"><i data-lucide="search"></i> Compare & Analyze</button>
-            <button class="btn btn-sm btn-outline" onclick="executeDryRun()" title="Simulate file operations without making any changes"><i data-lucide="play-circle"></i> Dry Run (Simulate)</button>
-            <button class="btn btn-sm btn-accent" id="btn-run-sync" onclick="executeSync(false)"><i data-lucide="refresh-cw"></i> Synchronize Now</button>
+            <button class="btn btn-sm" data-on-click="openSaveCurrentSyncAsProfile"><i data-lucide="bookmark"></i> Save Job</button>
+            <button class="btn btn-sm" data-on-click="analyzeSync" data-click-args='[false]'><i data-lucide="search"></i> Compare & Analyze</button>
+            <button class="btn btn-sm btn-outline" data-on-click="executeDryRun" title="Simulate file operations without making any changes"><i data-lucide="play-circle"></i> Dry Run (Simulate)</button>
+            <button class="btn btn-sm btn-accent" id="btn-run-sync" data-on-click="executeSync" data-click-args='[false]'><i data-lucide="refresh-cw"></i> Synchronize Now</button>
           </div>
         </div>
       </div>
@@ -5835,8 +5835,8 @@
             <div style="font-size: 11px; color: var(--text-dim);">Define continuous background replication profiles with cron, intervals, real-time watchers & webhooks.</div>
           </div>
           <div style="display: flex; gap: 8px;">
-            <button class="btn btn-sm" onclick="loadBackupProfiles()"><i data-lucide="rotate-cw"></i> Refresh</button>
-            <button class="btn btn-sm btn-accent" onclick="openCreateBackupProfileModal()"><i data-lucide="plus"></i> New Backup Job</button>
+            <button class="btn btn-sm" data-on-click="loadBackupProfiles"><i data-lucide="rotate-cw"></i> Refresh</button>
+            <button class="btn btn-sm btn-accent" data-on-click="openCreateBackupProfileModal"><i data-lucide="plus"></i> New Backup Job</button>
           </div>
         </div>
 
@@ -5868,7 +5868,7 @@
             <span style="font-weight: 700; font-size: 14px;">Backup & Synchronization Run History</span>
             <div style="font-size: 11px; color: var(--text-dim);">Audit log of all manual and scheduled replication executions.</div>
           </div>
-          <button class="btn btn-sm" onclick="loadBackupHistory()"><i data-lucide="rotate-cw"></i> Refresh</button>
+          <button class="btn btn-sm" data-on-click="loadBackupHistory"><i data-lucide="rotate-cw"></i> Refresh</button>
         </div>
 
         <div style="flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main);">
@@ -5899,7 +5899,7 @@
     <div class="modal-box" style="max-width: 520px; width: 90vw;">
       <div class="modal-header" style="padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <span style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px;"><img src="assets/sync.webp" alt="Backup" style="width: 16px; height: 16px; object-fit: contain;"> <span id="backup-profile-modal-title">Create Backup Profile</span></span>
-        <button class="btn btn-icon" onclick="closeModal('backup-profile-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["backup-profile-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
         <input type="hidden" id="bp-id" value="">
@@ -5909,7 +5909,7 @@
             <input type="text" id="bp-name" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" placeholder="e.g. Daily Project Mirror">
           </div>
           <div>
-            <select id="bp-template-select" class="pane-quick-filter" style="font-size: 11px; padding: 6px 8px; font-weight: 600; background: var(--bg-panel);" onchange="applyJobModalTemplate(this.value)">
+            <select id="bp-template-select" class="pane-quick-filter" style="font-size: 11px; padding: 6px 8px; font-weight: 600; background: var(--bg-panel);" data-on-change="applyJobModalTemplate" data-change-args='[{"$": "value"}]'>
               <option value="">⚡ Load Template...</option>
               <option value="nas_mirror">🪞 NAS Mirror</option>
               <option value="code_sync">💻 Codebase Sync</option>
@@ -5933,14 +5933,14 @@
           <label style="font-weight: 600; display: block; margin-bottom: 4px;">Exclusions & Ignored Patterns (Comma-separated)</label>
           <input type="text" id="bp-exclusions" class="pane-quick-filter" style="width: 100%; padding: 6px 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="e.g. node_modules, .git, target, *.tmp, .DS_Store">
           <div class="sync-exclusion-preset-chips" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('node_modules')">+ node_modules</span>
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('.git')">+ .git</span>
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('target')">+ target/</span>
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('.cache')">+ .cache/</span>
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('*.tmp')">+ *.tmp</span>
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('.DS_Store')">+ .DS_Store</span>
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('Thumbs.db')">+ Thumbs.db</span>
-            <span class="sync-chip sync-chip-sm" onclick="appendBpExclusion('*.log')">+ *.log</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["node_modules"]'>+ node_modules</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='[".git"]'>+ .git</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["target"]'>+ target/</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='[".cache"]'>+ .cache/</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["*.tmp"]'>+ *.tmp</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='[".DS_Store"]'>+ .DS_Store</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["Thumbs.db"]'>+ Thumbs.db</span>
+            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["*.log"]'>+ *.log</span>
           </div>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
@@ -5955,7 +5955,7 @@
           </div>
           <div>
             <label style="font-weight: 600; display: block; margin-bottom: 4px;">Automation Trigger</label>
-            <select id="bp-schedule-type" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" onchange="handleScheduleTypeChange()">
+            <select id="bp-schedule-type" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" data-on-change="handleScheduleTypeChange">
               <option value="manual">Manual Only</option>
               <option value="interval">⏰ Periodic Interval</option>
               <option value="daily">📅 Daily at Specific Time</option>
@@ -5990,8 +5990,8 @@
         </div>
       </div>
       <div class="modal-footer" style="padding: 10px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" onclick="closeModal('backup-profile-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="saveBackupProfileForm()"><i data-lucide="check"></i> Save Backup Job</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["backup-profile-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="saveBackupProfileForm"><i data-lucide="check"></i> Save Backup Job</button>
       </div>
     </div>
   </div>
@@ -6001,7 +6001,7 @@
     <div class="modal-box" style="max-width: 580px; width: 92vw; max-height: 80vh; display: flex; flex-direction: column;">
       <div class="modal-header" style="padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <span style="font-weight: 700; font-size: 13px; color: var(--text-main); display: inline-flex; align-items: center; gap: 6px;"><i data-lucide="folder" style="width: 14px; height: 14px; color: var(--accent);"></i> Select Folder</span>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('sync-folder-picker-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["sync-folder-picker-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto;">
         <!-- Quick Panes & Destinations -->
@@ -6010,9 +6010,9 @@
         <!-- Current Path Navigation Bar -->
         <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 6px;">Browse Folders</div>
         <div style="display: flex; gap: 6px; align-items: center;">
-          <input type="text" id="sync-picker-path-input" class="pane-quick-filter" style="flex: 1; height: 28px; padding: 0 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="/" onkeydown="if(event.key==='Enter'){ navigateSyncPickerPath(this.value); }">
-          <button class="btn btn-sm btn-outline" style="height: 28px; padding: 0 8px;" onclick="navigateSyncPickerUp()"><i data-lucide="arrow-up"></i> Up</button>
-          <button class="btn btn-sm" style="height: 28px; padding: 0 8px;" onclick="navigateSyncPickerPath(document.getElementById('sync-picker-path-input').value)">Go</button>
+          <input type="text" id="sync-picker-path-input" class="pane-quick-filter" style="flex: 1; height: 28px; padding: 0 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="/" data-keydown-key="Enter" data-on-keydown="navigateSyncPickerPath" data-keydown-args='[{"$": "value"}]'>
+          <button class="btn btn-sm btn-outline" style="height: 28px; padding: 0 8px;" data-on-click="navigateSyncPickerUp"><i data-lucide="arrow-up"></i> Up</button>
+          <button class="btn btn-sm" style="height: 28px; padding: 0 8px;" data-on-click="navigateSyncPickerFromInput">Go</button>
         </div>
         <!-- Subfolders List -->
         <div id="sync-picker-subfolders" style="max-height: 240px; min-height: 120px; overflow-y: auto; border: 1px solid var(--border); border-radius: 4px; background: var(--bg-dark); padding: 4px;"></div>
@@ -6020,8 +6020,8 @@
       <div class="modal-footer" style="padding: 10px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <span id="sync-picker-selected-label" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 320px;"></span>
         <div style="display: flex; gap: 6px;">
-          <button class="btn btn-sm" onclick="closeModal('sync-folder-picker-modal')">Cancel</button>
-          <button class="btn btn-sm btn-accent" onclick="confirmSyncFolderSelection()">Select This Folder</button>
+          <button class="btn btn-sm" data-on-click="closeModal" data-click-args='["sync-folder-picker-modal"]'>Cancel</button>
+          <button class="btn btn-sm btn-accent" data-on-click="confirmSyncFolderSelection">Select This Folder</button>
         </div>
       </div>
     </div>
@@ -6525,7 +6525,7 @@
           <span class="chewtoy-brand-text" style="color: var(--accent); font-weight: 700;">Syncthing Real-Time Sync Dashboard</span>
           <span id="syncthing-conn-badge" class="badge" style="background: rgba(16, 185, 129, 0.15); color: #34d399; font-size: 10px; padding: 2px 6px; border-radius: 4px;">Connecting...</span>
         </div>
-        <button class="btn" onclick="closeModal('syncthing-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["syncthing-modal"]'><i data-lucide="x"></i></button>
       </div>
 
       <div class="modal-body" style="padding: 14px; display: flex; flex-direction: column; gap: 12px; overflow-y: auto;">
@@ -6553,7 +6553,7 @@
         <div>
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <span style="font-weight: 600; font-size: 12px; color: var(--accent); display: flex; align-items: center; gap: 6px;"><span class="file-icon-custom-glyph icon-sm" style="color: var(--accent);"></span> Synchronized Folders</span>
-            <button class="btn btn-sm" onclick="triggerSyncthingScan()"><i data-lucide="rotate-cw"></i> Rescan All</button>
+            <button class="btn btn-sm" data-on-click="triggerSyncthingScan"><i data-lucide="rotate-cw"></i> Rescan All</button>
           </div>
           <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px;">
             <table class="file-table" style="margin: 0;">
@@ -6602,8 +6602,8 @@
       </div>
 
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('syncthing-modal')">Close</button>
-        <button class="btn btn-accent" onclick="loadSyncthingDashboard()">🔄 Refresh Status</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["syncthing-modal"]'>Close</button>
+        <button class="btn btn-accent" data-on-click="loadSyncthingDashboard">🔄 Refresh Status</button>
       </div>
     </div>
   </div>
@@ -7618,7 +7618,7 @@
   </div>
 
   <!-- ConvertX Minimized Task Pill -->
-  <div class="convertx-pill" id="convertx-pill" style="display: none;" onclick="restoreConverterModal()" title="Click to restore ConvertX">
+  <div class="convertx-pill" id="convertx-pill" style="display: none;" data-on-click="restoreConverterModal" title="Click to restore ConvertX">
     <img src="assets/convertx.webp" alt="ConvertX" style="width: 14px; height: 14px; object-fit: contain;">
     <i data-lucide="loader" class="convertx-pill-spin" id="convertx-pill-icon" style="width: 13px; height: 13px;"></i>
     <span class="convertx-pill-title" id="convertx-pill-title">Converting file...</span>
@@ -7655,7 +7655,7 @@
   </div>
 
   <!-- 3D CAD Studio Minimized Task Pill -->
-  <div class="cad-pill" id="cad-pill" style="display: none;" onclick="restoreFloatingCadStudio()" title="Click to restore 3D CAD Studio">
+  <div class="cad-pill" id="cad-pill" style="display: none;" data-on-click="restoreFloatingCadStudio" title="Click to restore 3D CAD Studio">
     <i data-lucide="box" style="width: 14px; height: 14px; color: var(--accent);"></i>
     <span class="cad-pill-title" id="cad-pill-title">3D CAD Studio</span>
   </div>
