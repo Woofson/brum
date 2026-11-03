@@ -167,7 +167,7 @@
         <span class="app-logo-text" style="font-weight: 700;">Brum</span>
       </div>
       <div class="fleet-switcher-wrapper" id="fleet-switcher-wrapper">
-        <span class="header-hostname-badge style-text color-slate" id="header-hostname-badge" data-on-click="toggleFleetSwitcherDropdown" data-click-args='["$event"]' title="Fleet Control (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
+        <span class="header-hostname-badge style-text color-slate" id="header-hostname-badge" data-on-click="toggleFleetSwitcherDropdown" data-click-args='[{"$":"event"}]' title="Fleet Control (Click to switch server / manage fleet)" style="display: none; cursor: pointer;">
           <i data-lucide="server" id="header-hostname-icon" style="display: none;"></i>
           <span id="header-hostname-text">@localhost</span>
           <i data-lucide="chevron-down" class="header-hostname-chevron" style="width: 10px; height: 10px; margin-left: 2px; opacity: 0.6;"></i>
@@ -197,7 +197,7 @@
 
       <!-- 2. Consolidated Layout Switcher (Desktop Only) -->
       <div class="layout-dropdown-wrapper desktop-only" id="layout-dropdown-wrapper">
-        <button class="btn btn-icon" id="btn-layout-menu" data-on-click="toggleLayoutMenu" data-click-args='["$event"]' title="Panel Layouts">
+        <button class="btn btn-icon" id="btn-layout-menu" data-on-click="toggleLayoutMenu" data-click-args='[{"$":"event"}]' title="Panel Layouts">
           <i data-lucide="columns-2" id="header-layout-icon"></i>
         </button>
         <div class="layout-dropdown-menu" id="layout-dropdown-menu">
@@ -243,7 +243,7 @@
 
       <!-- 4. Application Tools Suite & Launchpad -->
       <div class="tools-dropdown-wrapper">
-        <button class="btn btn-icon" id="btn-tools-menu" data-on-click="toggleToolsMenu" data-click-args='["$event"]' title="ChewToys & Tools (Terminal, Edit, Calculator, Backup, Search)">
+        <button class="btn btn-icon" id="btn-tools-menu" data-on-click="toggleToolsMenu" data-click-args='[{"$":"event"}]' title="ChewToys & Tools (Terminal, Edit, Calculator, Backup, Search)">
           <img src="assets/amber-frameless-apps.webp" alt="ChewToys & Tools" style="width: 18px; height: 18px; object-fit: contain; vertical-align: middle;">
         </button>
         <div class="tools-dropdown-menu" id="tools-dropdown-menu">
@@ -277,7 +277,7 @@
 
       <!-- 6. User Profile & Admin Menu (Compact Avatar on Mobile, Full on Desktop) -->
       <div class="profile-dropdown-wrapper">
-        <button class="btn profile-btn" id="btn-user-profile" data-on-click="toggleProfileMenu" data-click-args='["$event"]' title="User Profile">
+        <button class="btn profile-btn" id="btn-user-profile" data-on-click="toggleProfileMenu" data-click-args='[{"$":"event"}]' title="User Profile">
           <div class="profile-avatar-thumb" id="header-avatar-thumb">👤</div>
           <span class="desktop-only" id="header-username-label">User</span>
           <i data-lucide="chevron-down" class="desktop-only" style="width: 12px; margin-left: 2px;"></i>

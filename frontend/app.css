@@ -4384,6 +4384,12 @@ html.fkeys-disabled .bottom-fkey-bar,
   align-items: center;
 }
 
+/* Context menu header: quick buttons, color dot and tag icon hover */
+.ctx-quick-btn { color: var(--text-muted); }
+.ctx-quick-btn:hover { color: var(--accent); }
+.ctx-color-btn:hover { transform: scale(1.25); }
+.ctx-tag-btn:hover { opacity: 1 !important; transform: scale(1.2); }
+
 .context-submenu {
   display: none;
   position: absolute;
