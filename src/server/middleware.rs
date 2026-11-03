@@ -242,6 +242,27 @@ pub async fn cross_site_guard(
     ))
 }
 
+/// Whether a browser on one of Brum's own pages sent this request. Used only to choose a log level:
+/// browsers mark every request with `Sec-Fetch-Site`; older ones send `Origin` on fetches.
+fn is_from_brum_page(headers: &HeaderMap) -> bool {
+    match headers.get("sec-fetch-site").and_then(|v| v.to_str().ok()) {
+        Some(site) => site == "same-origin",
+        None => headers.get(header::ORIGIN)
+            .and_then(|v| v.to_str().ok())
+            .is_some_and(|o| origin_matches_host(o, headers)),
+    }
+}
+
+/// Token rejections that happen in normal use: the login or API token simply expired,
+/// or the session was ended (logout elsewhere, password change)
+fn is_routine_token_rejection(err: &(dyn std::error::Error + Send + Sync + 'static)) -> bool {
+    if let Some(jwt) = err.downcast_ref::<jsonwebtoken::errors::Error>() {
+        return matches!(jwt.kind(), jsonwebtoken::errors::ErrorKind::ExpiredSignature);
+    }
+    let msg = err.to_string();
+    msg == "API token expired" || msg.starts_with("Session has ended")
+}
+
 /// Whether the browser says this request comes from Brum's own pages (or from an origin the admin trusts)
 pub fn is_same_origin_request(headers: &HeaderMap, state: &AppState) -> bool {
     let origin = headers.get(header::ORIGIN).and_then(|v| v.to_str().ok());
@@ -563,13 +584,24 @@ pub async fn auth_middleware(
             );
             Ok(next.run(req).await)
         } else {
-            tracing::warn!(
-                client_ip = %client_ip,
-                path = %path,
-                origin = %origin_str,
-                error = %err,
-                "Unauthorized request: invalid token"
-            );
+            // An expired or ended session is routine; a forged, foreign or revoked token is not
+            if is_routine_token_rejection(err.as_ref()) {
+                tracing::info!(
+                    client_ip = %client_ip,
+                    path = %path,
+                    origin = %origin_str,
+                    reason = %err,
+                    "Request with an expired session"
+                );
+            } else {
+                tracing::warn!(
+                    client_ip = %client_ip,
+                    path = %path,
+                    origin = %origin_str,
+                    error = %err,
+                    "Unauthorized request: invalid token"
+                );
+            }
             Err((
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({
@@ -588,12 +620,23 @@ pub async fn auth_middleware(
             );
             Ok(next.run(req).await)
         } else {
-            tracing::warn!(
-                client_ip = %client_ip,
-                path = %path,
-                origin = %origin_str,
-                "Unauthorized request: authentication credentials missing"
-            );
+            // Brum's own page asking while nobody is logged in (session check on refresh) is routine;
+            // the same request from anywhere else (bots, scripts, probes) is worth a look
+            if is_from_brum_page(req.headers()) {
+                tracing::info!(
+                    client_ip = %client_ip,
+                    path = %path,
+                    origin = %origin_str,
+                    "Request from Brum's page while not logged in"
+                );
+            } else {
+                tracing::warn!(
+                    client_ip = %client_ip,
+                    path = %path,
+                    origin = %origin_str,
+                    "Unauthorized request: authentication credentials missing"
+                );
+            }
             Err((
                 StatusCode::UNAUTHORIZED,
                 Json(serde_json::json!({
@@ -1856,5 +1899,50 @@ mod tests {
         assert!(!html.contains(r#"onclick="openFilePreview"#));
         assert!(!html.contains(r#"alt="${f.name}""#));
         assert!(html.contains("replace(/'/g, '&#39;')"));
+    }
+
+    fn headers_with(pairs: &[(&'static str, &str)]) -> HeaderMap {
+        let mut h = HeaderMap::new();
+        for (k, v) in pairs {
+            h.insert(*k, axum::http::HeaderValue::from_str(v).unwrap());
+        }
+        h
+    }
+
+    #[test]
+    fn requests_from_brums_own_page_are_recognised() {
+        // Modern browsers label requests from the site's own page
+        assert!(is_from_brum_page(&headers_with(&[("sec-fetch-site", "same-origin")])));
+        // Bots and scripts send no label, or a foreign one
+        assert!(!is_from_brum_page(&headers_with(&[])));
+        assert!(!is_from_brum_page(&headers_with(&[("sec-fetch-site", "cross-site")])));
+        assert!(!is_from_brum_page(&headers_with(&[("sec-fetch-site", "none")])));
+        // Older browsers: Origin matching the host
+        assert!(is_from_brum_page(&headers_with(&[("host", "brum.example:3140"), ("origin", "https://brum.example:3140")])));
+        assert!(!is_from_brum_page(&headers_with(&[("host", "brum.example:3140"), ("origin", "https://evil.example")])));
+    }
+
+    #[test]
+    fn expired_and_ended_sessions_are_routine_forged_tokens_are_not() {
+        use jsonwebtoken::{encode, EncodingKey, Header};
+        let claims = serde_json::json!({ "sub": "u", "role": "user", "exp": 1_000_000 });
+        let expired = encode(&Header::default(), &claims, &EncodingKey::from_secret(b"right")).unwrap();
+        let check = |secret: &[u8]| -> Box<dyn std::error::Error + Send + Sync> {
+            Box::new(jsonwebtoken::decode::<serde_json::Value>(
+                &expired,
+                &jsonwebtoken::DecodingKey::from_secret(secret),
+                &jsonwebtoken::Validation::default(),
+            ).unwrap_err())
+        };
+        assert!(is_routine_token_rejection(check(b"right").as_ref()), "expired login");
+        assert!(!is_routine_token_rejection(check(b"wrong").as_ref()), "forged or foreign token");
+        let msg = |m: &str| -> Box<dyn std::error::Error + Send + Sync> { m.into() };
+        assert!(is_routine_token_rejection(msg("API token expired").as_ref()));
+        assert!(is_routine_token_rejection(msg("Session has ended. Please log in again.").as_ref()));
+        assert!(!is_routine_token_rejection(msg("API token has been revoked").as_ref()));
+        assert!(!is_routine_token_rejection(msg("User account is disabled").as_ref()));
+        assert!(!is_routine_token_rejection(msg("User account no longer exists").as_ref()));
+        let garbage = jsonwebtoken::decode::<serde_json::Value>("not.a.token", &jsonwebtoken::DecodingKey::from_secret(b"x"), &jsonwebtoken::Validation::default()).unwrap_err();
+        assert!(!is_routine_token_rejection(&garbage), "damaged token");
     }
 }

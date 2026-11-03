@@ -471,7 +471,7 @@ pub async fn handle_public_verify_share(
     let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("share_verify_pass:{}:{}", token, ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
-        tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share password verification");
+        tracing::error!(client_ip = %ip, token = %token, "Rate limit exceeded on share password verification: repeated password guesses");
         return Err((
             StatusCode::TOO_MANY_REQUESTS,
             format!("Too many verification attempts. Please retry after {} seconds.", retry_after),
@@ -515,7 +515,7 @@ pub async fn handle_public_verify_email(
     let ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("share_verify_email:{}:{}", token, ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
-        tracing::warn!(client_ip = %ip, token = %token, "Rate limit exceeded on share email verification");
+        tracing::error!(client_ip = %ip, token = %token, "Rate limit exceeded on share email verification: repeated email guesses");
         return Err((
             StatusCode::TOO_MANY_REQUESTS,
             format!("Too many verification attempts. Please retry after {} seconds.", retry_after),

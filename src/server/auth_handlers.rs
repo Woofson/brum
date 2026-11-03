@@ -166,7 +166,7 @@ pub async fn handle_login(
     let client_ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("login:{}", client_ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
-        tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on login endpoint");
+        tracing::error!(client_ip = %client_ip, "Rate limit exceeded on login endpoint: repeated login attempts");
         return Err((
             StatusCode::TOO_MANY_REQUESTS,
             format!("Too many login attempts. Please retry after {} seconds.", retry_after),
@@ -176,7 +176,7 @@ pub async fn handle_login(
     // Per-username lockout (protect individual account from distributed brute-force)
     let user_rate_key = format!("login:user:{}", payload.username.to_lowercase());
     if let Err(retry_after) = state.rate_limiter.check(&user_rate_key, 10, 300) {
-        tracing::warn!(username = %payload.username, "Rate limit exceeded for user account");
+        tracing::error!(username = %payload.username, "Rate limit exceeded for user account: repeated login attempts");
         return Err((
             StatusCode::TOO_MANY_REQUESTS,
             format!("Too many failed login attempts for this account. Please retry after {} seconds.", retry_after),
@@ -794,7 +794,7 @@ pub async fn handle_unlock_session(
     let client_ip = resolve_client_ip(&headers, peer_addr, &state.config.server.trusted_proxies);
     let rate_key = format!("unlock:{}", client_ip);
     if let Err(retry_after) = state.rate_limiter.check_and_record(&rate_key, 10, 60) {
-        tracing::warn!(client_ip = %client_ip, "Rate limit exceeded on session unlock endpoint");
+        tracing::error!(client_ip = %client_ip, "Rate limit exceeded on session unlock endpoint: repeated unlock attempts");
         return Err((
             StatusCode::TOO_MANY_REQUESTS,
             format!("Too many unlock attempts. Please retry after {} seconds.", retry_after),
