@@ -1994,8 +1994,6 @@ body.unsticky-col-headers .file-table th {
 /* Universal Modal & Chewtoy Window Header Controls & Action Buttons (28px Chewtoy Standard) */
 .modal-header > button.btn-icon,
 .modal-header .btn-icon,
-.calc-header .btn-icon,
-.calc-header-actions .btn-icon,
 .terminal-header .btn-icon,
 .image-viewer-toolbar .btn-icon,
 .doc-viewer-header .btn-icon,
@@ -2024,10 +2022,6 @@ body.unsticky-col-headers .file-table th {
 
 .modal-header .btn-icon i,
 .modal-header .btn-icon svg,
-.calc-header .btn-icon i,
-.calc-header .btn-icon svg,
-.calc-header-actions .btn-icon i,
-.calc-header-actions .btn-icon svg,
 .terminal-header .btn-icon i,
 .terminal-header .btn-icon svg,
 .image-viewer-toolbar .btn-icon i,
@@ -2082,7 +2076,6 @@ body.unsticky-col-headers .file-table th {
 .notes-header button:has(svg.lucide-maximize-2),
 .notes-header button:has(i[data-lucide="x"]),
 .notes-header button:has(svg.lucide-x),
-.calc-header-actions button,
 .image-viewer-toolbar button:has(i[data-lucide="picture-in-picture"]),
 .image-viewer-toolbar button:has(svg.lucide-picture-in-picture),
 .image-viewer-toolbar button:has(i[data-lucide="x"]),
@@ -2132,8 +2125,6 @@ body.unsticky-col-headers .file-table th {
 .editor-header button svg,
 .notes-header button i,
 .notes-header button svg,
-.calc-header-actions button i,
-.calc-header-actions button svg,
 .image-viewer-toolbar button i,
 .image-viewer-toolbar button svg,
 .doc-viewer-actions-right button i,
@@ -2187,7 +2178,6 @@ button svg {
 .notes-header button:has(svg.lucide-minus):hover,
 .notes-header button:has(i[data-lucide="maximize-2"]):hover,
 .notes-header button:has(svg.lucide-maximize-2):hover,
-.calc-header-actions button:not(:has(i[data-lucide="x"])):not(:has(svg.lucide-x)):hover,
 .image-viewer-toolbar button:has(i[data-lucide="picture-in-picture"]):hover,
 .image-viewer-toolbar button:has(svg.lucide-picture-in-picture):hover,
 .doc-viewer-actions-right button:has(i[data-lucide="picture-in-picture"]):hover,
@@ -2215,8 +2205,6 @@ button svg {
 .editor-header button:has(svg.lucide-x):hover,
 .notes-header button:has(i[data-lucide="x"]):hover,
 .notes-header button:has(svg.lucide-x):hover,
-.calc-header-actions button:has(i[data-lucide="x"]):hover,
-.calc-header-actions button:has(svg.lucide-x):hover,
 .image-viewer-toolbar button:has(i[data-lucide="x"]):hover,
 .image-viewer-toolbar button:has(svg.lucide-x):hover,
 .diff-modal-header button:has(i[data-lucide="x"]):hover,
@@ -2238,8 +2226,6 @@ button svg {
 .editor-header button:hover svg,
 .notes-header button:hover i,
 .notes-header button:hover svg,
-.calc-header-actions button:hover i,
-.calc-header-actions button:hover svg,
 .image-viewer-toolbar button:hover i,
 .image-viewer-toolbar button:hover svg,
 .diff-modal-header button:hover i,
@@ -2278,8 +2264,6 @@ button svg {
 .editor-header button:has(svg.lucide-x):active,
 .notes-header button:has(i[data-lucide="x"]):active,
 .notes-header button:has(svg.lucide-x):active,
-.calc-header-actions button:has(i[data-lucide="x"]):active,
-.calc-header-actions button:has(svg.lucide-x):active,
 .image-viewer-toolbar button:has(i[data-lucide="x"]):active,
 .image-viewer-toolbar button:has(svg.lucide-x):active,
 .diff-modal-header button:has(i[data-lucide="x"]):active,
@@ -2448,7 +2432,6 @@ button svg {
   color: var(--accent);
   box-shadow: 0 0 0 1px var(--accent);
 }
-
 
 .perm-octal-badge {
   font-family: var(--font-mono);
@@ -10401,285 +10384,6 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 /* ==========================================================================
    FLOATING CALCULATOR & UNIT CONVERTER
    ========================================================================== */
-.floating-calculator-window {
-  position: fixed;
-  width: 330px;
-  background-color: var(--bg-header);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7);
-  display: flex;
-  flex-direction: column;
-  z-index: 1750;
-  overflow: hidden;
-  user-select: none;
-  font-family: var(--font-main);
-}
-
-.calc-header {
-  padding: 6px 12px;
-  min-height: 42px;
-  background: var(--bg-header);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  cursor: grab;
-  box-sizing: border-box;
-}
-
-.calc-header:active {
-  cursor: grabbing;
-}
-
-.calc-body {
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  background: #0d0f14;
-}
-
-.calc-display-panel {
-  background: #050608;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.calc-expression-line {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  text-align: right;
-  min-height: 16px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.calc-result-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.calc-copy-btn {
-  width: 26px !important;
-  height: 26px !important;
-  min-width: 26px !important;
-  min-height: 26px !important;
-  border-radius: var(--radius) !important;
-  padding: 0 !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.calc-result-input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: #fff;
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 700;
-  text-align: right;
-  outline: none;
-  width: 100%;
-}
-
-.calc-converters-bar {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: var(--radius);
-  padding: 5px 8px;
-  font-family: var(--font-mono);
-  font-size: 10px;
-}
-
-.calc-conv-item {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.calc-conv-lbl {
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 9.5px;
-}
-
-.calc-conv-val {
-  color: var(--text-main);
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.calc-units-row {
-  display: flex;
-  gap: 4px;
-  justify-content: space-between;
-}
-
-.calc-unit-btn {
-  flex: 1;
-  height: 26px;
-  min-height: 26px;
-  font-size: 10px;
-  font-family: var(--font-mono);
-  font-weight: 700;
-  padding: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  background: rgba(245, 158, 11, 0.12);
-  color: var(--accent);
-  border: 1px solid rgba(245, 158, 11, 0.25);
-  border-radius: var(--radius);
-  cursor: pointer;
-  box-sizing: border-box;
-}
-
-.calc-unit-btn:hover {
-  background: rgba(245, 158, 11, 0.25);
-}
-
-.calc-keypad-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 5px;
-}
-
-.calc-btn {
-  height: 34px;
-  font-size: 13px;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  transition: all 0.1s ease;
-  cursor: pointer;
-}
-
-.calc-btn-num {
-  background: #14171f;
-  color: #fff;
-}
-.calc-btn-num:hover {
-  background: #1e232f;
-  border-color: rgba(255,255,255,0.2);
-}
-
-.calc-btn-fn {
-  background: #0f1218;
-  color: var(--text-dim);
-}
-.calc-btn-fn:hover {
-  background: #181d26;
-  color: #fff;
-}
-
-.calc-btn-op {
-  background: rgba(56, 189, 248, 0.1);
-  color: #38bdf8;
-  border-color: rgba(56, 189, 248, 0.2);
-  font-size: 15px;
-}
-.calc-btn-op:hover {
-  background: rgba(56, 189, 248, 0.22);
-}
-
-.calc-btn-equals {
-  background: var(--accent);
-  color: #000;
-  font-weight: 800;
-  font-size: 16px;
-  border-color: var(--accent);
-}
-.calc-btn-equals:hover {
-  background: #f59e0b;
-  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
-}
-
-.calc-history-panel {
-  margin-top: 4px;
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
-  max-height: 140px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.calc-history-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.calc-history-list {
-  overflow-y: auto;
-  max-height: 105px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.calc-history-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 3px 6px;
-  background: rgba(255,255,255,0.03);
-  border-radius: 4px;
-  font-family: var(--font-mono);
-  font-size: 10.5px;
-  cursor: pointer;
-}
-.calc-history-item:hover {
-  background: rgba(245, 158, 11, 0.1);
-  color: var(--accent);
-}
-
-.calc-pill {
-  position: fixed;
-  bottom: 12px;
-  right: 170px;
-  background: var(--bg-header);
-  border: 1px solid var(--accent);
-  border-radius: 20px;
-  padding: 4px 10px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--accent);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5);
-  cursor: pointer;
-  z-index: 1550;
-  transition: transform 0.15s ease;
-}
-.calc-pill:hover {
-  transform: translateY(-2px);
-  background: var(--bg-hover);
-}
 
 /* ==========================================================================
    NOTES & MARKDOWN STUDIO CORE FUNCTION (FLOATING & DOCKED)
@@ -11556,7 +11260,6 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   /* All floating chewtoys become fixed/fullscreen modals without drag-offsets */
   .floating-notes-window,
   .floating-editor-window,
-  .floating-tetrion-window,
   .floating-mediaplayer-window,
   .floating-chewtoy-window,
   #dynamic-chewtoy-window,
@@ -11601,9 +11304,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   .notes-header,
   .editor-header,
   .mediaplayer-header,
-  .tetrion-header,
   .chewtoy-header,
-  .calc-header,
   .diff-modal-header,
   .du-modal-header,
   .bulk-renamer-header,
@@ -11677,7 +11378,6 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   .notes-header,
   .notes-header-drag-handle,
   .editor-header-drag-handle,
-  .calc-header-drag-handle,
   .mediaplayer-header,
   .mediaplayer-header-drag-handle,
   .du-modal-header,
@@ -11687,34 +11387,16 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 }
 
 /* 2. Tablet Specific Sizing (601px - 1024px) */
-@media (min-width: 601px) and (max-width: 1024px) {
-  .floating-calculator-window {
-    position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    right: auto !important;
-    bottom: auto !important;
-    transform: translate(-50%, -50%) !important;
-    width: min(380px, calc(100vw - 32px)) !important;
-    height: auto !important;
-    max-height: calc(100dvh - 40px) !important;
-    border-radius: var(--radius-lg) !important;
-    border: 1px solid var(--border) !important;
-    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.75) !important;
-    z-index: 2800 !important;
-  }
-}
 
 /* 3. Phone Specific Optimizations (max-width: 600px) */
 @media (max-width: 600px) {
   /* ChewToys & Modals: Icon-Only Branding (hide brand strings) */
   .chewtoy-brand-text,
+  .chewtoy-version-badge,
   .notes-header-left span span,
   .notes-header-drag-handle span,
   .editor-header-left span span,
   .editor-header-drag-handle span,
-  .calc-header-left span span,
-  .calc-header-drag-handle span,
   .du-modal-header span.chewtoy-brand-text,
   .diff-modal-header span.diff-header-title {
     display: none !important;
@@ -11791,33 +11473,6 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   }
 
   /* Calculator on Phone: Fullscreen Modal */
-  .floating-calculator-window {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: 0 !important;
-    bottom: 0 !important;
-    width: 100vw !important;
-    height: 100vh !important;
-    height: 100dvh !important;
-    max-width: 100vw !important;
-    max-height: 100dvh !important;
-    border-radius: 0 !important;
-    border: none !important;
-    box-shadow: none !important;
-    z-index: 2800 !important;
-  }
-
-  .calc-header {
-    padding: 6px 10px !important;
-    min-height: 40px !important;
-  }
-
-  .calc-body {
-    flex: 1;
-    overflow-y: auto;
-    padding: 10px !important;
-  }
 
   /* EditorDog Header & Toolbars on Phone */
   .editor-header {
@@ -12355,7 +12010,6 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   gap: 3px;
   cursor: pointer;
 }
-
 
 .crumb-sep-dropdown {
   cursor: pointer;
@@ -13650,435 +13304,13 @@ body.standalone-mode .server-only-setting {
    TETRION: CLASSIC ARCADE CHEWTOY & LEADERBOARD STYLES
    ========================================================================== */
 
-.floating-tetrion-window {
-  position: fixed;
-  top: 70px;
-  right: 50px;
-  width: 520px;
-  height: 640px;
-  min-width: 440px;
-  min-height: 520px;
-  max-width: calc(100vw - 20px);
-  max-height: calc(100vh - 40px);
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(245, 158, 11, 0.15);
-  display: flex;
-  flex-direction: column;
-  z-index: 2850;
-  overflow: hidden;
-  user-select: none;
-  font-family: var(--font-sans), sans-serif;
-  transition: width 0.15s ease, height 0.15s ease;
-}
-
-.floating-tetrion-window.maximized {
-  top: 36px !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  width: 100% !important;
-  max-width: 100% !important;
-  height: calc(100vh - 36px) !important;
-  border-radius: 0 !important;
-}
-
-.tetrion-header {
-  min-height: 42px;
-  height: 42px;
-  padding: 0 10px;
-  background: var(--bg-dark);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: grab;
-}
-
-.tetrion-header:active {
-  cursor: grabbing;
-}
-
-.tetrion-mode-banner {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  margin-bottom: 6px;
-}
-
-.tetrion-mode-badge {
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: 800;
-  padding: 2px 8px;
-  border-radius: 4px;
-  background: rgba(245, 158, 11, 0.15);
-  color: var(--accent);
-  border: 1px solid rgba(245, 158, 11, 0.35);
-  letter-spacing: 0.8px;
-  box-shadow: 0 0 8px rgba(245, 158, 11, 0.15);
-}
-
-.tetrion-score-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 2px 8px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.tetrion-pill-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--text-dim);
-}
-
-.tetrion-pill-val {
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.tetrion-body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: #090a0f;
-  position: relative;
-}
-
-.tetrion-view {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  height: 100%;
-  overflow: hidden;
-}
-
 /* Game Arena Layout */
-.tetrion-arena {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 8px 12px;
-  gap: 12px;
-  overflow: hidden;
-}
-
-.tetrion-side-col {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 110px;
-  flex-shrink: 0;
-}
-
-.tetrion-panel-card {
-  background: rgba(18, 20, 26, 0.85);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
-}
-
-.tetrion-card-title {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text-dim);
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
-  text-align: center;
-  width: 100%;
-}
-
-.tetrion-key-hint {
-  font-size: 8px;
-  color: var(--text-muted);
-  font-weight: normal;
-  display: block;
-}
-
-.tetrion-canvas-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: #050608;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  padding: 2px;
-}
-
-.tetrion-stat-row {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-bottom: 6px;
-}
-
-.tetrion-stat-row:last-child {
-  margin-bottom: 0;
-}
-
-.tetrion-stat-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--text-dim);
-}
-
-.tetrion-stat-number {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text-main);
-}
-
-.tetrion-glow-gold {
-  color: #fbbf24 !important;
-  text-shadow: 0 0 8px rgba(251, 191, 36, 0.4);
-}
-
-.tetrion-select {
-  width: 100%;
-  background: var(--bg-panel);
-  border: 1px solid var(--border);
-  color: var(--text-main);
-  border-radius: 4px;
-  font-size: 10px;
-  padding: 3px 4px;
-  outline: none;
-  font-family: var(--font-sans);
-}
-
-.tetrion-b2b-badge,
-.tetrion-combo-badge {
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 800;
-  text-align: center;
-  animation: tetrionPulse 1.2s infinite alternate ease-in-out;
-}
-
-.tetrion-b2b-badge {
-  background: rgba(245, 158, 11, 0.2);
-  color: #fbbf24;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-}
-
-.tetrion-combo-badge {
-  background: rgba(59, 130, 246, 0.2);
-  color: #60a5fa;
-  border: 1px solid rgba(59, 130, 246, 0.4);
-}
-
-@keyframes tetrionPulse {
-  from { transform: scale(0.97); opacity: 0.85; }
-  to { transform: scale(1.03); opacity: 1; }
-}
 
 /* Center Canvas Column */
-.tetrion-center-col {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  position: relative;
-}
-
-.tetrion-canvas-container {
-  position: relative;
-  background: #040507;
-  border: 2px solid rgba(245, 158, 11, 0.3);
-  border-radius: 6px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6), 0 0 16px rgba(245, 158, 11, 0.12);
-  overflow: hidden;
-}
-
-.tetrion-main-canvas {
-  display: block;
-  image-rendering: pixelated;
-  image-rendering: crisp-edges;
-}
-
-.tetrion-scanlines {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%);
-  background-size: 100% 4px;
-  pointer-events: none;
-  opacity: 0.6;
-}
 
 /* Canvas Overlays */
-.tetrion-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(4, 5, 8, 0.88);
-  backdrop-filter: blur(4px);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 16px;
-  z-index: 10;
-  animation: fadeIn 0.15s ease-out;
-}
-
-.tetrion-overlay-box {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  width: 100%;
-}
-
-.tetrion-arcade-logo {
-  font-family: var(--font-mono);
-  font-size: 24px;
-  font-weight: 900;
-  letter-spacing: 2px;
-  color: var(--accent);
-  text-shadow: 0 0 12px rgba(245, 158, 11, 0.6);
-  margin-bottom: 2px;
-}
-
-.tetrion-arcade-sub {
-  font-size: 8px;
-  letter-spacing: 1px;
-  color: var(--text-dim);
-  margin-bottom: 16px;
-}
-
-.tetrion-key-legend {
-  margin-top: 14px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px 10px;
-  font-size: 9.5px;
-  color: var(--text-dim);
-  text-align: left;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 8px 10px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.tetrion-key-legend kbd {
-  background: #181b22;
-  border: 1px solid #30363d;
-  border-radius: 3px;
-  padding: 1px 4px;
-  font-family: var(--font-mono);
-  font-size: 9px;
-  color: var(--accent);
-}
-
-.tetrion-overlay-title {
-  font-family: var(--font-mono);
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: 1.5px;
-  color: var(--text-main);
-  margin-bottom: 8px;
-}
-
-.tetrion-danger-glow {
-  color: #ef4444 !important;
-  text-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
-}
-
-.tetrion-accent-glow {
-  color: var(--accent) !important;
-  text-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
-}
-
-.tetrion-go-stats {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  width: 100%;
-  margin: 10px 0;
-  background: rgba(0, 0, 0, 0.35);
-  padding: 10px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-.tetrion-go-label {
-  font-size: 9px;
-  font-weight: 700;
-  color: var(--text-dim);
-}
-
-.tetrion-go-val {
-  font-family: var(--font-mono);
-  font-size: 15px;
-  font-weight: 800;
-  color: #f1f5f9;
-}
-
-.tetrion-rank-banner {
-  padding: 6px 12px;
-  background: rgba(245, 158, 11, 0.18);
-  border: 1px solid var(--accent);
-  border-radius: 6px;
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 12px;
-  margin-top: 6px;
-  width: 100%;
-  text-align: center;
-  box-shadow: 0 0 12px rgba(245, 158, 11, 0.25);
-}
 
 /* Mobile HUD Row (Mode & Top score) */
-.tetrion-mobile-center-hud {
-  display: none;
-  align-items: center;
-  justify-content: space-between;
-  width: 100%;
-  max-width: 220px;
-  padding: 2px 6px;
-  margin-bottom: 4px;
-  background: rgba(18, 20, 26, 0.7);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-sizing: border-box;
-}
-
-.tetrion-mob-stat-row {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  font-family: var(--font-mono);
-}
-
-.tetrion-mob-stat-lbl {
-  font-size: 8px;
-  font-weight: 700;
-  color: var(--text-dim);
-}
-
-.tetrion-mob-stat-val {
-  font-size: 11px;
-  font-weight: 800;
-}
 
 /* Visibility helpers */
 .desktop-only-card {
@@ -14092,31 +13324,8 @@ body.standalone-mode .server-only-setting {
 /* ==========================================================================
    TETRION NES CONTROLLER & TOUCH CONTROLS
    ========================================================================== */
-.tetrion-nes-controller {
-  display: none; /* hidden on desktop mouse viewports */
-  width: 100%;
-  padding: 6px 12px 8px 12px;
-  background: rgba(10, 12, 17, 0.95);
-  border-top: 1px solid var(--border);
-  align-items: center;
-  justify-content: space-between;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  user-select: none;
-  touch-action: manipulation;
-  z-index: 10;
-}
 
 /* 1. Left Zone: Retro 4-Way Cross D-Pad */
-.tetrion-dpad-cross {
-  display: grid;
-  grid-template-columns: 38px 38px 38px;
-  grid-template-rows: 38px 38px 38px;
-  width: 114px;
-  height: 114px;
-  position: relative;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.5));
-}
 
 .dpad-btn {
   background: #1e222d;
@@ -14204,14 +13413,6 @@ body.standalone-mode .server-only-setting {
 }
 
 /* 2. Center Zone: SELECT (Hold) & START (Pause) Rubber Pill Buttons */
-.tetrion-nes-center-btns {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 0 4px;
-}
 
 .nes-pill-btn {
   background: #181b24;
@@ -14253,13 +13454,6 @@ body.standalone-mode .server-only-setting {
 }
 
 /* 3. Right Zone: Angled B & A Action Buttons */
-.tetrion-nes-actions {
-  display: flex;
-  align-items: flex-end;
-  gap: 12px;
-  transform: rotate(-14deg);
-  margin-right: 4px;
-}
 
 .nes-round-btn {
   width: 48px;
@@ -14311,142 +13505,6 @@ body.standalone-mode .server-only-setting {
 }
 
 /* Leaderboard View */
-.tetrion-lb-header-bar {
-  padding: 8px 12px;
-  background: var(--bg-dark);
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.tetrion-lb-mode-pills {
-  display: flex;
-  gap: 4px;
-}
-
-.tetrion-lb-tab {
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-dim);
-  font-size: 11px;
-  padding: 3px 8px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.tetrion-lb-tab:hover {
-  color: var(--text-main);
-  background: var(--bg-hover);
-}
-
-.tetrion-lb-tab.active {
-  background: rgba(245, 158, 11, 0.18);
-  border-color: var(--accent);
-  color: var(--accent);
-  font-weight: 700;
-}
-
-.tetrion-lb-scope-toggle {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 11px;
-  color: var(--text-dim);
-}
-
-.tetrion-scope-btn {
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-}
-
-.tetrion-user-summary {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-  padding: 8px 12px;
-  background: rgba(18, 20, 26, 0.7);
-  border-bottom: 1px solid var(--border);
-}
-
-.tetrion-summary-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.tetrion-summary-lbl {
-  font-size: 8.5px;
-  font-weight: 700;
-  color: var(--text-dim);
-}
-
-.tetrion-summary-val {
-  font-family: var(--font-mono);
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text-main);
-}
-
-.tetrion-lb-table-wrap {
-  flex: 1;
-  overflow-y: auto;
-  background: #090a0f;
-}
-
-.tetrion-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 11px;
-}
-
-.tetrion-table th {
-  position: sticky;
-  top: 0;
-  background: var(--bg-dark);
-  padding: 6px 10px;
-  text-align: left;
-  font-size: 10px;
-  color: var(--text-dim);
-  font-weight: 700;
-  border-bottom: 1px solid var(--border);
-  z-index: 2;
-}
-
-.tetrion-table td {
-  padding: 6px 10px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  color: var(--text-main);
-  font-family: var(--font-mono);
-}
-
-.tetrion-table tr:hover {
-  background: rgba(255, 255, 255, 0.03);
-}
-
-.tetrion-table tr.current-user-row {
-  background: rgba(245, 158, 11, 0.12);
-  border-left: 2px solid var(--accent);
-}
-
-.tetrion-table tr.current-user-row td {
-  color: #fbbf24;
-  font-weight: 700;
-}
-
-.tetrion-rank-medal {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  font-weight: 800;
-  font-size: 11px;
-}
 
 .rank-gold {
   background: rgba(251, 191, 36, 0.25);
@@ -14466,238 +13524,13 @@ body.standalone-mode .server-only-setting {
   border: 1px solid rgba(217, 119, 6, 0.6);
 }
 
-.tetrion-lb-footer {
-  padding: 6px 12px;
-  background: var(--bg-dark);
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
 /* Settings View */
-.tetrion-settings-scroll {
-  flex: 1;
-  overflow-y: auto;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.tetrion-settings-section {
-  background: rgba(18, 20, 26, 0.6);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.tetrion-section-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-  margin-bottom: 2px;
-}
-
-.tetrion-setting-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.tetrion-setting-row:last-child {
-  border-bottom: none;
-  padding-bottom: 0;
-}
-
-.tetrion-setting-title {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--text-main);
-}
-
-.tetrion-setting-sub {
-  font-size: 10px;
-  color: var(--text-dim);
-}
 
 /* 3. Bottom Status-Bar */
-.tetrion-statusbar {
-  min-height: 30px;
-  height: 30px;
-  background: var(--bg-dark);
-  border-top: 1px solid var(--border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 10px;
-  font-size: 11px;
-  user-select: none;
-  flex-shrink: 0;
-  z-index: 5;
-}
-
-.tetrion-sb-left,
-.tetrion-sb-center,
-.tetrion-sb-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.tetrion-sb-center {
-  gap: 10px;
-}
-
-.tetrion-statusbar-sound-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: var(--radius);
-  background: var(--accent);
-  color: #040507;
-  border: 1px solid rgba(245, 158, 11, 0.4);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 6px rgba(245, 158, 11, 0.35);
-  transition: all 0.15s ease;
-}
-
-.tetrion-statusbar-sound-btn i,
-.tetrion-statusbar-sound-btn svg {
-  width: 12px;
-  height: 12px;
-  stroke-width: 2.4px;
-}
-
-.tetrion-statusbar-sound-btn:hover {
-  transform: scale(1.06);
-  filter: brightness(1.1);
-  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.5);
-}
-
-.tetrion-statusbar-sound-btn:active {
-  transform: scale(0.94);
-}
-
-.tetrion-statusbar-sound-btn.muted {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-dim);
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: none;
-}
-
-.tetrion-statusbar-sound-btn.muted:hover {
-  background: rgba(255, 255, 255, 0.15);
-  color: var(--text-main);
-}
-
-.tetrion-sb-hint {
-  font-size: 10px;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-}
-
-.tetrion-sb-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  background: rgba(0, 0, 0, 0.4);
-  padding: 1px 7px;
-  border-radius: 4px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  font-family: var(--font-mono);
-  font-size: 11px;
-}
-
-.tetrion-sb-label {
-  font-size: 8.5px;
-  font-weight: 700;
-  color: var(--text-dim);
-  letter-spacing: 0.5px;
-}
-
-.tetrion-sb-val {
-  font-weight: 700;
-  color: var(--accent);
-}
-
-.tetrion-sb-engine {
-  font-size: 9.5px;
-  color: var(--text-dim);
-  font-family: var(--font-mono);
-}
 
 /* Minimized Pill */
-.tetrion-pill {
-  position: fixed;
-  bottom: 16px;
-  right: 160px;
-  height: 32px;
-  padding: 0 12px;
-  background: var(--bg-panel);
-  border: 1px solid var(--accent);
-  border-radius: 16px;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  cursor: pointer;
-  z-index: 2840;
-  user-select: none;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.tetrion-pill:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.3);
-}
-
-.tetrion-pill-score {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  background: rgba(245, 158, 11, 0.15);
-  padding: 1px 6px;
-  border-radius: 4px;
-}
 
 /* Retro Themes */
-.tetrion-theme-gameboy {
-  background: #306230 !important;
-  color: #0f380f !important;
-}
-
-.tetrion-theme-gameboy .tetrion-body,
-.tetrion-theme-gameboy .tetrion-canvas-container,
-.tetrion-theme-gameboy .tetrion-lb-table-wrap {
-  background: #0f380f !important;
-}
-
-.tetrion-theme-gameboy .tetrion-main-canvas {
-  filter: sepia(1) hue-rotate(50deg) saturate(2);
-}
-
-.tetrion-theme-nes .tetrion-main-canvas {
-  filter: contrast(1.1) saturate(1.2);
-}
-
-.tetrion-theme-cyberpunk {
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.7), 0 0 20px rgba(244, 63, 94, 0.25) !important;
-}
-
-.tetrion-theme-cyberpunk .tetrion-main-canvas {
-  filter: saturate(1.3);
-}
 
 /* Viewport Responsiveness: Phone / Tablet / PC */
 @media (max-width: 640px) {
@@ -14739,7 +13572,6 @@ body.standalone-mode .server-only-setting {
     cursor: pointer !important;
   }
 
-  .floating-tetrion-window,
   .floating-chewtoy-window,
   #dynamic-chewtoy-window {
     top: 0 !important;
@@ -14766,191 +13598,9 @@ body.standalone-mode .server-only-setting {
     box-sizing: border-box !important;
   }
 
-  .tetrion-header {
-    min-height: 38px;
-    height: 38px;
-    padding: 0 8px;
-    flex-shrink: 0;
-  }
-
-  .tetrion-view {
-    height: 100%;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .tetrion-game-view {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    height: 100%;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-  }
-
-  .tetrion-arena {
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding: 2px 6px;
-    gap: 6px;
-    overflow: hidden;
-    flex: 1 1 auto;
-    min-height: 0;
-  }
-
-  .tetrion-side-col {
-    width: 52px;
-    gap: 4px;
-    align-items: center;
-    flex-shrink: 0;
-  }
-
-  .tetrion-panel-card {
-    padding: 3px 2px;
-    width: 100%;
-    box-sizing: border-box;
-  }
-
-  .tetrion-card-title {
-    font-size: 8px;
-    margin-bottom: 2px;
-  }
-
-  .tetrion-key-hint {
-    display: none !important;
-  }
-
-  .tetrion-canvas-wrap {
-    padding: 0;
-  }
-
-  #tetrion-hold-canvas {
-    width: 44px !important;
-    height: 44px !important;
-  }
-
-  #tetrion-next-canvas {
-    width: 44px !important;
-    height: 96px !important;
-  }
-
-  .tetrion-center-col {
-    flex: 1 1 auto;
-    min-width: 0;
-    min-height: 0;
-    max-width: 240px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .tetrion-canvas-container {
-    flex: 1 1 auto;
-    min-height: 0;
-    max-height: calc(var(--viewport-height, 100dvh) - 200px - max(env(safe-area-inset-bottom, 0px), var(--mobile-bottom-offset, 0px)));
-    aspect-ratio: 1 / 2;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-  }
-
-  .tetrion-main-canvas {
-    width: auto !important;
-    height: 100% !important;
-    max-width: 100% !important;
-    max-height: 100% !important;
-    object-fit: contain;
-  }
-
-  .tetrion-nes-controller {
-    display: flex !important;
-    padding: 4px 8px 6px 8px;
-    flex-shrink: 0;
-    box-sizing: border-box;
-  }
-
-  .tetrion-statusbar {
-    min-height: 26px;
-    height: 26px;
-    padding: 0 6px;
-    flex-shrink: 0;
-    box-sizing: border-box;
-  }
-
-  .tetrion-sb-center {
-    gap: 4px;
-  }
-
-  .tetrion-sb-pill {
-    padding: 1px 4px;
-    font-size: 9.5px;
-    gap: 3px;
-  }
-
-  .tetrion-sb-label {
-    font-size: 7px;
-  }
-
-  .tetrion-sb-val {
-    font-size: 9.5px;
-  }
-
-  .tetrion-sb-right {
-    display: none;
-  }
 }
 
 /* Tablet Viewport (641px - 1024px) */
-@media (min-width: 641px) and (max-width: 1024px) {
-  .floating-tetrion-window {
-    width: min(540px, 94vw);
-    height: min(720px, 94vh);
-    min-width: 420px;
-    min-height: 540px;
-  }
-
-  .tetrion-arena {
-    padding: 8px 10px;
-    gap: 10px;
-    flex: 1;
-    min-height: 0;
-  }
-
-  .tetrion-side-col {
-    width: 90px;
-  }
-
-  #tetrion-hold-canvas {
-    width: 74px !important;
-    height: 74px !important;
-  }
-
-  #tetrion-next-canvas {
-    width: 74px !important;
-    height: 180px !important;
-  }
-
-  .tetrion-canvas-container {
-    max-height: calc(100vh - 240px);
-  }
-
-  .tetrion-nes-controller {
-    display: flex !important;
-  }
-}
-
-@media (pointer: coarse) and (min-width: 1025px) {
-  .tetrion-nes-controller {
-    display: flex !important;
-  }
-}
-
 
 /* ========================================== */
 /* COMMANDER FLEET MANAGER & NODE SWITCHER    */
@@ -18191,5 +16841,19 @@ body.standalone-mode .server-only-setting {
 }
 
 
+/* Chewtoys bundled with Brum (Settings → Chewtoys) */
+.chewtoys-bundled-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
 
-
+.chewtoy-bundled-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-active);
+}

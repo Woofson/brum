@@ -42,13 +42,44 @@ button, input, select {
   color: inherit;
 }
 
+/* The window never scrolls: everything fits, and only the tools area may scroll when it holds a lot */
 .col-app {
   height: 100%;
-  overflow-y: auto;
-  padding: 10px;
+  overflow: hidden;
+  padding: 8px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+}
+
+.col-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Wide windows (tablets, maximised): picker on the left, tools on the right */
+@media (min-width: 680px) {
+  .col-app {
+    display: grid;
+    grid-template-columns: minmax(320px, 1fr) minmax(280px, 0.9fr);
+    grid-template-rows: 100%;
+    gap: 8px;
+  }
+
+  .col-main {
+    overflow: hidden;
+  }
+
+  .col-tools {
+    min-height: 0;
+  }
+
+  .col-swatch,
+  .col-swatch-grid .col-swatch {
+    height: 34px;
+  }
 }
 
 /* Buttons */
@@ -104,7 +135,7 @@ button, input, select {
 
 .col-preview {
   position: relative;
-  height: 92px;
+  height: clamp(44px, 10vh, 96px);
   border-radius: var(--radius);
   border: 1px solid var(--border);
   background: var(--checker);
@@ -154,10 +185,34 @@ button, input, select {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: rgba(0, 0, 0, 0.18);
-  padding: 8px;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
+}
+
+.col-tools {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Thin, quiet scrollbar for the rare case the tools area overflows */
+.col-tool-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.col-tool-body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.col-tool-body::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 3px;
+}
+
+.col-tool-body::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .col-tabs {
@@ -193,7 +248,7 @@ button, input, select {
 .col-sliders {
   display: flex;
   flex-direction: column;
-  gap: 7px;
+  gap: 5px;
 }
 
 .col-slider-row {
@@ -278,14 +333,15 @@ button, input, select {
 .col-formats {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .col-format-row {
   display: grid;
-  grid-template-columns: 58px 1fr 28px;
+  grid-template-columns: 50px 1fr 24px;
   align-items: center;
   gap: 6px;
+  min-height: 22px;
 }
 
 .col-format-label {
@@ -313,7 +369,7 @@ button, input, select {
 .col-swatch {
   flex: 1;
   min-width: 0;
-  height: 34px;
+  height: 26px;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   cursor: pointer;
@@ -328,25 +384,34 @@ button, input, select {
 .col-swatch-label {
   font-size: 10px;
   color: var(--text-dim);
-  margin: 2px 0 3px;
   font-weight: 600;
 }
 
 .col-swatch-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(34px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(26px, 1fr));
   gap: 4px;
 }
 
 .col-swatch-grid .col-swatch {
-  height: 34px;
+  height: 26px;
+}
+
+/* Label on the left, swatches on the right: one line per set */
+.col-labelled-row {
+  display: grid;
+  grid-template-columns: 82px 1fr;
+  align-items: center;
+  gap: 6px;
 }
 
 .col-tool-body {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  min-height: 120px;
+  gap: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
 .col-empty {
@@ -355,42 +420,35 @@ button, input, select {
   padding: 6px 2px;
 }
 
-/* Contrast */
+/* Contrast: one compact line per comparison */
 .col-contrast-card {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 6px 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 6px;
   align-items: center;
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border);
 }
 
 .col-contrast-sample {
-  padding: 8px 10px;
+  padding: 4px 8px;
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  border: 1px solid var(--border);
+  font-size: 12px;
   font-weight: 600;
-}
-
-.col-contrast-sample small {
-  display: block;
-  font-size: 11px;
-  font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .col-contrast-ratio {
   font-family: var(--font-mono);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 700;
   text-align: right;
 }
 
 .col-badges {
-  grid-column: 1 / -1;
   display: flex;
-  gap: 4px;
-  flex-wrap: wrap;
+  gap: 3px;
 }
 
 .col-badge {

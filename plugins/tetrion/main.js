@@ -1374,7 +1374,7 @@ function handleArcadeKeyDown(key) {
   }
 
   if (g.status === 'ready' || g.status === 'gameover') {
-    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'Enter', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C'].includes(key)) {
+    if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'Enter', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'q', 'e', 'Q', 'E', 'z', 'x', 'c', 'Z', 'X', 'C'].includes(key)) {
       startArcadeGame();
       return;
     }
@@ -1398,12 +1398,13 @@ function handleArcadeKeyDown(key) {
     }
   } else if (key === 'ArrowDown' || key === 's' || key === 'S') {
     g.softDropActive = true;
-  } else if (key === 'ArrowUp' || key === 'x' || key === 'X' || key === 'e' || key === 'E') {
+  } else if (key === 'ArrowUp' || key === 'w' || key === 'W') {
+    // Arrows only: up drops to the bottom, down drops faster
+    hardDropArcadePiece();
+  } else if (key === ' ' || key === 'Space' || key === 'x' || key === 'X' || key === 'e' || key === 'E') {
     rotateArcadePiece(1);
   } else if (key === 'z' || key === 'Z' || key === 'Control' || key === 'q' || key === 'Q') {
     rotateArcadePiece(-1);
-  } else if (key === ' ' || key === 'Space' || key === 'w' || key === 'W') {
-    hardDropArcadePiece();
   } else if (key === 'c' || key === 'C' || key === 'Shift') {
     holdArcadePiece();
   }

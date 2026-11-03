@@ -25,7 +25,8 @@ const DEFAULT_NOTE_PASSPHRASE = 'notedog';
 // One-time move of settings saved under the names used before 1.17 (NoteDog → Notes,
 // TetraDog → Tetrion).
 // Runs before anything reads these settings.
-const LEGACY_TOOL_IDS = { notedog: 'notes', tetradog: 'tetrion-classic' };
+// The built-in Calculator and Tetrion were replaced by the Calculator and Tetrion Chewtoys (1.17)
+const LEGACY_TOOL_IDS = { notedog: 'notes', tetradog: 'chewtoy:tetrion', 'tetrion-classic': 'chewtoy:tetrion', calculator: 'chewtoy:calculator' };
 (function migrateLegacySavedNames() {
   try {
     const renames = [['cd_notedog_', 'cd_notes_'], ['cd_tetradog_', 'cd_tetrion_']];
@@ -67,7 +68,7 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
-  'setNotesManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
+  'downloadBundledChewToy', 'installBundledChewToy', 'setNotesManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomExclusionPattern', 'addCustomFileIconRule', 'addDirectoryToMediaPlaylist',
   'addModalTagFromInput', 'addNewBookmark', 'addPropCustomTag', 'addTracksToMediaPlaylist',
   'alignDiffPaths', 'analyzeSync', 'appendBpExclusion', 'applyBatchAutoTrackNumbers',
@@ -76,28 +77,24 @@ const BRUM_ACTIONS = new Set([
   'applyPaneRenameFromInput', 'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput',
   'applyPropPermPreset', 'applySyncTemplate', 'applyTheme', 'autoFitAllColumns', 'autoFitColumn',
   'autoSelectDuplicates', 'blurElement', 'bringFloatingWindowToFront', 'browseNotesFolder',
-  'calcAppendChar', 'calcAppendDot', 'calcAppendFunc', 'calcAppendNum', 'calcAppendOp',
-  'calcAppendPi', 'calcAppendUnit', 'calcBackspace', 'calcClearAll', 'calcClearEntry',
-  'calcClearHistory', 'calcEvaluate', 'calcLoadHistoryItem', 'calcToggleSign',
   'calculateAllChecksums', 'calculatePropertiesChecksums', 'calculateRowChecksum',
   'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup', 'changeDocPdfZoom',
-  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines', 'changeTetrionMode',
-  'clearAllCustomFileIcons', 'clearAllSyncExclusions', 'clearCapturedKeybind', 'clearCombineParts',
+  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines', 'clearAllCustomFileIcons', 'clearAllSyncExclusions', 'clearCapturedKeybind', 'clearCombineParts',
   'clearCompletedTasks', 'clearConverterSourceFile', 'clearDiffSearch', 'clearMediaPlaylist',
   'clearPaneFilter', 'clearPdfMergeList', 'clearPropCustomIcon', 'clearSpotlightInput',
   'clearTerminal', 'clickElementById', 'cloneDirectoryToOppositePane', 'closeAppDialog',
   'closeBreadcrumbPopovers', 'closeConverterModal', 'closeDocViewerModal', 'closeDockedEditorTab',
   'closeDockedTool', 'closeDynamicChewToy', 'closeEditorActionsDropdown', 'closeEditorModal',
   'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio',
-  'closeFloatingCalculator', 'closeFloatingDiff', 'closeFloatingDiskUsage',
+  'closeFloatingDiff', 'closeFloatingDiskUsage',
   'closeFloatingDuplicateFinder', 'closeFloatingHexEditor', 'closeFloatingLogViewer',
   'closeFloatingNotes', 'closeFloatingPdf', 'closeFloatingRenamer', 'closeFloatingShares',
   'closeFloatingSplitter', 'closeFloatingTagEditor', 'closeFloatingTaskManager',
   'closeImgTransformDropdown', 'closeKeyRecordModal', 'closeMediaPlayer', 'closeModal',
   'closeNotesDrawer', 'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick',
-  'closeSpotlightModal', 'closeTabsToTheRight', 'closeTetrion', 'confirmSyncFolderSelection',
+  'closeSpotlightModal', 'closeTabsToTheRight', 'confirmSyncFolderSelection',
   'connectRemoteToActivePane', 'convertCurrentMediaToMp4', 'copyActionOutput',
-  'copyAndUseTokenInFleetForm', 'copyCalcResult', 'copyDiffItem', 'copyGeneratedApiToken',
+  'copyAndUseTokenInFleetForm', 'copyDiffItem', 'copyGeneratedApiToken',
   'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTaskLogs',
   'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag', 'createNewDockedEditorTab',
   'createNewEditorTab', 'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio',
@@ -107,13 +104,12 @@ const BRUM_ACTIONS = new Set([
   'deleteUserAccount', 'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill',
   'docViewerCopyCurrent', 'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent',
   'docViewerRenameCurrent', 'dockActiveDynamicChewToy', 'dockCadStudioToActivePane',
-  'dockCalculatorToActivePane', 'dockDiffToActivePane', 'dockDiskUsageToActivePane',
+  'dockDiffToActivePane', 'dockDiskUsageToActivePane',
   'dockDuplicateFinderToActivePane', 'dockEditorToActivePane', 'dockGitToActivePane',
   'dockHexEditorToActivePane', 'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane',
   'dockNotesToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
   'dockSharesToActivePane', 'dockSplitterToActivePane', 'dockTagEditorToActivePane',
-  'dockTasksToActivePane', 'dockTerminalToActivePane', 'dockTetrionToActivePane',
-  'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex',
+  'dockTasksToActivePane', 'dockTerminalToActivePane', 'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex',
   'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
   'executeBatchRename', 'executeBulkRename', 'executeCompressArchive', 'executeCreateFromTemplate',
   'executeCreateShare', 'executeCreateVault', 'executeDeltaCopy',
@@ -147,8 +143,7 @@ const BRUM_ACTIONS = new Set([
   'handleSettingsAvatarFileUpload', 'handleShareModeChange', 'handleSharesFilterChange',
   'handleSplitPresetChange', 'handleSplitSourceChange', 'handleSpotlightInput',
   'handleSpotlightKey', 'handleStartupSettingChange', 'handleSyncModeChange',
-  'handleTagCoverArtSelected', 'handleTargetFormatChange', 'handleTetrionScopeChange',
-  'handleTitleTemplateChange', 'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver',
+  'handleTagCoverArtSelected', 'handleTargetFormatChange', 'handleTitleTemplateChange', 'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver',
   'handleToolDragStart', 'handleToolDrop', 'handleUserDisabledToggle', 'handleUserParanoidToggle',
   'handleUserSecuritySettingChange', 'handleVaultOpen', 'handleWindowTitleSettingChange',
   'hideContextMenu', 'hideCustomActionForm', 'hideElement', 'hideMediaScrubberTooltip',
@@ -161,15 +156,15 @@ const BRUM_ACTIONS = new Set([
   'loadBackupHistory', 'loadBackupProfiles', 'loadEmojiPresets', 'loadInstalledChewToys',
   'loadMasterConfigEditor', 'loadNerdFontPresets', 'loadPaneDirectory', 'loadPaneDirectoryTree',
   'loadRenamerDirectory', 'loadSyncthingDashboard', 'loadSystemDisksOverview', 'loadTagEditorFile',
-  'loadTetrionLeaderboard', 'loadUserPreferencesFromServer', 'lockSession', 'logout',
+  'loadUserPreferencesFromServer', 'lockSession', 'logout',
   'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNotes',
-  'maximizeFloatingTaskManager', 'maximizeTetrion', 'minimizeConverterModal',
-  'minimizeFloatingCadStudio', 'minimizeFloatingCalculator', 'minimizeFloatingDiff',
+  'maximizeFloatingTaskManager', 'minimizeConverterModal',
+  'minimizeFloatingCadStudio', 'minimizeFloatingDiff',
   'minimizeFloatingDiskUsage', 'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor',
   'minimizeFloatingHexEditor', 'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer',
   'minimizeFloatingNotes', 'minimizeFloatingPdf', 'minimizeFloatingRenamer',
   'minimizeFloatingShares', 'minimizeFloatingSplitter', 'minimizeFloatingTagEditor',
-  'minimizeFloatingTaskManager', 'minimizeTetrion', 'mountUsbDevice', 'moveMenuItem',
+  'minimizeFloatingTaskManager', 'mountUsbDevice', 'moveMenuItem',
   'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navBookPage', 'navImageViewer',
   'navMediaPlaylist', 'navigateConverterPickerFromInput', 'navigateConverterPickerHome',
   'navigateConverterPickerPath', 'navigateConverterPickerUp', 'navigateDiskUsageActivePane',
@@ -181,8 +176,7 @@ const BRUM_ACTIONS = new Set([
   'openCreateBackupProfileModal', 'openCreateTemplateModal', 'openCreateVaultModal',
   'openCurrentMediaWithSystemPlayer', 'openCustomDestModal', 'openDiskUsageModal',
   'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFileDiffView',
-  'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator',
-  'openFloatingEditor', 'openFloatingNotes', 'openFloatingTaskManager', 'openGitFromProperties',
+  'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingEditor', 'openFloatingNotes', 'openFloatingTaskManager', 'openGitFromProperties',
   'openGitManager', 'openGlobalRemoteModal', 'openHelpModal', 'openHexEditor',
   'openInPaneWithToast', 'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer',
   'openNativeRecycleBin', 'openNotesColorPicker', 'openNotesMigrationMenu',
@@ -194,15 +188,14 @@ const BRUM_ACTIONS = new Set([
   'openSettingsModal', 'openSettingsTab', 'openShareLogs', 'openSharesManager',
   'openSplitterFilePicker', 'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal',
   'openSyncthingModal', 'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath',
-  'openTetrion', 'openUserProfileModal', 'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes',
+  'openUserProfileModal', 'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes',
   'pingFleetNode', 'playMediaPlaylistItem', 'pollTasks', 'populateMediaPlaylistFromActivePane',
   'printDocViewer', 'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNotesFolder',
-  'promptChangeNoteSection', 'promptClearTetrionScores', 'promptCreateNote',
+  'promptChangeNoteSection', 'promptCreateNote',
   'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
   'promptEmptyTrash', 'promptToggleEncryptNotebook', 'promptToggleEncryptSection',
   'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshDiskUsageView',
-  'refreshDocViewerText', 'refreshFolderTree', 'refreshPane', 'refreshTetrionLeaderboard',
-  'reloadPropertiesMetadata', 'reloadRenamerFiles', 'reloadTagEditorFiles', 'removeCombinePart',
+  'refreshDocViewerText', 'refreshFolderTree', 'refreshPane', 'reloadPropertiesMetadata', 'reloadRenamerFiles', 'reloadTagEditorFiles', 'removeCombinePart',
   'removeCustomExclusionTag', 'removeCustomFileIconRule', 'removeElementById', 'removeModalTag',
   'removeNoteTag', 'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag',
   'removeTagCoverArt', 'renderAvatarById', 'renderHexEditorView', 'renderKeybindingsTable',
@@ -211,15 +204,13 @@ const BRUM_ACTIONS = new Set([
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'restartTetrionGame',
-  'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingCalculator',
-  'restoreFloatingDiff', 'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff', 'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder',
   'restoreFloatingEditor', 'restoreFloatingHexEditor', 'restoreFloatingLogViewer',
   'restoreFloatingMediaPlayer', 'restoreFloatingNotes', 'restoreFloatingPdf',
   'restoreFloatingRenamer', 'restoreFloatingShares', 'restoreFloatingSplitter',
   'restoreFloatingTagEditor', 'restoreFloatingTaskManager', 'restoreSelectedNotesVersion',
-  'restoreSelectedTrashItems', 'restoreTetrion', 'resumeAllTasks', 'resumeTask',
-  'resumeTetrionGame', 'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
+  'restoreSelectedTrashItems', 'resumeAllTasks', 'resumeTask',
+  'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
   'runBackupProfileNow', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runGlobalSearch',
   'runPropertiesStatsScan', 'runShellAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
   'saveActiveEditorTab', 'saveActiveNotesNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
@@ -229,7 +220,7 @@ const BRUM_ACTIONS = new Set([
   'saveGlobalFolderIcon', 'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile',
   'saveModalTags', 'saveNotesFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
   'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal',
-  'saveTetrionAliasFromInput', 'saveTetrionPlayerAlias', 'saveUserProfile', 'saveUserRbac',
+  'saveUserProfile', 'saveUserRbac',
   'scanMountpointTreemap', 'scanPaneForCombineParts', 'scrollViewerToBottom', 'searchHexBytes',
   'seekMedia', 'selectConverterPickerFile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
   'selectDatabaseSection', 'selectElementText', 'selectFleetColor', 'selectFleetNodeInManager',
@@ -242,10 +233,10 @@ const BRUM_ACTIONS = new Set([
   'setElementValue', 'setFileDiffMode', 'setFontSizePreset', 'setLogLevelFilter',
   'setMediaSubtitleTrack', 'setNotesStorageMode', 'setNotesViewMode',
   'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setPropFileColor',
-  'setTaskVerbosity', 'setTetrionTheme', 'setTetrionView', 'setTitleTemplatePreset',
+  'setTaskVerbosity', 'setTitleTemplatePreset',
   'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf',
   'showToast', 'showTouchActionsMenu', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane',
-  'startDuplicateScan', 'startTetrionGame', 'styleCheckboxPill', 'submitAddUser',
+  'startDuplicateScan', 'styleCheckboxPill', 'submitAddUser',
   'submitCreateApiToken', 'submitRemoteAuth', 'submitUnlockSession', 'swapDiffPaths', 'swapPanes',
   'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
   'switchGitTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchPdfTab',
@@ -256,7 +247,7 @@ const BRUM_ACTIONS = new Set([
   'testRemoteConnection', 'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleAllRenamerItems',
   'toggleAllRootsCheck', 'toggleBackupProfileActive', 'toggleBranchView', 'toggleBrumMascot',
   'toggleCadAxes', 'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer', 'toggleCadTurntable',
-  'toggleCalcHistory', 'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
+  'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
   'toggleCompactDates', 'toggleContextColorPalette', 'toggleContextSubmenu',
   'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
   'toggleDiffFoldersFirst', 'toggleDiffShowDotfiles', 'toggleDiffSortDir',
@@ -281,7 +272,7 @@ const BRUM_ACTIONS = new Set([
   'toggleRemoteGlobalMountUI', 'toggleRenamerItem', 'toggleRevokeShare', 'toggleShowDirTag',
   'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncExclusionsPanel', 'toggleSyncNav',
   'toggleSyncScroll', 'toggleTailFollow', 'toggleTerminal', 'toggleTerminalFullscreen',
-  'toggleTetrionAudio', 'toggleTetrionPlayPause', 'toggleToolVisibility', 'toggleToolsMenu',
+  'toggleToolVisibility', 'toggleToolsMenu',
   'toggleTrashSetting', 'toggleTreeNodeExpand', 'toggleUseExtEditor', 'toggleUseExtViewer',
   'toggleViewerWordWrap', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
   'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
@@ -300,8 +291,7 @@ const BRUM_ACTIONS = new Set([
   'updateMenuOption', 'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview',
   'updatePaneTabsMode', 'updatePermFromCheckboxes', 'updatePhoneTabletMaxPanes',
   'updatePropPermFromCheckboxes', 'updateRemoteProtoUI', 'updateRenamerPreview',
-  'updateSplitEstimate', 'updateTemplateLivePreview', 'updateTetrionConfig',
-  'updateTetrionConfigInt', 'useActivePaneItemForConverter', 'useActivePaneItemForSplitter',
+  'updateSplitEstimate', 'updateTemplateLivePreview', 'useActivePaneItemForConverter', 'useActivePaneItemForSplitter',
   'useActivePanePath', 'useActivePaneSelectedPdf', 'useFallbackIcon', 'useInactivePanePath',
   'writeClipboardText', 'zoomBookPage', 'zoomImage',
 ]);
@@ -523,14 +513,6 @@ function navigateConverterPickerFromInput() {
 
 function navigateSyncPickerFromInput() {
   navigateSyncPickerPath(document.getElementById('sync-picker-path-input').value);
-}
-
-function saveTetrionAliasFromInput() {
-  saveTetrionPlayerAlias(document.getElementById('tetrion-player-alias').value);
-}
-
-function updateTetrionConfigInt(key, value) {
-  updateTetrionConfig(key, parseInt(value, 10));
 }
 
 function clickElementById(id) {
@@ -987,7 +969,6 @@ let ColumnConfig = {
 // ---------------- TOOLS & LAUNCHPAD MENU CUSTOMIZER ----------------
 const DEFAULT_TOOLS_MENU = [
   { id: 'notes', label: 'Notes', icon: 'assets/note.webp', action: 'openFloatingNotes', desc: 'Notes, checklists, templates & markdown studio', visible: true },
-  { id: 'calc', label: 'Calculator', icon: 'assets/calc.webp', action: 'openFloatingCalculator', desc: 'Storage units, conversions & live history', visible: true },
   { id: 'renamer', label: 'Batch Renamer', icon: 'file-signature', iconColor: 'var(--accent)', action: 'openBatchRenamer', desc: 'Pattern replacements, regex capture groups & sequences (Ctrl+M)', visible: true },
   { id: 'hexeditor', label: 'Hex Editor', icon: 'binary', iconColor: 'var(--accent)', action: 'openHexEditor', desc: 'Binary byte inspector, patching & checksum calculator', visible: true },
   { id: 'splitter', label: 'File Splitter & Combiner', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
@@ -1006,7 +987,6 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
   { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
   { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer', desc: 'Universal audio, video, chiptune & tracker player with playlists and subtitles', visible: true },
-  { id: 'tetrion-classic', label: 'Tetrion', icon: 'assets/amber-tetris.webp', action: 'openTetrion', desc: 'Classic arcade block puzzle', visible: true }
 ];
 
 // ---------------- FILE TEMPLATES ENGINE ----------------
@@ -4511,12 +4491,10 @@ function createPaneElement(pane, index) {
         'editor': '<img src="assets/edit.webp" alt="Editor" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Editor',
         'notes': '<img src="assets/note.webp" alt="Notes" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Notes',
         'terminal': '<img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Terminal Console',
-        'calculator': '<img src="assets/calc.webp" alt="Calculator" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Calculator',
         'renamer': '<i data-lucide="file-signature" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Batch Renamer',
         'hexeditor': '<i data-lucide="binary" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Hex Editor',
         'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" data-on-error="useFallbackIcon" data-error-args="[{&quot;$&quot;:&quot;el&quot;}]"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
-        'tetrion-classic': '<img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Tetrion',
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
         'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
         'splitter': '<i data-lucide="scissors" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> File Splitter & Combiner',
@@ -12538,6 +12516,12 @@ function setupKeyboardNavigation() {
       if (e.key === 'F2') { e.preventDefault(); docViewerRenameCurrent(); return; }
     }
 
+    // A Chewtoy that has the keyboard gets these keys instead (see chewtoyKeyboardTarget)
+    if (chewtoyKeyboardTarget() && CHEWTOY_FORWARDED_KEYS.includes(e.key)) return;
+
+    const pane = App.panes[App.activePaneIndex];
+    if (!pane) return;
+
     switch (e.key) {
       case 'Tab':
         e.preventDefault();
@@ -13321,386 +13305,6 @@ function setupFloatingWindowResizers(win) {
       if (win.style.top) localStorage.setItem('cd_editor_y', parseInt(win.style.top, 10));
     }
   });
-}
-
-// ==========================================================================
-// 🧮 FLOATING CALCULATOR & BYTE MATH ENGINE
-// ==========================================================================
-
-let calcExpr = '';
-let calcCurrentVal = '0';
-let calcHasEvaluated = false;
-let calcHistory = JSON.parse(localStorage.getItem('cd_calc_history') || '[]');
-let calcDragInitialized = false;
-
-function openFloatingCalculator() {
-  closeToolsMenu();
-  const isInstalled = (window.installedChewToys || []).some(p => p.id === 'calculator' && (p.is_enabled !== undefined ? p.is_enabled : (p.enabled !== undefined ? p.enabled : true)));
-  if (isInstalled) {
-    openDynamicChewToy('calculator');
-    return;
-  }
-  const win = document.getElementById('floating-calculator-window');
-  const pill = document.getElementById('calc-pill');
-  if (pill) pill.style.display = 'none';
-  if (win) {
-    win.style.display = 'flex';
-    bringFloatingWindowToFront(win);
-  }
-  initCalcDrag();
-  calcUpdateDisplay();
-  renderCalcHistory();
-}
-
-function closeFloatingCalculator() {
-  const win = document.getElementById('floating-calculator-window');
-  if (win) win.style.display = 'none';
-  const pill = document.getElementById('calc-pill');
-  if (pill) pill.style.display = 'none';
-}
-
-function minimizeFloatingCalculator() {
-  const win = document.getElementById('floating-calculator-window');
-  if (win) win.style.display = 'none';
-  const pill = document.getElementById('calc-pill');
-  if (pill) pill.style.display = 'flex';
-}
-
-function restoreFloatingCalculator() {
-  openFloatingCalculator();
-}
-
-function initCalcDrag() {
-  if (calcDragInitialized) return;
-  calcDragInitialized = true;
-
-  const win = document.getElementById('floating-calculator-window');
-  const header = document.getElementById('calc-header');
-  if (!win || !header) return;
-
-  const savedLeft = localStorage.getItem('cd_calc_x');
-  const savedTop = localStorage.getItem('cd_calc_y');
-
-  if (savedLeft && savedTop && window.innerWidth > 1024) {
-    win.style.left = `${Math.min(window.innerWidth - 300, Math.max(10, parseInt(savedLeft, 10)))}px`;
-    win.style.top = `${Math.min(window.innerHeight - 380, Math.max(35, parseInt(savedTop, 10)))}px`;
-  } else if (window.innerWidth > 1024) {
-    win.style.right = '40px';
-    win.style.top = '100px';
-  }
-
-  let isDragging = false;
-  let dragStartX = 0, dragStartY = 0;
-  let winStartX = 0, winStartY = 0;
-
-  header.addEventListener('mousedown', (e) => {
-    if (window.innerWidth <= 1024) return;
-    if (e.target.closest('button') || e.target.closest('input')) return;
-    isDragging = true;
-    bringFloatingWindowToFront(win);
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    const rect = win.getBoundingClientRect();
-    winStartX = rect.left;
-    winStartY = rect.top;
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'move';
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    const newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, winStartX + dx));
-    const newTop = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
-    win.style.left = `${newLeft}px`;
-    win.style.top = `${newTop}px`;
-    win.style.right = 'auto';
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      if (win.style.left) localStorage.setItem('cd_calc_x', parseInt(win.style.left, 10));
-      if (win.style.top) localStorage.setItem('cd_calc_y', parseInt(win.style.top, 10));
-    }
-  });
-
-  // Global key listener when calculator is active
-  document.addEventListener('keydown', (e) => {
-    if (win.style.display !== 'flex') return;
-    if (['INPUT', 'TEXTAREA'].includes(e.target.tagName) && e.target.id !== 'calc-display-input') return;
-
-    if (e.key >= '0' && e.key <= '9') {
-      calcAppendNum(e.key);
-    } else if (['+', '-', '*', '/'].includes(e.key)) {
-      calcAppendOp(e.key);
-    } else if (e.key === '.') {
-      calcAppendDot();
-    } else if (e.key === 'Enter' || e.key === '=') {
-      e.preventDefault();
-      calcEvaluate();
-    } else if (e.key === 'Backspace') {
-      calcBackspace();
-    } else if (e.key === 'Escape') {
-      if (calcExpr || calcCurrentVal !== '0') calcClearAll();
-      else closeFloatingCalculator();
-    } else if (e.key === '(' || e.key === ')') {
-      calcAppendChar(e.key);
-    } else if (e.key === '%') {
-      calcAppendOp('%');
-    }
-  });
-}
-
-function calcUpdateDisplay() {
-  document.querySelectorAll('#calc-expr-display, [id^="docked-calc-expr"]').forEach(el => {
-    el.textContent = calcExpr || '\u00A0';
-  });
-  document.querySelectorAll('#calc-display-input, [id^="docked-calc-display"]').forEach(el => {
-    el.value = calcCurrentVal;
-  });
-
-  const num = parseFloat(calcCurrentVal) || 0;
-
-  // Format Byte Size
-  const sizeStr = formatBytes(Math.abs(num));
-  document.querySelectorAll('#calc-conv-size, [id^="docked-calc-conv-size"]').forEach(el => {
-    el.textContent = sizeStr;
-  });
-
-  // Format Hexadecimal
-  let hexStr = '-';
-  if (!isNaN(num) && Math.abs(num) < 0x1000000000000) {
-    const intVal = Math.floor(Math.abs(num));
-    hexStr = (num < 0 ? '-' : '') + '0x' + intVal.toString(16).toUpperCase();
-  }
-  document.querySelectorAll('#calc-conv-hex, [id^="docked-calc-conv-hex"]').forEach(el => {
-    el.textContent = hexStr;
-  });
-
-  // Format Octal (useful for chmod!)
-  let octStr = '-';
-  if (!isNaN(num) && Math.abs(num) < 0x1000000) {
-    const intVal = Math.floor(Math.abs(num));
-    octStr = (num < 0 ? '-' : '') + '0' + intVal.toString(8);
-  }
-  document.querySelectorAll('#calc-conv-oct, [id^="docked-calc-conv-oct"]').forEach(el => {
-    el.textContent = octStr;
-  });
-
-  // Format Binary
-  let binStr = '-';
-  if (!isNaN(num) && Math.abs(num) <= 0xFFFF) {
-    const intVal = Math.floor(Math.abs(num));
-    binStr = (num < 0 ? '-' : '') + '0b' + intVal.toString(2);
-  }
-  document.querySelectorAll('#calc-conv-bin, [id^="docked-calc-conv-bin"]').forEach(el => {
-    el.textContent = binStr;
-  });
-}
-
-function calcAppendNum(digit) {
-  if (calcHasEvaluated) {
-    calcCurrentVal = digit;
-    calcExpr = '';
-    calcHasEvaluated = false;
-  } else if (calcCurrentVal === '0' || calcCurrentVal === '-0') {
-    calcCurrentVal = (calcCurrentVal === '-0' ? '-' : '') + digit;
-  } else {
-    calcCurrentVal += digit;
-  }
-  calcUpdateDisplay();
-}
-
-function calcAppendDot() {
-  if (calcHasEvaluated) {
-    calcCurrentVal = '0.';
-    calcExpr = '';
-    calcHasEvaluated = false;
-  } else if (!calcCurrentVal.includes('.')) {
-    calcCurrentVal += '.';
-  }
-  calcUpdateDisplay();
-}
-
-function calcAppendOp(op) {
-  calcHasEvaluated = false;
-  if (calcCurrentVal) {
-    calcExpr = calcExpr ? `${calcExpr} ${calcCurrentVal} ${op}` : `${calcCurrentVal} ${op}`;
-    calcCurrentVal = '0';
-  } else if (calcExpr && /[+\-*/%^]$/.test(calcExpr.trim())) {
-    calcExpr = calcExpr.trim().slice(0, -1) + op;
-  }
-  calcUpdateDisplay();
-}
-
-function calcAppendChar(ch) {
-  if (ch === '(') {
-    calcExpr = calcExpr ? `${calcExpr} (` : '(';
-  } else if (ch === ')') {
-    if (calcCurrentVal && calcCurrentVal !== '0') {
-      calcExpr = `${calcExpr} ${calcCurrentVal} )`;
-      calcCurrentVal = '0';
-    } else {
-      calcExpr = `${calcExpr} )`;
-    }
-  }
-  calcUpdateDisplay();
-}
-
-function calcAppendUnit(unit) {
-  const multipliers = {
-    'KB': 1024,
-    'MB': 1024 * 1024,
-    'GB': 1024 * 1024 * 1024,
-    'TB': 1024 * 1024 * 1024 * 1024,
-  };
-  const mult = multipliers[unit] || 1;
-  const currentNum = parseFloat(calcCurrentVal) || 1;
-  calcCurrentVal = String(currentNum * mult);
-  calcUpdateDisplay();
-}
-
-function calcAppendFunc(fnStr) {
-  calcExpr = calcExpr ? `${calcExpr} ${fnStr}` : fnStr;
-  calcUpdateDisplay();
-}
-
-function calcAppendPi() {
-  calcCurrentVal = String(Math.PI);
-  calcUpdateDisplay();
-}
-
-function calcToggleSign() {
-  if (calcCurrentVal.startsWith('-')) {
-    calcCurrentVal = calcCurrentVal.substring(1);
-  } else if (calcCurrentVal !== '0') {
-    calcCurrentVal = '-' + calcCurrentVal;
-  }
-  calcUpdateDisplay();
-}
-
-function calcBackspace() {
-  if (calcCurrentVal.length > 1) {
-    calcCurrentVal = calcCurrentVal.slice(0, -1);
-  } else {
-    calcCurrentVal = '0';
-  }
-  calcUpdateDisplay();
-}
-
-function calcClearEntry() {
-  calcCurrentVal = '0';
-  calcUpdateDisplay();
-}
-
-function calcClearAll() {
-  calcExpr = '';
-  calcCurrentVal = '0';
-  calcHasEvaluated = false;
-  calcUpdateDisplay();
-}
-
-function calcEvaluate() {
-  let fullExpr = (calcExpr ? `${calcExpr} ${calcCurrentVal}` : calcCurrentVal).trim();
-  if (!fullExpr) return;
-
-  try {
-    let sanitized = fullExpr
-      .replace(/÷/g, '/')
-      .replace(/×/g, '*')
-      .replace(/−/g, '-')
-      .replace(/\^/g, '**')
-      .replace(/sqrt\(/g, 'Math.sqrt(')
-      .replace(/sin\(/g, 'Math.sin(')
-      .replace(/cos\(/g, 'Math.cos(')
-      .replace(/tan\(/g, 'Math.tan(')
-      .replace(/abs\(/g, 'Math.abs(')
-      .replace(/π/g, 'Math.PI')
-      .replace(/e/g, 'Math.E');
-
-    // Only allow safe math tokens
-    if (!/^[0-9+\-*/%().,\sMath.sqrtincoabPIE*]+$/.test(sanitized)) {
-      throw new Error('Invalid expression');
-    }
-
-    const result = Function(`"use strict"; return (${sanitized});`)();
-    if (typeof result !== 'number' || isNaN(result) || !isFinite(result)) {
-      throw new Error('Math error');
-    }
-
-    const formattedResult = Number.isInteger(result) ? String(result) : parseFloat(result.toFixed(8)).toString();
-
-    // Save to calculation history
-    calcHistory.unshift({
-      expr: fullExpr,
-      result: formattedResult,
-      time: Date.now()
-    });
-    if (calcHistory.length > 30) calcHistory.pop();
-    localStorage.setItem('cd_calc_history', JSON.stringify(calcHistory));
-
-    calcExpr = fullExpr + ' =';
-    calcCurrentVal = formattedResult;
-    calcHasEvaluated = true;
-    calcUpdateDisplay();
-    renderCalcHistory();
-  } catch (err) {
-    calcCurrentVal = 'Error';
-    calcHasEvaluated = true;
-    calcUpdateDisplay();
-  }
-}
-
-function copyCalcResult() {
-  const val = calcCurrentVal;
-  if (val && val !== 'Error') {
-    navigator.clipboard.writeText(val).then(() => {
-      showToast(`📋 Copied "${val}" to clipboard`, 'success');
-    }).catch(() => {
-      showToast(`Value: ${val}`, 'info');
-    });
-  }
-}
-
-function toggleCalcHistory() {
-  const panel = document.getElementById('calc-history-panel');
-  if (!panel) return;
-  panel.style.display = panel.style.display === 'none' ? 'flex' : 'none';
-}
-
-function calcClearHistory() {
-  calcHistory = [];
-  localStorage.removeItem('cd_calc_history');
-  renderCalcHistory();
-}
-
-function renderCalcHistory() {
-  const listEl = document.getElementById('calc-history-list');
-  if (!listEl) return;
-
-  if (calcHistory.length === 0) {
-    listEl.innerHTML = '<div class="calc-history-empty" style="font-size: 10px; color: var(--text-dim); text-align: center; padding: 6px;">No calculations yet</div>';
-    return;
-  }
-
-  listEl.innerHTML = calcHistory.map(item => `
-    <div class="calc-history-item" data-on-click="calcLoadHistoryItem" data-click-args="${actionArgs(String((item.result) ?? ''))}">
-      <span style="color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 60%;">${escapeHtml(item.expr)}</span>
-      <span style="font-weight: 700; color: var(--accent);">= ${escapeHtml(item.result)}</span>
-    </div>
-  `).join('');
-  bindActions(listEl);
-}
-
-function calcLoadHistoryItem(resVal) {
-  calcCurrentVal = resVal;
-  calcExpr = '';
-  calcHasEvaluated = false;
-  calcUpdateDisplay();
 }
 
 // =========================================================================
@@ -19840,8 +19444,6 @@ function renderToolsMenu() {
   const visibleItems = config.filter(item => {
     if (item.visible === false) return false;
     // Omit legacy built-ins when corresponding decoupled Chewtoy is installed & active
-    if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-    if (item.id === 'tetrion-classic' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
     return true;
   });
 
@@ -19914,8 +19516,6 @@ function renderToolsSettingsTab() {
   const activeChewtoyIds = new Set(activeChewToys.map(p => p.id));
 
   const config = getToolsMenuConfig().filter(item => {
-    if (item.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-    if (item.id === 'tetrion-classic' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
     return true;
   });
   const visibleCount = config.filter(item => item.visible !== false).length;
@@ -38073,7 +37673,6 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'hexeditor', title: 'Hex Editor', sub: 'Binary hexadecimal viewer, byte patching & checksum calculator', icon: 'binary', cat: 'actions', action: () => openHexEditor() },
   { id: 'splitter', title: 'File Splitter & Combiner', sub: 'Split large files into chunks (.001, .002) and verify/combine with SHA-256', icon: 'scissors', cat: 'actions', action: () => openFileSplitterModal() },
   { id: 'notes', title: 'Notes', sub: 'Hierarchical notes, markdown editor, interactive checklists, templates & versions', icon: 'assets/note.webp', cat: 'actions', action: () => openFloatingNotes() },
-  { id: 'calc', title: 'Calculator', sub: 'Interactive floating calculator with storage units & base conversions', icon: 'assets/calc.webp', cat: 'actions', action: () => openFloatingCalculator() },
   { id: 'branch', title: 'Flat', sub: 'Flatten all subdirectories into a single unified list (Ctrl+B)', icon: 'assets/amber-git-branch.webp', cat: 'actions', action: () => toggleBranchView() },
   { id: 'tree', title: 'Tree', sub: 'Collapsible directory navigation tree (Ctrl+T)', icon: 'assets/amber-folder-tree.webp', cat: 'actions', action: () => toggleFolderTree() },
   { id: 'tags', title: 'Color Labels & Custom Tags', sub: 'Assign color labels and custom tags to selected items', icon: 'tag', cat: 'actions', action: () => triggerEditTagsModal() },
@@ -38093,7 +37692,6 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'tageditor', title: 'Tag Editor', sub: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', icon: 'tag', cat: 'actions', action: () => openTagEditor() },
   { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
   { id: 'mediaplayer', title: 'Media Player', sub: 'Universal audio, video, chiptune & tracker player, subtitles, PiP popout & playlists', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
-  { id: 'tetrion-classic', title: 'Tetrion', sub: 'Classic arcade block puzzle with synchronized top scores & leaderboards', icon: 'assets/amber-tetris.webp', cat: 'actions', action: () => openTetrion() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
@@ -38384,8 +37982,6 @@ function buildSpotlightItems() {
     const activeChewtoyIds = new Set(activeChewToys.map(p => p.id));
 
     pool.push(...SPOTLIGHT_STATIC_ACTIONS.filter(a => {
-      if (a.id === 'calc' && activeChewtoyIds.has('calculator')) return false;
-      if (a.id === 'tetrion-classic' && (activeChewtoyIds.has('tetrion') || activeChewtoyIds.has('arcade-blocks'))) return false;
       return true;
     }).map(a => ({
       title: a.title,
@@ -39137,20 +38733,12 @@ function dockTerminalToActivePane() {
   dockToolToPane('terminal', App.activePaneIndex);
 }
 
-function dockCalculatorToActivePane() {
-  dockToolToPane('calculator', App.activePaneIndex);
-}
-
 function dockTasksToActivePane() {
   dockToolToPane('tasks', App.activePaneIndex);
 }
 
 function dockGitToActivePane() {
   dockToolToPane('git', App.activePaneIndex);
-}
-
-function dockTetrionToActivePane() {
-  dockToolToPane('tetrion-classic', App.activePaneIndex);
 }
 
 function dockSoundDogToActivePane() {
@@ -39220,13 +38808,6 @@ function dockToolToPane(toolName, paneIndex) {
     termOpen = false;
     localStorage.setItem('cd_terminal_open', '0');
   }
-  // 4. Calculator: hide floating calculator & pill
-  else if (toolName === 'calculator') {
-    const win = document.getElementById('floating-calculator-window');
-    if (win) win.style.display = 'none';
-    const pill = document.getElementById('calc-pill');
-    if (pill) pill.style.display = 'none';
-  }
   // 5. Tasks: hide floating task manager & backdrop
   else if (toolName === 'tasks') {
     closeFloatingTaskManager();
@@ -39234,13 +38815,6 @@ function dockToolToPane(toolName, paneIndex) {
   // 6. Git: close git modal
   else if (toolName === 'git') {
     closeModal('git-modal');
-  }
-  // 7. Tetrion: hide floating window & pill
-  else if (toolName === 'tetrion-classic') {
-    const win = document.getElementById('floating-tetrion-window');
-    if (win) win.style.display = 'none';
-    const pill = document.getElementById('tetrion-pill');
-    if (pill) pill.style.display = 'none';
   }
   // 8. SoundDog: hide floating window & pill
   else if (toolName === 'sounddog') {
@@ -39308,14 +38882,10 @@ function undockToolFromPane(paneIndex) {
     openFloatingNotes();
   } else if (tool === 'terminal') {
     toggleTerminal(true);
-  } else if (tool === 'calculator') {
-    openFloatingCalculator();
   } else if (tool === 'tasks') {
     openFloatingTaskManager();
   } else if (tool === 'git') {
     openGitManager(paneIndex, pane.path);
-  } else if (tool === 'tetrion-classic') {
-    openTetrion();
   } else if (tool === 'sounddog') {
     openSoundDog();
   } else if (tool === 'mediaplayer') {
@@ -39619,80 +39189,6 @@ function mountDockedTool(paneIndex) {
       }
     }, 100);
   }
-  // 3. DOCKED CALCULATOR (COMPLETE WITH CONVERTERS, STORAGE UNITS & HISTORY)
-  else if (tool === 'calculator') {
-    mount.innerHTML = `
-      <div class="docked-calc-box" style="padding: 12px 16px; display: flex; flex-direction: column; width: 100%; max-width: 340px; height: 100%; gap: 8px; background: var(--bg-panel); overflow-y: auto;">
-        <!-- Screen / Display -->
-        <div class="calc-display-panel">
-          <div class="calc-expression-line" id="calc-expr-display">&nbsp;</div>
-          <div class="calc-result-row">
-            <input type="text" class="calc-result-input" id="calc-display-input" value="0" autocomplete="off" spellcheck="false" readonly />
-            <button class="btn btn-icon btn-xs calc-copy-btn" data-on-click="copyCalcResult" title="Copy Result to Clipboard"><i data-lucide="copy" style="width: 13px;"></i></button>
-          </div>
-        </div>
-
-        <!-- Live Byte & Base Converter Bar -->
-        <div class="calc-converters-bar" id="calc-converters-bar">
-          <div class="calc-conv-item" title="Human-readable File Size"><span class="calc-conv-lbl">SIZE:</span> <span class="calc-conv-val" id="calc-conv-size">0 B</span></div>
-          <div class="calc-conv-item" title="Hexadecimal"><span class="calc-conv-lbl">HEX:</span> <span class="calc-conv-val" id="calc-conv-hex">0x0</span></div>
-          <div class="calc-conv-item" title="Octal (chmod mode)"><span class="calc-conv-lbl">OCT:</span> <span class="calc-conv-val" id="calc-conv-oct">0</span></div>
-          <div class="calc-conv-item" title="Binary"><span class="calc-conv-lbl">BIN:</span> <span class="calc-conv-val" id="calc-conv-bin">0b0</span></div>
-        </div>
-
-        <!-- Mode & Quick Byte Multipliers Row -->
-        <div class="calc-units-row">
-          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('KB')}" title="Multiply by 1024 (KB)">KB</button>
-          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('MB')}" title="Multiply by 1024² (MB)">MB</button>
-          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('GB')}" title="Multiply by 1024³ (GB)">GB</button>
-          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendUnit" data-click-args="${actionArgs('TB')}" title="Multiply by 1024⁴ (TB)">TB</button>
-          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendFunc" data-click-args="${actionArgs('sqrt(')}" title="Square Root">√</button>
-          <button class="btn btn-xs calc-unit-btn" data-on-click="calcAppendOp" data-click-args="${actionArgs('^')}" title="Exponent / Power">xʸ</button>
-        </div>
-
-        <!-- Main Keypad Grid -->
-        <div class="calc-keypad-grid">
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcClearAll">C</button>
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcClearEntry">CE</button>
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcBackspace" title="Backspace"><i data-lucide="delete" style="width: 14px;"></i></button>
-          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('/')}">÷</button>
-
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendChar" data-click-args="${actionArgs('(')}">(</button>
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendChar" data-click-args="${actionArgs(')')}">)</button>
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendOp" data-click-args="${actionArgs('%')}">%</button>
-          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('*')}">×</button>
-
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('7')}">7</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('8')}">8</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('9')}">9</button>
-          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('-')}">−</button>
-
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('4')}">4</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('5')}">5</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('6')}">6</button>
-          <button class="btn calc-btn calc-btn-op" data-on-click="calcAppendOp" data-click-args="${actionArgs('+')}">+</button>
-
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('1')}">1</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('2')}">2</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('3')}">3</button>
-          <button class="btn calc-btn calc-btn-equals" data-on-click="calcEvaluate">=</button>
-
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcToggleSign">±</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendNum" data-click-args="${actionArgs('0')}">0</button>
-          <button class="btn calc-btn calc-btn-num" data-on-click="calcAppendDot">.</button>
-          <button class="btn calc-btn calc-btn-fn" data-on-click="calcAppendPi" title="Pi (3.14159...)">π</button>
-        </div>
-
-        <!-- History Tape Drawer Toggle -->
-        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 4px; border-top: 1px solid var(--border);">
-          <button class="btn btn-xs btn-outline" data-on-click="toggleCalcHistory" style="font-size: 10px;"><i data-lucide="history" style="width: 11px; height: 11px;"></i> History</button>
-          <span style="font-size: 10px; color: var(--text-dim);">Keyboard Active</span>
-        </div>
-      </div>
-    `;
-    bindActions(mount);
-    calcUpdateDisplay();
-  }
   // 4. DOCKED TASKS & BACKGROUND TRANSFERS
   else if (tool === 'tasks') {
     mount.innerHTML = `
@@ -39764,29 +39260,6 @@ function mountDockedTool(paneIndex) {
     `;
     bindActions(mount);
     loadGitStatusForDocked(paneIndex, pane.path);
-  }
-  // 6. DOCKED TETRION (CLASSIC ARCADE CHEWTOY)
-  else if (tool === 'tetrion-classic') {
-    mount.innerHTML = `
-      <div class="docked-tetrion-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
-        <div style="padding: 4px 8px; min-height: 32px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-          <div style="display: flex; align-items: center; gap: 6px;">
-            <img src="assets/amber-tetris.webp" alt="Tetrion" style="width: 14px; height: 14px; object-fit: contain;">
-            <span style="font-size: 11px; font-weight: 700; color: var(--accent);">Tetrion</span>
-            <span class="tetrion-mode-badge" id="docked-tetrion-mode-${paneIndex}">MARATHON</span>
-          </div>
-          <div style="display: flex; align-items: center; gap: 4px;">
-            <button class="btn btn-xs btn-accent" data-on-click="startTetrionGame"><i data-lucide="play" style="width: 11px;"></i> Play</button>
-            <button class="btn btn-xs btn-outline" data-on-click="setTetrionView" data-click-args="${actionArgs('leaderboard')}"><i data-lucide="trophy" style="width: 11px;"></i> Scores</button>
-          </div>
-        </div>
-        <div style="flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; background: #090a0f; padding: 6px;" id="docked-tetrion-host-${paneIndex}"></div>
-      </div>
-    `;
-    bindActions(mount);
-    setTimeout(() => {
-      mountDockedTetrion(paneIndex);
-    }, 50);
   }
   // 7. DOCKED AUDIOPLAYER (AUDIO PLAYER & JUKEBOX)
   else if (tool === 'sounddog') {
@@ -42342,1803 +41815,6 @@ function mountDockedPdf(paneIndex) {
 }
 
 // ==========================================================================
-// 🕹️ TETRION: CLASSIC ARCADE CHEWTOY & LEADERBOARD ENGINE
-// ==========================================================================
-
-const TETRION_PIECES = {
-  I: {
-    matrix: [
-      [0, 0, 0, 0],
-      [1, 1, 1, 1],
-      [0, 0, 0, 0],
-      [0, 0, 0, 0]
-    ],
-    color: '#06b6d4',
-    glow: 'rgba(6, 182, 212, 0.7)'
-  },
-  J: {
-    matrix: [
-      [1, 0, 0],
-      [1, 1, 1],
-      [0, 0, 0]
-    ],
-    color: '#3b82f6',
-    glow: 'rgba(59, 130, 246, 0.7)'
-  },
-  L: {
-    matrix: [
-      [0, 0, 1],
-      [1, 1, 1],
-      [0, 0, 0]
-    ],
-    color: '#f97316',
-    glow: 'rgba(249, 115, 22, 0.7)'
-  },
-  O: {
-    matrix: [
-      [1, 1],
-      [1, 1]
-    ],
-    color: '#eab308',
-    glow: 'rgba(234, 179, 8, 0.7)'
-  },
-  S: {
-    matrix: [
-      [0, 1, 1],
-      [1, 1, 0],
-      [0, 0, 0]
-    ],
-    color: '#22c55e',
-    glow: 'rgba(34, 197, 94, 0.7)'
-  },
-  T: {
-    matrix: [
-      [0, 1, 0],
-      [1, 1, 1],
-      [0, 0, 0]
-    ],
-    color: '#a855f7',
-    glow: 'rgba(168, 85, 247, 0.7)'
-  },
-  Z: {
-    matrix: [
-      [1, 1, 0],
-      [0, 1, 1],
-      [0, 0, 0]
-    ],
-    color: '#ef4444',
-    glow: 'rgba(239, 68, 68, 0.7)'
-  }
-};
-
-const TETRION_SRS_KICKS_JLSTZ = {
-  '0->1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
-  '1->0': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
-  '1->2': [[0, 0], [1, 0], [1, -1], [0, 2], [1, 2]],
-  '2->1': [[0, 0], [-1, 0], [-1, 1], [0, -2], [-1, -2]],
-  '2->3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
-  '3->2': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
-  '3->0': [[0, 0], [-1, 0], [-1, -1], [0, 2], [-1, 2]],
-  '0->3': [[0, 0], [1, 0], [1, 1], [0, -2], [1, -2]],
-};
-
-const TETRION_SRS_KICKS_I = {
-  '0->1': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
-  '1->0': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
-  '1->2': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
-  '2->1': [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
-  '2->3': [[0, 0], [2, 0], [-1, 0], [2, 1], [-1, -2]],
-  '3->2': [[0, 0], [-2, 0], [1, 0], [-2, -1], [1, 2]],
-  '3->0': [[0, 0], [1, 0], [-2, 0], [1, -2], [-2, 1]],
-  '0->3': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
-};
-
-let tetrionState = {
-  initialized: false,
-  isMaximized: false,
-  activeView: 'game',
-  theme: localStorage.getItem('cd_tetrion_theme') || 'amber',
-  soundEnabled: localStorage.getItem('cd_tetrion_sound') !== '0',
-  volume: parseInt(localStorage.getItem('cd_tetrion_vol') || '60', 10),
-  playerAlias: localStorage.getItem('cd_tetrion_alias') || '',
-  config: {
-    startLevel: parseInt(localStorage.getItem('cd_tetrion_start_lvl') || '1', 10),
-    rotationSystem: localStorage.getItem('cd_tetrion_rotation') || 'srs',
-    ghostPiece: localStorage.getItem('cd_tetrion_ghost') !== '0',
-    das: parseInt(localStorage.getItem('cd_tetrion_das') || '133', 10),
-    arr: parseInt(localStorage.getItem('cd_tetrion_arr') || '16', 10),
-    scanlines: localStorage.getItem('cd_tetrion_scanlines') !== '0',
-  },
-  game: {
-    boardWidth: 10,
-    boardHeight: 20,
-    visibleHeight: 20,
-    cellSize: 24,
-    grid: [],
-    currentPiece: null,
-    nextQueue: [],
-    holdPiece: null,
-    canHold: true,
-    ghostY: 0,
-    status: 'ready', // 'ready' | 'playing' | 'paused' | 'gameover'
-    mode: 'marathon',
-    score: 0,
-    lines: 0,
-    level: 1,
-    highScore: 0,
-    b2b: false,
-    combo: 0,
-    startTime: 0,
-    elapsedMs: 0,
-    lastFrameTime: 0,
-    dropTimer: 0,
-    dropInterval: 1000,
-    lockTimer: 0,
-    lockDelay: 500,
-    lockResets: 0,
-    maxLockResets: 15,
-    isLocking: false,
-    animatingRows: [],
-    animationTimer: 0,
-    keyState: {},
-    dasTimer: 0,
-    arrTimer: 0,
-    dasDir: 0,
-    softDropActive: false,
-    lastActionWasRotate: false
-  },
-  leaderboard: {
-    mode: 'marathon',
-    scope: 'all',
-    list: [],
-    userStats: null,
-    isLoading: false
-  }
-};
-
-let tetraAudioCtx = null;
-let tetraRafId = null;
-let tetraDragInit = false;
-
-// ---------------- AUDIO SYNTHESIZER (WEB AUDIO API) ----------------
-function initTetraAudio() {
-  if (!tetraAudioCtx) {
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (AudioCtx) {
-      tetraAudioCtx = new AudioCtx();
-    }
-  }
-  if (tetraAudioCtx && tetraAudioCtx.state === 'suspended') {
-    tetraAudioCtx.resume();
-  }
-}
-
-function playTetraSound(type) {
-  if (!tetrionState.soundEnabled) return;
-  try {
-    initTetraAudio();
-    if (!tetraAudioCtx) return;
-
-    const masterVol = (tetrionState.volume / 100) * 0.15;
-    const now = tetraAudioCtx.currentTime;
-
-    if (type === 'move') {
-      const osc = tetraAudioCtx.createOscillator();
-      const gain = tetraAudioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(220, now);
-      osc.frequency.exponentialRampToValueAtTime(180, now + 0.035);
-      gain.gain.setValueAtTime(masterVol * 0.6, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.035);
-      osc.connect(gain);
-      gain.connect(tetraAudioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.035);
-    } else if (type === 'rotate') {
-      const osc = tetraAudioCtx.createOscillator();
-      const gain = tetraAudioCtx.createGain();
-      osc.type = 'square';
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(640, now + 0.045);
-      gain.gain.setValueAtTime(masterVol * 0.5, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.045);
-      osc.connect(gain);
-      gain.connect(tetraAudioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.045);
-    } else if (type === 'harddrop') {
-      const osc = tetraAudioCtx.createOscillator();
-      const gain = tetraAudioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(140, now);
-      osc.frequency.exponentialRampToValueAtTime(35, now + 0.08);
-      gain.gain.setValueAtTime(masterVol * 1.0, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
-      osc.connect(gain);
-      gain.connect(tetraAudioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.08);
-    } else if (type === 'lock') {
-      const osc = tetraAudioCtx.createOscillator();
-      const gain = tetraAudioCtx.createGain();
-      osc.type = 'triangle';
-      osc.frequency.setValueAtTime(440, now);
-      osc.frequency.exponentialRampToValueAtTime(110, now + 0.04);
-      gain.gain.setValueAtTime(masterVol * 0.6, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.04);
-      osc.connect(gain);
-      gain.connect(tetraAudioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.04);
-    } else if (type === 'hold') {
-      const osc = tetraAudioCtx.createOscillator();
-      const gain = tetraAudioCtx.createGain();
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(350, now);
-      osc.frequency.linearRampToValueAtTime(480, now + 0.06);
-      gain.gain.setValueAtTime(masterVol * 0.7, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.06);
-      osc.connect(gain);
-      gain.connect(tetraAudioCtx.destination);
-      osc.start(now);
-      osc.stop(now + 0.06);
-    } else if (type === 'clear') {
-      [523.25, 659.25, 783.99].forEach((freq, idx) => {
-        const osc = tetraAudioCtx.createOscillator();
-        const gain = tetraAudioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
-        gain.gain.setValueAtTime(masterVol * 0.6, now + idx * 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.09);
-        osc.connect(gain);
-        gain.connect(tetraAudioCtx.destination);
-        osc.start(now + idx * 0.04);
-        osc.stop(now + idx * 0.04 + 0.09);
-      });
-    } else if (type === 'tetris') {
-      [523.25, 659.25, 783.99, 1046.50].forEach((freq, idx) => {
-        const osc = tetraAudioCtx.createOscillator();
-        const gain = tetraAudioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.05);
-        gain.gain.setValueAtTime(masterVol * 0.8, now + idx * 0.05);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.05 + 0.22);
-        osc.connect(gain);
-        gain.connect(tetraAudioCtx.destination);
-        osc.start(now + idx * 0.05);
-        osc.stop(now + idx * 0.05 + 0.22);
-      });
-    } else if (type === 'levelup') {
-      [440, 554.37, 659.25, 880].forEach((freq, idx) => {
-        const osc = tetraAudioCtx.createOscillator();
-        const gain = tetraAudioCtx.createGain();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.04);
-        gain.gain.setValueAtTime(masterVol * 0.7, now + idx * 0.04);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.04 + 0.12);
-        osc.connect(gain);
-        gain.connect(tetraAudioCtx.destination);
-        osc.start(now + idx * 0.04);
-        osc.stop(now + idx * 0.04 + 0.12);
-      });
-    } else if (type === 'gameover') {
-      [440, 415.30, 392.00, 349.23].forEach((freq, idx) => {
-        const osc = tetraAudioCtx.createOscillator();
-        const gain = tetraAudioCtx.createGain();
-        osc.type = 'sawtooth';
-        osc.frequency.setValueAtTime(freq, now + idx * 0.09);
-        gain.gain.setValueAtTime(masterVol * 0.6, now + idx * 0.09);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.09 + 0.16);
-        osc.connect(gain);
-        gain.connect(tetraAudioCtx.destination);
-        osc.start(now + idx * 0.09);
-        osc.stop(now + idx * 0.09 + 0.16);
-      });
-    }
-  } catch (e) {
-    console.debug('TetraAudio error:', e);
-  }
-}
-
-// ---------------- WINDOWING & LIFECYCLE ----------------
-function openTetrion() {
-  closeToolsMenu();
-  const tetrionPlugin = (window.installedChewToys || []).find(p => (p.id === 'tetrion' || p.id === 'arcade-blocks') && (p.is_enabled !== undefined ? p.is_enabled : (p.enabled !== undefined ? p.enabled : true)));
-  if (tetrionPlugin) {
-    openDynamicChewToy(tetrionPlugin.id);
-    return;
-  }
-  const win = document.getElementById('floating-tetrion-window');
-  const pill = document.getElementById('tetrion-pill');
-  if (pill) pill.style.display = 'none';
-
-  if (win) {
-    win.style.display = 'flex';
-    bringFloatingWindowToFront(win);
-  }
-
-  updateDynamicViewportHeight();
-  setTetrionView('game');
-  initTetrionDragAndResize();
-  initTetrionInput();
-  applyTetrionTheme();
-
-  if (!tetrionState.initialized) {
-    initTetrionGame();
-    tetrionState.initialized = true;
-  }
-
-  // Auto-start game immediately on open if ready or gameover so pieces start falling!
-  if (tetrionState.game.status === 'ready' || tetrionState.game.status === 'gameover') {
-    startTetrionGame();
-  }
-
-  if (window.lucide) {
-    try { lucide.createIcons(); } catch (e) {}
-  }
-
-  // Load hiscores from DB in background
-  loadTetrionLeaderboard(tetrionState.game.mode, false);
-}
-
-function closeTetrion() {
-  const win = document.getElementById('floating-tetrion-window');
-  if (win) win.style.display = 'none';
-  const pill = document.getElementById('tetrion-pill');
-  if (pill) pill.style.display = 'none';
-
-  if (tetrionState.game.status === 'playing') {
-    pauseTetrionGame();
-  }
-}
-
-function minimizeTetrion() {
-  const win = document.getElementById('floating-tetrion-window');
-  if (win) win.style.display = 'none';
-  const pill = document.getElementById('tetrion-pill');
-  if (pill) {
-    pill.style.display = 'flex';
-    const scoreEl = document.getElementById('tetrion-pill-score');
-    if (scoreEl) scoreEl.textContent = tetrionState.game.score.toLocaleString();
-  }
-}
-
-function restoreTetrion() {
-  openTetrion();
-}
-
-function maximizeTetrion() {
-  const win = document.getElementById('floating-tetrion-window');
-  if (!win) return;
-  tetrionState.isMaximized = !tetrionState.isMaximized;
-  win.classList.toggle('maximized', tetrionState.isMaximized);
-}
-
-function setTetrionView(viewName) {
-  tetrionState.activeView = viewName;
-  ['game', 'leaderboard', 'settings'].forEach(v => {
-    const el = document.getElementById(`tetrion-view-${v}`);
-    const btn = document.getElementById(`btn-tetrion-view-${v}`);
-    if (el) el.style.display = (v === viewName) ? 'flex' : 'none';
-    if (btn) btn.classList.toggle('active', v === viewName);
-  });
-
-  if (viewName === 'leaderboard') {
-    loadTetrionLeaderboard(tetrionState.leaderboard.mode);
-  } else if (viewName === 'game') {
-    renderTetraCanvas();
-  }
-}
-
-function setTetrionTheme(theme) {
-  tetrionState.theme = theme;
-  localStorage.setItem('cd_tetrion_theme', theme);
-  applyTetrionTheme();
-}
-
-function cycleTetrionTheme() {
-  const themes = ['amber', 'gameboy', 'nes', 'cyberpunk'];
-  const curIdx = themes.indexOf(tetrionState.theme);
-  const nextTheme = themes[(curIdx + 1) % themes.length];
-  setTetrionTheme(nextTheme);
-  showToast(`Tetrion Theme: ${nextTheme.toUpperCase()}`, 'info');
-}
-
-function applyTetrionTheme() {
-  const win = document.getElementById('floating-tetrion-window');
-  if (!win) return;
-  win.classList.remove('tetrion-theme-amber', 'tetrion-theme-gameboy', 'tetrion-theme-nes', 'tetrion-theme-cyberpunk');
-  win.classList.add(`tetrion-theme-${tetrionState.theme}`);
-
-  const themeSelect = document.getElementById('tetrion-cfg-theme');
-  if (themeSelect) themeSelect.value = tetrionState.theme;
-
-  renderTetraCanvas();
-}
-
-function toggleTetrionAudio() {
-  tetrionState.soundEnabled = !tetrionState.soundEnabled;
-  localStorage.setItem('cd_tetrion_sound', tetrionState.soundEnabled ? '1' : '0');
-
-  const icon = document.getElementById('icon-tetrion-audio');
-  const btn = document.getElementById('btn-tetrion-audio');
-  if (icon) {
-    icon.setAttribute('data-lucide', tetrionState.soundEnabled ? 'volume-2' : 'volume-x');
-    if (window.lucide) lucide.createIcons({ root: icon.parentElement });
-  }
-  if (btn) {
-    btn.classList.toggle('muted', !tetrionState.soundEnabled);
-    btn.title = tetrionState.soundEnabled ? 'Sound Effects (Click to Mute)' : 'Sound Muted (Click to Unmute)';
-  }
-
-  const chk = document.getElementById('tetrion-cfg-sound');
-  if (chk) chk.checked = tetrionState.soundEnabled;
-
-  showToast(tetrionState.soundEnabled ? 'Sound Enabled' : 'Sound Muted', 'info');
-}
-
-function updateTetrionConfig(key, val) {
-  tetrionState.config[key] = val;
-  if (key === 'startLevel') {
-    localStorage.setItem('cd_tetrion_start_lvl', val);
-    if (tetrionState.game.status === 'ready') {
-      tetrionState.game.level = val;
-      updateTetraHeaderAndStats();
-    }
-  } else if (key === 'rotationSystem') {
-    localStorage.setItem('cd_tetrion_rotation', val);
-  } else if (key === 'ghostPiece') {
-    localStorage.setItem('cd_tetrion_ghost', val ? '1' : '0');
-    renderTetraCanvas();
-  } else if (key === 'das') {
-    localStorage.setItem('cd_tetrion_das', val);
-  } else if (key === 'arr') {
-    localStorage.setItem('cd_tetrion_arr', val);
-  } else if (key === 'scanlines') {
-    localStorage.setItem('cd_tetrion_scanlines', val ? '1' : '0');
-    const scanlinesEl = document.getElementById('tetrion-scanlines');
-    if (scanlinesEl) scanlinesEl.style.display = val ? 'block' : 'none';
-  } else if (key === 'volume') {
-    tetrionState.volume = val;
-    localStorage.setItem('cd_tetrion_vol', val);
-  }
-}
-
-function initTetrionDragAndResize() {
-  if (tetraDragInit) return;
-  tetraDragInit = true;
-
-  const win = document.getElementById('floating-tetrion-window');
-  const header = document.getElementById('tetrion-header');
-  if (!win || !header) return;
-
-  const savedLeft = localStorage.getItem('cd_tetrion_x');
-  const savedTop = localStorage.getItem('cd_tetrion_y');
-  const savedW = localStorage.getItem('cd_tetrion_w');
-  const savedH = localStorage.getItem('cd_tetrion_h');
-
-  if (savedW) win.style.width = `${Math.max(440, parseInt(savedW, 10))}px`;
-  if (savedH) win.style.height = `${Math.max(520, parseInt(savedH, 10))}px`;
-
-  if (savedLeft && savedTop && window.innerWidth > 1024) {
-    win.style.left = `${Math.min(window.innerWidth - 400, Math.max(10, parseInt(savedLeft, 10)))}px`;
-    win.style.top = `${Math.min(window.innerHeight - 400, Math.max(40, parseInt(savedTop, 10)))}px`;
-  }
-
-  // Header Dragging
-  let isDragging = false;
-  let dragStartX = 0, dragStartY = 0;
-  let winStartX = 0, winStartY = 0;
-
-  header.addEventListener('mousedown', (e) => {
-    if (window.innerWidth <= 640 || win.classList.contains('maximized')) return;
-    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
-    isDragging = true;
-    bringFloatingWindowToFront(win);
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    const rect = win.getBoundingClientRect();
-    winStartX = rect.left;
-    winStartY = rect.top;
-    document.body.style.userSelect = 'none';
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    const newLeft = Math.max(0, Math.min(window.innerWidth - win.offsetWidth, winStartX + dx));
-    const newTop = Math.max(36, Math.min(window.innerHeight - 60, winStartY + dy));
-    win.style.left = `${newLeft}px`;
-    win.style.top = `${newTop}px`;
-    win.style.right = 'auto';
-    localStorage.setItem('cd_tetrion_x', newLeft);
-    localStorage.setItem('cd_tetrion_y', newTop);
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      document.body.style.userSelect = '';
-    }
-  });
-
-  // Window Resizers
-  const handles = {
-    top: document.getElementById('tetrion-resize-top'),
-    bottom: document.getElementById('tetrion-resize-bottom'),
-    left: document.getElementById('tetrion-resize-left'),
-    right: document.getElementById('tetrion-resize-right'),
-    corner: document.getElementById('tetrion-resize-corner')
-  };
-
-  let resizeMode = null;
-  let rStartX = 0, rStartY = 0;
-  let rStartW = 0, rStartH = 0;
-  let rStartLeft = 0, rStartTop = 0;
-
-  Object.entries(handles).forEach(([mode, handle]) => {
-    if (!handle) return;
-    handle.addEventListener('mousedown', (e) => {
-      if (win.classList.contains('maximized')) return;
-      e.preventDefault();
-      e.stopPropagation();
-      resizeMode = mode;
-      rStartX = e.clientX;
-      rStartY = e.clientY;
-      const rect = win.getBoundingClientRect();
-      rStartW = rect.width;
-      rStartH = rect.height;
-      rStartLeft = rect.left;
-      rStartTop = rect.top;
-      document.body.style.userSelect = 'none';
-
-      const onMouseMove = (moveEvent) => {
-        if (!resizeMode) return;
-        const dx = moveEvent.clientX - rStartX;
-        const dy = moveEvent.clientY - rStartY;
-        const minW = 440;
-        const minH = 520;
-
-        if (resizeMode === 'right' || resizeMode === 'corner') {
-          const newW = Math.max(minW, rStartW + dx);
-          win.style.width = `${newW}px`;
-          localStorage.setItem('cd_tetrion_w', newW);
-        }
-        if (resizeMode === 'bottom' || resizeMode === 'corner') {
-          const newH = Math.max(minH, rStartH + dy);
-          win.style.height = `${newH}px`;
-          localStorage.setItem('cd_tetrion_h', newH);
-        }
-        if (resizeMode === 'left') {
-          const newW = Math.max(minW, rStartW - dx);
-          if (newW > minW) {
-            win.style.width = `${newW}px`;
-            win.style.left = `${rStartLeft + dx}px`;
-            localStorage.setItem('cd_tetrion_w', newW);
-            localStorage.setItem('cd_tetrion_x', rStartLeft + dx);
-          }
-        }
-        if (resizeMode === 'top') {
-          const newH = Math.max(minH, rStartH - dy);
-          if (newH > minH) {
-            win.style.height = `${newH}px`;
-            win.style.top = `${rStartTop + dy}px`;
-            localStorage.setItem('cd_tetrion_h', newH);
-            localStorage.setItem('cd_tetrion_y', rStartTop + dy);
-          }
-        }
-      };
-
-      const onMouseUp = () => {
-        resizeMode = null;
-        document.body.style.userSelect = '';
-        window.removeEventListener('mousemove', onMouseMove);
-        window.removeEventListener('mouseup', onMouseUp);
-      };
-
-      window.addEventListener('mousemove', onMouseMove);
-      window.addEventListener('mouseup', onMouseUp);
-    });
-  });
-}
-
-// ---------------- GAME ENGINE IMPLEMENTATION ----------------
-function initTetrionGame() {
-  const g = tetrionState.game;
-  g.boardWidth = 10;
-  g.boardHeight = 20;
-  g.visibleHeight = 20;
-  g.grid = createEmptyTetraGrid(g.boardHeight, g.boardWidth);
-  g.nextQueue = [];
-  g.holdPiece = null;
-  g.canHold = true;
-  g.score = 0;
-  g.lines = 0;
-  g.level = tetrionState.config.startLevel;
-  g.b2b = false;
-  g.combo = 0;
-  g.status = 'ready';
-  g.dropInterval = getTetraGravityMs(g.level);
-
-  // Fill next queue
-  while (g.nextQueue.length < 5) {
-    g.nextQueue.push(...generateTetraBag());
-  }
-
-  updateTetraHeaderAndStats();
-  renderTetraCanvas();
-  renderHoldCanvas();
-  renderNextCanvas();
-
-  // Start fixed loop
-  if (!tetraRafId) {
-    g.lastFrameTime = performance.now();
-    tetraRafId = requestAnimationFrame(tetraGameLoop);
-  }
-}
-
-function createEmptyTetraGrid(rows, cols) {
-  const grid = [];
-  for (let r = 0; r < rows; r++) {
-    grid.push(new Array(cols).fill(0));
-  }
-  return grid;
-}
-
-function generateTetraBag() {
-  const bag = ['I', 'J', 'L', 'O', 'S', 'T', 'Z'];
-  for (let i = bag.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [bag[i], bag[j]] = [bag[j], bag[i]];
-  }
-  return bag;
-}
-
-function getTetraGravityMs(level) {
-  // Master gravity scaling: Level 1 = 1000ms, Level 10 = ~120ms, Level 20 = 20ms
-  const clampedLvl = Math.min(20, Math.max(1, level));
-  const ms = Math.pow(0.8 - ((clampedLvl - 1) * 0.007), clampedLvl - 1) * 1000;
-  return Math.max(20, Math.floor(ms));
-}
-
-function startTetrionGame() {
-  initTetraAudio();
-  const g = tetrionState.game;
-  g.boardWidth = 10;
-  g.boardHeight = 20;
-  g.visibleHeight = 20;
-  g.grid = createEmptyTetraGrid(g.boardHeight, g.boardWidth);
-  g.nextQueue = [];
-  g.holdPiece = null;
-  g.canHold = true;
-  g.score = 0;
-  g.lines = 0;
-  g.level = tetrionState.config.startLevel;
-  g.b2b = false;
-  g.combo = 0;
-  g.dropInterval = getTetraGravityMs(g.level);
-  g.dropTimer = 0;
-  g.lockTimer = 0;
-  g.lockResets = 0;
-  g.isLocking = false;
-  g.animatingRows = [];
-  g.startTime = Date.now();
-  g.elapsedMs = 0;
-  g.status = 'playing';
-
-  while (g.nextQueue.length < 5) {
-    g.nextQueue.push(...generateTetraBag());
-  }
-
-  spawnTetraPiece();
-
-  // Hide Overlays
-  const readyOverlay = document.getElementById('tetrion-ready-overlay');
-  if (readyOverlay) readyOverlay.style.display = 'none';
-  const pauseOverlay = document.getElementById('tetrion-pause-overlay');
-  if (pauseOverlay) pauseOverlay.style.display = 'none';
-  const goOverlay = document.getElementById('tetrion-gameover-overlay');
-  if (goOverlay) goOverlay.style.display = 'none';
-
-  updatePlayPauseButtons();
-  updateTetraHeaderAndStats();
-  playTetraSound('levelup');
-
-  if (!tetraRafId) {
-    g.lastFrameTime = performance.now();
-    tetraRafId = requestAnimationFrame(tetraGameLoop);
-  }
-}
-
-function pauseTetrionGame() {
-  const g = tetrionState.game;
-  if (g.status !== 'playing') return;
-  g.status = 'paused';
-  document.getElementById('tetrion-pause-overlay').style.display = 'flex';
-  updatePlayPauseButtons();
-}
-
-function resumeTetrionGame() {
-  const g = tetrionState.game;
-  if (g.status !== 'paused') return;
-  g.status = 'playing';
-  g.lastFrameTime = performance.now();
-  document.getElementById('tetrion-pause-overlay').style.display = 'none';
-  updatePlayPauseButtons();
-}
-
-function toggleTetrionPlayPause() {
-  const g = tetrionState.game;
-  if (g.status === 'ready' || g.status === 'gameover') {
-    startTetrionGame();
-  } else if (g.status === 'playing') {
-    pauseTetrionGame();
-  } else if (g.status === 'paused') {
-    resumeTetrionGame();
-  }
-}
-
-function restartTetrionGame() {
-  startTetrionGame();
-}
-
-function updatePlayPauseButtons() {
-  const g = tetrionState.game;
-  const label = document.getElementById('label-tetrion-play-pause');
-  const icon = document.getElementById('icon-tetrion-play-pause');
-  if (label && icon) {
-    if (g.status === 'playing') {
-      label.textContent = 'Pause';
-      icon.setAttribute('data-lucide', 'pause');
-    } else {
-      label.textContent = 'Play';
-      icon.setAttribute('data-lucide', 'play');
-    }
-    if (window.lucide) lucide.createIcons({ root: label.parentElement });
-  }
-}
-
-function spawnTetraPiece() {
-  const g = tetrionState.game;
-  if (g.nextQueue.length < 5) {
-    g.nextQueue.push(...generateTetraBag());
-  }
-
-  const type = g.nextQueue.shift();
-  const def = TETRION_PIECES[type];
-  const matrix = JSON.parse(JSON.stringify(def.matrix));
-
-  const startX = Math.floor((g.boardWidth - matrix[0].length) / 2);
-  const startY = (type === 'I') ? -1 : 0;
-
-  g.currentPiece = {
-    type,
-    matrix,
-    x: startX,
-    y: startY,
-    rotation: 0
-  };
-
-  g.canHold = true;
-  g.lockTimer = 0;
-  g.lockResets = 0;
-  g.isLocking = false;
-  g.lastActionWasRotate = false;
-
-  // Collision on spawn = Game Over (Top out)
-  if (checkTetraCollision(g.grid, g.currentPiece)) {
-    endTetrionGame('topout');
-    return;
-  }
-
-  calculateGhostY();
-  renderHoldCanvas();
-  renderNextCanvas();
-  renderTetraCanvas();
-}
-
-function holdTetraPiece() {
-  const g = tetrionState.game;
-  if (g.status !== 'playing' || !g.canHold || !g.currentPiece) return;
-
-  playTetraSound('hold');
-  const curType = g.currentPiece.type;
-
-  if (g.holdPiece) {
-    const swapType = g.holdPiece;
-    g.holdPiece = curType;
-    const def = TETRION_PIECES[swapType];
-    g.currentPiece = {
-      type: swapType,
-      matrix: JSON.parse(JSON.stringify(def.matrix)),
-      x: Math.floor((g.boardWidth - def.matrix[0].length) / 2),
-      y: (swapType === 'I') ? -1 : 0,
-      rotation: 0
-    };
-  } else {
-    g.holdPiece = curType;
-    spawnTetraPiece();
-  }
-
-  g.canHold = false;
-  calculateGhostY();
-  renderHoldCanvas();
-  renderTetraCanvas();
-}
-
-function moveTetraPiece(dx, dy) {
-  const g = tetrionState.game;
-  if (g.status !== 'playing' || !g.currentPiece) return false;
-
-  const testPiece = {
-    ...g.currentPiece,
-    x: g.currentPiece.x + dx,
-    y: g.currentPiece.y + dy
-  };
-
-  if (!checkTetraCollision(g.grid, testPiece)) {
-    g.currentPiece.x += dx;
-    g.currentPiece.y += dy;
-    g.lastActionWasRotate = false;
-
-    if (dx !== 0) {
-      playTetraSound('move');
-      if (g.isLocking && g.lockResets < g.maxLockResets) {
-        g.lockTimer = 0;
-        g.lockResets++;
-      }
-    }
-    if (dy > 0) {
-      g.score += 1; // Soft drop bonus
-      updateTetraHeaderAndStats();
-    }
-
-    calculateGhostY();
-    return true;
-  }
-  return false;
-}
-
-function rotateTetraPiece(dir = 1) { // 1 = CW, -1 = CCW
-  const g = tetrionState.game;
-  if (g.status !== 'playing' || !g.currentPiece) return;
-
-  const p = g.currentPiece;
-  const oldRot = p.rotation;
-  const newRot = (oldRot + dir + 4) % 4;
-
-  const rotatedMatrix = rotateMatrix(p.matrix, dir);
-
-  // SRS Wall Kick test
-  if (tetrionState.config.rotationSystem === 'srs') {
-    const kickKey = `${oldRot}->${newRot}`;
-    const kicks = (p.type === 'I')
-      ? (TETRION_SRS_KICKS_I[kickKey] || [[0, 0]])
-      : (TETRION_SRS_KICKS_JLSTZ[kickKey] || [[0, 0]]);
-
-    for (let i = 0; i < kicks.length; i++) {
-      const [kx, ky] = kicks[i];
-      const testPiece = {
-        ...p,
-        matrix: rotatedMatrix,
-        x: p.x + kx,
-        y: p.y - ky, // Inverted Y for screen coords
-        rotation: newRot
-      };
-
-      if (!checkTetraCollision(g.grid, testPiece)) {
-        p.matrix = rotatedMatrix;
-        p.x += kx;
-        p.y -= ky;
-        p.rotation = newRot;
-        p.lastActionWasRotate = true;
-        playTetraSound('rotate');
-
-        if (g.isLocking && g.lockResets < g.maxLockResets) {
-          g.lockTimer = 0;
-          g.lockResets++;
-        }
-
-        calculateGhostY();
-        return;
-      }
-    }
-  } else {
-    // Basic rotation
-    if (!checkTetraCollision(g.grid, { ...p, matrix: rotatedMatrix, rotation: newRot })) {
-      p.matrix = rotatedMatrix;
-      p.rotation = newRot;
-      p.lastActionWasRotate = true;
-      playTetraSound('rotate');
-      calculateGhostY();
-    }
-  }
-}
-
-function rotateMatrix(matrix, dir = 1) {
-  const N = matrix.length;
-  const res = [];
-  for (let r = 0; r < N; r++) {
-    res.push(new Array(N).fill(0));
-  }
-  if (dir === 1) {
-    // Clockwise: transpose + reverse each row
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        res[c][N - 1 - r] = matrix[r][c];
-      }
-    }
-  } else {
-    // Counter-Clockwise
-    for (let r = 0; r < N; r++) {
-      for (let c = 0; c < N; c++) {
-        res[N - 1 - c][r] = matrix[r][c];
-      }
-    }
-  }
-  return res;
-}
-
-function hardDropTetraPiece() {
-  const g = tetrionState.game;
-  if (g.status !== 'playing' || !g.currentPiece) return;
-
-  let droppedRows = 0;
-  while (!checkTetraCollision(g.grid, { ...g.currentPiece, y: g.currentPiece.y + 1 })) {
-    g.currentPiece.y++;
-    droppedRows++;
-  }
-
-  g.score += droppedRows * 2; // Hard drop bonus
-  playTetraSound('harddrop');
-  lockTetraPiece();
-}
-
-function calculateGhostY() {
-  const g = tetrionState.game;
-  if (!g.currentPiece) return;
-
-  let gy = g.currentPiece.y;
-  while (!checkTetraCollision(g.grid, { ...g.currentPiece, y: gy + 1 })) {
-    gy++;
-  }
-  g.ghostY = gy;
-}
-
-function checkTetraCollision(grid, piece) {
-  const { matrix, x, y } = piece;
-  for (let r = 0; r < matrix.length; r++) {
-    for (let c = 0; c < matrix[r].length; c++) {
-      if (matrix[r][c]) {
-        const boardX = x + c;
-        const boardY = y + r;
-
-        if (boardX < 0 || boardX >= 10 || boardY >= 20) {
-          return true; // Wall or floor collision
-        }
-        if (boardY >= 0 && grid[boardY] && grid[boardY][boardX]) {
-          return true; // Occupied cell collision
-        }
-      }
-    }
-  }
-  return false;
-}
-
-function lockTetraPiece() {
-  const g = tetrionState.game;
-  if (!g.currentPiece) return;
-
-  const { matrix, x, y, type } = g.currentPiece;
-  let topOut = false;
-  for (let r = 0; r < matrix.length; r++) {
-    for (let c = 0; c < matrix[r].length; c++) {
-      if (matrix[r][c]) {
-        const by = y + r;
-        const bx = x + c;
-        if (by < 0) {
-          topOut = true;
-        } else if (by < g.boardHeight && bx >= 0 && bx < g.boardWidth) {
-          g.grid[by][bx] = type;
-        }
-      }
-    }
-  }
-
-  if (topOut) {
-    endTetrionGame('topout');
-    return;
-  }
-
-  playTetraSound('lock');
-  g.currentPiece = null;
-  g.isLocking = false;
-
-  // Check lines to clear
-  checkLineClears();
-}
-
-function checkLineClears() {
-  const g = tetrionState.game;
-  const fullRows = [];
-
-  for (let r = 0; r < g.boardHeight; r++) {
-    if (g.grid[r].every(cell => cell !== 0)) {
-      fullRows.push(r);
-    }
-  }
-
-  if (fullRows.length > 0) {
-    g.animatingRows = fullRows;
-    g.animationTimer = 120; // 120ms flash animation
-
-    // T-Spin detection: 3 corners filled of T piece
-    const isTetris = fullRows.length === 4;
-    if (isTetris) {
-      if (g.b2b) {
-        g.score += Math.floor(1200 * g.level * 1.5);
-      } else {
-        g.score += 800 * g.level;
-      }
-      g.b2b = true;
-      playTetraSound('tetris');
-    } else {
-      const scoresMap = { 1: 100, 2: 300, 3: 500 };
-      g.score += (scoresMap[fullRows.length] || 100) * g.level;
-      g.b2b = false;
-      playTetraSound('clear');
-    }
-
-    g.lines += fullRows.length;
-    g.combo++;
-
-    // Level up check
-    const newLevel = tetrionState.config.startLevel + Math.floor(g.lines / 10);
-    if (newLevel > g.level) {
-      g.level = newLevel;
-      g.dropInterval = getTetraGravityMs(g.level);
-      playTetraSound('levelup');
-    }
-
-    // Sprint Mode check (40 lines clear)
-    if (g.mode === 'sprint' && g.lines >= 40) {
-      endTetrionGame('sprint_complete');
-      return;
-    }
-  } else {
-    g.combo = 0;
-    spawnTetraPiece();
-  }
-
-  updateTetraHeaderAndStats();
-}
-
-function executeLineCollapse() {
-  const g = tetrionState.game;
-  if (g.animatingRows.length === 0) return;
-
-  g.animatingRows.sort((a, b) => a - b);
-  g.animatingRows.forEach(rowIdx => {
-    g.grid.splice(rowIdx, 1);
-    g.grid.unshift(new Array(g.boardWidth).fill(0));
-  });
-
-  g.animatingRows = [];
-  spawnTetraPiece();
-}
-
-function endTetrionGame(reason = 'topout') {
-  const g = tetrionState.game;
-  g.status = 'gameover';
-  playTetraSound('gameover');
-
-  const durationSec = Math.floor(g.elapsedMs / 1000);
-
-  const titleEl = document.getElementById('tetrion-gameover-title');
-  if (titleEl) {
-    if (reason === 'sprint_complete') {
-      titleEl.textContent = 'SPRINT FINISHED!';
-      titleEl.className = 'tetrion-overlay-title tetrion-accent-glow';
-    } else if (reason === 'time_up') {
-      titleEl.textContent = 'TIME IS UP!';
-      titleEl.className = 'tetrion-overlay-title tetrion-accent-glow';
-    } else {
-      titleEl.textContent = 'GAME OVER';
-      titleEl.className = 'tetrion-overlay-title tetrion-danger-glow';
-    }
-  }
-
-  document.getElementById('tetrion-go-score').textContent = g.score.toLocaleString();
-  document.getElementById('tetrion-go-level').textContent = g.level;
-  document.getElementById('tetrion-go-lines').textContent = g.lines;
-  document.getElementById('tetrion-go-time').textContent = formatTetraTimer(g.elapsedMs);
-
-  document.getElementById('tetrion-gameover-overlay').style.display = 'flex';
-  updatePlayPauseButtons();
-
-  // Submit high score to backend SQLite database
-  submitTetrionScore(g.score, g.lines, g.level, durationSec, g.mode);
-}
-
-function changeTetrionMode(mode) {
-  tetrionState.game.mode = mode;
-  updateTetraHeaderAndStats();
-
-  const timerRow = document.getElementById('tetrion-timer-row');
-  if (timerRow) {
-    timerRow.style.display = (mode === 'sprint' || mode === 'ultra') ? 'flex' : 'none';
-  }
-
-  if (tetrionState.game.status === 'ready') {
-    initTetrionGame();
-  }
-}
-
-// ---------------- GAME PHYSICS LOOP (60 FPS FIXED TIMESTEP) ----------------
-function tetraGameLoop(timestamp) {
-  const g = tetrionState.game;
-  const delta = timestamp - (g.lastFrameTime || timestamp);
-  g.lastFrameTime = timestamp;
-
-  if (g.status === 'playing') {
-    g.elapsedMs += delta;
-
-    // Ultra Mode countdown check (180 seconds)
-    if (g.mode === 'ultra' && g.elapsedMs >= 180000) {
-      endTetrionGame('time_up');
-      return;
-    }
-
-    // Timer display update
-    const timerEl = document.getElementById('tetrion-stat-timer');
-    if (timerEl && (g.mode === 'sprint' || g.mode === 'ultra')) {
-      if (g.mode === 'ultra') {
-        const remain = Math.max(0, 180000 - g.elapsedMs);
-        timerEl.textContent = formatTetraTimer(remain);
-      } else {
-        timerEl.textContent = formatTetraTimer(g.elapsedMs);
-      }
-    }
-
-    // Line clear flash animation
-    if (g.animatingRows.length > 0) {
-      g.animationTimer -= delta;
-      if (g.animationTimer <= 0) {
-        executeLineCollapse();
-      }
-    } else if (g.currentPiece) {
-      // DAS / ARR Input Processing
-      handleTetraContinuousInput(delta);
-
-      // Gravity Drop Timer
-      g.dropTimer += delta;
-      const currentInterval = g.softDropActive ? Math.min(40, g.dropInterval / 12) : g.dropInterval;
-
-      if (g.dropTimer >= currentInterval) {
-        g.dropTimer = 0;
-        const moved = moveTetraPiece(0, 1);
-        if (!moved) {
-          g.isLocking = true;
-        }
-      }
-
-      // Lock Delay Timer
-      if (g.isLocking) {
-        g.lockTimer += delta;
-        if (g.lockTimer >= g.lockDelay) {
-          lockTetraPiece();
-        }
-      }
-    }
-  }
-
-  renderTetraCanvas();
-  tetraRafId = requestAnimationFrame(tetraGameLoop);
-}
-
-function handleTetraContinuousInput(delta) {
-  const g = tetrionState.game;
-  if (!g.currentPiece || g.dasDir === 0) return;
-
-  g.dasTimer += delta;
-  if (g.dasTimer >= tetrionState.config.das) {
-    g.arrTimer += delta;
-    const arrSpeed = Math.max(0, tetrionState.config.arr);
-
-    if (arrSpeed === 0) {
-      // Instant shift
-      while (moveTetraPiece(g.dasDir, 0)) {}
-    } else if (g.arrTimer >= arrSpeed) {
-      g.arrTimer = 0;
-      moveTetraPiece(g.dasDir, 0);
-    }
-  }
-}
-
-// ---------------- CANVAS RENDERING ----------------
-function renderTetraCanvas() {
-  const canvas = document.getElementById('tetrion-board-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const g = tetrionState.game;
-
-  const w = canvas.width;
-  const h = canvas.height;
-  const cellSize = w / g.boardWidth;
-
-  // Clear background
-  ctx.fillStyle = (tetrionState.theme === 'gameboy') ? '#0f380f' : '#040507';
-  ctx.fillRect(0, 0, w, h);
-
-  // Subtle Grid Lines
-  ctx.strokeStyle = (tetrionState.theme === 'gameboy') ? 'rgba(48, 98, 48, 0.3)' : 'rgba(255, 255, 255, 0.04)';
-  ctx.lineWidth = 1;
-  for (let c = 1; c < g.boardWidth; c++) {
-    ctx.beginPath();
-    ctx.moveTo(c * cellSize, 0);
-    ctx.lineTo(c * cellSize, h);
-    ctx.stroke();
-  }
-  for (let r = 1; r < g.boardHeight; r++) {
-    ctx.beginPath();
-    ctx.moveTo(0, r * cellSize);
-    ctx.lineTo(w, r * cellSize);
-    ctx.stroke();
-  }
-
-  // Draw Settled Blocks on Board
-  for (let r = 0; r < g.boardHeight; r++) {
-    const isFlashing = g.animatingRows.includes(r);
-    for (let c = 0; c < g.boardWidth; c++) {
-      const type = g.grid[r] ? g.grid[r][c] : 0;
-      if (type && type !== 0) {
-        if (isFlashing) {
-          drawTetraBlock(ctx, c * cellSize, r * cellSize, cellSize, '#ffffff', 'rgba(255, 255, 255, 0.8)');
-        } else {
-          const pieceDef = TETRION_PIECES[type];
-          if (pieceDef) {
-            drawTetraBlock(ctx, c * cellSize, r * cellSize, cellSize, pieceDef.color, pieceDef.glow);
-          }
-        }
-      }
-    }
-  }
-
-  // Draw Ghost Piece
-  if (tetrionState.config.ghostPiece && g.currentPiece && (g.status === 'playing' || g.status === 'paused')) {
-    const { matrix, x } = g.currentPiece;
-    const gy = g.ghostY;
-    const pieceDef = TETRION_PIECES[g.currentPiece.type];
-    for (let r = 0; r < matrix.length; r++) {
-      for (let c = 0; c < matrix[r].length; c++) {
-        if (matrix[r][c]) {
-          const drawY = gy + r;
-          if (drawY >= 0 && drawY < g.boardHeight) {
-            drawGhostBlock(ctx, (x + c) * cellSize, drawY * cellSize, cellSize, pieceDef ? pieceDef.color : '#f59e0b');
-          }
-        }
-      }
-    }
-  }
-
-  // Draw Active Falling Piece
-  if (g.currentPiece && (g.status === 'playing' || g.status === 'paused')) {
-    const { matrix, x, y, type } = g.currentPiece;
-    const pieceDef = TETRION_PIECES[type];
-    if (pieceDef) {
-      for (let r = 0; r < matrix.length; r++) {
-        for (let c = 0; c < matrix[r].length; c++) {
-          if (matrix[r][c]) {
-            const drawY = y + r;
-            if (drawY >= 0 && drawY < g.boardHeight) {
-              drawTetraBlock(ctx, (x + c) * cellSize, drawY * cellSize, cellSize, pieceDef.color, pieceDef.glow);
-            }
-          }
-        }
-      }
-    }
-  }
-}
-
-function drawTetraBlock(ctx, x, y, size, color, glow) {
-  ctx.save();
-  const theme = tetrionState.theme;
-
-  if (theme === 'gameboy') {
-    ctx.fillStyle = '#8bac0f';
-    ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
-    ctx.fillStyle = '#306230';
-    ctx.fillRect(x + 3, y + 3, size - 6, size - 6);
-    ctx.fillStyle = '#9bbc0f';
-    ctx.fillRect(x + 4, y + 4, size - 8, size - 8);
-  } else {
-    // 3D Beveled Arcade Block
-    ctx.fillStyle = color;
-    ctx.fillRect(x + 1, y + 1, size - 2, size - 2);
-
-    // Light top/left bevel
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(x + 1, y + 1);
-    ctx.lineTo(x + size - 1, y + 1);
-    ctx.lineTo(x + size - 4, y + 4);
-    ctx.lineTo(x + 4, y + 4);
-    ctx.lineTo(x + 4, y + size - 4);
-    ctx.lineTo(x + 1, y + size - 1);
-    ctx.closePath();
-    ctx.fill();
-
-    // Dark bottom/right bevel
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-    ctx.beginPath();
-    ctx.moveTo(x + size - 1, y + 1);
-    ctx.lineTo(x + size - 1, y + size - 1);
-    ctx.lineTo(x + 1, y + size - 1);
-    ctx.lineTo(x + 4, y + size - 4);
-    ctx.lineTo(x + size - 4, y + size - 4);
-    ctx.lineTo(x + size - 4, y + 4);
-    ctx.closePath();
-    ctx.fill();
-
-    // Center jewel
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.15)';
-    ctx.fillRect(x + 6, y + 6, size - 12, size - 12);
-  }
-  ctx.restore();
-}
-
-function drawGhostBlock(ctx, x, y, size, color) {
-  ctx.save();
-  ctx.strokeStyle = color;
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(x + 2, y + 2, size - 4, size - 4);
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-  ctx.fillRect(x + 2, y + 2, size - 4, size - 4);
-  ctx.restore();
-}
-
-function renderHoldCanvas() {
-  const canvas = document.getElementById('tetrion-hold-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const holdType = tetrionState.game.holdPiece;
-  if (!holdType) return;
-
-  const def = TETRION_PIECES[holdType];
-  const matrix = def.matrix;
-  const cellSize = 18;
-  const offsetX = (canvas.width - matrix[0].length * cellSize) / 2;
-  const offsetY = (canvas.height - matrix.length * cellSize) / 2;
-
-  for (let r = 0; r < matrix.length; r++) {
-    for (let c = 0; c < matrix[r].length; c++) {
-      if (matrix[r][c]) {
-        drawTetraBlock(ctx, offsetX + c * cellSize, offsetY + r * cellSize, cellSize, def.color, def.glow);
-      }
-    }
-  }
-}
-
-function renderNextCanvas() {
-  const canvas = document.getElementById('tetrion-next-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-  const queue = tetrionState.game.nextQueue.slice(0, 3);
-  const cellSize = 16;
-
-  queue.forEach((type, idx) => {
-    const def = TETRION_PIECES[type];
-    const matrix = def.matrix;
-    const offsetX = (canvas.width - matrix[0].length * cellSize) / 2;
-    const offsetY = 12 + idx * 64 + (48 - matrix.length * cellSize) / 2;
-
-    for (let r = 0; r < matrix.length; r++) {
-      for (let c = 0; c < matrix[r].length; c++) {
-        if (matrix[r][c]) {
-          drawTetraBlock(ctx, offsetX + c * cellSize, offsetY + r * cellSize, cellSize, def.color, def.glow);
-        }
-      }
-    }
-  });
-}
-
-function updateTetraHeaderAndStats() {
-  const g = tetrionState.game;
-
-  // Status bar pills
-  const sbScore = document.getElementById('tetrion-sb-score-val');
-  const sbLvl = document.getElementById('tetrion-sb-lvl-val');
-  const sbLines = document.getElementById('tetrion-sb-lines-val');
-  if (sbScore) sbScore.textContent = g.score.toLocaleString();
-  if (sbLvl) sbLvl.textContent = g.level;
-  if (sbLines) sbLines.textContent = g.lines;
-
-  // Header pills fallback (if present)
-  const hdrScore = document.getElementById('tetrion-hdr-score-val');
-  const hdrLvl = document.getElementById('tetrion-hdr-lvl-val');
-  const hdrLines = document.getElementById('tetrion-hdr-lines-val');
-  if (hdrScore) hdrScore.textContent = g.score.toLocaleString();
-  if (hdrLvl) hdrLvl.textContent = g.level;
-  if (hdrLines) hdrLines.textContent = g.lines;
-
-  // Minimized pill
-  const pillScore = document.getElementById('tetrion-pill-score');
-  if (pillScore) pillScore.textContent = g.score.toLocaleString();
-
-  // Arena stats (Top score)
-  const hiScoreEl = document.getElementById('tetrion-stat-hiscore');
-  if (hiScoreEl) hiScoreEl.textContent = g.highScore.toLocaleString();
-  const mobHiScore = document.getElementById('tetrion-mob-hiscore');
-  if (mobHiScore) mobHiScore.textContent = g.highScore.toLocaleString();
-
-  // Arena mode badge & select
-  const arenaBadge = document.getElementById('tetrion-arena-mode-badge');
-  if (arenaBadge) arenaBadge.textContent = g.mode.toUpperCase();
-  const mobModeBadge = document.getElementById('tetrion-mobile-mode-badge');
-  if (mobModeBadge) mobModeBadge.textContent = g.mode.toUpperCase();
-  const modeSel = document.getElementById('tetrion-mode-select');
-  if (modeSel && modeSel.value !== g.mode) modeSel.value = g.mode;
-
-  // Sound button status styling
-  const soundBtn = document.getElementById('btn-tetrion-audio');
-  if (soundBtn) {
-    soundBtn.classList.toggle('muted', !tetrionState.soundEnabled);
-  }
-
-  // B2B & Combo Badges
-  const b2bBadge = document.getElementById('tetrion-b2b-badge');
-  if (b2bBadge) b2bBadge.style.display = g.b2b ? 'block' : 'none';
-
-  const comboBadge = document.getElementById('tetrion-combo-badge');
-  const comboCnt = document.getElementById('tetrion-combo-count');
-  if (comboBadge && comboCnt) {
-    if (g.combo > 1) {
-      comboCnt.textContent = g.combo;
-      comboBadge.style.display = 'block';
-    } else {
-      comboBadge.style.display = 'none';
-    }
-  }
-}
-
-function formatTetraTimer(ms) {
-  const totalSec = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSec / 60);
-  const seconds = totalSec % 60;
-  const tenths = Math.floor((ms % 1000) / 100);
-  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${tenths}`;
-}
-
-// ---------------- INPUT EVENT LISTENERS (KEYBOARD & TOUCH) ----------------
-function initTetrionInput() {
-  if (window._tetraInputInitialized) return;
-  window._tetraInputInitialized = true;
-
-  window.addEventListener('keydown', (e) => {
-    const win = document.getElementById('floating-tetrion-window');
-    const isFloatingOpen = win && win.style.display !== 'none';
-    const isDocked = App.panes.some(p => p.dockedTool === 'tetrion-classic');
-    if (!isFloatingOpen && !isDocked) return;
-    if (tetrionState.activeView !== 'game') return;
-
-    // Ignore if user is typing in an input
-    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
-
-    const g = tetrionState.game;
-
-    if (e.key === 'p' || e.key === 'P' || e.key === 'Escape') {
-      e.preventDefault();
-      toggleTetrionPlayPause();
-      return;
-    }
-
-    if (g.status === 'ready' || g.status === 'gameover') {
-      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Enter', 'w', 'a', 's', 'd', 'z', 'x', 'c'].includes(e.key)) {
-        e.preventDefault();
-        startTetrionGame();
-        return;
-      }
-    }
-
-    if (g.status !== 'playing') return;
-
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-      e.preventDefault();
-      if (g.dasDir !== -1) {
-        g.dasDir = -1;
-        g.dasTimer = 0;
-        g.arrTimer = 0;
-        moveTetraPiece(-1, 0);
-      }
-    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-      e.preventDefault();
-      if (g.dasDir !== 1) {
-        g.dasDir = 1;
-        g.dasTimer = 0;
-        g.arrTimer = 0;
-        moveTetraPiece(1, 0);
-      }
-    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-      e.preventDefault();
-      g.softDropActive = true;
-    } else if (e.key === 'ArrowUp' || e.key === 'x' || e.key === 'X' || e.key === 'e' || e.key === 'E') {
-      e.preventDefault();
-      rotateTetraPiece(1);
-    } else if (e.key === 'z' || e.key === 'Z' || e.key === 'Control' || e.key === 'q' || e.key === 'Q') {
-      e.preventDefault();
-      rotateTetraPiece(-1);
-    } else if (e.key === ' ' || e.key === 'w' || e.key === 'W') {
-      e.preventDefault();
-      hardDropTetraPiece();
-    } else if (e.key === 'c' || e.key === 'C' || e.key === 'Shift') {
-      e.preventDefault();
-      holdTetraPiece();
-    }
-  });
-
-  window.addEventListener('keyup', (e) => {
-    const g = tetrionState.game;
-    if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') {
-      if (g.dasDir === -1) g.dasDir = 0;
-    } else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') {
-      if (g.dasDir === 1) g.dasDir = 0;
-    } else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') {
-      g.softDropActive = false;
-    }
-  });
-
-  // Touch Virtual D-Pad & NES Action buttons
-  const touchMap = {
-    'tbtn-left': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); tetrionState.game.dasDir = -1; tetrionState.game.dasTimer = 0; moveTetraPiece(-1, 0); }, up: () => { if (tetrionState.game.dasDir === -1) tetrionState.game.dasDir = 0; } },
-    'tbtn-right': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); tetrionState.game.dasDir = 1; tetrionState.game.dasTimer = 0; moveTetraPiece(1, 0); }, up: () => { if (tetrionState.game.dasDir === 1) tetrionState.game.dasDir = 0; } },
-    'tbtn-down': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); tetrionState.game.softDropActive = true; }, up: () => { tetrionState.game.softDropActive = false; } },
-    'tbtn-up': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else hardDropTetraPiece(); } },
-    'tbtn-harddrop': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else hardDropTetraPiece(); } },
-    'tbtn-rot-cw': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else rotateTetraPiece(1); } },
-    'tbtn-rot-ccw': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else rotateTetraPiece(-1); } },
-    'tbtn-hold': { down: () => { if (tetrionState.game.status !== 'playing') startTetrionGame(); else holdTetraPiece(); } },
-    'tbtn-pause': { down: () => { toggleTetrionPlayPause(); } }
-  };
-
-  Object.entries(touchMap).forEach(([btnId, handlers]) => {
-    const el = document.getElementById(btnId);
-    if (!el) return;
-    el.addEventListener('touchstart', (e) => {
-      e.preventDefault();
-      if (handlers.down) handlers.down();
-    }, { passive: false });
-    if (handlers.up) {
-      el.addEventListener('touchend', (e) => {
-        e.preventDefault();
-        handlers.up();
-      }, { passive: false });
-      el.addEventListener('touchcancel', (e) => {
-        e.preventDefault();
-        handlers.up();
-      }, { passive: false });
-    }
-    el.addEventListener('mousedown', (e) => {
-      e.preventDefault();
-      if (handlers.down) handlers.down();
-    });
-    if (handlers.up) {
-      el.addEventListener('mouseup', (e) => {
-        e.preventDefault();
-        handlers.up();
-      });
-    }
-  });
-}
-
-// ---------------- LEADERBOARD & DB SYNCHRONIZATION ----------------
-async function loadTetrionLeaderboard(mode = 'marathon', showLoading = true) {
-  tetrionState.leaderboard.mode = mode;
-  const tbody = document.getElementById('tetrion-leaderboard-tbody');
-
-  // Update mode pills
-  document.querySelectorAll('.tetrion-lb-tab').forEach(b => {
-    b.classList.toggle('active', b.getAttribute('data-mode') === mode);
-  });
-
-  if (showLoading && tbody) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">Fetching top scores from server...</td></tr>`;
-  }
-
-  const userOnly = tetrionState.leaderboard.scope === 'mine';
-  const url = `/api/chewtoys/tetrion/scores?mode=${encodeURIComponent(mode)}&user_only=${userOnly}&limit=50`;
-
-  try {
-    const resp = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
-    });
-
-    if (resp.ok) {
-      const data = await resp.json();
-      tetrionState.leaderboard.list = data.leaderboard || [];
-      tetrionState.leaderboard.userStats = data.user_stats || null;
-
-      // Update personal top score in game
-      if (data.user_best) {
-        tetrionState.game.highScore = data.user_best.score;
-        updateTetraHeaderAndStats();
-      }
-
-      renderTetrionLeaderboard(data);
-    } else {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load scores (${resp.status})</td></tr>`;
-    }
-  } catch (e) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Error connecting to leaderboard API: ${e}</td></tr>`;
-  }
-}
-
-function renderTetrionLeaderboard(data) {
-  const tbody = document.getElementById('tetrion-leaderboard-tbody');
-  if (!tbody) return;
-
-  // Update Summary Banner
-  if (data.user_stats) {
-    const bestEl = document.getElementById('tetrion-sum-best');
-    const rankEl = document.getElementById('tetrion-sum-rank');
-    const lvlEl = document.getElementById('tetrion-sum-level');
-    const linesEl = document.getElementById('tetrion-sum-lines');
-    const gamesEl = document.getElementById('tetrion-sum-games');
-
-    if (bestEl) bestEl.textContent = data.user_stats.high_score.toLocaleString();
-    if (rankEl) rankEl.textContent = data.user_stats.best_rank ? `#${data.user_stats.best_rank}` : '-';
-    if (lvlEl) lvlEl.textContent = data.user_stats.max_level;
-    if (linesEl) linesEl.textContent = data.user_stats.total_lines.toLocaleString();
-    if (gamesEl) gamesEl.textContent = data.user_stats.games_played.toLocaleString();
-  }
-
-  // Populate Table Rows
-  const scores = data.leaderboard || [];
-  if (scores.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-dim); padding: 24px;">No high scores recorded yet in ${data.user_stats ? tetrionState.leaderboard.mode : ''} mode. Be the first!</td></tr>`;
-    return;
-  }
-
-  let html = '';
-  scores.forEach((row, idx) => {
-    let rankBadge = `${idx + 1}`;
-    if (idx === 0) rankBadge = `<span class="tetrion-rank-medal rank-gold">🥇</span>`;
-    else if (idx === 1) rankBadge = `<span class="tetrion-rank-medal rank-silver">🥈</span>`;
-    else if (idx === 2) rankBadge = `<span class="tetrion-rank-medal rank-bronze">🥉</span>`;
-
-    const rowClass = row.is_current_user ? 'current-user-row' : '';
-    const dateStr = row.created_at ? new Date(row.created_at).toLocaleDateString() : '-';
-    const durationStr = row.duration_seconds > 0 ? `${Math.floor(row.duration_seconds / 60)}m ${row.duration_seconds % 60}s` : '-';
-
-    html += `
-      <tr class="${rowClass}">
-        <td>${rankBadge}</td>
-        <td><strong>${escapeHtml(row.player_name || row.username)}</strong> ${row.is_current_user ? '<span class="badge" style="font-size: 8px; margin-left: 4px;">YOU</span>' : ''}</td>
-        <td style="text-align: right; font-weight: 800; color: var(--accent);">${row.score.toLocaleString()}</td>
-        <td style="text-align: right;">${row.level}</td>
-        <td style="text-align: right;">${row.lines_cleared}</td>
-        <td style="text-align: right; color: var(--text-dim); font-size: 10px;">${durationStr}</td>
-        <td style="text-align: right; color: var(--text-dim); font-size: 10px;">${dateStr}</td>
-      </tr>
-    `;
-  });
-
-  tbody.innerHTML = html;
-}
-
-function handleTetrionScopeChange(scope) {
-  tetrionState.leaderboard.scope = scope;
-  loadTetrionLeaderboard(tetrionState.leaderboard.mode);
-}
-
-function refreshTetrionLeaderboard() {
-  loadTetrionLeaderboard(tetrionState.leaderboard.mode);
-}
-
-function saveTetrionPlayerAlias(alias) {
-  const clean = alias.trim();
-  tetrionState.playerAlias = clean;
-  localStorage.setItem('cd_tetrion_alias', clean);
-  showToast(`Player alias saved as: ${clean || App.user?.username || 'Player'}`, 'success');
-}
-
-async function submitTetrionScore(score, lines, level, duration, mode) {
-  if (score <= 0) return;
-
-  const playerAlias = tetrionState.playerAlias || App.user?.nickname || App.user?.username || '';
-  try {
-    const resp = await fetch('/api/chewtoys/tetrion/scores', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${App.token}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        score,
-        lines_cleared: lines,
-        level,
-        duration_seconds: duration,
-        mode,
-        player_name: playerAlias
-      })
-    });
-
-    if (resp.ok) {
-      const result = await resp.json();
-      const rankBanner = document.getElementById('tetrion-rank-banner');
-      const rankText = document.getElementById('tetrion-rank-text');
-
-      if (rankBanner && rankText) {
-        if (result.is_global_high_score) {
-          rankText.textContent = `👑 NEW #1 ALL-TIME HIGH SCORE! (${score.toLocaleString()})`;
-          rankBanner.style.display = 'block';
-        } else if (result.is_personal_best) {
-          rankText.textContent = `⭐ Personal Best! Achieved Rank #${result.rank}`;
-          rankBanner.style.display = 'block';
-        } else {
-          rankText.textContent = `Achieved Rank #${result.rank} on Leaderboard`;
-          rankBanner.style.display = 'block';
-        }
-      }
-
-      // Update personal best in state
-      if (score > tetrionState.game.highScore) {
-        tetrionState.game.highScore = score;
-        updateTetraHeaderAndStats();
-      }
-    }
-  } catch (e) {
-    console.debug('Failed to submit Tetrion score:', e);
-  }
-}
-
-async function promptClearTetrionScores() {
-  const confirmed = await showConfirmDialog({
-    title: 'Reset High Scores',
-    subtitle: 'Tetrion Arcade Records',
-    message: 'Are you sure you want to reset your Tetrion scores and personal best leaderboard records?',
-    icon: 'trash-2',
-    type: 'danger',
-    confirmText: 'Reset Scores'
-  });
-  if (!confirmed) return;
-
-  try {
-    const resp = await fetch('/api/tools/tetrion/scores', {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
-    });
-
-    if (resp.ok) {
-      showToast('Tetrion scores cleared successfully', 'success');
-      tetrionState.game.highScore = 0;
-      updateTetraHeaderAndStats();
-      loadTetrionLeaderboard(tetrionState.leaderboard.mode);
-    } else {
-      showToast(`Failed to clear scores: ${await resp.text()}`, 'error');
-    }
-  } catch (e) {
-    showToast(`Error: ${e}`, 'error');
-  }
-}
-
-// ---------------- IN-PANE DOCKED TETRION ----------------
-function mountDockedTetrion(paneIndex) {
-  const host = document.getElementById(`docked-tetrion-host-${paneIndex}`);
-  const arena = document.getElementById('tetrion-view-game');
-  if (!host || !arena) return;
-
-  // Move game arena into pane host
-  host.appendChild(arena);
-  arena.style.display = 'flex';
-  renderTetraCanvas();
-}
-
-// ==========================================================================
 // 🎵 AUDIOPLAYER / SOUNDDOG BACKWARD-COMPATIBILITY ALIASES (#100)
 // ==========================================================================
 
@@ -45865,6 +43541,7 @@ async function loadInstalledChewToys(forceRefresh = false) {
       if (badge) badge.textContent = String(window.installedChewToys.length);
       renderInstalledChewToys(window.installedChewToys);
       if (typeof renderToolsMenu === 'function') renderToolsMenu();
+      loadBundledChewToys(canInstall);
     } else {
       if (container) {
         container.innerHTML = `<div style="grid-column: 1 / -1; padding: 24px; text-align: center; color: var(--danger);">Failed to load ChewToys: ${escapeHtml(await resp.text())}</div>`;
@@ -46093,6 +43770,79 @@ async function toggleChewToy(id, enabled) {
 /**
  * Uninstall ChewToy package
  */
+// ---------------- Chewtoys bundled with Brum ----------------
+
+async function loadBundledChewToys(canInstall) {
+  const list = document.getElementById('chewtoys-bundled-list');
+  if (!list) return;
+  try {
+    const resp = await fetch('/api/plugins/bundled', { headers: { 'Authorization': `Bearer ${App.token || ''}` } });
+    if (!resp.ok) throw new Error(await resp.text());
+    const bundled = await resp.json();
+    list.innerHTML = bundled.map(b => {
+      let status;
+      if (b.installed_version && b.update_available) status = `Installed v${escapeHtml(b.installed_version)}, update to v${escapeHtml(b.version)} available`;
+      else if (b.installed_version && b.installed_location === 'system') status = `Provided by the system Chewtoy folder (v${escapeHtml(b.installed_version)})`;
+      else if (b.installed_version) status = `Installed v${escapeHtml(b.installed_version)}`;
+      else if (b.removed) status = 'Uninstalled';
+      else status = 'Not installed';
+      const action = !canInstall || b.installed_location === 'system' ? ''
+        : (b.update_available ? `<button class="btn btn-xs btn-accent" data-on-click="installBundledChewToy" data-click-args="${actionArgs(b.id)}"><i data-lucide="refresh-cw"></i> Update</button>`
+          : (!b.installed_version ? `<button class="btn btn-xs btn-accent" data-on-click="installBundledChewToy" data-click-args="${actionArgs(b.id)}"><i data-lucide="download"></i> Install</button>`
+            : `<button class="btn btn-xs" data-on-click="installBundledChewToy" data-click-args="${actionArgs(b.id)}" title="Replace the installed files with the bundled copy"><i data-lucide="rotate-ccw"></i> Reinstall</button>`));
+      return `
+        <div class="chewtoy-bundled-row">
+          <i data-lucide="puzzle" style="width: 16px; height: 16px; color: var(--accent); flex-shrink: 0;"></i>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600; font-size: 12px;">${escapeHtml(b.name)} <span style="color: var(--text-muted); font-weight: 400;">v${escapeHtml(b.version)}</span></div>
+            <div style="font-size: 11px; color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(b.description)}">${escapeHtml(b.description)}</div>
+            <div style="font-size: 10.5px; color: ${b.update_available ? 'var(--accent)' : 'var(--text-dim)'}; margin-top: 1px;">${status}</div>
+          </div>
+          ${action}
+          <button class="btn btn-xs btn-icon" data-on-click="downloadBundledChewToy" data-click-args="${actionArgs(b.id, b.version)}" title="Download ${escapeHtml(b.id)}-${escapeHtml(b.version)}.grr"><i data-lucide="file-down"></i></button>
+        </div>`;
+    }).join('') || '<div class="form-hint">No Chewtoys are bundled with this build.</div>';
+    if (window.lucide) lucide.createIcons();
+    bindActions(list);
+  } catch (err) {
+    list.innerHTML = `<div class="form-hint" style="color: var(--danger);">Could not load bundled Chewtoys: ${escapeHtml(err.message || String(err))}</div>`;
+  }
+}
+
+async function installBundledChewToy(id) {
+  try {
+    const resp = await fetch(`/api/plugins/bundled/${encodeURIComponent(id)}/install`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${App.token || ''}` },
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const info = await resp.json();
+    showToast(`${info.name} ${info.version} installed`, 'success');
+    await loadInstalledChewToys(true);
+  } catch (err) {
+    showToast(`Could not install: ${err.message || err}`, 'error');
+  }
+}
+
+async function downloadBundledChewToy(id, version) {
+  try {
+    const resp = await fetch(`/api/plugins/bundled/${encodeURIComponent(id)}/download`, {
+      headers: { 'Authorization': `Bearer ${App.token || ''}` },
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    const url = URL.createObjectURL(await resp.blob());
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${id}-${version}.grr`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  } catch (err) {
+    showToast(`Could not download: ${err.message || err}`, 'error');
+  }
+}
+
 async function uninstallChewToy(id) {
   const confirmed = await showConfirmDialog({
     title: 'Uninstall ChewToy',
@@ -46205,7 +43955,7 @@ function getOrCreateDynamicChewToyWindow(pluginId, plugin) {
         <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
           <img id="dynamic-chewtoy-icon-${pluginId}" src="${iconUrl}" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL)}" alt="${escapeHtml(title)}" style="width: 18px; height: 18px; object-fit: contain;">
           <span id="dynamic-chewtoy-title-${pluginId}" class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--accent); white-space: nowrap; text-overflow: ellipsis; overflow: hidden;">${escapeHtml(title)}</span>
-          <span id="dynamic-chewtoy-version-${pluginId}" class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(version)}</span>
+          <span id="dynamic-chewtoy-version-${pluginId}" class="badge chewtoy-version-badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">${escapeHtml(version)}</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
           <button class="btn btn-icon desktop-only" id="btn-dynamic-chewtoy-dock-${pluginId}" data-on-click="dockActiveDynamicChewToy" data-click-args="${actionArgs(undefined, String((pluginId) ?? ''))}" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
@@ -46444,6 +44194,7 @@ function dockActiveDynamicChewToy(paneNumber, pluginId = null) {
   const paneIdx = (paneNumber !== undefined && paneNumber !== null) ? paneNumber - 1 : (App.activePaneIndex ?? 0);
   closeDynamicChewToy(pId);
   dockToolToPane('plugin:' + pId, paneIdx);
+  claimKeyboardForChewtoy('docked');
 }
 
 /**
@@ -46510,6 +44261,46 @@ function initDynamicChewToyDrag() {
 /**
  * Forward keyboard events from parent window to active dynamic Chewtoy iframe
  */
+// Keys passed on to the focused Chewtoy while Brum's page has the keyboard (games: move,
+// drop, rotate with E/X/Q/Z/Ctrl, hold with C/Shift, pause with P/Esc)
+const CHEWTOY_FORWARDED_KEYS = ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space',
+  'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'q', 'e', 'Q', 'E', 'z', 'x', 'c', 'Z', 'X', 'C',
+  'Control', 'Shift', 'p', 'P', 'Escape'];
+// The keyboard belongs to whatever was last clicked or opened: a Chewtoy window (or a pane
+// with a docked Chewtoy) gets the game keys; clicking anywhere else gives them back to Brum.
+let chewtoyKeyboardOwner = null; // a floating Chewtoy window element, 'docked', or null
+
+function claimKeyboardForChewtoy(owner) {
+  chewtoyKeyboardOwner = owner;
+}
+
+// The frame that should receive forwarded keys right now, or null
+function chewtoyKeyboardTarget() {
+  if (chewtoyKeyboardOwner === 'docked') {
+    const pane = Array.isArray(App.panes) ? App.panes[App.activePaneIndex] : null;
+    if (pane && pane.dockedTool && /^(plugin|chewtoy):/.test(pane.dockedTool)) {
+      return document.getElementById(`docked-chewtoy-frame-${App.activePaneIndex}`);
+    }
+    return null;
+  }
+  const win = chewtoyKeyboardOwner;
+  if (win && win.isConnected && win.classList.contains('active') && win.style.display !== 'none') {
+    return win.querySelector('iframe');
+  }
+  return null;
+}
+
+document.addEventListener('pointerdown', (e) => {
+  const win = e.target.closest && e.target.closest('.floating-chewtoy-window');
+  if (win) {
+    chewtoyKeyboardOwner = win;
+    return;
+  }
+  const dock = e.target.closest && e.target.closest('[id^="docked-tool-mount-"]');
+  const pane = Array.isArray(App.panes) ? App.panes[App.activePaneIndex] : null;
+  chewtoyKeyboardOwner = (dock && pane && pane.dockedTool && /^(plugin|chewtoy):/.test(pane.dockedTool)) ? 'docked' : null;
+}, true);
+
 let dynamicChewToyKeyForwardingInit = false;
 function initDynamicChewToyKeyboardForwarding() {
   if (dynamicChewToyKeyForwardingInit) return;
@@ -46519,53 +44310,15 @@ function initDynamicChewToyKeyboardForwarding() {
     // If user is typing in a form input/textarea, do not intercept
     if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName) || document.activeElement?.isContentEditable) return;
 
-    // 1. Floating Dynamic Chewtoy Windows (Topmost visible window)
-    const activeWins = Array.from(document.querySelectorAll('.floating-chewtoy-window.active'))
-      .filter(w => w.style.display !== 'none');
-
-    if (activeWins.length > 0) {
-      activeWins.sort((a, b) => (parseInt(b.style.zIndex || 0, 10) - parseInt(a.style.zIndex || 0, 10)));
-      const topWin = activeWins[0];
-      const frame = topWin.querySelector('iframe');
-      if (frame && frame.contentWindow) {
-        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C', 'p', 'P', 'Escape'].includes(e.key)) {
-          if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
-            e.preventDefault();
-          }
-          try {
-            frame.contentWindow.postMessage({
-              type: 'BRUM_KEY',
-              key: e.key,
-              code: e.code,
-              keyType: e.type
-            }, '*');
-          } catch (_) {}
-          return;
-        }
+    const frame = chewtoyKeyboardTarget();
+    if (frame && frame.contentWindow && CHEWTOY_FORWARDED_KEYS.includes(e.key)) {
+      // Keep the page from scrolling while playing
+      if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
+        e.preventDefault();
       }
-    }
-
-    // 2. Docked Dynamic Chewtoy in Active Pane
-    if (Array.isArray(App.panes)) {
-      const activePane = App.panes[App.activePaneIndex];
-      if (activePane && activePane.dockedTool && (activePane.dockedTool.startsWith('plugin:') || activePane.dockedTool.startsWith('chewtoy:'))) {
-        const dFrame = document.getElementById(`docked-chewtoy-frame-${App.activePaneIndex}`);
-        if (dFrame && dFrame.contentWindow) {
-          if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' ', 'Space', 'w', 'a', 's', 'd', 'W', 'A', 'S', 'D', 'z', 'x', 'c', 'Z', 'X', 'C', 'p', 'P', 'Escape'].includes(e.key)) {
-            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', ' '].includes(e.key)) {
-              e.preventDefault();
-            }
-            try {
-              dFrame.contentWindow.postMessage({
-                type: 'BRUM_KEY',
-                key: e.key,
-                code: e.code,
-                keyType: e.type
-              }, '*');
-            } catch (_) {}
-          }
-        }
-      }
+      try {
+        frame.contentWindow.postMessage({ type: 'BRUM_KEY', key: e.key, code: e.code, keyType: e.type }, '*');
+      } catch (_) {}
     }
   };
 

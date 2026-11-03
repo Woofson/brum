@@ -41,6 +41,9 @@ pub fn create_app_state(
         config.plugins.global_whitelist.clone(),
         config.plugins.global_blacklist.clone(),
     );
+    if config.plugins.enabled {
+        plugin_mgr.sync_bundled();
+    }
 
     let backup_mgr_arc = Arc::new(backup_mgr);
     let task_mgr_arc = Arc::new(task_mgr);

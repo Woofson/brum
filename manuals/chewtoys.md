@@ -144,6 +144,13 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 * **DAS & ARR Tuning**: Configurable Delayed Auto Shift and Auto Repeat Rate for competitive, instant piece movement.
 * **Guideline Mechanics**: 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and synchronized leaderboard.
 
+### Bundled Chewtoys
+Calculator, Colours and Tetrion ship inside Brum as ordinary Chewtoys:
+* **Installed on first start** into the Chewtoy folder (`[plugins] user_directory`), like any `.grr` package.
+* **Kept up to date**: when a newer Brum brings a newer version, the installed copy is updated on start.
+* **Uninstall freely**: an uninstalled bundled Chewtoy stays uninstalled; Brum remembers this in `.bundled.json` in the Chewtoy folder.
+* **Settings → Chewtoys → Bundled with Brum** lists each one with the bundled and installed version, and offers **Install**, **Update** or **Reinstall** and a **Download** of the `.grr` package.
+
 ### Colours (Modular Chewtoy)
 * **Five colour systems**: OKLCH, HWB, HSL, HSV and RGB, each with sliders, exact number boxes and transparency. In OKLCH, slider gaps show colours a normal screen cannot display.
 * **Any colour in, every format out**: Type or paste hex, `rgb()`, `hsl()`, `hwb()`, `oklch()` or a colour name; copy HEX, RGB, HSL, HWB, OKLCH or HSV with one click.

@@ -1894,3 +1894,57 @@ pub async fn handle_plugin_signed_file(
     }
     plugin_file_response(&state, &id, &subpath)
 }
+
+// ---------------- Bundled Chewtoys ----------------
+
+/// Whether the caller may install Chewtoys (admins, or users allowed to install)
+fn caller_can_install_plugins(state: &AppState, headers: &HeaderMap) -> Result<String, (StatusCode, String)> {
+    let claims = extract_claims_or_local(state, headers)?;
+    if claims.role == "admin" || state.config.server.standalone || !state.config.server.enable_auth {
+        return Ok(claims.sub);
+    }
+    let allowed = state.auth.get_user_by_username(&claims.sub).ok().flatten()
+        .map(|u| u.can_install_plugins || state.config.plugins.allow_user_installs)
+        .unwrap_or(false);
+    if allowed {
+        Ok(claims.sub)
+    } else {
+        Err((StatusCode::FORBIDDEN, "Permission denied: you do not have permission to install plugins".to_string()))
+    }
+}
+
+/// The Chewtoys that ship with Brum, with installed and bundled versions
+pub async fn handle_list_bundled_plugins(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<Vec<crate::plugins::BundledPluginInfo>>, (StatusCode, String)> {
+    extract_claims_or_local(&state, &headers)?;
+    Ok(Json(state.plugins.list_bundled()))
+}
+
+/// Installs, reinstalls or updates a bundled Chewtoy
+pub async fn handle_install_bundled_plugin(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<crate::plugins::PluginInfo>, (StatusCode, String)> {
+    let user = caller_can_install_plugins(&state, &headers)?;
+    state.plugins.install_bundled(&id, &user).map(Json).map_err(|e| (StatusCode::BAD_REQUEST, e))
+}
+
+/// The bundled `.grr` package, to keep or install elsewhere
+pub async fn handle_download_bundled_plugin(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Response, (StatusCode, String)> {
+    extract_claims_or_local(&state, &headers)?;
+    let bytes = crate::plugins::PluginManager::bundled_package(&id)
+        .ok_or((StatusCode::NOT_FOUND, format!("'{}' is not a bundled Chewtoy", id)))?;
+    let version = crate::plugins::read_grr_manifest(bytes).map(|m| m.plugin.version).unwrap_or_default();
+    Response::builder()
+        .header(header::CONTENT_TYPE, "application/zip")
+        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}-{}.grr\"", id, version))
+        .body(Body::from(bytes))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}

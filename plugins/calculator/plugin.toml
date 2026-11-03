@@ -1,7 +1,7 @@
 [plugin]
 id = "calculator"
 name = "Calculator"
-version = "1.1.0"
+version = "1.1.1"
 author = "Bolt J Woofson <bolt@arf.ac>"
 description = "Interactive calculator with storage unit multipliers, programmer bases, and live bitwise/byte conversions."
 homepage = "https://www.arf.ac"

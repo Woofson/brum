@@ -1298,7 +1298,17 @@ body {
 }
 
 .arcade-app-window.viewport-tablet .arcade-side-col {
-  width: 80px;
+  width: 96px;
+}
+
+/* Tablets: a wider window and a board that fills the height */
+.arcade-app-window.viewport-tablet {
+  max-width: 760px;
+}
+
+.arcade-app-window.viewport-tablet .arcade-canvas-container {
+  height: 100%;
+  width: auto;
 }
 
 .arcade-app-window.viewport-tablet #arcade-hold-canvas {

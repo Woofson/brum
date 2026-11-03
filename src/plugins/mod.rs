@@ -157,6 +157,57 @@ pub struct PluginInfo {
     pub path: String,
 }
 
+/// Chewtoys that ship inside Brum. Brum installs them like any Chewtoy, keeps them up to date
+/// and leaves them out once an admin uninstalls them. The source folders are `plugins/<id>/`.
+pub const BUNDLED_PLUGINS: &[(&str, &[u8])] = &[
+    ("calculator", include_bytes!("../../plugins/calculator.grr")),
+    ("colours", include_bytes!("../../plugins/colours.grr")),
+    ("tetrion", include_bytes!("../../plugins/tetrion.grr")),
+];
+
+/// A bundled Chewtoy and how it relates to what is installed
+#[derive(Debug, Clone, Serialize)]
+pub struct BundledPluginInfo {
+    pub id: String,
+    pub name: String,
+    pub version: String,
+    pub description: String,
+    pub installed_version: Option<String>,
+    /// "user" (installed Chewtoy), "system" (admin-provided system folder) or none
+    pub installed_location: Option<String>,
+    pub update_available: bool,
+    /// An admin uninstalled it; Brum does not put it back by itself
+    pub removed: bool,
+}
+
+/// Compares dotted version numbers ("1.10.0" > "1.9.2"); text parts count as 0
+pub fn version_is_newer(candidate: &str, current: &str) -> bool {
+    let parse = |v: &str| -> Vec<u64> { v.trim().trim_start_matches('v').split('.').map(|p| p.trim().parse().unwrap_or(0)).collect() };
+    let (a, b) = (parse(candidate), parse(current));
+    for i in 0..a.len().max(b.len()) {
+        let (x, y) = (a.get(i).copied().unwrap_or(0), b.get(i).copied().unwrap_or(0));
+        if x != y {
+            return x > y;
+        }
+    }
+    false
+}
+
+/// Reads `plugin.toml` from a `.grr` package
+pub fn read_grr_manifest(grr_data: &[u8]) -> Result<PluginManifest, String> {
+    let mut archive = ZipArchive::new(Cursor::new(grr_data)).map_err(|e| format!("Invalid .grr archive format: {}", e))?;
+    for i in 0..archive.len() {
+        let mut file = archive.by_index(i).map_err(|e| e.to_string())?;
+        let name = file.name().map_err(|e| e.to_string())?.to_string();
+        if name == "plugin.toml" || name.ends_with("/plugin.toml") {
+            let mut buf = String::new();
+            file.read_to_string(&mut buf).map_err(|e| e.to_string())?;
+            return toml::from_str(&buf).map_err(|e| format!("Invalid plugin.toml manifest: {}", e));
+        }
+    }
+    Err("Package missing mandatory 'plugin.toml' manifest".to_string())
+}
+
 #[derive(Clone)]
 pub struct PluginManager {
     pub system_dir: PathBuf,
@@ -416,6 +467,100 @@ impl PluginManager {
         Ok(info)
     }
 
+    // ---------------- Bundled Chewtoys ----------------
+
+    fn bundled_state_path(&self) -> PathBuf {
+        self.user_dir.join(".bundled.json")
+    }
+
+    /// Ids of bundled Chewtoys an admin uninstalled
+    fn removed_bundled(&self) -> HashSet<String> {
+        fs::read_to_string(self.bundled_state_path())
+            .ok()
+            .and_then(|t| serde_json::from_str::<serde_json::Value>(&t).ok())
+            .and_then(|v| v.get("removed").cloned())
+            .and_then(|v| serde_json::from_value::<Vec<String>>(v).ok())
+            .map(|v| v.into_iter().collect())
+            .unwrap_or_default()
+    }
+
+    fn set_bundled_removed(&self, id: &str, removed: bool) {
+        let mut set = self.removed_bundled();
+        let changed = if removed { set.insert(id.to_string()) } else { set.remove(id) };
+        if changed {
+            let mut list: Vec<String> = set.into_iter().collect();
+            list.sort();
+            let _ = fs::create_dir_all(&self.user_dir);
+            if let Err(e) = fs::write(self.bundled_state_path(), serde_json::json!({ "removed": list }).to_string()) {
+                warn!("Could not save bundled Chewtoy state: {}", e);
+            }
+        }
+    }
+
+    pub fn bundled_package(id: &str) -> Option<&'static [u8]> {
+        BUNDLED_PLUGINS.iter().find(|(bid, _)| *bid == id).map(|(_, bytes)| *bytes)
+    }
+
+    pub fn list_bundled(&self) -> Vec<BundledPluginInfo> {
+        let installed = self.scan_plugins().unwrap_or_default();
+        let removed = self.removed_bundled();
+        BUNDLED_PLUGINS
+            .iter()
+            .filter_map(|(id, bytes)| {
+                let m = read_grr_manifest(bytes).ok()?;
+                let current = installed.iter().find(|p| p.id == *id);
+                let installed_version = current.map(|p| p.version.clone());
+                let installed_location = current.map(|p| if p.is_system { "system".to_string() } else { "user".to_string() });
+                let update_available = current
+                    .map(|p| !p.is_system && version_is_newer(&m.plugin.version, &p.version))
+                    .unwrap_or(false);
+                Some(BundledPluginInfo {
+                    id: id.to_string(),
+                    name: m.plugin.name,
+                    version: m.plugin.version,
+                    description: m.plugin.description,
+                    installed_version,
+                    installed_location,
+                    update_available,
+                    removed: current.is_none() && removed.contains(*id),
+                })
+            })
+            .collect()
+    }
+
+    /// Installs or updates a bundled Chewtoy into the Chewtoy folder
+    pub fn install_bundled(&self, id: &str, user: &str) -> Result<PluginInfo, String> {
+        let bytes = Self::bundled_package(id).ok_or_else(|| format!("'{}' is not a bundled Chewtoy", id))?;
+        if let Some(existing) = self.get_plugin(id) {
+            if existing.is_system {
+                return Err(format!("'{}' is provided by the system Chewtoy folder", id));
+            }
+            let path = PathBuf::from(&existing.path);
+            if path.starts_with(&self.user_dir) {
+                fs::remove_dir_all(&path).map_err(|e| format!("Failed to replace the installed copy: {}", e))?;
+            }
+        }
+        let info = self.install_grr(bytes, user, true)?;
+        self.set_bundled_removed(id, false);
+        Ok(info)
+    }
+
+    /// At start-up: installs bundled Chewtoys that are missing (unless an admin uninstalled them)
+    /// and updates installed copies that are older than the bundled one
+    pub fn sync_bundled(&self) {
+        for info in self.list_bundled() {
+            let action = match (&info.installed_location, info.update_available, info.removed) {
+                (None, _, false) => "Installed",
+                (Some(loc), true, _) if loc == "user" => "Updated",
+                _ => continue,
+            };
+            match self.install_bundled(&info.id, "brum") {
+                Ok(p) => info!("{} bundled Chewtoy '{}' {}", action, p.id, p.version),
+                Err(e) => warn!("Could not set up bundled Chewtoy '{}': {}", info.id, e),
+            }
+        }
+    }
+
     /// Uninstalls a user plugin by ID
     pub fn uninstall_plugin(&self, id: &str, user: &str, is_admin: bool) -> Result<(), String> {
         let plugin = self.get_plugin(id).ok_or_else(|| format!("Plugin '{}' not found", id))?;
@@ -430,6 +575,9 @@ impl PluginManager {
         let path = PathBuf::from(&plugin.path);
         if path.exists() && path.starts_with(&self.user_dir) {
             fs::remove_dir_all(&path).map_err(|e| format!("Failed to remove plugin directory: {}", e))?;
+            if Self::bundled_package(id).is_some() {
+                self.set_bundled_removed(id, true);
+            }
             info!("Uninstalled ChewToy plugin '{}' by {}", id, user);
             Ok(())
         } else {
@@ -584,6 +732,67 @@ impl PluginManager {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn bundled_chewtoys_install_update_and_stay_uninstalled() {
+        let temp = tempdir().unwrap();
+        let user_dir = temp.path().join("user_plugins");
+        let mgr = PluginManager::new(temp.path().join("system"), user_dir.clone(), false, "allow_all".to_string(), vec![], vec![]);
+        let ids: Vec<&str> = BUNDLED_PLUGINS.iter().map(|(id, _)| *id).collect();
+
+        // Fresh install: every bundled Chewtoy is installed and can be uninstalled
+        mgr.sync_bundled();
+        for id in &ids {
+            let p = mgr.get_plugin(id).unwrap_or_else(|| panic!("{id} not installed"));
+            assert!(!p.is_system && p.can_uninstall, "{id} must be an ordinary Chewtoy");
+        }
+
+        // Uninstalled stays uninstalled across restarts
+        mgr.uninstall_plugin("tetrion", "admin", true).unwrap();
+        mgr.sync_bundled();
+        assert!(mgr.get_plugin("tetrion").is_none());
+        let t = mgr.list_bundled().into_iter().find(|b| b.id == "tetrion").unwrap();
+        assert!(t.removed && t.installed_version.is_none());
+
+        // Installing on purpose brings it back
+        mgr.install_bundled("tetrion", "admin").unwrap();
+        assert!(mgr.get_plugin("tetrion").is_some());
+        assert!(!mgr.list_bundled().into_iter().find(|b| b.id == "tetrion").unwrap().removed);
+
+        // An older installed copy is updated on the next start, and stale files go
+        let manifest = user_dir.join("colours/plugin.toml");
+        let old = fs::read_to_string(&manifest).unwrap().replacen("version = \"", "version = \"0.0.1-old-", 1);
+        fs::write(&manifest, old).unwrap();
+        fs::write(user_dir.join("colours/stale.js"), "old").unwrap();
+        assert!(mgr.list_bundled().into_iter().find(|b| b.id == "colours").unwrap().update_available);
+        mgr.sync_bundled();
+        let c = mgr.list_bundled().into_iter().find(|b| b.id == "colours").unwrap();
+        assert!(!c.update_available && c.installed_version.as_deref() == Some(c.version.as_str()));
+        assert!(!user_dir.join("colours/stale.js").exists());
+    }
+
+    #[test]
+    fn every_packed_chewtoy_is_bundled() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins");
+        for entry in fs::read_dir(&root).unwrap().flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) == Some("grr") {
+                let id = path.file_stem().unwrap().to_string_lossy().to_string();
+                assert!(PluginManager::bundled_package(&id).is_some(), "add plugins/{id}.grr to BUNDLED_PLUGINS");
+                let m = read_grr_manifest(PluginManager::bundled_package(&id).unwrap()).unwrap();
+                assert_eq!(m.plugin.id, id, "package name and plugin id differ");
+            }
+        }
+    }
+
+    #[test]
+    fn versions_compare_by_number() {
+        assert!(version_is_newer("1.10.0", "1.9.2"));
+        assert!(version_is_newer("1.1.0", "1.0.9"));
+        assert!(!version_is_newer("1.0.0", "1.0.0"));
+        assert!(!version_is_newer("0.9", "1.0.0"));
+        assert!(version_is_newer("1.0.1", "1.0"));
+    }
 
     #[test]
     fn assets_never_leave_the_plugin_folder() {

@@ -41,10 +41,6 @@ if [ -d "./themes" ]; then
     mkdir -p "${TARBALL_DIR}/themes"
     cp ./themes/*.toml "${TARBALL_DIR}/themes/" 2>/dev/null || true
 fi
-if [ -d "./plugins" ]; then
-    mkdir -p "${TARBALL_DIR}/plugins"
-    cp ./plugins/*.grr "${TARBALL_DIR}/plugins/" 2>/dev/null || true
-fi
 if [ -f "./scripts/lxc-install.sh" ]; then
     cp "./scripts/lxc-install.sh" "${TARBALL_DIR}/install.sh"
     chmod +x "${TARBALL_DIR}/install.sh"
@@ -90,9 +86,6 @@ DEBEOF
     elif [ -f "./assets/128/brum-128.webp" ]; then
         cp "./assets/128/brum-128.webp" "${DEB_DIR}/usr/share/pixmaps/brum.webp"
     fi
-    if [ -d "./plugins" ]; then
-        cp ./plugins/*.grr "${DEB_DIR}/usr/share/brum/plugins/" 2>/dev/null || true
-    fi
     cp "./LICENSE" "${DEB_DIR}/usr/share/doc/brum/copyright"
     cp "./README.md" "${DEB_DIR}/usr/share/doc/brum/"
     if [ -d "./packaging/debian" ]; then
@@ -118,9 +111,6 @@ if [ -f "./assets/brum.png" ]; then
     cp "./assets/brum.png" "${APK_DIR}/usr/share/pixmaps/brum.png"
 elif [ -f "./assets/128/brum-128.webp" ]; then
     cp "./assets/128/brum-128.webp" "${APK_DIR}/usr/share/pixmaps/brum.webp"
-fi
-if [ -d "./plugins" ]; then
-    cp ./plugins/*.grr "${APK_DIR}/usr/share/brum/plugins/" 2>/dev/null || true
 fi
 if [ -f "./brum.desktop" ]; then
     cp "./brum.desktop" "${APK_DIR}/usr/share/applications/"
@@ -172,9 +162,6 @@ if command -v x86_64-w64-mingw32-gcc >/dev/null 2>&1; then
         cp "./README.md" "${WIN_DIR}/"
         if [ -d "./themes" ]; then
             cp ./themes/*.toml "${WIN_DIR}/themes/" 2>/dev/null || true
-        fi
-        if [ -d "./plugins" ]; then
-            cp ./plugins/*.grr "${WIN_DIR}/plugins/" 2>/dev/null || true
         fi
         if [ -f "./packaging/windows/brum.ico" ]; then
             cp "./packaging/windows/brum.ico" "${WIN_DIR}/"

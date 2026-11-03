@@ -257,6 +257,9 @@ pub fn create_router(state: AppState) -> Router {
         // ChewToy Plugins Architecture & Add-ons API
         .route("/api/plugins", get(handle_list_plugins))
         .route("/api/plugins/install", post(handle_install_plugin))
+        .route("/api/plugins/bundled", get(handle_list_bundled_plugins))
+        .route("/api/plugins/bundled/:id/install", post(handle_install_bundled_plugin))
+        .route("/api/plugins/bundled/:id/download", get(handle_download_bundled_plugin))
         .route("/api/plugins/:id/toggle", post(handle_toggle_plugin))
         .route("/api/plugins/:id", delete(handle_delete_plugin))
         .route("/api/plugins/:id/assets/*subpath", get(handle_plugin_asset))

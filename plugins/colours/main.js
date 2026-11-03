@@ -453,7 +453,9 @@
     box.textContent = '';
     formats().forEach(([label, value]) => {
       const row = el('div', 'col-format-row');
-      row.appendChild(el('span', 'col-format-label', label + (label === 'HSV' ? '*' : '')));
+      const name = el('span', 'col-format-label', label + (label === 'HSV' ? '*' : ''));
+      if (label === 'HSV') name.title = 'HSV is not a CSS colour format';
+      row.appendChild(name);
       const v = el('span', 'col-format-value', value);
       v.title = value;
       row.appendChild(v);
@@ -461,8 +463,6 @@
       row.appendChild(btn);
       box.appendChild(row);
     });
-    const hint = el('div', 'col-hint', '* HSV is not a CSS colour format.');
-    box.appendChild(hint);
   }
 
   function copyButton(text, title) {
@@ -487,6 +487,15 @@
   }
 
   // ---------------- Tools ----------------
+  // A label on the left and its swatches on the right, on one line
+  function labelledRow(label, swatches) {
+    const row = el('div', 'col-labelled-row');
+    row.appendChild(el('span', 'col-swatch-label', label));
+    const line = el('div', 'col-swatch-row');
+    swatches.forEach((s) => line.appendChild(s));
+    row.appendChild(line);
+    return row;
+  }
   function okBase() {
     return state.model === 'oklch' ? state.values : valuesIn('oklch', displayRgb());
   }
@@ -494,14 +503,13 @@
   function renderShades(body) {
     const [L, C, H] = okBase();
     const steps = [0.97, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.2, 0.12];
-    body.appendChild(el('div', 'col-swatch-label', 'Tints and shades (same hue, lighter to darker)'));
-    const row = el('div', 'col-swatch-row');
-    steps.forEach((l) => row.appendChild(swatch(gamutMap([l, C * Math.min(1, 1.2 - Math.abs(l - L)), H]), `Lightness ${Math.round(l * 100)}%`)));
-    body.appendChild(row);
-    body.appendChild(el('div', 'col-swatch-label', 'Saturation (same lightness, grey to full)'));
-    const row2 = el('div', 'col-swatch-row');
-    for (let i = 0; i <= 8; i++) row2.appendChild(swatch(gamutMap([L, 0.32 * i / 8, H]), `Chroma ${round(0.32 * i / 8, 2)}`));
-    body.appendChild(row2);
+    body.appendChild(labelledRow('Tints & shades', steps.map((l) => swatch(gamutMap([l, C * Math.min(1, 1.2 - Math.abs(l - L)), H]), `Lightness ${Math.round(l * 100)}%`))));
+    const chroma = [];
+    for (let i = 0; i <= 9; i++) chroma.push(swatch(gamutMap([L, 0.32 * i / 9, H]), `Chroma ${round(0.32 * i / 9, 2)}`));
+    body.appendChild(labelledRow('Grey to vivid', chroma));
+    const hues = [];
+    for (let i = 0; i < 10; i++) hues.push(swatch(gamutMap([L, C, normHue(H + i * 36)]), `Hue ${round(normHue(H + i * 36), 0)}°`));
+    body.appendChild(labelledRow('Same tone', hues));
   }
 
   function renderHarmony(body) {
@@ -514,12 +522,9 @@
       ['Tetradic', [0, 90, 180, 270]],
     ];
     sets.forEach(([name, offsets]) => {
-      body.appendChild(el('div', 'col-swatch-label', name));
-      const row = el('div', 'col-swatch-row');
-      offsets.forEach((o) => row.appendChild(swatch(gamutMap([L, C, normHue(H + o)]), `${name} ${o >= 0 ? '+' : ''}${o}°`)));
-      body.appendChild(row);
+      body.appendChild(labelledRow(name, offsets.map((o) => swatch(gamutMap([L, C, normHue(H + o)]), `${name} ${o >= 0 ? '+' : ''}${o}°`))));
     });
-    body.appendChild(el('div', 'col-hint', 'Hues are rotated in OKLCH, so the colours keep the same perceived lightness.'));
+    body.title = 'Hues are rotated in OKLCH, so the colours keep the same perceived lightness.';
   }
 
   function contrastCard(fg, bg, label) {
@@ -528,22 +533,24 @@
     sample.style.color = toHex(fg, 1);
     sample.style.background = toHex(bg, 1);
     sample.textContent = label;
-    const small = el('small', null, 'The quick brown fox jumps over the lazy dog');
-    sample.appendChild(small);
     const ratio = contrastRatio(fg, bg);
     const r = el('div', 'col-contrast-ratio', `${round(ratio, 2)}:1`);
     const badges = el('div', 'col-badges');
-    [['AA', 4.5], ['AA large', 3], ['AAA', 7], ['AAA large', 4.5], ['UI', 3]].forEach(([n, min]) => {
-      badges.appendChild(el('span', `col-badge ${ratio >= min ? 'pass' : 'fail'}`, `${ratio >= min ? '✓' : '✗'} ${n}`));
+    [['AA', 4.5, 'Normal text, WCAG AA'], ['AAA', 7, 'Normal text, WCAG AAA'], ['Large', 3, 'Large text, WCAG AA'], ['UI', 3, 'Icons and controls']].forEach(([n, min, tip]) => {
+      const b = el('span', `col-badge ${ratio >= min ? 'pass' : 'fail'}`, `${ratio >= min ? '✓' : '✗'} ${n}`);
+      b.title = `${tip}: needs ${min}:1`;
+      badges.appendChild(b);
     });
     card.append(sample, r, badges);
+    card.title = `${label}: ${round(ratio, 2)}:1`;
     return card;
   }
 
   function renderContrast(body) {
     const rgb = displayRgb();
-    body.appendChild(contrastCard(rgb, [1, 1, 1], 'On white'));
-    body.appendChild(contrastCard(rgb, [0, 0, 0], 'On black'));
+    body.title = 'WCAG 2 contrast. AA needs 4.5:1 for normal text and 3:1 for large text or controls; AAA needs 7:1. Transparency is ignored.';
+    body.appendChild(contrastCard(rgb, [1, 1, 1], 'Text on white'));
+    body.appendChild(contrastCard(rgb, [0, 0, 0], 'Text on black'));
     const row = el('div', 'col-row');
     row.appendChild(el('span', 'col-slider-label', 'Compare with'));
     const input = el('input', 'col-text-input');
@@ -553,7 +560,7 @@
     body.appendChild(row);
     const other = parseColour(state.contrastWith);
     const holder = el('div');
-    if (other) holder.appendChild(contrastCard(MODELS[other.model].toRgb(other.values).map((c) => clamp(c, 0, 1)), rgb, 'Text in that colour'));
+    if (other) holder.appendChild(contrastCard(MODELS[other.model].toRgb(other.values).map((c) => clamp(c, 0, 1)), rgb, 'That colour on this one'));
     body.appendChild(holder);
     input.addEventListener('change', () => {
       const p = parseColour(input.value);
@@ -563,7 +570,6 @@
       store.set('contrastWith', state.contrastWith);
       renderTool();
     });
-    body.appendChild(el('div', 'col-hint', 'WCAG 2 ratios. AA needs 4.5:1 for normal text and 3:1 for large text or interface parts; AAA needs 7:1. Transparency is ignored.'));
   }
 
   function hexToRgbAlpha(hex) {
@@ -637,6 +643,7 @@
     // Keep typing in the contrast field undisturbed
     if (body.contains(document.activeElement) && document.activeElement.tagName === 'INPUT') return;
     body.textContent = '';
+    body.removeAttribute('title');
     (TOOLS[state.tool] || renderShades)(body);
     document.querySelectorAll('#col-tool-tabs .col-tab').forEach((t) => t.classList.toggle('active', t.dataset.tool === state.tool));
   }

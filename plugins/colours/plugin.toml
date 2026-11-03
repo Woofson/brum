@@ -1,7 +1,7 @@
 [plugin]
 id = "colours"
 name = "Colours"
-version = "1.0.0"
+version = "1.0.1"
 author = "Bolt J Woofson <bolt@arf.ac>"
 description = "Colour picker with OKLCH, HWB, HSL, HSV and RGB, shades, harmonies, contrast check, saved colours and an eyedropper."
 homepage = "https://www.arf.ac"
@@ -12,7 +12,7 @@ category = "utilities"
 modes = ["floating", "docked"]
 default_mode = "floating"
 default_width = 440
-default_height = 680
+default_height = 720
 min_width = 340
 min_height = 480
 
