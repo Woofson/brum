@@ -10,7 +10,7 @@
 //   data-<type>-prevent                 prevent the browser's default (e.g. its own right-click menu)
 //   data-<type>-key="Enter"             only act when this key was pressed
 // Markers in arguments: ACTION_EVENT (the event), ACTION_EL (the element), ACTION_VALUE
-// (its current value), ACTION_CHECKED (whether it is ticked).
+// (its current value), ACTION_CHECKED (whether it is ticked), ACTION_FILES (files picked in it).
 // Each element gets its own listener, so events keep the same order they had inline.
 // Call bindActions(container) right after filling a container with innerHTML, and after
 // lucide.createIcons() when the element carrying the action is an <i data-lucide> icon.
@@ -29,83 +29,110 @@ const BRUM_ACTIONS = new Set([
   'addDirectoryToMediaPlaylist', 'addNewBookmark', 'addTracksToMediaPlaylist',
   'applyBorderSettings', 'applyCustomBadgePreset', 'applyExternalProgramPreset',
   'applyPaneCustomTwoTone', 'applyPaneRenameFromInput', 'applyPaneStartPath', 'applyTheme',
-  'autoFitAllColumns', 'autoFitColumn', 'browseNoteDogFolder',
-  'captureCurrentPathsForCustomStartup', 'changeGlobalIconTheme', 'clearAllCustomFileIcons',
-  'clearPaneFilter', 'clickElementById', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers',
-  'closeDockedTool', 'closeModal', 'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick',
-  'closeTabsToTheRight', 'copyTextToClipboard', 'copyVariableTag', 'createPaneTab',
-  'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction', 'deleteFileTemplate',
-  'deleteOpenWithRule', 'deleteSelectedTrashItems', 'disablePathInput', 'disconnectPaneRemote',
+  'autoFitAllColumns', 'autoFitColumn', 'blurElement', 'bringFloatingWindowToFront',
+  'browseNoteDogFolder', 'captureCurrentPathsForCustomStartup', 'changeGlobalIconTheme',
+  'clearAllCustomFileIcons', 'clearPaneFilter', 'clickElementById', 'cloneDirectoryToOppositePane',
+  'closeBreadcrumbPopovers', 'closeDockedEditorTab', 'closeDockedTool',
+  'closeEditorActionsDropdown', 'closeEditorModal', 'closeEditorTab',
+  'closeEditorTabOnMiddleClick', 'closeFloatingNoteDog', 'closeModal', 'closeNoteDogDrawer',
+  'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
+  'copyTextToClipboard', 'copyVariableTag', 'createNewEditorTab', 'createPaneTab',
+  'cycleEditorTabSize', 'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction',
+  'deleteFileTemplate', 'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems',
+  'disablePathInput', 'disconnectPaneRemote', 'dockEditorToActivePane', 'dockNoteDogToActivePane',
   'duplicateFileTemplate', 'duplicatePaneTab', 'editCustomAction', 'editOpenWithRule',
-  'editTemplateById', 'enablePathInput', 'executeCustomAction', 'executeOpenWith',
-  'executePane1ClickTransfer', 'exportCustomThemeToml', 'filterInstalledChewToys',
-  'handleAppMarginChange', 'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
-  'handleChewToyFileSelect', 'handleDndSettingChange', 'handleFilterInput', 'handleFilterKey',
+  'editTemplateById', 'enablePathInput', 'executeCustomAction', 'executeFind', 'executeOpenWith',
+  'executePane1ClickTransfer', 'executeUnlockNoteDogNote', 'exportCustomThemeToml',
+  'filterInstalledChewToys', 'findNextMatch', 'findPrevMatch', 'handleAppMarginChange',
+  'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
+  'handleChewToyFileSelect', 'handleDndSettingChange', 'handleDockedNoteSelect',
+  'handleDockedNotebookChange', 'handleDockedSectionChange', 'handleEditorClick',
+  'handleEditorInput', 'handleEditorKeyDown', 'handleEditorLanguageChange',
+  'handleEditorViewModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
   'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
   'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHostnameSettingChange',
   'handleLoginBrandingSettingChange', 'handleLogoutOrExit', 'handleMonoFontChange',
-  'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
-  'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
-  'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
-  'handleSettingsAvatarFileUpload', 'handleStartupSettingChange', 'handleTitleTemplateChange',
-  'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart',
-  'handleToolDrop', 'handleUserParanoidToggle', 'handleUserSecuritySettingChange',
-  'handleVaultOpen', 'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
-  'hideOpenWithRuleForm', 'initColResize', 'initTreeResize', 'insertTitleVar', 'loadEmojiPresets',
+  'handleNoteAttachmentFileSelected', 'handleNoteDogInput', 'handleNoteDogKeyDown',
+  'handleNoteDogSearch', 'handleNoteDogTitleChange', 'handlePaneBadgeClick',
+  'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel',
+  'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart',
+  'handlePathKey', 'handleRadiusChange', 'handleSansFontChange', 'handleSettingsAvatarFileUpload',
+  'handleStartupSettingChange', 'handleTitleTemplateChange', 'handleToolDragEnd',
+  'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart', 'handleToolDrop',
+  'handleUserParanoidToggle', 'handleUserSecuritySettingChange', 'handleVaultOpen',
+  'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
+  'hideOpenWithRuleForm', 'initColResize', 'initTreeResize', 'insertAttachmentMarkdownById',
+  'insertNoteDogColorTag', 'insertNoteDogMarkdown', 'insertNoteDogMermaid',
+  'insertNoteDogTimestamp', 'insertTitleVar', 'jumpToConfdSection', 'loadEmojiPresets',
   'loadInstalledChewToys', 'loadNerdFontPresets', 'loadPaneDirectory',
-  'loadUserPreferencesFromServer', 'lockSession', 'mountUsbDevice', 'moveMenuItem', 'moveToolItem',
-  'navigateToBookmark', 'openAboutModal', 'openAdminPanel', 'openApiTokensModal',
-  'openBatchRenamer', 'openBookmarksManager', 'openCadStudio', 'openChewtoyForFile',
-  'openColumnHeaderContextMenu', 'openConverterModal', 'openCreateTemplateModal',
-  'openCreateVaultModal', 'openCustomDestModal', 'openDiskUsageModal', 'openDuplicateFinder',
-  'openDynamicChewToy', 'openExternalTerminal', 'openFleetAddModal', 'openFleetManagerModal',
-  'openFleetNodeWebUi', 'openFloatingCalculator', 'openFloatingEditor', 'openFloatingNoteDog',
-  'openFloatingTaskManager', 'openHexEditor', 'openInPaneWithToast', 'openKeyRecordModal',
-  'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin', 'openNoteForContextItem',
+  'loadUserPreferencesFromServer', 'lockSession', 'maximizeFloatingEditor',
+  'maximizeFloatingNoteDog', 'minimizeFloatingEditor', 'minimizeFloatingNoteDog', 'mountUsbDevice',
+  'moveMenuItem', 'moveToolItem', 'navigateToBookmark', 'openAboutModal', 'openAdminPanel',
+  'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager', 'openCadStudio',
+  'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openConverterModal',
+  'openCreateTemplateModal', 'openCreateVaultModal', 'openCustomDestModal', 'openDiskUsageModal',
+  'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFleetAddModal',
+  'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator', 'openFloatingEditor',
+  'openFloatingNoteDog', 'openFloatingTaskManager', 'openHexEditor', 'openInPaneWithToast',
+  'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin',
+  'openNoteDogColorPicker', 'openNoteDogMigrationMenu', 'openNoteDogNewMenu',
+  'openNoteDogTemplatePicker', 'openNoteDogVersionsModal', 'openNoteForContextItem',
   'openPaneFavoritesMenu', 'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu',
   'openPaneTransferMenu', 'openParanoidSettings', 'openPdfToolModal', 'openPropertiesColorTab',
   'openRemoteModal', 'openSearchModal', 'openSettingsModal', 'openSettingsTab',
   'openSharesManager', 'openSpotlightModal', 'openSyncModal', 'openSyncthingModal',
   'openTagEditor', 'openTerminalInPath', 'openTetraDog', 'openUserProfileModal',
-  'promptEmptyTrash', 'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes',
-  'refreshPane', 'removeElementById', 'renderAvatarById', 'renderKeybindingsTable',
+  'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNoteDogFolder',
+  'promptChangeNoteSection', 'promptCreateNote', 'promptCreateNotebookOrCategory',
+  'promptCreateSection', 'promptDeleteCurrentNote', 'promptEmptyTrash',
+  'promptToggleEncryptNotebook', 'promptToggleEncryptSection', 'quickTransferToPane',
+  'quickTransferToPath', 'refreshAllPanes', 'refreshPane', 'removeElementById', 'removeNoteTag',
+  'renderAvatarById', 'renderKeybindingsTable', 'replaceAllMatches', 'replaceCurrentMatch',
   'resetAllColumnWidths', 'resetFileTemplatesToDefault', 'resetGlobalFolderIcon',
   'resetHiddenDrives', 'resetKeybindingsToDefaults', 'resetLayoutGapsToDefault',
   'resetMenuConfigToDefaults', 'resetPaneName', 'resetServerPreferences', 'resetSettingsAvatar',
   'resetSingleKeybind', 'resetToolsMenuToDefault', 'resetWindowTitleSetting',
+  'restoreFloatingEditor', 'restoreFloatingNoteDog', 'restoreSelectedNoteDogVersion',
   'restoreSelectedTrashItems', 'runPredefinedAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
-  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
-  'saveCustomShellAction', 'saveCustomTrashDir', 'saveGlobalFolderIcon',
-  'saveNoteDogFolderSetting', 'saveOpenWithRule', 'saveSettingsUserProfile',
-  'selectGlobalFolderPreset', 'setActivePane', 'setContextFileColor', 'setCustomAngleInput',
-  'setDefaultViewMode', 'setElementValue', 'setFontSizePreset', 'setPane1ClickTransferAction',
-  'setPaneColorPref', 'setPaneViewMode', 'setTaskVerbosity', 'setTitleTemplatePreset',
-  'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'sortPane', 'swapPanes',
-  'switchAdminTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab',
-  'switchSettingsTab', 'switchToFleetNode', 'testExternalProgram', 'toggleActivateOnHover',
-  'toggleBranchView', 'toggleBrumMascot', 'toggleChewToy', 'toggleColSeparators',
-  'toggleColumnVisibility', 'toggleCompactDates', 'toggleContextColorPalette',
-  'toggleContextSubmenu', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
-  'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFleetSwitcherDropdown',
-  'toggleFloatingTaskManager', 'toggleGlobalDotfiles', 'toggleGlobalRefreshButton',
-  'toggleHapticFeedbackSetting', 'toggleHideDrive', 'toggleHostnameBadgeSetting',
-  'toggleLayoutMenu', 'toggleMediaStopOnClose', 'toggleMenuItemVisibility', 'toggleMinimizeToTray',
-  'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll',
-  'togglePaneTree', 'toggleProfileMenu', 'toggleShowDirTag', 'toggleStartMinimized',
-  'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll', 'toggleTerminal',
-  'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting', 'toggleUseExtEditor',
-  'toggleUseExtViewer', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
-  'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
-  'triggerChecksum', 'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard',
-  'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload',
-  'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions', 'triggerDownloadContextItem',
-  'triggerDownloadCurrentDirectory', 'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere',
-  'triggerExtractModal', 'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit',
-  'triggerGitManager', 'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerPaste',
-  'triggerProperties', 'triggerRename', 'triggerShare', 'triggerShareDirectory', 'triggerView',
-  'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice', 'updateDefaultCopyAction',
-  'updateMenuOption', 'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview',
-  'updatePaneTabsMode', 'updatePhoneTabletMaxPanes', 'useFallbackIcon',
+  'saveActiveEditorTab', 'saveActiveNoteDogNote', 'saveAllEditorTabs', 'saveContextItemAsTemplate',
+  'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme', 'saveCustomShellAction',
+  'saveCustomTrashDir', 'saveGlobalFolderIcon', 'saveNoteDogFolderSetting', 'saveOpenWithRule',
+  'saveSettingsUserProfile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
+  'selectDatabaseSection', 'selectGlobalFolderPreset', 'selectNoteDogNoteByPath',
+  'selectNoteDogNotebook', 'selectNoteDogSection', 'selectNoteDogVersion', 'setActivePane',
+  'setContextFileColor', 'setCustomAngleInput', 'setDefaultViewMode', 'setElementValue',
+  'setFontSizePreset', 'setNoteDogStorageMode', 'setNoteDogViewMode',
+  'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setTaskVerbosity',
+  'setTitleTemplatePreset', 'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'sortPane',
+  'swapPanes', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
+  'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchSettingsTab',
+  'switchToFleetNode', 'syncDockedNoteDogInput', 'syncGutterScroll', 'syncNoteDogGutter',
+  'testExternalProgram', 'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleBranchView',
+  'toggleBrumMascot', 'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
+  'toggleCompactDates', 'toggleContextColorPalette', 'toggleContextSubmenu',
+  'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
+  'toggleEditorActionsDropdown', 'toggleFKeyBar', 'toggleFileListMultiline', 'toggleFindBar',
+  'toggleFindOption', 'toggleFleetSwitcherDropdown', 'toggleFloatingTaskManager',
+  'toggleGlobalDotfiles', 'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting',
+  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleLayoutMenu', 'toggleMediaStopOnClose',
+  'toggleMenuItemVisibility', 'toggleMinimizeToTray', 'toggleNoteAttachmentsTray',
+  'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer', 'togglePaneFilter',
+  'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
+  'toggleProfileMenu', 'toggleShowDirTag', 'toggleStartMinimized', 'toggleStickyColHeaders',
+  'toggleSyncNav', 'toggleSyncScroll', 'toggleTerminal', 'toggleToolVisibility', 'toggleToolsMenu',
+  'toggleTrashSetting', 'toggleUseExtEditor', 'toggleUseExtViewer', 'toggleWindowDecorations',
+  'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
+  'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
+  'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
+  'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions',
+  'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory', 'triggerEditTagsModal',
+  'triggerEditor', 'triggerExtractHere', 'triggerExtractModal', 'triggerExtractToFolder',
+  'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager', 'triggerMkdir', 'triggerMove',
+  'triggerNewFile', 'triggerNoteAttachmentUpload', 'triggerPaste', 'triggerProperties',
+  'triggerRename', 'triggerShare', 'triggerShareDirectory', 'triggerView', 'undockToolFromPane',
+  'uninstallChewToy', 'unmountUsbDevice', 'updateDefaultCopyAction', 'updateMenuOption',
+  'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview', 'updatePaneTabsMode',
+  'updatePhoneTabletMaxPanes', 'useFallbackIcon',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -113,6 +140,7 @@ const ACTION_EVENT = { $: 'event' };
 const ACTION_EL = { $: 'el' };
 const ACTION_VALUE = { $: 'value' };
 const ACTION_CHECKED = { $: 'checked' };
+const ACTION_FILES = { $: 'files' };
 
 function encodeActionArg(a) {
   if (a === undefined) return { $: 'undefined' };
@@ -127,6 +155,7 @@ function decodeActionArg(a, ev, el) {
     if (a.$ === 'el') return el;
     if (a.$ === 'value') return el.value;
     if (a.$ === 'checked') return el.checked;
+    if (a.$ === 'files') return el.files;
     if (a.$ === 'undefined') return undefined;
   }
   return a;
@@ -202,6 +231,15 @@ function bindActions(root) {
 
 bindActions(document);
 
+// Content cleaned by DOMPurify (notes, markdown and document previews) is written by users and
+// guests. It must never carry named actions, so the wiring attributes are always removed.
+const ACTION_ATTR_RE = /^data-(on-[a-z]+|[a-z]+-(args|steps|after|stop|prevent|key))$/;
+if (typeof DOMPurify !== 'undefined' && DOMPurify.addHook) {
+  DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
+    if (ACTION_ATTR_RE.test(data.attrName)) data.keepAttr = false;
+  });
+}
+
 // Small actions that used to be several inline statements
 function openSettingsTab(tabId) {
   openSettingsModal();
@@ -230,6 +268,14 @@ function removeElementById(id) {
 function setElementValue(id, value) {
   const el = document.getElementById(id);
   if (el) el.value = value;
+}
+
+function blurElement(el) {
+  el.blur();
+}
+
+function closeEditorTabOnMiddleClick(ev, tabId) {
+  if (ev.button === 1) closeEditorTab(tabId);
 }
 
 function clickElementById(id) {
@@ -13849,13 +13895,14 @@ function renderDatabaseSidebar() {
       const isActive = cleanCat === (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim();
       const icon = isManualCat ? '📖' : '📚';
       return `
-        <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseCategory(${escapeJsStr(cleanCat)})" title="${escapeHtml(cleanCat)} (${count} notes)">
+        <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectDatabaseCategory" data-click-args="${actionArgs(String((cleanCat) ?? ''))}" title="${escapeHtml(cleanCat)} (${count} notes)">
           <span>${icon}</span>
           <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanCat)}</span>
           <span class="notedog-item-count">${count}</span>
         </div>
       `;
     }).join('');
+    bindActions(nbList);
   }
 
   // 2. Sections in active category
@@ -13870,13 +13917,14 @@ function renderDatabaseSidebar() {
         const isActive = cleanName === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim() || sec.name === notedogState.activeDbSection;
         const icon = getManualSectionIcon(sec.name);
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection(${escapeJsStr(sec.name)})" title="${escapeHtml(cleanName)} (${count} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectDatabaseSection" data-click-args="${actionArgs(String((sec.name) ?? ''))}" title="${escapeHtml(cleanName)} (${count} notes)">
             <span>${icon}</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanName)}</span>
             <span class="notedog-item-count">${count}</span>
           </div>
         `;
       }).join('');
+      bindActions(secList);
     } else {
       const cleanActiveCat = (notedogState.activeCategory || '').replace(/^[^\w\s&]+/, '').trim();
       const catNotes = notedogState.dbNotes.filter(n => (n.category || '').replace(/^[^\w\s&]+/, '').trim() === cleanActiveCat);
@@ -13885,13 +13933,14 @@ function renderDatabaseSidebar() {
         const count = catNotes.filter(n => (n.section || '').replace(/^[^\w\s&]+/, '').trim() === cleanSec).length;
         const isActive = cleanSec === (notedogState.activeDbSection || '').replace(/^[^\w\s&]+/, '').trim();
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseSection(${escapeJsStr(cleanSec)})" title="${escapeHtml(cleanSec)} (${count} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectDatabaseSection" data-click-args="${actionArgs(String((cleanSec) ?? ''))}" title="${escapeHtml(cleanSec)} (${count} notes)">
             <span>📂</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanSec)}</span>
             <span class="notedog-item-count">${count}</span>
           </div>
         `;
       }).join('');
+      bindActions(secList);
     }
   }
 
@@ -13921,7 +13970,7 @@ function renderDatabaseSidebar() {
           const isActive = notedogState.activeNote && (notedogState.activeNote.path === note.path);
           const cleanTitle = note.name.replace(/^[^\w\s&]+/, '').trim();
           return `
-            <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath(${escapeJsStr(note.path)})" title="${escapeHtml(note.filename)}">
+            <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectNoteDogNoteByPath" data-click-args="${actionArgs(String((note.path) ?? ''))}" title="${escapeHtml(note.filename)}">
               <span>📄</span>
               <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
                 <div>${escapeHtml(cleanTitle)}</div>
@@ -13930,6 +13979,7 @@ function renderDatabaseSidebar() {
             </div>
           `;
         }).join('');
+        bindActions(noteList);
       }
     } else {
       let notesToRender = [];
@@ -13952,7 +14002,7 @@ function renderDatabaseSidebar() {
           const subtext = notedogState.searchQuery.trim() ? `${note.category}/${note.section}` : '';
           
           return `
-            <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectDatabaseNoteById(${note.id})" title="${escapeHtml(note.title)}">
+            <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectDatabaseNoteById" data-click-args="${actionArgs((note.id))}" title="${escapeHtml(note.title)}">
               <span>${pinIcon}</span>
               ${colorDot}
               <div style="flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
@@ -13963,6 +14013,7 @@ function renderDatabaseSidebar() {
             </div>
           `;
         }).join('');
+        bindActions(noteList);
       }
     }
   }
@@ -14123,9 +14174,10 @@ function renderDatabaseNoteTags(note) {
   container.innerHTML = tags.map(t => `
     <span class="notedog-tag-chip">
       #${escapeHtml(t)}
-      <span class="del-tag" onclick="removeNoteTag(${escapeJsStr(t)})" title="Remove tag">×</span>
+      <span class="del-tag" data-on-click="removeNoteTag" data-click-args="${actionArgs(String((t) ?? ''))}" title="Remove tag">×</span>
     </span>
   `).join('');
+  bindActions(container);
 }
 
 async function promptAddNoteTag() {
@@ -14517,18 +14569,19 @@ function renderAttachmentsTray() {
               <div style="font-weight: 600; font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(att.filename)}">${escapeHtml(att.filename)}</div>
               <div style="font-size: 9px; color: var(--text-dim);">${formatFileSize(att.size_bytes || 0)}</div>
             </div>
-            <button class="btn btn-icon btn-xs" onclick="insertAttachmentMarkdownById(${att.id})" title="Insert into Markdown" style="width: 20px; height: 20px; min-width: 20px; padding: 0;">
+            <button class="btn btn-icon btn-xs" data-on-click="insertAttachmentMarkdownById" data-click-args="${actionArgs((att.id))}" title="Insert into Markdown" style="width: 20px; height: 20px; min-width: 20px; padding: 0;">
               <i data-lucide="plus" style="width: 10px; height: 10px;"></i>
             </button>
             <a href="${url}" target="_blank" download="${escapeHtml(att.filename)}" class="btn btn-icon btn-xs" title="Download Attachment" style="width: 20px; height: 20px; min-width: 20px; padding: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--text-muted);">
               <i data-lucide="download" style="width: 10px; height: 10px;"></i>
             </a>
-            <button class="btn btn-icon btn-xs btn-danger-hover" onclick="deleteNoteAttachment(${att.id})" title="Delete Attachment" style="width: 20px; height: 20px; min-width: 20px; padding: 0;">
+            <button class="btn btn-icon btn-xs btn-danger-hover" data-on-click="deleteNoteAttachment" data-click-args="${actionArgs((att.id))}" title="Delete Attachment" style="width: 20px; height: 20px; min-width: 20px; padding: 0;">
               <i data-lucide="trash-2" style="width: 10px; height: 10px;"></i>
             </button>
           </div>
         `;
       }).join('');
+      bindActions(trayList);
     }
   }
 
@@ -14782,13 +14835,14 @@ function renderNoteDogSidebar() {
         const icon = nb.is_encrypted ? '🔒' : (isManualNb ? '📖' : '📚');
         const encLabel = nb.is_encrypted ? ' [Encrypted Notebook]' : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNotebook(${escapeJsStr(nb.name)})" title="${escapeHtml(cleanNb)}${encLabel} (${totalNotes} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectNoteDogNotebook" data-click-args="${actionArgs(String((nb.name) ?? ''))}" title="${escapeHtml(cleanNb)}${encLabel} (${totalNotes} notes)">
             <span>${icon}</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanNb)}</span>
             <span class="notedog-item-count">${totalNotes}</span>
           </div>
         `;
       }).join('');
+      bindActions(nbList);
     }
   }
 
@@ -14805,13 +14859,14 @@ function renderNoteDogSidebar() {
         const icon = sec.is_encrypted ? '🔒' : (isManualNb ? getManualSectionIcon(sec.name) : '📂');
         const encLabel = sec.is_encrypted ? ' [Encrypted Section]' : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogSection(${escapeJsStr(sec.name)})" title="${escapeHtml(cleanSec)}${encLabel} (${sec.notes.length} notes)">
+          <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectNoteDogSection" data-click-args="${actionArgs(String((sec.name) ?? ''))}" title="${escapeHtml(cleanSec)}${encLabel} (${sec.notes.length} notes)">
             <span>${icon}</span>
             <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap; flex:1;">${escapeHtml(cleanSec)}</span>
             <span class="notedog-item-count">${sec.notes.length}</span>
           </div>
         `;
       }).join('');
+      bindActions(secList);
     }
   }
 
@@ -14843,7 +14898,7 @@ function renderNoteDogSidebar() {
         const cleanName = note.name.replace(/^[^\w\s&]+/, '').trim();
         const subtext = note.nbName ? `${note.nbName.replace(/^[^\w\s&]+/, '').trim()}/${note.secName.replace(/^[^\w\s&]+/, '').trim()}` : '';
         return `
-          <div class="notedog-item ${isActive ? 'active' : ''}" onclick="selectNoteDogNoteByPath(${escapeJsStr(note.path)})" title="${escapeHtml(note.filename)}">
+          <div class="notedog-item ${isActive ? 'active' : ''}" data-on-click="selectNoteDogNoteByPath" data-click-args="${actionArgs(String((note.path) ?? ''))}" title="${escapeHtml(note.filename)}">
             <span>${icon}</span>
             <div style="flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
               <div>${escapeHtml(cleanName)}</div>
@@ -14852,6 +14907,7 @@ function renderNoteDogSidebar() {
           </div>
         `;
       }).join('');
+      bindActions(noteList);
     }
   }
   if (window.lucide) lucide.createIcons();
@@ -15423,8 +15479,8 @@ function generateNoteDogMarkdownHtml(text) {
       const isChecked = taskMatch[2].toLowerCase() === 'x';
       const taskText = formatNoteDogInlineMarkdown(taskMatch[3]);
       html += `
-        <div class="notedog-task-item" onclick="toggleNoteDogTaskCheckbox(${idx})">
-          <input type="checkbox" class="notedog-task-checkbox" ${isChecked ? 'checked' : ''} onclick="event.stopPropagation(); toggleNoteDogTaskCheckbox(${idx})" />
+        <div class="notedog-task-item">
+          <input type="checkbox" class="notedog-task-checkbox" ${isChecked ? 'checked' : ''} />
           <span class="notedog-task-text ${isChecked ? 'completed' : ''}">${taskText}</span>
         </div>
       `;
@@ -15511,7 +15567,7 @@ function formatNoteDogInlineMarkdown(str) {
     if (lower.endsWith('.mp4') || lower.endsWith('.webm') || lower.endsWith('.mov') || lower.endsWith('.ogv')) {
       return `<video controls src="${cleanUrl}" style="max-width:100%; border-radius:6px; margin:6px 0; display:block;"></video>`;
     }
-    return `<img src="${cleanUrl}" alt="${alt}" class="notedog-rendered-img" style="max-width:100%; border-radius:6px; margin:6px 0; display:block;" onerror="this.style.display='none'" />`;
+    return `<img src="${cleanUrl}" alt="${alt}" class="notedog-rendered-img" style="max-width:100%; border-radius:6px; margin:6px 0; display:block;" />`;
   });
 
   // Markdown links: [text](url)
@@ -16201,13 +16257,14 @@ async function openNoteDogVersionsModal() {
 
       if (listEl) {
         listEl.innerHTML = versions.map((v, i) => `
-          <div class="notedog-item ${i === 0 ? 'active' : ''}" onclick="selectNoteDogVersion(${escapeJsStr(v.path)}, ${escapeJsStr(v.formatted_time)}, ${v.size_bytes})" style="padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);">
+          <div class="notedog-item ${i === 0 ? 'active' : ''}" data-on-click="selectNoteDogVersion" data-click-args="${actionArgs(String((v.path) ?? ''), String((v.formatted_time) ?? ''), (v.size_bytes))}" style="padding: 8px 10px; border-bottom: 1px solid rgba(255,255,255,0.04);">
             <div style="flex:1;">
               <div style="font-weight:600; font-size:11px;">${escapeHtml(v.formatted_time)}</div>
               <div style="font-size:10px; color:var(--text-dim);">${formatFileSize(v.size_bytes)}</div>
             </div>
           </div>
         `).join('');
+        bindActions(listEl);
       }
 
       // Auto-preview first version
@@ -16277,14 +16334,14 @@ function mountDockedNoteDog(paneIndex) {
   mountBody.innerHTML = `
     <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden;">
       <div style="padding: 4px 8px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; gap: 4px; align-items: center; font-size: 11px;">
-        <select id="docked-notedog-nb-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="handleDockedNotebookChange(${paneIndex}, this.value)">
+        <select id="docked-notedog-nb-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" data-on-change="handleDockedNotebookChange" data-change-args="${actionArgs((paneIndex), ACTION_VALUE)}">
           ${nbs.map(nb => {
             const clean = nb.name.replace(/^[^\w\s&]+/, '').trim();
             const icon = (nb.path?.startsWith('manual://') || clean === 'Manuals') ? '📖' : '📚';
             return `<option value="${escapeHtml(nb.name)}" ${nb.name === (currentNb?.name || '') ? 'selected' : ''}>${icon} ${escapeHtml(clean)}</option>`;
           }).join('')}
         </select>
-        <select id="docked-notedog-sec-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" onchange="handleDockedSectionChange(${paneIndex}, this.value)">
+        <select id="docked-notedog-sec-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px;" data-on-change="handleDockedSectionChange" data-change-args="${actionArgs((paneIndex), ACTION_VALUE)}">
           ${((currentNb?.sections) || []).map(sec => {
             const clean = sec.name.replace(/^[^\w\s&]+/, '').trim();
             const isManualNb = currentNb?.path?.startsWith('manual://') || (currentNb?.name || '').replace(/^[^\w\s&]+/, '').trim() === 'Manuals';
@@ -16292,13 +16349,13 @@ function mountDockedNoteDog(paneIndex) {
             return `<option value="${escapeHtml(sec.name)}" ${sec.name === (currentSec?.name || '') ? 'selected' : ''}>${icon} ${escapeHtml(clean)}</option>`;
           }).join('')}
         </select>
-        <select id="docked-notedog-note-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px; flex: 1;" onchange="handleDockedNoteSelect(${paneIndex}, this.value)">
+        <select id="docked-notedog-note-select-${paneIndex}" class="pane-quick-filter" style="font-size: 11px; padding: 2px 4px; flex: 1;" data-on-change="handleDockedNoteSelect" data-change-args="${actionArgs((paneIndex), ACTION_VALUE)}">
           ${((currentSec?.notes) || []).map(n => `<option value="${escapeHtml(n.path)}" ${currentNote && n.path === currentNote.path ? 'selected' : ''}>📄 ${escapeHtml(n.name.replace(/^[^\w\s&]+/, '').trim())}</option>`).join('')}
         </select>
       </div>
       <div class="notedog-panes-wrapper ${mode}-mode" style="flex: 1; height: 100%; display: flex; overflow: hidden;">
         <div class="notedog-pane notedog-editor-pane" style="${mode === 'preview' ? 'display:none;' : (mode === 'edit' ? 'width:100%; display:flex;' : 'width:50%; display:flex;')} border-right: 1px solid var(--border); height: 100%;">
-          <textarea id="docked-notedog-textarea-${paneIndex}" class="notedog-textarea" style="width: 100%; height: 100%;" oninput="syncDockedNoteDogInput(${paneIndex}, this.value)">${escapeHtml(notedogState.content || '')}</textarea>
+          <textarea id="docked-notedog-textarea-${paneIndex}" class="notedog-textarea" style="width: 100%; height: 100%;" data-on-input="syncDockedNoteDogInput" data-input-args="${actionArgs((paneIndex), ACTION_VALUE)}">${escapeHtml(notedogState.content || '')}</textarea>
         </div>
         <div class="notedog-pane notedog-preview-pane" style="${mode === 'edit' ? 'display:none;' : (mode === 'preview' ? 'width:100%; display:flex;' : 'width:50%; display:flex;')} padding: 12px 16px; height: 100%; overflow-y: auto;">
           <div id="docked-notedog-preview-${paneIndex}" class="notedog-preview-content"></div>
@@ -16306,6 +16363,7 @@ function mountDockedNoteDog(paneIndex) {
       </div>
     </div>
   `;
+  bindActions(mountBody);
 
   const titleEl = document.getElementById(`docked-notedog-title-${paneIndex}`);
   if (titleEl) {
@@ -16383,14 +16441,15 @@ function renderEditorTabs() {
     const icon = getFileIconForExtension(tab.path || tab.filename);
 
     return `
-      <div class="editor-tab ${isActive ? 'active' : ''}" onclick="switchActiveEditorTab('${tab.id}', 'left')" onauxclick="if (event.button === 1) closeEditorTab('${tab.id}')" title="${escapeHtml(tab.path || tab.filename)}">
+      <div class="editor-tab ${isActive ? 'active' : ''}" data-on-click="switchActiveEditorTab" data-click-args="${actionArgs(`${tab.id}`, 'left')}" data-on-auxclick="closeEditorTabOnMiddleClick" data-auxclick-args="${actionArgs(ACTION_EVENT, tab.id)}" title="${escapeHtml(tab.path || tab.filename)}">
         <i data-lucide="${icon}" style="width: 13px; height: 13px;"></i>
         <span>${escapeHtml(tab.filename)}</span>
         ${isDirty ? '<span class="editor-tab-dirty" title="Unsaved changes"></span>' : ''}
-        <span class="editor-tab-close" onclick="event.stopPropagation(); closeEditorTab('${tab.id}')" title="Close Tab (Ctrl+W)"><i data-lucide="x" style="width: 11px; height: 11px;"></i></span>
+        <span class="editor-tab-close" data-click-stop data-on-click="closeEditorTab" data-click-args="${actionArgs(`${tab.id}`)}" title="Close Tab (Ctrl+W)"><i data-lucide="x" style="width: 11px; height: 11px;"></i></span>
       </div>
     `;
   }).join('');
+  bindActions(container);
 
   if (window.lucide) lucide.createIcons();
 }
@@ -39677,14 +39736,15 @@ function renderDockedEditorTabs(paneIndex) {
     const icon = getFileIconForExtension(tab.path || tab.filename);
 
     return `
-      <div class="editor-tab ${isActive ? 'active' : ''}" style="padding: 3px 8px; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;" onclick="switchDockedEditorTab('${tab.id}', ${paneIndex})">
+      <div class="editor-tab ${isActive ? 'active' : ''}" style="padding: 3px 8px; font-size: 11px; display: flex; align-items: center; gap: 4px; cursor: pointer;" data-on-click="switchDockedEditorTab" data-click-args="${actionArgs(`${tab.id}`, (paneIndex))}">
         <i data-lucide="${icon}" style="width: 12px; height: 12px;"></i>
         <span style="max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(tab.filename)}</span>
         ${isDirty ? '<span style="color:var(--accent); font-weight:bold;">●</span>' : ''}
-        <span style="cursor: pointer; opacity: 0.7; margin-left: 2px;" onclick="event.stopPropagation(); closeDockedEditorTab('${tab.id}', ${paneIndex})"><i data-lucide="x" style="width: 10px; height: 10px;"></i></span>
+        <span style="cursor: pointer; opacity: 0.7; margin-left: 2px;" data-click-stop data-on-click="closeDockedEditorTab" data-click-args="${actionArgs(`${tab.id}`, (paneIndex))}"><i data-lucide="x" style="width: 10px; height: 10px;"></i></span>
       </div>
     `;
   }).join('');
+  bindActions(container);
 
   if (window.lucide) lucide.createIcons({ root: container });
 }
