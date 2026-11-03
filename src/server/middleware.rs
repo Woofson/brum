@@ -214,6 +214,13 @@ pub fn is_public_route(path: &str) -> bool {
         return true;
     }
 
+    // Chewtoy files below a signed address: the handler checks the signature
+    // (`/api/plugins/<id>/files/<signature>/...`)
+    let parts: Vec<&str> = path.splitn(6, '/').collect();
+    if parts.len() == 6 && parts[1] == "api" && parts[2] == "plugins" && parts[4] == "files" {
+        return true;
+    }
+
     false
 }
 

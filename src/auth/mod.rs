@@ -2440,6 +2440,39 @@ impl AuthManager {
         self.verify_share_email(token, &email).ok()?.then_some(email)
     }
 
+    fn chewtoy_files_mac(&self, plugin_id: &str, exp: &str, user_hex: &str) -> String {
+        use hmac::{Hmac, Mac};
+        let mut mac = Hmac::<sha2::Sha256>::new_from_slice(self.jwt_secret.as_bytes()).expect("HMAC can take key of any size");
+        mac.update(b"brum-chewtoy-files");
+        for part in [plugin_id, exp, user_hex] {
+            mac.update(&[0]);
+            mac.update(part.as_bytes());
+        }
+        hex::encode(mac.finalize().into_bytes())
+    }
+
+    /// Signed address part that lets a sandboxed Chewtoy load its own files without the login
+    /// cookie (the browser does not send it from the sandbox): `exp.hex(user).mac`
+    pub fn sign_chewtoy_files(&self, plugin_id: &str, username: &str, exp: i64) -> String {
+        let user_hex = hex::encode(username);
+        let mac = self.chewtoy_files_mac(plugin_id, &exp.to_string(), &user_hex);
+        format!("{}.{}.{}", exp, user_hex, mac)
+    }
+
+    /// The user a Chewtoy file address was signed for, if it is genuine, unexpired and for this Chewtoy
+    pub fn verify_chewtoy_files(&self, plugin_id: &str, sig: &str) -> Option<String> {
+        let mut it = sig.splitn(3, '.');
+        let (exp, user_hex, mac) = (it.next()?, it.next()?, it.next()?);
+        if exp.parse::<i64>().ok()? < Utc::now().timestamp() {
+            return None;
+        }
+        use subtle::ConstantTimeEq;
+        if !bool::from(self.chewtoy_files_mac(plugin_id, exp, user_hex).as_bytes().ct_eq(mac.as_bytes())) {
+            return None;
+        }
+        String::from_utf8(hex::decode(user_hex).ok()?).ok()
+    }
+
     // ---------------- PERSISTENT DATABASE NOTES ENGINE ----------------
 
     pub fn list_db_notes(

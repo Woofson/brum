@@ -833,6 +833,13 @@ pub async fn handle_system_restart(
 
 // ---------------- STATIC ASSET EMBEDDED HANDLER ----------------
 
+/// True for paths made only of plain names (`a/b.js`), never `..`, `/abs`, `C:` or a backslash
+pub fn is_plain_relative_path(path: &str) -> bool {
+    !path.is_empty()
+        && !path.contains('\\')
+        && Path::new(path).components().all(|c| matches!(c, std::path::Component::Normal(_)))
+}
+
 pub async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Response {
     let path = uri.path().trim_start_matches('/');
     if uri.path().starts_with("/api/") || path.starts_with("api/") {
@@ -843,6 +850,13 @@ pub async fn handle_static_asset(headers: HeaderMap, uri: axum::http::Uri) -> Re
             .unwrap_or_else(|_| StatusCode::NOT_FOUND.into_response());
     }
     let file_path = if path.is_empty() { "index.html" } else { path };
+    // Only plain names below the page root: `..`, absolute and drive parts are never served
+    if !is_plain_relative_path(file_path) {
+        return Response::builder()
+            .status(StatusCode::NOT_FOUND)
+            .body(Body::from("Not Found"))
+            .unwrap_or_else(|_| StatusCode::NOT_FOUND.into_response());
+    }
 
     let is_font_or_media = file_path.starts_with("assets/fonts/")
         || file_path.starts_with("assets/vendor/")

@@ -678,6 +678,22 @@ pub async fn handle_delete_db_note_attachment(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
+/// A single folder name from user text: separators and other unsafe characters become `_`,
+/// and names made only of dots are replaced by the fallback
+fn safe_folder_name(text: &str, fallback: &str) -> String {
+    let cleaned: String = text
+        .trim()
+        .chars()
+        .map(|c| if c.is_alphanumeric() || matches!(c, ' ' | '-' | '_' | '.' | '&' | '(' | ')' | ',') { c } else { '_' })
+        .collect();
+    let cleaned = cleaned.trim().to_string();
+    if cleaned.is_empty() || cleaned.chars().all(|c| c == '.') {
+        fallback.to_string()
+    } else {
+        cleaned
+    }
+}
+
 pub async fn handle_notes_migrate_export(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -691,8 +707,9 @@ pub async fn handle_notes_migrate_export(
     let mut exported_count = 0;
 
     for note in notes {
-        let cat = if note.category.is_empty() { "General".to_string() } else { note.category };
-        let sec = if note.section.is_empty() { "Default".to_string() } else { note.section };
+        // Category and section become one folder name each, always inside the notes folder
+        let cat = safe_folder_name(&note.category, "General");
+        let sec = safe_folder_name(&note.section, "Default");
         let target_dir = root.join(&cat).join(&sec);
         let _ = std::fs::create_dir_all(&target_dir);
 
@@ -1807,7 +1824,11 @@ pub async fn handle_plugin_asset(
     State(state): State<AppState>,
     AxumPath((id, subpath)): AxumPath<(String, String)>,
 ) -> Result<Response, (StatusCode, String)> {
-    let (bytes, mime) = state.plugins.get_asset(&id, &subpath)
+    plugin_file_response(&state, &id, &subpath)
+}
+
+fn plugin_file_response(state: &AppState, id: &str, subpath: &str) -> Result<Response, (StatusCode, String)> {
+    let (bytes, mime) = state.plugins.get_asset(id, subpath)
         .map_err(|e| (StatusCode::NOT_FOUND, e))?;
 
     let response = Response::builder()
@@ -1821,4 +1842,55 @@ pub async fn handle_plugin_asset(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     Ok(response)
+}
+
+/// How long a signed Chewtoy address stays valid
+const CHEWTOY_FILES_TTL_SECS: i64 = 12 * 3600;
+
+/// Whether the signed-in user may open a Chewtoy: it exists, is enabled and allowed for them
+fn may_open_plugin(state: &AppState, username: &str, role: &str, id: &str) -> bool {
+    let Some(plugin) = state.plugins.get_plugin(id) else { return false };
+    if !plugin.is_enabled {
+        return false;
+    }
+    let is_admin = role == "admin" || state.config.server.standalone || !state.config.server.enable_auth;
+    let (allowed, blocked) = match state.auth.get_user_by_username(username) {
+        Ok(Some(user)) => (user.allowed_plugins, user.blocked_plugins),
+        _ => ("[\"*\"]".to_string(), "[]".to_string()),
+    };
+    state.plugins.is_allowed_for_user(id, is_admin, &allowed, &blocked)
+}
+
+/// Gives the page a signed address for a Chewtoy's files. The Chewtoy runs sandboxed, where
+/// the browser sends no login cookie; files loaded below this address need none.
+pub async fn handle_plugin_launch(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if !may_open_plugin(&state, &claims.sub, &claims.role, &id) {
+        return Err((StatusCode::NOT_FOUND, format!("Plugin '{}' not found", id)));
+    }
+    let exp = chrono::Utc::now().timestamp() + CHEWTOY_FILES_TTL_SECS;
+    let sig = state.auth.sign_chewtoy_files(&id, &claims.sub, exp);
+    Ok(Json(serde_json::json!({
+        "base": format!("/api/plugins/{}/files/{}/", id, sig),
+        "expires_at": exp,
+    })))
+}
+
+/// A Chewtoy file requested below a signed address (no login cookie needed)
+pub async fn handle_plugin_signed_file(
+    State(state): State<AppState>,
+    AxumPath((id, sig, subpath)): AxumPath<(String, String, String)>,
+) -> Result<Response, (StatusCode, String)> {
+    const EXPIRED: &str = "This Chewtoy address has expired or is not valid. Reopen the Chewtoy.";
+    let username = state.auth.verify_chewtoy_files(&id, &sig).ok_or((StatusCode::FORBIDDEN, EXPIRED.to_string()))?;
+    // Still allowed this Chewtoy (system-account users have no Brum user record)
+    let role = state.auth.get_user_by_username(&username).ok().flatten().map(|u| u.role).unwrap_or_default();
+    if !may_open_plugin(&state, &username, &role, &id) {
+        return Err((StatusCode::FORBIDDEN, EXPIRED.to_string()));
+    }
+    plugin_file_response(&state, &id, &subpath)
 }

@@ -39466,16 +39466,17 @@ function mountDockedTool(paneIndex) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     const plugin = (window.installedChewToys || []).find(p => p.id === pluginId) || { id: pluginId, name: pluginId, entry_point: 'index.html' };
     const entry = plugin.entry_point || 'index.html';
-    const iframeSrc = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}?_t=${Date.now()}`;
-
     mount.innerHTML = `
       <div style="flex: 1; position: relative; display: flex; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
-        <iframe id="docked-chewtoy-frame-${paneIndex}" class="chewtoy-iframe" data-plugin-id="${escapeHtml(pluginId)}" src="${iframeSrc}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
+        <iframe id="docked-chewtoy-frame-${paneIndex}" class="chewtoy-iframe" data-plugin-id="${escapeHtml(pluginId)}" style="width: 100%; height: 100%; border: none; display: block;" sandbox="allow-scripts allow-forms allow-popups allow-modals"></iframe>
       </div>
     `;
     bindActions(mount);
     const frame = document.getElementById(`docked-chewtoy-frame-${paneIndex}`);
     if (frame) {
+      chewtoyFrameUrl(pluginId, entry)
+        .then((url) => { frame.src = url; })
+        .catch((err) => showToast(err.message, 'error'));
       frame.addEventListener('load', () => {
         try {
           frame.contentWindow.Brum = window.Brum;
@@ -45587,6 +45588,18 @@ function writeChewtoyStore(pluginId, data) {
   localStorage.setItem(chewtoyStoreKey(pluginId), json);
 }
 
+// Chewtoys run sandboxed, where the browser sends no login cookie, so their files are loaded
+// below a short-lived signed address from the server
+async function chewtoyFrameUrl(pluginId, entry) {
+  const resp = await fetch(`/api/plugins/${encodeURIComponent(pluginId)}/launch`, {
+    headers: { 'Authorization': `Bearer ${App.token || ''}` },
+  });
+  if (!resp.ok) throw new Error((await resp.text()) || `Could not open ${pluginId}`);
+  const data = await resp.json();
+  const page = String(entry || 'index.html').split('/').map(encodeURIComponent).join('/');
+  return `${data.base}${page}`;
+}
+
 // What this browser can do for Chewtoys (sent along with BRUM_READY)
 function chewtoyCapabilities() {
   return { eyedropper: typeof window.EyeDropper === 'function', clipboard: true };
@@ -46268,12 +46281,13 @@ function openDynamicChewToy(pluginId, context = null) {
   brumLastContext = hostContext;
 
   const entry = plugin.entry_point || 'index.html';
-  const targetFrameUrl = `/api/plugins/${encodeURIComponent(pluginId)}/assets/${entry}`;
 
   if (frame) {
-    const isFrameLoaded = frame.src && frame.src.includes(`/api/plugins/${encodeURIComponent(pluginId)}/assets/`);
+    const isFrameLoaded = frame.src && frame.src.includes(`/api/plugins/${encodeURIComponent(pluginId)}/`);
     if (!isFrameLoaded) {
-      frame.src = `${targetFrameUrl}?_t=${Date.now()}`;
+      chewtoyFrameUrl(pluginId, entry)
+        .then((url) => { frame.src = url; })
+        .catch((err) => showToast(err.message, 'error'));
       frame.onload = () => {
         try {
           frame.contentWindow.Brum = window.Brum;

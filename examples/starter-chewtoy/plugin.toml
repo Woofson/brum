@@ -1,7 +1,7 @@
 [plugin]
 id = "starter-chewtoy"
 name = "Starter Chewtoy"
-version = "1.0.0"
+version = "1.0.1"
 author = "Bolt J Woofson <bolt@arf.ac>"
 description = "Boilerplate starter template for building custom Brum Chewtoys."
 homepage = "https://github.com/Woofson/brum"

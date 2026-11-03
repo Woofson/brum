@@ -6,7 +6,8 @@
  */
 function createBrumClient() {
   if (window.Brum) return window.Brum;
-  if (window.parent && window.parent.Brum) return window.parent.Brum;
+  // Chewtoys run sandboxed: Brum's page is out of reach (reading it throws), so everything
+  // below goes through postMessage
 
   let reqIdCounter = 0;
   const pendingRequests = new Map();
@@ -61,7 +62,19 @@ function createBrumClient() {
     },
     auth: {
       getUser: () => callHost("auth.getUser"),
-    }
+    },
+    // Your own saved values (no localStorage in the sandbox). Saved values also arrive
+    // in context.storage when Brum is ready.
+    storage: {
+      get: (key) => callHost("storage.get", { key }),
+      set: (key, value) => callHost("storage.set", { key, value }),
+      remove: (key) => callHost("storage.remove", { key }),
+      getAll: () => callHost("storage.getAll"),
+    },
+    // Needs the "clipboard:write" permission in plugin.toml
+    clipboard: {
+      writeText: (text) => callHost("clipboard.writeText", { text }),
+    },
   };
 }
 

@@ -260,6 +260,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/plugins/:id/toggle", post(handle_toggle_plugin))
         .route("/api/plugins/:id", delete(handle_delete_plugin))
         .route("/api/plugins/:id/assets/*subpath", get(handle_plugin_asset))
+        .route("/api/plugins/:id/launch", get(handle_plugin_launch))
+        .route("/api/plugins/:id/files/:sig/*subpath", get(handle_plugin_signed_file))
         // Git Client & Version Control API
         .route("/api/git/status", get(handle_git_status))
         .route("/api/git/diff", get(handle_git_diff))

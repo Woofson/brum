@@ -449,21 +449,31 @@ impl PluginManager {
         Ok(enabled)
     }
 
-    /// Reads an asset file belonging to a plugin securely
+    /// Reads an asset file belonging to a plugin. Only files inside the plugin's own folder are
+    /// served: parent, root and drive components are refused, and the real path (after
+    /// following links) must stay inside the plugin's real folder.
     pub fn get_asset(&self, id: &str, subpath: &str) -> Result<(Vec<u8>, String), String> {
+        const DENIED: &str = "Asset not found or access denied";
         let plugin = self.get_plugin(id).ok_or_else(|| format!("Plugin '{}' not found", id))?;
         let base_path = PathBuf::from(&plugin.path);
 
-        // Sanitize subpath to prevent path traversal
-        let clean_subpath = subpath.trim_start_matches('/');
-        let target_path = base_path.join(clean_subpath);
-
-        if !target_path.starts_with(&base_path) || !target_path.exists() || !target_path.is_file() {
-            return Err("Asset not found or access denied".to_string());
+        let clean_subpath = subpath.replace('\\', "/");
+        let clean_subpath = clean_subpath.trim_start_matches('/');
+        let rel = Path::new(clean_subpath);
+        if clean_subpath.is_empty()
+            || rel.components().any(|c| !matches!(c, std::path::Component::Normal(_) | std::path::Component::CurDir))
+        {
+            return Err(DENIED.to_string());
         }
 
-        let bytes = fs::read(&target_path).map_err(|e| format!("Failed to read asset: {}", e))?;
-        let mime = mime_guess::from_path(&target_path).first_or_octet_stream().to_string();
+        let real_base = base_path.canonicalize().map_err(|_| DENIED.to_string())?;
+        let real_target = base_path.join(rel).canonicalize().map_err(|_| DENIED.to_string())?;
+        if !real_target.starts_with(&real_base) || !real_target.is_file() {
+            return Err(DENIED.to_string());
+        }
+
+        let bytes = fs::read(&real_target).map_err(|e| format!("Failed to read asset: {}", e))?;
+        let mime = mime_guess::from_path(&real_target).first_or_octet_stream().to_string();
 
         Ok((bytes, mime))
     }
@@ -574,6 +584,42 @@ impl PluginManager {
 mod tests {
     use super::*;
     use tempfile::tempdir;
+
+    #[test]
+    fn assets_never_leave_the_plugin_folder() {
+        let temp = tempdir().unwrap();
+        let system_dir = temp.path().join("system_plugins");
+        let plugin_dir = system_dir.join("demo");
+        fs::create_dir_all(plugin_dir.join("assets")).unwrap();
+        fs::write(plugin_dir.join("plugin.toml"), "[plugin]\nid = \"demo\"\nname = \"Demo\"\nversion = \"1.0.0\"\n").unwrap();
+        fs::write(plugin_dir.join("index.html"), "<p>demo</p>").unwrap();
+        fs::write(plugin_dir.join("assets/app.js"), "ok").unwrap();
+        fs::write(temp.path().join("secret.txt"), "secret").unwrap();
+        let mgr = PluginManager::new(system_dir.clone(), temp.path().join("user_plugins"), true, "allow".to_string(), vec![], vec![]);
+
+        assert_eq!(mgr.get_asset("demo", "index.html").unwrap().0, b"<p>demo</p>");
+        assert_eq!(mgr.get_asset("demo", "assets/app.js").unwrap().0, b"ok");
+        assert_eq!(mgr.get_asset("demo", "./assets/app.js").unwrap().0, b"ok");
+
+        let outside = temp.path().join("secret.txt");
+        for bad in [
+            "../../secret.txt".to_string(),
+            "assets/../../../secret.txt".to_string(),
+            "..\\..\\secret.txt".to_string(),
+            outside.to_string_lossy().to_string(),
+            format!("/{}", outside.to_string_lossy()),
+            "assets".to_string(),
+            "".to_string(),
+        ] {
+            assert!(mgr.get_asset("demo", &bad).is_err(), "served {bad}");
+        }
+
+        #[cfg(unix)]
+        {
+            std::os::unix::fs::symlink(&outside, plugin_dir.join("link.txt")).unwrap();
+            assert!(mgr.get_asset("demo", "link.txt").is_err(), "followed a link out of the plugin folder");
+        }
+    }
 
     #[test]
     fn test_plugin_pack_and_install_grr() {

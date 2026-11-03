@@ -61,10 +61,10 @@ fn packed_plugins_match_their_source() {
 /// and stop the script. Bundled Chewtoys must use the host bridge instead (`storage.*`).
 #[test]
 fn bundled_plugins_do_not_use_sandbox_blocked_storage() {
-    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins");
-    let blocked = regex::Regex::new(r"\b(localStorage|sessionStorage|indexedDB)\s*[.\[]|document\.cookie").unwrap();
+    let roots = [Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins"), Path::new(env!("CARGO_MANIFEST_DIR")).join("examples")];
+    let blocked = regex::Regex::new(r"\b(localStorage|sessionStorage|indexedDB)\s*[.\[]|document\.cookie|window\.parent\.(Brum|App|document)\b").unwrap();
     let mut found = Vec::new();
-    for entry in fs::read_dir(&root).unwrap().flatten() {
+    for entry in roots.iter().flat_map(|root| fs::read_dir(root).unwrap().flatten()) {
         if !entry.path().is_dir() {
             continue;
         }
