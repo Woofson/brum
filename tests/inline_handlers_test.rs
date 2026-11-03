@@ -10,8 +10,8 @@ use std::fs;
 
 /// (file, highest allowed number of inline handlers)
 const CEILINGS: &[(&str, usize)] = &[
-    ("frontend/index.html", 185),
-    ("frontend/app.js", 83),
+    ("frontend/index.html", 29),
+    ("frontend/app.js", 60),
 ];
 
 fn count_inline_handlers(text: &str) -> usize {
@@ -48,7 +48,10 @@ fn read(file: &str) -> String {
 /// Quoted names inside a JS array literal that starts with `start` in app.js
 fn js_list(app: &str, start: &str) -> Vec<String> {
     let a = app.find(start).unwrap_or_else(|| panic!("{start} not found in app.js"));
-    let b = a + app[a..].find("];").expect("unterminated list");
+    // a list ends at `];` (array) or `]);` (Set), whichever comes first
+    let rest = &app[a..];
+    let end = [rest.find("];"), rest.find("]);")].into_iter().flatten().min().expect("unterminated list");
+    let b = a + end;
     Regex::new(r"'(\w+)'").unwrap()
         .captures_iter(&app[a..b]).map(|c| c[1].to_string()).collect()
 }
@@ -60,7 +63,7 @@ fn every_wired_event_type_is_listened_for() {
     let app = read("frontend/app.js");
     let page = read("frontend/index.html");
     let events = js_list(&app, "const BRUM_ACTION_EVENTS = [");
-    let re = Regex::new(r"data-(?:on-([a-z]+)=|([a-z]+)-(?:args|steps|after|stop|prevent|key|unless)\b)").unwrap();
+    let re = Regex::new(r"data-(?:on-([a-z]+)=|([a-z]+)-(?:args|steps|after|stop|prevent|key|unless|self)\b)").unwrap();
     let mut missing = Vec::new();
     for text in [&app, &page] {
         for c in re.captures_iter(text) {
@@ -105,6 +108,22 @@ fn every_named_action_is_allowed() {
     missing.sort();
     missing.dedup();
     assert!(missing.is_empty(), "add these to BRUM_ACTIONS: {missing:?}");
+}
+
+/// The connector finds actions on `window`, which holds top-level `function` declarations but
+/// not `const`/`let` aliases. Every allowed action must be a real function declaration.
+#[test]
+fn every_allowed_action_is_a_global_function() {
+    let app = read("frontend/app.js");
+    let allowed = js_list(&app, "const BRUM_ACTIONS = new Set([");
+    let missing: Vec<&String> = allowed
+        .iter()
+        .filter(|n| {
+            let decl = Regex::new(&format!(r"(?m)^(?:async )?function {}\(", regex::escape(n))).unwrap();
+            !decl.is_match(&app)
+        })
+        .collect();
+    assert!(missing.is_empty(), "not top-level function declarations (aliases or missing): {missing:?}");
 }
 
 #[test]

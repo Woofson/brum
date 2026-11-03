@@ -324,8 +324,8 @@
           <span>Folder Tree</span>
         </div>
         <div class="tree-sidebar-actions">
-          <button class="btn btn-icon btn-xs" onclick="refreshFolderTree()" title="Refresh Tree"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i></button>
-          <button class="btn btn-icon btn-xs" onclick="toggleFolderTree(false)" title="Hide Tree (Ctrl+T)"><i data-lucide="chevron-left" style="width: 12px; height: 12px;"></i></button>
+          <button class="btn btn-icon btn-xs" data-on-click="refreshFolderTree" title="Refresh Tree"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i></button>
+          <button class="btn btn-icon btn-xs" data-on-click="toggleFolderTree" data-click-args='[false]' title="Hide Tree (Ctrl+T)"><i data-lucide="chevron-left" style="width: 12px; height: 12px;"></i></button>
         </div>
       </div>
       <div class="tree-view-content" id="tree-view-root">
@@ -341,16 +341,16 @@
 
   <!-- Desktop Midnight Commander Bottom F-Key Bar -->
   <footer class="bottom-fkey-bar">
-    <button class="fkey-btn" onclick="openHelpModal()"><span class="fkey-num">F1</span> Help</button>
-    <button class="fkey-btn" onclick="triggerRename()"><span class="fkey-num">F2</span> Rename</button>
-    <button class="fkey-btn" onclick="triggerView()"><span class="fkey-num">F3</span> View</button>
-    <button class="fkey-btn" onclick="triggerEditor()"><span class="fkey-num">F4</span> Edit</button>
-    <button class="fkey-btn" onclick="triggerCopy()"><span class="fkey-num">F5</span> Copy</button>
-    <button class="fkey-btn" onclick="triggerMove()"><span class="fkey-num">F6</span> Move</button>
-    <button class="fkey-btn" onclick="triggerMkdir()"><span class="fkey-num">F7</span> Mkdir</button>
-    <button class="fkey-btn" onclick="triggerDelete()"><span class="fkey-num">F8</span> Delete</button>
-    <button class="fkey-btn" onclick="triggerDiff()"><span class="fkey-num">F9</span> Diff</button>
-    <button class="fkey-btn" onclick="openSettingsModal()"><span class="fkey-num">F10</span> Settings</button>
+    <button class="fkey-btn" data-on-click="openHelpModal"><span class="fkey-num">F1</span> Help</button>
+    <button class="fkey-btn" data-on-click="triggerRename"><span class="fkey-num">F2</span> Rename</button>
+    <button class="fkey-btn" data-on-click="triggerView"><span class="fkey-num">F3</span> View</button>
+    <button class="fkey-btn" data-on-click="triggerEditor"><span class="fkey-num">F4</span> Edit</button>
+    <button class="fkey-btn" data-on-click="triggerCopy"><span class="fkey-num">F5</span> Copy</button>
+    <button class="fkey-btn" data-on-click="triggerMove"><span class="fkey-num">F6</span> Move</button>
+    <button class="fkey-btn" data-on-click="triggerMkdir"><span class="fkey-num">F7</span> Mkdir</button>
+    <button class="fkey-btn" data-on-click="triggerDelete"><span class="fkey-num">F8</span> Delete</button>
+    <button class="fkey-btn" data-on-click="triggerDiff"><span class="fkey-num">F9</span> Diff</button>
+    <button class="fkey-btn" data-on-click="openSettingsModal"><span class="fkey-num">F10</span> Settings</button>
   </footer>
 
   <!-- Mobile Task Drawer Peek Pull-Handle (Swipable Bottom Bar Tab) -->
@@ -365,39 +365,39 @@
   </div>
 
   <!-- Hidden Device File & Folder Uploaders -->
-  <input type="file" id="direct-file-uploader" multiple style="display:none;" onchange="handleDirectFileUpload(this.files)">
-  <input type="file" id="direct-folder-uploader" webkitdirectory directory multiple style="display:none;" onchange="handleDirectFileUpload(this.files)">
+  <input type="file" id="direct-file-uploader" multiple style="display:none;" data-on-change="handleDirectFileUpload" data-change-args='[{"$": "files"}]'>
+  <input type="file" id="direct-folder-uploader" webkitdirectory directory multiple style="display:none;" data-on-change="handleDirectFileUpload" data-change-args='[{"$": "files"}]'>
 
   <!-- Static Mobile Bottom Command Bar (Total Commander Style) -->
   <footer class="mobile-bottom-bar" id="mobile-bottom-bar">
-    <button class="mob-cmd-btn" id="mob-btn-copy" onclick="triggerCopy()" title="Copy (F5)">
+    <button class="mob-cmd-btn" id="mob-btn-copy" data-on-click="triggerCopy" title="Copy (F5)">
       <i data-lucide="copy"></i>
       <span>Copy</span>
     </button>
-    <button class="mob-cmd-btn" id="mob-btn-move" onclick="triggerMove()" title="Move (F6)">
+    <button class="mob-cmd-btn" id="mob-btn-move" data-on-click="triggerMove" title="Move (F6)">
       <i data-lucide="move"></i>
       <span>Move</span>
     </button>
-    <button class="mob-cmd-btn" id="mob-btn-upload" onclick="triggerDeviceUpload()" title="Upload files from device">
+    <button class="mob-cmd-btn" id="mob-btn-upload" data-on-click="triggerDeviceUpload" title="Upload files from device">
       <i data-lucide="upload"></i>
       <span>Upload</span>
     </button>
-    <button class="mob-cmd-btn" id="mob-btn-download" onclick="triggerDownload()" title="Download selected to device">
+    <button class="mob-cmd-btn" id="mob-btn-download" data-on-click="triggerDownload" title="Download selected to device">
       <i data-lucide="download"></i>
       <span>Download</span>
     </button>
-    <button class="mob-cmd-btn" id="mob-btn-delete" onclick="triggerDelete()" title="Delete / Move to Trash (F8)">
+    <button class="mob-cmd-btn" id="mob-btn-delete" data-on-click="triggerDelete" title="Delete / Move to Trash (F8)">
       <i data-lucide="trash-2"></i>
       <span>Delete</span>
     </button>
-    <button class="mob-cmd-btn mob-cmd-accent" id="mob-btn-actions" onclick="showTouchActionsMenu(event)" title="Actions & Tools Menu">
+    <button class="mob-cmd-btn mob-cmd-accent" id="mob-btn-actions" data-on-click="showTouchActionsMenu" data-click-args='[{"$": "event"}]' title="Actions & Tools Menu">
       <i data-lucide="zap"></i>
       <span id="mob-actions-label">Actions</span>
     </button>
   </footer>
 
   <!-- Context Menu Backdrop (for mobile dismiss) -->
-  <div id="context-menu-backdrop" class="context-menu-backdrop" onclick="hideContextMenu()"></div>
+  <div id="context-menu-backdrop" class="context-menu-backdrop" data-on-click="hideContextMenu"></div>
 
   <!-- Right Click / Touch Context Menu -->
   <div id="context-menu" class="context-menu">
@@ -792,29 +792,29 @@
   </div>
 
   <!-- Global Spotlight Quick-Switcher & Command Palette Modal -->
-  <div class="modal-overlay" id="spotlight-modal" style="z-index: 3000; align-items: flex-start; padding-top: 10vh;" onclick="if(event.target === this) closeSpotlightModal();">
+  <div class="modal-overlay" id="spotlight-modal" style="z-index: 3000; align-items: flex-start; padding-top: 10vh;" data-click-self data-on-click="closeSpotlightModal">
     <div class="spotlight-box" id="spotlight-box">
       <!-- Search Input Header -->
       <div class="spotlight-input-wrapper">
         <img src="assets/spot.webp" alt="Spot!" class="spotlight-search-icon" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
-        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Search actions, files, /text to grep, re:pattern, or path..." autocomplete="off" spellcheck="false" oninput="handleSpotlightInput(this.value)" onkeydown="handleSpotlightKey(event)">
-        <button class="btn btn-icon spotlight-clear-btn" id="spotlight-clear-btn" onclick="clearSpotlightInput()" style="display: none;" title="Clear">
+        <input type="text" id="spotlight-input" class="spotlight-input" placeholder="Search actions, files, /text to grep, re:pattern, or path..." autocomplete="off" spellcheck="false" data-on-input="handleSpotlightInput" data-input-args='[{"$": "value"}]' data-on-keydown="handleSpotlightKey" data-keydown-args='[{"$": "event"}]'>
+        <button class="btn btn-icon spotlight-clear-btn" id="spotlight-clear-btn" data-on-click="clearSpotlightInput" style="display: none;" title="Clear">
           <i data-lucide="x" style="width: 13px; height: 13px;"></i>
         </button>
-        <button class="btn btn-icon spotlight-close-btn" onclick="closeSpotlightModal()" title="Close (Esc)">
+        <button class="btn btn-icon spotlight-close-btn" data-on-click="closeSpotlightModal" title="Close (Esc)">
           <i data-lucide="x" style="width: 15px; height: 15px;"></i>
         </button>
       </div>
 
       <!-- Quick Filter Category Tabs -->
       <div class="spotlight-categories">
-        <button class="spotlight-cat-btn active" id="spotlight-cat-all" onclick="filterSpotlightCategory('all')">All</button>
-        <button class="spotlight-cat-btn" id="spotlight-cat-actions" onclick="filterSpotlightCategory('actions')"><i data-lucide="zap"></i> Actions</button>
-        <button class="spotlight-cat-btn" id="spotlight-cat-paths" onclick="filterSpotlightCategory('paths')"><i data-lucide="folder"></i> Paths</button>
-        <button class="spotlight-cat-btn" id="spotlight-cat-files" onclick="filterSpotlightCategory('files')"><i data-lucide="file-code"></i> Files</button>
-        <button class="spotlight-cat-btn" id="spotlight-cat-grep" onclick="filterSpotlightCategory('grep')"><i data-lucide="search"></i> In-File Grep</button>
-        <button class="spotlight-cat-btn" id="spotlight-cat-bookmarks" onclick="filterSpotlightCategory('bookmarks')"><i data-lucide="star"></i> Bookmarks</button>
-        <button class="spotlight-cat-btn" id="spotlight-cat-recent" onclick="filterSpotlightCategory('recent')"><i data-lucide="history"></i> Recent</button>
+        <button class="spotlight-cat-btn active" id="spotlight-cat-all" data-on-click="filterSpotlightCategory" data-click-args='["all"]'>All</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-actions" data-on-click="filterSpotlightCategory" data-click-args='["actions"]'><i data-lucide="zap"></i> Actions</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-paths" data-on-click="filterSpotlightCategory" data-click-args='["paths"]'><i data-lucide="folder"></i> Paths</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-files" data-on-click="filterSpotlightCategory" data-click-args='["files"]'><i data-lucide="file-code"></i> Files</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-grep" data-on-click="filterSpotlightCategory" data-click-args='["grep"]'><i data-lucide="search"></i> In-File Grep</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-bookmarks" data-on-click="filterSpotlightCategory" data-click-args='["bookmarks"]'><i data-lucide="star"></i> Bookmarks</button>
+        <button class="spotlight-cat-btn" id="spotlight-cat-recent" data-on-click="filterSpotlightCategory" data-click-args='["recent"]'><i data-lucide="history"></i> Recent</button>
       </div>
 
       <!-- Results Container -->
@@ -1120,7 +1120,7 @@
     <div class="modal-box" style="width: 480px;">
       <div class="modal-header">
         <span>📦 Compress to Archive</span>
-        <button class="btn" onclick="closeModal('archive-compress-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["archive-compress-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <div style="background: var(--bg-header); border: 1px solid var(--border); padding: 10px; border-radius: 6px; margin-bottom: 12px;" id="compress-summary">
@@ -1132,7 +1132,7 @@
         </div>
         <div class="form-group">
           <label>Archive Format:</label>
-          <select id="compress-format-select" class="pane-quick-filter" style="width: 100%; padding: 8px;" onchange="updateCompressExt(this.value)">
+          <select id="compress-format-select" class="pane-quick-filter" style="width: 100%; padding: 8px;" data-on-change="updateCompressExt" data-change-args='[{"$": "value"}]'>
             <option value="zip" selected>ZIP Archive (.zip)</option>
             <option value="targz">GZipped Tarball (.tar.gz)</option>
           </select>
@@ -1141,13 +1141,13 @@
           <label>Destination Directory:</label>
           <div style="display: flex; gap: 6px;">
             <input type="text" id="compress-dest-input" class="pane-quick-filter" style="flex: 1; padding: 8px;">
-            <button class="btn" onclick="setCompressDestToOpposite()" title="Use Opposite Pane Path"><i data-lucide="arrow-right-left"></i></button>
+            <button class="btn" data-on-click="setCompressDestToOpposite" title="Use Opposite Pane Path"><i data-lucide="arrow-right-left"></i></button>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('archive-compress-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="executeCompressArchive()"><i data-lucide="archive"></i> Create Archive</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["archive-compress-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="executeCompressArchive"><i data-lucide="archive"></i> Create Archive</button>
       </div>
     </div>
   </div>
@@ -1157,7 +1157,7 @@
     <div class="modal-box" style="width: 480px;">
       <div class="modal-header">
         <span>📂 Extract Archive</span>
-        <button class="btn" onclick="closeModal('archive-extract-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["archive-extract-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <div style="background: var(--bg-header); border: 1px solid var(--border); padding: 10px; border-radius: 6px; margin-bottom: 12px;">
@@ -1166,7 +1166,7 @@
         </div>
         <div class="form-group">
           <label>Extraction Destination:</label>
-          <select id="extract-mode-select" class="pane-quick-filter" style="width: 100%; padding: 8px;" onchange="handleExtractModeChange(this.value)">
+          <select id="extract-mode-select" class="pane-quick-filter" style="width: 100%; padding: 8px;" data-on-change="handleExtractModeChange" data-change-args='[{"$": "value"}]'>
             <option value="here" selected>Extract Here (Current Folder)</option>
             <option value="subfolder">Extract to New Subfolder (/<span id="extract-subfolder-label">name</span>/)</option>
             <option value="opposite">Extract to Opposite Pane</option>
@@ -1179,8 +1179,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('archive-extract-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="executeExtractArchive()"><i data-lucide="folder-archive"></i> Extract</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["archive-extract-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="executeExtractArchive"><i data-lucide="folder-archive"></i> Extract</button>
       </div>
     </div>
   </div>
@@ -6440,7 +6440,7 @@
           <img src="assets/search.webp" alt="Search" style="width: 18px; height: 18px; object-fit: contain;">
           <span style="font-weight: 700; font-size: 14px;">Deep Search: File & Content Search</span>
         </div>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('search-modal')" title="Close Search (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["search-modal"]' title="Close Search (Esc)"><i data-lucide="x"></i></button>
       </div>
 
       <div class="modal-body" style="padding: 12px; display: flex; flex-direction: column; gap: 10px;">
@@ -6484,7 +6484,7 @@
               <option value="30">Past 30 Days</option>
             </select>
           </div>
-          <button class="btn btn-accent" onclick="runGlobalSearch()" style="margin-left: auto;"><i data-lucide="search"></i> Find Results</button>
+          <button class="btn btn-accent" data-on-click="runGlobalSearch" style="margin-left: auto;"><i data-lucide="search"></i> Find Results</button>
         </div>
 
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
@@ -6510,8 +6510,8 @@
       </div>
 
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <button class="btn btn-accent" id="btn-feed-to-pane" style="display: none;" onclick="feedSearchResultsToActivePane()"><i data-lucide="arrow-down-to-dot"></i> Feed to Active Pane</button>
-        <button class="btn" onclick="closeModal('search-modal')">Close</button>
+        <button class="btn btn-accent" id="btn-feed-to-pane" style="display: none;" data-on-click="feedSearchResultsToActivePane"><i data-lucide="arrow-down-to-dot"></i> Feed to Active Pane</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["search-modal"]'>Close</button>
       </div>
     </div>
   </div>
@@ -6613,7 +6613,7 @@
     <div class="modal-box" style="width: 680px; max-height: 80vh;">
       <div class="modal-header">
         <span id="action-output-title" style="color: var(--accent); font-weight: 700;">⚡ Script Action Output</span>
-        <button class="btn" onclick="closeModal('action-output-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["action-output-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 12px; display: flex; flex-direction: column; gap: 8px;">
         <div style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted); background: var(--bg-dark); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border);" id="action-output-cmd"></div>
@@ -6624,8 +6624,8 @@
         <pre id="action-output-text" style="background: #090a0d; color: #f4f4f5; padding: 10px; font-family: var(--font-mono); font-size: 12px; border-radius: 4px; overflow: auto; max-height: 400px; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--border);"></pre>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="copyActionOutput()">Copy Output</button>
-        <button class="btn btn-accent" onclick="closeModal('action-output-modal')">Close</button>
+        <button class="btn" data-on-click="copyActionOutput">Copy Output</button>
+        <button class="btn btn-accent" data-on-click="closeModal" data-click-args='["action-output-modal"]'>Close</button>
       </div>
     </div>
   </div>
@@ -6635,11 +6635,11 @@
     <div class="modal-box" style="width: 550px;">
       <div class="modal-header" style="color: var(--accent);">
         <span style="display: flex; align-items: center; gap: 7px;"><i data-lucide="shield-check" style="width: 16px; height: 16px;"></i> File Safety &amp; Integrity Verification</span>
-        <button class="btn" onclick="closeModal('paranoid-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["paranoid-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" id="paranoid-modal-body"></div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('paranoid-modal')">Cancel</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["paranoid-modal"]'>Cancel</button>
         <button class="btn btn-accent" id="btn-paranoid-proceed">Proceed with Verified Transfer</button>
       </div>
     </div>
@@ -6653,7 +6653,7 @@
           <i data-lucide="copy" style="width: 16px; height: 16px;"></i>
           <span>Copy (F5)</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('deltacopy-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["deltacopy-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
         <div class="form-group">
@@ -6679,9 +6679,9 @@
         </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
-        <button class="btn modal-action-btn" onclick="closeModal('deltacopy-modal')">Cancel</button>
-        <button class="btn modal-action-btn" id="btn-copy-standard" onclick="executeStandardCopy()">Standard Copy</button>
-        <button class="btn btn-accent modal-action-btn" id="btn-copy-delta" onclick="executeDeltaCopy()"><i data-lucide="zap" style="width: 13px; height: 13px;"></i> Run DeltaCopy</button>
+        <button class="btn modal-action-btn" data-on-click="closeModal" data-click-args='["deltacopy-modal"]'>Cancel</button>
+        <button class="btn modal-action-btn" id="btn-copy-standard" data-on-click="executeStandardCopy">Standard Copy</button>
+        <button class="btn btn-accent modal-action-btn" id="btn-copy-delta" data-on-click="executeDeltaCopy"><i data-lucide="zap" style="width: 13px; height: 13px;"></i> Run DeltaCopy</button>
       </div>
     </div>
   </div>
@@ -6694,7 +6694,7 @@
           <i data-lucide="folder-input" style="width: 16px; height: 16px;"></i>
           <span>Transfer / Move to Destination (F6)</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('custom-dest-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["custom-dest-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 10px;">
         <div class="form-group">
@@ -6706,7 +6706,7 @@
         </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
-        <button class="btn modal-action-btn" onclick="closeModal('custom-dest-modal')">Cancel</button>
+        <button class="btn modal-action-btn" data-on-click="closeModal" data-click-args='["custom-dest-modal"]'>Cancel</button>
         <button class="btn btn-accent modal-action-btn" id="btn-custom-dest-exec"><i data-lucide="check" style="width: 14px;"></i> Execute Transfer</button>
       </div>
     </div>
@@ -6720,14 +6720,14 @@
           <i data-lucide="folder-plus" style="width: 16px; height: 16px;"></i>
           <span>Create New Folder (F7)</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('mkdir-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["mkdir-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 8px;">
         <label for="mkdir-input" style="font-size: 12px; color: var(--text-dim);">Folder Name / Relative Path:</label>
         <input type="text" id="mkdir-input" class="pane-quick-filter" placeholder="e.g. new-folder or docs/subfolder" style="width: 100%; padding: 8px 10px; font-size: 13px; font-family: var(--font-mono);" autocomplete="off" spellcheck="false">
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
-        <button class="btn modal-action-btn" onclick="closeModal('mkdir-modal')">Cancel</button>
+        <button class="btn modal-action-btn" data-on-click="closeModal" data-click-args='["mkdir-modal"]'>Cancel</button>
         <button class="btn btn-accent modal-action-btn" id="btn-confirm-mkdir"><i data-lucide="check" style="width: 14px;"></i> Create</button>
       </div>
     </div>
@@ -6741,7 +6741,7 @@
           <i data-lucide="file-code-2" id="template-modal-icon" style="width: 16px; height: 16px; color: var(--accent);"></i>
           <span id="template-modal-title" style="font-weight: 700;">New File from Template</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('new-from-template-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["new-from-template-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
         <div style="font-size: 11px; color: var(--text-dim); display: flex; align-items: center; gap: 4px;">
@@ -6752,11 +6752,11 @@
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
           <div class="form-group">
             <label style="font-weight: 700; font-size: 11.5px;">Filename:</label>
-            <input type="text" id="template-filename-input" class="pane-quick-filter" style="width: 100%; padding: 6px 8px; font-family: var(--font-mono);" placeholder="document.md" oninput="updateTemplateLivePreview()">
+            <input type="text" id="template-filename-input" class="pane-quick-filter" style="width: 100%; padding: 6px 8px; font-family: var(--font-mono);" placeholder="document.md" data-on-input="updateTemplateLivePreview">
           </div>
           <div class="form-group">
             <label style="font-weight: 700; font-size: 11.5px;">Document Title ({{TITLE}}):</label>
-            <input type="text" id="template-title-input" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" placeholder="Humanized Title" oninput="updateTemplateLivePreview()">
+            <input type="text" id="template-title-input" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" placeholder="Humanized Title" data-on-input="updateTemplateLivePreview">
           </div>
         </div>
 
@@ -6776,8 +6776,8 @@
         </div>
       </div>
       <div class="modal-footer" style="padding: 10px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" onclick="closeModal('new-from-template-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-confirm-create-template" onclick="executeCreateFromTemplate()"><i data-lucide="check"></i> Create File</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["new-from-template-modal"]'>Cancel</button>
+        <button class="btn btn-accent" id="btn-confirm-create-template" data-on-click="executeCreateFromTemplate"><i data-lucide="check"></i> Create File</button>
       </div>
     </div>
   </div>
@@ -6790,7 +6790,7 @@
           <i data-lucide="file-code" style="width: 16px; height: 16px; color: var(--accent);"></i>
           <span id="edit-template-header-title" style="font-weight: 700;">Edit File Template</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('template-edit-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["template-edit-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
         <input type="hidden" id="edit-template-id">
@@ -6832,19 +6832,19 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
             <label style="font-weight: 700; font-size: 11.5px;">Template Content Boilerplate:</label>
             <div style="display: flex; gap: 4px; font-size: 10px;">
-              <span class="btn btn-xs" onclick="insertVariableIntoEditTemplate('{{TITLE}}')">+ {{TITLE}}</span>
-              <span class="btn btn-xs" onclick="insertVariableIntoEditTemplate('{{DATE}}')">+ {{DATE}}</span>
-              <span class="btn btn-xs" onclick="insertVariableIntoEditTemplate('{{TIME}}')">+ {{TIME}}</span>
-              <span class="btn btn-xs" onclick="insertVariableIntoEditTemplate('{{USER}}')">+ {{USER}}</span>
-              <span class="btn btn-xs" onclick="insertVariableIntoEditTemplate('{{ISO_DATE}}')">+ {{ISO_DATE}}</span>
+              <span class="btn btn-xs" data-on-click="insertVariableIntoEditTemplate" data-click-args='["{{TITLE}}"]'>+ {{TITLE}}</span>
+              <span class="btn btn-xs" data-on-click="insertVariableIntoEditTemplate" data-click-args='["{{DATE}}"]'>+ {{DATE}}</span>
+              <span class="btn btn-xs" data-on-click="insertVariableIntoEditTemplate" data-click-args='["{{TIME}}"]'>+ {{TIME}}</span>
+              <span class="btn btn-xs" data-on-click="insertVariableIntoEditTemplate" data-click-args='["{{USER}}"]'>+ {{USER}}</span>
+              <span class="btn btn-xs" data-on-click="insertVariableIntoEditTemplate" data-click-args='["{{ISO_DATE}}"]'>+ {{ISO_DATE}}</span>
             </div>
           </div>
           <textarea id="edit-template-content" class="pane-quick-filter" style="width: 100%; height: 180px; font-family: var(--font-mono); font-size: 11px; line-height: 1.4; padding: 8px; resize: vertical; white-space: pre; tab-size: 2;" placeholder="# {{TITLE}}&#10;&#10;Created: {{DATE}} by {{USER}}"></textarea>
         </div>
       </div>
       <div class="modal-footer" style="padding: 10px 16px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" onclick="closeModal('template-edit-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="saveTemplateFromModal()"><i data-lucide="check"></i> Save Template</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["template-edit-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="saveTemplateFromModal"><i data-lucide="check"></i> Save Template</button>
       </div>
     </div>
   </div>
@@ -6857,13 +6857,13 @@
           <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i>
           <span>Rename (F2)</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('rename-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["rename-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 8px;">
         <input type="text" id="rename-input" class="pane-quick-filter" style="width: 100%; padding: 8px 10px; font-size: 13px; font-family: var(--font-mono); border-radius: var(--radius);" autocomplete="off" spellcheck="false">
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px; padding: 10px 16px;">
-        <button class="btn modal-action-btn" onclick="closeModal('rename-modal')">Cancel</button>
+        <button class="btn modal-action-btn" data-on-click="closeModal" data-click-args='["rename-modal"]'>Cancel</button>
         <button class="btn btn-accent modal-action-btn" id="btn-confirm-rename"><i data-lucide="check" style="width: 14px;"></i> Rename</button>
       </div>
     </div>
@@ -6931,7 +6931,7 @@
     <div class="login-card">
       <div class="login-card-header">
         <div class="login-brand-icon">
-          <img src="assets/brum_happy.webp" alt="Brum" class="login-brand-img" id="login-brand-logo" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)" style="cursor: pointer;">
+          <img src="assets/brum_happy.webp" alt="Brum" class="login-brand-img" id="login-brand-logo" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (Click to toggle mood)" style="cursor: pointer;">
         </div>
         <div class="login-header-text">
           <h2 class="login-title">
@@ -6942,7 +6942,7 @@
           </p>
         </div>
       </div>
-      <form id="login-form" onsubmit="event.preventDefault(); handleLoginSubmit(); return false;">
+      <form id="login-form" data-submit-prevent data-on-submit="handleLoginSubmit">
         <div class="login-card-body">
           <div class="login-form-group">
             <label for="login-username" class="login-label">
@@ -6963,7 +6963,7 @@
           <div id="login-error" class="login-error-msg" style="display: none;"></div>
         </div>
         <div class="login-card-footer">
-          <button type="button" class="btn btn-accent login-submit-btn" id="btn-submit-login" onclick="handleLoginSubmit()">
+          <button type="button" class="btn btn-accent login-submit-btn" id="btn-submit-login" data-on-click="handleLoginSubmit">
             <i data-lucide="log-in" style="width: 14px; height: 14px;"></i>
             <span>Log In</span>
           </button>
@@ -6973,7 +6973,7 @@
         <div class="login-divider">
           <span>or</span>
         </div>
-        <button type="button" class="btn btn-sso" id="btn-login-sso" onclick="triggerOidcLogin()">
+        <button type="button" class="btn btn-sso" id="btn-login-sso" data-on-click="triggerOidcLogin">
           <i data-lucide="shield-check" id="login-sso-icon" style="width: 15px; height: 15px;"></i>
           <span id="login-sso-btn-text">Sign in with SSO</span>
         </button>
@@ -6989,12 +6989,12 @@
     <div class="modal-box" style="width: 500px;">
       <div class="modal-header">
         <span>🌐 Remote Storage</span>
-        <button class="btn" onclick="closeModal('remote-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["remote-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body">
         <div class="form-group">
           <label>Protocol:</label>
-          <select id="remote-proto-select" class="pane-quick-filter" style="width: 100%; padding: 6px;" onchange="updateRemoteProtoUI()">
+          <select id="remote-proto-select" class="pane-quick-filter" style="width: 100%; padding: 6px;" data-on-change="updateRemoteProtoUI">
             <option value="sftp" selected>SSH / SFTP (Secure File Transfer)</option>
             <option value="smb">🪟 Samba / Windows Share (SMB / CIFS)</option>
             <option value="nfs">🐧 NFS (Network File System)</option>
@@ -7013,11 +7013,11 @@
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
             <div>
               <label style="font-size: 11px;">Storage Box User / ID:</label>
-              <input type="text" id="hetzner-user" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. u123456" oninput="syncHetznerFields()">
+              <input type="text" id="hetzner-user" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="e.g. u123456" data-on-input="syncHetznerFields">
             </div>
             <div>
               <label style="font-size: 11px;">Hetzner Protocol Mode:</label>
-              <select id="hetzner-mode" class="pane-quick-filter" style="width: 100%; padding: 7px;" onchange="syncHetznerFields()">
+              <select id="hetzner-mode" class="pane-quick-filter" style="width: 100%; padding: 7px;" data-on-change="syncHetznerFields">
                 <option value="sftp" selected>SFTP (Port 23 - High Speed)</option>
                 <option value="webdav">WebDAV (HTTPS Port 443)</option>
               </select>
@@ -7100,7 +7100,7 @@
         <div id="remote-global-mount-section" style="display: none; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; padding: 12px; margin-top: 12px;">
           <div style="display: flex; align-items: center; justify-content: space-between;">
             <label style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent); margin: 0; cursor: pointer;">
-              <input type="checkbox" id="remote-is-global-mount" onchange="toggleRemoteGlobalMountUI(this.checked)">
+              <input type="checkbox" id="remote-is-global-mount" data-on-change="toggleRemoteGlobalMountUI" data-change-args='[{"$": "checked"}]'>
               <span>Save as Global Network Mount for Users</span>
             </label>
           </div>
@@ -7113,7 +7113,7 @@
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
                 <label style="font-size: 11px; font-weight: 600; margin: 0;">Users Allowed Access (via Favorites):</label>
                 <label style="font-size: 10px; color: var(--accent); cursor: pointer; margin: 0;">
-                  <input type="checkbox" id="remote-mount-all-users" checked onchange="toggleMountAllUsers(this.checked)"> All Users (*)
+                  <input type="checkbox" id="remote-mount-all-users" checked data-on-change="toggleMountAllUsers" data-change-args='[{"$": "checked"}]'> All Users (*)
                 </label>
               </div>
               <div id="remote-mount-users-checkboxes" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; max-height: 110px; overflow-y: auto; background: var(--bg-dark); padding: 8px; border: 1px solid var(--border); border-radius: 4px; font-size: 11px;">
@@ -7126,10 +7126,10 @@
         <div id="remote-test-status" style="font-size: 11px; margin-top: 8px; display: none;"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn" id="btn-test-remote" onclick="testRemoteConnection()">Test Connection</button>
-        <button class="btn" onclick="closeModal('remote-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-save-global-mount" onclick="saveGlobalRemoteMount()" style="display:none;"><i data-lucide="save"></i> Save Global Mount</button>
-        <button class="btn btn-accent" id="btn-connect-remote" onclick="connectRemoteToActivePane()">Connect to Active Pane</button>
+        <button class="btn" id="btn-test-remote" data-on-click="testRemoteConnection">Test Connection</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["remote-modal"]'>Cancel</button>
+        <button class="btn btn-accent" id="btn-save-global-mount" data-on-click="saveGlobalRemoteMount" style="display:none;"><i data-lucide="save"></i> Save Global Mount</button>
+        <button class="btn btn-accent" id="btn-connect-remote" data-on-click="connectRemoteToActivePane">Connect to Active Pane</button>
       </div>
     </div>
   </div>
@@ -7143,11 +7143,11 @@
         <span style="color: var(--text-dim);" id="terminal-cwd-indicator">~</span>
       </div>
       <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon" onclick="clearTerminal()" title="Clear Terminal"><i data-lucide="trash-2"></i></button>
+        <button class="btn btn-icon" data-on-click="clearTerminal" title="Clear Terminal"><i data-lucide="trash-2"></i></button>
         <div class="header-sep desktop-only"></div>
-        <button class="btn btn-icon desktop-only" onclick="dockTerminalToActivePane()" title="Dock Terminal into Active Pane"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon desktop-only" onclick="toggleTerminalFullscreen()" title="Toggle Maximize"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon modal-close-btn" onclick="toggleTerminal(false)" title="Close Terminal"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="dockTerminalToActivePane" title="Dock Terminal into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="toggleTerminalFullscreen" title="Toggle Maximize"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="toggleTerminal" data-click-args='[false]' title="Close Terminal"><i data-lucide="x"></i></button>
       </div>
     </div>
     <div class="terminal-body" id="terminal-output" tabindex="0"></div>
@@ -7163,12 +7163,12 @@
           <img src="assets/amber-frameless-info.webp" alt="Brum" style="height: 18px; width: auto; object-fit: contain; vertical-align: middle;">
           <span style="font-weight: 700; font-size: 14px;">About Brum</span>
         </div>
-        <button class="btn btn-icon modal-close-btn" onclick="closeModal('about-modal')" title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["about-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 20px; overflow-y: auto;">
         <!-- Banner & Version Header -->
         <div style="text-align: center; margin-bottom: 18px; padding: 16px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-          <img src="assets/brum_happy.webp" id="about-modal-brand-logo" alt="Brum" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 8px; cursor: pointer; transition: transform 0.15s ease;">
+          <img src="assets/brum_happy.webp" id="about-modal-brand-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 8px; cursor: pointer; transition: transform 0.15s ease;">
           <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
           <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
           <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
@@ -7233,10 +7233,10 @@
         </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <button class="btn" onclick="closeModal('about-modal'); openSettingsModal(); switchSettingsTab('tab-keys');">
+        <button class="btn" data-on-click="closeModal" data-click-args='["about-modal"]' data-click-steps='[["openSettingsModal"], ["switchSettingsTab", "tab-keys"]]'>
           <i data-lucide="keyboard" style="width: 12px;"></i> View Keybindings
         </button>
-        <button class="btn btn-accent" onclick="closeModal('about-modal')">Close</button>
+        <button class="btn btn-accent" data-on-click="closeModal" data-click-args='["about-modal"]'>Close</button>
       </div>
     </div>
   </div>
@@ -7695,16 +7695,16 @@
     <div class="modal-box" style="width: 440px;">
       <div class="modal-header">
         <span>🔄 Transfer Files Across Panes</span>
-        <button class="btn" onclick="closeModal('interpane-drop-modal')"><i data-lucide="x"></i></button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["interpane-drop-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px;">
         <p style="font-size: 12px; margin-bottom: 16px; line-height: 1.5;" id="interpane-drop-msg">
           Copy or Move items to destination?
         </p>
         <div style="display: flex; gap: 8px; justify-content: flex-end;">
-          <button class="btn" onclick="closeModal('interpane-drop-modal')">Cancel</button>
-          <button class="btn" id="btn-interpane-move" onclick="executeInterpaneDrop('move')"><i data-lucide="move" style="width: 12px;"></i> Move Here (F6)</button>
-          <button class="btn btn-accent" id="btn-interpane-copy" onclick="executeInterpaneDrop('copy')"><i data-lucide="copy" style="width: 12px;"></i> Copy Here (F5)</button>
+          <button class="btn" data-on-click="closeModal" data-click-args='["interpane-drop-modal"]'>Cancel</button>
+          <button class="btn" id="btn-interpane-move" data-on-click="executeInterpaneDrop" data-click-args='["move"]'><i data-lucide="move" style="width: 12px;"></i> Move Here (F6)</button>
+          <button class="btn btn-accent" id="btn-interpane-copy" data-on-click="executeInterpaneDrop" data-click-args='["copy"]'><i data-lucide="copy" style="width: 12px;"></i> Copy Here (F5)</button>
         </div>
       </div>
     </div>
@@ -7718,7 +7718,7 @@
           <i data-lucide="alert-triangle" style="width: 16px; height: 16px; color: var(--accent);"></i>
           <span id="conflict-modal-title">File Conflict Detected</span>
         </span>
-        <button class="btn btn-icon" onclick="resolveConflictChoice('cancel')" title="Cancel Transfer"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon" data-on-click="resolveConflictChoice" data-click-args='["cancel"]' title="Cancel Transfer"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
         <div style="font-size: 12px; color: var(--text-muted); line-height: 1.4;" id="conflict-modal-desc">
@@ -7761,22 +7761,22 @@
 
         <!-- Action Buttons -->
         <div style="display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 4px;">
-          <button class="btn btn-outline" onclick="resolveConflictChoice('cancel')">Cancel</button>
-          <button class="btn btn-outline" onclick="resolveConflictChoice('skip')"><i data-lucide="skip-forward" style="width: 13px; height: 13px;"></i> Skip</button>
-          <button class="btn btn-outline" onclick="resolveConflictChoice('rename')"><i data-lucide="copy-plus" style="width: 13px; height: 13px;"></i> Auto-Rename</button>
-          <button class="btn btn-accent" onclick="resolveConflictChoice('overwrite')"><i data-lucide="replace" style="width: 13px; height: 13px;"></i> Overwrite</button>
+          <button class="btn btn-outline" data-on-click="resolveConflictChoice" data-click-args='["cancel"]'>Cancel</button>
+          <button class="btn btn-outline" data-on-click="resolveConflictChoice" data-click-args='["skip"]'><i data-lucide="skip-forward" style="width: 13px; height: 13px;"></i> Skip</button>
+          <button class="btn btn-outline" data-on-click="resolveConflictChoice" data-click-args='["rename"]'><i data-lucide="copy-plus" style="width: 13px; height: 13px;"></i> Auto-Rename</button>
+          <button class="btn btn-accent" data-on-click="resolveConflictChoice" data-click-args='["overwrite"]'><i data-lucide="replace" style="width: 13px; height: 13px;"></i> Overwrite</button>
         </div>
       </div>
     </div>
   </div>
 
   <!-- Backdrop for Mobile Pull-Up Drawer -->
-  <div class="task-drawer-backdrop" id="task-drawer-backdrop" onclick="closeFloatingTaskManager()"></div>
+  <div class="task-drawer-backdrop" id="task-drawer-backdrop" data-on-click="closeFloatingTaskManager"></div>
 
   <!-- TeraCopy-Style Floating Transfer Manager / Mobile Pull-Up Drawer -->
-  <div id="floating-task-manager" class="floating-task-window" onclick="bringFloatingWindowToFront(this)">
+  <div id="floating-task-manager" class="floating-task-window" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <!-- Mobile Pull Handle -->
-    <div class="drawer-pull-bar mobile-only" onclick="closeFloatingTaskManager()">
+    <div class="drawer-pull-bar mobile-only" data-on-click="closeFloatingTaskManager">
       <div class="drawer-pull-handle"></div>
     </div>
 
@@ -7796,10 +7796,10 @@
         <span class="task-speed-badge" id="task-speed-badge">0 B/s</span>
       </div>
       <div class="task-win-controls" style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon btn-task-control desktop-only" onclick="dockTasksToActivePane()" title="Dock Tasks into Active Pane"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon btn-task-control desktop-only" onclick="minimizeFloatingTaskManager()" title="Minimize to Pill"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon btn-task-control desktop-only" onclick="maximizeFloatingTaskManager()" title="Expand / Restore"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon btn-task-control btn-task-close modal-close-btn" onclick="closeFloatingTaskManager()" title="Close Transfer Window"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon btn-task-control desktop-only" data-on-click="dockTasksToActivePane" title="Dock Tasks into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon btn-task-control desktop-only" data-on-click="minimizeFloatingTaskManager" title="Minimize to Pill"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon btn-task-control desktop-only" data-on-click="maximizeFloatingTaskManager" title="Expand / Restore"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon btn-task-control btn-task-close modal-close-btn" data-on-click="closeFloatingTaskManager" title="Close Transfer Window"><i data-lucide="x"></i></button>
       </div>
     </div>
 
@@ -7849,12 +7849,12 @@
     <!-- Action Toolbar Footer -->
     <div class="task-win-footer" id="task-win-footer">
       <div class="task-footer-left">
-        <button class="btn btn-sm" onclick="pauseAllTasks()" title="Pause All Transfers"><i data-lucide="pause" style="width: 12px;"></i> Pause All</button>
-        <button class="btn btn-sm" onclick="resumeAllTasks()" title="Resume All Transfers"><i data-lucide="play" style="width: 12px;"></i> Resume All</button>
-        <button class="btn btn-sm" onclick="clearCompletedTasks()" title="Clear Finished Jobs"><i data-lucide="trash" style="width: 12px;"></i> Clear Completed</button>
+        <button class="btn btn-sm" data-on-click="pauseAllTasks" title="Pause All Transfers"><i data-lucide="pause" style="width: 12px;"></i> Pause All</button>
+        <button class="btn btn-sm" data-on-click="resumeAllTasks" title="Resume All Transfers"><i data-lucide="play" style="width: 12px;"></i> Resume All</button>
+        <button class="btn btn-sm" data-on-click="clearCompletedTasks" title="Clear Finished Jobs"><i data-lucide="trash" style="width: 12px;"></i> Clear Completed</button>
       </div>
       <div class="task-footer-right">
-        <button class="btn btn-sm" onclick="copyTaskLogs()" title="Copy Diagnostics"><i data-lucide="clipboard" style="width: 12px;"></i> Copy Log</button>
+        <button class="btn btn-sm" data-on-click="copyTaskLogs" title="Copy Diagnostics"><i data-lucide="clipboard" style="width: 12px;"></i> Copy Log</button>
       </div>
     </div>
     <div class="task-win-resize-corner-br desktop-only" id="task-win-resize-corner-br" title="Drag to resize width and height">
@@ -7865,7 +7865,7 @@
   </div>
 
   <!-- Sleek Floating Minimized Pill Widget -->
-  <div class="tasks-pill" id="tasks-pill" onclick="restoreFloatingTaskManager()" title="Click to open Transfer Manager">
+  <div class="tasks-pill" id="tasks-pill" data-on-click="restoreFloatingTaskManager" title="Click to open Transfer Manager">
     <div class="tasks-pill-pulse" id="tasks-pill-pulse"></div>
     <img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
     <span id="tasks-pill-text">0 Transfers</span>
@@ -7885,7 +7885,7 @@
             <div class="dialog-subtitle" id="dialog-subtitle">Please confirm your action</div>
           </div>
         </div>
-        <button class="btn btn-icon" onclick="closeAppDialog(false)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeAppDialog" data-click-args='[false]'><i data-lucide="x"></i></button>
       </div>
       <div class="dialog-body" id="dialog-body">
         <div class="dialog-message" id="dialog-message">Are you sure you want to proceed?</div>
@@ -7895,8 +7895,8 @@
         </div>
       </div>
       <div class="dialog-footer" id="dialog-footer">
-        <button class="btn" id="dialog-btn-cancel" onclick="closeAppDialog(false)">Cancel</button>
-        <button class="btn btn-accent" id="dialog-btn-confirm" onclick="closeAppDialog(true)">Confirm</button>
+        <button class="btn" id="dialog-btn-cancel" data-on-click="closeAppDialog" data-click-args='[false]'>Cancel</button>
+        <button class="btn btn-accent" id="dialog-btn-confirm" data-on-click="closeAppDialog" data-click-args='[true]'>Confirm</button>
       </div>
     </div>
   </div>
@@ -7917,9 +7917,9 @@
           <div class="lock-user-label" id="lock-username-label"><span id="lock-username-text">Brum User</span><span id="lock-hostname-suffix" class="lock-hostname-suffix">@localhost</span></div>
           <div class="lock-sub-text">Session is locked!</div>
         </div>
-        <img src="assets/brum_happy.webp" id="lock-mascot-logo" class="lock-mascot-logo" alt="Brum" onclick="toggleBrumMascot(event, this)" title="Brum (Click to toggle mood)">
+        <img src="assets/brum_happy.webp" id="lock-mascot-logo" class="lock-mascot-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (Click to toggle mood)">
       </div>
-      <form id="unlock-form" onsubmit="event.preventDefault(); submitUnlockSession(); return false;">
+      <form id="unlock-form" data-submit-prevent data-on-submit="submitUnlockSession">
         <div class="lock-card-body">
           <div class="login-form-group">
             <label for="unlock-password-input" class="login-label">
@@ -7932,11 +7932,11 @@
           <div id="unlock-error-msg" class="login-error-msg lock-error-msg" style="display: none;"></div>
         </div>
         <div class="lock-card-footer">
-          <button type="button" class="btn btn-accent login-submit-btn" id="btn-submit-unlock" onclick="submitUnlockSession()">
+          <button type="button" class="btn btn-accent login-submit-btn" id="btn-submit-unlock" data-on-click="submitUnlockSession">
             <i data-lucide="unlock" style="width: 14px; height: 14px;"></i>
             <span>Unlock Session</span>
           </button>
-          <button type="button" class="btn btn-switch-user" onclick="logout()" title="Log out and return to login screen">
+          <button type="button" class="btn btn-switch-user" data-on-click="logout" title="Log out and return to login screen">
             <i data-lucide="log-out" style="width: 12px; height: 12px;"></i>
             <span>Log Out</span>
           </button>
@@ -7956,7 +7956,7 @@
           <i data-lucide="bookmark-plus" style="color: var(--accent); width: 18px; height: 18px;"></i>
           <span style="font-weight: 700; font-size: 14px;" id="bookmark-modal-title">Add Bookmark / Quick Favorite</span>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('bookmark-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["bookmark-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px;">
         <div class="form-group">
@@ -7965,7 +7965,7 @@
         </div>
         <div class="form-group">
           <label>Protocol Type:</label>
-          <select id="bm-select-protocol" class="pane-quick-filter" style="width: 100%; padding: 8px;" onchange="onBookmarkProtocolChange()">
+          <select id="bm-select-protocol" class="pane-quick-filter" style="width: 100%; padding: 8px;" data-on-change="onBookmarkProtocolChange">
             <option value="local">📁 Local Filesystem</option>
             <option value="web">🌐 Web URL / URI (https://...)</option>
             <option value="smb">🪟 SMB / Samba Share (smb://)</option>
@@ -7998,8 +7998,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('bookmark-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="saveBookmarkFromModal()"><i data-lucide="check"></i> Save Bookmark</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["bookmark-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="saveBookmarkFromModal"><i data-lucide="check"></i> Save Bookmark</button>
       </div>
     </div>
   </div>
@@ -8012,7 +8012,7 @@
           <i data-lucide="lock" style="color: var(--accent); width: 18px; height: 18px;"></i>
           <span style="font-weight: 700; font-size: 14px;">Remote Authentication</span>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('remote-auth-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["remote-auth-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px;">
         <div style="font-size: 12px; margin-bottom: 12px; word-break: break-all; color: var(--text-muted);" id="remote-auth-desc">
@@ -8032,8 +8032,8 @@
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('remote-auth-modal')">Cancel</button>
-        <button class="btn btn-accent" onclick="submitRemoteAuth()"><i data-lucide="key"></i> Connect</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["remote-auth-modal"]'>Cancel</button>
+        <button class="btn btn-accent" data-on-click="submitRemoteAuth"><i data-lucide="key"></i> Connect</button>
       </div>
     </div>
   </div>
@@ -8089,17 +8089,17 @@
           <span class="badge" id="git-modal-branch-badge" style="font-size: 10px; text-transform: uppercase;">main</span>
         </div>
         <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon" onclick="gitPullCurrentRepo()" title="Pull changes from remote (Git Pull)"><i data-lucide="download"></i></button>
-          <button class="btn btn-icon" onclick="gitPushCurrentRepo()" title="Push commits to remote (Git Push)"><i data-lucide="upload"></i></button>
+          <button class="btn btn-icon" data-on-click="gitPullCurrentRepo" title="Pull changes from remote (Git Pull)"><i data-lucide="download"></i></button>
+          <button class="btn btn-icon" data-on-click="gitPushCurrentRepo" title="Push commits to remote (Git Push)"><i data-lucide="upload"></i></button>
           <div class="header-sep desktop-only"></div>
-          <button class="btn btn-icon desktop-only" onclick="dockGitToActivePane()" title="Dock Git Manager into Active Pane"><i data-lucide="panel-left-close"></i></button>
-          <button class="btn btn-icon modal-close-btn" onclick="closeModal('git-modal')" title="Close Git Manager (Esc)"><i data-lucide="x"></i></button>
+          <button class="btn btn-icon desktop-only" data-on-click="dockGitToActivePane" title="Dock Git Manager into Active Pane"><i data-lucide="panel-left-close"></i></button>
+          <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["git-modal"]' title="Close Git Manager (Esc)"><i data-lucide="x"></i></button>
         </div>
       </div>
 
       <div class="modal-tabs" style="display: flex; gap: 4px; padding: 0 16px; border-bottom: 1px solid var(--border); background: var(--bg-dark);">
-        <button class="modal-tab-btn active" id="git-tab-status-btn" onclick="switchGitTab('status')">Changes & Staging</button>
-        <button class="modal-tab-btn" id="git-tab-log-btn" onclick="switchGitTab('log')">Commit History (Log)</button>
+        <button class="modal-tab-btn active" id="git-tab-status-btn" data-on-click="switchGitTab" data-click-args='["status"]'>Changes & Staging</button>
+        <button class="modal-tab-btn" id="git-tab-log-btn" data-on-click="switchGitTab" data-click-args='["log"]'>Commit History (Log)</button>
       </div>
 
       <div class="modal-body" style="flex: 1; display: flex; overflow: hidden; padding: 0;" id="git-status-tab-body">
@@ -8108,8 +8108,8 @@
           <div style="padding: 8px 12px; font-size: 11px; font-weight: 700; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
             <span id="git-changes-count">Changes</span>
             <div style="display: flex; gap: 4px;">
-              <button class="btn btn-xs btn-accent" onclick="gitStageAll()" title="Stage all changes" style="height: 26px; padding: 0 8px; font-weight: 600;">Stage All (+)</button>
-              <button class="btn btn-xs" onclick="gitUnstageAll()" title="Unstage all changes" style="height: 26px; padding: 0 8px; font-weight: 600;">Unstage All</button>
+              <button class="btn btn-xs btn-accent" data-on-click="gitStageAll" title="Stage all changes" style="height: 26px; padding: 0 8px; font-weight: 600;">Stage All (+)</button>
+              <button class="btn btn-xs" data-on-click="gitUnstageAll" title="Unstage all changes" style="height: 26px; padding: 0 8px; font-weight: 600;">Unstage All</button>
             </div>
           </div>
           <div id="git-files-list" style="flex: 1; overflow-y: auto; padding: 4px 0;"></div>
@@ -8117,7 +8117,7 @@
           <!-- Commit Composer -->
           <div style="padding: 10px; border-top: 1px solid var(--border); background: var(--bg-dark);">
             <textarea id="git-commit-msg-input" class="pane-quick-filter" style="width: 100%; height: 60px; resize: none; font-size: 11px; margin-bottom: 6px;" placeholder="Commit message (e.g. feat: update parser)..."></textarea>
-            <button class="btn btn-accent btn-sm btn-block" style="width: 100%; font-weight: 700; display: flex; justify-content: center; align-items: center; gap: 6px;" onclick="gitCommitStaged()">
+            <button class="btn btn-accent btn-sm btn-block" style="width: 100%; font-weight: 700; display: flex; justify-content: center; align-items: center; gap: 6px;" data-on-click="gitCommitStaged">
               <i data-lucide="check"></i> Commit Staged
             </button>
           </div>
@@ -8473,7 +8473,7 @@
           <i data-lucide="shield-check" style="color: var(--accent); width: 18px; height: 18px;"></i>
           <span style="font-weight: 700; font-size: 14px;">Create Transparent Encrypted Vault</span>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('create-vault-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["create-vault-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
         <div style="padding: 10px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 4px; font-size: 11px; line-height: 1.5; color: var(--text-main);">
@@ -8487,21 +8487,21 @@
         <div class="form-group">
           <label>Master Password:</label>
           <div style="position: relative;">
-            <input type="password" id="create-vault-pass" class="pane-quick-filter" style="width: 100%; padding-right: 32px;" placeholder="Choose a strong passphrase" onkeyup="if(event.key==='Enter') executeCreateVault()" />
-            <button type="button" class="btn btn-icon" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 6px; font-size: 11px;" onclick="togglePassVisibility('create-vault-pass')"><i data-lucide="eye" style="width: 13px;"></i></button>
+            <input type="password" id="create-vault-pass" class="pane-quick-filter" style="width: 100%; padding-right: 32px;" placeholder="Choose a strong passphrase" data-keyup-key="Enter" data-on-keyup="executeCreateVault" />
+            <button type="button" class="btn btn-icon" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 6px; font-size: 11px;" data-on-click="togglePasswordVisibility" data-click-args='["create-vault-pass"]'><i data-lucide="eye" style="width: 13px;"></i></button>
           </div>
         </div>
         <div class="form-group">
           <label>Confirm Master Password:</label>
           <div style="position: relative;">
-            <input type="password" id="create-vault-pass-confirm" class="pane-quick-filter" style="width: 100%; padding-right: 32px;" placeholder="Confirm passphrase" onkeyup="if(event.key==='Enter') executeCreateVault()" />
-            <button type="button" class="btn btn-icon" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 6px; font-size: 11px;" onclick="togglePassVisibility('create-vault-pass-confirm')"><i data-lucide="eye" style="width: 13px;"></i></button>
+            <input type="password" id="create-vault-pass-confirm" class="pane-quick-filter" style="width: 100%; padding-right: 32px;" placeholder="Confirm passphrase" data-keyup-key="Enter" data-on-keyup="executeCreateVault" />
+            <button type="button" class="btn btn-icon" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 6px; font-size: 11px;" data-on-click="togglePasswordVisibility" data-click-args='["create-vault-pass-confirm"]'><i data-lucide="eye" style="width: 13px;"></i></button>
           </div>
         </div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('create-vault-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-confirm-create-vault" onclick="executeCreateVault()"><i data-lucide="lock"></i> Create Encrypted Vault</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["create-vault-modal"]'>Cancel</button>
+        <button class="btn btn-accent" id="btn-confirm-create-vault" data-on-click="executeCreateVault"><i data-lucide="lock"></i> Create Encrypted Vault</button>
       </div>
     </div>
   </div>
@@ -8514,7 +8514,7 @@
           <i data-lucide="lock" style="color: var(--accent); width: 18px; height: 18px;"></i>
           <span style="font-weight: 700; font-size: 14px;">Unlock Encrypted Vault</span>
         </div>
-        <button class="btn btn-icon" onclick="closeModal('unlock-vault-modal')"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["unlock-vault-modal"]'><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 12px;">
         <div class="form-group">
@@ -8524,8 +8524,8 @@
         <div class="form-group">
           <label>Master Password:</label>
           <div style="position: relative;">
-            <input type="password" id="unlock-vault-pass" class="pane-quick-filter" style="width: 100%; padding-right: 32px;" placeholder="Enter vault master password" onkeyup="if(event.key==='Enter') executeUnlockVault()" />
-            <button type="button" class="btn btn-icon" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 6px; font-size: 11px;" onclick="togglePassVisibility('unlock-vault-pass')"><i data-lucide="eye" style="width: 13px;"></i></button>
+            <input type="password" id="unlock-vault-pass" class="pane-quick-filter" style="width: 100%; padding-right: 32px;" placeholder="Enter vault master password" data-keyup-key="Enter" data-on-keyup="executeUnlockVault" />
+            <button type="button" class="btn btn-icon" style="position: absolute; right: 4px; top: 50%; transform: translateY(-50%); padding: 2px 6px; font-size: 11px;" data-on-click="togglePasswordVisibility" data-click-args='["unlock-vault-pass"]'><i data-lucide="eye" style="width: 13px;"></i></button>
           </div>
         </div>
         <div class="form-group">
@@ -8542,8 +8542,8 @@
         <div id="unlock-vault-err" style="display: none; padding: 8px 10px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--danger); border-radius: 4px; color: var(--danger); font-size: 11px;"></div>
       </div>
       <div class="modal-footer">
-        <button class="btn" onclick="closeModal('unlock-vault-modal')">Cancel</button>
-        <button class="btn btn-accent" id="btn-confirm-unlock-vault" onclick="executeUnlockVault()"><i data-lucide="key"></i> Unlock Vault</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["unlock-vault-modal"]'>Cancel</button>
+        <button class="btn btn-accent" id="btn-confirm-unlock-vault" data-on-click="executeUnlockVault"><i data-lucide="key"></i> Unlock Vault</button>
       </div>
     </div>
   </div>
@@ -8556,7 +8556,7 @@
           <i data-lucide="keyboard" style="color: var(--accent); width: 18px; height: 18px;"></i>
           <span style="font-weight: 700; font-size: 14px;">Record Shortcut Keybind</span>
         </div>
-        <button class="btn btn-icon" onclick="closeKeyRecordModal()"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon" data-on-click="closeKeyRecordModal"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 16px; display: flex; flex-direction: column; gap: 14px;">
         <input type="hidden" id="key-record-action-id" value="">
@@ -8580,10 +8580,10 @@
         </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <button class="btn btn-sm" onclick="clearCapturedKeybind()"><i data-lucide="trash-2"></i> Clear Keybind</button>
+        <button class="btn btn-sm" data-on-click="clearCapturedKeybind"><i data-lucide="trash-2"></i> Clear Keybind</button>
         <div style="display: flex; gap: 8px;">
-          <button class="btn btn-sm" onclick="closeKeyRecordModal()">Cancel</button>
-          <button class="btn btn-sm btn-accent" id="btn-save-key-record" onclick="saveCapturedKeybind()"><i data-lucide="check"></i> Save Keybind</button>
+          <button class="btn btn-sm" data-on-click="closeKeyRecordModal">Cancel</button>
+          <button class="btn btn-sm btn-accent" id="btn-save-key-record" data-on-click="saveCapturedKeybind"><i data-lucide="check"></i> Save Keybind</button>
         </div>
       </div>
     </div>

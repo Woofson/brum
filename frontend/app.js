@@ -10,6 +10,7 @@
 //   data-<type>-prevent                 prevent the browser's default (e.g. its own right-click menu)
 //   data-<type>-key="Enter"             only act when this key was pressed
 //   data-<type>-unless="button"         do nothing when the event started inside a matching element
+//   data-<type>-self                    only act when the event started on this element itself
 // Markers in arguments: ACTION_EVENT (the event), ACTION_EL (the element), ACTION_VALUE
 // (its current value), ACTION_CHECKED (whether it is ticked), ACTION_FILES (files picked in it),
 // ACTION_TEXT (its text).
@@ -40,89 +41,100 @@ const BRUM_ACTIONS = new Set([
   'calcAppendPi', 'calcAppendUnit', 'calcBackspace', 'calcClearAll', 'calcClearEntry',
   'calcClearHistory', 'calcEvaluate', 'calcLoadHistoryItem', 'calcToggleSign',
   'calculateAllChecksums', 'calculatePropertiesChecksums', 'calculateRowChecksum',
-  'captureCurrentPathsForCustomStartup', 'changeDocPdfZoom', 'changeGlobalIconTheme',
-  'changeMediaVolume', 'changeTailLines', 'changeTetraDogMode', 'clearAllCustomFileIcons',
-  'clearAllSyncExclusions', 'clearCombineParts', 'clearConverterSourceFile', 'clearDiffSearch',
-  'clearMediaPlaylist', 'clearPaneFilter', 'clearPdfMergeList', 'clearPropCustomIcon',
-  'clickElementById', 'cloneDirectoryToOppositePane', 'closeBreadcrumbPopovers',
-  'closeConverterModal', 'closeDocViewerModal', 'closeDockedEditorTab', 'closeDockedTool',
-  'closeEditorActionsDropdown', 'closeEditorModal', 'closeEditorTab',
+  'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup', 'changeDocPdfZoom',
+  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines', 'changeTetraDogMode',
+  'clearAllCustomFileIcons', 'clearAllSyncExclusions', 'clearCapturedKeybind', 'clearCombineParts',
+  'clearCompletedTasks', 'clearConverterSourceFile', 'clearDiffSearch', 'clearMediaPlaylist',
+  'clearPaneFilter', 'clearPdfMergeList', 'clearPropCustomIcon', 'clearSpotlightInput',
+  'clearTerminal', 'clickElementById', 'cloneDirectoryToOppositePane', 'closeAppDialog',
+  'closeBreadcrumbPopovers', 'closeConverterModal', 'closeDocViewerModal', 'closeDockedEditorTab',
+  'closeDockedTool', 'closeEditorActionsDropdown', 'closeEditorModal', 'closeEditorTab',
   'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio', 'closeFloatingCalculator',
   'closeFloatingDiff', 'closeFloatingDiskUsage', 'closeFloatingDuplicateFinder',
   'closeFloatingHexEditor', 'closeFloatingLogViewer', 'closeFloatingNoteDog', 'closeFloatingPdf',
   'closeFloatingRenamer', 'closeFloatingShares', 'closeFloatingSplitter', 'closeFloatingTagEditor',
-  'closeImgTransformDropdown', 'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer',
-  'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick', 'closeTabsToTheRight',
-  'closeTetraDog', 'confirmSyncFolderSelection', 'convertCurrentMediaToMp4',
-  'copyAndUseTokenInFleetForm', 'copyCalcResult', 'copyDiffItem', 'copyGeneratedApiToken',
-  'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTextToClipboard',
-  'copyToClipboardText', 'copyVariableTag', 'createNewEditorTab', 'createPaneTab',
-  'cycleEditorTabSize', 'cycleMediaAspectRatio', 'cycleMediaLoop', 'cycleMediaSpeed',
-  'cyclePaneColor', 'deleteBackupProfile', 'deleteBookmark', 'deleteCustomAction',
-  'deleteFileTemplate', 'deleteFleetNodeProfile', 'deleteGlobalMount', 'deleteNoteAttachment',
-  'deleteOpenWithRule', 'deleteSelectedTrashItems', 'deleteSharePermanent', 'deleteUserAccount',
-  'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill', 'docViewerCopyCurrent',
-  'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent', 'docViewerRenameCurrent',
-  'dockCadStudioToActivePane', 'dockCalculatorToActivePane', 'dockDiffToActivePane',
-  'dockDiskUsageToActivePane', 'dockDuplicateFinderToActivePane', 'dockEditorToActivePane',
-  'dockHexEditorToActivePane', 'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane',
-  'dockNoteDogToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
-  'dockSharesToActivePane', 'dockSplitterToActivePane', 'dockTagEditorToActivePane',
-  'dockTetraDogToActivePane', 'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab',
-  'editBackupProfileByIndex', 'editCustomAction', 'editOpenWithRule', 'editTemplateById',
-  'enablePathInput', 'executeBatchRename', 'executeBulkRename', 'executeCreateShare',
-  'executeCustomAction', 'executeDryRun', 'executeDuplicateClean', 'executeFileCombine',
-  'executeFileConversion', 'executeFileSplit', 'executeFind', 'executeFolderAlignment',
+  'closeFloatingTaskManager', 'closeImgTransformDropdown', 'closeKeyRecordModal',
+  'closeMediaPlayer', 'closeModal', 'closeNoteDogDrawer', 'closeOtherTabs', 'closePaneTab',
+  'closePaneTabOnMiddleClick', 'closeSpotlightModal', 'closeTabsToTheRight', 'closeTetraDog',
+  'confirmSyncFolderSelection', 'connectRemoteToActivePane', 'convertCurrentMediaToMp4',
+  'copyActionOutput', 'copyAndUseTokenInFleetForm', 'copyCalcResult', 'copyDiffItem',
+  'copyGeneratedApiToken', 'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl',
+  'copyTaskLogs', 'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag',
+  'createNewEditorTab', 'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio',
+  'cycleMediaLoop', 'cycleMediaSpeed', 'cyclePaneColor', 'deleteBackupProfile', 'deleteBookmark',
+  'deleteCustomAction', 'deleteFileTemplate', 'deleteFleetNodeProfile', 'deleteGlobalMount',
+  'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems', 'deleteSharePermanent',
+  'deleteUserAccount', 'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill',
+  'docViewerCopyCurrent', 'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent',
+  'docViewerRenameCurrent', 'dockCadStudioToActivePane', 'dockCalculatorToActivePane',
+  'dockDiffToActivePane', 'dockDiskUsageToActivePane', 'dockDuplicateFinderToActivePane',
+  'dockEditorToActivePane', 'dockGitToActivePane', 'dockHexEditorToActivePane',
+  'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane', 'dockNoteDogToActivePane',
+  'dockPdfToActivePane', 'dockRenamerToActivePane', 'dockSharesToActivePane',
+  'dockSplitterToActivePane', 'dockTagEditorToActivePane', 'dockTasksToActivePane',
+  'dockTerminalToActivePane', 'dockTetraDogToActivePane', 'downloadCurrentMedia',
+  'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex', 'editCustomAction',
+  'editOpenWithRule', 'editTemplateById', 'enablePathInput', 'executeBatchRename',
+  'executeBulkRename', 'executeCompressArchive', 'executeCreateFromTemplate', 'executeCreateShare',
+  'executeCreateVault', 'executeCustomAction', 'executeDeltaCopy', 'executeDryRun',
+  'executeDuplicateClean', 'executeExtractArchive', 'executeFileCombine', 'executeFileConversion',
+  'executeFileSplit', 'executeFind', 'executeFolderAlignment', 'executeInterpaneDrop',
   'executeOpenConfdAssembled', 'executeOpenConfdSeparateTabs', 'executeOpenWith',
-  'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun', 'executeSync',
-  'executeUnlockNoteDogNote', 'exportCustomThemeToml', 'exportFleetNodesJson',
-  'fetchLogViewerTail', 'fetchPdfSplitInfo', 'filterDiskUsageItems', 'filterDocCsv',
-  'filterInstalledChewToys', 'filterMediaPlaylist', 'filterSyncGrid', 'findNextMatch',
-  'findPrevMatch', 'flipImage', 'handleAdminConfigInput', 'handleAdminConfigKeyDown',
+  'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun',
+  'executeSpotlightIndex', 'executeStandardCopy', 'executeSync', 'executeUnlockNoteDogNote',
+  'executeUnlockVault', 'exportCustomThemeToml', 'exportFleetNodesJson',
+  'feedSearchResultsToActivePane', 'fetchLogViewerTail', 'fetchPdfSplitInfo',
+  'filterDiskUsageItems', 'filterDocCsv', 'filterInstalledChewToys', 'filterMediaPlaylist',
+  'filterSpotlightCategory', 'filterSyncGrid', 'findNextMatch', 'findPrevMatch', 'flipImage',
+  'gitCommitStaged', 'gitPullCurrentRepo', 'gitPushCurrentRepo', 'gitStageAll', 'gitStageFile',
+  'gitUnstageAll', 'gitUnstageFile', 'handleAdminConfigInput', 'handleAdminConfigKeyDown',
   'handleAppMarginChange', 'handleAvatarFileUpload', 'handleChewToyDragLeave',
   'handleChewToyDragOver', 'handleChewToyDrop', 'handleChewToyFileSelect',
-  'handleConvertOutputNameInput', 'handleDiffSearch', 'handleDndSettingChange',
-  'handleDockedNoteSelect', 'handleDockedNotebookChange', 'handleDockedSectionChange',
-  'handleEditorClick', 'handleEditorInput', 'handleEditorKeyDown', 'handleEditorLanguageChange',
-  'handleEditorViewModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
-  'handleFleetNodesImport', 'handleFolderColorChange', 'handleFolderColorCustomChange',
-  'handleFontSizeChange', 'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange',
-  'handleHexGridKey', 'handleHostnameSettingChange', 'handleLogViewerFilterInput',
-  'handleLoginBrandingSettingChange', 'handleLogoutOrExit', 'handleMediaScrubberHover',
-  'handleMonoFontChange', 'handleNoteAttachmentFileSelected', 'handleNoteDogInput',
-  'handleNoteDogKeyDown', 'handleNoteDogSearch', 'handleNoteDogTitleChange',
-  'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
-  'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
-  'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
-  'handleScheduleTypeChange', 'handleSettingsAvatarFileUpload', 'handleShareModeChange',
-  'handleSharesFilterChange', 'handleSplitPresetChange', 'handleSplitSourceChange',
-  'handleStartupSettingChange', 'handleSyncModeChange', 'handleTagCoverArtSelected',
-  'handleTargetFormatChange', 'handleTetraDogScopeChange', 'handleTitleTemplateChange',
-  'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart',
-  'handleToolDrop', 'handleUserDisabledToggle', 'handleUserParanoidToggle',
+  'handleConvertOutputNameInput', 'handleDiffSearch', 'handleDirectFileUpload',
+  'handleDndSettingChange', 'handleDockedNoteSelect', 'handleDockedNotebookChange',
+  'handleDockedSectionChange', 'handleEditorClick', 'handleEditorInput', 'handleEditorKeyDown',
+  'handleEditorLanguageChange', 'handleEditorViewModeChange', 'handleExtractModeChange',
+  'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown', 'handleFleetNodesImport',
+  'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
+  'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHexGridKey',
+  'handleHostnameSettingChange', 'handleLogViewerFilterInput', 'handleLoginBrandingSettingChange',
+  'handleLoginSubmit', 'handleLogoutOrExit', 'handleMediaScrubberHover', 'handleMonoFontChange',
+  'handleNoteAttachmentFileSelected', 'handleNoteDogInput', 'handleNoteDogKeyDown',
+  'handleNoteDogSearch', 'handleNoteDogTitleChange', 'handlePaneBadgeClick',
+  'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel',
+  'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart',
+  'handlePathKey', 'handleRadiusChange', 'handleSansFontChange', 'handleScheduleTypeChange',
+  'handleSettingsAvatarFileUpload', 'handleShareModeChange', 'handleSharesFilterChange',
+  'handleSplitPresetChange', 'handleSplitSourceChange', 'handleSpotlightInput',
+  'handleSpotlightKey', 'handleStartupSettingChange', 'handleSyncModeChange',
+  'handleTagCoverArtSelected', 'handleTargetFormatChange', 'handleTetraDogScopeChange',
+  'handleTitleTemplateChange', 'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver',
+  'handleToolDragStart', 'handleToolDrop', 'handleUserDisabledToggle', 'handleUserParanoidToggle',
   'handleUserSecuritySettingChange', 'handleVaultOpen', 'handleWindowTitleSettingChange',
   'hideContextMenu', 'hideCustomActionForm', 'hideElement', 'hideMediaScrubberTooltip',
   'hideOpenWithRuleForm', 'imageViewerCopyCurrent', 'imageViewerDeleteCurrent',
   'imageViewerMoveCurrent', 'imageViewerRenameCurrent', 'initColResize', 'initTreeResize',
   'insertAttachmentMarkdownById', 'insertNoteDogColorTag', 'insertNoteDogMarkdown',
   'insertNoteDogMermaid', 'insertNoteDogTimestamp', 'insertRenamerToken', 'insertTitleVar',
-  'inspectCurrentImage', 'jumpHexOffset', 'jumpToConfdSection', 'jumpToFolderInPane',
-  'jumpToPaneFromDiskUsage', 'loadActiveShares', 'loadBackupHistory', 'loadBackupProfiles',
-  'loadEmojiPresets', 'loadInstalledChewToys', 'loadMasterConfigEditor', 'loadNerdFontPresets',
-  'loadPaneDirectory', 'loadRenamerDirectory', 'loadSyncthingDashboard', 'loadSystemDisksOverview',
-  'loadTagEditorFile', 'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession',
+  'insertVariableIntoEditTemplate', 'inspectCurrentImage', 'jumpHexOffset', 'jumpToConfdSection',
+  'jumpToFolderInPane', 'jumpToPaneFromDiskUsage', 'jumpToSearchResult', 'loadActiveShares',
+  'loadBackupHistory', 'loadBackupProfiles', 'loadEmojiPresets', 'loadInstalledChewToys',
+  'loadMasterConfigEditor', 'loadNerdFontPresets', 'loadPaneDirectory', 'loadPaneDirectoryTree',
+  'loadRenamerDirectory', 'loadSyncthingDashboard', 'loadSystemDisksOverview', 'loadTagEditorFile',
+  'loadTetraDogLeaderboard', 'loadUserPreferencesFromServer', 'lockSession', 'logout',
   'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNoteDog',
-  'maximizeTetraDog', 'minimizeConverterModal', 'minimizeFloatingCadStudio',
-  'minimizeFloatingCalculator', 'minimizeFloatingDiff', 'minimizeFloatingDiskUsage',
-  'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor', 'minimizeFloatingHexEditor',
-  'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer', 'minimizeFloatingNoteDog',
-  'minimizeFloatingPdf', 'minimizeFloatingRenamer', 'minimizeFloatingShares',
-  'minimizeFloatingSplitter', 'minimizeFloatingTagEditor', 'minimizeTetraDog', 'mountUsbDevice',
-  'moveMenuItem', 'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navBookPage',
-  'navImageViewer', 'navMediaPlaylist', 'navigateConverterPickerFromInput',
-  'navigateConverterPickerHome', 'navigateConverterPickerPath', 'navigateConverterPickerUp',
-  'navigateDiskUsageActivePane', 'navigateDiskUsageParent', 'navigateSyncPickerFromInput',
-  'navigateSyncPickerPath', 'navigateSyncPickerUp', 'navigateToBookmark', 'openAboutModal',
+  'maximizeFloatingTaskManager', 'maximizeTetraDog', 'minimizeConverterModal',
+  'minimizeFloatingCadStudio', 'minimizeFloatingCalculator', 'minimizeFloatingDiff',
+  'minimizeFloatingDiskUsage', 'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor',
+  'minimizeFloatingHexEditor', 'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer',
+  'minimizeFloatingNoteDog', 'minimizeFloatingPdf', 'minimizeFloatingRenamer',
+  'minimizeFloatingShares', 'minimizeFloatingSplitter', 'minimizeFloatingTagEditor',
+  'minimizeFloatingTaskManager', 'minimizeTetraDog', 'mountUsbDevice', 'moveMenuItem',
+  'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navBookPage', 'navImageViewer',
+  'navMediaPlaylist', 'navigateConverterPickerFromInput', 'navigateConverterPickerHome',
+  'navigateConverterPickerPath', 'navigateConverterPickerUp', 'navigateDiskUsageActivePane',
+  'navigateDiskUsageParent', 'navigateSyncPickerFromInput', 'navigateSyncPickerPath',
+  'navigateSyncPickerUp', 'navigateToBookmark', 'onBookmarkProtocolChange', 'openAboutModal',
   'openAdminPanel', 'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager',
   'openCadStudio', 'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openContainingFolder',
   'openConverterFilePicker', 'openConverterModal', 'openCreateApiTokenModal',
@@ -131,119 +143,126 @@ const BRUM_ACTIONS = new Set([
   'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFileDiffView',
   'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingCalculator',
   'openFloatingEditor', 'openFloatingNoteDog', 'openFloatingTaskManager', 'openGitFromProperties',
-  'openGlobalRemoteModal', 'openHexEditor', 'openInPaneWithToast', 'openKeyRecordModal',
-  'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin', 'openNoteDogColorPicker',
-  'openNoteDogMigrationMenu', 'openNoteDogNewMenu', 'openNoteDogTemplatePicker',
-  'openNoteDogVersionsModal', 'openNoteForContextItem', 'openPaneFavoritesMenu',
-  'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu',
-  'openParanoidSettings', 'openPathInActivePane', 'openPdfReorderFilePicker',
-  'openPdfSplitFilePicker', 'openPdfToolModal', 'openPropertiesColorTab', 'openRemoteModal',
-  'openSaveCurrentSyncAsProfile', 'openSearchModal', 'openSettingsModal', 'openSettingsTab',
-  'openShareLogs', 'openSharesManager', 'openSplitterFilePicker', 'openSpotlightModal',
-  'openSyncFolderPicker', 'openSyncModal', 'openSyncthingModal', 'openTagEditor',
-  'openTerminalFromDiskUsage', 'openTerminalInPath', 'openTetraDog', 'openUserProfileModal',
-  'pingAllFleetNodes', 'pingFleetNode', 'playMediaPlaylistItem',
-  'populateMediaPlaylistFromActivePane', 'printDocViewer', 'promptAddNoteTag',
-  'promptChangeNoteCategory', 'promptChangeNoteDogFolder', 'promptChangeNoteSection',
-  'promptClearTetraDogScores', 'promptCreateNote', 'promptCreateNotebookOrCategory',
-  'promptCreateSection', 'promptDeleteCurrentNote', 'promptEmptyTrash',
-  'promptToggleEncryptNotebook', 'promptToggleEncryptSection', 'quickTransferToPane',
-  'quickTransferToPath', 'refreshAllPanes', 'refreshDiskUsageView', 'refreshDocViewerText',
-  'refreshPane', 'refreshTetraDogLeaderboard', 'reloadPropertiesMetadata', 'reloadRenamerFiles',
-  'reloadTagEditorFiles', 'removeCombinePart', 'removeCustomExclusionTag',
-  'removeCustomFileIconRule', 'removeElementById', 'removeModalTag', 'removeNoteTag',
-  'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag', 'removeTagCoverArt',
-  'renderAvatarById', 'renderHexEditorView', 'renderKeybindingsTable', 'replaceAllMatches',
-  'replaceCurrentMatch', 'resetAllColumnWidths', 'resetAvatarToDefault', 'resetCadCamera',
-  'resetFileTemplatesToDefault', 'resetFleetNodeForm', 'resetGlobalFolderIcon',
+  'openGlobalRemoteModal', 'openHelpModal', 'openHexEditor', 'openInPaneWithToast',
+  'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer', 'openNativeRecycleBin',
+  'openNoteDogColorPicker', 'openNoteDogMigrationMenu', 'openNoteDogNewMenu',
+  'openNoteDogTemplatePicker', 'openNoteDogVersionsModal', 'openNoteForContextItem',
+  'openPaneFavoritesMenu', 'openPaneSettingsMenu', 'openPaneTabContextMenu', 'openPaneToolsMenu',
+  'openPaneTransferMenu', 'openParanoidSettings', 'openPathInActivePane',
+  'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
+  'openPropertiesColorTab', 'openRemoteModal', 'openSaveCurrentSyncAsProfile', 'openSearchModal',
+  'openSettingsModal', 'openSettingsTab', 'openShareLogs', 'openSharesManager',
+  'openSplitterFilePicker', 'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal',
+  'openSyncthingModal', 'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath',
+  'openTetraDog', 'openUserProfileModal', 'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes',
+  'pingFleetNode', 'playMediaPlaylistItem', 'populateMediaPlaylistFromActivePane',
+  'printDocViewer', 'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNoteDogFolder',
+  'promptChangeNoteSection', 'promptClearTetraDogScores', 'promptCreateNote',
+  'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
+  'promptEmptyTrash', 'promptToggleEncryptNotebook', 'promptToggleEncryptSection',
+  'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshDiskUsageView',
+  'refreshDocViewerText', 'refreshFolderTree', 'refreshPane', 'refreshTetraDogLeaderboard',
+  'reloadPropertiesMetadata', 'reloadRenamerFiles', 'reloadTagEditorFiles', 'removeCombinePart',
+  'removeCustomExclusionTag', 'removeCustomFileIconRule', 'removeElementById', 'removeModalTag',
+  'removeNoteTag', 'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag',
+  'removeTagCoverArt', 'renderAvatarById', 'renderHexEditorView', 'renderKeybindingsTable',
+  'replaceAllMatches', 'replaceCurrentMatch', 'resetAllColumnWidths', 'resetAvatarToDefault',
+  'resetCadCamera', 'resetFileTemplatesToDefault', 'resetFleetNodeForm', 'resetGlobalFolderIcon',
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'restartTetraDogGame', 'restoreConverterModal',
-  'restoreFloatingCadStudio', 'restoreFloatingCalculator', 'restoreFloatingDiff',
-  'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
-  'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
-  'restoreFloatingNoteDog', 'restoreFloatingPdf', 'restoreFloatingRenamer',
-  'restoreFloatingShares', 'restoreFloatingSplitter', 'restoreFloatingTagEditor',
-  'restoreSelectedNoteDogVersion', 'restoreSelectedTrashItems', 'restoreTetraDog',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'restartTetraDogGame',
+  'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingCalculator',
+  'restoreFloatingDiff', 'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder',
+  'restoreFloatingEditor', 'restoreFloatingHexEditor', 'restoreFloatingLogViewer',
+  'restoreFloatingMediaPlayer', 'restoreFloatingNoteDog', 'restoreFloatingPdf',
+  'restoreFloatingRenamer', 'restoreFloatingShares', 'restoreFloatingSplitter',
+  'restoreFloatingTagEditor', 'restoreFloatingTaskManager', 'restoreSelectedNoteDogVersion',
+  'restoreSelectedTrashItems', 'restoreTetraDog', 'resumeAllTasks', 'resumeTask',
   'resumeTetraDogGame', 'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
-  'runBackupProfileNow', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runPredefinedAction',
-  'runPropertiesStatsScan', 'runToolsMenuChewtoy', 'runToolsMenuItem', 'saveActiveEditorTab',
-  'saveActiveNoteDogNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
-  'saveBackupProfileForm', 'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault',
-  'saveCustomBrowserTheme', 'saveCustomShellAction', 'saveCustomTrashDir', 'saveFleetNodeProfile',
-  'saveGlobalFolderIcon', 'saveHexEditorChanges', 'saveMasterConfigFile', 'saveModalTags',
+  'runBackupProfileNow', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runGlobalSearch',
+  'runPredefinedAction', 'runPropertiesStatsScan', 'runToolsMenuChewtoy', 'runToolsMenuItem',
+  'saveActiveEditorTab', 'saveActiveNoteDogNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
+  'saveBackupProfileForm', 'saveBookmarkFromModal', 'saveCapturedKeybind',
+  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
+  'saveCustomShellAction', 'saveCustomTrashDir', 'saveFleetNodeProfile', 'saveGlobalFolderIcon',
+  'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile', 'saveModalTags',
   'saveNoteDogFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
-  'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTetraDogAliasFromInput',
-  'saveTetraDogPlayerAlias', 'saveUserProfile', 'saveUserRbac', 'scanMountpointTreemap',
-  'scanPaneForCombineParts', 'scrollViewerToBottom', 'searchHexBytes', 'seekMedia',
-  'selectConverterPickerFile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
+  'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal',
+  'saveTetraDogAliasFromInput', 'saveTetraDogPlayerAlias', 'saveUserProfile', 'saveUserRbac',
+  'scanMountpointTreemap', 'scanPaneForCombineParts', 'scrollViewerToBottom', 'searchHexBytes',
+  'seekMedia', 'selectConverterPickerFile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
   'selectDatabaseSection', 'selectElementText', 'selectFleetColor', 'selectFleetNodeInManager',
-  'selectGlobalFolderPreset', 'selectNoteDogNoteByPath', 'selectNoteDogNotebook',
-  'selectNoteDogSection', 'selectNoteDogVersion', 'selectSyncPickerLocation', 'setActivePane',
-  'setCadCameraView', 'setCadMaterialTheme', 'setCadShadingMode', 'setCadSliceAxis',
-  'setContextFileColor', 'setConverterTargetFormat', 'setCustomAngleInput', 'setDefaultViewMode',
-  'setDiffFilter', 'setDiffSortBy', 'setDiskUsageViewMode', 'setDuplicateFinderPathToActivePane',
-  'setElementText', 'setElementValue', 'setFileDiffMode', 'setFontSizePreset', 'setLogLevelFilter',
+  'selectGitFileDiff', 'selectGlobalFolderPreset', 'selectNoteDogNoteByPath',
+  'selectNoteDogNotebook', 'selectNoteDogSection', 'selectNoteDogVersion',
+  'selectSyncPickerLocation', 'setActivePane', 'setCadCameraView', 'setCadMaterialTheme',
+  'setCadShadingMode', 'setCadSliceAxis', 'setCompressDestToOpposite', 'setContextFileColor',
+  'setConverterTargetFormat', 'setCustomAngleInput', 'setDefaultViewMode', 'setDiffFilter',
+  'setDiffSortBy', 'setDiskUsageViewMode', 'setDuplicateFinderPathToActivePane', 'setElementText',
+  'setElementValue', 'setFileDiffMode', 'setFontSizePreset', 'setLogLevelFilter',
   'setMediaSubtitleTrack', 'setNoteDogStorageMode', 'setNoteDogViewMode',
   'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setPropFileColor',
   'setTaskVerbosity', 'setTetraDogTheme', 'setTetraDogView', 'setTitleTemplatePreset',
   'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf',
-  'showToast', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane', 'startDuplicateScan',
-  'startTetraDogGame', 'styleCheckboxPill', 'submitAddUser', 'submitCreateApiToken',
-  'swapDiffPaths', 'swapPanes', 'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab',
-  'switchDockedEditorTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab',
-  'switchPdfTab', 'switchPropertiesTab', 'switchSettingsTab', 'switchSplitterTab', 'switchSyncTab',
+  'showToast', 'showTouchActionsMenu', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane',
+  'startDuplicateScan', 'startTetraDogGame', 'styleCheckboxPill', 'submitAddUser',
+  'submitCreateApiToken', 'submitRemoteAuth', 'submitUnlockSession', 'swapDiffPaths', 'swapPanes',
+  'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
+  'switchGitTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchPdfTab',
+  'switchPropertiesTab', 'switchSettingsTab', 'switchSplitterTab', 'switchSyncTab',
   'switchToFleetNode', 'syncAdminConfigScroll', 'syncDockedNoteDogInput', 'syncGutterScroll',
-  'syncNoteDogGutter', 'takeCadSnapshot', 'testAndSaveSyncthingConfig', 'testExternalProgram',
-  'testFleetNodeConnection', 'toggleActivateOnHover', 'toggleActiveNotePin',
-  'toggleAllRenamerItems', 'toggleAllRootsCheck', 'toggleBackupProfileActive', 'toggleBranchView',
-  'toggleBrumMascot', 'toggleCadAxes', 'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer',
-  'toggleCadTurntable', 'toggleCalcHistory', 'toggleChewToy', 'toggleColSeparators',
-  'toggleColumnVisibility', 'toggleCompactDates', 'toggleContextColorPalette',
-  'toggleContextSubmenu', 'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator',
-  'toggleDetectFileLocksSetting', 'toggleDiffFoldersFirst', 'toggleDiffShowDotfiles',
-  'toggleDiffSortDir', 'toggleDiskUsageMaximize', 'toggleDocRawRenderMode',
-  'toggleDocViewerFloating', 'toggleDocViewerFullscreen', 'toggleDuplicateFile',
-  'toggleEditorActionsDropdown', 'toggleExclusionChip', 'toggleFKeyBar', 'toggleFileAction',
-  'toggleFileListMultiline', 'toggleFindBar', 'toggleFindOption', 'toggleFleetSwitcherDropdown',
-  'toggleFleetTokenVisibility', 'toggleFloatingTaskManager', 'toggleGlobalDotfiles',
-  'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting', 'toggleHexInspector',
-  'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleImageViewerFloating',
-  'toggleImgTransformDropdown', 'toggleImgWheelMode', 'toggleLayoutMenu', 'toggleLogFollow',
-  'toggleLogViewerInvert', 'toggleMaximizeCadStudio', 'toggleMaximizeDiff',
-  'toggleMaximizeDuplicateFinder', 'toggleMaximizeHexEditor', 'toggleMaximizeLogViewer',
-  'toggleMaximizePdf', 'toggleMaximizeRenamer', 'toggleMaximizeShares', 'toggleMaximizeSplitter',
+  'syncHetznerFields', 'syncNoteDogGutter', 'takeCadSnapshot', 'testAndSaveSyncthingConfig',
+  'testExternalProgram', 'testFleetNodeConnection', 'testRemoteConnection',
+  'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleAllRenamerItems', 'toggleAllRootsCheck',
+  'toggleBackupProfileActive', 'toggleBranchView', 'toggleBrumMascot', 'toggleCadAxes',
+  'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer', 'toggleCadTurntable', 'toggleCalcHistory',
+  'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility', 'toggleCompactDates',
+  'toggleContextColorPalette', 'toggleContextSubmenu', 'toggleCurrentNoteEncryption',
+  'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting', 'toggleDiffFoldersFirst',
+  'toggleDiffShowDotfiles', 'toggleDiffSortDir', 'toggleDiskUsageMaximize',
+  'toggleDocRawRenderMode', 'toggleDocViewerFloating', 'toggleDocViewerFullscreen',
+  'toggleDuplicateFile', 'toggleEditorActionsDropdown', 'toggleExclusionChip', 'toggleFKeyBar',
+  'toggleFileAction', 'toggleFileListMultiline', 'toggleFindBar', 'toggleFindOption',
+  'toggleFleetSwitcherDropdown', 'toggleFleetTokenVisibility', 'toggleFloatingTaskManager',
+  'toggleFolderTree', 'toggleGlobalDotfiles', 'toggleGlobalRefreshButton',
+  'toggleHapticFeedbackSetting', 'toggleHexInspector', 'toggleHideDrive',
+  'toggleHostnameBadgeSetting', 'toggleImageViewerFloating', 'toggleImgTransformDropdown',
+  'toggleImgWheelMode', 'toggleLayoutMenu', 'toggleLogFollow', 'toggleLogViewerInvert',
+  'toggleMaximizeCadStudio', 'toggleMaximizeDiff', 'toggleMaximizeDuplicateFinder',
+  'toggleMaximizeHexEditor', 'toggleMaximizeLogViewer', 'toggleMaximizePdf',
+  'toggleMaximizeRenamer', 'toggleMaximizeShares', 'toggleMaximizeSplitter',
   'toggleMaximizeTagEditor', 'toggleMediaFullscreen', 'toggleMediaMute', 'toggleMediaPiP',
   'toggleMediaPlay', 'toggleMediaPlaylistDrawer', 'toggleMediaShuffle', 'toggleMediaStopOnClose',
   'toggleMediaSubtitlesDropdown', 'toggleMenuItemVisibility', 'toggleMinimizeToTray',
-  'toggleNoteAttachmentsTray', 'toggleNoteDogCreateEncryptedFields', 'toggleNoteDogDrawer',
-  'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll',
-  'togglePaneTree', 'toggleParentClass', 'togglePasswordVisibility', 'togglePdfSplitModeUI',
-  'toggleProfileMenu', 'toggleRenamerItem', 'toggleRevokeShare', 'toggleShowDirTag',
-  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncExclusionsPanel', 'toggleSyncNav',
-  'toggleSyncScroll', 'toggleTailFollow', 'toggleTerminal', 'toggleTetraDogAudio',
-  'toggleTetraDogPlayPause', 'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting',
+  'toggleMountAllUsers', 'toggleNoteAttachmentsTray', 'toggleNoteDogCreateEncryptedFields',
+  'toggleNoteDogDrawer', 'togglePaneFilter', 'togglePaneReordering', 'togglePaneSyncNav',
+  'togglePaneSyncScroll', 'togglePaneTree', 'toggleParentClass', 'togglePasswordVisibility',
+  'togglePdfSplitModeUI', 'toggleProfileMenu', 'toggleRemoteGlobalMountUI', 'toggleRenamerItem',
+  'toggleRevokeShare', 'toggleShowDirTag', 'toggleStartMinimized', 'toggleStickyColHeaders',
+  'toggleSyncExclusionsPanel', 'toggleSyncNav', 'toggleSyncScroll', 'toggleTailFollow',
+  'toggleTerminal', 'toggleTerminalFullscreen', 'toggleTetraDogAudio', 'toggleTetraDogPlayPause',
+  'toggleToolVisibility', 'toggleToolsMenu', 'toggleTrashSetting', 'toggleTreeNodeExpand',
   'toggleUseExtEditor', 'toggleUseExtViewer', 'toggleViewerWordWrap', 'toggleWindowDecorations',
   'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
   'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
   'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
   'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions',
-  'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory', 'triggerEditTagsModal',
-  'triggerEditor', 'triggerExtractHere', 'triggerExtractModal', 'triggerExtractToFolder',
-  'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager', 'triggerImportFleetNodes',
-  'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerNoteAttachmentUpload', 'triggerPaste',
-  'triggerProperties', 'triggerRename', 'triggerServerReload', 'triggerServerRestart',
-  'triggerShare', 'triggerShareDirectory', 'triggerSyncthingScan', 'triggerView',
-  'undoBatchRename', 'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice',
-  'updateAdminConfigCursorStats', 'updateBulkRenamePreview', 'updateBulkRenameUI',
-  'updateCadSlicePlane', 'updateDefaultCopyAction', 'updateHexInspector', 'updateMenuOption',
-  'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview', 'updatePaneTabsMode',
-  'updatePermFromCheckboxes', 'updatePhoneTabletMaxPanes', 'updatePropPermFromCheckboxes',
-  'updateRenamerPreview', 'updateSplitEstimate', 'updateTetraDogConfig', 'updateTetraDogConfigInt',
-  'useActivePaneItemForConverter', 'useActivePaneItemForSplitter', 'useActivePanePath',
-  'useActivePaneSelectedPdf', 'useFallbackIcon', 'useInactivePanePath', 'writeClipboardText',
-  'zoomBookPage', 'zoomImage',
+  'triggerDownload', 'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory',
+  'triggerEditTagsModal', 'triggerEditor', 'triggerExtractHere', 'triggerExtractModal',
+  'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager',
+  'triggerImportFleetNodes', 'triggerMkdir', 'triggerMove', 'triggerNewFile',
+  'triggerNoteAttachmentUpload', 'triggerOidcLogin', 'triggerPaste', 'triggerProperties',
+  'triggerRename', 'triggerServerReload', 'triggerServerRestart', 'triggerShare',
+  'triggerShareDirectory', 'triggerSyncthingScan', 'triggerView', 'undoBatchRename',
+  'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice', 'updateAdminConfigCursorStats',
+  'updateBulkRenamePreview', 'updateBulkRenameUI', 'updateCadSlicePlane', 'updateCompressExt',
+  'updateDefaultCopyAction', 'updateHexInspector', 'updateMenuOption', 'updateMobileBottomBarMode',
+  'updatePaneCustomGradientPreview', 'updatePaneTabsMode', 'updatePermFromCheckboxes',
+  'updatePhoneTabletMaxPanes', 'updatePropPermFromCheckboxes', 'updateRemoteProtoUI',
+  'updateRenamerPreview', 'updateSplitEstimate', 'updateTemplateLivePreview',
+  'updateTetraDogConfig', 'updateTetraDogConfigInt', 'useActivePaneItemForConverter',
+  'useActivePaneItemForSplitter', 'useActivePanePath', 'useActivePaneSelectedPdf',
+  'useFallbackIcon', 'useInactivePanePath', 'writeClipboardText', 'zoomBookPage', 'zoomImage',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -307,6 +326,7 @@ function runBoundAction(el, type, ev) {
   if (key && ev.key !== key) return;
   const unless = el.getAttribute(`data-${type}-unless`);
   if (unless && ev.target.closest && ev.target.closest(unless)) return;
+  if (el.hasAttribute(`data-${type}-self`) && ev.target !== el) return;
   if (el.hasAttribute(`data-${type}-prevent`)) ev.preventDefault();
   if (el.hasAttribute(`data-${type}-stop`)) ev.stopPropagation();
   const calls = [];
@@ -348,7 +368,7 @@ bindActions(document);
 
 // Content cleaned by DOMPurify (notes, markdown and document previews) is written by users and
 // guests. It must never carry named actions, so the wiring attributes are always removed.
-const ACTION_ATTR_RE = /^data-(on-[a-z]+|[a-z]+-(args|steps|after|stop|prevent|key|unless))$/;
+const ACTION_ATTR_RE = /^data-(on-[a-z]+|[a-z]+-(args|steps|after|stop|prevent|key|unless|self))$/;
 if (typeof DOMPurify !== 'undefined' && DOMPurify.addHook) {
   DOMPurify.addHook('uponSanitizeAttribute', (node, data) => {
     if (ACTION_ATTR_RE.test(data.attrName)) data.keepAttr = false;
@@ -8901,7 +8921,7 @@ async function loadPaneDirectoryTree(paneIndex) {
   sidebar.innerHTML = `
     <div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--border); margin-bottom: 4px;">
       <span style="font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase;">Folders</span>
-      <button class="btn btn-icon btn-xs" onclick="loadPaneDirectoryTree(${paneIndex})" title="Refresh Tree" style="padding: 2px; width: 18px; height: 18px; border: none; background: transparent;"><i data-lucide="rotate-cw" style="width: 11px; height: 11px;"></i></button>
+      <button class="btn btn-icon btn-xs" data-on-click="loadPaneDirectoryTree" data-click-args="${actionArgs((paneIndex))}" title="Refresh Tree" style="padding: 2px; width: 18px; height: 18px; border: none; background: transparent;"><i data-lucide="rotate-cw" style="width: 11px; height: 11px;"></i></button>
     </div>
     <div id="pane-tree-roots-${paneIndex}" style="display: flex; flex-direction: column; gap: 2px;"></div>
   `;
@@ -8939,6 +8959,7 @@ async function loadPaneDirectoryTree(paneIndex) {
   });
 
   if (window.lucide) lucide.createIcons({ root: sidebar });
+  bindActions(sidebar);
 }
 
 function createTreeNodeElement(paneIndex, name, path, iconName = 'folder') {
@@ -8952,12 +8973,13 @@ function createTreeNodeElement(paneIndex, name, path, iconName = 'folder') {
   const row = document.createElement('div');
   row.className = `tree-node-row ${isActive ? 'active' : ''}`;
   row.innerHTML = `
-    <span class="tree-expander" onclick="event.stopPropagation(); toggleTreeNodeExpand(this, ${paneIndex}, ${escapeJsStr(path)})">
+    <span class="tree-expander" data-click-stop data-on-click="toggleTreeNodeExpand" data-click-args="${actionArgs(ACTION_EL, (paneIndex), String((path) ?? ''))}">
       <i data-lucide="chevron-right" style="width: 12px; height: 12px;"></i>
     </span>
     ${treeIconHtml}
     <span class="tree-node-label" title="${escapeHtml(path)}">${escapeHtml(name)}</span>
   `;
+  bindActions(row);
 
   row.onclick = () => {
     loadPaneDirectory(paneIndex, path);
@@ -18979,10 +19001,11 @@ function openUniversalFilePicker(options = {}) {
   const panesList = document.getElementById('converter-picker-panes-list');
   if (panesList) {
     panesList.innerHTML = App.panes.map((p, idx) => `
-      <button type="button" class="btn btn-xs" onclick="navigateConverterPickerPath(${escapeJsStr(p.path || '/')})" title="Pane ${idx + 1} (${p.nodeId || 'local'})">
+      <button type="button" class="btn btn-xs" data-on-click="navigateConverterPickerPath" data-click-args="${actionArgs(String((p.path || '/') ?? ''))}" title="Pane ${idx + 1} (${p.nodeId || 'local'})">
         Pane ${idx + 1}
       </button>
     `).join('');
+    bindActions(panesList);
   }
 
   navigateConverterPickerPath(converterPickerCurrentPath);
@@ -19577,7 +19600,7 @@ function getChewtoyIconUrl(p) {
 function renderToolIconHtml(icon, iconColor = '', size = 18) {
   if (!icon) return `<i data-lucide="wrench" style="width:${size}px; height:${size}px; color: var(--accent, #f59e0b);"></i>`;
   if (icon.startsWith('/') || icon.startsWith('http') || icon.startsWith('assets/') || icon.endsWith('.png') || icon.endsWith('.webp') || icon.endsWith('.svg')) {
-    return `<img src="${escapeHtml(icon)}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; flex-shrink: 0; vertical-align: middle;" onerror="this.src='assets/amber-frameless-apps.webp'">`;
+    return `<img src="${escapeHtml(icon)}" alt="" style="width: ${size}px; height: ${size}px; object-fit: contain; flex-shrink: 0; vertical-align: middle;" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL)}">`;
   }
   const colorStyle = `color: ${iconColor || 'var(--accent, #f59e0b)'};`;
   return `<i data-lucide="${icon}" style="width: ${size}px; height: ${size}px; flex-shrink: 0; ${colorStyle}"></i>`;
@@ -23130,13 +23153,14 @@ async function loadDriveVisibilitySettings() {
     return `
       <label style="display: flex; align-items: center; justify-content: space-between; padding: 6px 10px; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius); cursor: pointer;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <input type="checkbox" ${!isHidden ? 'checked' : ''} onchange="toggleHideDrive(${escapeJsStr(d.path)})" style="cursor: pointer; accent-color: var(--accent);">
+          <input type="checkbox" ${!isHidden ? 'checked' : ''} data-on-change="toggleHideDrive" data-change-args="${actionArgs(String((d.path) ?? ''))}" style="cursor: pointer; accent-color: var(--accent);">
           <span style="font-weight: 500; font-size: 12px; color: ${isHidden ? 'var(--text-dim)' : 'var(--text-main)'}; text-decoration: ${isHidden ? 'line-through' : 'none'};">${escapeHtml(label)}</span>
         </div>
         <span class="badge" style="font-size: 9px; ${isHidden ? 'background: rgba(239,68,68,0.15); color: #ef4444;' : 'background: rgba(16,185,129,0.15); color: #10b981;'}">${isHidden ? 'HIDDEN' : 'VISIBLE'}</span>
       </label>
     `;
   }).join('');
+  bindActions(container);
 }
 
 async function mountUsbDevice(devicePath, paneIndex = 0) {
@@ -23905,9 +23929,10 @@ function initInactivityTracker() {
           const errMsg = document.getElementById('unlock-error-msg');
           const passIn = document.getElementById('unlock-password-input');
           if (errMsg) {
-            errMsg.innerHTML = `⚠️ <strong>Session timed out due to inactivity.</strong> Please log in again.<br><button type="button" class="btn btn-sm btn-accent" style="margin-top: 8px; width: 100%; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;" onclick="logout()"><i data-lucide="log-in" style="width: 14px; height: 14px;"></i> Go to Login</button>`;
+            errMsg.innerHTML = `⚠️ <strong>Session timed out due to inactivity.</strong> Please log in again.<br><button type="button" class="btn btn-sm btn-accent" style="margin-top: 8px; width: 100%; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px;" data-on-click="logout"><i data-lucide="log-in" style="width: 14px; height: 14px;"></i> Go to Login</button>`;
             errMsg.style.display = 'block';
             if (window.lucide) lucide.createIcons({ root: errMsg });
+            bindActions(errMsg);
           }
           if (passIn) passIn.disabled = true;
         } else {
@@ -25661,7 +25686,7 @@ async function triggerChecksum() {
     await showAlertDialog({
       title: 'Cryptographic Checksum',
       subtitle: 'SHA-256 Verification',
-      message: `<strong>File:</strong> <code>${escapeHtml(data.path)}</code><br><strong>Size:</strong> ${formatBytes(data.file_size)}<br><br><strong>SHA-256 Hash:</strong><br><input type="text" class="input" readonly value="${data.hash}" style="width: 100%; font-family: var(--font-mono); margin-top: 6px; font-size: 11px; box-sizing: border-box;" onclick="this.select(); navigator.clipboard.writeText('${data.hash}'); showToast('Hash copied to clipboard!', 'success');">`,
+      message: `File: ${data.path}\nSize: ${formatBytes(data.file_size)}\n\nSHA-256 Hash:\n${data.hash}`,
       icon: 'shield-check',
       type: 'info',
       okText: 'Done',
@@ -30698,6 +30723,7 @@ function renderFloatingTaskManager(list) {
         <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(activeCurrentFile)}</div>
         ${activeCurHash ? `<div style="font-size: 9.5px; color: #a3e635; font-family: var(--font-mono); margin-top: 2px;">🔑 ${escapeHtml(activeCurHash)}</div>` : ''}
       `;
+      bindActions(curNameEl);
     }
     if (curSpeedEl) curSpeedEl.textContent = activeSpeed > 0 ? `${formatBytes(activeSpeed)}/s` : '';
     const filePct = activeCurTotal > 0 ? Math.min(100, Math.round((activeCurBytes / activeCurTotal) * 100)) : (running.length > 0 ? 50 : 0);
@@ -30712,6 +30738,7 @@ function renderFloatingTaskManager(list) {
           <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">All operations completed</div>
           ${lastHash ? `<div style="font-size: 9.5px; color: #a3e635; font-family: var(--font-mono); margin-top: 2px;">🔑 ${escapeHtml(lastHash)}</div>` : ''}
         `;
+        bindActions(curNameEl);
       } else {
         curNameEl.textContent = running.length === 0 ? 'No active file transfer' : 'Processing file transfer...';
       }
@@ -30757,7 +30784,7 @@ function renderFloatingTaskManager(list) {
                 </div>
               ` : ''}
               ${safeErr ? `
-                <div class="task-queue-error-box" onclick="copyTextToClipboard(decodeURIComponent('${encodeURIComponent(safeErr)}'), 'Fault message copied to clipboard!')" title="Click to copy full fault message">
+                <div class="task-queue-error-box" data-on-click="copyTextToClipboard" data-click-args="${actionArgs(safeErr, 'Fault message copied to clipboard!')}" title="Click to copy full fault message">
                   <i data-lucide="alert-circle" style="width: 12px; height: 12px; flex-shrink: 0; margin-top: 2px; color: var(--danger);"></i>
                   <span style="flex: 1; word-break: break-all; font-family: monospace;">${escapeHtml(safeErr)}</span>
                   <span style="font-size: 9px; opacity: 0.9; text-decoration: underline; white-space: nowrap;">📋 Copy</span>
@@ -30766,18 +30793,19 @@ function renderFloatingTaskManager(list) {
             </div>
             <div style="display: flex; gap: 4px; align-items: center; flex-shrink: 0;">
               ${isRunning ? `
-                <button class="btn btn-sm btn-icon" onclick="pauseTask('${t.id}')" title="Pause"><i data-lucide="pause" style="width: 11px; height: 11px;"></i></button>
-                <button class="btn btn-sm btn-icon btn-danger" onclick="cancelTask('${t.id}')" title="Cancel"><i data-lucide="x" style="width: 11px; height: 11px;"></i></button>
+                <button class="btn btn-sm btn-icon" data-on-click="pauseTask" data-click-args="${actionArgs(`${t.id}`)}" title="Pause"><i data-lucide="pause" style="width: 11px; height: 11px;"></i></button>
+                <button class="btn btn-sm btn-icon btn-danger" data-on-click="cancelTask" data-click-args="${actionArgs(`${t.id}`)}" title="Cancel"><i data-lucide="x" style="width: 11px; height: 11px;"></i></button>
               ` : (isPaused ? `
-                <button class="btn btn-sm btn-icon" onclick="resumeTask('${t.id}')" title="Resume"><i data-lucide="play" style="width: 11px; height: 11px;"></i></button>
-                <button class="btn btn-sm btn-icon btn-danger" onclick="cancelTask('${t.id}')" title="Cancel"><i data-lucide="x" style="width: 11px; height: 11px;"></i></button>
+                <button class="btn btn-sm btn-icon" data-on-click="resumeTask" data-click-args="${actionArgs(`${t.id}`)}" title="Resume"><i data-lucide="play" style="width: 11px; height: 11px;"></i></button>
+                <button class="btn btn-sm btn-icon btn-danger" data-on-click="cancelTask" data-click-args="${actionArgs(`${t.id}`)}" title="Cancel"><i data-lucide="x" style="width: 11px; height: 11px;"></i></button>
               ` : (t.status === 'failed' ? `
-                <button class="btn btn-sm btn-icon btn-danger" onclick="copyTextToClipboard(decodeURIComponent('${encodeURIComponent(safeErr)}'), 'Fault message copied!')" title="Copy Fault Message"><i data-lucide="copy" style="width: 11px; height: 11px;"></i></button>
+                <button class="btn btn-sm btn-icon btn-danger" data-on-click="copyTextToClipboard" data-click-args="${actionArgs(safeErr, 'Fault message copied!')}" title="Copy Fault Message"><i data-lucide="copy" style="width: 11px; height: 11px;"></i></button>
               ` : '✓'))}
             </div>
           </div>
         `;
       }).join('');
+      bindActions(queueList);
     }
   }
 
@@ -36866,10 +36894,11 @@ async function runGlobalSearch() {
       <td class="file-cell-mono">${item.is_dir ? '<DIR>' : formatBytes(item.size)}</td>
       <td class="file-cell-mono">${item.modified ? formatDate(item.modified) : '-'}</td>
       <td>
-        <button class="btn btn-icon" onclick="jumpToSearchResult(${escapeJsStr(item.path)}, ${item.is_dir})" title="Open / Jump"><i data-lucide="external-link" style="width:12px;"></i></button>
+        <button class="btn btn-icon" data-on-click="jumpToSearchResult" data-click-args="${actionArgs(String((item.path) ?? ''), (item.is_dir))}" title="Open / Jump"><i data-lucide="external-link" style="width:12px;"></i></button>
       </td>
     </tr>
   `).join('');
+  bindActions(tbody);
 
   if (window.lucide) lucide.createIcons();
 }
@@ -36987,7 +37016,7 @@ function renderPaneBranchLoading(paneIndex) {
             <i data-lucide="loader" class="spin" style="width: 24px; height: 24px; color: var(--accent); margin-bottom: 10px;"></i>
             <div style="font-weight: 600; font-size: 13px; color: var(--text-main);">Scanning subdirectories recursively...</div>
             <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Flat Branch View (Ctrl+B)</div>
-            <button class="btn btn-xs" style="margin-top: 14px; padding: 3px 10px; border-color: rgba(245, 158, 11, 0.4); color: var(--accent);" onclick="cancelBranchScan(${paneIndex})">
+            <button class="btn btn-xs" style="margin-top: 14px; padding: 3px 10px; border-color: rgba(245, 158, 11, 0.4); color: var(--accent);" data-on-click="cancelBranchScan" data-click-args="${actionArgs((paneIndex))}">
               ✕ Cancel Scan
             </button>
           </div>
@@ -36995,6 +37024,7 @@ function renderPaneBranchLoading(paneIndex) {
       </tr>
     `;
     if (window.lucide) lucide.createIcons();
+    bindActions(tbody);
   }
 }
 
@@ -38421,6 +38451,7 @@ function renderSpotlightResults() {
         <div style="font-size: 11px; margin-top: 4px;">Try typing a path (e.g. <code>/etc</code>), action, or <code>/text</code> to grep in-file content.</div>
       </div>
     `;
+    bindActions(container);
     return;
   }
 
@@ -38442,7 +38473,7 @@ function renderSpotlightResults() {
     }
 
     return `
-      <div class="spotlight-item ${isSelected ? 'selected' : ''}" data-index="${idx}" onclick="executeSpotlightIndex(${idx})">
+      <div class="spotlight-item ${isSelected ? 'selected' : ''}" data-index="${idx}" data-on-click="executeSpotlightIndex" data-click-args="${actionArgs((idx))}">
         <div class="spotlight-item-icon">
           ${isImgIcon ? `<img src="${it.icon}" alt="" style="width: 16px; height: 16px; object-fit: contain;">` : `<i data-lucide="${it.icon || 'file'}"></i>`}
         </div>
@@ -38455,6 +38486,7 @@ function renderSpotlightResults() {
       </div>
     `;
   }).join('');
+  bindActions(container);
 
   if (window.lucide) lucide.createIcons();
 
@@ -39876,6 +39908,7 @@ function renderDockedTasksForPane(paneIndex, list) {
         <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(activeCurrentFile)}</div>
         ${activeCurHash ? `<div style="font-size: 9px; color: #a3e635; font-family: var(--font-mono); margin-top: 2px;">🔑 ${escapeHtml(activeCurHash)}</div>` : ''}
       `;
+      bindActions(curNameEl);
     }
     if (curSpeedEl) curSpeedEl.textContent = activeSpeed > 0 ? `${formatBytes(activeSpeed)}/s` : '';
     const filePct = activeCurTotal > 0 ? Math.min(100, Math.round((activeCurBytes / activeCurTotal) * 100)) : (running.length > 0 ? 50 : 0);
@@ -39890,6 +39923,7 @@ function renderDockedTasksForPane(paneIndex, list) {
           <div style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">All operations completed</div>
           ${lastHash ? `<div style="font-size: 9px; color: #a3e635; font-family: var(--font-mono); margin-top: 2px;">🔑 ${escapeHtml(lastHash)}</div>` : ''}
         `;
+        bindActions(curNameEl);
       } else {
         curNameEl.textContent = running.length === 0 ? 'No active file transfer' : 'Processing file transfer...';
       }
@@ -39935,16 +39969,17 @@ function renderDockedTasksForPane(paneIndex, list) {
             </div>
             <div style="display: flex; gap: 4px; align-items: center; flex-shrink: 0;">
               ${isRunning ? `
-                <button class="btn btn-xs btn-icon" onclick="pauseTask('${t.id}')" title="Pause"><i data-lucide="pause" style="width: 10px; height: 10px;"></i></button>
-                <button class="btn btn-xs btn-icon btn-danger" onclick="cancelTask('${t.id}')" title="Cancel"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
+                <button class="btn btn-xs btn-icon" data-on-click="pauseTask" data-click-args="${actionArgs(`${t.id}`)}" title="Pause"><i data-lucide="pause" style="width: 10px; height: 10px;"></i></button>
+                <button class="btn btn-xs btn-icon btn-danger" data-on-click="cancelTask" data-click-args="${actionArgs(`${t.id}`)}" title="Cancel"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
               ` : (isPaused ? `
-                <button class="btn btn-xs btn-icon" onclick="resumeTask('${t.id}')" title="Resume"><i data-lucide="play" style="width: 10px; height: 10px;"></i></button>
-                <button class="btn btn-xs btn-icon btn-danger" onclick="cancelTask('${t.id}')" title="Cancel"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
+                <button class="btn btn-xs btn-icon" data-on-click="resumeTask" data-click-args="${actionArgs(`${t.id}`)}" title="Resume"><i data-lucide="play" style="width: 10px; height: 10px;"></i></button>
+                <button class="btn btn-xs btn-icon btn-danger" data-on-click="cancelTask" data-click-args="${actionArgs(`${t.id}`)}" title="Cancel"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
               ` : '')}
             </div>
           </div>
         `;
       }).join('');
+      bindActions(queueList);
       if (window.lucide) lucide.createIcons({ root: queueList });
     }
   }
@@ -40132,11 +40167,11 @@ function renderGitFiles(files) {
     let statusClass = f.is_untracked ? 'untracked' : (f.is_staged ? 'staged' : (f.is_deleted ? 'deleted' : 'modified'));
     let statusChar = f.is_untracked ? '?' : (f.is_deleted ? 'D' : (f.is_staged ? '+' : 'M'));
     let actionBtn = f.is_staged
-      ? `<button class="btn btn-xs" onclick="event.stopPropagation(); gitUnstageFile(${escapeJsStr(f.path)})" title="Unstage file">−</button>`
-      : `<button class="btn btn-xs btn-accent" onclick="event.stopPropagation(); gitStageFile(${escapeJsStr(f.path)})" title="Stage file">+</button>`;
+      ? `<button class="btn btn-xs" data-click-stop data-on-click="gitUnstageFile" data-click-args="${actionArgs(String((f.path) ?? ''))}" title="Unstage file">−</button>`
+      : `<button class="btn btn-xs btn-accent" data-click-stop data-on-click="gitStageFile" data-click-args="${actionArgs(String((f.path) ?? ''))}" title="Stage file">+</button>`;
 
     return `
-      <div class="git-file-row ${currentGitDiffFile === f.path ? 'active' : ''}" onclick="selectGitFileDiff(${escapeJsStr(f.path)}, ${f.is_staged})">
+      <div class="git-file-row ${currentGitDiffFile === f.path ? 'active' : ''}" data-on-click="selectGitFileDiff" data-click-args="${actionArgs(String((f.path) ?? ''), (f.is_staged))}">
         <span style="display: flex; align-items: center; gap: 6px; overflow: hidden;">
           <span class="git-status-char ${statusClass}">${statusChar}</span>
           <span style="font-family: var(--font-mono); text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">${escapeHtml(f.path)}</span>
@@ -40147,6 +40182,7 @@ function renderGitFiles(files) {
       </div>
     `;
   }).join('');
+  bindActions(filesList);
 }
 
 async function selectGitFileDiff(filePath, isStaged) {
