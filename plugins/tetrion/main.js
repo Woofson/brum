@@ -90,21 +90,55 @@ const ARCADE_SRS_KICKS_I = {
   '0->3': [[0, 0], [-1, 0], [2, 0], [-1, 2], [2, -1]],
 };
 
+// Saved data lives in Brum: Chewtoys run sandboxed, without localStorage of their own.
+// Brum sends the saved values with BRUM_READY (context.storage); changes go back over the bridge.
+function createChewtoyStore() {
+  let data = {};
+  let loaded = false;
+  let reqId = 0;
+  const onLoad = [];
+  const send = (action, payload) => {
+    try {
+      window.parent.postMessage({ type: 'BRUM_REQ', reqId: 'store-' + (++reqId), action, payload }, '*');
+    } catch (_) {}
+  };
+  window.addEventListener('message', (e) => {
+    if (e.source !== window.parent || !e.data || typeof e.data !== 'object') return;
+    if ((e.data.type === 'BRUM_READY' || e.data.type === 'BRUM_CONTEXT_UPDATE') && !loaded) {
+      const saved = e.data.context && e.data.context.storage;
+      if (saved && typeof saved === 'object') data = Object.assign({}, saved);
+      loaded = true;
+      onLoad.splice(0).forEach((cb) => { try { cb(); } catch (err) { console.error(err); } });
+    }
+  });
+  return {
+    get: (key) => (Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null),
+    set: (key, value) => { data[key] = String(value); send('storage.set', { key, value: String(value) }); },
+    remove: (key) => { delete data[key]; send('storage.remove', { key }); },
+    // Runs once the saved values have arrived (right away if they already have)
+    onLoad: (cb) => { if (loaded) cb(); else onLoad.push(cb); },
+  };
+}
+
+
+const store = createChewtoyStore();
+
 let arcadeState = {
   initialized: false,
   activeView: 'game',
-  theme: localStorage.getItem('cd_arcade_theme') || localStorage.getItem('cd_tetrion_theme') || localStorage.getItem('cd_tetradog_theme') || 'amber',
-  soundEnabled: localStorage.getItem('cd_arcade_sound') !== '0',
-  volume: parseInt(localStorage.getItem('cd_arcade_vol') || '60', 10),
-  playerAlias: localStorage.getItem('cd_arcade_alias') || localStorage.getItem('cd_tetrion_alias') || localStorage.getItem('cd_tetradog_alias') || '',
+  // Defaults; saved values are applied by applySavedArcadeSettings() once Brum sends them
+  theme: 'amber',
+  soundEnabled: true,
+  volume: 60,
+  playerAlias: '',
   config: {
-    startLevel: parseInt(localStorage.getItem('cd_arcade_start_lvl') || '1', 10),
-    rotationSystem: localStorage.getItem('cd_arcade_rotation') || 'srs',
-    ghostPiece: localStorage.getItem('cd_arcade_ghost') !== '0',
-    das: parseInt(localStorage.getItem('cd_arcade_das') || '133', 10),
-    arr: parseInt(localStorage.getItem('cd_arcade_arr') || '16', 10),
-    scanlines: localStorage.getItem('cd_arcade_scanlines') !== '0',
-    touchControls: localStorage.getItem('cd_arcade_touch_controls') || 'auto',
+    startLevel: 1,
+    rotationSystem: 'srs',
+    ghostPiece: true,
+    das: 133,
+    arr: 16,
+    scanlines: true,
+    touchControls: 'auto',
   },
   game: {
     boardWidth: 10,
@@ -156,13 +190,23 @@ let arcadeState = {
 let arcadeAudioCtx = null;
 let arcadeRafId = null;
 
-function getAuthToken() {
-  try {
-    if (window.parent && window.parent.App && window.parent.App.token) {
-      return window.parent.App.token;
-    }
-  } catch (e) {}
-  return localStorage.getItem('token') || localStorage.getItem('brum_token') || '';
+// Leaderboard requests go through Brum, which adds the user's login ('scores' permission)
+let scoreReqId = 0;
+const pendingScoreRequests = new Map();
+window.addEventListener('message', (e) => {
+  if (e.source !== window.parent || !e.data || e.data.type !== 'BRUM_RES') return;
+  const pending = pendingScoreRequests.get(e.data.reqId);
+  if (!pending) return;
+  pendingScoreRequests.delete(e.data.reqId);
+  if (e.data.error) pending.reject(new Error(e.data.error));
+  else pending.resolve(e.data.result);
+});
+function scoresRequest(action, payload) {
+  return new Promise((resolve, reject) => {
+    const reqId = 'scores-' + (++scoreReqId);
+    pendingScoreRequests.set(reqId, { resolve, reject });
+    window.parent.postMessage({ type: 'BRUM_REQ', reqId, action, payload }, '*');
+  });
 }
 
 function escapeHtml(str) {
@@ -331,7 +375,7 @@ function setArcadeView(viewName) {
 
 function setArcadeTheme(theme) {
   arcadeState.theme = theme;
-  localStorage.setItem('cd_arcade_theme', theme);
+  store.set('theme', theme);
   applyArcadeTheme();
 }
 
@@ -349,7 +393,7 @@ function applyArcadeTheme() {
 
 function toggleArcadeAudio() {
   arcadeState.soundEnabled = !arcadeState.soundEnabled;
-  localStorage.setItem('cd_arcade_sound', arcadeState.soundEnabled ? '1' : '0');
+  store.set('sound', arcadeState.soundEnabled ? '1' : '0');
 
   const icon = document.getElementById('icon-arcade-audio');
   const btn = document.getElementById('btn-arcade-audio');
@@ -369,33 +413,82 @@ function toggleArcadeAudio() {
   if (chk) chk.checked = arcadeState.soundEnabled;
 }
 
+// Applies the values saved in Brum and shows them in the settings view
+function applySavedArcadeSettings() {
+  const num = (key, fallback) => {
+    const n = parseInt(store.get(key), 10);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  arcadeState.theme = store.get('theme') || arcadeState.theme;
+  arcadeState.soundEnabled = store.get('sound') !== '0';
+  arcadeState.volume = num('vol', arcadeState.volume);
+  arcadeState.playerAlias = store.get('alias') || '';
+  const c = arcadeState.config;
+  c.startLevel = num('start_lvl', c.startLevel);
+  c.rotationSystem = store.get('rotation') || c.rotationSystem;
+  c.ghostPiece = store.get('ghost') !== '0';
+  c.das = num('das', c.das);
+  c.arr = num('arr', c.arr);
+  c.scanlines = store.get('scanlines') !== '0';
+  c.touchControls = store.get('touch_controls') || c.touchControls;
+
+  const setValue = (id, value) => { const el = document.getElementById(id); if (el) el.value = value; };
+  const setChecked = (id, value) => { const el = document.getElementById(id); if (el) el.checked = !!value; };
+  const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+  setValue('arcade-cfg-start-level', c.startLevel);
+  setValue('arcade-cfg-rotation', c.rotationSystem);
+  setChecked('arcade-cfg-ghost', c.ghostPiece);
+  setValue('arcade-cfg-das', c.das);
+  setText('arcade-das-val', c.das);
+  setValue('arcade-cfg-arr', c.arr);
+  setText('arcade-arr-val', c.arr);
+  setValue('arcade-cfg-touch-ctrl', c.touchControls);
+  setChecked('arcade-cfg-scanlines', c.scanlines);
+  setChecked('arcade-cfg-sound', arcadeState.soundEnabled);
+  setValue('arcade-cfg-volume', arcadeState.volume);
+  setText('arcade-vol-val', arcadeState.volume);
+  setValue('arcade-player-alias', arcadeState.playerAlias);
+  const scanlinesEl = document.getElementById('arcade-scanlines');
+  if (scanlinesEl) scanlinesEl.style.display = c.scanlines ? 'block' : 'none';
+  if (arcadeState.game && arcadeState.game.status === 'ready') {
+    arcadeState.game.level = c.startLevel;
+  }
+
+  applyArcadeTheme();
+  applyViewportAndControls();
+}
+store.onLoad(applySavedArcadeSettings);
+
 function updateArcadeConfig(key, val) {
   arcadeState.config[key] = val;
-  if (key === 'startLevel') {
-    localStorage.setItem('cd_arcade_start_lvl', val);
+  if (key === 'soundEnabled') {
+    arcadeState.soundEnabled = !!val;
+    store.set('sound', val ? '1' : '0');
+  } else if (key === 'startLevel') {
+    store.set('start_lvl', val);
     if (arcadeState.game.status === 'ready') {
       arcadeState.game.level = val;
       updateArcadeHeaderAndStats();
     }
   } else if (key === 'rotationSystem') {
-    localStorage.setItem('cd_arcade_rotation', val);
+    store.set('rotation', val);
   } else if (key === 'ghostPiece') {
-    localStorage.setItem('cd_arcade_ghost', val ? '1' : '0');
+    store.set('ghost', val ? '1' : '0');
     renderArcadeCanvas();
   } else if (key === 'das') {
-    localStorage.setItem('cd_arcade_das', val);
+    store.set('das', val);
   } else if (key === 'arr') {
-    localStorage.setItem('cd_arcade_arr', val);
+    store.set('arr', val);
   } else if (key === 'scanlines') {
-    localStorage.setItem('cd_arcade_scanlines', val ? '1' : '0');
+    store.set('scanlines', val ? '1' : '0');
     const scanlinesEl = document.getElementById('arcade-scanlines');
     if (scanlinesEl) scanlinesEl.style.display = val ? 'block' : 'none';
   } else if (key === 'volume') {
     arcadeState.volume = val;
-    localStorage.setItem('cd_arcade_vol', val);
+    store.set('vol', val);
   } else if (key === 'touchControls') {
     arcadeState.config.touchControls = val;
-    localStorage.setItem('cd_arcade_touch_controls', val);
+    store.set('touch_controls', val);
     applyViewportAndControls();
   }
 }
@@ -1397,17 +1490,10 @@ async function loadArcadeLeaderboard(mode = 'marathon', showLoading = true) {
   }
 
   const userOnly = arcadeState.leaderboard.scope === 'mine';
-  const token = getAuthToken();
-  const url = `/api/chewtoys/tetrion/scores?mode=${encodeURIComponent(mode)}&user_only=${userOnly}&limit=50`;
 
   try {
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const resp = await fetch(url, { headers });
-
-    if (resp.ok) {
-      const data = await resp.json();
+    const data = await scoresRequest('scores.get', { mode, userOnly, limit: 50 });
+    {
       arcadeState.leaderboard.list = data.leaderboard || [];
       arcadeState.leaderboard.userStats = data.user_stats || null;
 
@@ -1417,11 +1503,9 @@ async function loadArcadeLeaderboard(mode = 'marathon', showLoading = true) {
       }
 
       renderArcadeLeaderboard(data);
-    } else {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Failed to load scores (${resp.status})</td></tr>`;
     }
   } catch (e) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Error connecting to leaderboard API: ${e}</td></tr>`;
+    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--danger); padding: 20px;">Could not load scores: ${escapeHtml(e.message || String(e))}</td></tr>`;
   }
 }
 
@@ -1488,35 +1572,24 @@ function refreshArcadeLeaderboard() {
 function saveArcadePlayerAlias(alias) {
   const clean = alias.trim();
   arcadeState.playerAlias = clean;
-  localStorage.setItem('cd_arcade_alias', clean);
-  localStorage.setItem('cd_tetrion_alias', clean);
+  store.set('alias', clean);
 }
 
 async function submitArcadeScore(score, lines, level, duration, mode) {
   if (score <= 0) return;
 
   const playerAlias = arcadeState.playerAlias || '';
-  const token = getAuthToken();
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const resp = await fetch('/api/chewtoys/tetrion/scores', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({
-        score,
-        lines_cleared: lines,
-        level,
-        duration_seconds: duration,
-        mode,
-        player_name: playerAlias
-      })
+    const result = await scoresRequest('scores.submit', {
+      score,
+      lines_cleared: lines,
+      level,
+      duration_seconds: duration,
+      mode,
+      player_name: playerAlias
     });
-
-    if (resp.ok) {
-      const result = await resp.json();
+    {
       const rankBanner = document.getElementById('arcade-rank-banner');
       const rankText = document.getElementById('arcade-rank-text');
 
@@ -1546,17 +1619,9 @@ async function submitArcadeScore(score, lines, level, duration, mode) {
 async function promptClearArcadeScores() {
   if (!confirm('Are you sure you want to reset your high scores?')) return;
 
-  const token = getAuthToken();
   try {
-    const headers = {};
-    if (token) headers['Authorization'] = `Bearer ${token}`;
-
-    const resp = await fetch('/api/tools/tetrion/scores', {
-      method: 'DELETE',
-      headers
-    });
-
-    if (resp.ok) {
+    await scoresRequest('scores.clear');
+    {
       arcadeState.game.highScore = 0;
       updateArcadeHeaderAndStats();
       loadArcadeLeaderboard(arcadeState.leaderboard.mode);
@@ -1624,7 +1689,7 @@ window.addEventListener('message', (event) => {
       const win = document.getElementById('arcade-app-window');
       if (win) win.classList.toggle('docked-mode', !!ctx.isDocked);
     }
-    if (ctx.theme && !localStorage.getItem('cd_arcade_theme')) {
+    if (ctx.theme && !(ctx.storage && ctx.storage.theme)) {
       const themeMap = {
         'amber-charcoal': 'amber',
         'charcoal': 'amber',

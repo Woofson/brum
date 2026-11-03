@@ -39490,7 +39490,9 @@ function mountDockedTool(paneIndex) {
           pluginId: pluginId,
           isDocked: true,
           viewport: viewport,
-          isTouch: isTouch
+          isTouch: isTouch,
+          storage: readChewtoyStore(pluginId),
+          capabilities: chewtoyCapabilities(),
         };
         brumLastContext = context;
         if (window.Brum && typeof window.Brum._dispatchReady === 'function') {
@@ -45489,10 +45491,20 @@ window.Brum = {
 
     getTheme: function() {
       const isDark = !document.body.classList.contains('theme-light') && !document.body.classList.contains('theme-zink');
+      const css = getComputedStyle(document.documentElement);
+      // The theme's main colours, for Chewtoys that show or reuse them (e.g. Colours)
+      const palette = {};
+      ['--accent', '--accent-hover', '--accent-dark', '--bg-body', '--bg-main', '--bg-panel', '--bg-header', '--bg-dark',
+       '--bg-hover', '--bg-active', '--bg-selected', '--border', '--border-focus', '--text-main', '--text-muted', '--text-dim',
+       '--success', '--danger', '--info'].forEach(name => {
+        const value = css.getPropertyValue(name).trim();
+        if (value) palette[name] = value;
+      });
       return {
         id: App.theme || 'amber-charcoal',
         isDark: isDark,
-        accent: getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#f59e0b'
+        accent: css.getPropertyValue('--accent').trim() || '#f59e0b',
+        palette,
       };
     },
 
@@ -45546,6 +45558,85 @@ window.Brum = {
     }
   }
 };
+
+// ---------------- CHEWTOY STORAGE ----------------
+// Chewtoys run sandboxed and have no storage of their own. Brum keeps a small store per
+// Chewtoy in this browser, sends it along with BRUM_READY (context.storage), and updates it
+// through the storage.* bridge actions. A Chewtoy can only reach its own store.
+const CHEWTOY_STORE_LIMIT = 256 * 1024;
+
+function chewtoyStoreKey(pluginId) {
+  return `cd_chewtoy_store_${pluginId}`;
+}
+
+function readChewtoyStore(pluginId) {
+  if (!pluginId) return {};
+  try {
+    const data = JSON.parse(localStorage.getItem(chewtoyStoreKey(pluginId)) || '{}');
+    return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+  } catch (_) {
+    return {};
+  }
+}
+
+function writeChewtoyStore(pluginId, data) {
+  const json = JSON.stringify(data);
+  if (json.length > CHEWTOY_STORE_LIMIT) {
+    throw new Error(`Storage limit reached (${Math.round(CHEWTOY_STORE_LIMIT / 1024)} KB per Chewtoy)`);
+  }
+  localStorage.setItem(chewtoyStoreKey(pluginId), json);
+}
+
+// What this browser can do for Chewtoys (sent along with BRUM_READY)
+function chewtoyCapabilities() {
+  return { eyedropper: typeof window.EyeDropper === 'function', clipboard: true };
+}
+
+// Copies text for a Chewtoy, then gives the keyboard back to its frame
+async function chewtoyClipboardWrite(text, frameEl) {
+  let ok = false;
+  try {
+    await navigator.clipboard.writeText(text);
+    ok = true;
+  } catch (_) {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select();
+    try { ok = document.execCommand('copy'); } catch (_) { ok = false; }
+    document.body.removeChild(ta);
+  }
+  try { frameEl?.contentWindow?.focus(); } catch (_) {}
+  if (!ok) throw new Error('The browser did not allow copying');
+  return true;
+}
+
+// Leaderboard requests made for a Chewtoy with the user's own login
+async function chewtoyScoresRequest(method, payload) {
+  const headers = { 'Authorization': `Bearer ${App.token || ''}` };
+  let url = '/api/tools/tetrion/scores';
+  const init = { method, headers };
+  if (method === 'GET') {
+    const q = new URLSearchParams({
+      mode: String(payload?.mode || 'marathon'),
+      user_only: payload?.userOnly ? 'true' : 'false',
+      limit: String(Math.min(Math.max(parseInt(payload?.limit, 10) || 50, 1), 100)),
+    });
+    url += `?${q}`;
+  } else if (method === 'POST') {
+    headers['Content-Type'] = 'application/json';
+    const p = payload || {};
+    init.body = JSON.stringify({
+      score: p.score, lines_cleared: p.lines_cleared, level: p.level,
+      duration_seconds: p.duration_seconds, mode: p.mode, player_name: p.player_name,
+    });
+  }
+  const resp = await fetch(url, init);
+  if (!resp.ok) throw new Error((await resp.text()) || `Request failed (${resp.status})`);
+  return resp.json();
+}
 
 // Listen for PostMessage bridge commands from ChewToy iframes
 window.addEventListener('message', async (e) => {
@@ -45665,6 +45756,59 @@ window.addEventListener('message', async (e) => {
       result = true;
     } else if (action === 'auth.getUser') {
       result = window.Brum.auth.getUser();
+    } else if (action.startsWith('storage.')) {
+      // Only the frame's own, installed Chewtoy: never a fallback id
+      const storeId = frameEl.getAttribute('data-plugin-id');
+      if (!storeId || !plugin || plugin.id !== storeId) {
+        throw new Error('Storage is only available to installed Chewtoys');
+      }
+      const data = readChewtoyStore(storeId);
+      const key = String(payload?.key ?? '');
+      if (key === '__proto__' || key === 'constructor' || key === 'prototype') throw new Error('Invalid storage key');
+      if (action === 'storage.getAll') {
+        result = data;
+      } else if (action === 'storage.get') {
+        result = Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null;
+      } else if (action === 'storage.set') {
+        if (!key) throw new Error('Missing storage key');
+        data[key] = String(payload?.value ?? '');
+        writeChewtoyStore(storeId, data);
+        result = true;
+      } else if (action === 'storage.remove') {
+        delete data[key];
+        writeChewtoyStore(storeId, data);
+        result = true;
+      } else if (action === 'storage.clear') {
+        localStorage.removeItem(chewtoyStoreKey(storeId));
+        result = true;
+      } else {
+        throw new Error(`Unknown action: ${action}`);
+      }
+    } else if (action === 'clipboard.writeText') {
+      if (!hasPerm('clipboard:write')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'clipboard:write' permission`);
+      }
+      const text = String(payload?.text ?? '');
+      if (text.length > 1024 * 1024) throw new Error('Text too long to copy');
+      result = await chewtoyClipboardWrite(text, frameEl);
+    } else if (action === 'ui.pickColor') {
+      if (!hasPerm('ui:eyedropper')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'ui:eyedropper' permission`);
+      }
+      if (typeof window.EyeDropper !== 'function') throw new Error('This browser has no eyedropper');
+      try {
+        const picked = await new window.EyeDropper().open();
+        result = picked?.sRGBHex || null;
+      } catch (_) {
+        result = null; // cancelled with Escape
+      }
+      try { frameEl?.contentWindow?.focus(); } catch (_) {}
+    } else if (action === 'scores.get' || action === 'scores.submit' || action === 'scores.clear') {
+      if (!hasPerm('scores')) {
+        throw new Error(`Permission denied: Chewtoy '${pluginId || 'unknown'}' does not have 'scores' permission`);
+      }
+      const method = action === 'scores.get' ? 'GET' : (action === 'scores.submit' ? 'POST' : 'DELETE');
+      result = await chewtoyScoresRequest(method, payload);
     } else {
       throw new Error(`Unknown action: ${action}`);
     }
@@ -46116,7 +46260,9 @@ function openDynamicChewToy(pluginId, context = null) {
     isDocked: false,
     viewport: viewport,
     isTouch: isTouch,
-    ...(context || {})
+    ...(context || {}),
+    storage: readChewtoyStore(pluginId),
+    capabilities: chewtoyCapabilities(),
   };
 
   brumLastContext = hostContext;

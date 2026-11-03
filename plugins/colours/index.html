@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Colours</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="col-app">
+    <!-- Preview and quick input -->
+    <section class="col-top">
+      <div class="col-preview" id="col-preview" title="Current colour">
+        <div class="col-preview-fill" id="col-preview-fill"></div>
+        <span class="col-gamut-badge" id="col-gamut-badge" hidden>Outside sRGB: nearest shown</span>
+      </div>
+      <div class="col-quick">
+        <input type="text" id="col-input" class="col-text-input" spellcheck="false" autocomplete="off"
+               aria-label="Colour value" title="Type or paste any CSS colour: #f59e0b, rgb(…), hsl(…), oklch(…), rebeccapurple" />
+        <button type="button" class="btn btn-icon" id="col-eyedropper" title="Pick a colour from the screen" hidden>
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></svg>
+        </button>
+        <button type="button" class="btn btn-icon" id="col-fav-toggle" title="Save this colour">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        </button>
+      </div>
+    </section>
+
+    <!-- Colour model tabs and sliders -->
+    <section class="col-panel">
+      <div class="col-tabs" id="col-model-tabs" role="tablist">
+        <button type="button" class="col-tab" data-model="oklch">OKLCH</button>
+        <button type="button" class="col-tab" data-model="hwb">HWB</button>
+        <button type="button" class="col-tab" data-model="hsl">HSL</button>
+        <button type="button" class="col-tab" data-model="hsv">HSV</button>
+        <button type="button" class="col-tab" data-model="rgb">RGB</button>
+      </div>
+      <div class="col-sliders" id="col-sliders"></div>
+    </section>
+
+    <!-- Every format, each with a copy button -->
+    <section class="col-panel">
+      <div class="col-formats" id="col-formats"></div>
+    </section>
+
+    <!-- Tools -->
+    <section class="col-panel col-tools">
+      <div class="col-tabs" id="col-tool-tabs" role="tablist">
+        <button type="button" class="col-tab" data-tool="shades">Shades</button>
+        <button type="button" class="col-tab" data-tool="harmony">Harmony</button>
+        <button type="button" class="col-tab" data-tool="contrast">Contrast</button>
+        <button type="button" class="col-tab" data-tool="saved">Saved</button>
+        <button type="button" class="col-tab" data-tool="brum">Brum</button>
+      </div>
+      <div class="col-tool-body" id="col-tool-body"></div>
+    </section>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>

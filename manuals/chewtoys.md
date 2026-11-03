@@ -11,7 +11,7 @@ Brum's tools come in two kinds:
 | Sharing & backup | Sharing Center, Backup & Sync |
 | Media & documents | 3D Model Viewer (CAD Studio), PDF Studio, Notes, Media Player, Format Converter |
 | Server | Terminal, Fleet Manager |
-| Chewtoys | Tetrion (block-puzzle game) |
+| Chewtoys | Tetrion (block-puzzle game), Calculator, Colours (colour picker) |
 
 For remote storage (SFTP, SMB, NFS, WebDAV, S3, Proton Drive), see the [Remote Protocols guide](protocols.md).
 
@@ -143,6 +143,12 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 * **60 FPS Arcade Engine**: HTML5 canvas rendering driven by a fixed-timestep physics loop.
 * **DAS & ARR Tuning**: Configurable Delayed Auto Shift and Auto Repeat Rate for competitive, instant piece movement.
 * **Guideline Mechanics**: 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and synchronized leaderboard.
+
+### Colours (Modular Chewtoy)
+* **Five colour systems**: OKLCH, HWB, HSL, HSV and RGB, each with sliders, exact number boxes and transparency. In OKLCH, slider gaps show colours a normal screen cannot display.
+* **Any colour in, every format out**: Type or paste hex, `rgb()`, `hsl()`, `hwb()`, `oklch()` or a colour name; copy HEX, RGB, HSL, HWB, OKLCH or HSV with one click.
+* **Tools**: Tints and shades, colour harmonies (complementary, analogous, triadic, split complementary, tetradic), a WCAG contrast check, saved and recently copied colours, and the current Brum theme's colours with "copy as theme variable".
+* **Eyedropper**: Pick a colour from anywhere on screen (Chrome and Edge).
 
 ---
 

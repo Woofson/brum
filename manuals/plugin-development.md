@@ -143,7 +143,16 @@ Always use CSS variables so your Chewtoy automatically adapts when the user swit
 
 ## 5. The `window.Brum` JavaScript SDK
 
-Brum automatically injects the `window.Brum` SDK into every loaded Chewtoy:
+### Sandbox and the message bridge
+Chewtoys run in a sandboxed frame with no origin of their own. Inside it:
+
+* `window.parent.Brum` and other properties of Brum's page cannot be read.
+* `localStorage`, `sessionStorage`, `indexedDB` and cookies are unavailable; touching them throws and stops your script.
+* The browser clipboard and the EyeDropper API are unavailable.
+
+Everything goes through `postMessage`. Send `{ type: "BRUM_REQ", reqId, action, payload }` to `window.parent`; Brum answers with `{ type: "BRUM_RES", reqId, result, error }`. Shortly after your page loads, Brum sends `{ type: "BRUM_READY", context }`. The starter template (section 8) wraps this in a small `window.Brum` client, and the examples below use that client.
+
+`context` includes `activePath`, `selectedFiles`, `theme`, `isDocked`, `viewport`, `storage` (your saved values, see E) and `capabilities` (`{ eyedropper, clipboard }`).
 
 ### A. Lifecycle & Context
 ```javascript
@@ -190,6 +199,27 @@ Brum.window.float();
 // Close window
 Brum.window.close();
 ```
+
+### E. Storage (`storage.*`, no permission needed)
+Each Chewtoy gets its own small key/value store (256 KB, strings only), kept by Brum in the user's browser. No Chewtoy can read another's store. Saved values arrive in `context.storage` with `BRUM_READY`, so read them there at start-up and send changes with:
+
+| Action | Payload | Result |
+| :--- | :--- | :--- |
+| `storage.set` | `{ key, value }` | `true` |
+| `storage.get` | `{ key }` | the value or `null` |
+| `storage.remove` | `{ key }` | `true` |
+| `storage.getAll` | none | object with all values |
+| `storage.clear` | none | `true` |
+
+### F. Clipboard, eyedropper and theme colours
+| Action | Permission | Payload | Result |
+| :--- | :--- | :--- | :--- |
+| `clipboard.writeText` | `clipboard:write` | `{ text }` | `true`, or an error if the browser refused |
+| `ui.pickColor` | `ui:eyedropper` | none | `"#rrggbb"`, or `null` if cancelled. Check `context.capabilities.eyedropper` first; only Chromium-based browsers have one |
+| `ui.getTheme` | none | none | `{ id, isDark, accent, palette }`, where `palette` maps theme variables such as `--accent` to colours |
+
+### G. Leaderboards (`scores` permission)
+`scores.get` (`{ mode, userOnly, limit }`), `scores.submit` (`{ score, lines_cleared, level, duration_seconds, mode, player_name }`) and `scores.clear` use the signed-in user's account. They currently serve the Tetrion leaderboard.
 
 ---
 

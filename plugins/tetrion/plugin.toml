@@ -1,7 +1,7 @@
 [plugin]
 id = "tetrion"
 name = "Tetrion"
-version = "1.0.1"
+version = "1.1.0"
 author = "Bolt J Woofson <bolt@arf.ac>"
 description = "Classic retro falling blocks puzzle Chewtoy with marathon, sprint, and high-score leaderboards."
 homepage = "https://www.arf.ac"
@@ -22,4 +22,4 @@ launchpad_label = "Tetrion"
 shortcut = "Ctrl+Alt+T"
 
 [permissions]
-permissions = ["ui:notify"]
+permissions = ["ui:notify", "scores"]

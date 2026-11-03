@@ -1,10 +1,46 @@
 (function () {
   'use strict';
 
+  // Saved data lives in Brum: Chewtoys run sandboxed, without localStorage of their own.
+  // Brum sends the saved values with BRUM_READY (context.storage); changes go back over the bridge.
+  function createChewtoyStore() {
+    let data = {};
+    let loaded = false;
+    let reqId = 0;
+    const onLoad = [];
+    const send = (action, payload) => {
+      try {
+        window.parent.postMessage({ type: 'BRUM_REQ', reqId: 'store-' + (++reqId), action, payload }, '*');
+      } catch (_) {}
+    };
+    window.addEventListener('message', (e) => {
+      if (e.source !== window.parent || !e.data || typeof e.data !== 'object') return;
+      if ((e.data.type === 'BRUM_READY' || e.data.type === 'BRUM_CONTEXT_UPDATE') && !loaded) {
+        const saved = e.data.context && e.data.context.storage;
+        if (saved && typeof saved === 'object') data = Object.assign({}, saved);
+        loaded = true;
+        onLoad.splice(0).forEach((cb) => { try { cb(); } catch (err) { console.error(err); } });
+      }
+    });
+    return {
+      get: (key) => (Object.prototype.hasOwnProperty.call(data, key) ? data[key] : null),
+      set: (key, value) => { data[key] = String(value); send('storage.set', { key, value: String(value) }); },
+      remove: (key) => { delete data[key]; send('storage.remove', { key }); },
+      // Runs once the saved values have arrived (right away if they already have)
+      onLoad: (cb) => { if (loaded) cb(); else onLoad.push(cb); },
+    };
+  }
+
+  const store = createChewtoyStore();
+
   let calcExpr = '';
   let calcCurrentVal = '0';
   let calcHasEvaluated = false;
-  let calcHistory = JSON.parse(localStorage.getItem('brum_calc_history') || '[]');
+  let calcHistory = [];
+  store.onLoad(() => {
+    try { calcHistory = JSON.parse(store.get('history') || '[]'); } catch (_) { calcHistory = []; }
+    renderHistory();
+  });
 
   // DOM Elements
   const exprDisplay = document.getElementById('calc-expr-display');
@@ -204,7 +240,7 @@
       if (formattedResult !== 'Error') {
         calcHistory.unshift({ expr: fullExpr, val: formattedResult, time: Date.now() });
         if (calcHistory.length > 30) calcHistory.pop();
-        localStorage.setItem('brum_calc_history', JSON.stringify(calcHistory));
+        store.set('history', JSON.stringify(calcHistory));
         renderHistory();
       }
 
@@ -242,21 +278,34 @@
     });
   }
 
+  // Requests to Brum over the bridge (the sandbox blocks direct access to Brum's page)
+  let hostReqId = 0;
+  const pendingHost = new Map();
+  window.addEventListener('message', (e) => {
+    if (e.source !== window.parent || !e.data || e.data.type !== 'BRUM_RES') return;
+    const pending = pendingHost.get(e.data.reqId);
+    if (!pending) return;
+    pendingHost.delete(e.data.reqId);
+    if (e.data.error) pending.reject(new Error(e.data.error));
+    else pending.resolve(e.data.result);
+  });
+  function hostRequest(action, payload) {
+    return new Promise((resolve, reject) => {
+      const reqId = 'calc-' + (++hostReqId);
+      pendingHost.set(reqId, { resolve, reject });
+      window.parent.postMessage({ type: 'BRUM_REQ', reqId, action, payload }, '*');
+    });
+  }
+
   function copyResult() {
     const text = resultInput ? resultInput.value : calcCurrentVal;
-    if (navigator.clipboard) {
-      navigator.clipboard.writeText(text).then(() => {
-        notify('Copied ' + text + ' to clipboard');
-      }).catch(() => {});
-    }
+    hostRequest('clipboard.writeText', { text })
+      .then(() => notify('Copied ' + text + ' to clipboard'))
+      .catch((err) => notify('Could not copy: ' + err.message));
   }
 
   function notify(msg) {
-    if (window.Brum && window.Brum.ui && typeof window.Brum.ui.showToast === 'function') {
-      window.Brum.ui.showToast(msg, 'info');
-    } else if (window.parent && window.parent.Brum && typeof window.parent.Brum.ui?.showToast === 'function') {
-      window.parent.Brum.ui.showToast(msg, 'info');
-    }
+    hostRequest('ui.notify', { message: msg, opts: { type: 'info' } }).catch(() => {});
   }
 
   // Event Listeners
@@ -298,7 +347,7 @@
 
   btnClearHistory?.addEventListener('click', () => {
     calcHistory = [];
-    localStorage.removeItem('brum_calc_history');
+    store.remove('history');
     renderHistory();
   });
 

@@ -1,0 +1,24 @@
+[plugin]
+id = "colours"
+name = "Colours"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Colour picker with OKLCH, HWB, HSL, HSV and RGB, shades, harmonies, contrast check, saved colours and an eyedropper."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.svg"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 440
+default_height = 680
+min_width = 340
+min_height = 480
+
+[integrations]
+launchpad = true
+launchpad_label = "Colours"
+
+[permissions]
+permissions = ["ui:notify", "clipboard:write", "ui:eyedropper"]
