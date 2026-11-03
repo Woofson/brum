@@ -2006,8 +2006,8 @@ body.unsticky-col-headers .file-table th {
 .task-win-controls .btn-task-control,
 .editor-header-right .btn-icon,
 .editor-header-left .btn-icon,
-.notedog-header-actions .btn-icon,
-.notedog-header-left .btn-icon {
+.notes-header-actions .btn-icon,
+.notes-header-left .btn-icon {
   width: 28px !important;
   height: 28px !important;
   min-width: 28px !important;
@@ -2074,14 +2074,14 @@ body.unsticky-col-headers .file-table th {
 .editor-header button:has(svg.lucide-panel-left-close),
 .editor-header button:has(i[data-lucide="x"]),
 .editor-header button:has(svg.lucide-x),
-.notedog-header button:has(i[data-lucide="panel-left-close"]),
-.notedog-header button:has(svg.lucide-panel-left-close),
-.notedog-header button:has(i[data-lucide="minus"]),
-.notedog-header button:has(svg.lucide-minus),
-.notedog-header button:has(i[data-lucide="maximize-2"]),
-.notedog-header button:has(svg.lucide-maximize-2),
-.notedog-header button:has(i[data-lucide="x"]),
-.notedog-header button:has(svg.lucide-x),
+.notes-header button:has(i[data-lucide="panel-left-close"]),
+.notes-header button:has(svg.lucide-panel-left-close),
+.notes-header button:has(i[data-lucide="minus"]),
+.notes-header button:has(svg.lucide-minus),
+.notes-header button:has(i[data-lucide="maximize-2"]),
+.notes-header button:has(svg.lucide-maximize-2),
+.notes-header button:has(i[data-lucide="x"]),
+.notes-header button:has(svg.lucide-x),
 .calc-header-actions button,
 .image-viewer-toolbar button:has(i[data-lucide="picture-in-picture"]),
 .image-viewer-toolbar button:has(svg.lucide-picture-in-picture),
@@ -2130,8 +2130,8 @@ body.unsticky-col-headers .file-table th {
 .terminal-header button svg,
 .editor-header button i,
 .editor-header button svg,
-.notedog-header button i,
-.notedog-header button svg,
+.notes-header button i,
+.notes-header button svg,
 .calc-header-actions button i,
 .calc-header-actions button svg,
 .image-viewer-toolbar button i,
@@ -2181,12 +2181,12 @@ button svg {
 .terminal-header button:not(:has(i[data-lucide="x"])):not(:has(svg.lucide-x)):hover,
 .editor-header button:has(i[data-lucide="panel-left-close"]):hover,
 .editor-header button:has(svg.lucide-panel-left-close):hover,
-.notedog-header button:has(i[data-lucide="panel-left-close"]):hover,
-.notedog-header button:has(svg.lucide-panel-left-close):hover,
-.notedog-header button:has(i[data-lucide="minus"]):hover,
-.notedog-header button:has(svg.lucide-minus):hover,
-.notedog-header button:has(i[data-lucide="maximize-2"]):hover,
-.notedog-header button:has(svg.lucide-maximize-2):hover,
+.notes-header button:has(i[data-lucide="panel-left-close"]):hover,
+.notes-header button:has(svg.lucide-panel-left-close):hover,
+.notes-header button:has(i[data-lucide="minus"]):hover,
+.notes-header button:has(svg.lucide-minus):hover,
+.notes-header button:has(i[data-lucide="maximize-2"]):hover,
+.notes-header button:has(svg.lucide-maximize-2):hover,
 .calc-header-actions button:not(:has(i[data-lucide="x"])):not(:has(svg.lucide-x)):hover,
 .image-viewer-toolbar button:has(i[data-lucide="picture-in-picture"]):hover,
 .image-viewer-toolbar button:has(svg.lucide-picture-in-picture):hover,
@@ -2213,8 +2213,8 @@ button svg {
 .terminal-header button:has(svg.lucide-x):hover,
 .editor-header button:has(i[data-lucide="x"]):hover,
 .editor-header button:has(svg.lucide-x):hover,
-.notedog-header button:has(i[data-lucide="x"]):hover,
-.notedog-header button:has(svg.lucide-x):hover,
+.notes-header button:has(i[data-lucide="x"]):hover,
+.notes-header button:has(svg.lucide-x):hover,
 .calc-header-actions button:has(i[data-lucide="x"]):hover,
 .calc-header-actions button:has(svg.lucide-x):hover,
 .image-viewer-toolbar button:has(i[data-lucide="x"]):hover,
@@ -2236,8 +2236,8 @@ button svg {
 .terminal-header button:hover svg,
 .editor-header button:hover i,
 .editor-header button:hover svg,
-.notedog-header button:hover i,
-.notedog-header button:hover svg,
+.notes-header button:hover i,
+.notes-header button:hover svg,
 .calc-header-actions button:hover i,
 .calc-header-actions button:hover svg,
 .image-viewer-toolbar button:hover i,
@@ -2276,8 +2276,8 @@ button svg {
 .terminal-header button:has(svg.lucide-x):active,
 .editor-header button:has(i[data-lucide="x"]):active,
 .editor-header button:has(svg.lucide-x):active,
-.notedog-header button:has(i[data-lucide="x"]):active,
-.notedog-header button:has(svg.lucide-x):active,
+.notes-header button:has(i[data-lucide="x"]):active,
+.notes-header button:has(svg.lucide-x):active,
 .calc-header-actions button:has(i[data-lucide="x"]):active,
 .calc-header-actions button:has(svg.lucide-x):active,
 .image-viewer-toolbar button:has(i[data-lucide="x"]):active,
@@ -10684,7 +10684,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 /* ==========================================================================
    NOTES & MARKDOWN STUDIO CORE FUNCTION (FLOATING & DOCKED)
    ========================================================================== */
-.floating-notedog-window {
+.floating-notes-window {
   position: fixed;
   top: 55px;
   left: 80px;
@@ -10706,7 +10706,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   user-select: none;
 }
 
-.floating-notedog-window.maximized {
+.floating-notes-window.maximized {
   top: 40px !important;
   left: 0 !important;
   right: 0 !important;
@@ -10717,7 +10717,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   box-shadow: none !important;
 }
 
-.notedog-pill {
+.notes-pill {
   position: fixed;
   bottom: 42px;
   left: 170px;
@@ -10739,20 +10739,20 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: all 0.18s ease;
 }
 
-.notedog-pill:hover {
+.notes-pill:hover {
   transform: translateY(-2px);
   background: #222630;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.8), 0 0 12px rgba(245, 158, 11, 0.3);
 }
 
-.notedog-pill-dirty {
+.notes-pill-dirty {
   width: 6px;
   height: 6px;
   border-radius: 50%;
   background: #f59e0b;
 }
 
-.notedog-header {
+.notes-header {
   padding: 6px 12px;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border);
@@ -10767,22 +10767,22 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   box-sizing: border-box;
 }
 
-.notedog-header:active {
+.notes-header:active {
   cursor: grabbing;
 }
 
-.notedog-header-left,
-.notedog-header-actions {
+.notes-header-left,
+.notes-header-actions {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-wrap: nowrap;
 }
 
-.notedog-header-actions button,
-.notedog-header-actions .btn,
-.notedog-header-left button,
-.notedog-header-left .btn {
+.notes-header-actions button,
+.notes-header-actions .btn,
+.notes-header-left button,
+.notes-header-left .btn {
   height: 28px !important;
   line-height: 26px !important;
   font-size: 11px !important;
@@ -10790,8 +10790,8 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   cursor: pointer;
 }
 
-.notedog-header-actions .btn-icon,
-.notedog-header-left .btn-icon {
+.notes-header-actions .btn-icon,
+.notes-header-left .btn-icon {
   width: 28px !important;
   height: 28px !important;
   min-width: 28px !important;
@@ -10806,22 +10806,22 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   box-sizing: border-box;
 }
 
-.notedog-header-actions .btn-icon i,
-.notedog-header-actions .btn-icon svg,
-.notedog-header-left .btn-icon i,
-.notedog-header-left .btn-icon svg {
+.notes-header-actions .btn-icon i,
+.notes-header-actions .btn-icon svg,
+.notes-header-left .btn-icon i,
+.notes-header-left .btn-icon svg {
   width: 14px;
   height: 14px;
 }
 
-/* Layout switchers in NoteDog Header */
-.notedog-header-actions .layout-btn-group {
+/* Layout switchers in Notes Header */
+.notes-header-actions .layout-btn-group {
   display: flex;
   gap: 3px;
   align-items: center;
 }
 
-.notedog-header-actions .notedog-mode-btn {
+.notes-header-actions .notes-mode-btn {
   width: 28px !important;
   height: 28px !important;
   min-width: 28px !important;
@@ -10838,20 +10838,20 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: all 0.15s ease;
 }
 
-.notedog-header-actions .notedog-mode-btn:hover {
+.notes-header-actions .notes-mode-btn:hover {
   background: var(--bg-hover);
   color: var(--text-main);
   border-color: var(--border-bright);
 }
 
-.notedog-header-actions .notedog-mode-btn.active {
+.notes-header-actions .notes-mode-btn.active {
   background: rgba(245, 158, 11, 0.18) !important;
   color: var(--accent) !important;
   border-color: var(--accent) !important;
   font-weight: 600 !important;
 }
 
-.notedog-badge-tag {
+.notes-badge-tag {
   font-size: 10px;
   font-family: var(--font-mono);
   padding: 2px 8px;
@@ -10865,7 +10865,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   white-space: nowrap;
 }
 
-.notedog-body {
+.notes-body {
   flex: 1;
   display: flex;
   overflow: hidden;
@@ -10873,7 +10873,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   background: var(--bg-panel);
 }
 
-.notedog-sidebar {
+.notes-sidebar {
   width: 280px;
   min-width: 200px;
   max-width: 400px;
@@ -10885,7 +10885,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: width 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.24s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s ease;
 }
 
-.floating-notedog-window.sidebar-collapsed .notedog-sidebar {
+.floating-notes-window.sidebar-collapsed .notes-sidebar {
   width: 0 !important;
   min-width: 0 !important;
   max-width: 0 !important;
@@ -10894,7 +10894,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   pointer-events: none !important;
 }
 
-.notedog-drawer-backdrop {
+.notes-drawer-backdrop {
   display: none;
   position: absolute;
   inset: 0;
@@ -10907,13 +10907,13 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: opacity 0.24s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.notedog-drawer-btn {
+.notes-drawer-btn {
   transition: all 0.15s ease;
 }
 
-.notedog-drawer-btn.active,
-.floating-notedog-window.drawer-open #btn-notedog-drawer-toggle,
-.floating-notedog-window.drawer-open #btn-notedog-workspace-drawer {
+.notes-drawer-btn.active,
+.floating-notes-window.drawer-open #btn-notes-drawer-toggle,
+.floating-notes-window.drawer-open #btn-notes-workspace-drawer {
   background: rgba(245, 158, 11, 0.18) !important;
   color: var(--accent) !important;
   border-color: rgba(245, 158, 11, 0.4) !important;
@@ -10925,31 +10925,31 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   }
 }
 
-.notedog-tier {
+.notes-tier {
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border-bottom: 1px solid var(--border);
 }
 
-.notedog-tier:last-child {
+.notes-tier:last-child {
   border-bottom: none;
   flex: 1;
 }
 
-.notedog-tier-notebooks {
+.notes-tier-notebooks {
   max-height: 140px;
 }
 
-.notedog-tier-sections {
+.notes-tier-sections {
   max-height: 150px;
 }
 
-.notedog-tier-notes {
+.notes-tier-notes {
   flex: 1;
 }
 
-.notedog-tier-header {
+.notes-tier-header {
   padding: 6px 10px;
   background: rgba(0, 0, 0, 0.2);
   display: flex;
@@ -10958,7 +10958,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   border-bottom: 1px solid rgba(255, 255, 255, 0.04);
 }
 
-.notedog-tier-list {
+.notes-tier-list {
   flex: 1;
   overflow-y: auto;
   padding: 4px;
@@ -10967,7 +10967,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   gap: 2px;
 }
 
-.notedog-item {
+.notes-item {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -10983,19 +10983,19 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   white-space: nowrap;
 }
 
-.notedog-item:hover {
+.notes-item:hover {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-bright);
 }
 
-.notedog-item.active {
+.notes-item.active {
   background: rgba(245, 158, 11, 0.15);
   border-color: rgba(245, 158, 11, 0.4);
   color: var(--accent);
   font-weight: 600;
 }
 
-.notedog-item-count {
+.notes-item-count {
   margin-left: auto;
   font-size: 9px;
   color: var(--text-dim);
@@ -11004,7 +11004,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   border-radius: 10px;
 }
 
-.notedog-workspace {
+.notes-workspace {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -11013,7 +11013,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   position: relative;
 }
 
-.notedog-workspace-header {
+.notes-workspace-header {
   padding: 4px 8px;
   background: var(--bg-header);
   border-bottom: 1px solid var(--border);
@@ -11024,16 +11024,16 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   min-height: 34px;
 }
 
-.notedog-workspace-actions {
+.notes-workspace-actions {
   display: flex;
   align-items: center;
   gap: 3px;
   flex-shrink: 0;
 }
 
-.notedog-workspace-actions button,
-.notedog-workspace-actions .btn,
-.notedog-workspace-actions .btn-icon {
+.notes-workspace-actions button,
+.notes-workspace-actions .btn,
+.notes-workspace-actions .btn-icon {
   background: var(--bg-panel);
   border: 1px solid var(--border);
   color: var(--text-muted);
@@ -11057,43 +11057,43 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   flex-shrink: 0;
 }
 
-.notedog-workspace-actions button:hover,
-.notedog-workspace-actions .btn:hover,
-.notedog-workspace-actions .btn-icon:hover {
+.notes-workspace-actions button:hover,
+.notes-workspace-actions .btn:hover,
+.notes-workspace-actions .btn-icon:hover {
   background: var(--bg-hover);
   color: var(--text-main);
   border-color: var(--accent);
 }
 
-.notedog-workspace-actions button i,
-.notedog-workspace-actions button svg,
-.notedog-workspace-actions .btn-icon i,
-.notedog-workspace-actions .btn-icon svg {
+.notes-workspace-actions button i,
+.notes-workspace-actions button svg,
+.notes-workspace-actions .btn-icon i,
+.notes-workspace-actions .btn-icon svg {
   width: 14px;
   height: 14px;
   display: block;
 }
 
-.notedog-workspace-actions #btn-save-notedog.btn-accent,
-.notedog-workspace-actions .btn-accent {
+.notes-workspace-actions #btn-save-notes.btn-accent,
+.notes-workspace-actions .btn-accent {
   background-color: var(--accent) !important;
   color: #121214 !important;
   border-color: var(--accent) !important;
 }
 
-.notedog-workspace-actions #btn-save-notedog.btn-accent:hover,
-.notedog-workspace-actions .btn-accent:hover {
+.notes-workspace-actions #btn-save-notes.btn-accent:hover,
+.notes-workspace-actions .btn-accent:hover {
   background-color: var(--accent-hover) !important;
   border-color: var(--accent-hover) !important;
 }
 
-.notedog-workspace-actions .btn-danger-hover:hover {
+.notes-workspace-actions .btn-danger-hover:hover {
   background: rgba(239, 68, 68, 0.15) !important;
   color: #ef4444 !important;
   border-color: #ef4444 !important;
 }
 
-.notedog-note-title-input {
+.notes-note-title-input {
   font-size: 14px;
   font-weight: 700;
   color: var(--text-bright);
@@ -11105,24 +11105,24 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   flex: 1;
 }
 
-.notedog-note-title-input:hover, .notedog-note-title-input:focus {
+.notes-note-title-input:hover, .notes-note-title-input:focus {
   background: var(--bg-dark);
   border-color: var(--border);
 }
 
-.notedog-save-status {
+.notes-save-status {
   font-size: 10px;
   font-family: var(--font-mono);
   color: var(--text-dim);
   padding: 2px 6px;
 }
 
-.notedog-save-status.unsaved {
+.notes-save-status.unsaved {
   color: #fbbf24;
   font-weight: 600;
 }
 
-.notedog-formatting-bar {
+.notes-formatting-bar {
   padding: 4px 10px;
   background: var(--bg-dark);
   border-bottom: 1px solid var(--border);
@@ -11132,56 +11132,56 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   overflow-x: auto;
 }
 
-.notedog-fmt-sep {
+.notes-fmt-sep {
   width: 1px;
   height: 16px;
   background: var(--border);
   margin: 0 4px;
 }
 
-.notedog-panes-wrapper {
+.notes-panes-wrapper {
   flex: 1;
   display: flex;
   overflow: hidden;
   height: 100%;
 }
 
-.notedog-panes-wrapper.split-mode .notedog-editor-pane {
+.notes-panes-wrapper.split-mode .notes-editor-pane {
   width: 50%;
   border-right: 1px solid var(--border);
 }
 
-.notedog-panes-wrapper.split-mode .notedog-preview-pane {
+.notes-panes-wrapper.split-mode .notes-preview-pane {
   width: 50%;
   display: block;
 }
 
-.notedog-panes-wrapper.edit-mode .notedog-editor-pane {
+.notes-panes-wrapper.edit-mode .notes-editor-pane {
   width: 100%;
   border-right: none;
 }
 
-.notedog-panes-wrapper.edit-mode .notedog-preview-pane {
+.notes-panes-wrapper.edit-mode .notes-preview-pane {
   display: none;
 }
 
-.notedog-panes-wrapper.preview-mode .notedog-editor-pane {
+.notes-panes-wrapper.preview-mode .notes-editor-pane {
   display: none;
 }
 
-.notedog-panes-wrapper.preview-mode .notedog-preview-pane {
+.notes-panes-wrapper.preview-mode .notes-preview-pane {
   width: 100%;
   display: block;
 }
 
-.notedog-pane {
+.notes-pane {
   height: 100%;
   overflow: hidden;
   position: relative;
   display: flex;
 }
 
-.notedog-editor-gutter {
+.notes-editor-gutter {
   width: 38px;
   background: #111318;
   color: var(--text-dim);
@@ -11194,7 +11194,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   border-right: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-.notedog-textarea {
+.notes-textarea {
   flex: 1;
   height: 100%;
   background: #181a1f;
@@ -11209,7 +11209,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   white-space: pre;
 }
 
-.notedog-preview-pane {
+.notes-preview-pane {
   background: var(--bg-panel);
   overflow-y: auto;
   padding: 16px 20px;
@@ -11218,7 +11218,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   flex-direction: column;
 }
 
-.notedog-preview-content {
+.notes-preview-content {
   line-height: 1.6;
   color: var(--text-primary);
   font-size: 13px;
@@ -11226,7 +11226,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   flex: 1;
 }
 
-.notedog-preview-content h1 {
+.notes-preview-content h1 {
   font-size: 20px;
   font-weight: 800;
   color: var(--accent);
@@ -11236,7 +11236,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   padding-bottom: 6px;
 }
 
-.notedog-preview-content h2 {
+.notes-preview-content h2 {
   font-size: 16px;
   font-weight: 700;
   color: var(--text-bright);
@@ -11244,7 +11244,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   margin-bottom: 8px;
 }
 
-.notedog-preview-content h3 {
+.notes-preview-content h3 {
   font-size: 14px;
   font-weight: 600;
   color: var(--accent);
@@ -11252,22 +11252,22 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   margin-bottom: 6px;
 }
 
-.notedog-preview-content p {
+.notes-preview-content p {
   margin-bottom: 10px;
 }
 
-.notedog-preview-content ul, .notedog-preview-content ol {
+.notes-preview-content ul, .notes-preview-content ol {
   padding-left: 20px;
   margin-bottom: 10px;
 }
 
-.notedog-preview-content hr {
+.notes-preview-content hr {
   border: none;
   border-top: 1px solid var(--border);
   margin: 16px 0;
 }
 
-.notedog-preview-content blockquote {
+.notes-preview-content blockquote {
   border-left: 3px solid var(--accent);
   padding: 4px 12px;
   margin: 10px 0;
@@ -11276,7 +11276,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   font-style: italic;
 }
 
-.notedog-preview-content code {
+.notes-preview-content code {
   background: rgba(255, 255, 255, 0.08);
   color: #38bdf8;
   font-family: var(--font-mono);
@@ -11285,7 +11285,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   font-size: 12px;
 }
 
-.notedog-preview-content pre {
+.notes-preview-content pre {
   background: #090a0d;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -11294,13 +11294,13 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   margin: 12px 0;
 }
 
-.notedog-preview-content pre code {
+.notes-preview-content pre code {
   background: transparent;
   padding: 0;
   color: #f1f5f9;
 }
 
-.notedog-task-item {
+.notes-task-item {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -11309,19 +11309,19 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   user-select: none;
 }
 
-.notedog-task-checkbox {
+.notes-task-checkbox {
   width: 14px;
   height: 14px;
   accent-color: var(--accent);
   cursor: pointer;
 }
 
-.notedog-task-text.completed {
+.notes-task-text.completed {
   text-decoration: line-through;
   color: var(--text-dim);
 }
 
-.notedog-mermaid-box {
+.notes-mermaid-box {
   background: #090a0d;
   border: 1px solid var(--border);
   border-radius: 6px;
@@ -11334,7 +11334,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
    DATABASE NOTES & ATTACHMENTS TRAY DESIGN LANGUAGE
    ========================================================================== */
 
-.notedog-storage-mode-bar {
+.notes-storage-mode-bar {
   padding: 4px 6px;
   background: rgba(0, 0, 0, 0.25);
   border-bottom: 1px solid var(--border);
@@ -11344,7 +11344,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   gap: 4px;
 }
 
-.notedog-storage-toggle-group {
+.notes-storage-toggle-group {
   display: flex;
   gap: 2px;
   flex: 1;
@@ -11354,7 +11354,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   border: 1px solid var(--border);
 }
 
-.notedog-storage-btn {
+.notes-storage-btn {
   flex: 1;
   height: 22px;
   font-size: 10px;
@@ -11371,18 +11371,18 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: all 0.12s ease;
 }
 
-.notedog-storage-btn:hover {
+.notes-storage-btn:hover {
   color: var(--text-bright);
   background: rgba(255, 255, 255, 0.05);
 }
 
-.notedog-storage-btn.active {
+.notes-storage-btn.active {
   background: rgba(245, 158, 11, 0.2);
   color: var(--accent);
   font-weight: 700;
 }
 
-.notedog-color-indicator {
+.notes-color-indicator {
   width: 14px;
   height: 14px;
   border-radius: 50%;
@@ -11393,12 +11393,12 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: transform 0.12s ease;
 }
 
-.notedog-color-indicator:hover {
+.notes-color-indicator:hover {
   transform: scale(1.2);
 }
 
-.notedog-cat-chip,
-.notedog-sec-chip {
+.notes-cat-chip,
+.notes-sec-chip {
   font-size: 10px;
   font-weight: 600;
   padding: 1px 6px;
@@ -11410,20 +11410,20 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: all 0.12s ease;
 }
 
-.notedog-cat-chip:hover,
-.notedog-sec-chip:hover {
+.notes-cat-chip:hover,
+.notes-sec-chip:hover {
   background: rgba(245, 158, 11, 0.22);
   border-color: var(--accent);
 }
 
-.notedog-tags-list {
+.notes-tags-list {
   display: flex;
   align-items: center;
   gap: 4px;
   flex-wrap: wrap;
 }
 
-.notedog-tag-chip {
+.notes-tag-chip {
   font-size: 9px;
   padding: 1px 6px;
   border-radius: 10px;
@@ -11436,18 +11436,18 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   font-family: var(--font-mono);
 }
 
-.notedog-tag-chip .del-tag {
+.notes-tag-chip .del-tag {
   cursor: pointer;
   opacity: 0.6;
   font-weight: 700;
 }
 
-.notedog-tag-chip .del-tag:hover {
+.notes-tag-chip .del-tag:hover {
   opacity: 1;
   color: var(--danger);
 }
 
-.notedog-att-badge {
+.notes-att-badge {
   position: absolute;
   top: -2px;
   right: -2px;
@@ -11464,7 +11464,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   justify-content: center;
 }
 
-.notedog-attachments-tray {
+.notes-attachments-tray {
   background: var(--bg-dark);
   border-bottom: 1px solid var(--border);
   padding: 8px;
@@ -11475,19 +11475,19 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   overflow-y: auto;
 }
 
-.notedog-att-tray-header {
+.notes-att-tray-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.notedog-att-tray-body {
+.notes-att-tray-body {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
 }
 
-.notedog-att-card {
+.notes-att-card {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -11500,12 +11500,12 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: all 0.12s ease;
 }
 
-.notedog-att-card:hover {
+.notes-att-card:hover {
   border-color: var(--accent);
   background: var(--bg-hover);
 }
 
-.notedog-att-thumb {
+.notes-att-thumb {
   width: 28px;
   height: 28px;
   border-radius: 4px;
@@ -11517,7 +11517,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   justify-content: center;
 }
 
-.notedog-att-dropzone {
+.notes-att-dropzone {
   padding: 6px 10px;
   border: 1px dashed rgba(245, 158, 11, 0.4);
   border-radius: var(--radius);
@@ -11532,8 +11532,8 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   transition: all 0.15s ease;
 }
 
-.notedog-att-dropzone:hover,
-.notedog-att-dropzone.dragover {
+.notes-att-dropzone:hover,
+.notes-att-dropzone.dragover {
   background: rgba(245, 158, 11, 0.1);
   border-color: var(--accent);
   color: var(--text-bright);
@@ -11554,7 +11554,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 /* 1. Tablet & Phone Unified Non-Floating Rules (max-width: 1024px) */
 @media (max-width: 1024px) {
   /* All floating chewtoys become fixed/fullscreen modals without drag-offsets */
-  .floating-notedog-window,
+  .floating-notes-window,
   .floating-editor-window,
   .floating-tetradog-window,
   .floating-mediaplayer-window,
@@ -11598,7 +11598,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   /* Safe Area Inset Top for all tool & modal headers on mobile/tablet */
   .doc-viewer-header,
   .image-viewer-toolbar,
-  .notedog-header,
+  .notes-header,
   .editor-header,
   .mediaplayer-header,
   .tetradog-header,
@@ -11618,21 +11618,21 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
     box-sizing: border-box !important;
   }
 
-  /* NoteDog sliding collapsible drawer on touch, foldable & tablet viewports (<= 1024px) */
-  .floating-notedog-window .notedog-body {
+  /* Notes sliding collapsible drawer on touch, foldable & tablet viewports (<= 1024px) */
+  .floating-notes-window .notes-body {
     position: relative !important;
     flex: 1 !important;
     overflow: hidden !important;
   }
 
-  .floating-notedog-window .notedog-workspace {
+  .floating-notes-window .notes-workspace {
     display: flex !important;
     width: 100% !important;
     min-width: 0 !important;
     flex: 1 !important;
   }
 
-  .floating-notedog-window .notedog-sidebar {
+  .floating-notes-window .notes-sidebar {
     position: absolute !important;
     top: 0 !important;
     bottom: 0 !important;
@@ -11650,11 +11650,11 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
     will-change: transform;
   }
 
-  .floating-notedog-window.drawer-open .notedog-sidebar {
+  .floating-notes-window.drawer-open .notes-sidebar {
     transform: translateX(0) !important;
   }
 
-  .floating-notedog-window.drawer-open .notedog-drawer-backdrop {
+  .floating-notes-window.drawer-open .notes-drawer-backdrop {
     display: block !important;
     opacity: 1 !important;
     pointer-events: auto !important;
@@ -11674,8 +11674,8 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   }
 
   /* Drag handles use default pointer on touch devices */
-  .notedog-header,
-  .notedog-header-drag-handle,
+  .notes-header,
+  .notes-header-drag-handle,
   .editor-header-drag-handle,
   .calc-header-drag-handle,
   .mediaplayer-header,
@@ -11709,8 +11709,8 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
 @media (max-width: 600px) {
   /* ChewToys & Modals: Icon-Only Branding (hide brand strings) */
   .chewtoy-brand-text,
-  .notedog-header-left span span,
-  .notedog-header-drag-handle span,
+  .notes-header-left span span,
+  .notes-header-drag-handle span,
   .editor-header-left span span,
   .editor-header-drag-handle span,
   .calc-header-left span span,
@@ -11724,33 +11724,33 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
     display: inline-block !important;
   }
 
-  /* NoteDog Phone Layout & Viewport Safeguards */
-  .floating-notedog-window {
+  /* Notes Phone Layout & Viewport Safeguards */
+  .floating-notes-window {
     display: flex;
     flex-direction: column;
   }
 
-  .floating-notedog-window .notedog-header {
+  .floating-notes-window .notes-header {
     padding: 6px 8px !important;
     gap: 4px !important;
     min-height: 40px;
     height: 40px;
   }
 
-  .floating-notedog-window .notedog-header-center {
+  .floating-notes-window .notes-header-center {
     flex: 1;
     min-width: 50px;
     max-width: 160px;
     margin: 0 4px !important;
   }
 
-  .floating-notedog-window .notedog-sidebar {
+  .floating-notes-window .notes-sidebar {
     width: min(300px, 90vw) !important;
     max-width: 90vw !important;
   }
 
-  /* NoteDog Mobile Formatting Bar: horizontal swipe, no wrap, no off-screen spill */
-  .notedog-formatting-bar {
+  /* Notes Mobile Formatting Bar: horizontal swipe, no wrap, no off-screen spill */
+  .notes-formatting-bar {
     overflow-x: auto !important;
     flex-wrap: nowrap !important;
     padding: 4px 6px !important;
@@ -11760,31 +11760,31 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
     -webkit-overflow-scrolling: touch;
   }
 
-  .notedog-formatting-bar::-webkit-scrollbar {
+  .notes-formatting-bar::-webkit-scrollbar {
     display: none !important;
   }
 
-  .notedog-formatting-bar button,
-  .notedog-formatting-bar .btn {
+  .notes-formatting-bar button,
+  .notes-formatting-bar .btn {
     flex-shrink: 0 !important;
   }
 
-  /* NoteDog Panes on Phone: Editor takes 100% in split-mode */
-  .notedog-panes-wrapper.split-mode .notedog-editor-pane {
+  /* Notes Panes on Phone: Editor takes 100% in split-mode */
+  .notes-panes-wrapper.split-mode .notes-editor-pane {
     width: 100% !important;
     border-right: none !important;
   }
 
-  .notedog-panes-wrapper.split-mode .notedog-preview-pane {
+  .notes-panes-wrapper.split-mode .notes-preview-pane {
     display: none !important;
   }
 
-  .notedog-workspace-header {
+  .notes-workspace-header {
     padding: 4px 6px !important;
     gap: 4px !important;
   }
 
-  .notedog-note-title-input {
+  .notes-note-title-input {
     font-size: 13px !important;
     min-width: 0 !important;
     padding: 2px 4px !important;
@@ -12041,7 +12041,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   color: var(--accent);
 }
 
-.notedog-unlock-card {
+.notes-unlock-card {
   position: absolute;
   top: 0;
   left: 0;
@@ -12055,7 +12055,7 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   padding: 20px;
 }
 
-.notedog-unlock-box {
+.notes-unlock-box {
   background: var(--bg-dark);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);

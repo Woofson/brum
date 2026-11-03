@@ -156,8 +156,8 @@
         </button>
         <div class="tools-dropdown-menu" id="tools-dropdown-menu">
           <div class="dropdown-item" data-on-click="openSpotlightModal"><img src="assets/spot.webp" alt="Spot!" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Spot! (Ctrl+K)</div>
-          <div class="dropdown-item" data-on-click="openFloatingNoteDog"><img src="assets/note.webp" alt="Notes" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Notes</div>
-          <div class="dropdown-item" data-on-click="openFloatingNoteDog" data-click-args='["manual://README.md"]'><i data-lucide="book-open" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Manuals & Docs</div>
+          <div class="dropdown-item" data-on-click="openFloatingNotes"><img src="assets/note.webp" alt="Notes" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Notes</div>
+          <div class="dropdown-item" data-on-click="openFloatingNotes" data-click-args='["manual://README.md"]'><i data-lucide="book-open" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Manuals & Docs</div>
           <div class="dropdown-item" data-on-click="openFloatingCalculator"><img src="assets/calc.webp" alt="Calculator" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Calculator</div>
           <div class="dropdown-item" data-on-click="toggleTerminal"><img src="assets/term.webp" alt="Terminal" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Terminal (`)</div>
           <div class="dropdown-item" data-on-click="openFloatingEditor"><img src="assets/edit.webp" alt="Edit" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Edit (F4)</div>
@@ -1432,28 +1432,28 @@
               </div>
             </div>
 
-            <!-- Card 4: NoteDog Notes Directory -->
+            <!-- Card 4: Notes Notes Directory -->
             <div class="settings-group-card">
               <div class="settings-card-header">
                 <h4 class="settings-section-title">
-                  <i data-lucide="notebook-pen"></i> NoteDog Notes Directory
+                  <i data-lucide="notebook-pen"></i> Notes Notes Directory
                 </h4>
               </div>
-              <p class="settings-card-desc">Configure where NoteDog ChewToy and TUI store notebooks, markdown notes, and sections.</p>
+              <p class="settings-card-desc">Configure where Notes ChewToy and TUI store notebooks, markdown notes, and sections.</p>
 
               <div class="settings-field">
                 <div style="display: flex; gap: 8px; align-items: center;">
-                  <input type="text" id="setting-notedog-folder" class="settings-input" style="flex: 1; font-family: var(--font-mono);" placeholder="~/Notes" data-on-change="saveNoteDogFolderSetting" data-change-args='[{"$": "value"}]'>
-                  <button type="button" class="btn btn-sm btn-outline" data-on-click="browseNoteDogFolder" title="Use active pane's current path as notes folder" style="height: 28px; white-space: nowrap; display: flex; align-items: center; gap: 5px;">
+                  <input type="text" id="setting-notes-folder" class="settings-input" style="flex: 1; font-family: var(--font-mono);" placeholder="~/Notes" data-on-change="saveNotesFolderSetting" data-change-args='[{"$": "value"}]'>
+                  <button type="button" class="btn btn-sm btn-outline" data-on-click="browseNotesFolder" title="Use active pane's current path as notes folder" style="height: 28px; white-space: nowrap; display: flex; align-items: center; gap: 5px;">
                     <i data-lucide="folder-check" style="width: 13px; height: 13px;"></i> Use Active Pane
                   </button>
                 </div>
-                <div class="settings-field-hint">Also synchronized with <code>config.toml</code> (<code>[notes] notes_folder</code>) and the NoteDog terminal app (<code>~/.config/notedog/notedog.toml</code>).</div>
+                <div class="settings-field-hint">Also synchronized with <code>config.toml</code> (<code>[notes] notes_folder</code>) and the Notes terminal app (<code>~/.config/notes/notes.toml</code>).</div>
               </div>
 
               <div class="settings-field">
                 <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-notedog-show-manuals" data-on-change="setNoteDogManualsShown" data-change-args='[{"$": "checked"}]' checked>
+                  <input type="checkbox" id="setting-notes-show-manuals" data-on-change="setNotesManualsShown" data-change-args='[{"$": "checked"}]' checked>
                   <span>Show Brum manuals in Notes</span>
                 </label>
                 <div class="settings-field-hint">Turn off to keep the built-in help pages out of your notebooks and categories. The manuals stay available from the Help buttons in Settings.</div>
@@ -2567,8 +2567,8 @@
               <div style="font-size: 11px; color: var(--text-dim); margin-top: 2px;">Access all 16 built-in guides and QA test manuals natively in Notes.</div>
             </div>
             <div style="display: flex; gap: 6px;">
-              <button type="button" class="btn btn-sm btn-accent" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openFloatingNoteDog", "manual://README.md"]]'><i data-lucide="book-open"></i> Open Manuals</button>
-              <button type="button" class="btn btn-sm btn-outline" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openFloatingNoteDog", "manual://qa-testing.md"]]'><i data-lucide="flask-conical"></i> QA Manual</button>
+              <button type="button" class="btn btn-sm btn-accent" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openFloatingNotes", "manual://README.md"]]'><i data-lucide="book-open"></i> Open Manuals</button>
+              <button type="button" class="btn btn-sm btn-outline" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openFloatingNotes", "manual://qa-testing.md"]]'><i data-lucide="flask-conical"></i> QA Manual</button>
             </div>
           </div>
         </div>
@@ -3706,183 +3706,183 @@
   </div>
 
   <!-- Floating Notes Studio Window (Chewtoy) -->
-  <div class="floating-notedog-window" id="floating-notedog-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
+  <div class="floating-notes-window" id="floating-notes-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
     <!-- Desktop Resize Handles -->
-    <div class="win-resize-handle win-resize-top" id="notedog-resize-top"></div>
-    <div class="win-resize-handle win-resize-bottom" id="notedog-resize-bottom"></div>
-    <div class="win-resize-handle win-resize-left" id="notedog-resize-left"></div>
-    <div class="win-resize-handle win-resize-right" id="notedog-resize-right"></div>
-    <div class="win-resize-handle win-resize-corner" id="notedog-resize-corner">
+    <div class="win-resize-handle win-resize-top" id="notes-resize-top"></div>
+    <div class="win-resize-handle win-resize-bottom" id="notes-resize-bottom"></div>
+    <div class="win-resize-handle win-resize-left" id="notes-resize-left"></div>
+    <div class="win-resize-handle win-resize-right" id="notes-resize-right"></div>
+    <div class="win-resize-handle win-resize-corner" id="notes-resize-corner">
       <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
     </div>
 
     <!-- 1. Top Header (Draggable) -->
-    <div class="modal-header notedog-header" id="notedog-header">
-      <div class="notedog-header-left" style="display: flex; align-items: center; gap: 6px;">
-        <span class="notedog-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
+    <div class="modal-header notes-header" id="notes-header">
+      <div class="notes-header-left" style="display: flex; align-items: center; gap: 6px;">
+        <span class="notes-header-drag-handle" style="font-weight: 700; display: flex; align-items: center; gap: 6px; cursor: grab;">
           <img src="assets/note.webp" alt="Notes" style="width: 16px; height: 16px; object-fit: contain; vertical-align: middle;">
           <span class="chewtoy-brand-text">Notes</span>
         </span>
       </div>
 
-      <div class="notedog-header-center" style="flex: 1; max-width: 260px; margin: 0 8px; position: relative;">
+      <div class="notes-header-center" style="flex: 1; max-width: 260px; margin: 0 8px; position: relative;">
         <i data-lucide="search" style="position: absolute; left: 8px; top: 50%; transform: translateY(-50%); width: 13px; height: 13px; color: var(--text-dim);"></i>
-        <input type="text" id="notedog-search-input" class="pane-quick-filter" placeholder="Search notes..." style="width: 100%; padding-left: 26px; font-size: 11px; height: 28px; box-sizing: border-box;" data-on-input="handleNoteDogSearch" data-input-args='[{"$": "value"}]'>
+        <input type="text" id="notes-search-input" class="pane-quick-filter" placeholder="Search notes..." style="width: 100%; padding-left: 26px; font-size: 11px; height: 28px; box-sizing: border-box;" data-on-input="handleNotesSearch" data-input-args='[{"$": "value"}]'>
       </div>
 
-      <div class="notedog-header-actions" style="display: flex; align-items: center; gap: 4px;">
+      <div class="notes-header-actions" style="display: flex; align-items: center; gap: 4px;">
         <!-- Notes Explorer Drawer Toggle -->
-        <button type="button" class="btn btn-icon notedog-drawer-btn" id="btn-notedog-drawer-toggle" data-on-click="toggleNoteDogDrawer" title="Toggle Notes Explorer (Sidebar)"><i data-lucide="panel-left"></i></button>
+        <button type="button" class="btn btn-icon notes-drawer-btn" id="btn-notes-drawer-toggle" data-on-click="toggleNotesDrawer" title="Toggle Notes Explorer (Sidebar)"><i data-lucide="panel-left"></i></button>
 
         <!-- 1. Layout Switcher (Desktop Only, Icon-Only, Right-Aligned) -->
-        <div class="layout-btn-group desktop-only" id="notedog-layout-btn-group">
-          <button type="button" class="btn btn-icon notedog-mode-btn" id="notedog-mode-edit" data-on-click="setNoteDogViewMode" data-click-args='["edit"]' title="Editor Only View (1)"><i data-lucide="square"></i></button>
-          <button type="button" class="btn btn-icon notedog-mode-btn active" id="notedog-mode-split" data-on-click="setNoteDogViewMode" data-click-args='["split"]' title="Side-by-Side Split View (2V)"><i data-lucide="columns-2"></i></button>
-          <button type="button" class="btn btn-icon notedog-mode-btn" id="notedog-mode-preview" data-on-click="setNoteDogViewMode" data-click-args='["preview"]' title="Live Markdown Preview (Preview)"><i data-lucide="book-open"></i></button>
+        <div class="layout-btn-group desktop-only" id="notes-layout-btn-group">
+          <button type="button" class="btn btn-icon notes-mode-btn" id="notes-mode-edit" data-on-click="setNotesViewMode" data-click-args='["edit"]' title="Editor Only View (1)"><i data-lucide="square"></i></button>
+          <button type="button" class="btn btn-icon notes-mode-btn active" id="notes-mode-split" data-on-click="setNotesViewMode" data-click-args='["split"]' title="Side-by-Side Split View (2V)"><i data-lucide="columns-2"></i></button>
+          <button type="button" class="btn btn-icon notes-mode-btn" id="notes-mode-preview" data-on-click="setNotesViewMode" data-click-args='["preview"]' title="Live Markdown Preview (Preview)"><i data-lucide="book-open"></i></button>
         </div>
 
         <div class="header-sep desktop-only"></div>
 
         <!-- 2. Action Controls (Icon-Only, Uniform 28px Chewtoy Standard) -->
-        <button class="btn btn-icon btn-accent" data-on-click="openNoteDogNewMenu" data-click-args='[{"$": "event"}]' title="New Notebook, Section or Note (Ctrl+N)"><i data-lucide="plus"></i></button>
-        <button class="btn btn-icon desktop-only" data-on-click="openNoteDogVersionsModal" title="Revision History & Live Diffs"><i data-lucide="history"></i></button>
+        <button class="btn btn-icon btn-accent" data-on-click="openNotesNewMenu" data-click-args='[{"$": "event"}]' title="New Notebook, Section or Note (Ctrl+N)"><i data-lucide="plus"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="openNotesVersionsModal" title="Revision History & Live Diffs"><i data-lucide="history"></i></button>
 
         <div class="header-sep desktop-only"></div>
 
         <!-- 3. Window Controls -->
-        <button class="btn btn-icon desktop-only" data-on-click="dockNoteDogToActivePane" title="Dock NoteDog into Active Pane"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingNoteDog" title="Minimize to Pill"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon desktop-only" data-on-click="maximizeFloatingNoteDog" title="Maximize / Restore Window"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingNoteDog" title="Close NoteDog"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="dockNotesToActivePane" title="Dock Notes into Active Pane"><i data-lucide="panel-left-close"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingNotes" title="Minimize to Pill"><i data-lucide="minus"></i></button>
+        <button class="btn btn-icon desktop-only" data-on-click="maximizeFloatingNotes" title="Maximize / Restore Window"><i data-lucide="maximize-2"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingNotes" title="Close Notes"><i data-lucide="x"></i></button>
       </div>
     </div>
 
-    <!-- 2. NoteDog Body (3-Tier Hierarchy Explorer + Workspace) -->
-    <div class="notedog-body" id="notedog-body">
+    <!-- 2. Notes Body (3-Tier Hierarchy Explorer + Workspace) -->
+    <div class="notes-body" id="notes-body">
       <!-- Touch & Tablet Drawer Backdrop -->
-      <div class="notedog-drawer-backdrop" id="notedog-drawer-backdrop" data-on-click="closeNoteDogDrawer"></div>
+      <div class="notes-drawer-backdrop" id="notes-drawer-backdrop" data-on-click="closeNotesDrawer"></div>
 
       <!-- 3-Tier Sidebar Explorer / Sliding Drawer -->
-      <div class="notedog-sidebar" id="notedog-sidebar">
+      <div class="notes-sidebar" id="notes-sidebar">
         <!-- Storage Mode Selector (Database vs Filesystem) -->
-        <div class="notedog-storage-mode-bar" id="notedog-storage-mode-bar">
-          <div class="notedog-storage-toggle-group">
-            <button type="button" class="notedog-storage-btn active" id="btn-notedog-mode-db" data-on-click="setNoteDogStorageMode" data-click-args='["database"]' title="Persistent SQLite Database (Rich Attachments, Tags, Color Labels, Fast Search)">
+        <div class="notes-storage-mode-bar" id="notes-storage-mode-bar">
+          <div class="notes-storage-toggle-group">
+            <button type="button" class="notes-storage-btn active" id="btn-notes-mode-db" data-on-click="setNotesStorageMode" data-click-args='["database"]' title="Persistent SQLite Database (Rich Attachments, Tags, Color Labels, Fast Search)">
               <i data-lucide="database" style="width: 11px; height: 11px;"></i> <span>Database</span>
             </button>
-            <button type="button" class="notedog-storage-btn" id="btn-notedog-mode-fs" data-on-click="setNoteDogStorageMode" data-click-args='["filesystem"]' title="Filesystem Markdown Files (~/Notes)">
+            <button type="button" class="notes-storage-btn" id="btn-notes-mode-fs" data-on-click="setNotesStorageMode" data-click-args='["filesystem"]' title="Filesystem Markdown Files (~/Notes)">
               <i data-lucide="folder" style="width: 11px; height: 11px;"></i> <span>Filesystem</span>
             </button>
           </div>
-          <button type="button" class="btn btn-icon btn-xs" id="btn-notedog-migration" data-on-click="openNoteDogMigrationMenu" data-click-args='[{"$": "event"}]' title="Migration: Export DB Notes to ~/Notes or Import from ~/Notes">
+          <button type="button" class="btn btn-icon btn-xs" id="btn-notes-migration" data-on-click="openNotesMigrationMenu" data-click-args='[{"$": "event"}]' title="Migration: Export DB Notes to ~/Notes or Import from ~/Notes">
             <i data-lucide="arrow-left-right" style="width: 12px; height: 12px;"></i>
           </button>
         </div>
 
         <!-- Notebooks / Categories Tier -->
-        <div class="notedog-tier notedog-tier-notebooks">
-          <div class="notedog-tier-header">
-            <span style="font-weight: 700; font-size: 10px; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase;" id="notedog-tier1-title">📚 Categories</span>
+        <div class="notes-tier notes-tier-notebooks">
+          <div class="notes-tier-header">
+            <span style="font-weight: 700; font-size: 10px; color: var(--accent); letter-spacing: 0.5px; text-transform: uppercase;" id="notes-tier1-title">📚 Categories</span>
             <div style="display: flex; gap: 2px;">
-              <button class="btn btn-icon btn-xs fs-only" data-on-click="promptChangeNoteDogFolder" title="Change Notes Folder Location"><i data-lucide="folder-cog" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs fs-only" data-on-click="promptChangeNotesFolder" title="Change Notes Folder Location"><i data-lucide="folder-cog" style="width: 11px;"></i></button>
               <button class="btn btn-icon btn-xs fs-only" id="btn-toggle-encrypt-nb" data-on-click="promptToggleEncryptNotebook" title="Encrypt / Decrypt Active Notebook"><i data-lucide="shield" style="width: 11px;"></i></button>
               <button class="btn btn-icon btn-xs" data-on-click="promptCreateNotebookOrCategory" title="Create Notebook / Category"><i data-lucide="folder-plus" style="width: 11px;"></i></button>
-              <button class="btn btn-icon btn-xs mobile-or-tablet-only" data-on-click="closeNoteDogDrawer" title="Close Drawer"><i data-lucide="x" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs mobile-or-tablet-only" data-on-click="closeNotesDrawer" title="Close Drawer"><i data-lucide="x" style="width: 11px;"></i></button>
             </div>
           </div>
-          <div class="notedog-tier-list" id="notedog-notebooks-list"></div>
+          <div class="notes-tier-list" id="notes-notebooks-list"></div>
         </div>
 
         <!-- Sections Tier -->
-        <div class="notedog-tier notedog-tier-sections">
-          <div class="notedog-tier-header">
+        <div class="notes-tier notes-tier-sections">
+          <div class="notes-tier-header">
             <span style="font-weight: 700; font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; text-transform: uppercase;">📂 Sections</span>
             <div style="display: flex; gap: 2px;">
               <button class="btn btn-icon btn-xs fs-only" id="btn-toggle-encrypt-sec" data-on-click="promptToggleEncryptSection" title="Encrypt / Decrypt Active Section"><i data-lucide="shield" style="width: 11px;"></i></button>
               <button class="btn btn-icon btn-xs" data-on-click="promptCreateSection" title="Create Section in Selected Category / Notebook"><i data-lucide="plus" style="width: 11px;"></i></button>
             </div>
           </div>
-          <div class="notedog-tier-list" id="notedog-sections-list"></div>
+          <div class="notes-tier-list" id="notes-sections-list"></div>
         </div>
 
         <!-- Notes Tier -->
-        <div class="notedog-tier notedog-tier-notes">
-          <div class="notedog-tier-header">
+        <div class="notes-tier notes-tier-notes">
+          <div class="notes-tier-header">
             <span style="font-weight: 700; font-size: 10px; color: var(--text-dim); letter-spacing: 0.5px; text-transform: uppercase;">📄 Notes</span>
             <div style="display: flex; gap: 2px;">
               <button class="btn btn-icon btn-xs fs-only" data-on-click="promptCreateNote" data-click-args='[true]' title="Create Encrypted Note (.md.enc)"><i data-lucide="lock" style="width: 11px;"></i></button>
               <button class="btn btn-icon btn-xs" data-on-click="promptCreateNote" data-click-args='[false]' title="Create Plain Note (.md)"><i data-lucide="plus" style="width: 11px;"></i></button>
-              <button class="btn btn-icon btn-xs" data-on-click="openNoteDogTemplatePicker" data-click-args='[{"$": "event"}]' title="New Note from Template"><i data-lucide="file-plus" style="width: 11px;"></i></button>
+              <button class="btn btn-icon btn-xs" data-on-click="openNotesTemplatePicker" data-click-args='[{"$": "event"}]' title="New Note from Template"><i data-lucide="file-plus" style="width: 11px;"></i></button>
             </div>
           </div>
-          <div class="notedog-tier-list" id="notedog-notes-list"></div>
+          <div class="notes-tier-list" id="notes-notes-list"></div>
         </div>
       </div>
 
       <!-- Main Note Workspace -->
-      <div class="notedog-workspace" id="notedog-workspace">
+      <div class="notes-workspace" id="notes-workspace">
         <!-- Note Toolbar -->
-        <div class="notedog-workspace-header">
+        <div class="notes-workspace-header">
           <div style="display: flex; align-items: center; gap: 6px; flex: 1; min-width: 0;">
-            <button type="button" class="btn btn-icon notedog-drawer-btn" id="btn-notedog-workspace-drawer" data-on-click="toggleNoteDogDrawer" title="Toggle Notes Explorer (Sidebar)" style="width: 26px; height: 26px; min-width: 26px; padding: 0;"><i data-lucide="panel-left"></i></button>
+            <button type="button" class="btn btn-icon notes-drawer-btn" id="btn-notes-workspace-drawer" data-on-click="toggleNotesDrawer" title="Toggle Notes Explorer (Sidebar)" style="width: 26px; height: 26px; min-width: 26px; padding: 0;"><i data-lucide="panel-left"></i></button>
             <button type="button" class="btn btn-icon db-only" id="btn-pin-note" data-on-click="toggleActiveNotePin" title="Pin / Unpin Note" style="width: 26px; height: 26px; min-width: 26px; padding: 0;"><i data-lucide="pin" style="width: 13px; height: 13px;"></i></button>
-            <div class="notedog-color-indicator db-only" id="notedog-color-indicator" data-on-click="openNoteDogColorPicker" data-click-args='[{"$": "event"}]' title="Set Note Color Tag"></div>
-            <input type="text" class="notedog-note-title-input" id="notedog-active-title" placeholder="Untitled Note" data-on-change="handleNoteDogTitleChange" data-change-args='[{"$": "value"}]' data-keydown-key="Enter" data-on-keydown="blurElement" data-keydown-args='[{"$": "el"}]'>
-            <span class="notedog-save-status" id="notedog-save-status">Saved</span>
+            <div class="notes-color-indicator db-only" id="notes-color-indicator" data-on-click="openNotesColorPicker" data-click-args='[{"$": "event"}]' title="Set Note Color Tag"></div>
+            <input type="text" class="notes-note-title-input" id="notes-active-title" placeholder="Untitled Note" data-on-change="handleNotesTitleChange" data-change-args='[{"$": "value"}]' data-keydown-key="Enter" data-on-keydown="blurElement" data-keydown-args='[{"$": "el"}]'>
+            <span class="notes-save-status" id="notes-save-status">Saved</span>
           </div>
 
-          <div class="notedog-workspace-actions" style="display: flex; align-items: center; gap: 3px;">
+          <div class="notes-workspace-actions" style="display: flex; align-items: center; gap: 3px;">
             <button class="btn btn-icon fs-only" id="btn-toggle-encrypt-note" data-on-click="toggleCurrentNoteEncryption" title="Encrypt / Decrypt Note (Ctrl+E)"><i data-lucide="lock" id="icon-encrypt-note"></i></button>
-            <button class="btn btn-icon btn-accent" id="btn-save-notedog" data-on-click="saveActiveNoteDogNote" title="Save Note (Ctrl+S)"><i data-lucide="save"></i></button>
-            <button class="btn btn-icon" id="btn-template-notedog" data-on-click="openNoteDogTemplatePicker" data-click-args='[{"$": "event"}]' title="Insert Template"><i data-lucide="layout-template"></i></button>
-            <button class="btn btn-icon btn-danger-hover" id="btn-delete-notedog" data-on-click="promptDeleteCurrentNote" title="Delete Current Note"><i data-lucide="trash-2"></i></button>
+            <button class="btn btn-icon btn-accent" id="btn-save-notes" data-on-click="saveActiveNotesNote" title="Save Note (Ctrl+S)"><i data-lucide="save"></i></button>
+            <button class="btn btn-icon" id="btn-template-notes" data-on-click="openNotesTemplatePicker" data-click-args='[{"$": "event"}]' title="Insert Template"><i data-lucide="layout-template"></i></button>
+            <button class="btn btn-icon btn-danger-hover" id="btn-delete-notes" data-on-click="promptDeleteCurrentNote" title="Delete Current Note"><i data-lucide="trash-2"></i></button>
           </div>
         </div>
 
         <!-- Database Tags & Meta Row (DB Mode) -->
-        <div class="notedog-meta-bar db-only" id="notedog-meta-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 3px 8px; background: rgba(0,0,0,0.18); border-bottom: 1px solid var(--border); font-size: 11px;">
+        <div class="notes-meta-bar db-only" id="notes-meta-bar" style="display: flex; align-items: center; justify-content: space-between; padding: 3px 8px; background: rgba(0,0,0,0.18); border-bottom: 1px solid var(--border); font-size: 11px;">
           <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0;">
-            <span class="notedog-cat-chip" id="notedog-active-cat-chip" data-on-click="promptChangeNoteCategory" title="Click to change category">General</span>
+            <span class="notes-cat-chip" id="notes-active-cat-chip" data-on-click="promptChangeNoteCategory" title="Click to change category">General</span>
             <span style="color: var(--text-dim); font-size: 10px;">/</span>
-            <span class="notedog-sec-chip" id="notedog-active-sec-chip" data-on-click="promptChangeNoteSection" title="Click to change section">Default</span>
-            <div class="notedog-tags-list" id="notedog-tags-list"></div>
+            <span class="notes-sec-chip" id="notes-active-sec-chip" data-on-click="promptChangeNoteSection" title="Click to change section">Default</span>
+            <div class="notes-tags-list" id="notes-tags-list"></div>
             <button class="btn btn-xs btn-outline" data-on-click="promptAddNoteTag" title="Add Tag" style="height: 18px; font-size: 9px; padding: 0 4px; display: inline-flex; align-items: center; gap: 2px;">
               <i data-lucide="tag" style="width: 9px; height: 9px;"></i> + Tag
             </button>
           </div>
           <div style="display: flex; align-items: center; gap: 4px; font-size: 10px; color: var(--text-dim);">
-            <span id="notedog-updated-time" style="font-family: var(--font-mono);"></span>
+            <span id="notes-updated-time" style="font-family: var(--font-mono);"></span>
           </div>
         </div>
 
         <!-- Formatting Helpers Bar -->
-        <div class="notedog-formatting-bar">
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["**", "**", "bold text"]' title="Bold (Ctrl+B)"><i data-lucide="bold" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["*", "*", "italic text"]' title="Italic (Ctrl+I)"><i data-lucide="italic" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["~~", "~~", "strikethrough"]' title="Strikethrough"><i data-lucide="strikethrough" style="width: 12px;"></i></button>
-          <div class="notedog-fmt-sep"></div>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["## ", "", "Heading"]' title="Heading 2"><i data-lucide="heading-2" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["- [ ] ", "", "Task item"]' title="Interactive Task Tickbox"><i data-lucide="check-square" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["- ", "", "List item"]' title="Bullet List"><i data-lucide="list" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["> ", "", "Quote text"]' title="Blockquote"><i data-lucide="quote" style="width: 12px;"></i></button>
-          <div class="notedog-fmt-sep"></div>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMarkdown" data-click-args='["`", "`", "code"]' title="Inline Code"><i data-lucide="code" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogMermaid" title="Insert Mermaid Flowchart Block"><i data-lucide="git-fork" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogColorTag" title="Insert Universal Color Span"><i data-lucide="palette" style="width: 12px; color: var(--accent);"></i></button>
-          <button class="btn btn-xs btn-icon" data-on-click="insertNoteDogTimestamp" title="Insert Current Timestamp"><i data-lucide="clock" style="width: 12px;"></i></button>
-          <div class="notedog-fmt-sep"></div>
-          <button class="btn btn-xs btn-icon" id="btn-notedog-attach" data-on-click="triggerNoteAttachmentUpload" title="Attach Images, Audio, PDF or Files (Ctrl+V / Drag & Drop)"><i data-lucide="paperclip" style="width: 12px;"></i></button>
-          <button class="btn btn-xs btn-icon" id="btn-notedog-attachments-toggle" data-on-click="toggleNoteAttachmentsTray" title="Toggle Note Attachments Gallery"><i data-lucide="image" style="width: 12px;"></i><span id="notedog-attachments-count-badge" class="notedog-att-badge" style="display: none;">0</span></button>
-          <input type="file" id="notedog-attachment-file-input" style="display: none;" multiple data-on-change="handleNoteAttachmentFileSelected" data-change-args='[{"$": "files"}]'>
+        <div class="notes-formatting-bar">
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["**", "**", "bold text"]' title="Bold (Ctrl+B)"><i data-lucide="bold" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["*", "*", "italic text"]' title="Italic (Ctrl+I)"><i data-lucide="italic" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["~~", "~~", "strikethrough"]' title="Strikethrough"><i data-lucide="strikethrough" style="width: 12px;"></i></button>
+          <div class="notes-fmt-sep"></div>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["## ", "", "Heading"]' title="Heading 2"><i data-lucide="heading-2" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["- [ ] ", "", "Task item"]' title="Interactive Task Tickbox"><i data-lucide="check-square" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["- ", "", "List item"]' title="Bullet List"><i data-lucide="list" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["> ", "", "Quote text"]' title="Blockquote"><i data-lucide="quote" style="width: 12px;"></i></button>
+          <div class="notes-fmt-sep"></div>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMarkdown" data-click-args='["`", "`", "code"]' title="Inline Code"><i data-lucide="code" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesMermaid" title="Insert Mermaid Flowchart Block"><i data-lucide="git-fork" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesColorTag" title="Insert Universal Color Span"><i data-lucide="palette" style="width: 12px; color: var(--accent);"></i></button>
+          <button class="btn btn-xs btn-icon" data-on-click="insertNotesTimestamp" title="Insert Current Timestamp"><i data-lucide="clock" style="width: 12px;"></i></button>
+          <div class="notes-fmt-sep"></div>
+          <button class="btn btn-xs btn-icon" id="btn-notes-attach" data-on-click="triggerNoteAttachmentUpload" title="Attach Images, Audio, PDF or Files (Ctrl+V / Drag & Drop)"><i data-lucide="paperclip" style="width: 12px;"></i></button>
+          <button class="btn btn-xs btn-icon" id="btn-notes-attachments-toggle" data-on-click="toggleNoteAttachmentsTray" title="Toggle Note Attachments Gallery"><i data-lucide="image" style="width: 12px;"></i><span id="notes-attachments-count-badge" class="notes-att-badge" style="display: none;">0</span></button>
+          <input type="file" id="notes-attachment-file-input" style="display: none;" multiple data-on-change="handleNoteAttachmentFileSelected" data-change-args='[{"$": "files"}]'>
         </div>
 
         <!-- Note Attachments Gallery Tray -->
-        <div class="notedog-attachments-tray" id="notedog-attachments-tray" style="display: none;">
-          <div class="notedog-att-tray-header">
+        <div class="notes-attachments-tray" id="notes-attachments-tray" style="display: none;">
+          <div class="notes-att-tray-header">
             <div style="display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 11px;">
               <i data-lucide="paperclip" style="width: 12px; height: 12px; color: var(--accent);"></i>
               <span>Note Attachments & Media</span>
-              <span class="badge" id="notedog-att-tray-count">0 files</span>
+              <span class="badge" id="notes-att-tray-count">0 files</span>
             </div>
             <div style="display: flex; align-items: center; gap: 4px;">
               <button class="btn btn-xs btn-outline" data-on-click="triggerNoteAttachmentUpload" style="height: 22px; font-size: 10px; display: flex; align-items: center; gap: 4px;">
@@ -3893,45 +3893,45 @@
               </button>
             </div>
           </div>
-          <div class="notedog-att-tray-body" id="notedog-att-tray-list">
+          <div class="notes-att-tray-body" id="notes-att-tray-list">
             <!-- Dynamically populated attachment cards -->
           </div>
-          <div class="notedog-att-dropzone" id="notedog-att-dropzone" data-on-click="triggerNoteAttachmentUpload">
+          <div class="notes-att-dropzone" id="notes-att-dropzone" data-on-click="triggerNoteAttachmentUpload">
             <i data-lucide="upload-cloud" style="width: 16px; height: 16px; color: var(--accent);"></i>
             <span>Drag & drop media files here or paste screenshots directly into editor (<kbd>Ctrl+V</kbd>)</span>
           </div>
         </div>
 
         <!-- Note Editor & Live Preview Panes -->
-        <div class="notedog-panes-wrapper split-mode" id="notedog-panes-wrapper">
+        <div class="notes-panes-wrapper split-mode" id="notes-panes-wrapper">
           <!-- Editor Pane -->
-          <div class="notedog-pane notedog-editor-pane" id="notedog-editor-pane">
-            <div class="notedog-editor-gutter" id="notedog-editor-gutter">1</div>
-            <textarea class="notedog-textarea" id="notedog-editor-textarea" spellcheck="false" placeholder="Write markdown notes..." data-on-input="handleNoteDogInput" data-on-scroll="syncNoteDogGutter" data-on-keydown="handleNoteDogKeyDown" data-keydown-args='[{"$": "event"}]'></textarea>
+          <div class="notes-pane notes-editor-pane" id="notes-editor-pane">
+            <div class="notes-editor-gutter" id="notes-editor-gutter">1</div>
+            <textarea class="notes-textarea" id="notes-editor-textarea" spellcheck="false" placeholder="Write markdown notes..." data-on-input="handleNotesInput" data-on-scroll="syncNotesGutter" data-on-keydown="handleNotesKeyDown" data-keydown-args='[{"$": "event"}]'></textarea>
           </div>
 
           <!-- Preview Pane -->
-          <div class="notedog-pane notedog-preview-pane" id="notedog-preview-pane">
-            <div class="notedog-preview-content" id="notedog-preview-content"></div>
+          <div class="notes-pane notes-preview-pane" id="notes-preview-pane">
+            <div class="notes-preview-content" id="notes-preview-content"></div>
           </div>
         </div>
 
         <!-- Encrypted Note Unlock Overlay -->
-        <div class="notedog-unlock-card" id="notedog-unlock-card" style="display: none;">
-          <div class="notedog-unlock-box">
+        <div class="notes-unlock-card" id="notes-unlock-card" style="display: none;">
+          <div class="notes-unlock-box">
             <div style="font-size: 32px; margin-bottom: 8px;">🔒</div>
-            <div style="font-weight: 700; font-size: 15px; color: var(--accent); margin-bottom: 4px;" id="notedog-unlock-title">Encrypted NoteDog Note</div>
-            <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 16px; text-align: center; max-width: 340px;" id="notedog-unlock-sub">
+            <div style="font-weight: 700; font-size: 15px; color: var(--accent); margin-bottom: 4px;" id="notes-unlock-title">Encrypted Notes Note</div>
+            <div style="font-size: 11px; color: var(--text-dim); margin-bottom: 16px; text-align: center; max-width: 340px;" id="notes-unlock-sub">
               Protected with ChaCha20-Poly1305 + Argon2id authenticated encryption. Compatible with NoteDog TUI.
             </div>
             <div style="width: 100%; max-width: 320px; display: flex; flex-direction: column; gap: 10px;">
-              <input type="password" id="notedog-unlock-pass" class="pane-quick-filter" placeholder="Enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;" data-keydown-key="Enter" data-on-keydown="executeUnlockNoteDogNote">
+              <input type="password" id="notes-unlock-pass" class="pane-quick-filter" placeholder="Enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;" data-keydown-key="Enter" data-on-keydown="executeUnlockNotesNote">
               <label style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--text-dim); cursor: pointer;">
-                <input type="checkbox" id="notedog-unlock-remember" checked>
+                <input type="checkbox" id="notes-unlock-remember" checked>
                 <span>Remember passphrase for this session</span>
               </label>
-              <div id="notedog-unlock-error" style="display: none; color: var(--danger); font-size: 11px; text-align: center;"></div>
-              <button class="btn btn-accent" data-on-click="executeUnlockNoteDogNote" style="width: 100%; height: 32px; font-weight: 600;">
+              <div id="notes-unlock-error" style="display: none; color: var(--danger); font-size: 11px; text-align: center;"></div>
+              <button class="btn btn-accent" data-on-click="executeUnlockNotesNote" style="width: 100%; height: 32px; font-weight: 600;">
                 <i data-lucide="unlock" style="width: 14px;"></i> Unlock Note
               </button>
             </div>
@@ -3941,98 +3941,98 @@
     </div>
   </div>
 
-  <!-- NoteDog Minimized Pill -->
-  <div class="notedog-pill" id="notedog-pill" style="display: none;" data-on-click="restoreFloatingNoteDog" title="Click to restore NoteDog">
-    <img src="assets/note.webp" alt="NoteDog" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
-    <span id="notedog-pill-text">NoteDog</span>
-    <span class="notedog-pill-dirty" id="notedog-pill-dirty" style="display: none;"></span>
+  <!-- Notes Minimized Pill -->
+  <div class="notes-pill" id="notes-pill" style="display: none;" data-on-click="restoreFloatingNotes" title="Click to restore Notes">
+    <img src="assets/note.webp" alt="Notes" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;">
+    <span id="notes-pill-text">Notes</span>
+    <span class="notes-pill-dirty" id="notes-pill-dirty" style="display: none;"></span>
   </div>
 
-  <!-- NoteDog Version History Modal -->
-  <div class="modal-overlay" id="notedog-versions-modal" style="z-index: 2860;">
+  <!-- Notes Version History Modal -->
+  <div class="modal-overlay" id="notes-versions-modal" style="z-index: 2860;">
     <div class="modal-box" style="width: 720px; max-width: 95vw; height: 560px; max-height: 90vh; display: flex; flex-direction: column; background: var(--bg-panel); border: 1px solid var(--border); border-radius: var(--radius-lg); overflow: hidden;">
       <div class="modal-header" style="padding: 10px 14px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
         <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/note.webp" alt="NoteDog" style="width: 16px; height: 16px; object-fit: contain;">
+          <img src="assets/note.webp" alt="Notes" style="width: 16px; height: 16px; object-fit: contain;">
           <span style="font-weight: 700; font-size: 13px;">Note Revision History</span>
-          <span class="notedog-badge-tag" id="notedog-version-note-name">Note.md</span>
+          <span class="notes-badge-tag" id="notes-version-note-name">Note.md</span>
         </div>
-        <button class="btn btn-icon btn-xs modal-close-btn" data-on-click="closeModal" data-click-args='["notedog-versions-modal"]'><i data-lucide="x" style="width: 13px;"></i></button>
+        <button class="btn btn-icon btn-xs modal-close-btn" data-on-click="closeModal" data-click-args='["notes-versions-modal"]'><i data-lucide="x" style="width: 13px;"></i></button>
       </div>
       <div class="modal-body" style="flex: 1; display: flex; overflow: hidden; padding: 0;">
-        <div style="width: 220px; border-right: 1px solid var(--border); background: var(--bg-dark); display: flex; flex-direction: column; overflow-y: auto;" id="notedog-versions-list">
+        <div style="width: 220px; border-right: 1px solid var(--border); background: var(--bg-dark); display: flex; flex-direction: column; overflow-y: auto;" id="notes-versions-list">
           <!-- Populated dynamically -->
         </div>
         <div style="flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #090a0d;">
           <div style="padding: 6px 12px; border-bottom: 1px solid var(--border); background: var(--bg-panel); display: flex; justify-content: space-between; align-items: center;">
-            <span style="font-size: 11px; color: var(--text-dim);" id="notedog-version-meta-label">Select a revision to preview changes</span>
-            <button class="btn btn-xs btn-accent" id="btn-notedog-restore-version" style="display: none;" data-on-click="restoreSelectedNoteDogVersion"><i data-lucide="rotate-ccw" style="width: 11px;"></i> Restore this Version</button>
+            <span style="font-size: 11px; color: var(--text-dim);" id="notes-version-meta-label">Select a revision to preview changes</span>
+            <button class="btn btn-xs btn-accent" id="btn-notes-restore-version" style="display: none;" data-on-click="restoreSelectedNotesVersion"><i data-lucide="rotate-ccw" style="width: 11px;"></i> Restore this Version</button>
           </div>
-          <div style="flex: 1; overflow-y: auto; padding: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; color: #f1f5f9; white-space: pre-wrap;" id="notedog-version-preview-content"></div>
+          <div style="flex: 1; overflow-y: auto; padding: 12px; font-family: var(--font-mono); font-size: 12px; line-height: 1.4; color: #f1f5f9; white-space: pre-wrap;" id="notes-version-preview-content"></div>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- NoteDog Encrypt / Decrypt Modal -->
-  <div class="modal-overlay" id="notedog-crypto-modal" style="z-index: 2870;">
+  <!-- Notes Encrypt / Decrypt Modal -->
+  <div class="modal-overlay" id="notes-crypto-modal" style="z-index: 2870;">
     <div class="modal-box" style="width: 440px; max-width: 95vw;">
       <div class="modal-header">
         <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);">
           <i data-lucide="shield" style="width: 16px; height: 16px;"></i>
-          <span id="notedog-crypto-modal-title">Encrypt Section</span>
+          <span id="notes-crypto-modal-title">Encrypt Section</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["notedog-crypto-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["notes-crypto-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
-        <div style="font-size: 12px; color: var(--text-dim);" id="notedog-crypto-modal-desc">
+        <div style="font-size: 12px; color: var(--text-dim);" id="notes-crypto-modal-desc">
           Set a passphrase to encrypt all notes in this section. NoteDog TUI cross-compatible.
         </div>
         <div style="display: flex; flex-direction: column; gap: 4px;">
-          <label for="notedog-crypto-pass" style="font-size: 11px; font-weight: 600;">Passphrase:</label>
-          <input type="password" id="notedog-crypto-pass" class="pane-quick-filter" placeholder="Enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;">
+          <label for="notes-crypto-pass" style="font-size: 11px; font-weight: 600;">Passphrase:</label>
+          <input type="password" id="notes-crypto-pass" class="pane-quick-filter" placeholder="Enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;">
         </div>
-        <div style="display: flex; flex-direction: column; gap: 4px;" id="notedog-crypto-confirm-group">
-          <label for="notedog-crypto-pass-confirm" style="font-size: 11px; font-weight: 600;">Confirm Passphrase:</label>
-          <input type="password" id="notedog-crypto-pass-confirm" class="pane-quick-filter" placeholder="Re-enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;">
+        <div style="display: flex; flex-direction: column; gap: 4px;" id="notes-crypto-confirm-group">
+          <label for="notes-crypto-pass-confirm" style="font-size: 11px; font-weight: 600;">Confirm Passphrase:</label>
+          <input type="password" id="notes-crypto-pass-confirm" class="pane-quick-filter" placeholder="Re-enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;">
         </div>
-        <div id="notedog-crypto-error" style="display: none; color: var(--danger); font-size: 11px;"></div>
+        <div id="notes-crypto-error" style="display: none; color: var(--danger); font-size: 11px;"></div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" data-on-click="closeModal" data-click-args='["notedog-crypto-modal"]'>Cancel</button>
-        <button class="btn btn-accent" id="btn-notedog-crypto-confirm"><i data-lucide="check" style="width: 14px;"></i> Proceed</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["notes-crypto-modal"]'>Cancel</button>
+        <button class="btn btn-accent" id="btn-notes-crypto-confirm"><i data-lucide="check" style="width: 14px;"></i> Proceed</button>
       </div>
     </div>
   </div>
 
-  <!-- NoteDog Create Note Modal -->
-  <div class="modal-overlay" id="notedog-create-note-modal" style="z-index: 2870;">
+  <!-- Notes Create Note Modal -->
+  <div class="modal-overlay" id="notes-create-note-modal" style="z-index: 2870;">
     <div class="modal-box" style="width: 440px; max-width: 95vw;">
       <div class="modal-header">
         <span style="display: flex; align-items: center; gap: 8px; font-weight: 700; color: var(--accent);">
-          <img src="assets/note.webp" alt="NoteDog" style="width: 16px; height: 16px; object-fit: contain;" id="notedog-create-modal-icon">
-          <span id="notedog-create-modal-title">Create New Note</span>
+          <img src="assets/note.webp" alt="Notes" style="width: 16px; height: 16px; object-fit: contain;" id="notes-create-modal-icon">
+          <span id="notes-create-modal-title">Create New Note</span>
         </span>
-        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["notedog-create-note-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
+        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["notes-create-note-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="display: flex; flex-direction: column; gap: 10px;">
         <div style="display: flex; flex-direction: column; gap: 4px;">
-          <label for="notedog-create-title-input" style="font-size: 11px; font-weight: 600;">Note Title:</label>
-          <input type="text" id="notedog-create-title-input" class="pane-quick-filter" placeholder="e.g. Project Architecture" style="width: 100%; padding: 8px 10px; font-size: 13px;">
+          <label for="notes-create-title-input" style="font-size: 11px; font-weight: 600;">Note Title:</label>
+          <input type="text" id="notes-create-title-input" class="pane-quick-filter" placeholder="e.g. Project Architecture" style="width: 100%; padding: 8px 10px; font-size: 13px;">
         </div>
-        <label id="notedog-create-is-encrypted-label" style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
-          <input type="checkbox" id="notedog-create-is-encrypted" data-on-change="toggleNoteDogCreateEncryptedFields">
+        <label id="notes-create-is-encrypted-label" style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+          <input type="checkbox" id="notes-create-is-encrypted" data-on-change="toggleNotesCreateEncryptedFields">
           <span>🔒 Encrypted Note (ChaCha20-Poly1305 / .md.enc)</span>
         </label>
-        <div id="notedog-create-pass-group" style="display: none; flex-direction: column; gap: 6px;">
-          <label for="notedog-create-pass" style="font-size: 11px; font-weight: 600;">Passphrase:</label>
-          <input type="password" id="notedog-create-pass" class="pane-quick-filter" placeholder="Enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;">
+        <div id="notes-create-pass-group" style="display: none; flex-direction: column; gap: 6px;">
+          <label for="notes-create-pass" style="font-size: 11px; font-weight: 600;">Passphrase:</label>
+          <input type="password" id="notes-create-pass" class="pane-quick-filter" placeholder="Enter passphrase..." style="width: 100%; padding: 8px 10px; font-size: 13px;">
         </div>
-        <div id="notedog-create-error" style="display: none; color: var(--danger); font-size: 11px;"></div>
+        <div id="notes-create-error" style="display: none; color: var(--danger); font-size: 11px;"></div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" data-on-click="closeModal" data-click-args='["notedog-create-note-modal"]'>Cancel</button>
-        <button class="btn btn-accent" id="btn-notedog-create-confirm"><i data-lucide="plus" style="width: 14px;"></i> Create Note</button>
+        <button class="btn" data-on-click="closeModal" data-click-args='["notes-create-note-modal"]'>Cancel</button>
+        <button class="btn btn-accent" id="btn-notes-create-confirm"><i data-lucide="plus" style="width: 14px;"></i> Create Note</button>
       </div>
     </div>
   </div>
