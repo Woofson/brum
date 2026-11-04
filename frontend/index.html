@@ -164,7 +164,7 @@
           <div class="dropdown-item" data-on-click="openSearchModal"><img src="assets/search.webp" alt="Search" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Search (Ctrl+F)</div>
           <div class="dropdown-item" data-on-click="openFleetManagerModal"><i data-lucide="network" style="width: 15px; height: 15px; color: var(--accent); flex-shrink: 0;"></i> Fleet</div>
           <div class="dropdown-item" data-on-click="openSharesManager"><img src="assets/sharemgr.webp" alt="Share Manager" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Share Manager</div>
-          <div class="dropdown-item" data-on-click="openSyncModal"><img src="assets/sync.webp" alt="Backup" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Backup</div>
+          <div class="dropdown-item" data-on-click="openSyncModal"><img src="assets/sync.webp" alt="Backup" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Backup &amp; Sync</div>
           <div class="dropdown-item" data-on-click="openDiskUsageModal"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Stats</div>
           <div class="dropdown-item" data-on-click="openSyncthingModal"><img src="assets/syncthing.webp" alt="Syncthing" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Syncthing</div>
           <div class="dropdown-item" data-on-click="openConverterModal"><img src="assets/convertx.webp" alt="Format Converter" style="width: 15px; height: 15px; object-fit: contain; flex-shrink: 0;"> Format Converter</div>
@@ -5037,350 +5037,40 @@
     </div>
   </div>
 
-  <!-- Backup & Sync Studio Modal -->
-  <div class="modal-overlay" id="sync-modal" style="z-index: 2850;">
-    <div class="modal-box sync-modal-box" id="sync-modal-box">
-      <!-- Header -->
-      <div class="modal-header" style="padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/sync.webp" alt="Backup" style="width: 18px; height: 18px; object-fit: contain;">
-          <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 14px; color: var(--text-main);">Backup & Sync</span>
-        </div>
-        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["sync-modal"]' title="Close Backup & Sync (Esc)"><i data-lucide="x"></i></button>
+  <!-- Backup & Sync Window (floating, dockable into a Panel) -->
+  <div class="floating-backup-window" id="floating-backup-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
+    <div class="win-resize-handle win-resize-top" data-resize="top"></div>
+    <div class="win-resize-handle win-resize-bottom" data-resize="bottom"></div>
+    <div class="win-resize-handle win-resize-left" data-resize="left"></div>
+    <div class="win-resize-handle win-resize-right" data-resize="right"></div>
+    <div class="win-resize-handle win-resize-corner" data-resize="corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+
+    <div class="modal-header bk-window-header" id="backup-window-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+        <img src="assets/sync.webp" alt="" style="width: 17px; height: 17px; object-fit: contain; flex-shrink: 0;">
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px;">Backup &amp; Sync</span>
       </div>
-
-      <!-- Navigation Tabs Bar Under Header -->
-      <div class="settings-tabs sync-tabs">
-        <button class="settings-tab-btn sync-tab-btn active" id="sync-tab-btn-diff" data-on-click="switchSyncTab" data-click-args='["diff"]'><i data-lucide="split"></i> Live Diff</button>
-        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-profiles" data-on-click="switchSyncTab" data-click-args='["profiles"]'><i data-lucide="layers"></i> Backup Jobs</button>
-        <button class="settings-tab-btn sync-tab-btn" id="sync-tab-btn-history" data-on-click="switchSyncTab" data-click-args='["history"]'><i data-lucide="history"></i> Run Logs</button>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="btn btn-icon btn-sm" data-on-click="backupRefresh" title="Refresh" style="width: 28px; height: 28px;"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
+        <div class="header-sep desktop-only"></div>
+        <button class="btn btn-icon btn-sm desktop-only" data-on-click="dockBackupToActivePane" title="Dock into Active Panel" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm" id="backup-maximize-btn" data-on-click="toggleBackupMaximize" title="Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm desktop-only" data-on-click="minimizeBackupWindow" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeBackupWindow" title="Close" style="width: 28px; height: 28px;"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
       </div>
+    </div>
 
-      <!-- TAB 1: Live Diff & Replication Studio -->
-      <div id="sync-tab-content-diff" class="sync-tab-pane" style="display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden;">
-        <!-- Paths and Mode Bar -->
-        <div class="sync-top-bar" style="padding: 12px 16px; background: var(--bg-panel); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: 10px;">
-          <div class="sync-path-selector-row" style="display: flex; align-items: center; gap: 8px;">
-            <div class="sync-path-input-group" style="flex: 1; display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;">
-              <span class="sync-pane-badge" style="font-size: 10px; font-weight: 700; background: rgba(59, 130, 246, 0.2); color: #60a5fa; padding: 2px 6px; border-radius: 4px;">Source (Left)</span>
-              <input type="text" id="sync-src-input" class="pane-quick-filter" style="flex: 1; border: none; background: transparent; outline: none; font-size: 12px; font-family: var(--font-mono);" placeholder="/path/to/source">
-              <button class="btn btn-xs" data-on-click="useActivePanePath" data-click-args='["sync-src-input"]' title="Use Active Pane Path" style="font-size: 10px; padding: 2px 6px;">Current</button>
-              <button class="btn btn-xs btn-outline" data-on-click="openSyncFolderPicker" data-click-args='["sync-src-input"]' title="Browse Source Folder" style="font-size: 10px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
-            </div>
-            <button class="btn btn-icon" data-on-click="swapSyncPaths" title="Swap Left & Right Directories" style="padding: 6px;"><i data-lucide="arrow-left-right"></i></button>
-            <div class="sync-path-input-group" style="flex: 1; display: flex; align-items: center; gap: 6px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px;">
-              <span class="sync-pane-badge" style="font-size: 10px; font-weight: 700; background: rgba(168, 85, 247, 0.2); color: #c084fc; padding: 2px 6px; border-radius: 4px;">Destination (Right)</span>
-              <input type="text" id="sync-dest-input" class="pane-quick-filter" style="flex: 1; border: none; background: transparent; outline: none; font-size: 12px; font-family: var(--font-mono);" placeholder="/path/to/destination">
-              <button class="btn btn-xs" data-on-click="useInactivePanePath" data-click-args='["sync-dest-input"]' title="Use Inactive Pane Path" style="font-size: 10px; padding: 2px 6px;">Target</button>
-              <button class="btn btn-xs btn-outline" data-on-click="openSyncFolderPicker" data-click-args='["sync-dest-input"]' title="Browse Destination Folder" style="font-size: 10px; padding: 2px 6px; display: inline-flex; align-items: center; gap: 3px;"><i data-lucide="folder-open" style="width: 11px; height: 11px;"></i> Browse</button>
-            </div>
-          </div>
-
-          <!-- Quick Replication Profile Templates & Exclusions Toggle Row -->
-          <div class="sync-template-row" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap;">
-            <div style="display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
-              <span style="font-weight: 700; font-size: 11px; color: var(--accent); display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="sparkles" style="width: 13px; height: 13px;"></i> Presets:</span>
-              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["nas_mirror"]' title="NAS Mirror: One-way exact replica with checksum verification, deleting orphan files on destination">🪞 NAS Mirror</button>
-              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["code_sync"]' title="Codebase Sync: Two-way developer sync excluding node_modules, .git, target, .cache, and dist">💻 Codebase Sync</button>
-              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["snapshot_archive"]' title="Snapshot Vault: Versioned backup keeping 30-day historical file snapshots in _archive/">📦 Snapshot Vault</button>
-              <button class="btn sync-template-btn" data-on-click="applySyncTemplate" data-click-args='["media_vault"]' title="Media Backup: Additive one-way backup that never deletes pictures/videos from destination">📸 Media Backup</button>
-            </div>
-            <button class="btn btn-xs" id="btn-toggle-sync-exclusions" data-on-click="toggleSyncExclusionsPanel" title="Toggle Visual File & Folder Exclusion Filters" style="display: inline-flex; align-items: center; gap: 5px; font-weight: 600;">
-              <i data-lucide="filter" style="width: 12px; height: 12px;"></i>
-              <span>Exclusions (<span id="sync-exclusions-badge">0</span>)</span>
-            </button>
-          </div>
-
-          <!-- Visual File & Folder Exclusion Rule Builder Panel -->
-          <div id="sync-exclusions-panel" style="display: none; flex-direction: column; gap: 6px; padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; font-size: 11px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <span style="font-weight: 700; color: var(--text-main); display: inline-flex; align-items: center; gap: 5px;">
-                <i data-lucide="shield-alert" style="width: 13px; height: 13px; color: var(--accent);"></i>
-                Excluded Folders & Patterns:
-              </span>
-              <span style="font-size: 10.5px; color: var(--text-dim);">Files matching active chips will be skipped during analysis and replication</span>
-            </div>
-            <!-- Preset Exclusion Chips -->
-            <div class="sync-exclusion-preset-chips" style="display: flex; flex-wrap: wrap; gap: 5px; margin-top: 2px;">
-              <span class="sync-chip" data-pattern="node_modules" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>node_modules</span>
-              <span class="sync-chip" data-pattern=".git" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>.git</span>
-              <span class="sync-chip" data-pattern="target" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>target/</span>
-              <span class="sync-chip" data-pattern=".cache" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>.cache/</span>
-              <span class="sync-chip" data-pattern="tmp" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>tmp/</span>
-              <span class="sync-chip" data-pattern="*.tmp" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>*.tmp</span>
-              <span class="sync-chip" data-pattern=".DS_Store" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>.DS_Store</span>
-              <span class="sync-chip" data-pattern="Thumbs.db" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>Thumbs.db</span>
-              <span class="sync-chip" data-pattern="*.log" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>*.log</span>
-              <span class="sync-chip" data-pattern="dist" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>dist/</span>
-              <span class="sync-chip" data-pattern="*.bak" data-on-click="toggleExclusionChip" data-click-args='[{"$": "el"}]'>*.bak</span>
-            </div>
-            <!-- Custom Pattern Input and Active Tags -->
-            <div style="display: flex; align-items: center; gap: 6px; margin-top: 2px;">
-              <input type="text" id="sync-custom-exclusion-input" class="pane-quick-filter" style="flex: 1; padding: 4px 8px; font-size: 11px; font-family: var(--font-mono);" placeholder="Add custom pattern (e.g. *.iso, build/, secret.key) and press Enter" data-keydown-prevent data-keydown-key="Enter" data-on-keydown="addCustomExclusionPattern">
-              <button class="btn btn-xs" data-on-click="addCustomExclusionPattern"><i data-lucide="plus" style="width: 12px; height: 12px;"></i> Add</button>
-              <button class="btn btn-xs btn-outline" data-on-click="clearAllSyncExclusions"><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clear All</button>
-            </div>
-            <div id="sync-active-custom-tags" style="display: flex; flex-wrap: wrap; gap: 4px;"></div>
-          </div>
-
-          <!-- 4 Core Replication Mode Cards -->
-          <div class="sync-mode-cards" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;">
-            <label class="sync-profile-card active" id="card-mode-sync">
-              <input type="radio" name="sync-mode" value="synchronize" checked data-on-change="handleSyncModeChange">
-              <div class="sync-card-body">
-                <div class="sync-card-title">🔄 Two-Way Sync</div>
-                <div class="sync-card-desc">Reconciles additions, edits, and deletions bidirectionally between both folders.</div>
-              </div>
-            </label>
-            <label class="sync-profile-card" id="card-mode-echo">
-              <input type="radio" name="sync-mode" value="echo" data-on-change="handleSyncModeChange">
-              <div class="sync-card-body">
-                <div class="sync-card-title">🪞 Mirror / Echo</div>
-                <div class="sync-card-desc">One-way exact replica. Replaces changed files and deletes orphan files on destination.</div>
-              </div>
-            </label>
-            <label class="sync-profile-card" id="card-mode-contribute">
-              <input type="radio" name="sync-mode" value="contribute" data-on-change="handleSyncModeChange">
-              <div class="sync-card-body">
-                <div class="sync-card-title">➕ Contribute</div>
-                <div class="sync-card-desc">One-way additive backup. Copies new and modified files, never deleting destination files.</div>
-              </div>
-            </label>
-            <label class="sync-profile-card" id="card-mode-subscribe">
-              <input type="radio" name="sync-mode" value="subscribe" data-on-change="handleSyncModeChange">
-              <div class="sync-card-body">
-                <div class="sync-card-title">📦 Snapshot Archive</div>
-                <div class="sync-card-desc">Historical versioning. Archives modified and deleted files into timestamped snapshot vaults.</div>
-              </div>
-            </label>
-          </div>
-
-          <!-- Engine Options & Filters Bar -->
-          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 11px;">
-            <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap;">
-              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: 600; color: var(--accent);">
-                <input type="checkbox" id="sync-opt-delta" checked> <span>⚡ Block-Level Delta Copy</span>
-              </label>
-              <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-                <input type="checkbox" id="sync-opt-verify" checked> <span>🔒 Verify File Integrity (Checksums)</span>
-              </label>
-              <div id="sync-archive-settings" style="display: none; align-items: center; gap: 6px;">
-                <span style="color: var(--text-dim);">Archive:</span>
-                <input type="text" id="sync-opt-archive-dir" value="_archive" style="width: 75px; padding: 2px 6px; font-size: 11px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px;">
-                <span style="color: var(--text-dim);">Retention:</span>
-                <input type="number" id="sync-opt-retention" value="30" style="width: 48px; padding: 2px 4px; font-size: 11px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px;"> <span style="color: var(--text-dim);">days</span>
-              </div>
-            </div>
-            <div class="sync-filter-toggles" style="display: flex; gap: 4px;">
-              <button class="btn btn-xs sync-filter-btn active" id="btn-sync-filter-all" data-on-click="filterSyncGrid" data-click-args='["all"]'>All (<span id="sync-cnt-all">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-left" data-on-click="filterSyncGrid" data-click-args='["left"]'>➔ Right (<span id="sync-cnt-left">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-right" data-on-click="filterSyncGrid" data-click-args='["right"]'>⬅ Left (<span id="sync-cnt-right">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-mod" data-on-click="filterSyncGrid" data-click-args='["modified"]'>⚡ Diff (<span id="sync-cnt-mod">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-archive" data-on-click="filterSyncGrid" data-click-args='["archive"]'>📦 Archive (<span id="sync-cnt-archive">0</span>)</button>
-              <button class="btn btn-xs sync-filter-btn" id="btn-sync-filter-eq" data-on-click="filterSyncGrid" data-click-args='["identical"]'>✔ Equal (<span id="sync-cnt-eq">0</span>)</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Diff Comparison Table -->
-        <div class="sync-grid-container" style="flex: 1; overflow-y: auto; background: var(--bg-main);">
-          <table class="sync-diff-table" id="sync-diff-table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
-            <thead>
-              <tr style="position: sticky; top: 0; background: var(--bg-header); border-bottom: 1px solid var(--border); z-index: 10;">
-                <th style="width: 90px; text-align: right; padding: 6px 10px;">Left Size</th>
-                <th style="width: 38%; padding: 6px 10px; text-align: left;">Source File</th>
-                <th style="width: 60px; text-align: center; padding: 6px 4px;">Action</th>
-                <th style="width: 38%; padding: 6px 10px; text-align: left;">Destination File</th>
-                <th style="width: 90px; text-align: left; padding: 6px 10px;">Right Size</th>
-              </tr>
-            </thead>
-            <tbody id="sync-diff-body">
-              <tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">Click <b>Compare & Analyze</b> or <b>Dry Run</b> to inspect directory differences.</td></tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- Footer Bar -->
-        <div class="modal-footer" style="padding: 10px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
-          <div id="sync-footer-stats" style="font-size: 11px; font-family: var(--font-mono); color: var(--text-muted);">
-            Ready to compare directories.
-          </div>
-          <div style="display: flex; gap: 8px; align-items: center;">
-            <button class="btn btn-sm" data-on-click="openSaveCurrentSyncAsProfile"><i data-lucide="bookmark"></i> Save Job</button>
-            <button class="btn btn-sm" data-on-click="analyzeSync" data-click-args='[false]'><i data-lucide="search"></i> Compare & Analyze</button>
-            <button class="btn btn-sm btn-outline" data-on-click="executeDryRun" title="Simulate file operations without making any changes"><i data-lucide="play-circle"></i> Dry Run (Simulate)</button>
-            <button class="btn btn-sm btn-accent" id="btn-run-sync" data-on-click="executeSync" data-click-args='[false]'><i data-lucide="refresh-cw"></i> Synchronize Now</button>
-          </div>
-        </div>
-      </div>
-
-      <!-- TAB 2: Saved Backup Profiles & Scheduler -->
-      <div id="sync-tab-content-profiles" class="sync-tab-pane" style="display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
-          <div>
-            <span style="font-weight: 700; font-size: 14px;">Automated Backup Jobs & Schedules</span>
-            <div style="font-size: 11px; color: var(--text-dim);">Define continuous background replication profiles with cron, intervals, real-time watchers & webhooks.</div>
-          </div>
-          <div style="display: flex; gap: 8px;">
-            <button class="btn btn-sm" data-on-click="loadBackupProfiles"><i data-lucide="rotate-cw"></i> Refresh</button>
-            <button class="btn btn-sm btn-accent" data-on-click="openCreateBackupProfileModal"><i data-lucide="plus"></i> New Backup Job</button>
-          </div>
-        </div>
-
-        <!-- Profiles List Table -->
-        <div style="flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main);">
-          <table style="width: 100%; border-collapse: collapse; font-size: 12px;" id="backup-profiles-table">
-            <thead>
-              <tr style="position: sticky; top: 0; background: var(--bg-header); border-bottom: 1px solid var(--border);">
-                <th style="padding: 8px 12px; text-align: left;">Job Name</th>
-                <th style="padding: 8px 12px; text-align: left;">Source ➔ Destination</th>
-                <th style="padding: 8px 10px; text-align: center;">Mode</th>
-                <th style="padding: 8px 10px; text-align: center;">Trigger / Schedule</th>
-                <th style="padding: 8px 10px; text-align: center;">Active</th>
-                <th style="padding: 8px 12px; text-align: left;">Last Run</th>
-                <th style="padding: 8px 12px; text-align: right;">Actions</th>
-              </tr>
-            </thead>
-            <tbody id="backup-profiles-body">
-              <tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--text-dim);">Loading saved backup profiles...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- TAB 3: Run History & Logs -->
-      <div id="sync-tab-content-history" class="sync-tab-pane" style="display: none; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; padding: 16px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-shrink: 0;">
-          <div>
-            <span style="font-weight: 700; font-size: 14px;">Backup & Synchronization Run History</span>
-            <div style="font-size: 11px; color: var(--text-dim);">Audit log of all manual and scheduled replication executions.</div>
-          </div>
-          <button class="btn btn-sm" data-on-click="loadBackupHistory"><i data-lucide="rotate-cw"></i> Refresh</button>
-        </div>
-
-        <div style="flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-main);">
-          <table style="width: 100%; border-collapse: collapse; font-size: 12px;" id="backup-history-table">
-            <thead>
-              <tr style="position: sticky; top: 0; background: var(--bg-header); border-bottom: 1px solid var(--border);">
-                <th style="padding: 8px 12px; text-align: left;">Timestamp</th>
-                <th style="padding: 8px 12px; text-align: left;">Job / Profile</th>
-                <th style="padding: 8px 10px; text-align: center;">Status</th>
-                <th style="padding: 8px 10px; text-align: right;">Copied</th>
-                <th style="padding: 8px 10px; text-align: right;">Archived</th>
-                <th style="padding: 8px 10px; text-align: right;">Deleted</th>
-                <th style="padding: 8px 10px; text-align: right;">Duration</th>
-                <th style="padding: 8px 12px; text-align: left;">Details</th>
-              </tr>
-            </thead>
-            <tbody id="backup-history-body">
-              <tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--text-dim);">Loading execution history...</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
+    <!-- Body (moves into a Panel when docked) -->
+    <div class="bk-body" id="backup-body">
+      <div class="bk-view" id="backup-view"></div>
     </div>
   </div>
 
-  <!-- Backup Profile Form Modal -->
-  <div class="modal-overlay" id="backup-profile-modal" style="z-index: 2870;">
-    <div class="modal-box" style="max-width: 520px; width: 90vw;">
-      <div class="modal-header" style="padding: 10px 16px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-weight: 700; font-size: 13px; display: flex; align-items: center; gap: 8px;"><img src="assets/sync.webp" alt="Backup" style="width: 16px; height: 16px; object-fit: contain;"> <span id="backup-profile-modal-title">Create Backup Profile</span></span>
-        <button class="btn btn-icon" data-on-click="closeModal" data-click-args='["backup-profile-modal"]'><i data-lucide="x"></i></button>
-      </div>
-      <div style="padding: 16px; display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
-        <input type="hidden" id="bp-id" value="">
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; gap: 8px;">
-          <div style="flex: 1;">
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Job / Profile Name</label>
-            <input type="text" id="bp-name" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" placeholder="e.g. Daily Project Mirror">
-          </div>
-          <div>
-            <select id="bp-template-select" class="pane-quick-filter" style="font-size: 11px; padding: 6px 8px; font-weight: 600; background: var(--bg-panel);" data-on-change="applyJobModalTemplate" data-change-args='[{"$": "value"}]'>
-              <option value="">⚡ Load Template...</option>
-              <option value="nas_mirror">🪞 NAS Mirror</option>
-              <option value="code_sync">💻 Codebase Sync</option>
-              <option value="snapshot_archive">📦 Snapshot Vault</option>
-              <option value="media_vault">📸 Media Backup</option>
-            </select>
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <div>
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Source Directory</label>
-            <input type="text" id="bp-source" class="pane-quick-filter" style="width: 100%; padding: 6px 8px; font-family: var(--font-mono);" placeholder="/path/to/source">
-          </div>
-          <div>
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Destination Directory</label>
-            <input type="text" id="bp-dest" class="pane-quick-filter" style="width: 100%; padding: 6px 8px; font-family: var(--font-mono);" placeholder="/path/to/destination">
-          </div>
-        </div>
-        <!-- Exclusions for Backup Job -->
-        <div>
-          <label style="font-weight: 600; display: block; margin-bottom: 4px;">Exclusions & Ignored Patterns (Comma-separated)</label>
-          <input type="text" id="bp-exclusions" class="pane-quick-filter" style="width: 100%; padding: 6px 8px; font-family: var(--font-mono); font-size: 11px;" placeholder="e.g. node_modules, .git, target, *.tmp, .DS_Store">
-          <div class="sync-exclusion-preset-chips" style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px;">
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["node_modules"]'>+ node_modules</span>
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='[".git"]'>+ .git</span>
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["target"]'>+ target/</span>
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='[".cache"]'>+ .cache/</span>
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["*.tmp"]'>+ *.tmp</span>
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='[".DS_Store"]'>+ .DS_Store</span>
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["Thumbs.db"]'>+ Thumbs.db</span>
-            <span class="sync-chip sync-chip-sm" data-on-click="appendBpExclusion" data-click-args='["*.log"]'>+ *.log</span>
-          </div>
-        </div>
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <div>
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Replication Mode</label>
-            <select id="bp-mode" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;">
-              <option value="synchronize">🔄 Synchronize (Two-Way)</option>
-              <option value="echo">🪞 Echo / Mirror (One-Way)</option>
-              <option value="contribute">➕ Contribute (Additive)</option>
-              <option value="subscribe" selected>🕰️ Subscribe (Versioning Archive)</option>
-            </select>
-          </div>
-          <div>
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Automation Trigger</label>
-            <select id="bp-schedule-type" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" data-on-change="handleScheduleTypeChange">
-              <option value="manual">Manual Only</option>
-              <option value="interval">⏰ Periodic Interval</option>
-              <option value="daily">📅 Daily at Specific Time</option>
-              <option value="realtime">⚡ Real-Time Watcher (Continuous)</option>
-            </select>
-          </div>
-        </div>
-        <div id="bp-interval-row" style="display: none; grid-template-columns: 1fr 1fr; gap: 8px;">
-          <div>
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Interval (Minutes)</label>
-            <input type="number" id="bp-interval-mins" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" value="60" min="1">
-          </div>
-          <div>
-            <label style="font-weight: 600; display: block; margin-bottom: 4px;">Daily Run Time (HH:MM)</label>
-            <input type="text" id="bp-daily-time" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" value="02:00" placeholder="02:00">
-          </div>
-        </div>
-        <div style="display: flex; gap: 14px;">
-          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-            <input type="checkbox" id="bp-block-delta" checked> ⚡ Block-Level Delta
-          </label>
-          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-            <input type="checkbox" id="bp-verify" checked> 🔒 Verify Checksums
-          </label>
-          <label style="display: flex; align-items: center; gap: 4px; cursor: pointer;">
-            <input type="checkbox" id="bp-enabled" checked> Enable Automation
-          </label>
-        </div>
-        <div>
-          <label style="font-weight: 600; display: block; margin-bottom: 4px;">Webhook Alert URL (Optional: Discord/Slack/Telegram)</label>
-          <input type="text" id="bp-webhook" class="pane-quick-filter" style="width: 100%; padding: 6px 8px;" placeholder="https://discord.com/api/webhooks/...">
-        </div>
-      </div>
-      <div class="modal-footer" style="padding: 10px 16px; background: var(--bg-header); border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px;">
-        <button class="btn" data-on-click="closeModal" data-click-args='["backup-profile-modal"]'>Cancel</button>
-        <button class="btn btn-accent" data-on-click="saveBackupProfileForm"><i data-lucide="check"></i> Save Backup Job</button>
-      </div>
-    </div>
+  <div class="diskusage-pill bk-pill" id="backup-pill" style="display: none;" data-on-click="restoreBackupWindow" title="Click to restore Backup &amp; Sync">
+    <img src="assets/sync.webp" alt="" style="width: 14px; height: 14px; object-fit: contain;">
+    <span>Backup &amp; Sync</span>
   </div>
 
   <!-- Sync Folder Browser Modal -->
@@ -5392,7 +5082,7 @@
       </div>
       <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 10px; flex: 1; overflow-y: auto;">
         <!-- Quick Panes & Destinations -->
-        <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Active Panes & Locations</div>
+        <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Open Panels</div>
         <div id="sync-picker-panes-list" style="display: flex; flex-direction: column; gap: 5px;"></div>
         <!-- Current Path Navigation Bar -->
         <div style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; margin-top: 6px;">Browse Folders</div>

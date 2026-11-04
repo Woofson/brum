@@ -68,193 +68,196 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
-  'saveAdminImageCache', 'clearAdminImageCache', 'retryPaneNode', 'returnPaneToLocalHost', 'downloadBundledChewToy', 'installBundledChewToy', 'setNotesManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
-  'addCustomExclusionPattern', 'addCustomFileIconRule', 'addDirectoryToMediaPlaylist',
-  'addModalTagFromInput', 'addNewBookmark', 'addPropCustomTag', 'addTracksToMediaPlaylist',
-  'alignDiffPaths', 'analyzeSync', 'appendBpExclusion', 'applyBatchAutoTrackNumbers',
+  'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
+  'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addModalTagFromInput', 'addNewBookmark',
+  'addPropCustomTag', 'addTracksToMediaPlaylist', 'alignDiffPaths', 'applyBatchAutoTrackNumbers',
   'applyBatchTagField', 'applyBorderSettings', 'applyCustomBadgePreset',
-  'applyExternalProgramPreset', 'applyJobModalTemplate', 'applyPaneCustomTwoTone',
-  'applyPaneRenameFromInput', 'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput',
-  'applyPropPermPreset', 'applySyncTemplate', 'applyTheme', 'autoFitAllColumns', 'autoFitColumn',
-  'autoSelectDuplicates', 'blurElement', 'bringFloatingWindowToFront', 'browseNotesFolder',
-  'calculateAllChecksums', 'calculatePropertiesChecksums', 'calculateRowChecksum',
-  'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup', 'changeDocPdfZoom',
-  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines', 'clearAllCustomFileIcons', 'clearAllSyncExclusions', 'clearCapturedKeybind', 'clearCombineParts',
+  'applyExternalProgramPreset', 'applyPaneCustomTwoTone', 'applyPaneRenameFromInput',
+  'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput', 'applyPropPermPreset',
+  'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
+  'backupBackFromPreview', 'backupDelete', 'backupEdit', 'backupNameTyped', 'backupNew',
+  'backupPathTyped', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
+  'backupRefresh', 'backupRestoreClear', 'backupRestoreOpen', 'backupRestorePoint',
+  'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle', 'backupRunBack',
+  'backupRunFilter', 'backupRunFromPreview', 'backupRunMore', 'backupRunNow', 'backupSave',
+  'backupSetMode', 'backupSetSchedule', 'backupShowHistory', 'backupShowList', 'backupShowRestore',
+  'backupShowRun', 'backupStop', 'backupTogglePause', 'blurElement', 'bringFloatingWindowToFront',
+  'browseNotesFolder', 'calculateAllChecksums', 'calculatePropertiesChecksums',
+  'calculateRowChecksum', 'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup',
+  'changeDocPdfZoom', 'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines',
+  'clearAdminImageCache', 'clearAllCustomFileIcons', 'clearCapturedKeybind', 'clearCombineParts',
   'clearCompletedTasks', 'clearConverterSourceFile', 'clearDiffSearch', 'clearMediaPlaylist',
   'clearPaneFilter', 'clearPdfMergeList', 'clearPropCustomIcon', 'clearSpotlightInput',
   'clearTerminal', 'clickElementById', 'cloneDirectoryToOppositePane', 'closeAppDialog',
-  'closeBreadcrumbPopovers', 'closeConverterModal', 'closeDocViewerModal', 'closeDockedEditorTab',
-  'closeDockedTool', 'closeDynamicChewToy', 'closeEditorActionsDropdown', 'closeEditorModal',
-  'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio',
-  'closeFloatingDiff', 'closeFloatingDiskUsage',
-  'closeFloatingDuplicateFinder', 'closeFloatingHexEditor', 'closeFloatingLogViewer',
-  'closeFloatingNotes', 'closeFloatingPdf', 'closeFloatingRenamer', 'closeFloatingShares',
-  'closeFloatingSplitter', 'closeFloatingTagEditor', 'closeFloatingTaskManager',
-  'closeImgTransformDropdown', 'closeKeyRecordModal', 'closeMediaPlayer', 'closeModal',
-  'closeNotesDrawer', 'closeOtherTabs', 'closePaneTab', 'closePaneTabOnMiddleClick',
-  'closeSpotlightModal', 'closeTabsToTheRight', 'confirmSyncFolderSelection',
-  'connectRemoteToActivePane', 'convertCurrentMediaToMp4', 'copyActionOutput',
-  'copyAndUseTokenInFleetForm', 'copyDiffItem', 'copyGeneratedApiToken',
+  'closeBackupWindow', 'closeBreadcrumbPopovers', 'closeConverterModal', 'closeDockedEditorTab',
+  'closeDockedTool', 'closeDocViewerModal', 'closeDynamicChewToy', 'closeEditorActionsDropdown',
+  'closeEditorModal', 'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio',
+  'closeFloatingDiff', 'closeFloatingDiskUsage', 'closeFloatingDuplicateFinder',
+  'closeFloatingHexEditor', 'closeFloatingLogViewer', 'closeFloatingNotes', 'closeFloatingPdf',
+  'closeFloatingRenamer', 'closeFloatingShares', 'closeFloatingSplitter', 'closeFloatingTagEditor',
+  'closeFloatingTaskManager', 'closeImgTransformDropdown', 'closeKeyRecordModal',
+  'closeMediaPlayer', 'closeModal', 'closeNotesDrawer', 'closeOtherTabs', 'closePaneTab',
+  'closePaneTabOnMiddleClick', 'closeSpotlightModal', 'closeTabsToTheRight',
+  'confirmSyncFolderSelection', 'connectRemoteToActivePane', 'convertCurrentMediaToMp4',
+  'copyActionOutput', 'copyAndUseTokenInFleetForm', 'copyDiffItem', 'copyGeneratedApiToken',
   'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTaskLogs',
   'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag', 'createNewDockedEditorTab',
   'createNewEditorTab', 'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio',
-  'cycleMediaLoop', 'cycleMediaSpeed', 'cyclePaneColor', 'deleteBackupProfile', 'deleteBookmark',
-  'deleteCustomAction', 'deleteFileTemplate', 'deleteFleetNodeProfile', 'deleteGlobalMount',
-  'deleteNoteAttachment', 'deleteOpenWithRule', 'deleteSelectedTrashItems', 'deleteSharePermanent',
-  'deleteUserAccount', 'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill',
+  'cycleMediaLoop', 'cycleMediaSpeed', 'cyclePaneColor', 'deleteBookmark', 'deleteCustomAction',
+  'deleteFileTemplate', 'deleteFleetNodeProfile', 'deleteGlobalMount', 'deleteNoteAttachment',
+  'deleteOpenWithRule', 'deleteSelectedTrashItems', 'deleteSharePermanent', 'deleteUserAccount',
+  'disablePathInput', 'disconnectPaneRemote', 'dismissMediaPill', 'dockActiveDynamicChewToy',
+  'dockBackupToActivePane', 'dockCadStudioToActivePane', 'dockDiffToActivePane',
+  'dockDiskUsageToActivePane', 'dockDuplicateFinderToActivePane', 'dockEditorToActivePane',
+  'dockGitToActivePane', 'dockHexEditorToActivePane', 'dockLogViewerToActivePane',
+  'dockMediaPlayerToActivePane', 'dockNotesToActivePane', 'dockPdfToActivePane',
+  'dockRenamerToActivePane', 'dockSharesToActivePane', 'dockSplitterToActivePane',
+  'dockTagEditorToActivePane', 'dockTasksToActivePane', 'dockTerminalToActivePane',
   'docViewerCopyCurrent', 'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent',
-  'docViewerRenameCurrent', 'dockActiveDynamicChewToy', 'dockCadStudioToActivePane',
-  'dockDiffToActivePane', 'dockDiskUsageToActivePane',
-  'dockDuplicateFinderToActivePane', 'dockEditorToActivePane', 'dockGitToActivePane',
-  'dockHexEditorToActivePane', 'dockLogViewerToActivePane', 'dockMediaPlayerToActivePane',
-  'dockNotesToActivePane', 'dockPdfToActivePane', 'dockRenamerToActivePane',
-  'dockSharesToActivePane', 'dockSplitterToActivePane', 'dockTagEditorToActivePane',
-  'dockTasksToActivePane', 'dockTerminalToActivePane', 'downloadCurrentMedia', 'duplicateFileTemplate', 'duplicatePaneTab', 'editBackupProfileByIndex',
-  'editCustomAction', 'editOpenWithRule', 'editTemplateById', 'enablePathInput',
-  'executeBatchRename', 'executeBulkRename', 'executeCompressArchive', 'executeCreateFromTemplate',
-  'executeCreateShare', 'executeCreateVault', 'executeDeltaCopy',
-  'executeDryRun', 'executeDuplicateClean', 'executeExtractArchive', 'executeFileCombine',
-  'executeFileConversion', 'executeFileSplit', 'executeFind', 'executeFolderAlignment',
-  'executeInterpaneDrop', 'executeOpenConfdAssembled', 'executeOpenConfdSeparateTabs',
-  'executeOpenWith', 'executePane1ClickTransfer', 'executePdfActiveTab', 'executeRenamerDryRun',
-  'executeSpotlightIndex', 'executeStandardCopy', 'executeSync', 'executeUnlockNotesNote',
-  'executeUnlockVault', 'exportCustomThemeToml', 'exportFleetNodesJson',
+  'docViewerRenameCurrent', 'downloadBundledChewToy', 'downloadCurrentMedia',
+  'duplicateFileTemplate', 'duplicatePaneTab', 'editCustomAction', 'editOpenWithRule',
+  'editTemplateById', 'enablePathInput', 'executeBatchRename', 'executeBulkRename',
+  'executeCompressArchive', 'executeCreateFromTemplate', 'executeCreateShare',
+  'executeCreateVault', 'executeDeltaCopy', 'executeDuplicateClean', 'executeExtractArchive',
+  'executeFileCombine', 'executeFileConversion', 'executeFileSplit', 'executeFind',
+  'executeFolderAlignment', 'executeInterpaneDrop', 'executeOpenConfdAssembled',
+  'executeOpenConfdSeparateTabs', 'executeOpenWith', 'executePane1ClickTransfer',
+  'executePdfActiveTab', 'executeRenamerDryRun', 'executeSpotlightIndex', 'executeStandardCopy',
+  'executeUnlockNotesNote', 'executeUnlockVault', 'exportCustomThemeToml', 'exportFleetNodesJson',
   'feedSearchResultsToActivePane', 'fetchLogViewerTail', 'fetchPdfSplitInfo',
   'filterDiskUsageItems', 'filterDocCsv', 'filterInstalledChewToys', 'filterMediaPlaylist',
-  'filterSpotlightCategory', 'filterSyncGrid', 'findNextMatch', 'findPrevMatch', 'flipImage',
-  'gitCommitStaged', 'gitPullCurrentRepo', 'gitPushCurrentRepo', 'gitStageAll', 'gitStageFile',
-  'gitUnstageAll', 'gitUnstageFile', 'handleAdminConfigInput', 'handleAdminConfigKeyDown',
-  'handleAppMarginChange', 'handleAvatarFileUpload', 'handleChewToyDragLeave',
-  'handleChewToyDragOver', 'handleChewToyDrop', 'handleChewToyFileSelect',
-  'handleConvertOutputNameInput', 'handleDiffSearch', 'handleDirectFileUpload',
-  'handleDndSettingChange', 'handleDockedNoteSelect', 'handleDockedNotebookChange',
-  'handleDockedSectionChange', 'handleEditorClick', 'handleEditorInput', 'handleEditorKeyDown',
-  'handleEditorLanguageChange', 'handleEditorViewModeChange', 'handleExtractModeChange',
-  'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown', 'handleFleetNodesImport',
-  'handleFolderColorChange', 'handleFolderColorCustomChange', 'handleFontSizeChange',
-  'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange', 'handleHexGridKey',
-  'handleHostnameSettingChange', 'handleLogViewerFilterInput', 'handleLoginBrandingSettingChange',
-  'handleLoginSubmit', 'handleLogoutOrExit', 'handleMediaScrubberHover', 'handleMonoFontChange',
-  'handleNoteAttachmentFileSelected', 'handleNotesInput', 'handleNotesKeyDown',
-  'handleNotesSearch', 'handleNotesTitleChange', 'handlePaneBadgeClick',
-  'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart', 'handlePaneBadgeTouchCancel',
-  'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove', 'handlePaneBadgeTouchStart',
-  'handlePathKey', 'handleRadiusChange', 'handleSansFontChange', 'handleScheduleTypeChange',
+  'filterSpotlightCategory', 'findNextMatch', 'findPrevMatch', 'flipImage', 'gitCommitStaged',
+  'gitPullCurrentRepo', 'gitPushCurrentRepo', 'gitStageAll', 'gitStageFile', 'gitUnstageAll',
+  'gitUnstageFile', 'handleAdminConfigInput', 'handleAdminConfigKeyDown', 'handleAppMarginChange',
+  'handleAvatarFileUpload', 'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
+  'handleChewToyFileSelect', 'handleConvertOutputNameInput', 'handleDiffSearch',
+  'handleDirectFileUpload', 'handleDndSettingChange', 'handleDockedNotebookChange',
+  'handleDockedNoteSelect', 'handleDockedSectionChange', 'handleEditorClick', 'handleEditorInput',
+  'handleEditorKeyDown', 'handleEditorLanguageChange', 'handleEditorViewModeChange',
+  'handleExtractModeChange', 'handleFilterInput', 'handleFilterKey', 'handleFindKeyDown',
+  'handleFleetNodesImport', 'handleFolderColorChange', 'handleFolderColorCustomChange',
+  'handleFontSizeChange', 'handleFontWeightChange', 'handleGapXChange', 'handleGapYChange',
+  'handleHexGridKey', 'handleHostnameSettingChange', 'handleLoginBrandingSettingChange',
+  'handleLoginSubmit', 'handleLogoutOrExit', 'handleLogViewerFilterInput',
+  'handleMediaScrubberHover', 'handleMonoFontChange', 'handleNoteAttachmentFileSelected',
+  'handleNotesInput', 'handleNotesKeyDown', 'handleNotesSearch', 'handleNotesTitleChange',
+  'handlePaneBadgeClick', 'handlePaneBadgeDragEnd', 'handlePaneBadgeDragStart',
+  'handlePaneBadgeTouchCancel', 'handlePaneBadgeTouchEnd', 'handlePaneBadgeTouchMove',
+  'handlePaneBadgeTouchStart', 'handlePathKey', 'handleRadiusChange', 'handleSansFontChange',
   'handleSettingsAvatarFileUpload', 'handleShareModeChange', 'handleSharesFilterChange',
   'handleSplitPresetChange', 'handleSplitSourceChange', 'handleSpotlightInput',
-  'handleSpotlightKey', 'handleStartupSettingChange', 'handleSyncModeChange',
-  'handleTagCoverArtSelected', 'handleTargetFormatChange', 'handleTitleTemplateChange', 'handleToolDragEnd', 'handleToolDragLeave', 'handleToolDragOver',
-  'handleToolDragStart', 'handleToolDrop', 'handleUserDisabledToggle', 'handleUserParanoidToggle',
-  'handleUserSecuritySettingChange', 'handleVaultOpen', 'handleWindowTitleSettingChange',
-  'hideContextMenu', 'hideCustomActionForm', 'hideElement', 'hideMediaScrubberTooltip',
-  'hideOpenWithRuleForm', 'imageViewerCopyCurrent', 'imageViewerDeleteCurrent',
-  'imageViewerMoveCurrent', 'imageViewerRenameCurrent', 'initColResize', 'initTreeResize',
-  'insertAttachmentMarkdownById', 'insertNotesColorTag', 'insertNotesMarkdown',
-  'insertNotesMermaid', 'insertNotesTimestamp', 'insertRenamerToken', 'insertTitleVar',
-  'insertVariableIntoEditTemplate', 'inspectCurrentImage', 'jumpHexOffset', 'jumpToConfdSection',
-  'jumpToFolderInPane', 'jumpToPaneFromDiskUsage', 'jumpToSearchResult', 'loadActiveShares',
-  'loadBackupHistory', 'loadBackupProfiles', 'loadEmojiPresets', 'loadInstalledChewToys',
-  'loadMasterConfigEditor', 'loadNerdFontPresets', 'loadPaneDirectory', 'loadPaneDirectoryTree',
-  'loadRenamerDirectory', 'loadSyncthingDashboard', 'loadSystemDisksOverview', 'loadTagEditorFile',
-  'loadUserPreferencesFromServer', 'lockSession', 'logout',
-  'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNotes',
-  'maximizeFloatingTaskManager', 'minimizeConverterModal',
-  'minimizeFloatingCadStudio', 'minimizeFloatingDiff',
-  'minimizeFloatingDiskUsage', 'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor',
-  'minimizeFloatingHexEditor', 'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer',
-  'minimizeFloatingNotes', 'minimizeFloatingPdf', 'minimizeFloatingRenamer',
-  'minimizeFloatingShares', 'minimizeFloatingSplitter', 'minimizeFloatingTagEditor',
-  'minimizeFloatingTaskManager', 'mountUsbDevice', 'moveMenuItem',
-  'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem', 'navBookPage', 'navImageViewer',
-  'navMediaPlaylist', 'navigateConverterPickerFromInput', 'navigateConverterPickerHome',
+  'handleSpotlightKey', 'handleStartupSettingChange', 'handleTagCoverArtSelected',
+  'handleTargetFormatChange', 'handleTitleTemplateChange', 'handleToolDragEnd',
+  'handleToolDragLeave', 'handleToolDragOver', 'handleToolDragStart', 'handleToolDrop',
+  'handleUserDisabledToggle', 'handleUserParanoidToggle', 'handleUserSecuritySettingChange',
+  'handleVaultOpen', 'handleWindowTitleSettingChange', 'hideContextMenu', 'hideCustomActionForm',
+  'hideElement', 'hideMediaScrubberTooltip', 'hideOpenWithRuleForm', 'imageViewerCopyCurrent',
+  'imageViewerDeleteCurrent', 'imageViewerMoveCurrent', 'imageViewerRenameCurrent',
+  'initColResize', 'initTreeResize', 'insertAttachmentMarkdownById', 'insertNotesColorTag',
+  'insertNotesMarkdown', 'insertNotesMermaid', 'insertNotesTimestamp', 'insertRenamerToken',
+  'insertTitleVar', 'insertVariableIntoEditTemplate', 'inspectCurrentImage',
+  'installBundledChewToy', 'jumpHexOffset', 'jumpToConfdSection', 'jumpToFolderInPane',
+  'jumpToPaneFromDiskUsage', 'jumpToSearchResult', 'loadActiveShares', 'loadEmojiPresets',
+  'loadInstalledChewToys', 'loadMasterConfigEditor', 'loadNerdFontPresets', 'loadPaneDirectory',
+  'loadPaneDirectoryTree', 'loadRenamerDirectory', 'loadSyncthingDashboard',
+  'loadSystemDisksOverview', 'loadTagEditorFile', 'loadUserPreferencesFromServer', 'lockSession',
+  'logout', 'maximizeFloatingEditor', 'maximizeFloatingMediaPlayer', 'maximizeFloatingNotes',
+  'maximizeFloatingTaskManager', 'minimizeBackupWindow', 'minimizeConverterModal',
+  'minimizeFloatingCadStudio', 'minimizeFloatingDiff', 'minimizeFloatingDiskUsage',
+  'minimizeFloatingDuplicateFinder', 'minimizeFloatingEditor', 'minimizeFloatingHexEditor',
+  'minimizeFloatingLogViewer', 'minimizeFloatingMediaPlayer', 'minimizeFloatingNotes',
+  'minimizeFloatingPdf', 'minimizeFloatingRenamer', 'minimizeFloatingShares',
+  'minimizeFloatingSplitter', 'minimizeFloatingTagEditor', 'minimizeFloatingTaskManager',
+  'mountUsbDevice', 'moveMenuItem', 'movePdfMergeItem', 'movePdfOrganizerPage', 'moveToolItem',
+  'navBookPage', 'navigateConverterPickerFromInput', 'navigateConverterPickerHome',
   'navigateConverterPickerPath', 'navigateConverterPickerUp', 'navigateDiskUsageActivePane',
   'navigateDiskUsageParent', 'navigateSyncPickerFromInput', 'navigateSyncPickerPath',
-  'navigateSyncPickerUp', 'navigateToBookmark', 'onBookmarkProtocolChange', 'openAboutModal',
-  'openAdminPanel', 'openApiTokensModal', 'openBatchRenamer', 'openBookmarksManager',
-  'openCadStudio', 'openChewtoyForFile', 'openColumnHeaderContextMenu', 'openContainingFolder',
-  'openConverterFilePicker', 'openConverterModal', 'openCreateApiTokenModal',
-  'openCreateBackupProfileModal', 'openCreateTemplateModal', 'openCreateVaultModal',
-  'openCurrentMediaWithSystemPlayer', 'openCustomDestModal', 'openDiskUsageModal',
-  'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal', 'openFileDiffView',
-  'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi', 'openFloatingEditor', 'openFloatingNotes', 'openFloatingTaskManager', 'openGitFromProperties',
+  'navigateSyncPickerUp', 'navigateToBookmark', 'navImageViewer', 'navMediaPlaylist',
+  'onBookmarkProtocolChange', 'openAboutModal', 'openAdminPanel', 'openApiTokensModal',
+  'openBatchRenamer', 'openBookmarksManager', 'openCadStudio', 'openChewtoyForFile',
+  'openColumnHeaderContextMenu', 'openContainingFolder', 'openConverterFilePicker',
+  'openConverterModal', 'openCreateApiTokenModal', 'openCreateTemplateModal',
+  'openCreateVaultModal', 'openCurrentMediaWithSystemPlayer', 'openCustomDestModal',
+  'openDiskUsageModal', 'openDuplicateFinder', 'openDynamicChewToy', 'openExternalTerminal',
+  'openFileDiffView', 'openFleetAddModal', 'openFleetManagerModal', 'openFleetNodeWebUi',
+  'openFloatingEditor', 'openFloatingNotes', 'openFloatingTaskManager', 'openGitFromProperties',
   'openGitManager', 'openGlobalRemoteModal', 'openHelpModal', 'openHexEditor',
   'openInPaneWithToast', 'openKeyRecordModal', 'openLogViewer', 'openMediaPlayer',
-  'openNativeRecycleBin', 'openNotesColorPicker', 'openNotesMigrationMenu',
-  'openNotesNewMenu', 'openNotesTemplatePicker', 'openNotesVersionsModal',
-  'openNoteForContextItem', 'openPaneFavoritesMenu', 'openPaneSettingsMenu',
+  'openNativeRecycleBin', 'openNoteForContextItem', 'openNotesColorPicker',
+  'openNotesMigrationMenu', 'openNotesNewMenu', 'openNotesTemplatePicker',
+  'openNotesVersionsModal', 'openPaneFavoritesMenu', 'openPaneSettingsMenu',
   'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu', 'openParanoidSettings',
   'openPathInActivePane', 'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
-  'openPropertiesColorTab', 'openRemoteModal', 'openSaveCurrentSyncAsProfile', 'openSearchModal',
-  'openSettingsModal', 'openSettingsTab', 'openShareLogs', 'openSharesManager',
-  'openSplitterFilePicker', 'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal',
-  'openSyncthingModal', 'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath',
-  'openUserProfileModal', 'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes',
-  'pingFleetNode', 'playMediaPlaylistItem', 'pollTasks', 'populateMediaPlaylistFromActivePane',
-  'printDocViewer', 'promptAddNoteTag', 'promptChangeNoteCategory', 'promptChangeNotesFolder',
-  'promptChangeNoteSection', 'promptCreateNote',
-  'promptCreateNotebookOrCategory', 'promptCreateSection', 'promptDeleteCurrentNote',
-  'promptEmptyTrash', 'promptToggleEncryptNotebook', 'promptToggleEncryptSection',
-  'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes', 'refreshDiskUsageView',
-  'refreshDocViewerText', 'refreshFolderTree', 'refreshPane', 'reloadPropertiesMetadata', 'reloadRenamerFiles', 'reloadTagEditorFiles', 'removeCombinePart',
-  'removeCustomExclusionTag', 'removeCustomFileIconRule', 'removeElementById', 'removeModalTag',
-  'removeNoteTag', 'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag',
-  'removeTagCoverArt', 'renderAvatarById', 'renderHexEditorView', 'renderKeybindingsTable',
-  'replaceAllMatches', 'replaceCurrentMatch', 'resetAllColumnWidths', 'resetAvatarToDefault',
-  'resetCadCamera', 'resetFileTemplatesToDefault', 'resetFleetNodeForm', 'resetGlobalFolderIcon',
+  'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal', 'openSettingsModal',
+  'openSettingsTab', 'openShareLogs', 'openSharesManager', 'openSplitterFilePicker',
+  'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal', 'openSyncthingModal',
+  'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath', 'openUserProfileModal',
+  'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes', 'pingFleetNode', 'playMediaPlaylistItem',
+  'pollTasks', 'populateMediaPlaylistFromActivePane', 'printDocViewer', 'promptAddNoteTag',
+  'promptChangeNoteCategory', 'promptChangeNoteSection', 'promptChangeNotesFolder',
+  'promptCreateNote', 'promptCreateNotebookOrCategory', 'promptCreateSection',
+  'promptDeleteCurrentNote', 'promptEmptyTrash', 'promptToggleEncryptNotebook',
+  'promptToggleEncryptSection', 'quickTransferToPane', 'quickTransferToPath', 'refreshAllPanes',
+  'refreshDiskUsageView', 'refreshDocViewerText', 'refreshFolderTree', 'refreshPane',
+  'reloadPropertiesMetadata', 'reloadRenamerFiles', 'reloadTagEditorFiles', 'removeCombinePart',
+  'removeCustomFileIconRule', 'removeElementById', 'removeModalTag', 'removeNoteTag',
+  'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag', 'removeTagCoverArt',
+  'renderAvatarById', 'renderHexEditorView', 'renderKeybindingsTable', 'replaceAllMatches',
+  'replaceCurrentMatch', 'resetAllColumnWidths', 'resetAvatarToDefault', 'resetCadCamera',
+  'resetFileTemplatesToDefault', 'resetFleetNodeForm', 'resetGlobalFolderIcon',
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff', 'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder',
-  'restoreFloatingEditor', 'restoreFloatingHexEditor', 'restoreFloatingLogViewer',
-  'restoreFloatingMediaPlayer', 'restoreFloatingNotes', 'restoreFloatingPdf',
-  'restoreFloatingRenamer', 'restoreFloatingShares', 'restoreFloatingSplitter',
-  'restoreFloatingTagEditor', 'restoreFloatingTaskManager', 'restoreSelectedNotesVersion',
-  'restoreSelectedTrashItems', 'resumeAllTasks', 'resumeTask',
-  'revokeApiToken', 'rotateDocPdf', 'rotateImage', 'rotatePdfOrganizerPage',
-  'runBackupProfileNow', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runGlobalSearch',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'restoreBackupWindow',
+  'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff',
+  'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
+  'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
+  'restoreFloatingNotes', 'restoreFloatingPdf', 'restoreFloatingRenamer', 'restoreFloatingShares',
+  'restoreFloatingSplitter', 'restoreFloatingTagEditor', 'restoreFloatingTaskManager',
+  'restoreSelectedNotesVersion', 'restoreSelectedTrashItems', 'resumeAllTasks', 'resumeTask',
+  'retryPaneNode', 'returnPaneToLocalHost', 'revokeApiToken', 'rotateDocPdf', 'rotateImage',
+  'rotatePdfOrganizerPage', 'runDiskUsageScan', 'runDiskUsageScanFromInput', 'runGlobalSearch',
   'runPropertiesStatsScan', 'runShellAction', 'runToolsMenuChewtoy', 'runToolsMenuItem',
-  'saveActiveEditorTab', 'saveActiveNotesNote', 'saveAdminSecuritySettings', 'saveAllEditorTabs',
-  'saveBackupProfileForm', 'saveBookmarkFromModal', 'saveCapturedKeybind',
-  'saveContextItemAsTemplate', 'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme',
-  'saveCustomShellAction', 'saveCustomTrashDir', 'saveDockedEditorTab', 'saveFleetNodeProfile',
-  'saveGlobalFolderIcon', 'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile',
-  'saveModalTags', 'saveNotesFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
-  'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal',
-  'saveUserProfile', 'saveUserRbac',
-  'scanMountpointTreemap', 'scanPaneForCombineParts', 'scrollViewerToBottom', 'searchHexBytes',
-  'seekMedia', 'selectConverterPickerFile', 'selectDatabaseCategory', 'selectDatabaseNoteById',
-  'selectDatabaseSection', 'selectElementText', 'selectFleetColor', 'selectFleetNodeInManager',
-  'selectGitFileDiff', 'selectGlobalFolderPreset', 'selectNotesNoteByPath',
-  'selectNotesNotebook', 'selectNotesSection', 'selectNotesVersion',
+  'saveActiveEditorTab', 'saveActiveNotesNote', 'saveAdminImageCache', 'saveAdminSecuritySettings',
+  'saveAllEditorTabs', 'saveBookmarkFromModal', 'saveCapturedKeybind', 'saveContextItemAsTemplate',
+  'saveCurrentWorkspaceAsDefault', 'saveCustomBrowserTheme', 'saveCustomShellAction',
+  'saveCustomTrashDir', 'saveDockedEditorTab', 'saveFleetNodeProfile', 'saveGlobalFolderIcon',
+  'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile', 'saveModalTags',
+  'saveNotesFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
+  'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal', 'saveUserProfile',
+  'saveUserRbac', 'scanMountpointTreemap', 'scanPaneForCombineParts', 'scrollViewerToBottom',
+  'searchHexBytes', 'seekMedia', 'selectConverterPickerFile', 'selectDatabaseCategory',
+  'selectDatabaseNoteById', 'selectDatabaseSection', 'selectElementText', 'selectFleetColor',
+  'selectFleetNodeInManager', 'selectGitFileDiff', 'selectGlobalFolderPreset',
+  'selectNotesNotebook', 'selectNotesNoteByPath', 'selectNotesSection', 'selectNotesVersion',
   'selectSyncPickerLocation', 'setActivePane', 'setCadCameraView', 'setCadMaterialTheme',
   'setCadShadingMode', 'setCadSliceAxis', 'setCompressDestToOpposite', 'setContextFileColor',
   'setConverterTargetFormat', 'setCustomAngleInput', 'setDefaultViewMode', 'setDiffFilter',
   'setDiffSortBy', 'setDiskUsageViewMode', 'setDuplicateFinderPathToActivePane', 'setElementText',
   'setElementValue', 'setFileDiffMode', 'setFontSizePreset', 'setLogLevelFilter',
-  'setMediaSubtitleTrack', 'setNotesStorageMode', 'setNotesViewMode',
+  'setMediaSubtitleTrack', 'setNotesManualsShown', 'setNotesStorageMode', 'setNotesViewMode',
   'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setPropFileColor',
-  'setTaskVerbosity', 'setTitleTemplatePreset',
-  'showAddCustomActionPrompt', 'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf',
-  'showToast', 'showTouchActionsMenu', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane',
-  'startDuplicateScan', 'styleCheckboxPill', 'submitAddUser',
-  'submitCreateApiToken', 'submitRemoteAuth', 'submitUnlockSession', 'swapDiffPaths', 'swapPanes',
-  'swapSyncPaths', 'switchActiveEditorTab', 'switchAdminTab', 'switchDockedEditorTab',
-  'switchGitTab', 'switchMenuBuilderCategory', 'switchPaneNode', 'switchPaneTab', 'switchPdfTab',
-  'switchPropertiesTab', 'switchSettingsTab', 'switchSplitterTab', 'switchSyncTab',
-  'switchToFleetNode', 'syncAdminConfigScroll', 'syncDockedEditorInput', 'syncDockedNotesInput',
-  'syncGutterScroll', 'syncHetznerFields', 'syncNotesGutter', 'takeCadSnapshot',
-  'testAndSaveSyncthingConfig', 'testExternalProgram', 'testFleetNodeConnection',
-  'testRemoteConnection', 'toggleActivateOnHover', 'toggleActiveNotePin', 'toggleAllRenamerItems',
-  'toggleAllRootsCheck', 'toggleBackupProfileActive', 'toggleBranchView', 'toggleBrumMascot',
-  'toggleCadAxes', 'toggleCadEdges', 'toggleCadGrid', 'toggleCadSlicer', 'toggleCadTurntable',
-  'toggleChewToy', 'toggleColSeparators', 'toggleColumnVisibility',
-  'toggleCompactDates', 'toggleContextColorPalette', 'toggleContextSubmenu',
-  'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator', 'toggleDetectFileLocksSetting',
-  'toggleDiffFoldersFirst', 'toggleDiffShowDotfiles', 'toggleDiffSortDir',
-  'toggleDiskUsageMaximize', 'toggleDocRawRenderMode', 'toggleDocViewerFloating',
-  'toggleDocViewerFullscreen', 'toggleDuplicateFile', 'toggleEditorActionsDropdown',
-  'toggleExclusionChip', 'toggleFKeyBar', 'toggleFileAction', 'toggleFileListMultiline',
-  'toggleFindBar', 'toggleFindOption', 'toggleFleetSwitcherDropdown', 'toggleFleetTokenVisibility',
+  'setTaskVerbosity', 'setTitleTemplatePreset', 'showAddCustomActionPrompt',
+  'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf', 'showToast',
+  'showTouchActionsMenu', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane',
+  'startDuplicateScan', 'styleCheckboxPill', 'submitAddUser', 'submitCreateApiToken',
+  'submitRemoteAuth', 'submitUnlockSession', 'swapDiffPaths', 'swapPanes', 'switchActiveEditorTab',
+  'switchAdminTab', 'switchDockedEditorTab', 'switchGitTab', 'switchMenuBuilderCategory',
+  'switchPaneNode', 'switchPaneTab', 'switchPdfTab', 'switchPropertiesTab', 'switchSettingsTab',
+  'switchSplitterTab', 'switchToFleetNode', 'syncAdminConfigScroll', 'syncDockedEditorInput',
+  'syncDockedNotesInput', 'syncGutterScroll', 'syncHetznerFields', 'syncNotesGutter',
+  'takeCadSnapshot', 'testAndSaveSyncthingConfig', 'testExternalProgram',
+  'testFleetNodeConnection', 'testRemoteConnection', 'toggleActivateOnHover',
+  'toggleActiveNotePin', 'toggleAllRenamerItems', 'toggleAllRootsCheck', 'toggleBackupMaximize',
+  'toggleBranchView', 'toggleBrumMascot', 'toggleCadAxes', 'toggleCadEdges', 'toggleCadGrid',
+  'toggleCadSlicer', 'toggleCadTurntable', 'toggleChewToy', 'toggleColSeparators',
+  'toggleColumnVisibility', 'toggleCompactDates', 'toggleContextColorPalette',
+  'toggleContextSubmenu', 'toggleCurrentNoteEncryption', 'toggleCustomThemeCreator',
+  'toggleDetectFileLocksSetting', 'toggleDiffFoldersFirst', 'toggleDiffShowDotfiles',
+  'toggleDiffSortDir', 'toggleDiskUsageMaximize', 'toggleDocRawRenderMode',
+  'toggleDocViewerFloating', 'toggleDocViewerFullscreen', 'toggleDuplicateFile',
+  'toggleEditorActionsDropdown', 'toggleFileListMultiline', 'toggleFindBar', 'toggleFindOption',
+  'toggleFKeyBar', 'toggleFleetSwitcherDropdown', 'toggleFleetTokenVisibility',
   'toggleFloatingTaskManager', 'toggleFolderTree', 'toggleGlobalDotfiles',
   'toggleGlobalRefreshButton', 'toggleHapticFeedbackSetting', 'toggleHexInspector',
   'toggleHideDrive', 'toggleHostnameBadgeSetting', 'toggleImageViewerFloating',
@@ -270,30 +273,29 @@ const BRUM_ACTIONS = new Set([
   'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
   'toggleParentClass', 'togglePasswordVisibility', 'togglePdfSplitModeUI', 'toggleProfileMenu',
   'toggleRemoteGlobalMountUI', 'toggleRenamerItem', 'toggleRevokeShare', 'toggleShowDirTag',
-  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncExclusionsPanel', 'toggleSyncNav',
-  'toggleSyncScroll', 'toggleTailFollow', 'toggleTerminal', 'toggleTerminalFullscreen',
-  'toggleToolVisibility', 'toggleToolsMenu',
-  'toggleTrashSetting', 'toggleTreeNodeExpand', 'toggleUseExtEditor', 'toggleUseExtViewer',
-  'toggleViewerWordWrap', 'toggleWindowDecorations', 'toggleWindowsNativeOpsSetting',
-  'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip', 'triggerBulkRename',
-  'triggerChecksum', 'triggerCompressModal', 'triggerCopy', 'triggerCopyClipboard',
-  'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete', 'triggerDeviceFolderUpload',
-  'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions', 'triggerDownload',
-  'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory', 'triggerEditTagsModal',
-  'triggerEditor', 'triggerExtractHere', 'triggerExtractModal', 'triggerExtractToFolder',
-  'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager', 'triggerImportFleetNodes',
-  'triggerMkdir', 'triggerMove', 'triggerNewFile', 'triggerNoteAttachmentUpload',
-  'triggerOidcLogin', 'triggerPaste', 'triggerProperties', 'triggerRename', 'triggerServerReload',
-  'triggerServerRestart', 'triggerShare', 'triggerShareDirectory', 'triggerSyncthingScan',
-  'triggerView', 'undoBatchRename', 'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice',
-  'updateAdminConfigCursorStats', 'updateBulkRenamePreview', 'updateBulkRenameUI',
-  'updateCadSlicePlane', 'updateCompressExt', 'updateDefaultCopyAction', 'updateHexInspector',
-  'updateMenuOption', 'updateMobileBottomBarMode', 'updatePaneCustomGradientPreview',
-  'updatePaneTabsMode', 'updatePermFromCheckboxes', 'updatePhoneTabletMaxPanes',
-  'updatePropPermFromCheckboxes', 'updateRemoteProtoUI', 'updateRenamerPreview',
-  'updateSplitEstimate', 'updateTemplateLivePreview', 'useActivePaneItemForConverter', 'useActivePaneItemForSplitter',
-  'useActivePanePath', 'useActivePaneSelectedPdf', 'useFallbackIcon', 'useInactivePanePath',
-  'writeClipboardText', 'zoomBookPage', 'zoomImage',
+  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll',
+  'toggleTailFollow', 'toggleTerminal', 'toggleTerminalFullscreen', 'toggleToolsMenu',
+  'toggleToolVisibility', 'toggleTrashSetting', 'toggleTreeNodeExpand', 'toggleUseExtEditor',
+  'toggleUseExtViewer', 'toggleViewerWordWrap', 'toggleWindowDecorations',
+  'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
+  'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
+  'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
+  'triggerDeviceFolderUpload', 'triggerDeviceUpload', 'triggerDiff', 'triggerDirPermissions',
+  'triggerDownload', 'triggerDownloadContextItem', 'triggerDownloadCurrentDirectory',
+  'triggerEditor', 'triggerEditTagsModal', 'triggerExtractHere', 'triggerExtractModal',
+  'triggerExtractToFolder', 'triggerFileCombine', 'triggerFileSplit', 'triggerGitManager',
+  'triggerImportFleetNodes', 'triggerMkdir', 'triggerMove', 'triggerNewFile',
+  'triggerNoteAttachmentUpload', 'triggerOidcLogin', 'triggerPaste', 'triggerProperties',
+  'triggerRename', 'triggerServerReload', 'triggerServerRestart', 'triggerShare',
+  'triggerShareDirectory', 'triggerSyncthingScan', 'triggerView', 'undoBatchRename',
+  'undockToolFromPane', 'uninstallChewToy', 'unmountUsbDevice', 'updateAdminConfigCursorStats',
+  'updateBulkRenamePreview', 'updateBulkRenameUI', 'updateCadSlicePlane', 'updateCompressExt',
+  'updateDefaultCopyAction', 'updateHexInspector', 'updateMenuOption', 'updateMobileBottomBarMode',
+  'updatePaneCustomGradientPreview', 'updatePaneTabsMode', 'updatePermFromCheckboxes',
+  'updatePhoneTabletMaxPanes', 'updatePropPermFromCheckboxes', 'updateRemoteProtoUI',
+  'updateRenamerPreview', 'updateSplitEstimate', 'updateTemplateLivePreview',
+  'useActivePaneItemForConverter', 'useActivePaneItemForSplitter', 'useActivePaneSelectedPdf',
+  'useFallbackIcon', 'writeClipboardText', 'zoomBookPage', 'zoomImage',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -979,7 +981,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
   { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
   { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager', desc: 'Manage public share links and guest dropboxes', visible: true },
-  { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal', desc: 'Two-way sync, mirrors, snapshot archives & replication', visible: true },
+  { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal', desc: 'Back up folders, keep old versions, restore files', visible: true },
   { id: 'du', label: 'Disk Usage', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
   { id: 'syncthing', label: 'Syncthing', icon: 'assets/syncthing.webp', action: 'openSyncthingModal', desc: 'Continuous peer-to-peer file synchronization', visible: true },
   { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal', desc: 'Batch file format conversions for media & docs', visible: true },
@@ -4511,7 +4513,8 @@ function createPaneElement(pane, index) {
         'diskusage': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
         'du': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
         'diff': '<img src="assets/diff.webp" alt="Compare & Diff" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare & Diff',
-        'compare': '<img src="assets/diff.webp" alt="Compare & Diff" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare & Diff'
+        'compare': '<img src="assets/diff.webp" alt="Compare & Diff" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare & Diff',
+        'backup': '<img src="assets/sync.webp" alt="Backup & Sync" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup &amp; Sync'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
     }
@@ -9709,7 +9712,7 @@ const DefaultMenuConfig = {
     { id: 'git_manager', label: 'Git Manager & Diff', icon: 'git-branch', enabled: true, desc: 'Visual branch manager, staging, and commit log' },
     { id: 'pdf_studio', label: 'PDF Studio', icon: 'file-text', enabled: true, desc: 'Native PDF manipulation tools' },
     { id: 'disk_usage', label: 'Disk Usage & Treemap', icon: 'pie-chart', enabled: true, desc: 'Hierarchical visual storage space visualizer' },
-    { id: 'sync', label: 'Sync & Replication', icon: 'refresh-cw', enabled: true, desc: 'Automated bidirectional directory synchronization' },
+    { id: 'sync', label: 'Backup & Sync', icon: 'refresh-cw', enabled: true, desc: 'Scheduled backups with old versions, restore, and two-way sync' },
     { id: 'audio_player', label: 'Audio Player', icon: 'music', enabled: true, desc: 'Integrated music and audio track player' },
     { id: 'video_player', label: 'Video Player', icon: 'video', enabled: true, desc: 'Universal video player' },
   ],
@@ -21634,7 +21637,7 @@ function showContextMenu(x, y) {
           <div class="context-item" data-on-click="triggerShare" data-click-after="hideContextMenu"><i data-lucide="share-2" style="color: var(--accent);"></i> <span class="context-label">Share Folder (Dropbox)...</span></div>
           <div class="context-item" data-on-click="openBatchRenamer" data-click-after="hideContextMenu"><i data-lucide="file-signature" style="color: var(--accent);"></i> <span class="context-label">Batch Rename</span> <span class="context-shortcut">Ctrl+M</span></div>
           <div class="context-item" data-on-click="triggerEditTagsModal" data-click-after="hideContextMenu"><i data-lucide="tag" style="color: var(--accent);"></i> <span class="context-label">Tag Studio...</span></div>
-          <div class="context-item" data-on-click="openSyncModal" data-click-after="hideContextMenu"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Backup (Sync & Replication)...</span></div>
+          <div class="context-item" data-on-click="openSyncModal" data-click-after="hideContextMenu"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Backup &amp; Sync...</span></div>
           <div class="context-item" data-on-click="openDiskUsageModal" data-click-args="${actionArgs(App.contextItem?.path)}" data-click-after="hideContextMenu"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Stats (Disk Usage & Treemap)...</span></div>
           <div class="context-item" data-on-click="toggleBranchView" data-click-args="${actionArgs((App.contextPaneIndex ?? App.activePaneIndex))}" data-click-after="hideContextMenu"><i data-lucide="git-branch" style="color: var(--accent);"></i> <span class="context-label">Flat / Branch View</span> <span class="context-shortcut">Ctrl+B</span></div>
           <div class="context-item" data-on-click="triggerDirPermissions" data-click-args="${actionArgs((App.contextPaneIndex ?? App.activePaneIndex))}" data-click-after="hideContextMenu"><i data-lucide="lock"></i> <span class="context-label">Directory Permissions & Ownership</span></div>
@@ -21751,7 +21754,7 @@ function showContextMenu(x, y) {
           <div class="context-item" data-on-click="triggerBulkRename" data-click-after="hideContextMenu"><i data-lucide="tags"></i> <span class="context-label">Advanced Rename</span> <span class="context-shortcut">Shift+F6</span></div>
           <div class="context-item" data-on-click="triggerFileSplit" data-click-after="hideContextMenu"><i data-lucide="scissors"></i> <span class="context-label">Split Large File...</span></div>
           <div class="context-item" data-on-click="triggerFileCombine" data-click-after="hideContextMenu"><i data-lucide="merge"></i> <span class="context-label">Combine Part Files (.001, .002)...</span></div>
-          <div class="context-item" data-on-click="openSyncModal" data-click-after="hideContextMenu"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Backup (Sync & Replication)...</span></div>
+          <div class="context-item" data-on-click="openSyncModal" data-click-after="hideContextMenu"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Backup &amp; Sync...</span></div>
           <div class="context-item" data-on-click="openDiskUsageModal" data-click-after="hideContextMenu"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> <span class="context-label">Stats (Disk Usage & Treemap)</span></div>
           <div class="context-item" data-on-click="triggerGitManager" data-click-after="hideContextMenu"><i data-lucide="git-branch"></i> <span class="context-label">Git Manager & Diff</span></div>
           <div class="context-item" data-on-click="openDuplicateFinder" data-click-after="hideContextMenu"><i data-lucide="copy-check" style="color: var(--accent);"></i> <span class="context-label">Duplicate Finder...</span></div>
@@ -22650,7 +22653,7 @@ function showEmptySpaceContextMenu(x, y, paneIndex) {
     <div class="context-sep"></div>
     <div class="context-item" data-on-click="openTerminalInPath" data-click-args="${actionArgs(String(pane.path ?? ''))}" data-click-after="hideContextMenu"><img src="assets/term.webp" alt="Terminal" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Open in Terminal (\`)</div>
     <div class="context-item" data-on-click="openSearchModal" data-click-after="hideContextMenu"><img src="assets/search.webp" alt="Search" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Search in Directory (Ctrl+F)</div>
-    <div class="context-item" data-on-click="openSyncModal" data-click-after="hideContextMenu"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup (Sync & Replication)...</div>
+    <div class="context-item" data-on-click="openSyncModal" data-click-after="hideContextMenu"><img src="assets/sync.webp" alt="Backup" style="width: 13px; height: 13px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup &amp; Sync...</div>
     <div class="context-item" data-on-click="openDiskUsageModal" data-click-args="${actionArgs(String(pane.path ?? ''))}" data-click-after="hideContextMenu"><img src="assets/amber-piechart.webp" alt="Stats" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Stats (Disk Usage & Treemap)...</div>
     <div class="context-item" data-on-click="openRemoteModal" data-click-args="${actionArgs((paneIndex))}" data-click-after="hideContextMenu"><i data-lucide="network" style="width: 14px;"></i> Mount Remote Storage Here...</div>
     ${pane.path.includes('://') ? `<div class="context-item" data-on-click="disconnectPaneRemote" data-click-args="${actionArgs((paneIndex))}" data-click-after="hideContextMenu" style="color: var(--danger, #ef4444);"><i data-lucide="log-out" style="width: 14px; color: var(--danger, #ef4444);"></i> Disconnect Remote Storage</div>` : ''}
@@ -35059,112 +35062,1213 @@ async function executeBulkRename() {
 }
 
 // ---------------- TWO-WAY VISUAL DIRECTORY SYNCHRONIZER ----------------
-let syncAnalysisData = null;
-let syncCurrentFilter = 'all';
-let syncCustomExclusions = [];
+// ---------------- BACKUP & SYNC ----------------
+// The main screen is the list of saved backups. A backup is made in four steps
+// (what, where, how, when), previewed before its first run, and can be restored
+// into a separate folder (default) or, after a clear confirmation, its original place.
+
+const BACKUP_MODES = {
+  copy: { label: 'Copy', desc: 'Keeps an exact copy. Files you delete are removed from the backup too.' },
+  versions: { label: 'Copy and keep old versions', desc: 'Keeps an exact copy, and keeps changed or deleted files for a number of days.' },
+  two_way: { label: 'Keep two folders the same', desc: 'Changes on either side are copied to the other, deletions too. Replaced files are kept as old versions.' },
+};
+
+const BACKUP_EXCLUSION_CHIPS = ['.git', 'node_modules', '.cache', '*.tmp', 'Thumbs.db', '.DS_Store', '.Trash-*'];
+
+const backupUi = {
+  view: 'list',          // 'list', 'edit', 'preview', 'restore', 'history', 'run'
+  profiles: [],
+  draft: null,           // the backup being made or edited
+  preview: null,         // { profile, result, filter, afterSave }
+  restore: null,         // { profile, points, point, path, items, selected, target, defaultFolder, originalFolder }
+  history: null,         // { profileId, name, runs }
+  run: null,             // { run, files, total, problemsOnly }
+  pollTimer: null,
+  lastListJson: '',
+};
+
+async function backupApi(url, opts = {}) {
+  const init = { method: opts.method || 'GET', headers: {} };
+  if (opts.body !== undefined) {
+    init.headers['Content-Type'] = 'application/json';
+    init.body = JSON.stringify(opts.body);
+  }
+  const resp = await fetch(url, init);
+  if (!resp.ok) {
+    let msg = await resp.text();
+    try {
+      const j = JSON.parse(msg);
+      msg = j.error || j.message || msg;
+    } catch (_) { /* plain text */ }
+    throw new Error(msg || `Request failed (${resp.status})`);
+  }
+  const type = resp.headers.get('content-type') || '';
+  return type.includes('application/json') ? resp.json() : resp.text();
+}
+
+// ---------- Times and numbers in plain words ----------
+
+function bkAgo(ts) {
+  const s = Math.max(0, Date.now() / 1000 - ts);
+  if (s < 60) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) {
+    const h = Math.round(s / 3600);
+    return `${h} hour${h === 1 ? '' : 's'} ago`;
+  }
+  const d = Math.round(s / 86400);
+  return d === 1 ? 'yesterday' : `${d} days ago`;
+}
+
+function bkWhen(ts) {
+  const ms = ts * 1000;
+  if (ms <= Date.now() + 30000) return 'now';
+  const mins = Math.round((ms - Date.now()) / 60000);
+  if (mins < 60) return `in ${mins} min`;
+  const d = new Date(ms);
+  const now = new Date();
+  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (d.toDateString() === now.toDateString()) return `today at ${time}`;
+  const tomorrow = new Date(now);
+  tomorrow.setDate(now.getDate() + 1);
+  if (d.toDateString() === tomorrow.toDateString()) return `tomorrow at ${time}`;
+  return `${d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })} at ${time}`;
+}
+
+function bkDate(ts) {
+  return new Date(ts * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
+function bkDuration(ms) {
+  const s = Math.round((ms || 0) / 1000);
+  if (s < 60) return `${s}s`;
+  if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
+  return `${Math.floor(s / 3600)}h ${Math.floor((s % 3600) / 60)}m`;
+}
+
+function bkCount(n, one, many) {
+  return `${Number(n).toLocaleString()} ${n === 1 ? one : many}`;
+}
+
+function bkScheduleText(p) {
+  if (p.schedule_type === 'interval') {
+    const m = p.schedule_interval_mins;
+    if (m % 60 === 0) return m === 60 ? 'Every hour' : `Every ${m / 60} hours`;
+    return m === 1 ? 'Every minute' : `Every ${m} minutes`;
+  }
+  if (p.schedule_type === 'daily') return `Every day at ${p.schedule_time || '02:00'}`;
+  return 'Only when you click Back up now';
+}
+
+const BACKUP_ACTION_WORDS = {
+  copy: 'Copied', update: 'Updated', remove: 'Removed',
+  copy_back: 'Copied back', update_back: 'Updated back', remove_back: 'Removed back',
+  restore: 'Restored', prune: 'Cleaned up', warning: 'Warning',
+};
+
+const BACKUP_PLAN_WORDS = {
+  copy: 'New', update: 'Changed', remove: 'Remove',
+  copy_back: 'New (to first)', update_back: 'Changed (to first)', remove_back: 'Remove (from first)',
+};
+
+// ---------- Window ----------
+
+// The window's contents move between the floating window and a Panel. Panels are redrawn
+// from scratch, so keep a reference instead of looking the element up each time.
+function backupBody() {
+  if (!backupUi.bodyEl) backupUi.bodyEl = document.getElementById('backup-body');
+  return backupUi.bodyEl;
+}
+
+function backupView() {
+  return backupBody()?.querySelector('#backup-view') || null;
+}
 
 function openSyncModal() {
-  const visible = getVisiblePaneCount();
-  const srcPane = App.panes[App.activePaneIndex];
-  const destPane = App.panes[(App.activePaneIndex + 1) % visible] || srcPane;
-
-  const srcIn = document.getElementById('sync-src-input');
-  const destIn = document.getElementById('sync-dest-input');
-  if (srcIn) srcIn.value = srcPane.path;
-  if (destIn) destIn.value = destPane.path;
-
-  syncAnalysisData = null;
-  syncCurrentFilter = 'all';
-  updateSyncCounters(0, 0, 0, 0, 0, 0);
-
-  const tbody = document.getElementById('sync-diff-body');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">Click <b>Compare & Analyze</b> or <b>Dry Run</b> to inspect differences.</td></tr>`;
-
-  const footerStats = document.getElementById('sync-footer-stats');
-  if (footerStats) footerStats.textContent = 'Ready to compare directories.';
-
-  handleSyncModeChange();
-  switchSyncTab('diff');
-  showModal('sync-modal');
-  if (window.lucide) lucide.createIcons();
-}
-
-function switchSyncTab(tab) {
-  document.querySelectorAll('.sync-tab-btn').forEach(b => b.classList.remove('active'));
-  document.querySelectorAll('.sync-tab-pane').forEach(p => p.style.display = 'none');
-
-  const btn = document.getElementById(`sync-tab-btn-${tab}`);
-  const pane = document.getElementById(`sync-tab-content-${tab}`);
-  if (btn) btn.classList.add('active');
-  if (pane) pane.style.display = 'flex';
-
-  if (tab === 'profiles') {
-    loadBackupProfiles();
-  } else if (tab === 'history') {
-    loadBackupHistory();
+  const toolsMenu = document.getElementById('tools-dropdown-menu');
+  if (toolsMenu) toolsMenu.classList.remove('active');
+  // Already docked in a Panel: just refresh it
+  if (App.panes.some(p => p.dockedTool === 'backup')) {
+    backupRefresh();
+    return;
   }
-  if (window.lucide) lucide.createIcons();
+  const win = document.getElementById('floating-backup-window');
+  const body = backupBody();
+  if (win && body && !win.contains(body)) win.appendChild(body);
+  const pill = document.getElementById('backup-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  initBackupWindowDragResize();
+  backupShowList();
 }
 
-function useActivePanePath(inputId) {
-  const activePane = App.panes[App.activePaneIndex];
-  if (activePane && activePane.path) {
-    const input = document.getElementById(inputId);
-    if (input) {
-      input.value = activePane.path;
-      showToast(`Set to Active Pane: ${activePane.path}`, 'info');
+function closeBackupWindow() {
+  const win = document.getElementById('floating-backup-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('backup-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function minimizeBackupWindow() {
+  const win = document.getElementById('floating-backup-window');
+  const pill = document.getElementById('backup-pill');
+  if (win) win.style.display = 'none';
+  if (pill) pill.style.display = 'flex';
+}
+
+function restoreBackupWindow() {
+  const win = document.getElementById('floating-backup-window');
+  const pill = document.getElementById('backup-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  backupRefresh();
+}
+
+function toggleBackupMaximize() {
+  const win = document.getElementById('floating-backup-window');
+  const btn = document.getElementById('backup-maximize-btn');
+  if (!win) return;
+  const isMax = win.classList.toggle('maximized');
+  if (btn) {
+    btn.innerHTML = `<i data-lucide="${isMax ? 'minimize-2' : 'maximize-2'}" style="width: 14px; height: 14px;"></i>`;
+    btn.title = isMax ? 'Restore Window' : 'Maximize Window';
+    if (window.lucide) lucide.createIcons({ root: btn });
+  }
+}
+
+function dockBackupToActivePane() {
+  closeBackupWindow();
+  dockToolToPane('backup', App.activePaneIndex);
+}
+
+function mountDockedBackup(paneIndex) {
+  const host = document.getElementById(`docked-backup-host-${paneIndex}`);
+  const body = backupBody();
+  if (host && body) {
+    host.appendChild(body);
+    backupRefresh();
+  }
+}
+
+function isBackupVisible() {
+  const body = backupBody();
+  return !!(body && body.isConnected && body.offsetParent !== null);
+}
+
+// Drag by the header, resize from the edges; position and size are remembered on PC
+function initBackupWindowDragResize() {
+  const win = document.getElementById('floating-backup-window');
+  const header = document.getElementById('backup-window-header');
+  if (!win || !header) return;
+  if (window.innerWidth > 1024) {
+    const saved = ['x', 'y', 'w', 'h'].map(k => parseInt(localStorage.getItem(`cd_backup_${k}`) || '', 10));
+    const [x, y, w, h] = saved;
+    if (w) win.style.width = `${Math.min(w, window.innerWidth - 20)}px`;
+    if (h) win.style.height = `${Math.min(h, window.innerHeight - 50)}px`;
+    if (!Number.isNaN(x) && !Number.isNaN(y)) {
+      win.style.left = `${Math.min(Math.max(0, x), Math.max(0, window.innerWidth - (w || 900) - 10))}px`;
+      win.style.top = `${Math.min(Math.max(36, y), Math.max(36, window.innerHeight - (h || 640) - 10))}px`;
     }
   }
-}
-
-function useInactivePanePath(inputId) {
-  const otherIdx = (App.activePaneIndex === 0) ? 1 : 0;
-  const otherPane = App.panes[otherIdx] || App.panes[0];
-  if (otherPane && otherPane.path) {
-    const input = document.getElementById(inputId);
-    if (input) {
-      input.value = otherPane.path;
-      showToast(`Set to Target Pane: ${otherPane.path}`, 'info');
-    }
-  }
-}
-
-function swapSyncPaths() {
-  const srcIn = document.getElementById('sync-src-input');
-  const destIn = document.getElementById('sync-dest-input');
-  if (srcIn && destIn) {
-    const tmp = srcIn.value;
-    srcIn.value = destIn.value;
-    destIn.value = tmp;
-    showToast('Swapped Source and Destination paths', 'info');
-  }
-}
-
-function selectSyncMode(modeVal) {
-  const radio = document.querySelector(`input[name="sync-mode"][value="${modeVal}"]`);
-  if (radio) {
-    radio.checked = true;
-    handleSyncModeChange();
-  }
-}
-
-function handleSyncModeChange() {
-  const mode = document.querySelector('input[name="sync-mode"]:checked')?.value || 'synchronize';
-  document.querySelectorAll('.sync-profile-card').forEach(card => {
-    const radio = card.querySelector('input[type="radio"]');
-    card.classList.toggle('active', radio && radio.checked);
+  if (win._bkBound) return;
+  win._bkBound = true;
+  const MIN_W = 420;
+  const MIN_H = 380;
+  let mode = null;
+  let sx = 0, sy = 0, sl = 0, st = 0, sw = 0, sh = 0;
+  const begin = (e, m) => {
+    if (win.classList.contains('maximized') || window.innerWidth <= 1024) return;
+    mode = m;
+    sx = e.clientX;
+    sy = e.clientY;
+    const r = win.getBoundingClientRect();
+    sl = r.left; st = r.top; sw = r.width; sh = r.height;
+    document.body.style.userSelect = 'none';
+    bringFloatingWindowToFront(win);
+    e.preventDefault();
+  };
+  header.addEventListener('mousedown', (e) => {
+    if (e.target.closest('button, input, select, a')) return;
+    begin(e, 'move');
   });
-  const archiveSettings = document.getElementById('sync-archive-settings');
-  if (archiveSettings) {
-    archiveSettings.style.display = (mode === 'subscribe') ? 'flex' : 'none';
+  win.querySelectorAll('[data-resize]').forEach(h => h.addEventListener('mousedown', (e) => {
+    e.stopPropagation();
+    begin(e, h.getAttribute('data-resize'));
+  }));
+  window.addEventListener('mousemove', (e) => {
+    if (!mode) return;
+    const dx = e.clientX - sx;
+    const dy = e.clientY - sy;
+    if (mode === 'move') {
+      win.style.left = `${Math.max(0, Math.min(window.innerWidth - win.offsetWidth, sl + dx))}px`;
+      win.style.top = `${Math.max(36, Math.min(window.innerHeight - win.offsetHeight, st + dy))}px`;
+      return;
+    }
+    if (mode === 'right' || mode === 'corner') win.style.width = `${Math.max(MIN_W, Math.min(window.innerWidth - sl - 10, sw + dx))}px`;
+    if (mode === 'bottom' || mode === 'corner') win.style.height = `${Math.max(MIN_H, Math.min(window.innerHeight - st - 10, sh + dy))}px`;
+    if (mode === 'left' && sw - dx >= MIN_W && sl + dx > 0) {
+      win.style.width = `${sw - dx}px`;
+      win.style.left = `${sl + dx}px`;
+    }
+    if (mode === 'top' && sh - dy >= MIN_H && st + dy > 36) {
+      win.style.height = `${sh - dy}px`;
+      win.style.top = `${st + dy}px`;
+    }
+  });
+  window.addEventListener('mouseup', () => {
+    if (!mode) return;
+    mode = null;
+    document.body.style.userSelect = '';
+    const r = win.getBoundingClientRect();
+    localStorage.setItem('cd_backup_x', Math.round(r.left));
+    localStorage.setItem('cd_backup_y', Math.round(r.top));
+    localStorage.setItem('cd_backup_w', Math.round(r.width));
+    localStorage.setItem('cd_backup_h', Math.round(r.height));
+  });
+}
+
+function backupSetView(html) {
+  const view = backupView();
+  if (!view) return null;
+  view.innerHTML = html;
+  bindActions(view);
+  if (window.lucide) lucide.createIcons({ root: view });
+  bindActions(view);
+  return view;
+}
+
+function backupRefresh() {
+  if (backupUi.view === 'list' || !backupUi.view) return backupShowList();
+  if (backupUi.view === 'history' && backupUi.history) return backupShowHistory(backupUi.history.profileId || '');
+  if (backupUi.view === 'run' && backupUi.run) return backupShowRun(backupUi.run.run.id);
+  if (backupUi.view === 'restore' && backupUi.restore) return backupRestoreLoad();
+  return null;
+}
+
+// Keeps the list and any running progress up to date while the window is open
+function backupSchedulePoll() {
+  clearTimeout(backupUi.pollTimer);
+  const anyRunning = backupUi.profiles.some(p => p.running);
+  backupUi.pollTimer = setTimeout(async () => {
+    if (!isBackupVisible()) return; // stops until the window is opened again
+    if (backupUi.view === 'list') {
+      await backupLoadProfiles();
+      backupRenderList(false);
+    } else {
+      await backupLoadProfiles();
+    }
+    backupSchedulePoll();
+  }, anyRunning ? 1500 : 10000);
+}
+
+async function backupLoadProfiles() {
+  try {
+    backupUi.profiles = await backupApi('/api/tools/sync/profiles');
+    return true;
+  } catch (e) {
+    backupUi.loadError = e.message;
+    return false;
   }
 }
 
-let syncFolderPickerTargetInput = 'sync-src-input';
+// ---------- Main screen: My backups ----------
+
+async function backupShowList() {
+  backupUi.view = 'list';
+  if (!backupUi.profiles.length) backupSetView('<div class="bk-empty"><i data-lucide="loader" class="spinner"></i> Loading backups...</div>');
+  backupUi.loadError = null;
+  await backupLoadProfiles();
+  backupUi.lastListJson = '';
+  backupRenderList(true);
+  backupSchedulePoll();
+}
+
+function backupRenderList(force) {
+  if (backupUi.view !== 'list') return;
+  const json = JSON.stringify(backupUi.profiles);
+  if (!force && json === backupUi.lastListJson) return;
+  backupUi.lastListJson = json;
+  const toolbar = `
+    <div class="bk-toolbar">
+      <button class="btn btn-sm btn-accent bk-btn" data-on-click="backupNew"><i data-lucide="plus"></i> New backup</button>
+      <div style="flex: 1;"></div>
+      <button class="btn btn-sm bk-btn" data-on-click="backupShowHistory" data-click-args="${actionArgs('')}" title="Everything that has happened, for all backups"><i data-lucide="history"></i> All activity</button>
+    </div>`;
+  if (backupUi.loadError) {
+    backupSetView(`${toolbar}<div class="bk-empty bk-error"><i data-lucide="alert-triangle"></i> Could not load backups: ${escapeHtml(backupUi.loadError)}</div>`);
+    return;
+  }
+  if (!backupUi.profiles.length) {
+    backupSetView(`${toolbar}
+      <div class="bk-empty">
+        <img src="assets/sync.webp" alt="" style="width: 48px; height: 48px; opacity: 0.85;">
+        <div class="bk-empty-title">No backups yet</div>
+        <div class="bk-empty-text">A backup keeps a copy of a folder somewhere else, such as a NAS, another drive or another folder, so you can get your files back if something goes wrong.</div>
+        <button class="btn btn-accent bk-btn" data-on-click="backupNew"><i data-lucide="plus"></i> Make your first backup</button>
+      </div>`);
+    return;
+  }
+  backupSetView(`${toolbar}<div class="bk-cards">${backupUi.profiles.map(backupCardHtml).join('')}</div>`);
+}
+
+function backupStatus(p) {
+  const r = p.running;
+  if (r) {
+    if (r.phase === 'checking') return { cls: 'running', text: r.kind === 'restore' ? 'Getting ready to restore...' : 'Checking for changes...' };
+    const verb = r.kind === 'restore' ? 'Restoring' : (r.phase === 'cleaning' ? 'Cleaning up old versions' : 'Backing up');
+    const files = r.files_total ? `${r.files_done.toLocaleString()} of ${bkCount(r.files_total, 'file', 'files')}` : '';
+    const bytes = r.bytes_total ? ` · ${formatBytes(r.bytes_done)} of ${formatBytes(r.bytes_total)}` : '';
+    return { cls: 'running', text: `${verb}: ${files}${bytes}` };
+  }
+  const last = p.last;
+  if (!last) return { cls: 'idle', text: 'Not backed up yet' };
+  const when = bkAgo(last.finished_at || last.started_at);
+  if (last.kind === 'restore') {
+    const okWord = last.status === 'failed' ? 'Restore failed' : 'Restored';
+    return { cls: last.status === 'failed' ? 'failed' : 'ok', text: `${okWord} ${when}: ${last.message || ''}` };
+  }
+  switch (last.status) {
+    case 'failed': return { cls: 'failed', text: `Last backup failed ${when}: ${last.message || 'unknown error'}` };
+    case 'cancelled': return { cls: 'warning', text: `Last backup was stopped ${when}` };
+    case 'warning': return { cls: 'warning', text: `Backed up ${when}, with problems: ${last.message || ''}` };
+    default: {
+      const okAt = p.last_success_at ? bkAgo(p.last_success_at) : when;
+      return { cls: 'ok', text: `Up to date · backed up ${okAt}` };
+    }
+  }
+}
+
+function backupCardHtml(p) {
+  const st = backupStatus(p);
+  const mode = BACKUP_MODES[p.profile_mode] || BACKUP_MODES.copy;
+  const r = p.running;
+  const pct = r && r.bytes_total ? Math.min(100, Math.round((r.bytes_done / r.bytes_total) * 100)) : (r && r.files_total ? Math.round((r.files_done / r.files_total) * 100) : 0);
+  let next = '';
+  if (p.schedule_type === 'manual') next = 'Runs when you click Back up now';
+  else if (!p.enabled) next = `Schedule paused (${bkScheduleText(p).toLowerCase()})`;
+  else if (p.next_run) next = `${bkScheduleText(p)} · next ${bkWhen(p.next_run)}`;
+  const arrow = p.profile_mode === 'two_way' ? 'arrow-left-right' : 'arrow-right';
+  return `
+    <div class="bk-card bk-${st.cls}">
+      <div class="bk-card-top">
+        <div class="bk-card-title">
+          <span class="bk-dot" title="${escapeHtml(st.cls)}"></span>
+          <span class="bk-card-name">${escapeHtml(p.name)}</span>
+          <span class="bk-chip">${escapeHtml(mode.label)}</span>
+        </div>
+        <div class="bk-card-icons">
+          <button class="btn btn-icon bk-icon" data-on-click="backupEdit" data-click-args="${actionArgs(p.id)}" title="Edit"><i data-lucide="pencil"></i></button>
+          ${p.schedule_type !== 'manual' ? `<button class="btn btn-icon bk-icon" data-on-click="backupTogglePause" data-click-args="${actionArgs(p.id)}" title="${p.enabled ? 'Pause the schedule' : 'Resume the schedule'}"><i data-lucide="${p.enabled ? 'pause' : 'play'}"></i></button>` : ''}
+          <button class="btn btn-icon bk-icon bk-icon-danger" data-on-click="backupDelete" data-click-args="${actionArgs(p.id)}" title="Delete this backup (the backed-up files are kept)"><i data-lucide="trash-2"></i></button>
+        </div>
+      </div>
+      <div class="bk-card-path" title="${escapeHtml(p.source_dir)} → ${escapeHtml(p.dest_dir)}">
+        <span>${escapeHtml(p.source_dir)}</span><i data-lucide="${arrow}"></i><span>${escapeHtml(p.dest_dir)}</span>
+      </div>
+      <div class="bk-card-status">${escapeHtml(st.text)}</div>
+      ${r ? `<div class="bk-progress"><div style="width: ${pct}%;"></div></div>` : ''}
+      ${r && r.current ? `<div class="bk-card-current" title="${escapeHtml(r.current)}">${escapeHtml(r.current)}</div>` : ''}
+      ${next && !r ? `<div class="bk-card-next"><i data-lucide="clock"></i> ${escapeHtml(next)}</div>` : ''}
+      <div class="bk-card-actions">
+        ${r
+          ? `<button class="btn btn-sm bk-btn" data-on-click="backupStop" data-click-args="${actionArgs(p.id)}"><i data-lucide="square"></i> Stop</button>`
+          : `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRunNow" data-click-args="${actionArgs(p.id)}"><i data-lucide="play"></i> ${p.profile_mode === 'two_way' ? 'Sync now' : 'Back up now'}</button>`}
+        <button class="btn btn-sm bk-btn" data-on-click="backupShowRestore" data-click-args="${actionArgs(p.id)}" ${r ? 'disabled' : ''}><i data-lucide="rotate-ccw"></i> Restore</button>
+        <button class="btn btn-sm bk-btn" data-on-click="backupShowHistory" data-click-args="${actionArgs(p.id)}"><i data-lucide="history"></i> History</button>
+      </div>
+    </div>`;
+}
+
+async function backupRunNow(id) {
+  try {
+    await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(id)}/run`, { method: 'POST' });
+    await backupLoadProfiles();
+    backupRenderList(true);
+    backupSchedulePoll();
+  } catch (e) {
+    showToast(e.message, 'warning');
+  }
+}
+
+async function backupStop(id) {
+  try {
+    await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(id)}/stop`, { method: 'POST' });
+    showToast('Stopping after the current file...', 'info');
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function backupTogglePause(id) {
+  try {
+    const res = await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(id)}/toggle`, { method: 'POST' });
+    showToast(res.enabled ? 'Schedule resumed' : 'Schedule paused', 'info');
+    await backupShowList();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+async function backupDelete(id) {
+  const p = backupUi.profiles.find(x => x.id === id);
+  if (!p) return;
+  const ok = await showConfirmDialog({
+    title: 'Delete backup',
+    subtitle: p.name,
+    message: `This removes the backup "${p.name}", its schedule and its history from Brum.\n\nThe files already backed up in ${p.dest_dir} are not deleted.`,
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Delete backup',
+  });
+  if (!ok) return;
+  try {
+    await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(id)}`, { method: 'DELETE' });
+    showToast('Backup deleted', 'info');
+    await backupShowList();
+  } catch (e) {
+    showToast(e.message, 'error');
+  }
+}
+
+// ---------- New backup / edit: four steps ----------
+
+function backupNew() {
+  const pane = App.panes[App.activePaneIndex];
+  backupUi.draft = {
+    id: '',
+    name: '',
+    source_dir: pane && !pane.dockedTool && !String(pane.path || '').includes('://') ? pane.path : '',
+    dest_dir: '',
+    profile_mode: 'versions',
+    never_remove: false,
+    block_delta: true,
+    verify_checksum: true,
+    retention_days: 30,
+    log_retention_days: 90,
+    schedule_type: 'daily',
+    schedule_interval_mins: 5,
+    schedule_time: '02:00',
+    exclusions: '',
+    webhook_url: '',
+    enabled: true,
+  };
+  backupUi.nameTouched = false;
+  backupRenderEditor();
+}
+
+function backupEdit(id) {
+  const p = backupUi.profiles.find(x => x.id === id);
+  if (!p) return;
+  backupUi.draft = { ...p };
+  backupUi.nameTouched = true;
+  backupRenderEditor();
+}
+
+function backupRenderEditor() {
+  backupUi.view = 'edit';
+  const d = backupUi.draft;
+  const isNew = !d.id;
+  const st = d.schedule_type;
+  const hours = d.schedule_interval_mins >= 60 && d.schedule_interval_mins % 60 === 0;
+  const minutesVal = hours ? 5 : d.schedule_interval_mins;
+  const hoursVal = hours ? d.schedule_interval_mins / 60 : 6;
+  const scheduleKind = st === 'interval' ? (hours ? 'hours' : 'minutes') : st;
+  const modeOption = (key) => `
+    <label class="bk-option">
+      <input type="radio" name="bk-mode" value="${key}" ${d.profile_mode === key ? 'checked' : ''} data-on-change="backupSetMode" data-change-args="${actionArgs(key)}">
+      <span><b>${escapeHtml(BACKUP_MODES[key].label)}</b><small>${escapeHtml(BACKUP_MODES[key].desc)}</small></span>
+    </label>`;
+  const whenOption = (key, inner) => `
+    <label class="bk-option bk-option-row">
+      <input type="radio" name="bk-when" value="${key}" ${scheduleKind === key ? 'checked' : ''} data-on-change="backupSetSchedule" data-change-args="${actionArgs(key)}">
+      <span>${inner}</span>
+    </label>`;
+  backupSetView(`
+    <div class="bk-form">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupShowList" title="Back to My backups"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">${isNew ? 'New backup' : 'Edit backup'}</span>
+      </div>
+
+      <div class="bk-field">
+        <label for="bk-name">Name</label>
+        <input type="text" id="bk-name" class="bk-input" maxlength="80" placeholder="For example: Photos to NAS" value="${escapeHtml(d.name)}" data-on-input="backupNameTyped">
+      </div>
+
+      <section class="bk-step">
+        <div class="bk-step-num">1</div>
+        <div class="bk-step-body">
+          <div class="bk-step-title" id="bk-src-title">What to back up</div>
+          <div class="bk-path-row">
+            <input type="text" id="bk-src" class="bk-input bk-mono" placeholder="/home/you/Photos" value="${escapeHtml(d.source_dir)}" data-on-input="backupPathTyped">
+            <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-src')}"><i data-lucide="folder-open"></i> Browse</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="bk-step">
+        <div class="bk-step-num">2</div>
+        <div class="bk-step-body">
+          <div class="bk-step-title" id="bk-dest-title">Where to keep it</div>
+          <div class="bk-path-row">
+            <input type="text" id="bk-dest" class="bk-input bk-mono" placeholder="/mnt/nas/Backups/Photos" value="${escapeHtml(d.dest_dir)}" data-on-input="backupPathTyped">
+            <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-dest')}"><i data-lucide="folder-open"></i> Browse</button>
+          </div>
+          <div class="bk-hint">A folder on this machine, another drive, or a NAS share that is mounted here. The folder is created if it does not exist.</div>
+        </div>
+      </section>
+
+      <section class="bk-step">
+        <div class="bk-step-num">3</div>
+        <div class="bk-step-body">
+          <div class="bk-step-title">How</div>
+          <div class="bk-options">${modeOption('copy')}${modeOption('versions')}${modeOption('two_way')}</div>
+        </div>
+      </section>
+
+      <section class="bk-step">
+        <div class="bk-step-num">4</div>
+        <div class="bk-step-body">
+          <div class="bk-step-title">When</div>
+          <div class="bk-options">
+            ${whenOption('manual', 'Only when I click <b>Back up now</b>')}
+            ${whenOption('minutes', `Automatically, every <input type="number" id="bk-minutes" class="bk-input bk-num" min="1" max="59" value="${minutesVal}"> minutes`)}
+            ${whenOption('hours', `Every <input type="number" id="bk-hours" class="bk-input bk-num" min="1" max="168" value="${hoursVal}"> hours`)}
+            ${whenOption('daily', `Every day at <input type="time" id="bk-time" class="bk-input bk-time" value="${escapeHtml(d.schedule_time || '02:00')}">`)}
+          </div>
+          <div class="bk-hint">Automatic backups only copy what changed, so frequent checks are cheap. If Brum was off at the planned time, the backup runs when Brum starts.</div>
+        </div>
+      </section>
+
+      <details class="bk-more" ${d.exclusions || d.never_remove || d.webhook_url ? 'open' : ''}>
+        <summary>More options</summary>
+        <div class="bk-field">
+          <label for="bk-exclusions">Skip these files and folders</label>
+          <textarea id="bk-exclusions" class="bk-input bk-mono" rows="3" placeholder="One per line, for example:&#10;node_modules&#10;*.tmp&#10;Photos/Raw">${escapeHtml(d.exclusions || '')}</textarea>
+          <div class="bk-chips">${BACKUP_EXCLUSION_CHIPS.map(c => `<button class="bk-chip-btn" data-on-click="backupAddExclusion" data-click-args="${actionArgs(c)}">+ ${escapeHtml(c)}</button>`).join('')}</div>
+          <div class="bk-hint">A plain name skips every file or folder with exactly that name. <code>*</code> matches any text. A path with <code>/</code> is counted from the top of the backup.</div>
+        </div>
+        <label class="bk-check"><input type="checkbox" id="bk-verify" ${d.verify_checksum ? 'checked' : ''}> Check every copy after writing it <small>(safer, a little slower)</small></label>
+        <label class="bk-check"><input type="checkbox" id="bk-delta" ${d.block_delta ? 'checked' : ''}> Update only the changed parts of large files <small>(used with Copy)</small></label>
+        <label class="bk-check" id="bk-never-remove-row"><input type="checkbox" id="bk-never-remove" ${d.never_remove ? 'checked' : ''}> Never remove files from the backup, even when they are deleted here</label>
+        <div class="bk-field bk-inline" id="bk-retention-row">
+          <label for="bk-retention">Keep old versions for</label>
+          <input type="number" id="bk-retention" class="bk-input bk-num" min="0" max="3650" value="${Number(d.retention_days ?? 30)}"> days <small>(0 keeps them forever)</small>
+        </div>
+        <div class="bk-field bk-inline">
+          <label for="bk-log-days">Keep history and logs for</label>
+          <input type="number" id="bk-log-days" class="bk-input bk-num" min="1" max="3650" value="${Number(d.log_retention_days || 90)}"> days
+        </div>
+        <div class="bk-field">
+          <label for="bk-webhook">Send a notice to this web address when a backup finishes or fails <small>(optional)</small></label>
+          <input type="url" id="bk-webhook" class="bk-input bk-mono" placeholder="https://..." value="${escapeHtml(d.webhook_url || '')}">
+        </div>
+      </details>
+
+      <div class="bk-form-error" id="bk-form-error" style="display: none;"></div>
+
+      <div class="bk-form-foot">
+        <button class="btn btn-sm bk-btn" data-on-click="backupShowList">Cancel</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-sm bk-btn" data-on-click="backupPreviewDraft" title="See what would happen, without changing anything"><i data-lucide="eye"></i> Preview</button>
+        <button class="btn btn-sm btn-accent bk-btn" data-on-click="backupSave"><i data-lucide="check"></i> ${isNew ? 'Save and preview' : 'Save'}</button>
+      </div>
+    </div>`);
+  backupSetMode(d.profile_mode);
+}
+
+function backupNameTyped() {
+  backupUi.nameTouched = true;
+}
+
+// Suggests a name from the chosen folders until the user types one
+function backupPathTyped() {
+  const nameEl = document.getElementById('bk-name');
+  if (!nameEl || backupUi.nameTouched) return;
+  const parts = (p) => String(p || '').replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean);
+  const src = parts(document.getElementById('bk-src')?.value);
+  const dst = parts(document.getElementById('bk-dest')?.value);
+  const srcName = src[src.length - 1] || '';
+  // "/mnt/NAS/Photos" for "Photos" reads better as "Photos to NAS"
+  let dstName = dst[dst.length - 1] || '';
+  if (dstName && dstName.toLowerCase() === srcName.toLowerCase() && dst.length > 1) dstName = dst[dst.length - 2];
+  nameEl.value = srcName && dstName ? `${srcName} to ${dstName}` : srcName;
+}
+
+function backupSetMode(mode) {
+  if (backupUi.draft) backupUi.draft.profile_mode = mode;
+  const twoWay = mode === 'two_way';
+  const srcTitle = document.getElementById('bk-src-title');
+  const destTitle = document.getElementById('bk-dest-title');
+  if (srcTitle) srcTitle.textContent = twoWay ? 'First folder' : 'What to back up';
+  if (destTitle) destTitle.textContent = twoWay ? 'Second folder' : 'Where to keep it';
+  const never = document.getElementById('bk-never-remove-row');
+  if (never) never.style.display = twoWay ? 'none' : '';
+  const retention = document.getElementById('bk-retention-row');
+  if (retention) retention.style.display = mode === 'copy' ? 'none' : '';
+}
+
+function backupSetSchedule(kind) {
+  const focus = { minutes: 'bk-minutes', hours: 'bk-hours', daily: 'bk-time' }[kind];
+  if (focus) document.getElementById(focus)?.focus();
+}
+
+function backupAddExclusion(pattern) {
+  const ta = document.getElementById('bk-exclusions');
+  if (!ta) return;
+  const lines = ta.value.split('\n').map(l => l.trim()).filter(Boolean);
+  if (!lines.includes(pattern)) lines.push(pattern);
+  ta.value = lines.join('\n');
+}
+
+function backupPickFolder(inputId) {
+  openSyncFolderPicker(inputId);
+}
+
+function backupCollectDraft() {
+  const d = { ...backupUi.draft };
+  const val = (id) => document.getElementById(id)?.value ?? '';
+  const num = (id, fallback) => {
+    const n = parseInt(val(id), 10);
+    return Number.isFinite(n) ? n : fallback;
+  };
+  d.name = val('bk-name').trim();
+  d.source_dir = val('bk-src').trim();
+  d.dest_dir = val('bk-dest').trim();
+  d.profile_mode = document.querySelector('input[name="bk-mode"]:checked')?.value || 'versions';
+  const when = document.querySelector('input[name="bk-when"]:checked')?.value || 'manual';
+  if (when === 'minutes') {
+    d.schedule_type = 'interval';
+    d.schedule_interval_mins = Math.min(59, Math.max(1, num('bk-minutes', 5)));
+  } else if (when === 'hours') {
+    d.schedule_type = 'interval';
+    d.schedule_interval_mins = Math.min(168, Math.max(1, num('bk-hours', 6))) * 60;
+  } else {
+    d.schedule_type = when;
+  }
+  d.schedule_time = val('bk-time') || '02:00';
+  d.exclusions = val('bk-exclusions').trim();
+  d.verify_checksum = !!document.getElementById('bk-verify')?.checked;
+  d.block_delta = !!document.getElementById('bk-delta')?.checked;
+  d.never_remove = d.profile_mode !== 'two_way' && !!document.getElementById('bk-never-remove')?.checked;
+  d.retention_days = Math.max(0, num('bk-retention', 30));
+  d.log_retention_days = Math.max(1, num('bk-log-days', 90));
+  d.webhook_url = val('bk-webhook').trim();
+  if (!d.name) {
+    const base = d.source_dir.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
+    d.name = base || 'Backup';
+  }
+  backupUi.draft = d;
+  return d;
+}
+
+function backupFormError(msg) {
+  const el = document.getElementById('bk-form-error');
+  if (!el) return;
+  el.textContent = msg || '';
+  el.style.display = msg ? 'block' : 'none';
+  if (msg) el.scrollIntoView({ block: 'nearest' });
+}
+
+async function backupSave() {
+  const d = backupCollectDraft();
+  if (!d.source_dir || !d.dest_dir) {
+    backupFormError(d.profile_mode === 'two_way' ? 'Choose both folders.' : 'Choose what to back up and where to keep it.');
+    return;
+  }
+  const isNew = !d.id;
+  try {
+    const saved = await backupApi('/api/tools/sync/profiles', { method: 'POST', body: d });
+    backupUi.draft = saved;
+    showToast(isNew ? 'Backup saved' : 'Changes saved', 'success');
+    await backupLoadProfiles();
+    if (isNew) {
+      backupShowPreview(saved, true);
+    } else {
+      backupShowList();
+    }
+  } catch (e) {
+    backupFormError(e.message);
+  }
+}
+
+async function backupPreviewDraft() {
+  const d = backupCollectDraft();
+  if (!d.source_dir || !d.dest_dir) {
+    backupFormError(d.profile_mode === 'two_way' ? 'Choose both folders.' : 'Choose what to back up and where to keep it.');
+    return;
+  }
+  backupShowPreview(d, false);
+}
+
+// ---------- Preview ----------
+
+async function backupShowPreview(profile, saved) {
+  backupUi.view = 'preview';
+  backupUi.preview = { profile, saved, result: null, filter: 'all' };
+  backupSetView(`
+    <div class="bk-form">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupBackFromPreview" title="Back"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">Preview: ${escapeHtml(profile.name)}</span>
+      </div>
+      <div class="bk-empty"><i data-lucide="loader" class="spinner"></i> Comparing the folders. Nothing is changed.</div>
+    </div>`);
+  try {
+    const result = await backupApi('/api/tools/sync/preview', { method: 'POST', body: profile });
+    if (backupUi.view !== 'preview' || backupUi.preview.profile !== profile) return;
+    backupUi.preview.result = result;
+    backupRenderPreview();
+  } catch (e) {
+    backupSetView(`
+      <div class="bk-form">
+        <div class="bk-form-head">
+          <button class="btn btn-icon bk-icon" data-on-click="backupBackFromPreview" title="Back"><i data-lucide="arrow-left"></i></button>
+          <span class="bk-form-title">Preview: ${escapeHtml(profile.name)}</span>
+        </div>
+        <div class="bk-form-error" style="display: block;">${escapeHtml(e.message)}</div>
+        <div class="bk-form-foot"><button class="btn btn-sm bk-btn" data-on-click="backupBackFromPreview">Back</button></div>
+      </div>`);
+  }
+}
+
+function backupPreviewSentence(profile, s) {
+  const parts = [];
+  if (s.copy) parts.push(`copy ${bkCount(s.copy, 'new file', 'new files')}`);
+  if (s.update) parts.push(`update ${bkCount(s.update, 'changed file', 'changed files')}`);
+  if (s.remove) parts.push(`remove ${bkCount(s.remove, 'file', 'files')}`);
+  const back = [];
+  if (s.copy_back) back.push(`copy ${bkCount(s.copy_back, 'new file', 'new files')}`);
+  if (s.update_back) back.push(`update ${bkCount(s.update_back, 'changed file', 'changed files')}`);
+  if (s.remove_back) back.push(`remove ${bkCount(s.remove_back, 'file', 'files')}`);
+  if (!parts.length && !back.length) return `Everything is already up to date (${bkCount(s.source_files, 'file', 'files')} checked).`;
+  let text;
+  if (profile.profile_mode === 'two_way') {
+    const lines = [];
+    if (parts.length) lines.push(`Into the second folder: ${parts.join(', ')}.`);
+    if (back.length) lines.push(`Into the first folder: ${back.join(', ')}.`);
+    text = lines.join(' ');
+  } else {
+    text = `Will ${parts.join(', ')}.`;
+  }
+  if (s.bytes) text += ` That is ${formatBytes(s.bytes)} to copy.`;
+  if (s.unchanged) text += ` ${bkCount(s.unchanged, 'file is', 'files are')} already up to date.`;
+  if (profile.profile_mode === 'versions' && (s.update || s.remove)) text += ' Replaced and removed files are kept as old versions.';
+  if (profile.profile_mode === 'copy' && s.remove) text += ' Removed files are gone from the backup for good.';
+  return text;
+}
+
+function backupRenderPreview() {
+  const pv = backupUi.preview;
+  const { profile, result } = pv;
+  const s = result.summary;
+  const groups = [
+    ['all', 'All', result.total_items],
+    ['copy', 'New', s.copy + s.copy_back],
+    ['update', 'Changed', s.update + s.update_back],
+    ['remove', 'Removed', s.remove + s.remove_back],
+  ];
+  const matches = (it) => pv.filter === 'all' || it.action === pv.filter || it.action === `${pv.filter}_back`;
+  const shown = result.items.filter(matches);
+  const rows = shown.slice(0, 1000).map(it => `
+    <div class="bk-row bk-act-${escapeHtml(it.action.replace('_back', ''))}">
+      <span class="bk-row-act">${escapeHtml(BACKUP_PLAN_WORDS[it.action] || it.action)}</span>
+      <span class="bk-row-path" title="${escapeHtml(it.path)}">${escapeHtml(it.path)}${it.note ? `<small>${escapeHtml(it.note)}</small>` : ''}</span>
+      <span class="bk-row-size">${it.action.startsWith('remove') ? '' : formatBytes(it.size)}</span>
+    </div>`).join('');
+  const hidden = result.total_items - result.items.length;
+  const conflicts = s.conflicts ? `<div class="bk-note bk-note-warn"><i data-lucide="git-merge"></i> ${bkCount(s.conflicts, 'file was', 'files were')} changed on both sides. The newer one wins; the other is kept as an old version.</div>` : '';
+  const warnings = result.total_warnings ? `
+    <details class="bk-more bk-warnings">
+      <summary>${bkCount(result.total_warnings, 'item', 'items')} could not be read or will be skipped</summary>
+      ${result.warnings.map(w => `<div class="bk-warn-line">${escapeHtml(w)}</div>`).join('')}
+      ${result.total_warnings > result.warnings.length ? `<div class="bk-hint">...and ${(result.total_warnings - result.warnings.length).toLocaleString()} more</div>` : ''}
+    </details>` : '';
+  const actionBtn = pv.saved && profile.id
+    ? `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRunFromPreview" ${result.total_items ? '' : 'disabled'}><i data-lucide="play"></i> ${profile.profile_mode === 'two_way' ? 'Sync now' : 'Back up now'}</button>`
+    : `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupSave"><i data-lucide="check"></i> Save</button>`;
+  backupSetView(`
+    <div class="bk-form bk-fill">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupBackFromPreview" title="Back"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">Preview: ${escapeHtml(profile.name)}</span>
+      </div>
+      <div class="bk-summary">${escapeHtml(backupPreviewSentence(profile, s))}</div>
+      ${conflicts}
+      ${warnings}
+      ${result.total_items ? `
+      <div class="bk-filter">
+        ${groups.filter(g => g[0] === 'all' || g[2]).map(g => `<button class="bk-chip-btn ${pv.filter === g[0] ? 'active' : ''}" data-on-click="backupPreviewFilter" data-click-args="${actionArgs(g[0])}">${g[1]} <b>${Number(g[2]).toLocaleString()}</b></button>`).join('')}
+      </div>
+      <div class="bk-rows">${rows}${shown.length > 1000 || hidden > 0 ? `<div class="bk-hint bk-rows-more">Showing the first ${Math.min(shown.length, 1000).toLocaleString()} of ${(pv.filter === 'all' ? result.total_items : shown.length).toLocaleString()}${hidden > 0 && pv.filter !== 'all' ? ' (filtered from the first 2,000)' : ''}.</div>` : ''}</div>` : ''}
+      <div class="bk-form-foot">
+        <button class="btn btn-sm bk-btn" data-on-click="backupBackFromPreview">${pv.saved ? 'Not now' : 'Back to settings'}</button>
+        <div style="flex: 1;"></div>
+        ${actionBtn}
+      </div>
+    </div>`);
+}
+
+function backupPreviewFilter(filter) {
+  if (!backupUi.preview) return;
+  backupUi.preview.filter = filter;
+  backupRenderPreview();
+}
+
+function backupBackFromPreview() {
+  if (backupUi.preview && backupUi.preview.saved) backupShowList();
+  else backupRenderEditor();
+}
+
+async function backupRunFromPreview() {
+  const id = backupUi.preview?.profile?.id;
+  if (!id) return;
+  backupUi.view = 'list';
+  await backupRunNow(id);
+}
+
+// ---------- Restore ----------
+
+async function backupShowRestore(id) {
+  const p = backupUi.profiles.find(x => x.id === id);
+  if (!p) return;
+  backupUi.view = 'restore';
+  backupUi.restore = { profile: p, points: [], point: 'latest', path: '', items: [], selected: new Set(), target: 'separate', defaultFolder: '', originalFolder: p.source_dir, folder: '', loading: true };
+  await backupRestoreLoad();
+}
+
+async function backupRestoreLoad() {
+  const r = backupUi.restore;
+  if (!r) return;
+  try {
+    const info = await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(r.profile.id)}/restore-points`);
+    r.points = info.points || [];
+    r.defaultFolder = info.default_folder;
+    r.originalFolder = info.original_folder;
+    if (!r.points.some(pt => pt.id === r.point)) r.point = 'latest';
+    await backupRestoreList();
+  } catch (e) {
+    r.error = e.message;
+    backupRenderRestore();
+  }
+}
+
+async function backupRestoreList() {
+  const r = backupUi.restore;
+  r.loading = true;
+  r.error = null;
+  try {
+    const q = new URLSearchParams({ point: r.point, path: r.path });
+    r.items = await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(r.profile.id)}/browse?${q}`);
+  } catch (e) {
+    r.items = [];
+    r.error = e.message;
+  }
+  r.loading = false;
+  backupRenderRestore();
+}
+
+function backupRestorePoint(pointId) {
+  const r = backupUi.restore;
+  if (!r) return;
+  r.point = pointId;
+  r.path = '';
+  r.selected = new Set();
+  backupRestoreList();
+}
+
+function backupRestoreOpen(path) {
+  const r = backupUi.restore;
+  if (!r) return;
+  r.path = path;
+  backupRestoreList();
+}
+
+// A ticked folder covers everything inside it
+function backupRestoreCovered(rel) {
+  const r = backupUi.restore;
+  for (const sel of r.selected) {
+    if (rel === sel || rel.startsWith(`${sel}/`)) return sel;
+  }
+  return null;
+}
+
+function backupRestoreToggle(rel, checked) {
+  const r = backupUi.restore;
+  if (!r) return;
+  if (checked) {
+    for (const sel of [...r.selected]) if (sel.startsWith(`${rel}/`)) r.selected.delete(sel);
+    r.selected.add(rel);
+  } else {
+    r.selected.delete(rel);
+  }
+  backupRenderRestore();
+}
+
+function backupRestoreClear() {
+  if (!backupUi.restore) return;
+  backupUi.restore.selected = new Set();
+  backupRenderRestore();
+}
+
+function backupRestoreTarget(target) {
+  const r = backupUi.restore;
+  if (!r) return;
+  r.folder = document.getElementById('bk-restore-folder')?.value || r.folder;
+  r.target = target;
+  backupRenderRestore();
+}
+
+function backupRenderRestore() {
+  const r = backupUi.restore;
+  if (!r || backupUi.view !== 'restore') return;
+  const join = (a, b) => (a ? `${a}/${b}` : b);
+  const crumbs = [`<button class="bk-crumb" data-on-click="backupRestoreOpen" data-click-args="${actionArgs('')}">Backup</button>`];
+  let acc = '';
+  for (const part of r.path.split('/').filter(Boolean)) {
+    acc = join(acc, part);
+    crumbs.push(`<i data-lucide="chevron-right"></i><button class="bk-crumb" data-on-click="backupRestoreOpen" data-click-args="${actionArgs(acc)}">${escapeHtml(part)}</button>`);
+  }
+  const parentCovered = r.path ? backupRestoreCovered(r.path) : null;
+  const rows = r.loading
+    ? '<div class="bk-empty"><i data-lucide="loader" class="spinner"></i> Loading...</div>'
+    : (r.error
+      ? `<div class="bk-form-error" style="display: block;">${escapeHtml(r.error)}</div>`
+      : (r.items.length
+        ? r.items.map(it => {
+          const rel = join(r.path, it.name);
+          const covered = parentCovered || (r.selected.has(rel) ? rel : null);
+          return `
+            <div class="bk-row bk-pick-row">
+              <input type="checkbox" ${covered ? 'checked' : ''} ${parentCovered ? 'disabled' : ''} data-on-change="backupRestoreToggle" data-change-args="${actionArgs(rel, ACTION_CHECKED)}" title="Restore this">
+              ${it.is_dir
+                ? `<button class="bk-row-path bk-link" data-on-click="backupRestoreOpen" data-click-args="${actionArgs(rel)}"><i data-lucide="folder"></i> ${escapeHtml(it.name)}</button><span class="bk-row-size"></span>`
+                : `<span class="bk-row-path"><i data-lucide="file"></i> ${escapeHtml(it.name)}</span><span class="bk-row-size">${formatBytes(it.size)}</span>`}
+              <span class="bk-row-date">${it.mtime && !it.is_dir ? escapeHtml(bkDate(it.mtime)) : ''}</span>
+            </div>`;
+        }).join('')
+        : '<div class="bk-empty">This folder is empty.</div>'));
+  const pointOptions = r.points.map(pt => `<option value="${escapeHtml(pt.id)}" ${pt.id === r.point ? 'selected' : ''}>${escapeHtml(pt.id === 'latest' ? `Latest backup${pt.when ? ` (${bkDate(pt.when)})` : ''}` : pt.label)}</option>`).join('');
+  const pointHint = r.point === 'latest'
+    ? 'The files as they were at the last backup.'
+    : 'Files that were changed or removed at that time, as they were just before.';
+  const sel = r.selected.size;
+  const target = (key, title, detail) => `
+    <label class="bk-option">
+      <input type="radio" name="bk-restore-target" value="${key}" ${r.target === key ? 'checked' : ''} data-on-change="backupRestoreTarget" data-change-args="${actionArgs(key)}">
+      <span><b>${title}</b>${detail}</span>
+    </label>`;
+  backupSetView(`
+    <div class="bk-form bk-fill">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupShowList" title="Back to My backups"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">Restore: ${escapeHtml(r.profile.name)}</span>
+      </div>
+      <div class="bk-field bk-inline">
+        <label for="bk-restore-point">Restore from</label>
+        <select id="bk-restore-point" class="bk-input" data-on-change="backupRestorePoint" data-change-args="${actionArgs(ACTION_VALUE)}">${pointOptions}</select>
+      </div>
+      <div class="bk-hint">${escapeHtml(pointHint)}</div>
+      <div class="bk-crumbs">${crumbs.join('')}</div>
+      <div class="bk-rows bk-rows-pick">${rows}</div>
+      <div class="bk-selection">
+        ${sel ? `${bkCount(sel, 'item', 'items')} selected <button class="bk-chip-btn" data-on-click="backupRestoreClear">Clear</button>` : 'Nothing ticked: <b>everything</b> in this restore point will be restored.'}
+      </div>
+      <div class="bk-step-title">Restore to</div>
+      <div class="bk-options">
+        ${target('separate', 'A new, separate folder', `<small class="bk-mono">${escapeHtml(r.defaultFolder)}</small><small>Nothing that exists now is touched.</small>`)}
+        ${target('folder', 'Another folder', r.target === 'folder' ? `<span class="bk-path-row"><input type="text" id="bk-restore-folder" class="bk-input bk-mono" value="${escapeHtml(r.folder)}" placeholder="/home/you/Restored"><button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-restore-folder')}"><i data-lucide="folder-open"></i> Browse</button></span>` : '')}
+        ${target('original', 'The original folder', `<small class="bk-mono">${escapeHtml(r.originalFolder)}</small><small class="bk-warn-text">Files with the same name are replaced. Brum asks before replacing anything.</small>`)}
+      </div>
+      <div class="bk-form-error" id="bk-form-error" style="display: none;"></div>
+      <div class="bk-form-foot">
+        <button class="btn btn-sm bk-btn" data-on-click="backupShowList">Cancel</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRestoreStart" ${r.loading || r.error ? 'disabled' : ''}><i data-lucide="rotate-ccw"></i> Restore</button>
+      </div>
+    </div>`);
+}
+
+async function backupRestoreStart() {
+  const r = backupUi.restore;
+  if (!r) return;
+  if (r.target === 'folder') r.folder = document.getElementById('bk-restore-folder')?.value.trim() || '';
+  if (r.target === 'folder' && !r.folder) {
+    backupFormError('Choose a folder to restore into.');
+    return;
+  }
+  const url = `/api/tools/sync/profiles/${encodeURIComponent(r.profile.id)}/restore`;
+  const body = { point: r.point, items: [...r.selected], target: r.target, folder: r.folder || null };
+  try {
+    const check = await backupApi(url, { method: 'POST', body: { ...body, dry_run: true } });
+    if (check.overwrites > 0) {
+      const ok = await showConfirmDialog({
+        title: 'Replace existing files?',
+        subtitle: r.profile.name,
+        message: `This will overwrite ${bkCount(check.overwrites, 'file', 'files')} in ${check.target_path}.\n\nThe files there now will be replaced by the versions from the backup. This cannot be undone.\n\nAre you sure?`,
+        icon: 'alert-triangle',
+        type: 'danger',
+        confirmText: `Overwrite ${bkCount(check.overwrites, 'file', 'files')}`,
+      });
+      if (!ok) return;
+      body.confirm_overwrite = true;
+    }
+    const res = await backupApi(url, { method: 'POST', body });
+    showToast(`Restoring ${bkCount(res.files, 'file', 'files')} to ${res.target_path}`, 'success');
+    backupShowList();
+  } catch (e) {
+    backupFormError(e.message);
+  }
+}
+
+// ---------- History and logs ----------
+
+async function backupShowHistory(profileId) {
+  const p = profileId ? backupUi.profiles.find(x => x.id === profileId) : null;
+  backupUi.view = 'history';
+  backupUi.history = { profileId: profileId || '', name: p ? p.name : 'All activity', runs: null };
+  backupRenderHistory();
+  try {
+    const q = new URLSearchParams({ limit: '200' });
+    if (profileId) q.set('profile_id', profileId);
+    backupUi.history.runs = await backupApi(`/api/tools/sync/runs?${q}`);
+  } catch (e) {
+    backupUi.history.error = e.message;
+  }
+  backupRenderHistory();
+}
+
+const BACKUP_STATUS_ICONS = { ok: 'check-circle-2', nothing: 'check-circle-2', warning: 'alert-triangle', failed: 'x-circle', cancelled: 'square', running: 'loader' };
+
+function backupRenderHistory() {
+  const h = backupUi.history;
+  if (!h || backupUi.view !== 'history') return;
+  let body;
+  if (h.error) body = `<div class="bk-form-error" style="display: block;">${escapeHtml(h.error)}</div>`;
+  else if (!h.runs) body = '<div class="bk-empty"><i data-lucide="loader" class="spinner"></i> Loading history...</div>';
+  else if (!h.runs.length) body = '<div class="bk-empty">Nothing has happened yet.</div>';
+  else body = h.runs.map(run => `
+    <button class="bk-run bk-${escapeHtml(run.status)}" data-on-click="backupShowRun" data-click-args="${actionArgs(run.id)}">
+      <i data-lucide="${BACKUP_STATUS_ICONS[run.status] || 'circle'}" class="bk-run-icon ${run.status === 'running' ? 'spinner' : ''}"></i>
+      <span class="bk-run-main">
+        <span class="bk-run-title">${escapeHtml(bkDate(run.started_at))}${h.profileId ? '' : ` · ${escapeHtml(run.profile_name)}`}${run.kind === 'restore' ? ' · <b>Restore</b>' : ''}${run.trigger === 'schedule' ? ' <small>(scheduled)</small>' : ''}</span>
+        <span class="bk-run-msg">${escapeHtml(run.status === 'running' ? 'Running...' : (run.message || run.status))}</span>
+      </span>
+      <span class="bk-run-dur">${run.status === 'running' ? '' : bkDuration(run.duration_ms)}</span>
+      <i data-lucide="chevron-right" class="bk-run-chev"></i>
+    </button>`).join('');
+  backupSetView(`
+    <div class="bk-form bk-fill">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupShowList" title="Back to My backups"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">History: ${escapeHtml(h.name)}</span>
+      </div>
+      <div class="bk-rows bk-runs">${body}</div>
+    </div>`);
+}
+
+async function backupShowRun(runId) {
+  backupUi.view = 'run';
+  backupUi.run = { run: { id: runId }, files: [], total: 0, problemsOnly: backupUi.run?.problemsOnly || false, loading: true };
+  await backupRunLoad(0);
+}
+
+async function backupRunLoad(offset) {
+  const st = backupUi.run;
+  try {
+    const q = new URLSearchParams({ offset: String(offset), limit: '300', problems: st.problemsOnly ? '1' : '0' });
+    const res = await backupApi(`/api/tools/sync/runs/${encodeURIComponent(st.run.id)}/files?${q}`);
+    st.run = res.run;
+    st.total = res.total;
+    st.files = offset ? st.files.concat(res.files) : res.files;
+    st.error = null;
+  } catch (e) {
+    st.error = e.message;
+  }
+  st.loading = false;
+  backupRenderRun();
+}
+
+function backupRunFilter(problemsOnly) {
+  if (!backupUi.run) return;
+  backupUi.run.problemsOnly = problemsOnly;
+  backupUi.run.files = [];
+  backupRunLoad(0);
+}
+
+function backupRunMore() {
+  if (backupUi.run) backupRunLoad(backupUi.run.files.length);
+}
+
+function backupRunBack() {
+  if (backupUi.history) backupShowHistory(backupUi.history.profileId);
+  else backupShowList();
+}
+
+function backupRenderRun() {
+  const st = backupUi.run;
+  if (!st || backupUi.view !== 'run') return;
+  const run = st.run;
+  const c = run;
+  const facts = [
+    ['Started', run.started_at ? `${bkDate(run.started_at)}${run.trigger === 'schedule' ? ' (scheduled)' : ''}` : ''],
+    ['Finished', run.finished_at ? bkDate(run.finished_at) : (run.status === 'running' ? 'Still running' : '')],
+    ['Took', run.finished_at ? bkDuration(run.duration_ms) : ''],
+    ['Copied', c.copied ? Number(c.copied).toLocaleString() : ''],
+    ['Updated', c.updated ? Number(c.updated).toLocaleString() : ''],
+    ['Removed', c.removed ? Number(c.removed).toLocaleString() : ''],
+    ['Old versions kept', c.versions_kept ? Number(c.versions_kept).toLocaleString() : ''],
+    ['Data', c.bytes ? formatBytes(c.bytes) : ''],
+    ['Failed', c.failed ? Number(c.failed).toLocaleString() : ''],
+    ['Warnings', c.warnings ? Number(c.warnings).toLocaleString() : ''],
+  ].filter(f => f[1]);
+  const lines = st.files.map(f => `
+    <div class="bk-row bk-log-row ${f.ok ? '' : 'bk-log-fail'} ${f.action === 'warning' ? 'bk-log-warn' : ''}">
+      <span class="bk-row-act">${escapeHtml(f.ok ? (BACKUP_ACTION_WORDS[f.action] || f.action) : 'Failed')}</span>
+      <span class="bk-row-path" title="${escapeHtml(f.path)}">${escapeHtml(f.path || '')}${f.detail ? `<small>${escapeHtml(f.detail)}</small>` : ''}</span>
+      <span class="bk-row-size">${f.size && !String(f.action).startsWith('remove') ? formatBytes(f.size) : ''}</span>
+    </div>`).join('');
+  const empty = st.loading ? '<div class="bk-empty"><i data-lucide="loader" class="spinner"></i> Loading...</div>'
+    : (st.error ? `<div class="bk-form-error" style="display: block;">${escapeHtml(st.error)}</div>`
+      : `<div class="bk-empty">${st.problemsOnly ? 'No problems in this run.' : 'No files were changed in this run.'}</div>`);
+  backupSetView(`
+    <div class="bk-form bk-fill">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupRunBack" title="Back to History"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">${run.kind === 'restore' ? 'Restore' : 'Backup'}: ${escapeHtml(run.profile_name || '')}</span>
+        <div style="flex: 1;"></div>
+        <a class="btn btn-sm bk-btn" href="/api/tools/sync/runs/${encodeURIComponent(run.id)}/log" download title="Download the whole log as a text file"><i data-lucide="download"></i> Download log</a>
+      </div>
+      <div class="bk-summary bk-${escapeHtml(run.status || '')}">${escapeHtml(run.status === 'running' ? 'Running...' : (run.message || run.status || ''))}</div>
+      <div class="bk-facts">${facts.map(f => `<span><small>${escapeHtml(f[0])}</small>${escapeHtml(f[1])}</span>`).join('')}</div>
+      <div class="bk-filter">
+        <button class="bk-chip-btn ${st.problemsOnly ? '' : 'active'}" data-on-click="backupRunFilter" data-click-args="${actionArgs(false)}">Everything</button>
+        <button class="bk-chip-btn ${st.problemsOnly ? 'active' : ''}" data-on-click="backupRunFilter" data-click-args="${actionArgs(true)}">Problems only</button>
+        <span class="bk-hint" style="margin-left: auto;">${st.total ? bkCount(st.total, 'line', 'lines') : ''}</span>
+      </div>
+      <div class="bk-rows">${lines || empty}${st.files.length < st.total ? `<button class="btn btn-sm bk-btn bk-rows-more" data-on-click="backupRunMore">Show more (${(st.total - st.files.length).toLocaleString()} left)</button>` : ''}</div>
+    </div>`);
+}
+
+// ---------- Folder picker (shared by the backup form and Restore) ----------
+
+let syncFolderPickerTargetInput = 'bk-src';
 let syncPickerCurrentPath = '/';
 
 function openSyncFolderPicker(targetInputId) {
-  syncFolderPickerTargetInput = targetInputId || 'sync-src-input';
+  syncFolderPickerTargetInput = targetInputId || 'bk-src';
   const curVal = document.getElementById(syncFolderPickerTargetInput)?.value.trim() || getUserDefaultHomeDir() || '/';
   syncPickerCurrentPath = curVal;
 
@@ -35172,7 +36276,7 @@ function openSyncFolderPicker(targetInputId) {
   if (panesList) {
     panesList.innerHTML = App.panes.map((p, idx) => `
       <div class="sync-folder-picker-item" data-on-click="selectSyncPickerLocation" data-click-args="${actionArgs(String((p.path || '/') ?? ''))}">
-        <span style="font-weight: 600;"><i data-lucide="layout" style="width: 12px; height: 12px; vertical-align: -1px;"></i> Pane ${idx + 1} (${p.nodeId || 'local'})</span>
+        <span style="font-weight: 600;"><i data-lucide="layout" style="width: 12px; height: 12px; vertical-align: -1px;"></i> Panel ${idx + 1}${p.nodeId && p.nodeId !== 'local' ? ` (${escapeHtml(p.nodeId)})` : ''}</span>
         <span style="font-family: var(--font-mono); color: var(--text-muted); font-size: 11px;">${escapeHtml(p.path || '/')}</span>
       </div>
     `).join('');
@@ -35249,773 +36353,12 @@ function confirmSyncFolderSelection() {
   const input = document.getElementById(syncFolderPickerTargetInput);
   if (input) {
     input.value = syncPickerCurrentPath;
+    // Let the form react, e.g. suggest a name for a new backup
+    input.dispatchEvent(new Event('input', { bubbles: true }));
   }
   closeModal('sync-folder-picker-modal');
-  showToast(`Folder selected: ${syncPickerCurrentPath}`, 'info');
 }
 
-function toggleSyncExclusionsPanel() {
-  const panel = document.getElementById('sync-exclusions-panel');
-  if (!panel) return;
-  const isHidden = panel.style.display === 'none' || panel.style.display === '';
-  panel.style.display = isHidden ? 'flex' : 'none';
-  if (isHidden && window.lucide) lucide.createIcons();
-}
-
-function toggleExclusionChip(chipEl) {
-  if (!chipEl) return;
-  chipEl.classList.toggle('active');
-  updateSyncExclusionBadge();
-}
-
-function addCustomExclusionPattern() {
-  const input = document.getElementById('sync-custom-exclusion-input');
-  if (!input) return;
-  const val = input.value.trim();
-  if (!val) return;
-  if (!syncCustomExclusions.includes(val)) {
-    syncCustomExclusions.push(val);
-    renderCustomExclusionTags();
-    updateSyncExclusionBadge();
-  }
-  input.value = '';
-}
-
-function removeCustomExclusionTag(pattern) {
-  syncCustomExclusions = syncCustomExclusions.filter(p => p !== pattern);
-  renderCustomExclusionTags();
-  updateSyncExclusionBadge();
-}
-
-function renderCustomExclusionTags() {
-  const container = document.getElementById('sync-active-custom-tags');
-  if (!container) return;
-  container.innerHTML = syncCustomExclusions.map(pat => `
-    <span class="sync-custom-tag">
-      ${escapeHtml(pat)}
-      <span class="sync-custom-tag-remove" data-on-click="removeCustomExclusionTag" data-click-args="${actionArgs(String((pat) ?? ''))}">&times;</span>
-    </span>
-  `).join('');
-  bindActions(container);
-}
-
-function clearAllSyncExclusions() {
-  document.querySelectorAll('#sync-exclusions-panel .sync-chip').forEach(c => c.classList.remove('active'));
-  syncCustomExclusions = [];
-  renderCustomExclusionTags();
-  updateSyncExclusionBadge();
-}
-
-function getActiveSyncExclusions() {
-  const activeChips = Array.from(document.querySelectorAll('#sync-exclusions-panel .sync-chip.active'))
-    .map(c => c.getAttribute('data-pattern'))
-    .filter(Boolean);
-  return Array.from(new Set([...activeChips, ...syncCustomExclusions]));
-}
-
-function updateSyncExclusionBadge() {
-  const list = getActiveSyncExclusions();
-  const badge = document.getElementById('sync-exclusions-badge');
-  if (badge) badge.textContent = list.length;
-  const btn = document.getElementById('btn-toggle-sync-exclusions');
-  if (btn) {
-    if (list.length > 0) {
-      btn.classList.add('btn-accent');
-    } else {
-      btn.classList.remove('btn-accent');
-    }
-  }
-}
-
-function setPresetChips(patternsToActivate) {
-  document.querySelectorAll('#sync-exclusions-panel .sync-chip').forEach(chip => {
-    const pat = chip.getAttribute('data-pattern');
-    if (pat && patternsToActivate.includes(pat)) {
-      chip.classList.add('active');
-    } else {
-      chip.classList.remove('active');
-    }
-  });
-  updateSyncExclusionBadge();
-}
-
-function applySyncTemplate(templateKey) {
-  if (templateKey === 'nas_mirror') {
-    const radio = document.querySelector('input[name="sync-mode"][value="echo"]');
-    if (radio) { radio.checked = true; handleSyncModeChange(); }
-    const delta = document.getElementById('sync-opt-delta');
-    if (delta) delta.checked = true;
-    const verify = document.getElementById('sync-opt-verify');
-    if (verify) verify.checked = true;
-    setPresetChips(['.DS_Store', 'Thumbs.db', '*.tmp', '*.bak']);
-    showToast('🪞 Applied NAS Mirror preset (Echo mode, checksum verification, system exclusions)', 'info');
-  } else if (templateKey === 'code_sync') {
-    const radio = document.querySelector('input[name="sync-mode"][value="synchronize"]');
-    if (radio) { radio.checked = true; handleSyncModeChange(); }
-    const delta = document.getElementById('sync-opt-delta');
-    if (delta) delta.checked = true;
-    const verify = document.getElementById('sync-opt-verify');
-    if (verify) verify.checked = true;
-    setPresetChips(['node_modules', '.git', 'target', '.cache', 'tmp', 'dist', '*.log']);
-    showToast('💻 Applied Codebase Sync preset (Two-Way delta sync, developer exclusions)', 'info');
-  } else if (templateKey === 'snapshot_archive') {
-    const radio = document.querySelector('input[name="sync-mode"][value="subscribe"]');
-    if (radio) { radio.checked = true; handleSyncModeChange(); }
-    const delta = document.getElementById('sync-opt-delta');
-    if (delta) delta.checked = true;
-    const verify = document.getElementById('sync-opt-verify');
-    if (verify) verify.checked = true;
-    const retention = document.getElementById('sync-opt-retention');
-    if (retention) retention.value = '30';
-    setPresetChips(['.DS_Store', 'Thumbs.db', '*.tmp']);
-    showToast('📦 Applied Snapshot Vault preset (30-day versioned archive snapshots)', 'info');
-  } else if (templateKey === 'media_vault') {
-    const radio = document.querySelector('input[name="sync-mode"][value="contribute"]');
-    if (radio) { radio.checked = true; handleSyncModeChange(); }
-    const delta = document.getElementById('sync-opt-delta');
-    if (delta) delta.checked = true;
-    const verify = document.getElementById('sync-opt-verify');
-    if (verify) verify.checked = true;
-    setPresetChips(['.DS_Store', 'Thumbs.db', '*.tmp', '*.bak']);
-    showToast('📸 Applied Media Backup preset (Additive contribute mode, never delete from target)', 'info');
-  }
-}
-
-function applyJobModalTemplate(templateKey) {
-  if (!templateKey) return;
-  const nameInput = document.getElementById('bp-name');
-  const modeSelect = document.getElementById('bp-mode');
-  const schedSelect = document.getElementById('bp-schedule-type');
-  const intervalInput = document.getElementById('bp-interval-mins');
-  const dailyInput = document.getElementById('bp-daily-time');
-  const exclusionsInput = document.getElementById('bp-exclusions');
-
-  if (templateKey === 'nas_mirror') {
-    if (nameInput && !nameInput.value) nameInput.value = 'Daily NAS Mirror';
-    if (modeSelect) modeSelect.value = 'echo';
-    if (schedSelect) schedSelect.value = 'daily';
-    if (dailyInput) dailyInput.value = '02:00';
-    if (exclusionsInput) exclusionsInput.value = '.DS_Store, Thumbs.db, *.tmp, *.bak';
-  } else if (templateKey === 'code_sync') {
-    if (nameInput && !nameInput.value) nameInput.value = 'Codebase Interval Sync';
-    if (modeSelect) modeSelect.value = 'synchronize';
-    if (schedSelect) schedSelect.value = 'interval';
-    if (intervalInput) intervalInput.value = '30';
-    if (exclusionsInput) exclusionsInput.value = 'node_modules, .git, target, .cache, dist, *.log';
-  } else if (templateKey === 'snapshot_archive') {
-    if (nameInput && !nameInput.value) nameInput.value = 'Daily Snapshot Vault';
-    if (modeSelect) modeSelect.value = 'subscribe';
-    if (schedSelect) schedSelect.value = 'daily';
-    if (dailyInput) dailyInput.value = '03:00';
-    if (exclusionsInput) exclusionsInput.value = '.DS_Store, Thumbs.db, *.tmp';
-  } else if (templateKey === 'media_vault') {
-    if (nameInput && !nameInput.value) nameInput.value = 'Hourly Media Vault';
-    if (modeSelect) modeSelect.value = 'contribute';
-    if (schedSelect) schedSelect.value = 'interval';
-    if (intervalInput) intervalInput.value = '60';
-    if (exclusionsInput) exclusionsInput.value = '.DS_Store, Thumbs.db, *.tmp, *.bak';
-  }
-  handleScheduleTypeChange();
-}
-
-function appendBpExclusion(pattern) {
-  const input = document.getElementById('bp-exclusions');
-  if (!input) return;
-  const current = input.value.split(',').map(s => s.trim()).filter(Boolean);
-  if (!current.includes(pattern)) {
-    current.push(pattern);
-    input.value = current.join(', ');
-  }
-}
-
-function updateSyncCounters(all, left, right, mod, archive, eq) {
-  const cAll = document.getElementById('sync-cnt-all');
-  const cLeft = document.getElementById('sync-cnt-left');
-  const cRight = document.getElementById('sync-cnt-right');
-  const cMod = document.getElementById('sync-cnt-mod');
-  const cArchive = document.getElementById('sync-cnt-archive');
-  const cEq = document.getElementById('sync-cnt-eq');
-
-  if (cAll) cAll.textContent = all;
-  if (cLeft) cLeft.textContent = left;
-  if (cRight) cRight.textContent = right;
-  if (cMod) cMod.textContent = mod;
-  if (cArchive) cArchive.textContent = archive;
-  if (cEq) cEq.textContent = eq;
-}
-
-function filterSyncGrid(mode) {
-  syncCurrentFilter = mode;
-  document.querySelectorAll('.sync-filter-btn').forEach(b => b.classList.remove('active'));
-  const btnMap = {
-    'all': 'btn-sync-filter-all',
-    'left': 'btn-sync-filter-left',
-    'right': 'btn-sync-filter-right',
-    'modified': 'btn-sync-filter-mod',
-    'archive': 'btn-sync-filter-archive',
-    'identical': 'btn-sync-filter-eq'
-  };
-  const activeBtn = document.getElementById(btnMap[mode] || 'btn-sync-filter-all');
-  if (activeBtn) activeBtn.classList.add('active');
-  renderSyncDiffTable();
-}
-
-async function executeDryRun() {
-  const source = document.getElementById('sync-src-input')?.value.trim();
-  const destination = document.getElementById('sync-dest-input')?.value.trim();
-  if (!source || !destination) {
-    showToast('Please specify source and destination directories first', 'warning');
-    return;
-  }
-  await analyzeSync(true);
-}
-
-async function analyzeSync(isDryRun = false) {
-  const source = document.getElementById('sync-src-input')?.value.trim();
-  const destination = document.getElementById('sync-dest-input')?.value.trim();
-  const mode = document.querySelector('input[name="sync-mode"]:checked')?.value || 'synchronize';
-  const blockDelta = document.getElementById('sync-opt-delta')?.checked ?? true;
-  const verifyChecksum = document.getElementById('sync-opt-verify')?.checked ?? true;
-  const archiveDir = document.getElementById('sync-opt-archive-dir')?.value.trim() || '_archive';
-  const retentionDays = parseInt(document.getElementById('sync-opt-retention')?.value || '30', 10);
-  const exclusions = getActiveSyncExclusions();
-
-  if (!source || !destination) {
-    showToast('Please specify source and destination directories', 'warning');
-    return;
-  }
-
-  const tbody = document.getElementById('sync-diff-body');
-  const footerStats = document.getElementById('sync-footer-stats');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--accent);"><i data-lucide="loader" class="spinner"></i> ${isDryRun ? 'Simulating dry run & checking differences...' : 'Analyzing directory differences & delta blocks...'}</td></tr>`;
-  if (window.lucide) lucide.createIcons();
-
-  try {
-    const resp = await fetch('/api/tools/sync/analyze', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source,
-        destination,
-        options: {
-          mode,
-          dry_run: true,
-          verify_checksum: verifyChecksum,
-          block_delta: blockDelta,
-          delete_orphans: mode === 'echo',
-          archive_dir: archiveDir,
-          retention_days: retentionDays,
-          exclusions,
-        }
-      })
-    });
-
-    if (!resp.ok) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--danger);">Analysis failed: ${escapeHtml(await resp.text())}</td></tr>`;
-      return;
-    }
-
-    syncAnalysisData = await resp.json();
-    const files = syncAnalysisData.files || [];
-
-    const leftCnt = files.filter(f => f.suggested_action === 'copy_right' || f.suggested_action === 'delta_update_right' || f.suggested_action === 'archive_and_update').length;
-    const rightCnt = files.filter(f => f.suggested_action === 'copy_left' || f.suggested_action === 'delta_update_left').length;
-    const modCnt = files.filter(f => f.suggested_action.startsWith('delta_update_') || f.status.startsWith('modified_')).length;
-    const archiveCnt = files.filter(f => f.suggested_action.startsWith('archive_')).length;
-    const eqCnt = files.filter(f => f.status === 'identical').length;
-
-    updateSyncCounters(files.length, leftCnt, rightCnt, modCnt, archiveCnt, eqCnt);
-
-    if (footerStats) {
-      const truncBadge = syncAnalysisData.is_truncated ? ' [First 10,000 files shown]' : '';
-      const savedStr = syncAnalysisData.bytes_saved_estimate > 0 ? ` • Est. Delta Savings: ~${formatFileSize(syncAnalysisData.bytes_saved_estimate)}` : '';
-      const dryPrefix = isDryRun ? '⚡ [Dry Run Simulation] ' : '';
-      footerStats.textContent = `${dryPrefix}Scanned ${files.length} items${truncBadge}: ${leftCnt} to copy/update ➔, ${rightCnt} to copy ⬅, ${archiveCnt} to archive 📦, ${eqCnt} identical (${formatFileSize(syncAnalysisData.total_transfer_bytes)} total)${savedStr}.`;
-    }
-
-    renderSyncDiffTable();
-    if (isDryRun) {
-      showToast(`Dry Run: ${leftCnt + rightCnt} to copy/update, ${archiveCnt} to archive, ${syncAnalysisData.to_delete?.length || 0} to delete`, 'info');
-    }
-  } catch (e) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--danger);">Error: ${escapeHtml(String(e))}</td></tr>`;
-  }
-}
-
-function toggleFileAction(index) {
-  if (!syncAnalysisData || !syncAnalysisData.files[index]) return;
-  const item = syncAnalysisData.files[index];
-  const cycle = ['copy_right', 'copy_left', 'delta_update_right', 'skip'];
-  const curIdx = cycle.indexOf(item.suggested_action);
-  item.suggested_action = cycle[(curIdx + 1) % cycle.length];
-  renderSyncDiffTable();
-}
-
-function renderSyncDiffTable() {
-  const tbody = document.getElementById('sync-diff-body');
-  if (!tbody || !syncAnalysisData) return;
-
-  const files = syncAnalysisData.files || [];
-  let filtered = files;
-
-  if (syncCurrentFilter === 'left') {
-    filtered = files.filter(f => f.suggested_action === 'copy_right' || f.suggested_action === 'delta_update_right' || f.suggested_action === 'archive_and_update');
-  } else if (syncCurrentFilter === 'right') {
-    filtered = files.filter(f => f.suggested_action === 'copy_left' || f.suggested_action === 'delta_update_left');
-  } else if (syncCurrentFilter === 'modified') {
-    filtered = files.filter(f => f.suggested_action.startsWith('delta_update_') || f.status.startsWith('modified_'));
-  } else if (syncCurrentFilter === 'archive') {
-    filtered = files.filter(f => f.suggested_action.startsWith('archive_'));
-  } else if (syncCurrentFilter === 'identical') {
-    filtered = files.filter(f => f.status === 'identical');
-  }
-
-  if (filtered.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">No files match the selected filter.</td></tr>`;
-    return;
-  }
-
-  const maxRender = 500;
-  const renderSlice = filtered.slice(0, maxRender);
-
-  const rowsHtml = renderSlice.map(f => {
-    let actionBadge = '';
-    if (f.suggested_action === 'copy_right') {
-      actionBadge = `<span class="sync-action-badge action-copy-right" title="Copy Left ➔ Right (Click to change)" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">➔</span>`;
-    } else if (f.suggested_action === 'copy_left') {
-      actionBadge = `<span class="sync-action-badge action-copy-left" title="Copy Right ➔ Left (Click to change)" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">⬅</span>`;
-    } else if (f.suggested_action === 'delta_update_right') {
-      actionBadge = `<span class="sync-action-badge action-update-delta" title="⚡ Delta Patch ➔ Right (Click to change)" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">⚡➔</span>`;
-    } else if (f.suggested_action === 'delta_update_left') {
-      actionBadge = `<span class="sync-action-badge action-update-delta" title="⚡ Delta Patch ➔ Left (Click to change)" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">⚡⬅</span>`;
-    } else if (f.suggested_action === 'archive_and_update') {
-      actionBadge = `<span class="sync-action-badge action-archive" title="📦 Archive Old Version & Update" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">📦⚡</span>`;
-    } else if (f.suggested_action === 'archive_and_delete') {
-      actionBadge = `<span class="sync-action-badge action-archive" title="📦 Archive Orphan & Remove from Dest" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">📦✕</span>`;
-    } else if (f.suggested_action === 'delete_right') {
-      actionBadge = `<span class="sync-action-badge action-delete-right" title="Delete from Target (Mirror mode)" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">✕</span>`;
-    } else if (f.suggested_action === 'identical') {
-      actionBadge = `<span class="sync-action-badge action-identical" title="Identical File" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">✔</span>`;
-    } else {
-      actionBadge = `<span class="sync-action-badge action-skip" title="Skip File (Click to change)" data-on-click="toggleFileAction" data-click-args="${actionArgs((files.indexOf(f)))}">⊘</span>`;
-    }
-
-    const leftFileClass = f.status === 'left_only' ? 'color: var(--info); font-weight: 600;' : (f.status === 'right_only' ? 'color: var(--text-dim);' : 'color: var(--text-main);');
-    const rightFileClass = f.status === 'right_only' ? 'color: #c084fc; font-weight: 600;' : (f.status === 'left_only' ? 'color: var(--text-dim);' : 'color: var(--text-main);');
-
-    return `
-      <tr>
-        <td style="text-align: right; color: var(--text-muted);">${escapeHtml(f.src_size_formatted)}</td>
-        <td style="${leftFileClass} text-overflow: ellipsis; overflow: hidden; max-width: 300px;" title="${escapeHtml(f.rel_path)}">
-          ${escapeHtml(f.rel_path)}
-        </td>
-        <td style="text-align: center;">${actionBadge}</td>
-        <td style="${rightFileClass} text-overflow: ellipsis; overflow: hidden; max-width: 300px;" title="${escapeHtml(f.rel_path)}">
-          ${escapeHtml(f.rel_path)}
-        </td>
-        <td style="text-align: left; color: var(--text-muted);">${escapeHtml(f.dest_size_formatted)}</td>
-      </tr>
-    `;
-  }).join('');
-
-  const truncNotice = filtered.length > maxRender 
-    ? `<tr><td colspan="5" style="text-align: center; padding: 12px; font-weight: 600; color: var(--accent); background: var(--bg-panel);">Showing first ${maxRender} of ${filtered.length} matching files. Use filters above to inspect specific changes.</td></tr>`
-    : '';
-
-  tbody.innerHTML = rowsHtml + truncNotice;
-  bindActions(tbody);
-}
-
-async function executeSync(dryRun = false) {
-  const source = document.getElementById('sync-src-input')?.value.trim();
-  const destination = document.getElementById('sync-dest-input')?.value.trim();
-  const mode = document.querySelector('input[name="sync-mode"]:checked')?.value || 'synchronize';
-  const blockDelta = document.getElementById('sync-opt-delta')?.checked ?? true;
-  const verifyChecksum = document.getElementById('sync-opt-verify')?.checked ?? true;
-  const archiveDir = document.getElementById('sync-opt-archive-dir')?.value.trim() || '_archive';
-  const retentionDays = parseInt(document.getElementById('sync-opt-retention')?.value || '30', 10);
-  const exclusions = getActiveSyncExclusions();
-
-  if (!source || !destination) {
-    showToast('Please specify source and destination directories', 'warning');
-    return;
-  }
-
-  if (dryRun) {
-    await executeDryRun();
-    return;
-  }
-
-  closeModal('sync-modal');
-
-  try {
-    const resp = await fetch('/api/tools/sync/execute', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        source,
-        destination,
-        options: {
-          mode,
-          dry_run: false,
-          verify_checksum: verifyChecksum,
-          block_delta: blockDelta,
-          delete_orphans: mode === 'echo',
-          archive_dir: archiveDir,
-          retention_days: retentionDays,
-          exclusions,
-        }
-      })
-    });
-
-    if (resp.ok) {
-      const data = await resp.json();
-      const snapMsg = data.snapshot_dir ? ` (Snapshot: ${data.snapshot_dir})` : '';
-      showToast(`⚡ Replication completed: ${data.copied || 0} copied, ${data.archived || 0} archived, ${data.deleted || 0} deleted${snapMsg}`, 'success');
-      refreshAllPanes();
-      openFloatingTaskManager();
-    } else {
-      showToast('Sync error: ' + await resp.text(), 'error');
-    }
-  } catch (e) {
-    showToast('Sync execution failed: ' + String(e), 'error');
-  }
-}
-
-// ---------------- BACKUP PROFILES & SCHEDULER JS ----------------
-
-function openSaveCurrentSyncAsProfile() {
-  const src = document.getElementById('sync-src-input')?.value.trim();
-  const dest = document.getElementById('sync-dest-input')?.value.trim();
-  const mode = document.querySelector('input[name="sync-mode"]:checked')?.value || 'synchronize';
-
-  openCreateBackupProfileModal({
-    id: '',
-    name: 'Backup Job ' + new Date().toLocaleDateString(),
-    source_dir: src,
-    dest_dir: dest,
-    profile_mode: mode,
-    exclusions: getActiveSyncExclusions().join(', '),
-    block_delta: document.getElementById('sync-opt-delta')?.checked ?? true,
-    verify_checksum: document.getElementById('sync-opt-verify')?.checked ?? true,
-    archive_dir: document.getElementById('sync-opt-archive-dir')?.value || '_archive',
-    retention_days: parseInt(document.getElementById('sync-opt-retention')?.value || '30', 10),
-    schedule_type: 'daily',
-    schedule_interval_mins: 60,
-    schedule_time: '02:00',
-    webhook_url: '',
-    enabled: true
-  });
-}
-
-function openCreateBackupProfileModal(profile) {
-  const p = profile || {};
-  const srcVal = p.source_dir || (App.panes && App.panes[0] ? App.panes[0].path : '');
-  const destVal = p.dest_dir || (App.panes && App.panes[1] ? App.panes[1].path : (App.panes && App.panes[0] ? App.panes[0].path : ''));
-
-  const idIn = document.getElementById('bp-id');
-  const nameIn = document.getElementById('bp-name');
-  const srcIn = document.getElementById('bp-source');
-  const destIn = document.getElementById('bp-dest');
-  const modeIn = document.getElementById('bp-mode');
-  const exclIn = document.getElementById('bp-exclusions');
-  const tmplSelect = document.getElementById('bp-template-select');
-  const schedIn = document.getElementById('bp-schedule-type');
-  const intervalIn = document.getElementById('bp-interval-mins');
-  const dailyIn = document.getElementById('bp-daily-time');
-  const deltaIn = document.getElementById('bp-block-delta');
-  const verifyIn = document.getElementById('bp-verify');
-  const enabledIn = document.getElementById('bp-enabled');
-  const webhookIn = document.getElementById('bp-webhook');
-
-  if (idIn) idIn.value = p.id || '';
-  if (nameIn) nameIn.value = p.name || '';
-  if (srcIn) srcIn.value = srcVal;
-  if (destIn) destIn.value = destVal;
-  if (modeIn) modeIn.value = p.profile_mode || 'subscribe';
-  if (exclIn) exclIn.value = p.exclusions || '';
-  if (tmplSelect) tmplSelect.value = '';
-  if (schedIn) schedIn.value = p.schedule_type || 'manual';
-  if (intervalIn) intervalIn.value = p.schedule_interval_mins || 60;
-  if (dailyIn) dailyIn.value = p.schedule_time || '02:00';
-  if (deltaIn) deltaIn.checked = p.block_delta ?? true;
-  if (verifyIn) verifyIn.checked = p.verify_checksum ?? true;
-  if (enabledIn) enabledIn.checked = p.enabled ?? true;
-  if (webhookIn) webhookIn.value = p.webhook_url || '';
-
-  const titleEl = document.getElementById('backup-profile-modal-title');
-  if (titleEl) titleEl.textContent = p.id ? 'Edit Backup Profile' : 'Create Backup Profile';
-  handleScheduleTypeChange();
-  showModal('backup-profile-modal');
-  if (window.lucide) lucide.createIcons();
-}
-
-function handleScheduleTypeChange() {
-  const type = document.getElementById('bp-schedule-type')?.value;
-  const intervalRow = document.getElementById('bp-interval-row');
-  if (intervalRow) {
-    intervalRow.style.display = (type === 'interval' || type === 'daily') ? 'grid' : 'none';
-  }
-}
-
-async function saveBackupProfileForm() {
-  const id = document.getElementById('bp-id')?.value.trim() || '';
-  const name = document.getElementById('bp-name')?.value.trim();
-  const source_dir = document.getElementById('bp-source')?.value.trim();
-  const dest_dir = document.getElementById('bp-dest')?.value.trim();
-  const profile_mode = document.getElementById('bp-mode')?.value || 'subscribe';
-  const exclusions = document.getElementById('bp-exclusions')?.value.trim() || null;
-  const schedule_type = document.getElementById('bp-schedule-type')?.value || 'manual';
-  const schedule_interval_mins = parseInt(document.getElementById('bp-interval-mins')?.value || '60', 10);
-  const schedule_time = document.getElementById('bp-daily-time')?.value.trim() || '02:00';
-  const block_delta = document.getElementById('bp-block-delta')?.checked ?? true;
-  const verify_checksum = document.getElementById('bp-verify')?.checked ?? true;
-  const enabled = document.getElementById('bp-enabled')?.checked ?? true;
-  const webhook_url = document.getElementById('bp-webhook')?.value.trim() || null;
-
-  if (!name || !source_dir || !dest_dir) {
-    showToast('Please provide a name, source directory, and destination directory', 'warning');
-    return;
-  }
-
-  try {
-    const resp = await fetch('/api/tools/sync/profiles', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id,
-        name,
-        source_dir,
-        dest_dir,
-        profile_mode,
-        exclusions,
-        block_delta,
-        verify_checksum,
-        archive_dir: '_archive',
-        retention_days: 30,
-        schedule_type,
-        schedule_interval_mins,
-        schedule_time,
-        webhook_url,
-        enabled,
-        last_run: null,
-        last_status: null,
-        last_result: null,
-        created_at: 0
-      })
-    });
-
-    if (resp.ok) {
-      showToast('Backup profile saved successfully', 'success');
-      closeModal('backup-profile-modal');
-      loadBackupProfiles();
-    } else {
-      showToast('Failed to save profile: ' + await resp.text(), 'error');
-    }
-  } catch (e) {
-    showToast('Save error: ' + String(e), 'error');
-  }
-}
-
-let currentBackupProfiles = [];
-
-function editBackupProfileByIndex(idx) {
-  if (currentBackupProfiles[idx]) {
-    openCreateBackupProfileModal(currentBackupProfiles[idx]);
-  }
-}
-
-async function loadBackupProfiles() {
-  const tbody = document.getElementById('backup-profiles-body');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--accent);"><i data-lucide="loader"></i> Loading profiles...</td></tr>`;
-  if (window.lucide) lucide.createIcons();
-
-  try {
-    const resp = await fetch('/api/tools/sync/profiles', {
-      headers: {}
-    });
-
-    if (!resp.ok) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--danger);">Failed to load profiles.</td></tr>`;
-      return;
-    }
-
-    const profiles = await resp.json();
-    currentBackupProfiles = profiles || [];
-
-    if (profiles.length === 0) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 40px; color: var(--text-dim);">No backup jobs configured yet. Click <b>New Backup Job</b> to create one.</td></tr>`;
-      return;
-    }
-
-    if (tbody) {
-      tbody.innerHTML = profiles.map((p, idx) => {
-        const modeBadge = {
-          'synchronize': '<span class="badge" style="background: rgba(59,130,246,0.15); color: #60a5fa;">2-Way Sync</span>',
-          'echo': '<span class="badge" style="background: rgba(239,68,68,0.15); color: #f87171;">Mirror (Echo)</span>',
-          'contribute': '<span class="badge" style="background: rgba(34,197,94,0.15); color: #4ade80;">Contribute</span>',
-          'subscribe': '<span class="badge" style="background: rgba(168,85,247,0.15); color: #c084fc;">Archive Versioning</span>'
-        }[p.profile_mode] || `<span class="badge">${escapeHtml(p.profile_mode)}</span>`;
-
-        let schedBadge = '';
-        if (p.schedule_type === 'realtime') {
-          schedBadge = '<span class="badge" style="background: rgba(245,158,11,0.2); color: #fbbf24;">⚡ Real-Time Watcher</span>';
-        } else if (p.schedule_type === 'interval') {
-          schedBadge = `<span class="badge" style="background: rgba(14,165,233,0.15); color: #38bdf8;">⏰ Every ${p.schedule_interval_mins}m</span>`;
-        } else if (p.schedule_type === 'daily') {
-          schedBadge = `<span class="badge" style="background: rgba(139,92,246,0.15); color: #a78bfa;">📅 Daily @ ${p.schedule_time || '02:00'}</span>`;
-        } else {
-          schedBadge = '<span class="badge" style="background: rgba(255,255,255,0.05); color: var(--text-dim);">Manual</span>';
-        }
-
-        const activeSwitch = `
-          <button class="btn btn-xs" data-on-click="toggleBackupProfileActive" data-click-args="${actionArgs(`${p.id}`)}" style="background: ${p.enabled ? 'rgba(34,197,94,0.2); color: #4ade80;' : 'rgba(255,255,255,0.05); color: var(--text-dim);'}">
-            ${p.enabled ? '● Active' : '○ Paused'}
-          </button>
-        `;
-
-        const lastRunStr = p.last_run ? new Date(p.last_run * 1000).toLocaleString() : '<span style="color: var(--text-dim);">Never</span>';
-        const statusPill = p.last_status === 'success' ? '✓' : (p.last_status === 'failed' ? '❌' : '');
-
-        return `
-          <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px 12px;">
-              <div style="font-weight: 600;">${escapeHtml(p.name)}</div>
-              ${p.exclusions ? `<div style="font-size: 10px; color: var(--text-dim); margin-top: 2px;" title="Exclusions: ${escapeHtml(p.exclusions)}"><i data-lucide="filter" style="width: 10px; height: 10px; display: inline-block; vertical-align: middle;"></i> ${escapeHtml(p.exclusions)}</div>` : ''}
-            </td>
-            <td style="padding: 8px 12px; font-family: var(--font-mono); font-size: 11px; max-width: 280px; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(p.source_dir)} ➔ ${escapeHtml(p.dest_dir)}">
-              <span style="color: var(--info);">${escapeHtml(p.source_dir)}</span> ➔ <span style="color: #c084fc;">${escapeHtml(p.dest_dir)}</span>
-            </td>
-            <td style="padding: 8px 10px; text-align: center;">${modeBadge}</td>
-            <td style="padding: 8px 10px; text-align: center;">${schedBadge}</td>
-            <td style="padding: 8px 10px; text-align: center;">${activeSwitch}</td>
-            <td style="padding: 8px 12px; font-size: 11px; color: var(--text-muted);">${statusPill} ${lastRunStr}</td>
-            <td style="padding: 8px 12px; text-align: right; white-space: nowrap;">
-              <button class="btn btn-xs btn-accent" data-on-click="runBackupProfileNow" data-click-args="${actionArgs(`${p.id}`)}" title="Run Backup Now"><i data-lucide="play"></i></button>
-              <button class="btn btn-xs" data-on-click="editBackupProfileByIndex" data-click-args="${actionArgs((idx))}" title="Edit Profile"><i data-lucide="edit"></i></button>
-              <button class="btn btn-xs" data-on-click="deleteBackupProfile" data-click-args="${actionArgs(`${p.id}`)}" title="Delete Profile" style="color: var(--danger);"><i data-lucide="trash-2"></i></button>
-            </td>
-          </tr>
-        `;
-      }).join('');
-      bindActions(tbody);
-      if (window.lucide) lucide.createIcons();
-    }
-  } catch (e) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; padding: 30px; color: var(--danger);">Error loading profiles: ${escapeHtml(String(e))}</td></tr>`;
-  }
-}
-
-async function runBackupProfileNow(id) {
-  try {
-    const resp = await fetch(`/api/tools/sync/profiles/${encodeURIComponent(id)}/run`, {
-      method: 'POST',
-      headers: {}
-    });
-
-    if (resp.ok) {
-      showToast('⚡ Backup job started in background', 'info');
-      openFloatingTaskManager();
-    } else {
-      showToast('Failed to start backup job: ' + await resp.text(), 'error');
-    }
-  } catch (e) {
-    showToast('Run error: ' + String(e), 'error');
-  }
-}
-
-async function toggleBackupProfileActive(id) {
-  try {
-    const resp = await fetch(`/api/tools/sync/profiles/${encodeURIComponent(id)}/toggle`, {
-      method: 'POST',
-      headers: {}
-    });
-
-    if (resp.ok) {
-      loadBackupProfiles();
-    }
-  } catch (e) {
-    showToast('Toggle error: ' + String(e), 'error');
-  }
-}
-
-async function deleteBackupProfile(id) {
-  const confirmed = await showConfirmDialog({
-    title: 'Delete Backup Profile',
-    subtitle: 'Replication / Backup Job',
-    message: 'Are you sure you want to delete this backup profile? Scheduled tasks and automation for this profile will be removed.',
-    icon: 'trash-2',
-    type: 'danger',
-    confirmText: 'Delete Profile'
-  });
-  if (!confirmed) return;
-
-  try {
-    const resp = await fetch(`/api/tools/sync/profiles/${encodeURIComponent(id)}`, {
-      method: 'DELETE',
-      headers: {}
-    });
-
-    if (resp.ok) {
-      showToast('Backup profile deleted', 'info');
-      loadBackupProfiles();
-    } else {
-      showToast('Delete failed: ' + await resp.text(), 'error');
-    }
-  } catch (e) {
-    showToast('Delete error: ' + String(e), 'error');
-  }
-}
-
-async function loadBackupHistory() {
-  const tbody = document.getElementById('backup-history-body');
-  if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--accent);"><i data-lucide="loader"></i> Loading history...</td></tr>`;
-  if (window.lucide) lucide.createIcons();
-
-  try {
-    const resp = await fetch('/api/tools/sync/history?limit=50', {
-      headers: {}
-    });
-
-    if (!resp.ok) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--danger);">Failed to load history.</td></tr>`;
-      return;
-    }
-
-    const items = await resp.json();
-    if (items.length === 0) {
-      if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 40px; color: var(--text-dim);">No backup executions recorded yet.</td></tr>`;
-      return;
-    }
-
-    if (tbody) {
-      tbody.innerHTML = items.map(h => {
-        const dateStr = new Date(h.started_at * 1000).toLocaleString();
-        const statusBadge = h.status === 'success'
-          ? '<span class="badge" style="background: rgba(34,197,94,0.15); color: #4ade80;">Success</span>'
-          : '<span class="badge" style="background: rgba(239,68,68,0.15); color: #f87171;">Failed</span>';
-
-        const durSec = (h.duration_ms / 1000).toFixed(1) + 's';
-        const errDetails = h.error_message ? `<span style="color: var(--danger); font-size: 10px;">${escapeHtml(h.error_message)}</span>` : '<span style="color: var(--text-dim);">Clean execution</span>';
-
-        return `
-          <tr style="border-bottom: 1px solid var(--border);">
-            <td style="padding: 8px 12px; font-size: 11px; color: var(--text-muted);">${dateStr}</td>
-            <td style="padding: 8px 12px; font-weight: 600;">${escapeHtml(h.profile_name)}</td>
-            <td style="padding: 8px 10px; text-align: center;">${statusBadge}</td>
-            <td style="padding: 8px 10px; text-align: right; color: #4ade80;">${h.files_copied}</td>
-            <td style="padding: 8px 10px; text-align: right; color: #c084fc;">${h.files_archived}</td>
-            <td style="padding: 8px 10px; text-align: right; color: #f87171;">${h.files_deleted}</td>
-            <td style="padding: 8px 10px; text-align: right; font-family: var(--font-mono); font-size: 11px;">${durSec}</td>
-            <td style="padding: 8px 12px; font-size: 11px;">${errDetails}</td>
-          </tr>
-        `;
-      }).join('');
-    }
-  } catch (e) {
-    if (tbody) tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; padding: 30px; color: var(--danger);">Error loading history: ${escapeHtml(String(e))}</td></tr>`;
-  }
-}
 
 // ---------------- VISUAL DISK USAGE TREEMAP & BAR ANALYZER ----------------
 let duCurrentData = null;
@@ -37821,7 +38164,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'search', title: 'Search', sub: 'Search files and folders recursively (Ctrl+F)', icon: 'assets/search.webp', cat: 'actions', action: () => openSearchModal() },
   { id: 'fleet', title: 'Fleet Control', sub: 'Multi-host node switcher, remote cluster manager & node diagnostics', icon: 'network', cat: 'actions', action: () => openFleetManagerModal() },
   { id: 'shares', title: 'Share Manager', sub: 'Manage public share links and guest upload dropboxes', icon: 'assets/sharemgr.webp', cat: 'actions', action: () => openSharesManager() },
-  { id: 'sync', title: 'Backup & Sync', sub: 'Delta Backup & Sync Studio: Two-Way Sync, Mirror, Additive Contribute & Snapshot Versioning', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
+  { id: 'sync', title: 'Backup & Sync', sub: 'Back up folders on a schedule, keep old versions, restore files, or keep two folders the same', icon: 'assets/sync.webp', cat: 'actions', action: () => openSyncModal() },
   { id: 'du', title: 'Disk Usage', sub: 'Disk Usage & Storage Treemap Analyzer: inspect space consumption', icon: 'assets/amber-piechart.webp', cat: 'actions', action: () => openDiskUsageModal() },
   { id: 'syncthing', title: 'Syncthing', sub: 'Continuous peer-to-peer file synchronization dashboard', icon: 'assets/syncthing.webp', cat: 'actions', action: () => openSyncthingModal() },
   { id: 'convert', title: 'Format Converter', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
@@ -38981,6 +39324,10 @@ function dockToolToPane(toolName, paneIndex) {
   else if (toolName === 'diff' || toolName === 'compare') {
     closeFloatingDiff();
   }
+  // 13. Backup & Sync: hide floating window & pill
+  else if (toolName === 'backup') {
+    closeBackupWindow();
+  }
 
   rebuildPaneDOM(paneIndex);
   showToast(`Docked ${toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
@@ -38993,6 +39340,12 @@ function undockToolFromPane(paneIndex) {
   const tool = pane.dockedTool;
   pane.dockedTool = null;
   localStorage.removeItem(`cd_pane_docked_${paneIndex}`);
+
+  if (tool === 'backup') {
+    const win = document.getElementById('floating-backup-window');
+    const body = backupBody();
+    if (win && body && !win.contains(body)) win.appendChild(body);
+  }
 
   // If terminal was docked, return #terminal-output back to the bottom drawer!
   if (tool === 'terminal') {
@@ -39048,6 +39401,8 @@ function undockToolFromPane(paneIndex) {
     openFloatingDiff();
   } else if (tool === 'diskusage' || tool === 'du') {
     openDiskUsageModal();
+  } else if (tool === 'backup') {
+    openSyncModal();
   } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     openDynamicChewToy(pluginId);
@@ -39096,6 +39451,14 @@ function closeDockedTool(paneIndex) {
   if (tool === 'duplicates') {
     const win = document.getElementById('floating-duplicates-window');
     const body = document.getElementById('duplicates-body');
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
+
+  if (tool === 'backup') {
+    const win = document.getElementById('floating-backup-window');
+    const body = backupBody();
     if (win && body && !win.contains(body)) {
       win.appendChild(body);
     }
@@ -39552,6 +39915,16 @@ function mountDockedTool(paneIndex) {
     bindActions(mount);
     setTimeout(() => {
       mountDockedDiskUsage(paneIndex);
+    }, 50);
+  }
+  // 20. DOCKED BACKUP & SYNC
+  else if (tool === 'backup') {
+    mount.innerHTML = `
+      <div class="docked-backup-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-backup-host-${paneIndex}"></div>
+    `;
+    bindActions(mount);
+    setTimeout(() => {
+      mountDockedBackup(paneIndex);
     }, 50);
   }
   // 19. DOCKED COMPARE & DIFF TOOL

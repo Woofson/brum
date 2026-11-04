@@ -831,158 +831,244 @@ pub async fn handle_tetrion_clear_scores(
 
 // ---------------- PHASE 4 HANDLERS (SYNC, SEARCH, SCRIPT ACTIONS) ----------------
 
-#[derive(Deserialize)]
-pub struct SyncRequest {
-    source: String,
-    destination: String,
-    options: crate::tools::sync::SyncOptions,
-}
+// ---------------- Backup & Sync ----------------
 
-pub async fn handle_sync_analyze(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Json(payload): Json<SyncRequest>,
-) -> Result<Json<crate::tools::sync::SyncAnalysis>, (StatusCode, String)> {
-    let source = validate_path_access(&state, &headers, &payload.source, false)?;
-    let destination = validate_path_access(&state, &headers, &payload.destination, false)?;
+use crate::tools::sync::{BackupManager, BackupProfile, ProfileView, RestoreRequest};
 
-    crate::tools::sync::DirectorySyncEngine::analyze(&source, &destination, &payload.options)
-        .map(Json)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Sync analysis failed: {}", e)))
-}
+type ApiError = (StatusCode, String);
 
-pub async fn handle_sync_execute(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-    Json(payload): Json<SyncRequest>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    let source = validate_path_access(&state, &headers, &payload.source, false)?;
-    let destination = validate_path_access(&state, &headers, &payload.destination, true)?;
-    let mut options = payload.options;
-    options.owner = Some(extract_claims_or_local(&state, &headers)?.sub);
-
-    crate::tools::sync::DirectorySyncEngine::execute_sync(
-        state.tasks.clone(),
-        &source,
-        &destination,
-        options,
-    ).await
-    .map(Json)
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Sync execution failed: {}", e)))
-}
-
-/// Admins see every backup profile; other users only their own
-fn can_use_profile(claims: &crate::auth::Claims, profile: &crate::tools::sync::BackupProfile) -> bool {
+/// Admins see every backup; other users only their own
+fn can_use_profile(claims: &crate::auth::Claims, profile: &BackupProfile) -> bool {
     claims.role.eq_ignore_ascii_case("admin") || profile.owner.as_deref() == Some(claims.sub.as_str())
 }
 
-/// The profile, if this user may see and control it. Other users' profiles look like missing ones.
-fn owned_profile(state: &AppState, headers: &HeaderMap, id: &str) -> Result<crate::tools::sync::BackupProfile, (StatusCode, String)> {
+/// The backup, if this user may see and control it. Other users' backups look like missing ones.
+fn owned_profile(state: &AppState, headers: &HeaderMap, id: &str) -> Result<BackupProfile, ApiError> {
     let claims = extract_claims_or_local(state, headers)?;
     state.backup.get_profile(id)
         .filter(|p| can_use_profile(&claims, p))
-        .ok_or((StatusCode::NOT_FOUND, "Backup profile not found".to_string()))
+        .ok_or((StatusCode::NOT_FOUND, "Backup not found".to_string()))
+}
+
+/// Checks both folders against the user's access and stores them as full paths
+fn resolve_profile_paths(state: &AppState, headers: &HeaderMap, p: &mut BackupProfile) -> Result<(), ApiError> {
+    let two_way = p.mode() == crate::tools::sync::engine::Mode::TwoWay;
+    p.source_dir = validate_path_access(state, headers, p.source_dir.trim(), two_way)?;
+    p.dest_dir = validate_path_access(state, headers, p.dest_dir.trim(), true)?;
+    Ok(())
+}
+
+fn bad_request(e: String) -> ApiError {
+    (StatusCode::BAD_REQUEST, e)
 }
 
 pub async fn handle_list_backup_profiles(
     State(state): State<AppState>,
     headers: HeaderMap,
-) -> Result<Json<Vec<crate::tools::sync::BackupProfile>>, (StatusCode, String)> {
+) -> Result<Json<Vec<ProfileView>>, ApiError> {
     let claims = extract_claims_or_local(&state, &headers)?;
-    Ok(Json(state.backup.list_profiles().into_iter().filter(|p| can_use_profile(&claims, p)).collect()))
+    Ok(Json(state.backup.list_profiles().into_iter()
+        .filter(|p| can_use_profile(&claims, p))
+        .map(|p| state.backup.view(p))
+        .collect()))
 }
 
 pub async fn handle_save_backup_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
-    Json(mut profile): Json<crate::tools::sync::BackupProfile>,
-) -> Result<Json<crate::tools::sync::BackupProfile>, (StatusCode, String)> {
+    Json(mut profile): Json<BackupProfile>,
+) -> Result<Json<ProfileView>, ApiError> {
     let claims = extract_claims_or_local(&state, &headers)?;
     require_write(&claims)?;
-    validate_path_access(&state, &headers, &profile.source_dir, false)?;
-    validate_path_access(&state, &headers, &profile.dest_dir, true)?;
-    if let Some(archive) = profile.archive_dir.as_deref().filter(|a| a.starts_with('/') || a.starts_with('~')) {
-        validate_path_access(&state, &headers, archive, true)?;
-    }
-
-    // Editing keeps the original owner; a new profile belongs to whoever made it
-    profile.owner = match state.backup.get_profile(&profile.id) {
+    resolve_profile_paths(&state, &headers, &mut profile)?;
+    // Editing keeps the original owner; a new backup belongs to whoever made it
+    profile.owner = match (!profile.id.is_empty()).then(|| state.backup.get_profile(&profile.id)).flatten() {
         Some(existing) if can_use_profile(&claims, &existing) => existing.owner,
-        Some(_) => return Err((StatusCode::NOT_FOUND, "Backup profile not found".to_string())),
-        None => Some(claims.sub.clone()),
+        Some(_) => return Err((StatusCode::NOT_FOUND, "Backup not found".to_string())),
+        None => {
+            profile.id = String::new();
+            Some(claims.sub.clone())
+        }
     };
-
-    state.backup.save_profile(profile)
-        .map(Json)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save backup profile: {}", e)))
+    let saved = state.backup.save_profile(profile).map_err(bad_request)?;
+    Ok(Json(state.backup.view(saved)))
 }
 
 pub async fn handle_delete_backup_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, ApiError> {
+    require_write(&extract_claims_or_local(&state, &headers)?)?;
     owned_profile(&state, &headers, &id)?;
-    state.backup.delete_profile(&id)
-        .map(|_| Json(serde_json::json!({ "success": true })))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to delete backup profile: {}", e)))
+    state.backup.delete_profile(&id).map_err(bad_request)?;
+    Ok(Json(serde_json::json!({ "success": true })))
 }
 
 pub async fn handle_run_backup_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, ApiError> {
+    require_write(&extract_claims_or_local(&state, &headers)?)?;
     owned_profile(&state, &headers, &id)?;
-    let mgr = state.backup.clone();
-    let tasks = state.tasks.clone();
-    
-    // Run in background Tokio task
-    tokio::spawn(async move {
-        if let Err(e) = mgr.execute_profile_job(&id, tasks).await {
-            tracing::error!("Manual backup profile execution error for '{}': {}", id, e);
-        }
-    });
+    let run_id = state.backup.start_backup(&id, "manual", state.tasks.clone()).map_err(|e| (StatusCode::CONFLICT, e))?;
+    Ok(Json(serde_json::json!({ "success": true, "run_id": run_id })))
+}
 
-    Ok(Json(serde_json::json!({ "success": true, "message": "Backup job initiated in background" })))
+pub async fn handle_stop_backup_profile(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    owned_profile(&state, &headers, &id)?;
+    Ok(Json(serde_json::json!({ "success": state.backup.stop(&id) })))
 }
 
 pub async fn handle_toggle_backup_profile(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<String>,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+) -> Result<Json<serde_json::Value>, ApiError> {
+    require_write(&extract_claims_or_local(&state, &headers)?)?;
     owned_profile(&state, &headers, &id)?;
-    state.backup.toggle_profile(&id)
-        .map(|new_enabled| Json(serde_json::json!({ "success": true, "enabled": new_enabled })))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to toggle backup profile: {}", e)))
+    let enabled = state.backup.toggle_profile(&id).map_err(bad_request)?;
+    Ok(Json(serde_json::json!({ "success": true, "enabled": enabled })))
 }
 
-pub async fn handle_get_backup_history(
+/// What a backup (saved or not yet saved) would do now
+pub async fn handle_backup_preview(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(mut profile): Json<BackupProfile>,
+) -> Result<Json<crate::tools::sync::PreviewResult>, ApiError> {
+    resolve_profile_paths(&state, &headers, &mut profile)?;
+    if !profile.id.is_empty() {
+        owned_profile(&state, &headers, &profile.id)?;
+    }
+    let mgr = state.backup.clone();
+    tokio::task::spawn_blocking(move || mgr.preview(&profile))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map(Json)
+        .map_err(bad_request)
+}
+
+pub async fn handle_list_backup_runs(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
-) -> Result<Json<Vec<crate::tools::sync::BackupHistoryItem>>, (StatusCode, String)> {
+) -> Result<Json<Vec<crate::tools::sync::RunRecord>>, ApiError> {
     let claims = extract_claims_or_local(&state, &headers)?;
-    let profile_id = query.get("profile_id").map(|s| s.as_str());
-    let limit = query.get("limit").and_then(|l| l.parse::<usize>().ok()).unwrap_or(50);
-    if let Some(id) = profile_id {
+    let limit = query.get("limit").and_then(|l| l.parse::<usize>().ok()).unwrap_or(50).clamp(1, 500);
+    if let Some(id) = query.get("profile_id").filter(|s| !s.is_empty()) {
         owned_profile(&state, &headers, id)?;
-    }
-    if claims.role.eq_ignore_ascii_case("admin") {
-        return Ok(Json(state.backup.list_history(profile_id, limit)));
+        return Ok(Json(state.backup.list_runs(Some(id), limit)));
     }
     let own: std::collections::HashSet<String> = state.backup.list_profiles().into_iter()
         .filter(|p| can_use_profile(&claims, p))
         .map(|p| p.id)
         .collect();
-    // Without a profile filter, read a larger window so the user's own entries still fill the page
-    let window = if profile_id.is_some() { limit } else { 100 };
-    let mut items: Vec<_> = state.backup.list_history(profile_id, window).into_iter()
-        .filter(|h| own.contains(&h.profile_id))
-        .collect();
-    items.truncate(limit.clamp(1, 100));
-    Ok(Json(items))
+    let mut runs: Vec<_> = state.backup.list_runs(None, 500).into_iter().filter(|r| own.contains(&r.profile_id)).collect();
+    runs.truncate(limit);
+    Ok(Json(runs))
+}
+
+fn owned_run(state: &AppState, headers: &HeaderMap, run_id: &str) -> Result<crate::tools::sync::RunRecord, ApiError> {
+    let run = state.backup.get_run(run_id).ok_or((StatusCode::NOT_FOUND, "Run not found".to_string()))?;
+    owned_profile(state, headers, &run.profile_id).map_err(|_| (StatusCode::NOT_FOUND, "Run not found".to_string()))?;
+    Ok(run)
+}
+
+pub async fn handle_backup_run_files(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(run_id): AxumPath<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let run = owned_run(&state, &headers, &run_id)?;
+    let offset = query.get("offset").and_then(|v| v.parse().ok()).unwrap_or(0);
+    let limit = query.get("limit").and_then(|v| v.parse().ok()).unwrap_or(200);
+    let problems = query.get("problems").is_some_and(|v| v == "1" || v == "true");
+    let (files, total) = state.backup.run_files(&run_id, offset, limit, problems);
+    Ok(Json(serde_json::json!({ "run": run, "files": files, "total": total })))
+}
+
+pub async fn handle_backup_run_log(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(run_id): AxumPath<String>,
+) -> Result<Response, ApiError> {
+    let run = owned_run(&state, &headers, &run_id)?;
+    let text = state.backup.run_log_text(&run_id).unwrap_or_default();
+    let day = chrono::DateTime::from_timestamp(run.started_at, 0).map(|d| d.format("%Y-%m-%d_%H%M").to_string()).unwrap_or_default();
+    let safe_name: String = run.profile_name.chars().map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' }).collect();
+    Response::builder()
+        .header(header::CONTENT_TYPE, "text/plain; charset=utf-8")
+        .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}-{}-{}.log\"", safe_name, run.kind, day))
+        .body(Body::from(text))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+pub async fn handle_backup_restore_points(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let p = owned_profile(&state, &headers, &id)?;
+    let mgr = state.backup.clone();
+    let p2 = p.clone();
+    let points = tokio::task::spawn_blocking(move || mgr.restore_points(&p2))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(bad_request)?;
+    Ok(Json(serde_json::json!({ "points": points, "default_folder": BackupManager::default_restore_folder(&p), "original_folder": p.source_dir })))
+}
+
+pub async fn handle_backup_browse(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+    Query(query): Query<HashMap<String, String>>,
+) -> Result<Json<Vec<crate::tools::sync::store::DirItem>>, ApiError> {
+    let p = owned_profile(&state, &headers, &id)?;
+    let point = query.get("point").cloned().unwrap_or_else(|| "latest".into());
+    let path = query.get("path").cloned().unwrap_or_default();
+    let mgr = state.backup.clone();
+    tokio::task::spawn_blocking(move || mgr.browse(&p, &point, &path))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map(Json)
+        .map_err(bad_request)
+}
+
+/// Restores into a separate folder by default; into the original folder only with confirmation
+pub async fn handle_backup_restore(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+    Json(req): Json<RestoreRequest>,
+) -> Result<Json<crate::tools::sync::RestorePreview>, ApiError> {
+    require_write(&extract_claims_or_local(&state, &headers)?)?;
+    let p = owned_profile(&state, &headers, &id)?;
+    let wanted = match req.target.as_str() {
+        "original" => p.source_dir.clone(),
+        "folder" => req.folder.clone().filter(|f| !f.trim().is_empty()).ok_or_else(|| bad_request("Choose a folder to restore into".into()))?,
+        _ => BackupManager::default_restore_folder(&p),
+    };
+    let target = validate_path_access(&state, &headers, wanted.trim(), true)?;
+    let mgr = state.backup.clone();
+    let tasks = state.tasks.clone();
+    // Listing a large backup can take a while; keep it off the request threads
+    let handle = tokio::runtime::Handle::current();
+    tokio::task::spawn_blocking(move || {
+        let _guard = handle.enter();
+        mgr.restore(&p, &req, &target, tasks)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .map(Json)
+    .map_err(bad_request)
 }
 
 pub async fn handle_disk_usage(
