@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::{Duration as StdDuration, Instant};
-use tracing::{info, warn};
+use tracing::info;
 
 pub mod pam;
 pub mod oidc;
@@ -515,7 +515,7 @@ impl AuthManager {
                             !trimmed.starts_with('#') && trimmed.contains("BRUM_JWT_SECRET=") && !trimmed.ends_with("=\"\"")
                         });
                         if !has_active_secret {
-                            warn!("{} detected, but contains no active BRUM_JWT_SECRET assignment.", env_candidate);
+                            tracing::warn!("{} detected, but contains no active BRUM_JWT_SECRET assignment.", env_candidate);
                         }
                     }
                 }

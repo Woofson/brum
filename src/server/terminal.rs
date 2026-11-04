@@ -15,7 +15,7 @@ use std::path::PathBuf;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::mpsc;
-use tracing::{error, warn, debug, info};
+use tracing::{error, warn, debug};
 
 use crate::auth::Claims;
 use crate::config::TerminalConfig;
@@ -562,7 +562,7 @@ pub async fn handle_terminal_ws(
                     )
                         .into_response();
                 } else {
-                    info!(
+                    tracing::info!(
                         "Terminal WebSocket: Spawning root shell for virtual admin '{}' (allow_virtual_users=true)",
                         claims.sub
                     );
@@ -709,7 +709,7 @@ async fn handle_terminal_socket(
             if let Some(ref pu) = posix_user {
                 if pu.uid != 0 {
                     // Running as root daemon & authenticated user is a non-root POSIX user -> drop privileges via su -l
-                    info!(
+                    tracing::info!(
                         "Terminal PTY: Dropping root privileges to POSIX user '{}' (UID {}, GID {})",
                         pu.name, pu.uid, pu.gid
                     );
