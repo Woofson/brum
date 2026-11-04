@@ -497,7 +497,7 @@ impl ArchiveHandler {
     pub(crate) fn list_squashfs_contents(archive_path_str: &str, clean_subpath: &str) -> Result<DirectoryListing, std::io::Error> {
         let path = Path::new(archive_path_str);
         let file = BufReader::new(File::open(path)?);
-        let filesystem = backhand::FilesystemReader::from_reader(file)
+        let filesystem = crate::vfs::squashfs_zstd::open_squashfs(file)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SquashFS read error: {}", e)))?;
 
         let mut entries = Vec::new();
@@ -866,7 +866,7 @@ impl ArchiveHandler {
     pub(crate) fn read_squashfs_entry(archive_path_str: &str, clean_inner: &str, max_bytes: usize) -> Result<FileContentResponse, std::io::Error> {
         let path = Path::new(archive_path_str);
         let file = BufReader::new(File::open(path)?);
-        let filesystem = backhand::FilesystemReader::from_reader(file)
+        let filesystem = crate::vfs::squashfs_zstd::open_squashfs(file)
             .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SquashFS read error: {}", e)))?;
 
         let target_path = format!("/{}", clean_inner);
@@ -1182,7 +1182,7 @@ impl ArchiveHandler {
 
         if lower.ends_with(".squashfs") || lower.ends_with(".snap") || lower.ends_with(".appimage") {
             let file = BufReader::new(File::open(path)?);
-            let filesystem = backhand::FilesystemReader::from_reader(file)
+            let filesystem = crate::vfs::squashfs_zstd::open_squashfs(file)
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, format!("SquashFS error: {}", e)))?;
 
             let mut common_prefix: Option<String> = None;

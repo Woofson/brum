@@ -7,6 +7,7 @@ pub mod proton;
 pub mod s3;
 pub mod sftp;
 pub mod smb;
+pub mod squashfs_zstd;
 pub mod transfer;
 pub mod vault;
 pub mod webdav;

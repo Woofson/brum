@@ -89,13 +89,15 @@ iso9660-rs = { version = "1.0", features = ["all-extensions"] }
 gpt_disk_io = { version = "0.16", features = ["std"] }
 gpt_disk_types = "0.16"
 hadris-udf = "2.4.0"
-backhand = "0.25"
+# zstd is left out here: Brum plugs in its own (see src/vfs/squashfs_zstd.rs) until backhand moves to zstd-safe 8 (#150)
+backhand = { version = "0.25", default-features = false, features = ["xz", "gzip", "lz4", "parallel", "error-strings"] }
 fatfs = "0.3.6"
 mbr-nostd = "0.1.0"
 ext4 = "0.9.0"
 ntfs = "0.4"
 positioned-io = "=0.2.2"
-zstd = "0.13"
+# No "legacy" feature: pre-1.0 (2015-16) zstd frames are not read
+zstd = { version = "0.14", default-features = false }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }
