@@ -6,20 +6,19 @@
 
 ## 1. Overview & Architecture
 
-Brum's modular architecture cleanly separates user-facing utilities and backend execution:
+A Chewtoy is a small web page that runs in a sandbox inside Brum. Everything it does on the server goes through Brum (files, storage, notifications), checked against the permissions it declares. Chewtoys cannot run programs or scripts on the server.
 
 ```mermaid
 flowchart TD
     subgraph Package [1. Package Bundle]
         GRR[".grr Archive (ZIP)"] --> TOML["plugin.toml (Manifest)"]
         GRR --> UI["index.html + style.css + main.js"]
-        GRR --> BE["backend/ (Optional Shell / Wasm / Hooks)"]
     end
 
     subgraph Backend [2. Rust Backend Engine (Plugins)]
         PM["PluginManager (src/plugins/)"] --> RBAC["Admin RBAC & Policy Engine"]
         RBAC --> SEC["Whitelist / Blacklist / Permissions Filter"]
-        PM --> SVR["Asset Server & Script Runner (/api/plugins/*)"]
+        PM --> SVR["Asset Server (/api/plugins/*)"]
     end
 
     subgraph Frontend [3. Frontend Presentation (Chewtoys)]
@@ -47,9 +46,7 @@ my-custom-chewtoy.grr/
 │   └── icon.svg         # Required: 24x24 / 48x48 Chewtoy vector icon (or .webp / .png)
 ├── index.html           # Required: Main UI markup template
 ├── style.css            # Scoped CSS styling (inheriting Brum theme tokens)
-├── main.js              # Client logic (using window.Brum SDK)
-└── backend/             # (Optional) Server-side hooks or scripts
-    └── run.sh           # Backend runner hook
+└── main.js              # Client logic (using window.Brum SDK)
 ```
 
 ---
@@ -94,14 +91,8 @@ shortcut = "Ctrl+Shift+K"
 permissions = [
     "fs:read",       # Read files in active panels
     "fs:write",      # Save/modify files
-    "ui:notify",     # Send toast notifications
-    "pty:exec"       # Run backend scripts (Admin approval required)
+    "ui:notify"      # Send toast notifications
 ]
-
-[backend]
-# Optional backend script or binary
-entrypoint = "backend/run.sh"
-script_type = "shell"
 ```
 
 ---
