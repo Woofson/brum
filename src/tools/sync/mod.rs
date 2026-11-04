@@ -4,6 +4,7 @@
 pub mod engine;
 pub mod exclude;
 pub mod manager;
+pub mod rclone_store;
 pub mod rsync;
 pub mod sftp_store;
 pub mod store;

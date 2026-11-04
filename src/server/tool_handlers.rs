@@ -1042,6 +1042,24 @@ pub async fn handle_backup_browse(
         .map_err(bad_request)
 }
 
+/// The rclone remotes Brum's user has set up (names only), for choosing one in the backup form
+pub async fn handle_backup_rclone_remotes(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    if !claims.role.eq_ignore_ascii_case("admin") {
+        return Ok(Json(serde_json::json!({ "available": false, "remotes": [] })));
+    }
+    let res = tokio::task::spawn_blocking(crate::tools::sync::rclone_store::list_remotes)
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(match res {
+        Ok(remotes) => serde_json::json!({ "available": true, "remotes": remotes }),
+        Err(_) => serde_json::json!({ "available": false, "remotes": [] }),
+    }))
+}
+
 /// Restores into a separate folder by default; into the original folder only with confirmation
 pub async fn handle_backup_restore(
     State(state): State<AppState>,

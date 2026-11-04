@@ -297,9 +297,12 @@ pub fn store_for(path: &str, password: Option<&str>, sftp: &crate::config::SftpC
     if lower.starts_with("sftp://") || lower.starts_with("ssh://") {
         return Ok(Arc::new(super::sftp_store::SftpStore::new(path, password, sftp)?));
     }
+    if lower.starts_with("rclone://") {
+        return Ok(Arc::new(super::rclone_store::RcloneStore::new(path)?));
+    }
     if path.contains("://") {
         let scheme = path.split("://").next().unwrap_or_default();
-        return Err(format!("{scheme}:// locations are not supported for backups yet. Use SFTP, a folder on this machine or a mounted share."));
+        return Err(format!("{scheme}:// places are not supported for backups. Use a folder on this machine, a mounted share, SFTP (sftp://) or an rclone remote (rclone://)."));
     }
     Ok(Arc::new(LocalStore::new(path)))
 }
@@ -1375,26 +1378,12 @@ fn action_words(a: &str) -> &str {
 }
 
 fn restore_one(from: &dyn Store, from_rel: &str, to: &dyn Store, to_rel: &str, meta: FileMeta, verify: bool, cancel: &AtomicBool) -> Result<u64, String> {
-    let mut reader = super::store::CrcReader::new(from.open_read(from_rel)?);
-    let part = to.write_part(to_rel, &mut reader, meta.mtime, &mut |_| !cancel.load(Ordering::Relaxed))?;
-    if verify {
-        match super::store::checksum(to, &part) {
-            Ok(c) if c == reader.crc() => {}
-            Ok(_) => {
-                let _ = to.remove_file(&part);
-                return Err("Verification failed: the restored file does not match the backup".into());
-            }
-            Err(e) => {
-                let _ = to.remove_file(&part);
-                return Err(e);
-            }
-        }
-    }
+    let (part, bytes) = engine::copy_to_part(from, from_rel, to, to_rel, meta, verify, &mut |_| !cancel.load(Ordering::Relaxed))?;
     to.rename(&part, to_rel).map_err(|e| {
         let _ = to.remove_file(&part);
         e
     })?;
-    Ok(reader.bytes)
+    Ok(bytes)
 }
 
 /// Writes per-file log lines to the database in batches

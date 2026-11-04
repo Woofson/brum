@@ -2,7 +2,7 @@
 //! SSH connection for the whole run. Login uses Brum's usual order: password, key file,
 //! SSH agent, then the keys in `~/.ssh`; host keys are checked as configured for SFTP.
 
-use super::store::{DirItem, FileMeta, Listing, Store, PART_SUFFIX};
+use super::store::{DirItem, FileMeta, Listing, Store};
 use crate::vfs::sftp::{SftpClient, SftpParams};
 use ssh2::{FileStat, RenameFlags, Session, Sftp};
 use std::io::{Read, Write};
@@ -220,13 +220,8 @@ impl Store for SftpStore {
             let target = Self::full(root, rel);
             let parent = target.parent().ok_or("Invalid path")?.to_path_buf();
             Self::mkdirs(sftp, &parent)?;
-            let name = name_of(&target).ok_or("Invalid file name")?;
-            let part_name = format!(".{name}{PART_SUFFIX}");
-            let part_path = parent.join(&part_name);
-            let part_rel = match rel.rsplit_once('/') {
-                Some((dir, _)) => format!("{dir}/{part_name}"),
-                None => part_name.clone(),
-            };
+            let part_rel = super::store::part_name(rel);
+            let part_path = Self::full(root, &part_rel);
             let result = (|| -> Result<(), String> {
                 let mut out = sftp.create(&part_path).map_err(|e| format!("Cannot write {rel}: {e}"))?;
                 let mut buf = vec![0u8; 256 * 1024];

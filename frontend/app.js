@@ -81,7 +81,7 @@ const BRUM_ACTIONS = new Set([
   'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle', 'backupRunBack',
   'backupRunFilter', 'backupRunFromPreview', 'backupRunMore', 'backupRunNow', 'backupSave',
   'backupSetMode', 'backupSetSchedule', 'backupShowHistory', 'backupShowList', 'backupShowRestore',
-  'backupShowRun', 'backupStop', 'backupTogglePause', 'blurElement', 'bringFloatingWindowToFront',
+  'backupShowRun', 'backupStop', 'backupTogglePause', 'backupUseRcloneRemote', 'blurElement', 'bringFloatingWindowToFront',
   'browseNotesFolder', 'calculateAllChecksums', 'calculatePropertiesChecksums',
   'calculateRowChecksum', 'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup',
   'changeDocPdfZoom', 'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines',
@@ -35629,7 +35629,8 @@ function backupRenderEditor() {
             <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-dest')}"><i data-lucide="folder-open"></i> Browse</button>
           </div>
           ${backupPasswordRow('dest', d.has_dest_password)}
-          <div class="bk-hint">A folder on this machine, another drive, or a NAS share that is mounted here. For an SFTP server (such as a Hetzner Storage Box) type <code>sftp://user@server:port/folder</code>. The folder is created if it does not exist.</div>
+          <div class="bk-hint">A folder on this machine, another drive, or a NAS share that is mounted here. For an SFTP server (such as a Hetzner Storage Box) type <code>sftp://user@server:port/folder</code>; for a remote set up with rclone, <code>rclone://remote/folder</code>. The folder is created if it does not exist.</div>
+          <div class="bk-chips" id="bk-rclone-remotes"></div>
         </div>
       </section>
 
@@ -35698,6 +35699,27 @@ function backupRenderEditor() {
       </div>
     </div>`);
   backupSetMode(d.profile_mode);
+  backupLoadRcloneRemotes();
+}
+
+// Offers the rclone remotes set up on the server as one-click destinations
+async function backupLoadRcloneRemotes() {
+  const box = document.getElementById('bk-rclone-remotes');
+  if (!box) return;
+  try {
+    const res = await backupApi('/api/tools/sync/rclone-remotes');
+    if (!res.remotes || !res.remotes.length) return;
+    box.innerHTML = `<span class="bk-hint">rclone remotes:</span>${res.remotes.map(r => `<button class="bk-chip-btn" data-on-click="backupUseRcloneRemote" data-click-args="${actionArgs(r)}">${escapeHtml(r)}</button>`).join('')}`;
+    bindActions(box);
+  } catch (_) { /* rclone not installed: no suggestions */ }
+}
+
+function backupUseRcloneRemote(name) {
+  const input = document.getElementById('bk-dest');
+  if (!input) return;
+  input.value = `rclone://${name}/`;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
 }
 
 const BACKUP_REMOTE_RE = /^(sftp|ssh):\/\//i;

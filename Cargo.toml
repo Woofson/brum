@@ -68,7 +68,7 @@ zip = { version = "9", default-features = false, features = ["deflate", "bzip2",
 tar = "0.4"
 flate2 = "1.0"
 bzip2 = "0.4"
-reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "blocking"] }
 aes-gcm = "0.10"
 getrandom = "0.2"
 ssh2 = { version = "0.9", features = ["vendored-openssl", "openssl-on-win32"] }

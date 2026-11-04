@@ -457,22 +457,11 @@ fn transfer(
         }
     }
 
-    let mut reader = CrcReader::new(from.open_read(rel)?);
-    let part = to.write_part(rel, &mut reader, meta.mtime, on_bytes)?;
+    let (part, bytes) = copy_to_part(from, rel, to, rel, meta, spec.verify, on_bytes)?;
     let fail = |msg: String| -> Result<Transferred, String> {
         let _ = to.remove_file(&part);
         Err(msg)
     };
-    if reader.bytes != meta.size {
-        return fail("The file changed while it was being copied; it will be copied again next time".into());
-    }
-    if spec.verify {
-        match checksum(to, &part) {
-            Ok(c) if c == reader.crc() => {}
-            Ok(_) => return fail("Verification failed: the copy does not match the original".into()),
-            Err(e) => return fail(format!("Verification failed: {e}")),
-        }
-    }
     let mut version_kept = false;
     if existing.is_some() && keep_versions {
         if let Err(e) = to.rename(rel, &join_rel(stamp_dir, rel)) {
@@ -487,7 +476,65 @@ fn transfer(
         return fail(e);
     }
     copy_permissions(from, to, rel);
-    Ok(Transferred { bytes: reader.bytes, version_kept, partial: false })
+    Ok(Transferred { bytes, version_kept, partial: false })
+}
+
+/// Copies `from_rel` to a temporary name beside `to_rel`, checked and with the original's time.
+/// Returns the temporary name and the bytes copied; the caller swaps it in or removes it.
+pub fn copy_to_part(
+    from: &dyn Store,
+    from_rel: &str,
+    to: &dyn Store,
+    to_rel: &str,
+    meta: FileMeta,
+    verify: bool,
+    on_bytes: &mut dyn FnMut(u64) -> bool,
+) -> Result<(String, u64), String> {
+    // rclone copies straight from place to place, keeping times and checking the transfer
+    let part = super::store::part_name(to_rel);
+    if let (Some(src), Some(dst)) = (from.rclone_location(from_rel), to.rclone_location(&part)) {
+        if let Some(res) = to.rclone_copy(&src, &dst).or_else(|| from.rclone_copy(&src, &dst)) {
+            let fail = |msg: String| -> Result<(String, u64), String> {
+                let _ = to.remove_file(&part);
+                Err(msg)
+            };
+            if let Err(e) = res {
+                return fail(e);
+            }
+            match to.stat(&part) {
+                Some(m) if m.size == meta.size => {}
+                Some(_) => return fail("The file changed while it was being copied; it will be copied again next time".into()),
+                None => return fail("rclone reported success, but the copy is missing".into()),
+            }
+            if verify {
+                match (checksum(from, from_rel), checksum(to, &part)) {
+                    (Ok(a), Ok(b)) if a == b => {}
+                    (Ok(_), Ok(_)) => return fail("Verification failed: the copy does not match the original".into()),
+                    (Err(e), _) | (_, Err(e)) => return fail(format!("Verification failed: {e}")),
+                }
+            }
+            on_bytes(meta.size);
+            return Ok((part, meta.size));
+        }
+    }
+
+    let mut reader = CrcReader::new(from.open_read(from_rel)?);
+    let part = to.write_part(to_rel, &mut reader, meta.mtime, on_bytes)?;
+    let fail = |msg: String| -> Result<(String, u64), String> {
+        let _ = to.remove_file(&part);
+        Err(msg)
+    };
+    if reader.bytes != meta.size {
+        return fail("The file changed while it was being copied; it will be copied again next time".into());
+    }
+    if verify {
+        match checksum(to, &part) {
+            Ok(c) if c == reader.crc() => {}
+            Ok(_) => return fail("Verification failed: the copy does not match the original".into()),
+            Err(e) => return fail(format!("Verification failed: {e}")),
+        }
+    }
+    Ok((part, reader.bytes))
 }
 
 fn remove(store: &dyn Store, rel: &str, keep_versions: bool, stamp_dir: &str) -> Result<Transferred, String> {

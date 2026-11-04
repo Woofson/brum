@@ -41,6 +41,17 @@ pub struct DirItem {
 /// Unfinished copies end in this; they are never treated as real files
 pub const PART_SUFFIX: &str = ".brum-part";
 
+/// The temporary name a file is written under before it is swapped in: `dir/.name.brum-part`
+pub fn part_name(rel: &str) -> String {
+    match rel.rsplit_once('/') {
+        Some((dir, name)) => format!("{dir}/.{name}{PART_SUFFIX}"),
+        None => format!(".{rel}{PART_SUFFIX}"),
+    }
+}
+
+/// A place in rclone's words: the "fs" (`remote:` or a local root) and the path inside it
+pub type RcloneLocation = (String, String);
+
 pub trait Store: Send + Sync {
     /// Human readable location, without passwords
     fn label(&self) -> String;
@@ -65,6 +76,14 @@ pub trait Store: Send + Sync {
     fn remove_empty_parents(&self, rel: &str);
     /// The real path for local stores, for fast local-only work (partial updates, permissions)
     fn local_path(&self, rel: &str) -> Option<PathBuf>;
+    /// This place in rclone's words, so rclone can copy straight to or from it
+    fn rclone_location(&self, _rel: &str) -> Option<RcloneLocation> {
+        None
+    }
+    /// Copies one file with rclone (keeping its time). None when this store has no rclone.
+    fn rclone_copy(&self, _src: &RcloneLocation, _dst: &RcloneLocation) -> Option<Result<(), String>> {
+        None
+    }
 }
 
 /// Rejects paths that could leave the backup (`..`, absolute paths, drive letters)
@@ -242,13 +261,8 @@ impl Store for LocalStore {
         let target = self.path(rel);
         let parent = target.parent().ok_or("Invalid path")?.to_path_buf();
         fs::create_dir_all(&parent).map_err(|e| format!("Cannot create folder: {e}"))?;
-        let name = target.file_name().and_then(|n| n.to_str()).ok_or("Invalid file name")?;
-        let part_name = format!(".{name}{PART_SUFFIX}");
-        let part_path = parent.join(&part_name);
-        let part_rel = match rel.rsplit_once('/') {
-            Some((dir, _)) => format!("{dir}/{part_name}"),
-            None => part_name.clone(),
-        };
+        let part_rel = part_name(rel);
+        let part_path = self.path(&part_rel);
         let result = (|| -> Result<(), String> {
             let mut out = File::create(&part_path).map_err(|e| e.to_string())?;
             let mut buf = vec![0u8; 1024 * 1024];
@@ -305,6 +319,13 @@ impl Store for LocalStore {
 
     fn local_path(&self, rel: &str) -> Option<PathBuf> {
         Some(self.path(rel))
+    }
+
+    #[cfg(unix)]
+    fn rclone_location(&self, rel: &str) -> Option<RcloneLocation> {
+        let full = self.path(rel);
+        let s = full.to_str()?;
+        Some(("/".to_string(), s.trim_start_matches('/').to_string()))
     }
 }
 

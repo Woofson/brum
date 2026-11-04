@@ -196,6 +196,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/sync/profiles/:id/restore-points", get(handle_backup_restore_points))
         .route("/api/tools/sync/profiles/:id/browse", get(handle_backup_browse))
         .route("/api/tools/sync/profiles/:id/restore", post(handle_backup_restore))
+        .route("/api/tools/sync/rclone-remotes", get(handle_backup_rclone_remotes))
         .route("/api/tools/sync/runs", get(handle_list_backup_runs))
         .route("/api/tools/sync/runs/:id/files", get(handle_backup_run_files))
         .route("/api/tools/sync/runs/:id/log", get(handle_backup_run_log))
