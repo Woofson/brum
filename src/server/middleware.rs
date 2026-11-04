@@ -1280,7 +1280,7 @@ pub fn extract_remote_scheme_host(raw_path: &str) -> Option<(String, String)> {
     let (scheme, remainder) = raw_path.split_once("://")?;
     let scheme_lower = scheme.to_ascii_lowercase();
     match scheme_lower.as_str() {
-        "sftp" | "ssh" | "rclone" | "smb" | "samba" | "webdav" | "webdavs" | "s3" | "s3s" | "nfs" | "http" | "https" => {}
+        "sftp" | "ssh" | "rclone" | "fleet" | "smb" | "samba" | "webdav" | "webdavs" | "s3" | "s3s" | "nfs" | "http" | "https" => {}
         _ => return None,
     }
 

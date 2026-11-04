@@ -7,6 +7,7 @@ pub mod system_handlers;
 pub mod terminal;
 pub mod shell_command;
 pub mod fleet;
+pub mod backup_target;
 pub mod session_cookie;
 
 pub use middleware::*;
@@ -17,6 +18,7 @@ pub use tool_handlers::*;
 pub use system_handlers::*;
 pub use terminal::*;
 pub use fleet::*;
+pub use backup_target::*;
 
 use crate::auth::AuthManager;
 use crate::config::AppConfig;
@@ -197,6 +199,11 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/sync/profiles/:id/browse", get(handle_backup_browse))
         .route("/api/tools/sync/profiles/:id/restore", post(handle_backup_restore))
         .route("/api/tools/sync/rclone-remotes", get(handle_backup_rclone_remotes))
+        .route("/api/backup-target/list", get(handle_backup_target_list))
+        .route("/api/backup-target/stat", get(handle_backup_target_stat))
+        .route("/api/backup-target/read", get(handle_backup_target_read))
+        .route("/api/backup-target/write", axum::routing::put(handle_backup_target_write))
+        .route("/api/backup-target/op", post(handle_backup_target_op))
         .route("/api/tools/sync/runs", get(handle_list_backup_runs))
         .route("/api/tools/sync/runs/:id/files", get(handle_backup_run_files))
         .route("/api/tools/sync/runs/:id/log", get(handle_backup_run_log))

@@ -93,6 +93,9 @@ pub struct BackupProfile {
     /// When the last run started (used by the schedule, so a running backup is never started twice)
     #[serde(default)]
     pub last_started: Option<i64>,
+    /// Address of the Fleet machine for fleet:// destinations; set by the server when saving
+    #[serde(default, skip_deserializing)]
+    pub dest_endpoint: Option<String>,
     /// Who does the copying: "builtin" (Brum) or "rsync"
     #[serde(default = "default_transfer")]
     pub transfer: String,
@@ -235,7 +238,7 @@ pub struct RestorePreview {
     pub run_id: Option<String>,
 }
 
-const PROFILE_COLUMNS: &str = "id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner, never_remove, log_retention_days, last_started, source_password, dest_password, transfer";
+const PROFILE_COLUMNS: &str = "id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner, never_remove, log_retention_days, last_started, source_password, dest_password, transfer, dest_endpoint";
 const RUN_COLUMNS: &str = "id, profile_id, profile_name, kind, trigger, started_at, finished_at, status, copied, updated, removed, versions_kept, failed, bytes, warnings, duration_ms, message";
 
 fn profile_from_row(row: &rusqlite::Row) -> rusqlite::Result<BackupProfile> {
@@ -266,6 +269,7 @@ fn profile_from_row(row: &rusqlite::Row) -> rusqlite::Result<BackupProfile> {
         source_password: row.get(23)?,
         dest_password: row.get(24)?,
         transfer: row.get::<_, Option<String>>(25)?.unwrap_or_else(default_transfer),
+        dest_endpoint: row.get(26)?,
     })
 }
 
@@ -288,7 +292,7 @@ fn run_from_row(row: &rusqlite::Row) -> rusqlite::Result<RunRecord> {
 }
 
 /// Opens the place a backup path points at: a local (or mounted) folder, or an SFTP address
-pub fn store_for(path: &str, password: Option<&str>, sftp: &crate::config::SftpConfig) -> Result<Arc<dyn Store>, String> {
+pub fn store_for(path: &str, password: Option<&str>, endpoint: Option<&str>, sftp: &crate::config::SftpConfig) -> Result<Arc<dyn Store>, String> {
     let path = path.trim();
     if path.is_empty() {
         return Err("No folder chosen".into());
@@ -299,6 +303,10 @@ pub fn store_for(path: &str, password: Option<&str>, sftp: &crate::config::SftpC
     }
     if lower.starts_with("rclone://") {
         return Ok(Arc::new(super::rclone_store::RcloneStore::new(path)?));
+    }
+    if lower.starts_with("fleet://") {
+        let endpoint = endpoint.ok_or("A Fleet machine can only be where backups are kept, not what is backed up")?;
+        return Ok(Arc::new(super::fleet_store::FleetStore::new(path, endpoint, password)?));
     }
     if path.contains("://") {
         let scheme = path.split("://").next().unwrap_or_default();
@@ -325,8 +333,8 @@ fn move_password_out_of_address(path: &mut String, password: &mut Option<String>
 fn spec_for(p: &BackupProfile, sftp: &crate::config::SftpConfig) -> Result<JobSpec, String> {
     let (mode, implied_never_remove) = Mode::parse(&p.profile_mode);
     Ok(JobSpec {
-        source: store_for(&p.source_dir, p.source_password.as_deref(), sftp)?,
-        dest: store_for(&p.dest_dir, p.dest_password.as_deref(), sftp)?,
+        source: store_for(&p.source_dir, p.source_password.as_deref(), None, sftp)?,
+        dest: store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), sftp)?,
         mode,
         never_remove: (p.never_remove || implied_never_remove) && mode != Mode::TwoWay,
         verify: p.verify_checksum,
@@ -461,6 +469,7 @@ impl BackupManager {
             ("source_password", "TEXT"),
             ("dest_password", "TEXT"),
             ("transfer", "TEXT DEFAULT 'builtin'"),
+            ("dest_endpoint", "TEXT"),
         ] {
             if !have.iter().any(|c| c == col) {
                 conn.execute(&format!("ALTER TABLE backup_profiles ADD COLUMN {col} {def}"), [])?;
@@ -544,6 +553,9 @@ impl BackupManager {
         if !p.dest_dir.contains("://") {
             p.dest_password = None;
         }
+        if !p.dest_dir.to_lowercase().starts_with("fleet://") {
+            p.dest_endpoint = None;
+        }
         check_paths(&p)?;
         if p.transfer != "rsync" {
             p.transfer = default_transfer();
@@ -565,6 +577,9 @@ impl BackupManager {
             if p.dest_password.as_deref().unwrap_or("").is_empty() && same_path(&old.dest_dir, &p.dest_dir) {
                 p.dest_password = old.dest_password.clone();
             }
+            if p.dest_endpoint.is_none() && same_path(&old.dest_dir, &p.dest_dir) {
+                p.dest_endpoint = old.dest_endpoint.clone();
+            }
             // A different pair of folders starts a two-way sync from scratch
             if !same_path(&old.source_dir, &p.source_dir) || !same_path(&old.dest_dir, &p.dest_dir) || old.mode() != p.mode() {
                 self.clear_state(&p.id);
@@ -578,14 +593,14 @@ impl BackupManager {
         let conn = self.db.lock().map_err(|e| e.to_string())?;
         conn.execute(
             &format!(
-                "INSERT INTO backup_profiles ({PROFILE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26)
+                "INSERT INTO backup_profiles ({PROFILE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27)
                  ON CONFLICT(id) DO UPDATE SET name = excluded.name, source_dir = excluded.source_dir, dest_dir = excluded.dest_dir,
                    profile_mode = excluded.profile_mode, block_delta = excluded.block_delta, verify_checksum = excluded.verify_checksum,
                    archive_dir = excluded.archive_dir, retention_days = excluded.retention_days, schedule_type = excluded.schedule_type,
                    schedule_interval_mins = excluded.schedule_interval_mins, schedule_time = excluded.schedule_time,
                    webhook_url = excluded.webhook_url, enabled = excluded.enabled, exclusions = excluded.exclusions,
                    owner = excluded.owner, never_remove = excluded.never_remove, log_retention_days = excluded.log_retention_days,
-                   source_password = excluded.source_password, dest_password = excluded.dest_password, transfer = excluded.transfer"
+                   source_password = excluded.source_password, dest_password = excluded.dest_password, transfer = excluded.transfer, dest_endpoint = excluded.dest_endpoint"
             ),
             params![
                 p.id,
@@ -614,6 +629,7 @@ impl BackupManager {
                 p.source_password,
                 p.dest_password,
                 p.transfer,
+                p.dest_endpoint,
             ],
         )
         .map_err(|e| format!("Could not save the backup: {e}"))?;
@@ -1048,7 +1064,7 @@ impl BackupManager {
 
     /// "Latest" plus every dated folder of old versions
     pub fn restore_points(&self, p: &BackupProfile) -> Result<Vec<RestorePoint>, String> {
-        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), &self.sftp)?;
+        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)?;
         let last_ok = self.view(p.clone()).last_success_at;
         let mut points = vec![RestorePoint { id: "latest".into(), label: "Latest backup".into(), when: last_ok }];
         if let Ok(entries) = dest.list_dir(&p.versions_dir()) {
@@ -1079,7 +1095,7 @@ impl BackupManager {
 
     /// One folder level inside a restore point
     pub fn browse(&self, p: &BackupProfile, point: &str, path: &str) -> Result<Vec<DirItem>, String> {
-        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), &self.sftp)?;
+        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)?;
         let base = self.point_base(p, point)?;
         let rel = safe_rel(path)?;
         let at_top = base.is_empty() && rel.is_empty();
@@ -1104,10 +1120,10 @@ impl BackupManager {
     /// Restores files from a backup into `target_path` (already checked by the caller).
     /// Into the original folder, existing files are only replaced with `confirm_overwrite`.
     pub fn restore(&self, p: &BackupProfile, req: &RestoreRequest, target_path: &str, tasks: Arc<TaskManager>) -> Result<RestorePreview, String> {
-        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), &self.sftp)?;
+        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)?;
         // Restoring into the original place of a remote source uses that place's password
         let target_password = same_path(target_path, &p.source_dir).then(|| p.source_password.as_deref()).flatten();
-        let target = store_for(target_path, target_password, &self.sftp)?;
+        let target = store_for(target_path, target_password, None, &self.sftp)?;
         let base = self.point_base(p, &req.point)?;
         let versions = p.versions_dir();
         let skip = |rel: &str, _d: bool| rel.ends_with(PART_SUFFIX) || (base.is_empty() && (rel == versions || rel.starts_with(&format!("{versions}/"))));

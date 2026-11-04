@@ -3,6 +3,7 @@
 
 pub mod engine;
 pub mod exclude;
+pub mod fleet_store;
 pub mod manager;
 pub mod rclone_store;
 pub mod rsync;

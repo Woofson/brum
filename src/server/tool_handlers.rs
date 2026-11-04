@@ -855,6 +855,37 @@ fn resolve_profile_paths(state: &AppState, headers: &HeaderMap, p: &mut BackupPr
     let two_way = p.mode() == crate::tools::sync::engine::Mode::TwoWay;
     p.source_dir = validate_path_access(state, headers, p.source_dir.trim(), two_way)?;
     p.dest_dir = validate_path_access(state, headers, p.dest_dir.trim(), true)?;
+    if p.source_dir.to_lowercase().starts_with("fleet://") {
+        return Err(bad_request("A Fleet machine can only be where backups are kept, not what is backed up".into()));
+    }
+    p.dest_endpoint = None;
+    if p.dest_dir.to_lowercase().starts_with("fleet://") {
+        resolve_fleet_destination(state, headers, p)?;
+    }
+    Ok(())
+}
+
+/// Finds the Fleet machine of a fleet:// destination: first in Brum's settings file, then in the
+/// user's own saved Fleet machines. Its address must pass the same network checks as the Fleet proxy.
+fn resolve_fleet_destination(state: &AppState, headers: &HeaderMap, p: &mut BackupProfile) -> Result<(), ApiError> {
+    let (node_id, _) = crate::tools::sync::fleet_store::parse(&p.dest_dir).map_err(bad_request)?;
+    let claims = extract_claims_or_local(state, headers)?;
+    let found = state.config.fleet.nodes.iter().find(|n| n.id == node_id).map(|n| (n.url.clone(), n.token.clone())).or_else(|| {
+        let prefs = state.auth.get_user_preferences(&claims.sub).ok().flatten()?;
+        let v: serde_json::Value = serde_json::from_str(&prefs).ok()?;
+        let node = v.get("fleet_nodes")?.as_array()?.iter().find(|n| n.get("id").and_then(|i| i.as_str()) == Some(node_id.as_str()))?;
+        Some((node.get("endpoint_url")?.as_str()?.to_string(), node.get("auth_token").and_then(|t| t.as_str()).map(String::from)))
+    });
+    let (url, token) = found.ok_or_else(|| bad_request(format!("Fleet machine '{node_id}' is not known. Add it in Fleet first.")))?;
+    let url = url.trim().trim_end_matches('/').to_string();
+    match crate::server::middleware::extract_remote_scheme_host(&url) {
+        Some((_, host)) if !crate::server::middleware::is_prohibited_remote_host(&host, state.config.storage.allow_remote_loopback) => {}
+        _ => return Err((StatusCode::FORBIDDEN, format!("The address of Fleet machine '{node_id}' is not allowed"))),
+    }
+    p.dest_endpoint = Some(url);
+    if p.dest_password.as_deref().unwrap_or("").is_empty() {
+        p.dest_password = token.filter(|t| !t.trim().is_empty());
+    }
     Ok(())
 }
 
