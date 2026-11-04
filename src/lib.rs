@@ -3,6 +3,7 @@ pub mod config;
 pub mod instance;
 pub mod logging;
 pub mod plugins;
+pub mod secrets;
 pub mod server;
 pub mod tools;
 pub mod vfs;

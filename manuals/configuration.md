@@ -251,6 +251,16 @@ Brum includes a built-in Web Configuration Editor accessible in **Settings -> Ra
 
 ---
 
+## Stored Passwords & Tokens
+
+Passwords and tokens Brum has to use again (bookmark and shared-mount logins, SFTP and Fleet logins kept with backups, Fleet tokens in user settings) are stored **encrypted** in the database. The key is in **`brum-secrets.key`**, next to the database, readable only by Brum's user; Brum creates it on first start.
+
+* A copy of the database on its own does not reveal them. Keep the key file with the database, but leave it out of copies of the database you share or upload.
+* **Keep the key file.** Without it, stored passwords cannot be read: bookmarks and backups to remote places then ask for their password again.
+* Containers and setups that keep secrets outside the data folder can set `BRUM_SECRETS_KEY` (64 hex characters) instead; the key file is then not used.
+* Passwords stored by older versions are encrypted automatically on the first start of this version.
+* Without a configured `BRUM_JWT_SECRET` / `jwt_secret`, Brum signs logins with a secret derived from this key, so it is not kept in the database either. After updating from an older version, everyone on such an installation signs in again once, and API tokens made there must be created again. Installations with a configured secret are not affected.
+
 ## Initial Administrative Credentials & Seeding Protocol
 
 `default_admin_pass` in `config.toml` operates under specific security rules:
@@ -304,6 +314,7 @@ Brum supports seamless runtime overrides across containerized, systemd, and home
 | `BRUM_DATABASE_PATH` / `DATABASE_PATH` | `server.database_path` | SQLite database file location | `/var/lib/brum/brum.db` |
 | `BRUM_HOSTNAME` | *(none)* | Server name shown in Brum (defaults to the machine's hostname) | `nas` |
 | `BRUM_JWT_SECRET` / `JWT_SECRET` | `server.jwt_secret` | Master cluster JWT signing key | `64-hex-char-secret` |
+| `BRUM_SECRETS_KEY` | *(none)* | Key for stored passwords and tokens, instead of the `brum-secrets.key` file | `64-hex-char-key` |
 | `BRUM_ALLOW_WEB_CONFIG_EDIT` | `server.allow_web_config_edit` | Enable/disable Web Config Editor | `true` or `false` |
 | `BRUM_OIDC_ENABLED` | `auth.oidc.enabled` | Enable OpenID Connect SSO | `true` or `false` |
 | `BRUM_OIDC_ISSUER_URL` | `auth.oidc.issuer_url` | OIDC IdP Discovery Issuer URL | `https://auth.domain.com/` |

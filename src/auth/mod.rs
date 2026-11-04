@@ -252,6 +252,7 @@ impl AuthManager {
             }
         }
         let conn = Connection::open(db_path)?;
+        crate::secrets::init(db_path);
 
         // High-performance SQLite concurrency and memory pragmas
         conn.execute_batch(
@@ -497,6 +498,8 @@ impl AuthManager {
         let _ = conn.execute("ALTER TABLE shares ADD COLUMN watermark_text TEXT", []);
         let _ = conn.execute("ALTER TABLE shares ADD COLUMN status TEXT DEFAULT 'active'", []);
 
+        seal_stored_secrets(&conn);
+
         // Dynamic 256-bit cryptographically secure JWT secret resolution
         let from_env = std::env::var("BRUM_JWT_SECRET")
             .or_else(|_| std::env::var("CD_JWT_SECRET"))
@@ -521,6 +524,17 @@ impl AuthManager {
                 }
             }
 
+            // Derived from the key file, so the database never holds it; an older copy in the
+            // database is removed (sessions from before log in again once)
+            if let Some(derived) = crate::secrets::derived_secret("login-signing") {
+                let removed = conn.execute("DELETE FROM security_settings WHERE key = 'jwt_secret'", []).unwrap_or(0);
+                if removed > 0 {
+                    tracing::warn!("Login signing now uses brum-secrets.key; everyone signs in again once.");
+                } else {
+                    info!("No cluster secret in BRUM_JWT_SECRET or config.toml; signing logins with a node-local secret from brum-secrets.key.");
+                }
+                derived
+            } else {
             let stored_secret: Option<String> = conn.query_row(
                 "SELECT value FROM security_settings WHERE key = 'jwt_secret'",
                 [],
@@ -545,6 +559,7 @@ impl AuthManager {
                     info!("Generated new 256-bit node-local JWT secret. For fleet trust, configure identical BRUM_JWT_SECRET in /etc/brum/brum.env.");
                     gen_secret
                 }
+            }
             }
         } else {
             if from_env {
@@ -1690,8 +1705,8 @@ impl AuthManager {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 protocol: row.get(2)?,
-                target_uri: row.get(3)?,
-                options_json: row.get(4)?,
+                target_uri: crate::secrets::open(&row.get::<_, String>(3)?),
+                options_json: crate::secrets::open(&row.get::<_, String>(4)?),
                 allowed_users: row.get(5)?,
                 created_at: row.get(6)?,
             })
@@ -1721,8 +1736,8 @@ impl AuthManager {
                 id: row.get(0)?,
                 name: row.get(1)?,
                 protocol: row.get(2)?,
-                target_uri: row.get(3)?,
-                options_json: row.get(4)?,
+                target_uri: crate::secrets::open(&row.get::<_, String>(3)?),
+                options_json: crate::secrets::open(&row.get::<_, String>(4)?),
                 allowed_users: row.get(5)?,
                 created_at: row.get(6)?,
             })
@@ -1749,7 +1764,7 @@ impl AuthManager {
         conn.execute(
             "INSERT INTO global_mounts (name, protocol, target_uri, options_json, allowed_users, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![name, protocol, target_uri, options_json, allowed_users, now],
+            params![name, protocol, crate::secrets::seal_uri(target_uri), crate::secrets::seal(options_json), allowed_users, now],
         )?;
 
         let id = conn.last_insert_rowid();
@@ -1780,13 +1795,13 @@ impl AuthManager {
         )?;
 
         let rows = stmt.query_map(params![username], |row| {
-            let pass: Option<String> = row.get(5)?;
+            let pass: Option<String> = crate::secrets::open_opt(row.get(5)?);
             Ok(UserBookmark {
                 id: row.get(0)?,
                 username: row.get(1)?,
                 name: row.get(2)?,
                 protocol: row.get(3)?,
-                path: row.get(4)?,
+                path: crate::secrets::open(&row.get::<_, String>(4)?),
                 has_password: pass.is_some() && !pass.as_ref().unwrap().is_empty(),
                 password: pass,
                 created_at: row.get(6)?,
@@ -1814,7 +1829,7 @@ impl AuthManager {
         conn.execute(
             "INSERT INTO bookmarks (username, name, protocol, path, password, created_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![username, name, protocol, path, password, now],
+            params![username, name, protocol, crate::secrets::seal_uri(path), crate::secrets::seal_opt(password), now],
         )?;
 
         let id = conn.last_insert_rowid();
@@ -1848,7 +1863,7 @@ impl AuthManager {
         let mut rows = stmt.query(params![username])?;
         if let Some(row) = rows.next()? {
             let json_str: String = row.get(0)?;
-            Ok(Some(json_str))
+            Ok(Some(crate::secrets::open_preferences(&json_str)))
         } else {
             Ok(None)
         }
@@ -1861,7 +1876,7 @@ impl AuthManager {
             "INSERT INTO user_preferences (username, preferences_json, updated_at)
              VALUES (?1, ?2, ?3)
              ON CONFLICT(username) DO UPDATE SET preferences_json = ?2, updated_at = ?3",
-            params![username, preferences_json, now],
+            params![username, crate::secrets::seal_preferences(preferences_json), now],
         )?;
         Ok(())
     }
@@ -3041,6 +3056,75 @@ mod tests {
     use tempfile::tempdir;
 
     #[test]
+    fn node_local_login_secret_is_not_kept_in_the_database() {
+        let tmp = tempdir().unwrap();
+        let path = tmp.path().join("jwt.db").to_string_lossy().to_string();
+        // No configured secret (empty): the node-local one is used
+        let open = || AuthManager::new(&path, "", 24, "builtin", "login", "admin", "S0me-Admin-Pass!").unwrap();
+        let auth = open();
+        let user = auth.get_user_by_username("admin").unwrap().unwrap();
+        let token = auth.generate_token(&user).unwrap();
+        let stored = |a: &AuthManager| -> i64 {
+            let db = a.db();
+            let conn = db.lock().unwrap();
+            conn.query_row("SELECT COUNT(*) FROM security_settings WHERE key = 'jwt_secret'", [], |r| r.get(0)).unwrap()
+        };
+        assert_eq!(stored(&auth), 0, "the signing secret must not be in the database");
+        // An older version left one behind: it is removed on start
+        {
+            let db = auth.db();
+            let conn = db.lock().unwrap();
+            conn.execute("INSERT INTO security_settings (key, value) VALUES ('jwt_secret', 'old-secret-from-the-database')", []).unwrap();
+        }
+        drop(auth);
+        let auth = open();
+        assert_eq!(stored(&auth), 0);
+        // The same machine keeps the same secret, so logins survive a restart
+        assert!(auth.verify_token(&token).is_ok());
+    }
+
+    #[test]
+    fn stored_passwords_are_encrypted_and_old_ones_converted() {
+        let tmp = tempdir().unwrap();
+        let db_file = tmp.path().join("secrets.db");
+        let path = db_file.to_string_lossy().to_string();
+        let open = || AuthManager::new(&path, "secret-key-123456789012345678901234", 24, "builtin", "login", "admin", "admin").unwrap();
+        let auth = open();
+        // Saved through Brum: unreadable in the database, readable through Brum
+        auth.create_bookmark("bolt", "NAS", "smb", "smb://bolt:hunter2@nas/share", Some("pw-bm")).unwrap();
+        auth.create_or_update_mount("Box", "sftp", "sftp://u:pw-uri@box:23/", r#"{"pass":"pw-opts"}"#, r#"["*"]"#).unwrap();
+        auth.save_user_preferences("bolt", r#"{"fleet_nodes":[{"id":"nas","auth_token":"tok-pref"}]}"#).unwrap();
+        // Written the old way (before this fix), straight into the database
+        {
+            let db = auth.db();
+            let conn = db.lock().unwrap();
+            conn.execute("INSERT INTO bookmarks (username, name, protocol, path, password, created_at) VALUES ('bolt', 'Old', 'sftp', '/x', 'old-plain', '')", []).unwrap();
+        }
+        drop(auth);
+        let auth = open(); // start-up converts the old one
+        let raw = {
+            let db = auth.db();
+            let conn = db.lock().unwrap();
+            let mut all = String::new();
+            for sql in ["SELECT COALESCE(group_concat(path || password, '|'), '') FROM bookmarks", "SELECT group_concat(target_uri || options_json, '|') FROM global_mounts", "SELECT group_concat(preferences_json, '|') FROM user_preferences"] {
+                all.push_str(&conn.query_row(sql, [], |r| r.get::<_, String>(0)).unwrap());
+            }
+            all
+        };
+        for secret in ["hunter2", "pw-bm", "pw-uri", "pw-opts", "tok-pref", "old-plain"] {
+            assert!(!raw.contains(secret), "{secret} is readable in the database");
+        }
+        let bms = auth.list_bookmarks("bolt").unwrap();
+        assert_eq!(bms.iter().find(|b| b.name == "NAS").unwrap().password.as_deref(), Some("pw-bm"));
+        assert_eq!(bms.iter().find(|b| b.name == "NAS").unwrap().path, "smb://bolt:hunter2@nas/share");
+        assert_eq!(bms.iter().find(|b| b.name == "Old").unwrap().password.as_deref(), Some("old-plain"));
+        let mounts = auth.list_all_mounts().unwrap();
+        assert_eq!(mounts[0].target_uri, "sftp://u:pw-uri@box:23/");
+        assert!(mounts[0].options_json.contains("pw-opts"));
+        assert!(auth.get_user_preferences("bolt").unwrap().unwrap().contains("tok-pref"));
+    }
+
+    #[test]
     fn test_auth_sqlite_wal_pragmas() {
         let tmp = tempdir().unwrap();
         let db_file = tmp.path().join("test_auth.db");
@@ -3425,3 +3509,41 @@ mod tests {
     }
 }
 
+/// Encrypts passwords and tokens stored before encryption existed (runs at every start; cheap when done)
+fn seal_stored_secrets(conn: &Connection) {
+    use crate::secrets::{is_sealed, seal, seal_preferences, seal_uri};
+    let pass_rows: Vec<(i64, Option<String>, String)> = conn
+        .prepare("SELECT id, password, path FROM bookmarks")
+        .and_then(|mut st| st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).map(|m| m.flatten().collect()))
+        .unwrap_or_default();
+    for (id, pass, path) in pass_rows {
+        let new_pass = pass.as_deref().filter(|p| !p.is_empty() && !is_sealed(p)).map(seal);
+        let new_path = (!is_sealed(&path)).then(|| seal_uri(&path)).filter(|np| np != &path);
+        if new_pass.is_some() || new_path.is_some() {
+            let _ = conn.execute(
+                "UPDATE bookmarks SET password = COALESCE(?1, password), path = COALESCE(?2, path) WHERE id = ?3",
+                rusqlite::params![new_pass, new_path, id],
+            );
+        }
+    }
+    let mounts: Vec<(i64, String, String)> = conn
+        .prepare("SELECT id, target_uri, options_json FROM global_mounts")
+        .and_then(|mut st| st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).map(|m| m.flatten().collect()))
+        .unwrap_or_default();
+    for (id, uri, opts) in mounts {
+        let (new_uri, new_opts) = (if is_sealed(&uri) { uri.clone() } else { seal_uri(&uri) }, if is_sealed(&opts) { opts.clone() } else { seal(&opts) });
+        if new_uri != uri || new_opts != opts {
+            let _ = conn.execute("UPDATE global_mounts SET target_uri = ?1, options_json = ?2 WHERE id = ?3", rusqlite::params![new_uri, new_opts, id]);
+        }
+    }
+    let prefs: Vec<(String, String)> = conn
+        .prepare("SELECT username, preferences_json FROM user_preferences")
+        .and_then(|mut st| st.query_map([], |r| Ok((r.get(0)?, r.get(1)?))).map(|m| m.flatten().collect()))
+        .unwrap_or_default();
+    for (user, json) in prefs {
+        let sealed = seal_preferences(&json);
+        if sealed != json {
+            let _ = conn.execute("UPDATE user_preferences SET preferences_json = ?1 WHERE username = ?2", rusqlite::params![sealed, user]);
+        }
+    }
+}

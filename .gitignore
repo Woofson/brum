@@ -26,6 +26,7 @@
 *.sqlite-wal
 *.sqlite-shm
 brum.db*
+brum-secrets.key
 commanderdog.db*
 session.db*
 

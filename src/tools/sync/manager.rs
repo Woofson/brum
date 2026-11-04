@@ -284,8 +284,8 @@ fn profile_from_row(row: &rusqlite::Row) -> rusqlite::Result<BackupProfile> {
         never_remove: row.get::<_, Option<i64>>(20)?.unwrap_or(0) == 1,
         log_retention_days: row.get::<_, Option<i64>>(21)?.unwrap_or(90).max(1) as u32,
         last_started: row.get(22)?,
-        source_password: row.get(23)?,
-        dest_password: row.get(24)?,
+        source_password: crate::secrets::open_opt(row.get(23)?),
+        dest_password: crate::secrets::open_opt(row.get(24)?),
         transfer: row.get::<_, Option<String>>(25)?.unwrap_or_else(default_transfer),
         dest_endpoint: row.get(26)?,
         sources: row.get::<_, Option<String>>(27)?.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default(),
@@ -600,6 +600,22 @@ impl BackupManager {
             )?;
         }
 
+        // Passwords saved before they were encrypted
+        let plain: Vec<(String, Option<String>, Option<String>)> = conn
+            .prepare("SELECT id, source_password, dest_password FROM backup_profiles")
+            .and_then(|mut st| st.query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))).map(|m| m.flatten().collect()))
+            .unwrap_or_default();
+        for (id, sp, dp) in plain {
+            let seal = |v: &Option<String>| v.as_deref().filter(|x| !x.is_empty() && !crate::secrets::is_sealed(x)).map(crate::secrets::seal);
+            let (ns, nd) = (seal(&sp), seal(&dp));
+            if ns.is_some() || nd.is_some() {
+                conn.execute(
+                    "UPDATE backup_profiles SET source_password = COALESCE(?1, source_password), dest_password = COALESCE(?2, dest_password) WHERE id = ?3",
+                    params![ns, nd, id],
+                )?;
+            }
+        }
+
         // Runs that were going when Brum stopped
         conn.execute(
             "UPDATE backup_runs SET status = 'failed', message = 'Brum stopped during this run' WHERE status = 'running'",
@@ -736,8 +752,8 @@ impl BackupManager {
                 p.never_remove as i64,
                 p.log_retention_days.max(1) as i64,
                 p.last_started,
-                p.source_password,
-                p.dest_password,
+                crate::secrets::seal_opt(p.source_password.as_deref()),
+                crate::secrets::seal_opt(p.dest_password.as_deref()),
                 p.transfer,
                 p.dest_endpoint,
                 serde_json::to_string(&p.sources).unwrap_or_else(|_| "[]".into()),
