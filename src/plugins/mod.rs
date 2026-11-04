@@ -771,17 +771,30 @@ mod tests {
         assert!(!user_dir.join("colours/stale.js").exists());
     }
 
+    /// Chewtoys kept and maintained in `plugins/` that are installed by hand, not built into Brum
+    const OPTIONAL_PACKED_CHEWTOYS: &[&str] = &["tailspin"];
+
     #[test]
-    fn every_packed_chewtoy_is_bundled() {
+    fn every_packed_chewtoy_is_bundled_or_listed_as_optional() {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("plugins");
         for entry in fs::read_dir(&root).unwrap().flatten() {
             let path = entry.path();
             if path.extension().and_then(|e| e.to_str()) == Some("grr") {
                 let id = path.file_stem().unwrap().to_string_lossy().to_string();
-                assert!(PluginManager::bundled_package(&id).is_some(), "add plugins/{id}.grr to BUNDLED_PLUGINS");
-                let m = read_grr_manifest(PluginManager::bundled_package(&id).unwrap()).unwrap();
+                let bytes = if OPTIONAL_PACKED_CHEWTOYS.contains(&id.as_str()) {
+                    assert!(PluginManager::bundled_package(&id).is_none(), "{id} is optional and must not be in BUNDLED_PLUGINS");
+                    fs::read(&path).unwrap()
+                } else {
+                    PluginManager::bundled_package(&id)
+                        .unwrap_or_else(|| panic!("add plugins/{id}.grr to BUNDLED_PLUGINS, or to OPTIONAL_PACKED_CHEWTOYS"))
+                        .to_vec()
+                };
+                let m = read_grr_manifest(&bytes).unwrap();
                 assert_eq!(m.plugin.id, id, "package name and plugin id differ");
             }
+        }
+        for id in OPTIONAL_PACKED_CHEWTOYS {
+            assert!(root.join(format!("{id}.grr")).is_file(), "optional Chewtoy plugins/{id}.grr is missing");
         }
     }
 
