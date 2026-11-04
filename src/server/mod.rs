@@ -113,6 +113,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/session", post(handle_adopt_session_cookie))
         .route("/api/auth/unlock", post(handle_unlock_session))
         .route("/api/auth/security-settings", get(handle_get_security_settings).post(handle_update_security_settings))
+        .route("/api/system/image-cache", get(handle_get_image_cache).post(handle_set_image_cache))
+        .route("/api/system/image-cache/clear", post(handle_clear_image_cache))
         .route("/api/auth/me", get(handle_get_me))
         .route("/api/auth/profile", post(handle_update_profile))
         .route("/api/auth/avatar/:username", get(handle_get_user_avatar))

@@ -3080,6 +3080,30 @@
                 </div>
               </div>
             </div>
+
+            <!-- Card 4: Unpacked compressed disk and CD images -->
+            <div class="settings-group-card" style="margin-top: 12px;">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="archive-restore"></i> Unpacked Image Cache
+                </h4>
+              </div>
+              <p class="settings-card-desc">Compressed disk and CD images (<code>.iso.zst</code>, <code>.img.gz</code>, <code>.img.xz</code>, <code>.iso.bz2</code>, FOG backups) are unpacked once and kept here, so they open instantly next time. Copies nobody has opened for the chosen time are removed automatically.</p>
+              <div class="image-cache-row">
+                <div class="settings-field image-cache-days">
+                  <label class="settings-field-label" for="admin-image-cache-days">Remove unused copies after (days):</label>
+                  <input type="number" class="settings-input" id="admin-image-cache-days" min="0" max="3650" step="1" value="7" title="0 = keep until cleared by hand">
+                </div>
+                <button type="button" class="btn btn-accent btn-sm" data-on-click="saveAdminImageCache">
+                  <i data-lucide="save"></i><span>Save</span>
+                </button>
+                <button type="button" class="btn btn-sm" data-on-click="clearAdminImageCache">
+                  <i data-lucide="trash-2"></i><span>Clear now</span>
+                </button>
+              </div>
+              <p class="settings-card-desc image-cache-status" id="admin-image-cache-status">Checking cache…</p>
+              <p class="settings-card-desc image-cache-hint">0 days keeps copies until you clear them here.</p>
+            </div>
           </div>
 
           <!-- Admin Tab 3: Syncthing Global Daemon -->

@@ -16917,3 +16917,30 @@ body.standalone-mode .server-only-setting {
   opacity: 0.55;
   pointer-events: none;
 }
+
+/* Admin: unpacked image cache card */
+.image-cache-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.image-cache-row .image-cache-days {
+  flex: 1 1 220px;
+  margin-bottom: 0;
+}
+
+.image-cache-row .btn {
+  height: 32px;
+}
+
+.image-cache-status {
+  margin-top: 8px;
+  word-break: break-all;
+}
+
+.image-cache-hint {
+  margin-top: 2px;
+  color: var(--text-dim);
+}

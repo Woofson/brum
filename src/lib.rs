@@ -44,6 +44,7 @@ pub fn create_app_state(
     if config.plugins.enabled {
         plugin_mgr.sync_bundled();
     }
+    vfs::compressed_image::start_cache_upkeep(&auth_mgr);
 
     let backup_mgr_arc = Arc::new(backup_mgr);
     let task_mgr_arc = Arc::new(task_mgr);

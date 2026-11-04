@@ -421,6 +421,7 @@ dependencies = [
  "iso9660-rs",
  "jsonwebtoken",
  "libc",
+ "liblzma",
  "lopdf",
  "mbr-nostd",
  "mime_guess",

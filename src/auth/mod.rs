@@ -341,6 +341,15 @@ impl AuthManager {
             [],
         )?;
 
+        // Server-wide settings the admin changes in the web page (key/value)
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS server_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )",
+            [],
+        )?;
+
         conn.execute(
             "CREATE TABLE IF NOT EXISTS shares (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1880,6 +1889,18 @@ impl AuthManager {
             session_timeout_hours,
             lock_prevented_by_tasks,
         })
+    }
+
+    /// A server-wide setting the admin changed in the web page
+    pub fn get_server_setting(&self, key: &str) -> Option<String> {
+        let conn = self.get_read_conn().ok()?;
+        conn.query_row("SELECT value FROM server_settings WHERE key = ?1", params![key], |r| r.get::<_, String>(0)).ok()
+    }
+
+    pub fn set_server_setting(&self, key: &str, value: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        conn.execute("INSERT OR REPLACE INTO server_settings (key, value) VALUES (?1, ?2)", params![key, value])?;
+        Ok(())
     }
 
     pub fn update_security_settings(&self, settings: &SecuritySettings) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {

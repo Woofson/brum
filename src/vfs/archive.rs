@@ -109,6 +109,17 @@ impl ArchiveHandler {
 
         let clean_subpath = subpath_filter.trim_matches('/');
 
+        // Compressed disk and CD images: unpack once, then open what is inside
+        if let Some(unpacked) = super::compressed_image::resolve(path)? {
+            let raw = unpacked.raw_path.as_str();
+            let listing = match unpacked.inner {
+                super::compressed_image::InnerImage::Disc => Self::list_iso_contents(raw, clean_subpath)?,
+                super::compressed_image::InnerImage::Squashfs => Self::list_squashfs_contents(raw, clean_subpath)?,
+                _ => super::disk_image::DiskImageHandler::list_image_contents(raw, clean_subpath)?,
+            };
+            return Ok(super::compressed_image::rewrite_listing(listing, raw, archive_path_str));
+        }
+
         if lower_name.ends_with(".zip") || lower_name.ends_with(".grr") || lower_name.ends_with(".cbz") || lower_name.ends_with(".epub") {
             let file = File::open(path)?;
             let mut zip = ZipArchive::new(BufReader::new(file))
@@ -620,6 +631,19 @@ impl ArchiveHandler {
         let archive_path_str = normalized_str.as_str();
         let lower = archive_path_str.to_lowercase();
         let clean_inner = inner_path.trim_matches('/');
+
+        if let Some(unpacked) = super::compressed_image::resolve(path)? {
+            let raw = unpacked.raw_path.as_str();
+            let resp = match unpacked.inner {
+                super::compressed_image::InnerImage::Disc => Self::read_iso_entry(raw, clean_inner, max_bytes)?,
+                super::compressed_image::InnerImage::Squashfs => Self::read_squashfs_entry(raw, clean_inner, max_bytes)?,
+                _ => {
+                    let limit_opt = if max_bytes > 0 { Some(max_bytes) } else { None };
+                    super::disk_image::DiskImageHandler::read_image_entry(raw, clean_inner, limit_opt)?
+                }
+            };
+            return Ok(super::compressed_image::rewrite_content(resp, raw, archive_path_str));
+        }
 
         if super::disk_image::DiskImageHandler::is_supported_image(archive_path_str) || path.is_dir() {
             let limit_opt = if max_bytes > 0 { Some(max_bytes) } else { None };
@@ -1179,6 +1203,22 @@ impl ArchiveHandler {
         let target_name = target.file_name().and_then(|n| n.to_str()).unwrap_or("");
 
         let lower = archive_path_str.to_lowercase();
+
+        // Compressed disk and CD images: extract from the unpacked copy
+        if let Some(unpacked) = super::compressed_image::resolve(path)? {
+            let raw = unpacked.raw_path.clone();
+            let inner_name = match unpacked.inner {
+                super::compressed_image::InnerImage::Disc => "image.iso",
+                super::compressed_image::InnerImage::Squashfs => "image.squashfs",
+                _ => "image.raw",
+            };
+            // The extractors choose by name: give the unpacked copy a name they understand
+            // (a hard link next to it in the cache folder, removed again afterwards)
+            let link_dir = tempfile::tempdir_in(super::compressed_image::cache_dir())?;
+            let link = link_dir.path().join(inner_name);
+            std::fs::hard_link(&raw, &link)?;
+            return Self::extract_archive(&link.to_string_lossy(), target_dir_str);
+        }
 
         if lower.ends_with(".squashfs") || lower.ends_with(".snap") || lower.ends_with(".appimage") {
             let file = BufReader::new(File::open(path)?);

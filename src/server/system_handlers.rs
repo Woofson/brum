@@ -1224,3 +1224,65 @@ pub async fn handle_run_custom_action(
 // ============================================================================
 // 🧩 ChewToy Plugins Architecture & Add-ons Handlers
 // ============================================================================
+
+// ---------------- UNPACKED IMAGE CACHE (#159) ----------------
+
+#[derive(Deserialize)]
+pub struct ImageCacheSettingsRequest {
+    retention_days: u32,
+}
+
+fn image_cache_status() -> serde_json::Value {
+    let (bytes, files) = crate::vfs::compressed_image::cache_stats();
+    serde_json::json!({
+        "retention_days": crate::vfs::compressed_image::retention_days(),
+        "size_bytes": bytes,
+        "files": files,
+        "folder": crate::vfs::compressed_image::cache_dir().to_string_lossy(),
+    })
+}
+
+/// How long unpacked disk and CD images are kept, and how much space they use now
+pub async fn handle_get_image_cache(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+    Ok(Json(tokio::task::spawn_blocking(image_cache_status).await.unwrap_or_default()))
+}
+
+pub async fn handle_set_image_cache(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<ImageCacheSettingsRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+    if payload.retention_days > 3650 {
+        return Err((StatusCode::BAD_REQUEST, "Choose between 0 and 3650 days".to_string()));
+    }
+    state.auth.set_server_setting(crate::vfs::compressed_image::RETENTION_SETTING_KEY, &payload.retention_days.to_string())
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    crate::vfs::compressed_image::set_retention_days(payload.retention_days);
+    let status = tokio::task::spawn_blocking(|| {
+        let _ = crate::vfs::compressed_image::cleanup_expired();
+        image_cache_status()
+    }).await.unwrap_or_default();
+    Ok(Json(status))
+}
+
+pub async fn handle_clear_image_cache(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+    let (removed, status) = tokio::task::spawn_blocking(|| {
+        let removed = crate::vfs::compressed_image::clear_cache().unwrap_or(0);
+        (removed, image_cache_status())
+    }).await.map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    let mut status = status;
+    status["removed"] = serde_json::json!(removed);
+    Ok(Json(status))
+}

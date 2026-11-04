@@ -20,6 +20,16 @@ Brum includes a zero-leakage, multi-protocol Virtual Filesystem (VFS) client eng
 | **Encrypted Vaults** | `vault://path.cdvault` | RAM-only Argon2id + AES-256-GCM zero-leakage containers |
 | **Virtual Archives** | `archive://file.zip` | Direct browsing inside `.zip`, `.tar.gz`, `.tar.bz2`, `.7z`, `.iso`, `.sqsh` |
 | **Virtual Disks & FOG Images** | `archive://disk.img` / `archive://fog_dir` | Native browsing & extraction for raw `.img`, VMDK, QCOW2, MBR/GPT partitions, FAT/Ext4/NTFS, and FOG Project Partclone (`.zst`/`.gz`) multi-partition directories |
+| **Compressed Disk & CD Images** | `archive://old.iso.zst` | `.iso`, `.img`, `.raw`, `.dd` and `.bin` images compressed with zstd, gzip, xz or bzip2 (`.iso.zst`, `.img.gz`, `.img.xz`, `.iso.bz2`, …) |
+
+### Compressed disk and CD images
+
+Brum unpacks a compressed image once, with progress and a cancel button in **Tasks**, then looks at what is inside: a CD/DVD (ISO 9660 or UDF), a SquashFS image, a disk with partitions or a bare filesystem, or a partclone/FOG backup. Addresses keep the original file name, for example `old.iso.zst/docs/README.TXT`.
+
+* **Space**: the unpacked copy needs about as much free space as the full image. It is kept in Brum's cache folder (`~/.cache/brum/partclone_cache` on Linux), so the image opens instantly next time. It is refreshed when the original file changes.
+* **Cleanup**: copies nobody has opened for 7 days are removed automatically. Admins can change the number of days, see how much space is used, or clear everything under **Admin panel → Remote Storage & Mounts → Unpacked Image Cache**. 0 days keeps copies until they are cleared there.
+* **Old zstd files**: zstd files made with the trial versions from before zstd 1.0 (2015–16) are not read. Images compressed with any later zstd open normally.
+* A plain `.gz` file (for example `notes.txt.gz`) is not treated as an image; `.tar.gz` and the other archives open as before.
 
 ---
 

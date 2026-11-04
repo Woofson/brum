@@ -1,5 +1,6 @@
 pub mod archive;
 pub mod checksum;
+pub mod compressed_image;
 pub mod disk_image;
 pub mod local;
 pub mod nfs;
@@ -89,6 +90,7 @@ pub fn is_archive_file(path_or_name: &str) -> bool {
         || lower.ends_with(".appimage")
         || lower.ends_with(".zst")
         || lower.ends_with(".zstd")
+        || compressed_image::is_compressed_image_name(&lower)
 }
 
 pub fn sanitize_uri(uri: &str) -> String {

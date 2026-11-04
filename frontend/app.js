@@ -68,7 +68,7 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
-  'retryPaneNode', 'returnPaneToLocalHost', 'downloadBundledChewToy', 'installBundledChewToy', 'setNotesManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
+  'saveAdminImageCache', 'clearAdminImageCache', 'retryPaneNode', 'returnPaneToLocalHost', 'downloadBundledChewToy', 'installBundledChewToy', 'setNotesManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomExclusionPattern', 'addCustomFileIconRule', 'addDirectoryToMediaPlaylist',
   'addModalTagFromInput', 'addNewBookmark', 'addPropCustomTag', 'addTracksToMediaPlaylist',
   'alignDiffPaths', 'analyzeSync', 'appendBpExclusion', 'applyBatchAutoTrackNumbers',
@@ -8259,6 +8259,14 @@ const COMMON_PRESET_ICONS = [
   '', '', '', '', ''
 ];
 
+// Compressed disk and CD images (disk.img.xz, old.iso.zst) get the icon of the image inside
+function iconExtension(name) {
+  const lower = (name || '').toLowerCase();
+  const m = lower.match(/\.(iso|udf|img|raw|dd|bin)\.(zst|zstd|gz|xz|bz2)$/);
+  if (m) return m[1];
+  return lower.includes('.') ? lower.split('.').pop() : '';
+}
+
 function renderFileIconHtml(name, is_dir, is_archive, path, size = 'sm') {
   // 1. Check per-path custom icon (from SQLite / fileTagsMap)
   if (path && fileTagsMap.has(path)) {
@@ -8300,8 +8308,9 @@ function renderFileIconHtml(name, is_dir, is_archive, path, size = 'sm') {
       if (lowerName === 'videos') return formatCustomIconToHtml('', size, true, '#06b6d4');
       return formatCustomIconToHtml(NERDFONT_PRESET['folder'] || '', size, true, '#f59e0b');
     }
-    if (ext && NERDFONT_PRESET[ext]) {
-      return formatCustomIconToHtml(NERDFONT_PRESET[ext], size, false);
+    const themeExt = iconExtension(name);
+    if (themeExt && NERDFONT_PRESET[themeExt]) {
+      return formatCustomIconToHtml(NERDFONT_PRESET[themeExt], size, false);
     }
   } else if (App.iconTheme === 'emoji') {
     if (is_dir) {
@@ -8313,8 +8322,9 @@ function renderFileIconHtml(name, is_dir, is_archive, path, size = 'sm') {
       if (lowerName === '.trash' || lowerName === 'trash') return formatCustomIconToHtml('🗑️', size, true);
       return formatCustomIconToHtml(EMOJI_PRESET['folder'] || '📁', size, true);
     }
-    if (ext && EMOJI_PRESET[ext]) {
-      return formatCustomIconToHtml(EMOJI_PRESET[ext], size, false);
+    const themeExt = iconExtension(name);
+    if (themeExt && EMOJI_PRESET[themeExt]) {
+      return formatCustomIconToHtml(EMOJI_PRESET[themeExt], size, false);
     }
   }
 
@@ -8382,7 +8392,7 @@ function getFileIconDetails(name, is_dir, is_archive) {
     return { icon: 'shield-check', type: 'vault', color: '#f59e0b' };
   }
 
-  const ext = (name || '').split('.').pop().toLowerCase();
+  const ext = iconExtension(name);
 
   // Optical & Disk Sector Images
   if (['iso', 'udf', 'img', 'raw', 'dd', 'vhd'].includes(ext)) {
@@ -10082,7 +10092,7 @@ function switchAdminTab(tabId) {
 
   if (tabId === 'admin-tab-users') loadUsersTable();
   if (tabId === 'admin-tab-tokens') loadAdminApiTokens();
-  if (tabId === 'admin-tab-storage') loadAdminGlobalMounts();
+  if (tabId === 'admin-tab-storage') { loadAdminGlobalMounts(); loadAdminImageCache(); }
   if (tabId === 'admin-tab-config') loadMasterConfigEditor();
   if (tabId === 'admin-tab-security') loadAdminSecuritySettings();
 
@@ -28646,6 +28656,74 @@ async function saveGlobalRemoteMount() {
     }
   } catch (err) {
     showToast(`Save error: ${err}`, 'error');
+  }
+}
+
+// ---------------- UNPACKED IMAGE CACHE (admin) ----------------
+
+function renderAdminImageCache(data) {
+  const input = document.getElementById('admin-image-cache-days');
+  const status = document.getElementById('admin-image-cache-status');
+  if (!data) {
+    if (status) status.textContent = 'Could not read the cache.';
+    return;
+  }
+  if (input && document.activeElement !== input) input.value = data.retention_days;
+  if (status) {
+    const copies = data.files === 1 ? '1 file' : `${data.files} files`;
+    status.textContent = `Now using ${formatBytes(data.size_bytes || 0)} (${copies}) in ${data.folder}`;
+    status.title = data.folder;
+  }
+}
+
+async function loadAdminImageCache() {
+  try {
+    const resp = await fetch('/api/system/image-cache');
+    renderAdminImageCache(resp.ok ? await resp.json() : null);
+  } catch (_) {
+    renderAdminImageCache(null);
+  }
+}
+
+async function saveAdminImageCache() {
+  const input = document.getElementById('admin-image-cache-days');
+  const days = parseInt(input?.value ?? '', 10);
+  if (!Number.isInteger(days) || days < 0 || days > 3650) {
+    showToast('Choose between 0 and 3650 days', 'warning');
+    return;
+  }
+  try {
+    const resp = await fetch('/api/system/image-cache', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ retention_days: days })
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    renderAdminImageCache(await resp.json());
+    showToast(days === 0 ? 'Unpacked images are kept until you clear them' : `Unused unpacked images are removed after ${days} day${days === 1 ? '' : 's'}`, 'success');
+  } catch (e) {
+    showToast(`Could not save: ${e.message}`, 'error');
+  }
+}
+
+async function clearAdminImageCache() {
+  const confirmed = await showConfirmDialog({
+    title: 'Clear unpacked images',
+    message: 'Remove all unpacked copies now? Compressed images will be unpacked again the next time they are opened.',
+    icon: 'trash-2',
+    type: 'danger',
+    confirmText: 'Clear now',
+    cancelText: 'Cancel'
+  });
+  if (!confirmed) return;
+  try {
+    const resp = await fetch('/api/system/image-cache/clear', { method: 'POST' });
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    renderAdminImageCache(data);
+    showToast(`Removed ${data.removed || 0} unpacked image${data.removed === 1 ? '' : 's'}`, 'success');
+  } catch (e) {
+    showToast(`Could not clear: ${e.message}`, 'error');
   }
 }
 

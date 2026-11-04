@@ -293,6 +293,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if config.plugins.enabled {
         plugin_mgr.sync_bundled();
     }
+    vfs::compressed_image::start_cache_upkeep(&auth_mgr);
 
     let backup_mgr_arc = Arc::new(backup_mgr);
     let task_mgr_arc = Arc::new(task_mgr);
