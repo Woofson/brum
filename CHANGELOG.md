@@ -5,6 +5,35 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-11-04
+
+### Security
+- **Chewtoy Files (GHSA-pv23-5739-f2h3, high)**: A logged-in user could read files outside a Chewtoy's folder through its file addresses. Chewtoy files are now only served from inside their own folder.
+- **Page Files (GHSA-qvqw-wx9j-7fcr, high)**: When Brum was started from a folder that holds a `frontend` folder (for example from a source checkout), files outside it could be read without logging in. Page files are now only served from inside that folder.
+- **Notes Export (GHSA-rc6h-m6rf-x5j7, medium)**: A note's category or section could make the export write files outside the notes folder. Each is now kept as a single folder name inside it.
+- **Login Kept from Page Scripts (Closes #155)**: The web page no longer keeps the login itself. It lives only in a protected cookie that scripts on the page cannot read, named after the port so two Brums on one computer keep separate logins. Logins from older versions are moved over once, so nobody has to log in again. Scripts and API tokens work as before. The terminal no longer puts the login in its address, and the Fleet terminal relay no longer passes the browser's login to other nodes.
+- **zstd Update (Closes #150)**: zstd and the page compression libraries moved to the fixed versions, clearing all zstd advisories. SquashFS images use Brum's zstd through a small plug-in until the SquashFS library catches up. zstd files from the trial versions before zstd 1.0 (2015–16) are no longer read.
+- **Chewtoy Sandbox**: Sandboxed Chewtoys load their files through short-lived signed addresses, so they also work with login on. The starter template uses only the message bridge.
+
+### Features
+- **Compressed Disk and CD Images (Closes #159)**: `.iso`, `.img`, `.raw`, `.dd` and `.bin` images compressed with zstd, gzip, xz or bzip2 open like the uncompressed ones: CD/DVD (ISO 9660 and UDF), SquashFS, disks with partitions or a bare filesystem, and partclone/FOG backups (now also xz and bzip2). Brum unpacks an image once, with progress and cancel in Tasks, and addresses keep the original name. They show the disc icon.
+- **Unpacked Image Cache Setting**: Admin panel → Remote Storage & Mounts → Unpacked Image Cache sets how many days unused unpacked copies are kept (default 7, 0 = until cleared), shows the space used, and has Clear now.
+- **Calculator, Colours and Tetrion as Chewtoys (Closes #157)**: The three are built into Brum and installed on first start as ordinary Chewtoys. They update automatically with Brum, stay removed once uninstalled, and Settings → Chewtoys can install, update, reinstall or download them. They fit phone and tablet screens.
+- **Colours (Closes #154)**: New colour picker Chewtoy with OKLCH, HWB, HSL, HSV and RGB sliders, every format with copy, shades, harmonies, WCAG contrast, saved colours, the Brum theme palette and an eyedropper. Fits without scrolling, with two columns on wide screens.
+- **Chewtoy Bridge (Closes #156)**: Sandboxed Chewtoys get their own storage, clipboard, eyedropper, scores and the theme palette through Brum.
+- **Open With and Custom Actions (Closes #153)**: Custom Actions have their own right-click entry for files, folders, selections and empty space, with matching built-in Shell Actions, and show what the command printed. Open With is offered in the desktop app and on localhost.
+- **Hide Manuals in Notes**: Settings gains "Show Brum manuals in Notes" (on by default).
+
+### Fixes
+- **Manuals in Notes**: Brum's manuals open again in Notes instead of failing with "file not found".
+- **Fleet Node That Does Not Answer (Closes #158)**: The pane keeps the node's name and folder and shows "Can't reach" with Try again and Back to Local Host, instead of showing a local folder under the remote name. Background refreshes leave it alone.
+- **Keyboard in File Panes**: Arrow keys, Space and Enter work again in the file panes. Game keys go to the Chewtoy that was last clicked or opened.
+- **Tetrion Keys**: Up drops the piece to the bottom, Down drops fast, and Space/E/X and Q/Z rotate, so it can be played with the arrows alone.
+
+### Changes
+- **Built-in Calculator and Tetra Removed**: Docked panes and Tools menu entries move to the Calculator and Tetrion Chewtoys. Packages no longer ship separate `.grr` files.
+- **NoteDog and TetraDog Names Retired (Closes #147)**: The server, web page and settings use Notes and Tetrion. `[notedog]` in `config.toml`, the old addresses, saved settings, score tables and note history keep working and are moved over once.
+
 ## [1.16.0] - 2026-11-03
 
 ### Security
