@@ -533,22 +533,8 @@ pub async fn auth_middleware(
         }
     }
 
-    // C. Cookie header (cd_token=... or token=...)
-    if let Some(cookie_str) = req.headers().get(header::COOKIE).and_then(|v| v.to_str().ok()) {
-        for pair in cookie_str.split(';') {
-            let pair = pair.trim();
-            if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                let trimmed = tok.trim();
-                if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
-                    let decoded = percent_decode(trimmed);
-                    if decoded != trimmed {
-                        candidates.push(decoded);
-                    }
-                    candidates.push(trimmed.to_string());
-                }
-            }
-        }
-    }
+    // C. Login cookie: this Brum's own first, then the older shared name
+    candidates.extend(crate::server::session_cookie::tokens_from_cookies(req.headers()));
 
     // Other requests never take a token from the address: addresses end up in proxy logs,
     // browser history and Referer headers. The browser's login cookie covers downloads and media.
@@ -559,10 +545,12 @@ pub async fn auth_middleware(
     let mut last_err = None;
     let mut verified_claims = None;
 
+    let mut verified_token = None;
     for candidate in &candidates {
         match state.auth.verify_token(candidate) {
             Ok(claims) => {
                 verified_claims = Some(claims);
+                verified_token = Some(candidate.clone());
                 break;
             }
             Err(err) => {
@@ -580,6 +568,14 @@ pub async fn auth_middleware(
             path = %path,
             "Request authenticated"
         );
+        // A browser signed in with its login cookie sends no Authorization header. Handlers that
+        // read the header still see the verified login. This stays inside the server: the
+        // cross-site guard has already run, and the header is never sent back to the browser.
+        if !req.headers().contains_key(header::AUTHORIZATION) {
+            if let Some(hv) = verified_token.and_then(|t| axum::http::HeaderValue::from_str(&format!("Bearer {t}")).ok()) {
+                req.headers_mut().insert(header::AUTHORIZATION, hv);
+            }
+        }
         req.extensions_mut().insert(claims);
         return Ok(next.run(req).await);
     }
@@ -699,23 +695,10 @@ pub fn extract_claims_or_local(
         }
     }
 
-    if let Some(cookie_hdr) = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()) {
-        for pair in cookie_hdr.split(';') {
-            let pair = pair.trim();
-            if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                let trimmed = tok.trim();
-                if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
-                    if let Ok(claims) = state.auth.verify_token(trimmed) {
-                        return Ok(claims);
-                    }
-                    let decoded = percent_decode(trimmed);
-                    if decoded != trimmed {
-                        if let Ok(claims) = state.auth.verify_token(&decoded) {
-                            return Ok(claims);
-                        }
-                    }
-                }
-            }
+    // Login cookie: this Brum's own first, then the older shared name
+    for tok in crate::server::session_cookie::tokens_from_cookies(headers) {
+        if let Ok(claims) = state.auth.verify_token(&tok) {
+            return Ok(claims);
         }
     }
 

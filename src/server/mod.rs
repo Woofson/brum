@@ -7,6 +7,7 @@ pub mod system_handlers;
 pub mod terminal;
 pub mod shell_command;
 pub mod fleet;
+pub mod session_cookie;
 
 pub use middleware::*;
 pub use auth_handlers::*;
@@ -109,6 +110,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/auth/oidc/callback", get(handle_oidc_callback))
         .route("/api/auth/login", post(handle_login))
         .route("/api/auth/logout", post(handle_logout))
+        .route("/api/auth/session", post(handle_adopt_session_cookie))
         .route("/api/auth/unlock", post(handle_unlock_session))
         .route("/api/auth/security-settings", get(handle_get_security_settings).post(handle_update_security_settings))
         .route("/api/auth/me", get(handle_get_me))

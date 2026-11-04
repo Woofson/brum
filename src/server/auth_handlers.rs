@@ -6,6 +6,7 @@ use axum::{
 use serde::{Deserialize, Serialize};
 use crate::auth::User;
 use crate::server::AppState;
+use crate::server::session_cookie;
 use crate::server::middleware::{extract_claims_or_local, resolve_client_ip, require_admin};
 
 #[derive(Deserialize)]
@@ -16,6 +17,8 @@ pub struct LoginRequest {
 
 #[derive(Serialize)]
 pub struct LoginResponse {
+    /// Left out when the Brum page asked for a cookie-only login
+    #[serde(skip_serializing_if = "String::is_empty")]
     pub token: String,
     pub user: User,
 }
@@ -124,17 +127,9 @@ pub async fn handle_oidc_callback(
         Ok((token, user)) => {
             tracing::info!(username = %user.username, role = %user.role, "SSO login successful");
             let max_age_secs = state.config.server.session_duration_hours * 3600;
-            let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
-            let cookie_header = format!(
-                "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
-                token,
-                max_age_secs,
-                secure_flag
-            );
+            let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
             let mut response = axum::response::Redirect::temporary("/?sso_success=1").into_response();
-            if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
-                response.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
-            }
+            session_cookie::attach_login_cookie(response.headers_mut(), &headers, &token, max_age_secs, secure);
             response
         }
         Err(e) => {
@@ -202,17 +197,10 @@ pub async fn handle_login(
 
     let make_login_response = |token: String, user: User| -> axum::response::Response {
         let max_age_secs = state.config.server.session_duration_hours * 3600;
-        let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
-        let cookie_header = format!(
-            "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
-            token,
-            max_age_secs,
-            secure_flag
-        );
-        let mut resp = Json(LoginResponse { token, user }).into_response();
-        if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
-            resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
-        }
+        let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
+        let body_token = if session_cookie::wants_cookie_only(&headers) { String::new() } else { token.clone() };
+        let mut resp = Json(LoginResponse { token: body_token, user }).into_response();
+        session_cookie::attach_login_cookie(resp.headers_mut(), &headers, &token, max_age_secs, secure);
         resp
     };
 
@@ -293,6 +281,33 @@ pub async fn handle_login(
     }
 }
 
+/// Moves a login the page used to keep itself into the protected cookie, once.
+/// The page sends its old stored login in the `Authorization` header; afterwards it forgets it.
+pub async fn handle_adopt_session_cookie(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    connect_info: Option<ConnectInfo<std::net::SocketAddr>>,
+) -> Result<axum::response::Response, (StatusCode, String)> {
+    let token = headers
+        .get(header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .ok_or((StatusCode::UNAUTHORIZED, "Missing login".to_string()))?;
+    let claims = state.auth.verify_token(&token)
+        .map_err(|_| (StatusCode::UNAUTHORIZED, "Login no longer valid".to_string()))?;
+    if claims.token_id.is_some() {
+        // API tokens are for scripts, not for the browser's login cookie
+        return Err((StatusCode::BAD_REQUEST, "API tokens cannot become a browser login".to_string()));
+    }
+    let remaining = (claims.exp - chrono::Utc::now().timestamp()).max(0) as u64;
+    let secure = is_request_secure_peer(&headers, connect_info.map(|ci| ci.0), &state.config.server.trusted_proxies);
+    let mut resp = Json(serde_json::json!({ "success": true })).into_response();
+    session_cookie::attach_login_cookie(resp.headers_mut(), &headers, &token, remaining, secure);
+    Ok(resp)
+}
+
 pub async fn handle_logout(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -308,10 +323,7 @@ pub async fn handle_logout(
         }
     }
     let mut resp = Json(serde_json::json!({ "success": true, "message": "Logged out" })).into_response();
-    let clear_cookie = "cd_token=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    if let Ok(hv) = axum::http::HeaderValue::from_str(clear_cookie) {
-        resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
-    }
+    session_cookie::attach_logout_cookies(resp.headers_mut(), &headers);
     resp
 }
 
@@ -356,6 +368,7 @@ pub async fn handle_get_me(
         }));
     }
 
+    // The first login that still works: an explicit header, then this Brum's cookie, then older cookies
     let token_opt = {
         let from_header = headers
             .get(header::AUTHORIZATION)
@@ -363,24 +376,10 @@ pub async fn handle_get_me(
             .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
             .map(|s| s.trim().to_string())
             .filter(|s| !s.is_empty() && s != "undefined" && s != "null");
-
-        let from_cookie = headers
-            .get(header::COOKIE)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|cookie_str| {
-                for pair in cookie_str.split(';') {
-                    let pair = pair.trim();
-                    if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                        let trimmed = tok.trim();
-                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
-                            return Some(trimmed.to_string());
-                        }
-                    }
-                }
-                None
-            });
-
-        from_header.or(from_cookie)
+        from_header
+            .into_iter()
+            .chain(session_cookie::tokens_from_cookies(&headers))
+            .find(|t| state.auth.verify_token(t).is_ok())
     };
 
     if let Some(token_str) = token_opt {
@@ -592,22 +591,18 @@ pub async fn handle_update_profile(
                 let token = state.auth.generate_token(&user)
                     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e)))?;
                 let peer_addr = connect_info.map(|ci| ci.0);
-                let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
-                let cookie_header = format!(
-                    "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
-                    token,
-                    state.config.server.session_duration_hours * 3600,
-                    secure_flag
-                );
-                let mut resp = Json(serde_json::json!({
+                let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
+                let mut body = serde_json::json!({
                     "success": true,
                     "message": "Profile updated successfully",
                     "avatar_url": effective_avatar_url,
-                    "token": token
-                })).into_response();
-                if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
-                    resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+                    "session_renewed": true
+                });
+                if !session_cookie::wants_cookie_only(&headers) {
+                    body["token"] = serde_json::Value::String(token.clone());
                 }
+                let mut resp = Json(body).into_response();
+                session_cookie::attach_login_cookie(resp.headers_mut(), &headers, &token, state.config.server.session_duration_hours * 3600, secure);
                 return Ok(resp);
             }
         }
@@ -850,25 +845,15 @@ pub async fn handle_unlock_session(
     let auth_header = headers.get(header::AUTHORIZATION).and_then(|v| v.to_str().ok());
     let mut username = payload.username.clone();
 
+    // The login being unlocked: an explicit header, else this Brum's cookie, else an older cookie
     let token_opt = auth_header
         .and_then(|h| h.strip_prefix("Bearer ").or_else(|| Some(h)))
         .map(|s| s.trim())
         .filter(|s| !s.is_empty() && *s != "undefined" && *s != "null")
         .map(|s| s.to_string())
-        .or_else(|| {
-            headers.get(header::COOKIE).and_then(|v| v.to_str().ok()).and_then(|cookie_str| {
-                for pair in cookie_str.split(';') {
-                    let pair = pair.trim();
-                    if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                        let trimmed = tok.trim();
-                        if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
-                            return Some(trimmed.to_string());
-                        }
-                    }
-                }
-                None
-            })
-        });
+        .into_iter()
+        .chain(session_cookie::tokens_from_cookies(&headers))
+        .find(|t| state.auth.verify_token_allow_expired(t).is_ok());
 
     // If authorization token is present, extract claims (allowing expired token during lock)
     if let Some(ref token_str) = token_opt {
@@ -900,22 +885,17 @@ pub async fn handle_unlock_session(
             tracing::info!("Session unlocked successfully for user '{}'", user.username);
             let new_token = state.auth.generate_token(&user).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
             let max_age_secs = state.config.server.session_duration_hours * 3600;
-            let secure_flag = if is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies) { "; Secure" } else { "" };
-            let cookie_header = format!(
-                "cd_token={}; Path=/; HttpOnly; SameSite=Lax; Max-Age={}{}",
-                new_token,
-                max_age_secs,
-                secure_flag
-            );
-            let mut resp = Json(serde_json::json!({
+            let secure = is_request_secure_peer(&headers, peer_addr, &state.config.server.trusted_proxies);
+            let mut body = serde_json::json!({
                 "success": true,
                 "message": "Session unlocked",
-                "token": new_token,
                 "user": user
-            })).into_response();
-            if let Ok(hv) = axum::http::HeaderValue::from_str(&cookie_header) {
-                resp.headers_mut().insert(axum::http::header::SET_COOKIE, hv);
+            });
+            if !session_cookie::wants_cookie_only(&headers) {
+                body["token"] = serde_json::Value::String(new_token.clone());
             }
+            let mut resp = Json(body).into_response();
+            session_cookie::attach_login_cookie(resp.headers_mut(), &headers, &new_token, max_age_secs, secure);
             Ok(resp)
         }
         Err(e) => {

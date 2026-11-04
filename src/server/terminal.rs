@@ -196,24 +196,10 @@ pub fn extract_terminal_claims(
         }
     }
 
-    // 3. Check Cookie header for cd_token=... or token=...
-    if let Some(cookie_hdr) = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()) {
-        for pair in cookie_hdr.split(';') {
-            let pair = pair.trim();
-            if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                let trimmed = tok.trim();
-                if !trimmed.is_empty() && trimmed != "undefined" && trimmed != "null" {
-                    if let Ok(claims) = state.auth.verify_token(trimmed) {
-                        return Ok(claims);
-                    }
-                    let decoded = crate::server::middleware::percent_decode(trimmed);
-                    if decoded != trimmed {
-                        if let Ok(claims) = state.auth.verify_token(&decoded) {
-                            return Ok(claims);
-                        }
-                    }
-                }
-            }
+    // Login cookie: this Brum's own first, then the older shared name
+    for tok in crate::server::session_cookie::tokens_from_cookies(headers) {
+        if let Ok(claims) = state.auth.verify_token(&tok) {
+            return Ok(claims);
         }
     }
 

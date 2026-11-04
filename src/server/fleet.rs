@@ -138,22 +138,10 @@ pub fn extract_fleet_claims(
         }
     }
 
-    // 3. Check Cookie header for cd_token=... or token=...
-    if let Some(cookie_hdr) = headers.get(header::COOKIE).and_then(|v| v.to_str().ok()) {
-        for pair in cookie_hdr.split(';') {
-            let pair = pair.trim();
-            if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                let trimmed = tok.trim();
-                if let Ok(claims) = state.auth.verify_token(trimmed) {
-                    return Ok(claims);
-                }
-                let decoded = crate::server::middleware::percent_decode(trimmed);
-                if decoded != trimmed {
-                    if let Ok(claims) = state.auth.verify_token(&decoded) {
-                        return Ok(claims);
-                    }
-                }
-            }
+    // Login cookie: this Brum's own first, then the older shared name
+    for tok in crate::server::session_cookie::tokens_from_cookies(headers) {
+        if let Ok(claims) = state.auth.verify_token(&tok) {
+            return Ok(claims);
         }
     }
 
@@ -446,19 +434,7 @@ pub async fn handle_fleet_ws_proxy(
                 .and_then(|v| v.strip_prefix("Bearer "))
                 .map(|s| s.trim().to_string())
         })
-        .or_else(|| {
-            headers.get(header::COOKIE)
-                .and_then(|v| v.to_str().ok())
-                .and_then(|cookie_hdr| {
-                    for pair in cookie_hdr.split(';') {
-                        let pair = pair.trim();
-                        if let Some(tok) = pair.strip_prefix("cd_token=").or_else(|| pair.strip_prefix("token=")) {
-                            return Some(tok.trim().to_string());
-                        }
-                    }
-                    None
-                })
-        })
+        // The browser's login cookie never leaves this server: the node gets a token made for it here
         .or_else(|| state.auth.mint_token_for_claims(&claims).ok());
 
     if let Some(ref tok) = effective_token {

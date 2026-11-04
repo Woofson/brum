@@ -261,6 +261,14 @@ Brum includes a built-in Web Configuration Editor accessible in **Settings -> Ra
    * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It prints the credentials to stdout (so `docker logs` shows them) and writes them to `initial_admin_credentials.txt` in the same folder as the database (`brum.db`). The password is never written to the log files. The note is deleted after the first admin login or password change. Logging in with `admin` / `brum` will fail.
    * **If set to a custom password before first boot**: The configured custom password is used verbatim for the initial account.
 
+## Browser Login Cookie
+
+When you log in from the web page, Brum keeps the login only in a protected cookie (`HttpOnly`, `SameSite=Lax`, and `Secure` over HTTPS). Scripts on the page cannot read it, so it cannot be copied out of the browser even if something unwanted ever ran on the page.
+
+* **One cookie per Brum**: the cookie is named after the port the browser uses (for example `brum_session_3140`), so two Brums on the same computer keep separate logins.
+* **Scripts and tools are unchanged**: `POST /api/auth/login` still returns the login in its reply, and API tokens work as before with `Authorization: Bearer …`.
+* **Upgrading**: a browser that still holds a login stored by an older Brum swaps it once for the protected cookie and then forgets the old copy. Nobody has to log in again.
+
 ---
 
 ## Fleet Federation, Defaults & User Overrides

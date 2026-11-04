@@ -24,7 +24,7 @@ sequenceDiagram
     Brum->>Authentik: POST /token (Exchange code for tokens)
     Authentik-->>Brum: Returns ID Token + Access Token
     Brum->>DB: Match or auto-provision local user profile
-    Brum-->>User: Set cd_token session cookie & open Brum
+    Brum-->>User: Set protected login cookie & open Brum
 ```
 
 ---

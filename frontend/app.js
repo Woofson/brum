@@ -921,7 +921,9 @@ var App = {
   activePaneIndex: 0,
   layout: getLayoutForViewport(),
   paranoidMode: true,
-  token: localStorage.getItem('cd_token') || '',
+  // Whether this browser is signed in. The login itself lives only in a protected cookie
+  // that page scripts cannot read; this is just a harmless note for a fast start.
+  signedIn: localStorage.getItem('cd_signed_in') === '1',
   user: null,
   config: null,
   contextItem: null,
@@ -1309,10 +1311,34 @@ function triggerHaptic(duration = 25) {
   }
 }
 
-if (App.token) {
+// Remembers (or forgets) that this browser is signed in. Never stores the login itself.
+function markSignedIn(on) {
+  App.signedIn = !!on;
   try {
-    document.cookie = `cd_token=${encodeURIComponent(App.token)}; path=/; SameSite=Lax`;
-  } catch (e) {}
+    if (on) localStorage.setItem('cd_signed_in', '1');
+    else localStorage.removeItem('cd_signed_in');
+  } catch (_) {}
+}
+
+// Headers for requests that log in: the server then keeps the login in its protected cookie
+// and leaves it out of the reply, so it never passes through page scripts
+const COOKIE_SESSION_HEADERS = { 'X-Brum-Session': 'cookie' };
+
+// Older Brum versions kept the login in browser storage and in a script-readable cookie.
+// Swap it once for the protected cookie, then forget it.
+async function adoptLegacyStoredLogin() {
+  let legacy = null;
+  try { legacy = localStorage.getItem('cd_token'); } catch (_) {}
+  try { localStorage.removeItem('cd_token'); } catch (_) {}
+  try { document.cookie = 'cd_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0;'; } catch (_) {}
+  if (!legacy) return;
+  try {
+    const resp = await fetch('/api/auth/session', {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${legacy}` }
+    });
+    if (resp.ok) markSignedIn(true);
+  } catch (_) {}
 }
 
 function getBasename(path) {
@@ -2725,10 +2751,6 @@ function applyAllUserPreferences(prefs) {
 async function loadUserPreferencesFromServer() {
   try {
     const headers = {};
-    const token = App.token || localStorage.getItem('cd_token') || '';
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     const resp = await fetch('/api/user/preferences', { headers });
     if (!resp.ok) return;
     const prefs = await resp.json();
@@ -2746,10 +2768,6 @@ function queueSaveUserPreferencesToServer() {
     try {
       const prefs = getAllUserPreferences();
       const headers = { 'Content-Type': 'application/json' };
-      const token = App.token || localStorage.getItem('cd_token') || '';
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
 
       const res = await fetch('/api/user/preferences', {
         method: 'POST',
@@ -2773,10 +2791,6 @@ async function saveCurrentWorkspaceAsDefault() {
   try {
     const prefs = getAllUserPreferences();
     const headers = { 'Content-Type': 'application/json' };
-    const token = App.token || localStorage.getItem('cd_token') || '';
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
 
     const res = await fetch('/api/user/preferences', {
       method: 'POST',
@@ -2801,10 +2815,6 @@ async function saveCurrentWorkspaceAsDefault() {
 async function resetServerPreferences() {
   try {
     const headers = {};
-    const token = App.token || localStorage.getItem('cd_token') || '';
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
     const res = await fetch('/api/user/preferences', {
       method: 'DELETE',
       headers
@@ -2954,7 +2964,7 @@ function bootApp() {
     // ⚡ Frame-0 Instant Optimistic Pane Mounting:
     // If a session token, standalone mode, or auth-disabled is present and session is not locked,
     // immediately render pane frames and cached directories on frame 0!
-    const token = App.token || localStorage.getItem('cd_token');
+    const token = App.signedIn || localStorage.getItem('cd_token');
     const isStandalone = isStandaloneMode() || localStorage.getItem('cd_standalone_mode') === 'true';
     const authDisabled = localStorage.getItem('cd_auth_disabled') === 'true';
     const isLocked = localStorage.getItem('cd_is_locked') === 'true';
@@ -3215,17 +3225,16 @@ async function checkAuthAndLoad() {
     }, 200);
   }
 
-  const token = App.token || localStorage.getItem('cd_token');
+  await adoptLegacyStoredLogin();
   const isLocked = localStorage.getItem('cd_is_locked') === 'true';
 
   try {
     const isTauri = window.__TAURI__ !== undefined || window.__TAURI_INTERNALS__ !== undefined || window.__WRY__ !== undefined;
-    const meHeaders = token ? { 'Authorization': `Bearer ${token}` } : {};
 
-    // Parallelize system status and token verification
+    // Parallelize system status and login check (the browser sends the login cookie by itself)
     const [sysResp, meResp] = await Promise.all([
       fetch('/api/system/status').catch(() => null),
-      fetch('/api/auth/me', { headers: meHeaders }).catch(() => null)
+      fetch('/api/auth/me').catch(() => null)
     ]);
 
     let sysData = null;
@@ -3246,6 +3255,7 @@ async function checkAuthAndLoad() {
     // 1. Authenticated via token or local standalone/auth-disabled user:
     if (meResp && meResp.ok) {
       App.user = await meResp.json();
+      if (!isStandalone && !authDisabled) markSignedIn(true);
       const localAvatar = localStorage.getItem('cd_local_avatar');
       const localNick = localStorage.getItem('cd_local_nickname');
       if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
@@ -3344,11 +3354,8 @@ async function checkAuthAndLoad() {
     console.warn('Auth check error:', e);
   }
 
-  // If we had an invalid token, clear it from storage
-  if (token) {
-    localStorage.removeItem('cd_token');
-    App.token = null;
-  }
+  // The login cookie is missing or no longer valid
+  markSignedIn(false);
 
   // Not authenticated: show login screen
   loadOidcConfig();
@@ -4329,9 +4336,7 @@ function populateThemeSelectors() {
 
 async function loadSystemUsersGroups() {
   try {
-    const token = App.token || localStorage.getItem('cd_token') || '';
-    const headers = token ? { 'Authorization': `Bearer ${token}` } : {};
-    const res = await fetch('/api/system/users-groups', { headers });
+    const res = await fetch('/api/system/users-groups');
     if (res.ok) {
       const data = await res.json();
       App.systemUsers = data.users;
@@ -4961,7 +4966,7 @@ function getPaneNode(paneIndex) {
       id: 'local',
       name: getLocalHostDisplayName(),
       endpoint_url: window.location.origin,
-      auth_token: App.token || '',
+      auth_token: '',
       color_accent: 'amber',
       status: 'online'
     };
@@ -4972,7 +4977,7 @@ function getPaneNode(paneIndex) {
       id: 'local',
       name: getLocalHostDisplayName(),
       endpoint_url: window.location.origin,
-      auth_token: App.token || '',
+      auth_token: '',
       color_accent: 'amber',
       status: 'online'
     };
@@ -5016,11 +5021,7 @@ function getPaneAuthHeaders(paneIndex, extraHeaders = {}) {
   const headers = { ...extraHeaders };
   if (node && node.id !== 'local') {
     if (shouldRouteViaGateway(node)) {
-      // Authenticate against gateway hub with session token
-      const token = App.token || localStorage.getItem('cd_token') || '';
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      // The gateway (this server) recognises the browser by its login cookie
       headers['X-Fleet-Target-Url'] = node.endpoint_url;
       if (node.auth_token && node.auth_token.trim()) {
         headers['X-Fleet-Target-Token'] = node.auth_token.trim();
@@ -5032,10 +5033,6 @@ function getPaneAuthHeaders(paneIndex, extraHeaders = {}) {
       }
     }
   } else {
-    const token = App.token || localStorage.getItem('cd_token') || '';
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }
   }
   return headers;
 }
@@ -8613,14 +8610,14 @@ document.getElementById('btn-save-permissions')?.addEventListener('click', async
   // 1. Chmod
   await fetch('/api/fs/chmod', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ paths, mode: modeVal, recursive })
   });
 
   // 2. Chown
   await fetch('/api/fs/chown', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ paths, owner, group, recursive })
   });
 
@@ -9377,7 +9374,6 @@ async function executeOpenWith(filePath, command) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token || ''}`,
       },
       body: JSON.stringify({ file_path: filePath, command: command || null }),
     });
@@ -9516,7 +9512,7 @@ async function runShellAction(command, label) {
   try {
     const resp = await fetch('/api/system/run-custom-action', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token || ''}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         command,
         target_path: target,
@@ -10103,8 +10099,8 @@ async function loadUsersTable() {
 
   try {
     const [usersRes, rootsRes] = await Promise.all([
-      fetch('/api/auth/users', { headers: { 'Authorization': `Bearer ${App.token}` } }),
-      fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } })
+      fetch('/api/auth/users', { headers: {} }),
+      fetch('/api/storage/roots', { headers: {} })
     ]);
 
     if (usersRes.ok) {
@@ -10358,7 +10354,7 @@ async function saveUserRbac(username) {
   try {
     const resp = await fetch(`/api/auth/users/${encodeURIComponent(username)}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         role: role,
         allowed_services: allowed_services,
@@ -10398,7 +10394,7 @@ async function deleteUserAccount(username) {
   try {
     const resp = await fetch(`/api/auth/users/${encodeURIComponent(username)}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       showToast(`User '${username}' deleted`, 'success');
@@ -10556,7 +10552,7 @@ async function loadMasterConfigEditor() {
 
   try {
     const resp = await fetch('/api/system/config-file', {
-      headers: { 'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}` }
+      headers: {}
     });
     if (resp.status === 403) {
       if (textarea) {
@@ -10626,8 +10622,7 @@ async function saveMasterConfigFile() {
     const resp = await fetch('/api/system/config-file', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ content })
     });
@@ -10664,8 +10659,7 @@ async function triggerServerReload() {
     const resp = await fetch('/api/system/reload-config', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}`
+        'Content-Type': 'application/json'
       }
     });
 
@@ -10697,8 +10691,7 @@ async function triggerServerRestart() {
     await fetch('/api/system/restart', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}`
+        'Content-Type': 'application/json'
       }
     });
   } catch (e) {}
@@ -10744,7 +10737,7 @@ async function submitAddUser() {
   try {
     const resp = await fetch('/api/auth/users', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ username, password, role, home_dir, shell: shell || null })
     });
 
@@ -10785,7 +10778,7 @@ async function loadAdminApiTokens() {
 
   try {
     const resp = await fetch('/api/auth/tokens', {
-      headers: { 'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}` }
+      headers: {}
     });
 
     if (!resp.ok) {
@@ -10927,8 +10920,7 @@ async function submitCreateApiToken() {
     const resp = await fetch('/api/auth/tokens', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         name,
@@ -11014,9 +11006,7 @@ async function revokeApiToken(tokenId, tokenName) {
   try {
     const resp = await fetch(`/api/auth/tokens/${encodeURIComponent(tokenId)}`, {
       method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${App.token || localStorage.getItem('cd_token') || ''}`
-      }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -11299,10 +11289,6 @@ async function trackTransferTask(taskId, action, sources, destination, onComplet
     try {
       const authHeaders = targetHeaders || {};
       if (!targetHeaders) {
-        const token = App.token || localStorage.getItem('cd_token') || '';
-        if (token) {
-          authHeaders['Authorization'] = `Bearer ${token}`;
-        }
       }
       const url = targetEndpoint ? `${targetEndpoint}/api/tasks/${taskId}` : `/api/tasks/${taskId}`;
       const resp = await fetch(url, {
@@ -13048,7 +13034,7 @@ async function openEditorWithFile(filePath, paneIndex = null, lineNumber = null)
 async function checkAndPromptConfdDirectory(dirPath) {
   try {
     const res = await fetch(`/api/fs/list?path=${encodeURIComponent(dirPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (res.ok) {
       const data = await res.json();
@@ -13090,7 +13076,7 @@ async function executeOpenConfdAssembled() {
   for (const f of pendingConfdFiles) {
     try {
       const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(f.path)}`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+        headers: {}
       });
       let content = '';
       if (resp.ok) {
@@ -13970,7 +13956,7 @@ async function loadDatabaseNotesHierarchy(targetNoteId) {
     if (params.length > 0) url += `?${params.join('&')}`;
 
     const resp = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (!resp.ok) return;
     const notes = await resp.json();
@@ -14541,8 +14527,7 @@ async function saveActiveDatabaseNote(isAutoSave = false) {
     const resp = await fetch(`/api/notes/${notesState.activeDbNote.id}`, {
       method: 'PUT',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
@@ -14573,8 +14558,7 @@ async function createDatabaseNote(title, initialContent, category, section) {
     const resp = await fetch('/api/notes', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         title,
@@ -14616,7 +14600,7 @@ async function deleteActiveDatabaseNote() {
   try {
     const resp = await fetch(`/api/notes/${notesState.activeDbNote.id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       notesState.activeDbNote = null;
@@ -14659,7 +14643,7 @@ async function uploadNoteAttachment(file) {
     showToast(`Uploading attachment: ${file.name}...`, 'info');
     const resp = await fetch(url, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}` },
+      headers: {},
       body: formData
     });
 
@@ -14782,7 +14766,7 @@ async function deleteNoteAttachment(attachmentId) {
   try {
     const resp = await fetch(`/api/notes/attachments/${attachmentId}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       notesState.activeAttachments = notesState.activeAttachments.filter(a => a.id !== attachmentId);
@@ -14884,7 +14868,7 @@ async function executeNotesExport() {
     showToast('Exporting database notes to ~/Notes...', 'info');
     const resp = await fetch('/api/notes/migrate/export', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -14902,7 +14886,7 @@ async function executeNotesImport() {
     showToast('Importing ~/Notes into database...', 'info');
     const resp = await fetch('/api/notes/migrate/import', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -14925,7 +14909,7 @@ async function loadNotesHierarchy(targetNotePath) {
     const customFolder = notesState.customFolder || localStorage.getItem('cd_notes_folder');
     const url = customFolder ? `/api/tools/notes/info?folder=${encodeURIComponent(customFolder)}` : '/api/tools/notes/info';
     const resp = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (!resp.ok) return;
     const data = await resp.json();
@@ -15251,7 +15235,7 @@ async function loadNotesNoteContent(note) {
       try {
         const resp = await fetch('/api/tools/notes/decrypt', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: note.path, passphrase: cached })
         });
         if (resp.ok) {
@@ -15292,7 +15276,7 @@ async function loadNotesNoteContent(note) {
     if (unlockCard) unlockCard.style.display = 'none';
     try {
       const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(note.path)}`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+        headers: {}
       });
       if (resp.ok) {
         const data = await resp.json();
@@ -15338,7 +15322,7 @@ async function executeUnlockNotesNote() {
   try {
     const resp = await fetch('/api/tools/notes/decrypt', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: notesState.activeNote.path, passphrase: pass })
     });
 
@@ -15433,8 +15417,7 @@ async function saveActiveNotesNote(isAutoSave = false) {
       resp = await fetch('/api/tools/notes/encrypt', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${App.token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ path: notesState.activeNote.path, content, passphrase: pass })
       });
@@ -15442,8 +15425,7 @@ async function saveActiveNotesNote(isAutoSave = false) {
       resp = await fetch('/api/fs/write', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${App.token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ path: notesState.activeNote.path, content })
       });
@@ -15460,8 +15442,7 @@ async function saveActiveNotesNote(isAutoSave = false) {
       fetch('/api/tools/notes/version/save', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${App.token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({ path: notesState.activeNote.path })
       }).catch(() => {});
@@ -15853,8 +15834,7 @@ async function promptCreateNotebook() {
     await fetch('/api/fs/mkdir', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ path: nbPath })
     });
@@ -15906,8 +15886,7 @@ async function promptCreateSection() {
     await fetch('/api/fs/mkdir', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ path: secPath })
     });
@@ -15953,7 +15932,7 @@ async function toggleCurrentNoteEncryption() {
     try {
       const resp = await fetch('/api/tools/notes/encrypt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: notesState.activeNote.path, content: notesState.content, passphrase: pass, convert_to_plain: true })
       });
       if (resp.ok) {
@@ -15982,7 +15961,7 @@ async function toggleCurrentNoteEncryption() {
     try {
       const resp = await fetch('/api/tools/notes/encrypt', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path: notesState.activeNote.path, content: notesState.content, passphrase, convert_to_plain: false })
       });
       if (resp.ok) {
@@ -16072,7 +16051,7 @@ function promptCreateNote(isEncrypted = false) {
       try {
         const resp = await fetch('/api/tools/notes/create', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             section_path: secPath,
             title,
@@ -16162,7 +16141,7 @@ async function promptToggleEncryptSection() {
       try {
         const resp = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: currentSec.path, passphrase: pass })
         });
         if (resp.ok) {
@@ -16230,7 +16209,7 @@ async function promptToggleEncryptNotebook() {
       try {
         const resp = await fetch(endpoint, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: currentNb.path, passphrase: pass })
         });
         if (resp.ok) {
@@ -16280,7 +16259,7 @@ async function openNotesTemplatePicker() {
 
   try {
     const resp = await fetch('/api/tools/notes/templates', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     const templates = resp.ok ? await resp.json() : [];
     notesState.templates = templates;
@@ -16335,8 +16314,7 @@ async function createNoteFromTemplate(template, title) {
     const resp = await fetch('/api/fs/write', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ path: notePath, content })
     });
@@ -16380,8 +16358,7 @@ async function promptDeleteCurrentNote() {
     const resp = await fetch('/api/fs/delete', {
       method: 'POST',
       headers: { 
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ 
         paths: [notesState.activeNote.path],
@@ -16422,7 +16399,7 @@ async function openNotesVersionsModal() {
 
   try {
     const resp = await fetch(`/api/tools/notes/versions?path=${encodeURIComponent(notesState.activeNote.path)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const versions = await resp.json();
@@ -16736,7 +16713,7 @@ async function saveConfdAssembledTab(tab) {
       try {
         const resp = await fetch('/api/fs/write', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ path: part.path, content: cleanContent, atomic: true })
         });
         if (resp.ok) {
@@ -16774,7 +16751,7 @@ async function saveAllEditorTabs() {
         try {
           const resp = await fetch('/api/fs/write', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ path: tab.path, content: tab.content, atomic: true })
           });
           if (resp.ok) {
@@ -17747,7 +17724,7 @@ async function triggerDiff(deepHash = false, targetContainer = null) {
 
     const resp = await fetch('/api/tools/diff/folders', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dir_left: paneA.path,
         dir_right: paneB.path,
@@ -18176,7 +18153,7 @@ async function executeFolderAlignment(direction) {
       const sources = toCopyLtoR.map(p => `${leftDir}/${p}`);
       await fetch('/api/fs/copy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sources,
           destination: rightDir,
@@ -18189,7 +18166,7 @@ async function executeFolderAlignment(direction) {
       const sources = toCopyRtoL.map(p => `${rightDir}/${p}`);
       await fetch('/api/fs/copy', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sources,
           destination: leftDir,
@@ -18217,7 +18194,7 @@ async function copyDiffItem(relPath, direction, action = 'copy') {
   try {
     const resp = await fetch(endpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         sources: [src],
         destination: destDir,
@@ -18245,7 +18222,7 @@ async function calculateRowChecksum(relPath) {
   try {
     const resp = await fetch('/api/tools/diff/checksum', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dir_left: diff.dir_left,
         dir_right: diff.dir_right,
@@ -18286,7 +18263,7 @@ async function calculateAllChecksums() {
   try {
     const resp = await fetch('/api/tools/diff/checksum', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         dir_left: diff.dir_left,
         dir_right: diff.dir_right,
@@ -18413,7 +18390,7 @@ async function openFileDiffView(fileL, fileR, targetContainer = null) {
     } else {
       const resp = await fetch('/api/tools/diff/files', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_left: fileL, file_right: fileR })
       });
 
@@ -19013,7 +18990,7 @@ async function navigateConverterPickerPath(newPath) {
   try {
     const encoded = encodeURIComponent(newPath);
     const resp = await fetch(`/api/fs/list?path=${encoded}&show_hidden=false`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -19273,7 +19250,7 @@ async function executeFileConversion() {
       : '';
     const headers = (activeConverterPaneIndex !== null && activeConverterPaneIndex !== undefined)
       ? getPaneAuthHeaders(activeConverterPaneIndex, { 'Content-Type': 'application/json' })
-      : { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` };
+      : { 'Content-Type': 'application/json' };
 
     const resp = await fetch(`${endpoint}/api/tools/convert`, {
       method: 'POST',
@@ -20014,7 +19991,7 @@ function updateAboutModalContent() {
 }
 
 function formatUserAuthType(user) {
-  if (App.isStandalone || !App.token) return 'Local Standalone Mode';
+  if (App.isStandalone || !App.signedIn) return 'Local Standalone Mode';
   if (user?.auth_source === 'windows') return 'Windows / Local SAM Account';
   if (user?.auth_source === 'oidc') return 'OIDC / SSO Enterprise Account';
   if (user?.auth_source === 'pam') return 'PAM / Local Linux Account';
@@ -20094,7 +20071,7 @@ function openUserProfileModal() {
   if (passInput) passInput.value = '';
 
   const passSection = document.getElementById('profile-password-section');
-  if (passSection) passSection.style.display = (App.isStandalone || !App.token) ? 'none' : 'block';
+  if (passSection) passSection.style.display = (App.isStandalone || !App.signedIn) ? 'none' : 'block';
 
   const statusMsg = document.getElementById('profile-status-msg');
   if (statusMsg) statusMsg.style.display = 'none';
@@ -20155,10 +20132,7 @@ async function saveUserProfile() {
   if (lockUserText) lockUserText.textContent = nickname || App.user.nickname || full_name || App.user.username || 'Brum User';
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (App.token) {
-      headers['Authorization'] = `Bearer ${App.token}`;
-    }
+    const headers = { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS };
     const resp = await fetch('/api/auth/profile', {
       method: 'POST',
       headers,
@@ -20167,15 +20141,13 @@ async function saveUserProfile() {
 
     if (resp.ok) {
       const data = await resp.json().catch(() => ({}));
-      adoptSessionToken(data.token);
+      if (data.session_renewed) markSignedIn(true);
       if (statusMsg) {
         statusMsg.style.color = 'var(--success)';
         statusMsg.textContent = 'Profile updated successfully!';
       }
       // Re-fetch me
-      const meHeaders = {};
-      if (App.token) meHeaders['Authorization'] = `Bearer ${App.token}`;
-      const meResp = await fetch('/api/auth/me', { headers: meHeaders });
+      const meResp = await fetch('/api/auth/me');
       if (meResp.ok) {
         App.user = await meResp.json();
         if (data.avatar_url) App.user.avatar_url = data.avatar_url;
@@ -20235,7 +20207,7 @@ function openSettingsAccountTab() {
   if (confirmPassInput) confirmPassInput.value = '';
 
   const passSec = document.getElementById('settings-profile-password-section');
-  if (passSec) passSec.style.display = (App.isStandalone || !App.token) ? 'none' : 'grid';
+  if (passSec) passSec.style.display = (App.isStandalone || !App.signedIn) ? 'none' : 'grid';
 
   const statusEl = document.getElementById('settings-profile-save-status');
   if (statusEl) statusEl.style.display = 'none';
@@ -20332,8 +20304,7 @@ async function saveSettingsUserProfile() {
   updateHeaderProfile(App.user);
 
   try {
-    const headers = { 'Content-Type': 'application/json' };
-    if (App.token) headers['Authorization'] = `Bearer ${App.token}`;
+    const headers = { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS };
     const resp = await fetch('/api/auth/profile', {
       method: 'POST',
       headers,
@@ -20342,15 +20313,13 @@ async function saveSettingsUserProfile() {
 
     if (resp.ok) {
       const data = await resp.json().catch(() => ({}));
-      adoptSessionToken(data.token);
+      if (data.session_renewed) markSignedIn(true);
       if (statusEl) {
         statusEl.style.color = '#34d399';
         statusEl.textContent = 'Profile details saved to server!';
       }
       showToast('Profile saved to server database', 'success');
-      const meHeaders = {};
-      if (App.token) meHeaders['Authorization'] = `Bearer ${App.token}`;
-      const meResp = await fetch('/api/auth/me', { headers: meHeaders });
+      const meResp = await fetch('/api/auth/me');
       if (meResp.ok) {
         App.user = await meResp.json();
         if (data.avatar_url) App.user.avatar_url = data.avatar_url;
@@ -20418,7 +20387,7 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   try {
     const [mountsRes, bmRes, rootsRes, trashRes, disksRes, usbRes] = await Promise.all([
       fetch(`${endpoint}/api/mounts/accessible`, { headers: authHeaders }).catch(() => null),
-      fetch('/api/bookmarks', { headers: { 'Authorization': `Bearer ${App.token}` } }).catch(() => null),
+      fetch('/api/bookmarks', { headers: {} }).catch(() => null),
       fetch(`${endpoint}/api/storage/roots`, { headers: authHeaders }).catch(() => null),
       fetch(`${endpoint}/api/tools/trash/summary`, { headers: authHeaders }).catch(() => null),
       fetch(`${endpoint}/api/tools/disks`, { headers: authHeaders }).catch(() => null),
@@ -21129,7 +21098,7 @@ async function executeCreateFromTemplate() {
   try {
     const resp = await fetch('/api/fs/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: authTarget, content })
     });
 
@@ -21272,7 +21241,7 @@ async function saveContextItemAsTemplate() {
   try {
     const authPath = resolveAuthUri(item.path);
     const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(authPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     let content = '';
@@ -21959,7 +21928,7 @@ function triggerProperties(targetEntry, initialTab = 'prop-tab-general') {
   document.getElementById('prop-val-contains').textContent = entry.is_dir ? 'Scanning contents...' : '1 File';
 
   if (entry.is_dir) {
-    fetch(`/api/fs/list?path=${encodeURIComponent(entry.path)}`, { headers: { 'Authorization': `Bearer ${App.token}` } })
+    fetch(`/api/fs/list?path=${encodeURIComponent(entry.path)}`, { headers: {} })
       .then(res => res.json())
       .then(data => {
         if (data.entries) {
@@ -21977,7 +21946,7 @@ function triggerProperties(targetEntry, initialTab = 'prop-tab-general') {
     if (!entry.is_dir && (isImageExtension(entry.name) || isAudioExtension(entry.name) || isVideoExtension(entry.name))) {
       mediaSec.style.display = 'block';
       mediaGrid.innerHTML = '<div style="color:var(--text-muted); grid-column: span 2;">Reading media tags & EXIF...</div>';
-      fetch(`/api/fs/inspect-media?path=${encodeURIComponent(entry.path)}`, { headers: { 'Authorization': `Bearer ${App.token}` } })
+      fetch(`/api/fs/inspect-media?path=${encodeURIComponent(entry.path)}`, { headers: {} })
         .then(res => res.json())
         .then(data => {
           if (data.meta) {
@@ -22063,7 +22032,7 @@ async function reloadPropertiesMetadata() {
 
   try {
     const res = await fetch(`/api/fs/inspect-media?path=${encodeURIComponent(entry.path)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     const data = await res.json();
     const meta = data.meta || {};
@@ -22126,7 +22095,7 @@ async function runPropertiesStatsScan() {
 
   try {
     const res = await fetch(`/api/tools/disk_usage?path=${encodeURIComponent(entry.path)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     const data = await res.json();
     const children = Array.isArray(data.children) ? data.children : [];
@@ -22178,7 +22147,7 @@ async function reloadPropertiesGitStatus() {
 
   try {
     const res = await fetch(`/api/tools/git/status?path=${encodeURIComponent(entry.path)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     const data = await res.json();
     if (!res.ok || data.error) {
@@ -22295,14 +22264,14 @@ async function savePropertiesSecurity() {
     showToast('Applying permissions...', 'info');
     await fetch('/api/fs/chmod', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paths, mode: modeVal, recursive })
     });
 
     if (owner && group) {
       await fetch('/api/fs/chown', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ paths, owner, group, recursive })
       });
     }
@@ -22330,7 +22299,7 @@ async function calculatePropertiesChecksums() {
 
   try {
     const res = await fetch(`/api/fs/checksum?path=${encodeURIComponent(activePropertiesEntry.path)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     const data = await res.json();
     if (data.sha256) shaEl.value = data.sha256;
@@ -22775,7 +22744,7 @@ async function triggerNewFile() {
   try {
     const resp = await fetch('/api/fs/write', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ path: newFilePath, content: '' })
     });
 
@@ -23046,7 +23015,7 @@ async function loadDriveVisibilitySettings() {
   let storageRoots = App.storageRoots || [];
   if (storageRoots.length === 0) {
     try {
-      const rootsRes = await fetch('/api/storage/roots', { headers: { 'Authorization': `Bearer ${App.token}` } });
+      const rootsRes = await fetch('/api/storage/roots', { headers: {} });
       if (rootsRes.ok) storageRoots = await rootsRes.json();
     } catch (_) {}
   }
@@ -23397,7 +23366,7 @@ async function loadBookmarksList() {
   
   try {
     const resp = await fetch('/api/bookmarks', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const list = await resp.json();
@@ -23550,7 +23519,6 @@ async function saveBookmarkFromModal() {
     const resp = await fetch('/api/bookmarks', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${App.token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ name, protocol, path, password })
@@ -23573,7 +23541,7 @@ async function deleteBookmark(id) {
   try {
     const resp = await fetch(`/api/bookmarks/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -23687,10 +23655,7 @@ async function submitUnlockSession() {
   try {
     let unlocked = false;
 
-    const authHeaders = { 'Content-Type': 'application/json' };
-    if (App.token) {
-      authHeaders['Authorization'] = `Bearer ${App.token}`;
-    }
+    const authHeaders = { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS };
 
     console.log('[Brum Auth] Submitting unlock request for user:', rawUname);
     // 1. Direct unified unlock endpoint (fast path: accepts active or expired token, or username)
@@ -23703,13 +23668,7 @@ async function submitUnlockSession() {
 
     if (resp.ok) {
       const data = await resp.json();
-      if (data.token) {
-        App.token = data.token;
-        localStorage.setItem('cd_token', data.token);
-        try {
-          document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
-        } catch (_) {}
-      }
+      if (!App.isStandalone) markSignedIn(true);
       if (data.user) {
         App.user = data.user;
         const localAvatar = localStorage.getItem('cd_local_avatar');
@@ -23730,20 +23689,18 @@ async function submitUnlockSession() {
       // 2. Fallback to /api/auth/login if /api/auth/unlock endpoint is not available
       const loginResp = await fetch('/api/auth/login', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS },
         body: JSON.stringify({ username: rawUname, password: pass })
       });
       if (loginResp.ok) {
         const data = await loginResp.json();
-        App.token = data.token;
+        markSignedIn(true);
         App.user = data.user;
         const localAvatar = localStorage.getItem('cd_local_avatar');
         const localNick = localStorage.getItem('cd_local_nickname');
         if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
         if (localNick && !App.user.nickname) App.user.nickname = localNick;
-        localStorage.setItem('cd_token', data.token);
         try {
-          document.cookie = `cd_token=${encodeURIComponent(data.token)}; path=/; SameSite=Lax`;
           localStorage.setItem('cd_user_info', JSON.stringify({
             username: data.user?.username,
             nickname: data.user?.nickname || localNick,
@@ -23811,7 +23768,7 @@ function initInactivityTracker() {
   window.addEventListener('scroll', updateActivity, { passive: true });
 
   setInterval(() => {
-    if (!App.token) return;
+    if (!App.signedIn) return;
     const settings = App.securitySettings || {
       auto_lock_enabled: true,
       auto_lock_minutes: 15,
@@ -23856,7 +23813,7 @@ function initInactivityTracker() {
 async function loadAdminSecuritySettings() {
   try {
     const resp = await fetch('/api/auth/security-settings', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const s = await resp.json();
@@ -23893,7 +23850,6 @@ async function saveAdminSecuritySettings() {
     const resp = await fetch('/api/auth/security-settings', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${App.token}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
@@ -24319,7 +24275,7 @@ async function handleLoginSubmit() {
   try {
     const resp = await fetch('/api/auth/login', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS },
       body: JSON.stringify({ username: u, password: p })
     });
     console.log('[Brum Auth] Login response status:', resp.status);
@@ -24359,13 +24315,11 @@ async function handleLoginSubmit() {
   }
 
   // Handle post-login rendering and hydration outside the network catch block
-  if (loginData && loginData.token) {
-    App.token = loginData.token;
+  if (loginData && loginData.user) {
+    markSignedIn(true);
     App.user = loginData.user;
     updateHeaderProfile(App.user);
-    localStorage.setItem('cd_token', loginData.token);
     try {
-      document.cookie = `cd_token=${encodeURIComponent(loginData.token)}; path=/; SameSite=Lax`;
       localStorage.setItem('cd_user_info', JSON.stringify({
         username: loginData.user?.username,
         nickname: loginData.user?.nickname,
@@ -24428,7 +24382,7 @@ async function loadOidcConfig() {
         }
 
         // Auto-redirect if force_sso_only is enabled and user is not authenticated and no error parameter in URL
-        if (data.force_sso_only && !App.user && !App.token && !new URLSearchParams(window.location.search).get('error')) {
+        if (data.force_sso_only && !App.user && !App.signedIn && !new URLSearchParams(window.location.search).get('error')) {
           triggerOidcLogin();
         }
       } else if (ssoSec) {
@@ -25589,7 +25543,7 @@ async function triggerChecksum() {
 
   const resp = await fetch('/api/fs/checksum', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path: item.path, algorithm: 'sha256' })
   });
 
@@ -26030,8 +25984,7 @@ async function executeCreateShare() {
     const resp = await fetch('/api/shares', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         path: pendingShareItem.path,
@@ -26356,7 +26309,7 @@ async function loadActiveShares() {
 
   try {
     const resp = await fetch('/api/shares', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (!resp.ok) {
@@ -26542,8 +26495,7 @@ async function toggleRevokeShare(id, isRevoked) {
     const resp = await fetch(`/api/shares/${id}/revoke`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ revoke: !isRevoked })
     });
@@ -26573,7 +26525,7 @@ async function deleteSharePermanent(id) {
   try {
     const resp = await fetch(`/api/shares/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -26599,7 +26551,7 @@ async function openShareLogs(id, name) {
 
   try {
     const resp = await fetch(`/api/shares/${id}/logs`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (!resp.ok) {
@@ -26913,8 +26865,7 @@ async function downloadBatchArchive(paths) {
     const resp = await fetch('/api/fs/download/batch', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ paths: authPaths })
     });
@@ -28571,7 +28522,7 @@ async function openRemoteModal(paneIndex, asGlobalAdmin = false) {
       userContainer.innerHTML = '<div>Loading users...</div>';
       try {
         const resp = await fetch('/api/auth/users', {
-          headers: { 'Authorization': `Bearer ${App.token}` }
+          headers: {}
         });
         if (resp.ok) {
           const users = await resp.json();
@@ -28676,7 +28627,7 @@ async function saveGlobalRemoteMount() {
   try {
     const resp = await fetch('/api/mounts', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: mountName,
         protocol: proto,
@@ -28715,7 +28666,7 @@ async function loadAdminGlobalMounts() {
 
   try {
     const resp = await fetch('/api/mounts/all', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -28793,7 +28744,7 @@ async function deleteGlobalMount(id, name) {
   try {
     const resp = await fetch(`/api/mounts/${id}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -28913,7 +28864,7 @@ async function updateRemoteProtoUI() {
 
     try {
       const resp = await fetch('/api/remotes/proton/status', {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+        headers: {}
       });
       if (resp.ok) {
         const st = await resp.json();
@@ -28956,7 +28907,7 @@ async function testRemoteConnection() {
   try {
     const resp = await fetch('/api/remotes/test', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ protocol: proto, host, port, user, pass, bucket, region })
     });
 
@@ -29050,8 +29001,7 @@ function disconnectPaneRemote(paneIndex) {
     fetch('/api/vault/lock', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ path: vaultFile })
     }).catch(console.error);
@@ -29544,8 +29494,6 @@ function connectTerminalTab(tab, cwd) {
   const cols = (instance && instance.cols > 0) ? instance.cols : 100;
   const rows = (instance && instance.rows > 0) ? instance.rows : 24;
   const cleanCwd = (cwd && typeof cwd === 'string') ? cwd : '/';
-  const token = App.token || localStorage.getItem('cd_token') || '';
-  const tokenParam = token ? `&token=${encodeURIComponent(token)}&cd_token=${encodeURIComponent(token)}` : '';
 
   const activePaneIdx = (typeof App.activePaneIndex === 'number') ? App.activePaneIndex : (App.activePane ?? 0);
   const node = typeof getPaneNode === 'function' ? getPaneNode(activePaneIdx) : null;
@@ -29555,10 +29503,11 @@ function connectTerminalTab(tab, cwd) {
   tab.title = remote ? `${node.name || node.id}: ${cleanCwd}` : cleanCwd;
   if (termActiveTab === tab) activateTerminalTab(tab);
 
+  // This server's terminal, directly or through its Fleet gateway, uses the browser's login cookie
   let url;
   if (remote) {
     if (typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway(node)) {
-      url = `${getWsUrl(`/api/fleet/proxy/${encodeURIComponent(node.id)}/api/terminal/ws`)}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
+      url = `${getWsUrl(`/api/fleet/proxy/${encodeURIComponent(node.id)}/api/terminal/ws`)}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}`;
     } else {
       const nodeWsBase = node.endpoint_url.replace(/^http:\/\//, 'ws://').replace(/^https:\/\//, 'wss://');
       const nodeToken = node.auth_token || '';
@@ -29566,7 +29515,7 @@ function connectTerminalTab(tab, cwd) {
       url = `${nodeWsBase}/api/ws/terminal?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${remoteTokenParam}`;
     }
   } else {
-    url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}${tokenParam}`;
+    url = `${getWsUrl('/api/ws/terminal')}?cwd=${encodeURIComponent(cleanCwd)}&cols=${cols}&rows=${rows}`;
   }
 
   try {
@@ -29968,14 +29917,14 @@ let knownCompletedTasks = new Set();
 let tasksAutoPruneTimer = null;
 
 async function pollTasks() {
-  if (!App.token) {
+  if (!App.user) {
     scheduleNextTaskPoll(2000);
     return;
   }
 
   try {
     const res = await fetch('/api/tasks', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (res.ok) {
       const list = await res.json();
@@ -30761,7 +30710,7 @@ async function pauseTask(id) {
   }
   const task = lastKnownTasksList.find(t => t.id === id);
   const endpoint = (task && task.targetEndpoint) ? task.targetEndpoint : '';
-  const headers = (task && task.targetHeaders) ? task.targetHeaders : { 'Authorization': `Bearer ${App.token}` };
+  const headers = (task && task.targetHeaders) ? task.targetHeaders : {};
   try {
     await fetch(`${endpoint}/api/tasks/${id}/pause`, {
       method: 'POST',
@@ -30784,7 +30733,7 @@ async function resumeTask(id) {
   }
   const task = lastKnownTasksList.find(t => t.id === id);
   const endpoint = (task && task.targetEndpoint) ? task.targetEndpoint : '';
-  const headers = (task && task.targetHeaders) ? task.targetHeaders : { 'Authorization': `Bearer ${App.token}` };
+  const headers = (task && task.targetHeaders) ? task.targetHeaders : {};
   try {
     await fetch(`${endpoint}/api/tasks/${id}/resume`, {
       method: 'POST',
@@ -30808,7 +30757,7 @@ async function cancelTask(id) {
   }
   const task = lastKnownTasksList.find(t => t.id === id);
   const endpoint = (task && task.targetEndpoint) ? task.targetEndpoint : '';
-  const headers = (task && task.targetHeaders) ? task.targetHeaders : { 'Authorization': `Bearer ${App.token}` };
+  const headers = (task && task.targetHeaders) ? task.targetHeaders : {};
   try {
     await fetch(`${endpoint}/api/tasks/${id}/cancel`, {
       method: 'POST',
@@ -30840,7 +30789,7 @@ async function clearCompletedTasks() {
   try {
     await fetch('/api/tasks/clear-completed', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
   } catch (_) {}
   pollTasks();
@@ -31386,7 +31335,7 @@ async function imageViewerDeleteCurrent() {
       const authPath = resolveAuthUri(filePath);
       const resp = await fetch('/api/fs/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           paths: [authPath], 
           use_trash: useTrash, 
@@ -31530,7 +31479,7 @@ async function imageViewerRenameCurrent() {
     try {
       const resp = await fetch('/api/fs/rename', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: resolveAuthUri(filePath), to: resolveAuthUri(toPath) })
       });
       if (resp.ok) {
@@ -31650,7 +31599,7 @@ function isVaultFile(filename) {
 async function handleVaultOpen(vaultPath, paneIndex = App.activePaneIndex) {
   try {
     const res = await fetch(`/api/vault/status?path=${encodeURIComponent(vaultPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     const data = await res.json();
     if (data.unlocked) {
@@ -31706,8 +31655,7 @@ async function executeCreateVault() {
     const res = await fetch('/api/vault/create', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ path, password: pass })
     });
@@ -31778,8 +31726,7 @@ async function executeUnlockVault() {
     const res = await fetch('/api/vault/unlock', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ path, password, auto_lock_secs: autoLockSecs })
     });
@@ -32077,7 +32024,7 @@ async function refreshDocViewerText() {
     } else {
       const pIdx = (currentDocViewerPaneIndex !== null && currentDocViewerPaneIndex !== undefined) ? currentDocViewerPaneIndex : App.activePaneIndex;
       const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(pIdx) : '';
-      const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(pIdx) : { 'Authorization': `Bearer ${App.token}` };
+      const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(pIdx) : {};
       const resp = await fetch(`${endpoint}/api/fs/read?path=${encodeURIComponent(currentDocViewerPath)}`, {
         headers
       });
@@ -32188,7 +32135,7 @@ async function openDocumentViewer(filePath, paneIndex = null) {
   const downloadUrl = getDownloadUrl(filePath, false, currentDocViewerPaneIndex);
   const streamUrl = getDownloadUrl(filePath, true, currentDocViewerPaneIndex);
   const endpoint = typeof getPaneEndpoint === 'function' ? getPaneEndpoint(currentDocViewerPaneIndex) : '';
-  const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(currentDocViewerPaneIndex) : { 'Authorization': `Bearer ${App.token}` };
+  const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(currentDocViewerPaneIndex) : {};
 
   if (dlEl) {
     dlEl.href = downloadUrl;
@@ -32443,7 +32390,7 @@ async function docViewerDeleteCurrent() {
       const authPath = resolveAuthUri(filePath);
       const resp = await fetch('/api/fs/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           paths: [authPath], 
           use_trash: useTrash, 
@@ -32566,7 +32513,7 @@ async function docViewerRenameCurrent() {
     try {
       const resp = await fetch('/api/fs/rename', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ from: resolveAuthUri(filePath), to: resolveAuthUri(toPath) })
       });
       if (resp.ok) {
@@ -34761,7 +34708,7 @@ async function openBookReader(filePath) {
   // Query archive directory listing to get all image pages inside .cbz/.zip/.epub
   try {
     const resp = await fetch(`/api/fs/list?path=${encodeURIComponent('archive://' + filePath + '#')}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -34806,7 +34753,7 @@ async function loadBookPage(idx) {
     if (p.startsWith('archive://')) {
       try {
         const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(p)}`, {
-          headers: { 'Authorization': `Bearer ${App.token}` }
+          headers: {}
         });
         if (resp.ok) {
           const res = await resp.json();
@@ -34836,7 +34783,7 @@ async function loadBookTextEntry(path) {
     textEl.style.display = 'block';
     try {
       const resp = await fetch(`/api/fs/read?path=${encodeURIComponent(path)}`, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+        headers: {}
       });
       if (resp.ok) {
         const res = await resp.json();
@@ -35020,7 +34967,7 @@ async function executeBulkRename() {
 
   const resp = await fetch('/api/fs/batch-rename', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ renames })
   });
 
@@ -35180,7 +35127,7 @@ async function navigateSyncPickerPath(newPath) {
   try {
     const encoded = encodeURIComponent(newPath);
     const resp = await fetch(`/api/files/list?path=${encoded}&dirs_only=true`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -35468,7 +35415,7 @@ async function analyzeSync(isDryRun = false) {
   try {
     const resp = await fetch('/api/tools/sync/analyze', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source,
         destination,
@@ -35626,7 +35573,7 @@ async function executeSync(dryRun = false) {
   try {
     const resp = await fetch('/api/tools/sync/execute', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source,
         destination,
@@ -35756,7 +35703,7 @@ async function saveBackupProfileForm() {
   try {
     const resp = await fetch('/api/tools/sync/profiles', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id,
         name,
@@ -35807,7 +35754,7 @@ async function loadBackupProfiles() {
 
   try {
     const resp = await fetch('/api/tools/sync/profiles', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (!resp.ok) {
@@ -35885,7 +35832,7 @@ async function runBackupProfileNow(id) {
   try {
     const resp = await fetch(`/api/tools/sync/profiles/${encodeURIComponent(id)}/run`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -35903,7 +35850,7 @@ async function toggleBackupProfileActive(id) {
   try {
     const resp = await fetch(`/api/tools/sync/profiles/${encodeURIComponent(id)}/toggle`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -35928,7 +35875,7 @@ async function deleteBackupProfile(id) {
   try {
     const resp = await fetch(`/api/tools/sync/profiles/${encodeURIComponent(id)}`, {
       method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -35949,7 +35896,7 @@ async function loadBackupHistory() {
 
   try {
     const resp = await fetch('/api/tools/sync/history?limit=50', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (!resp.ok) {
@@ -36022,7 +35969,7 @@ async function loadSystemDisksOverview(forceRefresh = false) {
 
   try {
     const resp = await fetch('/api/tools/disks', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const disks = await resp.json();
@@ -36562,7 +36509,7 @@ async function runDiskUsageScan(path) {
 
   try {
     const resp = await fetch(`/api/tools/disk-usage?path=${encodeURIComponent(authPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` },
+      headers: {},
       signal: duAbortController.signal
     });
 
@@ -36761,7 +36708,7 @@ async function runGlobalSearch() {
 
   const resp = await fetch('/api/tools/search', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       path,
       name_pattern,
@@ -37006,7 +36953,7 @@ let modalTargetPaths = [];
 async function loadAllFileTags() {
   try {
     const resp = await fetch('/api/fs/tags/all', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -37038,8 +36985,7 @@ async function setContextFileColor(color) {
     const resp = await fetch('/api/fs/tags/set', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
@@ -37080,8 +37026,7 @@ async function setContextCustomIcon(customIcon, targetPaths = null) {
     const resp = await fetch('/api/fs/tags/set', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
@@ -37217,8 +37162,7 @@ async function saveModalTags() {
     const resp = await fetch('/api/fs/tags/set', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         paths: modalTargetPaths,
@@ -37358,7 +37302,7 @@ async function loadSyncthingDashboard() {
 
   try {
     const resp = await fetch('/api/tools/syncthing/status', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (!resp.ok) {
@@ -37466,7 +37410,7 @@ async function triggerSyncthingScan(folderId) {
   try {
     const resp = await fetch('/api/tools/syncthing/scan', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${App.token}` },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ folder_id: folderId || null })
     });
     if (resp.ok) {
@@ -37495,7 +37439,7 @@ async function testAndSaveSyncthingConfig() {
 
   try {
     const resp = await fetch('/api/tools/syncthing/status', {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const st = await resp.json();
@@ -37557,8 +37501,7 @@ async function confirmExitBrum() {
     await fetch('/api/system/exit', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('cd_token') || ''}`
+        'Content-Type': 'application/json'
       }
     });
   } catch (e) {}
@@ -37580,40 +37523,22 @@ async function confirmExitBrum() {
   }
 }
 
-// Stores a login the server handed out, e.g. after a password change ended the old one
-function adoptSessionToken(token) {
-  if (!token) return;
-  App.token = token;
-  localStorage.setItem('cd_token', token);
-  try {
-    document.cookie = `cd_token=${encodeURIComponent(token)}; path=/; SameSite=Lax`;
-  } catch (_) {}
-}
-
 // The server no longer accepts this login (logged out elsewhere, password or access changed):
 // stop using it and go back to the login screen instead of retrying forever
 function handleSessionEnded() {
-  if (!App.token) return;
-  App.token = '';
-  localStorage.removeItem('cd_token');
-  try {
-    document.cookie = 'cd_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0;';
-  } catch (_) {}
+  if (!App.signedIn) return;
+  markSignedIn(false);
   showToast('Your session has ended. Please log in again.', 'warning');
   setTimeout(() => location.reload(), 1500);
 }
 
 async function logout() {
   try {
-    const headers = App.token ? { 'Authorization': `Bearer ${App.token}` } : {};
-    await fetch('/api/auth/logout', { method: 'POST', headers });
+    // The server removes the login cookie
+    await fetch('/api/auth/logout', { method: 'POST' });
   } catch (_) {}
-  localStorage.removeItem('cd_token');
+  markSignedIn(false);
   localStorage.removeItem('cd_is_locked');
-  try {
-    document.cookie = 'cd_token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; Max-Age=0;';
-  } catch (_) {}
-  App.token = '';
   App.user = null;
   App.isLocked = false;
   document.documentElement.classList.remove('auth-ready', 'auth-pending-lock', 'auth-verifying');
@@ -37751,7 +37676,7 @@ function checkResponsiveViewportLayout(force = false) {
   _lastVisiblePaneCount = targetCount;
 
   if (needsReRender && container) {
-    if (App.isLocked || localStorage.getItem('cd_is_locked') === 'true' || (!App.user && !App.token && !App.isStandalone && App.systemStatus?.auth_enabled !== false)) {
+    if (App.isLocked || localStorage.getItem('cd_is_locked') === 'true' || (!App.user && !App.signedIn && !App.isStandalone && App.systemStatus?.auth_enabled !== false)) {
       return;
     }
     const visibleCount = getVisiblePaneCount();
@@ -37998,8 +37923,7 @@ function triggerSpotlightAsyncSearch() {
       const res = await fetch('/api/tools/search', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${App.token}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify(payload),
         signal: spotlightAsyncAbortCtrl.signal
@@ -38533,7 +38457,7 @@ async function openMediaInspector(filePath) {
   // Load and Parse
   try {
     const resp = await fetch(getDownloadUrl(filePath, false), {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (resp.ok) {
@@ -39836,7 +39760,7 @@ async function fetchGitStatusForPane(paneIndex, path) {
   if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('ssh://') || path.startsWith('client://')) return;
   try {
     const resp = await fetch(`/api/git/status?path=${encodeURIComponent(path)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -39881,7 +39805,7 @@ async function loadGitStatus(repoPath) {
 
   try {
     const resp = await fetch(`/api/git/status?path=${encodeURIComponent(repoPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (!resp.ok) {
       if (filesList) filesList.innerHTML = '<div style="padding: 12px; color: var(--danger); text-align: center;">Not a git repository.</div>';
@@ -39961,7 +39885,7 @@ async function selectGitFileDiff(filePath, isStaged) {
 
   try {
     const url = `/api/git/diff?path=${encodeURIComponent(currentGitRepoPath)}&file=${encodeURIComponent(filePath)}&staged=${isStaged}`;
-    const resp = await fetch(url, { headers: { 'Authorization': `Bearer ${App.token}` } });
+    const resp = await fetch(url, { headers: {} });
     if (resp.ok) {
       const data = await resp.json();
       renderGitDiffOutput(data.diff || 'No diff output.');
@@ -39993,7 +39917,7 @@ function renderGitDiffOutput(rawDiff) {
 async function runGitAction(action, body) {
   const resp = await fetch(`/api/git/${action}`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body)
   });
   const text = await resp.text();
@@ -40126,7 +40050,7 @@ async function loadGitLog(repoPath) {
 
   try {
     const resp = await fetch(`/api/git/log?path=${encodeURIComponent(repoPath)}&count=40`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const commits = await resp.json();
@@ -40153,7 +40077,7 @@ async function loadGitStatusForDocked(paneIndex, repoPath) {
   const fileList = document.getElementById('docked-git-file-list');
   try {
     const resp = await fetch(`/api/git/status?path=${encodeURIComponent(repoPath)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const data = await resp.json();
@@ -40511,7 +40435,7 @@ async function setSplitterSourceFile(filePath, sizeBytes) {
       updateSplitEstimate(0);
       try {
         const resp = await fetch(`/api/fs/stat?path=${encodeURIComponent(cleanPath)}`, {
-          headers: { 'Authorization': `Bearer ${App.token}` }
+          headers: {}
         });
         if (resp.ok) {
           const meta = await resp.json();
@@ -40608,7 +40532,7 @@ async function executeFileSplit() {
   try {
     const resp = await fetch('/api/tools/split', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         source_path: srcPath,
         chunk_size_mb: chunkMb,
@@ -40719,7 +40643,7 @@ function setCombinerParts(partsList) {
       const shaFile = pane.entries.find(e => e.name.endsWith('.sha256') && (cleanedDest.endsWith(e.name.replace('.sha256', '')) || firstPart.endsWith(e.name.replace('.sha256', ''))));
       if (shaFile) {
         fetch(`/api/fs/read?path=${encodeURIComponent(shaFile.path)}`, {
-          headers: { 'Authorization': `Bearer ${App.token}` }
+          headers: {}
         }).then(r => r.text()).then(txt => {
           const match = txt.match(/[a-fA-F0-9]{64}/);
           if (match && expSha) {
@@ -40798,7 +40722,7 @@ async function executeFileCombine() {
   try {
     const resp = await fetch('/api/tools/combine', {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         parts: combinerDetectedParts,
         dest_path: destPath,
@@ -41060,7 +40984,7 @@ function buildTreeNode(parentContainer, nodeData, depth = 0) {
       try {
         const authUrl = resolveAuthUri(nodeData.path);
         const res = await fetch(`/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=false`, {
-          headers: { 'Authorization': `Bearer ${App.token}` }
+          headers: {}
         });
 
         if (res.ok) {
@@ -41676,7 +41600,7 @@ async function fetchPdfSplitInfo(pdfPath) {
 
   try {
     const resp = await fetch(`/api/tools/pdf/info?path=${encodeURIComponent(resolveAuthUri(pdfPath))}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const info = await resp.json();
@@ -41718,7 +41642,7 @@ async function loadPdfPagesOrganizer(pdfPath) {
 
   try {
     const resp = await fetch(`/api/tools/pdf/info?path=${encodeURIComponent(resolveAuthUri(pdfPath))}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (resp.ok) {
       const info = await resp.json();
@@ -41811,7 +41735,7 @@ async function executePdfActiveTab() {
       showToast('Merging PDF documents in pure Rust...', 'info');
       const resp = await fetch('/api/tools/pdf/merge', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           sources: currentPdfMergeList.map(p => resolveAuthUri(p)),
           destination: resolveAuthUri(dest),
@@ -41844,7 +41768,7 @@ async function executePdfActiveTab() {
       showToast('Splitting PDF document...', 'info');
       const resp = await fetch('/api/tools/pdf/split', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: resolveAuthUri(source),
           destination_dir: resolveAuthUri(destDir),
@@ -41881,7 +41805,7 @@ async function executePdfActiveTab() {
       showToast('Reordering & rotating PDF pages...', 'info');
       const resp = await fetch('/api/tools/pdf/reorder', {
         method: 'POST',
-        headers: { 'Authorization': `Bearer ${App.token}`, 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           source: resolveAuthUri(source),
           destination: resolveAuthUri(dest),
@@ -42265,16 +42189,12 @@ async function pingFleetNode(nodeId) {
 
   const headers = {};
   if (isProxy) {
-    const token = App.token || localStorage.getItem('cd_token') || '';
-    if (token) headers['Authorization'] = `Bearer ${token}`;
     headers['X-Fleet-Target-Url'] = node.endpoint_url;
     if (node.auth_token && node.auth_token.trim()) {
       headers['X-Fleet-Target-Token'] = node.auth_token.trim();
     }
   } else if (node && node.auth_token && node.auth_token.trim()) {
     headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
-  } else if (nodeId === 'local' && App.token) {
-    headers['Authorization'] = `Bearer ${App.token}`;
   }
 
   const controller = new AbortController();
@@ -42865,8 +42785,6 @@ async function testFleetNodeConnection() {
   try {
     const headers = {};
     if (isProxy) {
-      const localToken = App.token || localStorage.getItem('cd_token') || '';
-      if (localToken) headers['Authorization'] = `Bearer ${localToken}`;
       headers['X-Fleet-Target-Url'] = endpoint;
       if (token) headers['X-Fleet-Target-Token'] = token;
     } else {
@@ -43207,7 +43125,7 @@ window.Brum = {
   plugins: {
     list: async function() {
       const resp = await fetch('/api/plugins', {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+        headers: {}
       });
       if (!resp.ok) throw new Error(await resp.text());
       return await resp.json();
@@ -43238,9 +43156,7 @@ window.Brum = {
   fs: {
     readFile: async function(path, opts = {}) {
       const targetPath = typeof path === 'object' ? (path.path || path.name) : path;
-      const token = App.token || localStorage.getItem('cd_token') || '';
       const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
       const url = `/api/fs/read?path=${encodeURIComponent(targetPath)}${opts.maxBytes ? `&max_bytes=${opts.maxBytes}` : ''}`;
       const resp = await fetch(url, { headers });
       if (!resp.ok) throw new Error(await resp.text());
@@ -43250,9 +43166,7 @@ window.Brum = {
 
     writeFile: async function(path, content) {
       const targetPath = typeof path === 'object' ? (path.path || path.name) : path;
-      const token = App.token || localStorage.getItem('cd_token') || '';
       const headers = { 'Content-Type': 'application/json' };
-      if (token) headers['Authorization'] = `Bearer ${token}`;
       const resp = await fetch('/api/fs/write', {
         method: 'POST',
         headers,
@@ -43267,9 +43181,7 @@ window.Brum = {
 
     listDir: async function(path) {
       const targetPath = path || (App.panes[App.activePaneIndex]?.path || App.panes[0]?.path || '/');
-      const token = App.token || localStorage.getItem('cd_token') || '';
       const headers = {};
-      if (token) headers['Authorization'] = `Bearer ${token}`;
       const resp = await fetch(`/api/fs/list?path=${encodeURIComponent(targetPath)}`, { headers });
       if (!resp.ok) throw new Error(await resp.text());
       return await resp.json();
@@ -43404,7 +43316,7 @@ function writeChewtoyStore(pluginId, data) {
 // below a short-lived signed address from the server
 async function chewtoyFrameUrl(pluginId, entry) {
   const resp = await fetch(`/api/plugins/${encodeURIComponent(pluginId)}/launch`, {
-    headers: { 'Authorization': `Bearer ${App.token || ''}` },
+    headers: {},
   });
   if (!resp.ok) throw new Error((await resp.text()) || `Could not open ${pluginId}`);
   const data = await resp.json();
@@ -43440,7 +43352,7 @@ async function chewtoyClipboardWrite(text, frameEl) {
 
 // Leaderboard requests made for a Chewtoy with the user's own login
 async function chewtoyScoresRequest(method, payload) {
-  const headers = { 'Authorization': `Bearer ${App.token || ''}` };
+  const headers = {};
   let url = '/api/tools/tetrion/scores';
   const init = { method, headers };
   if (method === 'GET') {
@@ -43657,9 +43569,7 @@ async function loadInstalledChewToys(forceRefresh = false) {
   const dropzone = document.getElementById('chewtoy-dropzone');
   const btnInstall = document.getElementById('btn-install-chewtoy');
 
-  const token = App.token || localStorage.getItem('cd_token') || '';
   const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
     const resp = await fetch('/api/plugins', { headers });
@@ -43851,9 +43761,7 @@ async function installChewToyPackage(file) {
   if (dropzone) dropzone.style.opacity = '0.5';
   showToast(`Installing ChewToy '${name}'...`, 'info');
 
-  const token = App.token || localStorage.getItem('cd_token') || '';
   const headers = { 'Content-Type': 'application/octet-stream' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
     const resp = await fetch('/api/plugins/install', {
@@ -43881,9 +43789,7 @@ async function installChewToyPackage(file) {
  * Toggle ChewToy enabled state
  */
 async function toggleChewToy(id, enabled) {
-  const token = App.token || localStorage.getItem('cd_token') || '';
   const headers = { 'Content-Type': 'application/json' };
-  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
     const resp = await fetch(`/api/plugins/${encodeURIComponent(id)}/toggle`, {
@@ -43912,7 +43818,7 @@ async function loadBundledChewToys(canInstall) {
   const list = document.getElementById('chewtoys-bundled-list');
   if (!list) return;
   try {
-    const resp = await fetch('/api/plugins/bundled', { headers: { 'Authorization': `Bearer ${App.token || ''}` } });
+    const resp = await fetch('/api/plugins/bundled', { headers: {} });
     if (!resp.ok) throw new Error(await resp.text());
     const bundled = await resp.json();
     list.innerHTML = bundled.map(b => {
@@ -43949,7 +43855,7 @@ async function installBundledChewToy(id) {
   try {
     const resp = await fetch(`/api/plugins/bundled/${encodeURIComponent(id)}/install`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${App.token || ''}` },
+      headers: {},
     });
     if (!resp.ok) throw new Error(await resp.text());
     const info = await resp.json();
@@ -43963,7 +43869,7 @@ async function installBundledChewToy(id) {
 async function downloadBundledChewToy(id, version) {
   try {
     const resp = await fetch(`/api/plugins/bundled/${encodeURIComponent(id)}/download`, {
-      headers: { 'Authorization': `Bearer ${App.token || ''}` },
+      headers: {},
     });
     if (!resp.ok) throw new Error(await resp.text());
     const url = URL.createObjectURL(await resp.blob());
@@ -43991,9 +43897,7 @@ async function uninstallChewToy(id) {
 
   if (!confirmed) return;
 
-  const token = App.token || localStorage.getItem('cd_token') || '';
   const headers = {};
-  if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
     const resp = await fetch(`/api/plugins/${encodeURIComponent(id)}`, {
@@ -45037,8 +44941,7 @@ async function executeBatchRename() {
     const res = await fetch('/api/fs/batch-rename', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ renames: renamesPayload })
     });
@@ -45077,8 +44980,7 @@ async function undoBatchRename() {
     const res = await fetch('/api/fs/batch-rename', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ renames: lastBatch })
     });
@@ -45256,7 +45158,7 @@ async function openHexEditor(filePath = null) {
     } else {
       try {
         const res = await fetch(`/api/fs/read?path=${encodeURIComponent(targetPath)}&max_bytes=2000000`, {
-          headers: { 'Authorization': `Bearer ${App.token}` }
+          headers: {}
         });
         if (res.ok) {
           const data = await res.json();
@@ -45640,8 +45542,7 @@ async function saveHexEditorChanges() {
     const res = await fetch('/api/fs/write', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         path: hexEditorState.filePath,
@@ -45885,8 +45786,7 @@ async function startDuplicateScan() {
     const res = await fetch('/api/tools/duplicates/scan', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         path: path,
@@ -46139,8 +46039,7 @@ async function executeDuplicateClean() {
     const res = await fetch('/api/tools/duplicates/clean', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         files: selected,
@@ -46405,7 +46304,7 @@ async function loadTagEditorFile(index) {
 
   try {
     const res = await fetch(`/api/tools/metadata/read?path=${encodeURIComponent(file.path)}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (res.ok) {
@@ -46552,8 +46451,7 @@ async function saveTagEditorChanges() {
     const res = await fetch('/api/tools/metadata/update', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify(payload)
     });
@@ -46594,8 +46492,7 @@ async function applyBatchTagField(fieldName) {
     const res = await fetch('/api/tools/metadata/batch', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ updates })
     });
@@ -46626,8 +46523,7 @@ async function applyBatchAutoTrackNumbers() {
     const res = await fetch('/api/tools/metadata/batch', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({ updates })
     });
@@ -46826,7 +46722,7 @@ async function fetchLogViewerTail() {
 
   try {
     const res = await fetch(url, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
 
     if (res.ok) {
@@ -48205,7 +48101,7 @@ async function loadCadModel(filePath) {
       const url = `${endpoint}/api/fs/download?path=${encodeURIComponent(filePath)}`;
 
       const res = await fetch(url, {
-        headers: { 'Authorization': `Bearer ${App.token}` }
+        headers: {}
       });
 
       if (!res.ok) {
@@ -48297,7 +48193,7 @@ async function getTrashSummary() {
     if (App.customTrashDir) query.set('custom_trash_dir', App.customTrashDir);
     const qs = query.toString() ? `?${query.toString()}` : '';
     const res = await fetch(`/api/tools/trash/summary${qs}`, {
-      headers: { 'Authorization': `Bearer ${App.token}` }
+      headers: {}
     });
     if (res.ok) return await res.json();
   } catch (err) {
@@ -48311,8 +48207,7 @@ async function openNativeRecycleBin() {
     const res = await fetch('/api/tools/trash/open-native', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       }
     });
     if (res.ok) {
@@ -48396,8 +48291,7 @@ async function restoreSelectedTrashItems(paneIndex) {
     const res = await fetch('/api/tools/trash/restore', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         items: selectedNames,
@@ -48490,8 +48384,7 @@ async function deleteSelectedTrashItems(paneIndex) {
     const res = await fetch('/api/tools/trash/delete', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         items: uniqueItems,
@@ -48534,8 +48427,7 @@ async function promptEmptyTrash(paneIndex) {
     const res = await fetch('/api/tools/trash/empty', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${App.token}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         custom_trash_dir: App.customTrashDir || undefined,
