@@ -369,6 +369,53 @@ mod tests {
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn several_sources_each_get_their_own_folder() {
+        let m = manager();
+        let tasks = Arc::new(TaskManager::new());
+        let t = tempfile::tempdir().unwrap();
+        let (docs, pics, pics2, dst) = (t.path().join("Documents"), t.path().join("Pictures"), t.path().join("old/Pictures"), t.path().join("backup"));
+        write(&docs, "report.pdf", "R", 1_700_000_000);
+        write(&pics, "a.jpg", "A", 1_700_000_000);
+        write(&pics2, "b.jpg", "B", 1_700_000_000);
+        let mut p = profile(&docs, &dst);
+        p.sources = vec![docs.to_string_lossy().into(), pics.to_string_lossy().into(), pics2.to_string_lossy().into()];
+        let p = m.save_profile(p).unwrap();
+        assert_eq!(p.source_dir, docs.to_string_lossy());
+        m.start_backup(&p.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        assert_eq!(fs::read_to_string(dst.join("Documents/report.pdf")).unwrap(), "R");
+        assert_eq!(fs::read_to_string(dst.join("Pictures/a.jpg")).unwrap(), "A");
+        assert_eq!(fs::read_to_string(dst.join("Pictures (2)/b.jpg")).unwrap(), "B");
+        let top: Vec<_> = m.browse(&p, "latest", "").unwrap().into_iter().map(|i| i.name).collect();
+        assert_eq!(top, vec!["Documents", "Pictures", "Pictures (2)"]);
+
+        // One source suddenly empty: stop instead of emptying its part of the backup
+        fs::remove_file(pics.join("a.jpg")).unwrap();
+        let run = m.start_backup(&p.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        let rec = m.get_run(&run).unwrap();
+        assert_eq!(rec.status, "failed");
+        assert!(rec.message.unwrap().contains("\"Pictures\" is empty"));
+        assert!(dst.join("Pictures/a.jpg").exists());
+
+        // Restore into the original places
+        let req: RestoreRequest = serde_json::from_value(serde_json::json!({ "target": "original" })).unwrap();
+        let pre = m.restore(&p, &req, &p.source_dir, tasks.clone()).unwrap();
+        assert!(!pre.needs_confirmation, "nothing exists there to overwrite");
+        wait_idle(&m, &p.id).await;
+        assert_eq!(fs::read_to_string(pics.join("a.jpg")).unwrap(), "A");
+        assert!(BackupManager::default_restore_folder(&p).contains("Photos (restored "));
+
+        // Several sources only for one-way backups, never nested
+        let mut two = p.clone();
+        two.profile_mode = "two_way".into();
+        assert!(m.save_profile(two).unwrap_err().contains("one folder at a time"));
+        let mut nested = p.clone();
+        nested.sources = vec![t.path().join("old").to_string_lossy().into(), pics2.to_string_lossy().into()];
+        assert!(m.save_profile(nested).unwrap_err().contains("inside the other"));
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn restore_to_a_separate_folder_and_to_the_original_with_confirmation() {
         let m = manager();
         let tasks = Arc::new(TaskManager::new());

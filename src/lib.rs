@@ -52,6 +52,11 @@ pub fn create_app_state(
     backup_mgr_arc.clone().start_scheduler(task_mgr_arc.clone());
 
     let auth_mgr_arc = Arc::new(auth_mgr);
+    {
+        // Backups to Fleet machines without a token log in as the backup's owner, like the Fleet proxy
+        let auth = auth_mgr_arc.clone();
+        backup_mgr_arc.set_login_minter(move |user: &str| auth.get_user_by_username(user).ok().flatten().and_then(|u| auth.generate_token(&u).ok()));
+    }
     let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
 
     if instance_info.is_some() {

@@ -74,10 +74,10 @@ const BRUM_ACTIONS = new Set([
   'applyBatchTagField', 'applyBorderSettings', 'applyCustomBadgePreset',
   'applyExternalProgramPreset', 'applyPaneCustomTwoTone', 'applyPaneRenameFromInput',
   'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput', 'applyPropPermPreset',
-  'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
+  'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion', 'backupAddSource',
   'backupBackFromPreview', 'backupDelete', 'backupEdit', 'backupNameTyped', 'backupNew',
   'backupPathTyped', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
-  'backupRefresh', 'backupRestoreClear', 'backupRestoreOpen', 'backupRestorePoint',
+  'backupRefresh', 'backupRemoveSource', 'backupRestoreClear', 'backupRestoreOpen', 'backupRestorePoint',
   'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle', 'backupRunBack',
   'backupRunFilter', 'backupRunFromPreview', 'backupRunMore', 'backupRunNow', 'backupSave',
   'backupSetMode', 'backupSetSchedule', 'backupShowHistory', 'backupShowList', 'backupShowRestore',
@@ -35150,6 +35150,14 @@ function bkCount(n, one, many) {
   return `${Number(n).toLocaleString()} ${n === 1 ? one : many}`;
 }
 
+// "~/Photos" instead of the full home path; the end of a path is what tells folders apart
+function bkShortPath(p) {
+  const path = String(p || '');
+  const home = typeof getUserDefaultHomeDir === 'function' ? String(getUserDefaultHomeDir() || '').replace(/\/+$/, '') : '';
+  if (home && home !== '/' && (path === home || path.startsWith(`${home}/`))) return `~${path.slice(home.length)}`;
+  return path;
+}
+
 function bkScheduleText(p) {
   if (p.schedule_type === 'interval') {
     const m = p.schedule_interval_mins;
@@ -35456,10 +35464,14 @@ function backupCardHtml(p) {
   const r = p.running;
   const pct = r && r.bytes_total ? Math.min(100, Math.round((r.bytes_done / r.bytes_total) * 100)) : (r && r.files_total ? Math.round((r.files_done / r.files_total) * 100) : 0);
   let next = '';
-  if (p.schedule_type === 'manual') next = 'Runs when you click Back up now';
+  if (p.schedule_type === 'manual') next = 'No schedule';
   else if (!p.enabled) next = `Schedule paused (${bkScheduleText(p).toLowerCase()})`;
   else if (p.next_run) next = `${bkScheduleText(p)} · next ${bkWhen(p.next_run)}`;
   const arrow = p.profile_mode === 'two_way' ? 'arrow-left-right' : 'arrow-right';
+  const sources = (p.sources && p.sources.length) ? p.sources : [p.source_dir];
+  const srcLabel = sources.length > 1
+    ? `${sources.length} folders: ${sources.map(x => String(x).replace(/\/+$/, '').split('/').pop()).join(', ')}`
+    : bkShortPath(p.source_dir);
   return `
     <div class="bk-card bk-${st.cls}">
       <div class="bk-card-top">
@@ -35474,8 +35486,8 @@ function backupCardHtml(p) {
           <button class="btn btn-icon bk-icon bk-icon-danger" data-on-click="backupDelete" data-click-args="${actionArgs(p.id)}" title="Delete this backup (the backed-up files are kept)"><i data-lucide="trash-2"></i></button>
         </div>
       </div>
-      <div class="bk-card-path" title="${escapeHtml(p.source_dir)} → ${escapeHtml(p.dest_dir)}">
-        <span>${escapeHtml(p.source_dir)}</span><i data-lucide="${arrow}"></i><span>${escapeHtml(p.dest_dir)}</span>
+      <div class="bk-card-path" title="${escapeHtml(sources.join(', '))} → ${escapeHtml(p.dest_dir)}">
+        <span class="bk-path-tail"><bdi>${escapeHtml(srcLabel)}</bdi></span><i data-lucide="${arrow}"></i><span class="bk-path-tail"><bdi>${escapeHtml(bkShortPath(p.dest_dir))}</bdi></span>
       </div>
       <div class="bk-card-status">${escapeHtml(st.text)}</div>
       ${r ? `<div class="bk-progress"><div style="width: ${pct}%;"></div></div>` : ''}
@@ -35612,9 +35624,10 @@ function backupRenderEditor() {
         <div class="bk-step-num">1</div>
         <div class="bk-step-body">
           <div class="bk-step-title" id="bk-src-title">What to back up</div>
-          <div class="bk-path-row">
-            <input type="text" id="bk-src" class="bk-input bk-mono" placeholder="/home/you/Photos" value="${escapeHtml(d.source_dir)}" data-on-input="backupPathTyped">
-            <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-src')}"><i data-lucide="folder-open"></i> Browse</button>
+          <div id="bk-src-list" class="bk-src-list">${backupSourcesHtml(d.sources && d.sources.length ? d.sources : [d.source_dir || ''])}</div>
+          <div class="bk-src-foot">
+            <button class="bk-chip-btn" id="bk-src-add" data-on-click="backupAddSource"><i data-lucide="plus"></i> Add another folder</button>
+            <span class="bk-hint" id="bk-src-multi-hint"></span>
           </div>
           ${backupPasswordRow('src', d.has_source_password)}
         </div>
@@ -35629,7 +35642,8 @@ function backupRenderEditor() {
             <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-dest')}"><i data-lucide="folder-open"></i> Browse</button>
           </div>
           ${backupPasswordRow('dest', d.has_dest_password)}
-          <div class="bk-hint">A folder on this machine, another drive, or a NAS share that is mounted here. For an SFTP server (such as a Hetzner Storage Box) type <code>sftp://user@server:port/folder</code>; for a remote set up with rclone, <code>rclone://remote/folder</code>; for another Brum in your Fleet, <code>fleet://machine/folder</code>. The folder is created if it does not exist.</div>
+          <div class="bk-hint">A folder on this machine, another drive, or a mounted NAS share. It is created if it does not exist.</div>
+          <div class="bk-hint bk-remote-examples">Remote: <code>sftp://user@server:port/folder</code> · <code>rclone://remote/folder</code> · <code>fleet://machine/folder</code></div>
           <div class="bk-chips" id="bk-rclone-remotes"></div>
         </div>
       </section>
@@ -35702,6 +35716,54 @@ function backupRenderEditor() {
   backupLoadRcloneRemotes();
 }
 
+// Rows for the folders to back up; the first keeps the id the folder picker and name suggestion use
+function backupSourcesHtml(list) {
+  const rows = list.length ? list : [''];
+  return rows.map((path, i) => `
+    <div class="bk-path-row bk-src-row">
+      <input type="text" id="${i === 0 ? 'bk-src' : `bk-src-${i}`}" class="bk-input bk-mono bk-src-input" placeholder="${i === 0 ? '/home/you/Photos' : '/home/you/Documents'}" value="${escapeHtml(path || '')}" data-on-input="backupPathTyped">
+      <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs(i === 0 ? 'bk-src' : `bk-src-${i}`)}"><i data-lucide="folder-open"></i> Browse</button>
+      ${rows.length > 1 ? `<button class="btn btn-icon bk-icon bk-icon-danger" data-on-click="backupRemoveSource" data-click-args="${actionArgs(i)}" title="Remove this folder from the backup"><i data-lucide="x"></i></button>` : ''}
+    </div>`).join('');
+}
+
+function backupSourceValues() {
+  return [...document.querySelectorAll('#bk-src-list .bk-src-input')].map(el => el.value.trim());
+}
+
+function backupRenderSources(list) {
+  const box = document.getElementById('bk-src-list');
+  if (!box) return;
+  box.innerHTML = backupSourcesHtml(list);
+  if (window.lucide) lucide.createIcons({ root: box });
+  bindActions(box);
+  backupUpdateSourceHints();
+}
+
+function backupAddSource() {
+  const list = backupSourceValues();
+  list.push('');
+  backupRenderSources(list);
+  document.getElementById(`bk-src-${list.length - 1}`)?.focus();
+}
+
+function backupRemoveSource(index) {
+  const list = backupSourceValues();
+  list.splice(index, 1);
+  backupRenderSources(list.length ? list : ['']);
+  backupPathTyped();
+}
+
+// Several folders: explain the layout, and offer it only where it works
+function backupUpdateSourceHints() {
+  const count = backupSourceValues().filter(Boolean).length;
+  const twoWay = document.querySelector('input[name="bk-mode"]:checked')?.value === 'two_way';
+  const hint = document.getElementById('bk-src-multi-hint');
+  if (hint) hint.textContent = count > 1 ? 'Each folder gets its own subfolder in the backup, named after it.' : '';
+  const add = document.getElementById('bk-src-add');
+  if (add) add.style.display = twoWay ? 'none' : '';
+}
+
 // Offers Fleet machines and the rclone remotes set up on the server as one-click destinations
 async function backupLoadRcloneRemotes() {
   const box = document.getElementById('bk-rclone-remotes');
@@ -35756,6 +35818,7 @@ function backupNameTyped() {
 
 // Suggests a name from the chosen folders until the user types one
 function backupPathTyped() {
+  backupUpdateSourceHints();
   for (const side of ['src', 'dest']) {
     const row = document.getElementById(`bk-${side}-pw-row`);
     if (row) row.style.display = BACKUP_REMOTE_RE.test(document.getElementById(`bk-${side}`)?.value.trim() || '') ? '' : 'none';
@@ -35785,6 +35848,7 @@ function backupSetMode(mode) {
   if (retention) retention.style.display = mode === 'copy' ? 'none' : '';
   const transfer = document.getElementById('bk-transfer-row');
   if (transfer) transfer.style.display = twoWay ? 'none' : '';
+  backupUpdateSourceHints();
 }
 
 function backupSetSchedule(kind) {
@@ -35812,7 +35876,8 @@ function backupCollectDraft() {
     return Number.isFinite(n) ? n : fallback;
   };
   d.name = val('bk-name').trim();
-  d.source_dir = val('bk-src').trim();
+  d.sources = backupSourceValues().filter(Boolean);
+  d.source_dir = d.sources[0] || '';
   d.dest_dir = val('bk-dest').trim();
   d.profile_mode = document.querySelector('input[name="bk-mode"]:checked')?.value || 'versions';
   const when = document.querySelector('input[name="bk-when"]:checked')?.value || 'manual';

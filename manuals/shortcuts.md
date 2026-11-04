@@ -58,7 +58,6 @@ Brum provides orthodox keyboard-driven power navigation paired with intuitive mo
 | **`Ctrl+Shift+H`** | Open Hex Editor |
 | **`Ctrl+Shift+N`** | Open Notes Studio |
 | **`Ctrl+Shift+D`** | Open Disk Usage Analyzer |
-| **`Ctrl+Shift+S`** | Open Sync & Replication Studio |
 | **`Ctrl+Shift+P`** | Open PDF Studio |
 | **`Ctrl+Shift+C`** | Open Format Converter (ConvertX) |
 

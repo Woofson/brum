@@ -98,14 +98,46 @@ Every Core Function and power tool in Brum supports dual operational modes confo
 
 ---
 
-## 10. Delta Backup & Sync Studio
-* **4 Replication Profiles**:
-  1. `synchronize`: Bidirectional 2-way sync with newer-file conflict resolution.
-  2. `echo`: 1-way mirror making destination an exact replica (prunes destination orphans).
-  3. `contribute`: Additive replication copying additions & modifications (preserves destination orphans).
-  4. `subscribe`: Historical versioning archiving changes into timestamped `_archive/` snapshot trees.
-* **In-Place Block Delta Copy**: 64KB CRC32 chunk hashing skips unmodified blocks and patches modified byte blocks in-place directly on disk.
-* **Scheduler & Webhooks**: Interval, daily (HH:MM), and continuous real-time triggers with Discord, Slack, and generic JSON webhook alerts.
+## 10. Backup & Sync
+Open it from **Tools → Backup & Sync**. It floats like other tools and can be docked into a Panel.
+
+### My backups
+The main screen lists your backups. Each card shows what is backed up and where, a plain status line ("Up to date · backed up 10 min ago", or why the last run failed), when it runs next, and **Back up now**, **Restore** and **History**. The pencil edits a backup, pause stops its schedule, and the bin removes the backup from Brum (the backed-up files are kept).
+
+### Making a backup
+1. **What to back up**: one or more folders. With several folders, each gets its own subfolder in the backup, named after it ("Pictures", "Pictures (2)" for a second folder with the same name).
+2. **Where to keep it**: a folder on this machine, another drive, or a mounted NAS share; or a remote place (see below). The folder is created if needed.
+3. **How**:
+   * **Copy**: an exact copy. Files you delete are removed from the backup too.
+   * **Copy and keep old versions** (default): an exact copy, and replaced or deleted files are kept in a hidden `.brum-versions` folder, in dated folders, for 30 days (adjustable; 0 keeps them forever).
+   * **Keep two folders the same**: changes on either side are copied to the other, deletions too. Brum remembers the last sync, so it can tell a deleted file from a new one. A file changed on both sides keeps the newer version; the other is kept as an old version.
+4. **When**: only when you click, every few minutes, every few hours, or every day at a set time. Only changes are copied, so frequent checks are cheap. If Brum was off at the planned time, the backup runs when Brum starts. A backup never runs twice at the same time.
+
+Saving a new backup shows a **preview** first ("Will copy 1,204 new files…"), with the full list, before anything is copied.
+
+**More options**: files and folders to skip (a plain name such as `node_modules` skips anything with exactly that name, `*.tmp` uses a wildcard, `Photos/Raw` counts from the top of the backup); check every copy after writing it; update only the changed parts of large files; never remove files from the backup; how long to keep old versions and logs; a web address to notify when a backup finishes or fails; and whether Brum or rsync does the copying.
+
+### Remote places
+| Place | How to write it | Notes |
+| --- | --- | --- |
+| SFTP server (e.g. Hetzner Storage Box) | `sftp://user@server:port/folder` | Logs in with a password (kept with the backup, never shown again), a key file, the SSH agent or the keys in `~/.ssh`. Host keys are checked as set in `[storage.sftp]`. |
+| rclone remote | `rclone://remote/folder` | Any remote set up with `rclone config` by the user Brum runs as (Samba, S3, cloud drives…). Logins stay in rclone's own config. The form lists your remotes. |
+| Another Brum in the Fleet | `fleet://machine/folder` | Machines from `[[fleet.nodes]]` or saved in Fleet. The receiving Brum must be this version or newer; it writes as the user its token belongs to. The form lists your Fleet machines. |
+
+Remote places are for admins and users explicitly allowed to use them. **rsync** can do the copying for Copy backups to a folder or an SSH server; it logs in with SSH keys only.
+
+### Safety
+* Files are copied under a temporary name, checked, and only then swapped in: an interrupted run never leaves half-written files in the backup.
+* If what you back up is suddenly empty or missing (for example a NAS that is not mounted) while the backup has files, the run stops with a message instead of emptying the backup. With several folders this is checked for each one.
+
+### Restore
+Choose **Latest backup** or a dated set of old versions, tick files or folders (nothing ticked restores everything), and where to put them:
+* **A new, separate folder** (default), next to the original, with the date in its name. Nothing existing is touched.
+* **Another folder** of your choice.
+* **The original folder**: Brum first says how many files would be replaced and asks you to confirm. Files that are already exactly as in the backup are skipped.
+
+### History and logs
+Every backup and restore is listed with a one-line result. Open one to see every file that was copied, updated, removed, kept as an old version, skipped or failed (with the reason), filter to **Problems only**, or **Download log** as a text file. Logs are kept for 90 days by default.
 
 ---
 

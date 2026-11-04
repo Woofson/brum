@@ -142,6 +142,10 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
         backup_mgr_arc.clone().start_scheduler(task_mgr_arc.clone());
 
         let auth_mgr_arc = Arc::new(auth_mgr);
+        {
+            let auth = auth_mgr_arc.clone();
+            backup_mgr_arc.set_login_minter(move |user: &str| auth.get_user_by_username(user).ok().flatten().and_then(|u| auth.generate_token(&u).ok()));
+        }
         let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
 
         let state = crate::server::AppState {

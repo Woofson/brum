@@ -215,6 +215,18 @@ pub fn plan(spec: &JobSpec, state: Option<&Listing>, cancel: &AtomicBool) -> Res
                 dst.len()
             ));
         }
+        // With several sources, the same check for each one
+        if !spec.never_remove {
+            for name in spec.source.part_names() {
+                let prefix = format!("{name}/");
+                let in_backup = dst.keys().filter(|k| k.starts_with(&prefix)).count();
+                if in_backup > 0 && !src.keys().any(|k| k.starts_with(&prefix)) {
+                    return Err(format!(
+                        "The folder \"{name}\" is empty, but the backup has {in_backup} files from it. Is its drive or share connected? Nothing was changed."
+                    ));
+                }
+            }
+        }
         for (rel, s) in &src {
             match dst.get(rel) {
                 None => items.push(PlanItem { path: rel.clone(), action: Action::Copy, size: s.size, note: None }),

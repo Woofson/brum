@@ -92,7 +92,7 @@ Everything below ships inside the single Brum program. Tools that rely on a prog
 | Tool | What it does |
 | :--- | :--- |
 | **Sharing** | Public links to files or folders, with optional password, expiry date and upload drop box. |
-| **Backup & Sync** | Copy or mirror folders on a schedule, sending only the changed parts of files. |
+| **Backup & Sync** | Scheduled backups of one or more folders to drives, NAS shares, SFTP, rclone remotes or other Brum machines, with old versions, preview, restore and per-file logs. |
 | **Syncthing** | See the status of Syncthing on the server and start folder rescans. |
 
 **Media & documents**

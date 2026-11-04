@@ -84,6 +84,10 @@ pub trait Store: Send + Sync {
     fn rclone_copy(&self, _src: &RcloneLocation, _dst: &RcloneLocation) -> Option<Result<(), String>> {
         None
     }
+    /// For several sources shown as one: the name of each folder at the top
+    fn part_names(&self) -> Vec<String> {
+        Vec::new()
+    }
 }
 
 /// Rejects paths that could leave the backup (`..`, absolute paths, drive letters)
@@ -453,5 +457,161 @@ mod tests {
         let written = update_changed_blocks(&a, &b, 1_700_000_000, &AtomicBool::new(false), &mut |_| true).unwrap();
         assert_eq!(written, 1024 * 1024);
         assert_eq!(fs::read(&b).unwrap(), big);
+    }
+}
+
+/// Several folders shown as one, each under its own name, for backups with more than one source.
+/// `Documents/report.pdf` is `report.pdf` in the folder named Documents.
+pub struct MultiStore {
+    parts: Vec<(String, std::sync::Arc<dyn Store>)>,
+}
+
+impl MultiStore {
+    pub fn new(parts: Vec<(String, std::sync::Arc<dyn Store>)>) -> Self {
+        Self { parts }
+    }
+
+    /// The store and the path inside it for a path in the combined view
+    fn route<'a>(&'a self, rel: &str) -> Result<(&'a dyn Store, String), String> {
+        let rel = rel.trim_matches('/');
+        let (top, rest) = rel.split_once('/').unwrap_or((rel, ""));
+        self.parts
+            .iter()
+            .find(|(name, _)| name == top)
+            .map(|(_, s)| (s.as_ref(), rest.to_string()))
+            .ok_or_else(|| format!("{rel} is not in any of the backed-up folders"))
+    }
+}
+
+/// Folder names for several sources: each folder's own name, with " (2)", " (3)" for repeats
+pub fn source_names(paths: &[String]) -> Vec<String> {
+    let mut used: Vec<String> = Vec::new();
+    paths
+        .iter()
+        .map(|p| {
+            let base = p.trim_end_matches('/').rsplit('/').next().filter(|b| !b.is_empty() && !b.contains("://")).unwrap_or("root");
+            let base = base.trim_start_matches('.');
+            let base = if base.is_empty() { "folder" } else { base };
+            let mut name = base.to_string();
+            let mut n = 2;
+            while used.iter().any(|u| u.eq_ignore_ascii_case(&name)) {
+                name = format!("{base} ({n})");
+                n += 1;
+            }
+            used.push(name.clone());
+            name
+        })
+        .collect()
+}
+
+impl Store for MultiStore {
+    fn label(&self) -> String {
+        self.parts.iter().map(|(_, s)| s.label()).collect::<Vec<_>>().join(", ")
+    }
+
+    fn root_exists(&self) -> bool {
+        self.parts.iter().all(|(_, s)| s.root_exists())
+    }
+
+    fn ensure_root(&self) -> Result<(), String> {
+        self.parts.iter().try_for_each(|(_, s)| s.ensure_root())
+    }
+
+    fn list(&self, base: &str, skip: &dyn Fn(&str, bool) -> bool, cancel: &AtomicBool, warnings: &mut Vec<String>) -> Result<Listing, String> {
+        if !base.trim_matches('/').is_empty() {
+            let (store, inner) = self.route(base)?;
+            return store.list(&inner, skip, cancel, warnings);
+        }
+        let mut out = Listing::new();
+        for (name, store) in &self.parts {
+            if skip(name, true) {
+                continue;
+            }
+            let prefixed_skip = |rel: &str, is_dir: bool| skip(&join_rel(name, rel), is_dir);
+            for (rel, meta) in store.list("", &prefixed_skip, cancel, warnings)? {
+                out.insert(join_rel(name, &rel), meta);
+            }
+        }
+        Ok(out)
+    }
+
+    fn list_dir(&self, rel: &str) -> Result<Vec<DirItem>, String> {
+        if rel.trim_matches('/').is_empty() {
+            return Ok(self.parts.iter().map(|(name, _)| DirItem { name: name.clone(), is_dir: true, size: 0, mtime: 0 }).collect());
+        }
+        let (store, inner) = self.route(rel)?;
+        store.list_dir(&inner)
+    }
+
+    fn stat(&self, rel: &str) -> Option<FileMeta> {
+        let (store, inner) = self.route(rel).ok()?;
+        if inner.is_empty() {
+            return None;
+        }
+        store.stat(&inner)
+    }
+
+    fn is_dir(&self, rel: &str) -> bool {
+        if rel.trim_matches('/').is_empty() {
+            return true;
+        }
+        self.route(rel).map(|(store, inner)| inner.is_empty() || store.is_dir(&inner)).unwrap_or(false)
+    }
+
+    fn open_read(&self, rel: &str) -> Result<Box<dyn Read + Send>, String> {
+        let (store, inner) = self.route(rel)?;
+        store.open_read(&inner)
+    }
+
+    fn write_part(&self, rel: &str, data: &mut dyn Read, mtime: i64, on_bytes: &mut dyn FnMut(u64) -> bool) -> Result<String, String> {
+        let (store, inner) = self.route(rel)?;
+        let top = rel.trim_matches('/').split('/').next().unwrap_or_default().to_string();
+        store.write_part(&inner, data, mtime, on_bytes).map(|p| join_rel(&top, &p))
+    }
+
+    fn rename(&self, from: &str, to: &str) -> Result<(), String> {
+        let (a, from_inner) = self.route(from)?;
+        let (b, to_inner) = self.route(to)?;
+        if !std::ptr::eq(a as *const dyn Store as *const u8, b as *const dyn Store as *const u8) {
+            return Err("Cannot move a file between two backed-up folders".into());
+        }
+        a.rename(&from_inner, &to_inner)
+    }
+
+    fn remove_file(&self, rel: &str) -> Result<(), String> {
+        let (store, inner) = self.route(rel)?;
+        store.remove_file(&inner)
+    }
+
+    fn remove_dir_all(&self, rel: &str) -> Result<(), String> {
+        let (store, inner) = self.route(rel)?;
+        if inner.is_empty() {
+            return Err("A backed-up folder itself is never removed".into());
+        }
+        store.remove_dir_all(&inner)
+    }
+
+    fn remove_empty_parents(&self, rel: &str) {
+        if let Ok((store, inner)) = self.route(rel) {
+            store.remove_empty_parents(&inner);
+        }
+    }
+
+    fn local_path(&self, rel: &str) -> Option<PathBuf> {
+        let (store, inner) = self.route(rel).ok()?;
+        store.local_path(&inner)
+    }
+
+    fn rclone_location(&self, rel: &str) -> Option<RcloneLocation> {
+        let (store, inner) = self.route(rel).ok()?;
+        store.rclone_location(&inner)
+    }
+
+    fn rclone_copy(&self, src: &RcloneLocation, dst: &RcloneLocation) -> Option<Result<(), String>> {
+        self.parts.iter().find_map(|(_, s)| s.rclone_copy(src, dst))
+    }
+
+    fn part_names(&self) -> Vec<String> {
+        self.parts.iter().map(|(n, _)| n.clone()).collect()
     }
 }

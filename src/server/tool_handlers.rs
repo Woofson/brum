@@ -853,7 +853,12 @@ fn owned_profile(state: &AppState, headers: &HeaderMap, id: &str) -> Result<Back
 /// Checks both folders against the user's access and stores them as full paths
 fn resolve_profile_paths(state: &AppState, headers: &HeaderMap, p: &mut BackupProfile) -> Result<(), ApiError> {
     let two_way = p.mode() == crate::tools::sync::engine::Mode::TwoWay;
-    p.source_dir = validate_path_access(state, headers, p.source_dir.trim(), two_way)?;
+    let mut checked = Vec::new();
+    for src in p.all_sources() {
+        checked.push(validate_path_access(state, headers, src.trim(), two_way)?);
+    }
+    p.sources = checked;
+    p.source_dir = p.sources.first().cloned().unwrap_or_default();
     p.dest_dir = validate_path_access(state, headers, p.dest_dir.trim(), true)?;
     if p.source_dir.to_lowercase().starts_with("fleet://") {
         return Err(bad_request("A Fleet machine can only be where backups are kept, not what is backed up".into()));
@@ -870,12 +875,18 @@ fn resolve_profile_paths(state: &AppState, headers: &HeaderMap, p: &mut BackupPr
 fn resolve_fleet_destination(state: &AppState, headers: &HeaderMap, p: &mut BackupProfile) -> Result<(), ApiError> {
     let (node_id, _) = crate::tools::sync::fleet_store::parse(&p.dest_dir).map_err(bad_request)?;
     let claims = extract_claims_or_local(state, headers)?;
-    let found = state.config.fleet.nodes.iter().find(|n| n.id == node_id).map(|n| (n.url.clone(), n.token.clone())).or_else(|| {
+    // The user's own saved Fleet machines (address and token), as the browser keeps them
+    let saved: Option<(String, Option<String>)> = (|| {
         let prefs = state.auth.get_user_preferences(&claims.sub).ok().flatten()?;
         let v: serde_json::Value = serde_json::from_str(&prefs).ok()?;
         let node = v.get("fleet_nodes")?.as_array()?.iter().find(|n| n.get("id").and_then(|i| i.as_str()) == Some(node_id.as_str()))?;
-        Some((node.get("endpoint_url")?.as_str()?.to_string(), node.get("auth_token").and_then(|t| t.as_str()).map(String::from)))
-    });
+        Some((node.get("endpoint_url")?.as_str()?.to_string(), node.get("auth_token").and_then(|t| t.as_str()).map(String::from).filter(|t| !t.trim().is_empty())))
+    })();
+    let found = match state.config.fleet.nodes.iter().find(|n| n.id == node_id) {
+        // A machine from the settings file without a token can still have one saved by the user
+        Some(n) => Some((n.url.clone(), n.token.clone().filter(|t| !t.trim().is_empty()).or_else(|| saved.as_ref().and_then(|s| s.1.clone())))),
+        None => saved,
+    };
     let (url, token) = found.ok_or_else(|| bad_request(format!("Fleet machine '{node_id}' is not known. Add it in Fleet first.")))?;
     let url = url.trim().trim_end_matches('/').to_string();
     match crate::server::middleware::extract_remote_scheme_host(&url) {
@@ -1106,6 +1117,12 @@ pub async fn handle_backup_restore(
         _ => BackupManager::default_restore_folder(&p),
     };
     let target = validate_path_access(&state, &headers, wanted.trim(), true)?;
+    if req.target == "original" {
+        // Several sources are restored into each of their own folders
+        for src in p.all_sources() {
+            validate_path_access(&state, &headers, src.trim(), true)?;
+        }
+    }
     let mgr = state.backup.clone();
     let tasks = state.tasks.clone();
     // Listing a large backup can take a while; keep it off the request threads
