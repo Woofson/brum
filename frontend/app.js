@@ -68,7 +68,7 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
-  'downloadBundledChewToy', 'installBundledChewToy', 'setNotesManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
+  'retryPaneNode', 'returnPaneToLocalHost', 'downloadBundledChewToy', 'installBundledChewToy', 'setNotesManualsShown', 'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomExclusionPattern', 'addCustomFileIconRule', 'addDirectoryToMediaPlaylist',
   'addModalTagFromInput', 'addNewBookmark', 'addPropCustomTag', 'addTracksToMediaPlaylist',
   'alignDiffPaths', 'analyzeSync', 'appendBpExclusion', 'applyBatchAutoTrackNumbers',
@@ -5044,8 +5044,14 @@ async function switchPaneNode(paneIndex, nodeId, targetPath = null) {
   const pane = App.panes && App.panes[paneIndex];
   if (!pane) return;
 
+  const previousNode = pane.nodeId || 'local';
   pane.nodeId = nodeId || 'local';
   localStorage.setItem(`cd_pane_node_${paneIndex}`, pane.nodeId);
+  if (previousNode !== pane.nodeId) {
+    // The folder shown now belongs to the machine we are leaving
+    pane._pathNodeId = previousNode;
+    clearPaneUnreachable(paneIndex);
+  }
 
   updatePaneNodeBadge(paneIndex);
 
@@ -6009,13 +6015,128 @@ function computeJsLineDiff(textL, textR) {
   };
 }
 
+// ---------------- UNREACHABLE FLEET NODE ----------------
+
+/** True when the Fleet gateway (or the node itself) could not be reached at all */
+function isFleetUnreachableResponse(status, text) {
+  if (status === 502 || status === 503 || status === 504) return true;
+  return typeof text === 'string' && text.includes('Failed to reach remote fleet node');
+}
+
+/** Shows "Can't reach <node>" in the pane, with Try again and Back to Local Host */
+function showPaneUnreachable(paneIndex, reason) {
+  const pane = App.panes[paneIndex];
+  if (!pane) return;
+  const node = getPaneNode(paneIndex);
+  const wasUnreachable = !!pane.unreachable;
+  pane.unreachable = { reason: String(reason || '').slice(0, 300) };
+  pane.entries = [];
+  pane.parentPath = null;
+  pane.totalSize = 0;
+  pane.selected.clear();
+  try {
+    renderPaneBreadcrumbs(paneIndex, pane.path);
+    renderPaneTabs(paneIndex);
+    if (!pane.dockedTool) renderPaneTable(paneIndex);
+  } catch (_) {}
+  drawPaneUnreachable(paneIndex);
+
+  if (node && node.id !== 'local') {
+    node.status = 'offline';
+    node.latency_ms = null;
+    updatePaneNodeBadge(paneIndex);
+    if (!wasUnreachable && typeof pingFleetNode === 'function') {
+      Promise.resolve(pingFleetNode(node.id)).then(() => updatePaneNodeBadge(paneIndex)).catch(() => {});
+    }
+  }
+}
+
+/** Draws the message box; safe to call again after the pane has been redrawn */
+function drawPaneUnreachable(paneIndex) {
+  const pane = App.panes[paneIndex];
+  if (!pane || !pane.unreachable) return;
+  const node = getPaneNode(paneIndex);
+  const nodeName = (node && node.name) || 'this node';
+  const mainEl = document.getElementById(`pane-main-${paneIndex}`);
+  if (mainEl) {
+    let box = document.getElementById(`pane-unreachable-${paneIndex}`);
+    if (!box) {
+      box = document.createElement('div');
+      box.className = 'pane-unreachable';
+      box.id = `pane-unreachable-${paneIndex}`;
+      mainEl.appendChild(box);
+    }
+    box.classList.remove('retrying');
+    box.innerHTML = `
+      <div class="pane-unreachable-card" role="alert">
+        <i data-lucide="wifi-off" class="pane-unreachable-icon"></i>
+        <div class="pane-unreachable-title">Can't reach "${escapeHtml(nodeName)}"</div>
+        <div class="pane-unreachable-path">${escapeHtml(pane.path || '')}</div>
+        <div class="pane-unreachable-reason" title="${escapeHtml(pane.unreachable.reason || '')}">${escapeHtml(friendlyUnreachableReason(pane.unreachable.reason, node))}</div>
+        <div class="pane-unreachable-actions">
+          <button type="button" class="btn btn-accent" data-on-click="retryPaneNode" data-click-args="${actionArgs((paneIndex))}">
+            <i data-lucide="rotate-cw"></i><span>Try again</span>
+          </button>
+          <button type="button" class="btn" data-on-click="returnPaneToLocalHost" data-click-args="${actionArgs((paneIndex))}">
+            <i data-lucide="house"></i><span>Back to Local Host</span>
+          </button>
+        </div>
+      </div>`;
+    bindActions(box);
+    if (window.lucide) lucide.createIcons();
+  }
+}
+
+/** Short, readable reason; the full technical text stays in the tooltip */
+function friendlyUnreachableReason(reason, node) {
+  const text = String(reason || '').toLowerCase();
+  const where = (node && node.endpoint_url) ? node.endpoint_url.trim() : 'its address';
+  if (text.includes('timed out') || text.includes('timeout')) return `No answer from ${where} in time.`;
+  if (text.includes('dns') || text.includes('resolve') || text.includes('lookup')) return `The address ${where} could not be found.`;
+  return `No answer from ${where}. Is Brum running there, and is the address right?`;
+}
+
+function clearPaneUnreachable(paneIndex) {
+  const pane = App.panes && App.panes[paneIndex];
+  if (pane) pane.unreachable = null;
+  const box = document.getElementById(`pane-unreachable-${paneIndex}`);
+  if (box) box.remove();
+}
+
+/** Try again button: asks the node for the same folder once more */
+function retryPaneNode(paneIndex) {
+  const pane = App.panes[paneIndex];
+  if (!pane) return;
+  const box = document.getElementById(`pane-unreachable-${paneIndex}`);
+  if (box) box.classList.add('retrying');
+  pane.unreachable = null;
+  const node = getPaneNode(paneIndex);
+  if (node && node.id !== 'local' && typeof pingFleetNode === 'function') {
+    Promise.resolve(pingFleetNode(node.id)).then(() => updatePaneNodeBadge(paneIndex)).catch(() => {});
+  }
+  loadPaneDirectory(paneIndex, pane.path, false);
+}
+
+function returnPaneToLocalHost(paneIndex) {
+  switchPaneNode(paneIndex, 'local');
+}
+
 async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, selectItemName = null, retainBranch = false, isSyncNav = false, backgroundRevalidate = false) {
   const pane = App.panes[paneIndex];
   if (!pane) return;
+  // A node that could not be reached is only asked again when the user says so
+  if (backgroundRevalidate && pane.unreachable) {
+    // The pane may have just been redrawn: put the address bar and message back
+    try { renderPaneBreadcrumbs(paneIndex, pane.path); } catch (_) {}
+    drawPaneUnreachable(paneIndex);
+    return;
+  }
 
   extractAndStoreCredentials(targetPath);
 
   const prevPath = pane.path;
+  // Only go back to the previous folder if it is on the machine this pane now shows
+  const prevPathOnThisNode = (pane._pathNodeId || pane.nodeId || 'local') === (pane.nodeId || 'local');
 
   if (typeof targetPath === 'string' && targetPath.startsWith('client://')) {
     return loadClientLocalDirectory(paneIndex, targetPath, pushHistory, selectItemName, retainBranch, isSyncNav);
@@ -6110,9 +6231,15 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     if (!resp.ok) {
       const errText = sanitizeCredentials(await resp.text());
       console.warn(`Failed to load ${cleanPath}:`, errText);
-      pane.path = prevPath;
-      if (prevPath) {
-        localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
+      if (!isLocal && isFleetUnreachableResponse(resp.status, errText)) {
+        showPaneUnreachable(paneIndex, errText);
+        return;
+      }
+      if (prevPathOnThisNode) {
+        pane.path = prevPath;
+        if (prevPath) {
+          localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
+        }
       }
 
       if ((cleanPath.startsWith('sftp://') || cleanPath.startsWith('ssh://') || cleanPath.startsWith('smb://') || cleanPath.startsWith('\\\\') || cleanPath.startsWith('//')) && (resp.status === 401 || resp.status === 403 || errText.toLowerCase().includes('authentication failed') || errText.toLowerCase().includes('verify password') || errText.toLowerCase().includes('access is denied') || errText.toLowerCase().includes('logon failure'))) {
@@ -6193,6 +6320,8 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     }
 
     pane.path = newPath;
+    pane._pathNodeId = pane.nodeId || 'local';
+    if (pane.unreachable) clearPaneUnreachable(paneIndex);
     pane.parentPath = newParent;
     pane.entries = newEntries;
     pane.totalSize = newTotalSize;
@@ -6253,8 +6382,15 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
       return;
     }
     console.error('Directory load error:', e);
-    pane.path = prevPath;
-    if (prevPath) localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
+    if (!isLocal && e instanceof TypeError) {
+      // Direct connection to the node failed (no answer, refused, or blocked)
+      showPaneUnreachable(paneIndex, e.message);
+      return;
+    }
+    if (prevPathOnThisNode) {
+      pane.path = prevPath;
+      if (prevPath) localStorage.setItem(`cd_pane_path_${paneIndex}`, prevPath);
+    }
     if (!isSyncNav && !backgroundRevalidate) {
       showToast(`Directory load error: ${e.message}`, 'error');
     }
