@@ -186,6 +186,7 @@ pub fn create_router(state: AppState) -> Router {
         // Tools, Comparison & Tasks
         .route("/api/tools/diff/files", post(handle_diff_files))
         .route("/api/tools/diff/folders", post(handle_diff_folders))
+        .route("/api/tools/diff/estimate", post(handle_diff_estimate))
         .route("/api/tools/diff/checksum", post(handle_diff_checksum))
         .route("/api/tools/convert", post(handle_convert_file))
         .route("/api/tools/paranoid/dry-run", post(handle_paranoid_dry_run))

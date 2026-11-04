@@ -74,32 +74,34 @@ const BRUM_ACTIONS = new Set([
   'applyBatchTagField', 'applyBorderSettings', 'applyCustomBadgePreset',
   'applyExternalProgramPreset', 'applyPaneCustomTwoTone', 'applyPaneRenameFromInput',
   'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput', 'applyPropPermPreset',
-  'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion', 'backupAddSource',
-  'backupBackFromPreview', 'backupDelete', 'backupEdit', 'backupNameTyped', 'backupNew',
-  'backupPathTyped', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
-  'backupRefresh', 'backupRemoveSource', 'backupRestoreClear', 'backupRestoreOpen', 'backupRestorePoint',
-  'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle', 'backupRunBack',
-  'backupRunFilter', 'backupRunFromPreview', 'backupRunMore', 'backupRunNow', 'backupSave',
-  'backupSetMode', 'backupSetSchedule', 'backupShowHistory', 'backupShowList', 'backupShowRestore',
-  'backupShowRun', 'backupStop', 'backupTogglePause', 'backupUseFleetNode', 'backupUseRcloneRemote', 'blurElement', 'bringFloatingWindowToFront',
-  'browseNotesFolder', 'calculateAllChecksums', 'calculatePropertiesChecksums',
-  'calculateRowChecksum', 'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup',
-  'changeDocPdfZoom', 'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines',
-  'clearAdminImageCache', 'clearAllCustomFileIcons', 'clearCapturedKeybind', 'clearCombineParts',
-  'clearCompletedTasks', 'clearConverterSourceFile', 'clearDiffSearch', 'clearMediaPlaylist',
-  'clearPaneFilter', 'clearPdfMergeList', 'clearPropCustomIcon', 'clearSpotlightInput',
-  'clearTerminal', 'clickElementById', 'cloneDirectoryToOppositePane', 'closeAppDialog',
-  'closeBackupWindow', 'closeBreadcrumbPopovers', 'closeConverterModal', 'closeDockedEditorTab',
-  'closeDockedTool', 'closeDocViewerModal', 'closeDynamicChewToy', 'closeEditorActionsDropdown',
-  'closeEditorModal', 'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio',
-  'closeFloatingDiff', 'closeFloatingDiskUsage', 'closeFloatingDuplicateFinder',
-  'closeFloatingHexEditor', 'closeFloatingLogViewer', 'closeFloatingNotes', 'closeFloatingPdf',
-  'closeFloatingRenamer', 'closeFloatingShares', 'closeFloatingSplitter', 'closeFloatingTagEditor',
+  'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
+  'backupAddSource', 'backupBackFromPreview', 'backupDelete', 'backupEdit', 'backupNameTyped',
+  'backupNew', 'backupPathTyped', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
+  'backupRefresh', 'backupRemoveSource', 'backupRestoreClear', 'backupRestoreOpen',
+  'backupRestorePoint', 'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle',
+  'backupRunBack', 'backupRunFilter', 'backupRunFromPreview', 'backupRunMore', 'backupRunNow',
+  'backupSave', 'backupSetMode', 'backupSetSchedule', 'backupShowHistory', 'backupShowList',
+  'backupShowRestore', 'backupShowRun', 'backupStop', 'backupTogglePause', 'backupUseFleetNode',
+  'backupUseRcloneRemote', 'blurElement', 'bringFloatingWindowToFront', 'browseNotesFolder',
+  'calculateAllChecksums', 'calculatePropertiesChecksums', 'calculateRowChecksum',
+  'cancelBranchScan', 'cancelTask', 'captureCurrentPathsForCustomStartup', 'changeDocPdfZoom',
+  'changeGlobalIconTheme', 'changeMediaVolume', 'changeTailLines', 'clearAdminImageCache',
+  'clearAllCustomFileIcons', 'clearCapturedKeybind', 'clearCombineParts', 'clearCompletedTasks',
+  'clearConverterSourceFile', 'clearDiffSearch', 'clearMediaPlaylist', 'clearPaneFilter',
+  'clearPdfMergeList', 'clearPropCustomIcon', 'clearSpotlightInput', 'clearTerminal',
+  'clickElementById', 'cloneDirectoryToOppositePane', 'closeAppDialog', 'closeBackupWindow',
+  'closeBreadcrumbPopovers', 'closeConverterModal', 'closeDockedEditorTab', 'closeDockedTool',
+  'closeDocViewerModal', 'closeDynamicChewToy', 'closeEditorActionsDropdown', 'closeEditorModal',
+  'closeEditorTab', 'closeEditorTabOnMiddleClick', 'closeFloatingCadStudio', 'closeFloatingDiff',
+  'closeFloatingDiskUsage', 'closeFloatingDuplicateFinder', 'closeFloatingHexEditor',
+  'closeFloatingLogViewer', 'closeFloatingNotes', 'closeFloatingPdf', 'closeFloatingRenamer',
+  'closeFloatingShares', 'closeFloatingSplitter', 'closeFloatingTagEditor',
   'closeFloatingTaskManager', 'closeImgTransformDropdown', 'closeKeyRecordModal',
   'closeMediaPlayer', 'closeModal', 'closeNotesDrawer', 'closeOtherTabs', 'closePaneTab',
-  'closePaneTabOnMiddleClick', 'closeSpotlightModal', 'closeTabsToTheRight',
-  'confirmSyncFolderSelection', 'connectRemoteToActivePane', 'convertCurrentMediaToMp4',
-  'copyActionOutput', 'copyAndUseTokenInFleetForm', 'copyDiffItem', 'copyGeneratedApiToken',
+  'closePaneTabOnMiddleClick', 'closeSpotlightModal', 'closeTabsToTheRight', 'compareRunFiles',
+  'compareRunFolders', 'compareSetMode', 'compareSetSubfolders', 'compareStop', 'confirmSyncFolderSelection',
+  'connectRemoteToActivePane', 'convertCurrentMediaToMp4', 'copyActionOutput',
+  'copyAndUseTokenInFleetForm', 'copyDiffItem', 'copyGeneratedApiToken',
   'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTaskLogs',
   'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag', 'createNewDockedEditorTab',
   'createNewEditorTab', 'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio',
@@ -236,8 +238,8 @@ const BRUM_ACTIONS = new Set([
   'setDiffSortBy', 'setDiskUsageViewMode', 'setDuplicateFinderPathToActivePane', 'setElementText',
   'setElementValue', 'setFileDiffMode', 'setFontSizePreset', 'setLogLevelFilter',
   'setMediaSubtitleTrack', 'setNotesManualsShown', 'setNotesStorageMode', 'setNotesViewMode',
-  'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setRegionSetting', 'setPropFileColor',
-  'setTaskVerbosity', 'setTitleTemplatePreset', 'showAddCustomActionPrompt',
+  'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setPropFileColor',
+  'setRegionSetting', 'setTaskVerbosity', 'setTitleTemplatePreset', 'showAddCustomActionPrompt',
   'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf', 'showToast',
   'showTouchActionsMenu', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane',
   'startDuplicateScan', 'styleCheckboxPill', 'submitAddUser', 'submitCreateApiToken',
@@ -295,7 +297,8 @@ const BRUM_ACTIONS = new Set([
   'updatePhoneTabletMaxPanes', 'updatePropPermFromCheckboxes', 'updateRemoteProtoUI',
   'updateRenamerPreview', 'updateSplitEstimate', 'updateTemplateLivePreview',
   'useActivePaneItemForConverter', 'useActivePaneItemForSplitter', 'useActivePaneSelectedPdf',
-  'useFallbackIcon', 'writeClipboardText', 'zoomBookPage', 'zoomImage',
+  'useCurrentPanelsForCompare', 'useFallbackIcon', 'useSelectedFilesForCompare',
+  'writeClipboardText', 'zoomBookPage', 'zoomImage',
 ]);
 
 // Markers are objects, so no saved text (a path, a command) can be mistaken for one
@@ -978,7 +981,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'splitter', label: 'File Splitter & Combiner', icon: 'scissors', iconColor: 'var(--accent)', action: 'openFileSplitterModal', desc: 'Multi-part chunk splitter and checksum verifier/joiner', visible: true },
   { id: 'terminal', label: 'Terminal', icon: 'assets/term.webp', action: 'toggleTerminal', desc: 'Interactive slide-up & floating PTY shell (`)', visible: true },
   { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
-  { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff', desc: 'Visual side-by-side file and folder diff (F9)', visible: true },
+  { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff', desc: 'Compare two folders or two files, or find duplicates (F9)', visible: true },
   { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
   { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager', desc: 'Manage public share links and guest dropboxes', visible: true },
   { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal', desc: 'Back up folders, keep old versions, restore files', visible: true },
@@ -987,7 +990,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'converter', label: 'Format Converter', icon: 'assets/convertx.webp', action: 'openConverterModal', desc: 'Batch file format conversions for media & docs', visible: true },
   { id: 'pdf', label: 'PDF Studio', icon: 'assets/amber-pdftool.webp', action: 'openPdfToolModal', desc: 'Merge, split, extract pages & inspect PDFs', visible: true },
   { id: 'cad', label: '3D CAD Studio', icon: 'box', iconColor: 'var(--accent)', action: 'openCadStudio', desc: '3D model viewer (STL, OBJ, PLY, DXF; STEP/IGES as outline)', visible: true },
-  { id: 'duplicates', label: 'Duplicate Finder', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder', desc: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', visible: true },
+  { id: 'duplicates', label: 'Find Duplicates', icon: 'copy-check', iconColor: 'var(--accent)', action: 'openDuplicateFinder', desc: 'Find identical files and clean them up (part of Compare)', visible: true },
   { id: 'tageditor', label: 'Tag Editor', icon: 'tag', iconColor: 'var(--accent)', action: 'openTagEditor', desc: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', visible: true },
   { id: 'logviewer', label: 'Log Viewer', icon: 'scroll-text', iconColor: 'var(--accent)', action: 'openLogViewer', desc: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', visible: true },
   { id: 'mediaplayer', label: 'Media Player', icon: 'assets/media.webp', action: 'openMediaPlayer', desc: 'Universal audio, video, chiptune & tracker player with playlists and subtitles', visible: true },
@@ -4519,7 +4522,7 @@ function createPaneElement(pane, index) {
         'git': '<img src="assets/amber-git.webp" alt="Git" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" data-on-error="useFallbackIcon" data-error-args="[{&quot;$&quot;:&quot;el&quot;}]"> Git Manager',
         'tasks': '<img src="assets/task.webp" alt="Tasks" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Transfers & Queue',
         'mediaplayer': '<img src="assets/media.webp" alt="Media Player" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Media Player',
-        'duplicates': '<i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Duplicate Finder',
+        'duplicates': '<img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare',
         'splitter': '<i data-lucide="scissors" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> File Splitter & Combiner',
         'pdf': '<img src="assets/amber-pdftool.webp" alt="PDF Studio" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;" data-on-error="useFallbackIcon" data-error-args="[{&quot;$&quot;:&quot;el&quot;}]"> PDF Studio',
         'tageditor': '<i data-lucide="tag" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> Tag Editor',
@@ -4528,8 +4531,8 @@ function createPaneElement(pane, index) {
         'shares': '<img src="assets/sharemgr.webp" alt="Sharing Center" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Sharing Center',
         'diskusage': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
         'du': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
-        'diff': '<img src="assets/diff.webp" alt="Compare & Diff" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare & Diff',
-        'compare': '<img src="assets/diff.webp" alt="Compare & Diff" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare & Diff',
+        'diff': '<img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare',
+        'compare': '<img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare',
         'backup': '<img src="assets/sync.webp" alt="Backup & Sync" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup &amp; Sync'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
@@ -17624,20 +17627,314 @@ function initDiffDragResize() {
   setupResizeHandle('diff-resize-corner', 'bottom-right');
 }
 
+// ---------------- COMPARE (two folders, two files, duplicates) ----------------
+// Drawing more rows than this makes the page freeze; filters and search narrow the list instead
+const COMPARE_MAX_ROWS = 500;
+// One reusable name comparer: about 15 times faster than comparing names one call at a time
+const compareNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const compareState = { mode: 'folders', left: '', right: '', fileLeft: '', fileRight: '', subfolders: true };
+
+// The window's contents move between the floating window and a Panel; Panels are redrawn from scratch
+function compareBody() {
+  if (!compareState.bodyEl) compareState.bodyEl = document.getElementById('compare-body');
+  return compareState.bodyEl;
+}
+
+function isCompareDocked() {
+  return App.panes.some(p => p && ['diff', 'compare', 'duplicates'].includes(p.dockedTool));
+}
+
 function openFloatingDiff() {
+  if (isCompareDocked()) {
+    compareSetMode(compareState.mode);
+    return;
+  }
   const win = document.getElementById('floating-diff-window');
   const pill = document.getElementById('diff-pill');
   if (pill) pill.style.display = 'none';
   if (!win) return;
-
+  const body = compareBody();
+  if (body && !win.contains(body)) win.appendChild(body);
   win.style.display = 'flex';
   bringFloatingWindowToFront(win);
   initDiffDragResize();
   if (window.lucide) lucide.createIcons({ root: win });
-  const body = document.getElementById('diff-modal-body');
-  if (body && !body.hasChildNodes() && currentFolderDiffData) {
-    renderFolderDiff(currentFolderDiffData, currentDiffFilter, body);
+  bindActions(win);
+  compareSetMode(compareState.mode);
+}
+
+// Opens Compare in one of its modes: 'folders', 'files' or 'duplicates'
+function openCompare(mode) {
+  if (mode) compareState.mode = mode;
+  const toolsMenu = document.getElementById('tools-dropdown-menu');
+  if (toolsMenu) toolsMenu.classList.remove('active');
+  openFloatingDiff();
+}
+
+function compareSetMode(mode) {
+  compareState.mode = ['folders', 'files', 'duplicates'].includes(mode) ? mode : 'folders';
+  const body = compareBody();
+  if (!body) return;
+  body.querySelectorAll('.compare-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === compareState.mode));
+  const diffBody = document.getElementById('diff-modal-body');
+  const dupBody = document.getElementById('duplicates-body');
+  const isDup = compareState.mode === 'duplicates';
+  if (diffBody) diffBody.style.display = isDup ? 'none' : 'flex';
+  if (dupBody) dupBody.style.display = isDup ? 'flex' : 'none';
+  const viewModes = document.getElementById('diff-view-modes');
+  const subtitle = document.getElementById('diff-header-subtitle');
+  if (isDup) {
+    if (viewModes) viewModes.style.display = 'none';
+    if (subtitle) subtitle.textContent = 'Duplicates';
+    const input = document.getElementById('dup-path-input');
+    if (input && !input.value) input.value = App.panes[App.activePaneIndex]?.path || '';
+    if (typeof setupDuplicateFinderUi === 'function') setupDuplicateFinderUi();
+    return;
   }
+  if (compareState.mode === 'files') {
+    if (currentFileDiffLeft && currentFileDiffRight && compareState.fileLeft === currentFileDiffLeft && diffBody && diffBody.dataset.view === 'file') return;
+    renderFilesSetup();
+    return;
+  }
+  if (viewModes) viewModes.style.display = 'none';
+  if (currentFolderDiffData && diffBody && diffBody.dataset.view === 'folders') return;
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+  else renderFolderSetup();
+}
+
+function compareDefaultsFromPanes() {
+  const a = App.panes[0];
+  const b = App.panes[1] || App.panes[0];
+  if (!compareState.left) compareState.left = a?.path || '';
+  if (!compareState.right) compareState.right = b?.path || '';
+}
+
+// The folder pickers and options shared by the start screen and the results
+function compareFolderBarHtml() {
+  return `
+    <div class="cmp-bar">
+      <div class="cmp-paths">
+        <div class="cmp-path"><span class="cmp-side cmp-left">Left</span><input type="text" id="cmp-left" class="bk-input bk-mono" value="${escapeHtml(compareState.left)}" placeholder="/folder/on/the/left" data-keydown-key="Enter" data-on-keydown="compareRunFolders"><button class="btn btn-sm bk-btn" data-on-click="openSyncFolderPicker" data-click-args="${actionArgs('cmp-left')}" title="Choose a folder"><i data-lucide="folder-open"></i></button></div>
+        <button class="btn btn-icon bk-icon" data-on-click="swapDiffPaths" title="Swap left and right"><i data-lucide="arrow-left-right"></i></button>
+        <div class="cmp-path"><span class="cmp-side cmp-right">Right</span><input type="text" id="cmp-right" class="bk-input bk-mono" value="${escapeHtml(compareState.right)}" placeholder="/folder/on/the/right" data-keydown-key="Enter" data-on-keydown="compareRunFolders"><button class="btn btn-sm bk-btn" data-on-click="openSyncFolderPicker" data-click-args="${actionArgs('cmp-right')}" title="Choose a folder"><i data-lucide="folder-open"></i></button></div>
+      </div>
+      <div class="cmp-options">
+        <label class="bk-check"><input type="checkbox" id="cmp-subfolders" ${compareState.subfolders ? 'checked' : ''} data-on-change="compareSetSubfolders" data-change-args="${actionArgs(ACTION_CHECKED)}"> Include subfolders</label>
+        <button class="btn btn-sm bk-btn" data-on-click="useCurrentPanelsForCompare" title="Use the folders open in your two panels"><i data-lucide="columns-2"></i> Use my panels</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-sm bk-btn" data-on-click="compareRunFolders" data-click-args="${actionArgs(true)}" title="Also compare file contents with checksums (slower, but certain)"><i data-lucide="shield-check"></i> Compare contents</button>
+        <button class="btn btn-sm btn-accent bk-btn" data-on-click="compareRunFolders" data-click-args="${actionArgs(false)}" title="Compare by size and date"><i data-lucide="git-compare"></i> Compare</button>
+      </div>
+    </div>`;
+}
+
+function renderFolderSetup() {
+  compareDefaultsFromPanes();
+  const body = document.getElementById('diff-modal-body');
+  if (!body) return;
+  body.dataset.view = 'folder-setup';
+  const subtitle = document.getElementById('diff-header-subtitle');
+  if (subtitle) subtitle.textContent = 'Two folders';
+  body.innerHTML = `${compareFolderBarHtml()}
+    <div class="bk-empty"><i data-lucide="folders" style="width: 32px; height: 32px; opacity: 0.6;"></i>
+      <div class="bk-empty-text">Choose two folders and press <b>Compare</b>. Brum lists what exists only on one side and what differs, and can copy files across.</div></div>`;
+  if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
+}
+
+function compareReadFolderInputs() {
+  const l = document.getElementById('cmp-left');
+  const r = document.getElementById('cmp-right');
+  if (l) compareState.left = l.value.trim();
+  if (r) compareState.right = r.value.trim();
+}
+
+function compareSetSubfolders(on) {
+  compareState.subfolders = !!on;
+}
+
+function useCurrentPanelsForCompare() {
+  compareState.left = App.panes[0]?.path || '';
+  compareState.right = (App.panes[1] || App.panes[0])?.path || '';
+  const l = document.getElementById('cmp-left');
+  const r = document.getElementById('cmp-right');
+  if (l) l.value = compareState.left;
+  if (r) r.value = compareState.right;
+}
+
+// Above these, Compare asks first: a big comparison can take minutes
+const COMPARE_ASK_FILES = 50000;
+const COMPARE_ASK_CONTENT_BYTES = 5 * 1024 * 1024 * 1024;
+
+function compareShowWorking(text, withStop) {
+  const body = document.getElementById('diff-modal-body');
+  if (!body) return;
+  body.dataset.view = 'loading';
+  body.innerHTML = `${compareFolderBarHtml()}
+    <div class="bk-empty"><i data-lucide="loader" class="spinner"></i> ${escapeHtml(text)}
+      ${withStop ? '<button class="btn btn-sm bk-btn" data-on-click="compareStop"><i data-lucide="square"></i> Stop</button>' : ''}</div>`;
+  if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
+}
+
+function compareShowMessage(text, isError) {
+  const body = document.getElementById('diff-modal-body');
+  if (!body) return;
+  body.dataset.view = 'folder-setup';
+  body.innerHTML = `${compareFolderBarHtml()}<div class="${isError ? 'bk-form-error' : 'bk-summary'}" style="display: block; margin: 8px 0;">${escapeHtml(text)}</div>`;
+  if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
+}
+
+// Stops the running comparison; the server stops too
+function compareStop() {
+  if (compareState.abort) compareState.abort.abort();
+}
+
+// Counts both sides quickly and asks before a very large comparison. Returns false to stop.
+async function compareConfirmSize(checksums) {
+  compareState.abort = new AbortController();
+  compareShowWorking('Counting files...', true);
+  let est;
+  try {
+    const resp = await fetch('/api/tools/diff/estimate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir_left: compareState.left, dir_right: compareState.right, recursive: compareState.subfolders }),
+      signal: compareState.abort.signal,
+    });
+    if (!resp.ok) return true; // the comparison itself reports any problem
+    est = await resp.json();
+  } catch (e) {
+    if (e.name === 'AbortError') {
+      compareShowMessage('Stopped.');
+      return false;
+    }
+    return true;
+  }
+  const describe = (side, path, x) => `The ${side} folder (${path}) has ${x.capped ? 'more than ' : ''}${formatNumber(x.files)} files${checksums ? ` (${x.capped ? 'at least ' : ''}${formatBytes(x.bytes)})` : ''}.`;
+  const lines = [];
+  const big = (x) => x.capped || x.files > COMPARE_ASK_FILES;
+  if (big(est.left)) lines.push(describe('left', compareState.left, est.left));
+  if (big(est.right)) lines.push(describe('right', compareState.right, est.right));
+  const contentBytes = (est.left.bytes || 0) + (est.right.bytes || 0);
+  if (checksums && !lines.length && (contentBytes > COMPARE_ASK_CONTENT_BYTES || est.left.capped || est.right.capped)) {
+    lines.push(`Comparing contents reads ${est.left.capped || est.right.capped ? 'at least ' : ''}${formatBytes(contentBytes)} from disk.`);
+  }
+  if (!lines.length) return true;
+  lines.push(checksums
+    ? 'Comparing the contents of this much can take a very long time. You can stop it at any time.'
+    : 'Comparing this many files can take several minutes and makes a very long list. You can stop it at any time.');
+  const ok = await showConfirmDialog({
+    title: 'Compare a very large folder?',
+    subtitle: `${compareState.left} ⟷ ${compareState.right}`,
+    message: lines.join('\n\n'),
+    icon: 'alert-triangle',
+    type: 'warning',
+    confirmText: 'Compare anyway',
+  });
+  if (!ok) compareShowMessage('Not compared. Choose smaller folders, or untick "Include subfolders".');
+  return ok;
+}
+
+// Compares the two chosen folders; `checksums` also compares contents (slower)
+async function compareRunFolders(checksums = false) {
+  if (typeof checksums !== 'boolean') checksums = false; // called from a key press
+  compareReadFolderInputs();
+  if (!compareState.left || !compareState.right) {
+    showToast('Choose a folder on both sides', 'warning');
+    return;
+  }
+  const body = document.getElementById('diff-modal-body');
+  if (!body) return;
+  if (!(await compareConfirmSize(checksums))) return;
+  compareState.abort = new AbortController();
+  compareShowWorking(checksums ? 'Comparing contents with checksums. This can take a while.' : 'Comparing...', true);
+  try {
+    const resp = await fetch('/api/tools/diff/folders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dir_left: compareState.left, dir_right: compareState.right, recursive: compareState.subfolders, deep_hash: checksums, selected_items: null }),
+      signal: compareState.abort.signal,
+    });
+    if (!resp.ok) {
+      let msg = await resp.text();
+      try { msg = JSON.parse(msg).error || msg; } catch (_) { /* text */ }
+      throw new Error(msg);
+    }
+    currentFolderDiffData = await resp.json();
+    const d = currentFolderDiffData;
+    const differences = (d.modified_count || 0) + (d.left_only_count || 0) + (d.right_only_count || 0);
+    // Big results start with the differences, so what matters is not buried under identical files
+    currentDiffFilter = (d.entries || []).length > COMPARE_MAX_ROWS && differences > 0 ? 'diff' : 'all';
+    renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+  } catch (e) {
+    if (e.name === 'AbortError') compareShowMessage('Stopped.');
+    else compareShowMessage(e.message || String(e), true);
+  }
+}
+
+// ---------- Two files ----------
+function renderFilesSetup() {
+  const body = document.getElementById('diff-modal-body');
+  if (!body) return;
+  body.dataset.view = 'file-setup';
+  const viewModes = document.getElementById('diff-view-modes');
+  if (viewModes) viewModes.style.display = 'none';
+  const subtitle = document.getElementById('diff-header-subtitle');
+  if (subtitle) subtitle.textContent = 'Two files';
+  body.innerHTML = `
+    <div class="cmp-bar">
+      <div class="cmp-paths cmp-paths-stacked">
+        <div class="cmp-path"><span class="cmp-side cmp-left">Left</span><input type="text" id="cmp-file-left" class="bk-input bk-mono" value="${escapeHtml(compareState.fileLeft)}" placeholder="/path/to/first-file"></div>
+        <div class="cmp-path"><span class="cmp-side cmp-right">Right</span><input type="text" id="cmp-file-right" class="bk-input bk-mono" value="${escapeHtml(compareState.fileRight)}" placeholder="/path/to/second-file"></div>
+      </div>
+      <div class="cmp-options">
+        <button class="btn btn-sm bk-btn" data-on-click="useSelectedFilesForCompare" title="Use the files selected in your panels: one in each, or two in one panel"><i data-lucide="mouse-pointer-click"></i> Use selected files</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-sm btn-accent bk-btn" data-on-click="compareRunFiles"><i data-lucide="git-compare"></i> Compare</button>
+      </div>
+    </div>
+    <div class="bk-empty"><i data-lucide="files" style="width: 32px; height: 32px; opacity: 0.6;"></i>
+      <div class="bk-empty-text">Text files are shown side by side with the changes marked; images are shown next to each other. Tip: select one file in each panel and press F9.</div></div>`;
+  if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
+}
+
+function selectedFilesForCompare() {
+  const a = App.panes[0];
+  const b = App.panes[1] || App.panes[0];
+  const selA = Array.from(a?.selected || []);
+  const selB = Array.from(b?.selected || []);
+  if (selA.length === 1 && selB.length === 1 && selA[0] !== selB[0]) return [selA[0], selB[0]];
+  const active = Array.from(App.panes[App.activePaneIndex]?.selected || []);
+  if (active.length === 2) return active;
+  return null;
+}
+
+function useSelectedFilesForCompare() {
+  const pair = selectedFilesForCompare();
+  if (!pair) {
+    showToast('Select one file in each panel, or two files in one panel', 'warning');
+    return;
+  }
+  [compareState.fileLeft, compareState.fileRight] = pair;
+  const l = document.getElementById('cmp-file-left');
+  const r = document.getElementById('cmp-file-right');
+  if (l) l.value = pair[0];
+  if (r) r.value = pair[1];
+}
+
+function compareRunFiles() {
+  const l = document.getElementById('cmp-file-left')?.value.trim() || compareState.fileLeft;
+  const r = document.getElementById('cmp-file-right')?.value.trim() || compareState.fileRight;
+  if (!l || !r) {
+    showToast('Choose two files to compare', 'warning');
+    return;
+  }
+  compareState.fileLeft = l;
+  compareState.fileRight = r;
+  openFileDiffView(l, r);
 }
 
 function closeFloatingDiff() {
@@ -17674,7 +17971,7 @@ function toggleMaximizeDiff() {
 }
 
 function dockDiffToActivePane() {
-  dockToolToPane('diff', App.activePaneIndex);
+  dockToolToPane('compare', App.activePaneIndex);
 }
 
 function isImageFileName(filename) {
@@ -17684,10 +17981,7 @@ function isImageFileName(filename) {
 }
 
 function formatDiffEpochSeconds(sec) {
-  if (!sec) return '-';
-  const d = new Date(sec * 1000);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return sec ? formatDateTime(sec) : '-';
 }
 
 function formatDiffSizeDelta(delta) {
@@ -17705,74 +17999,24 @@ function formatDiffTimeStatus(status) {
   return '';
 }
 
-async function triggerDiff(deepHash = false, targetContainer = null) {
-  const paneA = App.panes[0];
-  const paneB = App.panes[1] || App.panes[0];
-
-  const selA = Array.from(paneA.selected);
-  const selB = Array.from(paneB.selected);
-  if (selA.length === 1 && selB.length === 1 && selA[0] !== selB[0]) {
-    return openFileDiffView(selA[0], selB[0], targetContainer);
-  }
-
-  const activePane = App.panes[App.activePaneIndex];
-  const activeSel = Array.from(activePane.selected);
-  if (activeSel.length === 2) {
-    return openFileDiffView(activeSel[0], activeSel[1], targetContainer);
-  }
-
-  const dockedPaneIdx = App.panes.findIndex(p => p && (p.dockedTool === 'diff' || p.dockedTool === 'compare'));
-  const isDocked = dockedPaneIdx !== -1;
-  if (isDocked && !targetContainer) {
-    targetContainer = document.getElementById(`docked-diff-body-${dockedPaneIdx}`);
-  }
-  if (!isDocked && !targetContainer) {
+// F9 / Ctrl+D: compare the selected files, or else the folders in the two panels
+async function triggerDiff(deepHash = false) {
+  const pair = selectedFilesForCompare();
+  if (pair) {
+    [compareState.fileLeft, compareState.fileRight] = pair;
+    compareState.mode = 'files';
     openFloatingDiff();
+    return openFileDiffView(pair[0], pair[1]);
   }
-
-  const body = targetContainer || document.getElementById('diff-modal-body');
-  if (body) {
-    body.innerHTML = `
-      <div style="padding: 32px 16px; text-align: center; color: var(--accent); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
-        <i data-lucide="loader" style="width: 28px; height: 28px; animation: spin 1s linear infinite; margin-bottom: 12px;"></i>
-        <div style="font-size: 15px; font-weight: 700; margin-bottom: 6px; color: var(--text-main);">Comparing Directories...</div>
-        <div style="font-size: 12px; color: var(--text-muted); font-family: var(--font-mono);">${escapeHtml(sanitizeCredentials(paneA.path))} ⟷ ${escapeHtml(sanitizeCredentials(paneB.path))}</div>
-        <div style="margin-top: 8px; font-size: 11px; color: var(--text-dim);">${deepHash ? 'Calculating SHA-256 integrity checksums...' : 'Inspecting folder sizes and timestamps (fast mode)...'}</div>
-      </div>
-    `;
-    if (window.lucide) lucide.createIcons({ root: body });
-  }
-
-  const viewModes = document.getElementById('diff-view-modes');
-  if (viewModes) viewModes.style.display = 'none';
-  const subtitle = document.getElementById('diff-header-subtitle');
-  if (subtitle) subtitle.textContent = 'Folder Comparison';
-
-  try {
-    const selectedItems = activeSel.length > 0 ? activeSel.map(p => p.split('/').pop()) : null;
-
-    const resp = await fetch('/api/tools/diff/folders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        dir_left: paneA.path,
-        dir_right: paneB.path,
-        recursive: deepHash,
-        deep_hash: deepHash,
-        selected_items: selectedItems
-      })
-    });
-
-    if (resp.ok) {
-      currentFolderDiffData = await resp.json();
-      currentDiffFilter = 'all';
-      renderFolderDiff(currentFolderDiffData, currentDiffFilter, targetContainer);
-    } else {
-      if (body) body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Directory comparison failed: ${escapeHtml(await resp.text())}</div>`;
-    }
-  } catch (e) {
-    if (body) body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Error: ${escapeHtml(String(e))}</div>`;
-  }
+  // Folders can be huge: fill in the two panels' folders and wait for Compare to be pressed
+  compareState.left = App.panes[0]?.path || '';
+  compareState.right = (App.panes[1] || App.panes[0])?.path || '';
+  compareState.mode = 'folders';
+  currentFolderDiffData = null;
+  openFloatingDiff();
+  renderFolderSetup();
+  if (deepHash === true) return compareRunFolders(true);
+  return null;
 }
 
 function isDotDiffEntry(relPath) {
@@ -17823,9 +18067,13 @@ function toggleDiffShowDotfiles() {
   if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
 }
 
+// Searching waits until typing pauses, so large comparisons do not redraw on every key
+let _diffSearchTimer = null;
 function handleDiffSearch(query) {
   currentDiffSearch = query;
-  if (currentFolderDiffData) {
+  clearTimeout(_diffSearchTimer);
+  _diffSearchTimer = setTimeout(() => {
+    if (!currentFolderDiffData) return;
     const input = document.getElementById('diff-search-input');
     const start = input ? input.selectionStart : query.length;
     renderFolderDiff(currentFolderDiffData, currentDiffFilter);
@@ -17834,7 +18082,7 @@ function handleDiffSearch(query) {
       newInput.focus();
       try { newInput.setSelectionRange(start, start); } catch (_) {}
     }
-  }
+  }, 250);
 }
 
 function clearDiffSearch() {
@@ -17866,19 +18114,12 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
   const body = targetContainer || document.getElementById('diff-modal-body');
   if (!body) return;
 
-  App.panes.forEach((p, idx) => {
-    if (p.dockedTool === 'diff' && !targetContainer) {
-      const dockedHost = document.getElementById(`docked-diff-host-${idx}`);
-      if (dockedHost && dockedHost !== body) {
-        renderFolderDiff(diff, filter, dockedHost);
-      }
-    }
-  });
-
+  body.dataset.view = 'folders';
   let filteredEntries = (diff.entries || []).slice();
 
   // 1. Status Filter
-  if (filter === 'modified') filteredEntries = filteredEntries.filter(e => e.status === 'modified');
+  if (filter === 'diff') filteredEntries = filteredEntries.filter(e => e.status !== 'identical');
+  else if (filter === 'modified') filteredEntries = filteredEntries.filter(e => e.status === 'modified');
   else if (filter === 'left_only') filteredEntries = filteredEntries.filter(e => e.status === 'left_only');
   else if (filter === 'right_only') filteredEntries = filteredEntries.filter(e => e.status === 'right_only');
   else if (filter === 'identical') filteredEntries = filteredEntries.filter(e => e.status === 'identical');
@@ -17917,12 +18158,12 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
       cmp = (a.mtime_right ?? 0) - (b.mtime_right ?? 0);
     } else {
       // Default: 'name'
-      cmp = a.relative_path.localeCompare(b.relative_path, undefined, { numeric: true, sensitivity: 'base' });
+      cmp = compareNameCollator.compare(a.relative_path, b.relative_path);
     }
 
     // Tie-break by relative_path
     if (cmp === 0 && currentDiffSortBy !== 'name') {
-      cmp = a.relative_path.localeCompare(b.relative_path, undefined, { numeric: true, sensitivity: 'base' });
+      cmp = compareNameCollator.compare(a.relative_path, b.relative_path);
     }
 
     return currentDiffSortAsc ? cmp : -cmp;
@@ -17937,33 +18178,15 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
   }
 
   body.innerHTML = `
-    <!-- 1. Paths Bar with Quick Align Buttons -->
-    <div class="diff-paths-card" style="margin-bottom: 8px;">
-      <div class="diff-path-chips">
-        <div class="diff-path-chip" title="${escapeHtml(diff.dir_left)}">
-          <span style="font-weight: 700; color: var(--info);">L:</span>
-          <code>${escapeHtml(diff.dir_left)}</code>
-          <button class="btn btn-icon btn-xs" data-on-click="alignDiffPaths" data-click-args="${actionArgs('lr')}" title="Set Right Path = Left Path (L ➔ R Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-right" style="width: 10px; height: 10px;"></i></button>
-        </div>
-        <button class="btn btn-icon btn-xs" data-on-click="swapDiffPaths" title="Swap Left and Right Paths" style="width: 22px; height: 22px;"><i data-lucide="arrow-left-right" style="width: 11px; height: 11px;"></i></button>
-        <div class="diff-path-chip" title="${escapeHtml(diff.dir_right)}">
-          <span style="font-weight: 700; color: #c084fc;">R:</span>
-          <code>${escapeHtml(diff.dir_right)}</code>
-          <button class="btn btn-icon btn-xs" data-on-click="alignDiffPaths" data-click-args="${actionArgs('rl')}" title="Set Left Path = Right Path (R ➔ L Path)" style="width: 18px; height: 18px; margin-left: 2px;"><i data-lucide="arrow-left" style="width: 10px; height: 10px;"></i></button>
-        </div>
-      </div>
-      <div class="diff-action-buttons">
-        <button class="btn btn-sm" data-on-click="triggerDiff" data-click-args="${actionArgs(false)}" title="Fast Immediate Compare (Size & Date)"><i data-lucide="zap"></i> Fast</button>
-        <button class="btn btn-sm btn-accent" data-on-click="triggerDiff" data-click-args="${actionArgs(true)}" title="Deep Recursive SHA-256 Compare"><i data-lucide="shield-check"></i> Deep Hash</button>
-      </div>
-    </div>
+    ${compareFolderBarHtml()}
+    <div class="cmp-summary">${escapeHtml(compareSummaryText(diff))}</div>
 
     <!-- 2. Folder Content Alignment Bar (Batch Sync Actions) -->
     <div class="diff-align-bar" style="margin-bottom: 8px;">
-      <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-right: 4px; display: flex; align-items: center; gap: 4px;"><i data-lucide="arrow-left-right" style="width: 13px; height: 13px; color: var(--accent);"></i> Align Folders:</span>
-      <button class="btn btn-xs diff-align-btn" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('right')}" title="Copy Left-only and newer modified items to Right folder"><i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i> Align Right (L ➔ R)</button>
-      <button class="btn btn-xs diff-align-btn" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('left')}" title="Copy Right-only and newer modified items to Left folder"><i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i> Align Left (R ➔ L)</button>
-      <button class="btn btn-xs diff-align-btn btn-accent" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('both')}" title="Bi-directional alignment: copy missing and overwrite older"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Align Both (L ⟷ R)</button>
+      <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-right: 4px; display: flex; align-items: center; gap: 4px;"><i data-lucide="arrow-left-right" style="width: 13px; height: 13px; color: var(--accent);"></i> Copy across:</span>
+      <button class="btn btn-xs diff-align-btn" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('right')}" title="Copy files that exist only on the left, or are newer there, to the right"><i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i> Left to right</button>
+      <button class="btn btn-xs diff-align-btn" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('left')}" title="Copy files that exist only on the right, or are newer there, to the left"><i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i> Right to left</button>
+      <button class="btn btn-xs diff-align-btn btn-accent" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('both')}" title="Both ways: each side gets the files it is missing and the newer version of changed files"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Both ways</button>
       <div style="flex: 1;"></div>
       <button class="btn btn-xs btn-outline" data-on-click="calculateAllChecksums" title="Calculate SHA-256 Checksums for all files on demand" style="font-size: 10.5px; height: 26px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> Checksums</button>
     </div>
@@ -17973,7 +18196,10 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
       <!-- Status Filter Buttons -->
       <div class="diff-filter-bar" style="margin-bottom: 0;">
         <button class="diff-filter-btn ${filter === 'all' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('all')}">
-          All (${diff.entries.length})
+          All (${formatNumber(diff.total_entries || diff.entries.length)})
+        </button>
+        <button class="diff-filter-btn ${filter === 'diff' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('diff')}" title="Everything that is not the same on both sides">
+          Differences (${formatNumber((diff.modified_count || 0) + (diff.left_only_count || 0) + (diff.right_only_count || 0))})
         </button>
         <button class="diff-filter-btn ${filter === 'modified' ? 'active' : ''}" data-on-click="setDiffFilter" data-click-args="${actionArgs('modified')}">
           <span style="color: var(--accent);">⚠️ Modified (${diff.modified_count})</span>
@@ -18052,7 +18278,7 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
         </thead>
         <tbody>
           ${filteredEntries.length === 0 ? '<tr><td colspan="7" style="text-align:center; padding: 32px; color: var(--text-dim);"><i data-lucide="filter" style="width: 20px; height: 20px; margin-bottom: 6px; opacity: 0.5;"></i><div>No files match the active filter or search query.</div></td></tr>' : ''}
-          ${filteredEntries.map(e => {
+          ${filteredEntries.slice(0, COMPARE_MAX_ROWS).map(e => {
             const badgeClass = e.status === 'identical' ? 'diff-badge-identical' : (e.status === 'modified' ? 'diff-badge-modified' : (e.status === 'left_only' ? 'diff-badge-left' : 'diff-badge-right'));
             const isLeftNewer = e.time_status === 'left_newer';
             const isRightNewer = e.time_status === 'right_newer';
@@ -18106,6 +18332,8 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
               </tr>
             `;
           }).join('')}
+          ${diff.truncated ? `<tr><td colspan="7" class="cmp-more-rows">This comparison has ${formatNumber(diff.total_entries)} items, too many to list: every difference is included, but not every identical item.</td></tr>` : ''}
+          ${filteredEntries.length > COMPARE_MAX_ROWS ? `<tr><td colspan="7" class="cmp-more-rows">Showing the first ${formatNumber(COMPARE_MAX_ROWS)} of ${formatNumber(filteredEntries.length)}. Use the filters or search to narrow the list down.</td></tr>` : ''}
         </tbody>
       </table>
     </div>
@@ -18114,29 +18342,32 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
   bindActions(body);
 }
 
+function compareSummaryText(diff) {
+  const parts = [];
+  if (diff.modified_count) parts.push(`${formatNumber(diff.modified_count)} differ`);
+  if (diff.left_only_count) parts.push(`${formatNumber(diff.left_only_count)} only on the left`);
+  if (diff.right_only_count) parts.push(`${formatNumber(diff.right_only_count)} only on the right`);
+  if (diff.identical_count) parts.push(`${formatNumber(diff.identical_count)} the same`);
+  if (!diff.modified_count && !diff.left_only_count && !diff.right_only_count) return `The folders are the same (${formatNumber(diff.identical_count)} items).`;
+  return `${parts.join(', ')}.`;
+}
+
+// Makes one side's folder the same as the other's (the folder path, not its contents)
 function alignDiffPaths(direction) {
-  if (!currentFolderDiffData) return;
-  if (direction === 'lr') {
-    App.panes[1].path = currentFolderDiffData.dir_left;
-    loadPaneDirectory(1, App.panes[1].path);
-    showToast('Aligned Right path to Left', 'info');
-  } else if (direction === 'rl') {
-    App.panes[0].path = currentFolderDiffData.dir_right;
-    loadPaneDirectory(0, App.panes[0].path);
-    showToast('Aligned Left path to Right', 'info');
-  }
-  setTimeout(() => triggerDiff(false), 200);
+  compareReadFolderInputs();
+  if (direction === 'lr') compareState.right = compareState.left;
+  else if (direction === 'rl') compareState.left = compareState.right;
+  compareRunFolders(false);
 }
 
 function swapDiffPaths() {
-  if (!currentFolderDiffData) return;
-  const tmp = App.panes[0].path;
-  App.panes[0].path = App.panes[1].path;
-  App.panes[1].path = tmp;
-  loadPaneDirectory(0, App.panes[0].path);
-  loadPaneDirectory(1, App.panes[1].path);
-  showToast('Swapped Left and Right paths', 'info');
-  setTimeout(() => triggerDiff(false), 200);
+  compareReadFolderInputs();
+  [compareState.left, compareState.right] = [compareState.right, compareState.left];
+  const l = document.getElementById('cmp-left');
+  const r = document.getElementById('cmp-right');
+  if (l) l.value = compareState.left;
+  if (r) r.value = compareState.right;
+  if (currentFolderDiffData) compareRunFolders(false);
 }
 
 async function executeFolderAlignment(direction) {
@@ -18168,78 +18399,73 @@ async function executeFolderAlignment(direction) {
     return;
   }
 
-  let promptMsg = `Align Folders:\n`;
-  if (toCopyLtoR.length > 0) promptMsg += `• Copy ${toCopyLtoR.length} files from Left to Right\n`;
-  if (toCopyRtoL.length > 0) promptMsg += `• Copy ${toCopyRtoL.length} files from Right to Left\n`;
-  promptMsg += `Proceed with alignment?`;
+  const lines = [];
+  if (toCopyLtoR.length > 0) lines.push(`Copy ${formatNumber(toCopyLtoR.length)} file${toCopyLtoR.length === 1 ? '' : 's'} from the left to the right.`);
+  if (toCopyRtoL.length > 0) lines.push(`Copy ${formatNumber(toCopyRtoL.length)} file${toCopyRtoL.length === 1 ? '' : 's'} from the right to the left.`);
+  lines.push('Older versions on the receiving side are replaced. Nothing is deleted.');
+  const ok = await showConfirmDialog({
+    title: 'Copy across',
+    subtitle: `${compareState.left} ⟷ ${compareState.right}`,
+    message: lines.join('\n'),
+    icon: 'arrow-left-right',
+    type: 'warning',
+    confirmText: `Copy ${formatNumber(total)} file${total === 1 ? '' : 's'}`,
+  });
+  if (!ok) return;
 
-  if (!confirm(promptMsg)) return;
-
-  showToast(`Synchronizing ${total} files...`, 'info');
-
+  showToast(`Copying ${formatNumber(total)} file${total === 1 ? '' : 's'}...`, 'info');
   try {
-    if (toCopyLtoR.length > 0) {
-      const sources = toCopyLtoR.map(p => `${leftDir}/${p}`);
-      await fetch('/api/fs/copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sources,
-          destination: rightDir,
-          conflict_resolution: 'overwrite'
-        })
-      });
-    }
-
-    if (toCopyRtoL.length > 0) {
-      const sources = toCopyRtoL.map(p => `${rightDir}/${p}`);
-      await fetch('/api/fs/copy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sources,
-          destination: leftDir,
-          conflict_resolution: 'overwrite'
-        })
-      });
-    }
-
-    showToast(`Alignment complete! Synced ${total} files.`, 'success');
+    const failed = (await compareCopyFiles(toCopyLtoR, leftDir, rightDir)) + (await compareCopyFiles(toCopyRtoL, rightDir, leftDir));
+    if (failed) showToast(`${formatNumber(total - failed)} copied, ${formatNumber(failed)} failed`, 'warning');
+    else showToast(`Copied ${formatNumber(total)} file${total === 1 ? '' : 's'}`, 'success');
     refreshAllPanes();
-    setTimeout(() => triggerDiff(false), 300);
+    setTimeout(() => compareRunFolders(false), 300);
   } catch (err) {
-    showToast(`Alignment failed: ${err}`, 'danger');
+    showToast(`Copying failed: ${err.message || err}`, 'error');
   }
+}
+
+// Copies files (paths relative to fromRoot) into the same subfolders under toRoot. Returns how many failed.
+async function compareCopyFiles(rels, fromRoot, toRoot, action = 'copy') {
+  const byFolder = new Map();
+  for (const rel of rels) {
+    const cut = rel.lastIndexOf('/');
+    const dir = cut >= 0 ? rel.slice(0, cut) : '';
+    if (!byFolder.has(dir)) byFolder.set(dir, []);
+    byFolder.get(dir).push(rel);
+  }
+  let failed = 0;
+  for (const [dir, group] of byFolder) {
+    const destination = dir ? `${toRoot.replace(/\/+$/, '')}/${dir}` : toRoot;
+    if (dir) {
+      await fetch('/api/fs/mkdir', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ path: destination }) }).catch(() => {});
+    }
+    const resp = await fetch(action === 'move' ? '/api/fs/move' : '/api/fs/copy', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sources: group.map(r => `${fromRoot.replace(/\/+$/, '')}/${r}`), destination, conflict_resolution: 'overwrite' })
+    });
+    if (!resp.ok) failed += group.length;
+  }
+  return failed;
 }
 
 async function copyDiffItem(relPath, direction, action = 'copy') {
   if (!currentFolderDiffData) return;
   const diff = currentFolderDiffData;
   const isLeftToRight = direction === 'lr';
-  const src = isLeftToRight ? `${diff.dir_left}/${relPath}` : `${diff.dir_right}/${relPath}`;
-  const destDir = isLeftToRight ? diff.dir_right : diff.dir_left;
-
-  const endpoint = action === 'move' ? '/api/fs/move' : '/api/fs/copy';
+  const [from, to] = isLeftToRight ? [diff.dir_left, diff.dir_right] : [diff.dir_right, diff.dir_left];
   try {
-    const resp = await fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        sources: [src],
-        destination: destDir,
-        conflict_resolution: 'overwrite'
-      })
-    });
-
-    if (resp.ok) {
-      showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${relPath} ${isLeftToRight ? 'L ➔ R' : 'R ➔ L'}`, 'success');
-      refreshAllPanes();
-      setTimeout(() => triggerDiff(false), 200);
-    } else {
-      showToast(`Operation failed: ${await resp.text()}`, 'danger');
+    const failed = await compareCopyFiles([relPath], from, to, action);
+    if (failed) {
+      showToast(`Could not ${action === 'move' ? 'move' : 'copy'} ${relPath}`, 'error');
+      return;
     }
+    showToast(`${action === 'move' ? 'Moved' : 'Copied'} ${relPath} ${isLeftToRight ? 'to the right' : 'to the left'}`, 'success');
+    refreshAllPanes();
+    setTimeout(() => compareRunFolders(false), 200);
   } catch (err) {
-    showToast(`Operation error: ${err}`, 'danger');
+    showToast(`Could not copy: ${err.message || err}`, 'error');
   }
 }
 
@@ -18340,13 +18566,22 @@ async function openFileDiffView(fileL, fileR, targetContainer = null) {
   currentFileDiffLeft = fileL;
   currentFileDiffRight = fileR;
 
-  const isDocked = App.panes.some(p => p.dockedTool === 'diff');
-  if (!isDocked && !targetContainer) {
+  compareState.mode = 'files';
+  compareState.fileLeft = fileL;
+  compareState.fileRight = fileR;
+  const win = document.getElementById('floating-diff-window');
+  if (!isCompareDocked() && !targetContainer && win && win.style.display !== 'flex') {
     openFloatingDiff();
   }
+  const cbody = compareBody();
+  if (cbody) cbody.querySelectorAll('.compare-mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === 'files'));
+  const dupBody = document.getElementById('duplicates-body');
+  if (dupBody) dupBody.style.display = 'none';
 
   const body = targetContainer || document.getElementById('diff-modal-body');
   if (!body) return;
+  body.style.display = 'flex';
+  body.dataset.view = 'file';
 
   body.innerHTML = `
     <div style="padding: 30px; text-align: center; color: var(--accent); flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;">
@@ -18688,31 +18923,11 @@ function getImageDimensions(url) {
 }
 
 function mountDockedDiff(paneIndex) {
-  const host = document.getElementById(`docked-diff-host-${paneIndex}`);
-  if (!host) return;
-
-  host.innerHTML = `
-    <div style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);">
-      <div class="diff-header" style="min-height: 36px; height: 36px; padding: 0 8px; background: var(--bg-dark); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between;">
-        <div style="display: flex; align-items: center; gap: 6px;">
-          <img src="assets/diff.webp" alt="Compare" style="width: 15px; height: 15px; object-fit: contain;">
-          <span style="font-weight: 700; font-size: 12px; color: var(--text-main);">Compare & Diff</span>
-        </div>
-        <div style="display: flex; align-items: center; gap: 4px;">
-          <button class="btn btn-icon" data-on-click="undockToolFromPane" data-click-args="${actionArgs((paneIndex))}" title="Float into Window" style="width: 26px; height: 26px;"><i data-lucide="external-link" style="width: 13px; height: 13px;"></i></button>
-        </div>
-      </div>
-      <div id="docked-diff-body-${paneIndex}" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; padding: 8px;"></div>
-    </div>
-  `;
-  if (window.lucide) lucide.createIcons({ root: host });
-  bindActions(host);
-  const dockedBody = document.getElementById(`docked-diff-body-${paneIndex}`);
-  if (currentFolderDiffData) {
-    renderFolderDiff(currentFolderDiffData, currentDiffFilter, dockedBody);
-  } else {
-    triggerDiff(false, dockedBody);
-  }
+  const host = document.getElementById(`docked-diff-host-${paneIndex}`) || document.getElementById(`docked-duplicates-host-${paneIndex}`);
+  const body = compareBody();
+  if (!host || !body) return;
+  host.appendChild(body);
+  compareSetMode(compareState.mode);
 }
 
 // ---------------- CONVERTX FILE & IMAGE CONVERTER TOOL ----------------
@@ -38480,7 +38695,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'tags', title: 'Color Labels & Custom Tags', sub: 'Assign color labels and custom tags to selected items', icon: 'tag', cat: 'actions', action: () => triggerEditTagsModal() },
   { id: 'term', title: 'Terminal', sub: 'Open integrated interactive terminal (` or F4)', icon: 'assets/term.webp', cat: 'actions', action: () => toggleTerminal() },
   { id: 'edit', title: 'Editor', sub: 'Open floating Edit code & text editor (F4)', icon: 'assets/edit.webp', cat: 'actions', action: () => openFloatingEditor() },
-  { id: 'diff', title: 'Compare', sub: 'Compare files or directories side-by-side (F9)', icon: 'assets/diff.webp', cat: 'actions', action: () => triggerDiff() },
+  { id: 'diff', title: 'Compare', sub: 'Compare two folders or two files, or find duplicates (F9)', icon: 'assets/diff.webp', cat: 'actions', action: () => triggerDiff() },
   { id: 'search', title: 'Search', sub: 'Search files and folders recursively (Ctrl+F)', icon: 'assets/search.webp', cat: 'actions', action: () => openSearchModal() },
   { id: 'fleet', title: 'Fleet Control', sub: 'Multi-host node switcher, remote cluster manager & node diagnostics', icon: 'network', cat: 'actions', action: () => openFleetManagerModal() },
   { id: 'shares', title: 'Share Manager', sub: 'Manage public share links and guest upload dropboxes', icon: 'assets/sharemgr.webp', cat: 'actions', action: () => openSharesManager() },
@@ -38490,7 +38705,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'convert', title: 'Format Converter', sub: 'Universal transcoder: batch convert images, documents, audio, videos', icon: 'assets/convertx.webp', cat: 'actions', action: () => openConverterModal() },
   { id: 'pdf', title: 'PDF Studio', sub: 'PDF Studio: visual merge, split, extract pages & inspect PDFs', icon: 'assets/amber-pdftool.webp', cat: 'actions', action: () => openPdfToolModal() },
   { id: 'cad', title: '3D CAD Studio', sub: '3D model viewer (STL, OBJ, PLY, DXF; STEP/IGES as outline)', icon: 'box', cat: 'actions', action: () => openCadStudio() },
-  { id: 'duplicates', title: 'Duplicate Finder', sub: 'Multi-stage size, partial & SHA-256 duplicate scanner and safe quarantine cleaner', icon: 'copy-check', cat: 'actions', action: () => openDuplicateFinder() },
+  { id: 'duplicates', title: 'Find Duplicates', sub: 'Find identical files and clean them up (part of Compare)', icon: 'copy-check', cat: 'actions', action: () => openDuplicateFinder() },
   { id: 'tageditor', title: 'Tag Editor', sub: 'Audio ID3/FLAC metadata & artwork editor, batch sequential auto-numberer & EXIF inspector', icon: 'tag', cat: 'actions', action: () => openTagEditor() },
   { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
   { id: 'mediaplayer', title: 'Media Player', sub: 'Universal audio, video, chiptune & tracker player, subtitles, PiP popout & playlists', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
@@ -39640,8 +39855,8 @@ function dockToolToPane(toolName, paneIndex) {
   else if (toolName === 'shares') {
     closeModal('shares-manager-modal');
   }
-  // 12. Compare & Diff: hide floating diff window & pill
-  else if (toolName === 'diff' || toolName === 'compare') {
+  // 12. Compare: hide floating window & pill
+  else if (toolName === 'diff' || toolName === 'compare' || toolName === 'duplicates') {
     closeFloatingDiff();
   }
   // 13. Backup & Sync: hide floating window & pill
@@ -39664,6 +39879,11 @@ function undockToolFromPane(paneIndex) {
   if (tool === 'backup') {
     const win = document.getElementById('floating-backup-window');
     const body = backupBody();
+    if (win && body && !win.contains(body)) win.appendChild(body);
+  }
+  if (['diff', 'compare', 'duplicates'].includes(tool)) {
+    const win = document.getElementById('floating-diff-window');
+    const body = compareBody();
     if (win && body && !win.contains(body)) win.appendChild(body);
   }
 
@@ -39706,7 +39926,7 @@ function undockToolFromPane(paneIndex) {
   } else if (tool === 'hexeditor') {
     openHexEditor();
   } else if (tool === 'duplicates') {
-    openDuplicateFinder(duplicateFinderState.path);
+    openCompare('duplicates');
   } else if (tool === 'tageditor') {
     openTagEditor();
   } else if (tool === 'logviewer') {
@@ -39768,9 +39988,9 @@ function closeDockedTool(paneIndex) {
     }
   }
 
-  if (tool === 'duplicates') {
-    const win = document.getElementById('floating-duplicates-window');
-    const body = document.getElementById('duplicates-body');
+  if (['diff', 'compare', 'duplicates'].includes(tool)) {
+    const win = document.getElementById('floating-diff-window');
+    const body = compareBody();
     if (win && body && !win.contains(body)) {
       win.appendChild(body);
     }
@@ -46367,66 +46587,6 @@ let duplicateFinderState = {
   selectedPaths: new Set()
 };
 
-function initDuplicatesDragResize() {
-  if (duplicatesDragInit) return;
-  duplicatesDragInit = true;
-
-  const win = document.getElementById('floating-duplicates-window');
-  const header = document.getElementById('duplicates-header');
-  if (!win || !header) return;
-
-  const savedLeft = localStorage.getItem('cd_dup_x');
-  const savedTop = localStorage.getItem('cd_dup_y');
-  const savedWidth = localStorage.getItem('cd_dup_w');
-  const savedHeight = localStorage.getItem('cd_dup_h');
-
-  if (savedLeft && savedTop && window.innerWidth > 1024) {
-    win.style.left = `${Math.min(window.innerWidth - 100, Math.max(0, parseInt(savedLeft, 10)))}px`;
-    win.style.top = `${Math.min(window.innerHeight - 60, Math.max(35, parseInt(savedTop, 10)))}px`;
-  }
-  if (savedWidth && window.innerWidth > 1024) win.style.width = `${Math.min(window.innerWidth - 20, Math.max(480, parseInt(savedWidth, 10)))}px`;
-  if (savedHeight && window.innerWidth > 1024) win.style.height = `${Math.min(window.innerHeight - 40, Math.max(400, parseInt(savedHeight, 10)))}px`;
-
-  let isDragging = false;
-  let dragStartX = 0, dragStartY = 0;
-  let winStartX = 0, winStartY = 0;
-
-  header.addEventListener('mousedown', (e) => {
-    if (window.innerWidth <= 1024) return;
-    if (e.target.closest('button') || e.target.closest('select') || e.target.closest('input')) return;
-    if (win.classList.contains('maximized')) return;
-    isDragging = true;
-    bringFloatingWindowToFront(win);
-    dragStartX = e.clientX;
-    dragStartY = e.clientY;
-    const rect = win.getBoundingClientRect();
-    winStartX = rect.left;
-    winStartY = rect.top;
-    document.body.style.userSelect = 'none';
-    document.body.style.cursor = 'move';
-  });
-
-  window.addEventListener('mousemove', (e) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragStartX;
-    const dy = e.clientY - dragStartY;
-    const newX = Math.max(0, Math.min(window.innerWidth - 100, winStartX + dx));
-    const newY = Math.max(35, Math.min(window.innerHeight - 60, winStartY + dy));
-    win.style.left = `${newX}px`;
-    win.style.top = `${newY}px`;
-  });
-
-  window.addEventListener('mouseup', () => {
-    if (isDragging) {
-      isDragging = false;
-      document.body.style.userSelect = '';
-      document.body.style.cursor = '';
-      if (win.style.left) localStorage.setItem('cd_dup_x', parseInt(win.style.left, 10));
-      if (win.style.top) localStorage.setItem('cd_dup_y', parseInt(win.style.top, 10));
-    }
-  });
-}
-
 function setDuplicateFinderPathToActivePane() {
   const activePane = App.panes[App.activePaneIndex];
   const p = activePane?.path || '/';
@@ -46437,71 +46597,44 @@ function setDuplicateFinderPathToActivePane() {
   duplicateFinderState.path = p;
 }
 
+// The Duplicate Finder lives in Compare, under Duplicates
 function openDuplicateFinder(targetPath = null, paneIndex = null) {
   duplicateFinderActivePaneIndex = (paneIndex !== null && paneIndex !== undefined) ? paneIndex : App.activePaneIndex;
   const pane = App.panes[duplicateFinderActivePaneIndex];
-  const scanPath = targetPath || pane?.path || '/';
-
+  const scanPath = targetPath || duplicateFinderState.path || pane?.path || '/';
   duplicateFinderState.path = scanPath;
-
-  const win = document.getElementById('floating-duplicates-window');
-  const body = document.getElementById('duplicates-body');
-  if (win && body && !win.contains(body)) {
-    win.appendChild(body);
-  }
-
-  const pill = document.getElementById('duplicates-pill');
-  if (pill) pill.style.display = 'none';
-  if (win) {
-    if (window.innerWidth <= 1024) {
-      win.style.left = '';
-      win.style.top = '';
-      win.style.width = '';
-      win.style.height = '';
-    }
-    win.style.display = 'flex';
-    bringFloatingWindowToFront(win);
-  }
-  initDuplicatesDragResize();
-
   const pathInput = document.getElementById('dup-path-input');
-  if (pathInput) {
-    pathInput.value = scanPath;
-  }
+  if (pathInput) pathInput.value = scanPath;
+  openCompare('duplicates');
+  setupDuplicateFinderUi();
+}
 
+// Shows earlier results, or a short explanation before the first scan
+function setupDuplicateFinderUi() {
   if (duplicateFinderState.groups.length > 0) {
     renderDuplicateGroups();
-  } else {
-    const container = document.getElementById('duplicates-groups-container');
-    if (container) {
-      container.innerHTML = `
-        <div class="dup-empty-state">
-          <i data-lucide="copy-check" style="width: 38px; height: 38px; opacity: 0.35; color: var(--accent);"></i>
-          <div style="font-size: 13px; font-weight: 600; color: var(--text-main);">Configure Scan Path & Filters</div>
-          <div style="font-size: 11.5px; color: var(--text-muted); max-width: 340px; text-align: center; line-height: 1.4;">
-            Specify the directory path and criteria filters above, then click <strong>Find Duplicates</strong> to scan.
-          </div>
-        </div>
-      `;
-      if (window.lucide) lucide.createIcons({ root: container });
-      updateDuplicateFooter();
-    }
+    return;
   }
+  const container = document.getElementById('duplicates-groups-container');
+  if (!container) return;
+  container.innerHTML = `
+    <div class="dup-empty-state">
+      <i data-lucide="copy-check" style="width: 38px; height: 38px; opacity: 0.35; color: var(--accent);"></i>
+      <div style="font-size: 13px; font-weight: 600; color: var(--text-main);">Find identical files</div>
+      <div style="font-size: 11.5px; color: var(--text-muted); max-width: 360px; text-align: center; line-height: 1.4;">
+        Choose a folder and the smallest size to look at, then press <strong>Find Duplicates</strong>. Files are compared by their contents, so names do not matter.
+      </div>
+    </div>`;
+  if (window.lucide) lucide.createIcons({ root: container });
+  updateDuplicateFooter();
 }
 
 function closeFloatingDuplicateFinder() {
-  const win = document.getElementById('floating-duplicates-window');
-  if (win) win.style.display = 'none';
+  closeFloatingDiff();
 }
 
 function minimizeFloatingDuplicateFinder() {
-  const win = document.getElementById('floating-duplicates-window');
-  const pill = document.getElementById('duplicates-pill');
-  if (win) win.style.display = 'none';
-  if (pill) {
-    pill.style.display = 'flex';
-    if (window.lucide) lucide.createIcons();
-  }
+  minimizeFloatingDiff();
 }
 
 function restoreFloatingDuplicateFinder() {
@@ -46509,16 +46642,12 @@ function restoreFloatingDuplicateFinder() {
 }
 
 function toggleMaximizeDuplicateFinder() {
-  const win = document.getElementById('floating-duplicates-window');
-  if (win) win.classList.toggle('maximized');
+  toggleMaximizeDiff();
 }
 
 function dockDuplicateFinderToActivePane() {
-  closeFloatingDuplicateFinder();
-  App.panes[App.activePaneIndex].dockedTool = 'duplicates';
-  localStorage.setItem(`cd_pane_docked_${App.activePaneIndex}`, 'duplicates');
-  rebuildPaneDOM(App.activePaneIndex);
-  mountDockedTool(App.activePaneIndex);
+  compareState.mode = 'duplicates';
+  dockDiffToActivePane();
 }
 
 async function startDuplicateScan() {
@@ -46860,16 +46989,8 @@ async function executeDuplicateClean() {
 }
 
 function mountDockedDuplicateFinder(paneIndex) {
-  const host = document.getElementById(`docked-duplicates-host-${paneIndex}`);
-  const body = document.getElementById('duplicates-body');
-  if (host && body) {
-    host.appendChild(body);
-    const pathInput = document.getElementById('dup-path-input');
-    if (pathInput && (!pathInput.value || pathInput.value === '/')) {
-      pathInput.value = App.panes[paneIndex]?.path || '/';
-      duplicateFinderState.path = pathInput.value;
-    }
-  }
+  compareState.mode = 'duplicates';
+  mountDockedDiff(paneIndex);
 }
 
 // ==========================================================================

@@ -4064,7 +4064,7 @@
     <div class="modal-header diff-header" id="diff-header">
       <div style="display: flex; align-items: center; gap: 8px; overflow: hidden; cursor: grab;" id="diff-drag-handle">
         <img src="assets/diff.webp" alt="Compare" class="diff-header-icon" style="width: 16px; height: 16px; object-fit: contain; flex-shrink: 0;">
-        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main); white-space: nowrap;">Compare & Diff</span>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main); white-space: nowrap;">Compare</span>
         <span id="diff-header-subtitle" class="badge" style="font-size: 10px; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Folder Comparison</span>
       </div>
       <div class="diff-header-actions" style="display: flex; align-items: center; gap: 4px;">
@@ -4082,7 +4082,90 @@
     </div>
 
     <!-- 2. Window Content Body -->
-    <div class="diff-window-body" id="diff-modal-body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;"></div>
+    <!-- Compare body: moves into a Panel when docked -->
+    <div class="compare-body" id="compare-body">
+      <div class="compare-modes" id="compare-modes" role="tablist">
+        <button class="compare-mode-btn" data-mode="folders" data-on-click="compareSetMode" data-click-args='["folders"]' title="Compare two folders, including subfolders"><i data-lucide="folders"></i> Two folders</button>
+        <button class="compare-mode-btn" data-mode="files" data-on-click="compareSetMode" data-click-args='["files"]' title="Compare two text files or images side by side"><i data-lucide="files"></i> Two files</button>
+        <button class="compare-mode-btn" data-mode="duplicates" data-on-click="compareSetMode" data-click-args='["duplicates"]' title="Find identical files in a folder"><i data-lucide="copy-check"></i> Duplicates</button>
+      </div>
+      <div class="diff-window-body" id="diff-modal-body" style="flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;"></div>
+      <div class="duplicates-body" id="duplicates-body" style="display: none;">
+      <div class="dup-controls-bar">
+        <!-- Path Definition Row -->
+        <div class="dup-path-row">
+          <div class="dup-path-input-wrap">
+            <i data-lucide="folder" class="dup-path-icon"></i>
+            <input type="text" id="dup-path-input" class="dup-path-input" placeholder="Directory path to scan (e.g. /home/user/downloads)..." spellcheck="false" autocomplete="off" data-keydown-key="Enter" data-on-keydown="startDuplicateScan">
+          </div>
+          <button class="btn btn-xs" id="btn-dup-use-pane" data-on-click="setDuplicateFinderPathToActivePane" title="Use directory of active pane"><i data-lucide="folder-symlink" style="width: 12px; height: 12px;"></i> Active Pane</button>
+        </div>
+
+        <!-- Filter Criteria & Find Action Row -->
+        <div class="dup-criteria-row">
+          <div class="dup-criterion-item">
+            <label class="dup-label" for="dup-min-size-select">Min Size:</label>
+            <select id="dup-min-size-select" class="dup-select">
+              <option value="0">All Sizes (≥ 1 B)</option>
+              <option value="1024">≥ 1 KB</option>
+              <option value="102400">≥ 100 KB</option>
+              <option value="1048576" selected>≥ 1 MB</option>
+              <option value="10485760">≥ 10 MB</option>
+              <option value="104857600">≥ 100 MB</option>
+              <option value="1073741824">≥ 1 GB</option>
+            </select>
+          </div>
+
+          <div class="dup-criterion-item">
+            <label class="dup-label" for="dup-file-type-select">File Type:</label>
+            <select id="dup-file-type-select" class="dup-select">
+              <option value="all" selected>All Files</option>
+              <option value="images">Images (.jpg, .png, .webp...)</option>
+              <option value="videos">Videos (.mp4, .mkv, .mov...)</option>
+              <option value="audio">Audio (.mp3, .flac, .wav...)</option>
+              <option value="documents">Documents (.pdf, .docx, .txt...)</option>
+              <option value="archives">Archives (.zip, .tar, .7z...)</option>
+            </select>
+          </div>
+
+          <label class="renamer-checkbox-label" style="font-size: 11px; margin-left: 2px;" title="Include dotfiles and hidden folders"><input type="checkbox" id="dup-include-hidden"> Hidden Files</label>
+
+          <button class="btn btn-sm btn-accent" id="btn-start-dup-scan" data-on-click="startDuplicateScan" style="margin-left: auto; height: 26px; padding: 0 12px; font-weight: 600;"><i data-lucide="search" style="width: 13px; height: 13px;"></i> Find Duplicates</button>
+        </div>
+
+        <!-- Presets Row -->
+        <div class="dup-presets-bar">
+          <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim); margin-right: 4px;">Auto-Select:</span>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_newest"]'>Keep Newest</button>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_oldest"]'>Keep Oldest</button>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_shortest"]'>Keep Shortest Path</button>
+          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["all_duplicates"]'>Select All Duplicates</button>
+          <button class="btn btn-xs btn-outline" data-on-click="autoSelectDuplicates" data-click-args='["deselect_all"]'>Deselect All</button>
+        </div>
+      </div>
+
+      <div style="flex: 1; overflow-y: auto; padding: 6px 0;" id="duplicates-groups-container">
+        <div class="dup-empty-state">
+          <i data-lucide="copy-check" style="width: 38px; height: 38px; opacity: 0.35; color: var(--accent);"></i>
+          <div style="font-size: 13px; font-weight: 600; color: var(--text-main);">Configure Scan Path & Filters</div>
+          <div style="font-size: 11.5px; color: var(--text-muted); max-width: 340px; text-align: center; line-height: 1.4;">
+            Specify the directory path and criteria filters above, then click <strong>Find Duplicates</strong> to scan.
+          </div>
+        </div>
+      </div>
+
+      <div class="dup-footer-bar">
+        <div id="dup-status-summary" style="font-size: 11.5px; font-weight: 600; color: var(--text-main);">0 files selected</div>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <select id="dup-action-select" class="pane-quick-filter renamer-select" style="height: 28px;">
+            <option value="trash" id="dup-action-trash-option" selected>Move to Trash (.local/share/Trash)</option>
+            <option value="delete">Delete Permanently</option>
+          </select>
+          <button class="btn btn-sm btn-danger" id="btn-execute-dup-clean" data-on-click="executeDuplicateClean" disabled><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clean Selected</button>
+        </div>
+      </div>
+    </div>
+    </div>
   </div>
 
   <!-- Floating Format Converter Window -->
@@ -4528,107 +4611,6 @@
       <div id="hex-status-offset" style="font-family: var(--font-mono); font-size: 10.5px; color: var(--text-muted);">Offset: 0x00000000 (0)</div>
       <div id="hex-status-mode" style="font-size: 10px; color: var(--text-dim); text-transform: uppercase;">Direct Hex Edit Mode</div>
       <div id="hex-status-modified" style="font-size: 10.5px; font-weight: 600; color: var(--accent);">0 bytes patched</div>
-    </div>
-  </div>
-
-  <!-- 🔍 Floating Duplicate Finder Core Function Window -->
-  <div class="floating-duplicates-window" id="floating-duplicates-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
-    <div class="win-resize-handle win-resize-top" id="duplicates-resize-top"></div>
-    <div class="win-resize-handle win-resize-bottom" id="duplicates-resize-bottom"></div>
-    <div class="win-resize-handle win-resize-left" id="duplicates-resize-left"></div>
-    <div class="win-resize-handle win-resize-right" id="duplicates-resize-right"></div>
-    <div class="win-resize-handle win-resize-corner" id="duplicates-resize-corner">
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
-    </div>
-
-    <div class="modal-header duplicates-header" id="duplicates-header">
-      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;" id="duplicates-drag-handle">
-        <i data-lucide="copy-check" style="width: 17px; height: 17px; color: var(--accent); flex-shrink: 0;"></i>
-        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px; color: var(--text-main);">Duplicate Finder</span>
-        <span class="badge" style="font-size: 10px; padding: 1px 5px; opacity: 0.8;">SHA-256</span>
-      </div>
-      <div style="display: flex; align-items: center; gap: 4px;">
-        <button class="btn btn-icon desktop-only" id="btn-duplicates-dock" data-on-click="dockDuplicateFinderToActivePane" title="Dock into Active Pane" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close"></i></button>
-        <button class="btn btn-icon" id="btn-duplicates-maximize" data-on-click="toggleMaximizeDuplicateFinder" title="Maximize / Restore" style="width: 28px; height: 28px;"><i data-lucide="maximize-2"></i></button>
-        <button class="btn btn-icon desktop-only" data-on-click="minimizeFloatingDuplicateFinder" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus"></i></button>
-        <button class="btn btn-icon modal-close-btn" data-on-click="closeFloatingDuplicateFinder" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x"></i></button>
-      </div>
-    </div>
-
-    <div class="duplicates-body" id="duplicates-body">
-      <div class="dup-controls-bar">
-        <!-- Path Definition Row -->
-        <div class="dup-path-row">
-          <div class="dup-path-input-wrap">
-            <i data-lucide="folder" class="dup-path-icon"></i>
-            <input type="text" id="dup-path-input" class="dup-path-input" placeholder="Directory path to scan (e.g. /home/user/downloads)..." spellcheck="false" autocomplete="off" data-keydown-key="Enter" data-on-keydown="startDuplicateScan">
-          </div>
-          <button class="btn btn-xs" id="btn-dup-use-pane" data-on-click="setDuplicateFinderPathToActivePane" title="Use directory of active pane"><i data-lucide="folder-symlink" style="width: 12px; height: 12px;"></i> Active Pane</button>
-        </div>
-
-        <!-- Filter Criteria & Find Action Row -->
-        <div class="dup-criteria-row">
-          <div class="dup-criterion-item">
-            <label class="dup-label" for="dup-min-size-select">Min Size:</label>
-            <select id="dup-min-size-select" class="dup-select">
-              <option value="0">All Sizes (≥ 1 B)</option>
-              <option value="1024">≥ 1 KB</option>
-              <option value="102400">≥ 100 KB</option>
-              <option value="1048576" selected>≥ 1 MB</option>
-              <option value="10485760">≥ 10 MB</option>
-              <option value="104857600">≥ 100 MB</option>
-              <option value="1073741824">≥ 1 GB</option>
-            </select>
-          </div>
-
-          <div class="dup-criterion-item">
-            <label class="dup-label" for="dup-file-type-select">File Type:</label>
-            <select id="dup-file-type-select" class="dup-select">
-              <option value="all" selected>All Files</option>
-              <option value="images">Images (.jpg, .png, .webp...)</option>
-              <option value="videos">Videos (.mp4, .mkv, .mov...)</option>
-              <option value="audio">Audio (.mp3, .flac, .wav...)</option>
-              <option value="documents">Documents (.pdf, .docx, .txt...)</option>
-              <option value="archives">Archives (.zip, .tar, .7z...)</option>
-            </select>
-          </div>
-
-          <label class="renamer-checkbox-label" style="font-size: 11px; margin-left: 2px;" title="Include dotfiles and hidden folders"><input type="checkbox" id="dup-include-hidden"> Hidden Files</label>
-
-          <button class="btn btn-sm btn-accent" id="btn-start-dup-scan" data-on-click="startDuplicateScan" style="margin-left: auto; height: 26px; padding: 0 12px; font-weight: 600;"><i data-lucide="search" style="width: 13px; height: 13px;"></i> Find Duplicates</button>
-        </div>
-
-        <!-- Presets Row -->
-        <div class="dup-presets-bar">
-          <span style="font-size: 10.5px; font-weight: 600; color: var(--text-dim); margin-right: 4px;">Auto-Select:</span>
-          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_newest"]'>Keep Newest</button>
-          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_oldest"]'>Keep Oldest</button>
-          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["keep_shortest"]'>Keep Shortest Path</button>
-          <button class="btn btn-xs" data-on-click="autoSelectDuplicates" data-click-args='["all_duplicates"]'>Select All Duplicates</button>
-          <button class="btn btn-xs btn-outline" data-on-click="autoSelectDuplicates" data-click-args='["deselect_all"]'>Deselect All</button>
-        </div>
-      </div>
-
-      <div style="flex: 1; overflow-y: auto; padding: 6px 0;" id="duplicates-groups-container">
-        <div class="dup-empty-state">
-          <i data-lucide="copy-check" style="width: 38px; height: 38px; opacity: 0.35; color: var(--accent);"></i>
-          <div style="font-size: 13px; font-weight: 600; color: var(--text-main);">Configure Scan Path & Filters</div>
-          <div style="font-size: 11.5px; color: var(--text-muted); max-width: 340px; text-align: center; line-height: 1.4;">
-            Specify the directory path and criteria filters above, then click <strong>Find Duplicates</strong> to scan.
-          </div>
-        </div>
-      </div>
-
-      <div class="dup-footer-bar">
-        <div id="dup-status-summary" style="font-size: 11.5px; font-weight: 600; color: var(--text-main);">0 files selected</div>
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <select id="dup-action-select" class="pane-quick-filter renamer-select" style="height: 28px;">
-            <option value="trash" id="dup-action-trash-option" selected>Move to Trash (.local/share/Trash)</option>
-            <option value="delete">Delete Permanently</option>
-          </select>
-          <button class="btn btn-sm btn-danger" id="btn-execute-dup-clean" data-on-click="executeDuplicateClean" disabled><i data-lucide="trash-2" style="width: 12px; height: 12px;"></i> Clean Selected</button>
-        </div>
-      </div>
     </div>
   </div>
 
@@ -6793,10 +6775,6 @@
   </div>
 
   <!-- Duplicate Finder Minimized Task Pill -->
-  <div class="duplicates-pill" id="duplicates-pill" style="display: none;" data-on-click="restoreFloatingDuplicateFinder" title="Click to restore Duplicate Finder">
-    <i data-lucide="copy-check" style="width: 14px; height: 14px; color: var(--accent);"></i>
-    <span class="duplicates-pill-title" id="duplicates-pill-title">Duplicate Finder</span>
-  </div>
 
   <!-- Tag Editor Minimized Task Pill -->
   <div class="tageditor-pill" id="tageditor-pill" style="display: none;" data-on-click="restoreFloatingTagEditor" title="Click to restore Tag Editor">
@@ -6816,10 +6794,10 @@
     <span class="cad-pill-title" id="cad-pill-title">3D CAD Studio</span>
   </div>
 
-  <!-- Compare & Diff Minimized Task Pill -->
-  <div class="diff-pill" id="diff-pill" style="display: none;" data-on-click="restoreFloatingDiff" title="Click to restore Compare Tool (F9)">
+  <!-- Compare Minimized Task Pill -->
+  <div class="diff-pill" id="diff-pill" style="display: none;" data-on-click="restoreFloatingDiff" title="Click to restore Compare (F9)">
     <img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain;">
-    <span class="diff-pill-title" id="diff-pill-title">Compare Tool</span>
+    <span class="diff-pill-title" id="diff-pill-title">Compare</span>
   </div>
 
   <!-- Comic Book (.cbz/.cbr) & EPUB In-Browser Reader Modal -->

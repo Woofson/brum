@@ -17544,3 +17544,142 @@ textarea.bk-input {
 .bk-remote-examples code {
   white-space: nowrap;
 }
+
+/* ==========================================================================
+   Compare (two folders, two files, duplicates)
+   ========================================================================== */
+.compare-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.compare-modes {
+  display: flex;
+  gap: 4px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-dark);
+  flex-shrink: 0;
+  flex-wrap: wrap;
+}
+
+.compare-mode-btn {
+  height: 26px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.compare-mode-btn:hover {
+  color: var(--text-main);
+  border-color: var(--accent);
+}
+
+.compare-mode-btn.active {
+  background: rgba(245, 158, 11, 0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.compare-body #diff-modal-body {
+  padding: 8px 10px;
+  overflow-y: auto;
+}
+
+.cmp-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  flex-shrink: 0;
+}
+
+.cmp-paths {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmp-paths-stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.cmp-path {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmp-path .bk-input {
+  flex: 1;
+}
+
+.cmp-side {
+  font-size: 11px;
+  font-weight: 700;
+  width: 34px;
+  flex-shrink: 0;
+}
+
+.cmp-left { color: var(--info); }
+.cmp-right { color: #c084fc; }
+
+.cmp-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.cmp-summary {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 8px 10px;
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+}
+
+@media (max-width: 768px) {
+  .cmp-paths {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.compare-body .diff-filter-bar,
+.compare-body .diff-align-bar {
+  flex-wrap: wrap;
+}
+
+.compare-body .diff-filter-bar-container {
+  min-width: 0;
+}
+
+.compare-body .diff-filter-bar {
+  flex-shrink: 1;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.cmp-more-rows {
+  text-align: center;
+  padding: 14px !important;
+  color: var(--accent);
+  font-weight: 600;
+}

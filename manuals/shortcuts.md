@@ -20,7 +20,7 @@ Brum provides orthodox keyboard-driven power navigation paired with intuitive mo
 | **`Shift+F7`** | **Calculate Checksums** | Calculate and verify MD5, SHA-1, and SHA-256 hashes |
 | **`F8`** / **`Delete`** | **Move to Trash** | Safely move selected items to Linux XDG Trash |
 | **`Shift+F8`** / **`Shift+Delete`** | **Permanent Delete** | Irreversibly delete selected files/folders immediately (bypassing Trash) |
-| **`F9`** / **`Ctrl+D`** | **Diff Engine** | Compare files or directories side-by-side |
+| **`F9`** / **`Ctrl+D`** | **Compare** | Compare the selected files, or the folders in your two panels |
 | **`F10`** | **Settings Hub** | Open Settings modal (General, Desktop, Themes, Bookmarks, Users, Chewtoys, Keybinds) |
 | **`F11`** | **Fullscreen Toggle** | Toggle browser fullscreen workspace |
 | **`Alt+Enter`** | **Properties Dialog** | Open comprehensive 7-tab file/folder properties, permissions, and checksums dialog |

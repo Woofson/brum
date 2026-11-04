@@ -7,7 +7,7 @@ Brum's tools come in two kinds:
 
 | Area | Tools in this manual |
 | :--- | :--- |
-| Files & folders | Splitter & Combiner, Disk Usage, Batch Renamer, Hex Editor, Encrypted Vaults, Trash, Transfer hub |
+| Files & folders | Compare (folders, files, duplicates), Splitter & Combiner, Disk Usage, Batch Renamer, Hex Editor, Encrypted Vaults, Trash, Transfer hub |
 | Sharing & backup | Sharing Center, Backup & Sync |
 | Media & documents | 3D Model Viewer (CAD Studio), PDF Studio, Notes, Media Player, Format Converter |
 | Server | Terminal, Fleet Manager |
@@ -230,3 +230,20 @@ Tailspin is maintained with Brum but not built in. Install `plugins/tailspin.grr
 * **Node-Aware Places & Breadcrumbs**: Seamlessly switch active panel context to remote nodes; Places drawer automatically loads remote node bookmarks and favorites.
 * **Live Health & Version Drift Diagnostics**: Instant connection testing reporting real-time ping latency, remote OS/architecture, build number (`#<N>`), git commit, and UTC compile timestamp to quickly pinpoint outdated nodes across your fleet.
 
+---
+
+## 19. Compare (two folders, two files, duplicates)
+Open it with <kbd>F9</kbd> / <kbd>Ctrl+D</kbd> or **Tools → Compare**; **Find Duplicates** in the Tools menu opens it on Duplicates. It floats like other tools and can be docked into a Panel. At the top, choose what to compare:
+
+### Two folders
+* The two folders open in your panels are filled in; change either one, browse for another, or swap them. **Use my panels** fills them in again.
+* **Compare** looks at sizes and dates, including subfolders (untick **Include subfolders** for just the top level). **Compare contents** also compares every file's contents with checksums: slower, but certain.
+* A one-line summary ("12 differ, 5 only on the left, 2 only on the right, 312 the same") sits above the list. A folder that exists on both sides counts as different when anything inside it differs.
+* Filter the list (Modified, Left only, Right only, Identical), search it, and sort it. Each row can open a side-by-side view or be copied across.
+* **Copy across**: **Left to right**, **Right to left** or **Both ways** copies files that are missing or newer on the other side into the same subfolders. Brum says how many files it will copy and asks first; nothing is deleted.
+
+### Two files
+Choose two files, or press **Use selected files** (one file selected in each panel, or two in one panel). Text files are shown side by side or inline with the changes marked; images are shown next to each other or with a slider. <kbd>F9</kbd> with one file selected in each panel opens this view directly.
+
+### Duplicates
+Choose a folder, the smallest size to look at and a file type, then **Find Duplicates**. Files are compared by their contents (size first, then a quick fingerprint, then SHA-256), so names do not matter. Pick which copies to remove by hand or with **Keep Newest**, **Keep Oldest** or **Keep Shortest Path**, then **Clean Selected**: files go to the trash by default, and Brum asks before anything happens.

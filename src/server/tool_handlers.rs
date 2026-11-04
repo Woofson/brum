@@ -63,9 +63,51 @@ pub async fn handle_diff_folders(
 
     let recursive = payload.recursive.unwrap_or(false);
     let deep = payload.deep_hash.unwrap_or(false);
-    crate::tools::diff::compare_folders(&left, &right, recursive, deep, payload.selected_items)
+    // Runs off the request threads, and stops when the browser stops waiting (Stop, closing the window)
+    let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let _stop_when_dropped = CancelOnDrop(cancel.clone());
+    let selected = payload.selected_items;
+    tokio::task::spawn_blocking(move || crate::tools::diff::compare_folders_cancellable(&left, &right, recursive, deep, selected, &cancel))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Folder diff failed: {}", e)))
+}
+
+/// Sets the flag when the request is dropped, so background work stops with it
+struct CancelOnDrop(std::sync::Arc<std::sync::atomic::AtomicBool>);
+
+impl Drop for CancelOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+#[derive(Deserialize)]
+pub struct DiffEstimateRequest {
+    pub dir_left: String,
+    pub dir_right: String,
+    #[serde(default)]
+    pub recursive: bool,
+}
+
+/// A quick count of both folders, so the browser can ask before a very large comparison
+pub async fn handle_diff_estimate(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<DiffEstimateRequest>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let left = validate_path_access(&state, &headers, &payload.dir_left, false)?;
+    let right = validate_path_access(&state, &headers, &payload.dir_right, false)?;
+    let recursive = payload.recursive;
+    let (l, r) = tokio::task::spawn_blocking(move || {
+        let limit = 100_000;
+        let time = std::time::Duration::from_secs(3);
+        (crate::tools::diff::estimate_folder(&left, recursive, limit, time), crate::tools::diff::estimate_folder(&right, recursive, limit, time))
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(serde_json::json!({ "left": l, "right": r })))
 }
 
 #[derive(Deserialize)]
@@ -83,11 +125,11 @@ pub async fn handle_diff_checksum(
     let left = validate_path_access(&state, &headers, &payload.dir_left, false)?;
     let right = validate_path_access(&state, &headers, &payload.dir_right, false)?;
 
-    Ok(Json(crate::tools::diff::calculate_checksums_for_entries(
-        &left,
-        &right,
-        &payload.relative_paths,
-    )))
+    let paths = payload.relative_paths;
+    tokio::task::spawn_blocking(move || crate::tools::diff::calculate_checksums_for_entries(&left, &right, &paths))
+        .await
+        .map(Json)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
 }
 
 /// Validates a list of paths, stopping at the first one the caller may not access

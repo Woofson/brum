@@ -78,8 +78,7 @@ Everything below ships inside the single Brum program. Tools that rely on a prog
 | Tool | What it does |
 | :--- | :--- |
 | **Search** | Find files by name, pattern or size, across folders. |
-| **Compare** | Compare two files or two folders side by side. |
-| **Duplicate Finder** | Find identical files (size, then SHA-256) and move the extras to a quarantine folder. |
+| **Compare** | Compare two folders (including subfolders) or two files side by side, copy differences across, and find duplicate files to clean up. |
 | **Batch Renamer** | Rename many files at once: find and replace, regex, numbering, upper/lower case. |
 | **Disk Usage** | See which folders and files take up the most space. |
 | **Trash** | Deleted files go to the standard Linux trash and can be restored. |

@@ -105,7 +105,15 @@ pub struct FolderDiffResult {
     pub left_only_count: usize,
     pub right_only_count: usize,
     pub entries: Vec<FolderEntryDiff>,
+    /// Very large comparisons list every difference but only some identical items
+    #[serde(default)]
+    pub truncated: bool,
+    #[serde(default)]
+    pub total_entries: usize,
 }
+
+/// More entries than this are too much for a browser to show; identical items are left out first
+pub const MAX_FOLDER_DIFF_ENTRIES: usize = 50_000;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ChecksumEntryResult {
@@ -136,6 +144,49 @@ pub fn compare_folders(
     deep_hash_compare: bool,
     selected_items: Option<Vec<String>>,
 ) -> Result<FolderDiffResult, std::io::Error> {
+    compare_folders_cancellable(dir_left_str, dir_right_str, recursive, deep_hash_compare, selected_items, &std::sync::atomic::AtomicBool::new(false))
+}
+
+fn cancelled_error() -> std::io::Error {
+    std::io::Error::new(std::io::ErrorKind::Interrupted, "Stopped")
+}
+
+/// How many files a folder has, counted quickly: stops at `limit` files or after `time_limit`
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FolderEstimate {
+    pub files: u64,
+    pub bytes: u64,
+    /// Counting stopped early: there are at least this many files
+    pub capped: bool,
+}
+
+pub fn estimate_folder(dir: &str, recursive: bool, limit: u64, time_limit: std::time::Duration) -> FolderEstimate {
+    let started = std::time::Instant::now();
+    let mut est = FolderEstimate { files: 0, bytes: 0, capped: false };
+    let walker = WalkDir::new(dir).max_depth(if recursive { 10 } else { 1 }).same_file_system(true);
+    for entry in walker.into_iter().filter_map(|e| e.ok()) {
+        if entry.file_type().is_file() {
+            est.files += 1;
+            est.bytes += entry.metadata().map(|m| m.len()).unwrap_or(0);
+        }
+        if est.files >= limit || (est.files % 1000 == 0 && started.elapsed() > time_limit) {
+            est.capped = true;
+            break;
+        }
+    }
+    est
+}
+
+/// Like `compare_folders`, but stops when `cancel` is set (for example when the browser gives up)
+pub fn compare_folders_cancellable(
+    dir_left_str: &str,
+    dir_right_str: &str,
+    recursive: bool,
+    deep_hash_compare: bool,
+    selected_items: Option<Vec<String>>,
+    cancel: &std::sync::atomic::AtomicBool,
+) -> Result<FolderDiffResult, std::io::Error> {
+    use std::sync::atomic::Ordering;
     let p_left = Path::new(dir_left_str);
     let p_right = Path::new(dir_right_str);
 
@@ -198,7 +249,10 @@ pub fn compare_folders(
     } else {
         // Recursive WalkDir
         if p_left.is_dir() {
-            for entry in WalkDir::new(p_left).max_depth(10).into_iter().filter_map(|e| e.ok()) {
+            for entry in WalkDir::new(p_left).max_depth(10).same_file_system(true).into_iter().filter_map(|e| e.ok()) {
+                if cancel.load(Ordering::Relaxed) {
+                    return Err(cancelled_error());
+                }
                 if let Ok(rel) = entry.path().strip_prefix(p_left) {
                     let rel_str = rel.to_string_lossy().to_string();
                     if rel_str.is_empty() {
@@ -219,7 +273,10 @@ pub fn compare_folders(
         }
 
         if p_right.is_dir() {
-            for entry in WalkDir::new(p_right).max_depth(10).into_iter().filter_map(|e| e.ok()) {
+            for entry in WalkDir::new(p_right).max_depth(10).same_file_system(true).into_iter().filter_map(|e| e.ok()) {
+                if cancel.load(Ordering::Relaxed) {
+                    return Err(cancelled_error());
+                }
                 if let Ok(rel) = entry.path().strip_prefix(p_right) {
                     let rel_str = rel.to_string_lossy().to_string();
                     if rel_str.is_empty() {
@@ -252,7 +309,7 @@ pub fn compare_folders(
     sorted_keys.sort();
 
     let mut entries = Vec::new();
-    let mut identical_count = 0;
+    let mut identical_count: usize = 0;
     let mut modified_count = 0;
     let mut left_only_count = 0;
     let mut right_only_count = 0;
@@ -355,7 +412,33 @@ pub fn compare_folders(
         }
     }
 
+    // A folder on both sides is only "identical" when nothing inside it differs
+    if recursive {
+        let differing: Vec<String> = entries.iter().filter(|e| e.status != "identical").map(|e| e.relative_path.clone()).collect();
+        for e in entries.iter_mut().filter(|e| e.is_dir && e.status == "identical") {
+            let prefix = format!("{}/", e.relative_path.trim_end_matches('/'));
+            if differing.iter().any(|d| d.starts_with(&prefix)) {
+                e.status = "modified".to_string();
+                identical_count = identical_count.saturating_sub(1);
+                modified_count += 1;
+            }
+        }
+    }
+
+    let total_entries = entries.len();
+    let truncated = total_entries > MAX_FOLDER_DIFF_ENTRIES;
+    if truncated {
+        // Differences first, then as many identical items as still fit
+        let (mut keep, same): (Vec<_>, Vec<_>) = entries.into_iter().partition(|e| e.status != "identical");
+        keep.truncate(MAX_FOLDER_DIFF_ENTRIES);
+        let room = MAX_FOLDER_DIFF_ENTRIES - keep.len();
+        keep.extend(same.into_iter().take(room));
+        entries = keep;
+    }
+
     Ok(FolderDiffResult {
+        truncated,
+        total_entries,
         dir_left: dir_left_str.to_string(),
         dir_right: dir_right_str.to_string(),
         total_left_entries: map_left.len(),
