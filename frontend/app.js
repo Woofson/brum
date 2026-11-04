@@ -35204,7 +35204,7 @@ async function navigateSyncPickerPath(newPath) {
 
   try {
     const encoded = encodeURIComponent(newPath);
-    const resp = await fetch(`/api/files/list?path=${encoded}&dirs_only=true`, {
+    const resp = await fetch(`/api/fs/list?path=${encoded}&show_hidden=false`, {
       headers: {}
     });
     if (resp.ok) {
