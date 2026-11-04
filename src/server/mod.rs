@@ -195,6 +195,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/sync/profiles/:id", delete(handle_delete_backup_profile))
         .route("/api/tools/sync/profiles/:id/run", post(handle_run_backup_profile))
         .route("/api/tools/sync/profiles/:id/stop", post(handle_stop_backup_profile))
+        .route("/api/tools/sync/profiles/:id/push", post(handle_push_backup_profile))
         .route("/api/tools/sync/profiles/:id/toggle", post(handle_toggle_backup_profile))
         .route("/api/tools/sync/profiles/:id/restore-points", get(handle_backup_restore_points))
         .route("/api/tools/sync/profiles/:id/browse", get(handle_backup_browse))

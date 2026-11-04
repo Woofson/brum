@@ -4,6 +4,7 @@
 pub mod engine;
 pub mod exclude;
 pub mod fleet_store;
+pub mod git_repo;
 pub mod manager;
 pub mod rclone_store;
 pub mod rsync;
@@ -395,7 +396,7 @@ mod tests {
         wait_idle(&m, &p.id).await;
         let rec = m.get_run(&run).unwrap();
         assert_eq!(rec.status, "failed");
-        assert!(rec.message.unwrap().contains("\"Pictures\" is empty"));
+        assert!(rec.message.unwrap().contains("\"Pictures\" is missing or empty"));
         assert!(dst.join("Pictures/a.jpg").exists());
 
         // Restore into the original places
@@ -413,6 +414,101 @@ mod tests {
         let mut nested = p.clone();
         nested.sources = vec![t.path().join("old").to_string_lossy().into(), pics2.to_string_lossy().into()];
         assert!(m.save_profile(nested).unwrap_err().contains("inside the other"));
+    }
+
+    #[test]
+    fn mirrored_paths() {
+        use super::store::mirror_name;
+        assert_eq!(mirror_name("/home/bolt/.bashrc", Some("/home/bolt")), "home/.bashrc");
+        assert_eq!(mirror_name("/home/bolt/.config/nvim/", Some("/home/bolt/")), "home/.config/nvim");
+        assert_eq!(mirror_name("/etc/hosts", Some("/home/bolt")), "root/etc/hosts");
+        assert_eq!(mirror_name("/home/bolter/x", Some("/home/bolt")), "root/home/bolter/x");
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn git_collection_saves_versions_restores_and_pushes() {
+        if !super::git_repo::is_available() {
+            return;
+        }
+        let m = manager();
+        let tasks = Arc::new(TaskManager::new());
+        let t = tempfile::tempdir().unwrap();
+        let home = dirs::home_dir().unwrap();
+        // Tracked: one single file and one folder (outside home, so they land under root/)
+        let rc = t.path().join("etc/app.conf");
+        let proj = t.path().join("projects/board");
+        write(t.path(), "etc/app.conf", "v1", 1_700_000_000);
+        write(&proj, "board.kicad_sch", "schematic", 1_700_000_000);
+        write(&proj, "notes.md", "notes", 1_700_000_000);
+        let repo = t.path().join("collections/workstation");
+        let bare = t.path().join("remote.git");
+        std::process::Command::new("git").args(["init", "--bare", "--quiet"]).arg(&bare).status().unwrap();
+        let mut p = profile(&rc, &repo);
+        p.name = "Workstation".into();
+        p.profile_mode = "git".into();
+        p.sources = vec![rc.to_string_lossy().into(), proj.to_string_lossy().into()];
+        p.git_remote = Some(bare.to_string_lossy().into());
+        p.git_push = true;
+        let p = m.save_profile(p).unwrap();
+        assert_eq!(p.profile_mode, "git");
+
+        let r1 = m.start_backup(&p.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        let rec = m.get_run(&r1).unwrap();
+        assert_eq!(rec.status, "ok", "{:?}", rec.message);
+        assert!(rec.message.as_deref().unwrap().contains("saved as version"), "{:?}", rec.message);
+        assert!(rec.message.as_deref().unwrap().contains("pushed"), "{:?}", rec.message);
+        let mirror = |path: &Path| super::store::mirror_name(&path.to_string_lossy(), Some(&home.to_string_lossy()));
+        assert_eq!(fs::read_to_string(repo.join(mirror(&rc))).unwrap(), "v1");
+        assert!(repo.join(mirror(&proj)).join("board.kicad_sch").exists());
+        assert!(fs::read_to_string(repo.join("brum-collection.toml")).unwrap().contains("in_repository"));
+
+        // Nothing changed: no new version
+        let r2 = m.start_backup(&p.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        assert_eq!(m.get_run(&r2).unwrap().status, "nothing");
+        assert_eq!(super::git_repo::versions(&repo, 10).len(), 1);
+
+        // A change: a second version, the repository copy follows
+        write(t.path(), "etc/app.conf", "v2", 1_700_000_500);
+        let r3 = m.start_backup(&p.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        assert_eq!(m.get_run(&r3).unwrap().status, "ok");
+        let versions = super::git_repo::versions(&repo, 10);
+        assert_eq!(versions.len(), 2);
+        assert_eq!(fs::read_to_string(repo.join(mirror(&rc))).unwrap(), "v2");
+        // The remote has both versions
+        let remote_log = std::process::Command::new("git").arg("-C").arg(&bare).args(["log", "--oneline", "main"]).output().unwrap();
+        assert_eq!(String::from_utf8_lossy(&remote_log.stdout).lines().count(), 2);
+
+        // Restore points are the saved versions; the first one still has v1
+        let points = m.restore_points(&p).unwrap();
+        assert_eq!(points.len(), 3, "{points:?}");
+        let first = points.last().unwrap().id.clone();
+        let top: Vec<_> = m.browse(&p, &first, "").unwrap().into_iter().map(|i| i.name).collect();
+        assert_eq!(top, vec!["root"], "manifest and .git are hidden");
+        let req: RestoreRequest = serde_json::from_value(serde_json::json!({ "point": first })).unwrap();
+        let sep = BackupManager::default_restore_folder(&p);
+        assert!(sep.contains("Workstation (restored "));
+        let pre = m.restore(&p, &req, &sep, tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        assert_eq!(pre.files, 3);
+        assert_eq!(fs::read_to_string(Path::new(&sep).join(mirror(&rc))).unwrap(), "v1");
+
+        // Back into the original places: asks first, then puts v1 back
+        let req: RestoreRequest = serde_json::from_value(serde_json::json!({ "point": first, "target": "original" })).unwrap();
+        let pre = m.restore(&p, &req, &p.source_dir, tasks.clone()).unwrap();
+        assert!(pre.needs_confirmation && pre.overwrites == 1, "{pre:?}");
+        let req: RestoreRequest = serde_json::from_value(serde_json::json!({ "point": first, "target": "original", "confirm_overwrite": true })).unwrap();
+        m.restore(&p, &req, &p.source_dir, tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        assert_eq!(fs::read_to_string(&rc).unwrap(), "v1");
+
+        // Push on its own
+        let push = m.start_push(&p.id).unwrap();
+        wait_idle(&m, &p.id).await;
+        let rec = m.get_run(&push).unwrap();
+        assert_eq!((rec.kind.as_str(), rec.status.as_str()), ("push", "ok"), "{:?}", rec.message);
     }
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]

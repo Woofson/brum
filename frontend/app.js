@@ -77,7 +77,7 @@ const BRUM_ACTIONS = new Set([
   'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
   'backupAddSource', 'backupBackFromPreview', 'backupDelete', 'backupEdit', 'backupNameTyped',
   'backupNew', 'backupPathTyped', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
-  'backupRefresh', 'backupRemoveSource', 'backupRestoreClear', 'backupRestoreOpen',
+  'backupPush', 'backupRefresh', 'backupRemoveSource', 'backupRestoreClear', 'backupRestoreOpen',
   'backupRestorePoint', 'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle',
   'backupRunBack', 'backupRunFilter', 'backupRunFromPreview', 'backupRunMore', 'backupRunNow',
   'backupSave', 'backupSetMode', 'backupSetSchedule', 'backupShowHistory', 'backupShowList',
@@ -99,9 +99,9 @@ const BRUM_ACTIONS = new Set([
   'closeFloatingTaskManager', 'closeImgTransformDropdown', 'closeKeyRecordModal',
   'closeMediaPlayer', 'closeModal', 'closeNotesDrawer', 'closeOtherTabs', 'closePaneTab',
   'closePaneTabOnMiddleClick', 'closeSpotlightModal', 'closeTabsToTheRight', 'compareRunFiles',
-  'compareRunFolders', 'compareSetMode', 'compareSetSubfolders', 'compareStop', 'confirmSyncFolderSelection',
-  'connectRemoteToActivePane', 'convertCurrentMediaToMp4', 'copyActionOutput',
-  'copyAndUseTokenInFleetForm', 'copyDiffItem', 'copyGeneratedApiToken',
+  'compareRunFolders', 'compareSetMode', 'compareSetSubfolders', 'compareStop',
+  'confirmSyncFolderSelection', 'connectRemoteToActivePane', 'convertCurrentMediaToMp4',
+  'copyActionOutput', 'copyAndUseTokenInFleetForm', 'copyDiffItem', 'copyGeneratedApiToken',
   'copyInspectorCoordinates', 'copyPropHash', 'copyShareUrl', 'copyTaskLogs',
   'copyTextToClipboard', 'copyToClipboardText', 'copyVariableTag', 'createNewDockedEditorTab',
   'createNewEditorTab', 'createPaneTab', 'cycleEditorTabSize', 'cycleMediaAspectRatio',
@@ -35444,6 +35444,7 @@ const BACKUP_MODES = {
   copy: { label: 'Copy', desc: 'Keeps an exact copy. Files you delete are removed from the backup too.' },
   versions: { label: 'Copy and keep old versions', desc: 'Keeps an exact copy, and keeps changed or deleted files for a number of days.' },
   two_way: { label: 'Keep two folders the same', desc: 'Changes on either side are copied to the other, deletions too. Replaced files are kept as old versions.' },
+  git: { label: 'Keep a history in git', desc: 'Gathers files and folders from anywhere into one git repository. Every run saves a version you can go back to, and can push it to GitHub, Gitea or Forgejo.' },
 };
 
 const BACKUP_EXCLUSION_CHIPS = ['.git', 'node_modules', '.cache', '*.tmp', 'Thumbs.db', '.DS_Store', '.Trash-*'];
@@ -35548,6 +35549,9 @@ function bkRunMessage(run) {
     if (run.status === 'cancelled') text = `stopped: ${text}`;
     text = text.charAt(0).toUpperCase() + text.slice(1);
     if (msg.endsWith('(with rsync)')) text += ' (with rsync)';
+    // Git collections: "· saved as version abc1234 · pushed"
+    const extra = msg.split(' · ').slice(1).join(' · ');
+    if (extra) text += ` · ${extra}`;
     return text;
   }
   // "Already up to date (1234 files checked)": show the number in the user's style
@@ -35570,7 +35574,7 @@ function bkScheduleText(p) {
 const BACKUP_ACTION_WORDS = {
   copy: 'Copied', update: 'Updated', remove: 'Removed',
   copy_back: 'Copied back', update_back: 'Updated back', remove_back: 'Removed back',
-  restore: 'Restored', prune: 'Cleaned up', warning: 'Warning',
+  restore: 'Restored', prune: 'Cleaned up', warning: 'Warning', version: 'Saved', push: 'Pushed',
 };
 
 const BACKUP_PLAN_WORDS = {
@@ -35895,7 +35899,8 @@ function backupCardHtml(p) {
       <div class="bk-card-actions">
         ${r
           ? `<button class="btn btn-sm bk-btn" data-on-click="backupStop" data-click-args="${actionArgs(p.id)}"><i data-lucide="square"></i> Stop</button>`
-          : `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRunNow" data-click-args="${actionArgs(p.id)}"><i data-lucide="play"></i> ${p.profile_mode === 'two_way' ? 'Sync now' : 'Back up now'}</button>`}
+          : `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRunNow" data-click-args="${actionArgs(p.id)}"><i data-lucide="${p.profile_mode === 'git' ? 'git-commit-horizontal' : 'play'}"></i> ${p.profile_mode === 'two_way' ? 'Sync now' : (p.profile_mode === 'git' ? 'Save a version' : 'Back up now')}</button>`}
+        ${p.profile_mode === 'git' && p.git_remote && !r ? `<button class="btn btn-sm bk-btn" data-on-click="backupPush" data-click-args="${actionArgs(p.id)}" title="${escapeHtml(p.git_remote)}"><i data-lucide="upload"></i> Push</button>` : ''}
         <button class="btn btn-sm bk-btn" data-on-click="backupShowRestore" data-click-args="${actionArgs(p.id)}" ${r ? 'disabled' : ''}><i data-lucide="rotate-ccw"></i> Restore</button>
         <button class="btn btn-sm bk-btn" data-on-click="backupShowHistory" data-click-args="${actionArgs(p.id)}"><i data-lucide="history"></i> History</button>
       </div>
@@ -35908,6 +35913,23 @@ async function backupRunNow(id) {
     await backupLoadProfiles();
     backupRenderList(true);
     backupSchedulePoll();
+  } catch (e) {
+    showToast(e.message, 'warning');
+  }
+}
+
+async function backupPush(id) {
+  try {
+    await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(id)}/push`, { method: 'POST' });
+    showToast('Pushing to the remote...', 'info');
+    await backupLoadProfiles();
+    backupRenderList(true);
+    backupSchedulePoll();
+    setTimeout(async () => {
+      const runs = await backupApi(`/api/tools/sync/runs?profile_id=${encodeURIComponent(id)}&limit=5`).catch(() => []);
+      const push = runs.find(r => r.kind === 'push' && r.status !== 'running');
+      if (push) showToast(push.message || push.status, push.status === 'ok' ? 'success' : 'error');
+    }, 3000);
   } catch (e) {
     showToast(e.message, 'warning');
   }
@@ -36042,7 +36064,7 @@ function backupRenderEditor() {
           </div>
           ${backupPasswordRow('dest', d.has_dest_password)}
           <div class="bk-hint">A folder on this machine, another drive, or a mounted NAS share. It is created if it does not exist.</div>
-          <div class="bk-hint bk-remote-examples">Remote: <code>sftp://user@server:port/folder</code> · <code>rclone://remote/folder</code> · <code>fleet://machine/folder</code></div>
+          <div class="bk-hint bk-remote-examples" id="bk-dest-remote-hints">Remote: <code>sftp://user@server:port/folder</code> · <code>rclone://remote/folder</code> · <code>fleet://machine/folder</code></div>
           <div class="bk-chips" id="bk-rclone-remotes"></div>
         </div>
       </section>
@@ -36051,7 +36073,15 @@ function backupRenderEditor() {
         <div class="bk-step-num">3</div>
         <div class="bk-step-body">
           <div class="bk-step-title">How</div>
-          <div class="bk-options">${modeOption('copy')}${modeOption('versions')}${modeOption('two_way')}</div>
+          <div class="bk-options">${modeOption('copy')}${modeOption('versions')}${modeOption('two_way')}${modeOption('git')}</div>
+          <div class="bk-git-settings" id="bk-git-settings">
+            <div class="bk-field">
+              <label for="bk-git-remote">Remote to push to <small>(optional)</small></label>
+              <input type="text" id="bk-git-remote" class="bk-input bk-mono" placeholder="git@github.com:you/dotfiles.git" value="${escapeHtml(d.git_remote || '')}">
+            </div>
+            <label class="bk-check"><input type="checkbox" id="bk-git-push" ${d.git_push ? 'checked' : ''}> Push after every saved version</label>
+            <div class="bk-hint">Pushing logs in with the SSH keys (or saved git login) of the user Brum runs as. Inside the repository, files keep their real paths: <code>home/…</code> for your home folder, <code>root/…</code> for everything else.</div>
+          </div>
         </div>
       </section>
 
@@ -36158,7 +36188,8 @@ function backupUpdateSourceHints() {
   const count = backupSourceValues().filter(Boolean).length;
   const twoWay = document.querySelector('input[name="bk-mode"]:checked')?.value === 'two_way';
   const hint = document.getElementById('bk-src-multi-hint');
-  if (hint) hint.textContent = count > 1 ? 'Each folder gets its own subfolder in the backup, named after it.' : '';
+  const git = document.querySelector('input[name="bk-mode"]:checked')?.value === 'git';
+  if (hint) hint.textContent = git ? 'Files or folders, from anywhere. Type a file\'s path, or browse for a folder.' : (count > 1 ? 'Each folder gets its own subfolder in the backup, named after it.' : '');
   const add = document.getElementById('bk-src-add');
   if (add) add.style.display = twoWay ? 'none' : '';
 }
@@ -36237,16 +36268,21 @@ function backupPathTyped() {
 function backupSetMode(mode) {
   if (backupUi.draft) backupUi.draft.profile_mode = mode;
   const twoWay = mode === 'two_way';
+  const git = mode === 'git';
   const srcTitle = document.getElementById('bk-src-title');
   const destTitle = document.getElementById('bk-dest-title');
-  if (srcTitle) srcTitle.textContent = twoWay ? 'First folder' : 'What to back up';
-  if (destTitle) destTitle.textContent = twoWay ? 'Second folder' : 'Where to keep it';
-  const never = document.getElementById('bk-never-remove-row');
-  if (never) never.style.display = twoWay ? 'none' : '';
-  const retention = document.getElementById('bk-retention-row');
-  if (retention) retention.style.display = mode === 'copy' ? 'none' : '';
-  const transfer = document.getElementById('bk-transfer-row');
-  if (transfer) transfer.style.display = twoWay ? 'none' : '';
+  if (srcTitle) srcTitle.textContent = twoWay ? 'First folder' : (git ? 'Files and folders to keep a history of' : 'What to back up');
+  if (destTitle) destTitle.textContent = twoWay ? 'Second folder' : (git ? 'Where to keep the repository' : 'Where to keep it');
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+  show('bk-never-remove-row', !twoWay && !git);
+  show('bk-retention-row', mode === 'versions' || twoWay);
+  show('bk-transfer-row', !twoWay && !git);
+  show('bk-git-settings', git);
+  show('bk-rclone-remotes', !git);
+  show('bk-dest-remote-hints', !git);
+  const add = document.getElementById('bk-src-add');
+  if (add) add.innerHTML = `<i data-lucide="plus"></i> ${git ? 'Add another file or folder' : 'Add another folder'}`;
+  if (add && window.lucide) lucide.createIcons({ root: add });
   backupUpdateSourceHints();
 }
 
@@ -36297,7 +36333,9 @@ function backupCollectDraft() {
   d.retention_days = Math.max(0, num('bk-retention', 30));
   d.log_retention_days = Math.max(1, num('bk-log-days', 90));
   d.webhook_url = val('bk-webhook').trim();
-  d.transfer = d.profile_mode === 'two_way' ? 'builtin' : (val('bk-transfer') || 'builtin');
+  d.transfer = (d.profile_mode === 'two_way' || d.profile_mode === 'git') ? 'builtin' : (val('bk-transfer') || 'builtin');
+  d.git_remote = d.profile_mode === 'git' ? val('bk-git-remote').trim() : (d.git_remote || '');
+  d.git_push = d.profile_mode === 'git' && !!document.getElementById('bk-git-push')?.checked;
   // Empty keeps a saved password; only remote places use one
   d.source_password = BACKUP_REMOTE_RE.test(d.source_dir) ? val('bk-src-pw') : '';
   d.dest_password = BACKUP_REMOTE_RE.test(d.dest_dir) ? val('bk-dest-pw') : '';
@@ -36427,7 +36465,7 @@ function backupRenderPreview() {
   const conflicts = s.conflicts ? `<div class="bk-note bk-note-warn"><i data-lucide="git-merge"></i> ${bkCount(s.conflicts, 'file was', 'files were')} changed on both sides. The newer one wins; the other is kept as an old version.</div>` : '';
   const warnings = result.total_warnings ? `
     <details class="bk-more bk-warnings">
-      <summary>${bkCount(result.total_warnings, 'item', 'items')} could not be read or will be skipped</summary>
+      <summary>${bkCount(result.total_warnings, 'thing', 'things')} to check: files that could not be read, will be skipped, or need a second look</summary>
       ${result.warnings.map(w => `<div class="bk-warn-line">${escapeHtml(w)}</div>`).join('')}
       ${result.total_warnings > result.warnings.length ? `<div class="bk-hint">...and ${formatNumber(result.total_warnings - result.warnings.length)} more</div>` : ''}
     </details>` : '';
@@ -36598,7 +36636,7 @@ function backupRenderRestore() {
   const pointOptions = r.points.map(pt => `<option value="${escapeHtml(pt.id)}" ${pt.id === r.point ? 'selected' : ''}>${escapeHtml(pt.id === 'latest' ? `Latest backup${pt.when ? ` (${bkDate(pt.when)})` : ''}` : pt.label)}</option>`).join('');
   const pointHint = r.point === 'latest'
     ? 'The files as they were at the last backup.'
-    : 'Files that were changed or removed at that time, as they were just before.';
+    : (r.profile.profile_mode === 'git' ? 'The files exactly as they were when this version was saved.' : 'Files that were changed or removed at that time, as they were just before.');
   const sel = r.selected.size;
   const target = (key, title, detail) => `
     <label class="bk-option">
@@ -36698,7 +36736,7 @@ function backupRenderHistory() {
     <button class="bk-run bk-${escapeHtml(run.status)}" data-on-click="backupShowRun" data-click-args="${actionArgs(run.id)}">
       <i data-lucide="${BACKUP_STATUS_ICONS[run.status] || 'circle'}" class="bk-run-icon ${run.status === 'running' ? 'spinner' : ''}"></i>
       <span class="bk-run-main">
-        <span class="bk-run-title">${escapeHtml(bkDate(run.started_at))}${h.profileId ? '' : ` · ${escapeHtml(run.profile_name)}`}${run.kind === 'restore' ? ' · <b>Restore</b>' : ''}${run.trigger === 'schedule' ? ' <small>(scheduled)</small>' : ''}</span>
+        <span class="bk-run-title">${escapeHtml(bkDate(run.started_at))}${h.profileId ? '' : ` · ${escapeHtml(run.profile_name)}`}${run.kind === 'restore' ? ' · <b>Restore</b>' : (run.kind === 'push' ? ' · <b>Push</b>' : '')}${run.trigger === 'schedule' ? ' <small>(scheduled)</small>' : ''}</span>
         <span class="bk-run-msg">${escapeHtml(run.status === 'running' ? 'Running...' : (bkRunMessage(run) || run.status))}</span>
       </span>
       <span class="bk-run-dur">${run.status === 'running' ? '' : bkDuration(run.duration_ms)}</span>
@@ -36782,7 +36820,7 @@ function backupRenderRun() {
     <div class="bk-form bk-fill">
       <div class="bk-form-head">
         <button class="btn btn-icon bk-icon" data-on-click="backupRunBack" title="Back to History"><i data-lucide="arrow-left"></i></button>
-        <span class="bk-form-title">${run.kind === 'restore' ? 'Restore' : 'Backup'}: ${escapeHtml(run.profile_name || '')}</span>
+        <span class="bk-form-title">${run.kind === 'restore' ? 'Restore' : (run.kind === 'push' ? 'Push' : 'Backup')}: ${escapeHtml(run.profile_name || '')}</span>
         <div style="flex: 1;"></div>
         <a class="btn btn-sm bk-btn" href="/api/tools/sync/runs/${encodeURIComponent(run.id)}/log" download title="Download the whole log as a text file"><i data-lucide="download"></i> Download log</a>
       </div>

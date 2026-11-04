@@ -100,6 +100,12 @@ pub struct BackupProfile {
     /// Address of the Fleet machine for fleet:// destinations; set by the server when saving
     #[serde(default, skip_deserializing)]
     pub dest_endpoint: Option<String>,
+    /// Git collections: the remote to push to (optional)
+    #[serde(default)]
+    pub git_remote: Option<String>,
+    /// Git collections: push after every saved version
+    #[serde(default)]
+    pub git_push: bool,
     /// Who does the copying: "builtin" (Brum) or "rsync"
     #[serde(default = "default_transfer")]
     pub transfer: String,
@@ -250,7 +256,7 @@ pub struct RestorePreview {
     pub run_id: Option<String>,
 }
 
-const PROFILE_COLUMNS: &str = "id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner, never_remove, log_retention_days, last_started, source_password, dest_password, transfer, dest_endpoint, sources";
+const PROFILE_COLUMNS: &str = "id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner, never_remove, log_retention_days, last_started, source_password, dest_password, transfer, dest_endpoint, sources, git_remote, git_push";
 const RUN_COLUMNS: &str = "id, profile_id, profile_name, kind, trigger, started_at, finished_at, status, copied, updated, removed, versions_kept, failed, bytes, warnings, duration_ms, message";
 
 fn profile_from_row(row: &rusqlite::Row) -> rusqlite::Result<BackupProfile> {
@@ -283,6 +289,8 @@ fn profile_from_row(row: &rusqlite::Row) -> rusqlite::Result<BackupProfile> {
         transfer: row.get::<_, Option<String>>(25)?.unwrap_or_else(default_transfer),
         dest_endpoint: row.get(26)?,
         sources: row.get::<_, Option<String>>(27)?.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default(),
+        git_remote: row.get(28)?,
+        git_push: row.get::<_, Option<i64>>(29)?.unwrap_or(0) == 1,
     })
 }
 
@@ -331,6 +339,10 @@ pub fn store_for(path: &str, password: Option<&str>, endpoint: Option<&str>, sft
 /// What a backup copies from: its folder, or several folders each under its own name
 fn source_store(p: &BackupProfile, sftp: &crate::config::SftpConfig) -> Result<Arc<dyn Store>, String> {
     let sources = p.all_sources();
+    if p.mode() == Mode::Git {
+        let home = dirs::home_dir().map(|h| h.to_string_lossy().to_string());
+        return Ok(Arc::new(super::store::MirrorStore::new(&sources, home.as_deref())));
+    }
     if sources.len() == 1 {
         return store_for(&p.source_dir, p.source_password.as_deref(), None, sftp);
     }
@@ -377,9 +389,20 @@ fn same_path(a: &str, b: &str) -> bool {
 /// Checks that make sense before saving or previewing a backup
 pub fn check_paths(p: &BackupProfile) -> Result<(), String> {
     let sources = p.all_sources();
+    if p.mode() == Mode::Git {
+        if p.dest_dir.contains("://") {
+            return Err("A git collection is kept in a folder on this machine. Push it to a remote to have a copy elsewhere.".into());
+        }
+        if let Some(s) = sources.iter().find(|s| s.contains("://")) {
+            return Err(format!("A git collection tracks files and folders on this machine ({s} is not)"));
+        }
+        if p.transfer == "rsync" {
+            return Err("A git collection is copied by Brum, not rsync".into());
+        }
+    }
     if sources.len() > 1 {
         if p.mode() == Mode::TwoWay {
-            return Err("Keeping two folders the same works with one folder at a time. Use Copy or Copy and keep old versions for several folders.".into());
+            return Err("Keeping two folders the same works with one folder at a time. Use Copy, Copy and keep old versions, or a git collection for several folders.".into());
         }
         if p.transfer == "rsync" {
             return Err("rsync works with one folder at a time. Choose Brum's own copier for several folders.".into());
@@ -543,6 +566,8 @@ impl BackupManager {
             ("transfer", "TEXT DEFAULT 'builtin'"),
             ("dest_endpoint", "TEXT"),
             ("sources", "TEXT"),
+            ("git_remote", "TEXT"),
+            ("git_push", "INTEGER DEFAULT 0"),
         ] {
             if !have.iter().any(|c| c == col) {
                 conn.execute(&format!("ALTER TABLE backup_profiles ADD COLUMN {col} {def}"), [])?;
@@ -677,14 +702,15 @@ impl BackupManager {
         let conn = self.db.lock().map_err(|e| e.to_string())?;
         conn.execute(
             &format!(
-                "INSERT INTO backup_profiles ({PROFILE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28)
+                "INSERT INTO backup_profiles ({PROFILE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30)
                  ON CONFLICT(id) DO UPDATE SET name = excluded.name, source_dir = excluded.source_dir, dest_dir = excluded.dest_dir,
                    profile_mode = excluded.profile_mode, block_delta = excluded.block_delta, verify_checksum = excluded.verify_checksum,
                    archive_dir = excluded.archive_dir, retention_days = excluded.retention_days, schedule_type = excluded.schedule_type,
                    schedule_interval_mins = excluded.schedule_interval_mins, schedule_time = excluded.schedule_time,
                    webhook_url = excluded.webhook_url, enabled = excluded.enabled, exclusions = excluded.exclusions,
                    owner = excluded.owner, never_remove = excluded.never_remove, log_retention_days = excluded.log_retention_days,
-                   source_password = excluded.source_password, dest_password = excluded.dest_password, transfer = excluded.transfer, dest_endpoint = excluded.dest_endpoint, sources = excluded.sources"
+                   source_password = excluded.source_password, dest_password = excluded.dest_password, transfer = excluded.transfer, dest_endpoint = excluded.dest_endpoint, sources = excluded.sources,
+                   git_remote = excluded.git_remote, git_push = excluded.git_push"
             ),
             params![
                 p.id,
@@ -715,6 +741,8 @@ impl BackupManager {
                 p.transfer,
                 p.dest_endpoint,
                 serde_json::to_string(&p.sources).unwrap_or_else(|_| "[]".into()),
+                p.git_remote,
+                p.git_push as i64,
             ],
         )
         .map_err(|e| format!("Could not save the backup: {e}"))?;
@@ -841,6 +869,14 @@ impl BackupManager {
         let state = (spec.mode == Mode::TwoWay).then(|| self.load_state(&p.id));
         let mut log = LogWriter::new(self.db.clone(), run_id);
 
+        if spec.mode == Mode::Git {
+            if let Err(e) = super::git_repo::ensure_repo(std::path::Path::new(&p.dest_dir)) {
+                rec.status = "failed".into();
+                rec.message = Some(e);
+                return self.finish_run(rec, clock, &mut log, p);
+            }
+        }
+
         let plan = match engine::plan(&spec, state.as_ref(), &cancel) {
             Ok(plan) => plan,
             Err(e) => {
@@ -857,6 +893,9 @@ impl BackupManager {
         if plan.items.is_empty() {
             rec.status = "nothing".into();
             rec.message = Some(format!("Already up to date ({} files checked)", plan.summary.source_files));
+            if spec.mode == Mode::Git {
+                self.git_save(p, &mut rec, &mut log);
+            }
             if let Some(s) = engine::execute(&spec, &plan, state.as_ref(), &|_| {}, &mut |e| log.push(e), &cancel).ok().and_then(|o| o.new_state) {
                 self.save_state(&p.id, &s);
             }
@@ -931,6 +970,9 @@ impl BackupManager {
                     "ok".into()
                 };
                 rec.message = Some(summary_line(&rec, outcome.cancelled));
+                if spec.mode == Mode::Git && !outcome.cancelled {
+                    self.git_save(p, &mut rec, &mut log);
+                }
                 if outcome.cancelled {
                     tasks.sync_fail_task(&task_id, "Stopped");
                 } else {
@@ -970,6 +1012,97 @@ impl BackupManager {
         rec
     }
 
+    /// Git collections: writes the manifest, saves a version, and pushes when asked
+    fn git_save(&self, p: &BackupProfile, rec: &mut RunRecord, log: &mut LogWriter) {
+        let repo = std::path::Path::new(&p.dest_dir);
+        let home = dirs::home_dir().map(|h| h.to_string_lossy().to_string());
+        let items: Vec<(String, String)> = p.all_sources().iter().map(|s| (s.clone(), super::store::mirror_name(s, home.as_deref()))).collect();
+        let result = (|| -> Result<Option<String>, String> {
+            super::git_repo::write_manifest(repo, &p.name, &items)?;
+            super::git_repo::set_remote(repo, p.git_remote.as_deref())?;
+            let what = rec.message.clone().unwrap_or_default();
+            super::git_repo::commit(repo, &format!("{} (saved by Brum)", if rec.status == "nothing" { "Collection settings".to_string() } else { what }), p.owner.as_deref().unwrap_or("brum"))
+        })();
+        let mut extra = Vec::new();
+        match result {
+            Ok(Some(id)) => {
+                extra.push(format!("saved as version {id}"));
+                if rec.status == "nothing" {
+                    rec.status = "ok".into();
+                }
+                log.push(LogEntry { path: String::new(), action: "version".into(), size: 0, ok: true, detail: Some(format!("Saved as version {id}")) });
+                if p.git_push && p.git_remote.as_deref().is_some_and(|r| !r.trim().is_empty()) {
+                    match super::git_repo::push(repo) {
+                        Ok(msg) => {
+                            extra.push("pushed".into());
+                            log.push(LogEntry { path: String::new(), action: "push".into(), size: 0, ok: true, detail: Some(msg) });
+                        }
+                        Err(e) => {
+                            rec.status = "warning".into();
+                            extra.push("push failed".into());
+                            log.push(LogEntry { path: String::new(), action: "push".into(), size: 0, ok: false, detail: Some(e) });
+                        }
+                    }
+                }
+            }
+            Ok(None) => {}
+            Err(e) => {
+                rec.status = "failed".into();
+                extra.push(format!("could not save a version: {e}"));
+                log.push(LogEntry { path: String::new(), action: "version".into(), size: 0, ok: false, detail: Some(e) });
+            }
+        }
+        if !extra.is_empty() {
+            rec.message = Some(format!("{} · {}", rec.message.clone().unwrap_or_default(), extra.join(" · ")));
+        }
+    }
+
+    /// Pushes a git collection's saved versions to its remote, in the background; logged like a run
+    pub fn start_push(&self, id: &str) -> Result<String, String> {
+        let p = self.get_profile(id).ok_or("Backup not found")?;
+        if p.mode() != Mode::Git {
+            return Err("Only git collections can be pushed".into());
+        }
+        if p.git_remote.as_deref().map(str::trim).unwrap_or("").is_empty() {
+            return Err("Set a remote for this collection first (Edit → Remote)".into());
+        }
+        let (run_id, _progress, _cancel) = self.claim(id, "push")?;
+        let started_at = Utc::now().timestamp();
+        if let Err(e) = self.insert_run(&run_id, &p, "push", "manual", started_at) {
+            self.release(id);
+            return Err(e);
+        }
+        let mgr = self.clone();
+        let rid = run_id.clone();
+        tokio::spawn(async move {
+            let mgr2 = mgr.clone();
+            let p2 = p.clone();
+            let _ = tokio::task::spawn_blocking(move || {
+                let clock = Instant::now();
+                let mut rec = mgr2.get_run(&rid).unwrap_or_else(|| blank_run(&rid, &p2, "push", "manual"));
+                let mut log = LogWriter::new(mgr2.db.clone(), &rid);
+                let repo = std::path::Path::new(&p2.dest_dir);
+                let res = super::git_repo::set_remote(repo, p2.git_remote.as_deref()).and_then(|_| super::git_repo::push(repo));
+                match res {
+                    Ok(msg) => {
+                        rec.status = "ok".into();
+                        log.push(LogEntry { path: String::new(), action: "push".into(), size: 0, ok: true, detail: Some(msg.clone()) });
+                        rec.message = Some(msg);
+                    }
+                    Err(e) => {
+                        rec.status = "failed".into();
+                        log.push(LogEntry { path: String::new(), action: "push".into(), size: 0, ok: false, detail: Some(e.clone()) });
+                        rec.message = Some(format!("Push failed: {e}"));
+                    }
+                }
+                mgr2.finish_run(rec, clock, &mut log, &p2)
+            })
+            .await;
+            mgr.release(&p.id);
+        });
+        Ok(run_id)
+    }
+
     async fn notify(&self, p: &BackupProfile, rec: &RunRecord) {
         let Some(url) = p.webhook_url.as_deref().map(str::trim).filter(|u| !u.is_empty()) else { return };
         if rec.status == "nothing" {
@@ -1006,7 +1139,22 @@ impl BackupManager {
         } else {
             None
         };
-        let plan = engine::plan(&spec, state.as_ref(), &AtomicBool::new(false))?;
+        let mut plan = engine::plan(&spec, state.as_ref(), &AtomicBool::new(false))?;
+        if spec.mode == Mode::Git {
+            // Things to know before they go into a repository that may be pushed
+            let pushed = p.git_remote.as_deref().is_some_and(|r| !r.trim().is_empty());
+            let mut notes = Vec::new();
+            for (rel, m) in &plan.source_files {
+                if pushed && super::git_repo::looks_sensitive(rel) {
+                    notes.push(format!("Looks like a password or key, and this collection is pushed to a remote: {rel}"));
+                }
+                if m.size > 50 * 1024 * 1024 {
+                    notes.push(format!("Very large file ({}), every changed version is kept in the repository: {rel}", format_bytes(m.size)));
+                }
+            }
+            notes.append(&mut plan.warnings);
+            plan.warnings = notes;
+        }
         const MAX_ITEMS: usize = 2000;
         const MAX_WARNINGS: usize = 200;
         Ok(PreviewResult {
@@ -1153,6 +1301,12 @@ impl BackupManager {
         let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)?;
         let last_ok = self.view(p.clone()).last_success_at;
         let mut points = vec![RestorePoint { id: "latest".into(), label: "Latest backup".into(), when: last_ok }];
+        if p.mode() == Mode::Git {
+            for v in super::git_repo::versions(std::path::Path::new(&p.dest_dir), 500) {
+                points.push(RestorePoint { label: format!("Version {}: {}", &v.id[..7.min(v.id.len())], v.message.trim_end_matches(" (saved by Brum)")), id: v.id, when: Some(v.time) });
+            }
+            return Ok(points);
+        }
         if let Ok(entries) = dest.list_dir(&p.versions_dir()) {
             let mut dated: Vec<RestorePoint> = entries
                 .into_iter()
@@ -1170,7 +1324,7 @@ impl BackupManager {
     }
 
     fn point_base(&self, p: &BackupProfile, point: &str) -> Result<String, String> {
-        if point == "latest" || point.is_empty() {
+        if point == "latest" || point.is_empty() || p.mode() == Mode::Git {
             return Ok(String::new());
         }
         if NaiveDateTime::parse_from_str(point, STAMP_FORMAT).is_err() {
@@ -1179,10 +1333,27 @@ impl BackupManager {
         Ok(join_rel(&p.versions_dir(), point))
     }
 
+    /// Where a restore point's files are read from: the backup itself, or a saved git version
+    fn point_store(&self, p: &BackupProfile, point: &str) -> Result<Arc<dyn Store>, String> {
+        if p.mode() == Mode::Git && point != "latest" && !point.is_empty() {
+            return Ok(Arc::new(super::git_repo::GitVersionStore::new(std::path::Path::new(&p.dest_dir), point)?));
+        }
+        store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)
+    }
+
+    /// Things in a backup folder that are Brum's own, never shown or restored
+    fn is_internal(p: &BackupProfile, rel: &str) -> bool {
+        let versions = p.versions_dir();
+        rel.ends_with(PART_SUFFIX)
+            || rel == versions
+            || rel.starts_with(&format!("{versions}/"))
+            || (p.mode() == Mode::Git && (rel == ".git" || rel.starts_with(".git/") || rel == super::git_repo::MANIFEST))
+    }
+
     /// One folder level inside a restore point
     pub fn browse(&self, p: &BackupProfile, point: &str, path: &str) -> Result<Vec<DirItem>, String> {
         let p = &self.with_fleet_login(p);
-        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)?;
+        let dest = self.point_store(p, point)?;
         let base = self.point_base(p, point)?;
         let rel = safe_rel(path)?;
         let at_top = base.is_empty() && rel.is_empty();
@@ -1191,7 +1362,7 @@ impl BackupManager {
         Ok(items
             .into_iter()
             .filter(|i| !i.name.ends_with(PART_SUFFIX))
-            .filter(|i| !(at_top && (i.name == versions || versions.starts_with(&format!("{}/", i.name)))))
+            .filter(|i| !(at_top && (i.name == versions || versions.starts_with(&format!("{}/", i.name)) || Self::is_internal(p, &i.name))))
             .collect())
     }
 
@@ -1202,7 +1373,7 @@ impl BackupManager {
         let stamp = Local::now().format("%Y-%m-%d %H%M");
         // Several folders are restored together, under the backup's name
         let safe_backup_name: String = p.name.chars().map(|c| if c == '/' || c == '\\' { '-' } else { c }).collect();
-        let name = if p.is_multi_source() { safe_backup_name.as_str() } else { name };
+        let name = if p.is_multi_source() || p.mode() == Mode::Git { safe_backup_name.as_str() } else { name };
         let name = if name.is_empty() { "Backup" } else { name };
         format!("{parent}/{name} (restored {stamp})")
     }
@@ -1212,17 +1383,16 @@ impl BackupManager {
     pub fn restore(&self, p: &BackupProfile, req: &RestoreRequest, target_path: &str, tasks: Arc<TaskManager>) -> Result<RestorePreview, String> {
         let with_login = self.with_fleet_login(p);
         let p = &with_login;
-        let dest = store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)?;
+        let dest = self.point_store(p, &req.point)?;
         // Restoring into the original place of a remote source uses that place's password
         let target_password = same_path(target_path, &p.source_dir).then(|| p.source_password.as_deref()).flatten();
-        let target = if p.is_multi_source() && same_path(target_path, &p.source_dir) {
+        let target = if (p.is_multi_source() || p.mode() == Mode::Git) && same_path(target_path, &p.source_dir) {
             source_store(p, &self.sftp)?
         } else {
             store_for(target_path, target_password, None, &self.sftp)?
         };
         let base = self.point_base(p, &req.point)?;
-        let versions = p.versions_dir();
-        let skip = |rel: &str, _d: bool| rel.ends_with(PART_SUFFIX) || (base.is_empty() && (rel == versions || rel.starts_with(&format!("{versions}/"))));
+        let skip = |rel: &str, _d: bool| rel.ends_with(PART_SUFFIX) || (base.is_empty() && Self::is_internal(p, rel));
         let cancel_none = AtomicBool::new(false);
         let mut warnings = Vec::new();
 
@@ -1252,7 +1422,15 @@ impl BackupManager {
         }
         // Files that are already exactly as in the backup need no restoring
         let before = files.len();
-        files.retain(|rel, m| !target.stat(rel).is_some_and(|t| t.same_as(m)));
+        // Git does not keep file times, so for saved versions equal sizes are checked by content
+        let git_version = p.mode() == Mode::Git && req.point != "latest" && !req.point.is_empty();
+        files.retain(|rel, m| match target.stat(rel) {
+            Some(t) if t.same_as(m) => false,
+            Some(t) if git_version && t.size == m.size => {
+                super::store::checksum(dest.as_ref(), &join_rel(&base, rel)).ok() != super::store::checksum(target.as_ref(), rel).ok()
+            }
+            _ => true,
+        });
         let already_same = (before - files.len()) as u64;
         if files.is_empty() {
             return Err(format!("All {before} files are already exactly as in the backup; nothing to restore"));

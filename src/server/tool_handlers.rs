@@ -909,7 +909,34 @@ fn resolve_profile_paths(state: &AppState, headers: &HeaderMap, p: &mut BackupPr
     if p.dest_dir.to_lowercase().starts_with("fleet://") {
         resolve_fleet_destination(state, headers, p)?;
     }
+    if let Some(remote) = p.git_remote.as_deref().map(str::trim).filter(|r| !r.is_empty()).map(String::from) {
+        p.git_remote = Some(check_git_remote(state, headers, &remote)?);
+    } else {
+        p.git_remote = None;
+    }
     Ok(())
+}
+
+/// Only ordinary git remotes: SSH (`user@host:path`, `ssh://`), `https://`, `http://`, `git://`,
+/// or a folder on this machine the user may write to. Never git's command-running transports.
+fn check_git_remote(state: &AppState, headers: &HeaderMap, remote: &str) -> Result<String, ApiError> {
+    let lower = remote.to_lowercase();
+    if remote.starts_with('-') || remote.contains(char::is_whitespace) || lower.contains("::") {
+        return Err(bad_request("This remote address is not allowed".into()));
+    }
+    if ["ssh://", "https://", "http://", "git://"].iter().any(|p| lower.starts_with(p)) {
+        return Ok(remote.to_string());
+    }
+    // scp-style SSH: user@host:path
+    if let Some((host_part, _path)) = remote.split_once(':') {
+        if !host_part.contains('/') && host_part.contains('@') {
+            return Ok(remote.to_string());
+        }
+    }
+    if remote.starts_with('/') || remote.starts_with('~') {
+        return validate_path_access(state, headers, remote, true);
+    }
+    Err(bad_request("Use a remote like git@github.com:you/repo.git, ssh://…, https://… or a folder on this machine".into()))
 }
 
 /// Finds the Fleet machine of a fleet:// destination: first in Brum's settings file, then in the
@@ -997,6 +1024,18 @@ pub async fn handle_run_backup_profile(
     require_write(&extract_claims_or_local(&state, &headers)?)?;
     owned_profile(&state, &headers, &id)?;
     let run_id = state.backup.start_backup(&id, "manual", state.tasks.clone()).map_err(|e| (StatusCode::CONFLICT, e))?;
+    Ok(Json(serde_json::json!({ "success": true, "run_id": run_id })))
+}
+
+/// Pushes a git collection to its remote
+pub async fn handle_push_backup_profile(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    AxumPath(id): AxumPath<String>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    require_write(&extract_claims_or_local(&state, &headers)?)?;
+    owned_profile(&state, &headers, &id)?;
+    let run_id = state.backup.start_push(&id).map_err(|e| (StatusCode::CONFLICT, e))?;
     Ok(Json(serde_json::json!({ "success": true, "run_id": run_id })))
 }
 

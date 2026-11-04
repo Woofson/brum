@@ -17683,3 +17683,12 @@ textarea.bk-input {
   color: var(--accent);
   font-weight: 600;
 }
+
+.bk-git-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}

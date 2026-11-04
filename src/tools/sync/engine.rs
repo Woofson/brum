@@ -22,6 +22,8 @@ pub enum Mode {
     Versions,
     /// Keep two folders the same, both ways
     TwoWay,
+    /// Exact copy into a git repository; every run saves a version (commit)
+    Git,
 }
 
 impl Mode {
@@ -31,6 +33,7 @@ impl Mode {
         match s.to_lowercase().as_str() {
             "versions" | "subscribe" | "archive" | "versioning" => (Mode::Versions, false),
             "two_way" | "twoway" | "synchronize" | "sync" | "bidirectional_newer" | "2way" => (Mode::TwoWay, false),
+            "git" | "collection" => (Mode::Git, false),
             "contribute" | "additive" => (Mode::Copy, true),
             _ => (Mode::Copy, false),
         }
@@ -41,6 +44,7 @@ impl Mode {
             Mode::Copy => "copy",
             Mode::Versions => "versions",
             Mode::TwoWay => "two_way",
+            Mode::Git => "git",
         }
     }
 }
@@ -168,6 +172,10 @@ fn skip_fn<'a>(spec: &'a JobSpec, is_dest_side: bool) -> impl Fn(&str, bool) -> 
         if rel.ends_with(PART_SUFFIX) {
             return true;
         }
+        // A git collection's own files are never part of the copy
+        if is_dest_side && spec.mode == Mode::Git && (rel == ".git" || rel.starts_with(".git/") || rel == super::git_repo::MANIFEST) {
+            return true;
+        }
         if versions_on_this_side && (rel == spec.versions_dir || rel.starts_with(&format!("{}/", spec.versions_dir))) {
             return true;
         }
@@ -219,10 +227,11 @@ pub fn plan(spec: &JobSpec, state: Option<&Listing>, cancel: &AtomicBool) -> Res
         if !spec.never_remove {
             for name in spec.source.part_names() {
                 let prefix = format!("{name}/");
-                let in_backup = dst.keys().filter(|k| k.starts_with(&prefix)).count();
-                if in_backup > 0 && !src.keys().any(|k| k.starts_with(&prefix)) {
+                let inside = |k: &String| k == &name || k.starts_with(&prefix);
+                let in_backup = dst.keys().filter(|k| inside(k)).count();
+                if in_backup > 0 && !src.keys().any(inside) {
                     return Err(format!(
-                        "The folder \"{name}\" is empty, but the backup has {in_backup} files from it. Is its drive or share connected? Nothing was changed."
+                        "\"{name}\" is missing or empty, but the backup has {in_backup} files from it. Is its drive or share connected? If you removed it on purpose, take it out of the backup. Nothing was changed."
                     ));
                 }
             }
@@ -319,7 +328,8 @@ pub fn execute(
     cancel: &AtomicBool,
 ) -> Result<RunOutcome, String> {
     spec.dest.ensure_root()?;
-    let keep_versions = spec.mode != Mode::Copy;
+    // Git keeps its own history, so only these modes keep old versions in a folder
+    let keep_versions = matches!(spec.mode, Mode::Versions | Mode::TwoWay);
     let stamp_dir = join_rel(&spec.versions_dir, &chrono::Local::now().format(STAMP_FORMAT).to_string());
     let mut counts = RunCounts::default();
     let mut p = Progress {

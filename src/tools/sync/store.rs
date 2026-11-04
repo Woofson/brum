@@ -615,3 +615,196 @@ impl Store for MultiStore {
         self.parts.iter().map(|(n, _)| n.clone()).collect()
     }
 }
+
+/// Where a file or folder appears in a git collection: under your home `home/...`, otherwise
+/// `root/...` with its full path. `/etc/hosts` is `root/etc/hosts`, `~/.bashrc` is `home/.bashrc`.
+pub fn mirror_name(path: &str, home: Option<&str>) -> String {
+    let p = path.trim_end_matches('/');
+    if let Some(h) = home.map(|h| h.trim_end_matches('/')).filter(|h| !h.is_empty() && *h != "/") {
+        if p == h {
+            return "home".to_string();
+        }
+        if let Some(rest) = p.strip_prefix(&format!("{h}/")) {
+            return join_rel("home", rest);
+        }
+    }
+    join_rel("root", p.trim_start_matches('/'))
+}
+
+/// Tracked files and folders shown at their mirrored paths (see `mirror_name`), for git collections
+pub struct MirrorStore {
+    /// (mirrored path, real path, is a single file)
+    items: Vec<(String, PathBuf, bool)>,
+}
+
+impl MirrorStore {
+    pub fn new(paths: &[String], home: Option<&str>) -> Self {
+        let items = paths
+            .iter()
+            .map(|p| {
+                let real = PathBuf::from(p);
+                let is_file = real.is_file();
+                (mirror_name(p, home), real, is_file)
+            })
+            .collect();
+        Self { items }
+    }
+
+    /// The real path for a path in the mirrored view
+    fn real(&self, rel: &str) -> Result<PathBuf, String> {
+        let rel = rel.trim_matches('/');
+        for (mirror, real, is_file) in &self.items {
+            if rel == mirror {
+                return Ok(real.clone());
+            }
+            if !is_file {
+                if let Some(rest) = rel.strip_prefix(&format!("{mirror}/")) {
+                    let mut p = real.clone();
+                    for part in rest.split('/').filter(|x| !x.is_empty()) {
+                        p.push(part);
+                    }
+                    return Ok(p);
+                }
+            }
+            // A temporary copy beside a tracked single file
+            if *is_file {
+                if let (Some((dir, name)), Some(parent)) = (rel.rsplit_once('/'), real.parent()) {
+                    let (mdir, _) = mirror.rsplit_once('/').unwrap_or(("", mirror.as_str()));
+                    if dir == mdir && name.ends_with(PART_SUFFIX) {
+                        return Ok(parent.join(name));
+                    }
+                }
+            }
+        }
+        Err(format!("{rel} is not one of the tracked files or folders"))
+    }
+
+    fn with_parent<T>(&self, rel: &str, f: impl FnOnce(&LocalStore, &str) -> T) -> Result<T, String> {
+        let real = self.real(rel)?;
+        let parent = real.parent().ok_or("Invalid path")?.to_path_buf();
+        let name = real.file_name().and_then(|n| n.to_str()).ok_or("Invalid file name")?.to_string();
+        Ok(f(&LocalStore::new(parent), &name))
+    }
+}
+
+impl Store for MirrorStore {
+    fn label(&self) -> String {
+        self.items.iter().map(|(_, r, _)| r.display().to_string()).collect::<Vec<_>>().join(", ")
+    }
+
+    fn root_exists(&self) -> bool {
+        self.items.iter().all(|(_, r, _)| r.exists())
+    }
+
+    fn ensure_root(&self) -> Result<(), String> {
+        Ok(())
+    }
+
+    fn list(&self, base: &str, skip: &dyn Fn(&str, bool) -> bool, cancel: &AtomicBool, warnings: &mut Vec<String>) -> Result<Listing, String> {
+        let base = base.trim_matches('/');
+        let mut out = Listing::new();
+        for (mirror, real, is_file) in &self.items {
+            // Only the items inside `base`, keyed relative to it
+            let under = if base.is_empty() { Some(mirror.clone()) } else if mirror == base { Some(String::new()) } else { mirror.strip_prefix(&format!("{base}/")).map(String::from) };
+            let Some(prefix) = under else {
+                if mirror.len() < base.len() && base.starts_with(&format!("{mirror}/")) && !is_file {
+                    let inner = &base[mirror.len() + 1..];
+                    return LocalStore::new(real).list(inner, skip, cancel, warnings);
+                }
+                continue;
+            };
+            if skip(mirror, !is_file) {
+                continue;
+            }
+            if *is_file {
+                if let Some(m) = LocalStore::new(real.parent().unwrap_or(Path::new("/"))).stat(real.file_name().and_then(|n| n.to_str()).unwrap_or_default()) {
+                    let key = if prefix.is_empty() { real.file_name().and_then(|n| n.to_str()).unwrap_or_default().to_string() } else { prefix };
+                    out.insert(key, m);
+                }
+            } else {
+                let prefixed_skip = |rel: &str, d: bool| skip(&join_rel(mirror, rel), d);
+                for (rel, m) in LocalStore::new(real).list("", &prefixed_skip, cancel, warnings)? {
+                    out.insert(join_rel(&prefix, &rel), m);
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    fn list_dir(&self, rel: &str) -> Result<Vec<DirItem>, String> {
+        let rel = rel.trim_matches('/');
+        // Folders on the way to the tracked items ("home", "root/etc") and the items themselves
+        let mut items: Vec<DirItem> = Vec::new();
+        for (mirror, real, is_file) in &self.items {
+            if !rel.is_empty() && (mirror == rel || rel.starts_with(&format!("{mirror}/"))) && !is_file {
+                let inner = if mirror == rel { "" } else { &rel[mirror.len() + 1..] };
+                return LocalStore::new(real).list_dir(inner);
+            }
+            let rest = if rel.is_empty() { Some(mirror.as_str()) } else { mirror.strip_prefix(&format!("{rel}/")) };
+            if let Some(rest) = rest {
+                let (first, more) = rest.split_once('/').map(|(a, _)| (a, true)).unwrap_or((rest, false));
+                if !items.iter().any(|i| i.name == first) {
+                    let is_dir = more || !is_file;
+                    let meta = if is_dir { None } else { std::fs::metadata(real).ok() };
+                    items.push(DirItem { name: first.to_string(), is_dir, size: meta.as_ref().map(|m| m.len()).unwrap_or(0), mtime: meta.as_ref().map(mtime_secs).unwrap_or(0) });
+                }
+            }
+        }
+        items.sort_by(|a, b| b.is_dir.cmp(&a.is_dir).then_with(|| a.name.to_lowercase().cmp(&b.name.to_lowercase())));
+        Ok(items)
+    }
+
+    fn stat(&self, rel: &str) -> Option<FileMeta> {
+        self.with_parent(rel, |s, name| s.stat(name)).ok().flatten()
+    }
+
+    fn is_dir(&self, rel: &str) -> bool {
+        let rel = rel.trim_matches('/');
+        if rel.is_empty() || self.items.iter().any(|(m, _, _)| m.starts_with(&format!("{rel}/"))) {
+            return true;
+        }
+        self.real(rel).map(|p| p.is_dir()).unwrap_or(false)
+    }
+
+    fn open_read(&self, rel: &str) -> Result<Box<dyn Read + Send>, String> {
+        File::open(self.real(rel)?).map(|f| Box::new(f) as Box<dyn Read + Send>).map_err(|e| e.to_string())
+    }
+
+    fn write_part(&self, rel: &str, data: &mut dyn Read, mtime: i64, on_bytes: &mut dyn FnMut(u64) -> bool) -> Result<String, String> {
+        let part_in_parent = self.with_parent(rel, |s, name| s.write_part(name, data, mtime, on_bytes))??;
+        let dir = rel.trim_matches('/').rsplit_once('/').map(|(d, _)| d).unwrap_or("");
+        Ok(join_rel(dir, &part_in_parent))
+    }
+
+    fn rename(&self, from: &str, to: &str) -> Result<(), String> {
+        let (a, b) = (self.real(from)?, self.real(to)?);
+        if let Some(parent) = b.parent() {
+            fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        }
+        fs::rename(&a, &b).map_err(|e| format!("Cannot move {from}: {e}"))
+    }
+
+    fn remove_file(&self, rel: &str) -> Result<(), String> {
+        fs::remove_file(self.real(rel)?).map_err(|e| e.to_string())
+    }
+
+    fn remove_dir_all(&self, _rel: &str) -> Result<(), String> {
+        Err("Tracked folders are never removed".into())
+    }
+
+    fn remove_empty_parents(&self, _rel: &str) {}
+
+    fn local_path(&self, rel: &str) -> Option<PathBuf> {
+        self.real(rel).ok()
+    }
+
+    #[cfg(unix)]
+    fn rclone_location(&self, rel: &str) -> Option<RcloneLocation> {
+        let p = self.real(rel).ok()?;
+        Some(("/".to_string(), p.to_str()?.trim_start_matches('/').to_string()))
+    }
+
+    fn part_names(&self) -> Vec<String> {
+        self.items.iter().map(|(m, _, _)| m.clone()).collect()
+    }
+}

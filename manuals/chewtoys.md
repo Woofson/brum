@@ -111,6 +111,7 @@ The main screen lists your backups. Each card shows what is backed up and where,
    * **Copy**: an exact copy. Files you delete are removed from the backup too.
    * **Copy and keep old versions** (default): an exact copy, and replaced or deleted files are kept in a hidden `.brum-versions` folder, in dated folders, for 30 days (adjustable; 0 keeps them forever).
    * **Keep two folders the same**: changes on either side are copied to the other, deletions too. Brum remembers the last sync, so it can tell a deleted file from a new one. A file changed on both sides keeps the newer version; the other is kept as an old version.
+   * **Keep a history in git** (a *collection*): gathers files and folders from anywhere (configs, `/etc/hosts`, KiCad projects, PDFs) into one git repository, without moving them. Every run saves a version (a commit) you can go back to. See *Git collections* below.
 4. **When**: only when you click, every few minutes, every few hours, or every day at a set time. Only changes are copied, so frequent checks are cheap. If Brum was off at the planned time, the backup runs when Brum starts. A backup never runs twice at the same time.
 
 Saving a new backup shows a **preview** first ("Will copy 1,204 new files…"), with the full list, before anything is copied.
@@ -129,6 +130,14 @@ Remote places are for admins and users explicitly allowed to use them. **rsync**
 ### Safety
 * Files are copied under a temporary name, checked, and only then swapped in: an interrupted run never leaves half-written files in the backup.
 * If what you back up is suddenly empty or missing (for example a NAS that is not mounted) while the backup has files, the run stops with a message instead of emptying the backup. With several folders this is checked for each one.
+
+### Git collections
+* **What to track**: files as well as folders (type a file's path, or browse for a folder). Inside the repository they keep their real paths: `home/…` for your home folder, `root/…` for everything else, so `~/.bashrc` is `home/.bashrc` and `/etc/hosts` is `root/etc/hosts`. A `brum-collection.toml` file in the repository lists what is tracked and from where.
+* **Where**: a folder on this machine; Brum makes it a git repository. Copying never touches its `.git` folder.
+* **Versions**: each run that changed something saves a version with a short note ("Updated 2, 4 KB"). Git keeps the history, so there is no `.brum-versions` folder.
+* **Pushing**: set a remote (`git@github.com:you/dotfiles.git`, `ssh://…`, `https://…`, or a folder on this machine) and press **Push** on the card, or tick **Push after every saved version**. It logs in with the SSH keys or saved git login of the user Brum runs as. Other kinds of remote addresses are refused.
+* **Before it goes anywhere**: the preview flags files that look like passwords or keys (`id_rsa`, `.env`, `*.key`, …) when the collection is pushed, and files over 50 MB, since every version of them stays in the repository.
+* **Restore**: pick a saved version; the files come back exactly as they were then, into a separate folder or, after confirming, their original places.
 
 ### Restore
 Choose **Latest backup** or a dated set of old versions, tick files or folders (nothing ticked restores everything), and where to put them:
