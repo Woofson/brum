@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tailspin</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="ts-app">
+    <header class="ts-header">
+      <div class="ts-tabs" role="tablist">
+        <button type="button" class="ts-tab" data-tab="wheel" role="tab">Wheel</button>
+        <button type="button" class="ts-tab" data-tab="yesno" role="tab">Yes / No</button>
+        <button type="button" class="ts-tab" data-tab="dice" role="tab">Dice</button>
+      </div>
+      <button type="button" class="ts-icon-btn" id="ts-sound" title="Sound off" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M11 5 6 9H2v6h4l5 4z"/><path class="ts-sound-on" d="M15.5 8.5a5 5 0 0 1 0 7"/><path class="ts-sound-on" d="M19 5a10 10 0 0 1 0 14"/><path class="ts-sound-off" d="m22 9-6 6"/><path class="ts-sound-off" d="m16 9 6 6"/></svg>
+      </button>
+    </header>
+
+    <!-- Wheel -->
+    <section class="ts-panel" data-panel="wheel">
+      <div class="ts-wheel-layout">
+        <div class="ts-wheel-side">
+          <div class="ts-wheel-box" id="ts-wheel-box">
+            <canvas id="ts-wheel" aria-label="Decision wheel"></canvas>
+            <div class="ts-pointer" aria-hidden="true"></div>
+          </div>
+          <div class="ts-result" id="ts-wheel-result" aria-live="polite">&nbsp;</div>
+          <button type="button" class="ts-primary" id="ts-spin">Spin</button>
+        </div>
+        <div class="ts-list-side">
+          <div class="ts-list-bar">
+            <select id="ts-list-select" class="ts-select" aria-label="Saved lists"></select>
+            <button type="button" class="ts-icon-btn" id="ts-list-new" title="New list">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+            </button>
+            <button type="button" class="ts-icon-btn" id="ts-list-delete" title="Delete this list">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+            </button>
+          </div>
+          <input type="text" id="ts-list-name" class="ts-input" maxlength="40" spellcheck="false" aria-label="List name" />
+          <textarea id="ts-entries" class="ts-textarea" spellcheck="false" aria-label="Entries, one per line" placeholder="One entry per line"></textarea>
+          <div class="ts-list-foot">
+            <span id="ts-entry-count" class="ts-hint"></span>
+            <label class="ts-check"><input type="checkbox" id="ts-remove-winner" /> Remove winner after spin</label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Yes / No -->
+    <section class="ts-panel" data-panel="yesno" hidden>
+      <div class="ts-center">
+        <div class="ts-big-answer" id="ts-yesno-result" aria-live="polite">?</div>
+        <button type="button" class="ts-primary" id="ts-yesno">Ask</button>
+      </div>
+    </section>
+
+    <!-- Dice -->
+    <section class="ts-panel" data-panel="dice" hidden>
+      <div class="ts-seg" role="tablist">
+        <button type="button" class="ts-seg-btn" data-dice-mode="one">One die</button>
+        <button type="button" class="ts-seg-btn" data-dice-mode="rpg">D&amp;D</button>
+        <button type="button" class="ts-seg-btn" data-dice-mode="yatzy">Yatzy</button>
+      </div>
+
+      <div class="ts-dice-mode" data-dice-panel="one" hidden>
+        <div class="ts-one-box">
+          <button type="button" class="ts-die ts-die-big" id="ts-one-die" aria-label="Roll the die"></button>
+        </div>
+        <div class="ts-roll-result" id="ts-one-result" aria-live="polite">&nbsp;</div>
+        <button type="button" class="ts-primary" id="ts-one-roll">Roll</button>
+      </div>
+
+      <div class="ts-dice-mode" data-dice-panel="rpg" hidden>
+        <div class="ts-die-grid" id="ts-die-buttons"></div>
+        <div class="ts-row">
+          <input type="text" id="ts-notation" class="ts-input ts-mono" value="2d6+3" spellcheck="false" aria-label="Dice to roll, for example 2d6+3" />
+          <button type="button" class="ts-primary ts-small" id="ts-roll-notation">Roll</button>
+        </div>
+        <div class="ts-row">
+          <button type="button" class="ts-btn" id="ts-advantage">d20 advantage</button>
+          <button type="button" class="ts-btn" id="ts-disadvantage">d20 disadvantage</button>
+        </div>
+        <div class="ts-roll-result" id="ts-rpg-result" aria-live="polite">&nbsp;</div>
+        <ol class="ts-history" id="ts-rpg-history"></ol>
+      </div>
+
+      <div class="ts-dice-mode" data-dice-panel="yatzy" hidden>
+        <div class="ts-yatzy-dice" id="ts-yatzy-dice"></div>
+        <div class="ts-hint ts-center-text">Click a die to hold it</div>
+        <div class="ts-roll-result" id="ts-yatzy-result" aria-live="polite">&nbsp;</div>
+        <button type="button" class="ts-primary" id="ts-yatzy-roll">Roll</button>
+      </div>
+    </section>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>

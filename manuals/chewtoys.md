@@ -11,7 +11,7 @@ Brum's tools come in two kinds:
 | Sharing & backup | Sharing Center, Backup & Sync |
 | Media & documents | 3D Model Viewer (CAD Studio), PDF Studio, Notes, Media Player, Format Converter |
 | Server | Terminal, Fleet Manager |
-| Chewtoys | Tetrion (block-puzzle game), Calculator, Colours (colour picker) |
+| Chewtoys | Tetrion (block-puzzle game), Calculator, Colours (colour picker); optional: Tailspin (wheel, yes/no, dice) |
 
 For remote storage (SFTP, SMB, NFS, WebDAV, S3, Proton Drive), see the [Remote Protocols guide](protocols.md).
 
@@ -156,6 +156,15 @@ Calculator, Colours and Tetrion ship inside Brum as ordinary Chewtoys:
 * **Any colour in, every format out**: Type or paste hex, `rgb()`, `hsl()`, `hwb()`, `oklch()` or a colour name; copy HEX, RGB, HSL, HWB, OKLCH or HSV with one click.
 * **Tools**: Tints and shades, colour harmonies (complementary, analogous, triadic, split complementary, tetradic), a WCAG contrast check, saved and recently copied colours, and the current Brum theme's colours with "copy as theme variable".
 * **Eyedropper**: Pick a colour from anywhere on screen (Chrome and Edge).
+
+### Tailspin (Optional Chewtoy)
+Tailspin is maintained with Brum but not built in. Install `plugins/tailspin.grr` from the [Brum repository](https://github.com/Woofson/brum/tree/main/plugins) through **Settings → Chewtoys → Install**.
+* **Wheel**: Type or paste entries, one per line (up to 500), and spin. Keep several named lists; optionally remove the winner after each spin to draw names until the list is empty. The result is shown as one plain line.
+* **Yes / No**: One button, one answer.
+* **Dice**: One die: tap it or press Roll for a short tumble and the result. D&D: d4, d6, d8, d10, d12, d20 and d100, rolls like `2d6+3` or `1d8+1d6+2` (up to 100 dice), and d20 with advantage or disadvantage. Yatzy: five dice, click to hold, three rolls per turn.
+* **Fair results**: Every spin, answer and roll uses the browser's secure random generator.
+* **Quiet by default**: Sound is off until you turn it on. With "reduce motion" set on your computer, the wheel stops at once instead of spinning.
+* **Keys**: Space or Enter spins, asks or rolls on the open tab.
 
 ---
 

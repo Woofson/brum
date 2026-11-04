@@ -1,0 +1,516 @@
+:root {
+  --bg-panel: #18181b;
+  --bg-dark: #0d0e12;
+  --bg-hover: #26262b;
+  --bg-active: #2a2a30;
+  --accent: #f59e0b;
+  --accent-hover: #fbbf24;
+  --border: rgba(255, 255, 255, 0.09);
+  --text-main: #f4f4f5;
+  --text-muted: #a1a1aa;
+  --text-dim: #71717a;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --font-mono: ui-monospace, SFMono-Regular, "JetBrainsMono Nerd Font", Menlo, Monaco, Consolas, monospace;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  background: var(--bg-panel);
+  color: var(--text-main);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.4;
+  overflow: hidden;
+}
+
+button, input, select, textarea {
+  font: inherit;
+  color: inherit;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+/* The window never scrolls: everything resizes to fit */
+.ts-app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+}
+
+.ts-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.ts-tabs, .ts-seg {
+  flex: 1;
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+}
+
+.ts-tab, .ts-seg-btn {
+  flex: 1;
+  height: 28px;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-muted);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ts-tab:hover, .ts-seg-btn:hover {
+  color: var(--text-main);
+}
+
+.ts-tab.active, .ts-seg-btn.active {
+  background: var(--bg-active);
+  color: var(--accent);
+}
+
+.ts-seg {
+  flex: 0 0 auto;
+}
+
+.ts-icon-btn, .ts-btn {
+  height: 30px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.ts-icon-btn {
+  width: 30px;
+}
+
+.ts-btn {
+  flex: 1;
+  padding: 0 8px;
+  font-weight: 600;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ts-icon-btn:hover, .ts-btn:hover {
+  background: var(--bg-hover);
+  border-color: rgba(245, 158, 11, 0.4);
+}
+
+#ts-sound .ts-sound-on { display: none; }
+#ts-sound.on { color: var(--accent); }
+#ts-sound.on .ts-sound-on { display: inline; }
+#ts-sound.on .ts-sound-off { display: none; }
+
+.ts-primary {
+  height: 38px;
+  padding: 0 18px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #18181b;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.ts-primary:hover {
+  background: var(--accent-hover);
+}
+
+.ts-primary:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ts-primary.ts-small {
+  height: 32px;
+  font-size: 12px;
+}
+
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.ts-input, .ts-select, .ts-textarea {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  min-width: 0;
+}
+
+.ts-input, .ts-select {
+  height: 30px;
+  padding: 0 8px;
+}
+
+.ts-select {
+  flex: 1;
+}
+
+.ts-mono {
+  font-family: var(--font-mono);
+}
+
+.ts-hint {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+
+.ts-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---------- Wheel ---------- */
+.ts-wheel-layout {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(190px, 1.4fr) minmax(150px, 1fr);
+  gap: 8px;
+}
+
+.ts-wheel-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ts-wheel-box {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#ts-wheel {
+  display: block;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+/* Pointer at the top of the wheel */
+.ts-pointer {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 0;
+  height: 0;
+  transform: translateX(-50%);
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 18px solid var(--text-main);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  pointer-events: none;
+}
+
+.ts-result {
+  min-height: 22px;
+  max-width: 100%;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.ts-wheel-side .ts-primary {
+  width: min(220px, 100%);
+}
+
+.ts-list-side {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ts-list-bar, .ts-row {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ts-row .ts-input {
+  flex: 1;
+}
+
+/* The entry list is the only thing that may scroll, inside its own box */
+.ts-textarea {
+  flex: 1;
+  min-height: 60px;
+  padding: 6px 8px;
+  resize: none;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+}
+
+.ts-textarea:disabled {
+  opacity: 0.6;
+}
+
+.ts-list-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.ts-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.ts-check input {
+  accent-color: var(--accent);
+}
+
+/* Side by side when there is room */
+@media (min-width: 620px) {
+  .ts-wheel-layout {
+    grid-template-rows: 100%;
+    grid-template-columns: minmax(0, 1.3fr) minmax(220px, 1fr);
+  }
+}
+
+/* ---------- Yes / No ---------- */
+.ts-center {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.ts-center-text {
+  text-align: center;
+}
+
+.ts-big-answer {
+  font-size: clamp(48px, 18vmin, 120px);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--text-dim);
+}
+
+.ts-big-answer.yes { color: #22c55e; }
+.ts-big-answer.no { color: #ef4444; }
+
+.ts-center .ts-primary {
+  width: min(220px, 100%);
+}
+
+/* ---------- Dice ---------- */
+.ts-dice-mode {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ts-die-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.ts-die-grid .ts-btn {
+  font-family: var(--font-mono);
+}
+
+@media (max-width: 380px) {
+  .ts-die-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.ts-roll-result {
+  min-height: 28px;
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+  word-break: break-word;
+  flex-shrink: 0;
+}
+
+.ts-roll-result .ts-total {
+  color: var(--accent);
+  font-size: 22px;
+}
+
+.ts-roll-result .ts-dim {
+  color: var(--text-muted);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+/* Recent rolls: as many as fit, oldest hidden, never a scrollbar */
+.ts-history {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.ts-history li {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  flex-shrink: 0;
+}
+
+.ts-yatzy-dice {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(6px, 2.5vw, 16px);
+}
+
+.ts-yatzy-dice {
+  --die: clamp(40px, min(16vw, 18vh), 76px);
+}
+
+.ts-die {
+  width: var(--die);
+  height: var(--die);
+  flex: 0 0 var(--die);
+  padding: 0;
+  border-radius: 14%;
+  border: 2px solid var(--border);
+  background: #f4f4f5;
+  cursor: pointer;
+  position: relative;
+}
+
+.ts-die svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.ts-die.blank {
+  background: var(--bg-dark);
+}
+
+.ts-die.held {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.ts-die.held::after {
+  content: "HELD";
+  position: absolute;
+  left: 50%;
+  bottom: -18px;
+  transform: translateX(-50%);
+  font-size: 9px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.05em;
+}
+
+.ts-pip {
+  fill: #18181b;
+}
+
+.ts-dice-mode .ts-primary {
+  align-self: center;
+  width: min(220px, 100%);
+}
+
+/* ---------- One die ---------- */
+.ts-one-box {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ts-die.ts-die-big {
+  --die: clamp(72px, min(38vw, 32vh), 150px);
+  width: var(--die);
+  height: var(--die);
+  flex: 0 0 var(--die);
+  border-width: 3px;
+}
+
+/* A short tumble: the die hops, turns and settles */
+.ts-die.rolling {
+  animation: ts-tumble 0.65s cubic-bezier(0.3, 0.7, 0.4, 1);
+}
+
+@keyframes ts-tumble {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); }
+  20%  { transform: translateY(-22%) rotate(-70deg) scale(0.92); }
+  45%  { transform: translateY(-8%) rotate(-200deg) scale(0.96); }
+  70%  { transform: translateY(-14%) rotate(-310deg) scale(0.98); }
+  88%  { transform: translateY(0) rotate(-355deg) scale(1.03); }
+  100% { transform: translateY(0) rotate(-360deg) scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts-die.rolling {
+    animation: none;
+  }
+}
