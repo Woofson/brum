@@ -742,7 +742,7 @@ impl SftpClient {
     }
 }
 
-fn percent_decode(s: &str) -> String {
+pub(crate) fn percent_decode(s: &str) -> String {
     let mut bytes = Vec::new();
     let mut chars = s.bytes();
     while let Some(b) = chars.next() {

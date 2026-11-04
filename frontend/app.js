@@ -35563,6 +35563,7 @@ function backupNew() {
     exclusions: '',
     webhook_url: '',
     enabled: true,
+    transfer: 'builtin',
   };
   backupUi.nameTouched = false;
   backupRenderEditor();
@@ -35615,6 +35616,7 @@ function backupRenderEditor() {
             <input type="text" id="bk-src" class="bk-input bk-mono" placeholder="/home/you/Photos" value="${escapeHtml(d.source_dir)}" data-on-input="backupPathTyped">
             <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-src')}"><i data-lucide="folder-open"></i> Browse</button>
           </div>
+          ${backupPasswordRow('src', d.has_source_password)}
         </div>
       </section>
 
@@ -35626,7 +35628,8 @@ function backupRenderEditor() {
             <input type="text" id="bk-dest" class="bk-input bk-mono" placeholder="/mnt/nas/Backups/Photos" value="${escapeHtml(d.dest_dir)}" data-on-input="backupPathTyped">
             <button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-dest')}"><i data-lucide="folder-open"></i> Browse</button>
           </div>
-          <div class="bk-hint">A folder on this machine, another drive, or a NAS share that is mounted here. The folder is created if it does not exist.</div>
+          ${backupPasswordRow('dest', d.has_dest_password)}
+          <div class="bk-hint">A folder on this machine, another drive, or a NAS share that is mounted here. For an SFTP server (such as a Hetzner Storage Box) type <code>sftp://user@server:port/folder</code>. The folder is created if it does not exist.</div>
         </div>
       </section>
 
@@ -35660,6 +35663,14 @@ function backupRenderEditor() {
           <div class="bk-chips">${BACKUP_EXCLUSION_CHIPS.map(c => `<button class="bk-chip-btn" data-on-click="backupAddExclusion" data-click-args="${actionArgs(c)}">+ ${escapeHtml(c)}</button>`).join('')}</div>
           <div class="bk-hint">A plain name skips every file or folder with exactly that name. <code>*</code> matches any text. A path with <code>/</code> is counted from the top of the backup.</div>
         </div>
+        <div class="bk-field bk-inline" id="bk-transfer-row">
+          <label for="bk-transfer">Copy files with</label>
+          <select id="bk-transfer" class="bk-input">
+            <option value="builtin" ${d.transfer !== 'rsync' ? 'selected' : ''}>Brum</option>
+            <option value="rsync" ${d.transfer === 'rsync' ? 'selected' : ''}>rsync</option>
+          </select>
+          <small>rsync is fast at sending only the changed parts of large files over SSH. It needs rsync on this machine and an SSH key (no password).</small>
+        </div>
         <label class="bk-check"><input type="checkbox" id="bk-verify" ${d.verify_checksum ? 'checked' : ''}> Check every copy after writing it <small>(safer, a little slower)</small></label>
         <label class="bk-check"><input type="checkbox" id="bk-delta" ${d.block_delta ? 'checked' : ''}> Update only the changed parts of large files <small>(used with Copy)</small></label>
         <label class="bk-check" id="bk-never-remove-row"><input type="checkbox" id="bk-never-remove" ${d.never_remove ? 'checked' : ''}> Never remove files from the backup, even when they are deleted here</label>
@@ -35689,12 +35700,28 @@ function backupRenderEditor() {
   backupSetMode(d.profile_mode);
 }
 
+const BACKUP_REMOTE_RE = /^(sftp|ssh):\/\//i;
+
+// Password for an SFTP place; only shown while the address is an SFTP address
+function backupPasswordRow(side, hasSaved) {
+  const path = side === 'src' ? backupUi.draft.source_dir : backupUi.draft.dest_dir;
+  return `
+    <div class="bk-path-row bk-pw-row" id="bk-${side}-pw-row" style="${BACKUP_REMOTE_RE.test(path || '') ? '' : 'display: none;'}">
+      <input type="password" id="bk-${side}-pw" class="bk-input" autocomplete="new-password"
+        placeholder="${hasSaved ? 'Saved password is kept. Type to change it.' : 'Password (leave empty to log in with an SSH key)'}">
+    </div>`;
+}
+
 function backupNameTyped() {
   backupUi.nameTouched = true;
 }
 
 // Suggests a name from the chosen folders until the user types one
 function backupPathTyped() {
+  for (const side of ['src', 'dest']) {
+    const row = document.getElementById(`bk-${side}-pw-row`);
+    if (row) row.style.display = BACKUP_REMOTE_RE.test(document.getElementById(`bk-${side}`)?.value.trim() || '') ? '' : 'none';
+  }
   const nameEl = document.getElementById('bk-name');
   if (!nameEl || backupUi.nameTouched) return;
   const parts = (p) => String(p || '').replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean);
@@ -35718,6 +35745,8 @@ function backupSetMode(mode) {
   if (never) never.style.display = twoWay ? 'none' : '';
   const retention = document.getElementById('bk-retention-row');
   if (retention) retention.style.display = mode === 'copy' ? 'none' : '';
+  const transfer = document.getElementById('bk-transfer-row');
+  if (transfer) transfer.style.display = twoWay ? 'none' : '';
 }
 
 function backupSetSchedule(kind) {
@@ -35766,6 +35795,10 @@ function backupCollectDraft() {
   d.retention_days = Math.max(0, num('bk-retention', 30));
   d.log_retention_days = Math.max(1, num('bk-log-days', 90));
   d.webhook_url = val('bk-webhook').trim();
+  d.transfer = d.profile_mode === 'two_way' ? 'builtin' : (val('bk-transfer') || 'builtin');
+  // Empty keeps a saved password; only remote places use one
+  d.source_password = BACKUP_REMOTE_RE.test(d.source_dir) ? val('bk-src-pw') : '';
+  d.dest_password = BACKUP_REMOTE_RE.test(d.dest_dir) ? val('bk-dest-pw') : '';
   if (!d.name) {
     const base = d.source_dir.replace(/[\\/]+$/, '').split(/[\\/]/).pop();
     d.name = base || 'Backup';

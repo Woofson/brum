@@ -4,6 +4,8 @@
 pub mod engine;
 pub mod exclude;
 pub mod manager;
+pub mod rsync;
+pub mod sftp_store;
 pub mod store;
 
 pub use manager::{BackupManager, BackupProfile, PreviewResult, ProfileView, RestorePoint, RestorePreview, RestoreRequest, RunFile, RunRecord};

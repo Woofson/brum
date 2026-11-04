@@ -121,7 +121,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
         };
         let vault_mgr = crate::vfs::vault::VaultManager::new();
         let backup_mgr = match crate::tools::sync::BackupManager::new(auth_mgr.db()) {
-            Ok(m) => m,
+            Ok(m) => m.with_sftp_config(config.storage.sftp.clone()),
             Err(e) => {
                 error!("Windows Service failed to init BackupManager: {}", e);
                 return;
