@@ -236,7 +236,7 @@ const BRUM_ACTIONS = new Set([
   'setDiffSortBy', 'setDiskUsageViewMode', 'setDuplicateFinderPathToActivePane', 'setElementText',
   'setElementValue', 'setFileDiffMode', 'setFontSizePreset', 'setLogLevelFilter',
   'setMediaSubtitleTrack', 'setNotesManualsShown', 'setNotesStorageMode', 'setNotesViewMode',
-  'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setPropFileColor',
+  'setPane1ClickTransferAction', 'setPaneColorPref', 'setPaneViewMode', 'setRegionSetting', 'setPropFileColor',
   'setTaskVerbosity', 'setTitleTemplatePreset', 'showAddCustomActionPrompt',
   'showAddOpenWithRulePrompt', 'showAddUserPrompt', 'showElementIf', 'showToast',
   'showTouchActionsMenu', 'skipMedia', 'sortDiffByColumn', 'sortDocCsv', 'sortPane',
@@ -1445,12 +1445,16 @@ function getParentDirectory(path) {
   return '/' + parts.join('/');
 }
 
+// File sizes as chosen in Region & formats: classic (1024, KB), exact (1024, KiB) or decimal (1000, kB)
 function formatBytes(bytes) {
   if (bytes === 0 || !bytes) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  const style = (typeof brumRegion === 'function' ? brumRegion().sizes : 'classic') || 'classic';
+  const k = style === 'si' ? 1000 : 1024;
+  const sizes = style === 'iec' ? ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB'] : (style === 'si' ? ['B', 'kB', 'MB', 'GB', 'TB', 'PB'] : ['B', 'KB', 'MB', 'GB', 'TB', 'PB']);
+  const i = Math.min(sizes.length - 1, Math.max(0, Math.floor(Math.log(Math.abs(bytes)) / Math.log(k))));
+  const value = parseFloat((bytes / Math.pow(k, i)).toFixed(1));
+  const shown = (typeof formatNumber === 'function' && i > 0) ? formatNumber(value, value % 1 === 0 ? 0 : 1) : String(value);
+  return `${shown} ${sizes[i]}`;
 }
 
 const formatFileSize = formatBytes;
@@ -2223,6 +2227,9 @@ function getAllUserPreferences() {
     folder_color: localStorage.getItem('cd_folder_color') || '',
     title_template: localStorage.getItem('cd_title_template') || '',
 
+    // 2b. Region & formats
+    region: brumRegion(),
+
     // 3. Hostname Badge & Window Title
     show_hostname_badge: localStorage.getItem('cd_show_hostname_badge') !== 'false',
     notes_show_manuals: localStorage.getItem('cd_notes_show_manuals') !== 'false',
@@ -2300,6 +2307,15 @@ function getAllUserPreferences() {
 
 function applyAllUserPreferences(prefs) {
   if (!prefs || typeof prefs !== 'object') return;
+
+  // Region & formats
+  if (prefs.region && typeof prefs.region === 'object') {
+    const clean = {};
+    Object.keys(REGION_DEFAULTS).forEach(k => { if (typeof prefs.region[k] === 'string') clean[k] = prefs.region[k]; });
+    localStorage.setItem('cd_region', JSON.stringify(clean));
+    _regionCache = null;
+    refreshAfterRegionChange();
+  }
 
   // 1. Panes Custom Names
   if (Array.isArray(prefs.pane_names)) {
@@ -5721,7 +5737,7 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
     verified_files: 0,
     last_hash: null,
     log_entries: [
-      `[${new Date().toLocaleTimeString()}] Starting Client VFS ${action} (${srcLabel} ➔ ${destLabel})`
+      `[${formatTimeOfDay(new Date(), true)}] Starting Client VFS ${action} (${srcLabel} ➔ ${destLabel})`
     ],
     started_at: Math.floor(Date.now() / 1000),
     created_at: new Date().toISOString()
@@ -5936,13 +5952,13 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
       clientTask.files_processed++;
       clientTask.bytes_processed = totalBatchBytesDoneBefore;
       const hashLog = clientTask.last_hash ? ` [${clientTask.last_hash}]` : '';
-      clientTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ✓ Transferred ${fileName} (${formatBytes(fileSize)})${hashLog}`);
+      clientTask.log_entries.push(`[${formatTimeOfDay(new Date(), true)}] ✓ Transferred ${fileName} (${formatBytes(fileSize)})${hashLog}`);
 
       successCount++;
     } catch (err) {
       console.error(`Transfer error for ${fileName}:`, err);
       failCount++;
-      clientTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ❌ Error on ${fileName}: ${err.message || err}`);
+      clientTask.log_entries.push(`[${formatTimeOfDay(new Date(), true)}] ❌ Error on ${fileName}: ${err.message || err}`);
       showToast(`Failed to transfer ${fileName}: ${err.message}`, 'error');
     }
     updateTasksPillState(lastKnownTasksList);
@@ -5954,7 +5970,7 @@ async function executeClientLocalTransfer(action, sources, destination, destIdx,
   clientTask.speed_bytes_per_sec = 0;
   clientTask.finished_at = Math.floor(Date.now() / 1000);
   clientTask.bytes_processed = clientTask.total_bytes;
-  clientTask.log_entries.push(`[${new Date().toLocaleTimeString()}] Client VFS transfer finished: ${successCount} succeeded, ${failCount} failed`);
+  clientTask.log_entries.push(`[${formatTimeOfDay(new Date(), true)}] Client VFS transfer finished: ${successCount} succeeded, ${failCount} failed`);
 
   if (action === 'move') {
     const srcPane = App.panes[srcIdx];
@@ -10824,7 +10840,7 @@ async function loadAdminApiTokens() {
       let expiryColor = '#10b981';
 
       if (tok.expires_at && tok.expires_at > 0) {
-        const expDate = new Date(tok.expires_at * 1000).toLocaleDateString();
+        const expDate = formatDateOnly(tok.expires_at);
         if (isExpired) {
           expiryLabel = `Expired on ${expDate}`;
           expiryColor = '#ef4444';
@@ -10834,8 +10850,8 @@ async function loadAdminApiTokens() {
         }
       }
 
-      const createdDate = new Date(tok.created_at * 1000).toLocaleDateString();
-      const lastUsedLabel = tok.last_used_at ? new Date(tok.last_used_at * 1000).toLocaleString() : 'Never';
+      const createdDate = formatDateOnly(tok.created_at);
+      const lastUsedLabel = tok.last_used_at ? formatDateTime(tok.last_used_at) : 'Never';
 
       let roleBadgeColor = 'rgba(245, 158, 11, 0.15)';
       let roleTextColor = 'var(--accent)';
@@ -11401,7 +11417,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
     verified_files: 0,
     last_hash: null,
     log_entries: [
-      `[${new Date().toLocaleTimeString()}] Starting cross-node ${action} from ${srcNode.name} (${srcEndpoint || 'local'}) to ${destNode.name} (${destEndpoint || 'local'})`
+      `[${formatTimeOfDay(new Date(), true)}] Starting cross-node ${action} from ${srcNode.name} (${srcEndpoint || 'local'}) to ${destNode.name} (${destEndpoint || 'local'})`
     ],
     started_at: Math.floor(Date.now() / 1000),
     created_at: new Date().toISOString()
@@ -11616,13 +11632,13 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
       xnodeTask.files_processed++;
       xnodeTask.bytes_processed = totalBatchBytesDoneBefore;
       const hashLog = xnodeTask.last_hash ? ` [${xnodeTask.last_hash}]` : '';
-      xnodeTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ✓ Transferred ${fileName} (${formatBytes(blob.size)})${hashLog}`);
+      xnodeTask.log_entries.push(`[${formatTimeOfDay(new Date(), true)}] ✓ Transferred ${fileName} (${formatBytes(blob.size)})${hashLog}`);
 
       successCount++;
     } catch (err) {
       console.error(`Cross-node transfer error for ${srcPath}:`, err);
       failCount++;
-      xnodeTask.log_entries.push(`[${new Date().toLocaleTimeString()}] ❌ Error on ${fileName}: ${err.message || err}`);
+      xnodeTask.log_entries.push(`[${formatTimeOfDay(new Date(), true)}] ❌ Error on ${fileName}: ${err.message || err}`);
       showToast(`Transfer failed for ${fileName}: ${err.message || err}`, 'error');
     }
     updateTasksPillState(lastKnownTasksList);
@@ -11634,7 +11650,7 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
   xnodeTask.speed_bytes_per_sec = 0;
   xnodeTask.finished_at = Math.floor(Date.now() / 1000);
   xnodeTask.bytes_processed = xnodeTask.total_bytes;
-  xnodeTask.log_entries.push(`[${new Date().toLocaleTimeString()}] Cross-node transfer finished: ${successCount} succeeded, ${failCount} failed`);
+  xnodeTask.log_entries.push(`[${formatTimeOfDay(new Date(), true)}] Cross-node transfer finished: ${successCount} succeeded, ${failCount} failed`);
 
   if (action === 'move' && srcPane.selected) {
     srcPane.selected.clear();
@@ -11753,14 +11769,14 @@ function renderCurrentConflictModal() {
     srcSizeEl.textContent = current.srcSize !== null && current.srcSize !== undefined ? formatBytes(current.srcSize) : 'Unknown';
   }
   if (srcMtimeEl) {
-    srcMtimeEl.textContent = current.srcMtime ? (typeof formatMtime === 'function' ? formatMtime(current.srcMtime) : new Date(current.srcMtime * 1000).toLocaleString()) : 'Unknown';
+    srcMtimeEl.textContent = current.srcMtime ? (typeof formatMtime === 'function' ? formatMtime(current.srcMtime) : formatDateTime(current.srcMtime)) : 'Unknown';
   }
 
   if (destSizeEl) {
     destSizeEl.textContent = current.destItem && current.destItem.size !== undefined ? formatBytes(current.destItem.size) : 'Unknown';
   }
   if (destMtimeEl) {
-    destMtimeEl.textContent = current.destItem && current.destItem.mtime ? (typeof formatMtime === 'function' ? formatMtime(current.destItem.mtime) : new Date(current.destItem.mtime * 1000).toLocaleString()) : 'Unknown';
+    destMtimeEl.textContent = current.destItem && current.destItem.mtime ? (typeof formatMtime === 'function' ? formatMtime(current.destItem.mtime) : formatDateTime(current.destItem.mtime)) : 'Unknown';
   }
 
   const remaining = total - idx - 1;
@@ -14319,7 +14335,7 @@ function selectDatabaseNote(note) {
   if (updatedTime && note.updated_at) {
     try {
       const dt = new Date(note.updated_at);
-      updatedTime.textContent = dt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      updatedTime.textContent = formatTimeOfDay(dt);
     } catch(e) {}
   }
 
@@ -21934,7 +21950,7 @@ function triggerProperties(targetEntry, initialTab = 'prop-tab-general') {
   parts.pop();
   const parentLoc = parts.length === 0 ? '/' : '/' + parts.join('/');
   document.getElementById('prop-val-location').textContent = parentLoc;
-  document.getElementById('prop-val-size').textContent = entry.is_dir ? '<DIR>' : `${formatBytes(entry.size)} (${(entry.size || 0).toLocaleString()} bytes)`;
+  document.getElementById('prop-val-size').textContent = entry.is_dir ? '<DIR>' : `${formatBytes(entry.size)} (${formatNumber(entry.size || 0)} bytes)`;
   document.getElementById('prop-val-created').textContent = entry.created ? formatDate(entry.created) : (entry.modified ? formatDate(entry.modified) : '-');
   document.getElementById('prop-val-modified').textContent = formatDate(entry.modified);
   document.getElementById('prop-val-mode').textContent = `${entry.permissions || '-'} (${entry.mode_octal || '-'})`;
@@ -22055,7 +22071,7 @@ async function reloadPropertiesMetadata() {
       { label: 'File Name', val: entry.name },
       { label: 'Full Path', val: entry.path, mono: true },
       { label: 'File Type', val: entry.is_dir ? 'Directory' : `${ext} File` },
-      { label: 'File Size', val: entry.is_dir ? 'Folder' : `${formatBytes(entry.size)} (${(entry.size || 0).toLocaleString()} bytes)` },
+      { label: 'File Size', val: entry.is_dir ? 'Folder' : `${formatBytes(entry.size)} (${formatNumber(entry.size || 0)} bytes)` },
       { label: 'Permissions', val: `${entry.permissions || '-'} (${entry.mode_octal || '-'})`, mono: true },
       { label: 'Modified Time', val: formatDate(entry.modified) },
       { label: 'Created Time', val: entry.created ? formatDate(entry.created) : '-' }
@@ -22097,7 +22113,7 @@ async function runPropertiesStatsScan() {
       <div style="padding: 12px; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; font-size: 11px;">
         <div style="font-weight: 700; color: var(--accent); margin-bottom: 6px;">Single File Statistics</div>
         <div style="color: var(--text-muted);">Size on Disk: <strong>${formatBytes(entry.size)}</strong></div>
-        <div style="color: var(--text-muted); margin-top: 4px;">Byte Count: <strong>${(entry.size || 0).toLocaleString()} bytes</strong></div>
+        <div style="color: var(--text-muted); margin-top: 4px;">Byte Count: <strong>${formatNumber(entry.size || 0)} bytes</strong></div>
       </div>
     `;
     return;
@@ -22121,7 +22137,7 @@ async function runPropertiesStatsScan() {
           <span style="font-size: 13px; font-weight: 700; color: var(--text-main); font-family: var(--font-mono);">${formatBytes(totalSize)}</span>
         </div>
         <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">
-          Contains <strong>${(data.file_count || 0).toLocaleString()}</strong> files across <strong>${(data.dir_count || 0).toLocaleString()}</strong> directories.
+          Contains <strong>${formatNumber(data.file_count || 0)}</strong> files across <strong>${formatNumber(data.dir_count || 0)}</strong> directories.
         </div>
       </div>
     `;
@@ -24418,6 +24434,7 @@ function openHelpModal() {
 
 function openSettingsModal() {
   populateThemeSelectors();
+  loadRegionSettingsIntoForm();
   const startupSettings = getStartupSettings();
   const startupModeSel = document.getElementById('setting-startup-mode');
   if (startupModeSel) {
@@ -26413,7 +26430,7 @@ function renderSharesTable(shares) {
       statusHtml = '<span class="badge" style="background:rgba(156,163,175,0.15); color:#9ca3af; border:1px solid rgba(156,163,175,0.3);">Limit</span>';
     }
 
-    const expiryStr = s.expires_at ? new Date(s.expires_at).toLocaleDateString() : 'Never';
+    const expiryStr = s.expires_at ? formatDateOnly(s.expires_at) : 'Never';
     const fullUrl = `${window.location.origin}/share/${s.token}`;
 
     const activityStats = `
@@ -26594,7 +26611,7 @@ async function openShareLogs(id, name) {
 
         return `
           <tr class="file-row">
-            <td style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${new Date(l.accessed_at).toLocaleString()}</td>
+            <td style="font-size:11px; color:var(--text-muted); white-space:nowrap;">${formatDateTime(l.accessed_at)}</td>
             <td>${actionBadge}</td>
             <td>${visitorInfo}</td>
             <td style="font-size:11px; font-weight:600;">${targetFileStr}</td>
@@ -28151,27 +28168,168 @@ function setupHistoryNavigation() {
   });
 }
 
+// ---------------- REGION & FORMATS ----------------
+// How times, dates, numbers, units and file sizes are shown, per user (Settings → General).
+// Defaults match how the file panels always looked: ISO dates and 24-hour time.
+// "var": formatting may already be needed while the page is still loading, before this line runs
+var REGION_DEFAULTS = { time: '24', date: 'iso', week_start: 'auto', number: 'auto', units: 'auto', temperature: 'auto', sizes: 'classic' };
+var _regionCache = null;
+
+function brumRegion() {
+  if (_regionCache) return _regionCache;
+  const defaults = REGION_DEFAULTS || { time: '24', date: 'iso', week_start: 'auto', number: 'auto', units: 'auto', temperature: 'auto', sizes: 'classic' };
+  let saved = {};
+  try { saved = JSON.parse(localStorage.getItem('cd_region') || '{}') || {}; } catch (_) { saved = {}; }
+  const merged = { ...defaults, ...saved };
+  if (REGION_DEFAULTS) _regionCache = merged;
+  return merged;
+}
+
+// The browser's country, for choices left on "follow my browser"
+function browserRegionCode() {
+  const lang = (navigator.languages && navigator.languages[0]) || navigator.language || 'en';
+  const m = /[-_]([A-Za-z]{2})\b/.exec(lang);
+  return m ? m[1].toUpperCase() : '';
+}
+
+// Everything resolved to concrete values, for Brum and for Chewtoys
+function brumRegionResolved() {
+  const r = brumRegion();
+  const country = browserRegionCode();
+  const imperialCountries = ['US', 'LR', 'MM'];
+  const units = r.units === 'auto' ? (imperialCountries.includes(country) ? 'imperial' : 'metric') : r.units;
+  const temperature = r.temperature === 'auto' ? (units === 'imperial' ? 'f' : 'c') : r.temperature;
+  const sundayCountries = ['US', 'CA', 'MX', 'BR', 'JP', 'KR', 'IL', 'PH', 'AU', 'IN', 'ZA', 'SA'];
+  const weekStart = r.week_start === 'auto' ? (sundayCountries.includes(country) ? 'sun' : 'mon') : r.week_start;
+  let time = r.time;
+  if (time === 'auto') {
+    try { time = new Intl.DateTimeFormat(undefined, { hour: 'numeric' }).resolvedOptions().hour12 ? '12' : '24'; } catch (_) { time = '24'; }
+  }
+  return {
+    time, date: r.date, week_start: weekStart, number: r.number, units, temperature, sizes: r.sizes,
+    language: navigator.language || 'en',
+    // Ready-made examples so a Chewtoy can show the same style
+    sample_time: formatTimeOfDay(new Date(2026, 10, 4, 14, 30)),
+    sample_date: formatDateOnly(new Date(2026, 10, 4)),
+  };
+}
+
+function setRegionSetting(key, value) {
+  if (!(key in REGION_DEFAULTS)) return;
+  const saved = { ...brumRegion(), [key]: value };
+  localStorage.setItem('cd_region', JSON.stringify(saved));
+  _regionCache = null;
+  updateRegionPreview();
+  queueSaveUserPreferencesToServer();
+  refreshAfterRegionChange();
+}
+
+// Redraws what shows times and sizes
+function refreshAfterRegionChange() {
+  try { App.panes.forEach((p, i) => { if (!p.dockedTool) renderPaneTable(i, true); }); } catch (_) { /* panes redraw on next load */ }
+  if (typeof isBackupVisible === 'function' && isBackupVisible() && typeof backupRefresh === 'function') backupRefresh();
+}
+
+function loadRegionSettingsIntoForm() {
+  const r = brumRegion();
+  Object.keys(REGION_DEFAULTS).forEach(k => {
+    const el = document.getElementById(`setting-region-${k}`);
+    if (el) el.value = r[k];
+  });
+  updateRegionPreview();
+}
+
+function updateRegionPreview() {
+  const el = document.getElementById('setting-region-preview');
+  if (!el) return;
+  const now = new Date();
+  const res = brumRegionResolved();
+  el.textContent = `${formatDateTime(now)} · ${formatNumber(1234567.5, 1)} · ${formatBytes(2411724)} · ${res.units === 'imperial' ? 'miles, pounds' : 'kilometres, kilograms'} · °${res.temperature.toUpperCase()} · week starts ${res.week_start === 'sun' ? 'Sunday' : res.week_start === 'sat' ? 'Saturday' : 'Monday'}`;
+}
+
+// Accepts a Date, Unix seconds, milliseconds, or a date string
+function toDateValue(v) {
+  if (v instanceof Date) return v;
+  if (typeof v === 'number') return new Date(v < 1e12 ? v * 1000 : v);
+  if (typeof v === 'string' && /^\d+$/.test(v)) return toDateValue(Number(v));
+  return new Date(v);
+}
+
+const pad2 = n => String(n).padStart(2, '0');
+
+function formatTimeOfDay(v, withSeconds = false) {
+  const d = toDateValue(v);
+  if (isNaN(d.getTime())) return '-';
+  const r = brumRegion();
+  if (r.time === 'auto') {
+    return d.toLocaleTimeString([], withSeconds ? { hour: '2-digit', minute: '2-digit', second: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
+  }
+  const secs = withSeconds ? `:${pad2(d.getSeconds())}` : '';
+  if (r.time === '12') {
+    const h = d.getHours() % 12 || 12;
+    return `${h}:${pad2(d.getMinutes())}${secs} ${d.getHours() < 12 ? 'AM' : 'PM'}`;
+  }
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}${secs}`;
+}
+
+// `short` leaves out the year (for dates in the current year)
+function formatDateOnly(v, short = false) {
+  const d = toDateValue(v);
+  if (isNaN(d.getTime())) return '-';
+  const [y, m, day] = [d.getFullYear(), pad2(d.getMonth() + 1), pad2(d.getDate())];
+  switch (brumRegion().date) {
+    case 'iso': return short ? `${m}-${day}` : `${y}-${m}-${day}`;
+    case 'dmy_dot': return short ? `${day}.${m}.` : `${day}.${m}.${y}`;
+    case 'dmy_slash': return short ? `${day}/${m}` : `${day}/${m}/${y}`;
+    case 'mdy': return short ? `${m}/${day}` : `${m}/${day}/${y}`;
+    case 'd_mon_y': {
+      const mon = d.toLocaleDateString(undefined, { month: 'short' });
+      return short ? `${d.getDate()} ${mon}` : `${d.getDate()} ${mon} ${y}`;
+    }
+    default: return short ? d.toLocaleDateString(undefined, { day: 'numeric', month: 'short' }) : d.toLocaleDateString();
+  }
+}
+
+function formatDateTime(v, withSeconds = false) {
+  const d = toDateValue(v);
+  if (isNaN(d.getTime())) return '-';
+  return `${formatDateOnly(d)} ${formatTimeOfDay(d, withSeconds)}`;
+}
+
+// Separators for the chosen number style: [thousands, decimal]
+function numberSeparators() {
+  switch (brumRegion().number) {
+    case 'space_comma': return [' ', ','];
+    case 'dot_comma': return ['.', ','];
+    case 'comma_dot': return [',', '.'];
+    case 'space_dot': return [' ', '.'];
+    case 'apostrophe_dot': return ['’', '.'];
+    default: return null;
+  }
+}
+
+function formatNumber(n, decimals = 0) {
+  const num = Number(n);
+  if (!Number.isFinite(num)) return '-';
+  const seps = numberSeparators();
+  if (!seps) return num.toLocaleString(undefined, { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+  const fixed = Math.abs(num).toFixed(decimals);
+  const [int, frac] = fixed.split('.');
+  const grouped = int.replace(/\B(?=(\d{3})+(?!\d))/g, seps[0]);
+  return `${num < 0 ? '-' : ''}${grouped}${frac ? seps[1] + frac : ''}`;
+}
+
+// File list dates: compact shows this year's dates without the year
 function formatDate(timestampSec, compact = undefined) {
   if (!timestampSec) return '-';
   const d = new Date(timestampSec * 1000);
   if (isNaN(d.getTime())) return '-';
-
   const isCompact = (typeof compact === 'boolean') ? compact : (localStorage.getItem('cd_compact_dates') !== '0');
-  const pad = n => String(n).padStart(2, '0');
-  const now = new Date();
-  const year = d.getFullYear();
-  const month = pad(d.getMonth() + 1);
-  const day = pad(d.getDate());
-  const hours = pad(d.getHours());
-  const mins = pad(d.getMinutes());
-
   if (isCompact) {
-    if (year === now.getFullYear()) {
-      return `${month}-${day} ${hours}:${mins}`;
-    }
-    return `${year}-${month}-${day}`;
+    if (d.getFullYear() === new Date().getFullYear()) return `${formatDateOnly(d, true)} ${formatTimeOfDay(d)}`;
+    return formatDateOnly(d);
   }
-  return `${year}-${month}-${day} ${hours}:${mins}`;
+  return formatDateTime(d);
 }
 
 function escapeHtml(str) {
@@ -32133,7 +32291,7 @@ async function refreshDocViewerText() {
     if (metaEl) {
       const sizeStr = formatBytes(new Blob([currentDocViewerRawText]).size);
       const liveIndicator = docViewerTailFollow ? ' • <span style="color: #10b981; font-weight: bold;">🟢 Live (tail -f)</span>' : '';
-      metaEl.innerHTML = `${ext.toUpperCase()} • ${totalLineCount.toLocaleString()} lines (showing ${docViewerTailLines === 'all' ? 'all' : Math.min(totalLineCount, parseInt(docViewerTailLines, 10))}) • ${sizeStr}${liveIndicator}`;
+      metaEl.innerHTML = `${ext.toUpperCase()} • ${formatNumber(totalLineCount)} lines (showing ${docViewerTailLines === 'all' ? 'all' : Math.min(totalLineCount, parseInt(docViewerTailLines, 10))}) • ${sizeStr}${liveIndicator}`;
     }
 
     if (docViewerTailFollow) {
@@ -35127,16 +35285,17 @@ function bkWhen(ts) {
   if (mins < 60) return `in ${mins} min`;
   const d = new Date(ms);
   const now = new Date();
-  const time = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const time = formatTimeOfDay(d);
   if (d.toDateString() === now.toDateString()) return `today at ${time}`;
   const tomorrow = new Date(now);
   tomorrow.setDate(now.getDate() + 1);
   if (d.toDateString() === tomorrow.toDateString()) return `tomorrow at ${time}`;
-  return `${d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' })} at ${time}`;
+  return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${formatDateOnly(d, d.getFullYear() === now.getFullYear())} at ${time}`;
 }
 
 function bkDate(ts) {
-  return new Date(ts * 1000).toLocaleString([], { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const d = new Date(ts * 1000);
+  return `${d.toLocaleDateString(undefined, { weekday: 'short' })} ${formatDateOnly(d, d.getFullYear() === new Date().getFullYear())} ${formatTimeOfDay(d)}`;
 }
 
 function bkDuration(ms) {
@@ -35147,7 +35306,7 @@ function bkDuration(ms) {
 }
 
 function bkCount(n, one, many) {
-  return `${Number(n).toLocaleString()} ${n === 1 ? one : many}`;
+  return `${formatNumber(n)} ${n === 1 ? one : many}`;
 }
 
 // "~/Photos" instead of the full home path; the end of a path is what tells folders apart
@@ -35158,13 +35317,38 @@ function bkShortPath(p) {
   return path;
 }
 
+// A run's one-line result in the user's formats; built here from the numbers when possible
+function bkRunMessage(run) {
+  if (!run) return '';
+  const msg = run.message || '';
+  if (run.kind === 'backup' && ['ok', 'warning', 'cancelled'].includes(run.status)) {
+    const parts = [];
+    if (run.copied) parts.push(`copied ${bkCount(run.copied, 'file', 'files')}`);
+    if (run.updated) parts.push(`updated ${formatNumber(run.updated)}`);
+    if (run.removed) parts.push(`removed ${formatNumber(run.removed)}`);
+    if (run.bytes) parts.push(formatBytes(run.bytes));
+    if (run.failed) parts.push(`${formatNumber(run.failed)} failed`);
+    if (run.warnings) parts.push(bkCount(run.warnings, 'warning', 'warnings'));
+    let text = parts.length ? parts.join(', ') : 'nothing changed';
+    if (run.status === 'cancelled') text = `stopped: ${text}`;
+    text = text.charAt(0).toUpperCase() + text.slice(1);
+    if (msg.endsWith('(with rsync)')) text += ' (with rsync)';
+    return text;
+  }
+  // "Already up to date (1234 files checked)": show the number in the user's style
+  return msg.replace(/\((\d+) files checked\)/, (_, n) => `(${formatNumber(Number(n))} files checked)`);
+}
+
 function bkScheduleText(p) {
   if (p.schedule_type === 'interval') {
     const m = p.schedule_interval_mins;
     if (m % 60 === 0) return m === 60 ? 'Every hour' : `Every ${m / 60} hours`;
     return m === 1 ? 'Every minute' : `Every ${m} minutes`;
   }
-  if (p.schedule_type === 'daily') return `Every day at ${p.schedule_time || '02:00'}`;
+  if (p.schedule_type === 'daily') {
+    const [h, m] = String(p.schedule_time || '02:00').split(':').map(Number);
+    return `Every day at ${formatTimeOfDay(new Date(2000, 0, 1, h || 0, m || 0))}`;
+  }
   return 'Only when you click Back up now';
 }
 
@@ -35436,7 +35620,7 @@ function backupStatus(p) {
   if (r) {
     if (r.phase === 'checking') return { cls: 'running', text: r.kind === 'restore' ? 'Getting ready to restore...' : 'Checking for changes...' };
     const verb = r.kind === 'restore' ? 'Restoring' : (r.phase === 'cleaning' ? 'Cleaning up old versions' : 'Backing up');
-    const files = r.files_total ? `${r.files_done.toLocaleString()} of ${bkCount(r.files_total, 'file', 'files')}` : '';
+    const files = r.files_total ? `${formatNumber(r.files_done)} of ${bkCount(r.files_total, 'file', 'files')}` : '';
     const bytes = r.bytes_total ? ` · ${formatBytes(r.bytes_done)} of ${formatBytes(r.bytes_total)}` : '';
     return { cls: 'running', text: `${verb}: ${files}${bytes}` };
   }
@@ -35445,12 +35629,12 @@ function backupStatus(p) {
   const when = bkAgo(last.finished_at || last.started_at);
   if (last.kind === 'restore') {
     const okWord = last.status === 'failed' ? 'Restore failed' : 'Restored';
-    return { cls: last.status === 'failed' ? 'failed' : 'ok', text: `${okWord} ${when}: ${last.message || ''}` };
+    return { cls: last.status === 'failed' ? 'failed' : 'ok', text: `${okWord} ${when}: ${bkRunMessage(last)}` };
   }
   switch (last.status) {
     case 'failed': return { cls: 'failed', text: `Last backup failed ${when}: ${last.message || 'unknown error'}` };
     case 'cancelled': return { cls: 'warning', text: `Last backup was stopped ${when}` };
-    case 'warning': return { cls: 'warning', text: `Backed up ${when}, with problems: ${last.message || ''}` };
+    case 'warning': return { cls: 'warning', text: `Backed up ${when}, with problems: ${bkRunMessage(last)}` };
     default: {
       const okAt = p.last_success_at ? bkAgo(p.last_success_at) : when;
       return { cls: 'ok', text: `Up to date · backed up ${okAt}` };
@@ -36030,7 +36214,7 @@ function backupRenderPreview() {
     <details class="bk-more bk-warnings">
       <summary>${bkCount(result.total_warnings, 'item', 'items')} could not be read or will be skipped</summary>
       ${result.warnings.map(w => `<div class="bk-warn-line">${escapeHtml(w)}</div>`).join('')}
-      ${result.total_warnings > result.warnings.length ? `<div class="bk-hint">...and ${(result.total_warnings - result.warnings.length).toLocaleString()} more</div>` : ''}
+      ${result.total_warnings > result.warnings.length ? `<div class="bk-hint">...and ${formatNumber(result.total_warnings - result.warnings.length)} more</div>` : ''}
     </details>` : '';
   const actionBtn = pv.saved && profile.id
     ? `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRunFromPreview" ${result.total_items ? '' : 'disabled'}><i data-lucide="play"></i> ${profile.profile_mode === 'two_way' ? 'Sync now' : 'Back up now'}</button>`
@@ -36046,9 +36230,9 @@ function backupRenderPreview() {
       ${warnings}
       ${result.total_items ? `
       <div class="bk-filter">
-        ${groups.filter(g => g[0] === 'all' || g[2]).map(g => `<button class="bk-chip-btn ${pv.filter === g[0] ? 'active' : ''}" data-on-click="backupPreviewFilter" data-click-args="${actionArgs(g[0])}">${g[1]} <b>${Number(g[2]).toLocaleString()}</b></button>`).join('')}
+        ${groups.filter(g => g[0] === 'all' || g[2]).map(g => `<button class="bk-chip-btn ${pv.filter === g[0] ? 'active' : ''}" data-on-click="backupPreviewFilter" data-click-args="${actionArgs(g[0])}">${g[1]} <b>${formatNumber(g[2])}</b></button>`).join('')}
       </div>
-      <div class="bk-rows">${rows}${shown.length > 1000 || hidden > 0 ? `<div class="bk-hint bk-rows-more">Showing the first ${Math.min(shown.length, 1000).toLocaleString()} of ${(pv.filter === 'all' ? result.total_items : shown.length).toLocaleString()}${hidden > 0 && pv.filter !== 'all' ? ' (filtered from the first 2,000)' : ''}.</div>` : ''}</div>` : ''}
+      <div class="bk-rows">${rows}${shown.length > 1000 || hidden > 0 ? `<div class="bk-hint bk-rows-more">Showing the first ${formatNumber(Math.min(shown.length, 1000))} of ${formatNumber(pv.filter === 'all' ? result.total_items : shown.length)}${hidden > 0 && pv.filter !== 'all' ? ' (filtered from the first 2,000)' : ''}.</div>` : ''}</div>` : ''}
       <div class="bk-form-foot">
         <button class="btn btn-sm bk-btn" data-on-click="backupBackFromPreview">${pv.saved ? 'Not now' : 'Back to settings'}</button>
         <div style="flex: 1;"></div>
@@ -36300,7 +36484,7 @@ function backupRenderHistory() {
       <i data-lucide="${BACKUP_STATUS_ICONS[run.status] || 'circle'}" class="bk-run-icon ${run.status === 'running' ? 'spinner' : ''}"></i>
       <span class="bk-run-main">
         <span class="bk-run-title">${escapeHtml(bkDate(run.started_at))}${h.profileId ? '' : ` · ${escapeHtml(run.profile_name)}`}${run.kind === 'restore' ? ' · <b>Restore</b>' : ''}${run.trigger === 'schedule' ? ' <small>(scheduled)</small>' : ''}</span>
-        <span class="bk-run-msg">${escapeHtml(run.status === 'running' ? 'Running...' : (run.message || run.status))}</span>
+        <span class="bk-run-msg">${escapeHtml(run.status === 'running' ? 'Running...' : (bkRunMessage(run) || run.status))}</span>
       </span>
       <span class="bk-run-dur">${run.status === 'running' ? '' : bkDuration(run.duration_ms)}</span>
       <i data-lucide="chevron-right" class="bk-run-chev"></i>
@@ -36362,13 +36546,13 @@ function backupRenderRun() {
     ['Started', run.started_at ? `${bkDate(run.started_at)}${run.trigger === 'schedule' ? ' (scheduled)' : ''}` : ''],
     ['Finished', run.finished_at ? bkDate(run.finished_at) : (run.status === 'running' ? 'Still running' : '')],
     ['Took', run.finished_at ? bkDuration(run.duration_ms) : ''],
-    ['Copied', c.copied ? Number(c.copied).toLocaleString() : ''],
-    ['Updated', c.updated ? Number(c.updated).toLocaleString() : ''],
-    ['Removed', c.removed ? Number(c.removed).toLocaleString() : ''],
-    ['Old versions kept', c.versions_kept ? Number(c.versions_kept).toLocaleString() : ''],
+    ['Copied', c.copied ? formatNumber(c.copied) : ''],
+    ['Updated', c.updated ? formatNumber(c.updated) : ''],
+    ['Removed', c.removed ? formatNumber(c.removed) : ''],
+    ['Old versions kept', c.versions_kept ? formatNumber(c.versions_kept) : ''],
     ['Data', c.bytes ? formatBytes(c.bytes) : ''],
-    ['Failed', c.failed ? Number(c.failed).toLocaleString() : ''],
-    ['Warnings', c.warnings ? Number(c.warnings).toLocaleString() : ''],
+    ['Failed', c.failed ? formatNumber(c.failed) : ''],
+    ['Warnings', c.warnings ? formatNumber(c.warnings) : ''],
   ].filter(f => f[1]);
   const lines = st.files.map(f => `
     <div class="bk-row bk-log-row ${f.ok ? '' : 'bk-log-fail'} ${f.action === 'warning' ? 'bk-log-warn' : ''}">
@@ -36387,14 +36571,14 @@ function backupRenderRun() {
         <div style="flex: 1;"></div>
         <a class="btn btn-sm bk-btn" href="/api/tools/sync/runs/${encodeURIComponent(run.id)}/log" download title="Download the whole log as a text file"><i data-lucide="download"></i> Download log</a>
       </div>
-      <div class="bk-summary bk-${escapeHtml(run.status || '')}">${escapeHtml(run.status === 'running' ? 'Running...' : (run.message || run.status || ''))}</div>
+      <div class="bk-summary bk-${escapeHtml(run.status || '')}">${escapeHtml(run.status === 'running' ? 'Running...' : (bkRunMessage(run) || run.status || ''))}</div>
       <div class="bk-facts">${facts.map(f => `<span><small>${escapeHtml(f[0])}</small>${escapeHtml(f[1])}</span>`).join('')}</div>
       <div class="bk-filter">
         <button class="bk-chip-btn ${st.problemsOnly ? '' : 'active'}" data-on-click="backupRunFilter" data-click-args="${actionArgs(false)}">Everything</button>
         <button class="bk-chip-btn ${st.problemsOnly ? 'active' : ''}" data-on-click="backupRunFilter" data-click-args="${actionArgs(true)}">Problems only</button>
         <span class="bk-hint" style="margin-left: auto;">${st.total ? bkCount(st.total, 'line', 'lines') : ''}</span>
       </div>
-      <div class="bk-rows">${lines || empty}${st.files.length < st.total ? `<button class="btn btn-sm bk-btn bk-rows-more" data-on-click="backupRunMore">Show more (${(st.total - st.files.length).toLocaleString()} left)</button>` : ''}</div>
+      <div class="bk-rows">${lines || empty}${st.files.length < st.total ? `<button class="btn btn-sm bk-btn bk-rows-more" data-on-click="backupRunMore">Show more (${formatNumber(st.total - st.files.length)} left)</button>` : ''}</div>
     </div>`);
 }
 
@@ -37088,8 +37272,8 @@ async function runDiskUsageScan(path) {
     }
 
     if (totalSpaceEl) totalSpaceEl.textContent = data.formatted_total;
-    if (totalFilesEl) totalFilesEl.textContent = data.total_files.toLocaleString();
-    if (totalDirsEl) totalDirsEl.textContent = data.total_dirs.toLocaleString();
+    if (totalFilesEl) totalFilesEl.textContent = formatNumber(data.total_files);
+    if (totalDirsEl) totalDirsEl.textContent = formatNumber(data.total_dirs);
     if (largestStatEl) {
       const top = data.items && data.items.length > 0 ? data.items[0] : null;
       largestStatEl.textContent = top ? `${top.name} (${top.formatted_size})` : '-';
@@ -37173,7 +37357,7 @@ function renderDiskUsageData() {
       itemsList.innerHTML = filteredItems.map((it, idx) => {
         const color = DU_PALETTE[idx % DU_PALETTE.length];
         const icon = it.is_dir ? '📁' : '📄';
-        const subInfo = it.is_dir ? `${it.file_count.toLocaleString()} files • ${it.dir_count.toLocaleString()} subdirs` : 'Single file';
+        const subInfo = it.is_dir ? `${formatNumber(it.file_count)} files • ${formatNumber(it.dir_count)} subdirs` : 'Single file';
         const pct = Math.max(1, Math.min(100, Math.round(it.percentage)));
 
         return `
@@ -39701,6 +39885,7 @@ function mountDockedTool(paneIndex) {
           isTouch: isTouch,
           storage: readChewtoyStore(pluginId),
           capabilities: chewtoyCapabilities(),
+          region: brumRegionResolved(),
         };
         brumLastContext = context;
         if (window.Brum && typeof window.Brum._dispatchReady === 'function') {
@@ -44653,6 +44838,7 @@ function openDynamicChewToy(pluginId, context = null) {
     ...(context || {}),
     storage: readChewtoyStore(pluginId),
     capabilities: chewtoyCapabilities(),
+    region: brumRegionResolved(),
   };
 
   brumLastContext = hostContext;
@@ -46537,7 +46723,7 @@ function renderDuplicateGroups(container = null) {
       const isSelected = duplicateFinderState.selectedPaths.has(file.path);
       const isImage = file.is_image || /\.(jpe?g|png|webp|gif|bmp|svg)$/i.test(file.name);
       const modSecs = file.modified_secs || file.modified || 0;
-      const mdate = modSecs > 0 ? new Date(modSecs * 1000).toLocaleString() : '-';
+      const mdate = modSecs > 0 ? formatDateTime(modSecs) : '-';
       const encodedPath = encodeURIComponent(file.path);
 
       let thumbHtml = '';
@@ -48101,8 +48287,8 @@ function updateCadHudTelemetry() {
 
   const s = cadStudioState.stats;
   if (dimEl) dimEl.textContent = `${(s.widthMm || 0).toFixed(1)} × ${(s.heightMm || 0).toFixed(1)} × ${(s.depthMm || 0).toFixed(1)} mm`;
-  if (triEl) triEl.textContent = Number(s.triangles || 0).toLocaleString();
-  if (vertEl) vertEl.textContent = Number(s.vertices || 0).toLocaleString();
+  if (triEl) triEl.textContent = formatNumber(s.triangles || 0);
+  if (vertEl) vertEl.textContent = formatNumber(s.vertices || 0);
   if (volEl) volEl.textContent = `${(s.volumeCm3 || 0).toFixed(1)} cm³`;
   if (wtEl) wtEl.textContent = `${(s.weightGrams || 0).toFixed(1)} g`;
 }

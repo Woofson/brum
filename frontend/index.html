@@ -1251,6 +1251,85 @@
               </div>
             </div>
 
+            <!-- Card: Region & Formats -->
+            <div class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="globe"></i> Region &amp; Formats
+                </h4>
+              </div>
+              <p class="settings-card-desc">How times, dates, numbers, units and file sizes are shown. Saved with your profile, so they follow you to every device. Chewtoys use them too.</p>
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-time">Time:</label>
+                  <select id="setting-region-time" class="settings-select" data-on-change="setRegionSetting" data-change-args='["time", {"$": "value"}]'>
+                    <option value="24">24-hour (14:30)</option>
+                    <option value="12">12-hour (2:30 PM)</option>
+                    <option value="auto">Follow my browser</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-date">Date:</label>
+                  <select id="setting-region-date" class="settings-select" data-on-change="setRegionSetting" data-change-args='["date", {"$": "value"}]'>
+                    <option value="iso">2026-11-04 (ISO)</option>
+                    <option value="dmy_dot">04.11.2026</option>
+                    <option value="dmy_slash">04/11/2026</option>
+                    <option value="mdy">11/04/2026</option>
+                    <option value="d_mon_y">4 Nov 2026</option>
+                    <option value="auto">Follow my browser</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-number">Numbers:</label>
+                  <select id="setting-region-number" class="settings-select" data-on-change="setRegionSetting" data-change-args='["number", {"$": "value"}]'>
+                    <option value="auto">Follow my browser</option>
+                    <option value="space_comma">1 234 567,5</option>
+                    <option value="dot_comma">1.234.567,5</option>
+                    <option value="comma_dot">1,234,567.5</option>
+                    <option value="space_dot">1 234 567.5</option>
+                    <option value="apostrophe_dot">1’234’567.5</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-sizes">File sizes:</label>
+                  <select id="setting-region-sizes" class="settings-select" data-on-change="setRegionSetting" data-change-args='["sizes", {"$": "value"}]'>
+                    <option value="classic">KB, MB, GB (steps of 1024, classic)</option>
+                    <option value="iec">KiB, MiB, GiB (steps of 1024, exact)</option>
+                    <option value="si">kB, MB, GB (steps of 1000, like drive makers)</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-units">Measurements:</label>
+                  <select id="setting-region-units" class="settings-select" data-on-change="setRegionSetting" data-change-args='["units", {"$": "value"}]'>
+                    <option value="auto">Follow my browser</option>
+                    <option value="metric">Metric (km, kg)</option>
+                    <option value="imperial">Imperial (miles, lb)</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-temperature">Temperature:</label>
+                  <select id="setting-region-temperature" class="settings-select" data-on-change="setRegionSetting" data-change-args='["temperature", {"$": "value"}]'>
+                    <option value="auto">Follow measurements</option>
+                    <option value="c">Celsius (°C)</option>
+                    <option value="f">Fahrenheit (°F)</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-week_start">First day of the week:</label>
+                  <select id="setting-region-week_start" class="settings-select" data-on-change="setRegionSetting" data-change-args='["week_start", {"$": "value"}]'>
+                    <option value="auto">Follow my browser</option>
+                    <option value="mon">Monday</option>
+                    <option value="sun">Sunday</option>
+                    <option value="sat">Saturday</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-field" style="margin-top: 8px;">
+                <span class="settings-field-label">Looks like:</span>
+                <div id="setting-region-preview" style="font-family: var(--font-mono); font-size: 12px; color: var(--accent);"></div>
+              </div>
+            </div>
+
             <!-- Card 2: File Operations & Transfers -->
             <div class="settings-group-card">
               <div class="settings-card-header">

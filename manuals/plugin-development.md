@@ -152,7 +152,23 @@ Chewtoys run in a sandboxed frame with no origin of their own. Inside it:
 
 Everything goes through `postMessage`. Send `{ type: "BRUM_REQ", reqId, action, payload }` to `window.parent`; Brum answers with `{ type: "BRUM_RES", reqId, result, error }`. Shortly after your page loads, Brum sends `{ type: "BRUM_READY", context }`. The starter template (section 8) wraps this in a small `window.Brum` client, and the examples below use that client.
 
-`context` includes `activePath`, `selectedFiles`, `theme`, `isDocked`, `viewport`, `storage` (your saved values, see E) and `capabilities` (`{ eyedropper, clipboard }`).
+`context` includes `activePath`, `selectedFiles`, `theme`, `isDocked`, `viewport`, `storage` (your saved values, see E), `capabilities` (`{ eyedropper, clipboard }`) and `region` (the user's formats, below).
+
+`context.region` holds the user's choices from **Settings → General → Region & Formats**, already resolved (never "follow my browser"):
+
+| Key | Values |
+| --- | --- |
+| `time` | `"24"` or `"12"` |
+| `date` | `"iso"` (2026-11-04), `"dmy_dot"` (04.11.2026), `"dmy_slash"` (04/11/2026), `"mdy"` (11/04/2026), `"d_mon_y"` (4 Nov 2026), `"auto"` (the browser's style) |
+| `week_start` | `"mon"`, `"sun"` or `"sat"` |
+| `number` | `"auto"`, `"space_comma"` (1 234,5), `"dot_comma"` (1.234,5), `"comma_dot"` (1,234.5), `"space_dot"` (1 234.5), `"apostrophe_dot"` (1’234.5) |
+| `units` | `"metric"` or `"imperial"` |
+| `temperature` | `"c"` or `"f"` |
+| `sizes` | `"classic"` (KB, 1024), `"iec"` (KiB, 1024), `"si"` (kB, 1000) |
+| `language` | the browser's language, e.g. `"nb-NO"` |
+| `sample_time`, `sample_date` | ready-made examples ("14:30", "2026-11-04") showing the chosen style |
+
+A weather Chewtoy, for example, shows °C and km/h when `units` is `"metric"`.
 
 ### A. Lifecycle & Context
 ```javascript
