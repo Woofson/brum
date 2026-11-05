@@ -905,6 +905,17 @@ fn resolve_profile_paths(state: &AppState, headers: &HeaderMap, p: &mut BackupPr
     if p.source_dir.to_lowercase().starts_with("fleet://") {
         return Err(bad_request("A Fleet machine can only be where backups are kept, not what is backed up".into()));
     }
+    if p.sources.iter().any(|s| s.to_lowercase().starts_with("proton://")) {
+        return Err(bad_request("Proton Drive can be where backups are kept, not what is backed up (yet)".into()));
+    }
+    if p.dest_dir.to_lowercase().starts_with("proton://") {
+        use crate::tools::sync::engine::Mode;
+        if matches!(p.mode(), Mode::TwoWay | Mode::Git) {
+            return Err(bad_request("Backups to Proton Drive can copy, or copy and keep old versions. Keeping two folders the same and git need a folder on a drive.".into()));
+        }
+        crate::vfs::proton::check_writable(&crate::vfs::proton::cli_path_of(&p.dest_dir))
+            .map_err(|_| bad_request("Choose a folder inside My files, for example proton:///my-files/Backups".into()))?;
+    }
     p.dest_endpoint = None;
     if p.dest_dir.to_lowercase().starts_with("fleet://") {
         resolve_fleet_destination(state, headers, p)?;

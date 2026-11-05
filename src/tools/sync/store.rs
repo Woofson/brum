@@ -88,6 +88,10 @@ pub trait Store: Send + Sync {
     fn part_names(&self) -> Vec<String> {
         Vec::new()
     }
+    /// Proton Drive, which the engine feeds in batches
+    fn proton(&self) -> Option<&super::proton_store::ProtonStore> {
+        None
+    }
 }
 
 /// Rejects paths that could leave the backup (`..`, absolute paths, drive letters)

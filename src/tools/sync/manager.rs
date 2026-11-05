@@ -325,13 +325,18 @@ pub fn store_for(path: &str, password: Option<&str>, endpoint: Option<&str>, sft
     if lower.starts_with("rclone://") {
         return Ok(Arc::new(super::rclone_store::RcloneStore::new(path)?));
     }
+    if lower.starts_with("proton://") {
+        // For Proton Drive the "password" is the Brum user whose Proton login is used (see with_fleet_login)
+        let user = password.filter(|u| !u.trim().is_empty()).ok_or("This backup has no owner, so it has no Proton login to use")?;
+        return Ok(Arc::new(super::proton_store::ProtonStore::new(path, user)?));
+    }
     if lower.starts_with("fleet://") {
         let endpoint = endpoint.ok_or("A Fleet machine can only be where backups are kept, not what is backed up")?;
         return Ok(Arc::new(super::fleet_store::FleetStore::new(path, endpoint, password)?));
     }
     if path.contains("://") {
         let scheme = path.split("://").next().unwrap_or_default();
-        return Err(format!("{scheme}:// places are not supported for backups. Use a folder on this machine, a mounted share, SFTP (sftp://) or an rclone remote (rclone://)."));
+        return Err(format!("{scheme}:// places are not supported for backups. Use a folder on this machine, a mounted share, SFTP (sftp://), an rclone remote (rclone://), a Fleet machine (fleet://) or Proton Drive (proton://)."));
     }
     Ok(Arc::new(LocalStore::new(path)))
 }
@@ -472,6 +477,11 @@ impl BackupManager {
     /// The backup with a login for its Fleet destination filled in when it has none of its own
     fn with_fleet_login(&self, p: &BackupProfile) -> BackupProfile {
         let mut p = p.clone();
+        // Proton Drive uses the owner's own Proton login; older backups without an owner use admin's
+        if p.dest_dir.to_lowercase().starts_with("proton://") {
+            p.dest_password = Some(p.owner.clone().unwrap_or_else(|| "admin".to_string()));
+            return p;
+        }
         if p.dest_dir.to_lowercase().starts_with("fleet://") && p.dest_password.as_deref().unwrap_or("").trim().is_empty() {
             if let (Some(owner), Some(mint)) = (p.owner.as_deref(), self.login_minter.get()) {
                 p.dest_password = mint(owner);

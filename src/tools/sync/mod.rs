@@ -6,6 +6,7 @@ pub mod exclude;
 pub mod fleet_store;
 pub mod git_repo;
 pub mod manager;
+pub mod proton_store;
 pub mod rclone_store;
 pub mod rsync;
 pub mod sftp_store;

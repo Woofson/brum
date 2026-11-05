@@ -328,6 +328,12 @@ pub fn execute(
     cancel: &AtomicBool,
 ) -> Result<RunOutcome, String> {
     spec.dest.ensure_root()?;
+    if let Some(pd) = spec.dest.proton() {
+        if matches!(spec.mode, Mode::Copy | Mode::Versions) {
+            return execute_proton(spec, pd, plan, progress, log, cancel);
+        }
+        return Err("Proton Drive backups can copy, or copy and keep old versions".into());
+    }
     // Git keeps its own history, so only these modes keep old versions in a folder
     let keep_versions = matches!(spec.mode, Mode::Versions | Mode::TwoWay);
     let stamp_dir = join_rel(&spec.versions_dir, &chrono::Local::now().format(STAMP_FORMAT).to_string());
@@ -419,6 +425,130 @@ pub fn execute(
 
     let new_state = (spec.mode == Mode::TwoWay).then(|| next_state(plan, &succeeded, state));
     Ok(RunOutcome { counts, cancelled, new_state })
+}
+
+/// A backup into Proton Drive: uploads and removals in batches (each call to Proton's program is
+/// slow). Replaced files stay in Proton's version history and removed ones in Proton's trash.
+fn execute_proton(
+    spec: &JobSpec,
+    pd: &super::proton_store::ProtonStore,
+    plan: &Plan,
+    progress: &dyn Fn(Progress),
+    log: &mut dyn FnMut(LogEntry),
+    cancel: &AtomicBool,
+) -> Result<RunOutcome, String> {
+    use std::sync::Mutex;
+    let mut counts = RunCounts::default();
+    let mut p = Progress { phase: "copying".into(), files_total: plan.items.len() as u64, bytes_total: plan.summary.bytes, ..Default::default() };
+    let mut cancelled = false;
+    progress(p.clone());
+
+    let mut uploads: Vec<(String, std::path::PathBuf)> = Vec::new();
+    let mut upload_items: Vec<&PlanItem> = Vec::new();
+    let mut one_by_one: Vec<&PlanItem> = Vec::new();
+    let mut removals: Vec<&PlanItem> = Vec::new();
+    for it in &plan.items {
+        match it.action {
+            Action::Copy | Action::Update => match spec.source.local_path(&it.path) {
+                Some(lp) => {
+                    uploads.push((it.path.clone(), lp));
+                    upload_items.push(it);
+                }
+                None => one_by_one.push(it),
+            },
+            Action::Remove => removals.push(it),
+            _ => {}
+        }
+    }
+
+    // Applies finished items to the counts, the log and the progress
+    let mut apply = |it: &PlanItem, res: Result<u64, String>, p: &mut Progress, counts: &mut RunCounts, cancelled: &mut bool, log: &mut dyn FnMut(LogEntry)| {
+        match res {
+            Ok(bytes) => {
+                let detail = match it.action {
+                    Action::Update if spec.mode == Mode::Versions => Some("old version kept in Proton's version history".to_string()),
+                    Action::Remove => Some("moved to Proton's trash".to_string()),
+                    _ => None,
+                };
+                match it.action {
+                    Action::Copy => counts.copied += 1,
+                    Action::Update => counts.updated += 1,
+                    _ => counts.removed += 1,
+                }
+                counts.bytes += bytes;
+                log(LogEntry { path: it.path.clone(), action: it.action.as_str().into(), size: it.size, ok: true, detail });
+            }
+            Err(e) if e == "Cancelled" => *cancelled = true,
+            Err(e) => {
+                counts.failed += 1;
+                log(LogEntry { path: it.path.clone(), action: it.action.as_str().into(), size: it.size, ok: false, detail: Some(e) });
+            }
+        }
+        p.files_done += 1;
+        if it.action != Action::Remove {
+            p.bytes_done += it.size;
+        }
+    };
+
+    // Runs a batch on a helper thread while this one reports progress as items finish
+    let run_batch = |items: &[&PlanItem], start: &(dyn Fn(&(dyn Fn(usize, Result<u64, String>) + Sync)) + Sync), p: &mut Progress, counts: &mut RunCounts, cancelled: &mut bool, log: &mut dyn FnMut(LogEntry), apply: &mut dyn FnMut(&PlanItem, Result<u64, String>, &mut Progress, &mut RunCounts, &mut bool, &mut dyn FnMut(LogEntry))| {
+        let finished: Mutex<Vec<(usize, Result<u64, String>)>> = Mutex::new(Vec::new());
+        std::thread::scope(|scope| {
+            let handle = scope.spawn(|| start(&|i, r| {
+                if let Ok(mut f) = finished.lock() {
+                    f.push((i, r));
+                }
+            }));
+            loop {
+                let done_now = handle.is_finished();
+                let batch: Vec<_> = finished.lock().map(|mut f| f.drain(..).collect()).unwrap_or_default();
+                for (i, r) in batch {
+                    if let Some(it) = items.get(i) {
+                        p.current = Some(it.path.clone());
+                        apply(it, r, p, counts, cancelled, log);
+                    }
+                }
+                progress(p.clone());
+                if done_now {
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(300));
+            }
+        });
+    };
+
+    if !uploads.is_empty() {
+        run_batch(&upload_items, &|done| pd.upload_batch(&uploads, cancel, done), &mut p, &mut counts, &mut cancelled, log, &mut apply);
+    }
+
+    // Sources without a local path (SFTP, rclone…) are copied one file at a time
+    for it in one_by_one {
+        if cancelled || cancel.load(Ordering::Relaxed) {
+            cancelled = true;
+            break;
+        }
+        p.current = Some(it.path.clone());
+        progress(p.clone());
+        let res = match plan.source_files.get(&it.path) {
+            Some(meta) => {
+                let mut on_bytes = |_n: u64| !cancel.load(Ordering::Relaxed);
+                transfer(spec, spec.source.as_ref(), spec.dest.as_ref(), &it.path, *meta, false, "", cancel, &mut on_bytes).map(|t| t.bytes)
+            }
+            None => Err("missing file details".to_string()),
+        };
+        apply(it, res, &mut p, &mut counts, &mut cancelled, log);
+    }
+
+    // Removals last, so an interrupted run never loses data
+    if !removals.is_empty() && !cancelled && !cancel.load(Ordering::Relaxed) {
+        p.phase = "removing".into();
+        let rels: Vec<String> = removals.iter().map(|it| it.path.clone()).collect();
+        run_batch(&removals, &|done| pd.trash_batch(&rels, cancel, done), &mut p, &mut counts, &mut cancelled, log, &mut apply);
+    }
+    if cancel.load(Ordering::Relaxed) {
+        cancelled = true;
+    }
+    Ok(RunOutcome { counts, cancelled, new_state: None })
 }
 
 /// What both sides look like after a two-way run; failed items keep their old state so they are retried

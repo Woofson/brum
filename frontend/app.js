@@ -69,7 +69,7 @@ const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
-  'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup',
+  'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup', 'backupUseProton',
   'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addModalTagFromInput', 'addNewBookmark',
   'addPropCustomTag', 'addTracksToMediaPlaylist', 'alignDiffPaths', 'applyBatchAutoTrackNumbers',
@@ -20633,16 +20633,20 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   let storageRoots = [];
   let trashSummary = { total_items: 0, total_size: 0, files_dir: '' };
   let usbDevices = [];
+  let protonStatus = null;
 
   try {
-    const [mountsRes, bmRes, rootsRes, trashRes, disksRes, usbRes] = await Promise.all([
+    const [mountsRes, bmRes, rootsRes, trashRes, disksRes, usbRes, protonRes] = await Promise.all([
       fetch(`${endpoint}/api/mounts/accessible`, { headers: authHeaders }).catch(() => null),
       fetch('/api/bookmarks', { headers: {} }).catch(() => null),
       fetch(`${endpoint}/api/storage/roots`, { headers: authHeaders }).catch(() => null),
       fetch(`${endpoint}/api/tools/trash/summary`, { headers: authHeaders }).catch(() => null),
       fetch(`${endpoint}/api/tools/disks`, { headers: authHeaders }).catch(() => null),
-      fetch(`${endpoint}/api/system/usb`, { headers: authHeaders }).catch(() => null)
+      fetch(`${endpoint}/api/system/usb`, { headers: authHeaders }).catch(() => null),
+      // Proton Drive login lives on this Brum, so it is offered for this machine's panels only
+      isRemote ? Promise.resolve(null) : fetch('/api/proton/status').catch(() => null)
     ]);
+    if (protonRes && protonRes.ok) protonStatus = await protonRes.json();
     if (mountsRes && mountsRes.ok) globalMounts = await mountsRes.json();
     if (bmRes && bmRes.ok) userBookmarks = await bmRes.json();
     if (rootsRes && rootsRes.ok) storageRoots = await rootsRes.json();
@@ -20887,6 +20891,16 @@ async function openPaneFavoritesMenu(e, paneIndex) {
         </div>
         ${isTrashDirectory(curPanePath) ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
       </div>
+      ${protonStatus && protonStatus.installed && protonStatus.signed_in ? `
+        <div class="dropdown-item ${curPanePath.startsWith('proton://') ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="proton:///my-files">
+          <i data-lucide="cloud" style="color: var(--accent);"></i>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600;">Proton Drive</div>
+            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(protonStatus.account || 'proton:///my-files')}</div>
+          </div>
+          ${curPanePath.startsWith('proton://') ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+        </div>
+      ` : ''}
       <div class="context-sep" style="margin: 4px 0;"></div>
 
       <!-- Fleet Control Nodes -->
@@ -36073,7 +36087,7 @@ function backupRenderEditor() {
           </div>
           ${backupPasswordRow('dest', d.has_dest_password)}
           <div class="bk-hint">A folder on this machine, another drive, or a mounted NAS share. It is created if it does not exist.</div>
-          <div class="bk-hint bk-remote-examples" id="bk-dest-remote-hints">Remote: <code>sftp://user@server:port/folder</code> · <code>rclone://remote/folder</code> · <code>fleet://machine/folder</code></div>
+          <div class="bk-hint bk-remote-examples" id="bk-dest-remote-hints">Remote: <code>sftp://user@server:port/folder</code> · <code>rclone://remote/folder</code> · <code>fleet://machine/folder</code> · <code>proton:///my-files/Backups</code></div>
           <div class="bk-chips" id="bk-rclone-remotes"></div>
         </div>
       </section>
@@ -36083,6 +36097,7 @@ function backupRenderEditor() {
         <div class="bk-step-body">
           <div class="bk-step-title">How</div>
           <div class="bk-options">${modeOption('copy')}${modeOption('versions')}${modeOption('two_way')}${modeOption('git')}</div>
+          <div class="bk-hint" id="bk-proton-mode-hint" style="display: none;">Proton Drive keeps old versions itself: replaced files become older versions in Proton's version history, and removed files go to Proton's trash. Keeping two folders the same and git need a folder on a drive.</div>
           <div class="bk-git-settings" id="bk-git-settings">
             <div class="bk-field">
               <label for="bk-git-remote">Remote to push to <small>(optional)</small></label>
@@ -36152,6 +36167,7 @@ function backupRenderEditor() {
     </div>`);
   backupSetMode(d.profile_mode);
   backupLoadRcloneRemotes();
+  backupUpdateProtonModes();
 }
 
 // Rows for the folders to back up; the first keeps the id the folder picker and name suggestion use
@@ -36203,6 +36219,45 @@ function backupUpdateSourceHints() {
   if (add) add.style.display = twoWay ? 'none' : '';
 }
 
+// Proton Drive as destination: it keeps versions itself and cannot do two-way or git
+function backupUpdateProtonModes() {
+  const dest = (document.getElementById('bk-dest')?.value || '').trim().toLowerCase();
+  const proton = dest.startsWith('proton://');
+  for (const key of ['two_way', 'git']) {
+    const radio = document.querySelector(`input[name="bk-mode"][value="${key}"]`);
+    if (!radio) continue;
+    radio.disabled = proton;
+    const label = radio.closest('.bk-option');
+    if (label) label.style.opacity = proton ? '0.45' : '';
+    if (proton && radio.checked) {
+      const copy = document.querySelector('input[name="bk-mode"][value="versions"]');
+      if (copy) {
+        copy.checked = true;
+        backupSetMode('versions');
+      }
+    }
+  }
+  const mode = document.querySelector('input[name="bk-mode"]:checked')?.value;
+  const show = (id, on) => { const el = document.getElementById(id); if (el) el.style.display = on ? '' : 'none'; };
+  show('bk-proton-mode-hint', proton);
+  if (proton) {
+    show('bk-retention-row', false);
+    show('bk-transfer-row', false);
+  } else if (mode) {
+    show('bk-retention-row', mode === 'versions' || mode === 'two_way');
+    show('bk-transfer-row', mode !== 'two_way' && mode !== 'git');
+  }
+}
+
+function backupUseProton() {
+  const input = document.getElementById('bk-dest');
+  if (!input) return;
+  const src = (backupSourceValues().filter(Boolean)[0] || '').replace(/[\\/]+$/, '').split(/[\\/]/).filter(Boolean).pop() || 'Backup';
+  input.value = `proton:///my-files/Backups/${src}`;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  input.focus();
+}
+
 // Offers Fleet machines and the rclone remotes set up on the server as one-click destinations
 async function backupLoadRcloneRemotes() {
   const box = document.getElementById('bk-rclone-remotes');
@@ -36212,6 +36267,12 @@ async function backupLoadRcloneRemotes() {
   if (nodes.length) {
     html += `<span class="bk-hint">Fleet:</span>${nodes.map(n => `<button class="bk-chip-btn" data-on-click="backupUseFleetNode" data-click-args="${actionArgs(n.id, n.start_path || '')}" title="${escapeHtml(n.endpoint_url || '')}">${escapeHtml(n.name || n.id)}</button>`).join('')}`;
   }
+  try {
+    const st = await backupApi('/api/proton/status');
+    if (st && st.installed && st.signed_in) {
+      html += `<span class="bk-hint">Proton:</span><button class="bk-chip-btn" data-on-click="backupUseProton" title="${escapeHtml(st.account || '')}">Proton Drive</button>`;
+    }
+  } catch (_) { /* Proton Drive not set up */ }
   try {
     const res = await backupApi('/api/tools/sync/rclone-remotes');
     if (res.remotes && res.remotes.length) {
@@ -36258,6 +36319,7 @@ function backupNameTyped() {
 // Suggests a name from the chosen folders until the user types one
 function backupPathTyped() {
   backupUpdateSourceHints();
+  backupUpdateProtonModes();
   for (const side of ['src', 'dest']) {
     const row = document.getElementById(`bk-${side}-pw-row`);
     if (row) row.style.display = BACKUP_REMOTE_RE.test(document.getElementById(`bk-${side}`)?.value.trim() || '') ? '' : 'none';
@@ -36271,6 +36333,7 @@ function backupPathTyped() {
   // "/mnt/NAS/Photos" for "Photos" reads better as "Photos to NAS"
   let dstName = dst[dst.length - 1] || '';
   if (dstName && dstName.toLowerCase() === srcName.toLowerCase() && dst.length > 1) dstName = dst[dst.length - 2];
+  if ((document.getElementById('bk-dest')?.value || '').trim().toLowerCase().startsWith('proton://')) dstName = 'Proton Drive';
   nameEl.value = srcName && dstName ? `${srcName} to ${dstName}` : srcName;
 }
 
@@ -36287,6 +36350,7 @@ function backupSetMode(mode) {
   show('bk-retention-row', mode === 'versions' || twoWay);
   show('bk-transfer-row', !twoWay && !git);
   show('bk-git-settings', git);
+  backupUpdateProtonModes();
   show('bk-rclone-remotes', !git);
   show('bk-dest-remote-hints', !git);
   const add = document.getElementById('bk-src-add');

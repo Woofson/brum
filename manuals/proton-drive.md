@@ -112,7 +112,21 @@ Open one by typing it in a panel's path bar, from **Open My files** in the setup
 
 ---
 
-## 4. Docker
+## 4. Backups to Proton Drive
+
+In **Backup & Sync**, choose **Proton Drive** under *Where to keep it* (or type `proton:///my-files/Backups/Photos`). The backup uses the Proton login of the user who made it.
+
+| Mode | With Proton Drive |
+| :--- | :--- |
+| **Copy** | Exact copy. Files you delete are moved to **Proton's trash**, so they can still be recovered there. |
+| **Copy and keep old versions** | Replaced files become older versions in **Proton's version history** (no `_archive` folder, no "keep for days" setting: Proton's own rules apply). Deleted files go to Proton's trash. |
+| Keep two folders the same, Git | Not offered for Proton Drive; they need a folder on a drive. |
+
+* **Speed**: Brum works in batches: folders are read several at a time, changed files are uploaded one folder per call with several folders at once, and removals go to the trash in groups. Unchanged files are recognised by size and time, as with any backup. The first backup of a large tree takes a while (each new folder is created one by one); later runs only send what changed.
+* **Per-file log, preview and restore** work as usual. Restore downloads the files from Proton Drive into a separate folder by default.
+* **Not supported (yet)**: Proton Drive as the *source* of a backup, and folders outside My files.
+
+## 5. Docker
 
 Brum's image includes what Proton's Alpine build needs (`libstdc++`). Then:
 

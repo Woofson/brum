@@ -124,6 +124,7 @@ Saving a new backup shows a **preview** first ("Will copy 1,204 new files…"), 
 | SFTP server (e.g. Hetzner Storage Box) | `sftp://user@server:port/folder` | Logs in with a password (kept with the backup, never shown again), a key file, the SSH agent or the keys in `~/.ssh`. Host keys are checked as set in `[storage.sftp]`. |
 | rclone remote | `rclone://remote/folder` | Any remote set up with `rclone config` by the user Brum runs as (Samba, S3, cloud drives…). Logins stay in rclone's own config. The form lists your remotes. |
 | Another Brum in the Fleet | `fleet://machine/folder` | Machines from `[[fleet.nodes]]` or saved in Fleet. The receiving Brum must be this version or newer; it writes as the user its token belongs to. The form lists your Fleet machines. |
+| Proton Drive | `proton:///my-files/Backups/Photos` | Uses the backup owner's own Proton login (Settings → Proton Drive). **Copy** and **Copy and keep old versions** only: Proton keeps replaced files in its own version history and removed files in its trash. See the [Proton Drive guide](proton-drive.md#4-backups-to-proton-drive). |
 
 Remote places are for admins and users explicitly allowed to use them. **rsync** can do the copying for Copy backups to a folder or an SSH server; it logs in with SSH keys only.
 

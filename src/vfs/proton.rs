@@ -841,6 +841,19 @@ pub fn forget_listing(user: &str, path: &str) {
     }
 }
 
+/// Lists a folder outside the async runtime (backups); remembered like panel listings
+pub fn list_sync(user: &str, path: &str, is_cancelled: &dyn Fn() -> bool) -> Result<Vec<FileEntry>, String> {
+    if let Some(hit) = cached_listing(user, path) {
+        return Ok(hit);
+    }
+    let out = run_sync(user, &["filesystem", "list", "-j", path], is_cancelled, None)?;
+    let items: Vec<serde_json::Value> = serde_json::from_str(out.trim()).map_err(|_| "Unexpected answer from Proton Drive".to_string())?;
+    let parent = if path == "/" { "proton://".to_string() } else { format!("proton://{path}") };
+    let entries: Vec<FileEntry> = items.iter().filter_map(|v| entry_from_json(&parent, v)).collect();
+    store_listing(user, path, &entries);
+    Ok(entries)
+}
+
 // ---------------------------------------------------------------- paths
 
 /// Splits a program path at its last real "/" (a "/" inside a name is written "\/"):
@@ -859,16 +872,16 @@ pub fn split_cli_path(path: &str) -> (String, String) {
 }
 
 /// A name as it is written inside a program path
-fn escape_name(name: &str) -> String {
+pub fn escape_name(name: &str) -> String {
     name.replace('/', "\\/")
 }
 
-fn join_cli(parent: &str, name: &str) -> String {
+pub fn join_cli(parent: &str, name: &str) -> String {
     if parent == "/" { format!("/{}", escape_name(name)) } else { format!("{}/{}", parent.trim_end_matches('/'), escape_name(name)) }
 }
 
 /// Only the user's own areas can be changed; the top level and Proton's special views cannot
-fn check_writable(path: &str) -> Result<(), String> {
+pub fn check_writable(path: &str) -> Result<(), String> {
     let top = path.trim_start_matches('/').split('/').next().unwrap_or("");
     let ok = matches!(top, "my-files" | "devices" | "shared-with-me" | "trash") && path.trim_matches('/').contains('/');
     if ok { Ok(()) } else { Err("This part of Proton Drive cannot be changed from Brum. Use a folder inside My files.".to_string()) }
@@ -1010,7 +1023,7 @@ pub async fn upload_bytes(user: &str, folder_uri: &str, name: &str, data: &[u8],
     let res = async {
         tokio::fs::write(&file, data).await.map_err(|e| format!("Cannot prepare the upload: {e}"))?;
         let file_s = file.to_string_lossy().to_string();
-        let out = run_cli(user, &["filesystem", "upload", "-j", "-t", "-f", upload_file_strategy(conflict), "-d", "merge", &file_s, &folder], Duration::from_secs(3600)).await?;
+        let out = run_cli(user, &["filesystem", "upload", "-j", "-f", upload_file_strategy(conflict), "-d", "merge", &file_s, &folder], Duration::from_secs(3600)).await?;
         check_transfer_result(&out).map(|_| ())
     }
     .await;
@@ -1027,7 +1040,7 @@ pub async fn upload_local_paths(user: &str, folder_uri: &str, paths: &[PathBuf],
         return Ok((0, 0));
     }
     let strategy = upload_file_strategy(conflict);
-    let mut args: Vec<String> = ["filesystem", "upload", "-j", "-t", "-f", strategy, "-d", "merge"].iter().map(|s| s.to_string()).collect();
+    let mut args: Vec<String> = ["filesystem", "upload", "-j", "-f", strategy, "-d", "merge"].iter().map(|s| s.to_string()).collect();
     args.extend(paths.iter().map(|p| p.to_string_lossy().to_string()));
     args.push(folder.clone());
     let refs: Vec<&str> = args.iter().map(String::as_str).collect();
@@ -1041,7 +1054,7 @@ fn rand_suffix() -> String {
     format!("{:08x}", rand::thread_rng().gen::<u32>())
 }
 
-fn upload_file_strategy(conflict: &str) -> &'static str {
+pub fn upload_file_strategy(conflict: &str) -> &'static str {
     match conflict {
         "skip" => "skip",
         "rename" => "rename",
@@ -1058,7 +1071,7 @@ fn download_file_strategy(conflict: &str) -> &'static str {
 }
 
 /// Reads the program's transfer summary: (transferred, skipped); failures become an error
-fn check_transfer_result(out: &str) -> Result<(u64, u64), String> {
+pub fn check_transfer_result(out: &str) -> Result<(u64, u64), String> {
     let v: serde_json::Value = out.lines().find(|l| l.trim_start().starts_with('{')).and_then(|l| serde_json::from_str(l).ok()).unwrap_or(serde_json::Value::Null);
     if v.is_null() {
         return Ok((0, 0));
@@ -1133,7 +1146,7 @@ pub fn transfer_item(
         check_writable(&join_cli(&to, &name))?;
         let (files, bytes) = local_totals(local);
         progress(&name, 0, bytes);
-        let out = run_blocking(&user, &["filesystem", "upload", "-j", "-t", "-f", upload_file_strategy(conflict), "-d", "merge", src, &to], tm, task_id, None)?;
+        let out = run_blocking(&user, &["filesystem", "upload", "-j", "-f", upload_file_strategy(conflict), "-d", "merge", src, &to], tm, task_id, None)?;
         let (_, skipped) = check_transfer_result(&out)?;
         progress(&name, bytes, bytes);
         forget_listing(&user, &to);
@@ -1174,7 +1187,7 @@ pub fn transfer_item(
     Ok((note, files.max(1), bytes))
 }
 
-struct WatchTarget {
+pub struct WatchTarget {
     path: PathBuf,
     expected: u64,
     name: String,
@@ -1201,6 +1214,17 @@ fn run_blocking(
     args: &[&str],
     tm: &crate::tools::tasks::TaskManager,
     task_id: &str,
+    watch: Option<(&WatchTarget, &dyn Fn(&str, u64, u64))>,
+) -> Result<String, String> {
+    run_sync(user, args, &|| tm.sync_is_cancelled(task_id), watch)
+}
+
+/// Runs the program outside the async runtime (tasks, backups), stopping it when
+/// `is_cancelled` says so
+pub fn run_sync(
+    user: &str,
+    args: &[&str],
+    is_cancelled: &dyn Fn() -> bool,
     watch: Option<(&WatchTarget, &dyn Fn(&str, u64, u64))>,
 ) -> Result<String, String> {
     use std::io::Read;
@@ -1237,10 +1261,10 @@ fn run_blocking(
         if let Some(st) = child.try_wait().map_err(|e| e.to_string())? {
             break st;
         }
-        if tm.sync_is_cancelled(task_id) {
+        if is_cancelled() {
             let _ = child.kill();
             let _ = child.wait();
-            return Err("Transfer cancelled by user".to_string());
+            return Err("Cancelled".to_string());
         }
         if let Some((w, report)) = watch {
             if last.elapsed() > Duration::from_millis(500) {
