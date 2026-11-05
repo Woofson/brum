@@ -11,7 +11,7 @@ Brum's tools come in two kinds:
 | Sharing & backup | Sharing Center, Backup & Sync |
 | Media & documents | 3D Model Viewer (CAD Studio), PDF Studio, Notes, Media Player, Format Converter |
 | Server | Terminal, Fleet Manager |
-| Chewtoys | Tetrion (block-puzzle game), Calculator, Colours (colour picker); optional: Tailspin (wheel, yes/no, dice) |
+| Chewtoys | Tetrion (block-puzzle game), Calculator, Colours (colour picker), Subnet Calculator; optional: Tailspin (wheel, yes/no, dice) |
 
 For remote storage (SFTP, SMB, NFS, WebDAV, S3, Proton Drive), see the [Remote Protocols guide](protocols.md).
 
@@ -186,7 +186,7 @@ Every backup and restore is listed with a one-line result. Open one to see every
 * **Guideline Mechanics**: 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and synchronized leaderboard.
 
 ### Bundled Chewtoys
-Calculator, Colours and Tetrion ship inside Brum as ordinary Chewtoys:
+Calculator, Colours, Subnet Calculator and Tetrion ship inside Brum as ordinary Chewtoys:
 * **Installed on first start** into the Chewtoy folder (`[plugins] user_directory`), like any `.grr` package.
 * **Kept up to date**: when a newer Brum brings a newer version, the installed copy is updated on start.
 * **Uninstall freely**: an uninstalled bundled Chewtoy stays uninstalled; Brum remembers this in `.bundled.json` in the Chewtoy folder.
@@ -197,6 +197,13 @@ Calculator, Colours and Tetrion ship inside Brum as ordinary Chewtoys:
 * **Any colour in, every format out**: Type or paste hex, `rgb()`, `hsl()`, `hwb()`, `oklch()` or a colour name; copy HEX, RGB, HSL, HWB, OKLCH or HSV with one click.
 * **Tools**: Tints and shades, colour harmonies (complementary, analogous, triadic, split complementary, tetradic), a WCAG contrast check, saved and recently copied colours, and the current Brum theme's colours with "copy as theme variable".
 * **Eyedropper**: Pick a colour from anywhere on screen (Chrome and Edge).
+
+### Subnet Calculator (Modular Chewtoy)
+* **IPv4**: Type `192.168.1.10/24` or an address with a netmask (`10.0.0.1 255.255.0.0`): network, netmask, wildcard mask, broadcast, first and last usable address, host counts, the address type (private, CGNAT/Tailscale, link-local, public…) and a binary view of network and host bits. `/31` and `/32` are handled as point-to-point and single-host networks. Check whether another address is inside the network.
+* **Split & combine**: Split a network into a number of parts, into networks of a given prefix, or into networks with room for a number of hosts. Combine a list of networks into the fewest networks with exactly the same addresses, and see the single network covering them all.
+* **IPv6**: Network, first and last address, number of /64 networks, short and full notation, address type and the reverse DNS (`ip6.arpa`) zone.
+* **Reference**: The special IPv4 and IPv6 ranges with what they are for; click one to open it in the calculator.
+* Click any result to copy it. Recent entries are remembered, and numbers follow **Region & Formats**.
 
 ### Tailspin (Optional Chewtoy)
 Tailspin is maintained with Brum but not built in. Install `plugins/tailspin.grr` from the [Brum repository](https://github.com/Woofson/brum/tree/main/plugins) through **Settings → Chewtoys → Install**.

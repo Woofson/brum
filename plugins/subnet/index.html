@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Subnet Calculator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="sn-app">
+    <nav class="sn-tabs" role="tablist">
+      <button type="button" class="sn-tab" data-tab="v4">IPv4</button>
+      <button type="button" class="sn-tab" data-tab="split">Split &amp; combine</button>
+      <button type="button" class="sn-tab" data-tab="v6">IPv6</button>
+      <button type="button" class="sn-tab" data-tab="ref">Reference</button>
+    </nav>
+
+    <!-- IPv4 -->
+    <section class="sn-panel" data-panel="v4">
+      <div class="sn-input-row">
+        <input type="text" id="sn-v4-input" class="sn-input" spellcheck="false" autocomplete="off" placeholder="192.168.1.10/24 or 10.0.0.1 255.255.0.0" aria-label="IPv4 address with prefix or netmask">
+      </div>
+      <div class="sn-recent" id="sn-v4-recent"></div>
+      <div class="sn-error" id="sn-v4-error" hidden></div>
+      <div class="sn-scroll">
+        <div class="sn-results" id="sn-v4-results"></div>
+        <div class="sn-binary" id="sn-v4-binary"></div>
+        <div class="sn-card">
+          <div class="sn-card-title">Is this address inside the network?</div>
+          <div class="sn-input-row">
+            <input type="text" id="sn-v4-contains" class="sn-input" spellcheck="false" autocomplete="off" placeholder="192.168.1.200" aria-label="Address to check">
+          </div>
+          <div class="sn-answer" id="sn-v4-contains-result"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Split & combine -->
+    <section class="sn-panel" data-panel="split" hidden>
+      <div class="sn-seg">
+        <button type="button" class="sn-seg-btn" data-split="split">Split a network</button>
+        <button type="button" class="sn-seg-btn" data-split="combine">Combine networks</button>
+      </div>
+      <div class="sn-split-mode" data-split-panel="split">
+        <div class="sn-input-row">
+          <input type="text" id="sn-split-net" class="sn-input" spellcheck="false" autocomplete="off" placeholder="10.0.0.0/22" aria-label="Network to split">
+        </div>
+        <div class="sn-input-row sn-split-how">
+          <select id="sn-split-by" class="sn-input sn-narrow" aria-label="Split by">
+            <option value="count">into</option>
+            <option value="prefix">into networks of</option>
+            <option value="hosts">with room for</option>
+          </select>
+          <input type="text" id="sn-split-value" class="sn-input sn-narrow" value="4" aria-label="Number">
+          <span class="sn-unit" id="sn-split-unit">parts</span>
+        </div>
+        <div class="sn-error" id="sn-split-error" hidden></div>
+        <div class="sn-summary" id="sn-split-summary"></div>
+        <div class="sn-scroll"><table class="sn-table" id="sn-split-table"></table></div>
+      </div>
+      <div class="sn-split-mode" data-split-panel="combine" hidden>
+        <textarea id="sn-combine-input" class="sn-input sn-textarea" spellcheck="false" placeholder="One network per line, for example:&#10;192.168.0.0/24&#10;192.168.1.0/24&#10;192.168.2.0/23" aria-label="Networks to combine"></textarea>
+        <div class="sn-error" id="sn-combine-error" hidden></div>
+        <div class="sn-scroll" id="sn-combine-result"></div>
+      </div>
+    </section>
+
+    <!-- IPv6 -->
+    <section class="sn-panel" data-panel="v6" hidden>
+      <div class="sn-input-row">
+        <input type="text" id="sn-v6-input" class="sn-input" spellcheck="false" autocomplete="off" placeholder="2001:db8:abcd:12::1/56" aria-label="IPv6 address with prefix">
+      </div>
+      <div class="sn-recent" id="sn-v6-recent"></div>
+      <div class="sn-error" id="sn-v6-error" hidden></div>
+      <div class="sn-scroll"><div class="sn-results" id="sn-v6-results"></div></div>
+    </section>
+
+    <!-- Reference -->
+    <section class="sn-panel" data-panel="ref" hidden>
+      <div class="sn-hint">Special address ranges. Click one to open it in the calculator.</div>
+      <div class="sn-scroll" id="sn-ref-list"></div>
+    </section>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>
