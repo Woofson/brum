@@ -3465,9 +3465,10 @@ function applyAppVersion(ver, sysData = null) {
   });
   document.querySelectorAll('.login-app-version, #login-app-version').forEach(el => el.textContent = ver);
   document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(el => {
-    el.textContent = `v${ver}${buildStr} (Desktop & Web)`;
+    el.textContent = `v${ver}`;
     el.title = tooltip;
   });
+  document.querySelectorAll('.about-version-text').forEach(el => { el.textContent = `v${ver}`; });
   const syncBadge = document.getElementById('sync-version-badge');
   if (syncBadge) {
     syncBadge.textContent = `v${ver}${buildStr}`;
@@ -20219,8 +20220,9 @@ function updateAboutModalContent() {
   const ver = App.version || (App.systemStatus && App.systemStatus.version) || '1.2.1';
   const buildStr = App.buildNumber ? ` (Build #${App.buildNumber})` : '';
   document.querySelectorAll('#about-version-badge, .about-version-badge').forEach(b => {
-    b.textContent = `v${ver}${buildStr} (Desktop & Web)`;
+    b.textContent = `v${ver}`;
   });
+  document.querySelectorAll('.about-version-text').forEach(el => { el.textContent = `v${ver}`; });
 
   if (!App.systemStatus) {
     fetch('/api/system/status')
@@ -20268,20 +20270,26 @@ function formatUserAuthBadge(u) {
 
 function updateAboutSystemDetails(status) {
   if (!status) return;
-  const osName = status.os === 'windows' ? 'Windows' : (status.os === 'macos' ? 'macOS' : (status.os || 'Linux'));
+  const osName = { windows: 'Windows', macos: 'macOS', linux: 'Linux', freebsd: 'FreeBSD', android: 'Android' }[status.os] || status.os || 'Linux';
   const authEngineName = status.auth_engine || (status.os === 'windows' ? 'Windows SAM / AD + SQLite RBAC' : 'Linux PAM + SQLite RBAC');
   document.querySelectorAll('#about-sys-os, .about-sys-os').forEach(el => {
     el.textContent = `${osName} (${status.hostname || 'localhost'})`;
   });
   document.querySelectorAll('#about-sys-mode, .about-sys-mode').forEach(el => {
-    el.textContent = status.standalone ? 'Desktop Standalone (Native)' : (status.auth_enabled ? `Multi-User Server (${authEngineName})` : 'Standalone Web Mode');
+    el.textContent = status.standalone ? 'Desktop app' : (status.auth_enabled ? 'Server with sign-in' : 'Web, without sign-in');
   });
   document.querySelectorAll('.about-sys-auth, #about-sys-auth').forEach(el => {
     el.textContent = authEngineName;
   });
   document.querySelectorAll('.about-sys-build').forEach(el => {
-    el.textContent = status.build_number ? `#${status.build_number} (${status.build_commit ? `git: ${status.build_commit}` : 'release'})` : '#1';
+    el.textContent = status.build_number ? `build ${status.build_number}${status.build_commit ? ` (${status.build_commit})` : ''}` : '';
   });
+  // How people sign in, in plain words
+  const engine = String(authEngineName);
+  const signIn = status.standalone || !status.auth_enabled
+    ? 'Not needed here'
+    : (/windows|sam/i.test(engine) ? 'Windows accounts and Brum accounts' : (/pam/i.test(engine) ? 'Linux accounts and Brum accounts' : 'Brum accounts'));
+  document.querySelectorAll('.about-sys-auth').forEach(el => { el.textContent = signIn; });
   document.querySelectorAll('.about-sys-compiled').forEach(el => {
     el.textContent = status.build_timestamp || '—';
   });

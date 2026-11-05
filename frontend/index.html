@@ -2752,83 +2752,52 @@
         </div>
 
         <!-- Tab 10: About Brum & System Information -->
-        <div class="settings-tab-content" id="tab-about">
-          <!-- Hero Branding Card -->
-          <div class="settings-group-card" style="text-align: center; padding: 22px 16px;">
-            <img src="assets/brum_happy.webp" id="about-settings-brand-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 10px; cursor: pointer; transition: transform 0.15s ease;">
-            <div style="font-size: 20px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
-            <div style="font-size: 11px; color: var(--text-muted); margin: 4px 0 12px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
-            <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
-              <span class="badge about-version-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;"></span>
-              <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust 2021 + Axum 0.7</span>
-              <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3);">MIT Open Source</span>
+        <div class="settings-tab-content" id="tab-about" style="padding: 16px;">
+          <div class="about-brum">
+            <div class="about-brum-head">
+              <img src="assets/brum_happy.webp" id="about-settings-brand-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (click to change his mood)" class="about-brum-logo">
+              <div class="about-brum-name">Brum</div>
+              <div class="about-brum-tagline">One file manager for all your places</div>
+              <span class="badge about-version-badge about-brum-version"></span>
             </div>
-          </div>
 
-          <!-- Description Card -->
-          <div class="settings-group-card">
-            <p style="font-size: 12px; color: var(--text-main); line-height: 1.6; margin: 0;">
-              <strong>Brum</strong> brings the speed, keyboard ergonomics, and multi-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the modern web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and cryptographic data integrity verification.
+            <p class="about-brum-text">
+              Your files live on many devices: this computer, a NAS, servers, phones and cloud storage.
+              Brum brings them together, so you can find, open, copy, back up and share them wherever they are, from any browser.
             </p>
-          </div>
+            <p class="about-brum-text about-brum-quiet">
+              Fast panels and keyboard control are at its core. Chewtoys add small extras when you want them.
+            </p>
 
-          <!-- Architecture Details Grid Card -->
-          <div class="settings-group-card">
-            <div class="settings-card-header" style="margin-bottom: 12px;">
-              <h4 class="settings-section-title">
-                <i data-lucide="cpu"></i> System &amp; Runtime Architecture
-              </h4>
-            </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; font-size: 11px;">
-              <div><span style="color: var(--text-muted);">Creator &amp; Lab:</span> <strong style="color: var(--text-main);">Bolt J Woofson @ Woofsons Lab</strong> (<a href="https://www.arf.ac" target="_blank" style="color: var(--accent); text-decoration: none;">www.arf.ac</a>)</div>
-              <div><span style="color: var(--text-muted);">Contact:</span> <a href="mailto:bolt@boop.no" style="color: var(--accent); text-decoration: none;">bolt@boop.no</a></div>
-              <div><span style="color: var(--text-muted);">Build:</span> <strong class="about-sys-build" style="color: var(--accent); font-family: var(--font-mono);">#--</strong></div>
-              <div><span style="color: var(--text-muted);">Compiled:</span> <span class="about-sys-compiled" style="font-family: var(--font-mono); font-size: 10.5px;">--</span></div>
-              <div><span style="color: var(--text-muted);">Backend Core:</span> <span style="font-family: var(--font-mono);">Rust 2021 (Axum 0.7 + Tokio)</span></div>
-              <div><span style="color: var(--text-muted);">Operating System:</span> <strong class="about-sys-os" style="color: var(--text-main);">Linux</strong></div>
-              <div><span style="color: var(--text-muted);">Execution Mode:</span> <span class="about-sys-mode">Desktop &amp; Web</span></div>
-              <div><span style="color: var(--text-muted);">Terminal Engine:</span> <span>Native PTY (portable-pty) + Nerd Font</span></div>
-              <div><span style="color: var(--text-muted);">Auth Engine:</span> <span class="about-sys-auth">Linux PAM + SQLite RBAC</span></div>
-              <div><span style="color: var(--text-muted);">Frontend Stack:</span> <span>Vanilla JS + Prism + Lucide</span></div>
-              <div><span style="color: var(--text-muted);">Repository:</span> <a href="https://github.com/Woofson/brum" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/Woofson/brum</a></div>
-              <div><span style="color: var(--text-muted);">Support / Ko-fi:</span> <a href="https://ko-fi.com/J7P327BXTR" target="_blank" style="color: #ff5e5b; font-weight: 600; text-decoration: none;">ko-fi.com/J7P327BXTR</a></div>
-              <div><span style="color: var(--text-muted);">License:</span> <span>MIT Open Source License</span></div>
-            </div>
-          </div>
+            <div class="about-brum-section">Places Brum reaches</div>
+            <ul class="about-brum-places">
+              <li><i data-lucide="hard-drive"></i> This computer and USB drives</li>
+              <li><i data-lucide="share-2"></i> Network shares (SMB, NFS)</li>
+              <li><i data-lucide="terminal"></i> Servers over SFTP</li>
+              <li><i data-lucide="server"></i> Other Brum machines (Fleet)</li>
+              <li><i data-lucide="cloud"></i> Proton Drive</li>
+              <li><i data-lucide="globe"></i> WebDAV and S3 storage</li>
+              <li><i data-lucide="refresh-cw"></i> rclone remotes, for backups</li>
+            </ul>
 
-          <!-- Support & Sponsor Card -->
-          <div class="settings-group-card" style="text-align: center; padding: 14px; background: rgba(255, 94, 91, 0.05); border: 1px solid rgba(255, 94, 91, 0.25);">
-            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Support ongoing development of Brum &amp; Chewtoys:</div>
-            <a href="https://ko-fi.com/J7P327BXTR" target="_blank" rel="noopener noreferrer" style="display: inline-block;">
-              <img src="assets/kofi-button.svg" alt="Support on Ko-fi" style="height: 32px; border: 0;">
-            </a>
-          </div>
+            <div class="about-brum-section">This Brum</div>
+            <dl class="about-brum-facts">
+              <dt>Version</dt><dd class="about-brum-mono"><span class="about-version-text">--</span> <span class="about-sys-build">#--</span></dd>
+              <dt>Compiled</dt><dd class="about-sys-compiled about-brum-mono">--</dd>
+              <dt>Runs on</dt><dd class="about-sys-os">--</dd>
+              <dt>Mode</dt><dd class="about-sys-mode">--</dd>
+              <dt>Sign-in</dt><dd class="about-sys-auth">--</dd>
+            </dl>
 
-          <!-- Key Capabilities Grid Card -->
-          <div class="settings-group-card">
-            <div class="settings-card-header" style="margin-bottom: 12px;">
-              <h4 class="settings-section-title">
-                <i data-lucide="sparkles"></i> Power Features &amp; ChewToys
-              </h4>
+            <div class="about-brum-links">
+              <a href="https://github.com/Woofson/brum/wiki" target="_blank" rel="noopener noreferrer">Guide</a>
+              <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer">Source code</a>
+              <a href="https://github.com/Woofson/brum/issues" target="_blank" rel="noopener noreferrer">Report a problem</a>
+              <a href="mailto:bolt@boop.no">Contact</a>
+              <span>MIT license</span>
+              <a href="https://ko-fi.com/J7P327BXTR" target="_blank" rel="noopener noreferrer">Support development</a>
             </div>
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 11px;">
-              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-                <strong style="color: var(--accent);">🗂️ 1-to-4 Dynamic Panes</strong>
-                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">Single, Dual, Triple &amp; Quad grid layouts</div>
-              </div>
-              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-                <strong style="color: var(--accent);">🌐 Multi-Cloud &amp; Mounts</strong>
-                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">SMB/CIFS, NFS, S3, SFTP, WebDAV, Proton</div>
-              </div>
-              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-                <strong style="color: var(--accent);">⚡ DeltaCopy &amp; TeraCopy</strong>
-                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">CRC32 / SHA-256 integrity verification</div>
-              </div>
-              <div style="padding: 10px 12px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-                <strong style="color: var(--accent);">🔄 ConvertX Converter</strong>
-                <div style="color: var(--text-dim); font-size: 10px; margin-top: 2px;">Universal Image, Audio, Video &amp; Doc conversions</div>
-              </div>
-            </div>
+            <div class="about-brum-credit">Made by Bolt J Woofson, <a href="https://www.arf.ac" target="_blank" rel="noopener noreferrer">Woofsons Lab</a></div>
           </div>
         </div>
 
@@ -6330,71 +6299,52 @@
         <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["about-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
       </div>
       <div class="modal-body" style="padding: 20px; overflow-y: auto;">
-        <!-- Banner & Version Header -->
-        <div style="text-align: center; margin-bottom: 18px; padding: 16px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius);">
-          <img src="assets/brum_happy.webp" id="about-modal-brand-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (Click to toggle mood)" style="height: 56px; width: auto; object-fit: contain; margin-bottom: 8px; cursor: pointer; transition: transform 0.15s ease;">
-          <div style="font-size: 18px; font-weight: 800; color: var(--accent); letter-spacing: 0.5px;">Brum</div>
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">Multi-Pane Web Environment (File Commander/Manager) — By Woofson</div>
-          <div style="display: flex; justify-content: center; gap: 6px; flex-wrap: wrap;">
-            <span id="about-version-badge" class="badge about-version-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent); border: 1px solid rgba(245, 158, 11, 0.4); font-weight: 700;"></span>
-            <span class="badge" style="background: rgba(56, 189, 248, 0.15); color: var(--info); border: 1px solid rgba(56, 189, 248, 0.3);">Rust 2021 + Axum 0.7</span>
-            <span class="badge" style="background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3);">MIT Open Source</span>
-          </div>
-        </div>
+        <div class="about-brum">
+            <div class="about-brum-head">
+              <img src="assets/brum_happy.webp" id="about-modal-brand-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (click to change his mood)" class="about-brum-logo">
+              <div class="about-brum-name">Brum</div>
+              <div class="about-brum-tagline">One file manager for all your places</div>
+              <span class="badge about-version-badge about-brum-version"></span>
+            </div>
 
-        <!-- Description -->
-        <p style="font-size: 12px; color: var(--text-main); line-height: 1.6; margin-bottom: 16px;">
-          <strong>Brum</strong> brings the speed, keyboard ergonomics, and dual/quad-pane productivity of classic orthodox commanders (Midnight Commander, Total Commander, Norton Commander) directly to the web browser and Linux/Hyprland desktop — powered by a lightweight Rust backend, multi-cloud storage drivers, real-time background transfer queues, and cryptographic data integrity verification.
-        </p>
+            <p class="about-brum-text">
+              Your files live on many devices: this computer, a NAS, servers, phones and cloud storage.
+              Brum brings them together, so you can find, open, copy, back up and share them wherever they are, from any browser.
+            </p>
+            <p class="about-brum-text about-brum-quiet">
+              Fast panels and keyboard control are at its core. Chewtoys add small extras when you want them.
+            </p>
 
-        <!-- System & Runtime Details Card -->
-        <div style="background: var(--bg-dark); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; margin-bottom: 16px;">
-          <div style="font-weight: 700; font-size: 11px; color: var(--accent); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; display: flex; align-items: center; gap: 6px;">
-            <i data-lucide="cpu" style="width: 14px;"></i> System &amp; Runtime Architecture
-          </div>
-          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; font-size: 11px;">
-            <div><span style="color: var(--text-muted);">Creator &amp; Lab:</span> <strong style="color: var(--text-main);">Bolt J Woofson @ Woofsons Lab</strong> (<a href="https://www.arf.ac" target="_blank" style="color: var(--accent); text-decoration: none;">www.arf.ac</a>)</div>
-            <div><span style="color: var(--text-muted);">Contact:</span> <a href="mailto:bolt@boop.no" style="color: var(--accent); text-decoration: none;">bolt@boop.no</a></div>
-            <div><span style="color: var(--text-muted);">Build:</span> <strong class="about-sys-build" style="color: var(--accent); font-family: var(--font-mono);">#--</strong></div>
-            <div><span style="color: var(--text-muted);">Compiled:</span> <span class="about-sys-compiled" style="font-family: var(--font-mono); font-size: 10.5px;">--</span></div>
-            <div><span style="color: var(--text-muted);">Backend:</span> <span style="font-family: var(--font-mono);">Rust 2021 (Axum 0.7)</span></div>
-            <div><span style="color: var(--text-muted);">Operating System:</span> <strong class="about-sys-os" style="color: var(--text-main);">Linux</strong></div>
-            <div><span style="color: var(--text-muted);">Auth Engine:</span> <span class="about-sys-auth">Linux PAM + SQLite RBAC</span></div>
-            <div><span style="color: var(--text-muted);">Terminal:</span> <span>Native PTY (portable-pty)</span></div>
-            <div><span style="color: var(--text-muted);">Frontend:</span> <span>Vanilla JS + Prism + Mermaid</span></div>
-            <div><span style="color: var(--text-muted);">Repository:</span> <a href="https://github.com/Woofson/brum" target="_blank" style="color: var(--accent); text-decoration: none;">github.com/Woofson/brum</a></div>
-            <div><span style="color: var(--text-muted);">Support / Ko-fi:</span> <a href="https://ko-fi.com/J7P327BXTR" target="_blank" style="color: #ff5e5b; font-weight: 600; text-decoration: none;">ko-fi.com/J7P327BXTR</a></div>
-            <div><span style="color: var(--text-muted);">License:</span> <span>MIT License</span></div>
-          </div>
-        </div>
+            <div class="about-brum-section">Places Brum reaches</div>
+            <ul class="about-brum-places">
+              <li><i data-lucide="hard-drive"></i> This computer and USB drives</li>
+              <li><i data-lucide="share-2"></i> Network shares (SMB, NFS)</li>
+              <li><i data-lucide="terminal"></i> Servers over SFTP</li>
+              <li><i data-lucide="server"></i> Other Brum machines (Fleet)</li>
+              <li><i data-lucide="cloud"></i> Proton Drive</li>
+              <li><i data-lucide="globe"></i> WebDAV and S3 storage</li>
+              <li><i data-lucide="refresh-cw"></i> rclone remotes, for backups</li>
+            </ul>
 
-        <!-- Key Features Grid -->
-        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 11px; margin-bottom: 16px;">
-          <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
-            <strong style="color: var(--accent);">🗂️ 1-to-4 Dynamic Panes</strong>
-            <div style="color: var(--text-dim); font-size: 10px;">Single, Dual, Triple &amp; Quad grid layouts</div>
-          </div>
-          <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
-            <strong style="color: var(--accent);">🌐 Multi-Cloud &amp; Mounts</strong>
-            <div style="color: var(--text-dim); font-size: 10px;">SMB/CIFS, NFS, S3, SFTP, WebDAV, Proton</div>
-          </div>
-          <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
-            <strong style="color: var(--accent);">⚡ DeltaCopy &amp; TeraCopy</strong>
-            <div style="color: var(--text-dim); font-size: 10px;">Bit-for-bit CRC32/SHA-256 integrity verify</div>
-          </div>
-          <div style="padding: 8px 10px; background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border); border-radius: 4px;">
-            <strong style="color: var(--accent);">🔄 ConvertX Converter</strong>
-            <div style="color: var(--text-dim); font-size: 10px;">Universal Image, Audio, Video &amp; Document</div>
-          </div>
-        </div>
+            <div class="about-brum-section">This Brum</div>
+            <dl class="about-brum-facts">
+              <dt>Version</dt><dd class="about-brum-mono"><span class="about-version-text">--</span> <span class="about-sys-build">#--</span></dd>
+              <dt>Compiled</dt><dd class="about-sys-compiled about-brum-mono">--</dd>
+              <dt>Runs on</dt><dd class="about-sys-os">--</dd>
+              <dt>Mode</dt><dd class="about-sys-mode">--</dd>
+              <dt>Sign-in</dt><dd class="about-sys-auth">--</dd>
+            </dl>
 
-        <!-- Support & Sponsor Banner -->
-        <div style="text-align: center; margin-bottom: 16px; padding: 12px; background: rgba(255, 94, 91, 0.05); border: 1px solid rgba(255, 94, 91, 0.25); border-radius: var(--radius);">
-          <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 8px;">Support ongoing development on Ko-fi:</div>
-          <a href="https://ko-fi.com/J7P327BXTR" target="_blank" rel="noopener noreferrer" style="display: inline-block;">
-            <img src="assets/kofi-button.svg" alt="Support on Ko-fi" style="height: 30px; border: 0;">
-          </a>
-        </div>
+            <div class="about-brum-links">
+              <a href="https://github.com/Woofson/brum/wiki" target="_blank" rel="noopener noreferrer">Guide</a>
+              <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer">Source code</a>
+              <a href="https://github.com/Woofson/brum/issues" target="_blank" rel="noopener noreferrer">Report a problem</a>
+              <a href="mailto:bolt@boop.no">Contact</a>
+              <span>MIT license</span>
+              <a href="https://ko-fi.com/J7P327BXTR" target="_blank" rel="noopener noreferrer">Support development</a>
+            </div>
+            <div class="about-brum-credit">Made by Bolt J Woofson, <a href="https://www.arf.ac" target="_blank" rel="noopener noreferrer">Woofsons Lab</a></div>
+          </div>
       </div>
       <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
         <button class="btn" data-on-click="closeModal" data-click-args='["about-modal"]' data-click-steps='[["openSettingsModal"], ["switchSettingsTab", "tab-keys"]]'>
