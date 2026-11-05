@@ -1,0 +1,24 @@
+[plugin]
+id = "workbench"
+name = "Workbench"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Workshop conversions and calculators: units, wire sizes, Ohm's law, resistor codes, tap drills, part weight, speeds and more."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.svg"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 600
+default_height = 700
+min_width = 330
+min_height = 440
+
+[integrations]
+launchpad = true
+launchpad_label = "Workbench"
+
+[permissions]
+permissions = ["ui:notify", "clipboard:write"]

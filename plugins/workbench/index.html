@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Workbench</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="wb-app">
+    <div class="wb-top">
+      <button type="button" class="wb-back" id="wb-back" hidden title="All tools" aria-label="All tools">←</button>
+      <input type="search" id="wb-search" class="wb-input wb-search" placeholder="Find a tool: awg, m6, ohm, psi…" autocomplete="off" spellcheck="false" aria-label="Find a tool">
+    </div>
+    <div class="wb-title-row" id="wb-title-row" hidden>
+      <span class="wb-title" id="wb-title"></span>
+      <button type="button" class="wb-pin" id="wb-pin" title="Pin to the top">☆</button>
+    </div>
+    <main class="wb-main" id="wb-main"></main>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -164,6 +164,7 @@ pub const BUNDLED_PLUGINS: &[(&str, &[u8])] = &[
     ("colours", include_bytes!("../../plugins/colours.grr")),
     ("subnet", include_bytes!("../../plugins/subnet.grr")),
     ("tetrion", include_bytes!("../../plugins/tetrion.grr")),
+    ("workbench", include_bytes!("../../plugins/workbench.grr")),
 ];
 
 /// A bundled Chewtoy and how it relates to what is installed

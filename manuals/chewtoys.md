@@ -11,7 +11,7 @@ Brum's tools come in two kinds:
 | Sharing & backup | Sharing Center, Backup & Sync |
 | Media & documents | 3D Model Viewer (CAD Studio), PDF Studio, Notes, Media Player, Format Converter |
 | Server | Terminal, Fleet Manager |
-| Chewtoys | Tetrion (block-puzzle game), Calculator, Colours (colour picker), Subnet Calculator; optional: Tailspin (wheel, yes/no, dice) |
+| Chewtoys | Tetrion (block-puzzle game), Calculator, Colours (colour picker), Subnet Calculator, Workbench; optional: Tailspin (wheel, yes/no, dice) |
 
 For remote storage (SFTP, SMB, NFS, WebDAV, S3, Proton Drive), see the [Remote Protocols guide](protocols.md).
 
@@ -187,7 +187,7 @@ Every backup and restore is listed with a one-line result. Open one to see every
 * **Guideline Mechanics**: 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and synchronized leaderboard.
 
 ### Bundled Chewtoys
-Calculator, Colours, Subnet Calculator and Tetrion ship inside Brum as ordinary Chewtoys:
+Calculator, Colours, Subnet Calculator, Workbench and Tetrion ship inside Brum as ordinary Chewtoys:
 * **Installed on first start** into the Chewtoy folder (`[plugins] user_directory`), like any `.grr` package.
 * **Kept up to date**: when a newer Brum brings a newer version, the installed copy is updated on start.
 * **Uninstall freely**: an uninstalled bundled Chewtoy stays uninstalled; Brum remembers this in `.bundled.json` in the Chewtoy folder.
@@ -205,6 +205,16 @@ Calculator, Colours, Subnet Calculator and Tetrion ship inside Brum as ordinary 
 * **IPv6**: Network, first and last address, number of /64 networks, short and full notation, address type and the reverse DNS (`ip6.arpa`) zone.
 * **Reference**: The special IPv4 and IPv6 ranges with what they are for; click one to open it in the calculator.
 * Click any result to copy it. Recent entries are remembered, and numbers follow **Region & Formats**.
+
+### Workbench (Modular Chewtoy)
+The conversions and calculators you would otherwise search the web for in the garage or workshop. Works offline. Type in the search box ("awg", "m6", "1/4-20", "psi", "ohm") and press <kbd>Enter</kbd> to jump straight to a tool; a thread or wire size opens its row. Pin tools with ☆ to keep them at the top. Click any result to copy it. Inputs are remembered per tool, and numbers and metric/imperial defaults follow **Region & Formats**.
+
+* **Units**: length, area, volume, weight, pressure, torque, temperature, speed, flow, power and energy, shown in every unit at once; mm ↔ inch with the nearest 1/16", 1/32" and 1/64" fraction (type inches as `0.375`, `3/8` or `1 3/8`).
+* **Electrical**: AWG table with diameter, mm², resistance per km and per 1000 ft and typical current (chassis wiring and power transmission), with the next metric cable size up; Ohm's law and power from any two of V, I, R, P; resistor colour codes both ways for 4, 5 and 6 bands with the nearest E12/E24/E96 values (values like `4k7`, `0R47`, `2M2`); LED series resistor and its power rating; voltage divider, including the resistor for a wanted voltage; cable voltage drop for copper or aluminium; battery energy, usable capacity and runtime.
+* **Threads & drills**: tap drills for metric coarse and fine (as the standard charts give them), UNC/UNF, and BSP/NPT pipe threads; ISO 273 clearance holes (close, medium, loose); number, letter and fractional drills ↔ mm, with the nearest drill to any size.
+* **Shop**: weight of a plate, bar, tube or hex in 22 materials; area and volume of common shapes; spindle speed for drilling, turning and milling (HSS or carbide); gear and pulley ratio; lever; slope in %, degrees and 1:x.
+
+Current ratings and cutting speeds are typical starting points; follow your local electrical code and the tool maker's figures.
 
 ### Tailspin (Optional Chewtoy)
 Tailspin is maintained with Brum but not built in. Install `plugins/tailspin.grr` from the [Brum repository](https://github.com/Woofson/brum/tree/main/plugins) through **Settings → Chewtoys → Install**.
