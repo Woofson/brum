@@ -1664,7 +1664,7 @@
                 </h4>
                 <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Desktop Standalone Only</span>
               </div>
-              <p class="settings-card-desc">Configure native window behavior, system tray integration, and global hotkeys for Linux (Hyprland, X11, Wayland), macOS, and Windows.</p>
+              <p class="settings-card-desc">Configure native window behavior, system tray integration, and global hotkeys for Linux (X11 and Wayland, including tiling window managers), macOS, and Windows.</p>
 
               <div style="display: flex; flex-direction: column; gap: 4px;">
                 <label class="settings-checkbox-row">
@@ -1687,7 +1687,7 @@
                   <input type="checkbox" id="setting-desktop-decorations" checked data-on-change="toggleWindowDecorations" data-change-args='[{"$": "checked"}]'>
                   <div>
                     <strong>Native Window Frame & Decorations</strong>
-                    <div class="settings-field-hint">Uncheck for a clean frameless window that tiles seamlessly without header waste in Hyprland. Launch with <code>brum --no-decorations</code>.</div>
+                    <div class="settings-field-hint">Uncheck for a clean frameless window that fits neatly in tiling window managers. Launch with <code>brum --no-decorations</code>.</div>
                   </div>
                 </label>
               </div>
@@ -6289,72 +6289,6 @@
 
 
   <!-- About Brum Modal -->
-  <div class="modal-overlay" id="about-modal">
-    <div class="modal-box" style="width: 580px; max-width: calc(100vw - 32px); max-height: 85vh;">
-      <div class="modal-header">
-        <div style="display: flex; align-items: center; gap: 8px;">
-          <img src="assets/amber-frameless-info.webp" alt="Brum" style="height: 18px; width: auto; object-fit: contain; vertical-align: middle;">
-          <span style="font-weight: 700; font-size: 14px;">About Brum</span>
-        </div>
-        <button class="btn btn-icon modal-close-btn" data-on-click="closeModal" data-click-args='["about-modal"]' title="Close (Esc)"><i data-lucide="x"></i></button>
-      </div>
-      <div class="modal-body" style="padding: 20px; overflow-y: auto;">
-        <div class="about-brum">
-            <div class="about-brum-head">
-              <img src="assets/brum_happy.webp" id="about-modal-brand-logo" alt="Brum" data-on-click="toggleBrumMascot" data-click-args='[{"$": "event"}, {"$": "el"}]' title="Brum (click to change his mood)" class="about-brum-logo">
-              <div class="about-brum-name">Brum</div>
-              <div class="about-brum-tagline">One file manager for all your places</div>
-              <span class="badge about-version-badge about-brum-version"></span>
-            </div>
-
-            <p class="about-brum-text">
-              Your files live on many devices: this computer, a NAS, servers, phones and cloud storage.
-              Brum brings them together, so you can find, open, copy, back up and share them wherever they are, from any browser.
-            </p>
-            <p class="about-brum-text about-brum-quiet">
-              Fast panels and keyboard control are at its core. Chewtoys add small extras when you want them.
-            </p>
-
-            <div class="about-brum-section">Places Brum reaches</div>
-            <ul class="about-brum-places">
-              <li><i data-lucide="hard-drive"></i> This computer and USB drives</li>
-              <li><i data-lucide="share-2"></i> Network shares (SMB, NFS)</li>
-              <li><i data-lucide="terminal"></i> Servers over SFTP</li>
-              <li><i data-lucide="server"></i> Other Brum machines (Fleet)</li>
-              <li><i data-lucide="cloud"></i> Proton Drive</li>
-              <li><i data-lucide="globe"></i> WebDAV and S3 storage</li>
-              <li><i data-lucide="refresh-cw"></i> rclone remotes, for backups</li>
-            </ul>
-
-            <div class="about-brum-section">This Brum</div>
-            <dl class="about-brum-facts">
-              <dt>Version</dt><dd class="about-brum-mono"><span class="about-version-text">--</span> <span class="about-sys-build">#--</span></dd>
-              <dt>Compiled</dt><dd class="about-sys-compiled about-brum-mono">--</dd>
-              <dt>Runs on</dt><dd class="about-sys-os">--</dd>
-              <dt>Mode</dt><dd class="about-sys-mode">--</dd>
-              <dt>Sign-in</dt><dd class="about-sys-auth">--</dd>
-            </dl>
-
-            <div class="about-brum-links">
-              <a href="https://github.com/Woofson/brum/wiki" target="_blank" rel="noopener noreferrer">Guide</a>
-              <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer">Source code</a>
-              <a href="https://github.com/Woofson/brum/issues" target="_blank" rel="noopener noreferrer">Report a problem</a>
-              <a href="mailto:bolt@boop.no">Contact</a>
-              <span>MIT license</span>
-              <a href="https://ko-fi.com/J7P327BXTR" target="_blank" rel="noopener noreferrer">Support development</a>
-            </div>
-            <div class="about-brum-credit">Made by Bolt J Woofson, <a href="https://www.arf.ac" target="_blank" rel="noopener noreferrer">Woofsons Lab</a></div>
-          </div>
-      </div>
-      <div class="modal-footer" style="display: flex; justify-content: space-between; align-items: center;">
-        <button class="btn" data-on-click="closeModal" data-click-args='["about-modal"]' data-click-steps='[["openSettingsModal"], ["switchSettingsTab", "tab-keys"]]'>
-          <i data-lucide="keyboard" style="width: 12px;"></i> View Keybindings
-        </button>
-        <button class="btn btn-accent" data-on-click="closeModal" data-click-args='["about-modal"]'>Close</button>
-      </div>
-    </div>
-  </div>
-
   <!-- Universal Document & PDF Reader Modal -->
   <div class="modal-overlay" id="doc-viewer-modal" style="z-index: 2800;">
     <div class="modal-box doc-viewer-box" id="doc-viewer-box">

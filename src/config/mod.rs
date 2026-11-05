@@ -873,7 +873,7 @@ pub struct UiConfig {
     #[serde(default = "default_view_mode")]
     pub default_view_mode: String, // "details", "compact", "grid"
     #[serde(default = "default_true")]
-    pub window_decorations: bool, // Tiled WM / Hyprland toggle (decorations on/off)
+    pub window_decorations: bool, // Window titlebar and frame (off suits tiling window managers)
     #[serde(default = "default_false")]
     pub show_global_refresh: bool, // Global header refresh button toggle
     #[serde(default = "default_true")]

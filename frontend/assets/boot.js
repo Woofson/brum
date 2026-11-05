@@ -70,7 +70,7 @@
           sessionStorage.setItem('cd_session_mascot', storedMascot);
         }
         var mascotSrc = storedMascot === 'fierce' ? 'assets/brum_fierce.webp' : 'assets/brum_happy.webp';
-        document.querySelectorAll('#header-brand-logo, #login-brand-logo, #lock-mascot-logo, #about-modal-brand-logo, #about-settings-brand-logo').forEach(function(img) {
+        document.querySelectorAll('#header-brand-logo, #login-brand-logo, #lock-mascot-logo, #about-settings-brand-logo').forEach(function(img) {
           img.src = mascotSrc;
           img.dataset.mascotMood = storedMascot;
         });

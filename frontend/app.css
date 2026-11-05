@@ -1966,10 +1966,6 @@ body.unsticky-col-headers .file-table th {
   display: flex;
 }
 
-#about-modal {
-  z-index: 3500 !important;
-}
-
 .modal-box {
   background-color: var(--bg-panel);
   border: 1px solid var(--border);

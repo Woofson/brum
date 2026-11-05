@@ -1091,7 +1091,7 @@ const DEFAULT_FILE_TEMPLATES = [
   }
 ];
 
-// ---------------- PANE IDENTIFICATION BORDER COLORS (HYPRLAND-STYLE TWO-TONE) ----------------
+// ---------------- PANE IDENTIFICATION BORDER COLORS (TWO-TONE, TILING WINDOW MANAGER STYLE) ----------------
 const PANE_COLOR_PALETTE = ['default', 'amber', 'emerald', 'sky', 'purple', 'rose', 'indigo', 'teal', 'orange'];
 
 const PANE_COLOR_PRESETS = {
@@ -3792,7 +3792,6 @@ function randomizeBrumMascot(targetEl = null, forceNew = false) {
     document.getElementById('header-brand-logo'),
     document.getElementById('login-brand-logo'),
     document.getElementById('lock-mascot-logo'),
-    document.getElementById('about-modal-brand-logo'),
     document.getElementById('about-settings-brand-logo')
   ].filter(Boolean);
 
@@ -3822,7 +3821,6 @@ function toggleBrumMascot(event, el = null) {
     document.getElementById('header-brand-logo'),
     document.getElementById('login-brand-logo'),
     document.getElementById('lock-mascot-logo'),
-    document.getElementById('about-modal-brand-logo'),
     document.getElementById('about-settings-brand-logo')
   ].filter(Boolean);
 
@@ -20200,17 +20198,13 @@ function dismissGlobalPopoversAndMenus(e) {
 // Register in capture phase so outside clicks/touches dismiss popups reliably even when child elements call stopPropagation()
 document.addEventListener('pointerdown', dismissGlobalPopoversAndMenus, true);
 
+// About lives in Settings; the logo and menus open it there
 function openAboutModal() {
   document.getElementById('profile-dropdown-menu')?.classList.remove('active');
   document.getElementById('tools-dropdown-menu')?.classList.remove('active');
   hideContextMenu();
-  updateAboutModalContent();
-  showModal('about-modal');
-  const modalEl = document.getElementById('about-modal');
-  if (modalEl) {
-    modalEl.style.zIndex = '3500';
-    modalEl.classList.add('active');
-  }
+  openSettingsModal();
+  switchSettingsTab('tab-about');
 }
 window.openAbout = openAboutModal;
 window.showAbout = openAboutModal;
@@ -20239,7 +20233,6 @@ function updateAboutModalContent() {
     updateAboutSystemDetails(App.systemStatus);
   }
 
-  randomizeBrumMascot(document.getElementById('about-modal-brand-logo'));
   randomizeBrumMascot(document.getElementById('about-settings-brand-logo'));
 }
 
@@ -28603,7 +28596,7 @@ function toggleWindowDecorations(show) {
   localStorage.setItem('cd_window_decorations', show);
   const cb = document.getElementById('setting-window-decorations');
   if (cb) cb.checked = show;
-  showToast(show ? 'Window titlebar & frame enabled (restart to apply)' : 'Window decorations disabled (Borderless/Tiling mode for Hyprland)', 'info');
+  showToast(show ? 'Window titlebar & frame enabled (restart to apply)' : 'Window decorations disabled (frameless, for tiling window managers; restart to apply)', 'info');
 }
 
 function toggleMediaStopOnClose(stopOnClose) {
@@ -38859,7 +38852,7 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
   { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
-  { id: 'about', title: 'About Brum', sub: 'Version, architecture, developer info, and MIT license details', icon: 'assets/amber-frameless-info.webp', cat: 'actions', action: () => openAboutModal() },
+  { id: 'about', title: 'About Brum', sub: 'What Brum is, version, and links', icon: 'assets/amber-frameless-info.webp', cat: 'actions', action: () => openAboutModal() },
   { id: 'profile', title: 'User Profile & Password', sub: 'Account credentials, session avatar, and security', icon: 'user', cat: 'actions', action: () => openUserProfileModal() },
   { id: 'lock', title: 'Lock Session', sub: 'Lock Brum immediately (Ctrl+Alt+L)', icon: 'lock', cat: 'actions', action: () => lockSession() },
   { id: 'mkdir', title: 'New Folder', sub: 'Create a new directory in active pane (F7)', icon: 'folder-plus', cat: 'actions', action: () => triggerMkdir() },

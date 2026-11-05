@@ -186,7 +186,7 @@ pub async fn start_background_server(mut config: AppConfig) -> Result<(u16, Opti
     Ok((bound_port, token_out))
 }
 
-/// Configures Linux desktop and Wayland/Hyprland environment variables
+/// Configures Linux desktop environment variables (Wayland and NVIDIA)
 pub fn setup_linux_desktop_env() {
     #[cfg(target_os = "linux")]
     {

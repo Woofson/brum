@@ -198,7 +198,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("        --no-auth          Disable login (only on 127.0.0.1, or behind trusted_proxies that handle login)");
                 println!("        --windows-service  Internal entry point for Windows Service Control Manager");
                 println!("        --minimized        Launch minimized in system tray / background without opening window");
-                println!("        --no-decorations   Launch without window titlebar/frame (ideal for Hyprland/tiling WMs)");
+                println!("        --no-decorations   Launch without window titlebar/frame (for tiling window managers)");
                 println!("        --frameless        Alias for --no-decorations");
                 println!("        --decorations      Force enable window titlebar and borders");
                 println!("    -v, --version          Print version information");
