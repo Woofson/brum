@@ -70,6 +70,7 @@ const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
 const BRUM_ACTIONS = new Set([
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
   'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup', 'backupUseProton',
+  'openProtonShare', 'protonShareSave', 'protonShareRemove', 'protonShareCopy', 'protonShareTogglePassword',
   'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addModalTagFromInput', 'addNewBookmark',
   'addPropCustomTag', 'addTracksToMediaPlaylist', 'alignDiffPaths', 'applyBatchAutoTrackNumbers',
@@ -21860,6 +21861,7 @@ function showContextMenu(x, y) {
       <div class="context-item" data-on-click="triggerRename" data-click-after="hideContextMenu"><i data-lucide="edit-3"></i> <span class="context-label">Rename</span> <span class="context-shortcut">F2</span></div>
       <div class="context-item" data-on-click="triggerDelete" data-click-after="hideContextMenu"><i data-lucide="trash-2" style="color: var(--danger);"></i> <span class="context-label">Delete</span> <span class="context-shortcut">F8</span></div>
       <div class="context-item" data-on-click="triggerProperties" data-click-after="hideContextMenu"><i data-lucide="info" style="color: var(--accent);"></i> <span class="context-label">Properties</span> <span class="context-shortcut">Alt+Enter</span></div>
+      ${App.contextItem && String(App.contextItem.path || '').startsWith('proton://') ? `<div class="context-item" data-on-click="openProtonShare" data-click-args="${actionArgs(String(App.contextItem.path))}" data-click-after="hideContextMenu"><i data-lucide="link" style="color: var(--accent);"></i> <span class="context-label">Proton share link…</span></div>` : ''}
 
       <div class="context-sep"></div>
 
@@ -21971,6 +21973,7 @@ function showContextMenu(x, y) {
       <div class="context-item" data-on-click="triggerRename" data-click-after="hideContextMenu"><i data-lucide="edit-3"></i> <span class="context-label">Rename</span> <span class="context-shortcut">F2</span></div>
       <div class="context-item" data-on-click="triggerDelete" data-click-after="hideContextMenu"><i data-lucide="trash-2" style="color: var(--danger);"></i> <span class="context-label">Delete</span> <span class="context-shortcut">F8</span></div>
       <div class="context-item" data-on-click="triggerProperties" data-click-after="hideContextMenu"><i data-lucide="info" style="color: var(--accent);"></i> <span class="context-label">Properties</span> <span class="context-shortcut">Alt+Enter</span></div>
+      ${App.contextItem && String(App.contextItem.path || '').startsWith('proton://') ? `<div class="context-item" data-on-click="openProtonShare" data-click-args="${actionArgs(String(App.contextItem.path))}" data-click-after="hideContextMenu"><i data-lucide="link" style="color: var(--accent);"></i> <span class="context-label">Proton share link…</span></div>` : ''}
 
       <div class="context-item" data-on-click="triggerDownloadContextItem" data-click-after="hideContextMenu"><i data-lucide="download" style="color: var(--accent);"></i> <span class="context-label">Save / Download file(s)...</span></div>
 
@@ -49767,4 +49770,136 @@ function startViewerLoading(container, path) {
     el.classList.add('error');
     el.innerHTML = `<span class="viewer-loading-text">${escapeHtml(errorMessage)}</span>`;
   };
+}
+
+// ==========================================================================
+// Proton Drive public links (right-click → Proton share link…)
+// ==========================================================================
+const protonShareUi = { path: '', link: null, busy: false };
+
+async function openProtonShare(path) {
+  protonShareUi.path = path;
+  protonShareUi.link = null;
+  const name = (String(path).split(/(?<!\\)\//).pop() || '').replace(/\\\//g, '/');
+  const title = document.getElementById('proton-share-title');
+  if (title) title.textContent = name || 'Proton share link';
+  protonShareRender('loading');
+  showModal('proton-share-modal');
+  try {
+    const res = await backupApi(`/api/proton/share?path=${encodeURIComponent(path)}`);
+    protonShareUi.link = res.link || null;
+    protonShareRender();
+  } catch (e) {
+    protonShareRender('error', e.message);
+  }
+}
+
+function protonShareRender(state = '', message = '') {
+  const body = document.getElementById('proton-share-body');
+  const foot = document.getElementById('proton-share-foot');
+  if (!body || !foot) return;
+  const link = protonShareUi.link;
+  if (state === 'loading') {
+    body.innerHTML = `<div class="proton-share-wait"><span class="viewer-loading-spinner"></span> Asking Proton Drive…</div>`;
+    foot.innerHTML = `<button class="btn" data-on-click="closeModal" data-click-args='["proton-share-modal"]'>Close</button>`;
+    bindActions(foot);
+    return;
+  }
+  const minDate = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+  body.innerHTML = `
+    ${state === 'error' ? `<div class="proton-error">${escapeHtml(message)}</div>` : ''}
+    ${link ? `
+      <div class="proton-share-link">
+        <input type="text" id="proton-share-url" class="pane-quick-filter" readonly value="${escapeHtml(link.url)}">
+        <button class="btn btn-sm btn-accent" data-on-click="protonShareCopy"><i data-lucide="copy"></i> Copy</button>
+      </div>
+      <div class="form-hint">Anyone with this link can ${link.role === 'editor' ? 'open and change' : 'open'} it${link.password ? ', after typing the password' : ''}${link.expires ? `, until ${escapeHtml(typeof formatDateOnly === 'function' ? formatDateOnly(new Date(link.expires + 'T00:00:00')) : link.expires)}` : ''}. Opened ${link.downloads} time${link.downloads === 1 ? '' : 's'} so far.</div>
+    ` : `<div class="proton-line">Not shared. Create a link to let others open it in their browser, without a Proton account.</div>`}
+    <div class="proton-share-fields">
+      <label>Others can
+        <select id="proton-share-role" class="pane-quick-filter">
+          <option value="viewer" ${!link || link.role !== 'editor' ? 'selected' : ''}>View and download</option>
+          <option value="editor" ${link && link.role === 'editor' ? 'selected' : ''}>View and change</option>
+        </select>
+      </label>
+      <label>Password <small>(optional)</small>
+        <span class="proton-share-pw">
+          <input type="password" id="proton-share-password" class="pane-quick-filter" autocomplete="new-password" value="${escapeHtml((link && link.password) || '')}" placeholder="No password">
+          <button class="btn btn-sm" data-on-click="protonShareTogglePassword" title="Show or hide"><i data-lucide="eye"></i></button>
+        </span>
+      </label>
+      <label>Works until <small>(optional)</small>
+        <input type="date" id="proton-share-expires" class="pane-quick-filter" min="${minDate}" value="${escapeHtml((link && link.expires) || '')}">
+      </label>
+    </div>`;
+  foot.innerHTML = `
+    ${link ? `<button class="btn btn-danger" data-on-click="protonShareRemove" ${protonShareUi.busy ? 'disabled' : ''}><i data-lucide="link-2-off"></i> Remove link</button>` : ''}
+    <span style="flex: 1;"></span>
+    <button class="btn" data-on-click="closeModal" data-click-args='["proton-share-modal"]'>Close</button>
+    <button class="btn btn-accent" data-on-click="protonShareSave" ${protonShareUi.busy ? 'disabled' : ''}><i data-lucide="link"></i> ${link ? 'Save changes' : 'Create link'}</button>`;
+  bindActions(body);
+  bindActions(foot);
+  if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+}
+
+async function protonShareSave() {
+  if (protonShareUi.busy) return;
+  const role = document.getElementById('proton-share-role')?.value || 'viewer';
+  const password = document.getElementById('proton-share-password')?.value || '';
+  const expires = document.getElementById('proton-share-expires')?.value || '';
+  const hadLink = !!protonShareUi.link;
+  protonShareUi.busy = true;
+  protonShareRender();
+  try {
+    const res = await backupApi('/api/proton/share', { method: 'POST', body: { path: protonShareUi.path, role, password, expires } });
+    protonShareUi.link = res.link || null;
+    protonShareUi.busy = false;
+    protonShareRender();
+    showToast(hadLink ? 'Proton link updated' : 'Proton link created', 'success');
+  } catch (e) {
+    protonShareUi.busy = false;
+    protonShareRender('error', e.message);
+  }
+}
+
+async function protonShareRemove() {
+  const ok = await showConfirmDialog({
+    title: 'Remove the Proton link?',
+    message: 'The link stops working for everyone who has it. The file stays in your Proton Drive.',
+    icon: 'link-2-off',
+    type: 'danger',
+    confirmText: 'Remove link',
+    cancelText: 'Cancel',
+  });
+  if (!ok) return;
+  protonShareUi.busy = true;
+  protonShareRender();
+  try {
+    await backupApi('/api/proton/share/remove', { method: 'POST', body: { path: protonShareUi.path } });
+    protonShareUi.link = null;
+    protonShareUi.busy = false;
+    protonShareRender();
+    showToast('Proton link removed', 'info');
+  } catch (e) {
+    protonShareUi.busy = false;
+    protonShareRender('error', e.message);
+  }
+}
+
+async function protonShareCopy() {
+  const url = protonShareUi.link && protonShareUi.link.url;
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Link copied', 'success');
+  } catch (_) {
+    const input = document.getElementById('proton-share-url');
+    if (input) { input.focus(); input.select(); }
+    showToast('Press Ctrl+C to copy the selected link', 'info');
+  }
+}
+
+function protonShareTogglePassword() {
+  const input = document.getElementById('proton-share-password');
+  if (input) input.type = input.type === 'password' ? 'text' : 'password';
 }

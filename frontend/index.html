@@ -6136,6 +6136,18 @@
     <a href="https://github.com/Woofson/brum" target="_blank" rel="noopener noreferrer" id="login-corner-version-link" class="login-corner-version-link" title="Brum on GitHub"></a>
   </div>
 
+  <!-- Proton Drive public link -->
+  <div class="modal-overlay" id="proton-share-modal">
+    <div class="modal-box proton-share-box">
+      <div class="modal-header">
+        <span style="display: flex; align-items: center; gap: 7px; min-width: 0;"><i data-lucide="link" style="width: 15px; height: 15px; color: var(--accent);"></i> <span id="proton-share-title" style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Proton share link</span></span>
+        <button class="btn" data-on-click="closeModal" data-click-args='["proton-share-modal"]'><i data-lucide="x"></i></button>
+      </div>
+      <div class="modal-body" id="proton-share-body"></div>
+      <div class="modal-footer" id="proton-share-foot" style="display: flex; gap: 6px; align-items: center;"></div>
+    </div>
+  </div>
+
   <!-- Remote Connection Modal (SFTP / WebDAV / S3 / Proton Drive) -->
   <div class="modal-overlay" id="remote-modal">
     <div class="modal-box" style="width: 500px;">

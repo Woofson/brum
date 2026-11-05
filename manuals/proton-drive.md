@@ -112,6 +112,18 @@ Open one by typing it in a panel's path bar, from **Open My files** in the setup
 
 ---
 
+### Share links
+
+Right-click a file or folder in a Proton panel and choose **Proton share link…**:
+
+* **Create link** makes a public Proton link: anyone with it can open the item in their browser, without a Proton account. **Copy** puts it on the clipboard.
+* **Others can**: *View and download*, or *View and change*.
+* **Password** (optional): people also need the password. **Works until** (optional): the link stops working after that day.
+* **Save changes** keeps the current password and date unless you change them. **Remove link** stops the link for everyone; the item stays in your Proton Drive.
+* The window shows how often the link has been opened. All your links are also listed under *Shared by me* on drive.proton.me.
+
+Read-only users cannot create links. Items in the trash cannot be shared.
+
 ## 4. Backups to Proton Drive
 
 In **Backup & Sync**, choose **Proton Drive** under *Where to keep it* (or type `proton:///my-files/Backups/Photos`). The backup uses the Proton login of the user who made it.

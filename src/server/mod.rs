@@ -185,6 +185,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/proton/login/qr", get(proton_handlers::handle_login_qr))
         .route("/api/proton/account", post(proton_handlers::handle_refresh_account))
         .route("/api/proton/logout", post(proton_handlers::handle_logout))
+        .route("/api/proton/share", get(proton_handlers::handle_share_status).post(proton_handlers::handle_share_set))
+        .route("/api/proton/share/remove", post(proton_handlers::handle_share_remove))
         // Fleet Manager & Gateway Reverse Proxy
         .route("/api/fleet/nodes", get(fleet::handle_list_fleet_nodes))
         .route("/api/fleet/ping/:node_id", get(fleet::handle_fleet_ping))

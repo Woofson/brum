@@ -17721,3 +17721,17 @@ textarea.bk-input {
 .viewer-loading[hidden] { display: none; }
 .viewer-loading.error { color: var(--danger, #ef4444); }
 .viewer-loading-spinner { width: 26px; height: 26px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: proton-spin 0.8s linear infinite; }
+
+/* ---------- Proton Drive public link window ---------- */
+.proton-share-box { width: min(520px, calc(100vw - 32px)); }
+#proton-share-body { display: flex; flex-direction: column; gap: 10px; font-size: 12px; }
+.proton-share-wait { display: flex; align-items: center; gap: 10px; color: var(--text-muted); padding: 12px 0; }
+.proton-share-wait .viewer-loading-spinner { width: 18px; height: 18px; border-width: 2px; }
+.proton-share-link { display: flex; gap: 6px; }
+.proton-share-link input { flex: 1; min-width: 0; font-family: var(--font-mono, monospace); padding: 6px 8px; }
+.proton-share-fields { display: grid; gap: 8px; }
+.proton-share-fields label { display: flex; flex-direction: column; gap: 4px; font-weight: 600; color: var(--text-main); }
+.proton-share-fields label small { color: var(--text-dim); font-weight: 400; }
+.proton-share-fields input, .proton-share-fields select { padding: 6px 8px; width: 100%; }
+.proton-share-pw { display: flex; gap: 6px; }
+.proton-share-pw input { flex: 1; min-width: 0; }

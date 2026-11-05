@@ -1088,6 +1088,83 @@ pub fn check_transfer_result(out: &str) -> Result<(u64, u64), String> {
     Ok((v["transferredItems"].as_u64().unwrap_or(0), v["skippedItems"].as_u64().unwrap_or(0)))
 }
 
+// ---------------------------------------------------------------- share links
+
+/// A public Proton link for one file or folder
+#[derive(Debug, Clone, Serialize, Default)]
+pub struct ShareLink {
+    pub url: String,
+    /// "viewer" or "editor"
+    pub role: String,
+    /// The custom password, if one was set (Proton returns it to the owner)
+    pub password: Option<String>,
+    /// Last day the link works (YYYY-MM-DD), if limited
+    pub expires: Option<String>,
+    pub created: Option<String>,
+    pub downloads: u64,
+}
+
+fn share_from_json(out: &str) -> Option<ShareLink> {
+    let v: serde_json::Value = serde_json::from_str(out.trim()).ok()?;
+    let u = v.get("urlAccess").filter(|u| !u.is_null())?;
+    Some(ShareLink {
+        url: u["url"].as_str()?.to_string(),
+        role: u["role"].as_str().unwrap_or("viewer").to_string(),
+        password: u["customPassword"].as_str().filter(|p| !p.is_empty()).map(String::from),
+        expires: u["expirationTime"].as_str().map(|t| t.chars().take(10).collect()),
+        created: u["creationTime"].as_str().map(String::from),
+        downloads: u["numberOfInitializedDownloads"].as_u64().unwrap_or(0),
+    })
+}
+
+/// The item's public link, if it has one ("undefined" from the program means none)
+pub async fn share_status(user: &str, uri: &str) -> Result<Option<ShareLink>, String> {
+    let path = cli_path_of(uri);
+    check_writable(&path)?;
+    let out = run_cli(user, &["sharing", "status", "-j", &path], Duration::from_secs(120)).await?;
+    Ok(share_from_json(&out))
+}
+
+/// Accepts an empty value or a future date written YYYY-MM-DD
+pub fn check_expiry(date: &str) -> Result<(), String> {
+    if date.is_empty() {
+        return Ok(());
+    }
+    let d = chrono::NaiveDate::parse_from_str(date, "%Y-%m-%d").map_err(|_| "Write the expiry date as YYYY-MM-DD".to_string())?;
+    if d <= chrono::Local::now().date_naive() {
+        return Err("The expiry date must be in the future".into());
+    }
+    Ok(())
+}
+
+/// Creates or changes the link. Proton drops a password or expiry date that is not sent again,
+/// so the caller always passes the full wish (the window fills in the current values).
+pub async fn share_set(user: &str, uri: &str, role: &str, password: &str, expires: &str) -> Result<ShareLink, String> {
+    let path = cli_path_of(uri);
+    check_writable(&path)?;
+    if path.starts_with("/trash/") {
+        return Err("Items in the trash cannot be shared".into());
+    }
+    let role = if role == "editor" { "editor" } else { "viewer" };
+    check_expiry(expires)?;
+    let mut args = vec!["sharing", "set-url", "-j", "--role", role];
+    if !password.is_empty() {
+        args.extend(["--password", password]);
+    }
+    if !expires.is_empty() {
+        args.extend(["--expiration", expires]);
+    }
+    args.push(&path);
+    let out = run_cli(user, &args, Duration::from_secs(120)).await?;
+    share_from_json(&out).ok_or_else(|| "Proton Drive did not return a link".to_string())
+}
+
+pub async fn share_remove(user: &str, uri: &str) -> Result<(), String> {
+    let path = cli_path_of(uri);
+    check_writable(&path)?;
+    run_cli(user, &["sharing", "remove-url", "-j", &path], Duration::from_secs(120)).await.map(|_| ())
+}
+
 // ---------------------------------------------------------------- copying in tasks
 
 /// Copies or moves one item to, from or within Proton Drive for a running task
@@ -1380,6 +1457,26 @@ mod tests {
         assert_eq!(upload_file_strategy("skip"), "skip");
         assert_eq!(download_file_strategy("overwrite"), "remove");
         assert_eq!(download_file_strategy("rename"), "rename");
+    }
+
+    #[test]
+    fn share_answers_are_read() {
+        let out = r#"{"protonInvitations":[],"urlAccess":{"uid":"x","creationTime":"2026-11-05T12:02:44.000Z","expirationTime":"2026-12-31T00:00:00.000Z","role":"viewer","url":"https://drive.proton.me/urls/ABC#def","customPassword":"TestPass-123","numberOfInitializedDownloads":3}}"#;
+        let l = share_from_json(out).unwrap();
+        assert_eq!(l.url, "https://drive.proton.me/urls/ABC#def");
+        assert_eq!(l.password.as_deref(), Some("TestPass-123"));
+        assert_eq!(l.expires.as_deref(), Some("2026-12-31"));
+        assert_eq!(l.downloads, 3);
+        assert!(share_from_json("undefined").is_none());
+        assert!(share_from_json(r#"{"urlAccess":null}"#).is_none());
+    }
+
+    #[test]
+    fn expiry_dates_are_checked() {
+        assert!(check_expiry("").is_ok());
+        assert!(check_expiry("2999-01-01").is_ok());
+        assert!(check_expiry("2000-01-01").is_err());
+        assert!(check_expiry("31.12.2026").is_err());
     }
 
     #[test]

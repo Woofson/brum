@@ -93,3 +93,54 @@ pub async fn handle_login_qr(State(state): State<AppState>, headers: HeaderMap) 
         .build();
     Ok(([(axum::http::header::CONTENT_TYPE, "image/svg+xml"), (axum::http::header::CACHE_CONTROL, "no-store")], svg).into_response())
 }
+
+#[derive(serde::Deserialize)]
+pub struct SharePath {
+    path: String,
+}
+
+#[derive(serde::Deserialize)]
+pub struct ShareRequest {
+    path: String,
+    #[serde(default)]
+    role: String,
+    #[serde(default)]
+    password: String,
+    #[serde(default)]
+    expires: String,
+}
+
+fn proton_path(state: &AppState, headers: &HeaderMap, path: &str, write: bool) -> Result<String, (StatusCode, String)> {
+    let p = crate::server::middleware::validate_path_access(state, headers, path, write)?;
+    if !p.starts_with("proton://") {
+        return Err((StatusCode::BAD_REQUEST, "Not a Proton Drive item".to_string()));
+    }
+    Ok(p)
+}
+
+/// The public link of a Proton Drive item, if any
+pub async fn handle_share_status(State(state): State<AppState>, headers: HeaderMap, axum::extract::Query(q): axum::extract::Query<SharePath>) -> ApiResult {
+    let claims = user_of(&state, &headers)?;
+    let path = proton_path(&state, &headers, &q.path, false)?;
+    let link = proton::share_status(&claims.sub, &path).await.map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    Ok(Json(json!({ "link": link })))
+}
+
+/// Creates or changes a public link (it makes the item reachable by anyone with the link)
+pub async fn handle_share_set(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<ShareRequest>) -> ApiResult {
+    let claims = user_of(&state, &headers)?;
+    crate::server::middleware::require_write(&claims)?;
+    let path = proton_path(&state, &headers, &req.path, true)?;
+    let link = proton::share_set(&claims.sub, &path, &req.role, req.password.trim(), req.expires.trim()).await.map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    tracing::info!("{} set a Proton Drive public link on {}", claims.sub, path);
+    Ok(Json(json!({ "link": link })))
+}
+
+pub async fn handle_share_remove(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<SharePath>) -> ApiResult {
+    let claims = user_of(&state, &headers)?;
+    crate::server::middleware::require_write(&claims)?;
+    let path = proton_path(&state, &headers, &req.path, true)?;
+    proton::share_remove(&claims.sub, &path).await.map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+    tracing::info!("{} removed the Proton Drive public link on {}", claims.sub, path);
+    Ok(Json(json!({ "link": null })))
+}
