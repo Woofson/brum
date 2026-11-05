@@ -28,6 +28,8 @@ use crate::tools::tasks::TaskInfo;
 #[allow(dead_code)]
 pub struct ListQuery {
     path: Option<String>,
+    /// Set by the refresh button: skip remembered listings (Proton Drive)
+    fresh: Option<bool>,
     show_hidden: Option<bool>,
     flat: Option<bool>,
     max_depth: Option<usize>,
@@ -150,6 +152,9 @@ pub async fn handle_list_dir(
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to list WebDAV: {}", e)))
     } else if target_path.starts_with("proton://") {
         let claims = extract_claims_or_local(&state, &headers)?;
+        if query.fresh.unwrap_or(false) {
+            crate::vfs::proton::forget_listing(&claims.sub, &crate::vfs::proton::cli_path_of(&target_path));
+        }
         let entries = crate::vfs::proton::ProtonDriveClient::list_directory(&claims.sub, &target_path).await
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)))?;
         let total_files = entries.iter().filter(|e| !e.is_dir).count();
@@ -282,6 +287,16 @@ pub async fn handle_read_file(
         }))
     } else if let Some(name) = target_path.strip_prefix("manual://") {
         crate::server::system_handlers::builtin_manual_response(name).map(Json)
+    } else if target_path.starts_with("proton://") {
+        let user = extract_claims_or_local(&state, &headers)?.sub;
+        let local = crate::vfs::proton::fetch_to_cache(&user, &target_path).await.map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)))?;
+        let lp = local.to_string_lossy().to_string();
+        let mut res = tokio::task::spawn_blocking(move || LocalFs::read_file(&lp, max_b))
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Read task join error: {}", e)))?
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read file: {}", e)))?;
+        res.path = target_path;
+        Ok(Json(res))
     } else {
         let tp = target_path.clone();
         tokio::task::spawn_blocking(move || {
@@ -344,6 +359,12 @@ pub async fn handle_write_file(
         SftpClient::write_file(&params, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save SFTP file: {}", e)))
+    } else if target_path.starts_with("proton://") {
+        let user = extract_claims_or_local(&state, &headers)?.sub;
+        let (parent, name) = crate::vfs::proton::split_cli_path(&crate::vfs::proton::cli_path_of(&target_path));
+        crate::vfs::proton::upload_bytes(&user, &format!("proton://{}", parent), &name, &raw_bytes, "overwrite").await
+            .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Proton Drive: {}", e)))
     } else {
         let tp = target_path.clone();
         let atomic = payload.atomic.unwrap_or(state.config.paranoid.atomic_writes);
@@ -400,6 +421,11 @@ pub async fn handle_mkdir(
         LocalFs::create_dir(&local_target.to_string_lossy())
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create NFS folder: {}", e)))
+    } else if target_path.starts_with("proton://") {
+        let user = extract_claims_or_local(&state, &headers)?.sub;
+        crate::vfs::proton::mkdir(&user, &target_path).await
+            .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)))
     } else {
         LocalFs::create_dir(&target_path)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
@@ -424,6 +450,16 @@ pub async fn handle_rename(
     let to_path = validate_path_access(&state, &headers, &payload.to, true)?;
     let use_native_ops = payload.windows_native_file_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
     let detect_locks = payload.detect_locking_processes.unwrap_or(state.config.paranoid.detect_locking_processes);
+
+    if from_path.starts_with("proton://") || to_path.starts_with("proton://") {
+        if !(from_path.starts_with("proton://") && to_path.starts_with("proton://")) {
+            return Err((StatusCode::BAD_REQUEST, "Use Copy or Move to bring items into or out of Proton Drive".to_string()));
+        }
+        let user = extract_claims_or_local(&state, &headers)?.sub;
+        return crate::vfs::proton::rename(&user, &from_path, &to_path).await
+            .map(|_| Json(serde_json::json!({ "success": true })))
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)));
+    }
 
     if from_path.starts_with("smb://") {
         let params_from = crate::vfs::smb::SmbClient::parse_uri(&from_path, None, None)
@@ -582,6 +618,12 @@ pub async fn handle_delete(
                         Err(e) => errors.push(format!("{}: {}", path, e)),
                     }
                 }
+                Err(e) => errors.push(format!("{}: {}", path, e)),
+            }
+        } else if valid_path.starts_with("proton://") {
+            let user = extract_claims_or_local(&state, &headers)?.sub;
+            match crate::vfs::proton::delete(&user, &valid_path).await {
+                Ok(_) => deleted.push(path.clone()),
                 Err(e) => errors.push(format!("{}: {}", path, e)),
             }
         } else if valid_path.starts_with("nfs://") {
@@ -765,6 +807,28 @@ pub async fn handle_deltacopy(
         validated_sources.push(validate_path_access(&state, &headers, s, false)?);
     }
     let validated_dest = validate_path_access(&state, &headers, &payload.destination, true)?;
+
+    // DeltaCopy works between local folders only; remote storage (Proton Drive, SFTP, SMB, NFS…)
+    // gets the standard copy, which knows how to reach it
+    let is_remote = |p: &str| p.contains("://");
+    if is_remote(&validated_dest) || validated_sources.iter().any(|s| is_remote(s)) {
+        let task_id = state.tasks.create_task(
+            &format!("Copy {} items", validated_sources.len()),
+            "copy",
+            &validated_sources.join(", "),
+            &validated_dest,
+            0,
+        ).await;
+        claim_task(&state, &headers, &task_id);
+        state.tasks.add_log_entry(&task_id, "DeltaCopy works between local folders only; using the standard copy for remote storage").await;
+        let tasks_mgr = state.tasks.clone();
+        let tid = task_id.clone();
+        let paranoid = state.config.paranoid.verify_after_transfer;
+        tokio::spawn(async move {
+            crate::vfs::transfer::VfsTransfer::execute_batch_transfer(tasks_mgr, tid, validated_sources, validated_dest, false, paranoid, None).await;
+        });
+        return Ok(Json(serde_json::json!({ "success": true, "task_id": task_id, "message": "Copy started (standard copy for remote storage)" })));
+    }
 
     let mut opts = payload.options.unwrap_or_default();
     opts.owner = Some(extract_claims_or_local(&state, &headers)?.sub);
@@ -1094,6 +1158,31 @@ pub async fn handle_upload(
             let is_zip_magic = data.len() >= 4 && &data[0..4] == b"PK\x03\x04";
             let is_gzip_magic = data.len() >= 2 && &data[0..2] == b"\x1f\x8b";
 
+            if should_extract && (is_zip_magic || is_gzip_magic) && dest_dir.starts_with("proton://") {
+                // A dropped folder: unpack privately, then upload it to Proton Drive as a whole
+                let user = extract_claims_or_local(&state, &headers)?.sub;
+                let result = async {
+                    let work = tempfile::tempdir().map_err(|e| format!("Temp folder error: {}", e))?;
+                    let archive = work.path().join(if is_zip_magic { "upload.zip" } else { "upload.tar.gz" });
+                    std::fs::write(&archive, &data).map_err(|e| format!("Failed to write temp archive: {}", e))?;
+                    let out_dir = work.path().join("unpacked");
+                    std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+                    ArchiveHandler::extract_archive(&archive.to_string_lossy(), &out_dir.to_string_lossy()).map_err(|e| format!("Failed to unpack the folder: {}", e))?;
+                    let items: Vec<std::path::PathBuf> = std::fs::read_dir(&out_dir).map_err(|e| e.to_string())?.flatten().map(|e| e.path()).collect();
+                    crate::vfs::proton::upload_local_paths(&user, &dest_dir, &items, conflict_mode).await.map(|_| ())
+                }
+                .await;
+                if let Err(e) = result {
+                    let err_msg = format!("Proton Drive upload failed: {}", e);
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
+                }
+                uploaded_files.push(file_name);
+                continue;
+            }
+
             if should_extract && (is_zip_magic || is_gzip_magic) && !dest_dir.starts_with("smb://") && !dest_dir.starts_with("sftp://") && !dest_dir.starts_with("ssh://") {
                 let suffix = if is_zip_magic { ".zip" } else { ".tar.gz" };
                 let temp_archive = tempfile::Builder::new()
@@ -1116,7 +1205,16 @@ pub async fn handle_upload(
                 continue;
             }
 
-            if dest_dir.starts_with("smb://") {
+            if dest_dir.starts_with("proton://") {
+                let user = extract_claims_or_local(&state, &headers)?.sub;
+                if let Err(e) = crate::vfs::proton::upload_bytes(&user, &dest_dir, &file_name, &data, conflict_mode).await {
+                    let err_msg = format!("Proton Drive upload failed: {}", e);
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
+                }
+            } else if dest_dir.starts_with("smb://") {
                 let params = match crate::vfs::smb::SmbClient::parse_uri(&dest_dir, None, None) {
                     Ok(mut p) => {
                         p.subpath = if p.subpath.is_empty() { file_name.clone() } else { format!("{}/{}", p.subpath, file_name) };
@@ -1449,7 +1547,14 @@ pub async fn handle_download(
 
     let range_header = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
 
-    let path_str = validate_path_access(&state, &modified_headers, raw_path, false)?;
+    let mut path_str = validate_path_access(&state, &modified_headers, raw_path, false)?;
+
+    // Proton Drive: fetch a private local copy, then serve it like any local file
+    if path_str.starts_with("proton://") {
+        let user = extract_claims_or_local(&state, &modified_headers)?.sub;
+        let local = crate::vfs::proton::fetch_to_cache(&user, &path_str).await.map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)))?;
+        path_str = local.to_string_lossy().to_string();
+    }
 
     if path_str.starts_with("vault://") {
         let rest = path_str.strip_prefix("vault://").unwrap();

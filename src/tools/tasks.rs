@@ -131,6 +131,11 @@ impl TaskManager {
         }
     }
 
+    /// The user who started a task, if known
+    pub fn owner_of(&self, id: &str) -> Option<String> {
+        self.tasks.read().ok().and_then(|map| map.get(id).and_then(|t| t.owner.clone()))
+    }
+
     pub async fn is_cancelled(&self, id: &str) -> bool {
         self.sync_is_cancelled(id)
     }

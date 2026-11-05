@@ -511,6 +511,9 @@ impl VfsTransfer {
         bytes_done_before: u64,
         start_time: std::time::Instant,
     ) -> Result<(Option<String>, u64, u64), String> {
+        if src.starts_with("proton://") || dest_dir.starts_with("proton://") {
+            return crate::vfs::proton::transfer_item(src, dest_dir, is_move, conflict_resolution, task_manager, task_id, files_done_before, total_files, bytes_done_before, start_time);
+        }
         let is_src_smb = src.starts_with("smb://");
         let is_dest_smb = dest_dir.starts_with("smb://");
         let is_src_sftp = src.starts_with("sftp://") || src.starts_with("ssh://");
@@ -1191,7 +1194,7 @@ impl VfsTransfer {
         let mut total_files = 0u64;
         let mut total_bytes = 0u64;
         for s in &sources {
-            if !s.starts_with("smb://") && !s.starts_with("sftp://") && !s.starts_with("ssh://") && !s.starts_with("nfs://") {
+            if !s.starts_with("smb://") && !s.starts_with("sftp://") && !s.starts_with("ssh://") && !s.starts_with("nfs://") && !s.starts_with("proton://") {
                 let p = Path::new(s);
                 if p.is_dir() {
                     let (count, bytes) = walkdir::WalkDir::new(p)

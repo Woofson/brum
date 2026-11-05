@@ -791,13 +791,472 @@ fn dir_entry(name: &str, path: String, modified: Option<u64>) -> FileEntry {
 pub struct ProtonDriveClient;
 
 impl ProtonDriveClient {
-    /// Lists a Proton Drive folder for a Brum user
+    /// Lists a Proton Drive folder for a Brum user (remembered briefly, see `LIST_TTL`)
     pub async fn list_directory(user: &str, uri: &str) -> VfsResult<Vec<FileEntry>> {
         let path = cli_path_of(uri);
+        if let Some(hit) = cached_listing(user, &path) {
+            return Ok(hit);
+        }
         let out = run_cli(user, &["filesystem", "list", "-j", &path], Duration::from_secs(120)).await?;
         let items: Vec<serde_json::Value> = serde_json::from_str(out.trim()).map_err(|_| "Unexpected answer from Proton Drive".to_string())?;
         let parent = if path == "/" { "proton://".to_string() } else { format!("proton://{path}") };
-        Ok(items.iter().filter_map(|v| entry_from_json(&parent, v)).collect())
+        let entries: Vec<FileEntry> = items.iter().filter_map(|v| entry_from_json(&parent, v)).collect();
+        store_listing(user, &path, &entries);
+        Ok(entries)
+    }
+}
+
+// ---------------------------------------------------------------- remembered listings
+
+/// Each listing takes the program 1–4 seconds, so folders are remembered for a short while.
+/// Brum's own changes clear the affected folders at once; changes made elsewhere show up
+/// after this time.
+const LIST_TTL: Duration = Duration::from_secs(30);
+
+type ListCache = Mutex<HashMap<(String, String), (Instant, Vec<FileEntry>)>>;
+
+fn list_cache() -> &'static ListCache {
+    static C: OnceLock<ListCache> = OnceLock::new();
+    C.get_or_init(|| Mutex::new(HashMap::new()))
+}
+
+fn cached_listing(user: &str, path: &str) -> Option<Vec<FileEntry>> {
+    let map = list_cache().lock().ok()?;
+    let (t, v) = map.get(&(user.to_string(), path.to_string()))?;
+    if t.elapsed() < LIST_TTL { Some(v.clone()) } else { None }
+}
+
+fn store_listing(user: &str, path: &str, entries: &[FileEntry]) {
+    if let Ok(mut map) = list_cache().lock() {
+        map.retain(|_, (t, _)| t.elapsed() < LIST_TTL);
+        map.insert((user.to_string(), path.to_string()), (Instant::now(), entries.to_vec()));
+    }
+}
+
+/// Forgets a folder (and everything below it) after a change
+pub fn forget_listing(user: &str, path: &str) {
+    if let Ok(mut map) = list_cache().lock() {
+        let prefix = format!("{}/", path.trim_end_matches('/'));
+        map.retain(|(u, p), _| !(u == user && (p == path || p.starts_with(&prefix))));
+    }
+}
+
+// ---------------------------------------------------------------- paths
+
+/// Splits a program path at its last real "/" (a "/" inside a name is written "\/"):
+/// "/my-files/a\/b.txt" → ("/my-files", "a/b.txt")
+pub fn split_cli_path(path: &str) -> (String, String) {
+    let bytes = path.as_bytes();
+    let mut i = bytes.len();
+    while i > 0 {
+        i -= 1;
+        if bytes[i] == b'/' && (i == 0 || bytes[i - 1] != b'\\') {
+            let parent = if i == 0 { "/".to_string() } else { path[..i].to_string() };
+            return (parent, path[i + 1..].replace("\\/", "/"));
+        }
+    }
+    ("/".to_string(), path.replace("\\/", "/"))
+}
+
+/// A name as it is written inside a program path
+fn escape_name(name: &str) -> String {
+    name.replace('/', "\\/")
+}
+
+fn join_cli(parent: &str, name: &str) -> String {
+    if parent == "/" { format!("/{}", escape_name(name)) } else { format!("{}/{}", parent.trim_end_matches('/'), escape_name(name)) }
+}
+
+/// Only the user's own areas can be changed; the top level and Proton's special views cannot
+fn check_writable(path: &str) -> Result<(), String> {
+    let top = path.trim_start_matches('/').split('/').next().unwrap_or("");
+    let ok = matches!(top, "my-files" | "devices" | "shared-with-me" | "trash") && path.trim_matches('/').contains('/');
+    if ok { Ok(()) } else { Err("This part of Proton Drive cannot be changed from Brum. Use a folder inside My files.".to_string()) }
+}
+
+/// Looks up one item in its folder's listing
+pub async fn entry_of(user: &str, uri: &str) -> Result<FileEntry, String> {
+    let path = cli_path_of(uri);
+    if path == "/" || !path.trim_matches('/').contains('/') {
+        return Ok(dir_entry(path.trim_matches('/'), format!("proton://{path}"), None));
+    }
+    let (parent, name) = split_cli_path(&path);
+    let entries = ProtonDriveClient::list_directory(user, &format!("proton://{parent}")).await?;
+    entries.into_iter().find(|e| e.name == name).ok_or_else(|| format!("Not found in Proton Drive: {name}"))
+}
+
+// ---------------------------------------------------------------- changes
+
+pub async fn mkdir(user: &str, uri: &str) -> Result<(), String> {
+    let path = cli_path_of(uri);
+    check_writable(&path)?;
+    let (parent, name) = split_cli_path(&path);
+    if name.is_empty() {
+        return Err("A folder needs a name".into());
+    }
+    run_cli(user, &["filesystem", "create-folder", "-j", &parent, &name], Duration::from_secs(120)).await?;
+    forget_listing(user, &parent);
+    Ok(())
+}
+
+/// Renames, or moves within Proton Drive when the folder changes
+pub async fn rename(user: &str, from_uri: &str, to_uri: &str) -> Result<(), String> {
+    let from = cli_path_of(from_uri);
+    let to = cli_path_of(to_uri);
+    check_writable(&from)?;
+    check_writable(&to)?;
+    let (from_parent, from_name) = split_cli_path(&from);
+    let (to_parent, to_name) = split_cli_path(&to);
+    if to_name.is_empty() {
+        return Err("The new name is empty".into());
+    }
+    let mut current = from.clone();
+    if from_parent != to_parent {
+        run_cli(user, &["filesystem", "move", "-j", &current, &to_parent], Duration::from_secs(300)).await?;
+        current = join_cli(&to_parent, &from_name);
+    }
+    if from_name != to_name {
+        run_cli(user, &["filesystem", "rename", "-j", &current, &to_name], Duration::from_secs(120)).await?;
+    }
+    forget_listing(user, &from_parent);
+    forget_listing(user, &to_parent);
+    forget_listing(user, &from);
+    Ok(())
+}
+
+/// Moves items to Proton's trash; items already in the trash are deleted for good
+pub async fn delete(user: &str, uri: &str) -> Result<(), String> {
+    let path = cli_path_of(uri);
+    check_writable(&path)?;
+    let (parent, _) = split_cli_path(&path);
+    let cmd = if path.starts_with("/trash/") { "delete" } else { "trash" };
+    run_cli(user, &["filesystem", cmd, "-j", &path], Duration::from_secs(300)).await?;
+    forget_listing(user, &parent);
+    forget_listing(user, &path);
+    forget_listing(user, "/trash");
+    Ok(())
+}
+
+/// A private scratch folder for this user's downloads and uploads
+fn scratch_dir(user: &str, kind: &str) -> Result<PathBuf, String> {
+    let home = ensure_user_home(user).map_err(|e| e.to_string())?;
+    let d = home.join(kind);
+    ensure_private_dir(&d).map_err(|e| e.to_string())?;
+    Ok(d)
+}
+
+/// Downloaded copies for viewing are kept for an hour, then cleared
+const VIEW_CACHE_TTL: Duration = Duration::from_secs(3600);
+
+fn clean_view_cache(dir: &Path) {
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for e in rd.flatten() {
+            let old = e.metadata().and_then(|m| m.modified()).ok().and_then(|t| t.elapsed().ok()).map(|age| age > VIEW_CACHE_TTL).unwrap_or(true);
+            if old {
+                let _ = std::fs::remove_dir_all(e.path());
+            }
+        }
+    }
+}
+
+/// Downloads a file (or folder) to a private local copy for viewing or downloading in the browser;
+/// the copy is reused while the item is unchanged
+pub async fn fetch_to_cache(user: &str, uri: &str) -> Result<PathBuf, String> {
+    let entry = entry_of(user, uri).await?;
+    if entry.mime_type.as_deref().map(|m| m.starts_with("application/vnd.proton.")).unwrap_or(false) {
+        return Err("Proton Docs and Sheets cannot be downloaded; open them on drive.proton.me".to_string());
+    }
+    let path = cli_path_of(uri);
+    let cache = scratch_dir(user, "view-cache")?;
+    clean_view_cache(&cache);
+    use sha2::{Digest, Sha256};
+    let key = hex::encode(Sha256::digest(format!("{path}\n{:?}\n{}", entry.modified, entry.size).as_bytes()));
+    let slot = cache.join(&key[..32]);
+    let target = slot.join(&entry.name);
+    if target.exists() {
+        let _ = filetime_touch(&slot);
+        return Ok(target);
+    }
+    let _ = std::fs::remove_dir_all(&slot);
+    ensure_private_dir(&slot).map_err(|e| e.to_string())?;
+    let slot_s = slot.to_string_lossy().to_string();
+    let out = run_cli(user, &["filesystem", "download", "-j", "-f", "remove", "-d", "remove", &path, &slot_s], Duration::from_secs(3600)).await;
+    if let Err(e) = out {
+        let _ = std::fs::remove_dir_all(&slot);
+        return Err(e);
+    }
+    if !target.exists() {
+        let _ = std::fs::remove_dir_all(&slot);
+        return Err("Proton Drive did not deliver the file".to_string());
+    }
+    Ok(target)
+}
+
+/// Marks a cache entry as just used, so it is kept another hour
+fn filetime_touch(p: &Path) -> std::io::Result<()> {
+    let f = std::fs::File::open(p)?;
+    f.set_modified(std::time::SystemTime::now())
+}
+
+/// Uploads bytes as a file into a Proton folder ("overwrite" keeps the old version in
+/// Proton's version history)
+pub async fn upload_bytes(user: &str, folder_uri: &str, name: &str, data: &[u8], conflict: &str) -> Result<(), String> {
+    let folder = cli_path_of(folder_uri);
+    check_writable(&join_cli(&folder, name))?;
+    let tmp_root = scratch_dir(user, "upload-tmp")?;
+    let tmp = tmp_root.join(format!("{}-{}", std::process::id(), rand_suffix()));
+    ensure_private_dir(&tmp).map_err(|e| e.to_string())?;
+    let file = tmp.join(name);
+    let res = async {
+        tokio::fs::write(&file, data).await.map_err(|e| format!("Cannot prepare the upload: {e}"))?;
+        let file_s = file.to_string_lossy().to_string();
+        let out = run_cli(user, &["filesystem", "upload", "-j", "-t", "-f", upload_file_strategy(conflict), "-d", "merge", &file_s, &folder], Duration::from_secs(3600)).await?;
+        check_transfer_result(&out).map(|_| ())
+    }
+    .await;
+    let _ = std::fs::remove_dir_all(&tmp);
+    forget_listing(user, &folder);
+    res
+}
+
+/// Uploads local files and folders into a Proton folder (folders are merged)
+pub async fn upload_local_paths(user: &str, folder_uri: &str, paths: &[PathBuf], conflict: &str) -> Result<(u64, u64), String> {
+    let folder = cli_path_of(folder_uri);
+    check_writable(&join_cli(&folder, "x"))?;
+    if paths.is_empty() {
+        return Ok((0, 0));
+    }
+    let strategy = upload_file_strategy(conflict);
+    let mut args: Vec<String> = ["filesystem", "upload", "-j", "-t", "-f", strategy, "-d", "merge"].iter().map(|s| s.to_string()).collect();
+    args.extend(paths.iter().map(|p| p.to_string_lossy().to_string()));
+    args.push(folder.clone());
+    let refs: Vec<&str> = args.iter().map(String::as_str).collect();
+    let out = run_cli(user, &refs, Duration::from_secs(6 * 3600)).await;
+    forget_listing(user, &folder);
+    check_transfer_result(&out?)
+}
+
+fn rand_suffix() -> String {
+    use rand::Rng;
+    format!("{:08x}", rand::thread_rng().gen::<u32>())
+}
+
+fn upload_file_strategy(conflict: &str) -> &'static str {
+    match conflict {
+        "skip" => "skip",
+        "rename" => "rename",
+        _ => "create-new-revision",
+    }
+}
+
+fn download_file_strategy(conflict: &str) -> &'static str {
+    match conflict {
+        "skip" => "skip",
+        "rename" => "rename",
+        _ => "remove",
+    }
+}
+
+/// Reads the program's transfer summary: (transferred, skipped); failures become an error
+fn check_transfer_result(out: &str) -> Result<(u64, u64), String> {
+    let v: serde_json::Value = out.lines().find(|l| l.trim_start().starts_with('{')).and_then(|l| serde_json::from_str(l).ok()).unwrap_or(serde_json::Value::Null);
+    if v.is_null() {
+        return Ok((0, 0));
+    }
+    let failed = v["failedItems"].as_u64().unwrap_or(0);
+    if failed > 0 {
+        let first = v["failures"].get(0).map(|f| {
+            let p = f["path"].as_str().or_else(|| f["name"].as_str()).unwrap_or("");
+            let m = f["error"].as_str().or_else(|| f["message"].as_str()).map(|s| s.to_string()).unwrap_or_else(|| f.to_string());
+            if p.is_empty() { m } else { format!("{p}: {m}") }
+        });
+        return Err(format!("{failed} item(s) failed{}", first.map(|f| format!(" ({f})")).unwrap_or_default()));
+    }
+    Ok((v["transferredItems"].as_u64().unwrap_or(0), v["skippedItems"].as_u64().unwrap_or(0)))
+}
+
+// ---------------------------------------------------------------- copying in tasks
+
+/// Copies or moves one item to, from or within Proton Drive for a running task
+/// (called from the transfer engine, outside the async runtime's request threads).
+/// Returns (note for the log, files done, bytes done).
+#[allow(clippy::too_many_arguments)]
+pub fn transfer_item(
+    src: &str,
+    dest_dir: &str,
+    is_move: bool,
+    conflict: Option<&str>,
+    tm: &crate::tools::tasks::TaskManager,
+    task_id: &str,
+    files_done_before: u64,
+    total_files: u64,
+    bytes_done_before: u64,
+    start_time: Instant,
+) -> Result<(Option<String>, u64, u64), String> {
+    let user = tm.owner_of(task_id).ok_or("Proton Drive transfers need a signed-in Brum user")?;
+    let conflict = conflict.unwrap_or("overwrite");
+    let src_p = src.starts_with("proton://");
+    let dest_p = dest_dir.starts_with("proton://");
+    let is_other_remote = |s: &str| s.contains("://") && !s.starts_with("proton://");
+    if (src_p && is_other_remote(dest_dir)) || (dest_p && is_other_remote(src)) {
+        return Err("Copy between Proton Drive and other remote storage through a local folder".to_string());
+    }
+
+    let progress = |name: &str, cur: u64, total: u64| {
+        let elapsed = start_time.elapsed().as_secs_f64();
+        let speed = if elapsed > 0.05 { ((bytes_done_before + cur) as f64 / elapsed) as u64 } else { 0 };
+        tm.sync_update_stream_progress(task_id, Some(name), cur, total, files_done_before, total_files, bytes_done_before + cur, speed);
+    };
+
+    if src_p && dest_p {
+        // Within Proton Drive: Proton copies or moves it itself
+        let from = cli_path_of(src);
+        let to = cli_path_of(dest_dir);
+        check_writable(&join_cli(&to, "x"))?;
+        if is_move {
+            check_writable(&from)?;
+        }
+        let (from_parent, name) = split_cli_path(&from);
+        progress(&name, 0, 0);
+        let cmd = if is_move { "move" } else { "copy" };
+        run_blocking(&user, &[ "filesystem", cmd, "-j", &from, &to], tm, task_id, None)?;
+        forget_listing(&user, &to);
+        forget_listing(&user, &from_parent);
+        return Ok((None, 1, 0));
+    }
+
+    if dest_p {
+        // Local → Proton: upload
+        let to = cli_path_of(dest_dir);
+        let local = Path::new(src);
+        let name = local.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        check_writable(&join_cli(&to, &name))?;
+        let (files, bytes) = local_totals(local);
+        progress(&name, 0, bytes);
+        let out = run_blocking(&user, &["filesystem", "upload", "-j", "-t", "-f", upload_file_strategy(conflict), "-d", "merge", src, &to], tm, task_id, None)?;
+        let (_, skipped) = check_transfer_result(&out)?;
+        progress(&name, bytes, bytes);
+        forget_listing(&user, &to);
+        if is_move {
+            let r = if local.is_dir() { std::fs::remove_dir_all(local) } else { std::fs::remove_file(local) };
+            r.map_err(|e| format!("Uploaded, but could not remove the original: {e}"))?;
+        }
+        let note = if skipped > 0 { Some(format!("{skipped} skipped (already in Proton Drive)")) } else { None };
+        return Ok((note, files, bytes));
+    }
+
+    // Proton → local: download
+    let from = cli_path_of(src);
+    let (from_parent, name) = split_cli_path(&from);
+    let dest = Path::new(dest_dir);
+    std::fs::create_dir_all(dest).map_err(|e| format!("Cannot create {}: {e}", dest.display()))?;
+    let target = dest.join(&name);
+    let expected = cached_listing(&user, &from_parent).and_then(|l| l.into_iter().find(|e| e.name == name)).map(|e| e.size).unwrap_or(0);
+    progress(&name, 0, expected);
+    let dest_s = dest.to_string_lossy().to_string();
+    let watch = WatchTarget { path: target.clone(), expected, name: name.clone() };
+    let out = run_blocking(&user, &["filesystem", "download", "-j", "-f", download_file_strategy(conflict), "-d", "merge", &from, &dest_s], tm, task_id, Some((&watch, &progress)))?;
+    let (transferred, skipped) = check_transfer_result(&out)?;
+    let (files, bytes) = local_totals(&target);
+    if is_move {
+        check_writable(&from)?;
+        run_blocking(&user, &["filesystem", "trash", "-j", &from], tm, task_id, None)?;
+        forget_listing(&user, &from_parent);
+        forget_listing(&user, "/trash");
+    }
+    let note = if skipped > 0 && transferred == 0 && !target.exists() {
+        return Err(format!("{name} was not downloaded (Proton Docs and Sheets cannot be downloaded)"));
+    } else if skipped > 0 {
+        Some(format!("{skipped} item(s) skipped (already there, or Proton Docs and Sheets, which cannot be downloaded)"))
+    } else {
+        None
+    };
+    Ok((note, files.max(1), bytes))
+}
+
+struct WatchTarget {
+    path: PathBuf,
+    expected: u64,
+    name: String,
+}
+
+/// Number of files and bytes in a local file or folder
+fn local_totals(p: &Path) -> (u64, u64) {
+    if p.is_dir() {
+        let (c, b) = walkdir::WalkDir::new(p).into_iter().filter_map(|e| e.ok()).filter(|e| e.file_type().is_file()).fold((0u64, 0u64), |(c, b), e| (c + 1, b + e.metadata().map(|m| m.len()).unwrap_or(0)));
+        (c.max(1), b)
+    } else {
+        (1, std::fs::metadata(p).map(|m| m.len()).unwrap_or(0))
+    }
+}
+
+fn local_size_now(p: &Path) -> u64 {
+    if p.is_dir() { local_totals(p).1 } else { std::fs::metadata(p).map(|m| m.len()).unwrap_or(0) }
+}
+
+/// Runs the program for a task, stopping it when the task is cancelled; while downloading,
+/// reports how much of the target has arrived
+fn run_blocking(
+    user: &str,
+    args: &[&str],
+    tm: &crate::tools::tasks::TaskManager,
+    task_id: &str,
+    watch: Option<(&WatchTarget, &dyn Fn(&str, u64, u64))>,
+) -> Result<String, String> {
+    use std::io::Read;
+    let (bin, _) = find_cli().ok_or("The Proton Drive program is not installed. Set it up in Settings → Proton Drive.")?;
+    let home = ensure_user_home(user).map_err(|e| e.to_string())?;
+    let mut child = std::process::Command::new(&bin)
+        .args(args)
+        .envs(cli_env(&home))
+        .current_dir(&home)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("Could not start the Proton Drive program: {e}"))?;
+    // Read output in the background so a full pipe never blocks the program
+    let mut so = child.stdout.take();
+    let mut se = child.stderr.take();
+    let out_t = std::thread::spawn(move || {
+        let mut s = String::new();
+        if let Some(o) = so.as_mut() {
+            let _ = o.read_to_string(&mut s);
+        }
+        s
+    });
+    let err_t = std::thread::spawn(move || {
+        let mut s = String::new();
+        if let Some(e) = se.as_mut() {
+            let _ = e.read_to_string(&mut s);
+        }
+        s
+    });
+    let mut last = Instant::now();
+    let status = loop {
+        if let Some(st) = child.try_wait().map_err(|e| e.to_string())? {
+            break st;
+        }
+        if tm.sync_is_cancelled(task_id) {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err("Transfer cancelled by user".to_string());
+        }
+        if let Some((w, report)) = watch {
+            if last.elapsed() > Duration::from_millis(500) {
+                last = Instant::now();
+                report(&w.name, local_size_now(&w.path), w.expected);
+            }
+        }
+        std::thread::sleep(Duration::from_millis(150));
+    };
+    let stdout = out_t.join().unwrap_or_default();
+    let stderr = err_t.join().unwrap_or_default();
+    if status.success() {
+        Ok(stdout)
+    } else {
+        let msg = stderr.lines().chain(stdout.lines()).map(str::trim).find(|l| !l.is_empty() && !l.starts_with('{') && !l.starts_with('[') && !l.starts_with("===") && !l.chars().next().map(|c| c.is_ascii_digit()).unwrap_or(false)).unwrap_or("Proton Drive reported an error").to_string();
+        Err(if msg.contains("You need to login first") { "Not signed in to Proton Drive. Sign in in Settings → Proton Drive.".to_string() } else { msg })
     }
 }
 
@@ -860,6 +1319,43 @@ mod tests {
 
         let folder = serde_json::json!({"name": {"ok": true, "value": "Work"}, "type": "folder", "modificationTime": "2026-08-24T05:52:36.000Z"});
         assert!(entry_from_json("proton:///my-files", &folder).unwrap().is_dir);
+    }
+
+    #[test]
+    fn paths_split_at_real_slashes() {
+        assert_eq!(split_cli_path("/my-files/Work/a.txt"), ("/my-files/Work".into(), "a.txt".into()));
+        assert_eq!(split_cli_path("/my-files/a\\/b.txt"), ("/my-files".into(), "a/b.txt".into()));
+        assert_eq!(split_cli_path("/my-files"), ("/".into(), "my-files".into()));
+        assert_eq!(join_cli("/my-files", "a/b"), "/my-files/a\\/b");
+        assert_eq!(join_cli("/", "my-files"), "/my-files");
+    }
+
+    #[test]
+    fn only_own_areas_can_change() {
+        assert!(check_writable("/my-files/Brum-dev").is_ok());
+        assert!(check_writable("/my-files/Brum-dev/x.txt").is_ok());
+        assert!(check_writable("/trash/x").is_ok());
+        assert!(check_writable("/my-files").is_err());
+        assert!(check_writable("/").is_err());
+        assert!(check_writable("/photos/x.jpg").is_err());
+        assert!(check_writable("/shared-by-me/x").is_err());
+    }
+
+    #[test]
+    fn transfer_summaries_are_read() {
+        assert_eq!(check_transfer_result(r#"{"transferredItems":4,"transferredBytes":24,"skippedItems":1,"failedItems":0,"failures":[]}"#), Ok((4, 1)));
+        let e = check_transfer_result(r#"{"transferredItems":0,"skippedItems":0,"failedItems":1,"failures":[{"path":"a.txt","error":"Quota exceeded"}]}"#).unwrap_err();
+        assert!(e.contains("1 item(s) failed") && e.contains("Quota exceeded"), "{e}");
+        assert_eq!(check_transfer_result("undefined"), Ok((0, 0)));
+    }
+
+    #[test]
+    fn conflict_choices_map_to_protons() {
+        assert_eq!(upload_file_strategy("overwrite"), "create-new-revision");
+        assert_eq!(upload_file_strategy("newer"), "create-new-revision");
+        assert_eq!(upload_file_strategy("skip"), "skip");
+        assert_eq!(download_file_strategy("overwrite"), "remove");
+        assert_eq!(download_file_strategy("rename"), "rename");
     }
 
     #[test]

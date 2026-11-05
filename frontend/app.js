@@ -6243,7 +6243,9 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     const flatParam = pane.isBranchView ? '&flat=true' : '';
     const winNativeParam = (typeof App.windowsNativeOps === 'boolean') ? `&windows_native_ops=${App.windowsNativeOps}` : '';
     const customTrashParam = App.customTrashDir ? `&custom_trash_dir=${encodeURIComponent(App.customTrashDir)}` : '';
-    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=${pane.showHidden}${flatParam}${winNativeParam}${customTrashParam}`;
+    const freshParam = pane._freshList ? '&fresh=true' : '';
+    pane._freshList = false;
+    const url = `${endpoint}/api/fs/list?path=${encodeURIComponent(authUrl)}&show_hidden=${pane.showHidden}${flatParam}${winNativeParam}${customTrashParam}${freshParam}`;
     const resp = await fetch(url, {
       headers,
       signal: pane._abortController.signal
@@ -7207,7 +7209,8 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       card.dataset.index = idx;
 
       let thumbHtml = '';
-      if (!entry.is_dir && isImageFile(entry.name)) {
+      // Proton Drive: each picture would be downloaded in full through Proton's program, so icons are shown
+      if (!entry.is_dir && isImageFile(entry.name) && !entry.path.startsWith('proton://')) {
         thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL, 'assets/brum_icon.webp')}">`;
       } else {
         thumbHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg');
@@ -27945,6 +27948,7 @@ function refreshPane(index, selectItemName = null) {
   const pane = App.panes[index];
   if (pane && pane.path) {
     invalidateDirectoryCache(pane.nodeId, pane.path);
+    pane._freshList = true; // the server skips remembered listings too (Proton Drive)
   }
   loadPaneDirectory(index, App.panes[index].path, false, selectItemName, true);
 }
@@ -39139,7 +39143,7 @@ function buildSpotlightItems() {
     });
 
     // If query looks like an absolute path or URI, offer to jump directly
-    if (spotlightQuery.startsWith('/') || spotlightQuery.startsWith('~') || spotlightQuery.startsWith('smb://') || spotlightQuery.startsWith('sftp://') || spotlightQuery.startsWith('ssh://')) {
+    if (spotlightQuery.startsWith('/') || spotlightQuery.startsWith('~') || spotlightQuery.startsWith('smb://') || spotlightQuery.startsWith('sftp://') || spotlightQuery.startsWith('ssh://') || spotlightQuery.startsWith('proton://')) {
       const targetP = spotlightQuery.startsWith('~') ? spotlightQuery.replace('~', userHome) : spotlightQuery;
       const cleanTargetP = sanitizeCredentials(targetP);
       pool.unshift({
@@ -40792,7 +40796,7 @@ let currentGitStatusData = null;
 let currentGitDiffFile = null;
 
 async function fetchGitStatusForPane(paneIndex, path) {
-  if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('ssh://') || path.startsWith('client://')) return;
+  if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('ssh://') || path.startsWith('client://') || path.startsWith('proton://')) return;
   try {
     const resp = await fetch(`/api/git/status?path=${encodeURIComponent(path)}`, {
       headers: {}

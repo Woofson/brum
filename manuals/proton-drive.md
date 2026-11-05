@@ -85,7 +85,28 @@ Proton Drive addresses start with `proton://`:
 
 Open one by typing it in a panel's path bar, from **Open My files** in the setup, or with **Connect → Proton Drive**.
 
-Each request goes through Proton's program and takes one to four seconds, so Proton folders open more slowly than local ones.
+### What you can do
+
+| Action | In Proton Drive |
+| :--- | :--- |
+| **Copy / Move** (<kbd>F5</kbd> / <kbd>F6</kbd>) | Between a Proton panel and a local panel in either direction, or between Proton folders (Proton copies and moves those itself). Uploads and downloads run in **Tasks** and can be cancelled. |
+| **New folder** (<kbd>F7</kbd>), **Rename** (<kbd>F2</kbd>) | As usual. Renaming to a name that is already taken is refused. |
+| **Delete** (<kbd>F8</kbd>) | Moves items to **Proton's trash** (`proton:///trash`), where they can be restored on drive.proton.me. Deleting inside the trash removes items for good. |
+| **View / open** (<kbd>F3</kbd>, double-click) | Brum downloads a private copy for viewing, kept for an hour while the file is unchanged. |
+| **Download / upload in the browser** | Works like local folders; dropped folders are uploaded whole. |
+| **Save** (editor) | Saves a new version; the previous one stays in Proton's version history. |
+
+**When a file already exists**, *Overwrite* uploads a **new version** (the old one stays in Proton's version history), *Skip* leaves it, and *Rename* keeps both. Proton skips files whose content is already identical by itself.
+
+**DeltaCopy** works between local folders only; for Proton Drive (and other remote storage) Brum uses the standard copy and says so in the task log.
+
+### Limits
+
+* Only **My files**, **Devices**, folders **shared with you** and the **trash** can be changed. The top level, Photos, Albums and *Shared by me* are for looking only.
+* **Proton Docs and Sheets** cannot be downloaded or copied out; open them on drive.proton.me.
+* Copying directly between Proton Drive and other remote storage (SFTP, SMB…) is not possible; copy through a local folder.
+* **Grid view shows icons instead of picture thumbnails** in Proton folders: each thumbnail would mean downloading the whole picture.
+* Each request goes through Proton's program and takes one to four seconds. Brum remembers each folder for 30 seconds and refreshes it at once after its own changes; changes made elsewhere (phone, web) show up within 30 seconds, or at once with the panel's refresh button.
 
 **Who may use it:** admins, and users an admin allows `remote` or `proton` in their allowed places (Admin panel → Users).
 
