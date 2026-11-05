@@ -31315,7 +31315,7 @@ async function getImageBlobUrl(path, paneIndex = null) {
     const url = getDownloadUrl(path, true, pIdx);
     const headers = typeof getPaneAuthHeaders === 'function' ? getPaneAuthHeaders(pIdx) : {};
     const resp = await fetch(url, { headers });
-    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    if (!resp.ok) throw new Error((await resp.text().catch(() => '')) || `HTTP ${resp.status}`);
     const blob = await resp.blob();
     if (!blob || blob.size === 0) throw new Error('Image file is empty (0 bytes)');
     blobUrl = URL.createObjectURL(blob);
@@ -31699,6 +31699,8 @@ async function loadImageToViewer(path, paneIndex = null) {
   // 1. Instant RAM Cache Hit (0ms)
   if (imageViewerBlobCache.has(path)) {
     const cached = imageViewerBlobCache.get(path);
+    startViewerLoading(document.getElementById('img-viewer-viewport'), path)();
+    imgEl.style.visibility = '';
     imgEl.classList.remove('loading');
     imgEl.onload = () => handleImageSuccess();
     imgEl.onerror = () => handleImageError();
@@ -31714,15 +31716,26 @@ async function loadImageToViewer(path, paneIndex = null) {
 
   // 2. Fetch in background network thread as Blob to bypass single-threaded WebKitGTK HTTP stalls
   imgEl.classList.add('loading');
+  // Hide the old or empty picture (shown as a broken image) until the new one is ready
+  imgEl.style.visibility = 'hidden';
+  if (metaEl) metaEl.textContent = ''; // the previous picture's size no longer applies
+  const loadingDone = startViewerLoading(document.getElementById('img-viewer-viewport'), path);
   try {
     const blobUrl = await getImageBlobUrl(path, pIdx);
     if (loadId !== currentLoadingImageId) return;
 
-    imgEl.onload = () => handleImageSuccess();
-    imgEl.onerror = () => handleImageError();
+    imgEl.onload = () => { loadingDone(); imgEl.style.visibility = ''; handleImageSuccess(); };
+    imgEl.onerror = () => { loadingDone('This picture could not be shown'); handleImageError(); };
     imgEl.src = blobUrl;
   } catch (err) {
     if (loadId !== currentLoadingImageId) return;
+    if (String(path).startsWith('proton://') || String(err.message || '').startsWith('Proton Drive')) {
+      loadingDone(err.message || 'This picture could not be downloaded');
+      handleImageError();
+      return;
+    }
+    loadingDone();
+    imgEl.style.visibility = '';
     // Fallback direct URL if blob creation failed
     imgEl.onload = () => handleImageSuccess();
     imgEl.onerror = () => handleImageError();
@@ -32654,8 +32667,11 @@ async function openDocumentViewer(filePath, paneIndex = null) {
       }).catch(err => {
         showToast('Failed to load local PDF: ' + err.message, 'error');
       });
-    } else {
-      if (frame) frame.src = streamUrl;
+    } else if (frame) {
+      // Remote files (Proton Drive especially) take a while; show that something is happening
+      const loadingDone = startViewerLoading(document.getElementById('doc-viewer-body'), filePath);
+      frame.addEventListener('load', () => loadingDone(), { once: true });
+      frame.src = streamUrl;
     }
 
   } else if (['md', 'markdown', 'rst'].includes(ext)) {
@@ -32674,7 +32690,7 @@ async function openDocumentViewer(filePath, paneIndex = null) {
     const mdPanel = document.getElementById('doc-view-md');
     if (mdPanel) {
       mdPanel.style.display = 'block';
-      mdPanel.innerHTML = '<div style="color: var(--text-muted); padding: 24px; text-align: center;">Loading Markdown...</div>';
+      mdPanel.innerHTML = `<div style="color: var(--text-muted); padding: 24px; text-align: center;">${escapeHtml(viewerLoadingText(filePath))}</div>`;
     }
 
     try {
@@ -32763,8 +32779,11 @@ async function openDocumentViewer(filePath, paneIndex = null) {
       }).catch(err => {
         showToast('Failed to load local document: ' + err.message, 'error');
       });
-    } else {
-      if (frame) frame.src = streamUrl;
+    } else if (frame) {
+      // Remote files (Proton Drive especially) take a while; show that something is happening
+      const loadingDone = startViewerLoading(document.getElementById('doc-viewer-body'), filePath);
+      frame.addEventListener('load', () => loadingDone(), { once: true });
+      frame.src = streamUrl;
     }
 
   } else if (['docx', 'xlsx', 'pptx', 'odt', 'ods', 'doc', 'xls', 'ppt'].includes(ext)) {
@@ -33832,6 +33851,9 @@ async function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
     if (audioEl) { audioEl.pause(); audioEl.src = ''; }
     if (videoEl) {
       videoEl.style.display = 'block';
+      const done = startViewerLoading(document.getElementById('mediaplayer-stage'), filePath);
+      videoEl.addEventListener('loadeddata', () => done(), { once: true });
+      videoEl.addEventListener('error', () => done(), { once: true });
       videoEl.src = streamUrl;
       videoEl.currentTime = 0;
       videoEl.playbackRate = mediaplayerState.playbackRate;
@@ -33935,6 +33957,9 @@ async function loadMediaTrack(filePath, forcedType = null, paneIndex = null) {
     }
     if (vizEl) vizEl.style.display = 'flex';
     if (audioEl) {
+      const audioDone = startViewerLoading(document.getElementById('mediaplayer-stage'), filePath);
+      audioEl.addEventListener('canplay', () => audioDone(), { once: true });
+      audioEl.addEventListener('error', () => audioDone(), { once: true });
       audioEl.src = streamUrl;
       audioEl.currentTime = 0;
       audioEl.playbackRate = mediaplayerState.playbackRate;
@@ -49714,4 +49739,32 @@ function openProtonSetup() {
   if (typeof openSettingsModal === 'function') openSettingsModal();
   else document.getElementById('settings-modal')?.classList.add('active');
   switchSettingsTab('tab-proton');
+}
+
+// ---------- "Working" message for viewers while a file is fetched (slow for Proton Drive) ----------
+function viewerLoadingText(path) {
+  const p = String(path || '');
+  if (p.startsWith('proton://')) return 'Downloading from Proton Drive…';
+  if (p.includes('://') && !p.startsWith('client://')) return 'Loading from the server…';
+  return 'Loading…';
+}
+
+// Shows a spinner over `container` after a short delay; returns done(errorMessage?)
+function startViewerLoading(container, path) {
+  if (!container) return () => {};
+  container.querySelectorAll(':scope > .viewer-loading').forEach(el => el.remove());
+  const el = document.createElement('div');
+  el.className = 'viewer-loading';
+  el.hidden = true;
+  el.innerHTML = `<span class="viewer-loading-spinner"></span><span class="viewer-loading-text">${escapeHtml(viewerLoadingText(path))}</span>`;
+  if (getComputedStyle(container).position === 'static') container.style.position = 'relative';
+  container.appendChild(el);
+  const timer = setTimeout(() => { el.hidden = false; }, 250);
+  return (errorMessage) => {
+    clearTimeout(timer);
+    if (!errorMessage) { el.remove(); return; }
+    el.hidden = false;
+    el.classList.add('error');
+    el.innerHTML = `<span class="viewer-loading-text">${escapeHtml(errorMessage)}</span>`;
+  };
 }
