@@ -75,6 +75,7 @@ pub fn create_app_state(
         );
     }
 
+    crate::vfs::proton::init(&config.server.database_path, &config.proton);
     Ok(AppState {
         config: Arc::new(config.clone()),
         auth: auth_mgr_arc,

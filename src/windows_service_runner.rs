@@ -148,6 +148,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
         }
         let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
 
+        crate::vfs::proton::init(&config.server.database_path, &config.proton);
         let state = crate::server::AppState {
             config: Arc::new(config.clone()),
             auth: auth_mgr_arc,

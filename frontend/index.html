@@ -1078,6 +1078,7 @@
 
           <div class="settings-sidebar-group-title">System & Shortcuts</div>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-proton"]'><i data-lucide="cloud"></i> Proton Drive</button>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-bookmarks"]'><i data-lucide="bookmark"></i> Bookmarks</button>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-keys"]'><i data-lucide="keyboard"></i> Keybindings</button>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-about"]'><img src="assets/amber-frameless-info.webp" alt="About" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> About Brum</button>
@@ -2565,6 +2566,19 @@
         </div>
 
         <!-- Tab: Bookmarks & Favorites -->
+        <!-- Tab: Proton Drive (program and sign-in) -->
+        <div class="settings-tab-content" id="tab-proton" style="padding: 16px;">
+          <div style="margin-bottom: 12px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="cloud" style="width: 16px; height: 16px;"></i> Proton Drive
+            </h4>
+            <div class="form-hint" style="margin-top: 2px;">Use your end-to-end encrypted Proton Drive in Brum, through Proton's official program.</div>
+          </div>
+          <div id="proton-setup" class="proton-setup">
+            <div class="form-hint">Checking…</div>
+          </div>
+        </div>
+
         <div class="settings-tab-content" id="tab-bookmarks">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-weight: 600;">Saved Bookmarks & Favorite Paths</span>
@@ -6222,10 +6236,10 @@
             <span>🛡️ Proton Drive E2EE Cloud Bridge</span>
           </div>
           <p style="font-size: 11px; color: var(--text-muted); margin: 0 0 8px 0; line-height: 1.4;">
-            Brum connects to your zero-knowledge Proton Drive storage using the official <code>proton-drive</code> CLI, community <code>proton-drive-cli</code>, or an <code>rclone</code> proton remote.
+            Brum reaches your end-to-end encrypted Proton Drive through Proton's official program. Install it and sign in once in Settings → Proton Drive.
           </p>
           <div id="proton-cli-status-badge" style="font-size: 11px; padding: 6px 10px; background: var(--bg-dark); border: 1px solid var(--border); border-radius: 4px; font-family: var(--font-mono); margin-bottom: 8px;">
-            Detecting Proton Drive CLI status...
+            Checking Proton Drive…
           </div>
         </div>
 

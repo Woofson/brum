@@ -7,7 +7,7 @@
 ## Why Run Brum in Docker?
 
 - **Lightweight**: Statically linked musl binary on **Alpine Linux 3.20**, using only **~20 MB of RAM** when idle.
-- **Batteries Included**: The image ships the programs Brum's tools use: FFmpeg and ImageMagick (Format Converter), Git, `smbclient` (SMB shares), NFS utilities, rclone (Proton Drive), SSH, 7-Zip and Bash.
+- **Batteries Included**: The image ships the programs Brum's tools use: FFmpeg and ImageMagick (Format Converter), Git, `smbclient` (SMB shares), NFS utilities, rclone, SSH, 7-Zip and Bash, plus what Proton's official Proton Drive program needs (install it in Settings → Proton Drive; see the [Proton Drive guide](proton-drive.md)).
 - **Isolated & Secure**: Run in rootless/isolated containers with fine-grained host volume bind-mounts and `no-new-privileges: true`.
 - **Multi-Host Storage Management**: Mount `/mnt/storage`, `/mnt/nas`, USB drives, or NFS directly into Brum.
 - **Zero-Loss Upgrades**: Persistent `/data` volume keeps all SQLite databases, users, backup schedules, and configurations intact across image upgrades and container refreshes.

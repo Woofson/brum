@@ -203,6 +203,11 @@ api_key = ""
 # --- Notes & Markdown Studio ---
 [notes]
 notes_folder = "~/Notes"
+
+# --- Proton Drive (see proton-drive.md) ---
+[proton]
+allow_download = true   # admins may install Proton's official program from proton.me
+cli_path = ""           # a program to use instead of searching for one
 ```
 
 > Configs written before Brum 1.17 use `[notedog]` for this section. It is still read, so there is no need to change it.

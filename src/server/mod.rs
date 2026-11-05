@@ -9,6 +9,7 @@ pub mod shell_command;
 pub mod fleet;
 pub mod backup_target;
 pub mod session_cookie;
+pub mod proton_handlers;
 
 pub use middleware::*;
 pub use auth_handlers::*;
@@ -174,7 +175,16 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/fs/checksum", post(handle_calculate_checksum))
         // Remote Connections & Test
         .route("/api/remotes/test", post(handle_test_remote))
-        .route("/api/remotes/proton/status", get(handle_proton_status))
+        .route("/api/remotes/proton/status", get(proton_handlers::handle_status))
+        // Proton Drive setup
+        .route("/api/proton/status", get(proton_handlers::handle_status))
+        .route("/api/proton/latest", get(proton_handlers::handle_latest))
+        .route("/api/proton/install", post(proton_handlers::handle_install))
+        .route("/api/proton/login", post(proton_handlers::handle_login))
+        .route("/api/proton/login/cancel", post(proton_handlers::handle_login_cancel))
+        .route("/api/proton/login/qr", get(proton_handlers::handle_login_qr))
+        .route("/api/proton/account", post(proton_handlers::handle_refresh_account))
+        .route("/api/proton/logout", post(proton_handlers::handle_logout))
         // Fleet Manager & Gateway Reverse Proxy
         .route("/api/fleet/nodes", get(fleet::handle_list_fleet_nodes))
         .route("/api/fleet/ping/:node_id", get(fleet::handle_fleet_ping))

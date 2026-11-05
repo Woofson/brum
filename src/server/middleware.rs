@@ -1346,6 +1346,19 @@ pub fn validate_path_access(
         return Err((StatusCode::FORBIDDEN, "Read-only users cannot modify or delete files".to_string()));
     }
 
+    // Proton Drive: the user's own signed-in account; same rule as other remote storage, no host to check
+    if raw_path.len() >= 9 && raw_path[..9].eq_ignore_ascii_case("proton://") {
+        let allowed = user_role.eq_ignore_ascii_case("admin")
+            || allowed_roots.iter().any(|r| {
+                let r = r.trim();
+                r == "remote" || r == "*://*" || r.eq_ignore_ascii_case("proton") || r.eq_ignore_ascii_case("proton://*") || (!r.is_empty() && raw_path.starts_with(r))
+            });
+        if !allowed {
+            return Err((StatusCode::FORBIDDEN, "Access denied: Proton Drive is restricted to administrators or users allowed 'remote' or 'proton'".to_string()));
+        }
+        return Ok(raw_path.to_string());
+    }
+
     // 1. Remote network scheme check: enforce admin or explicit entitlement authorization, plus anti-SSRF protections
     if let Some((scheme, host)) = extract_remote_scheme_host(raw_path) {
         let is_admin = user_role.eq_ignore_ascii_case("admin");

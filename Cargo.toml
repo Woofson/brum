@@ -100,6 +100,7 @@ positioned-io = "=0.2.2"
 zstd = { version = "0.14", default-features = false }
 # xz for compressed disk images (already in the build through backhand)
 liblzma = "0.4"
+qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 
 [target.'cfg(not(target_os = "windows"))'.dependencies]
 openssl = { version = "0.10", features = ["vendored"] }

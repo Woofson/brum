@@ -330,6 +330,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         None
     };
 
+    crate::vfs::proton::init(&config.server.database_path, &config.proton);
     let state = AppState {
         config: Arc::new(config.clone()),
         auth: auth_mgr_arc,

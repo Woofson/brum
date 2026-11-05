@@ -43,6 +43,9 @@ pub struct AppConfig {
     pub logging: LoggingConfig,
     #[serde(default)]
     pub sftp: Option<SftpConfig>,
+    /// `[proton]`: where the Proton Drive program is and whether admins may download it
+    #[serde(default)]
+    pub proton: crate::vfs::proton::ProtonConfig,
 }
 
 impl AppConfig {
@@ -98,6 +101,7 @@ impl Default for AppConfig {
             fleet: FleetConfig::default(),
             logging: LoggingConfig::default(),
             sftp: None,
+            proton: crate::vfs::proton::ProtonConfig::default(),
         }
     }
 }

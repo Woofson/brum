@@ -9,7 +9,8 @@ LABEL org.opencontainers.image.title="Brum" \
       org.opencontainers.image.licenses="MIT"
 
 # ffmpeg/imagemagick: Format Converter; git: Git tool; samba-client/nfs-utils: SMB and NFS
-# browsing; rclone: Proton Drive; openssh-keygen/nano: SSH keys and editing in the terminal
+# browsing; rclone: rclone backups; openssh-keygen/nano: SSH keys and editing in the terminal;
+# libstdc++: Proton's official Proton Drive program (installed from Settings → Proton Drive)
 RUN apk add --no-cache \
     ca-certificates \
     curl \
@@ -39,7 +40,8 @@ RUN apk add --no-cache \
     git \
     samba-client \
     nfs-utils \
-    rclone
+    rclone \
+    libstdc++
 
 WORKDIR /app
 

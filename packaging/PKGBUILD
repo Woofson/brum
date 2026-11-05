@@ -7,6 +7,7 @@ arch=('x86_64' 'aarch64')
 url="https://github.com/Woofson/brum"
 license=('MIT')
 depends=('glibc' 'sqlite' 'libssh2' 'openssl' 'ca-certificates')
+optdepends=('proton-drive-cli-bin: Proton Drive (Brum can also install it in Settings)')
 makedepends=('cargo' 'rust' 'pkgconf')
 options=('!lto')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")

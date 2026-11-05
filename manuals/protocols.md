@@ -16,7 +16,7 @@ Brum includes a zero-leakage, multi-protocol Virtual Filesystem (VFS) client eng
 | **Hetzner Storage Box** | `sftp://...` / `https://...` | Pre-configured fast preset for SFTP (port 23) and WebDAV |
 | **WebDAV** | `webdav://` / `https://...` | Nextcloud, ownCloud, Synology, Apache/Nginx WebDAV |
 | **S3 Cloud Object Storage** | `s3://bucket/path` | AWS S3, MinIO, Cloudflare R2, Backblaze B2, Hetzner S3 (SigV4) |
-| **Proton Drive** | `proton://` | End-to-end encrypted cloud storage via CLI bridge |
+| **Proton Drive** | `proton://` | End-to-end encrypted cloud storage through Proton's official program; see the [Proton Drive guide](proton-drive.md) |
 | **Encrypted Vaults** | `vault://path.cdvault` | RAM-only Argon2id + AES-256-GCM zero-leakage containers |
 | **Virtual Archives** | `archive://file.zip` | Direct browsing inside `.zip`, `.tar.gz`, `.tar.bz2`, `.7z`, `.iso`, `.sqsh` |
 | **Virtual Disks & FOG Images** | `archive://disk.img` / `archive://fog_dir` | Native browsing & extraction for raw `.img`, VMDK, QCOW2, MBR/GPT partitions, FAT/Ext4/NTFS, and FOG Project Partclone (`.zst`/`.gz`) multi-partition directories |

@@ -16,6 +16,7 @@ Welcome to the **Brum** manual and documentation index.
 | [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, player hotkeys, and mouse/touch gestures |
 | [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, fallback schemes, Fleet nodes, OIDC SSO, UI options) |
 | [**`protocols.md`**](protocols.md) | Remote & Client VFS protocols guide (Client Local `client://`, SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
+| [**`proton-drive.md`**](proton-drive.md) | Proton Drive: one-click install of Proton's official program, sign-in with link or QR code, `proton://` addresses, Docker |
 | [**`vaults.md`**](vaults.md) | Encrypted `.cdvault` containers with Argon2id + AES-256-GCM RAM-only zero-leakage filesystem |
 | [**`sharing.md`**](sharing.md) | Advanced public link sharing, Sharing Center, client portals, granular ACLs, dynamic watermarking & upload dropzones |
 | [**`authentik-sso.md`**](authentik-sso.md) | Enterprise OpenID Connect (OIDC) & Authentik SSO setup guide, auto-provisioning & role mapping |

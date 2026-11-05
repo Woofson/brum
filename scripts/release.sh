@@ -272,6 +272,7 @@ pkgbase = brum
 	depends = libssh2
 	depends = openssl
 	depends = ca-certificates
+	optdepends = proton-drive-cli-bin: Proton Drive (Brum can also install it in Settings)
 	options = !lto
 	source = brum-${TARGET_VERSION}.tar.gz::https://github.com/Woofson/brum/archive/refs/tags/v${TARGET_VERSION}.tar.gz
 	sha256sums = ${SOURCE_SHA256}
@@ -305,6 +306,7 @@ pkgbase = brum-bin
 	depends = libssh2
 	depends = openssl
 	depends = ca-certificates
+	optdepends = proton-drive-cli-bin: Proton Drive (Brum can also install it in Settings)
 	source = brum-v${TARGET_VERSION}-linux-x86_64.tar.gz::https://github.com/Woofson/brum/releases/download/v${TARGET_VERSION}/brum-v${TARGET_VERSION}-linux-x86_64.tar.gz
 	sha256sums = ${BIN_SHA256}
 

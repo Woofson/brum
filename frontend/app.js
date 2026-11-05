@@ -68,6 +68,8 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
+  'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
+  'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup',
   'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addModalTagFromInput', 'addNewBookmark',
   'addPropCustomTag', 'addTracksToMediaPlaylist', 'alignDiffPaths', 'applyBatchAutoTrackNumbers',
@@ -10076,6 +10078,7 @@ function switchSettingsTab(tabId) {
   if (tabId === 'tab-palette') populateThemeSelectors();
   if (tabId === 'tab-account') openSettingsAccountTab();
   if (tabId === 'tab-bookmarks') loadBookmarksList();
+  if (tabId === 'tab-proton') renderProtonSetup();
   if (tabId === 'tab-desktop-apps') renderDesktopAppsTab();
   if (tabId === 'tab-openwith') renderOpenWithRules();
   if (tabId === 'tab-context') renderMenuBuilderCategory(activeMenuCategory);
@@ -29314,7 +29317,7 @@ async function updateRemoteProtoUI() {
     if (protonGroup) protonGroup.style.display = 'block';
 
     const badge = document.getElementById('proton-cli-status-badge');
-    if (badge) badge.innerHTML = '<span style="color: var(--accent);">Checking Proton Drive CLI / daemon status...</span>';
+    if (badge) badge.innerHTML = '<span style="color: var(--accent);">Checking Proton Drive…</span>';
 
     try {
       const resp = await fetch('/api/remotes/proton/status', {
@@ -29322,10 +29325,11 @@ async function updateRemoteProtoUI() {
       });
       if (resp.ok) {
         const st = await resp.json();
-        if (st.installed) {
-          badge.innerHTML = `🟢 <b>Detected Backend:</b> ${st.cli_type} (${st.version || 'active'}) &nbsp;|&nbsp; <b>Auth:</b> ${st.authenticated ? '✅ Ready' : '⚠️ Not Logged In'}`;
+        if (st.installed && st.signed_in) {
+          badge.innerHTML = `🟢 Ready${st.account ? `, signed in as <b>${escapeHtml(st.account)}</b>` : ''}. Leave the path empty to open My files.`;
         } else {
-          badge.innerHTML = `⚪ <b>Proton CLI Not Detected:</b> Run <code>proton-drive login</code> or configure an <code>rclone</code> proton remote.`;
+          badge.innerHTML = `⚪ ${st.installed ? 'Not signed in yet.' : 'The Proton Drive program is not installed yet.'} <a href="#" data-on-click="openProtonSetup" data-click-prevent>Set up Proton Drive</a>`;
+          bindActions(badge);
         }
       }
     } catch (e) {
@@ -29437,7 +29441,8 @@ function connectRemoteToActivePane() {
     if (!host) { showToast('Please specify S3 endpoint', 'warning'); return; }
     remoteUrl = `s3://${bucket}${path.startsWith('/') ? path : '/' + path}`;
   } else if (proto === 'proton') {
-    remoteUrl = `proton://${path.startsWith('/') ? path.substring(1) : path}`;
+    const p = (path || '').replace(/^~$/, '').replace(/^\/+/, '');
+    remoteUrl = `proton:///${p || 'my-files'}`;
   }
   closeModal('remote-modal');
   loadPaneDirectory(targetRemotePaneIndex, remoteUrl);
@@ -49380,4 +49385,265 @@ async function promptEmptyTrash(paneIndex) {
   } catch (err) {
     showToast(`Empty ${getTrashDisplayName(true)} error: ${err.message}`, 'error');
   }
+}
+
+// ==========================================================================
+// Proton Drive setup (Settings → Proton Drive): program and sign-in
+// ==========================================================================
+const protonUi = { status: null, latest: null, latestError: '', pollTimer: null, busy: false, error: '' };
+
+function isProtonTabVisible() {
+  const modal = document.getElementById('settings-modal');
+  const tab = document.getElementById('tab-proton');
+  return !!(modal && tab && tab.classList.contains('active') && getComputedStyle(modal).display !== 'none');
+}
+
+async function protonLoad() {
+  try {
+    protonUi.status = await backupApi('/api/proton/status');
+    protonUi.error = '';
+  } catch (e) {
+    protonUi.error = e.message;
+  }
+}
+
+async function renderProtonSetup() {
+  await protonLoad();
+  protonRender();
+  protonSchedulePoll();
+}
+
+// Checks again while something is happening (download, sign-in)
+function protonSchedulePoll() {
+  clearTimeout(protonUi.pollTimer);
+  const st = protonUi.status;
+  if (!st) return;
+  const installing = st.install && (st.install.phase === 'downloading' || st.install.phase === 'verifying');
+  const signingIn = st.login && (st.login.state === 'starting' || st.login.state === 'waiting');
+  if (!installing && !signingIn) return;
+  protonUi.pollTimer = setTimeout(async () => {
+    if (!isProtonTabVisible()) return;
+    const before = protonUi.status;
+    await protonLoad();
+    const now = protonUi.status;
+    if (before && before.login && before.login.state === 'waiting' && now && now.login && now.login.state === 'done') {
+      await protonFinishSignIn();
+      return;
+    }
+    if (before && before.install && before.install.phase !== 'done' && now && now.install && now.install.phase === 'done') {
+      showToast(`Proton Drive program ${now.install.version || ''} installed`, 'success');
+      protonUi.latest = null;
+    }
+    protonRender();
+    protonSchedulePoll();
+  }, installing ? 700 : 2000);
+}
+
+function protonCard(title, icon, body) {
+  return `<div class="proton-card"><div class="proton-card-title"><i data-lucide="${icon}"></i> ${title}</div>${body}</div>`;
+}
+
+function protonVersionNewer(a, b) {
+  const pa = String(a || '').split('.').map(Number);
+  const pb = String(b || '').split('.').map(Number);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0);
+  }
+  return false;
+}
+
+function protonProgramCard(st) {
+  const inst = st.install || {};
+  const where = { brum: 'installed by Brum', config: 'set in config.toml', system: 'found on this computer' };
+  const links = `<div class="proton-links">Download it yourself from <a href="${escapeHtml(st.download_page)}" target="_blank" rel="noopener noreferrer">Proton's download page</a>. On Arch Linux: the AUR package <code>proton-drive-cli-bin</code>.</div>`;
+  let body = '';
+  if (inst.phase === 'downloading' || inst.phase === 'verifying') {
+    const pct = inst.total ? Math.min(100, Math.round((inst.received / inst.total) * 100)) : 0;
+    body = `<div class="proton-line">${inst.phase === 'verifying' ? 'Checking the download against Proton’s fingerprint…' : `Downloading version ${escapeHtml(inst.version || '')} from proton.me…`}</div>
+      <div class="proton-progress"><div style="width:${inst.phase === 'verifying' ? 100 : pct}%"></div></div>
+      <div class="form-hint">${formatBytes(inst.received || 0)}${inst.total ? ` of ${formatBytes(inst.total)}` : ''}</div>`;
+    return protonCard('Proton Drive program', 'download', body);
+  }
+  if (st.installed && st.cli) {
+    body = `<div class="proton-line ok"><i data-lucide="check-circle-2"></i> Version ${escapeHtml(st.cli.version || 'unknown')}, ${where[st.cli.source] || 'found'}</div>
+      <div class="form-hint proton-path" title="${escapeHtml(st.cli.path)}">${escapeHtml(st.cli.path)}</div>`;
+    if (st.is_admin) {
+      const lt = protonUi.latest;
+      if (lt && st.cli.version && protonVersionNewer(lt.version, st.cli.version)) {
+        body += st.cli.source === 'brum' && st.allow_download
+          ? `<div class="proton-line">Version ${escapeHtml(lt.version)} is available.</div><div class="proton-actions"><button class="btn btn-sm btn-accent" data-on-click="protonInstall"><i data-lucide="download"></i> Update to ${escapeHtml(lt.version)}</button></div>`
+          : `<div class="proton-line">Version ${escapeHtml(lt.version)} is available. Update it the way you installed it.</div>`;
+      } else if (lt) {
+        body += `<div class="form-hint">This is the newest version.</div>`;
+      } else {
+        body += `<div class="proton-actions"><button class="btn btn-sm" data-on-click="protonCheckUpdate"${protonUi.busy ? ' disabled' : ''}><i data-lucide="refresh-cw"></i> Check for updates</button></div>`;
+      }
+      if (protonUi.latestError) body += `<div class="proton-error">${escapeHtml(protonUi.latestError)}</div>`;
+    }
+  } else {
+    body = `<div class="proton-line">Brum uses Proton's official command-line program to reach your Proton Drive. It is not installed yet.</div>`;
+    if (st.is_admin && st.allow_download && st.platform) {
+      body += `<div class="proton-actions"><button class="btn btn-sm btn-accent" data-on-click="protonInstall"><i data-lucide="download"></i> Install from proton.me</button></div>
+        <div class="form-hint">About 95 MB, for ${escapeHtml(st.platform)}. Checked against Proton's fingerprint before it is used, and kept in Brum's data folder.</div>`;
+    } else if (st.is_admin && !st.allow_download) {
+      body += `<div class="form-hint">Downloading is turned off on this server (<code>[proton] allow_download</code>). Install it yourself, or set <code>[proton] cli_path</code>.</div>`;
+    } else if (st.is_admin) {
+      body += `<div class="form-hint">Proton does not offer the program for this kind of computer.</div>`;
+    } else {
+      body += `<div class="form-hint">Ask an administrator to install it in Settings → Proton Drive.</div>`;
+    }
+  }
+  if (inst.phase === 'failed' && inst.error) body += `<div class="proton-error">${escapeHtml(inst.error)}</div>`;
+  body += links;
+  return protonCard('Proton Drive program', 'package', body);
+}
+
+function protonAccountCard(st) {
+  if (!st.installed) return '';
+  const login = st.login;
+  let body = '';
+  if (st.signed_in) {
+    body = `<div class="proton-line ok"><i data-lucide="check-circle-2"></i> Signed in${st.account ? ` as <b>${escapeHtml(st.account)}</b>` : ''}</div>
+      <div class="proton-actions">
+        <button class="btn btn-sm btn-accent" data-on-click="protonOpenInPanel"><i data-lucide="folder-open"></i> Open My files</button>
+        <button class="btn btn-sm" data-on-click="protonSignOut"${protonUi.busy ? ' disabled' : ''}><i data-lucide="log-out"></i> Sign out</button>
+      </div>`;
+  } else if (login && (login.state === 'starting' || login.state === 'waiting')) {
+    if (!login.url) {
+      body = `<div class="proton-line">Starting the sign-in…</div>`;
+    } else {
+      body = `<div class="proton-signin">
+          <div class="proton-signin-steps">
+            <div class="proton-step"><span>1</span> Open Proton's sign-in page, on this computer or any other device.</div>
+            <div class="proton-actions">
+              <button class="btn btn-sm btn-accent" data-on-click="protonOpenLink"><i data-lucide="external-link"></i> Open sign-in page</button>
+              <button class="btn btn-sm" data-on-click="protonCopyLink"><i data-lucide="copy"></i> Copy link</button>
+            </div>
+            <div class="proton-step"><span>2</span> Sign in with your Proton account. On a phone, scan the code.</div>
+            <div class="proton-step"><span>3</span> Brum notices by itself when you are done.</div>
+            <div class="proton-waiting"><span class="proton-spinner"></span> Waiting for you to finish signing in…</div>
+            <div class="proton-actions"><button class="btn btn-sm" data-on-click="protonCancelSignIn"><i data-lucide="x"></i> Cancel</button></div>
+          </div>
+          <img class="proton-qr" src="/api/proton/login/qr?t=${encodeURIComponent(login.url.length + '-' + (login.started_secs_ago < 5 ? Date.now() : 0))}" alt="QR code for the sign-in page" width="160" height="160">
+        </div>`;
+    }
+  } else {
+    body = `<div class="proton-line">Not signed in.</div>
+      <div class="proton-actions"><button class="btn btn-sm btn-accent" data-on-click="protonSignIn"${protonUi.busy ? ' disabled' : ''}><i data-lucide="log-in"></i> Sign in to Proton Drive</button></div>
+      <div class="form-hint">Opens Proton's own sign-in page; Brum never sees your password. The login is kept privately on the server for your Brum account only, and you can end it here or in your Proton account settings.</div>`;
+    if (login && login.state === 'failed') body += `<div class="proton-error">${escapeHtml(login.error || 'The sign-in was not completed')}</div>`;
+  }
+  return protonCard('Your Proton account', 'user-round', body);
+}
+
+function protonRender() {
+  const el = document.getElementById('proton-setup');
+  if (!el) return;
+  const st = protonUi.status;
+  if (!st) {
+    el.innerHTML = protonUi.error ? `<div class="proton-error">${escapeHtml(protonUi.error)}</div>` : '<div class="form-hint">Checking…</div>';
+    return;
+  }
+  el.innerHTML = protonProgramCard(st) + protonAccountCard(st) + (protonUi.error ? `<div class="proton-error">${escapeHtml(protonUi.error)}</div>` : '');
+  bindActions(el);
+  if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+}
+
+async function protonRun(fn) {
+  if (protonUi.busy) return;
+  protonUi.busy = true;
+  protonUi.error = '';
+  protonRender();
+  try {
+    await fn();
+  } catch (e) {
+    protonUi.error = e.message;
+  } finally {
+    protonUi.busy = false;
+    protonRender();
+    protonSchedulePoll();
+  }
+}
+
+function protonInstall() {
+  return protonRun(async () => {
+    protonUi.status = await backupApi('/api/proton/install', { method: 'POST' });
+  });
+}
+
+function protonCheckUpdate() {
+  return protonRun(async () => {
+    protonUi.latestError = '';
+    try {
+      protonUi.latest = await backupApi('/api/proton/latest');
+    } catch (e) {
+      protonUi.latestError = `Could not check for updates: ${e.message}`;
+    }
+  });
+}
+
+function protonSignIn() {
+  return protonRun(async () => {
+    protonUi.status = await backupApi('/api/proton/login', { method: 'POST' });
+  });
+}
+
+function protonCancelSignIn() {
+  return protonRun(async () => {
+    protonUi.status = await backupApi('/api/proton/login/cancel', { method: 'POST' });
+  });
+}
+
+async function protonFinishSignIn() {
+  await protonRun(async () => {
+    try {
+      protonUi.status = await backupApi('/api/proton/account', { method: 'POST' });
+    } catch (e) {
+      await protonLoad();
+    }
+  });
+  const st = protonUi.status;
+  showToast(st && st.account ? `Signed in to Proton Drive as ${st.account}` : 'Signed in to Proton Drive', 'success');
+}
+
+function protonSignOut() {
+  if (!confirm('Sign out of Proton Drive? Brum forgets the login for your account; your files stay in Proton Drive.')) return null;
+  return protonRun(async () => {
+    protonUi.status = await backupApi('/api/proton/logout', { method: 'POST' });
+    showToast('Signed out of Proton Drive', 'info');
+  });
+}
+
+function protonSignInUrl() {
+  const st = protonUi.status;
+  return st && st.login && st.login.url ? st.login.url : '';
+}
+
+function protonOpenLink() {
+  const url = protonSignInUrl();
+  if (url.startsWith('https://account.proton.me/')) window.open(url, '_blank', 'noopener,noreferrer');
+}
+
+async function protonCopyLink() {
+  const url = protonSignInUrl();
+  if (!url) return;
+  try {
+    await navigator.clipboard.writeText(url);
+    showToast('Sign-in link copied', 'success');
+  } catch (_) {
+    prompt('Copy the sign-in link:', url);
+  }
+}
+
+function protonOpenInPanel() {
+  closeModal('settings-modal');
+  openPathInActivePane('proton:///my-files');
+}
+
+// Opens Settings on the Proton Drive page (from the Connect window)
+function openProtonSetup() {
+  closeModal('remote-modal');
+  if (typeof openSettingsModal === 'function') openSettingsModal();
+  else document.getElementById('settings-modal')?.classList.add('active');
+  switchSettingsTab('tab-proton');
 }

@@ -9,6 +9,7 @@ license=('MIT')
 provides=('brum')
 conflicts=('brum' 'commanderdog' 'commanderdog-bin')
 depends=('glibc' 'sqlite' 'libssh2' 'openssl' 'ca-certificates')
+optdepends=('proton-drive-cli-bin: Proton Drive (Brum can also install it in Settings)')
 source=("brum-v${pkgver}-linux-${arch}.tar.gz::https://github.com/Woofson/brum/releases/download/v${pkgver}/brum-v${pkgver}-linux-${arch}.tar.gz")
 sha256sums=('dfb22043492f713172f1ad8062008ebbe40fefe2a53105915aac0f2802350cf2')
 

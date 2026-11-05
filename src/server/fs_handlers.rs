@@ -149,8 +149,9 @@ pub async fn handle_list_dir(
             .map(Json)
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to list WebDAV: {}", e)))
     } else if target_path.starts_with("proton://") {
-        let entries = crate::vfs::proton::ProtonDriveClient::list_directory(&target_path).await
-            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive list failed: {}", e)))?;
+        let claims = extract_claims_or_local(&state, &headers)?;
+        let entries = crate::vfs::proton::ProtonDriveClient::list_directory(&claims.sub, &target_path).await
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)))?;
         let total_files = entries.iter().filter(|e| !e.is_dir).count();
         let total_dirs = entries.iter().filter(|e| e.is_dir).count();
         let total_size = entries.iter().map(|e| e.size).sum();
@@ -914,21 +915,14 @@ pub async fn handle_test_remote(
             }
         }
         "proton" => {
-            let status = crate::vfs::proton::ProtonDriveClient::check_status().await;
-            if status.installed {
-                if status.authenticated {
-                    Ok(Json(serde_json::json!({
-                        "success": true,
-                        "message": format!("Proton Drive integration ready! Backend: {} (Version: {})", status.cli_type, status.version.unwrap_or_default()),
-                    })))
-                } else {
-                    Ok(Json(serde_json::json!({
-                        "success": false,
-                        "message": format!("Proton Drive CLI detected ({}) but not yet logged in. Run '{} login' in terminal.", status.cli_type, status.cli_type),
-                    })))
-                }
+            let user = extract_claims_or_local(&state, &headers).map(|c| c.sub).unwrap_or_default();
+            let st = crate::vfs::proton::status(&user);
+            if !st.installed {
+                Err((StatusCode::BAD_REQUEST, "The Proton Drive program is not installed. Set it up in Settings → Proton Drive.".to_string()))
+            } else if !st.signed_in {
+                Ok(Json(serde_json::json!({ "success": false, "message": "Not signed in to Proton Drive yet. Sign in in Settings → Proton Drive." })))
             } else {
-                Err((StatusCode::BAD_REQUEST, "Proton Drive CLI or rclone not detected on host. Install 'proton-drive' or configure an rclone proton remote.".to_string()))
+                Ok(Json(serde_json::json!({ "success": true, "message": format!("Proton Drive ready ({})", st.account.unwrap_or_else(|| "signed in".into())) })))
             }
         }
         "smb" => {
@@ -963,10 +957,6 @@ pub async fn handle_test_remote(
         }
         _ => Err((StatusCode::BAD_REQUEST, "Unsupported protocol".to_string())),
     }
-}
-
-pub async fn handle_proton_status() -> Json<crate::vfs::proton::ProtonStatus> {
-    Json(crate::vfs::proton::ProtonDriveClient::check_status().await)
 }
 
 /// Marks a new task as belonging to the user making this request
