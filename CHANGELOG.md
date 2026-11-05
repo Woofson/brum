@@ -5,6 +5,28 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-11-05
+
+### Security
+- **Saved Credentials and Login Secret (GHSA-f63j-9gj5-cxcc, high)**: Passwords and tokens Brum keeps to use again (bookmark and shared-mount logins, SFTP and Fleet logins of backups, Fleet tokens in user settings) were stored readable in the database, and installations without a configured `BRUM_JWT_SECRET` kept their login signing secret there too, so a copy of `brum.db` could reveal logins or be used to sign in. They are now encrypted with a key kept outside the database (`brum-secrets.key` next to it, or `BRUM_SECRETS_KEY`), and the node-local signing secret is derived from that key. Existing values are converted on first start. **Installations without a configured secret sign in again once, and API tokens made there must be created again.** Keep `brum-secrets.key` with the database: without it, saved passwords must be entered again.
+- **Compare Safeguards**: Comparisons run off the request threads, can be stopped, and stay on one drive, so a very large comparison can no longer make the server stop answering.
+
+### Features
+- **Backup & Sync, Rebuilt (Closes #161)**: A list of your backups with plain status lines; New backup in four steps (what, where, how, when) with a preview before the first run; Copy, Copy and keep old versions, and Keep two folders the same (which remembers deletions); several folders per backup; schedules every few minutes, hours or daily; a per-file log of every run (kept 90 days, downloadable); Restore from the latest backup or a dated set of old versions, into a separate folder by default and into the original folder only after confirming. Destinations: folders and mounted shares, SFTP (for example a Hetzner Storage Box), rclone remotes and other Brum machines in the Fleet; rsync can do the copying over SSH. Old jobs are carried over automatically.
+- **Git Collections (Closes #162)**: Backup & Sync can keep a history of scattered files and folders (configs, `/etc` files, projects) in one git repository, at their real paths, with a version saved each run, an optional remote and Push, warnings for likely keys and large files, and restore from any saved version.
+- **Compare (Closes #163)**: One tool for two folders (including subfolders, a plain summary, a Differences filter, copying across in either direction), two files and finding duplicates, replacing Compare & Diff and the Duplicate Finder. Asks before very large comparisons and has a Stop button.
+- **Region & Formats (Closes #164)**: Settings → General chooses 24- or 12-hour time, date style, number style, file sizes (KB, KiB or kB), measurements, temperature and the first day of the week, saved per user. Used across file lists, Backup & Sync, Compare and more, and passed to Chewtoys.
+- **Tailspin (Closes #160)**: An optional Chewtoy with a decision wheel, yes/no and dice (one die, D&D and Yatzy), kept in the repository as `plugins/tailspin.grr`.
+
+### Fixes
+- **Backup & Sync**: Backups no longer stop at 10,000 files, a slow backup is never started twice, folders named `_archive` are backed up, skip rules match whole names, and the folder Browse button works.
+- **Compare**: Folders with different contents are no longer shown as identical, and copied files land in the matching subfolder instead of the top folder.
+- **Windows Build**: Two unused-import warnings removed.
+
+### Changes
+- **Chewtoy Guide**: Chewtoys run sandboxed and cannot run programs on the server; the guide no longer describes backend scripts.
+- **Shortcuts Manual**: A shortcut that never existed (`Ctrl+Shift+S`) was removed.
+
 ## [1.17.0] - 2026-11-04
 
 ### Security
