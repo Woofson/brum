@@ -173,7 +173,7 @@ fn skip_fn<'a>(spec: &'a JobSpec, is_dest_side: bool) -> impl Fn(&str, bool) -> 
             return true;
         }
         // A git collection's own files are never part of the copy
-        if is_dest_side && spec.mode == Mode::Git && (rel == ".git" || rel.starts_with(".git/") || rel == super::git_repo::MANIFEST) {
+        if is_dest_side && spec.mode == Mode::Git && super::git_repo::is_own_file(rel) {
             return true;
         }
         if versions_on_this_side && (rel == spec.versions_dir || rel.starts_with(&format!("{}/", spec.versions_dir))) {

@@ -1029,6 +1029,9 @@ pub struct OpenCollectionRequest {
     pub into: Option<String>,
     #[serde(default)]
     pub name: Option<String>,
+    /// For a collection with encrypted files
+    #[serde(default)]
+    pub passphrase: Option<String>,
 }
 
 /// Opens an existing git collection (from another machine) as a collection in Brum. Its files
@@ -1044,6 +1047,8 @@ pub async fn handle_open_collection(
         return Err(bad_request("Collections need git, which is not installed on this machine".into()));
     }
     let clean = |s: &Option<String>| s.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+    // A folder downloaded here, removed again if the collection cannot be opened
+    let mut downloaded: Option<std::path::PathBuf> = None;
     let repo = match (clean(&req.folder), clean(&req.url)) {
         (Some(folder), _) => validate_path_access(&state, &headers, &folder, true)?,
         (None, Some(url)) => {
@@ -1066,11 +1071,18 @@ pub async fn handle_open_collection(
             .await
             .map_err(|e| bad_request(e.to_string()))?
             .map_err(|e| bad_request(format!("Could not download the collection: {e}")))?;
+            downloaded = Some(into_path);
             into
         }
         (None, None) => return Err(bad_request("Choose a collection folder or a remote address".into())),
     };
-    let (mut profile, items, mut left_out) = state.backup.collection_from_repo(&repo, req.name.as_deref()).map_err(bad_request)?;
+    let undo = |e: String| {
+        if let Some(dir) = &downloaded {
+            let _ = std::fs::remove_dir_all(dir);
+        }
+        bad_request(e)
+    };
+    let (mut profile, items, mut left_out) = state.backup.collection_from_repo(&repo, req.name.as_deref(), req.passphrase.as_deref()).map_err(undo)?;
     // Only the places this Brum user may write to
     let mut kept = Vec::new();
     let mut kept_items = Vec::new();
@@ -1084,13 +1096,13 @@ pub async fn handle_open_collection(
         }
     }
     if kept.is_empty() {
-        return Err(bad_request("Your account may not write to any of the places in this collection".into()));
+        return Err(undo("Your account may not write to any of the places in this collection".into()));
     }
     profile.source_dir = kept[0].clone();
     profile.sources = kept;
     profile.git_remote = profile.git_remote.and_then(|r| check_git_remote(&state, &headers, &r).ok());
     profile.owner = Some(claims.sub.clone());
-    let saved = state.backup.save_profile(profile).map_err(bad_request)?;
+    let saved = state.backup.save_profile(profile).map_err(undo)?;
     Ok(Json(serde_json::json!({ "profile": state.backup.view(saved), "items": kept_items, "left_out": left_out })))
 }
 

@@ -92,6 +92,10 @@ pub trait Store: Send + Sync {
     fn proton(&self) -> Option<&super::proton_store::ProtonStore> {
         None
     }
+    /// A file stored encrypted (git collections); restored copies are made private to their owner
+    fn is_encrypted(&self, _rel: &str) -> bool {
+        false
+    }
 }
 
 /// Rejects paths that could leave the backup (`..`, absolute paths, drive letters)

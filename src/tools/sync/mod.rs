@@ -1,6 +1,7 @@
 //! Backup & Sync: saved backups that copy, keep old versions, or keep two folders the same,
 //! with a preview, schedules, a per-file log of every run, and restore.
 
+pub mod crypt;
 pub mod engine;
 pub mod exclude;
 pub mod fleet_store;
@@ -612,7 +613,7 @@ mod tests {
         let clone = t.path().join("new-machine/Collections/workstation");
         fs::create_dir_all(clone.parent().unwrap()).unwrap();
         super::git_repo::clone(&bare.to_string_lossy(), &clone).unwrap();
-        let (opened, items, left_out) = m.collection_from_repo(&clone.to_string_lossy(), None).unwrap();
+        let (opened, items, left_out) = m.collection_from_repo(&clone.to_string_lossy(), None, None).unwrap();
         assert_eq!(opened.name, "Workstation");
         assert_eq!(opened.git_remote.as_deref(), Some(bare.to_string_lossy().as_ref()));
         assert!(left_out.is_empty(), "{left_out:?}");
@@ -620,7 +621,7 @@ mod tests {
         assert_eq!(items[0].path, conf.to_string_lossy());
         let opened = m.save_profile(opened).unwrap();
         // Open twice: refused
-        assert!(m.collection_from_repo(&clone.to_string_lossy(), None).unwrap_err().contains("already open"));
+        assert!(m.collection_from_repo(&clone.to_string_lossy(), None, None).unwrap_err().contains("already open"));
         // Saving before restoring is refused, so a half-empty machine never becomes the latest version
         let run = m.start_backup(&opened.id, "manual", tasks.clone()).unwrap();
         wait_idle(&m, &opened.id).await;
@@ -664,5 +665,110 @@ mod tests {
         wait_idle(&m, &opened.id).await;
         let rec = m.get_run(&run).unwrap();
         assert!(rec.status == "ok" || rec.status == "nothing", "{:?}", rec.message);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn collection_encrypts_secrets_and_restores_them() {
+        if !super::git_repo::is_available() {
+            return;
+        }
+        let m = manager();
+        let tasks = Arc::new(TaskManager::new());
+        let t = tempfile::tempdir().unwrap();
+        let key = t.path().join("me/.ssh/id_ed25519");
+        let env = t.path().join("me/proj/.env");
+        let rc = t.path().join("me/.bashrc");
+        write(t.path(), "me/.ssh/id_ed25519", "PRIVATE-KEY-ONE", 1_700_000_000);
+        write(t.path(), "me/proj/.env", "TOKEN=hunter2", 1_700_000_000);
+        write(t.path(), "me/.bashrc", "alias ll=ls", 1_700_000_000);
+        let repo = t.path().join("collection");
+        let mut p = profile(&key, &repo);
+        p.name = "Secrets".into();
+        p.profile_mode = "git".into();
+        p.sources = vec![key.to_string_lossy().into(), env.to_string_lossy().into(), rc.to_string_lossy().into()];
+        p.git_encrypt = Some(".ssh/id_*\n.env".into());
+        // Encrypting needs a passphrase, and a real one
+        assert!(m.save_profile(p.clone()).unwrap_err().contains("passphrase"));
+        p.git_passphrase = Some("short".into());
+        assert!(m.save_profile(p.clone()).unwrap_err().contains("8 characters"));
+        p.git_passphrase = Some("correct horse battery".into());
+        let p = m.save_profile(p).unwrap();
+
+        let run = |m: &BackupManager, id: &str| {
+            let id = id.to_string();
+            let m = m.clone();
+            let tasks = tasks.clone();
+            async move {
+                let r = m.start_backup(&id, "manual", tasks).unwrap();
+                wait_idle(&m, &id).await;
+                m.get_run(&r).unwrap()
+            }
+        };
+        let rec = run(&m, &p.id).await;
+        assert_eq!(rec.status, "ok", "{:?}", rec.message);
+        let home = dirs::home_dir().map(|h| h.to_string_lossy().to_string());
+        let in_repo = |path: &Path| repo.join(super::store::mirror_name(&path.to_string_lossy(), home.as_deref()));
+        let stored_key = fs::read(in_repo(&key)).unwrap();
+        assert!(stored_key.starts_with(super::crypt::MAGIC));
+        assert!(!String::from_utf8_lossy(&stored_key).contains("PRIVATE-KEY-ONE"));
+        assert!(fs::read(in_repo(&env)).unwrap().starts_with(super::crypt::MAGIC));
+        assert_eq!(fs::read_to_string(in_repo(&rc)).unwrap(), "alias ll=ls", "other files stay readable");
+        let kf = fs::read_to_string(repo.join("brum-encryption.toml")).unwrap();
+        assert!(kf.contains("locked_key") && !kf.contains("correct horse"));
+        // Nothing in the history shows the secrets
+        let log = std::process::Command::new("git").arg("-C").arg(&repo).args(["log", "-p", "--all", "--text"]).output().unwrap();
+        let log = String::from_utf8_lossy(&log.stdout);
+        assert!(!log.contains("PRIVATE-KEY-ONE") && !log.contains("hunter2") && !log.contains("correct horse"));
+
+        // Unchanged files: nothing new to save
+        assert_eq!(run(&m, &p.id).await.status, "nothing");
+        assert_eq!(super::git_repo::versions(&repo, 10).len(), 1);
+
+        // Preview: an encrypted key is not reported as an unencrypted secret
+        let pv = m.preview(&p).unwrap();
+        assert!(pv.sensitive.is_empty(), "{:?}", pv.sensitive);
+
+        // A changed key: a new version, still encrypted
+        write(t.path(), "me/.ssh/id_ed25519", "PRIVATE-KEY-TWO", 1_700_000_500);
+        assert_eq!(run(&m, &p.id).await.status, "ok");
+        let versions = super::git_repo::versions(&repo, 10);
+        assert_eq!(versions.len(), 2);
+
+        // The first version, restored into a separate folder: decrypted, private
+        let req: RestoreRequest = serde_json::from_value(serde_json::json!({ "point": versions[1].id })).unwrap();
+        let sep = t.path().join("restored").to_string_lossy().to_string();
+        m.restore(&p, &req, &sep, tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        let restored_key = Path::new(&sep).join(super::store::mirror_name(&key.to_string_lossy(), home.as_deref()));
+        assert_eq!(fs::read_to_string(&restored_key).unwrap(), "PRIVATE-KEY-ONE");
+        assert_eq!(std::os::unix::fs::PermissionsExt::mode(&fs::metadata(&restored_key).unwrap().permissions()) & 0o777, 0o600);
+        assert_eq!(fs::read_to_string(Path::new(&sep).join(super::store::mirror_name(&rc.to_string_lossy(), home.as_deref()))).unwrap(), "alias ll=ls");
+
+        // A new passphrase: old versions still open with it
+        let mut changed = m.get_profile(&p.id).unwrap();
+        changed.git_passphrase = Some("battery staple horse".into());
+        let changed = m.save_profile(changed).unwrap();
+        assert!(!fs::read_to_string(repo.join("brum-encryption.toml")).unwrap().contains(&kf[kf.find("salt").unwrap()..kf.find("salt").unwrap() + 40]));
+        fs::remove_dir_all(&sep).unwrap();
+        m.restore(&changed, &req, &sep, tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        assert_eq!(fs::read_to_string(&restored_key).unwrap(), "PRIVATE-KEY-ONE");
+        assert_eq!(run(&m, &p.id).await.status, "ok", "the new lock is saved as a version");
+
+        // A new machine: the passphrase is asked for and checked
+        let clone = t.path().join("new-machine");
+        super::git_repo::clone(&repo.to_string_lossy(), &clone).unwrap();
+        assert!(m.collection_from_repo(&clone.to_string_lossy(), None, None).unwrap_err().contains("Enter its passphrase"));
+        assert!(m.collection_from_repo(&clone.to_string_lossy(), None, Some("correct horse battery")).unwrap_err().contains("Wrong passphrase"));
+        let (opened, _, _) = m.collection_from_repo(&clone.to_string_lossy(), None, Some("battery staple horse")).unwrap();
+        assert_eq!(opened.git_encrypt.as_deref(), Some(".ssh/id_*\n.env"));
+        assert_eq!(opened.git_passphrase.as_deref(), Some("battery staple horse"));
+
+        // Encryption turned off: the files are stored readable again
+        let mut off = m.get_profile(&p.id).unwrap();
+        off.git_encrypt = None;
+        let off = m.save_profile(off).unwrap();
+        assert_eq!(run(&m, &off.id).await.status, "ok");
+        assert_eq!(fs::read_to_string(in_repo(&key)).unwrap(), "PRIVATE-KEY-TWO");
     }
 }

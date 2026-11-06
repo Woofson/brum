@@ -79,7 +79,7 @@ const BRUM_ACTIONS = new Set([
   'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput', 'applyPropPermPreset',
   'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
   'backupAddSource', 'backupBackFromPreview', 'backupDelete', 'backupEdit', 'backupNameTyped',
-  'backupNew', 'backupOpenCollection', 'backupOpenCollectionKind', 'backupOpenCollectionStart',
+  'backupEncryptSensitive', 'backupNew', 'backupOpenCollection', 'backupOpenCollectionKind', 'backupOpenCollectionStart',
   'backupPathTyped', 'backupRestoreBack', 'backupRestoreConfirm', 'backupRestoreFromOpened', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
   'backupPush', 'backupRefresh', 'backupRemoveSource', 'backupRestoreClear', 'backupRestoreOpen',
   'backupRestorePoint', 'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle',
@@ -36136,6 +36136,16 @@ function backupRenderEditor() {
             </div>
             <label class="bk-check"><input type="checkbox" id="bk-git-push" ${d.git_push ? 'checked' : ''}> Push after every saved version</label>
             <div class="bk-hint">Pushing logs in with the SSH keys (or saved git login) of the user Brum runs as. Inside the repository, files keep their real paths: <code>home/…</code> for your home folder, <code>root/…</code> for everything else.</div>
+            <div class="bk-field" id="bk-encrypt-field">
+              <label for="bk-git-encrypt">Encrypt these files <small>(optional; one per line)</small></label>
+              <textarea id="bk-git-encrypt" class="bk-input bk-mono" rows="3" placeholder=".ssh/id_*&#10;.env&#10;.config/app/token">${escapeHtml(d.git_encrypt || '')}</textarea>
+              <div class="bk-hint">Matching files are stored encrypted, so a pushed repository does not reveal them. A name like <code>.env</code> matches anywhere; a path like <code>.ssh/id_*</code> matches wherever it is. Brum decrypts them when you restore.</div>
+            </div>
+            <div class="bk-field">
+              <label for="bk-git-passphrase">Passphrase for the encrypted files</label>
+              <input type="password" id="bk-git-passphrase" class="bk-input" autocomplete="new-password" placeholder="${d.has_git_passphrase ? 'Saved passphrase is kept. Type to change it.' : 'At least 8 characters'}">
+              <div class="bk-hint">Kept in Brum's settings on this machine so scheduled saves can run, never in the repository. On a new machine you type it once when opening the collection. <b class="bk-warn-text">If the passphrase is lost, the encrypted files cannot be recovered by anyone.</b> Changing it later keeps every saved version readable.</div>
+            </div>
           </div>
         </div>
       </section>
@@ -36440,6 +36450,9 @@ function backupCollectDraft() {
   d.transfer = (d.profile_mode === 'two_way' || d.profile_mode === 'git') ? 'builtin' : (val('bk-transfer') || 'builtin');
   d.git_remote = d.profile_mode === 'git' ? val('bk-git-remote').trim() : (d.git_remote || '');
   d.git_push = d.profile_mode === 'git' && !!document.getElementById('bk-git-push')?.checked;
+  d.git_encrypt = d.profile_mode === 'git' ? val('bk-git-encrypt').trim() : '';
+  // Empty keeps the saved passphrase
+  d.git_passphrase = d.profile_mode === 'git' ? val('bk-git-passphrase') : '';
   // Empty keeps a saved password; only remote places use one
   d.source_password = BACKUP_REMOTE_RE.test(d.source_dir) ? val('bk-src-pw') : '';
   d.dest_password = BACKUP_REMOTE_RE.test(d.dest_dir) ? val('bk-dest-pw') : '';
@@ -36573,6 +36586,11 @@ function backupRenderPreview() {
       ${result.warnings.map(w => `<div class="bk-warn-line">${escapeHtml(w)}</div>`).join('')}
       ${result.total_warnings > result.warnings.length ? `<div class="bk-hint">...and ${formatNumber(result.total_warnings - result.warnings.length)} more</div>` : ''}
     </details>` : '';
+  const sensitive = (result.sensitive || []).length ? `
+    <div class="bk-note bk-note-warn"><i data-lucide="key-round"></i>
+      <span>${bkCount(result.sensitive.length, 'file looks', 'files look')} like a password or key and ${result.sensitive.length === 1 ? 'is' : 'are'} not encrypted: <span class="bk-mono">${escapeHtml(result.sensitive.slice(0, 3).join(', '))}${result.sensitive.length > 3 ? ', ...' : ''}</span>
+      <button class="bk-chip-btn" data-on-click="backupEncryptSensitive">Encrypt ${result.sensitive.length === 1 ? 'it' : 'them'}</button></span>
+    </div>` : '';
   const actionBtn = pv.saved && profile.id
     ? `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRunFromPreview" ${result.total_items ? '' : 'disabled'}><i data-lucide="play"></i> ${profile.profile_mode === 'two_way' ? 'Sync now' : 'Back up now'}</button>`
     : `<button class="btn btn-sm btn-accent bk-btn" data-on-click="backupSave"><i data-lucide="check"></i> Save</button>`;
@@ -36583,6 +36601,7 @@ function backupRenderPreview() {
         <span class="bk-form-title">Preview: ${escapeHtml(profile.name)}</span>
       </div>
       <div class="bk-summary">${escapeHtml(backupPreviewSentence(profile, s))}</div>
+      ${sensitive}
       ${conflicts}
       ${warnings}
       ${result.total_items ? `
@@ -36602,6 +36621,30 @@ function backupPreviewFilter(filter) {
   if (!backupUi.preview) return;
   backupUi.preview.filter = filter;
   backupRenderPreview();
+}
+
+// Adds the files that look like secrets to the collection's "encrypt" list, in its settings
+function backupEncryptSensitive() {
+  const pv = backupUi.preview;
+  if (!pv) return;
+  const list = pv.result.sensitive || [];
+  if (pv.saved && pv.profile.id) {
+    const p = backupUi.profiles.find(x => x.id === pv.profile.id) || pv.profile;
+    backupUi.draft = { ...p };
+    backupUi.nameTouched = true;
+  }
+  const d = backupUi.draft;
+  if (!d) return;
+  const have = String(d.git_encrypt || '').split('\n').map(x => x.trim()).filter(Boolean);
+  for (const rel of list) if (!have.includes(rel)) have.push(rel);
+  d.git_encrypt = have.join('\n');
+  backupRenderEditor();
+  const field = document.getElementById(d.has_git_passphrase ? 'bk-git-encrypt' : 'bk-git-passphrase');
+  if (field) {
+    field.scrollIntoView({ block: 'center' });
+    field.focus();
+  }
+  backupFormError(d.has_git_passphrase ? '' : 'Choose a passphrase for the encrypted files, then save.');
 }
 
 function backupBackFromPreview() {
@@ -36901,6 +36944,8 @@ function backupOpenCollectionRead() {
     const v = val(id);
     if (v !== undefined) o[key] = v;
   }
+  const pass = document.getElementById('bk-oc-pass');
+  if (pass) o.passphrase = pass.value;
 }
 
 function backupRenderOpenCollection() {
@@ -36935,6 +36980,10 @@ function backupRenderOpenCollection() {
         <label for="bk-oc-name">Name <small>(optional; the collection's own name is used otherwise)</small></label>
         <input type="text" id="bk-oc-name" class="bk-input" value="${escapeHtml(o.name)}">
       </div>
+      <div class="bk-field">
+        <label for="bk-oc-pass">Passphrase <small>(only if the collection has encrypted files)</small></label>
+        <input type="password" id="bk-oc-pass" class="bk-input" autocomplete="off" value="${escapeHtml(o.passphrase || '')}">
+      </div>
       <div class="bk-form-error" id="bk-form-error" style="display: none;"></div>
       <div class="bk-form-foot">
         <button class="btn btn-sm bk-btn" data-on-click="backupShowList">Cancel</button>
@@ -36949,6 +36998,7 @@ async function backupOpenCollectionStart() {
   if (!o || o.busy) return;
   backupOpenCollectionRead();
   const body = o.kind === 'url' ? { url: o.url, into: o.into || null, name: o.name || null } : { folder: o.folder, name: o.name || null };
+  body.passphrase = o.passphrase || null;
   if (o.kind === 'url' ? !o.url : !o.folder) {
     backupFormError(o.kind === 'url' ? 'Enter the address of the remote.' : 'Choose the collection folder.');
     return;

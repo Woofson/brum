@@ -49,6 +49,20 @@ impl Exclusions {
         // A path pattern matches the path itself or any folder above it
         self.paths.iter().any(|pat| (1..=parts.len()).any(|n| glob_match(pat, &parts[..n].join("/"))))
     }
+
+    /// Like `is_excluded`, but a path pattern may start at any folder: `.ssh/id_*` matches
+    /// `home/.ssh/id_ed25519`. Used for which files of a collection to encrypt.
+    pub fn matches_anywhere(&self, rel: &str) -> bool {
+        if self.is_empty() {
+            return false;
+        }
+        let lower = rel.to_lowercase();
+        let parts: Vec<&str> = lower.split('/').filter(|p| !p.is_empty()).collect();
+        if self.names.iter().any(|pat| parts.iter().any(|part| glob_match(pat, part))) {
+            return true;
+        }
+        self.paths.iter().any(|pat| (0..parts.len()).any(|start| (start + 1..=parts.len()).any(|end| glob_match(pat, &parts[start..end].join("/")))))
+    }
 }
 
 /// `*` matches any text (not across `/` in path patterns), `?` one character

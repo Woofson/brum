@@ -106,6 +106,13 @@ pub struct BackupProfile {
     /// Git collections: push after every saved version
     #[serde(default)]
     pub git_push: bool,
+    /// Git collections: files to store encrypted (patterns, one per line)
+    #[serde(default)]
+    pub git_encrypt: Option<String>,
+    /// Git collections: the passphrase that unlocks the key of the encrypted files. Kept here
+    /// (sealed), never in the repository. Accepted from the browser, never sent back.
+    #[serde(default, skip_serializing)]
+    pub git_passphrase: Option<String>,
     /// Who does the copying: "builtin" (Brum) or "rsync"
     #[serde(default = "default_transfer")]
     pub transfer: String,
@@ -198,6 +205,7 @@ pub struct ProfileView {
     /// A password is saved for the remote source / destination (the password itself is never sent)
     pub has_source_password: bool,
     pub has_dest_password: bool,
+    pub has_git_passphrase: bool,
     pub running: Option<RunningInfo>,
     pub next_run: Option<i64>,
     pub last: Option<RunRecord>,
@@ -211,6 +219,9 @@ pub struct PreviewResult {
     pub total_items: usize,
     pub warnings: Vec<String>,
     pub total_warnings: usize,
+    /// Git collections: files that look like passwords or keys and are not encrypted
+    #[serde(default)]
+    pub sensitive: Vec<String>,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -304,7 +315,7 @@ fn can_write(_path: &std::path::Path) -> bool {
     true
 }
 
-const PROFILE_COLUMNS: &str = "id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner, never_remove, log_retention_days, last_started, source_password, dest_password, transfer, dest_endpoint, sources, git_remote, git_push";
+const PROFILE_COLUMNS: &str = "id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner, never_remove, log_retention_days, last_started, source_password, dest_password, transfer, dest_endpoint, sources, git_remote, git_push, git_encrypt, git_passphrase";
 const RUN_COLUMNS: &str = "id, profile_id, profile_name, kind, trigger, started_at, finished_at, status, copied, updated, removed, versions_kept, failed, bytes, warnings, duration_ms, message";
 
 fn profile_from_row(row: &rusqlite::Row) -> rusqlite::Result<BackupProfile> {
@@ -339,6 +350,8 @@ fn profile_from_row(row: &rusqlite::Row) -> rusqlite::Result<BackupProfile> {
         sources: row.get::<_, Option<String>>(27)?.and_then(|j| serde_json::from_str(&j).ok()).unwrap_or_default(),
         git_remote: row.get(28)?,
         git_push: row.get::<_, Option<i64>>(29)?.unwrap_or(0) == 1,
+        git_encrypt: row.get(30)?,
+        git_passphrase: crate::secrets::open_opt(row.get(31)?),
     })
 }
 
@@ -419,11 +432,42 @@ fn move_password_out_of_address(path: &mut String, password: &mut Option<String>
     }
 }
 
+/// A git collection's key for its encrypted files, unlocked with the saved passphrase. With
+/// `create`, a collection with a passphrase but no key yet gets one (written into the repository).
+fn collection_cipher(p: &BackupProfile, create: bool) -> Result<Option<Arc<super::crypt::Cipher>>, String> {
+    let Some(pass) = p.git_passphrase.as_deref().filter(|x| !x.is_empty()) else { return Ok(None) };
+    let repo = std::path::Path::new(&p.dest_dir);
+    match super::crypt::KeyFile::read(repo)? {
+        Some(kf) => Ok(Some(Arc::new(kf.unlock(pass)?))),
+        None if create => {
+            let (kf, cipher) = super::crypt::KeyFile::create(pass, encrypt_list(p))?;
+            kf.write(repo)?;
+            Ok(Some(Arc::new(cipher)))
+        }
+        None => Ok(None),
+    }
+}
+
+/// The "encrypt" patterns of a collection, one per entry
+fn encrypt_list(p: &BackupProfile) -> Vec<String> {
+    p.git_encrypt.as_deref().unwrap_or("").split(['\n', ',', ';']).map(str::trim).filter(|x| !x.is_empty()).map(String::from).collect()
+}
+
+/// A collection's repository (or a saved version) seen with its encrypted files decrypted
+fn collection_view(p: &BackupProfile, store: Arc<dyn Store>, cipher: Option<Arc<super::crypt::Cipher>>, working_folder: bool) -> Arc<dyn Store> {
+    let patterns = Exclusions::parse(p.git_encrypt.as_deref().unwrap_or(""));
+    Arc::new(super::crypt::CryptStore::new(store, cipher, patterns, working_folder))
+}
+
 fn spec_for(p: &BackupProfile, sftp: &crate::config::SftpConfig) -> Result<JobSpec, String> {
     let (mode, implied_never_remove) = Mode::parse(&p.profile_mode);
+    let mut dest = store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), sftp)?;
+    if mode == Mode::Git {
+        dest = collection_view(p, dest, collection_cipher(p, false)?, true);
+    }
     Ok(JobSpec {
         source: source_store(p, sftp)?,
-        dest: store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), sftp)?,
+        dest,
         mode,
         never_remove: (p.never_remove || implied_never_remove) && mode != Mode::TwoWay,
         verify: p.verify_checksum,
@@ -626,6 +670,8 @@ impl BackupManager {
             ("sources", "TEXT"),
             ("git_remote", "TEXT"),
             ("git_push", "INTEGER DEFAULT 0"),
+            ("git_encrypt", "TEXT"),
+            ("git_passphrase", "TEXT"),
         ] {
             if !have.iter().any(|c| c == col) {
                 conn.execute(&format!("ALTER TABLE backup_profiles ADD COLUMN {col} {def}"), [])?;
@@ -763,6 +809,9 @@ impl BackupManager {
             if p.dest_endpoint.is_none() && same_path(&old.dest_dir, &p.dest_dir) {
                 p.dest_endpoint = old.dest_endpoint.clone();
             }
+            if p.git_passphrase.as_deref().unwrap_or("").is_empty() && same_path(&old.dest_dir, &p.dest_dir) {
+                p.git_passphrase = old.git_passphrase.clone();
+            }
             // A different pair of folders starts a two-way sync from scratch
             if !same_path(&old.source_dir, &p.source_dir) || !same_path(&old.dest_dir, &p.dest_dir) || old.mode() != p.mode() {
                 self.clear_state(&p.id);
@@ -773,10 +822,39 @@ impl BackupManager {
         if p.transfer == "rsync" {
             super::rsync::check(&p.dest_dir, p.dest_password.as_deref(), &p.source_dir, p.mode())?;
         }
+        // Encryption: a passphrase for encrypted files; a new one locks the same key again
+        let mut new_key_file = None;
+        p.git_encrypt = p.git_encrypt.as_deref().map(str::trim).filter(|e| !e.is_empty() && p.mode() == Mode::Git).map(String::from);
+        if p.mode() != Mode::Git {
+            p.git_passphrase = None;
+        }
+        let pass = p.git_passphrase.clone().filter(|x| !x.is_empty());
+        if p.git_encrypt.is_some() && pass.is_none() {
+            return Err("Choose a passphrase for the encrypted files".into());
+        }
+        if let Some(new) = &pass {
+            if new.chars().count() < 8 {
+                return Err("The passphrase needs at least 8 characters".into());
+            }
+            if let Some(kf) = super::crypt::KeyFile::read(std::path::Path::new(&p.dest_dir))? {
+                let old = existing.as_ref().and_then(|o| o.git_passphrase.clone()).filter(|x| !x.is_empty() && x != new);
+                match old {
+                    // Changed: the old passphrase unlocks the key, the new one locks it
+                    Some(old) => new_key_file = Some((kf.relock(&old, new)?, kf)),
+                    // Unchanged, or the first one for an existing repository: it must fit
+                    None => {
+                        kf.unlock(new)?;
+                    }
+                }
+            }
+        }
+        if let Some((kf, _)) = &new_key_file {
+            kf.write(std::path::Path::new(&p.dest_dir))?;
+        }
         let conn = self.db.lock().map_err(|e| e.to_string())?;
         conn.execute(
             &format!(
-                "INSERT INTO backup_profiles ({PROFILE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30)
+                "INSERT INTO backup_profiles ({PROFILE_COLUMNS}) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13, ?14, ?15, ?16, ?17, ?18, ?19, ?20, ?21, ?22, ?23, ?24, ?25, ?26, ?27, ?28, ?29, ?30, ?31, ?32)
                  ON CONFLICT(id) DO UPDATE SET name = excluded.name, source_dir = excluded.source_dir, dest_dir = excluded.dest_dir,
                    profile_mode = excluded.profile_mode, block_delta = excluded.block_delta, verify_checksum = excluded.verify_checksum,
                    archive_dir = excluded.archive_dir, retention_days = excluded.retention_days, schedule_type = excluded.schedule_type,
@@ -784,7 +862,7 @@ impl BackupManager {
                    webhook_url = excluded.webhook_url, enabled = excluded.enabled, exclusions = excluded.exclusions,
                    owner = excluded.owner, never_remove = excluded.never_remove, log_retention_days = excluded.log_retention_days,
                    source_password = excluded.source_password, dest_password = excluded.dest_password, transfer = excluded.transfer, dest_endpoint = excluded.dest_endpoint, sources = excluded.sources,
-                   git_remote = excluded.git_remote, git_push = excluded.git_push"
+                   git_remote = excluded.git_remote, git_push = excluded.git_push, git_encrypt = excluded.git_encrypt, git_passphrase = excluded.git_passphrase"
             ),
             params![
                 p.id,
@@ -817,9 +895,17 @@ impl BackupManager {
                 serde_json::to_string(&p.sources).unwrap_or_else(|_| "[]".into()),
                 p.git_remote,
                 p.git_push as i64,
+                p.git_encrypt,
+                crate::secrets::seal_opt(p.git_passphrase.as_deref()),
             ],
         )
-        .map_err(|e| format!("Could not save the backup: {e}"))?;
+        .map_err(|e| {
+            // Not saved: the key stays locked with the old passphrase
+            if let Some((_, old_kf)) = &new_key_file {
+                let _ = old_kf.write(std::path::Path::new(&p.dest_dir));
+            }
+            format!("Could not save the backup: {e}")
+        })?;
         Ok(p)
     }
 
@@ -839,7 +925,7 @@ impl BackupManager {
     /// A git collection made from an existing repository (copied from another machine, or cloned),
     /// with its tracked items remapped to this machine: `home/...` into the current home, `root/...`
     /// to the same full path. Not saved yet; the caller checks access and saves it.
-    pub fn collection_from_repo(&self, repo: &str, name: Option<&str>) -> Result<(BackupProfile, Vec<OpenedItem>, Vec<String>), String> {
+    pub fn collection_from_repo(&self, repo: &str, name: Option<&str>, passphrase: Option<&str>) -> Result<(BackupProfile, Vec<OpenedItem>, Vec<String>), String> {
         let repo_path = std::path::Path::new(repo);
         if !repo_path.join(".git").exists() {
             return Err("This folder is not a git repository".into());
@@ -847,6 +933,13 @@ impl BackupManager {
         let (manifest_name, entries) = super::git_repo::read_manifest(repo_path)?;
         if let Some(other) = self.list_profiles().into_iter().find(|p| same_path(&p.dest_dir, repo)) {
             return Err(format!("This collection is already open in Brum as \"{}\"", other.name));
+        }
+        // Encrypted files: the passphrase must unlock their key
+        let passphrase = passphrase.map(str::trim).filter(|x| !x.is_empty());
+        let key_file = super::crypt::KeyFile::read(repo_path)?;
+        if let Some(kf) = &key_file {
+            let pass = passphrase.ok_or("This collection has encrypted files. Enter its passphrase.")?;
+            kf.unlock(pass)?;
         }
         let home = dirs::home_dir().map(|h| h.to_string_lossy().to_string());
         let mut items = Vec::new();
@@ -877,6 +970,8 @@ impl BackupManager {
             "profile_mode": "git",
             "schedule_type": "manual",
             "git_remote": super::git_repo::remote_url(repo_path),
+            "git_encrypt": key_file.as_ref().map(|kf| kf.patterns.join("\n")).filter(|x| !x.is_empty()),
+            "git_passphrase": key_file.as_ref().and(passphrase),
         }))
         .map_err(|e| e.to_string())?;
         Ok((profile, items, left_out))
@@ -907,7 +1002,8 @@ impl BackupManager {
         let next_run = if p.enabled { next_due(&p) } else { None };
         let has_source_password = p.source_password.as_deref().is_some_and(|x| !x.is_empty());
         let has_dest_password = p.dest_password.as_deref().is_some_and(|x| !x.is_empty());
-        ProfileView { profile: p, has_source_password, has_dest_password, running, next_run, last, last_success_at }
+        let has_git_passphrase = p.git_passphrase.as_deref().is_some_and(|x| !x.is_empty());
+        ProfileView { profile: p, has_source_password, has_dest_password, has_git_passphrase, running, next_run, last, last_success_at }
     }
 
     // ---------------- Running ----------------
@@ -983,14 +1079,22 @@ impl BackupManager {
         Ok(run_id)
     }
 
-    fn run_backup(&self, p: &BackupProfile, spec: JobSpec, run_id: &str, progress: Arc<Mutex<Progress>>, cancel: Arc<AtomicBool>, tasks: Arc<TaskManager>) -> RunRecord {
+    fn run_backup(&self, p: &BackupProfile, mut spec: JobSpec, run_id: &str, progress: Arc<Mutex<Progress>>, cancel: Arc<AtomicBool>, tasks: Arc<TaskManager>) -> RunRecord {
         let clock = Instant::now();
         let mut rec = self.get_run(run_id).unwrap_or_else(|| blank_run(run_id, p, "backup", "manual"));
         let state = (spec.mode == Mode::TwoWay).then(|| self.load_state(&p.id));
         let mut log = LogWriter::new(self.db.clone(), run_id);
 
         if spec.mode == Mode::Git {
-            if let Err(e) = super::git_repo::ensure_repo(std::path::Path::new(&p.dest_dir)) {
+            let ready = super::git_repo::ensure_repo(std::path::Path::new(&p.dest_dir)).and_then(|_| {
+                // The key for encrypted files, made on the first run that needs one
+                if p.git_passphrase.as_deref().is_some_and(|x| !x.is_empty()) {
+                    let raw = store_for(&p.dest_dir, None, None, &self.sftp)?;
+                    spec.dest = collection_view(p, raw, collection_cipher(p, true)?, true);
+                }
+                Ok(())
+            });
+            if let Err(e) = ready {
                 rec.status = "failed".into();
                 rec.message = Some(e);
                 return self.finish_run(rec, clock, &mut log, p);
@@ -1139,6 +1243,13 @@ impl BackupManager {
         let items: Vec<(String, String)> = p.all_sources().iter().map(|s| (s.clone(), super::store::mirror_name(s, home.as_deref()))).collect();
         let result = (|| -> Result<Option<String>, String> {
             super::git_repo::write_manifest(repo, &p.name, &items)?;
+            if let Some(mut kf) = super::crypt::KeyFile::read(repo)? {
+                let list = encrypt_list(p);
+                if kf.patterns != list {
+                    kf.patterns = list;
+                    kf.write(repo)?;
+                }
+            }
             super::git_repo::set_remote(repo, p.git_remote.as_deref())?;
             let what = rec.message.clone().unwrap_or_default();
             super::git_repo::commit(repo, &format!("{} (saved by Brum)", if rec.status == "nothing" { "Collection settings".to_string() } else { what }), p.owner.as_deref().unwrap_or("brum"))
@@ -1260,13 +1371,18 @@ impl BackupManager {
             None
         };
         let mut plan = engine::plan(&spec, state.as_ref(), &AtomicBool::new(false))?;
+        let mut sensitive = Vec::new();
         if spec.mode == Mode::Git {
             // Things to know before they go into a repository that may be pushed
             let pushed = p.git_remote.as_deref().is_some_and(|r| !r.trim().is_empty());
+            let encrypt = Exclusions::parse(p.git_encrypt.as_deref().unwrap_or(""));
             let mut notes = Vec::new();
             for (rel, m) in &plan.source_files {
-                if pushed && super::git_repo::looks_sensitive(rel) {
-                    notes.push(format!("Looks like a password or key, and this collection is pushed to a remote: {rel}"));
+                if super::git_repo::looks_sensitive(rel) && !super::crypt::wants(&encrypt, rel) {
+                    sensitive.push(rel.clone());
+                    if pushed {
+                        notes.push(format!("Looks like a password or key, and this collection is pushed to a remote: {rel}"));
+                    }
                 }
                 if m.size > 50 * 1024 * 1024 {
                     notes.push(format!("Very large file ({}), every changed version is kept in the repository: {rel}", format_bytes(m.size)));
@@ -1283,6 +1399,7 @@ impl BackupManager {
             items: plan.items.into_iter().take(MAX_ITEMS).collect(),
             total_warnings: plan.warnings.len(),
             warnings: plan.warnings.into_iter().take(MAX_WARNINGS).collect(),
+            sensitive: sensitive.into_iter().take(MAX_WARNINGS).collect(),
         })
     }
 
@@ -1455,8 +1572,14 @@ impl BackupManager {
 
     /// Where a restore point's files are read from: the backup itself, or a saved git version
     fn point_store(&self, p: &BackupProfile, point: &str) -> Result<Arc<dyn Store>, String> {
-        if p.mode() == Mode::Git && point != "latest" && !point.is_empty() {
-            return Ok(Arc::new(super::git_repo::GitVersionStore::new(std::path::Path::new(&p.dest_dir), point)?));
+        if p.mode() == Mode::Git {
+            let cipher = collection_cipher(p, false)?;
+            if point != "latest" && !point.is_empty() {
+                let version = Arc::new(super::git_repo::GitVersionStore::new(std::path::Path::new(&p.dest_dir), point)?);
+                return Ok(collection_view(p, version, cipher, false));
+            }
+            let raw = store_for(&p.dest_dir, None, None, &self.sftp)?;
+            return Ok(collection_view(p, raw, cipher, true));
         }
         store_for(&p.dest_dir, p.dest_password.as_deref(), p.dest_endpoint.as_deref(), &self.sftp)
     }
@@ -1467,7 +1590,7 @@ impl BackupManager {
         rel.ends_with(PART_SUFFIX)
             || rel == versions
             || rel.starts_with(&format!("{versions}/"))
-            || (p.mode() == Mode::Git && (rel == ".git" || rel.starts_with(".git/") || rel == super::git_repo::MANIFEST))
+            || (p.mode() == Mode::Git && super::git_repo::is_own_file(rel))
     }
 
     /// One folder level inside a restore point
@@ -1828,6 +1951,14 @@ fn restore_one(from: &dyn Store, from_rel: &str, to: &dyn Store, to_rel: &str, m
         let _ = to.remove_file(&part);
         e
     })?;
+    // Decrypted secrets are readable by their owner only
+    #[cfg(unix)]
+    if from.is_encrypted(from_rel) {
+        if let Some(lp) = to.local_path(to_rel) {
+            use std::os::unix::fs::PermissionsExt;
+            let _ = std::fs::set_permissions(lp, std::fs::Permissions::from_mode(0o600));
+        }
+    }
     Ok(bytes)
 }
 

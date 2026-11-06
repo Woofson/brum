@@ -52,6 +52,11 @@ pub fn write_manifest(repo: &Path, name: &str, items: &[(String, String)]) -> Re
     std::fs::write(repo.join(MANIFEST), text).map_err(|e| e.to_string())
 }
 
+/// The repository's own files, never part of what is tracked
+pub fn is_own_file(rel: &str) -> bool {
+    rel == ".git" || rel.starts_with(".git/") || rel == MANIFEST || rel == super::crypt::KEY_FILE
+}
+
 /// What a collection's manifest says: its name and (original path, path in the repository) per item
 pub fn read_manifest(repo: &Path) -> Result<(String, Vec<(String, String)>), String> {
     #[derive(serde::Deserialize)]
