@@ -5,6 +5,23 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-11-06
+
+### Features
+- **Proton Drive (Closes #169)**: Proton Drive works as a place in Brum through Proton's official command-line tool. Settings installs it with one click (checked download, also on Alpine/Docker) and signs in through a link or QR code, per Brum user. Browse, open, upload, download, rename and delete in the file panels; reach it from the Places (paw) menu; use it as a Backup & Sync destination (Copy, or Copy and keep old versions, with Proton keeping the versions); and make public share links, with optional password and expiry, from the right-click menu.
+- **Collections on a New Machine (Closes #166)**: Open a collection made on another machine from a git remote or a folder. Files that were in a home folder go to your home folder, even with a different username; everything else keeps its full path. Restoring into the original places first shows every file and where it lands; files Brum may not write are skipped and listed in the log.
+- **Encrypted Files in Collections (Closes #167)**: Mark files or patterns (for example `.ssh/id_*`, `.env`) to be stored encrypted, so a pushed repository does not reveal them. A passphrase unlocks them, kept in Brum's settings and never in the repository; changing it keeps every saved version readable. Restores decrypt them and make them private to their owner, the preview offers to encrypt files that look like keys, and opening a collection asks for its passphrase. A lost passphrase cannot be recovered.
+- **Workbench (Closes #170)**: A built-in Chewtoy with workshop conversions and calculators: units, inch fractions, wire gauges, Ohm's law, resistor colour codes, LED resistors, voltage dividers, cable voltage drop, battery runtime, tap drills and clearance holes, drill sizes, material weight, areas and volumes, spindle speeds, gears, levers and slopes. Type "m6", "12 awg" or "1/4-20" to jump straight to the answer; pin favourites; click a result to copy it.
+- **Subnet Calculator (Closes #171)**: A built-in Chewtoy for IPv4 and IPv6 subnets: network, broadcast, host range, masks and splitting a network into smaller ones.
+- **Loading Message in Viewers**: Pictures, documents and media that take a while to arrive (Proton Drive, SFTP, Fleet machines) show a loading message instead of a broken file.
+
+### Fixes
+- **DeltaCopy to Remote Places**: Copying with DeltaCopy to a remote place uses the normal copy instead of making a local folder with the place's name and reporting success.
+- **Collections**: A tracked single file that does not exist yet (as on a new machine) can be restored, and a collection whose remote still points at an empty default branch opens correctly.
+
+### Changes
+- **About Page**: One About page in Settings, rewritten around Brum as a file manager for all your places.
+
 ## [1.18.0] - 2026-11-05
 
 ### Security
