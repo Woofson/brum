@@ -949,6 +949,12 @@ pub enum VirtualDiskStream {
     Partclone(PartcloneReader),
 }
 
+/// Errors the person has to see (not enough space to unpack, unpack cancelled), instead of
+/// Brum quietly trying another way to read the image
+pub fn must_report(err: &std::io::Error) -> bool {
+    matches!(err.kind(), std::io::ErrorKind::StorageFull | std::io::ErrorKind::Interrupted)
+}
+
 impl VirtualDiskStream {
     pub fn open(path_str: &str) -> Result<Self, std::io::Error> {
         let file = File::open(path_str)?;
@@ -983,8 +989,10 @@ impl VirtualDiskStream {
 
         // 4. Try Partclone
         if lower.ends_with(".img") || lower.ends_with(".partclone") {
-            if let Ok(partclone) = PartcloneReader::open_path(Path::new(path_str)) {
-                return Ok(Self::Partclone(partclone));
+            match PartcloneReader::open_path(Path::new(path_str)) {
+                Ok(partclone) => return Ok(Self::Partclone(partclone)),
+                Err(e) if must_report(&e) => return Err(e),
+                Err(_) => {}
             }
         }
 
@@ -998,8 +1006,10 @@ impl VirtualDiskStream {
         if let Ok(vhd) = VhdReader::open(File::open(path_str)?) {
             return Ok(Self::Vhd(vhd));
         }
-        if let Ok(partclone) = PartcloneReader::open_path(Path::new(path_str)) {
-            return Ok(Self::Partclone(partclone));
+        match PartcloneReader::open_path(Path::new(path_str)) {
+            Ok(partclone) => return Ok(Self::Partclone(partclone)),
+            Err(e) if must_report(&e) => return Err(e),
+            Err(_) => {}
         }
 
         Ok(Self::Raw(StreamSlice::new(file, 0, file_len)))
@@ -1719,6 +1729,7 @@ impl DiskImageHandler {
             DiskFsType::Ntfs => {
                 match Self::list_ntfs_partition(archive_path_str, effective_stream_path, target_part, start_offset, inner_fs_path) {
                     Ok(listing) => Ok(listing),
+                    Err(err) if must_report(&err) => Err(err),
                     Err(err) => {
                         tracing::debug!("NTFS listing failed for {}: {}, fallback to metadata", effective_stream_path, err);
                         Self::fallback_partition_metadata_listing(archive_path_str, target_part)
@@ -1727,9 +1738,12 @@ impl DiskImageHandler {
             }
             DiskFsType::Partclone => {
                 // Try NTFS, then FAT, then Ext4, then fallback to metadata
-                if let Ok(listing) = Self::list_ntfs_partition(archive_path_str, effective_stream_path, target_part, start_offset, inner_fs_path) {
-                    Ok(listing)
-                } else if let Ok(listing) = Self::list_fat_partition(archive_path_str, effective_stream_path, target_part, start_offset, inner_fs_path) {
+                match Self::list_ntfs_partition(archive_path_str, effective_stream_path, target_part, start_offset, inner_fs_path) {
+                    Ok(listing) => return Ok(listing),
+                    Err(err) if must_report(&err) => return Err(err),
+                    Err(_) => {}
+                }
+                if let Ok(listing) = Self::list_fat_partition(archive_path_str, effective_stream_path, target_part, start_offset, inner_fs_path) {
                     Ok(listing)
                 } else {
                     Self::fallback_partition_metadata_listing(archive_path_str, target_part)

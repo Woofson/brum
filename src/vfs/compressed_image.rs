@@ -162,6 +162,104 @@ fn touch(path: &Path) {
     }
 }
 
+/// Every unpack the tests started, so they can count them
+#[cfg(test)]
+static UNPACKED: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
+
+/// The lock for one cache entry, shared by everyone unpacking that image
+fn unpack_gate(raw_path: &Path) -> std::sync::Arc<std::sync::Mutex<()>> {
+    use std::collections::HashMap;
+    use std::sync::{Arc, Mutex, OnceLock};
+    static GATES: OnceLock<Mutex<HashMap<PathBuf, Arc<Mutex<()>>>>> = OnceLock::new();
+    let mut gates = GATES.get_or_init(Default::default).lock().unwrap_or_else(|e| e.into_inner());
+    // Forget gates nobody holds any more, so the list doesn't grow
+    gates.retain(|_, g| Arc::strong_count(g) > 1);
+    gates.entry(raw_path.to_path_buf()).or_default().clone()
+}
+
+/// Room kept free on the cache disk after unpacking
+const SPACE_MARGIN: u64 = 1024 * 1024 * 1024;
+
+/// How big the unpacked copy will be, as far as the start of it tells. Partclone/FOG backups
+/// can be measured from their block map; for anything else the compressed size is the least it needs.
+fn expected_size(file: &mut File, compression: Compression, file_len: u64) -> u64 {
+    let size = (|| -> std::io::Result<Option<u64>> {
+        file.seek(SeekFrom::Start(0))?;
+        let mut decoder: Box<dyn Read + '_> = match compression {
+            Compression::Zstd => Box::new(zstd::stream::read::Decoder::new(&mut *file)?),
+            Compression::Gzip => Box::new(flate2::read::MultiGzDecoder::new(&mut *file)),
+            Compression::Xz => Box::new(liblzma::read::XzDecoder::new_multi_decoder(&mut *file)),
+            Compression::Bzip2 => Box::new(bzip2::read::MultiBzDecoder::new(&mut *file)),
+        };
+        partclone_size(&mut decoder)
+    })();
+    let _ = file.seek(SeekFrom::Start(0));
+    match size {
+        Ok(Some(size)) => size.max(file_len),
+        _ => file_len,
+    }
+}
+
+/// Largest block map read to measure a partclone image (enough for a 2 TB volume in 4 KB blocks)
+const MAX_BITMAP: u64 = 64 * 1024 * 1024;
+
+/// The size of an unpacked partclone image, from its header and block map. `None` if it isn't one.
+fn partclone_size(r: &mut dyn Read) -> std::io::Result<Option<u64>> {
+    let mut head = [0u8; 0x5c];
+    if r.read_exact(&mut head).is_err() {
+        return Ok(None);
+    }
+    if !head.starts_with(b"partclone-image") && !head.starts_with(b"PARTCLONE") {
+        return Ok(None);
+    }
+    let u64_at = |at: usize| u64::from_le_bytes(head[at..at + 8].try_into().unwrap());
+    let u32_at = |at: usize| u32::from_le_bytes(head[at..at + 4].try_into().unwrap()) as u64;
+    if !(head[16..18].starts_with(b"0.") || head[16..18].starts_with(b"1.")) {
+        // Older header (partclone 0.2): used blocks, each followed by a 4-byte checksum
+        return Ok(u64_at(0x30).checked_mul(u32_at(0x38) + 4));
+    }
+    // Newer header (partclone 0.3 and later). Its "used blocks" field is often 0 in FOG images,
+    // so the used blocks are counted in the block map, one bit per block.
+    let (total, block, options) = (u64_at(0x3c), u32_at(0x54), u32_at(0x58));
+    let map_len = total.div_ceil(8);
+    if map_len > MAX_BITMAP || options > 4096 {
+        return Ok(None);
+    }
+    let mut skip = vec![0u8; options as usize]; // options and the header's checksum
+    r.read_exact(&mut skip)?;
+    let mut map = vec![0u8; map_len as usize];
+    r.read_exact(&mut map)?;
+    let used: u64 = map.iter().map(|b| b.count_ones() as u64).sum();
+    // header + map + the map's checksum + the data
+    Ok(used.checked_mul(block).map(|data| 0x5c + options + map_len + 4 + data))
+}
+
+/// Refuses to start an unpack that would fill the disk the cache is on
+fn check_space(file: &mut File, compression: Compression, file_len: u64, dir: &Path) -> std::io::Result<()> {
+    let _ = std::fs::create_dir_all(dir);
+    let Some(free) = free_space(dir) else { return Ok(()) };
+    let needed = expected_size(file, compression, file_len);
+    if needed.saturating_add(SPACE_MARGIN) > free {
+        let size = crate::tools::disk_usage::format_size;
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::StorageFull,
+            format!(
+                "Not enough free space to open this image: it unpacks to about {}, and the disk with Brum's cache ({}) has {} free. Free up space there, or clear unpacked images in Settings.",
+                size(needed), dir.display(), size(free)
+            ),
+        ));
+    }
+    Ok(())
+}
+
+fn free_space(dir: &Path) -> Option<u64> {
+    let path = dir.to_str()?;
+    #[cfg(unix)]
+    { crate::tools::disk_usage::query_statvfs(path).map(|(_, _, available, _)| available) }
+    #[cfg(windows)]
+    { crate::tools::disk_usage::query_windows_disk(path).map(|(_, _, available)| available) }
+}
+
 /// Unpacks a compressed file into the cache (once) and returns the unpacked copy's path.
 /// `source_path` names the cache entry and the Tasks entry; without it a one-off name is used.
 pub fn unpack_to_cache(mut file: File, source_path: Option<&Path>, compression: Compression) -> std::io::Result<PathBuf> {
@@ -188,6 +286,17 @@ pub fn unpack_to_cache(mut file: File, source_path: Option<&Path>, compression: 
         return Ok(raw_path);
     }
 
+    // One unpack per image at a time: a second request waits for the first and then uses its copy
+    // (two unpacks writing the same file at once would spoil it)
+    let gate = source_path.map(|_| unpack_gate(&raw_path));
+    let _held = gate.as_ref().map(|g| g.lock().unwrap_or_else(|e| e.into_inner()));
+    if raw_path.metadata().map(|m| m.len() > 0).unwrap_or(false) {
+        touch(&raw_path);
+        return Ok(raw_path);
+    }
+
+    check_space(&mut file, compression, file_len, raw_path.parent().unwrap_or(Path::new(".")))?;
+
     let task_mgr = crate::tools::tasks::get_global_task_manager();
     let display_name = source_path
         .and_then(|p| p.file_name())
@@ -198,6 +307,9 @@ pub fn unpack_to_cache(mut file: File, source_path: Option<&Path>, compression: 
     let task_id = task_mgr.as_ref().map(|tm| {
         tm.sync_create_task(&format!("Decompressing {}", display_name), "decompress", &source_label, &raw_path.to_string_lossy(), file_len)
     });
+
+    #[cfg(test)]
+    UNPACKED.lock().unwrap().push(raw_path.clone());
 
     let result = (|| -> std::io::Result<()> {
         let mut out_file = std::fs::OpenOptions::new().create(true).write(true).truncate(true).open(&partial_path)?;
@@ -376,6 +488,79 @@ pub fn clear_cache() -> std::io::Result<u64> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A partclone 0.3 header saying `used` blocks of `block` bytes
+    /// with a block map of `total` blocks, of which the first `used` are in use
+    fn partclone_head(total: u64, used: u64, block: u32) -> Vec<u8> {
+        let mut h = vec![0u8; 0x6e];
+        h[..15].copy_from_slice(b"partclone-image");
+        h[16..22].copy_from_slice(b"0.3.33");
+        h[0x3c..0x44].copy_from_slice(&total.to_le_bytes());
+        // the "used blocks" field stays 0, as in real FOG images
+        h[0x54..0x58].copy_from_slice(&block.to_le_bytes());
+        h[0x58..0x5c].copy_from_slice(&18u32.to_le_bytes());
+        let mut map = vec![0u8; total.div_ceil(8) as usize];
+        for i in 0..used as usize { map[i / 8] |= 1 << (i % 8); }
+        h.extend(map);
+        h.extend([0u8; 4]);
+        h
+    }
+
+    #[test]
+    fn size_of_a_compressed_partclone_backup_is_counted_from_its_block_map() {
+        let mut head = partclone_head(1_000_000, 300_001, 4096);
+        head.extend(vec![0u8; 4096]);
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("d1p3.img");
+        std::fs::write(&path, zstd::bulk::compress(&head, 3).unwrap()).unwrap();
+        let mut f = File::open(&path).unwrap();
+        let len = f.metadata().unwrap().len();
+        assert_eq!(expected_size(&mut f, Compression::Zstd, len), 0x6e + 125_000 + 4 + 300_001 * 4096);
+        // Anything else needs at least its compressed size
+        std::fs::write(&path, zstd::bulk::compress(b"plain data", 3).unwrap()).unwrap();
+        let mut f = File::open(&path).unwrap();
+        let len = f.metadata().unwrap().len();
+        assert_eq!(expected_size(&mut f, Compression::Zstd, len), len);
+    }
+
+    #[test]
+    fn refuses_to_unpack_what_would_fill_the_disk() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("huge.img");
+        // 10 million blocks of 1 MB (10 TB): far more than any test disk holds
+        std::fs::write(&path, zstd::bulk::compress(&partclone_head(10_000_000, 10_000_000, 1 << 20), 3).unwrap()).unwrap();
+        let mut f = File::open(&path).unwrap();
+        let len = f.metadata().unwrap().len();
+        let err = check_space(&mut f, Compression::Zstd, len, dir.path()).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::StorageFull);
+        assert!(err.to_string().contains("Not enough free space"));
+        // A small image is fine
+        std::fs::write(&path, zstd::bulk::compress(&partclone_head(10, 10, 4096), 3).unwrap()).unwrap();
+        let mut f = File::open(&path).unwrap();
+        let len = f.metadata().unwrap().len();
+        assert!(check_space(&mut f, Compression::Zstd, len, dir.path()).is_ok());
+    }
+
+    #[test]
+    fn opening_the_same_image_twice_at_once_unpacks_it_once() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("disk.img.zst");
+        let data: Vec<u8> = (0..64 * 1024 * 1024u32).map(|i| (i % 251) as u8).collect();
+        std::fs::write(&path, zstd::bulk::compress(&data, 1).unwrap()).unwrap();
+        let start = std::sync::Arc::new(std::sync::Barrier::new(4));
+        let threads: Vec<_> = (0..4).map(|_| {
+            let (p, start) = (path.clone(), start.clone());
+            std::thread::spawn(move || {
+                start.wait();
+                unpack_to_cache(File::open(&p).unwrap(), Some(&p), Compression::Zstd).unwrap()
+            })
+        }).collect();
+        let raws: Vec<PathBuf> = threads.into_iter().map(|t| t.join().unwrap()).collect();
+        assert!(raws.iter().all(|r| r == &raws[0]));
+        assert_eq!(UNPACKED.lock().unwrap().iter().filter(|r| *r == &raws[0]).count(), 1, "unpacked more than once");
+        assert!(std::fs::read(&raws[0]).unwrap() == data);
+        let _ = std::fs::remove_file(&raws[0]);
+    }
 
     #[test]
     fn names_that_may_hold_compressed_images() {

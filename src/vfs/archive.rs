@@ -241,6 +241,7 @@ impl ArchiveHandler {
         } else if super::disk_image::DiskImageHandler::is_supported_image(archive_path_str) || path.is_dir() {
             match super::disk_image::DiskImageHandler::list_image_contents(archive_path_str, clean_subpath) {
                 Ok(listing) => return Ok(listing),
+                Err(err) if super::disk_image::must_report(&err) => return Err(err.into()),
                 Err(err) => {
                     tracing::debug!("DiskImageHandler fallback to ISO reader for {}: {}", archive_path_str, err);
                     return Self::list_iso_contents(archive_path_str, clean_subpath);
@@ -649,6 +650,7 @@ impl ArchiveHandler {
             let limit_opt = if max_bytes > 0 { Some(max_bytes) } else { None };
             match super::disk_image::DiskImageHandler::read_image_entry(archive_path_str, clean_inner, limit_opt) {
                 Ok(resp) => return Ok(resp),
+                Err(err) if super::disk_image::must_report(&err) => return Err(err.into()),
                 Err(err) => {
                     tracing::debug!("DiskImageHandler fallback to ISO reader for {}: {}", clean_inner, err);
                     return Self::read_iso_entry(archive_path_str, clean_inner, max_bytes);
@@ -1310,6 +1312,7 @@ impl ArchiveHandler {
         } else if super::disk_image::DiskImageHandler::is_supported_image(archive_path_str) || path.is_dir() {
             match super::disk_image::DiskImageHandler::extract_image(archive_path_str, target_dir_str) {
                 Ok(()) => return Ok(()),
+                Err(err) if super::disk_image::must_report(&err) => return Err(err.into()),
                 Err(err) => {
                     tracing::debug!("DiskImageHandler fallback to UDF/ISO extractor for {}: {}", archive_path_str, err);
                 }
