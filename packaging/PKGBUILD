@@ -11,7 +11,7 @@ optdepends=('proton-drive-cli-bin: Proton Drive (Brum can also install it in Set
 makedepends=('cargo' 'rust' 'pkgconf')
 options=('!lto')
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('23c909522d973da89755046dc78faf5fc8ae3139de6312c252ff5a92598628ce')
+sha256sums=('796c5526f20290aa49be21c623aafcfea5947835b35ecbb9d6adb43a518e589f')
 
 prepare() {
     cd "$pkgname-$pkgver"
