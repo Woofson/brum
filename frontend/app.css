@@ -17537,6 +17537,14 @@ textarea.bk-input {
   unicode-bidi: isolate;
 }
 
+.bk-row-path > .bk-path-tail {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .bk-remote-examples code {
   white-space: nowrap;
 }

@@ -204,6 +204,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/tools/paranoid/dry-run", post(handle_paranoid_dry_run))
         .route("/api/tools/sync/preview", post(handle_backup_preview))
         .route("/api/tools/sync/profiles", get(handle_list_backup_profiles).post(handle_save_backup_profile))
+        .route("/api/tools/sync/collections/open", post(handle_open_collection))
         .route("/api/tools/sync/profiles/:id", delete(handle_delete_backup_profile))
         .route("/api/tools/sync/profiles/:id/run", post(handle_run_backup_profile))
         .route("/api/tools/sync/profiles/:id/stop", post(handle_stop_backup_profile))

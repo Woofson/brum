@@ -635,6 +635,24 @@ pub fn mirror_name(path: &str, home: Option<&str>) -> String {
     join_rel("root", p.trim_start_matches('/'))
 }
 
+/// The real path on this machine for a path in a git collection, the reverse of `mirror_name`:
+/// `home/...` lands in the current home (whatever the username was), `root/...` at the same full
+/// path. `None` for anything else, or a path that would climb out with `..`.
+pub fn unmirror(name: &str, home: Option<&str>) -> Option<String> {
+    let name = name.trim_matches('/');
+    if name.split('/').any(|part| part.is_empty() || part == "." || part == ".." || part.contains('\\')) {
+        return None;
+    }
+    if name == "home" || name.starts_with("home/") {
+        let h = home.map(|h| h.trim_end_matches('/')).filter(|h| !h.is_empty())?;
+        return Some(match name.strip_prefix("home/") {
+            Some(rest) => format!("{h}/{rest}"),
+            None => h.to_string(),
+        });
+    }
+    name.strip_prefix("root/").map(|rest| format!("/{rest}"))
+}
+
 /// Tracked files and folders shown at their mirrored paths (see `mirror_name`), for git collections
 pub struct MirrorStore {
     /// (mirrored path, real path, is a single file)
@@ -670,8 +688,9 @@ impl MirrorStore {
                     return Ok(p);
                 }
             }
-            // A temporary copy beside a tracked single file
-            if *is_file {
+            // A temporary copy beside a tracked single file (or one that does not exist yet, as on
+            // a new machine before restoring, when it cannot be told from a folder)
+            if *is_file || !real.exists() {
                 if let (Some((dir, name)), Some(parent)) = (rel.rsplit_once('/'), real.parent()) {
                     let (mdir, _) = mirror.rsplit_once('/').unwrap_or(("", mirror.as_str()));
                     if dir == mdir && name.ends_with(PART_SUFFIX) {

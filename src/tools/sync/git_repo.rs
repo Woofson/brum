@@ -52,6 +52,54 @@ pub fn write_manifest(repo: &Path, name: &str, items: &[(String, String)]) -> Re
     std::fs::write(repo.join(MANIFEST), text).map_err(|e| e.to_string())
 }
 
+/// What a collection's manifest says: its name and (original path, path in the repository) per item
+pub fn read_manifest(repo: &Path) -> Result<(String, Vec<(String, String)>), String> {
+    #[derive(serde::Deserialize)]
+    struct Item {
+        #[serde(default)]
+        path: String,
+        in_repository: String,
+    }
+    #[derive(serde::Deserialize)]
+    struct Manifest {
+        #[serde(default)]
+        name: String,
+        #[serde(default)]
+        item: Vec<Item>,
+    }
+    let text = std::fs::read_to_string(repo.join(MANIFEST)).map_err(|_| format!("This is not a Brum collection: {MANIFEST} is missing"))?;
+    let m: Manifest = toml::from_str(&text).map_err(|e| format!("{MANIFEST} could not be read: {e}"))?;
+    if m.item.is_empty() {
+        return Err(format!("{MANIFEST} lists no files or folders"));
+    }
+    Ok((m.name, m.item.into_iter().map(|i| (i.path, i.in_repository)).collect()))
+}
+
+/// The address the repository was cloned from or pushes to, if any
+pub fn remote_url(repo: &Path) -> Option<String> {
+    git(repo, &["remote", "get-url", "origin"]).ok().map(|u| u.trim().to_string()).filter(|u| !u.is_empty())
+}
+
+/// Downloads a collection repository into `into` (which must not exist yet or be empty)
+pub fn clone(url: &str, into: &Path) -> Result<(), String> {
+    if url.starts_with('-') {
+        return Err("This remote address is not allowed".into());
+    }
+    let out = Command::new("git")
+        .args(["-c", "protocol.ext.allow=never", "clone", "--quiet", "--", url])
+        .arg(into)
+        .env("GIT_TERMINAL_PROMPT", "0")
+        .env("GIT_SSH_COMMAND", "ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new")
+        .stdin(Stdio::null())
+        .output()
+        .map_err(|e| format!("git is not available: {e}"))?;
+    if out.status.success() {
+        return Ok(());
+    }
+    let err = String::from_utf8_lossy(&out.stderr);
+    Err(err.lines().map(str::trim).filter(|l| !l.is_empty()).last().unwrap_or("git clone failed").to_string())
+}
+
 fn toml_string(s: &str) -> String {
     format!("\"{}\"", s.replace('\\', "\\\\").replace('"', "\\\""))
 }

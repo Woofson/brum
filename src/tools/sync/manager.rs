@@ -254,6 +254,54 @@ pub struct RestorePreview {
     pub target_path: String,
     pub needs_confirmation: bool,
     pub run_id: Option<String>,
+    /// Where each file lands (the first `PREVIEW_ITEMS`)
+    pub items: Vec<RestoreItem>,
+    /// Files Brum may not write; they are skipped and listed in the log
+    pub skipped: Vec<RestoreItem>,
+}
+
+/// Files listed one by one in a restore preview
+const PREVIEW_ITEMS: usize = 500;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RestoreItem {
+    /// Path inside the backup
+    pub path: String,
+    /// Where it is written
+    pub to: String,
+    /// An existing file there is replaced
+    #[serde(default)]
+    pub replaces: bool,
+}
+
+/// One tracked item of a collection opened on this machine
+#[derive(Debug, Clone, Serialize)]
+pub struct OpenedItem {
+    /// Where it was on the machine that saved it
+    pub original: String,
+    /// Where it goes on this machine
+    pub path: String,
+    pub in_repository: String,
+}
+
+/// Whether Brum may create or replace `path`: it writes a temporary file beside it and renames it,
+/// so the nearest folder that exists on the way must be writable
+#[cfg(unix)]
+fn can_write(path: &std::path::Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let mut dir = path.parent();
+    while let Some(d) = dir {
+        if d.exists() {
+            let Ok(c) = std::ffi::CString::new(d.as_os_str().as_bytes()) else { return false };
+            return unsafe { libc::access(c.as_ptr(), libc::W_OK) } == 0;
+        }
+        dir = d.parent();
+    }
+    false
+}
+#[cfg(not(unix))]
+fn can_write(_path: &std::path::Path) -> bool {
+    true
 }
 
 const PROFILE_COLUMNS: &str = "id, name, source_dir, dest_dir, profile_mode, block_delta, verify_checksum, archive_dir, retention_days, schedule_type, schedule_interval_mins, schedule_time, webhook_url, enabled, last_run, last_status, last_result, created_at, exclusions, owner, never_remove, log_retention_days, last_started, source_password, dest_password, transfer, dest_endpoint, sources, git_remote, git_push";
@@ -786,6 +834,52 @@ impl BackupManager {
         conn.execute("DELETE FROM backup_state WHERE profile_id = ?1", params![id]).map_err(|e| e.to_string())?;
         conn.execute("DELETE FROM backup_profiles WHERE id = ?1", params![id]).map_err(|e| e.to_string())?;
         Ok(())
+    }
+
+    /// A git collection made from an existing repository (copied from another machine, or cloned),
+    /// with its tracked items remapped to this machine: `home/...` into the current home, `root/...`
+    /// to the same full path. Not saved yet; the caller checks access and saves it.
+    pub fn collection_from_repo(&self, repo: &str, name: Option<&str>) -> Result<(BackupProfile, Vec<OpenedItem>, Vec<String>), String> {
+        let repo_path = std::path::Path::new(repo);
+        if !repo_path.join(".git").exists() {
+            return Err("This folder is not a git repository".into());
+        }
+        let (manifest_name, entries) = super::git_repo::read_manifest(repo_path)?;
+        if let Some(other) = self.list_profiles().into_iter().find(|p| same_path(&p.dest_dir, repo)) {
+            return Err(format!("This collection is already open in Brum as \"{}\"", other.name));
+        }
+        let home = dirs::home_dir().map(|h| h.to_string_lossy().to_string());
+        let mut items = Vec::new();
+        let mut left_out = Vec::new();
+        for (original, in_repo) in entries {
+            match super::store::unmirror(&in_repo, home.as_deref()) {
+                Some(path) if !items.iter().any(|i: &OpenedItem| i.path == path) => items.push(OpenedItem { original, path, in_repository: in_repo }),
+                Some(_) => {}
+                None => left_out.push(format!("{in_repo}: not a place Brum can restore to")),
+            }
+        }
+        if items.is_empty() {
+            return Err("None of the files or folders in this collection can be placed on this machine".into());
+        }
+        let name = name.map(str::trim).filter(|n| !n.is_empty()).map(String::from).unwrap_or_else(|| {
+            if manifest_name.trim().is_empty() {
+                repo_path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "Collection".into())
+            } else {
+                manifest_name.trim().to_string()
+            }
+        });
+        let sources: Vec<String> = items.iter().map(|i| i.path.clone()).collect();
+        let profile: BackupProfile = serde_json::from_value(serde_json::json!({
+            "name": name,
+            "source_dir": sources[0],
+            "sources": sources,
+            "dest_dir": repo,
+            "profile_mode": "git",
+            "schedule_type": "manual",
+            "git_remote": super::git_repo::remote_url(repo_path),
+        }))
+        .map_err(|e| e.to_string())?;
+        Ok((profile, items, left_out))
     }
 
     /// Pauses or resumes the schedule; returns whether it is now active
@@ -1461,7 +1555,28 @@ impl BackupManager {
         if files.is_empty() {
             return Err(format!("All {before} files are already exactly as in the backup; nothing to restore"));
         }
-        let overwrites = files.iter().filter(|(rel, _)| target.stat(rel).is_some()).count() as u64;
+        // Where each file lands; files Brum may not write there are skipped, not attempted
+        let landing = |rel: &str| target.local_path(rel).map(|lp| lp.to_string_lossy().to_string()).unwrap_or_else(|| join_rel(target_path, rel));
+        let mut skipped = Vec::new();
+        files.retain(|rel, _| {
+            let ok = target.local_path(rel).map(|lp| can_write(&lp)).unwrap_or(true);
+            if !ok {
+                skipped.push(RestoreItem { path: rel.clone(), to: landing(rel), replaces: false });
+            }
+            ok
+        });
+        if files.is_empty() {
+            return Err(format!("Brum has no permission to write any of these files ({}, for example {})", plural(skipped.len() as u64, "file", "files"), skipped[0].to));
+        }
+        let mut overwrites = 0u64;
+        let mut items = Vec::new();
+        for rel in files.keys() {
+            let replaces = target.stat(rel).is_some();
+            overwrites += replaces as u64;
+            if items.len() < PREVIEW_ITEMS {
+                items.push(RestoreItem { path: rel.clone(), to: landing(rel), replaces });
+            }
+        }
         let mut preview = RestorePreview {
             files: files.len() as u64,
             bytes: files.values().map(|m| m.size).sum(),
@@ -1469,6 +1584,8 @@ impl BackupManager {
             target_path: target_path.to_string(),
             needs_confirmation: overwrites > 0 && !req.confirm_overwrite,
             run_id: None,
+            items: if req.dry_run || overwrites > 0 && !req.confirm_overwrite { items } else { Vec::new() },
+            skipped: skipped.clone(),
         };
         if req.dry_run || preview.needs_confirmation {
             return Ok(preview);
@@ -1483,7 +1600,7 @@ impl BackupManager {
         preview.run_id = Some(run_id.clone());
         let (mgr, p, base, verify) = (self.clone(), p.clone(), base, p.verify_checksum);
         let total_bytes = preview.bytes;
-        let target_label = target_path.to_string();
+        let target_label = if p.mode() == Mode::Git && same_path(target_path, &p.source_dir) { "their original places".to_string() } else { target_path.to_string() };
         let warn_list = warnings;
         tokio::spawn(async move {
             let mgr2 = mgr.clone();
@@ -1495,7 +1612,10 @@ impl BackupManager {
                 for w in &warn_list {
                     log.warning(w);
                 }
-                rec.warnings = warn_list.len() as u64;
+                for s in &skipped {
+                    log.push(LogEntry { path: s.path.clone(), action: "skip".into(), size: 0, ok: false, detail: Some(format!("No permission to write {}; skipped", s.to)) });
+                }
+                rec.warnings = (warn_list.len() + skipped.len()) as u64;
                 let task_id = tasks.sync_create_task(&format!("Restore: {}", p2.name), "restore", &dest.label(), &target_label, total_bytes);
                 if let Some(o) = &p2.owner {
                     tasks.set_owner(&task_id, o);
@@ -1539,11 +1659,12 @@ impl BackupManager {
                 }
                 rec.status = if stopped { "cancelled".into() } else if rec.counts.failed > 0 || rec.warnings > 0 { "warning".into() } else { "ok".into() };
                 rec.message = Some(format!(
-                    "{}{} restored to {}{}{}",
+                    "{}{} restored to {}{}{}{}",
                     if stopped { "Stopped: " } else { "" },
                     plural(rec.counts.copied, "file", "files"),
                     target_label,
                     if rec.counts.failed > 0 { format!(", {} failed", rec.counts.failed) } else { String::new() },
+                    if skipped.is_empty() { String::new() } else { format!(", {} skipped (no permission)", skipped.len()) },
                     if already_same > 0 { format!(" ({already_same} already up to date)") } else { String::new() }
                 ));
                 if stopped {

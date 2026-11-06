@@ -559,4 +559,110 @@ mod tests {
         let (files, _) = m.run_files(&rec.id, 0, 10, false);
         assert_eq!(files[0].detail.as_deref(), Some("replaced the existing file"));
     }
+
+    #[test]
+    fn collection_paths_on_a_new_machine() {
+        use super::store::unmirror;
+        // Another username: home/ follows the current home
+        assert_eq!(unmirror("home/.bashrc", Some("/home/newuser")).as_deref(), Some("/home/newuser/.bashrc"));
+        assert_eq!(unmirror("home", Some("/home/newuser/")).as_deref(), Some("/home/newuser"));
+        assert_eq!(unmirror("root/etc/hosts", Some("/home/newuser")).as_deref(), Some("/etc/hosts"));
+        assert_eq!(unmirror("root/home/olduser/x", Some("/home/newuser")).as_deref(), Some("/home/olduser/x"));
+        // Never the whole disk, never outside, nothing unknown
+        assert_eq!(unmirror("root", Some("/h")), None);
+        assert_eq!(unmirror("root/etc/../shadow", Some("/h")), None);
+        assert_eq!(unmirror("home/../x", Some("/h")), None);
+        assert_eq!(unmirror("other/x", Some("/h")), None);
+        assert_eq!(unmirror("home/x", None), None);
+    }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn collection_opened_on_a_new_machine_restores_into_place() {
+        if !super::git_repo::is_available() {
+            return;
+        }
+        let m = manager();
+        let tasks = Arc::new(TaskManager::new());
+        let t = tempfile::tempdir().unwrap();
+        let conf = t.path().join("etc/app.conf");
+        let proj = t.path().join("projects/board");
+        let locked = t.path().join("locked/cfg");
+        write(t.path(), "etc/app.conf", "settings", 1_700_000_000);
+        write(&proj, "board.kicad_sch", "schematic", 1_700_000_000);
+        write(&locked, "a.conf", "locked", 1_700_000_000);
+        let repo = t.path().join("old-machine/collection");
+        let bare = t.path().join("remote.git");
+        std::process::Command::new("git").args(["init", "--bare", "--quiet"]).arg(&bare).status().unwrap();
+        let mut p = profile(&conf, &repo);
+        p.name = "Workstation".into();
+        p.profile_mode = "git".into();
+        p.sources = vec![conf.to_string_lossy().into(), proj.to_string_lossy().into(), locked.to_string_lossy().into()];
+        p.git_remote = Some(bare.to_string_lossy().into());
+        p.git_push = true;
+        let p = m.save_profile(p).unwrap();
+        let run = m.start_backup(&p.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &p.id).await;
+        assert_eq!(m.get_run(&run).unwrap().status, "ok");
+
+        // The new machine: the files are gone, the collection is downloaded from the remote
+        m.delete_profile(&p.id).unwrap();
+        fs::remove_file(&conf).unwrap();
+        fs::remove_dir_all(&proj).unwrap();
+        fs::remove_dir_all(&locked).unwrap();
+        let clone = t.path().join("new-machine/Collections/workstation");
+        fs::create_dir_all(clone.parent().unwrap()).unwrap();
+        super::git_repo::clone(&bare.to_string_lossy(), &clone).unwrap();
+        let (opened, items, left_out) = m.collection_from_repo(&clone.to_string_lossy(), None).unwrap();
+        assert_eq!(opened.name, "Workstation");
+        assert_eq!(opened.git_remote.as_deref(), Some(bare.to_string_lossy().as_ref()));
+        assert!(left_out.is_empty(), "{left_out:?}");
+        assert_eq!(items.len(), 3);
+        assert_eq!(items[0].path, conf.to_string_lossy());
+        let opened = m.save_profile(opened).unwrap();
+        // Open twice: refused
+        assert!(m.collection_from_repo(&clone.to_string_lossy(), None).unwrap_err().contains("already open"));
+        // Saving before restoring is refused, so a half-empty machine never becomes the latest version
+        let run = m.start_backup(&opened.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &opened.id).await;
+        assert_eq!(m.get_run(&run).unwrap().status, "failed");
+
+        // A place this user may not write to is skipped, not attempted
+        fs::create_dir_all(t.path().join("locked")).unwrap();
+        let mut perms = fs::metadata(t.path().join("locked")).unwrap().permissions();
+        std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o555);
+        fs::set_permissions(t.path().join("locked"), perms.clone()).unwrap();
+        let root_user = fs::write(t.path().join("locked/probe"), "x").is_ok();
+
+        // The preview says where each file lands
+        let req: RestoreRequest = serde_json::from_value(serde_json::json!({ "target": "original", "dry_run": true })).unwrap();
+        let pre = m.restore(&opened, &req, &opened.source_dir, tasks.clone()).unwrap();
+        let lands: Vec<&str> = pre.items.iter().map(|i| i.to.as_str()).collect();
+        assert!(lands.contains(&conf.to_string_lossy().as_ref()), "{lands:?}");
+        assert!(lands.contains(&proj.join("board.kicad_sch").to_string_lossy().as_ref()), "{lands:?}");
+        assert!(pre.items.iter().all(|i| !i.replaces));
+        if !root_user {
+            assert_eq!(pre.skipped.len(), 1, "{:?}", pre.skipped);
+            assert_eq!(pre.skipped[0].to, locked.join("a.conf").to_string_lossy());
+        }
+
+        let req: RestoreRequest = serde_json::from_value(serde_json::json!({ "target": "original" })).unwrap();
+        m.restore(&opened, &req, &opened.source_dir, tasks.clone()).unwrap();
+        wait_idle(&m, &opened.id).await;
+        assert_eq!(fs::read_to_string(&conf).unwrap(), "settings");
+        assert_eq!(fs::read_to_string(proj.join("board.kicad_sch")).unwrap(), "schematic");
+        let rec = m.list_runs(Some(&opened.id), 5).into_iter().find(|r| r.kind == "restore").unwrap();
+        if !root_user {
+            assert_eq!(rec.status, "warning", "{:?}", rec.message);
+            assert!(rec.message.as_deref().unwrap().contains("1 skipped (no permission)"), "{:?}", rec.message);
+        }
+        std::os::unix::fs::PermissionsExt::set_mode(&mut perms, 0o755);
+        fs::set_permissions(t.path().join("locked"), perms).unwrap();
+        write(&locked, "a.conf", "locked", 1_700_000_000);
+
+        // Now saving works again, on the new machine
+        let run = m.start_backup(&opened.id, "manual", tasks.clone()).unwrap();
+        wait_idle(&m, &opened.id).await;
+        let rec = m.get_run(&run).unwrap();
+        assert!(rec.status == "ok" || rec.status == "nothing", "{:?}", rec.message);
+    }
 }

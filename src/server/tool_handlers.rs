@@ -1016,6 +1016,84 @@ pub async fn handle_save_backup_profile(
     Ok(Json(state.backup.view(saved)))
 }
 
+#[derive(Deserialize)]
+pub struct OpenCollectionRequest {
+    /// A collection repository already on this machine
+    #[serde(default)]
+    pub folder: Option<String>,
+    /// Or the remote to download it from
+    #[serde(default)]
+    pub url: Option<String>,
+    /// Where to download it; default `~/Collections/<repository name>`
+    #[serde(default)]
+    pub into: Option<String>,
+    #[serde(default)]
+    pub name: Option<String>,
+}
+
+/// Opens an existing git collection (from another machine) as a collection in Brum. Its files
+/// are placed on this machine with the home folder remapped; nothing is restored yet.
+pub async fn handle_open_collection(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(req): Json<OpenCollectionRequest>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_write(&claims)?;
+    if !crate::tools::sync::git_repo::is_available() {
+        return Err(bad_request("Collections need git, which is not installed on this machine".into()));
+    }
+    let clean = |s: &Option<String>| s.as_deref().map(str::trim).filter(|s| !s.is_empty()).map(String::from);
+    let repo = match (clean(&req.folder), clean(&req.url)) {
+        (Some(folder), _) => validate_path_access(&state, &headers, &folder, true)?,
+        (None, Some(url)) => {
+            let url = check_git_remote(&state, &headers, &url)?;
+            let repo_name = url.trim_end_matches('/').rsplit(['/', ':']).next().unwrap_or("").trim_end_matches(".git").to_string();
+            let repo_name = if repo_name.is_empty() || repo_name.starts_with('.') { "collection".to_string() } else { repo_name };
+            let into = clean(&req.into).unwrap_or_else(|| format!("~/Collections/{repo_name}"));
+            let into = validate_path_access(&state, &headers, &into, true)?;
+            let into_path = std::path::PathBuf::from(&into);
+            if into_path.exists() && std::fs::read_dir(&into_path).map(|mut d| d.next().is_some()).unwrap_or(true) {
+                return Err(bad_request(format!("{into} already exists and is not empty. Choose another folder, or open it as a folder on this machine.")));
+            }
+            let (u, dir) = (url.clone(), into_path.clone());
+            tokio::task::spawn_blocking(move || {
+                if let Some(parent) = dir.parent() {
+                    std::fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+                }
+                crate::tools::sync::git_repo::clone(&u, &dir)
+            })
+            .await
+            .map_err(|e| bad_request(e.to_string()))?
+            .map_err(|e| bad_request(format!("Could not download the collection: {e}")))?;
+            into
+        }
+        (None, None) => return Err(bad_request("Choose a collection folder or a remote address".into())),
+    };
+    let (mut profile, items, mut left_out) = state.backup.collection_from_repo(&repo, req.name.as_deref()).map_err(bad_request)?;
+    // Only the places this Brum user may write to
+    let mut kept = Vec::new();
+    let mut kept_items = Vec::new();
+    for item in items {
+        match validate_path_access(&state, &headers, &item.path, true) {
+            Ok(path) => {
+                kept.push(path);
+                kept_items.push(item);
+            }
+            Err(_) => left_out.push(format!("{}: your account may not write there", item.path)),
+        }
+    }
+    if kept.is_empty() {
+        return Err(bad_request("Your account may not write to any of the places in this collection".into()));
+    }
+    profile.source_dir = kept[0].clone();
+    profile.sources = kept;
+    profile.git_remote = profile.git_remote.and_then(|r| check_git_remote(&state, &headers, &r).ok());
+    profile.owner = Some(claims.sub.clone());
+    let saved = state.backup.save_profile(profile).map_err(bad_request)?;
+    Ok(Json(serde_json::json!({ "profile": state.backup.view(saved), "items": kept_items, "left_out": left_out })))
+}
+
 pub async fn handle_delete_backup_profile(
     State(state): State<AppState>,
     headers: HeaderMap,

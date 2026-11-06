@@ -79,7 +79,8 @@ const BRUM_ACTIONS = new Set([
   'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput', 'applyPropPermPreset',
   'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
   'backupAddSource', 'backupBackFromPreview', 'backupDelete', 'backupEdit', 'backupNameTyped',
-  'backupNew', 'backupPathTyped', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
+  'backupNew', 'backupOpenCollection', 'backupOpenCollectionKind', 'backupOpenCollectionStart',
+  'backupPathTyped', 'backupRestoreBack', 'backupRestoreConfirm', 'backupRestoreFromOpened', 'backupPickFolder', 'backupPreviewDraft', 'backupPreviewFilter',
   'backupPush', 'backupRefresh', 'backupRemoveSource', 'backupRestoreClear', 'backupRestoreOpen',
   'backupRestorePoint', 'backupRestoreStart', 'backupRestoreTarget', 'backupRestoreToggle',
   'backupRunBack', 'backupRunFilter', 'backupRunFromPreview', 'backupRunMore', 'backupRunNow',
@@ -35866,6 +35867,7 @@ function backupRenderList(force) {
   const toolbar = `
     <div class="bk-toolbar">
       <button class="btn btn-sm btn-accent bk-btn" data-on-click="backupNew"><i data-lucide="plus"></i> New backup</button>
+      <button class="btn btn-sm bk-btn" data-on-click="backupOpenCollection" title="Use a collection saved on another machine, from a folder or a git remote"><i data-lucide="folder-git-2"></i> Open a collection</button>
       <div style="flex: 1;"></div>
       <button class="btn btn-sm bk-btn" data-on-click="backupShowHistory" data-click-args="${actionArgs('')}" title="Everything that has happened, for all backups"><i data-lucide="history"></i> All activity</button>
     </div>`;
@@ -36765,7 +36767,9 @@ function backupRenderRestore() {
       <div class="bk-options">
         ${target('separate', 'A new, separate folder', `<small class="bk-mono">${escapeHtml(r.defaultFolder)}</small><small>Nothing that exists now is touched.</small>`)}
         ${target('folder', 'Another folder', r.target === 'folder' ? `<span class="bk-path-row"><input type="text" id="bk-restore-folder" class="bk-input bk-mono" value="${escapeHtml(r.folder)}" placeholder="/home/you/Restored"><button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-restore-folder')}"><i data-lucide="folder-open"></i> Browse</button></span>` : '')}
-        ${target('original', 'The original folder', `<small class="bk-mono">${escapeHtml(r.originalFolder)}</small><small class="bk-warn-text">Files with the same name are replaced. Brum asks before replacing anything.</small>`)}
+        ${r.profile.profile_mode === 'git'
+          ? target('original', 'The original places', `<small>Each file back where it belongs on this machine; your home folder is used for files that were in a home folder. You see a list of where every file goes first.</small><small class="bk-warn-text">Files with the same name are replaced. Brum asks before replacing anything.</small>`)
+          : target('original', 'The original folder', `<small class="bk-mono">${escapeHtml(r.originalFolder)}</small><small class="bk-warn-text">Files with the same name are replaced. Brum asks before replacing anything.</small>`)}
       </div>
       <div class="bk-form-error" id="bk-form-error" style="display: none;"></div>
       <div class="bk-form-foot">
@@ -36788,6 +36792,13 @@ async function backupRestoreStart() {
   const body = { point: r.point, items: [...r.selected], target: r.target, folder: r.folder || null };
   try {
     const check = await backupApi(url, { method: 'POST', body: { ...body, dry_run: true } });
+    if (r.profile.profile_mode === 'git' && r.target === 'original') {
+      r.check = check;
+      r.body = body;
+      backupUi.view = 'restore-check';
+      backupRenderRestoreCheck();
+      return;
+    }
     if (check.overwrites > 0) {
       const ok = await showConfirmDialog({
         title: 'Replace existing files?',
@@ -36801,10 +36812,199 @@ async function backupRestoreStart() {
       body.confirm_overwrite = true;
     }
     const res = await backupApi(url, { method: 'POST', body });
-    showToast(`Restoring ${bkCount(res.files, 'file', 'files')} to ${res.target_path}`, 'success');
+    showToast(`Restoring ${bkCount(res.files, 'file', 'files')} to ${res.target_path}${res.skipped?.length ? `; ${bkCount(res.skipped.length, 'file is', 'files are')} skipped (no permission)` : ''}`, 'success');
     backupShowList();
   } catch (e) {
     backupFormError(e.message);
+  }
+}
+
+// A collection into its original places: every file and where it lands, before anything is written
+function backupRenderRestoreCheck() {
+  const r = backupUi.restore;
+  if (!r || !r.check || backupUi.view !== 'restore-check') return;
+  const c = r.check;
+  const row = (it, act, cls) => `
+    <div class="bk-row ${cls}">
+      <span class="bk-row-act">${act}</span>
+      <span class="bk-row-path" title="${escapeHtml(it.to)}"><span class="bk-path-tail"><bdi>${escapeHtml(it.to)}</bdi></span><small>${escapeHtml(it.path)}</small></span>
+      <span class="bk-row-size"></span>
+    </div>`;
+  const rows = c.items.map(it => row(it, it.replaces ? 'Replace' : 'New', it.replaces ? 'bk-act-update' : 'bk-act-copy')).join('');
+  const more = c.files > c.items.length ? `<div class="bk-hint bk-rows-more">Showing the first ${formatNumber(c.items.length)} of ${formatNumber(c.files)}.</div>` : '';
+  const skipped = c.skipped.length ? `
+    <details class="bk-more bk-warnings" open>
+      <summary>${bkCount(c.skipped.length, 'file', 'files')} will be skipped: Brum has no permission to write there</summary>
+      ${c.skipped.slice(0, 200).map(it => `<div class="bk-warn-line">${escapeHtml(it.to)}</div>`).join('')}
+      ${c.skipped.length > 200 ? `<div class="bk-hint">...and ${formatNumber(c.skipped.length - 200)} more</div>` : ''}
+      <div class="bk-hint">They are listed in the restore's log. To restore them too, run Brum as a user who may write there, or restore into a separate folder and copy them by hand.</div>
+    </details>` : '';
+  let summary = `${bkCount(c.files, 'file', 'files')} (${formatBytes(c.bytes)}) will be put back in place.`;
+  if (c.overwrites) summary += ` ${bkCount(c.overwrites, 'existing file is', 'existing files are')} replaced; this cannot be undone.`;
+  backupSetView(`
+    <div class="bk-form bk-fill">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupRestoreBack" title="Back"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">Restore: ${escapeHtml(r.profile.name)}</span>
+      </div>
+      <div class="bk-summary">${escapeHtml(summary)}</div>
+      ${skipped}
+      <div class="bk-rows">${rows}${more}</div>
+      <div class="bk-form-error" id="bk-form-error" style="display: none;"></div>
+      <div class="bk-form-foot">
+        <button class="btn btn-sm bk-btn" data-on-click="backupRestoreBack">Back</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-sm btn-accent bk-btn ${c.overwrites ? 'btn-danger' : ''}" data-on-click="backupRestoreConfirm"><i data-lucide="rotate-ccw"></i> ${c.overwrites ? `Replace ${bkCount(c.overwrites, 'file', 'files')} and restore` : `Restore ${bkCount(c.files, 'file', 'files')}`}</button>
+      </div>
+    </div>`);
+}
+
+function backupRestoreBack() {
+  if (!backupUi.restore) return backupShowList();
+  backupUi.view = 'restore';
+  backupRenderRestore();
+}
+
+async function backupRestoreConfirm() {
+  const r = backupUi.restore;
+  if (!r || !r.body) return;
+  const body = { ...r.body, confirm_overwrite: r.check.overwrites > 0 };
+  try {
+    const res = await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(r.profile.id)}/restore`, { method: 'POST', body });
+    showToast(`Restoring ${bkCount(res.files, 'file', 'files')} of ${r.profile.name}${res.skipped?.length ? `; ${bkCount(res.skipped.length, 'file is', 'files are')} skipped (no permission)` : ''}`, 'success');
+    backupShowList();
+  } catch (e) {
+    backupFormError(e.message);
+  }
+}
+
+// ---------- Open a collection from another machine ----------
+
+function backupOpenCollection() {
+  backupUi.view = 'open-collection';
+  backupUi.openCol = { kind: 'url', url: '', folder: '', into: '', name: '', busy: false, result: null };
+  backupRenderOpenCollection();
+}
+
+function backupOpenCollectionKind(kind) {
+  const o = backupUi.openCol;
+  if (!o) return;
+  backupOpenCollectionRead();
+  o.kind = kind;
+  backupRenderOpenCollection();
+}
+
+function backupOpenCollectionRead() {
+  const o = backupUi.openCol;
+  const val = (id) => document.getElementById(id)?.value.trim();
+  for (const [key, id] of [['url', 'bk-oc-url'], ['folder', 'bk-oc-folder'], ['into', 'bk-oc-into'], ['name', 'bk-oc-name']]) {
+    const v = val(id);
+    if (v !== undefined) o[key] = v;
+  }
+}
+
+function backupRenderOpenCollection() {
+  const o = backupUi.openCol;
+  if (!o || backupUi.view !== 'open-collection') return;
+  if (o.result) return backupRenderOpenedCollection();
+  const option = (key, title, detail) => `
+    <label class="bk-option">
+      <input type="radio" name="bk-oc-kind" value="${key}" ${o.kind === key ? 'checked' : ''} data-on-change="backupOpenCollectionKind" data-change-args="${actionArgs(key)}">
+      <span><b>${title}</b>${detail}</span>
+    </label>`;
+  const repoName = (o.url.replace(/\/+$/, '').split(/[/:]/).pop() || '').replace(/\.git$/, '') || 'name';
+  backupSetView(`
+    <div class="bk-form bk-fill">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupShowList" title="Back to My backups"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">Open a collection</span>
+      </div>
+      <div class="bk-hint">Use a collection that was saved on another machine, for example after setting up a new computer. Brum reads which files it tracks and where they belong here: files that were in a home folder go to your home folder, even if the username was different. Nothing on this machine is changed until you restore.</div>
+      <div class="bk-step-title">Where is it?</div>
+      <div class="bk-options">
+        ${option('url', 'On a git remote', o.kind === 'url' ? `
+          <input type="text" id="bk-oc-url" class="bk-input bk-mono" value="${escapeHtml(o.url)}" placeholder="git@github.com:you/dotfiles.git">
+          <small>Downloaded with the SSH keys or login of the user Brum runs as.</small>
+          <small>Put it in</small>
+          <span class="bk-path-row"><input type="text" id="bk-oc-into" class="bk-input bk-mono" value="${escapeHtml(o.into)}" placeholder="~/Collections/${escapeHtml(repoName)}"><button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-oc-into')}"><i data-lucide="folder-open"></i> Browse</button></span>` : '<small>GitHub, Gitea, Forgejo, your own server, or a git folder on a drive.</small>')}
+        ${option('folder', 'In a folder on this machine', o.kind === 'folder' ? `
+          <span class="bk-path-row"><input type="text" id="bk-oc-folder" class="bk-input bk-mono" value="${escapeHtml(o.folder)}" placeholder="/media/usb/collection"><button class="btn btn-sm bk-btn" data-on-click="backupPickFolder" data-click-args="${actionArgs('bk-oc-folder')}"><i data-lucide="folder-open"></i> Browse</button></span>
+          <small>A collection folder copied from the old machine, or one you cloned yourself. Brum keeps using it in place.</small>` : '<small>Copied over on a drive, or already downloaded.</small>')}
+      </div>
+      <div class="bk-field">
+        <label for="bk-oc-name">Name <small>(optional; the collection's own name is used otherwise)</small></label>
+        <input type="text" id="bk-oc-name" class="bk-input" value="${escapeHtml(o.name)}">
+      </div>
+      <div class="bk-form-error" id="bk-form-error" style="display: none;"></div>
+      <div class="bk-form-foot">
+        <button class="btn btn-sm bk-btn" data-on-click="backupShowList">Cancel</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-sm btn-accent bk-btn" data-on-click="backupOpenCollectionStart" ${o.busy ? 'disabled' : ''}>${o.busy ? `<i data-lucide="loader" class="spinner"></i> ${o.kind === 'url' ? 'Downloading...' : 'Opening...'}` : '<i data-lucide="folder-git-2"></i> Open'}</button>
+      </div>
+    </div>`);
+}
+
+async function backupOpenCollectionStart() {
+  const o = backupUi.openCol;
+  if (!o || o.busy) return;
+  backupOpenCollectionRead();
+  const body = o.kind === 'url' ? { url: o.url, into: o.into || null, name: o.name || null } : { folder: o.folder, name: o.name || null };
+  if (o.kind === 'url' ? !o.url : !o.folder) {
+    backupFormError(o.kind === 'url' ? 'Enter the address of the remote.' : 'Choose the collection folder.');
+    return;
+  }
+  o.busy = true;
+  backupRenderOpenCollection();
+  try {
+    o.result = await backupApi('/api/tools/sync/collections/open', { method: 'POST', body });
+    o.busy = false;
+    await backupLoadProfiles();
+    backupRenderOpenCollection();
+  } catch (e) {
+    o.busy = false;
+    backupRenderOpenCollection();
+    backupFormError(e.message);
+  }
+}
+
+function backupRenderOpenedCollection() {
+  const { result } = backupUi.openCol;
+  const p = result.profile;
+  const rows = result.items.map(it => `
+    <div class="bk-row ${it.original === it.path ? '' : 'bk-act-update'}">
+      <span class="bk-row-act">${it.original === it.path ? 'Same' : 'Moved'}</span>
+      <span class="bk-row-path" title="${escapeHtml(it.path)}"><span class="bk-path-tail"><bdi>${escapeHtml(it.path)}</bdi></span>${it.original && it.original !== it.path ? `<small>was ${escapeHtml(it.original)}</small>` : ''}</span>
+      <span class="bk-row-size"></span>
+    </div>`).join('');
+  const left = result.left_out.length ? `
+    <details class="bk-more bk-warnings" open>
+      <summary>${bkCount(result.left_out.length, 'item is', 'items are')} left out</summary>
+      ${result.left_out.map(w => `<div class="bk-warn-line">${escapeHtml(w)}</div>`).join('')}
+    </details>` : '';
+  backupSetView(`
+    <div class="bk-form bk-fill">
+      <div class="bk-form-head">
+        <button class="btn btn-icon bk-icon" data-on-click="backupShowList" title="Back to My backups"><i data-lucide="arrow-left"></i></button>
+        <span class="bk-form-title">Opened: ${escapeHtml(p.name)}</span>
+      </div>
+      <div class="bk-summary">This collection tracks ${bkCount(result.items.length, 'file or folder', 'files and folders')}. On this machine they belong here:</div>
+      ${left}
+      <div class="bk-rows">${rows}</div>
+      <div class="bk-hint">Nothing has been changed yet. Restore puts the files in place; you see every file and where it goes before anything is written. Saving new versions works once the files are there.</div>
+      <div class="bk-form-foot">
+        <button class="btn btn-sm bk-btn" data-on-click="backupShowList">Done</button>
+        <div style="flex: 1;"></div>
+        <button class="btn btn-sm btn-accent bk-btn" data-on-click="backupRestoreFromOpened" data-click-args="${actionArgs(p.id)}"><i data-lucide="rotate-ccw"></i> Restore now</button>
+      </div>
+    </div>`);
+}
+
+// The restore window of a collection, set to put the files back in their places
+async function backupRestoreFromOpened(id) {
+  await backupShowRestore(id);
+  if (backupUi.restore) {
+    backupUi.restore.target = 'original';
+    backupRenderRestore();
   }
 }
 
