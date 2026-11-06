@@ -98,11 +98,20 @@ pub fn clone(url: &str, into: &Path) -> Result<(), String> {
         .stdin(Stdio::null())
         .output()
         .map_err(|e| format!("git is not available: {e}"))?;
-    if out.status.success() {
-        return Ok(());
+    if !out.status.success() {
+        let err = String::from_utf8_lossy(&out.stderr);
+        return Err(err.lines().map(str::trim).filter(|l| !l.is_empty()).last().unwrap_or("git clone failed").to_string());
     }
-    let err = String::from_utf8_lossy(&out.stderr);
-    Err(err.lines().map(str::trim).filter(|l| !l.is_empty()).last().unwrap_or("git clone failed").to_string())
+    // A remote whose default branch has nothing (a bare repository still pointing at "master"
+    // while Brum pushed "main") gives an empty checkout: take the branch that has the collection
+    if git(into, &["rev-parse", "--verify", "HEAD"]).is_err() {
+        let branches = git(into, &["for-each-ref", "--format=%(refname:short)", "refs/remotes/origin"])?;
+        let names: Vec<&str> = branches.lines().map(str::trim).filter(|b| !b.is_empty() && *b != "origin/HEAD" && *b != "origin").collect();
+        let pick = names.iter().find(|b| **b == "origin/main").or_else(|| names.first()).ok_or("The remote has no saved versions yet")?;
+        let local = pick.trim_start_matches("origin/");
+        git(into, &["checkout", "--quiet", "-B", local, pick])?;
+    }
+    Ok(())
 }
 
 fn toml_string(s: &str) -> String {

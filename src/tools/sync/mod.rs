@@ -444,7 +444,7 @@ mod tests {
         write(&proj, "notes.md", "notes", 1_700_000_000);
         let repo = t.path().join("collections/workstation");
         let bare = t.path().join("remote.git");
-        std::process::Command::new("git").args(["init", "--bare", "--quiet"]).arg(&bare).status().unwrap();
+        std::process::Command::new("git").args(["init", "--bare", "--quiet", "--initial-branch=master"]).arg(&bare).status().unwrap();
         let mut p = profile(&rc, &repo);
         p.name = "Workstation".into();
         p.profile_mode = "git".into();
@@ -593,7 +593,7 @@ mod tests {
         write(&locked, "a.conf", "locked", 1_700_000_000);
         let repo = t.path().join("old-machine/collection");
         let bare = t.path().join("remote.git");
-        std::process::Command::new("git").args(["init", "--bare", "--quiet"]).arg(&bare).status().unwrap();
+        std::process::Command::new("git").args(["init", "--bare", "--quiet", "--initial-branch=master"]).arg(&bare).status().unwrap();
         let mut p = profile(&conf, &repo);
         p.name = "Workstation".into();
         p.profile_mode = "git".into();
