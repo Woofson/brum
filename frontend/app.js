@@ -35992,7 +35992,7 @@ async function backupPush(id) {
 async function backupStop(id) {
   try {
     await backupApi(`/api/tools/sync/profiles/${encodeURIComponent(id)}/stop`, { method: 'POST' });
-    showToast('Stopping after the current file...', 'info');
+    showToast('Stopping...', 'info');
   } catch (e) {
     showToast(e.message, 'error');
   }
@@ -36120,6 +36120,7 @@ function backupRenderEditor() {
           <div class="bk-hint">A folder on this machine, another drive, or a mounted NAS share. It is created if it does not exist.</div>
           <div class="bk-hint bk-remote-examples" id="bk-dest-remote-hints">Remote: <code>sftp://user@server:port/folder</code> · <code>rclone://remote/folder</code> · <code>fleet://machine/folder</code> · <code>proton:///my-files/Backups</code></div>
           <div class="bk-chips" id="bk-rclone-remotes"></div>
+          <div class="bk-hint" id="bk-dest-smb-hint" style="display:none"></div>
         </div>
       </section>
 
@@ -36316,6 +36317,8 @@ async function backupLoadRcloneRemotes() {
   } catch (_) { /* Proton Drive not set up */ }
   try {
     const res = await backupApi('/api/tools/sync/rclone-remotes');
+    backupUi.rcloneKinds = res.kinds || {};
+    backupUpdateSmbHint();
     if (res.remotes && res.remotes.length) {
       html += `<span class="bk-hint">rclone:</span>${res.remotes.map(r => `<button class="bk-chip-btn" data-on-click="backupUseRcloneRemote" data-click-args="${actionArgs(r)}">${escapeHtml(r)}</button>`).join('')}`;
     }
@@ -36358,8 +36361,20 @@ function backupNameTyped() {
 }
 
 // Suggests a name from the chosen folders until the user types one
+// Samba remotes: the first folder after the remote is a share on the server, which Brum cannot create
+function backupUpdateSmbHint() {
+  const hint = document.getElementById('bk-dest-smb-hint');
+  if (!hint) return;
+  const m = (document.getElementById('bk-dest')?.value || '').trim().match(/^rclone:\/\/([^/]+)/i);
+  const remote = m ? m[1].replace(/:$/, '') : '';
+  const isSmb = remote && (backupUi.rcloneKinds || {})[remote] === 'smb';
+  hint.innerHTML = isSmb ? `Samba remote: the first folder is a share on the server and must already exist, e.g. <code>rclone://${escapeHtml(remote)}/&lt;share&gt;/&lt;folder&gt;</code>. Folders inside the share are created as needed.` : '';
+  hint.style.display = isSmb ? '' : 'none';
+}
+
 function backupPathTyped() {
   backupUpdateSourceHints();
+  backupUpdateSmbHint();
   backupUpdateProtonModes();
   for (const side of ['src', 'dest']) {
     const row = document.getElementById(`bk-${side}-pw-row`);

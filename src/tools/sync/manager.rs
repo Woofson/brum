@@ -1019,7 +1019,7 @@ impl BackupManager {
         Some(RunningInfo { run_id: r.run_id.clone(), kind: r.kind.clone(), started_at: r.started_at, progress })
     }
 
-    /// Asks a running backup or restore to stop after the current file
+    /// Asks a running backup or restore to stop; a long rclone step is interrupted at once
     pub fn stop(&self, id: &str) -> bool {
         match self.running.lock().ok().and_then(|m| m.get(id).map(|r| r.cancel.clone())) {
             Some(c) => {
@@ -1101,6 +1101,8 @@ impl BackupManager {
             }
         }
 
+        spec.source.watch_cancel(cancel.clone());
+        spec.dest.watch_cancel(cancel.clone());
         let plan = match engine::plan(&spec, state.as_ref(), &cancel) {
             Ok(plan) => plan,
             Err(e) => {
@@ -1130,6 +1132,7 @@ impl BackupManager {
         if let Some(owner) = &p.owner {
             tasks.set_owner(&task_id, owner);
         }
+        let _stop_watch = TaskStopWatch::start(tasks.clone(), task_id.clone(), cancel.clone());
         let speed_clock = Instant::now();
         let report = |pr: Progress| {
             if tasks.sync_is_cancelled(&task_id) {
@@ -1745,6 +1748,9 @@ impl BackupManager {
                 }
                 let mut pr = Progress { phase: "restoring".into(), files_total: files.len() as u64, bytes_total: total_bytes, ..Default::default() };
                 let mut stopped = false;
+                dest.watch_cancel(cancel.clone());
+                target.watch_cancel(cancel.clone());
+                let _stop_watch = TaskStopWatch::start(tasks.clone(), task_id.clone(), cancel.clone());
                 if let Err(e) = target.ensure_root() {
                     rec.status = "failed".into();
                     rec.message = Some(e.clone());
@@ -1942,6 +1948,33 @@ fn action_words(a: &str) -> &str {
         "prune" => "cleaned up",
         "warning" => "warning",
         other => other,
+    }
+}
+
+/// Passes Stop from the task panel to a run's Stop flag while the run lasts, also while one
+/// long step (a big rclone copy) is under way and no progress is being reported
+struct TaskStopWatch(Arc<AtomicBool>);
+
+impl TaskStopWatch {
+    fn start(tasks: Arc<TaskManager>, task_id: String, cancel: Arc<AtomicBool>) -> Self {
+        let alive = Arc::new(AtomicBool::new(true));
+        let still = alive.clone();
+        std::thread::spawn(move || {
+            while still.load(Ordering::Relaxed) && !cancel.load(Ordering::Relaxed) {
+                if tasks.sync_is_cancelled(&task_id) {
+                    cancel.store(true, Ordering::Relaxed);
+                    break;
+                }
+                std::thread::sleep(Duration::from_millis(250));
+            }
+        });
+        Self(alive)
+    }
+}
+
+impl Drop for TaskStopWatch {
+    fn drop(&mut self) {
+        self.0.store(false, Ordering::Relaxed);
     }
 }
 

@@ -222,6 +222,9 @@ impl Store for CryptStore {
     fn ensure_root(&self) -> Result<(), String> {
         self.inner.ensure_root()
     }
+    fn watch_cancel(&self, cancel: Arc<AtomicBool>) {
+        self.inner.watch_cancel(cancel)
+    }
     fn list(&self, base: &str, skip: &dyn Fn(&str, bool) -> bool, cancel: &AtomicBool, warnings: &mut Vec<String>) -> Result<Listing, String> {
         let listing = self.inner.list(base, skip, cancel, warnings)?;
         Ok(listing.into_iter().map(|(rel, m)| {

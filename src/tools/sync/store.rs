@@ -9,6 +9,7 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::UNIX_EPOCH;
 use walkdir::WalkDir;
 
@@ -96,6 +97,9 @@ pub trait Store: Send + Sync {
     fn is_encrypted(&self, _rel: &str) -> bool {
         false
     }
+    /// Gives the store the run's Stop flag, for stores whose single steps can take long
+    /// (rclone), so Stop interrupts the step instead of waiting for it to finish
+    fn watch_cancel(&self, _cancel: Arc<AtomicBool>) {}
 }
 
 /// Rejects paths that could leave the backup (`..`, absolute paths, drive letters)
@@ -523,6 +527,10 @@ impl Store for MultiStore {
 
     fn ensure_root(&self) -> Result<(), String> {
         self.parts.iter().try_for_each(|(_, s)| s.ensure_root())
+    }
+
+    fn watch_cancel(&self, cancel: Arc<AtomicBool>) {
+        self.parts.iter().for_each(|(_, s)| s.watch_cancel(cancel.clone()));
     }
 
     fn list(&self, base: &str, skip: &dyn Fn(&str, bool) -> bool, cancel: &AtomicBool, warnings: &mut Vec<String>) -> Result<Listing, String> {

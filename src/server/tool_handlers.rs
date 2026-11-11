@@ -1266,21 +1266,24 @@ pub async fn handle_backup_browse(
         .map_err(bad_request)
 }
 
-/// The rclone remotes Brum's user has set up (names only), for choosing one in the backup form
+/// The rclone remotes Brum's user has set up (names and kinds, no settings), for choosing one in the backup form
 pub async fn handle_backup_rclone_remotes(
     State(state): State<AppState>,
     headers: HeaderMap,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let claims = extract_claims_or_local(&state, &headers)?;
     if !claims.role.eq_ignore_ascii_case("admin") {
-        return Ok(Json(serde_json::json!({ "available": false, "remotes": [] })));
+        return Ok(Json(serde_json::json!({ "available": false, "remotes": [], "kinds": {} })));
     }
     let res = tokio::task::spawn_blocking(crate::tools::sync::rclone_store::list_remotes)
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(match res {
-        Ok(remotes) => serde_json::json!({ "available": true, "remotes": remotes }),
-        Err(_) => serde_json::json!({ "available": false, "remotes": [] }),
+        Ok(remotes) => {
+            let kinds: serde_json::Map<String, serde_json::Value> = remotes.iter().map(|(n, k)| (n.clone(), serde_json::Value::String(k.clone()))).collect();
+            serde_json::json!({ "available": true, "remotes": remotes.into_iter().map(|(n, _)| n).collect::<Vec<_>>(), "kinds": kinds })
+        }
+        Err(_) => serde_json::json!({ "available": false, "remotes": [], "kinds": {} }),
     }))
 }
 
