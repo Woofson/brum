@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cron Builder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="cr-app">
+    <nav class="cr-tabs" role="tablist">
+      <button type="button" class="cr-tab" data-tab="build">Build</button>
+      <button type="button" class="cr-tab" data-tab="read">Read</button>
+    </nav>
+
+    <!-- Build -->
+    <section class="cr-panel" data-panel="build">
+      <div class="cr-scroll">
+        <div class="cr-presets" id="cr-presets"></div>
+        <div class="cr-form">
+          <div class="cr-form-row">
+            <span class="cr-lead">Run</span>
+            <select id="cr-freq" class="cr-select" aria-label="How often">
+              <option value="minutes">every few minutes</option>
+              <option value="hours">every few hours</option>
+              <option value="daily">every day</option>
+              <option value="weekdays">on weekdays (Monday to Friday)</option>
+              <option value="weekly">on chosen days of the week</option>
+              <option value="monthly">once a month, on a date</option>
+              <option value="nth">once a month, on a weekday (first Monday…)</option>
+              <option value="yearly">once a year</option>
+            </select>
+          </div>
+          <div class="cr-form-row" data-for="minutes">
+            <span class="cr-lead">Every</span>
+            <select id="cr-every-min" class="cr-select cr-short" aria-label="Minutes"></select>
+            <span>minutes</span>
+          </div>
+          <div class="cr-form-row" data-for="hours">
+            <span class="cr-lead">Every</span>
+            <select id="cr-every-hour" class="cr-select cr-short" aria-label="Hours"></select>
+            <span>hours, at minute</span>
+            <select id="cr-at-min" class="cr-select cr-short" aria-label="Minute past the hour"></select>
+          </div>
+          <div class="cr-form-row" data-for="minutes hours">
+            <label class="cr-check"><input type="checkbox" id="cr-window"> only between</label>
+            <select id="cr-from-hour" class="cr-select cr-short" aria-label="From hour"></select>
+            <span>and</span>
+            <select id="cr-to-hour" class="cr-select cr-short" aria-label="To hour"></select>
+          </div>
+          <div class="cr-form-row" data-for="minutes hours">
+            <label class="cr-check"><input type="checkbox" id="cr-weekdays-only"> only on weekdays</label>
+          </div>
+          <div class="cr-form-row" data-for="weekly">
+            <span class="cr-lead">On</span>
+            <div class="cr-days" id="cr-days"></div>
+          </div>
+          <div class="cr-form-row" data-for="monthly">
+            <span class="cr-lead">On</span>
+            <select id="cr-dom" class="cr-select cr-short" aria-label="Day of the month"></select>
+            <span>of the month</span>
+          </div>
+          <div class="cr-form-row" data-for="nth">
+            <span class="cr-lead">On the</span>
+            <select id="cr-nth" class="cr-select cr-short" aria-label="Which one">
+              <option value="1">first</option>
+              <option value="2">second</option>
+              <option value="3">third</option>
+              <option value="4">fourth</option>
+              <option value="L">last</option>
+            </select>
+            <select id="cr-nth-day" class="cr-select" aria-label="Weekday"></select>
+          </div>
+          <div class="cr-form-row" data-for="yearly">
+            <span class="cr-lead">On</span>
+            <select id="cr-year-day" class="cr-select cr-short" aria-label="Day"></select>
+            <select id="cr-year-month" class="cr-select" aria-label="Month"></select>
+          </div>
+          <div class="cr-form-row" data-for="daily weekdays weekly monthly nth yearly">
+            <span class="cr-lead">At</span>
+            <select id="cr-at-hour" class="cr-select cr-short" aria-label="Hour"></select>
+            <span>:</span>
+            <select id="cr-at-minute" class="cr-select cr-short" aria-label="Minute"></select>
+          </div>
+        </div>
+        <div id="cr-build-out"></div>
+      </div>
+    </section>
+
+    <!-- Read -->
+    <section class="cr-panel" data-panel="read" hidden>
+      <div class="cr-input-row">
+        <input type="text" id="cr-input" class="cr-input" spellcheck="false" autocomplete="off" placeholder="*/15 9-17 * * 1-5" aria-label="Cron line">
+      </div>
+      <div class="cr-hint">Five parts: minute, hour, day of month, month, weekday. Six with seconds first. Shortcuts like <code>@daily</code> work too.</div>
+      <div class="cr-recent" id="cr-recent"></div>
+      <div class="cr-error" id="cr-error" hidden></div>
+      <div class="cr-scroll" id="cr-read-out"></div>
+    </section>
+
+    <div class="cr-footer">
+      <label>Show run times in
+        <select id="cr-zone" class="cr-select" aria-label="Time zone for run times"></select>
+      </label>
+    </div>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>

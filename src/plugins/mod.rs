@@ -162,6 +162,7 @@ pub struct PluginInfo {
 pub const BUNDLED_PLUGINS: &[(&str, &[u8])] = &[
     ("calculator", include_bytes!("../../plugins/calculator.grr")),
     ("colours", include_bytes!("../../plugins/colours.grr")),
+    ("cron", include_bytes!("../../plugins/cron.grr")),
     ("subnet", include_bytes!("../../plugins/subnet.grr")),
     ("tetrion", include_bytes!("../../plugins/tetrion.grr")),
     ("timestamp", include_bytes!("../../plugins/timestamp.grr")),

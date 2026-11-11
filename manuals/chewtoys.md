@@ -187,7 +187,7 @@ Every backup and restore is listed with a one-line result. Open one to see every
 * **Guideline Mechanics**: 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and synchronized leaderboard.
 
 ### Bundled Chewtoys
-Calculator, Colours, Subnet Calculator, Timestamp Converter, Workbench and Tetrion ship inside Brum as ordinary Chewtoys:
+Calculator, Colours, Cron Builder, Subnet Calculator, Timestamp Converter, Workbench and Tetrion ship inside Brum as ordinary Chewtoys:
 * **Installed on first start** into the Chewtoy folder (`[plugins] user_directory`), like any `.grr` package.
 * **Kept up to date**: when a newer Brum brings a newer version, the installed copy is updated on start.
 * **Uninstall freely**: an uninstalled bundled Chewtoy stays uninstalled; Brum remembers this in `.bundled.json` in the Chewtoy folder.
@@ -198,6 +198,13 @@ Calculator, Colours, Subnet Calculator, Timestamp Converter, Workbench and Tetri
 * **Any colour in, every format out**: Type or paste hex, `rgb()`, `hsl()`, `hwb()`, `oklch()` or a colour name; copy HEX, RGB, HSL, HWB, OKLCH or HSV with one click.
 * **Tools**: Tints and shades, colour harmonies (complementary, analogous, triadic, split complementary, tetradic), a WCAG contrast check, saved and recently copied colours, and the current Brum theme's colours with "copy as theme variable".
 * **Eyedropper**: Pick a colour from anywhere on screen (Chrome and Edge).
+
+### Cron Builder (Modular Chewtoy)
+* **Build**: Choose in plain words: every few minutes or hours (optionally only between two hours, or only on weekdays), every day, weekdays, chosen days of the week, a date each month (or the last day), a weekday each month (first Monday, last Friday…) or once a year. Ready-made schedules are one click away.
+* **Read**: Paste a cron line (5 parts, or 6 with seconds first, or a shortcut like `@daily`; a command after the schedule is left out) and get it in plain words, part by part, with mistakes explained (out-of-range values, Quartz-only `L`, `W` and `#`, wrong number of parts).
+* **For both**: The next five run times (your zone or UTC, skipping times lost when clocks go forward), the 6-part form with seconds, the matching shortcut, a crontab line to copy, and the systemd timer form (`OnCalendar=`).
+* **Honest about cron's limits**: When both day of month and weekday are set, cron runs on days matching *either*; this is pointed out and the systemd form gets two lines. "Last day of the month" and "first Monday" cannot be written as one cron line, so the usual crontab line with a date check is given, and the systemd form, which handles them directly.
+* Click any result to copy it. Times follow **Region & Formats**.
 
 ### Subnet Calculator (Modular Chewtoy)
 * **IPv4**: Type `192.168.1.10/24` or an address with a netmask (`10.0.0.1 255.255.0.0`): network, netmask, wildcard mask, broadcast, first and last usable address, host counts, the address type (private, CGNAT/Tailscale, link-local, public…) and a binary view of network and host bits. `/31` and `/32` are handled as point-to-point and single-host networks. Check whether another address is inside the network.
