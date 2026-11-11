@@ -1,7 +1,7 @@
 # Brum for Windows
 
 <div align="center">
-  <img src="../assets/brum2.png" alt="Brum Windows Desktop Edition" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
+  <img src="../assets/showcase-hero.webp" alt="Brum with two panels and the built-in terminal" width="800" style="border-radius: 8px; box-shadow: 0 12px 32px rgba(0,0,0,0.6); margin: 12px 0;" />
 </div>
 
 > **Multi-Panel File Commander for Web & Windows**  
