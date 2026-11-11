@@ -115,7 +115,7 @@ for src_rel, wiki_file in mapping.items():
         content = re.sub(r'\]\(\./' + re.escape(old_link) + r'\)', f']({new_link})', content)
 
     # 2. Replace asset links (assets/… from README, ../assets/… from manuals) with raw GitHub URLs for proper Wiki image rendering
-    content = re.sub(r'<img src=\"(?:\.\./)?assets/([^\"]+)\"', r'<img src=\"https://raw.githubusercontent.com/Woofson/brum/main/assets/\1\"', content)
+    content = re.sub(r'<img src=\"(?:\.\./)?assets/([^\"]+)\"', r'<img src="https://raw.githubusercontent.com/Woofson/brum/main/assets/\1"', content)
     content = re.sub(r'!\[([^\]]*)\]\((?:\.\./)?assets/([^\)]+)\)', r'![\1](https://raw.githubusercontent.com/Woofson/brum/main/assets/\2)', content)
 
     # 3. Ensure version badge in Home.md reflects current version
