@@ -5,6 +5,17 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-11-11
+
+### Features
+- **Timestamp Converter (Closes #173)**: A built-in Chewtoy for times and dates. Paste Unix time (seconds to nanoseconds, guessed from the number of digits), an ISO 8601, RFC 3339 or RFC 2822 date, or a whole log line, and see it as your time, UTC, every Unix form and the common text formats, with how long ago it was. Compare one moment across favourite time zones, work out the time between two moments, and add or subtract periods such as `90d` or `1 year 2 months`.
+- **Cron Builder (Closes #172)**: A built-in Chewtoy for cron schedules. Build one in plain words (every few minutes, weekdays at 09:00, the last day of the month, the first Monday…) or paste a cron line to read it back, with mistakes explained. Shows the next five run times, the crontab line and the systemd timer form, and says plainly when a schedule cannot be written as one cron line.
+- **Samba Hint in Backup & Sync**: Choosing a Samba remote through rclone notes that the first folder is a share on the server, which must already exist.
+
+### Fixes
+- **Backup & Sync with rclone (#168)**: Stop interrupts a running rclone step at once instead of waiting for the current file. Steps that get no answer give up after 2 minutes; copies give up only when no data moves for 2 minutes. A destination that cannot be used (such as a Samba share that does not exist) stops the run at the start with one clear reason, instead of every file failing slowly, and common rclone errors are explained in plain words.
+- **Disk Images**: Before unpacking a compressed image Brum checks there is enough free space and says so clearly if not, and opening the same image twice while it unpacks reuses the first copy.
+
 ## [1.19.0] - 2026-11-06
 
 ### Features
