@@ -1,7 +1,7 @@
 # <img src="assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Brum
 
 <div align="center">
-  <img src="assets/brum2.png" alt="Brum Web & Desktop Environment" width="800" />
+  <img src="assets/showcase-hero.webp" alt="Brum with two panels: photo thumbnails on the left, the home folder on the right, and the built-in terminal below" width="800" />
   <p><em>Multi-Pane Web Environment (File Commander/Manager) — By Woofson</em></p>
   <p>
     <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.20.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
@@ -34,6 +34,31 @@ Brum is a file manager you use in the browser, written in Rust. It follows the c
 * **Several users**, each limited to their own folders, with optional read-only accounts and sign-in through your own identity provider (OIDC).
 * **Fleet**: manage other Brum servers from the same window.
 * **Runs where you need it**: as a desktop app on Linux and Windows, in Docker on a server or NAS, or as a background service.
+
+---
+
+## Showcase
+
+<table>
+  <tr>
+    <td width="50%"><img src="assets/showcase-light.webp" alt="Brum in the light theme, Woofsons Amber Zink" /><br><sub><b>Two themes.</b> Woofsons Amber Charcoal and Woofsons Amber Zink (shown), with list, grid and column views.</sub></td>
+    <td width="50%"><img src="assets/showcase-backup.webp" alt="Backup and Sync with three backups and their status" /><br><sub><b>Backup &amp; Sync.</b> Plain status lines, schedules, old versions kept, and restore. To folders, SFTP, rclone remotes, Fleet machines and Proton Drive.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/showcase-compare.webp" alt="Compare showing two folders with one changed file and two files only on the left" /><br><sub><b>Compare.</b> Two folders, two files or duplicates, and copy the differences across in either direction.</sub></td>
+    <td width="50%"><img src="assets/showcase-viewer.webp" alt="A photo open in the picture viewer" /><br><sub><b>Viewers.</b> Pictures, documents, audio and video open in place, with the next file one key away.</sub></td>
+  </tr>
+</table>
+
+<p align="center">
+  <img src="assets/showcase-chewtoys.webp" alt="Four Chewtoys side by side: Timestamp Converter, Cron Builder, Workbench and Subnet Calculator" width="100%" /><br>
+  <sub><b>Chewtoys.</b> Small add-ons in their own windows: Timestamp Converter, Cron Builder, Workbench and Subnet Calculator, among others.</sub>
+</p>
+
+<p align="center">
+  <img src="assets/showcase-phone.webp" alt="Brum on a phone, showing photo thumbnails and a bottom action bar" width="260" /><br>
+  <sub><b>On the phone.</b> One panel at a time, with the main actions at your thumb.</sub>
+</p>
 
 ---
 
