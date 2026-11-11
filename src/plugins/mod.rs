@@ -164,6 +164,7 @@ pub const BUNDLED_PLUGINS: &[(&str, &[u8])] = &[
     ("colours", include_bytes!("../../plugins/colours.grr")),
     ("subnet", include_bytes!("../../plugins/subnet.grr")),
     ("tetrion", include_bytes!("../../plugins/tetrion.grr")),
+    ("timestamp", include_bytes!("../../plugins/timestamp.grr")),
     ("workbench", include_bytes!("../../plugins/workbench.grr")),
 ];
 

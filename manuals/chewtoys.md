@@ -187,7 +187,7 @@ Every backup and restore is listed with a one-line result. Open one to see every
 * **Guideline Mechanics**: 7-bag randomizer, Super Rotation System (SRS) with wall kicks, ghost piece projection, hold queue, and synchronized leaderboard.
 
 ### Bundled Chewtoys
-Calculator, Colours, Subnet Calculator, Workbench and Tetrion ship inside Brum as ordinary Chewtoys:
+Calculator, Colours, Subnet Calculator, Timestamp Converter, Workbench and Tetrion ship inside Brum as ordinary Chewtoys:
 * **Installed on first start** into the Chewtoy folder (`[plugins] user_directory`), like any `.grr` package.
 * **Kept up to date**: when a newer Brum brings a newer version, the installed copy is updated on start.
 * **Uninstall freely**: an uninstalled bundled Chewtoy stays uninstalled; Brum remembers this in `.bundled.json` in the Chewtoy folder.
@@ -205,6 +205,12 @@ Calculator, Colours, Subnet Calculator, Workbench and Tetrion ship inside Brum a
 * **IPv6**: Network, first and last address, number of /64 networks, short and full notation, address type and the reverse DNS (`ip6.arpa`) zone.
 * **Reference**: The special IPv4 and IPv6 ranges with what they are for; click one to open it in the calculator.
 * Click any result to copy it. Recent entries are remembered, and numbers follow **Region & Formats**.
+
+### Timestamp Converter (Modular Chewtoy)
+* **Convert**: Paste Unix time (seconds, milliseconds, microseconds or nanoseconds, guessed from the number of digits or chosen), an ISO 8601 / RFC 3339 or RFC 2822 date, or a whole log line (web server, system log, Brum's own log): the date is found and shown as your time, UTC, all Unix forms, ISO 8601, RFC 2822, HTTP date and web server log format, with how long ago it was, the ISO week and the day of the year. Dates without a time zone are read as your time, or as a zone you pick ("what is 15:00 in New York for me?").
+* **Time zones**: The same moment side by side in your favourite zones, with the difference from you and "yesterday"/"tomorrow" where the date differs. Add zones by city or name (Tokyo, America/New_York).
+* **Durations**: The time between two moments, in days, hours and minutes, in calendar terms and as totals; add or subtract a period (`90d`, `2h 30m`, `1 year 2 months`, `P1DT12H`). Days and months follow the calendar, so adding one day across a clock change keeps the same clock time.
+* A live clock with the current Unix time sits at the top. Click any result to copy it. Recent entries are remembered, and dates and times follow **Region & Formats**.
 
 ### Workbench (Modular Chewtoy)
 The conversions and calculators you would otherwise search the web for in the garage or workshop. Works offline. Type in the search box ("awg", "m6", "1/4-20", "psi", "ohm") and press <kbd>Enter</kbd> to jump straight to a tool; a thread or wire size opens its row. Pin tools with ☆ to keep them at the top. Click any result to copy it. Inputs are remembered per tool, and numbers and metric/imperial defaults follow **Region & Formats**.

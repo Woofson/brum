@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Timestamp Converter</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="ts-app">
+    <div class="ts-clock" id="ts-clock" title="Click to copy the current Unix time"></div>
+    <nav class="ts-tabs" role="tablist">
+      <button type="button" class="ts-tab" data-tab="convert">Convert</button>
+      <button type="button" class="ts-tab" data-tab="zones">Time zones</button>
+      <button type="button" class="ts-tab" data-tab="dur">Durations</button>
+    </nav>
+
+    <!-- Convert -->
+    <section class="ts-panel" data-panel="convert">
+      <div class="ts-input-row">
+        <input type="text" id="ts-input" class="ts-input" spellcheck="false" autocomplete="off" placeholder="1794384073, 2026-11-11T09:03:16Z, a log line…" aria-label="Timestamp or date">
+        <button type="button" class="ts-btn" id="ts-now" title="Fill in the current time">Now</button>
+      </div>
+      <div class="ts-input-row ts-options">
+        <label>Numbers are
+          <select id="ts-unit" class="ts-select" aria-label="Unit for numbers">
+            <option value="auto">guessed from length</option>
+            <option value="s">seconds</option>
+            <option value="ms">milliseconds</option>
+            <option value="us">microseconds</option>
+            <option value="ns">nanoseconds</option>
+          </select>
+        </label>
+        <label>Dates without a zone are in
+          <select id="ts-zone" class="ts-select" aria-label="Time zone for dates without one"></select>
+        </label>
+      </div>
+      <div class="ts-recent" id="ts-recent"></div>
+      <div class="ts-error" id="ts-error" hidden></div>
+      <div class="ts-note" id="ts-note" hidden></div>
+      <div class="ts-scroll"><div class="ts-results" id="ts-results"></div></div>
+    </section>
+
+    <!-- Time zones -->
+    <section class="ts-panel" data-panel="zones" hidden>
+      <div class="ts-hint" id="ts-zones-moment"></div>
+      <div class="ts-input-row">
+        <input type="text" id="ts-zone-add" class="ts-input" list="ts-zone-list" spellcheck="false" autocomplete="off" placeholder="Add a zone: Tokyo, America/New_York, UTC…" aria-label="Time zone to add">
+        <button type="button" class="ts-btn" id="ts-zone-add-btn">Add</button>
+        <datalist id="ts-zone-list"></datalist>
+      </div>
+      <div class="ts-error" id="ts-zone-error" hidden></div>
+      <div class="ts-scroll" id="ts-zones"></div>
+    </section>
+
+    <!-- Durations -->
+    <section class="ts-panel" data-panel="dur" hidden>
+      <div class="ts-seg">
+        <button type="button" class="ts-seg-btn" data-dur="between">Between two moments</button>
+        <button type="button" class="ts-seg-btn" data-dur="add">Add or subtract</button>
+      </div>
+      <div class="ts-dur-mode" data-dur-panel="between">
+        <div class="ts-input-row"><span class="ts-lead">From</span><input type="text" id="ts-from" class="ts-input" spellcheck="false" autocomplete="off" placeholder="now" aria-label="From"></div>
+        <div class="ts-input-row"><span class="ts-lead">To</span><input type="text" id="ts-to" class="ts-input" spellcheck="false" autocomplete="off" placeholder="now" aria-label="To"></div>
+        <div class="ts-error" id="ts-between-error" hidden></div>
+        <div class="ts-scroll"><div class="ts-results" id="ts-between"></div></div>
+      </div>
+      <div class="ts-dur-mode" data-dur-panel="add" hidden>
+        <div class="ts-input-row"><span class="ts-lead">From</span><input type="text" id="ts-base" class="ts-input" spellcheck="false" autocomplete="off" placeholder="now" aria-label="Starting moment"></div>
+        <div class="ts-input-row">
+          <select id="ts-op" class="ts-select ts-lead-select" aria-label="Add or subtract">
+            <option value="1">add</option>
+            <option value="-1">subtract</option>
+          </select>
+          <input type="text" id="ts-period" class="ts-input" spellcheck="false" autocomplete="off" placeholder="90d, 2h 30m, 1 year 2 months, P1DT12H" aria-label="Period">
+        </div>
+        <div class="ts-error" id="ts-add-error" hidden></div>
+        <div class="ts-scroll"><div class="ts-results" id="ts-add"></div></div>
+      </div>
+    </section>
+  </div>
+  <script src="main.js"></script>
+</body>
+</html>

@@ -1,0 +1,24 @@
+[plugin]
+id = "timestamp"
+name = "Timestamp Converter"
+version = "1.0.0"
+author = "Bolt J Woofson <bolt@arf.ac>"
+description = "Unix time and dates both ways, log and standard date formats, time zones side by side, and durations."
+homepage = "https://www.arf.ac"
+icon = "assets/icon.svg"
+category = "utilities"
+
+[ui]
+modes = ["floating", "docked"]
+default_mode = "floating"
+default_width = 540
+default_height = 660
+min_width = 330
+min_height = 440
+
+[integrations]
+launchpad = true
+launchpad_label = "Timestamp Converter"
+
+[permissions]
+permissions = ["ui:notify", "clipboard:write"]
