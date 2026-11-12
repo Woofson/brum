@@ -46,7 +46,7 @@ scoop install brum
 ### D. Zero-Install Standalone Portable ZIP
 1. Download `brum-v1.21.0-windows-x86_64.zip` from [GitHub Releases](https://github.com/Woofson/brum/releases).
 2. Extract anywhere (e.g. `C:\Tools\Brum` or a USB drive).
-3. Run `brum.exe -s` (Desktop mode) or `brum.exe` — includes bundled `./themes/` folder and `config.toml`. Settings and database are saved portably in the local folder or `%APPDATA%\Brum\`.
+3. Run `brum.exe -s` (Desktop mode) or `brum.exe` — includes bundled `./themes/` folder and `config.toml`. The database and its key are saved next to `brum.exe`, so the whole folder can move.
 
 ---
 
@@ -74,7 +74,7 @@ brum.exe --uninstall-service
 
 ### Windows Service Logging & Configuration:
 * **Service Config**: `config.toml` in the install folder (e.g. `C:\Program Files\Brum\config.toml`). See [Which config.toml is used](#which-configtoml-is-used).
-* **Database & Auth**: `%PROGRAMDATA%\Brum\brum.db`. This shared data folder is open only to the service and administrators.
+* **Database & Auth**: `%PROGRAMDATA%\Brum\brum.db`. This shared data folder is open only to the service and administrators. Versions before 1.21.1 kept the service's database in the install folder; Brum moves it here, with its key file, first-login note and Proton files, on the first start as the service or administrator.
 * **Desktop mode** started by a user without administrator rights keeps its own data in that user's `%APPDATA%\Brum\` instead.
 * **Event Logging**: SCM lifecycle events and errors are recorded directly in the Windows Application Event Log (`eventvwr.msc`).
 
@@ -96,7 +96,7 @@ brum.exe --uninstall-service
 * To choose your own first password on a fresh install: stop Brum, delete `C:\ProgramData\Brum\brum.db` (and `brum.db-shm` / `brum.db-wal` if present), set `default_admin_pass`, and start Brum again. This removes all Brum users and settings, so only do it on a fresh install.
 
 ### Lost the admin password
-Run this on the Brum machine, in PowerShell or CMD **opened as administrator** (otherwise it resets the personal desktop-mode data of your own account instead of the service's). Adjust the folder if Brum is installed elsewhere:
+Run this on the Brum machine, in PowerShell or CMD **opened as administrator**. It finds the service's database from any folder. Without administrator rights it uses your own desktop-mode data instead, and says so. Adjust the path if Brum is installed elsewhere:
 ```powershell
 & "C:\Program Files\Brum\brum.exe" reset-admin-password
 ```
