@@ -279,10 +279,10 @@ const BRUM_ACTIONS = new Set([
   'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
   'toggleParentClass', 'togglePasswordVisibility', 'togglePdfSplitModeUI', 'toggleProfileMenu',
   'toggleRemoteGlobalMountUI', 'toggleRenamerItem', 'toggleRevokeShare', 'toggleShowDirTag',
-  'toggleStartMinimized', 'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll',
+  'toggleStickyColHeaders', 'toggleSyncNav', 'toggleSyncScroll',
   'toggleTailFollow', 'toggleTerminal', 'toggleTerminalFullscreen', 'toggleToolsMenu',
   'toggleToolVisibility', 'toggleTrashSetting', 'toggleTreeNodeExpand', 'toggleUseExtEditor',
-  'toggleUseExtViewer', 'toggleViewerWordWrap', 'toggleWindowDecorations',
+  'toggleUseExtViewer', 'toggleViewerWordWrap',
   'toggleWindowsNativeOpsSetting', 'triggerArchive7z', 'triggerArchiveTarGz', 'triggerArchiveZip',
   'triggerBulkRename', 'triggerChecksum', 'triggerCompressModal', 'triggerCopy',
   'triggerCopyClipboard', 'triggerCreateFromTemplate', 'triggerCutClipboard', 'triggerDelete',
@@ -9679,12 +9679,6 @@ function renderDesktopAppsTab() {
   if (useExtViewerCheckbox) {
     const saved = localStorage.getItem('cd_use_ext_viewer_f3');
     useExtViewerCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_viewer_f3 === true);
-  }
-
-  const extStartMinCheckbox = document.getElementById('setting-ext-start-minimized');
-  if (extStartMinCheckbox) {
-    const saved = localStorage.getItem('cd_start_minimized');
-    extStartMinCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.start_minimized === true);
   }
 }
 
@@ -24789,29 +24783,6 @@ function openSettingsModal() {
     angleSel.value = localStorage.getItem('cd_border_angle') || '45deg';
   }
 
-  const decCheckbox = document.getElementById('setting-window-decorations');
-  if (decCheckbox) {
-    const saved = localStorage.getItem('cd_window_decorations');
-    decCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.ui?.window_decorations !== false);
-  }
-
-  const decDesktopCheckbox = document.getElementById('setting-desktop-decorations');
-  if (decDesktopCheckbox) {
-    const saved = localStorage.getItem('cd_window_decorations');
-    decDesktopCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.ui?.window_decorations !== false);
-  }
-
-  const startMinCheckbox = document.getElementById('setting-start-minimized');
-  if (startMinCheckbox) {
-    const saved = localStorage.getItem('cd_start_minimized');
-    startMinCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.start_minimized === true);
-  }
-
-  const hotkeyInput = document.getElementById('setting-global-hotkey');
-  if (hotkeyInput && App.config?.desktop?.global_summon_hotkey) {
-    hotkeyInput.value = App.config.desktop.global_summon_hotkey;
-  }
-
   const globalRefreshCheckbox = document.getElementById('setting-show-global-refresh');
   if (globalRefreshCheckbox) {
     const saved = localStorage.getItem('cd_show_global_refresh');
@@ -25115,11 +25086,6 @@ function clearAllCustomFileIcons() {
   renderAllPanes();
   queueSaveUserPreferencesToServer();
   showToast('Cleared all custom filetype icon rules', 'info');
-}
-
-function toggleStartMinimized(enabled) {
-  localStorage.setItem('cd_start_minimized', enabled);
-  showToast(enabled ? 'Start minimized in tray enabled' : 'Start minimized disabled', 'info');
 }
 
 function triggerView() {
@@ -28595,14 +28561,6 @@ function toggleFKeyBar(show) {
   applyFKeyBarState();
   queueSaveUserPreferencesToServer();
   showToast(show ? 'Bottom function key bar enabled' : 'Bottom function key bar hidden', 'info');
-}
-
-function toggleWindowDecorations(show) {
-  App.windowDecorations = show;
-  localStorage.setItem('cd_window_decorations', show);
-  const cb = document.getElementById('setting-window-decorations');
-  if (cb) cb.checked = show;
-  showToast(show ? 'Window titlebar & frame enabled (restart to apply)' : 'Window decorations disabled (frameless, for tiling window managers; restart to apply)', 'info');
 }
 
 function toggleMediaStopOnClose(stopOnClose) {

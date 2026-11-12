@@ -153,7 +153,6 @@ default_pane_count = 2           # 1 to 4
 default_layout = "dual-vertical" # "single", "dual-vertical", "dual-horizontal", "triple", "quad"
 show_hidden_files = true
 default_view_mode = "details"    # "details", "compact", "grid"
-window_decorations = true        # Set false for borderless/frameless mode in tiling WMs
 show_global_refresh = false
 show_hostname_badge = true
 hostname_badge = ""
@@ -171,12 +170,9 @@ allow_virtual_users = false
 drop_privileges = true
 # default_shell = "/bin/bash"
 
-# --- Standalone Desktop Window & System Tray ---
+# --- Desktop Mode & Tray Icon ---
 [desktop]
-minimize_to_tray = true
-enable_tray = true
-global_summon_hotkey = "Super+C"
-start_minimized = false
+enable_tray = true               # Windows: show the Brum tray icon (brum tray, and desktop mode with --minimized)
 
 # --- Color Themes & Aesthetics ---
 [themes]

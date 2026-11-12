@@ -967,8 +967,6 @@ pub struct UiConfig {
     pub show_hidden_files: bool,
     #[serde(default = "default_view_mode")]
     pub default_view_mode: String, // "details", "compact", "grid"
-    #[serde(default = "default_true")]
-    pub window_decorations: bool, // Window titlebar and frame (off suits tiling window managers)
     #[serde(default = "default_false")]
     pub show_global_refresh: bool, // Global header refresh button toggle
     #[serde(default = "default_true")]
@@ -1010,7 +1008,6 @@ impl Default for UiConfig {
             default_layout: default_layout_name(),
             show_hidden_files: true,
             default_view_mode: default_view_mode(),
-            window_decorations: true,
             show_global_refresh: false,
             show_hostname_badge: true,
             hostname_badge: String::new(),
@@ -1237,10 +1234,6 @@ pub struct DesktopConfig {
     /// Windows: show the Brum tray icon (`brum tray`, and desktop mode with `--minimized`)
     #[serde(default = "default_true")]
     pub enable_tray: bool,
-    #[serde(default = "default_summon_hotkey")]
-    pub global_summon_hotkey: String, // "Super+C", "Ctrl+Alt+Space", etc.
-    #[serde(default = "default_false")]
-    pub start_minimized: bool,
     #[serde(default)]
     pub external_editor: Option<String>,
     #[serde(default)]
@@ -1257,8 +1250,6 @@ impl Default for DesktopConfig {
     fn default() -> Self {
         Self {
             enable_tray: true,
-            global_summon_hotkey: default_summon_hotkey(),
-            start_minimized: false,
             external_editor: None,
             external_viewer: None,
             external_terminal: None,
@@ -1268,7 +1259,6 @@ impl Default for DesktopConfig {
     }
 }
 
-fn default_summon_hotkey() -> String { "Super+C".to_string() }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CustomAction {
@@ -2234,7 +2224,9 @@ mod tests {
 
             [desktop]
             enable_tray = false
+            # Removed settings: older config files that still have them keep loading
             global_summon_hotkey = "Super+C"
+            start_minimized = true
             external_editor = "code \"%1\""
             use_external_editor_f4 = true
 
@@ -2244,9 +2236,8 @@ mod tests {
 
         let config: AppConfig = toml::from_str(sample_toml).unwrap();
         assert_eq!(config.server.port, 9090);
-        assert_eq!(config.ui.window_decorations, false);
         assert_eq!(config.ui.show_global_refresh, false);
-        assert_eq!(config.desktop.global_summon_hotkey, "Super+C");
+        assert!(!config.desktop.enable_tray);
         assert_eq!(config.desktop.external_editor, Some("code \"%1\"".to_string()));
         assert_eq!(config.desktop.use_external_editor_f4, true);
         assert_eq!(config.themes.default_theme, "catppuccin-mocha");

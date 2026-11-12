@@ -1656,41 +1656,18 @@
               </div>
             </div>
 
-            <!-- Card 7: Desktop, Windowing & System Tray (Desktop Standalone Only) -->
+            <!-- Card 7: Desktop Mode & Tray Icon (Desktop Standalone Only) -->
             <div class="settings-group-card desktop-only-setting">
               <div class="settings-card-header">
                 <h4 class="settings-section-title">
-                  <i data-lucide="monitor"></i> Desktop, Windowing & System Tray
+                  <i data-lucide="monitor"></i> Desktop Mode & Tray Icon
                 </h4>
                 <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Desktop Standalone Only</span>
               </div>
-              <p class="settings-card-desc">Configure native window behavior, system tray integration, and global hotkeys for Linux (X11 and Wayland, including tiling window managers), macOS, and Windows.</p>
-
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-start-minimized" data-on-change="toggleStartMinimized" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Start Minimized</strong>
-                    <div class="settings-field-hint">Launch directly to system tray on system boot / autostart.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-desktop-decorations" checked data-on-change="toggleWindowDecorations" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Native Window Frame & Decorations</strong>
-                    <div class="settings-field-hint">Uncheck for a clean frameless window that fits neatly in tiling window managers. Launch with <code>brum --no-decorations</code>.</div>
-                  </div>
-                </label>
-              </div>
-
-              <div class="settings-field" style="margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
-                <label class="settings-field-label" for="setting-global-hotkey">Global Summon / Toggle Hotkey:</label>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <input type="text" id="setting-global-hotkey" class="settings-input" style="width: 220px;" value="Super+C" readonly>
-                  <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Default: Super+C</span>
-                </div>
-                <div class="settings-field-hint">Pressing this keybind anywhere in your operating system brings Brum to the foreground instantly.</div>
+              <p class="settings-card-desc">Brum runs in your browser. Install it as an app from the browser menu ("Install Brum") for a window of its own.</p>
+              <div class="settings-field-hint" style="display: flex; flex-direction: column; gap: 6px;">
+                <div><code>brum --minimized</code> starts desktop mode without opening the browser.</div>
+                <div>On Windows, the Brum icon by the clock shows whether Brum is running and opens it with a click. Start it with <code>brum tray</code>, or at sign-in with <code>brum tray install</code>. Set <code>enable_tray = false</code> in the <code>[desktop]</code> section of <code>config.toml</code> to switch it off.</div>
               </div>
             </div>
 

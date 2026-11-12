@@ -203,12 +203,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 tray::run_command(&args[i + 1..]);
                 return Ok(());
             }
-            "--no-decorations" | "--frameless" => {
-                config.ui.window_decorations = false;
-            }
-            "--decorations" => {
-                config.ui.window_decorations = true;
-            }
             "--version" | "-v" => {
                 println!(
                     "Brum v{} (build #{} · commit {} · {} · {})",
@@ -239,9 +233,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("        --no-auth          Disable login (only on 127.0.0.1, or behind trusted_proxies that handle login)");
                 println!("        --windows-service  Internal entry point for Windows Service Control Manager");
                 println!("        --minimized        Start desktop mode without opening the browser (with the tray icon on Windows)");
-                println!("        --no-decorations   Launch without window titlebar/frame (for tiling window managers)");
-                println!("        --frameless        Alias for --no-decorations");
-                println!("        --decorations      Force enable window titlebar and borders");
                 println!("    -v, --version          Print version information");
                 println!("    -h, --help             Print this help message");
                 println!();

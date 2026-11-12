@@ -205,7 +205,6 @@ default_pane_count = 2           # Default number of visible panes on startup (1
 default_layout = "dual-vertical" # Options: "single", "dual-vertical", "dual-horizontal", "triple", "quad"
 show_hidden_files = true         # Show hidden files and dotfiles (e.g. .bashrc, .git)
 default_view_mode = "details"    # Options: "details", "compact", "grid"
-window_decorations = true        # Set to false for seamless borderless/frameless mode in Hyprland / tiling WMs
 show_global_refresh = false      # Minimal header (off by default; individual panes have dedicated refresh controls)
 show_hostname_badge = true       # Top header hostname badge toggle
 hostname_badge = ""              # Custom label for hostname badge (empty = auto host detection)
@@ -231,8 +230,6 @@ drop_privileges = true              # Drop root privileges to match authenticate
 # --- Desktop Mode & Tray Icon ---
 [desktop]
 enable_tray = true               # Windows: show the Brum tray icon (brum tray, and desktop mode with --minimized)
-global_summon_hotkey = "Super+C" # System-wide shortcut to summon/focus Brum (e.g. "Super+C", "Ctrl+Alt+Space")
-start_minimized = false          # Launch directly to system tray on system boot / autostart
 # external_editor = "code \"%1\"" # Command for external editor (F4)
 # external_viewer = "open \"%1\"" # Command for external viewer (F3)
 # use_external_editor_f4 = false # Open external editor on F4 instead of built-in editor
