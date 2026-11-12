@@ -721,7 +721,10 @@ pub async fn handle_create_user(
         state.config.storage.default_user_home_template.replace("{username}", &payload.username)
     });
 
-    let _ = std::fs::create_dir_all(&final_home);
+    // Only a full path on this system becomes a folder here
+    if crate::server::middleware::is_local_absolute_path(&final_home) {
+        let _ = std::fs::create_dir_all(&final_home);
+    }
 
     let roots_json = payload.allowed_roots.map(|r| {
         let clean: Vec<String> = r.into_iter().filter(|s| !s.trim().is_empty()).collect();

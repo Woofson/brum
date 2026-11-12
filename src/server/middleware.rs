@@ -923,6 +923,12 @@ pub fn is_root_path(path: &Path) -> bool {
     false
 }
 
+/// True when the path is a full path on this system (`/home/bolt` on Linux, `C:\\Users\\bolt`
+/// on Windows). A path from the other kind of system is not.
+pub fn is_local_absolute_path(path: &str) -> bool {
+    Path::new(path.trim()).is_absolute()
+}
+
 pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) -> Option<String> {
     let scheme = state.config.storage.home_fallback_scheme.to_lowercase();
     let is_admin = claims.role.eq_ignore_ascii_case("admin");
@@ -933,6 +939,15 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
     }
 
     let raw_home = claims.home_dir.trim();
+    // A home folder that is not a full path on this system (for example a Windows path in a
+    // login issued by a Windows Fleet node) is not a place on this machine: ignore it rather
+    // than creating it as a folder with that literal name
+    let raw_home = if raw_home.is_empty() || is_local_absolute_path(raw_home) {
+        raw_home
+    } else {
+        tracing::debug!(user = %claims.sub, home = %raw_home, "Ignoring a home folder that is not a full path on this system");
+        ""
+    };
 
     // Sanitize username for template substitution
     let safe_username: String = claims.sub.chars().filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-' || *c == '.').collect();
@@ -952,7 +967,7 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
         if candidate_path.is_dir() {
             return Some(candidate);
         }
-        if state.config.storage.auto_create_home_dirs {
+        if state.config.storage.auto_create_home_dirs && candidate_path.is_absolute() {
             let _ = std::fs::create_dir_all(candidate_path);
             if candidate_path.is_dir() {
                 return Some(candidate);

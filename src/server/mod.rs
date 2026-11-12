@@ -480,6 +480,22 @@ mod tests {
         state.config = std::sync::Arc::new(auto_config);
         let effective = resolve_effective_home(&claims, &state);
         assert!(effective.is_some());
+
+        // 3. A home folder from the other kind of system (a Windows path in a login from a
+        //    Windows Fleet node, or a Linux path on Windows) is ignored, never created
+        let foreign = if cfg!(windows) { "/home/fleet-test-user" } else { r"C:\Users\fleet-test-user" };
+        let mut foreign_claims = claims.clone();
+        foreign_claims.home_dir = foreign.to_string();
+        let mut template_config = config.clone();
+        template_config.storage.home_fallback_scheme = "auto".to_string();
+        template_config.storage.auto_create_home_dirs = true;
+        template_config.storage.default_user_home_template = temp.path().join("{username}").to_string_lossy().to_string();
+        state.config = std::sync::Arc::new(template_config);
+        let effective = resolve_effective_home(&foreign_claims, &state);
+        assert_eq!(effective, Some(temp.path().join("admin").to_string_lossy().to_string()));
+        assert!(!Path::new(foreign).exists(), "a foreign home path must not become a folder here");
+        assert!(crate::server::middleware::is_local_absolute_path(&temp.path().to_string_lossy()));
+        assert!(!crate::server::middleware::is_local_absolute_path(foreign));
     }
 
     #[test]
