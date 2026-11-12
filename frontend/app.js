@@ -2366,6 +2366,9 @@ function applyAllUserPreferences(prefs) {
       });
       localStorage.setItem('cd_fleet_nodes', JSON.stringify(merged));
     }
+    if (typeof syncConfigFleetNodes === 'function') {
+      syncConfigFleetNodes();
+    }
     if (typeof renderFleetSwitcherDropdown === 'function') {
       renderFleetSwitcherDropdown();
     }
@@ -43462,13 +43465,86 @@ function saveFleetNodes(nodes, skipServerSync = false) {
   }
 }
 
-function syncConfigFleetNodes() {
-  if (!App.config?.fleet?.enabled || !Array.isArray(App.config.fleet.nodes)) return;
-  const staticNodes = App.config.fleet.nodes;
-  if (staticNodes.length === 0) return;
+// Where a saved Fleet entry came from: 'config' (copied from config.toml) or 'user' (added
+// by hand). Older entries carry no record; generated ids (node_...) were added by hand.
+function fleetNodeOrigin(n) {
+  if (n && (n.origin === 'config' || n.origin === 'user')) return n.origin;
+  return (n && n.is_static && !String(n.id || '').startsWith('node_')) ? 'config' : 'user';
+}
 
-  let localNodes = loadFleetNodes();
-  let modified = false;
+function sameFleetUrl(a, b) {
+  const norm = s => String(s || '').trim().replace(/\/+$/, '').toLowerCase();
+  return !!norm(a) && norm(a) === norm(b);
+}
+
+// The config.toml node a saved entry stands for: same id (ignoring case) or same address
+function findConfigFleetNode(node, staticNodes) {
+  const id = String(node.id || '').toLowerCase();
+  return staticNodes.find(sn => String(sn.id || '').toLowerCase() === id || sameFleetUrl(node.endpoint_url, sn.endpoint_url || sn.url)) || null;
+}
+
+// The config.toml nodes that apply now (none when Fleet is off)
+function currentConfigFleetNodes() {
+  const f = App.config?.fleet;
+  return (f && f.enabled && Array.isArray(f.nodes)) ? f.nodes : [];
+}
+
+// Brings saved entries in line with config.toml: an entry for a config node takes the config's
+// id (the id the server knows), duplicates of one config node are merged, and entries copied
+// from a config that no longer lists them are removed (or kept as your own if you edited them).
+function reconcileFleetNodes(nodes, staticNodes) {
+  const out = [];
+  const renamed = [];
+  let changed = false;
+  for (const n of nodes) {
+    const match = findConfigFleetNode(n, staticNodes);
+    if (match) {
+      if (out.some(o => o.id === match.id)) { changed = true; continue; }
+      if (n.id !== match.id) {
+        renamed.push([n.id, match.id]);
+        n.id = match.id;
+        changed = true;
+      }
+      if (!n.is_static || n.origin !== 'config') {
+        if (!n.origin) n.origin = fleetNodeOrigin(n);
+        n.is_static = true;
+      }
+      out.push(n);
+    } else if (fleetNodeOrigin(n) === 'config') {
+      changed = true;
+      if (n.user_override) {
+        n.is_static = false;
+        n.user_override = false;
+        n.origin = 'user';
+        out.push(n);
+      }
+    } else {
+      if (n.is_static) { n.is_static = false; changed = true; }
+      out.push(n);
+    }
+  }
+  return { nodes: out, changed, renamed };
+}
+
+// Panels and the active node follow a node whose id changed
+function migrateFleetNodeIds(renamed) {
+  renamed.forEach(([from, to]) => {
+    if (localStorage.getItem(FLEET_ACTIVE_KEY) === from) localStorage.setItem(FLEET_ACTIVE_KEY, to);
+    for (let i = 0; i < 4; i++) {
+      if (localStorage.getItem(`cd_pane_node_${i}`) === from) localStorage.setItem(`cd_pane_node_${i}`, to);
+    }
+    (App.panes || []).forEach(p => { if (p && p.nodeId === from) p.nodeId = to; });
+  });
+}
+
+function syncConfigFleetNodes() {
+  if (!App.config?.fleet) return;
+  const staticNodes = currentConfigFleetNodes();
+
+  const reconciled = reconcileFleetNodes(loadFleetNodes(), staticNodes);
+  let localNodes = reconciled.nodes;
+  migrateFleetNodeIds(reconciled.renamed);
+  let modified = reconciled.changed;
 
   staticNodes.forEach(sn => {
     const endpointUrl = sn.endpoint_url || sn.url;
@@ -43516,6 +43592,7 @@ function syncConfigFleetNodes() {
         tags: sn.tags || [],
         is_static: true,
         user_override: false,
+        origin: 'config',
         created_at: Date.now(),
         status: 'unknown',
         latency_ms: null
@@ -43525,7 +43602,7 @@ function syncConfigFleetNodes() {
   });
 
   if (modified) {
-    saveFleetNodes(localNodes, true);
+    saveFleetNodes(localNodes, !reconciled.changed);
     if (typeof renderFleetSwitcherDropdown === 'function') {
       renderFleetSwitcherDropdown();
     }
@@ -43537,7 +43614,8 @@ function syncConfigFleetNodes() {
 }
 
 function getAllFleetNodes() {
-  const local = loadFleetNodes();
+  const saved = loadFleetNodes();
+  const local = App.config?.fleet ? reconcileFleetNodes(saved, currentConfigFleetNodes()).nodes : saved;
   if (App.config?.fleet?.enabled && Array.isArray(App.config.fleet.nodes) && App.config.fleet.nodes.length > 0) {
     const staticNodes = App.config.fleet.nodes;
     let merged = [...local];
@@ -43563,6 +43641,7 @@ function getAllFleetNodes() {
           tags: sn.tags || [],
           is_static: true,
           user_override: false,
+          origin: 'config',
           status: 'unknown',
           latency_ms: null
         });
@@ -44347,6 +44426,7 @@ function saveFleetNodeProfile() {
     const newId = 'node_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36);
     const newNode = {
       id: newId,
+      origin: 'user',
       name,
       endpoint_url: url,
       auth_token: token,
@@ -44397,7 +44477,7 @@ async function deleteFleetNodeProfile(id, event) {
     if (!confirmed) return;
 
     let nodes = loadFleetNodes().filter(n => n.id !== id);
-    saveFleetNodes(nodes, true);
+    saveFleetNodes(nodes);
     syncConfigFleetNodes();
     resetFleetNodeForm();
     showToast(`Reset "${node.name}" to config.toml defaults`, 'success');
@@ -44476,6 +44556,7 @@ function handleFleetNodesImport(event) {
         } else {
           current.push({
             id: n.id || ('node_' + Math.random().toString(36).substring(2, 9) + Date.now().toString(36)),
+            origin: 'user',
             name: n.name || n.endpoint_url,
             endpoint_url: n.endpoint_url,
             auth_token: n.auth_token || '',
