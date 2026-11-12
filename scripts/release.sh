@@ -4,7 +4,8 @@
 # Automates:
 #  1. Cleanup of temporary logs, artifacts, and test files
 #  2. Semver version bump across Cargo, Tauri, Web, and Packaging configs
-#  3. Building release binary and distribution packages (.tar.gz, .deb, .apk)
+#  3. Local build check of the release binary and packages (the release files themselves
+#     are built and published by the GitHub release workflow)
 #  4. Git commit, tag, and push to GitHub (origin main --tags)
 #  5. Automatic source sha256 checksum calculation & PKGBUILD sync
 #  6. Automatic AUR sync for both `brum` and `brum-bin`
@@ -199,12 +200,11 @@ fi
 echo "📦 Compiling and building distribution packages..."
 bash "${SCRIPT_DIR}/build-packages.sh"
 
-# Extract binary sha256 for -bin package
+# The local packages above are a build check only. The release workflow builds and uploads
+# the real release files and their SHA256SUMS.txt; the brum-bin checksum is taken from its
+# tarball in step 6.
 BIN_TARBALL="brum-v${TARGET_VERSION}-linux-x86_64.tar.gz"
-BIN_SHA256=$(grep "${BIN_TARBALL}" dist/SHA256SUMS | awk '{print $1}')
-if [ -n "${BIN_SHA256}" ] && [ -f "packaging/brum-bin.PKGBUILD" ]; then
-    sed -i "s/^sha256sums=('.*')/sha256sums=('${BIN_SHA256}')/" packaging/brum-bin.PKGBUILD
-fi
+BIN_SHA256=""
 
 # ------------------------------------------------------------------------------
 # 5. GIT COMMIT, TAG & PUSH TO GITHUB
@@ -215,14 +215,28 @@ git commit -m "release: v${TARGET_VERSION}" || echo "No changes to commit"
 git tag -fa "v${TARGET_VERSION}" -m "Release v${TARGET_VERSION}"
 git push origin main --tags -f
 
-if command -v gh >/dev/null 2>&1; then
-    echo "📦 Uploading assets to GitHub Release v${TARGET_VERSION}..."
-    gh release create "v${TARGET_VERSION}" dist/* --title "v${TARGET_VERSION}" --generate-notes || gh release upload "v${TARGET_VERSION}" dist/* --clobber || true
-fi
+echo "📦 The release workflow now builds and publishes the GitHub Release files for v${TARGET_VERSION}."
 
 # ------------------------------------------------------------------------------
-# 6. FETCH SOURCE TARBALL SHA256 & SYNC PKGBUILD
+# 6. FETCH SOURCE & BINARY TARBALL SHA256 & SYNC PKGBUILDS
 # ------------------------------------------------------------------------------
+echo "⏳ Waiting for the release workflow to publish ${BIN_TARBALL} (up to 40 min)..."
+BIN_TMP="$(mktemp -d)"
+deadline=$(( $(date +%s) + 40 * 60 ))
+until gh release view "v${TARGET_VERSION}" --json assets --jq '.assets[].name' 2>/dev/null | grep -qx "${BIN_TARBALL}"; do
+    if [ "$(date +%s)" -ge "${deadline}" ]; then
+        echo "⚠️ ${BIN_TARBALL} did not appear in time; brum-bin keeps its old checksum. Update it later from the release file."
+        break
+    fi
+    sleep 30
+done
+if gh release download "v${TARGET_VERSION}" -p "${BIN_TARBALL}" -D "${BIN_TMP}" --clobber 2>/dev/null; then
+    BIN_SHA256=$(sha256sum "${BIN_TMP}/${BIN_TARBALL}" | awk '{print $1}')
+    echo "Binary SHA-256 (from the release file): ${BIN_SHA256}"
+    sed -i "s/^sha256sums=('.*')/sha256sums=('${BIN_SHA256}')/" packaging/brum-bin.PKGBUILD
+fi
+rm -rf "${BIN_TMP}"
+
 echo "🔒 Calculating GitHub source tarball SHA-256 for AUR..."
 sleep 3
 SOURCE_URL="https://github.com/Woofson/brum/archive/refs/tags/v${TARGET_VERSION}.tar.gz"
@@ -291,7 +305,9 @@ SRCINFO_EOF
     # 7.2 brum-bin (pre-compiled binary)
     AUR_BIN_DIR="/tmp/aur-brum-bin-${TARGET_VERSION}"
     rm -rf "${AUR_BIN_DIR}"
-    if git clone aur@aur.archlinux.org:brum-bin.git "${AUR_BIN_DIR}"; then
+    if [ -z "${BIN_SHA256}" ]; then
+        echo "⚠️ Skipping AUR 'brum-bin': no checksum from the release file yet (see step 6)"
+    elif git clone aur@aur.archlinux.org:brum-bin.git "${AUR_BIN_DIR}"; then
         cp packaging/brum-bin.PKGBUILD "${AUR_BIN_DIR}/PKGBUILD"
         cat << SRCINFO_BIN_EOF > "${AUR_BIN_DIR}/.SRCINFO"
 pkgbase = brum-bin
