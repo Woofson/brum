@@ -46,6 +46,24 @@ pub fn windows_profile_username(input: &str) -> String {
     }
 }
 
+/// When Windows turns down a Microsoft account address with "wrong username or password" in
+/// every form, the password Windows checks is often not the one typed: Windows only knows a
+/// Microsoft account password after someone has signed in to this PC with it (not a PIN).
+pub fn microsoft_account_hint(input: &str, refusals: &[u32]) -> Option<&'static str> {
+    let is_address = windows_profile_username(input).contains('@');
+    if is_address && !refusals.is_empty() && refusals.iter().all(|&c| c == 1326) {
+        Some(
+            "Hint: Windows only knows a Microsoft account password after it has been used to sign in \
+             to this PC (a PIN, fingerprint or face does not count), and keeps the one from that sign-in. \
+             If the account was set up with a code or the Authenticator app, the password changed online, \
+             or Windows Hello-only sign-in is on (Settings > Accounts > Sign-in options), sign in to \
+             Windows once with the password, then try again.",
+        )
+    } else {
+        None
+    }
+}
+
 /// Plain-words reason for a Windows login refusal code, for the log.
 pub fn describe_logon_error(code: u32) -> &'static str {
     match code {
@@ -112,6 +130,7 @@ pub fn authenticate_windows_user(
     let mut token_handle: HANDLE = 0 as HANDLE;
     let mut logged_on = false;
     let mut clean_username = String::new();
+    let mut refusals: Vec<u32> = Vec::new();
 
     // Try each way of handing the name to Windows; each with a network sign-in
     // first, then an interactive one. Every refusal is logged with its reason.
@@ -146,6 +165,7 @@ pub fn authenticate_windows_user(
                 break 'outer;
             }
             let err_code = unsafe { windows_sys::Win32::Foundation::GetLastError() };
+            refusals.push(err_code);
             warn!(
                 tried_as = %shown,
                 sign_in = kind,
@@ -157,6 +177,9 @@ pub fn authenticate_windows_user(
     }
 
     if !logged_on {
+        if let Some(hint) = microsoft_account_hint(username, &refusals) {
+            warn!(tried_as = %username, "{}", hint);
+        }
         return Err("Invalid Windows username or password".into());
     }
 
@@ -281,6 +304,17 @@ mod tests {
         assert_eq!(windows_profile_username(r"microsoftaccount\me@mail.com"), "me@mail.com");
         assert_eq!(windows_profile_username("me@mail.com"), "me@mail.com");
         assert_eq!(windows_profile_username(r"CORP\alice"), r"CORP\alice");
+    }
+
+    #[test]
+    fn test_microsoft_account_hint() {
+        // Every form refused as wrong name/password: hint for addresses only
+        assert!(microsoft_account_hint("me@mail.com", &[1326, 1326, 1326, 1326]).is_some());
+        assert!(microsoft_account_hint(r"MicrosoftAccount\me@mail.com", &[1326, 1326]).is_some());
+        assert!(microsoft_account_hint("alice", &[1326, 1326]).is_none());
+        // Another reason in the mix, or nothing tried: no hint
+        assert!(microsoft_account_hint("me@mail.com", &[1326, 1331]).is_none());
+        assert!(microsoft_account_hint("me@mail.com", &[]).is_none());
     }
 
     #[test]
