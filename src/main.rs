@@ -7,6 +7,7 @@ pub mod secrets;
 pub mod server;
 pub mod tools;
 pub mod vfs;
+pub mod win_perms;
 
 #[cfg(target_os = "windows")]
 mod windows_service_runner;

@@ -180,7 +180,11 @@ pub fn write_initial_admin_credentials(
     }
     #[cfg(not(unix))]
     {
-        fs::write(&target, content)?;
+        use std::io::Write;
+        // Lock it to Brum's account before the password goes in
+        let mut file = fs::OpenOptions::new().create(true).write(true).truncate(true).open(&target)?;
+        crate::win_perms::restrict_file_to_owner(&target).map_err(std::io::Error::other)?;
+        file.write_all(content.as_bytes())?;
     }
 
     Ok(target)

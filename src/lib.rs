@@ -7,6 +7,7 @@ pub mod secrets;
 pub mod server;
 pub mod tools;
 pub mod vfs;
+pub mod win_perms;
 
 use auth::AuthManager;
 use config::AppConfig;

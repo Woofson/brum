@@ -45,6 +45,10 @@ fn load_or_create(db_path: &str) -> Option<[u8; 32]> {
     };
     if let Ok(text) = std::fs::read_to_string(&path) {
         if let Some(k) = parse_hex_key(&text) {
+            // Files made by older versions on Windows could be open to every account
+            if let Err(e) = crate::win_perms::restrict_file_to_owner(&path) {
+                warn!("Could not limit access to {}: {e}", path.display());
+            }
             return Some(k);
         }
         warn!("{} is not a valid key; stored passwords stay readable until it is fixed", path.display());
@@ -75,7 +79,12 @@ fn write_private(path: &Path, text: &str) -> std::io::Result<()> {
     }
     #[cfg(not(unix))]
     {
-        std::fs::write(path, format!("{text}\n"))
+        use std::io::Write;
+        // Create it empty, lock it to Brum's account, then write the key
+        let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(path)?;
+        crate::win_perms::restrict_file_to_owner(path).map_err(std::io::Error::other)?;
+        f.write_all(text.as_bytes())?;
+        f.write_all(b"\n")
     }
 }
 

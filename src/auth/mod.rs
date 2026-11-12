@@ -209,6 +209,40 @@ impl<'a> std::ops::Deref for ReadConnGuard<'a> {
     }
 }
 
+/// What the node-local login signing secret is derived for. On Windows it includes a random
+/// part kept in the database, made once: a key file copied while older all-users installs left
+/// it open to every account no longer helps to make logins (everyone signs in again once).
+fn login_signing_purpose(conn: &Connection) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+    #[cfg(windows)]
+    {
+        let salt: Option<String> = conn
+            .query_row("SELECT value FROM security_settings WHERE key = 'login_signing_salt'", [], |row| row.get(0))
+            .optional()?;
+        let salt = match salt {
+            Some(s) if !s.trim().is_empty() => s,
+            _ => {
+                use rand::RngCore;
+                let mut bytes = [0u8; 32];
+                rand::rngs::OsRng.fill_bytes(&mut bytes);
+                let fresh = hex::encode(bytes);
+                conn.execute(
+                    "INSERT INTO security_settings (key, value) VALUES ('login_signing_salt', ?1)
+                     ON CONFLICT(key) DO UPDATE SET value = ?1",
+                    params![fresh],
+                )?;
+                tracing::warn!("Login signing was renewed; everyone signs in again once and API tokens made before must be recreated.");
+                fresh
+            }
+        };
+        Ok(format!("login-signing:{}", salt))
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = conn;
+        Ok("login-signing".to_string())
+    }
+}
+
 /// A made-up 20-character password for the built-in admin.
 pub fn generate_admin_password() -> String {
     use rand::Rng;
@@ -266,10 +300,15 @@ impl AuthManager {
         if let Some(parent) = std::path::Path::new(db_path).parent() {
             if !parent.as_os_str().is_empty() {
                 let _ = std::fs::create_dir_all(parent);
+                // All-users Windows install: keep the shared data folder away from other accounts
+                crate::win_perms::secure_shared_data_dir(parent);
             }
         }
         let conn = Connection::open(db_path)?;
         crate::secrets::init(db_path);
+        if let Some(note) = first_login_note_path(db_path) {
+            let _ = crate::win_perms::restrict_file_to_owner(&note);
+        }
 
         // High-performance SQLite concurrency and memory pragmas
         conn.execute_batch(
@@ -543,7 +582,7 @@ impl AuthManager {
 
             // Derived from the key file, so the database never holds it; an older copy in the
             // database is removed (sessions from before log in again once)
-            if let Some(derived) = crate::secrets::derived_secret("login-signing") {
+            if let Some(derived) = crate::secrets::derived_secret(&login_signing_purpose(&conn)?) {
                 let removed = conn.execute("DELETE FROM security_settings WHERE key = 'jwt_secret'", []).unwrap_or(0);
                 if removed > 0 {
                     tracing::warn!("Login signing now uses brum-secrets.key; everyone signs in again once.");

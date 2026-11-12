@@ -59,11 +59,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Name: "startservice"; Description: "Start Brum Windows Service immediately after installation"; GroupDescription: "Service Options:"; Components: service; Check: IsAdminInstallMode
 
 [Dirs]
-Name: "{commonappdata}\{#MyAppName}"; Permissions: authusers-full; Check: IsAdminInstallMode
-Name: "{commonappdata}\{#MyAppName}\themes"; Permissions: authusers-full; Check: IsAdminInstallMode
+; Shared data folder (all-users install): permissions are set in [Run] below
+Name: "{commonappdata}\{#MyAppName}"; Check: IsAdminInstallMode
+Name: "{commonappdata}\{#MyAppName}\plugins"; Check: IsAdminInstallMode
 Name: "{userappdata}\{#MyAppName}"; Check: not IsAdminInstallMode
 Name: "{userappdata}\{#MyAppName}\themes"; Check: not IsAdminInstallMode
-Name: "{app}"; Permissions: authusers-modify; Check: IsAdminInstallMode
+Name: "{app}"; Check: IsAdminInstallMode
 Name: "{app}"; Check: not IsAdminInstallMode
 
 [Files]
@@ -100,12 +101,22 @@ Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Brum"; ValueTyp
 Root: HKCU; Subkey: "Software\Classes\Directory\Background\shell\Brum\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" -s ""%V"""; Flags: uninsdeletekey; Components: contextmenu; Check: not IsAdminInstallMode
 
 [Run]
+; All-users install: the install folder keeps the standard Program Files permissions, and the
+; shared data folder is limited to the system account and administrators (users may read the
+; system Chewtoys folder). Also repairs installs made by earlier versions.
+; S-1-5-11 = Authenticated Users, S-1-5-32-545 = Users, S-1-5-18 = SYSTEM, S-1-5-32-544 = Administrators
+Filename: "{sys}\icacls.exe"; Parameters: """{app}"" /remove:g *S-1-5-11 /t /c /q"; StatusMsg: "Setting folder permissions..."; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\{#MyAppName}"" /setowner *S-1-5-32-544 /t /c /q"; StatusMsg: "Setting folder permissions..."; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\{#MyAppName}"" /remove:g *S-1-5-11 *S-1-5-32-545 /c /q"; StatusMsg: "Setting folder permissions..."; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\{#MyAppName}"" /inheritance:r /grant:r *S-1-5-18:(OI)(CI)F *S-1-5-32-544:(OI)(CI)F /c /q"; StatusMsg: "Setting folder permissions..."; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\{#MyAppName}\*"" /reset /t /c /q"; StatusMsg: "Setting folder permissions..."; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
+Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\{#MyAppName}\plugins"" /grant *S-1-5-32-545:(OI)(CI)RX /c /q"; StatusMsg: "Setting folder permissions..."; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
 ; Install Windows Service if component selected (Administrative mode only)
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service install"; StatusMsg: "Registering Brum Windows Service..."; Flags: runhidden waituntilterminated; Components: service; Check: IsAdminInstallMode
 ; Start Windows Service if task selected
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service start"; StatusMsg: "Starting Brum Windows Service..."; Flags: runhidden waituntilterminated; Tasks: startservice; Components: service; Check: IsAdminInstallMode
 ; Post-install launch for standalone desktop app
-Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent; Components: standalone
+Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runasoriginaluser; Components: standalone
 
 [UninstallRun]
 ; Stop and remove Windows Service cleanly if installed

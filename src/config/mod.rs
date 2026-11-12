@@ -207,15 +207,19 @@ fn default_db_path() -> String {
             return "commanderdog.db".to_string();
         }
 
-        // 2. Check %PROGRAMDATA%\Brum\brum.db (e.g. C:\ProgramData\Brum\brum.db) - standard for Windows Service and installed apps
-        if let Ok(progdata) = std::env::var("ProgramData") {
-            let pdata_dir = Path::new(&progdata).join("Brum");
-            let pdata_db = pdata_dir.join("brum.db");
-            if pdata_db.is_file() {
-                return pdata_db.to_string_lossy().to_string();
-            }
-            if pdata_dir.is_dir() || std::fs::create_dir_all(&pdata_dir).is_ok() {
-                return pdata_db.to_string_lossy().to_string();
+        // 2. %PROGRAMDATA%\Brum\brum.db (e.g. C:\ProgramData\Brum\brum.db): the shared data of an all-users
+        //    install, used by the Windows Service and by Brum started as administrator. Other
+        //    accounts keep their own data in their profile (step 3).
+        if crate::win_perms::is_elevated() {
+            if let Ok(progdata) = std::env::var("ProgramData") {
+                let pdata_dir = Path::new(&progdata).join("Brum");
+                let pdata_db = pdata_dir.join("brum.db");
+                if pdata_db.is_file() {
+                    return pdata_db.to_string_lossy().to_string();
+                }
+                if pdata_dir.is_dir() || std::fs::create_dir_all(&pdata_dir).is_ok() {
+                    return pdata_db.to_string_lossy().to_string();
+                }
             }
         }
 
@@ -378,10 +382,13 @@ impl LoggingConfig {
 
         #[cfg(windows)]
         {
-            if let Ok(progdata) = std::env::var("ProgramData") {
-                let pdata_dir = Path::new(&progdata).join("Brum");
-                if pdata_dir.is_dir() {
-                    return pdata_dir.join("logs");
+            // The shared data folder is only open to the service and administrators
+            if crate::win_perms::is_elevated() {
+                if let Ok(progdata) = std::env::var("ProgramData") {
+                    let pdata_dir = Path::new(&progdata).join("Brum");
+                    if pdata_dir.is_dir() {
+                        return pdata_dir.join("logs");
+                    }
                 }
             }
             if let Some(local_appdata) = dirs::data_local_dir() {
