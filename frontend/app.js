@@ -274,7 +274,7 @@ const BRUM_ACTIONS = new Set([
   'toggleMaximizeSplitter', 'toggleMaximizeTagEditor', 'toggleMediaFullscreen', 'toggleMediaMute',
   'toggleMediaPiP', 'toggleMediaPlay', 'toggleMediaPlaylistDrawer', 'toggleMediaShuffle',
   'toggleMediaStopOnClose', 'toggleMediaSubtitlesDropdown', 'toggleMenuItemVisibility',
-  'toggleMinimizeToTray', 'toggleMountAllUsers', 'toggleNoteAttachmentsTray',
+  'toggleMountAllUsers', 'toggleNoteAttachmentsTray',
   'toggleNotesCreateEncryptedFields', 'toggleNotesDrawer', 'togglePaneFilter',
   'togglePaneReordering', 'togglePaneSyncNav', 'togglePaneSyncScroll', 'togglePaneTree',
   'toggleParentClass', 'togglePasswordVisibility', 'togglePdfSplitModeUI', 'toggleProfileMenu',
@@ -9679,12 +9679,6 @@ function renderDesktopAppsTab() {
   if (useExtViewerCheckbox) {
     const saved = localStorage.getItem('cd_use_ext_viewer_f3');
     useExtViewerCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.use_external_viewer_f3 === true);
-  }
-
-  const extMinTrayCheckbox = document.getElementById('setting-ext-minimize-tray');
-  if (extMinTrayCheckbox) {
-    const saved = localStorage.getItem('cd_minimize_tray');
-    extMinTrayCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.minimize_to_tray !== false);
   }
 
   const extStartMinCheckbox = document.getElementById('setting-ext-start-minimized');
@@ -24807,12 +24801,6 @@ function openSettingsModal() {
     decDesktopCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.ui?.window_decorations !== false);
   }
 
-  const minTrayCheckbox = document.getElementById('setting-minimize-tray');
-  if (minTrayCheckbox) {
-    const saved = localStorage.getItem('cd_minimize_tray');
-    minTrayCheckbox.checked = saved !== null ? (saved === 'true') : (App.config?.desktop?.minimize_to_tray !== false);
-  }
-
   const startMinCheckbox = document.getElementById('setting-start-minimized');
   if (startMinCheckbox) {
     const saved = localStorage.getItem('cd_start_minimized');
@@ -25127,11 +25115,6 @@ function clearAllCustomFileIcons() {
   renderAllPanes();
   queueSaveUserPreferencesToServer();
   showToast('Cleared all custom filetype icon rules', 'info');
-}
-
-function toggleMinimizeToTray(enabled) {
-  localStorage.setItem('cd_minimize_tray', enabled);
-  showToast(enabled ? 'Minimize to System Tray enabled' : 'Minimize to System Tray disabled', 'info');
 }
 
 function toggleStartMinimized(enabled) {

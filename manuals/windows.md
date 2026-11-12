@@ -124,7 +124,35 @@ With `mode = "mixed"` (the default), Windows accounts can log in with their Wind
 
 ---
 
-## 5. Windows Explorer Context Menu Integration
+## 5. Tray Icon
+
+The Brum icon in the notification area (by the clock) shows whether Brum is running and opens it quickly.
+
+* **Left-click** opens Brum in your browser. If nothing is running and there is no service, it starts desktop mode.
+* **Hover** shows the version and address, or why Brum is not reachable.
+* **Right-click** opens the menu:
+  * Open Brum, Open as app window (Microsoft Edge without browser bars), Copy address
+  * Open logs folder, Open data folder
+  * Start / Stop / Restart service, when the service is installed (Windows asks for administrator approval)
+  * Quit tray icon
+
+It shows your own desktop mode when that is running, otherwise the Windows service.
+
+### Starting it
+* The installer can start it at sign-in. This is on by default for desktop installs; on an all-users install it applies to every user.
+* By hand (with the installer, use the full path, e.g. `& "C:\Program Files\Brum\brum.exe" tray`):
+  ```powershell
+  brum tray                          # start it now
+  brum tray install                  # start it at sign-in for you
+  brum tray install --all-users      # for every user (terminal opened as administrator)
+  brum tray uninstall [--all-users]  # stop starting it at sign-in
+  ```
+* `brum --minimized` starts desktop mode without opening the browser, with the tray icon. Its menu then says **Quit Brum**, which ends desktop mode.
+* `enable_tray = false` in the `[desktop]` section of `config.toml` switches the tray icon off.
+
+---
+
+## 6. Windows Explorer Context Menu Integration
 
 Add **"Open in Brum"** to the Windows Explorer right-click context menu for any directory, drive, or folder background:
 
@@ -142,7 +170,7 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ---
 
-## 6. Windows Filesystem Features
+## 7. Windows Filesystem Features
 
 - **Native Windows SAM Authentication (`LogonUserW`)**: Authenticate directly with local Windows accounts or domain credentials against the Windows Security Account Manager (SAM) with automatic `%USERPROFILE%` home directory mapping and Admin group detection.
 - **Drive Letter Navigation**: Switch seamlessly across `C:\`, `D:\`, `E:\`, `Z:\` in breadcrumbs and the quick jump menu.
@@ -154,7 +182,7 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ---
 
-## 7. Windows PE Metadata & Build Inspection
+## 8. Windows PE Metadata & Build Inspection
 
 Windows executable (`brum.exe`) automatically embeds PE Version Resources:
 * **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.8.8.419`).
@@ -163,7 +191,7 @@ Windows executable (`brum.exe`) automatically embeds PE Version Resources:
 
 ---
 
-## 8. Multimedia & Transcoding Dependencies (Format Converter)
+## 9. Multimedia & Transcoding Dependencies (Format Converter)
 
 Brum runs completely standalone out-of-the-box with zero mandatory runtime dependencies for file browsing, terminals, and encrypted vaults.
 
@@ -195,7 +223,7 @@ If installing manually without a package manager:
 
 ---
 
-## 9. Building from Source on Windows
+## 10. Building from Source on Windows
 
 ### Prerequisites
 - [Rust & Cargo](https://rustup.rs/) (`stable-x86_64-pc-windows-msvc` or cross-compile with `x86_64-pc-windows-gnu`)

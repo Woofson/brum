@@ -8,6 +8,7 @@ pub mod server;
 pub mod tools;
 pub mod vfs;
 pub mod win_perms;
+pub mod tray;
 
 #[cfg(target_os = "windows")]
 mod windows_service_runner;
@@ -65,6 +66,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let args: Vec<String> = std::env::args().collect();
     let mut is_server_mode = false;
     let mut auto_open = false;
+    let mut minimized = false;
     let mut connect_url: Option<String> = None;
     let mut i = 1;
     while i < args.len() {
@@ -192,8 +194,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
             }
             "--minimized" | "--tray-only" => {
+                // Desktop mode without opening the browser; on Windows with the tray icon
                 auto_open = false;
+                minimized = true;
                 config.server.standalone = true;
+            }
+            "tray" => {
+                tray::run_command(&args[i + 1..]);
+                return Ok(());
             }
             "--no-decorations" | "--frameless" => {
                 config.ui.window_decorations = false;
@@ -220,6 +228,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    brum service [COMMAND]");
                 println!("    brum shortcut [COMMAND] [--desktop]");
                 println!("    brum reset-admin-password   Give the built-in admin a new password (run on the Brum machine)");
+                println!("    brum tray [install|uninstall] [--all-users]   Windows tray icon, and starting it at sign-in");
                 println!();
                 println!("OPTIONS:");
                 println!("    -c, --connect <URL>    Connect desktop GUI/browser directly to an existing or remote Brum server");
@@ -229,7 +238,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("        --host <HOST>      Override web server bind host (default: 0.0.0.0)");
                 println!("        --no-auth          Disable login (only on 127.0.0.1, or behind trusted_proxies that handle login)");
                 println!("        --windows-service  Internal entry point for Windows Service Control Manager");
-                println!("        --minimized        Launch minimized in system tray / background without opening window");
+                println!("        --minimized        Start desktop mode without opening the browser (with the tray icon on Windows)");
                 println!("        --no-decorations   Launch without window titlebar/frame (for tiling window managers)");
                 println!("        --frameless        Alias for --no-decorations");
                 println!("        --decorations      Force enable window titlebar and borders");
@@ -412,7 +421,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         format!("http://127.0.0.1:{}", bound_port)
     };
     let is_standalone = config.server.standalone;
-    let should_launch_browser = !is_server_mode && (is_standalone || auto_open);
+    let should_launch_browser = !is_server_mode && !minimized && (is_standalone || auto_open);
+    if minimized && config.desktop.enable_tray {
+        tray::spawn_in_process(open_url.clone());
+    }
 
     if should_launch_browser {
         tokio::spawn(async move {

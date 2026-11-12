@@ -57,6 +57,7 @@ Name: "contextmenu"; Description: "Windows Explorer Context Menu Integration ('O
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Components: standalone; Flags: unchecked
 Name: "startservice"; Description: "Start Brum Windows Service immediately after installation"; GroupDescription: "Service Options:"; Components: service; Check: IsAdminInstallMode
+Name: "traystartup"; Description: "Show the Brum tray icon (by the clock) at sign-in"; GroupDescription: "{cm:AdditionalIcons}"; Components: standalone
 
 [Dirs]
 ; Shared data folder (all-users install): permissions are set in [Run] below
@@ -115,6 +116,10 @@ Filename: "{sys}\icacls.exe"; Parameters: """{commonappdata}\{#MyAppName}\plugin
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service install"; StatusMsg: "Registering Brum Windows Service..."; Flags: runhidden waituntilterminated; Components: service; Check: IsAdminInstallMode
 ; Start Windows Service if task selected
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service start"; StatusMsg: "Starting Brum Windows Service..."; Flags: runhidden waituntilterminated; Tasks: startservice; Components: service; Check: IsAdminInstallMode
+; Tray icon at sign-in: for every user on an all-users install, else for this user; then start it now
+Filename: "{app}\{#MyCliExeName}"; Parameters: "tray install --all-users --no-start"; StatusMsg: "Setting up the tray icon..."; Flags: runhidden waituntilterminated; Tasks: traystartup; Check: IsAdminInstallMode
+Filename: "{app}\{#MyCliExeName}"; Parameters: "tray install --no-start"; StatusMsg: "Setting up the tray icon..."; Flags: runhidden waituntilterminated; Tasks: traystartup; Check: not IsAdminInstallMode
+Filename: "{app}\{#MyCliExeName}"; Parameters: "tray"; Flags: runhidden nowait runasoriginaluser; Tasks: traystartup
 ; Post-install launch for standalone desktop app
 Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runasoriginaluser; Components: standalone
 
@@ -122,3 +127,7 @@ Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; Description: "{cm:LaunchPro
 ; Stop and remove Windows Service cleanly if installed
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service stop"; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
 Filename: "{app}\{#MyCliExeName}"; Parameters: "service uninstall"; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode
+; Stop starting the tray icon at sign-in, and close running copies of Brum so their files can be removed
+Filename: "{app}\{#MyCliExeName}"; Parameters: "tray uninstall --all-users"; Flags: runhidden waituntilterminated; Check: IsAdminInstallMode; RunOnceId: "TrayUninstallAll"
+Filename: "{app}\{#MyCliExeName}"; Parameters: "tray uninstall"; Flags: runhidden waituntilterminated; Check: not IsAdminInstallMode; RunOnceId: "TrayUninstallUser"
+Filename: "{sys}\taskkill.exe"; Parameters: "/F /IM {#MyAppExeName}"; Flags: runhidden waituntilterminated; RunOnceId: "CloseBrum"

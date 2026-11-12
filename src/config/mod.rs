@@ -1234,8 +1234,7 @@ pub struct FleetNodeConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DesktopConfig {
-    #[serde(default = "default_true")]
-    pub minimize_to_tray: bool,
+    /// Windows: show the Brum tray icon (`brum tray`, and desktop mode with `--minimized`)
     #[serde(default = "default_true")]
     pub enable_tray: bool,
     #[serde(default = "default_summon_hotkey")]
@@ -1257,7 +1256,6 @@ pub struct DesktopConfig {
 impl Default for DesktopConfig {
     fn default() -> Self {
         Self {
-            minimize_to_tray: true,
             enable_tray: true,
             global_summon_hotkey: default_summon_hotkey(),
             start_minimized: false,
@@ -2235,7 +2233,7 @@ mod tests {
             show_global_refresh = false
 
             [desktop]
-            minimize_to_tray = true
+            enable_tray = false
             global_summon_hotkey = "Super+C"
             external_editor = "code \"%1\""
             use_external_editor_f4 = true

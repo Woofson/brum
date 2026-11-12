@@ -228,10 +228,9 @@ drop_privileges = true              # Drop root privileges to match authenticate
 # bolt = "/usr/bin/fish"
 # alice = "/bin/zsh"
 
-# --- Standalone Desktop Window & System Tray ---
+# --- Desktop Mode & Tray Icon ---
 [desktop]
-minimize_to_tray = true          # Minimize window to system tray when closed instead of terminating
-enable_tray = true               # Enable system tray icon
+enable_tray = true               # Windows: show the Brum tray icon (brum tray, and desktop mode with --minimized)
 global_summon_hotkey = "Super+C" # System-wide shortcut to summon/focus Brum (e.g. "Super+C", "Ctrl+Alt+Space")
 start_minimized = false          # Launch directly to system tray on system boot / autostart
 # external_editor = "code \"%1\"" # Command for external editor (F4)
