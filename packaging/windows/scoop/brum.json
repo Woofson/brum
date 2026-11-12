@@ -1,36 +1,33 @@
 {
-  "version": "1.20.0",
-  "description": "Multi-Pane Web Environment (File Commander/Manager) — By Woofson",
-  "homepage": "https://github.com/woofson/brum",
-  "license": "MIT",
-  "architecture": {
-    "64bit": {
-      "url": "https://github.com/woofson/brum/releases/download/v1.20.0.zip",
-      "bin": [
-        "brum.exe",
-        [
-          "brum.exe",
-          "brum"
-        ]
-      ],
-      "shortcuts": [
-        [
-          "brum.exe",
-          "Brum"
-        ]
-      ]
-    }
-  },
-  "persist": [
-    "brum.db",
-    "config.toml"
-  ],
-  "checkver": "github",
-  "autoupdate": {
+    "version": "1.20.0",
+    "description": "Multi-Pane Web Environment (File Commander/Manager) — By Woofson",
+    "homepage": "https://github.com/Woofson/brum",
+    "license": "MIT",
     "architecture": {
-      "64bit": {
-        "url": "https://github.com/woofson/brum/releases/download/v$version.zip"
-      }
+        "64bit": {
+            "url": "https://github.com/Woofson/brum/releases/download/v1.20.0/brum-v1.20.0-windows-x86_64.zip",
+            "hash": "b1e327959285f0abd56343e1e5fc8243f0fdd0ae41ed710284c2ef4c191ba6eb"
+        }
+    },
+    "bin": "brum.exe",
+    "shortcuts": [
+        [
+            "brum.exe",
+            "Brum",
+            "-s",
+            "brum.ico"
+        ]
+    ],
+    "persist": "config.toml",
+    "checkver": "github",
+    "autoupdate": {
+        "architecture": {
+            "64bit": {
+                "url": "https://github.com/Woofson/brum/releases/download/v$version/brum-v$version-windows-x86_64.zip",
+                "hash": {
+                    "url": "$baseurl/SHA256SUMS.txt"
+                }
+            }
+        }
     }
-  }
 }

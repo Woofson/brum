@@ -18,6 +18,7 @@
 #   ./scripts/release.sh --skip-aur    # Skips pushing to AUR
 #   ./scripts/release.sh --skip-crates # Skips publishing to Crates.io
 #   ./scripts/release.sh --skip-winget # Skips the winget pull request
+#   ./scripts/release.sh --skip-scoop  # Skips the Scoop bucket update
 # ==============================================================================
 
 set -euo pipefail
@@ -32,6 +33,7 @@ SKIP_AUR=false
 SKIP_CRATES=false
 SKIP_WIKI=false
 SKIP_WINGET=false
+SKIP_SCOOP=false
 TARGET_VERSION=""
 
 for arg in "$@"; do
@@ -47,6 +49,9 @@ for arg in "$@"; do
             ;;
         --skip-winget)
             SKIP_WINGET=true
+            ;;
+        --skip-scoop)
+            SKIP_SCOOP=true
             ;;
         patch|minor|major)
             BUMP_TYPE="$arg"
@@ -147,12 +152,8 @@ if [ -f "packaging/APKBUILD" ]; then
     sed -i "s/^pkgrel=.*/pkgrel=0/" packaging/APKBUILD
 fi
 
-# packaging/windows/scoop/brum.json
-if [ -f "packaging/windows/scoop/brum.json" ]; then
-    sed -i "s/\"version\": \".*\"/\"version\": \"${TARGET_VERSION}\"/" packaging/windows/scoop/brum.json
-    sed -i "s/download\/v[^\/]*\//download\/v${TARGET_VERSION}\//g" packaging/windows/scoop/brum.json
-    sed -i "s/v[0-9]\+\.[0-9]\+\.[0-9]\+.*\.zip/v${TARGET_VERSION}.zip/g" packaging/windows/scoop/brum.json
-fi
+# packaging/windows/scoop/brum.json is filled in by scripts/scoop.sh once the release
+# workflow has built the ZIP (see step 11)
 
 # packaging/windows/setup.iss
 if [ -f "packaging/windows/setup.iss" ]; then
@@ -357,6 +358,21 @@ if [ "${SKIP_WINGET}" = false ]; then
         echo "✅ winget pull request opened (Microsoft reviews it before it goes live)."
     else
         echo "⚠️ Warning: winget step did not finish. Run later: scripts/winget.sh ${TARGET_VERSION} --submit"
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# 11. SCOOP BUCKET
+# ------------------------------------------------------------------------------
+if [ "${SKIP_SCOOP}" = false ]; then
+    echo "🪣 Updating the Scoop manifest and bucket..."
+    if bash "${SCRIPT_DIR}/scoop.sh" "${TARGET_VERSION}" --publish; then
+        git add packaging/windows/scoop/brum.json
+        git commit -m "chore(pkg): update Scoop manifest for v${TARGET_VERSION}" || true
+        git push origin main
+        echo "✅ Scoop bucket updated."
+    else
+        echo "⚠️ Warning: Scoop step did not finish. Run later: scripts/scoop.sh ${TARGET_VERSION} --publish"
     fi
 fi
 
