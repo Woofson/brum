@@ -3,17 +3,25 @@
 PackageIdentifier: Woofson.Brum
 PackageVersion: 1.20.0
 MinimumOSVersion: 10.0.17763.0
-InstallerType: nullsoft
-Scope: user
+InstallerType: inno
 InstallModes:
   - interactive
   - silent
+  - silentWithProgress
 UpgradeBehavior: install
+ProductCode: '{D37F8A1B-824E-4B02-990C-5B6A84F819FA}_is1'
 Installers:
   - Architecture: x64
-    InstallerType: nullsoft
-    InstallerUrl: https://github.com/woofson/brum/releases/download/v1.20.0/Brum_1.20.0_x64-setup.exe
-    InstallerSha256: 1b433cb715617d44624939052dc43f018e43d4016553af2c0969b22a12f04ca4
-    ProductCode: ac.arf.brum
+    Scope: user
+    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.20.0/Brum-Setup-v1.20.0.exe
+    InstallerSha256: AA0DD9A6D3537107F7402A1EEF3AFD2C9ABFD60137337FC8637423694053F46D
+    InstallerSwitches:
+      Custom: /CURRENTUSER
+  - Architecture: x64
+    Scope: machine
+    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.20.0/Brum-Setup-v1.20.0.exe
+    InstallerSha256: AA0DD9A6D3537107F7402A1EEF3AFD2C9ABFD60137337FC8637423694053F46D
+    InstallerSwitches:
+      Custom: /ALLUSERS
 ManifestType: installer
 ManifestVersion: 1.6.0

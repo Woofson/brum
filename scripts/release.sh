@@ -17,6 +17,7 @@
 #   ./scripts/release.sh major         # Bumps major (e.g. 0.8.3 -> 1.0.0)
 #   ./scripts/release.sh --skip-aur    # Skips pushing to AUR
 #   ./scripts/release.sh --skip-crates # Skips publishing to Crates.io
+#   ./scripts/release.sh --skip-winget # Skips the winget pull request
 # ==============================================================================
 
 set -euo pipefail
@@ -30,6 +31,7 @@ CURRENT_VERSION=$(grep -m1 '^version = ' Cargo.toml | cut -d '"' -f2)
 SKIP_AUR=false
 SKIP_CRATES=false
 SKIP_WIKI=false
+SKIP_WINGET=false
 TARGET_VERSION=""
 
 for arg in "$@"; do
@@ -42,6 +44,9 @@ for arg in "$@"; do
             ;;
         --skip-wiki)
             SKIP_WIKI=true
+            ;;
+        --skip-winget)
+            SKIP_WINGET=true
             ;;
         patch|minor|major)
             BUMP_TYPE="$arg"
@@ -154,15 +159,11 @@ if [ -f "packaging/windows/setup.iss" ]; then
     sed -i "s/#define MyAppVersion \".*\"/#define MyAppVersion \"${TARGET_VERSION}\"/" packaging/windows/setup.iss
 fi
 
-# packaging/windows/winget
-if [ -f "packaging/windows/winget/Woofson.Brum.yaml" ]; then
-    sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.Brum.yaml
-fi
-if [ -f "packaging/windows/winget/Woofson.Brum.installer.yaml" ]; then
-    sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" packaging/windows/winget/Woofson.Brum.installer.yaml
-    sed -i "s/download\/v[^\/]*\//download\/v${TARGET_VERSION}\//g" packaging/windows/winget/Woofson.Brum.installer.yaml
-    sed -i "s/Brum_[0-9]\+\.[0-9]\+\.[0-9]\+[^_]*_/Brum_${TARGET_VERSION}_/g" packaging/windows/winget/Woofson.Brum.installer.yaml
-fi
+# packaging/windows/winget (version only; download link and checksum are filled in by
+# scripts/winget.sh once the release workflow has built the installer, see step 10)
+for f in packaging/windows/winget/*.yaml; do
+    [ -f "$f" ] && sed -i "s/^PackageVersion: .*/PackageVersion: ${TARGET_VERSION}/" "$f"
+done
 
 # manuals/*.md documentation version alignment
 if [ -f "manuals/windows.md" ]; then
@@ -341,6 +342,21 @@ if [ "${SKIP_WIKI}" = false ]; then
         echo "✅ GitHub Wiki synchronized successfully!"
     else
         echo "⚠️ Warning: GitHub Wiki synchronization failed or SSH key not configured."
+    fi
+fi
+
+# ------------------------------------------------------------------------------
+# 10. WINDOWS PACKAGE MANAGER (WINGET)
+# ------------------------------------------------------------------------------
+if [ "${SKIP_WINGET}" = false ]; then
+    echo "🪟 Updating winget manifests and opening the winget-pkgs pull request..."
+    if bash "${SCRIPT_DIR}/winget.sh" "${TARGET_VERSION}" --submit; then
+        git add packaging/windows/winget
+        git commit -m "chore(pkg): update winget manifests for v${TARGET_VERSION}" || true
+        git push origin main
+        echo "✅ winget pull request opened (Microsoft reviews it before it goes live)."
+    else
+        echo "⚠️ Warning: winget step did not finish. Run later: scripts/winget.sh ${TARGET_VERSION} --submit"
     fi
 fi
 
