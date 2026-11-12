@@ -51,6 +51,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let mut config = ConfigManager::load_all();
     let _log_guard = crate::logging::init_logging(&config.logging);
+    info!("{}", ConfigManager::loaded_from_message());
 
     println!(r#"
 ▄▄▄▄· ▄▄▄  ▄• ▄▌• ▌ ▄ ·. 

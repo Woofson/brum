@@ -81,6 +81,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
         let mut config = crate::config::ConfigManager::load_all();
         config.server.standalone = false;
         let _log_guard = crate::logging::init_logging(&config.logging);
+        tracing::info!("{}", crate::config::ConfigManager::loaded_from_message());
 
         info!(
             "Starting Brum Windows Service (v{} build #{}, commit: {}, target: {})...",

@@ -1716,6 +1716,9 @@ pub fn sanitize_toml_content(input: &str) -> String {
 /// Config & External Theme Manager
 pub struct ConfigManager;
 
+/// The config file the last load used (None: built-in defaults), for the start-up log line.
+static LOADED_FROM: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
+
 impl ConfigManager {
     /// Parses and normalizes configuration string with smart backslash repair fallback
     pub fn parse_config_str(content: &str) -> Result<AppConfig, String> {
@@ -1833,6 +1836,15 @@ impl ConfigManager {
         candidates
     }
 
+    /// One log line saying which config file is in use. Config is read before logging starts,
+    /// so start-up writes this once logging is on.
+    pub fn loaded_from_message() -> String {
+        match LOADED_FROM.lock().ok().and_then(|l| l.clone()) {
+            Some(p) => format!("Configuration file: {}", p.display()),
+            None => "No configuration file found; using built-in defaults".to_string(),
+        }
+    }
+
     /// Resolves the currently active configuration path, or the preferred writable location if none exists
     pub fn active_config_path() -> PathBuf {
         for candidate in Self::candidate_config_paths() {
@@ -1874,6 +1886,9 @@ impl ConfigManager {
                     Ok(content) => match Self::parse_config_str(&content) {
                         Ok(parsed) => {
                             config = parsed;
+                            if let Ok(mut l) = LOADED_FROM.lock() {
+                                *l = Some(candidate.clone());
+                            }
                             break; // Stop immediately on first matching priority config
                         }
                         Err(e) => {
