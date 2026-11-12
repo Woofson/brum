@@ -3384,6 +3384,7 @@ async function checkAuthAndLoad() {
 
   // Not authenticated: show login screen
   loadOidcConfig();
+  loadFirstLoginNote();
   document.documentElement.classList.remove('auth-pending-lock', 'auth-verifying', 'auth-ready');
   document.documentElement.classList.add('auth-pending-login');
   showModal('login-modal');
@@ -24627,6 +24628,27 @@ async function handleLoginSubmit() {
       loadAllFileTags(),
       loadInstalledChewToys(false)
     ]);
+  }
+}
+
+// While the first admin password note exists, the login page says where it is
+async function loadFirstLoginNote() {
+  try {
+    const resp = await fetch('/api/config').catch(() => null);
+    if (!resp || !resp.ok) return;
+    const auth = (await resp.json()).auth || {};
+    const box = document.getElementById('login-first-note');
+    if (!box) return;
+    if (auth.first_login_note) {
+      document.getElementById('login-first-note-path').textContent = auth.first_login_note;
+      document.getElementById('login-first-note-user').textContent = auth.default_admin_user || 'admin';
+      box.style.display = 'flex';
+      if (window.lucide) lucide.createIcons();
+    } else {
+      box.style.display = 'none';
+    }
+  } catch (e) {
+    console.warn('Failed to check first-login note:', e);
   }
 }
 

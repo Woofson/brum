@@ -317,7 +317,7 @@ async fn test_standalone_mode_behavior() {
 }
 
 #[tokio::test]
-async fn test_initial_admin_credentials_atomic_mode_and_cleanup_on_login() {
+async fn test_initial_admin_credentials_atomic_mode_and_cleanup_on_password_change() {
     let dir = tempdir().expect("Failed to create tempdir");
     let cred_dir = dir.path().join("logs");
 
@@ -337,7 +337,7 @@ async fn test_initial_admin_credentials_atomic_mode_and_cleanup_on_login() {
     let client = reqwest::Client::new();
     let base_url = format!("http://127.0.0.1:{}", port);
 
-    // Write credentials in default log directory to verify cleanup on login
+    // Write credentials in default log directory to verify when they are cleaned up
     let default_log_dir = brum::config::LoggingConfig::default().resolve_log_directory();
     let default_cred_file = brum::logging::write_initial_admin_credentials(&default_log_dir, &admin_user, &admin_pass).unwrap();
     assert!(default_cred_file.is_file());
@@ -353,9 +353,21 @@ async fn test_initial_admin_credentials_atomic_mode_and_cleanup_on_login() {
         .await
         .unwrap();
     assert_eq!(login_resp.status(), reqwest::StatusCode::OK);
+    let token = login_resp.json::<serde_json::Value>().await.unwrap()["token"].as_str().unwrap_or_default().to_string();
 
-    // 4. Credentials file must now be deleted
-    assert!(!default_cred_file.exists(), "Initial admin credentials file was not cleaned up after admin login!");
+    // 4. Logging in alone keeps the note, so it can still be found later
+    assert!(default_cred_file.exists(), "Initial admin credentials file must survive an admin login");
+
+    // 5. Changing the built-in admin's password removes it
+    let change_resp = client
+        .post(format!("{}/api/auth/profile", base_url))
+        .bearer_auth(&token)
+        .json(&json!({ "new_password": "ChangedAdminPass456!" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(change_resp.status(), reqwest::StatusCode::OK);
+    assert!(!default_cred_file.exists(), "Initial admin credentials file was not cleaned up after the admin password change!");
 }
 
 #[tokio::test]

@@ -264,9 +264,6 @@ pub async fn handle_login(
         Ok(user) => {
             state.rate_limiter.reset(&rate_key);
             state.rate_limiter.reset(&user_rate_key);
-            if user.role.eq_ignore_ascii_case("admin") {
-                crate::logging::cleanup_initial_admin_credentials(state.auth.db_path());
-            }
             tracing::info!(username = %user.username, is_pam = user.is_pam, role = %user.role, "User successfully authenticated");
             let token = state.auth.generate_token(&user).map_err(|e| {
                 (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to create token: {}", e))
@@ -581,7 +578,10 @@ pub async fn handle_update_profile(
             .await
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Password update task failed: {}", e)))?
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to update password: {}", e)))?;
-            crate::logging::cleanup_initial_admin_credentials(state.auth.db_path());
+            // The first-login note stays until the built-in admin's own password is changed
+            if username.eq_ignore_ascii_case(&state.config.auth.default_admin_user) {
+                crate::logging::cleanup_initial_admin_credentials(state.auth.db_path());
+            }
 
             // The new password ended every login, so this browser gets a fresh one
             if state.config.server.enable_auth && !state.config.server.standalone {

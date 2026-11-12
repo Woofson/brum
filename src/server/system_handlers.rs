@@ -601,7 +601,13 @@ pub async fn handle_get_manual(
 pub async fn handle_get_config(
     State(state): State<AppState>,
 ) -> Json<crate::config::ClientConfigDto> {
-    Json(state.config.to_client_dto())
+    let mut dto = state.config.to_client_dto();
+    // While the first-login note exists, the login page says where it is (never the password)
+    if state.config.server.enable_auth && !state.config.server.standalone {
+        dto.auth.first_login_note = crate::auth::first_login_note_path(state.auth.db_path())
+            .map(|p| p.to_string_lossy().to_string());
+    }
+    Json(dto)
 }
 
 #[derive(Serialize)]

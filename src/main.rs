@@ -149,6 +149,30 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     return Ok(());
                 }
             }
+            "reset-admin-password" => {
+                let auth = AuthManager::new(
+                    &config.server.database_path,
+                    &config.server.jwt_secret,
+                    config.server.session_duration_hours,
+                    &config.auth.mode,
+                    &config.auth.pam_service,
+                    &config.auth.default_admin_user,
+                    &config.auth.default_admin_pass,
+                )?;
+                match auth.reset_admin_password(&config.auth.default_admin_user) {
+                    Ok(pass) => {
+                        println!("Database : {}", config.server.database_path);
+                        println!("Username : {}", config.auth.default_admin_user);
+                        println!("Password : {}", pass);
+                        if let Some(note) = auth::first_login_note_path(&config.server.database_path) {
+                            println!("Also saved in: {}", note.display());
+                        }
+                        println!("Change it after logging in via Settings -> Security.");
+                    }
+                    Err(e) => eprintln!("Could not reset the admin password: {}", e),
+                }
+                return Ok(());
+            }
             "shortcut" => {
                 if i + 1 < args.len() {
                     let subcmd = args[i + 1].clone();
@@ -188,6 +212,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    brum [OPTIONS]");
                 println!("    brum service [COMMAND]");
                 println!("    brum shortcut [COMMAND] [--desktop]");
+                println!("    brum reset-admin-password   Give the built-in admin a new password (run on the Brum machine)");
                 println!();
                 println!("OPTIONS:");
                 println!("    -c, --connect <URL>    Connect desktop GUI/browser directly to an existing or remote Brum server");

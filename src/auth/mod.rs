@@ -209,6 +209,23 @@ impl<'a> std::ops::Deref for ReadConnGuard<'a> {
     }
 }
 
+/// A made-up 20-character password for the built-in admin.
+pub fn generate_admin_password() -> String {
+    use rand::Rng;
+    let charset: &[u8] = b"abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*";
+    let mut rng = rand::rngs::OsRng;
+    (0..20)
+        .map(|_| charset[rng.gen_range(0..charset.len())] as char)
+        .collect()
+}
+
+/// Where the first-login note is, if it is still there.
+pub fn first_login_note_path(db_path: &str) -> Option<std::path::PathBuf> {
+    crate::logging::credentials_note_dir(db_path)
+        .map(|d| d.join("initial_admin_credentials.txt"))
+        .filter(|p| p.is_file())
+}
+
 pub struct AuthManager {
     db: Arc<Mutex<Connection>>,
     read_pool: Arc<Mutex<Vec<Connection>>>,
@@ -596,16 +613,7 @@ impl AuthManager {
                 .unwrap_or_else(|| format!("/home/{}", default_admin_user));
 
             let (effective_admin_pass, is_generated_pass) = if default_admin_pass.trim().is_empty() || default_admin_pass == "brum" {
-                use rand::Rng;
-                let charset: &[u8] = b"abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789!@#$%^&*";
-                let mut rng = rand::rngs::OsRng;
-                let pass: String = (0..20)
-                    .map(|_| {
-                        let idx = rng.gen_range(0..charset.len());
-                        charset[idx] as char
-                    })
-                    .collect();
-                (pass, true)
+                (generate_admin_password(), true)
             } else {
                 (default_admin_pass.to_string(), false)
             };
@@ -629,9 +637,71 @@ impl AuthManager {
             } else {
                 info!("Initial administrative user '{}' created.", default_admin_user);
             }
+        } else {
+            auth.log_first_login_reminders(default_admin_user, default_admin_pass);
         }
 
         Ok(auth)
+    }
+
+    /// On a later start: say where the first-login note still is, and explain when
+    /// the config.toml admin password no longer matches (it only applies on first start).
+    fn log_first_login_reminders(&self, admin_user: &str, config_pass: &str) {
+        if let Some(note) = first_login_note_path(&self.db_path) {
+            info!("The first admin password for '{}' is still in: '{}' (it is removed once that password is changed)", admin_user, note.display());
+        }
+        if config_pass.trim().is_empty() || config_pass == "brum" {
+            return;
+        }
+        let hash: Option<String> = self.db.lock().ok().and_then(|conn| {
+            conn.query_row(
+                "SELECT password_hash FROM users WHERE username = ?1",
+                params![admin_user],
+                |row| row.get(0),
+            ).optional().ok().flatten()
+        });
+        let matches = hash
+            .as_deref()
+            .and_then(|h| PasswordHash::new(h).ok())
+            .map(|h| Argon2::default().verify_password(config_pass.as_bytes(), &h).is_ok())
+            .unwrap_or(false);
+        if !matches {
+            info!(
+                "default_admin_pass in config.toml is not the password '{}' uses now. It only applies on the very first start; to set a new one, run: brum reset-admin-password",
+                admin_user
+            );
+        }
+    }
+
+    /// Gives the built-in admin a new made-up password (creating the account if it is gone),
+    /// writes it to the first-login note next to the database and returns it.
+    pub fn reset_admin_password(&self, admin_user: &str) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let pass = generate_admin_password();
+        let existing = self.get_user_by_username(admin_user)?;
+        match existing {
+            Some(u) if u.is_pam => {
+                return Err(format!("'{}' is a system account; change its password in the operating system instead", admin_user).into());
+            }
+            Some(_) => {
+                self.update_user_password(admin_user, &pass)?;
+                // A disabled admin could not use the new password
+                let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+                conn.execute("UPDATE users SET is_disabled = 0, role = 'admin' WHERE username = ?1", params![admin_user])?;
+            }
+            None => {
+                #[cfg(windows)]
+                let home = format!("C:\\Users\\{}", admin_user);
+                #[cfg(not(windows))]
+                let home = format!("/home/{}", admin_user);
+                let home = dirs::home_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or(home);
+                self.create_user(admin_user, &pass, "admin", &home, Some("[\"*\"]"))?;
+            }
+        }
+        if let Some(note_dir) = crate::logging::credentials_note_dir(&self.db_path) {
+            crate::logging::write_initial_admin_credentials(&note_dir, admin_user, &pass)?;
+        }
+        info!("Password for built-in admin '{}' was reset from the command line", admin_user);
+        Ok(pass)
     }
 
     pub fn get_read_conn(&self) -> Result<ReadConnGuard<'_>, Box<dyn std::error::Error + Send + Sync>> {

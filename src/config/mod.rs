@@ -1379,6 +1379,9 @@ pub struct ClientAuthConfigDto {
     pub pam_service: String,
     pub allow_guest: bool,
     pub default_admin_user: String,
+    /// Where the first admin password note is, while it still exists
+    #[serde(default)]
+    pub first_login_note: Option<String>,
     pub oidc: ClientOidcConfigDto,
 }
 
@@ -1441,6 +1444,7 @@ impl AppConfig {
                 pam_service: self.auth.pam_service.clone(),
                 allow_guest: self.auth.allow_guest,
                 default_admin_user: self.auth.default_admin_user.clone(),
+                first_login_note: None,
                 oidc: ClientOidcConfigDto {
                     enabled: self.auth.oidc.enabled,
                     provider_name: self.auth.oidc.provider_name.clone(),
