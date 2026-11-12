@@ -110,13 +110,21 @@ pub async fn handle_health(State(state): State<AppState>) -> Json<serde_json::Va
     }))
 }
 
-pub async fn handle_system_status(State(state): State<AppState>) -> Json<SystemStatusResponse> {
-    let current_user = std::env::var("USERNAME")
-        .or_else(|_| std::env::var("USER"))
-        .unwrap_or_else(|_| "user".to_string());
-    let home_dir = dirs::home_dir()
-        .map(|p| p.to_string_lossy().to_string())
-        .unwrap_or_else(|| "/".to_string());
+pub async fn handle_system_status(State(state): State<AppState>, headers: HeaderMap) -> Json<SystemStatusResponse> {
+    // This answer is public, because the login page needs the version and branding. The account
+    // Brum runs as and its home folder are only for signed-in users (and desktop mode).
+    let login_required = state.config.server.enable_auth && !state.config.server.standalone;
+    let show_private = !login_required || extract_claims_or_local(&state, &headers).is_ok();
+    let current_user = if show_private {
+        std::env::var("USERNAME").or_else(|_| std::env::var("USER")).unwrap_or_else(|_| "user".to_string())
+    } else {
+        String::new()
+    };
+    let home_dir = if show_private {
+        dirs::home_dir().map(|p| p.to_string_lossy().to_string()).unwrap_or_else(|| "/".to_string())
+    } else {
+        String::new()
+    };
     let hostname = get_system_hostname();
     let custom_hostname = if !state.config.ui.hostname_badge.trim().is_empty() {
         Some(state.config.ui.hostname_badge.clone())

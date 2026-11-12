@@ -371,6 +371,33 @@ async fn test_initial_admin_credentials_atomic_mode_and_cleanup_on_password_chan
 }
 
 #[tokio::test]
+async fn test_system_status_hides_account_details_until_login() {
+    let (port, _token, _dir, admin_user, admin_pass) = setup_test_server(true, false).await;
+    let client = reqwest::Client::new();
+    let base_url = format!("http://127.0.0.1:{}", port);
+
+    // Logged out: the login page still gets version and flags, but not the account or its home
+    let anon: serde_json::Value = client.get(format!("{}/api/system/status", base_url)).send().await.unwrap().json().await.unwrap();
+    assert!(anon["version"].as_str().map_or(false, |v| !v.is_empty()));
+    assert_eq!(anon["auth_enabled"], json!(true));
+    assert_eq!(anon["current_user"], json!(""));
+    assert_eq!(anon["home_dir"], json!(""));
+
+    // Signed in: everything as before
+    let login: serde_json::Value = client
+        .post(format!("{}/api/auth/login", base_url))
+        .json(&json!({ "username": admin_user, "password": admin_pass }))
+        .send().await.unwrap().json().await.unwrap();
+    let token = login["token"].as_str().unwrap().to_string();
+    let signed_in: serde_json::Value = client
+        .get(format!("{}/api/system/status", base_url))
+        .header(AUTHORIZATION, format!("Bearer {}", token))
+        .send().await.unwrap().json().await.unwrap();
+    assert!(signed_in["current_user"].as_str().map_or(false, |u| !u.is_empty()));
+    assert!(signed_in["home_dir"].as_str().map_or(false, |h| !h.is_empty()));
+}
+
+#[tokio::test]
 async fn test_standalone_mode_refuses_non_loopback_bind() {
     let dir = tempdir().expect("Failed to create tempdir");
     let db_path = dir.path().join("brum_test.db").to_string_lossy().to_string();
