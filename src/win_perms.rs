@@ -168,3 +168,92 @@ pub fn secure_shared_data_dir(dir: &Path) {
         let _ = dir;
     }
 }
+
+/// Files kept next to the database that move along with it.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn companion_names(db_file: &str) -> Vec<String> {
+    vec![
+        db_file.to_string(),
+        format!("{db_file}-wal"),
+        format!("{db_file}-shm"),
+        "brum-secrets.key".to_string(),
+        "initial_admin_credentials.txt".to_string(),
+        "proton".to_string(),
+    ]
+}
+
+/// Earlier versions with the shipped `database_path = "brum.db"` kept the service's data in the
+/// install folder (the service starts there). When Brum now runs as the service or as
+/// administrator with its data in `C:\ProgramData\Brum`, it moves that data over once:
+/// the database and its side files, the key file, the first-login note and Proton files.
+pub fn move_install_folder_data(db_path: &Path) {
+    #[cfg(windows)]
+    {
+        use tracing::{info, warn};
+        let (Some(shared), Some(db_dir), Some(db_file)) = (
+            shared_data_dir(),
+            db_path.parent(),
+            db_path.file_name().map(|n| n.to_string_lossy().to_string()),
+        ) else {
+            return;
+        };
+        let same = |a: &Path, b: &Path| {
+            a.to_string_lossy().trim_end_matches('\\').eq_ignore_ascii_case(b.to_string_lossy().trim_end_matches('\\'))
+        };
+        if !same(db_dir, &shared) || !is_elevated() {
+            return;
+        }
+        let Some(exe_dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) else { return };
+        let in_program_files = crate::config::windows_program_files_dirs().iter().any(|pf| {
+            let pf = pf.to_string_lossy().trim_end_matches('\\').to_lowercase();
+            exe_dir.to_string_lossy().to_lowercase().starts_with(&format!("{pf}\\"))
+        });
+        let old_db = exe_dir.join(&db_file);
+        if !in_program_files || !old_db.is_file() {
+            return;
+        }
+        if db_path.exists() {
+            warn!(
+                "An older database is still in the install folder ('{}'), but '{}' already exists and is used. Move the older one by hand if it holds the accounts you need.",
+                old_db.display(),
+                db_path.display()
+            );
+            return;
+        }
+        info!("Moving Brum's data from the install folder '{}' to '{}'", exe_dir.display(), db_dir.display());
+        let mut problems = 0usize;
+        for name in companion_names(&db_file) {
+            let from = exe_dir.join(&name);
+            if !from.exists() {
+                continue;
+            }
+            let to = db_dir.join(&name);
+            let moved = std::fs::rename(&from, &to).is_ok()
+                || (from.is_file() && std::fs::copy(&from, &to).is_ok() && std::fs::remove_file(&from).is_ok());
+            if moved {
+                info!("Moved '{}'", name);
+            } else {
+                problems += 1;
+                warn!("Could not move '{}' to '{}'; move it by hand while Brum is stopped", from.display(), to.display());
+            }
+        }
+        if problems == 0 {
+            info!("Brum's data now lives in '{}'", db_dir.display());
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = db_path;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_companion_names() {
+        let names = super::companion_names("brum.db");
+        for n in ["brum.db", "brum.db-wal", "brum.db-shm", "brum-secrets.key", "initial_admin_credentials.txt", "proton"] {
+            assert!(names.iter().any(|x| x == n), "{n} must move with the database");
+        }
+    }
+}

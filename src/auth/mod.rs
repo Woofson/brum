@@ -300,7 +300,9 @@ impl AuthManager {
         if let Some(parent) = std::path::Path::new(db_path).parent() {
             if !parent.as_os_str().is_empty() {
                 let _ = std::fs::create_dir_all(parent);
-                // All-users Windows install: keep the shared data folder away from other accounts
+                // All-users Windows install: data left in the install folder by earlier versions
+                // moves to the shared data folder, which is kept away from other accounts
+                crate::win_perms::move_install_folder_data(std::path::Path::new(db_path));
                 crate::win_perms::secure_shared_data_dir(parent);
             }
         }

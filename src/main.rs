@@ -151,6 +151,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 }
             }
             "reset-admin-password" => {
+                if cfg!(windows) && !win_perms::is_elevated() {
+                    println!("Not running as administrator, so this uses the database at:");
+                    println!("    {}", config.server.database_path);
+                    println!("For the Windows service of an all-users install, run it from a terminal opened as administrator.");
+                    println!();
+                }
                 let auth = AuthManager::new(
                     &config.server.database_path,
                     &config.server.jwt_secret,

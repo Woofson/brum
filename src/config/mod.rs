@@ -191,6 +191,90 @@ fn default_upload_max_mb() -> usize { 10240 } // 10 GB
 fn default_true() -> bool { true }
 fn default_jwt_secret() -> String { "brum-super-secret-jwt-key-2026".to_string() }
 fn default_session_hours() -> u64 { 72 }
+/// The Program Files folders of this Windows computer.
+#[cfg(windows)]
+pub(crate) fn windows_program_files_dirs() -> Vec<PathBuf> {
+    ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"]
+        .iter()
+        .filter_map(|v| std::env::var(v).ok())
+        .filter(|v| !v.trim().is_empty())
+        .map(PathBuf::from)
+        .collect()
+}
+
+#[cfg_attr(not(windows), allow(dead_code))]
+fn path_key(p: &Path) -> String {
+    p.to_string_lossy().replace('/', "\\").trim_end_matches('\\').to_lowercase()
+}
+
+/// True when brum.exe sits in an installed location (Program Files or a Scoop app folder),
+/// where data must not live next to it.
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn is_installed_exe_dir(exe_dir: &Path, program_files: &[PathBuf]) -> bool {
+    let exe = path_key(exe_dir);
+    exe.contains("\\scoop\\apps\\")
+        || program_files.iter().any(|pf| {
+            let pf = path_key(pf);
+            !pf.is_empty() && (exe == pf || exe.starts_with(&format!("{}\\", pf)))
+        })
+}
+
+/// Where a relative `database_path` (such as the shipped `brum.db`) belongs on Windows, so the
+/// service, the command line and desktop mode agree no matter which folder they start in:
+/// - installed, as the service or administrator: the shared data folder (`C:\ProgramData\Brum`)
+/// - installed, as an ordinary user: that user's own `%APPDATA%\Brum`
+/// - portable: next to brum.exe
+#[cfg_attr(not(windows), allow(dead_code))]
+pub(crate) fn windows_db_target(
+    relative: &Path,
+    exe_dir: &Path,
+    elevated: bool,
+    program_files: &[PathBuf],
+    program_data: Option<&Path>,
+    app_data: Option<&Path>,
+) -> PathBuf {
+    if is_installed_exe_dir(exe_dir, program_files) {
+        let base = if elevated { program_data } else { app_data };
+        if let Some(base) = base {
+            return base.join("Brum").join(relative);
+        }
+    }
+    exe_dir.join(relative)
+}
+
+/// Turns a relative `database_path` into its full Windows location (see `windows_db_target`).
+/// Absolute paths, in-memory databases and other platforms are left as they are.
+pub fn resolve_windows_database_path(path: &str) -> String {
+    #[cfg(windows)]
+    {
+        let p = Path::new(path);
+        if path.trim().is_empty() || path == ":memory:" || p.is_absolute() {
+            return path.to_string();
+        }
+        let Some(exe_dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) else {
+            return path.to_string();
+        };
+        let program_data = std::env::var("ProgramData").ok().map(PathBuf::from);
+        let app_data = dirs::data_dir();
+        let target = windows_db_target(
+            p,
+            &exe_dir,
+            crate::win_perms::is_elevated(),
+            &windows_program_files_dirs(),
+            program_data.as_deref(),
+            app_data.as_deref(),
+        );
+        if let Some(parent) = target.parent() {
+            let _ = fs::create_dir_all(parent);
+        }
+        target.to_string_lossy().to_string()
+    }
+    #[cfg(not(windows))]
+    {
+        path.to_string()
+    }
+}
+
 fn default_db_path() -> String {
     if let Ok(env_path) = std::env::var("BRUM_DATABASE_PATH").or_else(|_| std::env::var("CD_DATABASE_PATH")) {
         if !env_path.trim().is_empty() {
@@ -199,12 +283,16 @@ fn default_db_path() -> String {
     }
     #[cfg(windows)]
     {
-        // 1. If explicit database file exists in current working directory, prefer it for local portable/dev use
-        if Path::new("brum.db").is_file() {
-            return "brum.db".to_string();
-        }
-        if Path::new("commanderdog.db").is_file() {
-            return "commanderdog.db".to_string();
+        // 1. Portable use: a database next to brum.exe (outside Program Files and Scoop).
+        //    Returned as a bare name; resolve_windows_database_path() places it.
+        if let Some(exe_dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
+            if !is_installed_exe_dir(&exe_dir, &windows_program_files_dirs()) {
+                for name in ["brum.db", "commanderdog.db"] {
+                    if exe_dir.join(name).is_file() {
+                        return name.to_string();
+                    }
+                }
+            }
         }
 
         // 2. %PROGRAMDATA%\Brum\brum.db (e.g. C:\ProgramData\Brum\brum.db): the shared data of an all-users
@@ -1861,6 +1949,9 @@ impl ConfigManager {
             config.auth.oidc.force_sso_only = v.eq_ignore_ascii_case("true") || v == "1";
         }
 
+        // Windows: a bare database name never depends on the folder Brum was started from
+        config.server.database_path = resolve_windows_database_path(&config.server.database_path);
+
         config
     }
 
@@ -2045,6 +2136,36 @@ impl ConfigManager {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn test_windows_db_target_by_install_kind() {
+        use super::{is_installed_exe_dir, windows_db_target};
+        use std::path::{Path, PathBuf};
+        let pf = vec![PathBuf::from(r"C:\Program Files"), PathBuf::from(r"C:\Program Files (x86)")];
+        let pd = Path::new(r"C:\ProgramData");
+        let ad = Path::new(r"C:\Users\alice\AppData\Roaming");
+        let db = Path::new("brum.db");
+        let key = |p: PathBuf| p.to_string_lossy().replace('/', "\\").to_lowercase();
+
+        // Installed in Program Files: service/administrator share the data folder, users keep their own
+        let inst = Path::new(r"C:\Program Files\Brum");
+        assert!(is_installed_exe_dir(inst, &pf));
+        assert_eq!(key(windows_db_target(db, inst, true, &pf, Some(pd), Some(ad))), r"c:\programdata\brum\brum.db");
+        assert_eq!(key(windows_db_target(db, inst, false, &pf, Some(pd), Some(ad))), r"c:\users\alice\appdata\roaming\brum\brum.db");
+
+        // Scoop counts as installed (its app folder is replaced on every update)
+        let scoop = Path::new(r"C:\Users\alice\scoop\apps\brum\current");
+        assert!(is_installed_exe_dir(scoop, &pf));
+        assert_eq!(key(windows_db_target(db, scoop, false, &pf, Some(pd), Some(ad))), r"c:\users\alice\appdata\roaming\brum\brum.db");
+
+        // Portable folder: next to brum.exe, whoever runs it and from wherever
+        let port = Path::new(r"D:\Tools\Brum");
+        assert!(!is_installed_exe_dir(port, &pf));
+        assert_eq!(key(windows_db_target(db, port, true, &pf, Some(pd), Some(ad))), r"d:\tools\brum\brum.db");
+
+        // A folder whose name merely starts like Program Files is not inside it
+        assert!(!is_installed_exe_dir(Path::new(r"C:\Program Files Extra\Brum"), &pf));
+    }
+
     use super::*;
 
     #[test]
