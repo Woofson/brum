@@ -5,6 +5,24 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-11-12
+
+### Security
+- **Windows All-Users Install (GHSA-385p-4c6h-62cr, high)**: The Windows installer, when installing for all users, let every signed-in Windows account change the install folder and fully control the shared data folder (`C:\ProgramData\Brum`). Another account on the same computer could replace the program run by the Brum service, or read Brum's key file and use it to sign in to Brum or read saved passwords. The installer now keeps the standard install-folder permissions, limits the data folder to the system account and administrators, and repairs existing installs. Brum also locks its key file and first-login note to its own account. **Upgrading is strongly recommended for all-users Windows installs.** On Windows, everyone signs in again once and API tokens must be created again. Desktop mode started without administrator rights now keeps its data in the user's own profile, so it starts fresh after the upgrade. The portable ZIP, Scoop, per-user installs and other platforms were not affected.
+
+### Features
+- **First Admin Password (Closes #179)**: The note with the first admin password (next to the database) now stays until that password is changed, instead of vanishing on the first admin login. While it exists, the login page shows where it is (never the password itself). The log explains when `default_admin_pass` in `config.toml` no longer applies, since it is only used on the very first start.
+- **Admin Password Reset**: `brum reset-admin-password`, run on the Brum machine, gives the built-in admin a new password, prints it and saves it to the note. On Windows, run it as administrator for the service's data.
+
+### Fixes
+- **Microsoft Accounts on Windows (#178)**: Signing in with a full address (`me@mail.com`) now passes it to Windows the way Windows expects, and `MicrosoftAccount\me@mail.com` reaches the same Brum profile. Home folders come from the account's real profile folder. Every refused Windows sign-in is logged with Windows' reason in plain words.
+- **winget (#181)**: The package files describe the real installer with per-user and all-users choices and the correct checksum, and each release is submitted to the Windows Package Manager catalogue.
+- **Scoop (Closes #182)**: `scoop bucket add woofson https://github.com/Woofson/scoop-bucket.git` and `scoop install brum` work, with a checked download and a desktop shortcut.
+- **AUR brum-bin and Release Checksums (Closes #183)**: Release files and `SHA256SUMS.txt` now come only from the release build, so the `brum-bin` checksum always matches the published package.
+
+### Documentation
+- **Windows Manual (Closes #180)**: New "First Login & Windows Accounts" section: the first admin password, when `default_admin_pass` applies, resetting the admin password, which `config.toml` is used, and signing in with local, domain and Microsoft accounts.
+
 ## [1.20.0] - 2026-11-11
 
 ### Features
