@@ -1713,6 +1713,34 @@ pub fn sanitize_toml_content(input: &str) -> String {
     output
 }
 
+/// Repairs unescaped Windows paths (such as `"C:\\Users\\bolt"`, where `\\U` would start a
+/// Unicode code) only on the lines TOML rejects, one at a time, so correctly written lines are
+/// never touched. Returns the repaired text and how many lines changed, or the original error
+/// when the problem is not something this repair can fix.
+pub fn repair_toml_windows_paths(content: &str) -> Result<(String, usize), String> {
+    let mut text = content.to_string();
+    let mut repaired = 0usize;
+    for _ in 0..500 {
+        let err = match toml::from_str::<toml::Table>(&text) {
+            Ok(_) => return Ok((text, repaired)),
+            Err(e) => e,
+        };
+        let Some(span) = err.span() else { return Err(err.to_string()) };
+        let at = span.start.min(text.len());
+        let start = text[..at].rfind('\n').map_or(0, |i| i + 1);
+        let end = text[at..].find('\n').map_or(text.len(), |i| at + i);
+        let line = &text[start..end];
+        let fixed = sanitize_toml_content(line);
+        let fixed = fixed.trim_end_matches('\n');
+        if fixed == line {
+            return Err(err.to_string());
+        }
+        text.replace_range(start..end, fixed);
+        repaired += 1;
+    }
+    Err("too many lines to repair".to_string())
+}
+
 /// Config & External Theme Manager
 pub struct ConfigManager;
 
@@ -1728,15 +1756,17 @@ impl ConfigManager {
                 Ok(cfg)
             }
             Err(e) => {
-                let sanitized = sanitize_toml_content(content);
-                match toml::from_str::<AppConfig>(&sanitized) {
+                // Repair only the lines with unescaped Windows paths, never the correct ones
+                let repaired = repair_toml_windows_paths(content)
+                    .map_err(|re| format!("Failed to parse config: {} (after repairing Windows paths: {})", e, re))?;
+                match toml::from_str::<AppConfig>(&repaired.0) {
                     Ok(mut cfg) => {
-                        info!("Parsed configuration successfully after auto-repairing Windows path escape sequences");
+                        info!("Parsed configuration after repairing {} line(s) with unescaped Windows paths", repaired.1);
                         Self::normalize_config_paths(&mut cfg);
                         Ok(cfg)
                     }
-                    Err(sanitized_err) => {
-                        Err(format!("Failed to parse config: {} (after pre-processing: {})", e, sanitized_err))
+                    Err(repaired_err) => {
+                        Err(format!("Failed to parse config: {} (after repairing Windows paths: {})", e, repaired_err))
                     }
                 }
             }
@@ -2362,6 +2392,32 @@ mod tests {
         "#;
         let singular_cfg: AppConfig = toml::from_str(singular_toml).unwrap();
         assert_eq!(singular_cfg.terminal.user_shells.get("bolt"), Some(&"/usr/bin/fish".to_string()));
+    }
+
+    #[test]
+    fn test_repair_only_touches_broken_lines() {
+        let raw = r#"
+[server]
+port = 3140
+root_path = "C:\\Data"
+note = "tab\there"
+
+[[fleet.nodes]]
+id = "pc"
+name = "PC"
+url = "http://pc:3140"
+start_path = "C:\Users\user"
+"#;
+        let (fixed, n) = super::repair_toml_windows_paths(raw).expect("repairable");
+        assert_eq!(n, 1, "only the start_path line needs repair");
+        assert!(fixed.contains(r#"root_path = "C:\\Data""#), "correct escapes stay as they were");
+        assert!(fixed.contains(r#"note = "tab\there""#), "valid escape sequences stay as they were");
+        assert!(fixed.contains(r#"start_path = "C:\\Users\\user""#));
+        let cfg = ConfigManager::parse_config_str(raw).expect("loads");
+        assert_eq!(cfg.server.root_path, r"C:\Data");
+        assert_eq!(cfg.fleet.nodes[0].start_path.as_deref(), Some(r"C:\Users\user"));
+        // Real syntax errors are still reported, not "repaired"
+        assert!(super::repair_toml_windows_paths("port = = 1").is_err());
     }
 
     #[test]

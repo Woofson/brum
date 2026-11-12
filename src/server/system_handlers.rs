@@ -733,13 +733,23 @@ pub async fn handle_save_config_file(
     // Read existing on-disk configuration to restore any preserved masked secrets
     let existing_content = fs::read_to_string(&path).unwrap_or_default();
 
+    // Windows paths typed with single backslashes (start_path = "C:\\Users\\bolt") are repaired on
+    // their own lines, as when loading, and saved with doubled backslashes so the file stays
+    // valid for every TOML reader
+    let tip = "Tip: write Windows paths in single quotes, e.g. start_path = 'C:\\Users\\bolt'";
+    let (incoming, repaired_lines) = match toml::from_str::<toml::Table>(&payload.content) {
+        Ok(_) => (payload.content.clone(), 0),
+        Err(e) => crate::config::repair_toml_windows_paths(&payload.content)
+            .map_err(|_| (StatusCode::BAD_REQUEST, format!("Invalid TOML syntax: {}. {}", e, tip)))?,
+    };
+
     // Non-destructive merge: if payload has ********, retain disk secret
-    let merged_content = crate::config::mask::merge_masked_config(&payload.content, &existing_content)
+    let merged_content = crate::config::mask::merge_masked_config(&incoming, &existing_content)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to merge masked configuration: {}", e)))?;
 
     // Validate TOML syntax & schema of the final merged configuration before saving
     let _: AppConfig = toml::from_str(&merged_content).map_err(|e| {
-        (StatusCode::BAD_REQUEST, format!("Invalid TOML syntax: {}", e))
+        (StatusCode::BAD_REQUEST, format!("Invalid TOML syntax: {}. {}", e, tip))
     })?;
 
     if let Some(parent) = path.parent() {
@@ -752,10 +762,19 @@ pub async fn handle_save_config_file(
 
     tracing::info!("Configuration file saved to {}", path.display());
 
+    let message = if repaired_lines > 0 {
+        format!(
+            "Configuration saved. Windows paths on {} line(s) were written with doubled backslashes (\\\\), as config.toml requires. Server restart required for some changes.",
+            repaired_lines
+        )
+    } else {
+        "Configuration saved successfully. Server restart required for some changes.".to_string()
+    };
     Ok(Json(serde_json::json!({
         "success": true,
         "path": path.to_string_lossy().to_string(),
-        "message": "Configuration saved successfully. Server restart required for some changes."
+        "repaired_lines": repaired_lines,
+        "message": message
     })))
 }
 
