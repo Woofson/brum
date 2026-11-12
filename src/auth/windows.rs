@@ -8,23 +8,59 @@ use std::error::Error;
 #[cfg(windows)]
 use tracing::{info, warn};
 
-/// Parses a Windows credential username string into (Optional Domain, Clean Username).
-/// Supports:
-/// - `DOMAIN\username` -> (Some("DOMAIN"), "username")
-/// - `username@domain.com` -> (Some("domain.com"), "username@domain.com")
-/// - `.\username` -> (Some("."), "username")
-/// - `username` -> (None, "username")
-pub fn parse_windows_username(input: &str) -> (Option<String>, String) {
+/// The ways a typed username is handed to Windows, tried in order (domain, name).
+/// - `DOMAIN\\username` -> that domain and name
+/// - `MicrosoftAccount\\me@mail.com` -> as typed, then the bare address
+/// - `me@mail.com` -> the bare address (Windows wants no domain with it), then as a Microsoft account
+/// - `username` -> the name alone (this computer first, then trusted domains)
+pub fn windows_logon_candidates(input: &str) -> Vec<(Option<String>, String)> {
     let trimmed = input.trim();
+    let mut out = Vec::new();
     if let Some((domain, user)) = trimmed.split_once('\\') {
         let dom = domain.trim();
-        let u = user.trim();
-        (if dom.is_empty() { None } else { Some(dom.to_string()) }, u.to_string())
-    } else if let Some((_user, domain)) = trimmed.split_once('@') {
-        let dom = domain.trim();
-        (if dom.is_empty() { None } else { Some(dom.to_string()) }, trimmed.to_string())
+        let u = user.trim().to_string();
+        if dom.is_empty() {
+            out.push((None, u));
+        } else {
+            out.push((Some(dom.to_string()), u.clone()));
+            if dom.eq_ignore_ascii_case("MicrosoftAccount") && u.contains('@') {
+                out.push((None, u));
+            }
+        }
+    } else if trimmed.contains('@') {
+        out.push((None, trimmed.to_string()));
+        out.push((Some("MicrosoftAccount".to_string()), trimmed.to_string()));
     } else {
-        (None, trimmed.to_string())
+        out.push((None, trimmed.to_string()));
+    }
+    out
+}
+
+/// The name Brum files a Windows login under, so both ways of typing
+/// a Microsoft account land on the same Brum profile.
+pub fn windows_profile_username(input: &str) -> String {
+    let trimmed = input.trim();
+    match trimmed.split_once('\\') {
+        Some((dom, user)) if dom.trim().eq_ignore_ascii_case("MicrosoftAccount") => user.trim().to_string(),
+        _ => trimmed.to_string(),
+    }
+}
+
+/// Plain-words reason for a Windows login refusal code, for the log.
+pub fn describe_logon_error(code: u32) -> &'static str {
+    match code {
+        1326 => "wrong username or password",
+        1327 => "account restriction (for example a blank password, or a policy that blocks password sign-in)",
+        1328 => "outside the account's allowed logon hours",
+        1329 => "not allowed to sign in from this computer",
+        1330 => "password has expired",
+        1331 => "account is disabled",
+        1385 | 1387 => "this kind of sign-in is not granted to the account on this computer",
+        1355 => "domain not found",
+        1311 => "no sign-in server available (offline, and no saved sign-in for this account)",
+        1909 => "account is locked out",
+        1907 => "password must be changed before signing in",
+        _ => "other Windows error",
     }
 }
 
@@ -71,54 +107,71 @@ pub fn authenticate_windows_user(
         LOGON32_LOGON_INTERACTIVE, LOGON32_LOGON_NETWORK, LOGON32_PROVIDER_DEFAULT,
         WinBuiltinAdministratorsSid,
     };
-
-    let (domain_opt, clean_username) = parse_windows_username(username);
-    let user_wide = to_wide_null(&clean_username);
-    let pass_wide = to_wide_null(password);
-    let domain_wide: Option<Vec<u16>> = domain_opt.as_deref().map(to_wide_null);
-
-    let domain_ptr = match domain_wide.as_ref() {
-        Some(w) => w.as_ptr(),
-        None => std::ptr::null(),
-    };
+    use windows_sys::Win32::UI::Shell::GetUserProfileDirectoryW;
 
     let mut token_handle: HANDLE = 0 as HANDLE;
+    let mut logged_on = false;
+    let mut clean_username = String::new();
 
-    // 1. Try LOGON32_LOGON_NETWORK first (standard network authentication, works without SeTcbPrivilege)
-    let mut logon_success = unsafe {
-        LogonUserW(
-            user_wide.as_ptr(),
-            domain_ptr,
-            pass_wide.as_ptr(),
-            LOGON32_LOGON_NETWORK,
-            LOGON32_PROVIDER_DEFAULT,
-            &mut token_handle,
-        )
-    };
-
-    // 2. If NETWORK logon fails or returns invalid parameter, fall back to LOGON32_LOGON_INTERACTIVE
-    if logon_success == 0 {
-        logon_success = unsafe {
-            LogonUserW(
-                user_wide.as_ptr(),
-                domain_ptr,
-                pass_wide.as_ptr(),
-                LOGON32_LOGON_INTERACTIVE,
-                LOGON32_PROVIDER_DEFAULT,
-                &mut token_handle,
-            )
+    // Try each way of handing the name to Windows; each with a network sign-in
+    // first, then an interactive one. Every refusal is logged with its reason.
+    'outer: for (domain_opt, name) in windows_logon_candidates(username) {
+        let user_wide = to_wide_null(&name);
+        let pass_wide = to_wide_null(password);
+        let domain_wide: Option<Vec<u16>> = domain_opt.as_deref().map(to_wide_null);
+        let domain_ptr = match domain_wide.as_ref() {
+            Some(w) => w.as_ptr(),
+            None => std::ptr::null(),
         };
+        let shown = match &domain_opt {
+            Some(d) => format!("{}\\{}", d, name),
+            None => name.clone(),
+        };
+
+        for (kind, logon_type) in [("network", LOGON32_LOGON_NETWORK), ("interactive", LOGON32_LOGON_INTERACTIVE)] {
+            let ok = unsafe {
+                LogonUserW(
+                    user_wide.as_ptr(),
+                    domain_ptr,
+                    pass_wide.as_ptr(),
+                    logon_type,
+                    LOGON32_PROVIDER_DEFAULT,
+                    &mut token_handle,
+                )
+            };
+            if ok != 0 && token_handle != (0 as HANDLE) {
+                info!(tried_as = %shown, sign_in = kind, "Windows accepted the sign-in");
+                clean_username = name.split('@').next().unwrap_or(&name).to_string();
+                logged_on = true;
+                break 'outer;
+            }
+            let err_code = unsafe { windows_sys::Win32::Foundation::GetLastError() };
+            warn!(
+                tried_as = %shown,
+                sign_in = kind,
+                win32_error = err_code,
+                reason = describe_logon_error(err_code),
+                "Windows refused the sign-in"
+            );
+        }
     }
 
-    if logon_success == 0 || token_handle == (0 as HANDLE) {
-        let err_code = unsafe { windows_sys::Win32::Foundation::GetLastError() };
-        warn!(
-            username = %username,
-            win32_error = err_code,
-            "Windows native authentication (LogonUserW) failed"
-        );
+    if !logged_on {
         return Err("Invalid Windows username or password".into());
     }
+
+    // The real profile folder (Microsoft accounts often get a shortened folder name)
+    let profile_dir = {
+        let mut buf = vec![0u16; 1024];
+        let mut len = buf.len() as u32;
+        let ok = unsafe { GetUserProfileDirectoryW(token_handle, buf.as_mut_ptr(), &mut len) };
+        if ok != 0 {
+            let end = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+            Some(String::from_utf16_lossy(&buf[..end])).filter(|p| !p.trim().is_empty())
+        } else {
+            None
+        }
+    };
 
     // 3. Inspect administrator group membership
     let mut is_admin = false;
@@ -154,10 +207,11 @@ pub fn authenticate_windows_user(
     }
 
     let role = if is_admin { "admin" } else { "user" }.to_string();
-    let home_dir = resolve_windows_home_dir(username);
+    let home_dir = profile_dir.unwrap_or_else(|| resolve_windows_home_dir(username));
+    let profile_name = windows_profile_username(username);
 
     info!(
-        username = %username,
+        username = %profile_name,
         role = %role,
         home = %home_dir,
         "Windows native user successfully authenticated via LogonUserW"
@@ -165,7 +219,7 @@ pub fn authenticate_windows_user(
 
     let mut user = User {
         id: 0,
-        username: username.to_string(),
+        username: profile_name,
         nickname: Some(clean_username),
         full_name: None,
         bio: None,
@@ -202,26 +256,37 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_windows_username_formats() {
-        // Domain\User
-        let (dom, u) = parse_windows_username(r"CORP\alice");
-        assert_eq!(dom, Some("CORP".to_string()));
-        assert_eq!(u, "alice");
+    fn test_windows_logon_candidates() {
+        let some = |d: &str, u: &str| (Some(d.to_string()), u.to_string());
+        let none = |u: &str| (None, u.to_string());
 
-        // Local dot prefix .\bob
-        let (dom, u) = parse_windows_username(r".\bob");
-        assert_eq!(dom, Some(".".to_string()));
-        assert_eq!(u, "bob");
+        assert_eq!(windows_logon_candidates(r"CORP\alice"), vec![some("CORP", "alice")]);
+        assert_eq!(windows_logon_candidates(r".\bob"), vec![some(".", "bob")]);
+        assert_eq!(windows_logon_candidates("administrator"), vec![none("administrator")]);
 
-        // User@domain.com (UPN)
-        let (dom, u) = parse_windows_username("alice@corp.example.com");
-        assert_eq!(dom, Some("corp.example.com".to_string()));
-        assert_eq!(u, "alice@corp.example.com");
+        // A full address goes to Windows without a split-off domain, then as a Microsoft account
+        assert_eq!(
+            windows_logon_candidates(" me@mail.com "),
+            vec![none("me@mail.com"), some("MicrosoftAccount", "me@mail.com")]
+        );
+        assert_eq!(
+            windows_logon_candidates(r"MicrosoftAccount\me@mail.com"),
+            vec![some("MicrosoftAccount", "me@mail.com"), none("me@mail.com")]
+        );
+    }
 
-        // Simple local user
-        let (dom, u) = parse_windows_username("administrator");
-        assert_eq!(dom, None);
-        assert_eq!(u, "administrator");
+    #[test]
+    fn test_windows_profile_username() {
+        assert_eq!(windows_profile_username(r"MicrosoftAccount\me@mail.com"), "me@mail.com");
+        assert_eq!(windows_profile_username(r"microsoftaccount\me@mail.com"), "me@mail.com");
+        assert_eq!(windows_profile_username("me@mail.com"), "me@mail.com");
+        assert_eq!(windows_profile_username(r"CORP\alice"), r"CORP\alice");
+    }
+
+    #[test]
+    fn test_describe_logon_error() {
+        assert_eq!(describe_logon_error(1326), "wrong username or password");
+        assert_eq!(describe_logon_error(4242), "other Windows error");
     }
 
     #[test]
