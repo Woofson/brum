@@ -73,13 +73,58 @@ brum.exe --uninstall-service
 ```
 
 ### Windows Service Logging & Configuration:
-* **Service Config**: `%PROGRAMDATA%\Brum\config.toml` (auto-created if missing with safe system defaults).
-* **Database & Auth**: `%PROGRAMDATA%\Brum\brum.db`
+* **Service Config**: `config.toml` in the install folder (e.g. `C:\Program Files\Brum\config.toml`). See [Which config.toml is used](#which-configtoml-is-used).
+* **Database & Auth**: `%PROGRAMDATA%\Brum\brum.db`. This shared data folder is open only to the service and administrators.
+* **Desktop mode** started by a user without administrator rights keeps its own data in that user's `%APPDATA%\Brum\` instead.
 * **Event Logging**: SCM lifecycle events and errors are recorded directly in the Windows Application Event Log (`eventvwr.msc`).
 
 ---
 
-## 4. Windows Explorer Context Menu Integration
+## 4. First Login & Windows Accounts
+
+### The first admin password
+* The built-in username is **`admin`** (set by `default_admin_user` in `config.toml`).
+* On the very first start, Brum makes up a random password. It is shown once in the console window (a background service has none) and saved to a note next to the database:
+  `C:\ProgramData\Brum\initial_admin_credentials.txt`
+* While that note exists, the login page shows where it is. The page never shows the password itself.
+* The note stays until the `admin` password is changed in **Settings -> Security**. Logging in, including with a Windows administrator account, does not remove it.
+* While the note exists, each start also writes its location to the log.
+
+### Setting your own password in config.toml
+* `default_admin_pass` in the `[auth]` section is used **only on the very first start**, when the user database is created. Changing it later has no effect; the log says so if it no longer matches.
+* The value `brum` (the default) means "make one up".
+* To choose your own first password on a fresh install: stop Brum, delete `C:\ProgramData\Brum\brum.db` (and `brum.db-shm` / `brum.db-wal` if present), set `default_admin_pass`, and start Brum again. This removes all Brum users and settings, so only do it on a fresh install.
+
+### Lost the admin password
+Run this on the Brum machine, in PowerShell or CMD **opened as administrator** (otherwise it resets the personal desktop-mode data of your own account instead of the service's). Adjust the folder if Brum is installed elsewhere:
+```powershell
+& "C:\Program Files\Brum\brum.exe" reset-admin-password
+```
+With Scoop or the portable ZIP, `brum reset-admin-password` from the Brum folder works too.
+It gives `admin` a new made-up password, prints it, and saves it to the same note. If the `admin` account was disabled, it is turned back on. Running it ends every login that account had open.
+
+### Which config.toml is used
+Brum reads the **first** of these that exists and ignores the rest:
+1. The file named in the `BRUM_CONFIG` environment variable.
+2. `%APPDATA%\brum\config.toml` (the settings folder of the Windows account running Brum).
+3. `%LOCALAPPDATA%\brum\config.toml`.
+4. `config.toml` next to `brum.exe` (the install folder).
+
+The background service runs as the Windows system account, whose settings folder is `C:\Windows\System32\config\systemprofile\AppData\Roaming\brum\`. In practice the service uses the copy in the install folder. If an edit seems to be ignored, look for a copy higher up this list. The log shows which file was loaded (`Loading master configuration: ...`).
+
+### Logging in with Windows accounts
+With `mode = "mixed"` (the default), Windows accounts can log in with their Windows password:
+* **Local accounts**: the account name, e.g. `alice`, or `.\alice` for this computer only.
+* **Domain accounts**: `DOMAIN\alice`.
+* **Microsoft online accounts**: the full address, e.g. `me@mail.com`, or `MicrosoftAccount\me@mail.com`. Both reach the same Brum profile.
+  * Use the Microsoft account **password**. A Windows Hello PIN, fingerprint or face is not a password and does not work here.
+  * Accounts set to **passwordless** in the Microsoft account settings have no password Windows can check, so they cannot log in this way. Use the `admin` account or a local Windows account instead.
+* Members of the Windows **Administrators** group become Brum admins.
+* Every refused attempt is written to the log in `C:\ProgramData\Brum\logs\` with Windows' reason (for example "wrong username or password" or "account restriction"). The password is never logged.
+
+---
+
+## 5. Windows Explorer Context Menu Integration
 
 Add **"Open in Brum"** to the Windows Explorer right-click context menu for any directory, drive, or folder background:
 
@@ -97,7 +142,7 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ---
 
-## 5. Windows Filesystem Features
+## 6. Windows Filesystem Features
 
 - **Native Windows SAM Authentication (`LogonUserW`)**: Authenticate directly with local Windows accounts or domain credentials against the Windows Security Account Manager (SAM) with automatic `%USERPROFILE%` home directory mapping and Admin group detection.
 - **Drive Letter Navigation**: Switch seamlessly across `C:\`, `D:\`, `E:\`, `Z:\` in breadcrumbs and the quick jump menu.
@@ -109,7 +154,7 @@ reg import packaging\windows\unregister-context-menu.reg
 
 ---
 
-## 6. Windows PE Metadata & Build Inspection
+## 7. Windows PE Metadata & Build Inspection
 
 Windows executable (`brum.exe`) automatically embeds PE Version Resources:
 * **File Version**: Formatted as `MAJOR.MINOR.PATCH.BUILD` (e.g. `1.8.8.419`).
@@ -118,7 +163,7 @@ Windows executable (`brum.exe`) automatically embeds PE Version Resources:
 
 ---
 
-## 7. Multimedia & Transcoding Dependencies (Format Converter)
+## 8. Multimedia & Transcoding Dependencies (Format Converter)
 
 Brum runs completely standalone out-of-the-box with zero mandatory runtime dependencies for file browsing, terminals, and encrypted vaults.
 
@@ -150,7 +195,7 @@ If installing manually without a package manager:
 
 ---
 
-## 8. Building from Source on Windows
+## 9. Building from Source on Windows
 
 ### Prerequisites
 - [Rust & Cargo](https://rustup.rs/) (`stable-x86_64-pc-windows-msvc` or cross-compile with `x86_64-pc-windows-gnu`)
