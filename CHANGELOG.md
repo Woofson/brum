@@ -5,6 +5,25 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.1] - 2026-11-13
+
+Not released on its own; these changes first ship in 1.22.0.
+
+### Security
+- **Windows Service Database (GHSA-9qgm-hfjj-hxq4, medium)**: On all-users Windows installs with the shipped `config.toml`, the Brum service kept its database in the install folder (`C:\Program Files\Brum`), which every local account can read. It held Brum's user list with password hashes, sessions, shares and settings. Saved passwords stayed encrypted. On Windows, a bare `database_path` no longer depends on the folder Brum starts in: installed copies running as the service or administrator use `C:\ProgramData\Brum` (open only to the system account and administrators), other users use their own `%APPDATA%\Brum`, and portable copies keep it next to `brum.exe`. The first start as the service or administrator moves the database, its key file, the first-login note and Proton files there. If untrusted accounts use the machine, change the passwords of Brum's own accounts.
+- **System Status Before Login (GHSA-6p5c-gr9f-gxx7, low)**: With login switched on, the status answer used by the login page also told visitors who were not signed in which system account Brum runs as and its home folder. Those two details are now only sent after login.
+
+### Fixes
+- **Admin Password Reset from Any Folder**: `brum reset-admin-password` finds the service's database no matter which folder the terminal starts in. Without administrator rights on Windows it says it is using your own desktop-mode data.
+- **Microsoft Accounts on Windows (#178)**: When Windows refuses every form of a Microsoft account address, the log explains the usual cause: Windows has no saved password for that account (passwordless or PIN-only sign-in), and signing in to Windows once with the password fixes it.
+- **Home Folders from Other Systems**: A home folder written for another system, such as `C:\Users\bolt` in a profile on Linux, is ignored instead of being created as an odd folder next to Brum.
+- **Which Config File**: The log names the `config.toml` in use at start-up, for both the program and the Windows service.
+- **Config Editor and Windows Paths**: Settings such as `start_path = "C:\Users\bolt"` can be saved from the config editor. Brum repairs only the lines TOML would reject and says which ones.
+- **Fleet Lists**: Fleet machines removed from or renamed in `config.toml` no longer linger in each user's saved Fleet list, and two entries for the same address are merged.
+
+### Documentation
+- **Windows Manual**: Where Brum keeps its data, which `config.toml` is used, and running the reset command from any folder.
+
 ## [1.21.0] - 2026-11-12
 
 ### Security
