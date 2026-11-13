@@ -1338,21 +1338,55 @@ impl Default for FleetConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq, Eq)]
 pub struct FleetNodeConfig {
     pub id: String,
     pub name: String,
+    /// The node's address. A machine reachable under several (a multi-boot box with one
+    /// hostname per system) lists them in `urls` instead, or as well.
+    #[serde(default)]
     pub url: String,
+    /// More addresses for the same machine, tried in order after `url`; the first that answers wins
+    #[serde(default)]
+    pub urls: Vec<String>,
     #[serde(default, skip_serializing)]
     pub token: Option<String>,
     #[serde(default)]
     pub start_path: Option<String>,
+    /// Start folder per system the node reports (`linux`, `windows`, `macos`…); `start_path`
+    /// is used when none matches
+    #[serde(default)]
+    pub start_paths: std::collections::BTreeMap<String, String>,
     #[serde(default)]
     pub read_only: bool,
     #[serde(default)]
     pub color_accent: Option<String>,
     #[serde(default)]
     pub tags: Vec<String>,
+}
+
+impl FleetNodeConfig {
+    /// Every address of the node in the order to try them: `url` first, then `urls`, without
+    /// blanks, trailing slashes or repeats
+    pub fn addresses(&self) -> Vec<String> {
+        let mut out: Vec<String> = Vec::new();
+        for raw in std::iter::once(&self.url).chain(self.urls.iter()) {
+            let a = raw.trim().trim_end_matches('/').to_string();
+            if !a.is_empty() && !out.iter().any(|o| o.eq_ignore_ascii_case(&a)) {
+                out.push(a);
+            }
+        }
+        out
+    }
+
+    /// The start folder for the system the node runs now, else `start_path`
+    pub fn start_path_for(&self, os: &str) -> Option<String> {
+        self.start_paths
+            .iter()
+            .find(|(k, v)| k.eq_ignore_ascii_case(os.trim()) && !v.trim().is_empty())
+            .map(|(_, v)| v.trim().to_string())
+            .or_else(|| self.start_path.clone().map(|p| p.trim().to_string()).filter(|p| !p.is_empty()))
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1626,8 +1660,12 @@ pub struct ClientFleetConfigDto {
 pub struct ClientFleetNodeConfigDto {
     pub id: String,
     pub name: String,
+    /// The first address (kept for older pages)
     pub url: String,
+    /// All addresses, in the order to try them
+    pub urls: Vec<String>,
     pub start_path: Option<String>,
+    pub start_paths: std::collections::BTreeMap<String, String>,
     pub read_only: bool,
     pub color_accent: Option<String>,
     pub tags: Vec<String>,
@@ -1689,8 +1727,10 @@ impl AppConfig {
                 nodes: self.fleet.nodes.iter().map(|n| ClientFleetNodeConfigDto {
                     id: n.id.clone(),
                     name: n.name.clone(),
-                    url: n.url.clone(),
+                    url: n.addresses().into_iter().next().unwrap_or_default(),
+                    urls: n.addresses(),
                     start_path: n.start_path.clone(),
+                    start_paths: n.start_paths.clone(),
                     read_only: n.read_only,
                     color_accent: n.color_accent.clone(),
                     tags: n.tags.clone(),

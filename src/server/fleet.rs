@@ -36,8 +36,87 @@ fn get_http_client() -> &'static reqwest::Client {
 pub struct ResolvedFleetTarget {
     pub id: String,
     pub name: String,
+    /// The address to use now (for a multi-address node: the one that answered last)
     pub endpoint_url: String,
+    /// Every address of the node, in the order to try them
+    #[serde(default)]
+    pub addresses: Vec<String>,
     pub auth_token: Option<String>,
+}
+
+/// How long the address that answered is used before the others are tried again
+const LIVE_ADDRESS_TTL: Duration = Duration::from_secs(60);
+/// How long one address may take to answer when looking for the one that is up
+const ADDRESS_PROBE_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// The address that answered last for each multi-address node, and when
+static LIVE_ADDRESS: std::sync::OnceLock<std::sync::Mutex<HashMap<String, (String, Instant)>>> = std::sync::OnceLock::new();
+
+fn live_addresses() -> &'static std::sync::Mutex<HashMap<String, (String, Instant)>> {
+    LIVE_ADDRESS.get_or_init(|| std::sync::Mutex::new(HashMap::new()))
+}
+
+/// The address that answered recently for this node, if it is still one of its addresses
+fn cached_live_address(node_id: &str, addresses: &[String]) -> Option<String> {
+    let map = live_addresses().lock().ok()?;
+    let (addr, at) = map.get(node_id)?;
+    (at.elapsed() < LIVE_ADDRESS_TTL && addresses.iter().any(|a| a == addr)).then(|| addr.clone())
+}
+
+fn remember_live_address(node_id: &str, addr: &str) {
+    if let Ok(mut map) = live_addresses().lock() {
+        map.insert(node_id.to_string(), (addr.to_string(), Instant::now()));
+    }
+}
+
+/// Forgets the address in use, so the next request looks for the one that answers
+pub fn forget_live_address(node_id: &str) {
+    if let Ok(mut map) = live_addresses().lock() {
+        map.remove(node_id);
+    }
+}
+
+/// The address to use for a node from `config.toml` without waiting: the one that answered
+/// recently, else the first
+pub fn fleet_node_address(node: &FleetNodeConfig) -> String {
+    let addresses = node.addresses();
+    cached_live_address(&node.id, &addresses).unwrap_or_else(|| addresses.into_iter().next().unwrap_or_default())
+}
+
+/// For a node with several addresses (a multi-boot machine), points the target at one that
+/// answers: the recent one when `force` is false, else each address in order. When none answers
+/// the first stays, and the request reports the node unreachable as usual.
+pub async fn choose_live_address(target: &mut ResolvedFleetTarget, force: bool) {
+    if target.addresses.len() < 2 {
+        return;
+    }
+    if !force {
+        if let Some(addr) = cached_live_address(&target.id, &target.addresses) {
+            target.endpoint_url = addr;
+            return;
+        }
+    }
+    let client = get_http_client();
+    for addr in target.addresses.clone() {
+        let answered = client
+            .get(format!("{}/api/health", addr))
+            .timeout(ADDRESS_PROBE_TIMEOUT)
+            .send()
+            .await
+            .is_ok();
+        if answered {
+            if cached_live_address(&target.id, &target.addresses).as_deref() != Some(addr.as_str()) {
+                info!("Fleet node '{}' answers at {}", target.id, addr);
+            }
+            remember_live_address(&target.id, &addr);
+            target.endpoint_url = addr;
+            return;
+        }
+    }
+    forget_live_address(&target.id);
+    if let Some(first) = target.addresses.first() {
+        target.endpoint_url = first.clone();
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -159,10 +238,15 @@ pub fn resolve_target_node(
 ) -> Option<ResolvedFleetTarget> {
     // 1. Check static configuration nodes
     if let Some(n) = state.config.fleet.nodes.iter().find(|n| n.id == node_id) {
+        let addresses = n.addresses();
+        if addresses.is_empty() {
+            return None;
+        }
         return Some(ResolvedFleetTarget {
             id: n.id.clone(),
             name: n.name.clone(),
-            endpoint_url: n.url.trim_end_matches('/').to_string(),
+            endpoint_url: fleet_node_address(n),
+            addresses,
             auth_token: n.token.clone().filter(|t| !t.trim().is_empty()),
         });
     }
@@ -189,7 +273,8 @@ pub fn resolve_target_node(
             return Some(ResolvedFleetTarget {
                 id: node_id.to_string(),
                 name: node_id.to_string(),
-                endpoint_url: trimmed_url,
+                endpoint_url: trimmed_url.clone(),
+                addresses: vec![trimmed_url],
                 auth_token: target_token,
             });
         }
@@ -255,12 +340,13 @@ async fn forward_fleet_http_request(
     let _claims = extract_fleet_claims(state, &headers, &query_map)?;
 
     // 2. Resolve destination node
-    let target = resolve_target_node(state, node_id, &headers).ok_or_else(|| {
+    let mut target = resolve_target_node(state, node_id, &headers).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
             format!("Fleet node '{}' not found or target URL missing", node_id),
         )
     })?;
+    choose_live_address(&mut target, false).await;
 
     // 3. Build destination URL
     let clean_subpath = subpath.trim_start_matches('/');
@@ -327,6 +413,10 @@ async fn forward_fleet_http_request(
     );
     let resp = req_builder.send().await.map_err(|e| {
         warn!("Fleet proxy request to '{}' failed: {}", target_url, e);
+        // A multi-boot node may have come up under another address: look again next time
+        if target.addresses.len() > 1 {
+            forget_live_address(&target.id);
+        }
         (
             StatusCode::BAD_GATEWAY,
             format!("Failed to reach remote fleet node '{}' ({})", target.name, e),
@@ -390,12 +480,13 @@ pub async fn handle_fleet_ws_proxy(
         ));
     }
 
-    let target = resolve_target_node(&state, &node_id, &headers).ok_or_else(|| {
+    let mut target = resolve_target_node(&state, &node_id, &headers).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
             format!("Fleet node '{}' not found", node_id),
         )
     })?;
+    choose_live_address(&mut target, false).await;
 
     // Convert http:// to ws://, https:// to wss://
     let ws_base = if target.endpoint_url.starts_with("https://") {
@@ -583,12 +674,15 @@ pub async fn handle_fleet_ping(
 ) -> Result<Json<FleetPingResult>, (StatusCode, String)> {
     let _ = extract_fleet_claims(&state, &headers, &query)?;
 
-    let target = resolve_target_node(&state, &node_id, &headers).ok_or_else(|| {
+    let mut target = resolve_target_node(&state, &node_id, &headers).ok_or_else(|| {
         (
             StatusCode::NOT_FOUND,
             format!("Fleet node '{}' not found", node_id),
         )
     })?;
+    // A ping looks for the address that answers now, so a machine that rebooted into its
+    // other system is found right away
+    choose_live_address(&mut target, true).await;
 
     let health_url = format!("{}/api/health", target.endpoint_url);
     let client = get_http_client();
@@ -769,6 +863,7 @@ mod tests {
             read_only: false,
             color_accent: Some("emerald".to_string()),
             tags: vec!["proxmox".to_string(), "prod".to_string()],
+            ..Default::default()
         });
         let state = mock_app_state(config);
 

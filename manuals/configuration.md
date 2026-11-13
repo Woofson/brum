@@ -129,6 +129,15 @@ enabled = true
 # color_accent = "#f59e0b"
 # tags = ["homelab", "nas", "tailscale"]
 
+# One machine, several systems or addresses (e.g. a dual-boot box with a hostname per system)
+# [[fleet.nodes]]
+# id = "griffon"
+# name = "Griffon"
+# urls = ["http://griffon:3140", "http://wingriff:3140"]   # Tried in order; the first that answers is used
+# [fleet.nodes.start_paths]                                # Start folder for the system the machine reports
+# linux = "/home/bolt"
+# windows = 'C:\Users\bolt'
+
 # --- Modular Chewtoys & Plugins ---
 [plugins]
 enabled = true
@@ -307,7 +316,16 @@ To federate nodes without managing static per-node API tokens:
 * **User Overrides**: Users can customize a static node in the **Fleet Manager** (changing its start directory, display name, color accent, or routing mode) and click **Save Profile**. This tags the node with `user_override: true` and preserves personal preferences over `config.toml`.
 * **One-Click Reset**: To discard custom overrides and revert to `config.toml` settings, click the amber **Reset** button (`rotate-ccw`) on the node card in Fleet Manager.
 
-### 3. Zero CORS Requirements on Gateway Proxy
+### 3. One Machine, Several Systems or Addresses
+A machine that boots more than one system (for example Linux as `griffon` and Windows as `wingriff`) needs only one Fleet entry:
+* **Addresses**: list them in `urls`. The existing `url` still works and counts as the first address. The hub uses the address that answered last; when it stops answering, the others are tried again in order. The answer is kept for a minute, so not every request tries every address.
+* **Start folder per system**: under `[fleet.nodes.start_paths]`, give a folder for `linux`, `windows` or `macos`. Brum picks the one for the system the machine reports when it is pinged; `start_path` is used when none matches.
+* **Folders from the other system**: a folder remembered while the machine ran one system (such as `C:\Users\bolt`) is not tried while it runs the other. The panel opens that system's start folder instead.
+* **Fleet list and manager**: the entry shows a badge for the running system and which address is in use ("address 2 of 2"). In the Fleet manager, type several addresses separated by commas, and a start folder per system. Test Connection tries them in order and says which one answered.
+* **Older saved entries**: if you had one entry per hostname, both are merged into the one entry from `config.toml` the next time the page loads.
+* **Token**: one token (or the shared signing secret) for all addresses of the machine.
+
+### 4. Zero CORS Requirements on Gateway Proxy
 When routed through the Fleet Gateway Hub (`/api/fleet/proxy/:node_id`), all communication is proxied server-to-server. Remote nodes **do not** require the coordinator's domain in their `allowed_origins` whitelist.
 
 ---

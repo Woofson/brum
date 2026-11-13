@@ -185,6 +185,19 @@ enabled = true                      # Enable multi-node fleet gateway and node s
 # color_accent = "#10b981"           # Emerald green accent
 # tags = ["compute", "lan"]
 
+# Example 4: One machine that boots Linux or Windows, with a hostname per system.
+# One entry covers both: the addresses are tried in order and the first that answers is used,
+# and the start folder follows the system the machine reports (linux, windows, macos).
+# [[fleet.nodes]]
+# id = "griffon"
+# name = "Griffon"
+# urls = ["http://griffon:3140", "http://wingriff:3140"]
+# token = ""
+# start_path = "/"                   # Used when no folder below matches the running system
+# [fleet.nodes.start_paths]
+# linux = "/home/bolt"
+# windows = 'C:\Users\bolt'         # Single quotes keep the backslashes as they are
+
 # --- Modular Chewtoys & Plugins ---
 [plugins]
 enabled = true                      # Enable the Chewtoys modular plugin engine (.grr packages)

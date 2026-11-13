@@ -5336,6 +5336,7 @@
               <div class="settings-field">
                 <label class="settings-field-label" for="fleet-input-url">Endpoint URL (HTTP/HTTPS):</label>
                 <input type="text" id="fleet-input-url" class="settings-input" placeholder="e.g. https://goshawk.vpn:3140 or http://100.64.0.5:3140">
+                <div class="settings-field-hint">One machine under several addresses (e.g. dual-boot): separate them with commas. The first that answers is used.</div>
               </div>
             </div>
 
@@ -5354,6 +5355,16 @@
                 <input type="text" id="fleet-input-start-path" class="settings-input" placeholder="e.g. C:\Users\bolt, /home/bolt, /data" style="height: 28px; font-family: var(--font-mono); font-size: 11.5px;">
                 <div class="settings-field-hint">Leave blank for automatic home & root discovery.</div>
               </div>
+            </div>
+
+            <div class="settings-field">
+              <span class="settings-field-label">Start Directory per System (Optional):</span>
+              <div class="fleet-os-paths">
+                <label class="fleet-os-path"><span>Linux</span><input type="text" id="fleet-input-start-linux" class="settings-input" placeholder="/home/bolt"></label>
+                <label class="fleet-os-path"><span>Windows</span><input type="text" id="fleet-input-start-windows" class="settings-input" placeholder="C:\Users\bolt"></label>
+                <label class="fleet-os-path"><span>macOS</span><input type="text" id="fleet-input-start-macos" class="settings-input" placeholder="/Users/bolt"></label>
+              </div>
+              <div class="settings-field-hint">Used when the machine reports that system; otherwise the start directory above.</div>
             </div>
 
             <div class="settings-grid-2col" style="gap: 10px;">

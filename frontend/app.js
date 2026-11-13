@@ -5091,11 +5091,18 @@ async function switchPaneNode(paneIndex, nodeId, targetPath = null) {
     loadPaneDirectory(paneIndex, dest, true);
     showToast(`Pane ${paneIndex + 1} switched to Local Host`, 'info');
   } else {
-    const node = getPaneNode(paneIndex);
+    let node = getPaneNode(paneIndex);
+    // A multi-boot machine: find out which address and system it is up under first, so the
+    // start folder fits (#187)
+    if (fleetNodeIsMultiSystem(node) && typeof pingFleetNode === 'function') {
+      await pingFleetNode(node.id);
+      node = getPaneNode(paneIndex) || node;
+    }
     let dest = targetPath;
+    if (dest && fleetNodeIsMultiSystem(node) && node.os && !fleetPathFitsOs(dest, node.os)) dest = null;
     if (!dest) {
-      if (node.start_path && node.start_path.trim()) {
-        dest = node.start_path.trim();
+      if (fleetNodeStartPath(node)) {
+        dest = fleetNodeStartPath(node);
       } else if (node.resolved_home && node.resolved_home.trim()) {
         dest = node.resolved_home.trim();
       } else {
@@ -6129,6 +6136,31 @@ function clearPaneUnreachable(paneIndex) {
   if (box) box.remove();
 }
 
+/**
+ * A multi-boot Fleet machine may have come up under its other address or system since the pane
+ * last asked. Pings it once; when its address or system changed, opens the folder again (or the
+ * start folder for the system it runs now) and returns true. Otherwise the error stands.
+ */
+async function retryMultiSystemFleetPane(paneIndex, cleanPath, pushHistory) {
+  const pane = App.panes && App.panes[paneIndex];
+  const node = getPaneNode(paneIndex);
+  if (!pane || !node || node.id === 'local' || !fleetNodeIsMultiSystem(node) || pane._multiSystemRetry) return false;
+  const before = { url: node.endpoint_url, os: node.os };
+  pane._multiSystemRetry = true;
+  try {
+    const r = await pingFleetNode(node.id);
+    if (!r || r.status !== 'online') return false;
+    const fresh = getPaneNode(paneIndex) || node;
+    if (fresh.endpoint_url === before.url && fresh.os === before.os) return false;
+    const dest = fleetPathFitsOs(cleanPath, fresh.os) ? cleanPath : fleetNodeFallbackPath(fresh);
+    clearPaneUnreachable(paneIndex);
+    await loadPaneDirectory(paneIndex, dest, pushHistory);
+    return true;
+  } finally {
+    pane._multiSystemRetry = false;
+  }
+}
+
 /** Try again button: asks the node for the same folder once more */
 function retryPaneNode(paneIndex) {
   const pane = App.panes[paneIndex];
@@ -6185,6 +6217,14 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
       targetPath = cleanSub ? `${cleanHome}\\${cleanSub}` : cleanHome;
     } else {
       targetPath = targetPath === '~' ? resolvedHome : (resolvedHome.endsWith('/') ? resolvedHome : resolvedHome + '/') + sub.replace(/^\/+/, '');
+    }
+  }
+
+  // A multi-boot Fleet machine: a folder written for its other system is not tried (#187)
+  if (!isLocal && typeof targetPath === 'string') {
+    const fnode = getPaneNode(paneIndex);
+    if (fnode && fleetNodeIsMultiSystem(fnode) && fnode.os && !fleetPathFitsOs(targetPath, fnode.os)) {
+      targetPath = fleetNodeFallbackPath(fnode);
     }
   }
 
@@ -6259,6 +6299,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     if (!resp.ok) {
       const errText = sanitizeCredentials(await resp.text());
       console.warn(`Failed to load ${cleanPath}:`, errText);
+      if (!isLocal && await retryMultiSystemFleetPane(paneIndex, cleanPath, pushHistory)) return;
       if (!isLocal && isFleetUnreachableResponse(resp.status, errText)) {
         showPaneUnreachable(paneIndex, errText);
         return;
@@ -6412,6 +6453,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
     console.error('Directory load error:', e);
     if (!isLocal && e instanceof TypeError) {
       // Direct connection to the node failed (no answer, refused, or blocked)
+      if (await retryMultiSystemFleetPane(paneIndex, cleanPath, pushHistory)) return;
       showPaneUnreachable(paneIndex, e.message);
       return;
     }
@@ -9162,7 +9204,7 @@ async function loadPaneDirectoryTree(paneIndex) {
       roots.push({ name: (r.id === 'home' || r.name.startsWith('Personal Home')) ? 'Home' : r.name, path: r.path, icon });
     });
   } else {
-    const homePath = isRemote ? (node.start_path || node.resolved_home || '/') : (getUserDefaultHomeDir() || App.user?.home_dir || (App.systemStatus?.home_dir || '~'));
+    const homePath = isRemote ? (fleetNodeStartPath(node) || node.resolved_home || '/') : (getUserDefaultHomeDir() || App.user?.home_dir || (App.systemStatus?.home_dir || '~'));
     roots.push({ name: 'Home', path: homePath, icon: 'home' });
   }
 
@@ -43418,10 +43460,81 @@ function sameFleetUrl(a, b) {
   return !!norm(a) && norm(a) === norm(b);
 }
 
-// The config.toml node a saved entry stands for: same id (ignoring case) or same address
+function cleanFleetUrl(u) {
+  return String(u || '').trim().replace(/\/+$/, '');
+}
+
+function uniqueFleetUrls(list) {
+  const out = [];
+  list.forEach(u => {
+    const a = cleanFleetUrl(u);
+    if (a && !out.some(o => o.toLowerCase() === a.toLowerCase())) out.push(a);
+  });
+  return out;
+}
+
+// Every address of a config.toml node, in the order to try them (#187)
+function configFleetNodeAddresses(sn) {
+  return uniqueFleetUrls([...(Array.isArray(sn?.urls) ? sn.urls : []), sn?.endpoint_url || sn?.url]);
+}
+
+// Every address of a saved Fleet entry: a multi-boot machine has one per system
+function fleetNodeAddresses(n) {
+  return uniqueFleetUrls([...(Array.isArray(n?.endpoint_urls) ? n.endpoint_urls : []), n?.endpoint_url]);
+}
+
+// The address in use stays while it is still one of the entry's addresses
+function keepFleetEndpoint(current, addresses) {
+  const hit = addresses.find(a => sameFleetUrl(a, current));
+  return hit || addresses[0] || cleanFleetUrl(current);
+}
+
+function cleanFleetStartPaths(sp) {
+  const out = {};
+  Object.keys(sp || {}).forEach(k => {
+    const v = String(sp[k] || '').trim();
+    if (v) out[String(k).toLowerCase()] = v;
+  });
+  return out;
+}
+
+// The start folder for the system the node runs now, else its general start folder
+function fleetNodeStartPath(n) {
+  const os = String(n?.os || '').toLowerCase();
+  const sp = cleanFleetStartPaths(n?.start_paths);
+  if (os && sp[os]) return sp[os];
+  return (n?.start_path && String(n.start_path).trim()) ? String(n.start_path).trim() : '';
+}
+
+// A machine that comes up under several addresses or systems
+function fleetNodeIsMultiSystem(n) {
+  return fleetNodeAddresses(n).length > 1 || Object.keys(cleanFleetStartPaths(n?.start_paths)).length > 0;
+}
+
+// False for a folder written for another kind of system: C:\ on Linux or macOS, /home on Windows
+function fleetPathFitsOs(path, os) {
+  const p = String(path || '').trim();
+  const sys = String(os || '').toLowerCase();
+  if (!p || !sys || p.includes('://') || p === '~' || p.startsWith('~/') || p.startsWith('~\\')) return true;
+  const isWinPath = /^[a-zA-Z]:([\\/]|$)/.test(p) || p.startsWith('\\\\');
+  if (sys === 'windows') return isWinPath;
+  return !isWinPath;
+}
+
+// Where to go on a node when the folder asked for belongs to its other system
+function fleetNodeFallbackPath(n) {
+  const start = fleetNodeStartPath(n);
+  if (start && fleetPathFitsOs(start, n?.os)) return start;
+  if (n?.resolved_home && fleetPathFitsOs(n.resolved_home, n.os)) return n.resolved_home;
+  return String(n?.os || '').toLowerCase() === 'windows' ? 'C:\\' : '/';
+}
+
+// The config.toml node a saved entry stands for: same id (ignoring case) or a shared address
 function findConfigFleetNode(node, staticNodes) {
   const id = String(node.id || '').toLowerCase();
-  return staticNodes.find(sn => String(sn.id || '').toLowerCase() === id || sameFleetUrl(node.endpoint_url, sn.endpoint_url || sn.url)) || null;
+  const mine = fleetNodeAddresses(node);
+  return staticNodes.find(sn => String(sn.id || '').toLowerCase() === id
+    || configFleetNodeAddresses(sn).some(a => mine.some(b => sameFleetUrl(a, b)))) || null;
 }
 
 // The config.toml nodes that apply now (none when Fleet is off)
@@ -43488,16 +43601,27 @@ function syncConfigFleetNodes() {
   let modified = reconciled.changed;
 
   staticNodes.forEach(sn => {
-    const endpointUrl = sn.endpoint_url || sn.url;
+    const addresses = configFleetNodeAddresses(sn);
+    const endpointUrl = addresses[0];
     if (!endpointUrl) return;
 
-    const existingIdx = localNodes.findIndex(l => l.id === sn.id || (l.endpoint_url && l.endpoint_url === endpointUrl));
+    const existingIdx = localNodes.findIndex(l => l.id === sn.id || fleetNodeAddresses(l).some(a => addresses.some(b => sameFleetUrl(a, b))));
     if (existingIdx >= 0) {
       const cur = localNodes[existingIdx];
       // Only keep user overrides if explicitly marked as overridden in Fleet Manager
       if (!cur.user_override) {
-        if (cur.endpoint_url !== endpointUrl) {
-          cur.endpoint_url = endpointUrl;
+        const inUse = keepFleetEndpoint(cur.endpoint_url, addresses);
+        if (cur.endpoint_url !== inUse) {
+          cur.endpoint_url = inUse;
+          modified = true;
+        }
+        if (JSON.stringify(cur.endpoint_urls || []) !== JSON.stringify(addresses)) {
+          cur.endpoint_urls = addresses;
+          modified = true;
+        }
+        const sp = cleanFleetStartPaths(sn.start_paths);
+        if (JSON.stringify(cleanFleetStartPaths(cur.start_paths)) !== JSON.stringify(sp)) {
+          cur.start_paths = sp;
           modified = true;
         }
         if (sn.name && cur.name !== sn.name) {
@@ -43527,7 +43651,9 @@ function syncConfigFleetNodes() {
         id: sn.id,
         name: sn.name || sn.id,
         endpoint_url: endpointUrl,
+        endpoint_urls: addresses,
         start_path: (sn.start_path && sn.start_path.trim()) ? sn.start_path.trim() : undefined,
+        start_paths: cleanFleetStartPaths(sn.start_paths),
         proxy_mode: 'auto',
         color_accent: sn.color_accent || 'amber',
         tags: sn.tags || [],
@@ -43561,14 +43687,17 @@ function getAllFleetNodes() {
     const staticNodes = App.config.fleet.nodes;
     let merged = [...local];
     staticNodes.forEach(sn => {
-      const endpointUrl = sn.endpoint_url || sn.url;
+      const addresses = configFleetNodeAddresses(sn);
+      const endpointUrl = addresses[0];
       if (!endpointUrl) return;
-      const idx = merged.findIndex(m => m.id === sn.id || m.endpoint_url === endpointUrl);
+      const idx = merged.findIndex(m => m.id === sn.id || fleetNodeAddresses(m).some(a => addresses.some(b => sameFleetUrl(a, b))));
       if (idx >= 0) {
         const cur = merged[idx];
         cur.is_static = true;
         if (!cur.user_override) {
-          if (!cur.endpoint_url || cur.endpoint_url !== endpointUrl) cur.endpoint_url = endpointUrl;
+          cur.endpoint_url = keepFleetEndpoint(cur.endpoint_url, addresses);
+          cur.endpoint_urls = addresses;
+          cur.start_paths = cleanFleetStartPaths(sn.start_paths);
           if (sn.start_path) cur.start_path = sn.start_path.trim();
         }
       } else {
@@ -43576,7 +43705,9 @@ function getAllFleetNodes() {
           id: sn.id,
           name: sn.name || sn.id,
           endpoint_url: endpointUrl,
+          endpoint_urls: addresses,
           start_path: (sn.start_path && sn.start_path.trim()) ? sn.start_path.trim() : undefined,
+          start_paths: cleanFleetStartPaths(sn.start_paths),
           proxy_mode: 'auto',
           color_accent: sn.color_accent || 'amber',
           tags: sn.tags || [],
@@ -43609,7 +43740,8 @@ function getActiveFleetNode() {
   return getFleetNodeById(activeId);
 }
 
-// Ping a single node's /api/health endpoint
+// Ping a single node's /api/health endpoint. A machine with several addresses (#187) is asked
+// at the address in use first, then the others; the one that answers becomes the one in use.
 async function pingFleetNode(nodeId) {
   let nodes = getAllFleetNodes();
   let node = nodes.find(n => n.id === nodeId);
@@ -43617,7 +43749,7 @@ async function pingFleetNode(nodeId) {
 
   const endpoint = nodeId === 'local'
     ? window.location.origin
-    : (node.endpoint_url || '').trim().replace(/\/+$/, '');
+    : cleanFleetUrl(node.endpoint_url);
 
   if (!endpoint) return null;
 
@@ -43626,32 +43758,66 @@ async function pingFleetNode(nodeId) {
     ? `/api/fleet/ping/${encodeURIComponent(node.id)}`
     : `${endpoint}/api/health`;
 
-  const headers = {};
-  if (isProxy) {
-    headers['X-Fleet-Target-Url'] = node.endpoint_url;
-    if (node.auth_token && node.auth_token.trim()) {
-      headers['X-Fleet-Target-Token'] = node.auth_token.trim();
-    }
-  } else if (node && node.auth_token && node.auth_token.trim()) {
-    headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
+  // The server tries every address of a config.toml node itself; other entries are tried here
+  const serverKnowsNode = isProxy && currentConfigFleetNodes().some(sn => sn.id === node.id);
+  let tryAddrs = [endpoint];
+  if (node && nodeId !== 'local' && !serverKnowsNode) {
+    tryAddrs = uniqueFleetUrls([endpoint, ...fleetNodeAddresses(node)]);
   }
+  const perTryMs = tryAddrs.length > 1 ? 4000 : 6000;
+  const token = node && node.auth_token && node.auth_token.trim() ? node.auth_token.trim() : '';
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 6000);
-  const t0 = performance.now();
+  const attempt = async (addr) => {
+    const headers = {};
+    if (isProxy) {
+      headers['X-Fleet-Target-Url'] = addr;
+      if (token) headers['X-Fleet-Target-Token'] = token;
+    } else if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), perTryMs);
+    const t0 = performance.now();
+    try {
+      const resp = await fetch(isProxy ? url : `${addr}/api/health`, {
+        method: 'GET',
+        headers,
+        signal: controller.signal,
+        cache: 'no-store'
+      });
+      const latency = Math.round(performance.now() - t0);
+      let payload = null;
+      if (resp.ok) {
+        try { payload = await resp.json(); } catch (_) { payload = {}; }
+      }
+      return { resp, payload, latency, addr };
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  };
 
   try {
-    const resp = await fetch(url, {
-      method: 'GET',
-      headers,
-      signal: controller.signal,
-      cache: 'no-store'
-    });
-    clearTimeout(timeoutId);
-    const measuredLatency = Math.round(performance.now() - t0);
+    let r = null;
+    let lastErr = null;
+    for (let i = 0; i < tryAddrs.length; i++) {
+      try {
+        r = await attempt(tryAddrs[i]);
+      } catch (e) {
+        lastErr = e;
+        continue;
+      }
+      // Through the gateway an unreachable or refused address still gets an answer: try the next
+      const gatewaySaysOffline = isProxy && ((r.resp.ok && r.payload && r.payload.status === 'offline') || r.resp.status === 404 || r.resp.status >= 502);
+      if (gatewaySaysOffline && i < tryAddrs.length - 1) continue;
+      break;
+    }
+    if (!r) throw lastErr || new Error('No address answered');
+
+    const resp = r.resp;
+    const measuredLatency = r.latency;
 
     if (resp.ok) {
-      const payload = await resp.json();
+      const payload = r.payload || {};
       const data = isProxy ? (payload.data || payload) : payload;
       const status = isProxy ? (payload.status || 'online') : 'online';
       const latency = (isProxy && payload.latency_ms != null) ? payload.latency_ms : measuredLatency;
@@ -43659,7 +43825,14 @@ async function pingFleetNode(nodeId) {
       if (node) {
         node.status = status;
         node.latency_ms = latency;
-        if (data && typeof data === 'object') {
+        if (status !== 'offline') {
+          // The address that answered is the one in use from now on
+          const answered = serverKnowsNode ? cleanFleetUrl(payload.endpoint_url) : r.addr;
+          const known = fleetNodeAddresses(node).find(a => sameFleetUrl(a, answered));
+          if (known) node.endpoint_url = known;
+        }
+        if (data && typeof data === 'object' && status !== 'offline') {
+          const prevOs = node.os;
           node.version = data.version || null;
           node.build_number = data.build_number || null;
           node.build_commit = data.build_commit || null;
@@ -43667,6 +43840,8 @@ async function pingFleetNode(nodeId) {
           node.hostname = data.hostname || data.node_name || null;
           node.os = data.os || null;
           node.arch = data.arch || null;
+          // Rebooted into another system: its home folder is somewhere else
+          if (prevOs && node.os && prevOs !== node.os) node.resolved_home = undefined;
         }
         node.last_seen = Date.now();
         saveFleetNodes(nodes, true);
@@ -43689,7 +43864,6 @@ async function pingFleetNode(nodeId) {
       return { status: 'offline', latency_ms: null, node };
     }
   } catch (err) {
-    clearTimeout(timeoutId);
     if (node) {
       node.status = 'offline';
       node.latency_ms = null;
@@ -43804,6 +43978,21 @@ function getFleetNodeVersionBadge(nodeVer, localVer = App.version) {
   }
 }
 
+// Small badge for the system a node runs now (Linux / Windows / macOS), from its last ping
+function fleetOsBadge(n) {
+  const os = String(n?.os || '').toLowerCase();
+  if (!os) return '';
+  const label = { linux: 'Linux', windows: 'Windows', macos: 'macOS', freebsd: 'FreeBSD', android: 'Android' }[os] || os;
+  return `<span class="fleet-tag-pill fleet-os-badge" title="Running ${escapeHtml(label)} now">${escapeHtml(label)}</span>`;
+}
+
+// The address in use, and how many the machine has
+function fleetAddressText(n) {
+  const all = fleetNodeAddresses(n);
+  const inUse = cleanFleetUrl(n?.endpoint_url) || all[0] || '';
+  return all.length > 1 ? `${inUse}  (address ${Math.max(1, all.findIndex(a => sameFleetUrl(a, inUse)) + 1)} of ${all.length})` : inUse;
+}
+
 function getFleetColorHex(name) {
   switch (name) {
     case 'emerald': return '#10b981';
@@ -43876,10 +44065,11 @@ function renderFleetSwitcherDropdown() {
           <div class="fleet-node-info">
             <div class="fleet-node-name">
               ${escapeHtml(n.name)}
+              ${fleetOsBadge(n)}
               ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px;">Active</span>' : ''}
               ${isProxy ? '<span class="fleet-tag-pill" style="font-size: 8.5px; padding: 0 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);" title="Routed via Gateway Hub Reverse Proxy">Gateway</span>' : ''}
             </div>
-            <div class="fleet-node-url">${escapeHtml(n.endpoint_url || '')}</div>
+            <div class="fleet-node-url" title="${escapeHtml(fleetNodeAddresses(n).join('\n'))}">${escapeHtml(fleetAddressText(n))}</div>
           </div>
         </div>
         <div class="fleet-node-right" style="display: flex; align-items: center; gap: 6px;">
@@ -43994,6 +44184,7 @@ function renderFleetManagerList() {
           <div class="fleet-card-name">
             <i data-lucide="network" style="width: 14px; height: 14px; color: ${colorHex};"></i>
             <span>${escapeHtml(n.name)}</span>
+            ${fleetOsBadge(n)}
             ${getFleetNodeVersionBadge(n.version)}
             ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Active</span>' : ''}
             ${n.is_static ? (n.user_override ? '<span class="fleet-tag-pill" style="font-size: 8.5px; background: rgba(245, 158, 11, 0.15); color: #f59e0b;" title="Custom overrides active (overrides config.toml)">Override</span>' : '<span class="fleet-tag-pill" style="font-size: 8.5px; opacity: 0.7;" title="Inherited from config.toml">Config</span>') : ''}
@@ -44004,7 +44195,7 @@ function renderFleetManagerList() {
             <span style="font-size: 10.5px; font-family: var(--font-mono); color: var(--text-dim);">${latencyText}</span>
           </div>
         </div>
-        <div class="fleet-card-url">${escapeHtml(n.endpoint_url || '')}</div>
+        <div class="fleet-card-url" title="${escapeHtml(fleetNodeAddresses(n).join('\n'))}">${escapeHtml(fleetAddressText(n))}</div>
         <div class="fleet-card-footer">
           <div style="display: flex; gap: 4px; flex-wrap: wrap;">
             ${tagsHtml || '<span class="fleet-tag-pill" style="opacity: 0.6;">no tags</span>'}
@@ -44044,9 +44235,14 @@ function selectFleetNodeInManager(id) {
 
   if (idInput) idInput.value = node.id || '';
   if (nameInput) nameInput.value = node.name || '';
-  if (urlInput) urlInput.value = node.endpoint_url || '';
+  if (urlInput) urlInput.value = fleetNodeAddresses(node).join(', ');
   if (tokenInput) tokenInput.value = node.auth_token || '';
   if (startPathInput) startPathInput.value = node.start_path || '';
+  const nodeStartPaths = cleanFleetStartPaths(node.start_paths);
+  ['linux', 'windows', 'macos'].forEach(os => {
+    const el = document.getElementById(`fleet-input-start-${os}`);
+    if (el) el.value = nodeStartPaths[os] || '';
+  });
   if (proxyModeInput) proxyModeInput.value = node.proxy_mode || 'auto';
   if (colorInput) colorInput.value = node.color_accent || 'amber';
   if (tagsInput) tagsInput.value = (node.tags || []).join(', ');
@@ -44133,6 +44329,10 @@ function resetFleetNodeForm() {
   if (urlInput) urlInput.value = '';
   if (tokenInput) tokenInput.value = '';
   if (startPathInput) startPathInput.value = '';
+  ['linux', 'windows', 'macos'].forEach(os => {
+    const el = document.getElementById(`fleet-input-start-${os}`);
+    if (el) el.value = '';
+  });
   if (proxyModeInput) proxyModeInput.value = 'auto';
   if (colorInput) colorInput.value = 'amber';
   if (tagsInput) tagsInput.value = '';
@@ -44197,13 +44397,14 @@ async function testFleetNodeConnection() {
     return;
   }
 
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = `http://${url}`;
+  // Several addresses (one machine, several systems): the first that answers is tested
+  const addresses = parseFleetAddressInput(url);
+  {
     const urlInput = document.getElementById('fleet-input-url');
-    if (urlInput) urlInput.value = url;
+    if (urlInput) urlInput.value = addresses.join(', ');
   }
 
-  const endpoint = url.replace(/\/+$/, '');
+  let endpoint = addresses[0];
   const isProxy = typeof shouldRouteViaGateway === 'function' && shouldRouteViaGateway({ endpoint_url: endpoint, proxy_mode: proxyMode });
   const healthUrl = isProxy ? `/api/fleet/ping/probe` : `${endpoint}/api/health`;
 
@@ -44222,25 +44423,45 @@ async function testFleetNodeConnection() {
   const t0 = performance.now();
 
   try {
-    const headers = {};
-    if (isProxy) {
-      headers['X-Fleet-Target-Url'] = endpoint;
-      if (token) headers['X-Fleet-Target-Token'] = token;
-    } else {
-      if (token) headers['Authorization'] = `Bearer ${token}`;
+    let resp = null;
+    let payload = null;
+    let lastErr = null;
+    let t1 = t0;
+    for (let i = 0; i < addresses.length; i++) {
+      const addr = addresses[i];
+      const headers = {};
+      if (isProxy) {
+        headers['X-Fleet-Target-Url'] = addr;
+        if (token) headers['X-Fleet-Target-Token'] = token;
+      } else {
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+      }
+      t1 = performance.now();
+      try {
+        resp = await fetch(isProxy ? healthUrl : `${addr}/api/health`, {
+          method: 'GET',
+          headers,
+          signal: controller.signal,
+          cache: 'no-store'
+        });
+      } catch (e) {
+        lastErr = e;
+        resp = null;
+        if (e.name === 'AbortError') break;
+        continue;
+      }
+      endpoint = addr;
+      payload = resp.ok ? await resp.json().catch(() => ({})) : null;
+      // Through the gateway an address that does not answer (or is refused) still gets a reply: try the next
+      const gatewaySaysOffline = isProxy && ((payload && payload.status === 'offline') || resp.status === 404 || resp.status >= 502);
+      if (gatewaySaysOffline && i < addresses.length - 1) continue;
+      break;
     }
-
-    const resp = await fetch(healthUrl, {
-      method: 'GET',
-      headers,
-      signal: controller.signal,
-      cache: 'no-store'
-    });
+    if (!resp) throw lastErr || new Error('No address answered');
     clearTimeout(timeoutId);
-    const measuredLatency = Math.round(performance.now() - t0);
+    const measuredLatency = Math.round(performance.now() - t1);
 
     if (resp.ok) {
-      const payload = await resp.json();
       const data = isProxy ? (payload.data || payload) : payload;
       const latency = (isProxy && payload.latency_ms != null) ? payload.latency_ms : measuredLatency;
 
@@ -44260,7 +44481,7 @@ async function testFleetNodeConnection() {
         results.innerHTML = `
           <div style="display: flex; flex-direction: column; gap: 3px;">
             <div style="color: #10b981; font-weight: 600; display: flex; align-items: center; gap: 4px;">
-              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Connected successfully (${latency}ms round-trip${isProxy ? ' via Gateway' : ''})
+              <i data-lucide="check-circle-2" style="width: 13px; height: 13px;"></i> Connected successfully (${latency}ms round-trip${isProxy ? ' via Gateway' : ''})${addresses.length > 1 ? ` at ${escapeHtml(endpoint)}` : ''}
             </div>
             <div style="font-size: 11px; color: var(--text-dim); font-family: var(--font-mono); display: flex; align-items: center; gap: 6px; flex-wrap: wrap;">
               <span>Host: <span style="color: var(--text-main);">${escapeHtml(data.hostname || data.node_name || 'unknown')}</span></span> • 
@@ -44307,6 +44528,22 @@ async function testFleetNodeConnection() {
   }
 }
 
+// The addresses typed in the Fleet manager: separated by commas, spaces or new lines,
+// http:// added where missing
+function parseFleetAddressInput(raw) {
+  return uniqueFleetUrls(String(raw || '').split(/[\s,;]+/).filter(Boolean)
+    .map(u => (u.startsWith('http://') || u.startsWith('https://')) ? u : `http://${u}`));
+}
+
+function readFleetStartPathsInput() {
+  const sp = {};
+  ['linux', 'windows', 'macos'].forEach(os => {
+    const v = (document.getElementById(`fleet-input-start-${os}`)?.value || '').trim();
+    if (v) sp[os] = v;
+  });
+  return sp;
+}
+
 function saveFleetNodeProfile() {
   const idInput = document.getElementById('fleet-input-id')?.value || '';
   let name = (document.getElementById('fleet-input-name')?.value || '').trim();
@@ -44317,15 +44554,13 @@ function saveFleetNodeProfile() {
   const color = document.getElementById('fleet-input-color')?.value || 'amber';
   const tagsRaw = (document.getElementById('fleet-input-tags')?.value || '').trim();
 
-  if (!url) {
+  const addresses = parseFleetAddressInput(url);
+  const startPaths = readFleetStartPathsInput();
+  if (!addresses.length) {
     showToast('Endpoint URL is required', 'error');
     return;
   }
-
-  if (!url.startsWith('http://') && !url.startsWith('https://')) {
-    url = `http://${url}`;
-  }
-  url = url.replace(/\/+$/, '');
+  url = addresses[0];
 
   if (!name) {
     try {
@@ -44348,9 +44583,11 @@ function saveFleetNodeProfile() {
       nodes[existingIndex] = {
         ...nodes[existingIndex],
         name,
-        endpoint_url: url,
+        endpoint_url: keepFleetEndpoint(nodes[existingIndex].endpoint_url, addresses),
+        endpoint_urls: addresses,
         auth_token: token,
         start_path: startPath || undefined,
+        start_paths: startPaths,
         proxy_mode: proxyMode,
         color_accent: color,
         tags,
@@ -44370,8 +44607,10 @@ function saveFleetNodeProfile() {
       origin: 'user',
       name,
       endpoint_url: url,
+      endpoint_urls: addresses,
       auth_token: token,
       start_path: startPath || undefined,
+      start_paths: startPaths,
       proxy_mode: proxyMode,
       color_accent: color,
       tags,

@@ -33,6 +33,7 @@ async fn unreachable_fleet_node_answers_bad_gateway() {
         read_only: false,
         color_accent: None,
         tags: Vec::new(),
+        ..Default::default()
     });
     let (port, _) = start_background_server(config).await.unwrap();
     let base = format!("http://127.0.0.1:{}", port);
