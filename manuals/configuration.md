@@ -38,7 +38,8 @@ session_duration_hours = 72      # JWT session expiry duration in hours
 database_path = "brum.db"        # SQLite local database
 server_name = ""                 # Friendly node name; also matches WebSocket/CORS origins with/without http:// or https://
 allow_web_config_edit = true     # Web Configuration Editor toggle in Settings (sensitive secrets masked as ********)
-# jwt_secret = "..."             # Master cluster signing key (prefer injecting via BRUM_JWT_SECRET in /etc/brum/brum.env)
+# jwt_secret = "..."             # Master cluster signing key (prefer a secret file or BRUM_JWT_SECRET in /etc/brum/brum.env)
+# jwt_secret_file = "/etc/brum/jwt.secret"  # Read the signing key from this file (chmod 600); see Shared Cluster Secret
 
 # --- Trusted Reverse Proxies ---
 # CIDRs or IP addresses of reverse proxies (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel, Tailscale Funnel)
@@ -260,7 +261,7 @@ Passwords and tokens Brum has to use again (bookmark and shared-mount logins, SF
 * **Keep the key file.** Without it, stored passwords cannot be read: bookmarks and backups to remote places then ask for their password again.
 * Containers and setups that keep secrets outside the data folder can set `BRUM_SECRETS_KEY` (64 hex characters) instead; the key file is then not used.
 * Passwords stored by older versions are encrypted automatically on the first start of this version.
-* Without a configured `BRUM_JWT_SECRET` / `jwt_secret`, Brum signs logins with a secret derived from this key, so it is not kept in the database either. After updating from an older version, everyone on such an installation signs in again once, and API tokens made there must be created again. Installations with a configured secret are not affected.
+* Without a configured signing secret (`BRUM_JWT_SECRET`, `BRUM_JWT_SECRET_FILE`, `jwt_secret` or `jwt_secret_file`), Brum signs logins with a secret derived from this key, so it is not kept in the database either. After updating from an older version, everyone on such an installation signs in again once, and API tokens made there must be created again. Installations with a configured secret are not affected.
 
 ## Initial Administrative Credentials & Seeding Protocol
 
@@ -269,7 +270,7 @@ Passwords and tokens Brum has to use again (bookmark and shared-mount logins, SF
 1. **One-Time Database Seeding Only**:
    The `default_admin_pass` setting is evaluated **only** on the very first startup when the SQLite database (`brum.db`) contains zero users. Once seeded, user credentials are stored as Argon2 hashes in the database. Editing `default_admin_pass` in `config.toml` afterwards has **no effect** on existing accounts. Passwords must be updated via the UI (**Settings -> Security**) or by modifying the database.
 2. **Insecure Default Guard (`"brum"` vs Custom Password)**:
-   * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It prints the credentials to stdout (so `docker logs` shows them) and writes them to `initial_admin_credentials.txt` in the same folder as the database (`brum.db`). The password is never written to the log files. The note is deleted after the first admin login or password change. Logging in with `admin` / `brum` will fail.
+   * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It prints the credentials to stdout (so `docker logs` shows them) and writes them to `initial_admin_credentials.txt` in the same folder as the database (`brum.db`). The password is never written to the log files. The note stays until the `admin` password is changed. Logging in with `admin` / `brum` will fail.
    * **If set to a custom password before first boot**: The configured custom password is used verbatim for the initial account.
 
 ## Browser Login Cookie
@@ -286,9 +287,16 @@ When you log in from the web page, Brum keeps the login only in a protected cook
 
 When connecting multiple Brum instances across local subnets or overlay mesh networks (Tailscale, NetBird, WireGuard):
 
-### 1. Shared Cluster Secret (`BRUM_JWT_SECRET`)
+### 1. Shared Cluster Secret (`BRUM_JWT_SECRET` / `BRUM_JWT_SECRET_FILE`)
 To federate nodes without managing static per-node API tokens:
-* Inject the identical `BRUM_JWT_SECRET` string on all nodes via `/etc/brum/brum.env` (`chmod 600`).
+* Give every node the identical signing secret (make one with `openssl rand -hex 32`). Brum takes the first of these it finds:
+  1. `BRUM_JWT_SECRET`: the secret itself, in an environment variable (for example in `/etc/brum/brum.env`, `chmod 600`).
+  2. `BRUM_JWT_SECRET_FILE`: the path of a file holding the secret. Suits Docker secrets (`/run/secrets/brum_jwt`) and keeps the secret out of process listings and `docker inspect`.
+  3. `jwt_secret` in `config.toml`: the secret itself.
+  4. `jwt_secret_file` in `config.toml`: the path of a file holding the secret. The config file, and the web config editor, then only show the path.
+  5. None of these: a node-local secret derived from `brum-secrets.key`. Do not copy that key file between machines to share a secret; it also unlocks that machine's saved passwords.
+* **Secret files**: spaces and line breaks around the secret are ignored. If a named file is missing, unreadable or empty, Brum refuses to start instead of quietly using a node-local secret, which would split the Fleet's logins.
+* **Checks at start-up**: the log says where the secret came from, never the secret. Brum warns when it is shorter than 32 characters. On Linux and macOS it warns when other users can read the file (use `chmod 600`, or `640` with a group for Brum). On Windows it limits the file to Brum's own account, SYSTEM and Administrators.
 * In `[[fleet.nodes]]`, set `token = ""` (or omit `token`).
 * When `token` is empty, Brum's Gateway Hub automatically forwards the caller's active session JWT. Because both nodes share the master signing secret, the remote node validates the signature and authenticates the user instantly.
 * **Static API Tokens**: If a remote node does *not* share the same secret key, create a static API Token on that node (**Settings -> Security -> API Tokens**) and set `token = "<your_token>"` in `config.toml`.
@@ -315,6 +323,7 @@ Brum supports seamless runtime overrides across containerized, systemd, and home
 | `BRUM_DATABASE_PATH` / `DATABASE_PATH` | `server.database_path` | SQLite database file location | `/var/lib/brum/brum.db` |
 | `BRUM_HOSTNAME` | *(none)* | Server name shown in Brum (defaults to the machine's hostname) | `nas` |
 | `BRUM_JWT_SECRET` / `JWT_SECRET` | `server.jwt_secret` | Master cluster JWT signing key | `64-hex-char-secret` |
+| `BRUM_JWT_SECRET_FILE` | `server.jwt_secret_file` | File holding the signing key (used when `BRUM_JWT_SECRET` is not set) | `/run/secrets/brum_jwt` |
 | `BRUM_SECRETS_KEY` | *(none)* | Key for stored passwords and tokens, instead of the `brum-secrets.key` file | `64-hex-char-key` |
 | `BRUM_ALLOW_WEB_CONFIG_EDIT` | `server.allow_web_config_edit` | Enable/disable Web Config Editor | `true` or `false` |
 | `BRUM_OIDC_ENABLED` | `auth.oidc.enabled` | Enable OpenID Connect SSO | `true` or `false` |

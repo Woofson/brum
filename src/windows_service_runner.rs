@@ -91,7 +91,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             env!("BRUM_BUILD_TARGET")
         );
 
-        if let Err(e) = config.check_login_off_is_safe() {
+        if let Err(e) = config.check_login_off_is_safe().and_then(|_| config.check_signing_secret()) {
             error!("{}", e);
             return;
         }

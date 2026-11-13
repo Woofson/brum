@@ -72,6 +72,53 @@ impl AppConfig {
         ))
     }
 
+    /// Start-up check of the login signing secret: refuses to start when a named secret file
+    /// cannot be used, logs where the secret came from (never the secret), warns when it is short,
+    /// and keeps the secret file private (Windows: locked to Brum, SYSTEM and Administrators;
+    /// elsewhere: a warning when other users can read it).
+    pub fn check_signing_secret(&self) -> Result<(), String> {
+        if let Some(e) = &self.server.jwt_secret_error {
+            return Err(format!(
+                "Refusing to start: {}.\n\
+                 Fix the file or remove the setting. Brum does not fall back to a secret of its own here, \
+                 because that would split the logins of a Fleet sharing this secret.",
+                e
+            ));
+        }
+        if self.server.jwt_secret_source.is_empty() {
+            return Ok(());
+        }
+        info!("Login signing secret: from {}", self.server.jwt_secret_source);
+        if self.server.jwt_secret.chars().count() < MIN_JWT_SECRET_LEN {
+            warn!(
+                "The login signing secret is shorter than {} characters; use a longer random one (for example: openssl rand -hex 32)",
+                MIN_JWT_SECRET_LEN
+            );
+        }
+        if let Some(path) = &self.server.jwt_secret_path {
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                if let Ok(meta) = fs::metadata(path) {
+                    let mode = meta.permissions().mode() & 0o777;
+                    if mode & 0o027 != 0 {
+                        warn!(
+                            "The secret file '{}' can be read or changed by other users (permissions {:o}); limit it with: chmod 600 '{}'",
+                            path.display(),
+                            mode,
+                            path.display()
+                        );
+                    }
+                }
+            }
+            #[cfg(windows)]
+            if let Err(e) = crate::win_perms::restrict_file_to_owner(path) {
+                warn!("Could not limit the secret file '{}' to Brum and administrators: {}", path.display(), e);
+            }
+        }
+        Ok(())
+    }
+
     pub fn get_sftp_config(&self) -> SftpConfig {
         if let Some(ref sftp) = self.sftp {
             sftp.clone()
@@ -122,6 +169,19 @@ pub struct ServerConfig {
     pub standalone: bool,
     #[serde(default = "default_jwt_secret", skip_serializing)]
     pub jwt_secret: String,
+    /// Path of a file holding the signing secret (`jwt_secret_file`); the secret itself never
+    /// appears in the config
+    #[serde(default)]
+    pub jwt_secret_file: String,
+    /// Where the signing secret came from, for the start-up log (empty: derived from the key file)
+    #[serde(skip)]
+    pub jwt_secret_source: String,
+    /// The secret file in use, checked for loose permissions at start-up
+    #[serde(skip)]
+    pub jwt_secret_path: Option<PathBuf>,
+    /// A configured secret file that could not be used; start-up refuses to continue
+    #[serde(skip)]
+    pub jwt_secret_error: Option<String>,
     #[serde(default = "default_session_hours")]
     pub session_duration_hours: u64,
     #[serde(default = "default_db_path")]
@@ -146,6 +206,10 @@ impl Default for ServerConfig {
             enable_auth: true,
             standalone: false,
             jwt_secret: default_jwt_secret(),
+            jwt_secret_file: String::new(),
+            jwt_secret_source: String::new(),
+            jwt_secret_path: None,
+            jwt_secret_error: None,
             session_duration_hours: default_session_hours(),
             database_path: default_db_path(),
             server_name: String::new(),
@@ -189,7 +253,69 @@ fn default_root_path() -> String {
 }
 fn default_upload_max_mb() -> usize { 10240 } // 10 GB
 fn default_true() -> bool { true }
-fn default_jwt_secret() -> String { "brum-super-secret-jwt-key-2026".to_string() }
+/// Placeholder signing secret meaning "none configured"
+pub const DEFAULT_JWT_SECRET: &str = "brum-super-secret-jwt-key-2026";
+fn default_jwt_secret() -> String { DEFAULT_JWT_SECRET.to_string() }
+
+/// Shortest signing secret that does not get a warning
+const MIN_JWT_SECRET_LEN: usize = 32;
+
+/// Reads a secret from a file, ignoring surrounding whitespace. A missing, unreadable or empty
+/// file is an error.
+pub fn read_secret_file(path: &str) -> Result<(String, PathBuf), String> {
+    let p = expand_tilde_path(path.trim());
+    match fs::read_to_string(&p) {
+        Ok(content) => {
+            let secret = content.trim().to_string();
+            if secret.is_empty() {
+                Err(format!("the secret file '{}' is empty", p.display()))
+            } else {
+                Ok((secret, p))
+            }
+        }
+        Err(e) => Err(format!("cannot read the secret file '{}': {}", p.display(), e)),
+    }
+}
+
+/// Picks the login signing secret, first match wins: `BRUM_JWT_SECRET`, `BRUM_JWT_SECRET_FILE`,
+/// `jwt_secret`, `jwt_secret_file`. Nothing found leaves the placeholder, so the secret is derived
+/// from `brum-secrets.key`. A named file that cannot be used is recorded as an error, never
+/// skipped: falling back to a node-local secret would split a Fleet's logins.
+fn resolve_jwt_secret(server: &mut ServerConfig, env_secret: Option<String>, env_file: Option<String>) {
+    let env_secret = env_secret.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let env_file = env_file.map(|s| s.trim().to_string()).filter(|s| !s.is_empty());
+    let config_secret = server.jwt_secret.trim().to_string();
+    let config_has_secret = !config_secret.is_empty() && config_secret != DEFAULT_JWT_SECRET;
+    let config_file = server.jwt_secret_file.trim().to_string();
+
+    server.jwt_secret_source.clear();
+    server.jwt_secret_path = None;
+    server.jwt_secret_error = None;
+
+    let from_file = |path: &str, label: &str, server: &mut ServerConfig| match read_secret_file(path) {
+        Ok((secret, p)) => {
+            server.jwt_secret = secret;
+            server.jwt_secret_source = format!("{} ({})", label, p.display());
+            server.jwt_secret_path = Some(p);
+        }
+        Err(e) => {
+            server.jwt_secret = DEFAULT_JWT_SECRET.to_string();
+            server.jwt_secret_error = Some(format!("{} names a file Brum cannot use: {}", label, e));
+        }
+    };
+
+    if let Some(secret) = env_secret {
+        server.jwt_secret = secret;
+        server.jwt_secret_source = "the BRUM_JWT_SECRET environment variable".to_string();
+    } else if let Some(path) = env_file {
+        from_file(&path, "BRUM_JWT_SECRET_FILE", server);
+    } else if config_has_secret {
+        server.jwt_secret = config_secret;
+        server.jwt_secret_source = "jwt_secret in config.toml".to_string();
+    } else if !config_file.is_empty() {
+        from_file(&config_file, "jwt_secret_file in config.toml", server);
+    }
+}
 fn default_session_hours() -> u64 { 72 }
 /// The Program Files folders of this Windows computer.
 #[cfg(windows)]
@@ -1947,11 +2073,11 @@ impl ConfigManager {
                 config.server.database_path = db.trim().to_string();
             }
         }
-        if let Ok(jwt) = std::env::var("BRUM_JWT_SECRET").or_else(|_| std::env::var("CD_JWT_SECRET")).or_else(|_| std::env::var("JWT_SECRET")) {
-            if !jwt.trim().is_empty() {
-                config.server.jwt_secret = jwt.trim().to_string();
-            }
-        }
+        resolve_jwt_secret(
+            &mut config.server,
+            std::env::var("BRUM_JWT_SECRET").or_else(|_| std::env::var("CD_JWT_SECRET")).or_else(|_| std::env::var("JWT_SECRET")).ok(),
+            std::env::var("BRUM_JWT_SECRET_FILE").ok(),
+        );
         if let Ok(v) = std::env::var("BRUM_ALLOW_WEB_CONFIG_EDIT").or_else(|_| std::env::var("ALLOW_WEB_CONFIG_EDIT")) {
             config.server.allow_web_config_edit = v.eq_ignore_ascii_case("true") || v == "1";
         }
@@ -2533,3 +2659,88 @@ start_path = "C:\Users\user"
     }
 }
 
+
+#[cfg(test)]
+mod jwt_secret_tests {
+    use super::*;
+
+    fn secret_file(dir: &Path, name: &str, content: &str) -> String {
+        let p = dir.join(name);
+        fs::write(&p, content).unwrap();
+        p.to_string_lossy().to_string()
+    }
+
+    #[test]
+    fn order_env_then_env_file_then_config_then_config_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let env_file = secret_file(dir.path(), "env.secret", "  from-env-file\n");
+        let cfg_file = secret_file(dir.path(), "cfg.secret", "from-config-file\n");
+
+        let mut s = ServerConfig { jwt_secret: "from-config".into(), jwt_secret_file: cfg_file.clone(), ..Default::default() };
+        resolve_jwt_secret(&mut s, Some("from-env".into()), Some(env_file.clone()));
+        assert_eq!(s.jwt_secret, "from-env");
+        assert!(s.jwt_secret_source.contains("BRUM_JWT_SECRET environment"));
+
+        let mut s = ServerConfig { jwt_secret: "from-config".into(), jwt_secret_file: cfg_file.clone(), ..Default::default() };
+        resolve_jwt_secret(&mut s, Some("   ".into()), Some(env_file.clone()));
+        assert_eq!(s.jwt_secret, "from-env-file", "surrounding whitespace is ignored");
+        assert!(s.jwt_secret_source.starts_with("BRUM_JWT_SECRET_FILE"));
+        assert!(s.jwt_secret_path.is_some());
+
+        let mut s = ServerConfig { jwt_secret: "from-config".into(), jwt_secret_file: cfg_file.clone(), ..Default::default() };
+        resolve_jwt_secret(&mut s, None, None);
+        assert_eq!(s.jwt_secret, "from-config");
+
+        let mut s = ServerConfig { jwt_secret_file: cfg_file, ..Default::default() };
+        resolve_jwt_secret(&mut s, None, None);
+        assert_eq!(s.jwt_secret, "from-config-file");
+        assert!(s.jwt_secret_source.starts_with("jwt_secret_file"));
+        assert!(s.jwt_secret_error.is_none());
+    }
+
+    #[test]
+    fn nothing_configured_keeps_the_placeholder() {
+        let mut s = ServerConfig::default();
+        resolve_jwt_secret(&mut s, None, Some(String::new()));
+        assert_eq!(s.jwt_secret, DEFAULT_JWT_SECRET);
+        assert!(s.jwt_secret_source.is_empty());
+        assert!(s.jwt_secret_error.is_none());
+        let cfg = AppConfig { server: s, ..Default::default() };
+        assert!(cfg.check_signing_secret().is_ok());
+    }
+
+    #[test]
+    fn missing_or_empty_file_refuses_to_start() {
+        let dir = tempfile::tempdir().unwrap();
+        let empty = secret_file(dir.path(), "empty.secret", " \n\t\n");
+        let missing = dir.path().join("nope.secret").to_string_lossy().to_string();
+
+        for (env_file, cfg_file) in [(Some(missing.clone()), String::new()), (None, empty.clone()), (None, missing.clone())] {
+            let mut s = ServerConfig { jwt_secret_file: cfg_file, ..Default::default() };
+            resolve_jwt_secret(&mut s, None, env_file);
+            assert!(s.jwt_secret_error.is_some());
+            assert_eq!(s.jwt_secret, DEFAULT_JWT_SECRET, "never signs with a half-read value");
+            let cfg = AppConfig { server: s, ..Default::default() };
+            let err = cfg.check_signing_secret().unwrap_err();
+            assert!(err.starts_with("Refusing to start"), "{err}");
+        }
+    }
+
+    #[test]
+    fn secret_file_path_is_shown_in_the_config_editor() {
+        assert!(!crate::config::mask::is_sensitive_key("jwt_secret_file"));
+        assert!(crate::config::mask::is_sensitive_key("jwt_secret"));
+        let redacted = crate::config::mask::redact_sensitive_config(
+            "[server]\njwt_secret = \"abc\"\njwt_secret_file = \"/run/secrets/brum_jwt\"\n",
+        )
+        .unwrap();
+        assert!(redacted.contains("jwt_secret = \"********\""));
+        assert!(redacted.contains("jwt_secret_file = \"/run/secrets/brum_jwt\""));
+    }
+
+    #[test]
+    fn config_key_is_read_from_toml() {
+        let cfg = ConfigManager::parse_config_str("[server]\njwt_secret_file = \"/run/secrets/brum_jwt\"\n").unwrap();
+        assert_eq!(cfg.server.jwt_secret_file, "/run/secrets/brum_jwt");
+    }
+}

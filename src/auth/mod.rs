@@ -558,14 +558,9 @@ impl AuthManager {
 
         seal_stored_secrets(&conn);
 
-        // Dynamic 256-bit cryptographically secure JWT secret resolution
-        let from_env = std::env::var("BRUM_JWT_SECRET")
-            .or_else(|_| std::env::var("CD_JWT_SECRET"))
-            .or_else(|_| std::env::var("JWT_SECRET"))
-            .map(|s| !s.trim().is_empty())
-            .unwrap_or(false);
-
-        let effective_jwt_secret: String = if jwt_secret.trim().is_empty() || jwt_secret == "brum-super-secret-jwt-key-2026" {
+        // Login signing secret: the configured one (see ConfigManager, which logs its source at
+        // start-up), else derived from the key file
+        let effective_jwt_secret: String = if jwt_secret.trim().is_empty() || jwt_secret == crate::config::DEFAULT_JWT_SECRET {
             // Check if /etc/brum/brum.env exists on disk but was empty or commented out
             #[cfg(unix)]
             {
@@ -573,7 +568,9 @@ impl AuthManager {
                     if let Ok(content) = std::fs::read_to_string(env_candidate) {
                         let has_active_secret = content.lines().any(|l| {
                             let trimmed = l.trim();
-                            !trimmed.starts_with('#') && trimmed.contains("BRUM_JWT_SECRET=") && !trimmed.ends_with("=\"\"")
+                            !trimmed.starts_with('#')
+                                && (trimmed.contains("BRUM_JWT_SECRET=") || trimmed.contains("BRUM_JWT_SECRET_FILE="))
+                                && !trimmed.ends_with("=\"\"")
                         });
                         if !has_active_secret {
                             tracing::warn!("{} detected, but contains no active BRUM_JWT_SECRET assignment.", env_candidate);
@@ -589,7 +586,7 @@ impl AuthManager {
                 if removed > 0 {
                     tracing::warn!("Login signing now uses brum-secrets.key; everyone signs in again once.");
                 } else {
-                    info!("No cluster secret in BRUM_JWT_SECRET or config.toml; signing logins with a node-local secret from brum-secrets.key.");
+                    info!("No cluster secret configured (BRUM_JWT_SECRET, BRUM_JWT_SECRET_FILE, jwt_secret or jwt_secret_file); signing logins with a node-local secret from brum-secrets.key.");
                 }
                 derived
             } else {
@@ -601,7 +598,7 @@ impl AuthManager {
 
             match stored_secret {
                 Some(s) if !s.trim().is_empty() => {
-                    info!("No cluster secret in BRUM_JWT_SECRET or config.toml; running with node-local persisted secret (standalone mode).");
+                    info!("No cluster secret configured (BRUM_JWT_SECRET, BRUM_JWT_SECRET_FILE, jwt_secret or jwt_secret_file); running with node-local persisted secret (standalone mode).");
                     s
                 }
                 _ => {
@@ -620,11 +617,6 @@ impl AuthManager {
             }
             }
         } else {
-            if from_env {
-                info!("Loaded fleet cluster JWT signing secret from environment (BRUM_JWT_SECRET). Fleet federation enabled.");
-            } else {
-                info!("Loaded cluster JWT signing secret from config.toml.");
-            }
             jwt_secret.to_string()
         };
 

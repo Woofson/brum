@@ -24,11 +24,16 @@ server_name = ""                 # Optional friendly node name displayed in UI b
 allow_web_config_edit = true        # Allow viewing/editing config.toml via web UI (set false for strict CLI/SSH-only management)
 
 # --- Fleet Federation & Shared JWT Signing Key ---
-# Security Best Practice: Rather than storing your master cluster signing key in plaintext
-# in this file, prefer injecting it via the environment variable BRUM_JWT_SECRET="<secret>"
-# (e.g. in /etc/brum/brum.env with chmod 600 or systemd Environment="BRUM_JWT_SECRET=...").
-# Alternatively, configure it directly here if this file is protected with chmod 600:
+# Every Fleet node needs the same signing key so a login on one is accepted by the others.
+# Without one, each Brum signs with its own key derived from brum-secrets.key.
+# Rather than storing the key in plaintext in this file, prefer one of these (first found wins):
+#   BRUM_JWT_SECRET="<secret>"            environment variable (e.g. /etc/brum/brum.env, chmod 600)
+#   BRUM_JWT_SECRET_FILE=/path/to/file    environment variable naming a file that holds the key
+#                                         (e.g. a Docker secret: /run/secrets/brum_jwt)
+# Or set it here, the key itself or a file holding it (make one with: openssl rand -hex 32).
+# Brum refuses to start if a named key file is missing or empty.
 # jwt_secret = "change-me-to-a-shared-fleet-secret"
+# jwt_secret_file = "/etc/brum/jwt.secret"      # chmod 600; on Windows Brum locks it to itself and administrators
 
 # --- Trusted Reverse Proxies ---
 # When Brum is placed behind a reverse proxy (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel,

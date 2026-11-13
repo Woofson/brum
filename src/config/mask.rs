@@ -11,6 +11,10 @@ pub const MASKED_SECRET_SENTINEL: &str = "********";
 /// Checks if a TOML key name represents a sensitive credential that should be masked.
 pub fn is_sensitive_key(key: &str) -> bool {
     let lower = key.to_ascii_lowercase();
+    // A path to a secret file is not the secret (jwt_secret_file, known_hosts_file)
+    if lower.ends_with("_file") {
+        return false;
+    }
     lower == "jwt_secret"
         || lower == "client_secret"
         || lower == "default_admin_pass"

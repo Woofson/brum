@@ -169,6 +169,22 @@ Brum automatically recognizes `/data` volumes:
    | `BRUM_PORT` | `3140` | Listening HTTP port |
    | `BRUM_BIND` | `0.0.0.0` | Listening network interface |
    | `BRUM_JWT_SECRET` | *(auto-generated)* | Signing key for auth tokens |
+   | `BRUM_JWT_SECRET_FILE` | *(unset)* | File holding the signing key, e.g. a Docker secret |
+
+   **Sharing the signing key with Docker secrets** (for a Fleet, every node needs the same key). The key stays out of `docker inspect` and the environment:
+   ```yaml
+   services:
+     brum:
+       # ...as above...
+       environment:
+         - BRUM_JWT_SECRET_FILE=/run/secrets/brum_jwt
+       secrets:
+         - brum_jwt
+   secrets:
+     brum_jwt:
+       file: ./brum_jwt.secret   # made once with: openssl rand -hex 32 > brum_jwt.secret
+   ```
+   If the file named in `BRUM_JWT_SECRET_FILE` is missing or empty, the container stops with a clear message instead of starting with a different key.
 
    The older `CD_*` names (from Brum's CommanderDog days) still work; `BRUM_*` wins if both are set.
 
