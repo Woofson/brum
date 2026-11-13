@@ -164,9 +164,8 @@ brum shortcut [install|uninstall] [--desktop]
 | `-s`, `--standalone` | Runs in standalone desktop mode (auto-authenticates as local user `$USER`, opens default browser/window) |
 | `-c`, `--connect <URL>` | Connects desktop GUI/browser directly to an existing local or remote Brum server |
 | `-o`, `--open` | Automatically opens Brum in the default web browser or desktop webview |
-| `--frameless`, `--no-decorations` | Launches without window titlebars/frame (ideal for Hyprland, Sway, i3, and tiling WMs) |
-| `--decorations` | Explicitly forces window titlebar and borders |
-| `--minimized` | Launches minimized in system tray / background without opening window immediately |
+| `--minimized` | Starts desktop mode without opening the browser (with the tray icon on Windows) |
+| `tray [install\|uninstall] [--all-users]` | Windows: the Brum tray icon, and starting it at sign-in |
 | `--server`, `--headless` | Runs in headless background server mode |
 | `-p`, `--port <PORT>` | Overrides web server port (default: `3140` or `config.toml` setting) |
 | `--host <HOST>` | Overrides bind host address (default: `0.0.0.0`) |

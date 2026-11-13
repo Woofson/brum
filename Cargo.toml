@@ -116,6 +116,13 @@ windows-sys = { version = "0.59", features = [
     "Win32_System_ProcessStatus",
     "Win32_Security",
     "Win32_Security_Authorization",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_Graphics_Gdi",
+    "Win32_System_LibraryLoader",
+    "Win32_System_DataExchange",
+    "Win32_System_Memory",
+    "Win32_System_Registry",
+    "Win32_System_Services",
 ] }
 
 [build-dependencies]
