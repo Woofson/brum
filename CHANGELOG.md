@@ -5,6 +5,23 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-11-14
+
+Includes the security fixes and fixes listed under 1.21.1, which was not released on its own. **Upgrading is recommended for all-users Windows installs.**
+
+### Features
+- **Windows Tray Icon (Closes #184)**: A Brum icon by the clock shows whether Brum is running, with the version and address on hover. A left-click opens Brum; the menu offers Open as app window, Copy address, the logs and data folders, starting, stopping and restarting the service (with administrator approval) and Quit. It follows your own desktop mode when that runs, otherwise the Windows service. `brum tray install|uninstall [--all-users]` starts it at sign-in; the installer offers this, on by default for desktop installs. `--minimized` starts desktop mode with only the tray icon, and `enable_tray = false` switches the icon off.
+- **Signing Secret from a File (Closes #186)**: The shared Fleet login secret can be read from a file with `BRUM_JWT_SECRET_FILE` or `jwt_secret_file` in `config.toml`, for Docker secrets and other secret stores. Brum refuses to start when the file is missing or empty, names the secret's source in the log, and warns when the secret is short or the file is readable by others.
+- **One Fleet Machine, Several Systems (Closes #187)**: A Fleet machine that boots into different systems (for example Linux and Windows) can be one entry with several addresses (`urls`) and a start folder per system (`start_paths`). Brum uses whichever address answers, shows which system is running, opens that system's start folder and moves to the other address after a reboot. Existing entries keep working unchanged.
+
+### Changes
+- **Settings Clean-up (Closes #185)**: Start Minimized, the window frame switch and the global summon hotkey, left over from the old desktop window, did nothing and are removed, together with the `--no-decorations`, `--frameless` and `--decorations` start options. Older config files that still contain them keep loading.
+- **Smaller Download**: Eleven unused pictures (about 6.4 MB) are no longer built into Brum.
+
+### Documentation
+- **Configuration and Docker Manuals**: The shared cluster secret, reading it from a file, Docker secrets, and Fleet machines with several systems.
+- **Windows Manual**: New Tray Icon section.
+
 ## [1.21.1] - 2026-11-13
 
 Not released on its own; these changes first ship in 1.22.0.
