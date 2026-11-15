@@ -206,7 +206,7 @@ All operational runbooks, platform guides, and security manuals are available on
 
 ## Support & Contributions
 
-If you find **Brum** useful and would like to support ongoing development, consider buying a coffee:
+Brum is made by one person in their spare time. If it has been useful to you, and only if you feel like it, you're very welcome to buy me a coffee. Thank you!
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/J7P327BXTR)
 
