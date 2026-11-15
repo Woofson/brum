@@ -54,6 +54,8 @@ mapping = {
     'manuals/themes-and-palette.md': 'Themes-and-Palette.md',
     'manuals/vaults.md': 'Encrypted-Vaults.md',
     'manuals/windows.md': 'Windows-Desktop.md',
+    'manuals/fleet.md': 'Several-Machines-Fleet.md',
+    'SECURITY.md': 'Security.md',
     'INSTALL.md': 'Installation-Guide.md',
     'README.md': 'Home.md',
 }
@@ -91,6 +93,11 @@ link_map = {
     'themes-and-palette.md': 'Themes-and-Palette',
     'manuals/qa-testing.md': 'QA-and-Testing',
     'qa-testing.md': 'QA-and-Testing',
+    'manuals/fleet.md': 'Several-Machines-Fleet',
+    'fleet.md': 'Several-Machines-Fleet',
+    'SECURITY.md': 'Security',
+    '../SECURITY.md': 'Security',
+    'https://github.com/Woofson/brum/blob/main/SECURITY.md': 'Security',
     'manuals/README.md': 'Home',
     '../INSTALL.md': 'Installation-Guide',
     'INSTALL.md': 'Installation-Guide',
@@ -111,8 +118,8 @@ for src_rel, wiki_file in mapping.items():
 
     # 1. Replace relative links with wiki page names
     for old_link, new_link in link_map.items():
-        content = re.sub(r'\]\(' + re.escape(old_link) + r'\)', f']({new_link})', content)
-        content = re.sub(r'\]\(\./' + re.escape(old_link) + r'\)', f']({new_link})', content)
+        # Links may point at a heading (page.md#heading); keep that part
+        content = re.sub(r'\]\((?:\./)?' + re.escape(old_link) + r'(#[^)]*)?\)', lambda m: f']({new_link}{m.group(1) or ""})', content)
 
     # 2. Replace asset links (assets/… from README, ../assets/… from manuals) with raw GitHub URLs for proper Wiki image rendering
     content = re.sub(r'<img src=\"(?:\.\./)?assets/([^\"]+)\"', r'<img src="https://raw.githubusercontent.com/Woofson/brum/main/assets/\1"', content)

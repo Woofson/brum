@@ -1,8 +1,8 @@
 # <img src="assets/brum_commanderdog_legacy.webp" alt="Brum Logo" height="36" style="vertical-align: -6px; margin-right: 8px;" /> Brum
 
 <div align="center">
-  <img src="assets/showcase-hero.webp" alt="Brum with two panels: photo thumbnails on the left, the home folder on the right, and the built-in terminal below" width="800" />
-  <p><em>Multi-Pane Web Environment (File Commander/Manager) — By Woofson</em></p>
+  <img src="assets/showcase-hero.webp" alt="Brum with three panels on three machines: photos on this computer, the same folder on the NAS, and films on the media PC" width="800" />
+  <p><em>All your machines, disks and cloud storage in one file manager — By Woofson</em></p>
   <p>
     <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.23.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
     <a href="https://crates.io/crates/brum"><img src="https://img.shields.io/crates/v/brum?style=flat-square&color=f59e0b" alt="Crates.io" /></a>
@@ -14,6 +14,8 @@
   </p>
 </div>
 
+Install Brum on each of your machines (desktop, NAS, media PC, a server in a cupboard), join them with a pairing code, and every file on every one of them is a pane away. Next to your local disks, NAS shares and cloud storage, in the browser or as a desktop app.
+
 ---
 
 > [!WARNING]
@@ -21,18 +23,46 @@
 > Brum is designed and intended to run on **local workstations, homelabs, and private overlay networks** (such as Tailscale, NetBird, or WireGuard).
 >
 > **Never expose Brum directly to the public internet.**
-> As a comprehensive administrative environment featuring host filesystem management, integrated terminal PTY execution, and power tools, exposing Brum directly without a trusted VPN or authenticated overlay network introduces significant attack surface. If remote access is necessary, always access Brum through a private overlay mesh or an authenticated VPN. See the [Reverse Proxy & Mesh VPN Guide](manuals/reverse-proxy.md) for recommended deployment topologies.
+> As a comprehensive administrative environment featuring host filesystem management, integrated terminal PTY execution, and power tools, exposing Brum directly without a trusted VPN or authenticated overlay network introduces significant attack surface. If remote access is necessary, always access Brum through a private overlay mesh or an authenticated VPN. See the [Reverse Proxy & Mesh VPN Guide](manuals/reverse-proxy.md) for recommended deployment topologies. How security problems are reported and fixed: [Security](SECURITY.md).
+
+---
+
+## One place for all your machines
+
+Brum calls your machines together a **Fleet**. Each machine runs its own Brum; the one you open in the browser reaches the others for you.
+
+* **Any machine in any pane.** Open the NAS on the left and the media PC on the right, or four machines at once, with the same keys, tabs and tools as your own disks.
+* **Copies straight from machine to machine.** <kbd>F5</kbd> and <kbd>F6</kbd> between two machines are done by the Brum servers, not the browser: the receiving machine fetches the files directly, and only when the two cannot reach each other does your Brum pass them along. Close the tab and the copy carries on.
+* **Copies you can trust.** Every file is checked with SHA-256 on both machines before it replaces anything (on by default), a broken copy never overwrites a good file, and **Retry** picks up a large file where it stopped.
+* **Compare and sync between machines.** Compare a folder on your desktop with its copy on the NAS, see what is missing or changed, preview what a one-way sync would do, and run it or save it as a scheduled backup.
+* **All machines at once.** Search every machine for a file, check one file across all of them, see free space everywhere, and send files to several machines in one go. Group machines with tags to pick them quickly.
+* **Joining takes a code, not a password.** Your main Brum shows a code that works once, for ten minutes; type it on the new machine and the two trust each other. No secrets copied around by hand.
+* **Who can touch what, and who did.** Folder rules per machine (read only, no access, or open a folder to someone), and an activity log of who changed which files, with a CSV export.
+
+**Not a server panel with a file tab.** Tools such as Cockpit or Webmin manage servers and include a file browser. Brum is the other way round: a full two-pane file manager whose job is your files, wherever they are, with server tools (terminal, log viewer, Git) added for convenience. It does not manage services, packages or users of the operating system.
+
+<table>
+  <tr>
+    <td width="50%"><img src="assets/showcase-transfer.webp" alt="A film being copied from the media PC to the NAS, with a finished copy below it marked SHA-256 checked" /><br><sub><b>Copies between machines.</b> Media PC to NAS, directly, with the speed, time left and a checksum check for every file.</sub></td>
+    <td width="50%"><img src="assets/showcase-compare.webp" alt="Compare showing a photo folder on this computer and on the NAS: one changed, three only on this computer, five the same" /><br><sub><b>Compare across machines.</b> A photo folder on this computer against its copy on the NAS, then make one side like the other.</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/showcase-fleetwide.webp" alt="The All machines window: a search for invoices finds files on three machines" /><br><sub><b>All machines.</b> One search across every machine, grouped by machine; open any hit in a pane.</sub></td>
+    <td width="50%"><img src="assets/showcase-backup.webp" alt="Backup and Sync with three backups and their status" /><br><sub><b>Backup &amp; Sync.</b> Scheduled backups to other Fleet machines, drives, SFTP, rclone remotes and Proton Drive, with old versions kept and restore.</sub></td>
+  </tr>
+</table>
+
+To set up a main Brum and two more machines, see [Several machines in ten minutes](#several-machines-in-ten-minutes).
 
 ---
 
 ## Why Brum?
 
-Brum is a file manager you use in the browser, written in Rust. It follows the classic two-pane style of Total Commander and Midnight Commander, so the keyboard does most of the work, and adds a set of everyday tools (see [Built-in Tools](#built-in-tools)).
+Beyond the Fleet, Brum is a file manager you use in the browser, written in Rust. It follows the classic two-pane style of Total Commander and Midnight Commander, so the keyboard does most of the work, and adds a set of everyday tools (see [Built-in Tools](#built-in-tools)).
 
 * **Up to four panes**, each with its own tabs. Copy, move and compare between them with the classic <kbd>F1</kbd>–<kbd>F10</kbd> keys, drag and drop, or touch.
-* **Local and remote in one view**: your disks and USB drives next to SFTP, SMB, WebDAV, S3, NFS and Proton Drive. You can also browse inside archives and disk images.
+* **Local and remote storage in one view**: your disks and USB drives next to SFTP, SMB, WebDAV, S3, NFS and Proton Drive. You can also browse inside archives and disk images.
 * **Several users**, each limited to their own folders, with optional read-only accounts and sign-in through your own identity provider (OIDC).
-* **Fleet**: manage other Brum servers from the same window.
 * **Runs where you need it**: as a desktop app on Linux and Windows, in Docker on a server or NAS, or as a background service.
 
 ---
@@ -42,10 +72,6 @@ Brum is a file manager you use in the browser, written in Rust. It follows the c
 <table>
   <tr>
     <td width="50%"><img src="assets/showcase-light.webp" alt="Brum in the light theme, Woofsons Amber Zink" /><br><sub><b>Two themes.</b> Woofsons Amber Charcoal and Woofsons Amber Zink (shown), with list, grid and column views.</sub></td>
-    <td width="50%"><img src="assets/showcase-backup.webp" alt="Backup and Sync with three backups and their status" /><br><sub><b>Backup &amp; Sync.</b> Plain status lines, schedules, old versions kept, and restore. To folders, SFTP, rclone remotes, Fleet machines and Proton Drive.</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="assets/showcase-compare.webp" alt="Compare showing two folders with one changed file and two files only on the left" /><br><sub><b>Compare.</b> Two folders, two files or duplicates, and copy the differences across in either direction.</sub></td>
     <td width="50%"><img src="assets/showcase-viewer.webp" alt="A photo open in the picture viewer" /><br><sub><b>Viewers.</b> Pictures, documents, audio and video open in place, with the next file one key away.</sub></td>
   </tr>
 </table>
@@ -91,6 +117,18 @@ cargo run --release        # Open http://localhost:3140 in your browser
 > - **Desktop & Standalone**: Standalone desktop mode (`brum` / `brum -s`) automatically authorizes the active local operating system user without requiring a password.
 > - **Linux Host Accounts (PAM)**: When running on Linux, any valid local system account can log in directly via PAM.
 > - **Existing Databases**: Upgrades and existing installations retain their previously configured passwords.
+
+### Several machines in ten minutes
+
+A main Brum (the one you open in the browser) and two more machines, for example a NAS and a media PC:
+
+1. **Install Brum on all three** (any of the ways above). On the two extra machines, let Brum listen on the network: `host = "0.0.0.0"` under `[server]` in `config.toml` (or the machine's overlay address, such as its Tailscale or NetBird IP), then restart it.
+2. **Make a code on the main Brum**: sign in as admin, click the machine name at the top left (**Fleet Control**) → **Manage Fleet** → **Add machine**. Brum shows a code such as `9WBN-C4C7` that works once, for ten minutes, together with the command to run.
+3. **Join from the NAS**: run `sudo brum join http://main-brum:3140 9WBN-C4C7 --name nas` and restart Brum there. Or open Brum on the NAS and use **Manage Fleet** → **Join a Fleet**, which restarts by itself.
+4. **Repeat for the media PC** with a new code.
+5. **Use them**: on the main Brum, the paw button in a pane's toolbar (**Places & Fleet**) lists your machines; pick one to open it in that pane. **Tools → All machines** searches all three at once.
+
+People need an account with the same name on each machine they use. Details, including what to know about trust and unencrypted networks: [Several machines (Fleet)](manuals/fleet.md).
 
 ---
 
@@ -148,6 +186,7 @@ Everything below ships inside the single Brum program. Tools that rely on a prog
 
 All operational runbooks, platform guides, and security manuals are available on the [**Official GitHub Wiki**](https://github.com/Woofson/brum/wiki) and organized in [**`manuals/`**](manuals/README.md):
 
+* [**Several machines (Fleet)**](manuals/fleet.md) — Setting up a main Brum and more machines, pairing codes, copies, compare and sync, All machines, folder rules, activity log.
 * [**Power Tools & Chewtoys Manual**](manuals/chewtoys.md) — 3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Media Player, Terminal, Vaults.
 * [**Keyboard Shortcuts & Navigation**](manuals/shortcuts.md) — Orthodox <kbd>F1</kbd>–<kbd>F10</kbd> keys, media player keys, touch gestures.
 * [**Configuration Guide (`config.toml`)**](manuals/configuration.md) — Master config options, storage roots, sandboxing.
@@ -161,6 +200,7 @@ All operational runbooks, platform guides, and security manuals are available on
 * [**GitHub Milestones & Roadmap**](https://github.com/Woofson/brum/milestones) — Active milestones, roadmap vision, and release targets.
 * [**GitHub Issues & Sprint Backlog**](https://github.com/Woofson/brum/issues) — Feature backlog, bug triage, and active sprint items.
 * [**Changelog**](CHANGELOG.md) — Release notes and version history.
+* [**Security**](SECURITY.md) — How to report a security problem, and every published advisory with the version that fixed it.
 
 ---
 
