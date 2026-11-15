@@ -5,6 +5,29 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-11-15
+
+Brum as the file manager for all your machines. **All Fleet machines should be updated together**: copies, Compare and pairing between machines need 1.23.0 on both sides (older machines get a clear message and the previous behaviour).
+
+### Security
+- **Fleet Machines on the Login Page (GHSA-8rgf-8pgm-v444, low)**: The settings the login page reads (`/api/config`) also listed the Fleet machines from `config.toml`, with their names and addresses (not their tokens), to visitors who were not signed in. They are now only sent to signed-in people.
+
+### Features
+- **Copies Between Machines (Closes #190)**: F5/F6 between two Fleet machines run on the servers instead of in the browser: the receiving machine fetches the files straight from the sending one, or this Brum passes them on when the two cannot reach each other. Copies keep going after the tab is closed, can be paused, resumed, stopped and retried (an interrupted file continues where it stopped), and every file is checked with SHA-256 on both machines before it replaces anything when Security & Integrity Checks are on. `[fleet] transfer_jobs` (default 2) sets how many run at once.
+- **Compare Across Machines (Closes #191)**: Compare (F9) has a machine choice per side and takes each panel's machine. Each machine lists, and with Compare contents checksums, its own side. **Make right like left** / **Make left like right** preview exactly what will be copied, replaced and (only if ticked) moved to the trash, then run as a copy between machines. **Save as backup…** opens Backup & Sync with the same folders.
+- **All Machines (Closes #192)**: Tools → All machines: search a name on every machine at once, check whether a file is the same everywhere (and show two side by side), see free space on every drive, and send files to several machines (right-click → Copy to… → Send to machines…). Pick machines by group (the Fleet entries' tags).
+- **Activity Log (Refs #193)**: Admin Panel → Activity Log records who changed which files, shares, accounts and settings on each machine, including refused attempts; search, filter and download as CSV. Kept 90 days by default (`[activity]`).
+- **Joining with a Pairing Code (Refs #193)**: Fleet → Add machine shows a one-time code (10 minutes); on the new machine run `brum join <address> <code>` or use Fleet → Join a Fleet. Both machines then accept each other's logins and list each other; nothing is written into `config.toml`.
+- **Folder Rules (Closes #193)**: Admin Panel → Folder Rules, or `[[access.rules]]` in `config.toml`: who may read, write or not touch a folder on each machine. The most specific folder wins, a rule can also open a folder, and folders holding something closed cannot be copied, downloaded or deleted around it. A login from another Fleet machine now gets that machine's own settings for the account.
+
+### Changes
+- **Start-up Messages**: Shorter and correct: version, settings file and logs in two lines, "Brum is running: open http://localhost:3140" with the address for other devices, and a first-login box that names the right place to change the password. Hints about the first password and the Fleet secret appear only when they apply.
+- **Search** runs off the threads that answer requests, so a long search no longer slows Brum down.
+
+### Fixes
+- **Panels After Server Tasks**: Panels refresh again when a copy or other server task finishes.
+- **Password Advice**: The first-login note, `brum reset-admin-password` and the manuals point to the avatar menu → User Profile & Account Settings for changing a password.
+
 ## [1.22.0] - 2026-11-14
 
 Includes the security fixes and fixes listed under 1.21.1, which was not released on its own. **Upgrading is recommended for all-users Windows installs.**
