@@ -1,12 +1,12 @@
 {
-    "version": "1.22.0",
+    "version": "1.23.0",
     "description": "Multi-Pane Web Environment (File Commander/Manager) — By Woofson",
     "homepage": "https://github.com/Woofson/brum",
     "license": "MIT",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/Woofson/brum/releases/download/v1.22.0/brum-v1.22.0-windows-x86_64.zip",
-            "hash": "e93977a5dbd4aa44a1422358cb90018a971286e75b8977e899f972e755f29abb"
+            "url": "https://github.com/Woofson/brum/releases/download/v1.23.0/brum-v1.23.0-windows-x86_64.zip",
+            "hash": "01ca6d7c4a5d2ba5610113bb963f441dcb527bcc00d5bb7dd05cc86a545ebfe1"
         }
     },
     "bin": "brum.exe",
