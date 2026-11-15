@@ -37,6 +37,14 @@ jobs:
       - name: Build Brum Windows Universal Binary
         run: cargo build --release --target x86_64-pc-windows-msvc
 
+      - name: Check brum.exe runs without the Visual C++ runtime
+        shell: pwsh
+        run: |
+          # A fresh Windows has no VCRUNTIME140.dll; brum.exe must not need it (.cargo/config.toml)
+          $Text = [Text.Encoding]::ASCII.GetString([IO.File]::ReadAllBytes("target\x86_64-pc-windows-msvc\release\brum.exe"))
+          if ($Text -match '(?i)vcruntime140') { throw "brum.exe still needs VCRUNTIME140.dll; check .cargo/config.toml (crt-static)" }
+          Write-Host "brum.exe does not need the Visual C++ runtime."
+
       - name: Package Standalone Distribution
         shell: pwsh
         run: |

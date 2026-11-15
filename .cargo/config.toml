@@ -1,0 +1,4 @@
+# Official Windows build (MSVC): build the C runtime into brum.exe, so it runs on a fresh
+# Windows without the Visual C++ Redistributable (VCRUNTIME140.dll) installed
+[target.x86_64-pc-windows-msvc]
+rustflags = ["-C", "target-feature=+crt-static"]
