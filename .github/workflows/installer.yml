@@ -1,0 +1,59 @@
+name: Rebuild Windows Installer
+
+# Rebuilds only the Windows installer of an existing release, around the brum.exe already
+# published in its portable ZIP, and replaces the installer (and its line in SHA256SUMS.txt)
+# on the release. Every other release file, and the checksums AUR and Scoop rely on, stay
+# as they are.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release whose installer is rebuilt (e.g. 1.23.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  installer:
+    name: Rebuild the installer
+    runs-on: windows-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Take the released program
+        shell: pwsh
+        run: |
+          gh release download "v$env:VERSION" -p "brum-v$env:VERSION-windows-x86_64.zip" -p "SHA256SUMS.txt" -D rel
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          New-Item -ItemType Directory -Path "dist\windows\brum" -Force | Out-Null
+          Expand-Archive -Path "rel\brum-v$env:VERSION-windows-x86_64.zip" -DestinationPath "dist\windows\brum" -Force
+          Get-ChildItem "dist\windows\brum" | Select-Object Name, Length
+
+      - name: Build the installer (Inno Setup)
+        shell: pwsh
+        run: |
+          $Iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $Iscc)) {
+            choco install innosetup -y --no-progress
+          }
+          & $Iscc "/DMyAppVersion=$env:VERSION" "packaging\windows\setup.iss"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+      - name: Replace it on the release
+        shell: pwsh
+        run: |
+          $Name = "Brum-Setup-v$env:VERSION.exe"
+          $Exe = "dist\windows\$Name"
+          $Hash = (Get-FileHash -Path $Exe -Algorithm SHA256).Hash.ToLower()
+          $Lines = @(Get-Content "rel\SHA256SUMS.txt" | Where-Object { $_ -and ($_ -notmatch [regex]::Escape($Name)) })
+          $Lines += "$Hash  $Name"
+          [IO.File]::WriteAllText("$PWD\rel\SHA256SUMS.txt", ($Lines -join "`n") + "`n")
+          gh release upload "v$env:VERSION" $Exe "rel\SHA256SUMS.txt" --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          "Installer SHA-256: $Hash"

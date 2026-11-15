@@ -119,7 +119,8 @@ Filename: "{app}\{#MyCliExeName}"; Parameters: "service start"; StatusMsg: "Star
 ; Tray icon at sign-in: for every user on an all-users install, else for this user; then start it now
 Filename: "{app}\{#MyCliExeName}"; Parameters: "tray install --all-users --no-start"; StatusMsg: "Setting up the tray icon..."; Flags: runhidden waituntilterminated; Tasks: traystartup; Check: IsAdminInstallMode
 Filename: "{app}\{#MyCliExeName}"; Parameters: "tray install --no-start"; StatusMsg: "Setting up the tray icon..."; Flags: runhidden waituntilterminated; Tasks: traystartup; Check: not IsAdminInstallMode
-Filename: "{app}\{#MyCliExeName}"; Parameters: "tray"; Flags: runhidden nowait runasoriginaluser; Tasks: traystartup
+; Not during a silent install (winget, scripts): the tray keeps running, so the install would never look finished
+Filename: "{app}\{#MyCliExeName}"; Parameters: "tray"; Flags: runhidden nowait runasoriginaluser skipifsilent; Tasks: traystartup
 ; Post-install launch for standalone desktop app
 Filename: "{app}\{#MyAppExeName}"; Parameters: "-s"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent runasoriginaluser; Components: standalone
 

@@ -87,10 +87,9 @@ FORK="${OWNER}/winget-pkgs"
 BRANCH="${PKG_ID}-${VERSION}"
 DEST="manifests/w/Woofson/Brum/${VERSION}"
 
-if [ -n "$(gh pr list --repo "${UPSTREAM}" --head "${BRANCH}" --author "${OWNER}" --state open --json number --jq '.[].number')" ]; then
-    echo "A pull request for ${PKG_ID} ${VERSION} is already open."
-    exit 0
-fi
+# An open pull request for this version gets the updated manifests (for example after the
+# installer was rebuilt); Microsoft then checks it again
+OPEN_PR=$(gh pr list --repo "${UPSTREAM}" --head "${BRANCH}" --author "${OWNER}" --state open --json number --jq '.[].number')
 
 if ! gh repo view "${FORK}" >/dev/null 2>&1; then
     echo "Creating your fork of ${UPSTREAM}..."
@@ -113,6 +112,10 @@ for f in "${MANIFEST_DIR}"/*.yaml; do
     gh api "${args[@]}" >/dev/null
 done
 
+if [ -n "${OPEN_PR}" ]; then
+    echo "Updated the open pull request #${OPEN_PR} for ${PKG_ID} ${VERSION}."
+    exit 0
+fi
 if gh api "repos/${UPSTREAM}/contents/manifests/w/Woofson/Brum" >/dev/null 2>&1; then
     TITLE="New version: ${PKG_ID} version ${VERSION}"
 else
