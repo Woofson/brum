@@ -214,7 +214,7 @@ const BRUM_ACTIONS = new Set([
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'openFleetPairing', 'closeFleetPairing', 'fleetPairRemove', 'openFleetJoin', 'fleetJoinRun', 'loadAdminActivity', 'loadMoreAdminActivity', 'downloadAdminActivity', 'openFleetwide', 'closeFleetwideWindow', 'minimizeFleetwideWindow', 'restoreFleetwideWindow', 'toggleFleetwideMaximize', 'dockFleetwideToActivePane', 'fwSetTab', 'fwPickGroup', 'fwToggleMachine', 'fwRunSearch', 'fwStop', 'fwOpenHit', 'fwRunSameFile', 'fwSameTick', 'fwSameCompare', 'fwRunSpace', 'openSendToMachines', 'fwSendUseSelection', 'fwSendStart', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'loadAccessRules', 'accWhoKindChanged', 'addAccessRule', 'removeAccessRule', 'showFleetNodeRules', 'openFleetPairing', 'closeFleetPairing', 'fleetPairRemove', 'openFleetJoin', 'fleetJoinRun', 'loadAdminActivity', 'loadMoreAdminActivity', 'downloadAdminActivity', 'openFleetwide', 'closeFleetwideWindow', 'minimizeFleetwideWindow', 'restoreFleetwideWindow', 'toggleFleetwideMaximize', 'dockFleetwideToActivePane', 'fwSetTab', 'fwPickGroup', 'fwToggleMachine', 'fwRunSearch', 'fwStop', 'fwOpenHit', 'fwRunSameFile', 'fwSameTick', 'fwSameCompare', 'fwRunSpace', 'openSendToMachines', 'fwSendUseSelection', 'fwSendStart', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
   'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff',
   'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
   'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
@@ -10161,9 +10161,98 @@ function switchAdminTab(tabId) {
   if (tabId === 'admin-tab-config') loadMasterConfigEditor();
   if (tabId === 'admin-tab-security') loadAdminSecuritySettings();
   if (tabId === 'admin-tab-activity') loadAdminActivity();
+  if (tabId === 'admin-tab-access') loadAccessRules();
 
   if (window.lucide && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
+  }
+}
+
+// ---------- Folder rules (#193) ----------
+function accessRulesHtml(rules, removable) {
+  if (!rules.length) return '<div class="act-empty">No folder rules: each account\'s own folders decide.</div>';
+  return rules.map(r => `
+    <div class="acc-rule acc-${escapeHtml(r.access)}">
+      <span class="acc-what"><i data-lucide="${r.access === 'none' ? 'ban' : (r.access === 'read' ? 'eye' : 'pencil')}"></i> ${escapeHtml(r.what)}</span>
+      <span class="acc-path bk-mono" title="${escapeHtml(r.path)}"><bdi>${escapeHtml(r.path)}</bdi></span>
+      <span class="acc-who">${escapeHtml(r.who)}</span>
+      <span class="acc-src">${r.from_config ? '<span class="acc-badge" title="Change it in config.toml">config.toml</span>' : (removable ? `<button class="btn btn-xs" data-on-click="removeAccessRule" data-click-args="${actionArgs(r.id)}" title="Remove this rule"><i data-lucide="trash-2"></i></button>` : '')}</span>
+    </div>`).join('');
+}
+
+async function loadAccessRules() {
+  const list = document.getElementById('acc-list');
+  if (!list) return;
+  try {
+    const resp = await fetch('/api/admin/access-rules');
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    list.innerHTML = accessRulesHtml(data.rules || [], true);
+  } catch (e) {
+    list.innerHTML = `<div class="act-empty act-bad">Could not load the folder rules: ${escapeHtml(e.message || String(e))}</div>`;
+  }
+  bindActions(list);
+  if (window.lucide) lucide.createIcons({ root: list });
+}
+
+function accWhoKindChanged() {
+  const kind = document.getElementById('acc-who-kind')?.value;
+  const who = document.getElementById('acc-who');
+  if (!who) return;
+  who.style.display = kind === 'everyone' ? 'none' : '';
+  who.placeholder = kind === 'roles' ? 'user, readonly' : 'bob, ann';
+}
+
+async function addAccessRule() {
+  const path = document.getElementById('acc-path')?.value.trim() || '';
+  const access = document.getElementById('acc-access')?.value || 'read';
+  const kind = document.getElementById('acc-who-kind')?.value || 'everyone';
+  const names = (document.getElementById('acc-who')?.value || '').split(',').map(x => x.trim()).filter(Boolean);
+  if (!path) {
+    showToast('Choose a folder', 'warning');
+    return;
+  }
+  if (kind !== 'everyone' && !names.length) {
+    showToast(kind === 'roles' ? 'Type one or more roles' : 'Type one or more account names', 'warning');
+    return;
+  }
+  const body = { path, access, users: kind === 'users' ? names : [], roles: kind === 'roles' ? names : [] };
+  const resp = await fetch('/api/admin/access-rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!resp.ok) {
+    showToast(`Rule not added: ${await resp.text()}`, 'error');
+    return;
+  }
+  document.getElementById('acc-path').value = '';
+  showToast('Folder rule added; it applies at once', 'success');
+  loadAccessRules();
+}
+
+async function removeAccessRule(id) {
+  const ok = await showConfirmDialog({ title: 'Remove this folder rule?', message: 'It stops applying at once.', icon: 'trash-2', type: 'warning', confirmText: 'Remove' });
+  if (!ok) return;
+  const resp = await fetch(`/api/admin/access-rules/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!resp.ok) showToast(`Could not remove it: ${await resp.text()}`, 'error');
+  loadAccessRules();
+}
+
+/** Fleet manager: the folder rules on the machine being edited, asked from that machine */
+async function showFleetNodeRules() {
+  const id = document.getElementById('fleet-input-id')?.value || '';
+  const node = id ? getFleetNodeById(id) : null;
+  const name = node ? node.name : getLocalHostDisplayName();
+  showModal('fleet-pair-modal');
+  const body = fleetPairSetBody(`Folder rules on ${name}`, '<div class="fp-muted"><i data-lucide="loader-2" class="spin"></i> Asking the machine…</div>');
+  const t = document.querySelector('#fleet-pair-modal .modal-header i');
+  try {
+    const { endpoint, headers } = compareNodeAccess(node ? node.id : 'local');
+    const resp = await fetch(`${endpoint}/api/admin/access-rules`, { headers });
+    if (resp.status === 403) throw new Error(`Only an admin on ${name} can see its rules.`);
+    if (resp.status === 404) throw new Error(`${name} runs an older Brum without folder rules.`);
+    if (!resp.ok) throw new Error(`${name} did not answer (${resp.status}).`);
+    const data = await resp.json();
+    fleetPairSetBody(`Folder rules on ${name}`, `<p class="fp-text">On top of each account's own folders on ${escapeHtml(name)}. Change them there: Admin Panel → Folder Rules.</p><div class="acc-list">${accessRulesHtml(data.rules || [], false)}</div>`);
+  } catch (e) {
+    fleetPairSetBody(`Folder rules on ${name}`, `<div class="fp-bad">${escapeHtml(e.message || String(e))}</div>`);
   }
 }
 
@@ -44786,6 +44875,8 @@ function migrateFleetNodeIds(renamed) {
 
 function syncConfigFleetNodes() {
   if (!App.config?.fleet) return;
+  // Before login the server does not list the machines: keep the saved list as it is
+  if (App.config.fleet.nodes_hidden) return;
   const staticNodes = currentConfigFleetNodes();
 
   const reconciled = reconcileFleetNodes(loadFleetNodes(), staticNodes);

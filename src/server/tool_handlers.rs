@@ -67,11 +67,16 @@ pub async fn handle_diff_folders(
     let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
     let _stop_when_dropped = CancelOnDrop(cancel.clone());
     let selected = payload.selected_items;
-    tokio::task::spawn_blocking(move || crate::tools::diff::compare_folders_cancellable(&left, &right, recursive, deep, selected, &cancel))
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let (l2, r2) = (left.clone(), right.clone());
+    let mut diff = tokio::task::spawn_blocking(move || crate::tools::diff::compare_folders_cancellable(&left, &right, recursive, deep, selected, &cancel))
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .map(Json)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Folder diff failed: {}", e)))
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Folder diff failed: {}", e)))?;
+    // Leave out what folder rules keep this person out of (#193)
+    let ok = |root: &str, rel: &str| crate::server::middleware::readable_by_rules(&state, &claims.sub, &claims.role, &std::path::Path::new(root).join(rel));
+    diff.entries.retain(|e| ok(&l2, &e.relative_path) && ok(&r2, &e.relative_path));
+    Ok(Json(diff))
 }
 
 /// Sets the flag when the request is dropped, so background work stops with it
@@ -897,7 +902,7 @@ fn resolve_profile_paths(state: &AppState, headers: &HeaderMap, p: &mut BackupPr
     let two_way = p.mode() == crate::tools::sync::engine::Mode::TwoWay;
     let mut checked = Vec::new();
     for src in p.all_sources() {
-        checked.push(validate_path_access(state, headers, src.trim(), two_way)?);
+        checked.push(crate::server::middleware::validate_tree_access(state, headers, src.trim(), two_way)?);
     }
     p.sources = checked;
     p.source_dir = p.sources.first().cloned().unwrap_or_default();
@@ -1452,12 +1457,14 @@ pub async fn handle_search(
     Json(mut payload): Json<crate::tools::search::SearchRequest>,
 ) -> Result<Json<Vec<crate::tools::search::SearchResultItem>>, (StatusCode, String)> {
     payload.path = validate_path_access(&state, &headers, &payload.path, false)?;
+    let claims = extract_claims_or_local(&state, &headers)?;
     // A search can walk a whole drive: keep it off the threads that answer requests
-    tokio::task::spawn_blocking(move || crate::tools::search::SearchEngine::search(payload))
+    let found = tokio::task::spawn_blocking(move || crate::tools::search::SearchEngine::search(payload))
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .map(Json)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Search failed: {}", e)))
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Search failed: {}", e)))?;
+    // Results inside folders a folder rule keeps this person out of are left out (#193)
+    Ok(Json(found.into_iter().filter(|r| crate::server::middleware::readable_by_rules(&state, &claims.sub, &claims.role, std::path::Path::new(&r.path))).collect()))
 }
 
 pub async fn handle_duplicates_scan(

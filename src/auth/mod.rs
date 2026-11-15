@@ -264,6 +264,8 @@ pub struct AuthManager {
     db: Arc<Mutex<Connection>>,
     read_pool: Arc<Mutex<Vec<Connection>>>,
     user_status_cache: Arc<Mutex<HashMap<String, (String, bool, i64, Instant)>>>,
+    /// This machine's own home folder and allowed folders per account (#193), cached with the status
+    user_scope_cache: Arc<Mutex<HashMap<String, (Option<String>, Option<String>)>>>,
     db_path: String,
     jwt_secret: String,
     session_hours: u64,
@@ -626,6 +628,7 @@ impl AuthManager {
             db: Arc::new(Mutex::new(conn)),
             read_pool: Arc::new(Mutex::new(Vec::new())),
             user_status_cache: Arc::new(Mutex::new(HashMap::new())),
+            user_scope_cache: Arc::new(Mutex::new(HashMap::new())),
             db_path: db_path.to_string(),
             jwt_secret: effective_jwt_secret,
             session_hours,
@@ -790,10 +793,16 @@ impl AuthManager {
         if let Ok(mut cache) = self.user_status_cache.lock() {
             cache.remove(username);
         }
+        if let Ok(mut cache) = self.user_scope_cache.lock() {
+            cache.remove(username);
+        }
     }
 
     pub fn invalidate_user_cache_all(&self) {
         if let Ok(mut cache) = self.user_status_cache.lock() {
+            cache.clear();
+        }
+        if let Ok(mut cache) = self.user_scope_cache.lock() {
             cache.clear();
         }
     }
@@ -1682,16 +1691,19 @@ impl AuthManager {
             None => {
                 let generation = self.session_generation(&claims.sub)?;
                 let conn = self.get_read_conn()?;
-                let user_row: Option<(String, bool)> = conn.query_row(
-                    "SELECT role, is_disabled FROM users WHERE username = ?1",
+                let user_row: Option<(String, bool, Option<String>, Option<String>)> = conn.query_row(
+                    "SELECT role, is_disabled, home_dir, allowed_roots FROM users WHERE username = ?1",
                     params![claims.sub],
-                    |row| Ok((row.get(0)?, row.get::<_, Option<i64>>(1)?.unwrap_or(0) != 0)),
+                    |row| Ok((row.get(0)?, row.get::<_, Option<i64>>(1)?.unwrap_or(0) != 0, row.get(2)?, row.get(3)?)),
                 ).optional()?;
 
                 match user_row {
-                    Some((role, disabled)) => {
+                    Some((role, disabled, home, roots)) => {
                         if let Ok(mut cache) = self.user_status_cache.lock() {
                             cache.insert(claims.sub.clone(), (role.clone(), disabled, generation, now));
+                        }
+                        if let Ok(mut cache) = self.user_scope_cache.lock() {
+                            cache.insert(claims.sub.clone(), (home, roots));
                         }
                         (role, disabled, generation)
                     }
@@ -1723,6 +1735,18 @@ impl AuthManager {
         } else {
             db_role
         };
+        // A login from another Fleet machine carries that machine's folder limits; this machine
+        // uses its own settings for the account instead (and changes apply at once here too)
+        if claims.token_id.is_none() {
+            if let Some((home, roots)) = self.user_scope_cache.lock().ok().and_then(|c| c.get(&claims.sub).cloned()) {
+                if let Some(h) = home.filter(|h| !h.trim().is_empty()) {
+                    claims.home_dir = h;
+                }
+                if roots.as_deref().is_some_and(|r| !r.trim().is_empty()) {
+                    claims.allowed_roots = roots;
+                }
+            }
+        }
         self.apply_owner_scope_to_api_token(&mut claims)?;
 
         Ok(claims)

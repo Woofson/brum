@@ -755,7 +755,7 @@ async fn handle_copy_inner(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let mut validated_sources = Vec::new();
     for s in &payload.sources {
-        validated_sources.push(validate_path_access(&state, &headers, s, false)?);
+        validated_sources.push(crate::server::middleware::validate_tree_access(&state, &headers, s, false)?);
     }
     let validated_dest = validate_path_access(&state, &headers, &payload.destination, true)?;
 
@@ -804,7 +804,7 @@ async fn handle_deltacopy_inner(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let mut validated_sources = Vec::new();
     for s in &payload.sources {
-        validated_sources.push(validate_path_access(&state, &headers, s, false)?);
+        validated_sources.push(crate::server::middleware::validate_tree_access(&state, &headers, s, false)?);
     }
     let validated_dest = validate_path_access(&state, &headers, &payload.destination, true)?;
 
@@ -1547,7 +1547,7 @@ pub async fn handle_download(
 
     let range_header = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
 
-    let mut path_str = validate_path_access(&state, &modified_headers, raw_path, false)?;
+    let mut path_str = crate::server::middleware::validate_tree_access(&state, &modified_headers, raw_path, false)?;
 
     // Proton Drive: fetch a private local copy, then serve it like any local file
     if path_str.starts_with("proton://") {
@@ -1807,7 +1807,7 @@ pub async fn handle_download_batch(
 
     let mut validated_paths = Vec::new();
     for p in &payload.paths {
-        validated_paths.push(validate_path_access(&state, &headers, p, false)?);
+        validated_paths.push(crate::server::middleware::validate_tree_access(&state, &headers, p, false)?);
     }
 
     let temp_zip = tempfile::Builder::new()
@@ -1867,7 +1867,7 @@ async fn handle_archive_create_inner(
 ) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
     let mut validated_sources = Vec::new();
     for s in &payload.sources {
-        validated_sources.push(validate_path_access(&state, &headers, s, false)?);
+        validated_sources.push(crate::server::middleware::validate_tree_access(&state, &headers, s, false)?);
     }
     let validated_target = validate_path_access(&state, &headers, &payload.target_path, true)?;
 

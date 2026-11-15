@@ -13,6 +13,7 @@ pub mod proton_handlers;
 pub mod transfer_handlers;
 pub mod activity_handlers;
 pub mod pairing_handlers;
+pub mod access_handlers;
 
 pub use middleware::*;
 pub use auth_handlers::*;
@@ -236,6 +237,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/fleet/join", post(pairing_handlers::handle_join_fleet))
         .route("/api/fleet/paired", get(pairing_handlers::handle_list_paired))
         .route("/api/fleet/paired/:id", axum::routing::delete(pairing_handlers::handle_remove_paired))
+        .route("/api/admin/access-rules", get(access_handlers::handle_list_access_rules).post(access_handlers::handle_add_access_rule))
+        .route("/api/admin/access-rules/:id", axum::routing::delete(access_handlers::handle_remove_access_rule))
         .route("/api/admin/activity/csv", get(activity_handlers::handle_download_activity))
         .route("/api/tools/sync/runs", get(handle_list_backup_runs))
         .route("/api/tools/sync/runs/:id/files", get(handle_backup_run_files))

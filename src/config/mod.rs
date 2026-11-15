@@ -49,6 +49,15 @@ pub struct AppConfig {
     /// `[activity]`: the record of who did what to which files (#193)
     #[serde(default)]
     pub activity: ActivityConfig,
+    /// `[[access.rules]]`: who may read, write or not touch which folders on this machine (#193)
+    #[serde(default)]
+    pub access: AccessConfig,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct AccessConfig {
+    #[serde(default)]
+    pub rules: Vec<crate::tools::access::Rule>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -172,6 +181,7 @@ impl Default for AppConfig {
             sftp: None,
             proton: crate::vfs::proton::ProtonConfig::default(),
             activity: ActivityConfig::default(),
+            access: AccessConfig::default(),
         }
     }
 }
@@ -1685,6 +1695,10 @@ pub struct ClientSyncthingConfigDto {
 pub struct ClientFleetConfigDto {
     pub enabled: bool,
     pub nodes: Vec<ClientFleetNodeConfigDto>,
+    /// The machines are left out for visitors who are not signed in (the page then keeps the
+    /// list it has instead of tidying it)
+    #[serde(default)]
+    pub nodes_hidden: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -1772,6 +1786,7 @@ impl AppConfig {
             fleet: ClientFleetConfigDto {
                 enabled: self.fleet.enabled,
                 nodes: self.fleet.nodes.iter().map(ClientFleetNodeConfigDto::from_node).collect(),
+                nodes_hidden: false,
             },
         }
     }

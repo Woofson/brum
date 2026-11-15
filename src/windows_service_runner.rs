@@ -117,6 +117,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             crate::tools::activity::init(auth_mgr.db_path(), config.activity.retention_days);
         }
         crate::tools::pairing::init(auth_mgr.db_path());
+        crate::tools::access::init(auth_mgr.db_path());
         crate::logging::log_fleet_hint(&config, crate::tools::pairing::joined_secret(auth_mgr.db_path()).is_some() || !crate::tools::pairing::list().is_empty());
         let backup_mgr = match crate::tools::sync::BackupManager::new(auth_mgr.db()) {
             Ok(m) => m.with_sftp_config(config.storage.sftp.clone()),

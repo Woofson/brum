@@ -19,5 +19,6 @@ pub mod logviewer;
 pub mod trash;
 pub mod activity;
 pub mod pairing;
+pub mod access;
 pub mod transfer;
 pub mod usb;

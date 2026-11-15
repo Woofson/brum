@@ -611,8 +611,12 @@ pub async fn handle_get_config(
     headers: HeaderMap,
 ) -> Json<crate::config::ClientConfigDto> {
     let mut dto = state.config.to_client_dto();
-    // Machines paired with a code: only for people who are signed in
-    if crate::server::middleware::extract_claims_or_local(&state, &headers).is_ok() {
+    // The Fleet's machines (from config.toml and paired with a code): only for people who are
+    // signed in, so the login page does not show what machines there are and where
+    if crate::server::middleware::extract_claims_or_local(&state, &headers).is_err() {
+        dto.fleet.nodes.clear();
+        dto.fleet.nodes_hidden = true;
+    } else {
         for p in crate::tools::pairing::list() {
             if !dto.fleet.nodes.iter().any(|n| n.id == p.id || p.urls.iter().any(|u| n.urls.contains(u))) {
                 dto.fleet.nodes.push(crate::config::ClientFleetNodeConfigDto::from_node(&p.to_node()));

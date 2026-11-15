@@ -378,6 +378,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tools::activity::init(auth_mgr.db_path(), config.activity.retention_days);
     }
     tools::pairing::init(auth_mgr.db_path());
+    tools::access::init(auth_mgr.db_path());
     crate::logging::log_fleet_hint(&config, tools::pairing::joined_secret(auth_mgr.db_path()).is_some() || !tools::pairing::list().is_empty());
     let backup_mgr = tools::sync::BackupManager::new(auth_mgr.db())?.with_sftp_config(config.storage.sftp.clone());
     let plugin_mgr = plugins::PluginManager::new(

@@ -2992,6 +2992,7 @@
           <div class="settings-sidebar-group-title">Security & Config</div>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-config"]'><i data-lucide="file-cog"></i> Server config.toml</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-access"]'><i data-lucide="folder-lock"></i> Folder Rules</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-activity"]'><i data-lucide="history"></i> Activity Log</button>
         </div>
 
@@ -3177,6 +3178,36 @@
           </div>
 
           <!-- Admin Tab 4: Security & Integrity Defaults -->
+          <div class="settings-tab-content" id="admin-tab-access">
+            <div class="settings-card-header" style="margin-bottom: 10px;">
+              <div>
+                <h4 class="settings-section-title"><i data-lucide="folder-lock"></i> Folder Rules</h4>
+                <p class="settings-card-desc" style="margin-top: 2px;">Who may read a folder on this machine, write in it, or not touch it, on top of each account's own folders. The rule for the most specific folder wins; a rule can also open a folder outside someone's own folders. Admins are not limited by rules. People signing in from another Fleet machine get this machine's rules and this machine's settings for their account.</p>
+              </div>
+            </div>
+            <div class="acc-form">
+              <div class="acc-row">
+                <input type="text" id="acc-path" class="settings-input bk-mono" placeholder="Folder on this machine, like /srv/media">
+                <button class="btn btn-sm" data-on-click="openSyncFolderPicker" data-click-args='["acc-path"]' title="Choose a folder"><i data-lucide="folder-open"></i></button>
+              </div>
+              <div class="acc-row">
+                <select id="acc-access" class="settings-input" title="What they may do">
+                  <option value="read">Read only</option>
+                  <option value="write">Read and write</option>
+                  <option value="none">No access</option>
+                </select>
+                <select id="acc-who-kind" class="settings-input" data-on-change="accWhoKindChanged" title="Who it is for">
+                  <option value="everyone">Everyone</option>
+                  <option value="users">These people</option>
+                  <option value="roles">These roles</option>
+                </select>
+                <input type="text" id="acc-who" class="settings-input" placeholder="bob, ann" style="display: none;">
+                <button class="btn btn-sm btn-accent" data-on-click="addAccessRule"><i data-lucide="plus"></i> Add rule</button>
+              </div>
+            </div>
+            <div id="acc-list" class="acc-list"></div>
+          </div>
+
           <div class="settings-tab-content" id="admin-tab-activity">
             <div class="settings-card-header" style="margin-bottom: 10px;">
               <div>
@@ -5475,9 +5506,14 @@
                 <span style="font-size: 11.5px; font-weight: 600; color: var(--text-main); display: inline-flex; align-items: center; gap: 5px;">
                   <i data-lucide="activity" style="width: 13px; height: 13px; color: var(--accent);"></i> Connection Diagnostics
                 </span>
+                <span style="display: inline-flex; gap: 4px;">
+                <button type="button" class="btn btn-xs btn-outline" id="btn-fleet-rules" data-on-click="showFleetNodeRules" title="The folder rules on this machine (needs admin there)" style="height: 24px; font-size: 11px; padding: 0 8px;">
+                  <i data-lucide="folder-lock" style="width: 11px; height: 11px;"></i> Folder rules
+                </button>
                 <button type="button" class="btn btn-xs btn-outline" id="btn-fleet-test" data-on-click="testFleetNodeConnection" style="height: 24px; font-size: 11px; padding: 0 8px;">
                   <i data-lucide="zap" style="width: 11px; height: 11px;"></i> Test Connection
                 </button>
+                </span>
               </div>
               <div class="fleet-test-results" id="fleet-test-results">
                 <span>Click "Test Connection" to query node health, version, and latency.</span>

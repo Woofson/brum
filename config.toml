@@ -222,6 +222,19 @@ console_enabled = true              # Output logs to stdout/console
 enabled = true                      # Record who changed which files (Admin Panel → Activity Log)
 retention_days = 90                 # Remove entries older than this (0 keeps them for good)
 
+# Folder rules: who may read, write or not touch a folder on this machine, on top of each
+# account's own folders (also in Admin Panel → Folder Rules). The most specific folder wins;
+# admins are not limited. access = "read", "write" or "none"; no users/roles = everyone.
+# [[access.rules]]
+# path = "/srv/media"
+# access = "read"
+# roles = ["user"]
+#
+# [[access.rules]]
+# path = "/srv/media/private"
+# access = "none"
+# users = ["guest"]
+
 # --- User Interface & Panels ---
 [ui]
 default_pane_count = 2           # Default number of visible panes on startup (1 to 4)

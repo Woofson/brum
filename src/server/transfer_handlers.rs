@@ -69,6 +69,8 @@ fn yes() -> bool {
 
 /// One side, ready to use
 struct Side {
+    /// The person and role, for folder rules on this machine
+    who: Option<(String, String)>,
     label: String,
     /// The node's address and the login to use there, for other machines
     remote: Option<(String, Option<String>)>,
@@ -117,7 +119,7 @@ async fn resolve_side(state: &AppState, headers: &HeaderMap, claims: &crate::aut
         "local" | "" => {
             let folder = validate_path_access(state, headers, &side.folder, write)?;
             for i in &side.items {
-                validate_path_access(state, headers, &join(&side.folder, &i.name), write)?;
+                crate::server::middleware::validate_tree_access(state, headers, &join(&side.folder, &i.name), write)?;
             }
             let label = if !state.config.ui.hostname_badge.trim().is_empty() {
                 state.config.ui.hostname_badge.clone()
@@ -126,7 +128,7 @@ async fn resolve_side(state: &AppState, headers: &HeaderMap, claims: &crate::aut
             } else {
                 crate::server::system_handlers::get_system_hostname()
             };
-            Ok(Side { label, remote: None, folder })
+            Ok(Side { who: Some((claims.sub.clone(), claims.role.clone())), label, remote: None, folder })
         }
         "remote" => {
             let url = side.url.clone().unwrap_or_default().trim().trim_end_matches('/').to_string();
@@ -134,7 +136,7 @@ async fn resolve_side(state: &AppState, headers: &HeaderMap, claims: &crate::aut
                 Some((_, host)) if !crate::server::middleware::is_prohibited_remote_host(&host, state.config.storage.allow_remote_loopback) => {}
                 _ => return Err((StatusCode::FORBIDDEN, "That machine's address is not allowed".into())),
             }
-            Ok(Side { label: url.clone(), remote: Some((url, side.token.clone().filter(|t| !t.trim().is_empty()))), folder: side.folder.clone() })
+            Ok(Side { who: None, label: url.clone(), remote: Some((url, side.token.clone().filter(|t| !t.trim().is_empty()))), folder: side.folder.clone() })
         }
         id => {
             let mut target = match crate::server::fleet::all_nodes(state).iter().find(|n| n.id == id) {
@@ -162,7 +164,7 @@ async fn resolve_side(state: &AppState, headers: &HeaderMap, claims: &crate::aut
             };
             choose_live_address(&mut target, false).await;
             let token = target.auth_token.clone().filter(|t| !t.trim().is_empty()).or_else(|| state.auth.mint_token_for_claims(claims).ok());
-            Ok(Side { label: target.name.clone(), remote: Some((target.endpoint_url.clone(), token)), folder: side.folder.clone() })
+            Ok(Side { who: None, label: target.name.clone(), remote: Some((target.endpoint_url.clone(), token)), folder: side.folder.clone() })
         }
     }
 }
@@ -481,7 +483,9 @@ fn side_from_json(v: &Value) -> crate::tools::diff::SideMap {
 /// Lists a folder on this machine for a comparison made by another Brum
 pub async fn handle_compare_list(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<CompareListRequest>) -> Result<Json<Value>, ApiError> {
     let folder = validate_path_access(&state, &headers, &req.folder, false)?;
-    let map = list_here(folder, req.recursive, req.deep).await.map_err(bad)?;
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let mut map = list_here(folder.clone(), req.recursive, req.deep).await.map_err(bad)?;
+    map.retain(|rel, _| crate::server::middleware::readable_by_rules(&state, &claims.sub, &claims.role, &std::path::Path::new(&folder).join(rel)));
     Ok(Json(json!({ "entries": side_json(&map) })))
 }
 
@@ -495,9 +499,13 @@ pub struct CompareAcrossRequest {
     pub deep: bool,
 }
 
-async fn list_side_of(side: &Side, recursive: bool, deep: bool) -> Result<crate::tools::diff::SideMap, String> {
+async fn list_side_of(state: &AppState, side: &Side, recursive: bool, deep: bool) -> Result<crate::tools::diff::SideMap, String> {
     let Some((url, token)) = &side.remote else {
-        return list_here(side.folder.clone(), recursive, deep).await;
+        let mut map = list_here(side.folder.clone(), recursive, deep).await?;
+        if let Some((user, role)) = &side.who {
+            map.retain(|rel, _| crate::server::middleware::readable_by_rules(state, user, role, &std::path::Path::new(&side.folder).join(rel)));
+        }
+        return Ok(map);
     };
     let client = reqwest::Client::builder().connect_timeout(Duration::from_secs(10)).build().map_err(|e| e.to_string())?;
     let mut r = client.post(format!("{url}/api/compare/list")).json(&json!({ "folder": side.folder, "recursive": recursive, "deep": deep }));
@@ -525,7 +533,7 @@ pub async fn handle_compare_across(State(state): State<AppState>, headers: Heade
     let claims = extract_claims_or_local(&state, &headers)?;
     let left = resolve_side(&state, &headers, &claims, &req.left, false).await?;
     let right = resolve_side(&state, &headers, &claims, &req.right, false).await?;
-    let (l, r) = tokio::join!(list_side_of(&left, req.recursive, req.deep), list_side_of(&right, req.recursive, req.deep));
+    let (l, r) = tokio::join!(list_side_of(&state, &left, req.recursive, req.deep), list_side_of(&state, &right, req.recursive, req.deep));
     let (l, r) = (l.map_err(bad)?, r.map_err(bad)?);
     let diff = crate::tools::diff::build_folder_diff(&req.left.folder, &req.right.folder, l, r, req.recursive);
     let mut v = serde_json::to_value(diff).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;

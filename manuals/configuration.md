@@ -366,6 +366,30 @@ When routed through the Fleet Gateway Hub (`/api/fleet/proxy/:node_id`), all com
 
 ---
 
+## Folder Rules
+
+On each machine, admins can say who may read a folder, write in it, or not touch it: **Admin Panel → Folder Rules**, or `[[access.rules]]` in `config.toml`.
+
+```toml
+[[access.rules]]
+path = "/srv/media"
+access = "read"          # "read", "write" or "none"
+roles = ["user"]         # or users = ["bob", "ann"]; neither means everyone
+
+[[access.rules]]
+path = "/srv/media/private"
+access = "none"
+```
+
+* **Most specific wins**: for a file, the rule for the deepest folder above it that applies to the person decides; at the same folder, the stricter rule. Without a matching rule, the account's own folders decide as before.
+* **Limit and open**: a rule can make a folder read only or closed for someone, and it can also open a folder outside their own folders (read, or read and write). A storage root marked read-only stays read-only.
+* **Whole folders**: a folder that holds something closed to a person cannot be copied, downloaded, packed or backed up by them as a whole, and a folder holding something they may not change cannot be deleted, moved or renamed by them as a whole. Search and Compare leave such files out.
+* **Admins** are not limited by rules (they can change them anyway).
+* **Changes apply at once**, and adding or removing a rule is recorded in the activity log. Rules from `config.toml` show in the Admin Panel with a `config.toml` badge and are changed there.
+* **Fleet**: someone signing in from another Fleet machine gets this machine's rules, and this machine's own settings for their account (home folder and allowed folders), not those of the machine where they signed in. In the Fleet manager, **Folder rules** shows a machine's rules (for admins there).
+
+---
+
 ## Activity Log
 
 Each Brum keeps a record of who changed which files on it: **Admin Panel → Activity Log** (admins only).

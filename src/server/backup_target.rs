@@ -52,9 +52,11 @@ pub async fn handle_backup_target_list(
     Query(q): Query<HashMap<String, String>>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let path = checked(&state, &headers, param(&q, "path")?, false)?;
+    let claims = extract_claims_or_local(&state, &headers)?;
     let recursive = q.get("recursive").is_some_and(|v| v == "1" || v == "true");
     let with_dirs = q.get("dirs").is_some_and(|v| v == "1" || v == "true");
-    tokio::task::spawn_blocking(move || {
+    let root = path.clone();
+    let listed = tokio::task::spawn_blocking(move || {
         if !path.is_dir() {
             return Ok(Json(serde_json::json!({ "exists": path.exists(), "entries": [], "warnings": [] })));
         }
@@ -80,7 +82,13 @@ pub async fn handle_backup_target_list(
         }
     })
     .await
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    // Leave out what folder rules keep this person out of (#193)
+    let Ok(Json(mut v)) = listed else { return listed };
+    if let Some(entries) = v.get_mut("entries").and_then(|e| e.as_array_mut()) {
+        entries.retain(|e| e.get("path").and_then(|p| p.as_str()).is_none_or(|rel| crate::server::middleware::readable_by_rules(&state, &claims.sub, &claims.role, &root.join(rel))));
+    }
+    Ok(Json(v))
 }
 
 /// `path`: whether it is a file or a folder, with size and time

@@ -1344,7 +1344,80 @@ pub fn validate_custom_trash_dir(
     validate_path_access(state, headers, requested, is_write).map(Some)
 }
 
+/// Checks that the signed-in person may read (or change) `raw_path`, and returns it as a full
+/// path on this machine. Changing a folder is refused when a folder rule protects something
+/// inside it (#193).
 pub fn validate_path_access(
+    state: &AppState,
+    headers: &HeaderMap,
+    raw_path: &str,
+    is_write: bool,
+) -> Result<String, (StatusCode, String)> {
+    let path = validate_path_access_inner(state, headers, raw_path, is_write)?;
+    if is_write && !path.contains("://") {
+        let claims = extract_claims_or_local(state, headers)?;
+        if let Some(rule) = protected_below(state, &claims.sub, &claims.role, Path::new(&path), true) {
+            return Err((StatusCode::FORBIDDEN, format!("Access denied: {} is {} for you (folder rule on this machine), so the folder around it cannot be changed as a whole", rule.path, rule.access.describe())));
+        }
+    }
+    Ok(path)
+}
+
+/// Like `validate_path_access`, for reading a whole folder at once (copying, packing,
+/// downloading, backing up): refused when it holds a folder the person may not read
+pub fn validate_tree_access(state: &AppState, headers: &HeaderMap, raw_path: &str, is_write: bool) -> Result<String, (StatusCode, String)> {
+    let path = validate_path_access(state, headers, raw_path, is_write)?;
+    if !path.contains("://") {
+        let claims = extract_claims_or_local(state, headers)?;
+        if let Some(rule) = protected_below(state, &claims.sub, &claims.role, Path::new(&path), false) {
+            return Err((StatusCode::FORBIDDEN, format!("Access denied: this folder holds {}, which a folder rule on this machine keeps you out of", rule.path)));
+        }
+    }
+    Ok(path)
+}
+
+/// A folder rule for this person on something strictly inside `path` that keeps them out
+/// (or, with `for_write`, from changing it). Admins have none.
+pub fn protected_below(state: &AppState, user: &str, role: &str, path: &Path, for_write: bool) -> Option<crate::tools::access::Rule> {
+    if role.eq_ignore_ascii_case("admin") {
+        return None;
+    }
+    let path = normalize_path(path);
+    let candidates: Vec<crate::tools::access::Rule> = crate::tools::access::with_saved(|saved| {
+        state.config.access.rules.iter().chain(saved.iter())
+            .filter(|r| {
+                let rp = normalize_path(Path::new(r.path.trim()));
+                rp != path && is_path_or_canonical_within(&rp, &path)
+            })
+            .cloned()
+            .collect()
+    });
+    // Each of those folders is decided by its own most specific rule for this person
+    candidates.into_iter().find_map(|c| {
+        let rp = normalize_path(Path::new(c.path.trim()));
+        let decided = crate::tools::access::with_saved(|saved| {
+            crate::tools::access::decide(state.config.access.rules.iter().chain(saved.iter()), &rp, user, role, |p, root| is_path_or_canonical_within(p, &normalize_path(root))).cloned()
+        })?;
+        use crate::tools::access::Access;
+        let blocks = if for_write { decided.access != Access::Write } else { decided.access == Access::None };
+        blocks.then_some(decided)
+    })
+}
+
+/// For results of a walk (search, compare): false when a folder rule keeps this person out
+pub fn readable_by_rules(state: &AppState, user: &str, role: &str, path: &Path) -> bool {
+    if role.eq_ignore_ascii_case("admin") || (state.config.access.rules.is_empty() && crate::tools::access::with_saved(|s| s.is_empty())) {
+        return true;
+    }
+    let path = normalize_path(path);
+    crate::tools::access::with_saved(|saved| {
+        crate::tools::access::decide(state.config.access.rules.iter().chain(saved.iter()), &path, user, role, |p, root| is_path_or_canonical_within(p, &normalize_path(root)))
+            .map(|r| r.access != crate::tools::access::Access::None)
+            .unwrap_or(true)
+    })
+}
+
+fn validate_path_access_inner(
     state: &AppState,
     headers: &HeaderMap,
     raw_path: &str,
@@ -1467,6 +1540,38 @@ pub fn validate_path_access(
     let normalized = normalize_path(Path::new(&expanded));
     let norm_str = normalized.to_string_lossy().to_string();
     let is_admin = user_role.eq_ignore_ascii_case("admin");
+
+    // Folder rules on this machine (#193): the most specific one for this person decides, before
+    // the account's own folders. Admins are not limited by them.
+    if !is_admin {
+        let config_rules = &state.config.access.rules;
+        let decided = crate::tools::access::with_saved(|saved| {
+            crate::tools::access::decide(config_rules.iter().chain(saved.iter()), &normalized, &claims.sub, user_role, |p, root| {
+                is_path_or_canonical_within(p, &normalize_path(root))
+            })
+            .cloned()
+        });
+        if let Some(rule) = decided {
+            use crate::tools::access::Access;
+            match rule.access {
+                Access::None => {
+                    return Err((StatusCode::FORBIDDEN, format!("Access denied: a folder rule on this machine gives you no access to {}", rule.path)));
+                }
+                Access::Read if is_write => {
+                    return Err((StatusCode::FORBIDDEN, format!("Access denied: {} is read only for you (folder rule on this machine)", rule.path)));
+                }
+                _ => {
+                    // A rule grants access, but a read-only storage root stays read-only
+                    if is_write {
+                        if let Some(root) = state.config.storage.roots.iter().find(|r| r.read_only && is_path_or_canonical_within(&normalized, &normalize_path(Path::new(&r.path)))) {
+                            return Err((StatusCode::FORBIDDEN, format!("Storage root '{}' is configured as read-only", root.name)));
+                        }
+                    }
+                    return Ok(norm_str);
+                }
+            }
+        }
+    }
 
     // Unrestricted system root access if enabled in config AND user has permission
     let allow_system = state.config.storage.allow_entire_system

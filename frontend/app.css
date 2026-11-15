@@ -17733,6 +17733,34 @@ textarea.bk-input {
 .fp-paired-row svg { width: 12px; height: 12px; }
 
 /* ==========================================================================
+   Folder rules (#193)
+   ========================================================================== */
+.acc-form { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.acc-row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.acc-row .settings-input { height: 28px; flex: 1 1 140px; min-width: 0; }
+.acc-row select.settings-input { flex: 0 1 150px; }
+.acc-list { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.acc-rule { display: grid; grid-template-columns: 130px minmax(0, 1.6fr) minmax(0, 1fr) 90px; gap: 8px; align-items: center; padding: 6px 10px; font-size: 12px; background: var(--bg-dark); }
+.acc-rule + .acc-rule { border-top: 1px solid var(--border); }
+.acc-rule > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.acc-what { display: inline-flex; align-items: center; gap: 5px; font-weight: 600; }
+.acc-what svg { width: 13px; height: 13px; }
+.acc-none .acc-what { color: var(--danger); }
+.acc-read .acc-what { color: #60a5fa; }
+.acc-write .acc-what { color: var(--success); }
+.acc-path { direction: rtl; text-align: left; }
+.acc-path bdi { direction: ltr; unicode-bidi: isolate; }
+.acc-who { color: var(--text-dim); }
+.acc-src { text-align: right; }
+.acc-src svg { width: 12px; height: 12px; }
+.acc-badge { font-size: 10px; padding: 1px 6px; border-radius: 8px; background: rgba(245, 158, 11, 0.15); color: var(--accent); }
+@media (max-width: 700px) {
+  .acc-rule { grid-template-columns: minmax(0, 1fr) auto; }
+  .acc-path, .acc-who { grid-column: 1 / -1; white-space: normal; word-break: break-all; }
+  .acc-src { grid-column: 2; grid-row: 1; }
+}
+
+/* ==========================================================================
    Activity log (#193)
    ========================================================================== */
 .act-filters {
