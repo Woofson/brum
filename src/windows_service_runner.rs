@@ -81,20 +81,13 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
         let mut config = crate::config::ConfigManager::load_all();
         config.server.standalone = false;
         let _log_guard = crate::logging::init_logging(&config.logging);
-        tracing::info!("{}", crate::config::ConfigManager::loaded_from_message());
-
-        info!(
-            "Starting Brum Windows Service (v{} build #{}, commit: {}, target: {})...",
-            env!("CARGO_PKG_VERSION"),
-            env!("BRUM_BUILD_NUMBER"),
-            env!("BRUM_BUILD_COMMIT"),
-            env!("BRUM_BUILD_TARGET")
-        );
+        crate::logging::log_start("Brum Windows Service");
 
         if let Err(e) = config.check_login_off_is_safe().and_then(|_| config.check_signing_secret()) {
             error!("{}", e);
             return;
         }
+        crate::logging::log_fleet_hint(&config);
 
         let auth_mgr = match crate::auth::AuthManager::new(
             &config.server.database_path,
@@ -181,7 +174,7 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             }
         };
 
-        info!("Brum Windows Service web server listening on http://{}", addr);
+        crate::logging::log_running(addr);
 
         let (async_stop_tx, async_stop_rx) = tokio::sync::oneshot::channel::<()>();
 

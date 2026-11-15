@@ -87,7 +87,7 @@ brum.exe --uninstall-service
 * On the very first start, Brum makes up a random password. It is shown once in the console window (a background service has none) and saved to a note next to the database:
   `C:\ProgramData\Brum\initial_admin_credentials.txt`
 * While that note exists, the login page shows where it is. The page never shows the password itself.
-* The note stays until the `admin` password is changed in **Settings -> Security**. Logging in, including with a Windows administrator account, does not remove it.
+* The note stays until the `admin` password is changed (avatar menu → **User Profile & Account Settings**). Logging in, including with a Windows administrator account, does not remove it.
 * While the note exists, each start also writes its location to the log.
 
 ### Setting your own password in config.toml

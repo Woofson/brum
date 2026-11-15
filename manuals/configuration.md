@@ -278,7 +278,7 @@ Passwords and tokens Brum has to use again (bookmark and shared-mount logins, SF
 `default_admin_pass` in `config.toml` operates under specific security rules:
 
 1. **One-Time Database Seeding Only**:
-   The `default_admin_pass` setting is evaluated **only** on the very first startup when the SQLite database (`brum.db`) contains zero users. Once seeded, user credentials are stored as Argon2 hashes in the database. Editing `default_admin_pass` in `config.toml` afterwards has **no effect** on existing accounts. Passwords must be updated via the UI (**Settings -> Security**) or by modifying the database.
+   The `default_admin_pass` setting is evaluated **only** on the very first startup when the SQLite database (`brum.db`) contains zero users. Once seeded, user credentials are stored as Argon2 hashes in the database. Editing `default_admin_pass` in `config.toml` afterwards has **no effect** on existing accounts. Passwords are changed in Brum (avatar menu → **User Profile & Account Settings**), or the built-in admin gets a new one with `brum reset-admin-password`.
 2. **Insecure Default Guard (`"brum"` vs Custom Password)**:
    * **If left as `"brum"` (or blank)**: Brum deliberately rejects `"brum"` as an insecure default and generates a cryptographically random 20-character password on startup. It prints the credentials to stdout (so `docker logs` shows them) and writes them to `initial_admin_credentials.txt` in the same folder as the database (`brum.db`). The password is never written to the log files. The note stays until the `admin` password is changed. Logging in with `admin` / `brum` will fail.
    * **If set to a custom password before first boot**: The configured custom password is used verbatim for the initial account.

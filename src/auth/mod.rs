@@ -585,8 +585,6 @@ impl AuthManager {
                 let removed = conn.execute("DELETE FROM security_settings WHERE key = 'jwt_secret'", []).unwrap_or(0);
                 if removed > 0 {
                     tracing::warn!("Login signing now uses brum-secrets.key; everyone signs in again once.");
-                } else {
-                    info!("No cluster secret configured (BRUM_JWT_SECRET, BRUM_JWT_SECRET_FILE, jwt_secret or jwt_secret_file); signing logins with a node-local secret from brum-secrets.key.");
                 }
                 derived
             } else {
@@ -654,21 +652,28 @@ impl AuthManager {
             auth.create_user(default_admin_user, &effective_admin_pass, "admin", &def_home, Some("[\"*\"]"))?;
 
             if is_generated_pass {
+                // The password goes to the screen and the one-time note only, never into the log files
+                let note = crate::logging::credentials_note_dir(db_path)
+                    .and_then(|dir| crate::logging::write_initial_admin_credentials(&dir, default_admin_user, &effective_admin_pass).ok())
+                    .map(|p| std::fs::canonicalize(&p).unwrap_or(p));
                 println!("\n================================================================================");
-                println!(" 🛡️  INITIAL ADMINISTRATIVE CREDENTIALS GENERATED");
+                println!(" 🛡️  FIRST ADMIN LOGIN");
                 println!("    Username : {}", default_admin_user);
                 println!("    Password : {}", effective_admin_pass);
-                println!("    Please change this password after login via Settings -> Security.");
-                println!("================================================================================\n");
-                // The password goes to the screen and the one-time note only, never into the log files
-                if let Some(note_dir) = crate::logging::credentials_note_dir(db_path) {
-                    if let Ok(cred_path) = crate::logging::write_initial_admin_credentials(&note_dir, default_admin_user, &effective_admin_pass) {
-                        info!("Initial administrative credentials written to: '{}'", cred_path.display());
-                    }
+                if let Some(p) = &note {
+                    println!("    Saved in : {}", p.display());
                 }
-                info!("Initial administrative user '{}' created with a generated password", default_admin_user);
+                println!("    Change it after signing in: avatar menu → User Profile & Account Settings.");
+                if note.is_some() {
+                    println!("    The file is removed once you do.");
+                }
+                println!("================================================================================\n");
+                match &note {
+                    Some(p) => info!("Created the first admin login '{}'. Its password is in: {}", default_admin_user, p.display()),
+                    None => info!("Created the first admin login '{}'; its password is shown above", default_admin_user),
+                }
             } else {
-                info!("Initial administrative user '{}' created.", default_admin_user);
+                info!("Created the first admin login '{}' with default_admin_pass from config.toml", default_admin_user);
             }
         } else {
             auth.log_first_login_reminders(default_admin_user, default_admin_pass);
@@ -681,7 +686,11 @@ impl AuthManager {
     /// the config.toml admin password no longer matches (it only applies on first start).
     fn log_first_login_reminders(&self, admin_user: &str, config_pass: &str) {
         if let Some(note) = first_login_note_path(&self.db_path) {
-            info!("The first admin password for '{}' is still in: '{}' (it is removed once that password is changed)", admin_user, note.display());
+            info!(
+                "The first admin password for '{}' is still in: {} (removed once you change it in User Profile & Account Settings)",
+                admin_user,
+                std::fs::canonicalize(&note).unwrap_or(note.clone()).display()
+            );
         }
         if config_pass.trim().is_empty() || config_pass == "brum" {
             return;

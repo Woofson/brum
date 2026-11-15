@@ -89,13 +89,17 @@ pub fn init_logging(config: &LoggingConfig) -> Option<WorkerGuard> {
         .with(file_layer)
         .try_init();
 
-    if config.file_enabled || config.console_enabled {
-        info!(
-            "Brum logging initialized. Filter: {}, Log directory: '{}'",
-            active_filter_desc,
-            config.resolve_log_directory().display()
-        );
-    }
+    let _ = active_filter_desc;
+    let level = match std::env::var("RUST_LOG") {
+        Ok(val) if !val.trim().is_empty() => format!("from RUST_LOG: {}", val.trim()),
+        _ => config.level.clone(),
+    };
+    let summary = if config.file_enabled {
+        format!("Logs: {} (level: {})", config.resolve_log_directory().display(), level)
+    } else {
+        format!("Logs: on screen only (level: {})", level)
+    };
+    let _ = LOG_SUMMARY.set(summary);
 
     guard
 }
@@ -142,6 +146,47 @@ pub fn cleanup_old_logs(log_dir: &Path, max_files: usize) {
 /// Writes initial dynamic administrative credentials to a dedicated credentials discovery file.
 /// This allows headless service administrators (Windows Service, Docker, systemd) to discover the
 /// one-time generated password without needing interactive terminal access.
+/// The first start-up lines: the version, then where the settings and logs are
+pub fn log_start(what: &str) {
+    info!(
+        "{} v{} (build #{}, {}, {})",
+        what,
+        env!("CARGO_PKG_VERSION"),
+        env!("BRUM_BUILD_NUMBER"),
+        env!("BRUM_BUILD_COMMIT"),
+        env!("BRUM_BUILD_TARGET")
+    );
+    info!("Settings: {} · {}", crate::config::ConfigManager::settings_location(), log_summary());
+}
+
+/// Where to open Brum once it listens (0.0.0.0 is not an address anyone can open)
+pub fn log_running(addr: std::net::SocketAddr) {
+    let port = addr.port();
+    if addr.ip().is_unspecified() {
+        let host = crate::server::system_handlers::get_system_hostname();
+        info!("Brum is running: open http://localhost:{} (from other devices: http://{}:{})", port, host, port);
+    } else if addr.ip().is_loopback() {
+        info!("Brum is running: open http://localhost:{} (this machine only)", port);
+    } else {
+        info!("Brum is running: open http://{}", addr);
+    }
+}
+
+/// Fleet machines are set up, but nothing lets them sign you in to each other
+pub fn log_fleet_hint(config: &crate::config::AppConfig) {
+    let needs_secret = config.fleet.nodes.iter().any(|n| n.token.as_deref().unwrap_or("").trim().is_empty());
+    if needs_secret && config.server.jwt_secret_source.is_empty() {
+        info!("Fleet: machines can't sign you in to each other without a shared secret. See the Configuration manual, \"Shared Cluster Secret\".");
+    }
+}
+
+/// Where the logs go and how detailed they are, in one line for the start-up messages
+static LOG_SUMMARY: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+pub fn log_summary() -> String {
+    LOG_SUMMARY.get().cloned().unwrap_or_else(|| "Logs: off".to_string())
+}
+
 pub fn write_initial_admin_credentials(
     log_dir: &Path,
     username: &str,
@@ -159,9 +204,9 @@ pub fn write_initial_admin_credentials(
          Username  : {}\n\
          Password  : {}\n\n\
          SECURITY NOTICE:\n\
-         - Please log in and change this password immediately via Settings -> Security.\n\
+         - Sign in and change this password: avatar menu -> User Profile & Account Settings.\n\
          - Alternatively, log in with any local Windows / Linux Administrator account.\n\
-         - Delete or restrict this file once credentials have been saved.\n\
+         - Brum removes this file once the password has been changed.\n\
         ================================================================================\n",
         now, username, password
     );

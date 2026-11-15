@@ -52,7 +52,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 
     let mut config = ConfigManager::load_all();
     let _log_guard = crate::logging::init_logging(&config.logging);
-    info!("{}", ConfigManager::loaded_from_message());
 
     println!(r#"
 ▄▄▄▄· ▄▄▄  ▄• ▄▌• ▌ ▄ ·. 
@@ -177,7 +176,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                         if let Some(note) = auth::first_login_note_path(&config.server.database_path) {
                             println!("Also saved in: {}", note.display());
                         }
-                        println!("Change it after logging in via Settings -> Security.");
+                        println!("Change it after signing in: avatar menu -> User Profile & Account Settings.");
                     }
                     Err(e) => eprintln!("Could not reset the admin password: {}", e),
                 }
@@ -288,19 +287,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         }
     }
 
-    info!(
-        "Starting Brum v{} (build #{}, commit: {}, target: {})...",
-        env!("CARGO_PKG_VERSION"),
-        env!("BRUM_BUILD_NUMBER"),
-        env!("BRUM_BUILD_COMMIT"),
-        env!("BRUM_BUILD_TARGET")
-    );
+    crate::logging::log_start("Brum");
 
     if let Err(e) = config.check_login_off_is_safe().and_then(|_| config.check_signing_secret()) {
         eprintln!("{}", e);
         tracing::error!("{}", e);
         std::process::exit(1);
     }
+    crate::logging::log_fleet_hint(&config);
 
     let auth_mgr = AuthManager::new(
         &config.server.database_path,
@@ -396,15 +390,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let bound_port = bound_addr.port();
     config.server.port = bound_port;
 
-    info!("Brum Web Server listening on http://{}", bound_addr);
-    if config.server.standalone || !config.server.enable_auth {
-        let current_user = crate::instance::get_current_os_username();
-        info!("MODE: Standalone Desktop Mode (Running with local credentials for '{}')", current_user);
-    } else {
-        info!("Default Admin User: '{}' (Change password in settings)", config.auth.default_admin_user);
+    crate::logging::log_running(bound_addr);
+    if config.server.standalone {
+        info!("Desktop mode: you are signed in as '{}' automatically", crate::instance::get_current_os_username());
+    } else if !config.server.enable_auth {
+        info!("Login is off: everyone who opens Brum works as '{}'", crate::instance::get_current_os_username());
     }
-    info!("Default Theme: '{}'", config.themes.default_theme);
-    info!("Paranoid File Verification: {}", if config.paranoid.enabled { "ENABLED" } else { "DISABLED" });
 
     let open_url = if let Some(ref inst) = instance_info {
         let _ = crate::instance::register_user_instance(bound_port, &inst.instance_token);

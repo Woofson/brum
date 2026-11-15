@@ -61,7 +61,8 @@ fn load_or_create(db_path: &str) -> Option<[u8; 32]> {
         warn!("Could not create {}: {e}. Stored passwords stay readable.", path.display());
         return None;
     }
-    info!("Created {} to encrypt stored passwords. Keep it with the database, but out of shared backups of the database alone.", path.display());
+    info!("Created {} next to the database. It locks the passwords Brum saves.", std::fs::canonicalize(&path).unwrap_or(path.clone()).display());
+    info!("Back it up together with the database; without it, saved passwords must be entered again.");
     Some(k)
 }
 

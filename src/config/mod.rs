@@ -2030,10 +2030,11 @@ impl ConfigManager {
 
     /// One log line saying which config file is in use. Config is read before logging starts,
     /// so start-up writes this once logging is on.
-    pub fn loaded_from_message() -> String {
+    /// The settings file in use, for the start-up messages
+    pub fn settings_location() -> String {
         match LOADED_FROM.lock().ok().and_then(|l| l.clone()) {
-            Some(p) => format!("Configuration file: {}", p.display()),
-            None => "No configuration file found; using built-in defaults".to_string(),
+            Some(p) => std::fs::canonicalize(&p).unwrap_or(p).display().to_string(),
+            None => "built-in defaults (no config.toml found)".to_string(),
         }
     }
 

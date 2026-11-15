@@ -1818,7 +1818,7 @@ impl BackupManager {
     /// Checks every 15 seconds which backups are due; one run per backup at a time
     pub fn start_scheduler(self: Arc<Self>, task_manager: Arc<TaskManager>) {
         tokio::spawn(async move {
-            info!("Backup & Sync scheduler started");
+            tracing::debug!("Backup & Sync scheduler started");
             let mut tick = tokio::time::interval(Duration::from_secs(15));
             let mut last_prune = Instant::now() - Duration::from_secs(3600);
             loop {
