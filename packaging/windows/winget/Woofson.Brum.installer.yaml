@@ -13,14 +13,14 @@ ProductCode: '{D37F8A1B-824E-4B02-990C-5B6A84F819FA}_is1'
 Installers:
   - Architecture: x64
     Scope: user
-    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.22.0/Brum-Setup-v1.22.0.exe
-    InstallerSha256: 30137EE29D1DC46CC36D95D51AE2D4284E4D4ABB163FAAC2FC3147E99CF02786
+    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.23.0/Brum-Setup-v1.23.0.exe
+    InstallerSha256: D7DB17E9391E376797F6D7BF8034031B4369291B418F6D428024BC9465D67484
     InstallerSwitches:
       Custom: /CURRENTUSER
   - Architecture: x64
     Scope: machine
-    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.22.0/Brum-Setup-v1.22.0.exe
-    InstallerSha256: 30137EE29D1DC46CC36D95D51AE2D4284E4D4ABB163FAAC2FC3147E99CF02786
+    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.23.0/Brum-Setup-v1.23.0.exe
+    InstallerSha256: D7DB17E9391E376797F6D7BF8034031B4369291B418F6D428024BC9465D67484
     InstallerSwitches:
       Custom: /ALLUSERS
 ManifestType: installer
