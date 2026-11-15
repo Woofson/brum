@@ -17,4 +17,5 @@ pub mod duplicates;
 pub mod metadata;
 pub mod logviewer;
 pub mod trash;
+pub mod transfer;
 pub mod usb;

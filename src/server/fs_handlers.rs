@@ -1036,7 +1036,7 @@ fn can_see_task(claims: &crate::auth::Claims, task: &TaskInfo) -> bool {
 }
 
 /// The task, if this user may see and control it. Other users' tasks look like missing ones.
-async fn owned_task(state: &AppState, headers: &HeaderMap, id: &str) -> Result<TaskInfo, (StatusCode, String)> {
+pub(crate) async fn owned_task(state: &AppState, headers: &HeaderMap, id: &str) -> Result<TaskInfo, (StatusCode, String)> {
     let claims = extract_claims_or_local(state, headers)?;
     state.tasks.get_task(id).await
         .filter(|task| can_see_task(&claims, task))

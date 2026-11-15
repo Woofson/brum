@@ -33,6 +33,9 @@ pub struct TaskInfo {
     /// Brum user who started the task; tasks without one (scheduled, system) are for admins only
     #[serde(default)]
     pub owner: Option<String>,
+    /// A copy between Fleet machines whose failed files can be copied again (Retry)
+    #[serde(default)]
+    pub retryable: bool,
 }
 
 #[derive(Clone)]
@@ -115,12 +118,46 @@ impl TaskManager {
             verified_files: 0,
             last_hash: None,
             owner: None,
+            retryable: false,
         };
 
         if let Ok(mut map) = self.tasks.write() {
             map.insert(id.clone(), task);
         }
         id
+    }
+
+    /// Changes a task in place (for long-running jobs on their own thread)
+    pub fn sync_edit(&self, id: &str, f: impl FnOnce(&mut TaskInfo)) {
+        if let Ok(mut map) = self.tasks.write() {
+            if let Some(task) = map.get_mut(id) {
+                f(task);
+            }
+        }
+    }
+
+    pub fn sync_get(&self, id: &str) -> Option<TaskInfo> {
+        self.tasks.read().ok()?.get(id).cloned()
+    }
+
+    /// Adds a line to a task's log from a job's own thread
+    pub fn sync_log(&self, id: &str, msg: &str) {
+        self.sync_edit(id, |task| {
+            if task.log_entries.len() > 200 {
+                task.log_entries.remove(0);
+            }
+            task.log_entries.push(format!("[{}] {}", Utc::now().format("%H:%M:%S"), sanitize_credentials(msg)));
+        });
+    }
+
+    /// Runs a finished task again (Retry): running, no end time or error
+    pub fn sync_restart(&self, id: &str) {
+        self.sync_edit(id, |task| {
+            task.status = "running".to_string();
+            task.finished_at = None;
+            task.error_message = None;
+            task.speed_bytes_per_sec = 0;
+        });
     }
 
     pub fn set_owner(&self, id: &str, owner: &str) {

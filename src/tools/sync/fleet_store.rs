@@ -46,6 +46,29 @@ impl FleetStore {
         })
     }
 
+    /// A folder on a Fleet machine given as it is written there (`/srv/x` or `C:\\Users\\x`),
+    /// for copies between machines
+    pub fn with_root(endpoint: &str, token: Option<&str>, root: &str, label: &str) -> Result<Self, String> {
+        let endpoint = endpoint.trim().trim_end_matches('/').to_string();
+        if !(endpoint.starts_with("http://") || endpoint.starts_with("https://")) {
+            return Err(format!("The address of Fleet machine '{label}' is unknown"));
+        }
+        let mut root = root.trim().to_string();
+        while root.len() > 1 && (root.ends_with('/') || root.ends_with('\\')) && !root.ends_with(":\\") && !root.ends_with(":/") {
+            root.pop();
+        }
+        if root.is_empty() {
+            return Err("No folder chosen".into());
+        }
+        Ok(Self {
+            endpoint,
+            token: token.map(str::trim).filter(|t| !t.is_empty()).map(String::from),
+            root,
+            label: label.to_string(),
+            client: std::sync::OnceLock::new(),
+        })
+    }
+
     fn client(&self) -> &reqwest::blocking::Client {
         self.client.get_or_init(|| reqwest::blocking::Client::builder().timeout(None).connect_timeout(Duration::from_secs(10)).build().expect("HTTP client"))
     }
@@ -54,7 +77,7 @@ impl FleetStore {
         let rel = rel.trim_matches('/');
         match (self.root.as_str(), rel) {
             (r, "") => r.to_string(),
-            ("/", r) => format!("/{r}"),
+            (root, r) if root.ends_with('/') || root.ends_with('\\') => format!("{root}{r}"),
             (root, r) => format!("{root}/{r}"),
         }
     }
@@ -111,6 +134,113 @@ impl FleetStore {
                     .collect()
             })
             .unwrap_or_default()
+    }
+}
+
+/// Files (with size and time) and folders below a folder
+pub type Tree = (Vec<(String, FileMeta)>, Vec<String>);
+
+/// What copies between Fleet machines (#190) need beyond backups: continuing a file, checking it
+/// on the machine that holds it, and folders as well as files
+impl FleetStore {
+    /// Whether the machine understands copy jobs (Brum 1.23 or newer)
+    pub fn supports_transfers(&self) -> Result<bool, String> {
+        let resp = self.client().get(format!("{}/api/transfer/info", self.endpoint)).timeout(Duration::from_secs(8));
+        let resp = match &self.token {
+            Some(t) => resp.bearer_auth(t),
+            None => resp,
+        }
+        .send()
+        .map_err(|e| format!("Cannot reach the Fleet machine: {e}"))?;
+        match resp.status().as_u16() {
+            200 => Ok(resp.json::<Value>().ok().and_then(|v| v.get("protocol").and_then(|p| p.as_u64())).unwrap_or(0) >= 1),
+            401 | 403 => Err("The Fleet machine refused the login. Check the node's token.".into()),
+            _ => Ok(false),
+        }
+    }
+
+    /// Size of a file, or None when it is missing or a folder
+    pub fn file_size(&self, rel: &str) -> Option<u64> {
+        self.stat(rel).map(|m| m.size)
+    }
+
+    /// Every file and folder below `base`: (files with size and time, folders), relative to `base`
+    pub fn tree(&self, base: &str) -> Result<Tree, String> {
+        let v = self.get_json("list", &[("path", &self.path(base)), ("recursive", "1"), ("dirs", "1")])?;
+        let (mut files, mut dirs) = (Vec::new(), Vec::new());
+        for (rel, is_dir, m) in Self::entries(&v) {
+            if is_dir {
+                dirs.push(rel);
+            } else {
+                files.push((rel, m));
+            }
+        }
+        Ok((files, dirs))
+    }
+
+    pub fn make_dir(&self, rel: &str) -> Result<(), String> {
+        self.op(json!({ "op": "mkdir", "path": self.path(rel) }))
+    }
+
+    /// Reads a file from `offset` on
+    pub fn read_from(&self, rel: &str, offset: u64) -> Result<Box<dyn Read + Send>, String> {
+        let off = offset.to_string();
+        let resp = self.req(reqwest::Method::GET, "read").query(&[("path", self.path(rel).as_str()), ("offset", off.as_str())]).send().map_err(|e| format!("Cannot reach the Fleet machine: {e}"))?;
+        Ok(Box::new(Served(Self::check(resp)?)))
+    }
+
+    /// SHA-256 of a file, worked out on the machine that holds it
+    pub fn sha256(&self, rel: &str) -> Result<String, String> {
+        let v = self.get_json("hash", &[("path", &self.path(rel))])?;
+        v.get("sha256").and_then(|h| h.as_str()).map(String::from).ok_or_else(|| "The Fleet machine sent no checksum".to_string())
+    }
+
+    /// Writes `data` into the temporary file `part` (a path relative to the root), from `offset`
+    /// on (0 starts it afresh), and returns the whole part's SHA-256 when `hash` is set. A broken
+    /// connection keeps what arrived, so a retry can continue; Stop (`on_bytes` returning false)
+    /// leaves the part for the caller to remove.
+    pub fn write_part_at(&self, part: &str, data: &mut dyn Read, mtime: i64, offset: u64, hash: bool, on_bytes: &mut dyn FnMut(u64) -> bool) -> Result<Option<String>, String> {
+        let (tx, rx) = mpsc::sync_channel::<Vec<u8>>(4);
+        let mtime_s = mtime.to_string();
+        let off = offset.to_string();
+        let part_path = self.path(part);
+        std::thread::scope(|scope| {
+            let upload = scope.spawn(|| {
+                let body = reqwest::blocking::Body::new(ChannelReader { rx, buf: Vec::new(), pos: 0 });
+                self.req(reqwest::Method::PUT, "write")
+                    .query(&[("path", part_path.as_str()), ("mtime", mtime_s.as_str()), ("offset", off.as_str()), ("keep", "1"), ("hash", if hash { "1" } else { "0" })])
+                    .body(body)
+                    .send()
+            });
+            let fed = (|| -> Result<(), String> {
+                let mut written = offset;
+                loop {
+                    let mut buf = vec![0u8; 1024 * 1024];
+                    let n = data.read(&mut buf).map_err(|e| format!("Read failed: {e}"))?;
+                    if n == 0 {
+                        return Ok(());
+                    }
+                    buf.truncate(n);
+                    written += n as u64;
+                    if tx.send(buf).is_err() {
+                        return Err("The upload stopped".into());
+                    }
+                    if !on_bytes(written) {
+                        return Err("Cancelled".into());
+                    }
+                }
+            })();
+            drop(tx);
+            let sent = upload.join().map_err(|_| "The upload stopped unexpectedly".to_string());
+            match (fed, sent) {
+                (Err(e), _) | (Ok(()), Err(e)) => Err(e),
+                (Ok(()), Ok(Err(e))) => Err(format!("Cannot reach the Fleet machine: {e}")),
+                (Ok(()), Ok(Ok(resp))) => {
+                    let v: Value = Self::check(resp)?.json().unwrap_or(Value::Null);
+                    Ok(v.get("sha256").and_then(|h| h.as_str()).map(String::from))
+                }
+            }
+        })
     }
 }
 

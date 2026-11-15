@@ -37,4 +37,4 @@ Brum unpacks a compressed image once, with progress and a cancel button in **Tas
 
 * **In-Memory Volatile Credentials**: Passwords, private keys, and API tokens are never saved into browser `localStorage`, session history, search bars, or DOM attributes.
 * **Global Mounts**: Administrators can configure global shares in the Admin Panel and assign access permissions to specific users. Assigned shares automatically populate in the user's **Favorites / Bookmarks** menu.
-* **Streamed Cross-Node Pipelines**: Transfers between two remote nodes stream directly through memory pipes without storing intermediate temporary files on the host disk.
+* **Copies Between Machines**: Copies and moves between Fleet machines run on the servers, straight from machine to machine where possible, checked with SHA-256 and resumable; see the Configuration manual, "Copying and Moving Between Machines".

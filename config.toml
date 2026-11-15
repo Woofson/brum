@@ -151,6 +151,7 @@ host_key_checking = "tofu"          # Host key verification policy: "tofu" (Trus
 # ==============================================================================
 [fleet]
 enabled = true                      # Enable multi-node fleet gateway and node switcher
+transfer_jobs = 2                   # Copies between Fleet machines (F5/F6) running at the same time; others wait their turn
 
 # Example 1: Homelab NAS running over Tailscale mesh overlay network
 # [[fleet.nodes]]

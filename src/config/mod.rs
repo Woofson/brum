@@ -1327,6 +1327,13 @@ pub struct FleetConfig {
     pub enabled: bool,
     #[serde(default)]
     pub nodes: Vec<FleetNodeConfig>,
+    /// How many copies between Fleet machines run at the same time; the others wait their turn
+    #[serde(default = "default_transfer_jobs")]
+    pub transfer_jobs: usize,
+}
+
+fn default_transfer_jobs() -> usize {
+    2
 }
 
 impl Default for FleetConfig {
@@ -1334,6 +1341,7 @@ impl Default for FleetConfig {
         Self {
             enabled: true,
             nodes: Vec::new(),
+            transfer_jobs: default_transfer_jobs(),
         }
     }
 }

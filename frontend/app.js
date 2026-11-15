@@ -198,7 +198,7 @@ const BRUM_ACTIONS = new Set([
   'openSettingsTab', 'openShareLogs', 'openSharesManager', 'openSplitterFilePicker',
   'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal', 'openSyncthingModal',
   'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath', 'openUserProfileModal',
-  'pauseAllTasks', 'pauseTask', 'pingAllFleetNodes', 'pingFleetNode', 'playMediaPlaylistItem',
+  'pauseAllTasks', 'pauseTask', 'retryTask', 'pingAllFleetNodes', 'pingFleetNode', 'playMediaPlaylistItem',
   'pollTasks', 'populateMediaPlaylistFromActivePane', 'printDocViewer', 'promptAddNoteTag',
   'promptChangeNoteCategory', 'promptChangeNoteSection', 'promptChangeNotesFolder',
   'promptCreateNote', 'promptCreateNotebookOrCategory', 'promptCreateSection',
@@ -11421,7 +11421,104 @@ async function trackTransferTask(taskId, action, sources, destination, onComplet
   setTimeout(check, 20);
 }
 
-async function executeCrossNodeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx) {
+/**
+ * Copies or moves between two Fleet machines (#190). The Brum this page is connected to runs
+ * the job, so the files go from machine to machine (never through the browser), are checked,
+ * and keep going after the tab is closed. The old copy through the browser is used only for
+ * machines with an older Brum, places like SFTP inside a pane, or when this Brum cannot reach
+ * one of the machines.
+ */
+async function executeCrossNodeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode, decisions) {
+  const srcIdx = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx]) ? sourcePaneIdx : App.activePaneIndex;
+  const destIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx]) ? refreshTargetPaneIdx : (srcIdx + 1) % getVisiblePaneCount();
+  const started = await startServerTransfer(action, sources, destination, srcIdx, destIdx, conflictMode, decisions);
+  if (started) return;
+  return executeBrowserCrossNodeTransfer(action, sources, destination, destIdx, srcIdx);
+}
+
+/** One side of a server copy job: this Brum, or a Fleet machine with its address and login */
+function transferSide(paneIdx, folder) {
+  const node = getPaneNode(paneIdx);
+  if (!node || node.id === 'local') return { node: 'local', folder };
+  const side = { node: node.id, folder, url: (node.endpoint_url || '').trim().replace(/\/+$/, '') };
+  if (node.auth_token && node.auth_token.trim()) side.token = node.auth_token.trim();
+  return side;
+}
+
+/** Starts a server copy job; false when the old browser copy should be used instead */
+async function startServerTransfer(action, sources, destination, srcIdx, destIdx, conflictMode, decisions) {
+  const srcPane = App.panes[srcIdx];
+  if (!srcPane || !sources || sources.length === 0) return true;
+  const strSources = sources.filter(s => typeof s === 'string');
+  if (strSources.length !== sources.length) return false;
+  if (typeof destination !== 'string' || destination.includes('://') || strSources.some(s => s.includes('://'))) return false;
+
+  // Every chosen item must sit in one folder (the source pane's)
+  const parentOf = (p) => {
+    const trimmed = p.replace(/[\\/]+$/, '');
+    const cut = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+    if (cut < 0) return '';
+    const parent = trimmed.substring(0, cut);
+    return parent === '' ? '/' : (/^[A-Za-z]:$/.test(parent) ? parent + '\\' : parent);
+  };
+  const folder = parentOf(strSources[0]);
+  if (!folder || strSources.some(s => parentOf(s) !== folder)) return false;
+
+  const items = strSources.map(s => {
+    const name = getBasename(s.replace(/[\\/]+$/, ''));
+    const decision = decisions ? decisions[name.toLowerCase()] : null;
+    const conflict = decision ? (decision === 'rename' ? 'rename' : 'overwrite') : (conflictMode === 'rename' ? 'rename' : 'overwrite');
+    return { name, conflict };
+  });
+
+  const srcNode = getPaneNode(srcIdx);
+  const destNode = getPaneNode(destIdx);
+  const verb = action === 'move' ? 'Move' : 'Copy';
+  let resp;
+  try {
+    resp = await fetch('/api/transfer/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: action === 'move' ? 'move' : 'copy',
+        verify: App.paranoidMode !== false,
+        source: { ...transferSide(srcIdx, folder), items },
+        dest: transferSide(destIdx, destination)
+      })
+    });
+  } catch (_) {
+    return false;
+  }
+
+  if (resp.ok) {
+    const data = await resp.json().catch(() => ({}));
+    const how = data.mode === 'relay' ? ` (through this Brum: ${destNode.name} cannot reach ${srcNode.name} directly)` : '';
+    showToast(`${verb} started: ${srcNode.name} ➔ ${destNode.name}${how}. It keeps going if you close this tab.`, 'info');
+    if (action === 'move' && srcPane.selected) srcPane.selected.clear();
+    if (App.autoOpenTasks && !App.taskManagerVisible) openFloatingTaskManager();
+    requestTasksFastBurst(6000);
+    if (typeof pollTasks === 'function') pollTasks();
+    return true;
+  }
+
+  const text = await resp.text().catch(() => '');
+  let info = {};
+  try { info = JSON.parse(text); } catch (_) {}
+  if (resp.status === 409 && info.fallback) {
+    showToast(`${info.reason}. Copying through the browser this time; keep this tab open until it finishes.`, 'warning');
+    return false;
+  }
+  if (resp.status === 502 || resp.status === 404) {
+    // This Brum cannot reach one of the machines (or is older itself): the browser may still
+    showToast(`This Brum cannot run the copy (${text || resp.status}). Copying through the browser; keep this tab open.`, 'warning');
+    return false;
+  }
+  showToast(`${verb} not started: ${info.error || text || resp.status}`, 'error');
+  return true;
+}
+
+/** The old copy through the browser, kept for machines with an older Brum */
+async function executeBrowserCrossNodeTransfer(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx) {
   const srcIdx = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx]) ? sourcePaneIdx : App.activePaneIndex;
   const destIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx]) ? refreshTargetPaneIdx : (srcIdx + 1) % getVisiblePaneCount();
 
@@ -11916,7 +12013,7 @@ async function executeTransferWithDecisions(batch) {
   }
 
   const conflictMode = hasRenames ? 'rename' : 'overwrite';
-  await executeTransferDirect(action, activeSources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode);
+  await executeTransferDirect(action, activeSources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode, decisions);
 }
 
 /**
@@ -12020,7 +12117,7 @@ async function executeUploadWithDecisions(batch) {
   }
 }
 
-async function executeTransferDirect(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode) {
+async function executeTransferDirect(action, sources, destination, refreshTargetPaneIdx, sourcePaneIdx, conflictMode, decisions) {
   if (!sources || sources.length === 0) return;
   const srcIdx = (typeof sourcePaneIdx === 'number' && App.panes[sourcePaneIdx]) ? sourcePaneIdx : App.activePaneIndex;
   const destIdx = (typeof refreshTargetPaneIdx === 'number' && App.panes[refreshTargetPaneIdx]) ? refreshTargetPaneIdx : (srcIdx + 1) % getVisiblePaneCount();
@@ -12035,7 +12132,7 @@ async function executeTransferDirect(action, sources, destination, refreshTarget
 
   // Cross-Node Transfer detected!
   if (srcNode.id !== destNode.id) {
-    return executeCrossNodeTransfer(action, sources, destination, destIdx, srcIdx);
+    return executeCrossNodeTransfer(action, sources, destination, destIdx, srcIdx, conflictMode, decisions);
   }
 
   // Zero-latency optimistic task dispatch for instant UI response (<1ms)
@@ -30446,7 +30543,7 @@ async function pollTasks() {
         if (t.status === 'completed' && !knownCompletedTasks.has(t.id)) {
           knownCompletedTasks.add(t.id);
           shouldRefreshAll = true;
-          if (t.destination) {
+          if (t.destination && typeof handleNewlyTransferredItem === 'function') {
             handleNewlyTransferredItem(t.destination, t.name);
           }
         }
@@ -31149,9 +31246,12 @@ function renderFloatingTaskManager(list) {
               ` : (isPaused ? `
                 <button class="btn btn-sm btn-icon" data-on-click="resumeTask" data-click-args="${actionArgs(`${t.id}`)}" title="Resume"><i data-lucide="play" style="width: 11px; height: 11px;"></i></button>
                 <button class="btn btn-sm btn-icon btn-danger" data-on-click="cancelTask" data-click-args="${actionArgs(`${t.id}`)}" title="Cancel"><i data-lucide="x" style="width: 11px; height: 11px;"></i></button>
+              ` : ((t.retryable && (t.status === 'failed' || t.status === 'cancelled')) ? `
+                <button class="btn btn-sm btn-icon" data-on-click="retryTask" data-click-args="${actionArgs(`${t.id}`)}" title="Retry: copy the files that did not make it; unfinished files continue where they stopped"><i data-lucide="rotate-ccw" style="width: 11px; height: 11px;"></i></button>
+                ${t.status === 'failed' ? `<button class="btn btn-sm btn-icon btn-danger" data-on-click="copyTextToClipboard" data-click-args="${actionArgs(safeErr, 'Fault message copied!')}" title="Copy Fault Message"><i data-lucide="copy" style="width: 11px; height: 11px;"></i></button>` : ''}
               ` : (t.status === 'failed' ? `
                 <button class="btn btn-sm btn-icon btn-danger" data-on-click="copyTextToClipboard" data-click-args="${actionArgs(safeErr, 'Fault message copied!')}" title="Copy Fault Message"><i data-lucide="copy" style="width: 11px; height: 11px;"></i></button>
-              ` : '✓'))}
+              ` : '✓')))}
             </div>
           </div>
         `;
@@ -31254,6 +31354,22 @@ async function cancelTask(id) {
       headers: headers
     });
   } catch (_) {}
+  pollTasks();
+}
+
+/** Copies again the files of a Fleet copy that failed or was stopped; unfinished files continue */
+async function retryTask(id) {
+  try {
+    const resp = await fetch(`/api/transfer/${encodeURIComponent(id)}/retry`, { method: 'POST' });
+    if (!resp.ok) {
+      showToast(`Retry not possible: ${await resp.text()}`, 'warning');
+    } else {
+      knownCompletedTasks.delete(id);
+      requestTasksFastBurst(6000);
+    }
+  } catch (err) {
+    showToast(`Retry failed: ${err.message || err}`, 'error');
+  }
   pollTasks();
 }
 
@@ -41063,7 +41179,9 @@ function renderDockedTasksForPane(paneIndex, list) {
               ` : (isPaused ? `
                 <button class="btn btn-xs btn-icon" data-on-click="resumeTask" data-click-args="${actionArgs(`${t.id}`)}" title="Resume"><i data-lucide="play" style="width: 10px; height: 10px;"></i></button>
                 <button class="btn btn-xs btn-icon btn-danger" data-on-click="cancelTask" data-click-args="${actionArgs(`${t.id}`)}" title="Cancel"><i data-lucide="x" style="width: 10px; height: 10px;"></i></button>
-              ` : '')}
+              ` : ((t.retryable && (t.status === 'failed' || t.status === 'cancelled')) ? `
+                <button class="btn btn-xs btn-icon" data-on-click="retryTask" data-click-args="${actionArgs(`${t.id}`)}" title="Retry: copy the files that did not make it"><i data-lucide="rotate-ccw" style="width: 10px; height: 10px;"></i></button>
+              ` : ''))}
             </div>
           </div>
         `;

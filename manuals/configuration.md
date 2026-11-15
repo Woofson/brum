@@ -118,6 +118,7 @@ host_key_checking = "tofu"       # "tofu" (Trust On First Use), "strict", "auto_
 # --- Multi-Node Fleet Management ---
 [fleet]
 enabled = true
+transfer_jobs = 2                # Copies between Fleet machines running at the same time; others wait their turn
 
 # [[fleet.nodes]]
 # id = "homelab-nas"
@@ -325,7 +326,18 @@ A machine that boots more than one system (for example Linux as `griffon` and Wi
 * **Older saved entries**: if you had one entry per hostname, both are merged into the one entry from `config.toml` the next time the page loads.
 * **Token**: one token (or the shared signing secret) for all addresses of the machine.
 
-### 4. Zero CORS Requirements on Gateway Proxy
+### 4. Copying and Moving Between Machines
+With the two panes on different Fleet machines, **F5** (copy) and **F6** (move) are done by the Brum servers, not by the browser:
+* **Direct**: when both panes show other machines, the receiving machine fetches the files straight from the sending one. If the two cannot reach each other (for example on different networks), the Brum you are connected to passes the files between them. The task list says which happened. Either way nothing goes through the browser.
+* **Keeps going**: the copy runs in the task list of the Brum you are connected to. Closing or reloading the tab does not stop it; open Brum again to see it.
+* **Pause, Resume, Stop, Retry**: from the task list. **Retry** copies again only the files that did not make it, and a large file that broke off continues where it stopped.
+* **Checked**: with **Security & Integrity Checks** on (the shield in the header, on by default), every file's SHA-256 is worked out on each machine and compared before the copy replaces anything. Each file is written to a temporary `.name.brum-part` file first, so a broken copy never overwrites a good file. A move removes the original only after its copy is checked.
+* **Folders**: whole folders are copied, empty ones included. A same-named item at the target is replaced, or kept with a new name such as `photo (1).jpg` when you choose Keep both.
+* **How many at once**: `transfer_jobs` under `[fleet]` (default `2`). Further copies wait their turn.
+* **Logins**: each machine uses its usual Fleet login (its `token`, or the shared signing secret). For a direct copy, the receiving machine is given the login for the sending machine for that copy. Read-only machines (`read_only = true`) are never written to.
+* **Older machines**: a machine still on Brum 1.22 or older does not understand these copy jobs. Brum then says so and copies through the browser as before; keep the tab open until it finishes. The same happens for places such as SFTP or Samba opened inside a pane.
+
+### 5. Zero CORS Requirements on Gateway Proxy
 When routed through the Fleet Gateway Hub (`/api/fleet/proxy/:node_id`), all communication is proxied server-to-server. Remote nodes **do not** require the coordinator's domain in their `allowed_origins` whitelist.
 
 ---

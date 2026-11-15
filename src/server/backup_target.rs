@@ -53,6 +53,7 @@ pub async fn handle_backup_target_list(
 ) -> Result<Json<serde_json::Value>, ApiError> {
     let path = checked(&state, &headers, param(&q, "path")?, false)?;
     let recursive = q.get("recursive").is_some_and(|v| v == "1" || v == "true");
+    let with_dirs = q.get("dirs").is_some_and(|v| v == "1" || v == "true");
     tokio::task::spawn_blocking(move || {
         if !path.is_dir() {
             return Ok(Json(serde_json::json!({ "exists": path.exists(), "entries": [], "warnings": [] })));
@@ -61,7 +62,16 @@ pub async fn handle_backup_target_list(
         if recursive {
             let mut warnings = Vec::new();
             let listing = store.list("", &|_, _| false, &AtomicBool::new(false), &mut warnings).map_err(bad)?;
-            let entries: Vec<_> = listing.iter().map(|(rel, m)| serde_json::json!({ "path": rel, "size": m.size, "mtime": m.mtime, "is_dir": false })).collect();
+            let mut entries: Vec<_> = listing.iter().map(|(rel, m)| serde_json::json!({ "path": rel, "size": m.size, "mtime": m.mtime, "is_dir": false })).collect();
+            if with_dirs {
+                // Folders too, so empty ones are copied as well (copies between Fleet machines)
+                for e in walkdir::WalkDir::new(&path).follow_links(false).into_iter().flatten().filter(|e| e.depth() > 0 && e.file_type().is_dir()) {
+                    if let Ok(rel) = e.path().strip_prefix(&path) {
+                        let rel: Vec<String> = rel.components().filter_map(|c| c.as_os_str().to_str().map(String::from)).collect();
+                        entries.push(serde_json::json!({ "path": rel.join("/"), "size": 0, "mtime": 0, "is_dir": true }));
+                    }
+                }
+            }
             Ok(Json(serde_json::json!({ "exists": true, "entries": entries, "warnings": warnings })))
         } else {
             let items = store.list_dir("").map_err(bad)?;
@@ -94,8 +104,15 @@ pub async fn handle_backup_target_read(
     Query(q): Query<HashMap<String, String>>,
 ) -> Result<Response, ApiError> {
     let path = checked(&state, &headers, param(&q, "path")?, false)?;
-    let file = tokio::fs::File::open(&path).await.map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
-    let len = file.metadata().await.map(|m| m.len()).unwrap_or(0);
+    let mut file = tokio::fs::File::open(&path).await.map_err(|e| (StatusCode::NOT_FOUND, e.to_string()))?;
+    let full = file.metadata().await.map(|m| m.len()).unwrap_or(0);
+    // `offset`: continue a copy that was interrupted
+    let offset: u64 = q.get("offset").and_then(|o| o.parse().ok()).unwrap_or(0).min(full);
+    if offset > 0 {
+        use tokio::io::AsyncSeekExt;
+        file.seek(std::io::SeekFrom::Start(offset)).await.map_err(bad)?;
+    }
+    let len = full - offset;
     Response::builder()
         .header(header::CONTENT_TYPE, "application/octet-stream")
         .header(header::CONTENT_LENGTH, len)
@@ -120,13 +137,54 @@ pub async fn handle_backup_target_write(
     if let Some(parent) = path.parent() {
         tokio::fs::create_dir_all(parent).await.map_err(bad)?;
     }
+    // `offset`: continue an interrupted copy; the part must hold exactly that much already
+    let offset: u64 = q.get("offset").and_then(|o| o.parse().ok()).unwrap_or(0);
+    // `keep=1`: a broken connection keeps what arrived, so the copy can continue later
+    let keep = q.get("keep").is_some_and(|v| v == "1");
+    if offset > 0 {
+        let have = tokio::fs::metadata(&path).await.map(|m| m.len()).unwrap_or(0);
+        if have != offset {
+            return Err((StatusCode::CONFLICT, format!("The unfinished copy holds {have} bytes, not {offset}")));
+        }
+    }
+    // `hash=1`: work out the whole file's SHA-256 while writing, so it need not be read again
+    let want_hash = q.get("hash").is_some_and(|v| v == "1");
+    let mut hasher = want_hash.then(<sha2::Sha256 as sha2::Digest>::new);
+    if let (Some(h), true) = (hasher.as_mut(), offset > 0) {
+        let prefix = path.clone();
+        let h2 = h.clone();
+        *h = tokio::task::spawn_blocking(move || -> Result<sha2::Sha256, String> {
+            use sha2::Digest;
+            use std::io::Read;
+            let mut h = h2;
+            let mut f = std::fs::File::open(&prefix).map_err(|e| e.to_string())?;
+            let mut buf = vec![0u8; 1024 * 1024];
+            loop {
+                let n = f.read(&mut buf).map_err(|e| e.to_string())?;
+                if n == 0 {
+                    return Ok(h);
+                }
+                h.update(&buf[..n]);
+            }
+        })
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .map_err(bad)?;
+    }
     let result: Result<u64, String> = async {
-        let mut file = tokio::fs::File::create(&path).await.map_err(|e| e.to_string())?;
+        let mut file = if offset > 0 {
+            tokio::fs::OpenOptions::new().append(true).open(&path).await.map_err(|e| e.to_string())?
+        } else {
+            tokio::fs::File::create(&path).await.map_err(|e| e.to_string())?
+        };
         let mut stream = body.into_data_stream();
         let mut written = 0u64;
         while let Some(chunk) = stream.next().await {
             let chunk = chunk.map_err(|e| format!("Transfer interrupted: {e}"))?;
             file.write_all(&chunk).await.map_err(|e| e.to_string())?;
+            if let Some(h) = hasher.as_mut() {
+                sha2::Digest::update(h, &chunk);
+            }
             written += chunk.len() as u64;
         }
         file.flush().await.map_err(|e| e.to_string())?;
@@ -136,12 +194,32 @@ pub async fn handle_backup_target_write(
     }
     .await;
     match result {
-        Ok(bytes) => Ok(Json(serde_json::json!({ "bytes": bytes }))),
+        Ok(bytes) => Ok(Json(match hasher {
+            Some(h) => serde_json::json!({ "bytes": bytes, "sha256": format!("{:x}", sha2::Digest::finalize(h)) }),
+            None => serde_json::json!({ "bytes": bytes }),
+        })),
         Err(e) => {
-            let _ = tokio::fs::remove_file(&path).await;
+            if !keep {
+                let _ = tokio::fs::remove_file(&path).await;
+            }
             Err(bad(e))
         }
     }
+}
+
+/// `path`: the file's SHA-256, worked out here so the file does not travel to be checked
+pub async fn handle_backup_target_hash(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Query(q): Query<HashMap<String, String>>,
+) -> Result<Json<serde_json::Value>, ApiError> {
+    let path = checked(&state, &headers, param(&q, "path")?, false)?;
+    tokio::task::spawn_blocking(move || -> Result<Json<serde_json::Value>, ApiError> {
+        let (hash, size) = crate::tools::transfer::sha256_file(&path).map_err(|e| (StatusCode::NOT_FOUND, e))?;
+        Ok(Json(serde_json::json!({ "sha256": hash, "size": size })))
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
 }
 
 #[derive(Deserialize)]
