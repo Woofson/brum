@@ -1452,7 +1452,10 @@ pub async fn handle_search(
     Json(mut payload): Json<crate::tools::search::SearchRequest>,
 ) -> Result<Json<Vec<crate::tools::search::SearchResultItem>>, (StatusCode, String)> {
     payload.path = validate_path_access(&state, &headers, &payload.path, false)?;
-    crate::tools::search::SearchEngine::search(payload)
+    // A search can walk a whole drive: keep it off the threads that answer requests
+    tokio::task::spawn_blocking(move || crate::tools::search::SearchEngine::search(payload))
+        .await
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .map(Json)
         .map_err(|e| (StatusCode::BAD_REQUEST, format!("Search failed: {}", e)))
 }

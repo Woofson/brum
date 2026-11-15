@@ -270,6 +270,15 @@ Tailspin is maintained with Brum but not built in. Install `plugins/tailspin.grr
 * **Node-Aware Places & Breadcrumbs**: Seamlessly switch active panel context to remote nodes; Places drawer automatically loads remote node bookmarks and favorites.
 * **Live Health & Version Drift Diagnostics**: Instant connection testing reporting real-time ping latency, remote OS/architecture, build number (`#<N>`), git commit, and UTC compile timestamp to quickly pinpoint outdated nodes across your fleet.
 
+### All machines (Tools → All machines)
+Actions over several Fleet machines at once. Each machine answers for itself, so a machine that is off or slow is shown as such and does not hold up the others. The window floats like other tools and can be docked into a Panel.
+* **Machines**: tick the machines to use, or pick a group with one click. Groups are the Fleet entries' tags: `tags = ["servers"]` in `config.toml`, or **Groups / tags** in the Fleet manager.
+* **Search**: type a name (`report`, `*.iso`, `invoice-2026*`) and, if you like, a folder; empty searches each machine's start folder. Results come in per machine as each one answers (up to 200 per machine). Click one to open its folder in the active panel, on that machine.
+* **Same file**: type a full path, the same on each machine (for example `/etc/fstab`). Each machine works out the file's checksum itself; machines with the same contents get the same version letter, and missing files are marked. Tick two machines and press **Show the differences side by side** to open them in Compare (text files up to 5 MB). Machines on Brum 1.22 or older are compared by size and date only.
+* **Free space**: every drive of the chosen machines, fullest first, with a bar that turns amber at 75 % and red at 90 %. The System Dashboard (#188) will use the same figures.
+* **Send**: select files or folders in a panel, then right-click → **Copy to…** → **Send to machines…** (or press **Use the selection in the active panel**). Choose the machines and the folder to send to, the same path on each. Brum first asks if anything there would be replaced, naming the machines. Each machine gets its own copy job between machines (see the Configuration manual, "Copying and Moving Between Machines"), and the window shows how each one is doing; a machine that cannot be reached is named, the others carry on.
+* **Access**: everyone can use these actions, on the machines and folders they can already reach; each machine applies its own folder rules and read-only settings.
+
 ---
 
 ## 19. Compare (two folders, two files, duplicates)

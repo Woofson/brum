@@ -344,3 +344,47 @@ async fn compare_and_sync_across_machines() {
     assert_eq!(resp.status().as_u16(), 400);
     assert!(resp.text().await.unwrap().contains("older Brum"));
 }
+
+/// #192: two text files on two machines, side by side
+#[tokio::test]
+async fn text_files_on_two_machines_side_by_side() {
+    let files = tempdir().unwrap();
+    let (a, b) = (files.path().join("a"), files.path().join("b"));
+    std::fs::create_dir_all(&a).unwrap();
+    std::fs::create_dir_all(&b).unwrap();
+    std::fs::write(a.join("conf.txt"), "one\nsetting = A\nthree\n").unwrap();
+    std::fs::write(b.join("conf.txt"), "one\nsetting = B\nthree\nfour\n").unwrap();
+    std::fs::write(b.join("big.txt"), vec![b'x'; 6 * 1024 * 1024]).unwrap();
+    std::fs::write(b.join("bin.dat"), [0u8, 159, 146, 150]).unwrap();
+
+    let (da, dh) = (tempdir().unwrap(), tempdir().unwrap());
+    let (pa, _) = start_background_server(node_config(&da, true)).await.unwrap();
+    let mut hub = node_config(&dh, true);
+    hub.fleet.nodes.push(node("alpha", &format!("http://127.0.0.1:{pa}")));
+    let (ph, _) = start_background_server(hub).await.unwrap();
+    let base = format!("http://127.0.0.1:{ph}");
+    let client = reqwest::Client::new();
+    let token = login(&client, &base).await;
+    let s = |p: std::path::PathBuf| p.to_string_lossy().to_string();
+    let compare = |left: String, right: String| {
+        let (client, base, token) = (client.clone(), base.clone(), token.clone());
+        async move {
+            client.post(format!("{base}/api/compare/files-across")).bearer_auth(&token)
+                .json(&json!({ "left": { "node": "alpha", "path": left }, "right": { "node": "local", "path": right } }))
+                .send().await.unwrap()
+        }
+    };
+
+    let resp = compare(s(a.join("conf.txt")), s(b.join("conf.txt"))).await;
+    assert_eq!(resp.status().as_u16(), 200);
+    let d: Value = resp.json().await.unwrap();
+    assert_eq!((d["additions"].as_u64(), d["deletions"].as_u64()), (Some(2), Some(1)), "{d}");
+    assert!(d["file_left"].as_str().unwrap().starts_with("alpha: "), "{d}");
+
+    let resp = compare(s(a.join("conf.txt")), s(b.join("big.txt"))).await;
+    assert_eq!(resp.status().as_u16(), 400);
+    assert!(resp.text().await.unwrap().contains("larger than 5 MB"));
+    let resp = compare(s(a.join("conf.txt")), s(b.join("bin.dat"))).await;
+    assert_eq!(resp.status().as_u16(), 400);
+    assert!(resp.text().await.unwrap().contains("not a text file"));
+}

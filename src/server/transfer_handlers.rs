@@ -515,3 +515,77 @@ pub async fn handle_compare_across(State(state): State<AppState>, headers: Heade
     v["right_machine"] = json!(right.label);
     Ok(Json(v))
 }
+
+// ---------- Two files on two machines, side by side (#192) ----------
+
+/// Larger files are not compared as text
+const TEXT_COMPARE_LIMIT: u64 = 5 * 1024 * 1024;
+
+#[derive(Deserialize)]
+pub struct FileSide {
+    pub node: String,
+    #[serde(default)]
+    pub url: Option<String>,
+    #[serde(default)]
+    pub token: Option<String>,
+    /// The file's full path on that machine
+    pub path: String,
+}
+
+#[derive(Deserialize)]
+pub struct CompareFilesAcrossRequest {
+    pub left: FileSide,
+    pub right: FileSide,
+}
+
+/// Splits a path into its folder and name, for `/` and `\` paths alike
+fn split_path(path: &str) -> Option<(String, String)> {
+    let cut = path.trim_end_matches(['/', '\\']).rfind(['/', '\\'])?;
+    let (dir, name) = path.split_at(cut);
+    let name = name[1..].trim_end_matches(['/', '\\']).to_string();
+    let dir = if dir.is_empty() { "/".to_string() } else if dir.len() == 2 && dir.ends_with(':') { format!("{dir}\\") } else { dir.to_string() };
+    (!name.is_empty()).then_some((dir, name))
+}
+
+async fn read_text(state: &AppState, headers: &HeaderMap, claims: &crate::auth::Claims, f: &FileSide) -> Result<(String, String), ApiError> {
+    let (dir, name) = split_path(&f.path).ok_or_else(|| bad(format!("Not a file path: {}", f.path)))?;
+    let side = resolve_side(state, headers, claims, &SideRequest { node: f.node.clone(), url: f.url.clone(), token: f.token.clone(), folder: dir, items: vec![ItemSpec { name: name.clone(), conflict: None }] }, false).await?;
+    let label = side.label.clone();
+    let bytes = tokio::task::spawn_blocking(move || -> Result<Vec<u8>, String> {
+        let place = place(&side).map_err(|e| e.1)?;
+        let mut reader = place.read_limited(&name, TEXT_COMPARE_LIMIT + 1)?;
+        let mut buf = Vec::new();
+        std::io::Read::read_to_end(&mut reader, &mut buf).map_err(|e| e.to_string())?;
+        if buf.len() as u64 > TEXT_COMPARE_LIMIT {
+            return Err(format!("{name} is larger than 5 MB; too big to compare as text"));
+        }
+        Ok(buf)
+    })
+    .await
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+    .map_err(|e| bad(format!("{label}: {e}")))?;
+    let text = String::from_utf8(bytes).map_err(|_| bad(format!("{} on {label} is not a text file", f.path)))?;
+    Ok((format!("{label}: {}", f.path), text))
+}
+
+/// Compares two text files on different machines (or the same one) line by line
+pub async fn handle_compare_files_across(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<CompareFilesAcrossRequest>) -> Result<Json<crate::tools::diff::FileDiffResult>, ApiError> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let (l, r) = tokio::join!(read_text(&state, &headers, &claims, &req.left), read_text(&state, &headers, &claims, &req.right));
+    let ((ln, lt), (rn, rt)) = (l?, r?);
+    Ok(Json(crate::tools::diff::compare_files_text(&ln, &lt, &rn, &rt)))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::split_path;
+
+    #[test]
+    fn splits_paths_from_both_systems() {
+        assert_eq!(split_path("/etc/fstab"), Some(("/etc".into(), "fstab".into())));
+        assert_eq!(split_path("/fstab"), Some(("/".into(), "fstab".into())));
+        assert_eq!(split_path(r"C:\Windows\win.ini"), Some((r"C:\Windows".into(), "win.ini".into())));
+        assert_eq!(split_path(r"C:\boot.ini"), Some((r"C:\".into(), "boot.ini".into())));
+        assert_eq!(split_path("fstab"), None);
+    }
+}

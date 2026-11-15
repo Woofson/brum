@@ -214,7 +214,7 @@ const BRUM_ACTIONS = new Set([
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'openFleetwide', 'closeFleetwideWindow', 'minimizeFleetwideWindow', 'restoreFleetwideWindow', 'toggleFleetwideMaximize', 'dockFleetwideToActivePane', 'fwSetTab', 'fwPickGroup', 'fwToggleMachine', 'fwRunSearch', 'fwStop', 'fwOpenHit', 'fwRunSameFile', 'fwSameTick', 'fwSameCompare', 'fwRunSpace', 'openSendToMachines', 'fwSendUseSelection', 'fwSendStart', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
   'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff',
   'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
   'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
@@ -987,6 +987,7 @@ const DEFAULT_TOOLS_MENU = [
   { id: 'editor', label: 'Editor', icon: 'assets/edit.webp', action: 'openFloatingEditor', desc: 'Multi-tab text and code editor with syntax mode (F4)', visible: true },
   { id: 'diff', label: 'Compare', icon: 'assets/diff.webp', action: 'triggerDiff', desc: 'Compare two folders or two files, or find duplicates (F9)', visible: true },
   { id: 'search', label: 'Search', icon: 'assets/search.webp', action: 'openSearchModal', desc: 'Recursive filename, regex & size filter (Ctrl+F)', visible: true },
+  { id: 'fleetwide', label: 'All machines', icon: 'globe', iconColor: 'var(--accent)', action: 'openFleetwide', desc: 'Search, compare a file, see free space and send files on every Fleet machine at once', visible: true },
   { id: 'shares', label: 'Share Manager', icon: 'assets/sharemgr.webp', action: 'openSharesManager', desc: 'Manage public share links and guest dropboxes', visible: true },
   { id: 'sync', label: 'Backup & Sync', icon: 'assets/sync.webp', action: 'openSyncModal', desc: 'Back up folders, keep old versions, restore files', visible: true },
   { id: 'du', label: 'Disk Usage', icon: 'assets/amber-piechart.webp', action: 'openDiskUsageModal', desc: 'Treemap visualizer and heavy space consumer analyzer', visible: true },
@@ -4540,7 +4541,8 @@ function createPaneElement(pane, index) {
         'du': '<img src="assets/amber-piechart.webp" alt="Disk Usage" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Disk Usage',
         'diff': '<img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare',
         'compare': '<img src="assets/diff.webp" alt="Compare" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Compare',
-        'backup': '<img src="assets/sync.webp" alt="Backup & Sync" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup &amp; Sync'
+        'backup': '<img src="assets/sync.webp" alt="Backup & Sync" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle; margin-right: 4px;"> Backup &amp; Sync',
+        'fleetwide': '<i data-lucide="globe" style="width: 14px; height: 14px; color: var(--accent); vertical-align: middle; margin-right: 4px;"></i> All machines'
       };
       toolTitleHtml = toolTitles[tool] || escapeHtml(tool);
     }
@@ -17770,6 +17772,681 @@ function initDiffDragResize() {
   setupResizeHandle('diff-resize-corner', 'bottom-right');
 }
 
+// ---------------- ALL MACHINES (#192): actions over every Fleet machine at once ----------------
+// Each machine answers for itself through its usual Fleet connection, so machines that are off
+// or slow show as such instead of holding up the others.
+const fw = { tab: 'search', selected: null, bodyEl: null, send: { items: [], node: 'local', folder: '' }, runs: {} };
+const FW_TABS = [
+  { id: 'search', icon: 'search', label: 'Search' },
+  { id: 'samefile', icon: 'files', label: 'Same file' },
+  { id: 'space', icon: 'hard-drive', label: 'Free space' },
+  { id: 'send', icon: 'send', label: 'Send' },
+];
+
+function fleetwideBody() {
+  if (!fw.bodyEl) fw.bodyEl = document.getElementById('fleetwide-body');
+  return fw.bodyEl;
+}
+
+function fwView() {
+  return fleetwideBody()?.querySelector('#fleetwide-view') || null;
+}
+
+/** This Brum and every Fleet machine, with their groups (tags) */
+function fwMachines() {
+  const local = { id: 'local', name: getLocalHostDisplayName(), tags: [], status: 'online', local: true };
+  const nodes = typeof getAllFleetNodes === 'function' ? getAllFleetNodes().filter(n => n && n.id && n.id !== 'local') : [];
+  return [local, ...nodes.map(n => ({ id: n.id, name: n.name || n.id, tags: n.tags || [], status: n.status, os: n.os, node: n }))];
+}
+
+function fwGroups() {
+  const set = new Set();
+  fwMachines().forEach(m => (m.tags || []).forEach(t => t && set.add(t)));
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
+function fwSelected() {
+  const all = fwMachines();
+  if (!fw.selected) fw.selected = new Set(all.map(m => m.id));
+  return all.filter(m => fw.selected.has(m.id));
+}
+
+function openFleetwide(tab) {
+  const toolsMenu = document.getElementById('tools-dropdown-menu');
+  if (toolsMenu) toolsMenu.classList.remove('active');
+  if (typeof tab === 'string' && FW_TABS.some(t => t.id === tab)) fw.tab = tab;
+  if (App.panes.some(p => p.dockedTool === 'fleetwide')) {
+    fwRender();
+    return;
+  }
+  const win = document.getElementById('floating-fleetwide-window');
+  const body = fleetwideBody();
+  if (win && body && !win.contains(body)) win.appendChild(body);
+  const pill = document.getElementById('fleetwide-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    if (window.innerWidth <= 1024) {
+      win.style.left = '';
+      win.style.top = '';
+      win.style.width = '';
+      win.style.height = '';
+    }
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+  initToolWindowDragResize('floating-fleetwide-window', 'fleetwide-window-header', 'cd_fleetwide');
+  if (window.lucide) lucide.createIcons({ root: win });
+  bindActions(win);
+  fwRender();
+}
+
+function closeFleetwideWindow() {
+  const win = document.getElementById('floating-fleetwide-window');
+  if (win) win.style.display = 'none';
+  const pill = document.getElementById('fleetwide-pill');
+  if (pill) pill.style.display = 'none';
+}
+
+function minimizeFleetwideWindow() {
+  const win = document.getElementById('floating-fleetwide-window');
+  const pill = document.getElementById('fleetwide-pill');
+  if (win) win.style.display = 'none';
+  if (pill) pill.style.display = 'flex';
+}
+
+function restoreFleetwideWindow() {
+  const win = document.getElementById('floating-fleetwide-window');
+  const pill = document.getElementById('fleetwide-pill');
+  if (pill) pill.style.display = 'none';
+  if (win) {
+    win.style.display = 'flex';
+    bringFloatingWindowToFront(win);
+  }
+}
+
+function toggleFleetwideMaximize() {
+  const win = document.getElementById('floating-fleetwide-window');
+  const btn = document.getElementById('fleetwide-maximize-btn');
+  if (!win) return;
+  const isMax = win.classList.toggle('maximized');
+  if (btn) {
+    btn.innerHTML = `<i data-lucide="${isMax ? 'minimize-2' : 'maximize-2'}" style="width: 14px; height: 14px;"></i>`;
+    btn.title = isMax ? 'Restore Window' : 'Maximize Window';
+    if (window.lucide) lucide.createIcons({ root: btn });
+  }
+}
+
+function dockFleetwideToActivePane() {
+  closeFleetwideWindow();
+  dockToolToPane('fleetwide', App.activePaneIndex);
+}
+
+function mountDockedFleetwide(paneIndex) {
+  const host = document.getElementById(`docked-fleetwide-host-${paneIndex}`);
+  const body = fleetwideBody();
+  if (host && body) {
+    host.appendChild(body);
+    fwRender();
+  }
+}
+
+function fwSetTab(tab) {
+  fw.tab = tab;
+  fwRender();
+}
+
+function fwRender() {
+  const body = fleetwideBody();
+  if (!body) return;
+  const tabs = body.querySelector('#fleetwide-tabs');
+  if (tabs) {
+    tabs.innerHTML = FW_TABS.map(t => `<button class="btn btn-sm fw-tab ${fw.tab === t.id ? 'active' : ''}" data-on-click="fwSetTab" data-click-args="${actionArgs(t.id)}"><i data-lucide="${t.icon}"></i> ${t.label}</button>`).join('');
+    bindActions(tabs);
+    if (window.lucide) lucide.createIcons({ root: tabs });
+  }
+  const view = fwView();
+  if (!view) return;
+  if (fw.tab === 'search') view.innerHTML = fwSearchHtml();
+  else if (fw.tab === 'samefile') view.innerHTML = fwSameFileHtml();
+  else if (fw.tab === 'space') view.innerHTML = fwSpaceHtml();
+  else view.innerHTML = fwSendHtml();
+  bindActions(view);
+  if (window.lucide) lucide.createIcons({ root: view });
+  if (fw.tab === 'space' && !fw.runs.space) fwRunSpace();
+  if (fw.tab === 'send') fwSendRefreshStatus();
+}
+
+// ----- Which machines -----
+function fwPickerHtml(exclude) {
+  const all = fwMachines().filter(m => m.id !== exclude);
+  fwSelected();
+  const groups = fwGroups();
+  const chip = (label, args, title) => `<button class="btn btn-xs fw-chip" data-on-click="fwPickGroup" data-click-args="${actionArgs(args)}" title="${escapeHtml(title)}">${escapeHtml(label)}</button>`;
+  return `
+    <div class="fw-picker">
+      <div class="fw-picker-row">
+        <span class="fw-label">Machines</span>
+        ${chip('All', '*', 'Every machine')}
+        ${groups.map(g => chip(g, g, `Only machines in the group ${g}`)).join('')}
+        ${chip('None', '', 'Clear the choice')}
+      </div>
+      <div class="fw-machines">
+        ${all.map(m => `<label class="fw-machine ${m.status === 'offline' ? 'fw-off' : ''}" title="${escapeHtml((m.tags || []).join(', '))}">
+          <input type="checkbox" ${fw.selected.has(m.id) ? 'checked' : ''} data-on-change="fwToggleMachine" data-change-args="${actionArgs(m.id, ACTION_CHECKED)}">
+          <span class="fw-dot ${m.status === 'offline' ? 'off' : (m.status === 'online' || m.local ? 'on' : '')}"></span>${escapeHtml(m.name)}${m.local ? ' <small>(this Brum)</small>' : ''}
+        </label>`).join('')}
+      </div>
+    </div>`;
+}
+
+function fwPickGroup(group) {
+  const all = fwMachines();
+  if (group === '*') fw.selected = new Set(all.map(m => m.id));
+  else if (!group) fw.selected = new Set();
+  else fw.selected = new Set(all.filter(m => (m.tags || []).includes(group)).map(m => m.id));
+  fwRender();
+}
+
+function fwToggleMachine(id, on) {
+  fwSelected();
+  if (on) fw.selected.add(id);
+  else fw.selected.delete(id);
+}
+
+/** Asks one machine through its usual connection; gives up after `ms` */
+async function fwAsk(machineId, path, opts = {}, ms = 15000) {
+  const { endpoint, headers } = compareNodeAccess(machineId);
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), ms);
+  if (opts.signal) opts.signal.addEventListener('abort', () => ctl.abort());
+  try {
+    const resp = await fetch(`${endpoint}${path}`, { ...opts, signal: ctl.signal, headers: { ...headers, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) } });
+    return resp;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function fwFailText(err, resp) {
+  if (err && err.name === 'AbortError') return 'did not answer in time';
+  if (err) return 'not reachable';
+  if (resp && (resp.status === 502 || resp.status === 504)) return 'not reachable';
+  if (resp && resp.status === 401) return 'refused the login';
+  if (resp && resp.status === 403) return 'no access to that folder';
+  if (resp && resp.status === 404) return 'runs an older Brum';
+  return `error ${resp ? resp.status : ''}`;
+}
+
+/** The folder a search starts in on a machine when none is given: its start folder for the
+ *  system it runs, else the top of its disk. Asks the machine which system it runs if that is
+ *  not known yet (a multi-boot machine can run either). */
+async function fwStartFolder(m) {
+  if (m.local) return (typeof getUserDefaultHomeDir === 'function' && getUserDefaultHomeDir()) || '/';
+  let os = String(m.os || m.node?.os || '').toLowerCase();
+  if (!os) {
+    try {
+      const r = await fwAsk(m.id, '/api/health', {}, 5000);
+      if (r.ok) os = String((await r.json()).os || '').toLowerCase();
+    } catch (_) { /* unreachable: the search reports it */ }
+  }
+  if (m.node && typeof fleetNodeStartPath === 'function') {
+    const p = fleetNodeStartPath({ ...m.node, os });
+    if (p) return p;
+  }
+  return os === 'windows' ? 'C:\\' : '/';
+}
+
+function fwJoin(dir, name) {
+  if (/[\\/]$/.test(dir)) return dir + name;
+  return dir + (dir.includes('\\') && !dir.includes('/') ? '\\' : '/') + name;
+}
+
+function fwParent(path) {
+  const t = path.replace(/[\\/]+$/, '');
+  const cut = Math.max(t.lastIndexOf('/'), t.lastIndexOf('\\'));
+  if (cut < 0) return t;
+  const parent = t.substring(0, cut);
+  return parent === '' ? '/' : (/^[A-Za-z]:$/.test(parent) ? parent + '\\' : parent);
+}
+
+// ----- Search everywhere -----
+function fwSearchHtml() {
+  const s = fw.runs.search || {};
+  return `
+    ${fwPickerHtml()}
+    <div class="fw-form">
+      <input type="text" id="fw-search-name" class="bk-input" placeholder="Name: report, *.iso, invoice-2026*" value="${escapeHtml(s.name || '')}" data-keydown-key="Enter" data-on-keydown="fwRunSearch">
+      <input type="text" id="fw-search-folder" class="bk-input bk-mono" placeholder="Folder (empty: each machine's start folder)" value="${escapeHtml(s.folder || '')}" data-keydown-key="Enter" data-on-keydown="fwRunSearch">
+      <button class="btn btn-sm btn-accent bk-btn" data-on-click="fwRunSearch"><i data-lucide="search"></i> Search</button>
+      ${s.running ? '<button class="btn btn-sm bk-btn" data-on-click="fwStop" data-click-args=\'["search"]\'><i data-lucide="square"></i> Stop</button>' : ''}
+    </div>
+    <div id="fw-search-results">${fwSearchResultsHtml()}</div>`;
+}
+
+function fwSearchResultsHtml() {
+  const s = fw.runs.search;
+  if (!s) return '<div class="bk-empty"><i data-lucide="search" style="width: 28px; height: 28px; opacity: 0.6;"></i><div class="bk-empty-text">Search for a name on every chosen machine at once. Each machine searches its own folders; results come in as each one answers.</div></div>';
+  return s.order.map(id => {
+    const r = s.per[id];
+    const head = r.state === 'busy' ? '<span class="fw-muted"><i data-lucide="loader" class="spinner"></i> searching…</span>'
+      : r.state === 'fail' ? `<span class="fw-bad">${escapeHtml(r.error)}</span>`
+      : `<span class="fw-muted">${r.items.length ? `${formatNumber(r.items.length)} found${r.items.length >= 200 ? ' (first 200)' : ''}` : 'nothing found'}</span>`;
+    return `<div class="fw-group">
+      <div class="fw-group-head"><b>${escapeHtml(r.name)}</b> <span class="fw-muted bk-mono">${escapeHtml(r.folder)}</span> ${head}</div>
+      ${(r.items || []).slice(0, 200).map(it => `<div class="fw-hit" data-on-click="fwOpenHit" data-click-args="${actionArgs(id, it.path, !!it.is_dir)}" title="Open in the active panel">
+        <i data-lucide="${it.is_dir ? 'folder' : 'file'}"></i>
+        <span class="fw-hit-name">${escapeHtml(it.name)}</span>
+        <span class="fw-hit-path bk-mono">${escapeHtml(fwParent(it.path))}</span>
+        <span class="fw-hit-meta">${it.is_dir ? '' : formatBytes(it.size || 0)}</span>
+      </div>`).join('')}
+    </div>`;
+  }).join('');
+}
+
+function fwRefreshSearchResults() {
+  const box = document.getElementById('fw-search-results');
+  if (!box) return;
+  box.innerHTML = fwSearchResultsHtml();
+  bindActions(box);
+  if (window.lucide) lucide.createIcons({ root: box });
+}
+
+async function fwRunSearch() {
+  const name = document.getElementById('fw-search-name')?.value.trim() || '';
+  const folder = document.getElementById('fw-search-folder')?.value.trim() || '';
+  if (!name) {
+    showToast('Type a name to search for', 'warning');
+    return;
+  }
+  const machines = fwSelected();
+  if (!machines.length) {
+    showToast('Choose at least one machine', 'warning');
+    return;
+  }
+  fwStop('search');
+  const ctl = new AbortController();
+  const s = { name, folder, running: true, ctl, order: machines.map(m => m.id), per: {} };
+  machines.forEach(m => { s.per[m.id] = { name: m.name, folder: folder || '…', state: 'busy', items: [] }; });
+  fw.runs.search = s;
+  fwRender();
+  await Promise.all(machines.map(async m => {
+    const r = s.per[m.id];
+    if (!folder) {
+      r.folder = await fwStartFolder(m);
+      if (fw.runs.search === s) fwRefreshSearchResults();
+    }
+    let resp, err;
+    try {
+      resp = await fwAsk(m.id, '/api/tools/search', { method: 'POST', body: JSON.stringify({ path: resolveAuthUri(r.folder), name_pattern: name, max_results: 200 }), signal: ctl.signal }, 180000);
+    } catch (e) { err = e; }
+    if (fw.runs.search !== s) return;
+    if (resp && resp.ok) {
+      r.items = await resp.json().catch(() => []);
+      r.state = 'done';
+    } else {
+      r.state = 'fail';
+      r.error = resp && resp.status === 400 ? (await resp.text().catch(() => '')).replace(/^Search failed: /, '') || 'cannot search there'
+        : (err && err.name === 'AbortError' && !ctl.signal.aborted) ? 'did not finish within 3 minutes; type a smaller folder to search in'
+        : (err && err.name === 'AbortError') ? 'stopped' : fwFailText(err, resp);
+    }
+    fwRefreshSearchResults();
+  }));
+  if (fw.runs.search === s) {
+    s.running = false;
+    if (fw.tab === 'search') fwRender();
+  }
+}
+
+function fwStop(kind) {
+  const r = fw.runs[kind];
+  if (r && r.ctl) r.ctl.abort();
+  if (r) r.running = false;
+}
+
+/** Opens a search result's folder in the active panel, on its machine */
+async function fwOpenHit(machineId, path, isDir) {
+  const folder = isDir ? path : fwParent(path);
+  const idx = App.activePaneIndex;
+  const pane = App.panes[idx];
+  if (pane && pane.dockedTool) {
+    showToast('The active panel shows a tool; pick a file panel first', 'warning');
+    return;
+  }
+  if ((pane?.nodeId || 'local') === machineId) loadPaneDirectory(idx, folder, true);
+  else await switchPaneNode(idx, machineId, folder);
+}
+
+// ----- Same file on different machines -----
+function fwSameFileHtml() {
+  const s = fw.runs.same || {};
+  return `
+    ${fwPickerHtml()}
+    <div class="fw-form">
+      <input type="text" id="fw-same-path" class="bk-input bk-mono" placeholder="Full path, the same on each machine: /etc/fstab" value="${escapeHtml(s.path || '')}" data-keydown-key="Enter" data-on-keydown="fwRunSameFile">
+      <button class="btn btn-sm btn-accent bk-btn" data-on-click="fwRunSameFile"><i data-lucide="git-compare"></i> Check</button>
+    </div>
+    <div id="fw-same-results">${fwSameResultsHtml()}</div>`;
+}
+
+function fwSameResultsHtml() {
+  const s = fw.runs.same;
+  if (!s) return '<div class="bk-empty"><i data-lucide="files" style="width: 28px; height: 28px; opacity: 0.6;"></i><div class="bk-empty-text">See whether a file (a config file, for example) is the same on every machine. Each machine works out its own checksum; tick two machines to see the differences side by side.</div></div>';
+  const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const keys = [];
+  s.order.forEach(id => { const r = s.per[id]; if (r.key && !keys.includes(r.key)) keys.push(r.key); });
+  const ticked = s.order.filter(id => s.per[id].ticked);
+  return `
+    <div class="fw-same-summary">${keys.length <= 1 && s.order.every(id => s.per[id].state !== 'busy') && s.order.some(id => s.per[id].key) ? (s.order.every(id => s.per[id].key) ? '✔ The same on every machine.' : 'The same wherever it exists.') : (keys.length > 1 ? `${keys.length} different versions.` : '')}</div>
+    <div class="fw-table">
+      ${s.order.map(id => {
+        const r = s.per[id];
+        const v = r.key ? keys.indexOf(r.key) : -1;
+        const badge = r.state === 'busy' ? '<span class="fw-muted"><i data-lucide="loader" class="spinner"></i></span>'
+          : r.key ? `<span class="fw-version fw-v${v % 6}">Version ${letters[v] || v + 1}</span>`
+          : `<span class="fw-muted">${escapeHtml(r.note || '')}</span>`;
+        return `<label class="fw-row">
+          <input type="checkbox" ${r.ticked ? 'checked' : ''} ${r.key && r.text !== false ? '' : 'disabled'} data-on-change="fwSameTick" data-change-args="${actionArgs(id, ACTION_CHECKED)}">
+          <span class="fw-row-name">${escapeHtml(r.name)}</span>
+          ${badge}
+          <span class="fw-row-meta">${r.size != null ? formatBytes(r.size) : ''}</span>
+          <span class="fw-row-meta">${r.mtime ? formatDateTime(r.mtime) : ''}</span>
+          <span class="fw-row-meta bk-mono" title="${escapeHtml(r.hash || '')}">${r.hash ? r.hash.slice(0, 10) + '…' : (r.key && !r.hash ? 'size and date only' : '')}</span>
+        </label>`;
+      }).join('')}
+    </div>
+    <div class="fw-actions"><button class="btn btn-sm bk-btn" ${ticked.length === 2 ? '' : 'disabled'} data-on-click="fwSameCompare" title="Tick two machines"><i data-lucide="columns-2"></i> Show the differences side by side</button></div>`;
+}
+
+function fwRefreshSame() {
+  const box = document.getElementById('fw-same-results');
+  if (!box) return;
+  box.innerHTML = fwSameResultsHtml();
+  bindActions(box);
+  if (window.lucide) lucide.createIcons({ root: box });
+}
+
+async function fwRunSameFile() {
+  const path = document.getElementById('fw-same-path')?.value.trim() || '';
+  if (!path) {
+    showToast('Type the full path of a file', 'warning');
+    return;
+  }
+  const machines = fwSelected();
+  if (!machines.length) {
+    showToast('Choose at least one machine', 'warning');
+    return;
+  }
+  const s = { path, order: machines.map(m => m.id), per: {} };
+  machines.forEach(m => { s.per[m.id] = { name: m.name, state: 'busy' }; });
+  fw.runs.same = s;
+  fwRender();
+  const q = encodeURIComponent(resolveAuthUri(path));
+  await Promise.all(machines.map(async m => {
+    const r = s.per[m.id];
+    let resp, err;
+    try { resp = await fwAsk(m.id, `/api/backup-target/stat?path=${q}`); } catch (e) { err = e; }
+    if (!resp || !resp.ok) {
+      r.state = 'fail';
+      r.note = fwFailText(err, resp);
+    } else {
+      const st = await resp.json().catch(() => ({}));
+      if (st.kind === 'file') {
+        r.size = st.size;
+        r.mtime = st.mtime;
+        let h = null;
+        try {
+          const hr = await fwAsk(m.id, `/api/backup-target/hash?path=${q}`, {}, 120000);
+          if (hr.ok) h = (await hr.json()).sha256;
+        } catch (_) { /* older Brum: size and date only */ }
+        r.hash = h;
+        r.key = h ? `h:${h}` : `s:${st.size}:${st.mtime}`;
+        r.state = 'done';
+      } else {
+        r.state = 'done';
+        r.note = st.kind === 'dir' ? 'a folder, not a file' : 'missing';
+      }
+    }
+    if (fw.runs.same === s) fwRefreshSame();
+  }));
+}
+
+function fwSameTick(id, on) {
+  const s = fw.runs.same;
+  if (!s || !s.per[id]) return;
+  s.per[id].ticked = !!on;
+  fwRefreshSame();
+}
+
+function fwSameCompare() {
+  const s = fw.runs.same;
+  if (!s) return;
+  const ids = s.order.filter(id => s.per[id].ticked);
+  if (ids.length !== 2) return;
+  const side = (id) => ({ ...transferSideForNode(id, ''), path: s.path, folder: undefined });
+  const name = (id) => `${s.per[id].name}: ${s.path}`;
+  openFileDiffView(name(ids[0]), name(ids[1]), null, { left: side(ids[0]), right: side(ids[1]) });
+}
+
+// ----- Free space on all machines -----
+function fwSpaceHtml() {
+  return `
+    ${fwPickerHtml()}
+    <div class="fw-form"><button class="btn btn-sm btn-accent bk-btn" data-on-click="fwRunSpace"><i data-lucide="refresh-cw"></i> Refresh</button><span class="fw-muted">Drives on every chosen machine, fullest first.</span></div>
+    <div id="fw-space-results">${fwSpaceResultsHtml()}</div>`;
+}
+
+function fwSpaceResultsHtml() {
+  const s = fw.runs.space;
+  if (!s) return '';
+  const rows = [];
+  s.order.forEach(id => (s.per[id].disks || []).forEach(d => rows.push({ id, m: s.per[id].name, d })));
+  rows.sort((a, b) => (b.d.usage_percentage || 0) - (a.d.usage_percentage || 0));
+  const waiting = s.order.filter(id => s.per[id].state === 'busy').map(id => s.per[id].name);
+  const failed = s.order.filter(id => s.per[id].state === 'fail').map(id => `${s.per[id].name} (${s.per[id].error})`);
+  return `
+    <div class="fw-space">
+      ${rows.map(({ m, d }) => {
+        const pct = Math.max(0, Math.min(100, d.usage_percentage || 0));
+        const level = pct >= 90 ? 'crit' : (pct >= 75 ? 'warn' : 'ok');
+        return `<div class="fw-disk">
+          <div class="fw-disk-name"><b>${escapeHtml(m)}</b> <span class="bk-mono">${escapeHtml(d.mount_point || d.name)}</span>${d.is_removable ? ' <small>(removable)</small>' : ''}</div>
+          <div class="fw-bar"><div class="fw-bar-fill fw-${level}" style="width: ${pct.toFixed(1)}%"></div></div>
+          <div class="fw-disk-meta"><b>${pct.toFixed(0)}%</b> used · ${escapeHtml(d.formatted_available || formatBytes(d.available_bytes || 0))} free of ${escapeHtml(d.formatted_total || formatBytes(d.total_bytes || 0))}</div>
+        </div>`;
+      }).join('')}
+      ${waiting.length ? `<div class="fw-muted"><i data-lucide="loader" class="spinner"></i> Waiting for ${escapeHtml(waiting.join(', '))}…</div>` : ''}
+      ${failed.length ? `<div class="fw-muted">No answer: ${escapeHtml(failed.join(', '))}</div>` : ''}
+    </div>`;
+}
+
+function fwRefreshSpace() {
+  const box = document.getElementById('fw-space-results');
+  if (!box) return;
+  box.innerHTML = fwSpaceResultsHtml();
+  if (window.lucide) lucide.createIcons({ root: box });
+}
+
+async function fwRunSpace() {
+  const machines = fwSelected();
+  const s = { order: machines.map(m => m.id), per: {} };
+  machines.forEach(m => { s.per[m.id] = { name: m.name, state: 'busy' }; });
+  fw.runs.space = s;
+  fwRefreshSpace();
+  await Promise.all(machines.map(async m => {
+    const r = s.per[m.id];
+    let resp, err;
+    try { resp = await fwAsk(m.id, '/api/system/disks'); } catch (e) { err = e; }
+    if (resp && resp.ok) {
+      r.disks = await resp.json().catch(() => []);
+      r.state = 'done';
+    } else {
+      r.state = 'fail';
+      r.error = fwFailText(err, resp);
+    }
+    if (fw.runs.space === s) fwRefreshSpace();
+  }));
+}
+
+// ----- Send to many -----
+/** "Send to machines…" from the right-click menu: the selection in the active panel */
+function openSendToMachines() {
+  const idx = App.activePaneIndex;
+  const pane = App.panes[idx];
+  if (!pane) return;
+  const paths = pane.selected && pane.selected.size ? [...pane.selected] : (App.contextItem?.path ? [App.contextItem.path] : []);
+  fw.send = { items: paths, node: pane.nodeId || 'local', folder: pane.path || '', target: fw.send.target || pane.path || '', jobs: null };
+  openFleetwide('send');
+}
+
+function fwSendUseSelection() {
+  const pane = App.panes[App.activePaneIndex];
+  if (!pane || !pane.selected || !pane.selected.size) {
+    showToast('Select files or folders in a panel first', 'warning');
+    return;
+  }
+  fw.send = { items: [...pane.selected], node: pane.nodeId || 'local', folder: pane.path || '', target: fw.send.target || pane.path || '', jobs: null };
+  fwRender();
+}
+
+function fwSendHtml() {
+  const sd = fw.send;
+  const from = compareNodeName(sd.node);
+  if (!sd.items.length) {
+    return `<div class="bk-empty"><i data-lucide="send" style="width: 28px; height: 28px; opacity: 0.6;"></i>
+      <div class="bk-empty-text">Send files to several machines at once: select them in a panel, then right-click → <b>Copy to…</b> → <b>Send to machines…</b>.</div>
+      <button class="btn btn-sm bk-btn" data-on-click="fwSendUseSelection"><i data-lucide="mouse-pointer-click"></i> Use the selection in the active panel</button></div>`;
+  }
+  return `
+    <div class="fw-send-what">
+      <div class="fw-label">Send ${formatNumber(sd.items.length)} item${sd.items.length === 1 ? '' : 's'} from ${escapeHtml(from)}</div>
+      <ul class="cmp-plan-list">${sd.items.slice(0, 50).map(p => `<li><i data-lucide="file"></i><span>${escapeHtml(getBasename(p.replace(/[\\/]+$/, '')))}</span></li>`).join('')}${sd.items.length > 50 ? `<li class="cmp-plan-more">…and ${formatNumber(sd.items.length - 50)} more</li>` : ''}</ul>
+      <button class="btn btn-xs bk-btn" data-on-click="fwSendUseSelection" title="Take the selection in the active panel instead"><i data-lucide="refresh-cw"></i> Use the current selection</button>
+    </div>
+    ${fwPickerHtml(sd.node)}
+    <div class="fw-form">
+      <span class="fw-label">To folder</span>
+      <input type="text" id="fw-send-target" class="bk-input bk-mono" placeholder="The same folder on each machine" value="${escapeHtml(sd.target || '')}">
+      <button class="btn btn-sm btn-accent bk-btn" data-on-click="fwSendStart"><i data-lucide="send"></i> Send</button>
+    </div>
+    <div id="fw-send-status"></div>`;
+}
+
+async function fwSendStart() {
+  const sd = fw.send;
+  const target = document.getElementById('fw-send-target')?.value.trim() || '';
+  if (!target) {
+    showToast('Type the folder to send to', 'warning');
+    return;
+  }
+  sd.target = target;
+  const machines = fwSelected().filter(m => m.id !== sd.node);
+  if (!machines.length) {
+    showToast('Choose at least one machine to send to', 'warning');
+    return;
+  }
+  const folder = fwParent(sd.items[0]);
+  if (sd.items.some(p => fwParent(p) !== folder)) {
+    showToast('Send items from one folder at a time', 'warning');
+    return;
+  }
+  const names = sd.items.map(p => getBasename(p.replace(/[\\/]+$/, '')));
+  // Ask first when something would be replaced
+  const clashes = [];
+  await Promise.all(machines.map(async m => {
+    const found = [];
+    await Promise.all(names.map(async n => {
+      try {
+        const r = await fwAsk(m.id, `/api/backup-target/stat?path=${encodeURIComponent(resolveAuthUri(fwJoin(target, n)))}`, {}, 8000);
+        if (r.ok && (await r.json()).kind) found.push(n);
+      } catch (_) { /* unreachable machines are reported when sending */ }
+    }));
+    if (found.length) clashes.push(`${m.name}: ${found.slice(0, 5).join(', ')}${found.length > 5 ? ` and ${found.length - 5} more` : ''}`);
+  }));
+  if (clashes.length) {
+    const ok = await showConfirmDialog({
+      title: 'Replace what is already there?',
+      subtitle: target,
+      message: `These already exist and will be replaced:\n\n${clashes.join('\n')}`,
+      icon: 'alert-triangle',
+      type: 'warning',
+      confirmText: 'Replace and send',
+    });
+    if (!ok) return;
+  }
+  sd.jobs = {};
+  machines.forEach(m => { sd.jobs[m.id] = { name: m.name, state: 'starting' }; });
+  fwSendRefreshStatus();
+  const items = names.map(name => ({ name, conflict: 'overwrite' }));
+  for (const m of machines) {
+    const j = sd.jobs[m.id];
+    try {
+      const resp = await fetch('/api/transfer/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'copy', verify: App.paranoidMode !== false, source: { ...transferSideForNode(sd.node, folder), items }, dest: transferSideForNode(m.id, target) })
+      });
+      const text = await resp.text();
+      let info = {};
+      try { info = JSON.parse(text); } catch (_) { /* text */ }
+      if (resp.ok) {
+        j.state = 'started';
+        j.task = info.task_id;
+      } else {
+        j.state = 'fail';
+        j.error = info.reason || info.error || text || `error ${resp.status}`;
+      }
+    } catch (e) {
+      j.state = 'fail';
+      j.error = String(e.message || e);
+    }
+    fwSendRefreshStatus();
+  }
+  requestTasksFastBurst(6000);
+  if (typeof pollTasks === 'function') pollTasks();
+  fwSendWatch();
+}
+
+function fwSendRefreshStatus() {
+  const box = document.getElementById('fw-send-status');
+  const sd = fw.send;
+  if (!box || !sd.jobs) return;
+  const rows = Object.values(sd.jobs).map(j => {
+    const t = j.task ? lastKnownTasksList.find(x => x.id === j.task) : null;
+    let state = j.state === 'fail' ? `<span class="fw-bad">${escapeHtml(j.error)}</span>`
+      : j.state === 'starting' ? '<span class="fw-muted">starting…</span>'
+      : !t ? '<span class="fw-muted">queued</span>'
+      : t.status === 'completed' ? `<span class="fw-good">✔ done${t.verified_files ? `, ${formatNumber(t.verified_files)} checked` : ''}</span>`
+      : t.status === 'failed' ? `<span class="fw-bad">${escapeHtml(t.error_message || 'failed')}</span>`
+      : t.status === 'cancelled' ? '<span class="fw-muted">stopped</span>'
+      : `<span class="fw-muted">${t.status === 'paused' ? 'paused' : 'copying'} ${t.total_bytes ? Math.round(100 * t.bytes_processed / t.total_bytes) : 0}%</span>`;
+    return `<div class="fw-row"><span class="fw-row-name">${escapeHtml(j.name)}</span>${state}</div>`;
+  });
+  const done = Object.values(sd.jobs).filter(j => j.task && ['completed'].includes(lastKnownTasksList.find(x => x.id === j.task)?.status)).length;
+  box.innerHTML = `<div class="fw-label">Sending: ${done} of ${Object.keys(sd.jobs).length} done</div><div class="fw-table">${rows.join('')}</div>`;
+}
+
+function fwSendWatch() {
+  clearInterval(fw.sendTimer);
+  fw.sendTimer = setInterval(() => {
+    const sd = fw.send;
+    if (!sd.jobs) return clearInterval(fw.sendTimer);
+    fwSendRefreshStatus();
+    const open = Object.values(sd.jobs).some(j => {
+      if (j.state === 'fail') return false;
+      const t = j.task ? lastKnownTasksList.find(x => x.id === j.task) : null;
+      return !t || ['running', 'paused'].includes(t.status);
+    });
+    if (!open) clearInterval(fw.sendTimer);
+  }, 1000);
+}
+
+/** The "Send to machines…" line in the Copy to… menus, when there are Fleet machines */
+function fleetSendMenuItem() {
+  const nodes = typeof getAllFleetNodes === 'function' ? getAllFleetNodes().filter(n => n && n.id && n.id !== 'local') : [];
+  if (!nodes.length) return '';
+  return `<div class="context-item" data-on-click="openSendToMachines" data-click-after="hideContextMenu"><i data-lucide="globe"></i> <span class="context-label">Send to machines...</span></div>`;
+}
+
 // ---------------- COMPARE (two folders, two files, duplicates) ----------------
 // Drawing more rows than this makes the page freeze; filters and search narrow the list instead
 const COMPARE_MAX_ROWS = 500;
@@ -18965,7 +19642,7 @@ function setFileDiffMode(mode) {
   }
 }
 
-async function openFileDiffView(fileL, fileR, targetContainer = null) {
+async function openFileDiffView(fileL, fileR, targetContainer = null, across = null) {
   currentFileDiffLeft = fileL;
   currentFileDiffRight = fileR;
 
@@ -18995,7 +19672,7 @@ async function openFileDiffView(fileL, fileR, targetContainer = null) {
   `;
   if (window.lucide) lucide.createIcons({ root: body });
 
-  if (isImageFileName(fileL) && isImageFileName(fileR)) {
+  if (!across && isImageFileName(fileL) && isImageFileName(fileR)) {
     const subtitle = document.getElementById('diff-header-subtitle');
     if (subtitle) subtitle.textContent = 'Image Comparison Studio';
 
@@ -19025,7 +19702,19 @@ async function openFileDiffView(fileL, fileR, targetContainer = null) {
 
   try {
     let diffData;
-    if (fileL.startsWith('client://') || fileR.startsWith('client://')) {
+    if (across) {
+      // Two files on two machines (All machines → Same file)
+      const resp = await fetch('/api/compare/files-across', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(across)
+      });
+      if (!resp.ok) {
+        body.innerHTML = `<div style="color: var(--danger); padding: 20px;">Failed to compare files: ${escapeHtml(await resp.text())}</div>`;
+        return;
+      }
+      diffData = await resp.json();
+    } else if (fileL.startsWith('client://') || fileR.startsWith('client://')) {
       let textL = '';
       let textR = '';
 
@@ -22183,6 +22872,7 @@ function showContextMenu(x, y) {
           ${favCopyItems}
           <div class="context-sep"></div>
           <div class="context-item" data-on-click="openCustomDestModal" data-click-args="${actionArgs('copy')}" data-click-after="hideContextMenu"><i data-lucide="folder-symlink"></i> <span class="context-label">Custom Folder...</span></div>
+          ${fleetSendMenuItem()}
           <div class="context-item" data-on-click="addCurrentPaneToQuickDest" data-click-after="hideContextMenu"><i data-lucide="bookmark-plus"></i> <span class="context-label">+ Bookmark Current Path</span></div>
         </div>
       </div>
@@ -22238,6 +22928,7 @@ function showContextMenu(x, y) {
           ${favCopyItems}
           <div class="context-sep"></div>
           <div class="context-item" data-on-click="openCustomDestModal" data-click-args="${actionArgs('copy')}" data-click-after="hideContextMenu"><i data-lucide="folder-symlink"></i> <span class="context-label">Custom Folder...</span></div>
+          ${fleetSendMenuItem()}
           <div class="context-item" data-on-click="addCurrentPaneToQuickDest" data-click-after="hideContextMenu"><i data-lucide="bookmark-plus"></i> <span class="context-label">+ Bookmark Current Path</span></div>
         </div>
       </div>
@@ -22350,6 +23041,7 @@ function showContextMenu(x, y) {
           ${favCopyItems}
           <div class="context-sep"></div>
           <div class="context-item" data-on-click="openCustomDestModal" data-click-args="${actionArgs('copy')}" data-click-after="hideContextMenu"><i data-lucide="folder-symlink"></i> <span class="context-label">Custom Folder...</span></div>
+          ${fleetSendMenuItem()}
           <div class="context-item" data-on-click="addCurrentPaneToQuickDest" data-click-after="hideContextMenu"><i data-lucide="bookmark-plus"></i> <span class="context-label">+ Bookmark Current Path</span></div>
         </div>
       </div>
@@ -36122,11 +36814,16 @@ function isBackupVisible() {
 
 // Drag by the header, resize from the edges; position and size are remembered on PC
 function initBackupWindowDragResize() {
-  const win = document.getElementById('floating-backup-window');
-  const header = document.getElementById('backup-window-header');
+  initToolWindowDragResize('floating-backup-window', 'backup-window-header', 'cd_backup');
+}
+
+// Drag by the header, resize from the edges; position and size are remembered on PC
+function initToolWindowDragResize(winId, headerId, key) {
+  const win = document.getElementById(winId);
+  const header = document.getElementById(headerId);
   if (!win || !header) return;
   if (window.innerWidth > 1024) {
-    const saved = ['x', 'y', 'w', 'h'].map(k => parseInt(localStorage.getItem(`cd_backup_${k}`) || '', 10));
+    const saved = ['x', 'y', 'w', 'h'].map(k => parseInt(localStorage.getItem(`${key}_${k}`) || '', 10));
     const [x, y, w, h] = saved;
     if (w) win.style.width = `${Math.min(w, window.innerWidth - 20)}px`;
     if (h) win.style.height = `${Math.min(h, window.innerHeight - 50)}px`;
@@ -36185,10 +36882,10 @@ function initBackupWindowDragResize() {
     mode = null;
     document.body.style.userSelect = '';
     const r = win.getBoundingClientRect();
-    localStorage.setItem('cd_backup_x', Math.round(r.left));
-    localStorage.setItem('cd_backup_y', Math.round(r.top));
-    localStorage.setItem('cd_backup_w', Math.round(r.width));
-    localStorage.setItem('cd_backup_h', Math.round(r.height));
+    localStorage.setItem(`${key}_x`, Math.round(r.left));
+    localStorage.setItem(`${key}_y`, Math.round(r.top));
+    localStorage.setItem(`${key}_w`, Math.round(r.width));
+    localStorage.setItem(`${key}_h`, Math.round(r.height));
   });
 }
 
@@ -40657,9 +41354,13 @@ function dockToolToPane(toolName, paneIndex) {
   else if (toolName === 'backup') {
     closeBackupWindow();
   }
+  // 14. All machines
+  else if (toolName === 'fleetwide') {
+    closeFleetwideWindow();
+  }
 
   rebuildPaneDOM(paneIndex);
-  showToast(`Docked ${toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
+  showToast(`Docked ${toolName === 'fleetwide' ? 'ALL MACHINES' : toolName.toUpperCase()} into Pane ${paneIndex + 1}`, 'info');
 }
 
 function undockToolFromPane(paneIndex) {
@@ -40673,6 +41374,11 @@ function undockToolFromPane(paneIndex) {
   if (tool === 'backup') {
     const win = document.getElementById('floating-backup-window');
     const body = backupBody();
+    if (win && body && !win.contains(body)) win.appendChild(body);
+  }
+  if (tool === 'fleetwide') {
+    const win = document.getElementById('floating-fleetwide-window');
+    const body = fleetwideBody();
     if (win && body && !win.contains(body)) win.appendChild(body);
   }
   if (['diff', 'compare', 'duplicates'].includes(tool)) {
@@ -40737,6 +41443,8 @@ function undockToolFromPane(paneIndex) {
     openDiskUsageModal();
   } else if (tool === 'backup') {
     openSyncModal();
+  } else if (tool === 'fleetwide') {
+    openFleetwide();
   } else if (tool.startsWith('plugin:') || tool.startsWith('chewtoy:')) {
     const pluginId = tool.replace(/^(plugin|chewtoy):/, '');
     openDynamicChewToy(pluginId);
@@ -40798,6 +41506,14 @@ function closeDockedTool(paneIndex) {
     }
   }
 
+  if (tool === 'fleetwide') {
+    const win = document.getElementById('floating-fleetwide-window');
+    const body = fleetwideBody();
+    if (win && body && !win.contains(body)) {
+      win.appendChild(body);
+    }
+  }
+
   if (tool === 'tageditor') {
     const win = document.getElementById('floating-tageditor-window');
     const body = document.getElementById('tageditor-body');
@@ -40850,7 +41566,7 @@ function closeDockedTool(paneIndex) {
   }
 
   rebuildPaneDOM(paneIndex);
-  showToast(`Closed docked ${tool.toUpperCase()} in Pane ${paneIndex + 1}`, 'info');
+  showToast(`Closed docked ${tool === 'fleetwide' ? 'ALL MACHINES' : tool.toUpperCase()} in Pane ${paneIndex + 1}`, 'info');
 }
 
 function renderDockedPaneTool(paneIndex) {
@@ -41250,6 +41966,16 @@ function mountDockedTool(paneIndex) {
     bindActions(mount);
     setTimeout(() => {
       mountDockedDiskUsage(paneIndex);
+    }, 50);
+  }
+  // 21. DOCKED ALL MACHINES
+  else if (tool === 'fleetwide') {
+    mount.innerHTML = `
+      <div class="docked-backup-box" style="display: flex; flex-direction: column; width: 100%; height: 100%; overflow: hidden; background: var(--bg-panel);" id="docked-fleetwide-host-${paneIndex}"></div>
+    `;
+    bindActions(mount);
+    setTimeout(() => {
+      mountDockedFleetwide(paneIndex);
     }, 50);
   }
   // 20. DOCKED BACKUP & SYNC

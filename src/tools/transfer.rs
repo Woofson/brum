@@ -144,6 +144,11 @@ impl Place {
         }
     }
 
+    /// Reads a file for showing it (at most `limit` bytes are wanted)
+    pub fn read_limited(&self, rel: &str, limit: u64) -> Result<Box<dyn Read + Send>, String> {
+        Ok(Box::new(self.read_from(rel, 0)?.take(limit)))
+    }
+
     fn sha256(&self, rel: &str) -> Result<String, String> {
         match self {
             Place::Local(_) => sha256_file(&self.local(rel).unwrap()).map(|(h, _)| h),

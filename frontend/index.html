@@ -5081,6 +5081,39 @@
     </div>
   </div>
 
+  <!-- All machines (#192): actions over every Fleet machine at once -->
+  <div class="floating-backup-window fw-window" id="floating-fleetwide-window" style="display: none;" data-on-click="bringFloatingWindowToFront" data-click-args='[{"$": "el"}]'>
+    <div class="win-resize-handle win-resize-top" data-resize="top"></div>
+    <div class="win-resize-handle win-resize-bottom" data-resize="bottom"></div>
+    <div class="win-resize-handle win-resize-left" data-resize="left"></div>
+    <div class="win-resize-handle win-resize-right" data-resize="right"></div>
+    <div class="win-resize-handle win-resize-corner" data-resize="corner">
+      <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M9 1L1 9M9 5L5 9M9 9H9.01" stroke="rgba(255,255,255,0.4)" stroke-width="1.5" stroke-linecap="round"/></svg>
+    </div>
+    <div class="modal-header bk-window-header" id="fleetwide-window-header">
+      <div style="display: flex; align-items: center; gap: 8px; overflow: hidden;">
+        <i data-lucide="globe" style="width: 16px; height: 16px; color: var(--accent); flex-shrink: 0;"></i>
+        <span class="chewtoy-brand-text" style="font-weight: 700; font-size: 13.5px;">All machines</span>
+      </div>
+      <div style="display: flex; align-items: center; gap: 6px;">
+        <button class="btn btn-icon btn-sm desktop-only" data-on-click="dockFleetwideToActivePane" title="Dock into Active Panel" style="width: 28px; height: 28px;"><i data-lucide="panel-left-close" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm" id="fleetwide-maximize-btn" data-on-click="toggleFleetwideMaximize" title="Maximize Window" style="width: 28px; height: 28px;"><i data-lucide="maximize-2" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm desktop-only" data-on-click="minimizeFleetwideWindow" title="Minimize to Pill" style="width: 28px; height: 28px;"><i data-lucide="minus" style="width: 14px; height: 14px;"></i></button>
+        <button class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeFleetwideWindow" title="Close" style="width: 28px; height: 28px;"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+      </div>
+    </div>
+    <!-- Body (moves into a Panel when docked) -->
+    <div class="bk-body" id="fleetwide-body">
+      <div class="fw-tabs" id="fleetwide-tabs"></div>
+      <div class="bk-view" id="fleetwide-view"></div>
+    </div>
+  </div>
+
+  <div class="diskusage-pill bk-pill fw-pill" id="fleetwide-pill" style="display: none;" data-on-click="restoreFleetwideWindow" title="Click to restore All machines">
+    <i data-lucide="globe" style="width: 14px; height: 14px; color: var(--accent);"></i>
+    <span>All machines</span>
+  </div>
+
   <div class="diskusage-pill bk-pill" id="backup-pill" style="display: none;" data-on-click="restoreBackupWindow" title="Click to restore Backup &amp; Sync">
     <img src="assets/sync.webp" alt="" style="width: 14px; height: 14px; object-fit: contain;">
     <span>Backup &amp; Sync</span>
@@ -5379,8 +5412,8 @@
               </div>
 
               <div class="settings-field">
-                <label class="settings-field-label" for="fleet-input-tags">Tags (comma-separated):</label>
-                <input type="text" id="fleet-input-tags" class="settings-input" placeholder="e.g. nas, proxmox, cloud, prod" style="height: 28px;">
+                <label class="settings-field-label" for="fleet-input-tags">Groups / tags (comma-separated):</label>
+                <input type="text" id="fleet-input-tags" class="settings-input" placeholder="e.g. servers, laptops, nas" title="Used to pick machines by group in All machines" style="height: 28px;">
               </div>
             </div>
 
