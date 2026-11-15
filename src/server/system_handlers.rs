@@ -608,8 +608,17 @@ pub async fn handle_get_manual(
 
 pub async fn handle_get_config(
     State(state): State<AppState>,
+    headers: HeaderMap,
 ) -> Json<crate::config::ClientConfigDto> {
     let mut dto = state.config.to_client_dto();
+    // Machines paired with a code: only for people who are signed in
+    if crate::server::middleware::extract_claims_or_local(&state, &headers).is_ok() {
+        for p in crate::tools::pairing::list() {
+            if !dto.fleet.nodes.iter().any(|n| n.id == p.id || p.urls.iter().any(|u| n.urls.contains(u))) {
+                dto.fleet.nodes.push(crate::config::ClientFleetNodeConfigDto::from_node(&p.to_node()));
+            }
+        }
+    }
     // While the first-login note exists, the login page says where it is (never the password)
     if state.config.server.enable_auth && !state.config.server.standalone {
         dto.auth.first_login_note = crate::auth::first_login_note_path(state.auth.db_path())

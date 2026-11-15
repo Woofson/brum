@@ -152,6 +152,71 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     return Ok(());
                 }
             }
+            "join" => {
+                // brum join <main Brum address> <code> [--name NAME]
+                let rest: Vec<String> = args[i + 1..].to_vec();
+                let mut name: Option<String> = None;
+                let mut positional = Vec::new();
+                let mut k = 0;
+                while k < rest.len() {
+                    if rest[k] == "--name" && k + 1 < rest.len() {
+                        name = Some(rest[k + 1].clone());
+                        k += 2;
+                        continue;
+                    }
+                    positional.push(rest[k].clone());
+                    k += 1;
+                }
+                if positional.len() < 2 {
+                    eprintln!("Usage: brum join <main Brum address> <pairing code> [--name NAME]");
+                    eprintln!("Make the code on the main Brum: Fleet manager -> Add machine.");
+                    return Ok(());
+                }
+                if !config.server.jwt_secret_source.is_empty() {
+                    eprintln!("This machine already uses a shared secret ({}).", config.server.jwt_secret_source);
+                    eprintln!("Remove it to join with a code, or give it the Fleet's secret instead.");
+                    return Ok(());
+                }
+                if cfg!(windows) && !win_perms::is_elevated() {
+                    println!("Not running as administrator, so this joins with the data of your own desktop mode:");
+                    println!("    {}", config.server.database_path);
+                    println!("For the Windows service, run it from a terminal opened as administrator.");
+                    println!();
+                }
+                let auth = AuthManager::new(
+                    &config.server.database_path,
+                    &config.server.jwt_secret,
+                    config.server.session_duration_hours,
+                    &config.auth.mode,
+                    &config.auth.pam_service,
+                    &config.auth.default_admin_user,
+                    &config.auth.default_admin_pass,
+                )?;
+                tools::pairing::init(auth.db_path());
+                let my_name = name.unwrap_or_else(|| {
+                    if !config.server.server_name.trim().is_empty() { config.server.server_name.clone() } else { server::system_handlers::get_system_hostname() }
+                });
+                let (main_url, code, db) = (positional[0].clone(), positional[1].clone(), auth.db_path().to_string());
+                let urls = tools::pairing::own_addresses(config.server.port, &main_url);
+                println!("Joining the Fleet of {} as '{}', reachable at {}", main_url, my_name, urls.join(", "));
+                let result = tokio::task::spawn_blocking(move || tools::pairing::join(&main_url, &code, &my_name, urls, &db)).await?;
+                match result {
+                    Ok(main) => {
+                        println!("Joined the Fleet of {}. Both machines now list each other.", main);
+                        if instance::is_loopback_host(&config.server.host) {
+                            println!("Note: Brum here only listens on this machine (host = 127.0.0.1); set host = \"0.0.0.0\" in config.toml so the others can reach it.");
+                        }
+                        if cfg!(windows) {
+                            println!("Restart Brum on this machine to finish: restart the Brum service (tray icon -> Restart service).");
+                        } else {
+                            println!("Restart Brum on this machine to finish, for example: sudo systemctl restart brum");
+                        }
+                        println!("People need an account with the same name on this machine to sign in here.");
+                    }
+                    Err(e) => eprintln!("Could not join: {}", e),
+                }
+                return Ok(());
+            }
             "reset-admin-password" => {
                 if cfg!(windows) && !win_perms::is_elevated() {
                     println!("Not running as administrator, so this uses the database at:");
@@ -222,6 +287,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    brum service [COMMAND]");
                 println!("    brum shortcut [COMMAND] [--desktop]");
                 println!("    brum reset-admin-password   Give the built-in admin a new password (run on the Brum machine)");
+                println!("    brum join <address> <code>  Join the Fleet of another Brum with the code it shows (Fleet manager -> Add machine)");
                 println!("    brum tray [install|uninstall] [--all-users]   Windows tray icon, and starting it at sign-in");
                 println!();
                 println!("OPTIONS:");
@@ -294,7 +360,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         tracing::error!("{}", e);
         std::process::exit(1);
     }
-    crate::logging::log_fleet_hint(&config);
 
     let auth_mgr = AuthManager::new(
         &config.server.database_path,
@@ -312,6 +377,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     if config.activity.enabled {
         tools::activity::init(auth_mgr.db_path(), config.activity.retention_days);
     }
+    tools::pairing::init(auth_mgr.db_path());
+    crate::logging::log_fleet_hint(&config, tools::pairing::joined_secret(auth_mgr.db_path()).is_some() || !tools::pairing::list().is_empty());
     let backup_mgr = tools::sync::BackupManager::new(auth_mgr.db())?.with_sftp_config(config.storage.sftp.clone());
     let plugin_mgr = plugins::PluginManager::new(
         config.plugins.resolve_system_directory(),

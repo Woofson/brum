@@ -309,20 +309,39 @@ To federate nodes without managing static per-node API tokens:
   2. `BRUM_JWT_SECRET_FILE`: the path of a file holding the secret. Suits Docker secrets (`/run/secrets/brum_jwt`) and keeps the secret out of process listings and `docker inspect`.
   3. `jwt_secret` in `config.toml`: the secret itself.
   4. `jwt_secret_file` in `config.toml`: the path of a file holding the secret. The config file, and the web config editor, then only show the path.
-  5. None of these: a node-local secret derived from `brum-secrets.key`. Do not copy that key file between machines to share a secret; it also unlocks that machine's saved passwords.
+  5. `fleet-secret.key` next to the database: written when this machine joined a Fleet with a pairing code (see below).
+  6. None of these: a node-local secret derived from `brum-secrets.key`. Do not copy that key file between machines to share a secret; it also unlocks that machine's saved passwords.
 * **Secret files**: spaces and line breaks around the secret are ignored. If a named file is missing, unreadable or empty, Brum refuses to start instead of quietly using a node-local secret, which would split the Fleet's logins.
 * **Checks at start-up**: the log says where the secret came from, never the secret. Brum warns when it is shorter than 32 characters. On Linux and macOS it warns when other users can read the file (use `chmod 600`, or `640` with a group for Brum). On Windows it limits the file to Brum's own account, SYSTEM and Administrators.
 * In `[[fleet.nodes]]`, set `token = ""` (or omit `token`).
 * When `token` is empty, Brum's Gateway Hub automatically forwards the caller's active session JWT. Because both nodes share the master signing secret, the remote node validates the signature and authenticates the user instantly.
 * **Static API Tokens**: If a remote node does *not* share the same secret key, create a static API Token on that node (**Settings -> Security -> API Tokens**) and set `token = "<your_token>"` in `config.toml`.
 
-### 2. Config Defaults vs Fleet Manager Overrides
+### 2. Joining with a Pairing Code
+The quickest way to add a machine, without copying secrets by hand:
+1. On your main Brum (as admin): **Fleet → Add machine**. Brum shows an 8-character code (for example `9WBN-C4C7`) that works **once**, for **10 minutes**, with the commands to run.
+2. On the new machine, after installing Brum, either:
+   * in a terminal: `sudo brum join http://main-brum:3140 9WBN-C4C7` (Linux/macOS), or in PowerShell opened as administrator: `& "C:\Program Files\Brum\brum.exe" join http://main-brum:3140 9WBN-C4C7`. Add `--name nas` to choose the name it is listed under. Restart Brum there afterwards;
+   * or in Brum on the new machine (as admin): **Fleet → Join a Fleet**, with the main Brum's address and the code. Brum restarts by itself.
+3. The new machine receives the secret your main Brum signs logins with and keeps it in `fleet-secret.key` next to its database (readable only by Brum). Both machines list each other as Fleet machines, marked `paired`; nothing is written into `config.toml`.
+
+What to know:
+* **Trust**: a paired machine can sign logins that every machine sharing the secret accepts. Only pair machines you trust, as with a shared secret set by hand.
+* **Accounts**: people need an account with the same name on each machine they use; the login is accepted, the account must exist.
+* **Sessions**: nobody signs in again on the main Brum; on the new machine everyone signs in again once.
+* **Codes**: a code is used up when a machine joins with it, and after 10 wrong codes in a short time every open code is cancelled. Making codes and joining are recorded in the activity log.
+* **Unencrypted networks**: over plain `http`, the secret travels unencrypted. Pair over your own network or an overlay network (NetBird, Tailscale, WireGuard), or put Brum behind `https`.
+* **A machine that already has a secret** (`BRUM_JWT_SECRET`, `jwt_secret`, ...) cannot join with a code; remove that setting first, or give it the Fleet's secret by hand.
+* **Removing**: **Fleet → Add machine** lists the paired machines with **Remove**. That removes the machine from the list; it keeps the secret, so to shut a machine out completely, change the Fleet's secret and pair the others again.
+* **Addresses**: the new machine tells the main Brum its name and the network address it uses towards it. A Brum listening on `127.0.0.1` only cannot be reached by others; set `host = "0.0.0.0"`.
+
+### 3. Config Defaults vs Fleet Manager Overrides
 * **Automatic Ingestion**: Statically configured nodes in `config.toml` are automatically synced into the browser's UI (appearing in **Fleet Control** and the **Paw Menu**).
 * **Auto-Syncing Updates**: Modifying a node in `config.toml` (e.g. changing `start_path` or `url`) automatically updates the browser on next load, avoiding stale cached paths.
 * **User Overrides**: Users can customize a static node in the **Fleet Manager** (changing its start directory, display name, color accent, or routing mode) and click **Save Profile**. This tags the node with `user_override: true` and preserves personal preferences over `config.toml`.
 * **One-Click Reset**: To discard custom overrides and revert to `config.toml` settings, click the amber **Reset** button (`rotate-ccw`) on the node card in Fleet Manager.
 
-### 3. One Machine, Several Systems or Addresses
+### 4. One Machine, Several Systems or Addresses
 A machine that boots more than one system (for example Linux as `griffon` and Windows as `wingriff`) needs only one Fleet entry:
 * **Addresses**: list them in `urls`. The existing `url` still works and counts as the first address. The hub uses the address that answered last; when it stops answering, the others are tried again in order. The answer is kept for a minute, so not every request tries every address.
 * **Start folder per system**: under `[fleet.nodes.start_paths]`, give a folder for `linux`, `windows` or `macos`. Brum picks the one for the system the machine reports when it is pinged; `start_path` is used when none matches.
@@ -331,7 +350,7 @@ A machine that boots more than one system (for example Linux as `griffon` and Wi
 * **Older saved entries**: if you had one entry per hostname, both are merged into the one entry from `config.toml` the next time the page loads.
 * **Token**: one token (or the shared signing secret) for all addresses of the machine.
 
-### 4. Copying and Moving Between Machines
+### 5. Copying and Moving Between Machines
 With the two panes on different Fleet machines, **F5** (copy) and **F6** (move) are done by the Brum servers, not by the browser:
 * **Direct**: when both panes show other machines, the receiving machine fetches the files straight from the sending one. If the two cannot reach each other (for example on different networks), the Brum you are connected to passes the files between them. The task list says which happened. Either way nothing goes through the browser.
 * **Keeps going**: the copy runs in the task list of the Brum you are connected to. Closing or reloading the tab does not stop it; open Brum again to see it.
@@ -342,7 +361,7 @@ With the two panes on different Fleet machines, **F5** (copy) and **F6** (move) 
 * **Logins**: each machine uses its usual Fleet login (its `token`, or the shared signing secret). For a direct copy, the receiving machine is given the login for the sending machine for that copy. Read-only machines (`read_only = true`) are never written to.
 * **Older machines**: a machine still on Brum 1.22 or older does not understand these copy jobs. Brum then says so and copies through the browser as before; keep the tab open until it finishes. The same happens for places such as SFTP or Samba opened inside a pane.
 
-### 5. Zero CORS Requirements on Gateway Proxy
+### 6. Zero CORS Requirements on Gateway Proxy
 When routed through the Fleet Gateway Hub (`/api/fleet/proxy/:node_id`), all communication is proxied server-to-server. Remote nodes **do not** require the coordinator's domain in their `allowed_origins` whitelist.
 
 ---

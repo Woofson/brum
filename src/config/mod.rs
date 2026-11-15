@@ -1702,6 +1702,22 @@ pub struct ClientFleetNodeConfigDto {
     pub tags: Vec<String>,
 }
 
+impl ClientFleetNodeConfigDto {
+    pub fn from_node(n: &FleetNodeConfig) -> Self {
+        Self {
+            id: n.id.clone(),
+            name: n.name.clone(),
+            url: n.addresses().into_iter().next().unwrap_or_default(),
+            urls: n.addresses(),
+            start_path: n.start_path.clone(),
+            start_paths: n.start_paths.clone(),
+            read_only: n.read_only,
+            color_accent: n.color_accent.clone(),
+            tags: n.tags.clone(),
+        }
+    }
+}
+
 impl AppConfig {
     pub fn to_client_dto(&self) -> ClientConfigDto {
         ClientConfigDto {
@@ -1755,17 +1771,7 @@ impl AppConfig {
             plugins: self.plugins.clone(),
             fleet: ClientFleetConfigDto {
                 enabled: self.fleet.enabled,
-                nodes: self.fleet.nodes.iter().map(|n| ClientFleetNodeConfigDto {
-                    id: n.id.clone(),
-                    name: n.name.clone(),
-                    url: n.addresses().into_iter().next().unwrap_or_default(),
-                    urls: n.addresses(),
-                    start_path: n.start_path.clone(),
-                    start_paths: n.start_paths.clone(),
-                    read_only: n.read_only,
-                    color_accent: n.color_accent.clone(),
-                    tags: n.tags.clone(),
-                }).collect(),
+                nodes: self.fleet.nodes.iter().map(ClientFleetNodeConfigDto::from_node).collect(),
             },
         }
     }

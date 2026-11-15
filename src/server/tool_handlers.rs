@@ -962,7 +962,7 @@ fn resolve_fleet_destination(state: &AppState, headers: &HeaderMap, p: &mut Back
         let node = v.get("fleet_nodes")?.as_array()?.iter().find(|n| n.get("id").and_then(|i| i.as_str()) == Some(node_id.as_str()))?;
         Some((node.get("endpoint_url")?.as_str()?.to_string(), node.get("auth_token").and_then(|t| t.as_str()).map(String::from).filter(|t| !t.trim().is_empty())))
     })();
-    let found = match state.config.fleet.nodes.iter().find(|n| n.id == node_id) {
+    let found = match crate::server::fleet::all_nodes(state).iter().find(|n| n.id == node_id) {
         // A machine from the settings file without a token can still have one saved by the user
         Some(n) => Some((crate::server::fleet::fleet_node_address(n), n.token.clone().filter(|t| !t.trim().is_empty()).or_else(|| saved.as_ref().and_then(|s| s.1.clone())))),
         None => saved,

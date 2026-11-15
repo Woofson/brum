@@ -5339,6 +5339,20 @@
   </div>
 
   <!-- Fleet Control Manager Modal -->
+  <!-- Joining the Fleet with a pairing code (#193) -->
+  <div class="modal-overlay" id="fleet-pair-modal" style="z-index: 2880;">
+    <div class="modal-box" style="width: 560px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;">
+      <div class="modal-header" style="min-height: 42px; padding: 0 14px; background: var(--bg-header); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <i data-lucide="key-round" style="width: 16px; height: 16px; color: var(--accent);"></i>
+          <span style="font-weight: 700; font-size: 13.5px;" id="fleet-pair-title">Add machine</span>
+        </div>
+        <button type="button" class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeFleetPairing" title="Close (Esc)" style="width: 28px; height: 28px;"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
+      </div>
+      <div class="modal-body fp-body" id="fleet-pair-body" style="padding: 14px; overflow-y: auto;"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="fleet-manager-modal" style="z-index: 2870;">
     <div class="modal-box" style="width: 840px; max-width: 95vw; max-height: 88vh; display: flex; flex-direction: column;">
       <!-- Modal Header (42px standard) -->
@@ -5350,6 +5364,8 @@
         </div>
         <div style="display: flex; align-items: center; gap: 6px;">
           <button type="button" class="btn btn-icon btn-sm" data-on-click="pingAllFleetNodes" title="Ping All Nodes (Refresh Health)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="rotate-cw" style="width: 14px; height: 14px;"></i></button>
+          <button type="button" class="btn btn-sm fleet-pair-btn" id="fleet-pair-add-btn" data-on-click="openFleetPairing" title="Add a machine with a pairing code" style="height: 28px; display: none;"><i data-lucide="key-round" style="width: 13px; height: 13px;"></i> Add machine</button>
+          <button type="button" class="btn btn-sm fleet-pair-btn" id="fleet-pair-join-btn" data-on-click="openFleetJoin" title="Join another Brum's Fleet with the code it shows" style="height: 28px; display: none;"><i data-lucide="log-in" style="width: 13px; height: 13px;"></i> Join a Fleet</button>
           <button type="button" class="btn btn-icon btn-sm" data-on-click="resetFleetNodeForm" title="New Node Profile" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="plus" style="width: 14px; height: 14px;"></i></button>
           <button type="button" class="btn btn-icon btn-sm modal-close-btn" data-on-click="closeModal" data-click-args='["fleet-manager-modal"]' title="Close (Esc)" style="width: 28px; height: 28px; border-radius: var(--radius);"><i data-lucide="x" style="width: 14px; height: 14px;"></i></button>
         </div>

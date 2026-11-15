@@ -173,9 +173,9 @@ pub fn log_running(addr: std::net::SocketAddr) {
 }
 
 /// Fleet machines are set up, but nothing lets them sign you in to each other
-pub fn log_fleet_hint(config: &crate::config::AppConfig) {
+pub fn log_fleet_hint(config: &crate::config::AppConfig, paired: bool) {
     let needs_secret = config.fleet.nodes.iter().any(|n| n.token.as_deref().unwrap_or("").trim().is_empty());
-    if needs_secret && config.server.jwt_secret_source.is_empty() {
+    if needs_secret && config.server.jwt_secret_source.is_empty() && !paired {
         info!("Fleet: machines can't sign you in to each other without a shared secret. See the Configuration manual, \"Shared Cluster Secret\".");
     }
 }

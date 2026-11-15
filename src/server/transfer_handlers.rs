@@ -137,7 +137,7 @@ async fn resolve_side(state: &AppState, headers: &HeaderMap, claims: &crate::aut
             Ok(Side { label: url.clone(), remote: Some((url, side.token.clone().filter(|t| !t.trim().is_empty()))), folder: side.folder.clone() })
         }
         id => {
-            let mut target = match state.config.fleet.nodes.iter().find(|n| n.id == id) {
+            let mut target = match crate::server::fleet::all_nodes(state).iter().find(|n| n.id == id) {
                 Some(n) => {
                     if n.read_only && write {
                         return Err((StatusCode::FORBIDDEN, format!("{} is set to read-only", n.name)));

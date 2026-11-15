@@ -69,6 +69,19 @@ fn remember_live_address(node_id: &str, addr: &str) {
     }
 }
 
+/// Every Fleet machine this Brum knows: those in `config.toml`, then those paired with a code
+/// (a paired machine that is also in `config.toml` appears once)
+pub fn all_nodes(state: &AppState) -> Vec<FleetNodeConfig> {
+    let mut nodes = state.config.fleet.nodes.clone();
+    for p in crate::tools::pairing::list() {
+        let dup = nodes.iter().any(|n| n.id == p.id || n.addresses().iter().any(|a| p.urls.iter().any(|u| u.trim_end_matches('/') == a)));
+        if !dup {
+            nodes.push(p.to_node());
+        }
+    }
+    nodes
+}
+
 /// Forgets the address in use, so the next request looks for the one that answers
 pub fn forget_live_address(node_id: &str) {
     if let Ok(mut map) = live_addresses().lock() {
@@ -237,7 +250,7 @@ pub fn resolve_target_node(
     headers: &HeaderMap,
 ) -> Option<ResolvedFleetTarget> {
     // 1. Check static configuration nodes
-    if let Some(n) = state.config.fleet.nodes.iter().find(|n| n.id == node_id) {
+    if let Some(n) = all_nodes(state).iter().find(|n| n.id == node_id) {
         let addresses = n.addresses();
         if addresses.is_empty() {
             return None;
@@ -746,7 +759,7 @@ pub async fn handle_list_fleet_nodes(
     Query(query): Query<HashMap<String, String>>,
 ) -> Result<Json<Vec<FleetNodeConfig>>, (StatusCode, String)> {
     let _ = extract_fleet_claims(&state, &headers, &query)?;
-    Ok(Json(state.config.fleet.nodes.clone()))
+    Ok(Json(all_nodes(&state)))
 }
 
 #[cfg(test)]

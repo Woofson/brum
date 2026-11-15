@@ -17697,6 +17697,42 @@ textarea.bk-input {
 }
 
 /* ==========================================================================
+   Joining the Fleet with a pairing code (#193)
+   ========================================================================== */
+.fleet-pair-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; }
+.fp-body { display: flex; flex-direction: column; gap: 6px; font-size: 12.5px; }
+.fp-text { margin: 0 0 4px; line-height: 1.5; color: var(--text-main); }
+.fp-label { font-size: 11px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.03em; margin-top: 6px; }
+.fp-code {
+  font-family: var(--font-mono);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-align: center;
+  color: var(--accent);
+  padding: 10px;
+  border: 1px dashed rgba(245, 158, 11, 0.5);
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  user-select: all;
+}
+.fp-code-input { font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; }
+.fp-left { text-align: center; font-size: 11px; color: var(--text-dim); }
+.fp-cmd { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-dark); min-width: 0; }
+.fp-cmd code { flex: 1; min-width: 0; overflow-x: auto; white-space: nowrap; font-size: 12px; }
+.fp-cmd svg { width: 12px; height: 12px; }
+.fp-note { padding: 6px 8px; border-left: 3px solid var(--accent); background: var(--bg-dark); border-radius: var(--radius); color: var(--text-dim); line-height: 1.5; margin-top: 4px; }
+.fp-status { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 22px; color: var(--text-dim); margin-top: 6px; }
+.fp-status svg, .fp-muted svg, .fp-good svg { width: 14px; height: 14px; }
+.fp-good { color: var(--success); display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.fp-bad { color: var(--danger); }
+.fp-muted { color: var(--text-dim); font-size: 11.5px; display: inline-flex; align-items: center; gap: 6px; }
+.fp-paired-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--bg-dark); }
+.fp-paired-row + .fp-paired-row { margin-top: 4px; }
+.fp-paired-row small { color: var(--text-dim); }
+.fp-paired-row svg { width: 12px; height: 12px; }
+
+/* ==========================================================================
    Activity log (#193)
    ========================================================================== */
 .act-filters {

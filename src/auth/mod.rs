@@ -581,7 +581,11 @@ impl AuthManager {
 
             // Derived from the key file, so the database never holds it; an older copy in the
             // database is removed (sessions from before log in again once)
-            if let Some(derived) = crate::secrets::derived_secret(&login_signing_purpose(&conn)?) {
+            // A machine that joined a Fleet with a pairing code signs with the Fleet's secret
+            if let Some(joined) = crate::tools::pairing::joined_secret(db_path) {
+                info!("Login signing secret: from {} (this machine joined a Fleet)", crate::tools::pairing::SECRET_FILE);
+                joined
+            } else if let Some(derived) = crate::secrets::derived_secret(&login_signing_purpose(&conn)?) {
                 let removed = conn.execute("DELETE FROM security_settings WHERE key = 'jwt_secret'", []).unwrap_or(0);
                 if removed > 0 {
                     tracing::warn!("Login signing now uses brum-secrets.key; everyone signs in again once.");
@@ -842,6 +846,11 @@ impl AuthManager {
             |row| row.get(0),
         ).optional()?;
         Ok(found.is_some())
+    }
+
+    /// The secret logins are signed with; handed to a machine that joins with a pairing code
+    pub fn signing_secret(&self) -> &str {
+        &self.jwt_secret
     }
 
     pub fn db_path(&self) -> &str {

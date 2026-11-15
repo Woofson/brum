@@ -214,7 +214,7 @@ const BRUM_ACTIONS = new Set([
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'loadAdminActivity', 'loadMoreAdminActivity', 'downloadAdminActivity', 'openFleetwide', 'closeFleetwideWindow', 'minimizeFleetwideWindow', 'restoreFleetwideWindow', 'toggleFleetwideMaximize', 'dockFleetwideToActivePane', 'fwSetTab', 'fwPickGroup', 'fwToggleMachine', 'fwRunSearch', 'fwStop', 'fwOpenHit', 'fwRunSameFile', 'fwSameTick', 'fwSameCompare', 'fwRunSpace', 'openSendToMachines', 'fwSendUseSelection', 'fwSendStart', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'openFleetPairing', 'closeFleetPairing', 'fleetPairRemove', 'openFleetJoin', 'fleetJoinRun', 'loadAdminActivity', 'loadMoreAdminActivity', 'downloadAdminActivity', 'openFleetwide', 'closeFleetwideWindow', 'minimizeFleetwideWindow', 'restoreFleetwideWindow', 'toggleFleetwideMaximize', 'dockFleetwideToActivePane', 'fwSetTab', 'fwPickGroup', 'fwToggleMachine', 'fwRunSearch', 'fwStop', 'fwOpenHit', 'fwRunSameFile', 'fwSameTick', 'fwSameCompare', 'fwRunSpace', 'openSendToMachines', 'fwSendUseSelection', 'fwSendStart', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
   'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff',
   'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
   'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
@@ -45289,10 +45289,203 @@ function renderFleetSwitcherDropdown() {
 // Fleet Manager Modal
 function openFleetManagerModal() {
   closeFleetSwitcherDropdown();
+  const admin = isAdminUser() || App.isStandalone;
+  ['fleet-pair-add-btn', 'fleet-pair-join-btn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.style.display = admin ? '' : 'none';
+  });
   renderFleetManagerList();
   resetFleetNodeForm();
   showModal('fleet-manager-modal');
   pingAllFleetNodes();
+}
+
+// ---------- Joining the Fleet with a pairing code (#193) ----------
+const fleetPair = { code: null, timer: null, deadline: 0 };
+
+function closeFleetPairing() {
+  clearInterval(fleetPair.timer);
+  fleetPair.timer = null;
+  closeModal('fleet-pair-modal');
+}
+
+function fleetPairSetBody(title, html) {
+  const t = document.getElementById('fleet-pair-title');
+  if (t) t.textContent = title;
+  const body = document.getElementById('fleet-pair-body');
+  if (!body) return null;
+  body.innerHTML = html;
+  bindActions(body);
+  if (window.lucide) lucide.createIcons({ root: body });
+  return body;
+}
+
+/** The main Brum: a code for a new machine, the commands to run there, and who joined */
+async function openFleetPairing() {
+  showModal('fleet-pair-modal');
+  fleetPairSetBody('Add machine', '<div class="fp-muted"><i data-lucide="loader-2" class="spin"></i> Making a code…</div>');
+  let data;
+  try {
+    const resp = await fetch('/api/fleet/pair/code', { method: 'POST' });
+    if (!resp.ok) throw new Error(await resp.text());
+    data = await resp.json();
+  } catch (e) {
+    fleetPairSetBody('Add machine', `<div class="fp-bad">Could not make a code: ${escapeHtml(e.message || String(e))}</div>`);
+    return;
+  }
+  fleetPair.code = data.code;
+  fleetPair.deadline = Date.now() + data.expires_in * 1000;
+  const origin = window.location.origin;
+  const unix = `sudo brum join ${origin} ${data.code}`;
+  // The Windows installer does not put Brum on the PATH; this is its default place
+  const win = `& "C:\\Program Files\\Brum\\brum.exe" join ${origin} ${data.code}`;
+  const plainHttp = window.location.protocol === 'http:' && !['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname);
+  fleetPairSetBody('Add machine', `
+    <p class="fp-text">On the new machine, install Brum, then use this code. It works once, for 10 minutes. The new machine gets ${escapeHtml(data.name)}'s Fleet secret, so you can sign in across both as yourself; only pair machines you trust.</p>
+    <div class="fp-code" id="fp-code">${escapeHtml(data.code)}</div>
+    <div class="fp-left" id="fp-left"></div>
+    <div class="fp-label">Linux or macOS, in a terminal on the new machine</div>
+    <div class="fp-cmd"><code class="bk-mono">${escapeHtml(unix)}</code><button class="btn btn-icon btn-xs" data-on-click="copyTextToClipboard" data-click-args="${actionArgs(unix, 'Command copied')}" title="Copy"><i data-lucide="copy"></i></button></div>
+    <div class="fp-label">Windows, in PowerShell opened as administrator</div>
+    <div class="fp-cmd"><code class="bk-mono">${escapeHtml(win)}</code><button class="btn btn-icon btn-xs" data-on-click="copyTextToClipboard" data-click-args="${actionArgs(win, 'Command copied')}" title="Copy"><i data-lucide="copy"></i></button></div>
+    <div class="fp-muted">For a portable copy, use the brum.exe where you unpacked it.</div>
+    <p class="fp-text">Or, in Brum on the new machine: <b>Fleet → Join a Fleet</b>, with the address <span class="bk-mono">${escapeHtml(origin)}</span> and this code.</p>
+    ${plainHttp ? '<div class="fp-note">This page is not encrypted (http). Pair over your own network or an overlay network such as NetBird or Tailscale, or put Brum behind https, so nobody can read the secret on the way.</div>' : ''}
+    <div class="fp-status" id="fp-status"><i data-lucide="loader-2" class="spin"></i> Waiting for the new machine…</div>
+    <div class="fp-label" style="margin-top: 14px;">Machines paired with this Brum</div>
+    <div id="fp-paired"></div>`);
+  fleetPairListPaired();
+  clearInterval(fleetPair.timer);
+  fleetPair.timer = setInterval(fleetPairTick, 2000);
+  fleetPairTick();
+}
+
+async function fleetPairTick() {
+  const left = document.getElementById('fp-left');
+  const status = document.getElementById('fp-status');
+  if (!left || !status) {
+    clearInterval(fleetPair.timer);
+    return;
+  }
+  const secs = Math.max(0, Math.round((fleetPair.deadline - Date.now()) / 1000));
+  left.textContent = secs > 0 ? `Valid for ${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}` : 'Expired';
+  try {
+    const resp = await fetch(`/api/fleet/pair/code/${encodeURIComponent(fleetPair.code)}`);
+    if (!resp.ok) return;
+    const st = await resp.json();
+    if (st.state === 'joined') {
+      clearInterval(fleetPair.timer);
+      status.innerHTML = `<i data-lucide="check-circle-2"></i> <b>${escapeHtml(st.machine)}</b> joined and is in your Fleet. Joining from its Settings restarts Brum there by itself; after <span class="bk-mono">brum join</span>, restart Brum there once.`;
+      status.classList.add('fp-good');
+      if (window.lucide) lucide.createIcons({ root: status });
+      await fleetPairRefreshNodes();
+      fleetPairListPaired();
+    } else if (st.state === 'expired') {
+      clearInterval(fleetPair.timer);
+      status.innerHTML = 'The code has expired. <button class="btn btn-xs" data-on-click="openFleetPairing">Make a new one</button>';
+      bindActions(status);
+    }
+  } catch (_) { /* try again on the next tick */ }
+}
+
+/** Takes in machines paired since the page loaded */
+async function fleetPairRefreshNodes() {
+  try {
+    const resp = await fetch('/api/config');
+    if (resp.ok) {
+      const cfg = await resp.json();
+      if (App.config) App.config.fleet = cfg.fleet;
+      syncConfigFleetNodes();
+      renderFleetManagerList();
+    }
+  } catch (_) { /* the next page load picks them up */ }
+}
+
+async function fleetPairListPaired() {
+  const box = document.getElementById('fp-paired');
+  if (!box) return;
+  let list = [];
+  try {
+    const resp = await fetch('/api/fleet/paired');
+    if (resp.ok) list = await resp.json();
+  } catch (_) { /* shown as empty */ }
+  box.innerHTML = list.length ? list.map(m => `
+    <div class="fp-paired-row">
+      <span><b>${escapeHtml(m.name)}</b> <small>${m.role === 'main' ? 'this Brum joined it' : `joined ${escapeHtml(formatDateTime(m.paired_at))}${m.paired_by ? ` (code by ${escapeHtml(m.paired_by)})` : ''}`}</small><br><span class="bk-mono fp-muted">${escapeHtml((m.urls || []).join(', '))}</span></span>
+      <button class="btn btn-xs" data-on-click="fleetPairRemove" data-click-args="${actionArgs(m.id, m.name)}" title="Remove from this Brum's Fleet list"><i data-lucide="trash-2"></i> Remove</button>
+    </div>`).join('') : '<div class="fp-muted">None yet.</div>';
+  bindActions(box);
+  if (window.lucide) lucide.createIcons({ root: box });
+}
+
+async function fleetPairRemove(id, name) {
+  const ok = await showConfirmDialog({
+    title: `Remove ${name}?`,
+    message: `${name} disappears from this Brum's Fleet list. It keeps the Fleet secret, so it can still sign people in here; to shut it out completely, change the Fleet's secret and pair the other machines again.`,
+    icon: 'trash-2',
+    type: 'warning',
+    confirmText: 'Remove',
+  });
+  if (!ok) return;
+  const resp = await fetch(`/api/fleet/paired/${encodeURIComponent(id)}`, { method: 'DELETE' });
+  if (!resp.ok) showToast(`Could not remove ${name}: ${await resp.text()}`, 'error');
+  await fleetPairRefreshNodes();
+  fleetPairListPaired();
+}
+
+/** The new machine: join another Brum's Fleet with the code it shows */
+function openFleetJoin() {
+  showModal('fleet-pair-modal');
+  fleetPairSetBody('Join a Fleet', `
+    <p class="fp-text">On the main Brum, open <b>Fleet → Add machine</b>. Type its address and the code it shows. This Brum then accepts logins from the Fleet and restarts once; everyone signed in here signs in again.</p>
+    <label class="fp-label" for="fp-main">Address of the main Brum</label>
+    <input type="text" id="fp-main" class="settings-input bk-mono" placeholder="http://nas:3140" style="height: 30px; width: 100%;">
+    <label class="fp-label" for="fp-join-code">Pairing code</label>
+    <input type="text" id="fp-join-code" class="settings-input bk-mono fp-code-input" placeholder="ABCD-EFGH" maxlength="12" autocomplete="off" data-keydown-key="Enter" data-on-keydown="fleetJoinRun" style="height: 34px; width: 100%;">
+    <div class="fp-status" id="fp-join-status"></div>
+    <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px;">
+      <button class="btn btn-sm" data-on-click="closeFleetPairing">Cancel</button>
+      <button class="btn btn-sm btn-accent" id="fp-join-btn" data-on-click="fleetJoinRun"><i data-lucide="log-in"></i> Join</button>
+    </div>`);
+  setTimeout(() => document.getElementById('fp-main')?.focus(), 80);
+}
+
+async function fleetJoinRun() {
+  const mainUrl = document.getElementById('fp-main')?.value.trim() || '';
+  const code = document.getElementById('fp-join-code')?.value.trim() || '';
+  const status = document.getElementById('fp-join-status');
+  const btn = document.getElementById('fp-join-btn');
+  if (!mainUrl || code.replace(/[^a-z0-9]/gi, '').length !== 8) {
+    if (status) status.innerHTML = '<span class="fp-bad">Type the main Brum\'s address and the 8-character code.</span>';
+    return;
+  }
+  if (btn) btn.disabled = true;
+  if (status) status.innerHTML = '<i data-lucide="loader-2" class="spin"></i> Joining…';
+  if (window.lucide && status) lucide.createIcons({ root: status });
+  try {
+    const resp = await fetch('/api/fleet/join', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ main_url: mainUrl, code }) });
+    const text = await resp.text();
+    let info = {};
+    try { info = JSON.parse(text); } catch (_) { /* text */ }
+    if (!resp.ok) throw new Error(info.error || text);
+    status.innerHTML = `<span class="fp-good"><i data-lucide="check-circle-2"></i> Joined the Fleet of <b>${escapeHtml(info.main)}</b>. Brum restarts now…</span>${info.warning ? `<div class="fp-note">${escapeHtml(info.warning)}</div>` : ''}`;
+    if (window.lucide) lucide.createIcons({ root: status });
+    await fetch('/api/system/restart', { method: 'POST' }).catch(() => {});
+    // Wait for Brum to come back, then reload (everyone signs in again once)
+    for (let i = 0; i < 60; i++) {
+      await new Promise(r => setTimeout(r, 1500));
+      try {
+        const h = await fetch('/api/health', { cache: 'no-store' });
+        if (h.ok && i > 1) {
+          window.location.reload();
+          return;
+        }
+      } catch (_) { /* still restarting */ }
+    }
+  } catch (e) {
+    if (status) status.innerHTML = `<span class="fp-bad">${escapeHtml(e.message || String(e))}</span>`;
+    if (btn) btn.disabled = false;
+  }
 }
 
 function openFleetAddModal() {

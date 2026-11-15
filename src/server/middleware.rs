@@ -202,6 +202,7 @@ pub fn is_public_route(path: &str) -> bool {
         || path == "/api/auth/oidc/login"
         || path == "/api/auth/oidc/callback"
         || path == "/api/auth/logout"
+        || path == "/api/public/fleet/join"
     {
         return true;
     }
