@@ -717,7 +717,7 @@ pub async fn handle_get_config_file(
     }))
 }
 
-pub async fn handle_save_config_file(
+async fn handle_save_config_file_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<SaveConfigFileRequest>,
@@ -1318,4 +1318,13 @@ pub async fn handle_clear_image_cache(
     let mut status = status;
     status["removed"] = serde_json::json!(removed);
     Ok(Json(status))
+}
+
+/// Saving config.toml from the web editor is recorded in the activity log (#193)
+pub async fn handle_save_config_file(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<SaveConfigFileRequest>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let who = crate::server::activity_handlers::actor(&state, &headers);
+    let r = handle_save_config_file_inner(State(state), headers, Json(payload)).await;
+    let path = crate::config::ConfigManager::active_config_path().display().to_string();
+    crate::server::activity_handlers::log_result(who, "settings file saved", &path, String::new(), &r);
+    r
 }

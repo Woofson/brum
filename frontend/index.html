@@ -2992,6 +2992,7 @@
           <div class="settings-sidebar-group-title">Security & Config</div>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-config"]'><i data-lucide="file-cog"></i> Server config.toml</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-activity"]'><i data-lucide="history"></i> Activity Log</button>
         </div>
 
         <div class="settings-content-area">
@@ -3176,6 +3177,27 @@
           </div>
 
           <!-- Admin Tab 4: Security & Integrity Defaults -->
+          <div class="settings-tab-content" id="admin-tab-activity">
+            <div class="settings-card-header" style="margin-bottom: 10px;">
+              <div>
+                <h4 class="settings-section-title"><i data-lucide="history"></i> Activity Log</h4>
+                <p class="settings-card-desc" style="margin-top: 2px;" id="activity-desc">Who changed which files on this machine, and when: saves, uploads, copies, moves, renames, deletions, permissions, shares, accounts and settings. Changes made through the Fleet are recorded on the machine where they happen.</p>
+              </div>
+            </div>
+            <div class="act-filters">
+              <input type="text" id="act-q" class="settings-input" placeholder="Search paths, actions, details…" data-keydown-key="Enter" data-on-keydown="loadAdminActivity">
+              <input type="text" id="act-user" class="settings-input" placeholder="Person" data-keydown-key="Enter" data-on-keydown="loadAdminActivity">
+              <input type="date" id="act-from" class="settings-input" title="From this day">
+              <input type="date" id="act-to" class="settings-input" title="Up to and including this day">
+              <label class="act-check"><input type="checkbox" id="act-failed"> Only failures</label>
+              <button class="btn btn-sm btn-accent" data-on-click="loadAdminActivity"><i data-lucide="search"></i> Show</button>
+              <button class="btn btn-sm" data-on-click="downloadAdminActivity" title="Download what is shown, as a spreadsheet (CSV)"><i data-lucide="download"></i> Download</button>
+            </div>
+            <div id="act-summary" class="act-summary"></div>
+            <div id="act-list" class="act-list"></div>
+            <div style="display: flex; justify-content: center; margin-top: 8px;"><button class="btn btn-sm" id="act-more" style="display: none;" data-on-click="loadMoreAdminActivity">Show more</button></div>
+          </div>
+
           <div class="settings-tab-content" id="admin-tab-security">
             <div class="settings-card-header" style="margin-bottom: 14px;">
               <div>

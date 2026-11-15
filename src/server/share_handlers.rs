@@ -206,7 +206,7 @@ pub struct SharePublicQuery {
     file: Option<String>,
 }
 
-pub async fn handle_create_share(
+async fn handle_create_share_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<CreateShareRequest>,
@@ -253,7 +253,7 @@ pub async fn handle_create_share(
     Ok(Json(share))
 }
 
-pub async fn handle_update_share(
+async fn handle_update_share_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<i64>,
@@ -304,7 +304,7 @@ pub async fn handle_update_share(
     Ok(Json(share))
 }
 
-pub async fn handle_revoke_share(
+async fn handle_revoke_share_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<i64>,
@@ -365,7 +365,7 @@ pub async fn handle_list_shares(
     Ok(Json(list))
 }
 
-pub async fn handle_delete_share(
+async fn handle_delete_share_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(id): AxumPath<i64>,
@@ -1896,4 +1896,43 @@ pub async fn handle_public_share_page(
         .header(header::CONTENT_SECURITY_POLICY, csp)
         .body(Body::from(html))
         .unwrap_or_else(|_| (StatusCode::INTERNAL_SERVER_ERROR, "HTML load error").into_response())
+}
+
+// ---------- Activity log (#193) ----------
+use crate::server::activity_handlers::{actor, log_result};
+
+pub async fn handle_create_share(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<CreateShareRequest>) -> Result<Json<crate::auth::ShareItem>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let path = payload.path.clone();
+    let detail = format!(
+        "{}{}{}",
+        if payload.allow_upload == Some(true) { "uploads allowed" } else { "view/download" },
+        if payload.password.as_deref().is_some_and(|p| !p.is_empty()) { ", with password" } else { "" },
+        payload.expires_in_hours.map(|h| format!(", expires in {h} h")).unwrap_or_default()
+    );
+    let r = handle_create_share_inner(State(state), headers, Json(payload)).await;
+    log_result(who, "share", &path, detail, &r);
+    r
+}
+
+pub async fn handle_update_share(State(state): State<AppState>, headers: HeaderMap, AxumPath(id): AxumPath<i64>, Json(payload): Json<UpdateShareRequest>) -> Result<Json<crate::auth::ShareItem>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let r = handle_update_share_inner(State(state), headers, AxumPath(id), Json(payload)).await;
+    let target = r.as_ref().map(|s| s.0.path.clone()).unwrap_or_else(|_| format!("share {id}"));
+    log_result(who, "share changed", &target, String::new(), &r);
+    r
+}
+
+pub async fn handle_revoke_share(State(state): State<AppState>, headers: HeaderMap, AxumPath(id): AxumPath<i64>, Json(payload): Json<RevokeShareRequest>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let r = handle_revoke_share_inner(State(state), headers, AxumPath(id), Json(payload)).await;
+    log_result(who, "share stopped", &format!("share {id}"), String::new(), &r);
+    r
+}
+
+pub async fn handle_delete_share(State(state): State<AppState>, headers: HeaderMap, AxumPath(id): AxumPath<i64>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let r = handle_delete_share_inner(State(state), headers, AxumPath(id)).await;
+    log_result(who, "share deleted", &format!("share {id}"), String::new(), &r);
+    r
 }

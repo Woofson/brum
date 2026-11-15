@@ -636,7 +636,7 @@ pub struct UpdateUserRbacRequest {
     pub is_disabled: Option<bool>,
 }
 
-pub async fn handle_update_user_rbac(
+async fn handle_update_user_rbac_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(username): AxumPath<String>,
@@ -709,7 +709,7 @@ pub struct CreateUserRequest {
     pub shell: Option<String>,
 }
 
-pub async fn handle_create_user(
+async fn handle_create_user_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<CreateUserRequest>,
@@ -763,7 +763,7 @@ pub async fn handle_create_user(
     .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create user: {}", e)))
 }
 
-pub async fn handle_delete_user(
+async fn handle_delete_user_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(username): AxumPath<String>,
@@ -1018,7 +1018,7 @@ pub async fn handle_list_api_tokens(
     }
 }
 
-pub async fn handle_create_api_token(
+async fn handle_create_api_token_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<CreateApiTokenRequest>,
@@ -1058,7 +1058,7 @@ pub async fn handle_create_api_token(
     Ok(Json(res))
 }
 
-pub async fn handle_revoke_api_token(
+async fn handle_revoke_api_token_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     AxumPath(token_id): AxumPath<String>,
@@ -1091,4 +1091,58 @@ pub async fn handle_revoke_api_token(
     } else {
         Err((StatusCode::NOT_FOUND, "Token not found or unauthorized".to_string()))
     }
+}
+
+// ---------- Activity log (#193) ----------
+use crate::server::activity_handlers::{actor, log_result};
+
+fn roots_text(roots: &Option<Vec<String>>) -> String {
+    match roots {
+        Some(r) if !r.is_empty() => format!(", folders: {}", r.join(", ")),
+        _ => String::new(),
+    }
+}
+
+pub async fn handle_update_user_rbac(State(state): State<AppState>, headers: HeaderMap, AxumPath(username): AxumPath<String>, Json(payload): Json<UpdateUserRbacRequest>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let detail = format!("role {}{}", payload.role, roots_text(&payload.allowed_roots));
+    let r = handle_update_user_rbac_inner(State(state), headers, AxumPath(username.clone()), Json(payload)).await;
+    log_result(who, "account changed", &username, detail, &r);
+    r
+}
+
+pub async fn handle_create_user(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<CreateUserRequest>) -> Result<Json<User>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let (name, detail) = (payload.username.clone(), format!("role {}{}", payload.role, roots_text(&payload.allowed_roots)));
+    let r = handle_create_user_inner(State(state), headers, Json(payload)).await;
+    log_result(who, "account created", &name, detail, &r);
+    r
+}
+
+pub async fn handle_delete_user(State(state): State<AppState>, headers: HeaderMap, AxumPath(username): AxumPath<String>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let r = handle_delete_user_inner(State(state), headers, AxumPath(username.clone())).await;
+    log_result(who, "account deleted", &username, String::new(), &r);
+    r
+}
+
+pub async fn handle_create_api_token(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<CreateApiTokenRequest>) -> Result<Json<crate::auth::GeneratedApiToken>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let detail = format!(
+        "role {}{}{}",
+        payload.role.as_deref().unwrap_or("same as owner"),
+        payload.expires_in_days.map(|d| format!(", expires in {d} days")).unwrap_or_default(),
+        roots_text(&payload.allowed_roots)
+    );
+    let name = payload.name.clone();
+    let r = handle_create_api_token_inner(State(state), headers, Json(payload)).await;
+    log_result(who, "API token created", &name, detail, &r);
+    r
+}
+
+pub async fn handle_revoke_api_token(State(state): State<AppState>, headers: HeaderMap, AxumPath(token_id): AxumPath<String>) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let who = actor(&state, &headers);
+    let r = handle_revoke_api_token_inner(State(state), headers, AxumPath(token_id.clone())).await;
+    log_result(who, "API token revoked", &token_id, String::new(), &r);
+    r
 }

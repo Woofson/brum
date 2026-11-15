@@ -114,6 +114,9 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
             }
         };
         let vault_mgr = crate::vfs::vault::VaultManager::new();
+        if config.activity.enabled {
+            crate::tools::activity::init(auth_mgr.db_path(), config.activity.retention_days);
+        }
         let backup_mgr = match crate::tools::sync::BackupManager::new(auth_mgr.db()) {
             Ok(m) => m.with_sftp_config(config.storage.sftp.clone()),
             Err(e) => {

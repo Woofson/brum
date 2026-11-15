@@ -317,7 +317,7 @@ pub struct WriteFileRequest {
     is_base64: Option<bool>,
 }
 
-pub async fn handle_write_file(
+async fn handle_write_file_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<WriteFileRequest>,
@@ -383,7 +383,7 @@ pub struct MkdirRequest {
     path: String,
 }
 
-pub async fn handle_mkdir(
+async fn handle_mkdir_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<MkdirRequest>,
@@ -441,7 +441,7 @@ pub struct RenameRequest {
     detect_locking_processes: Option<bool>,
 }
 
-pub async fn handle_rename(
+async fn handle_rename_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<RenameRequest>,
@@ -523,7 +523,7 @@ pub struct BatchRenameRequest {
     renames: Vec<BatchRenameItem>,
 }
 
-pub async fn handle_batch_rename(
+async fn handle_batch_rename_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<BatchRenameRequest>,
@@ -567,7 +567,7 @@ pub struct DeleteRequest {
     detect_locking_processes: Option<bool>,
 }
 
-pub async fn handle_delete(
+async fn handle_delete_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<DeleteRequest>,
@@ -664,7 +664,7 @@ pub struct ChmodRequest {
     recursive: Option<bool>,
 }
 
-pub async fn handle_chmod(
+async fn handle_chmod_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<ChmodRequest>,
@@ -686,7 +686,7 @@ pub struct ChownRequest {
     recursive: Option<bool>,
 }
 
-pub async fn handle_chown(
+async fn handle_chown_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<ChownRequest>,
@@ -748,7 +748,7 @@ pub struct TransferRequest {
     conflict_resolution: Option<String>,
 }
 
-pub async fn handle_copy(
+async fn handle_copy_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<TransferRequest>,
@@ -797,7 +797,7 @@ pub struct DeltaCopyRequest {
     options: Option<crate::tools::deltacopy::DeltaCopyOptions>,
 }
 
-pub async fn handle_deltacopy(
+async fn handle_deltacopy_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<DeltaCopyRequest>,
@@ -851,7 +851,7 @@ pub async fn handle_deltacopy(
     })))
 }
 
-pub async fn handle_move(
+async fn handle_move_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<TransferRequest>,
@@ -1100,7 +1100,7 @@ pub async fn handle_clear_completed_tasks(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
-pub async fn handle_upload(
+async fn handle_upload_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Query(query): Query<HashMap<String, String>>,
@@ -1860,7 +1860,7 @@ pub struct ArchiveCreateRequest {
     format: String,
 }
 
-pub async fn handle_archive_create(
+async fn handle_archive_create_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<ArchiveCreateRequest>,
@@ -1891,7 +1891,7 @@ pub struct ArchiveExtractRequest {
     target_dir: String,
 }
 
-pub async fn handle_archive_extract(
+async fn handle_archive_extract_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<ArchiveExtractRequest>,
@@ -1963,3 +1963,138 @@ mod tests {
     }
 }
 
+
+// ---------- Activity log (#193): each change is recorded with who did it and how it went ----------
+
+type ApiResult = Result<Json<serde_json::Value>, (StatusCode, String)>;
+
+/// The person doing it; nothing is recorded for requests that are not signed in
+fn actor(state: &AppState, headers: &HeaderMap) -> Option<String> {
+    extract_claims_or_local(state, headers).ok().map(|c| c.sub)
+}
+
+/// Records the outcome of one operation: `detail` says more; a failure adds its reason
+fn log_outcome(who: Option<String>, action: &str, paths: &[String], detail: String, r: &ApiResult) {
+    let Some(who) = who else { return };
+    let (ok, detail) = match r {
+        Ok(_) => (true, detail),
+        Err((_, e)) if detail.is_empty() => (false, e.clone()),
+        Err((_, e)) => (false, format!("{detail}; {e}")),
+    };
+    crate::tools::activity::record_many(&who, action, paths, &detail, ok);
+}
+
+pub async fn handle_write_file(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<WriteFileRequest>) -> ApiResult {
+    let (who, path) = (actor(&state, &headers), payload.path.clone());
+    let r = handle_write_file_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "save", &[path], String::new(), &r);
+    r
+}
+
+pub async fn handle_mkdir(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<MkdirRequest>) -> ApiResult {
+    let (who, path) = (actor(&state, &headers), payload.path.clone());
+    let r = handle_mkdir_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "new folder", &[path], String::new(), &r);
+    r
+}
+
+pub async fn handle_rename(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<RenameRequest>) -> ApiResult {
+    let (who, from, to) = (actor(&state, &headers), payload.from.clone(), payload.to.clone());
+    let r = handle_rename_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "rename", &[from], format!("to {to}"), &r);
+    r
+}
+
+pub async fn handle_batch_rename(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<BatchRenameRequest>) -> ApiResult {
+    let who = actor(&state, &headers);
+    let froms: Vec<String> = payload.renames.iter().map(|i| i.from.clone()).collect();
+    let first_to = payload.renames.first().map(|i| format!("first to {}", i.to)).unwrap_or_default();
+    let r = handle_batch_rename_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "rename", &froms, first_to, &r);
+    r
+}
+
+pub async fn handle_delete(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<DeleteRequest>) -> ApiResult {
+    let (who, paths) = (actor(&state, &headers), payload.paths.clone());
+    let how = match payload.use_trash {
+        Some(true) => "to the trash",
+        Some(false) => "permanently",
+        None => "",
+    };
+    let r = handle_delete_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "delete", &paths, how.to_string(), &r);
+    r
+}
+
+pub async fn handle_chmod(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<ChmodRequest>) -> ApiResult {
+    let (who, paths) = (actor(&state, &headers), payload.paths.clone());
+    let detail = format!("mode {:o}{}", payload.mode, if payload.recursive == Some(true) { ", with everything inside" } else { "" });
+    let r = handle_chmod_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "permissions", &paths, detail, &r);
+    r
+}
+
+pub async fn handle_chown(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<ChownRequest>) -> ApiResult {
+    let (who, paths) = (actor(&state, &headers), payload.paths.clone());
+    let detail = format!(
+        "owner {} group {}{}",
+        payload.owner.as_deref().unwrap_or("-"),
+        payload.group.as_deref().unwrap_or("-"),
+        if payload.recursive == Some(true) { ", with everything inside" } else { "" }
+    );
+    let r = handle_chown_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "owner", &paths, detail, &r);
+    r
+}
+
+pub async fn handle_copy(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<TransferRequest>) -> ApiResult {
+    let (who, paths, dest) = (actor(&state, &headers), payload.sources.clone(), payload.destination.clone());
+    let r = handle_copy_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "copy", &paths, format!("to {dest}"), &r);
+    r
+}
+
+pub async fn handle_deltacopy(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<DeltaCopyRequest>) -> ApiResult {
+    let (who, paths, dest) = (actor(&state, &headers), payload.sources.clone(), payload.destination.clone());
+    let r = handle_deltacopy_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "copy", &paths, format!("to {dest} (DeltaCopy)"), &r);
+    r
+}
+
+pub async fn handle_move(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<TransferRequest>) -> ApiResult {
+    let (who, paths, dest) = (actor(&state, &headers), payload.sources.clone(), payload.destination.clone());
+    let r = handle_move_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "move", &paths, format!("to {dest}"), &r);
+    r
+}
+
+pub async fn handle_upload(State(state): State<AppState>, headers: HeaderMap, Query(query): Query<HashMap<String, String>>, multipart: Multipart) -> ApiResult {
+    let who = actor(&state, &headers);
+    let dest = query.get("destination").cloned().unwrap_or_else(|| "~".to_string());
+    let r = handle_upload_inner(State(state), headers, Query(query), multipart).await;
+    let names: Vec<String> = match &r {
+        Ok(Json(v)) => v.get("uploaded").and_then(|u| u.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default(),
+        Err(_) => Vec::new(),
+    };
+    let detail = match names.len() {
+        0 => String::new(),
+        1 => names[0].clone(),
+        n => format!("{n} files: {}{}", names.iter().take(5).cloned().collect::<Vec<_>>().join(", "), if n > 5 { ", ..." } else { "" }),
+    };
+    log_outcome(who, "upload", &[dest], detail, &r);
+    r
+}
+
+pub async fn handle_archive_create(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<ArchiveCreateRequest>) -> ApiResult {
+    let (who, paths, target) = (actor(&state, &headers), payload.sources.clone(), payload.target_path.clone());
+    let r = handle_archive_create_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "pack", &paths, format!("into {target}"), &r);
+    r
+}
+
+pub async fn handle_archive_extract(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<ArchiveExtractRequest>) -> ApiResult {
+    let (who, archive, target) = (actor(&state, &headers), payload.archive_path.clone(), payload.target_dir.clone());
+    let r = handle_archive_extract_inner(State(state), headers, Json(payload)).await;
+    log_outcome(who, "unpack", &[archive], format!("into {target}"), &r);
+    r
+}

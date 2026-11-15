@@ -159,6 +159,11 @@ max_files = 14
 console_enabled = true
 
 # --- User Interface & Panels ---
+
+[activity]
+enabled = true                   # Record who changed which files (Admin Panel → Activity Log)
+retention_days = 90              # Remove entries older than this (0 keeps them for good)
+
 [ui]
 default_pane_count = 2           # 1 to 4
 default_layout = "dual-vertical" # "single", "dual-vertical", "dual-horizontal", "triple", "quad"
@@ -339,6 +344,18 @@ With the two panes on different Fleet machines, **F5** (copy) and **F6** (move) 
 
 ### 5. Zero CORS Requirements on Gateway Proxy
 When routed through the Fleet Gateway Hub (`/api/fleet/proxy/:node_id`), all communication is proxied server-to-server. Remote nodes **do not** require the coordinator's domain in their `allowed_origins` whitelist.
+
+---
+
+## Activity Log
+
+Each Brum keeps a record of who changed which files on it: **Admin Panel → Activity Log** (admins only).
+
+* **What is recorded**: saving, new folders, renaming, deleting (to the trash or for good), copying and moving (also between Fleet machines), uploads, packing and unpacking archives, permissions and owners, shares, the trash, user accounts and API tokens, and saving `config.toml` from the web editor. Each entry has the time, the person, what happened, the path and more details; failures are marked with their reason, refusals included.
+* **Fleet**: a change made through the Fleet is recorded on the machine where it happens, under the person's name, so each machine has its own complete record. Removals sent by another Brum (backups, syncing) are recorded one by one; files arriving from another Brum are recorded as the copy or backup on the Brum that runs it.
+* **Search and download**: search paths, actions and details, filter by person, days or failures only, and download what is shown as a CSV file for a spreadsheet (cells that a spreadsheet would run as formulas are made harmless).
+* **Settings**: `[activity] enabled` and `retention_days` (default 90; `0` keeps everything). Entries are stored in Brum's database; recording never slows down the operation itself.
+* **Not recorded**: reading, viewing and downloading files, and passwords (addresses with passwords are masked).
 
 ---
 

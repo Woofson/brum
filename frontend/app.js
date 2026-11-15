@@ -214,7 +214,7 @@ const BRUM_ACTIONS = new Set([
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'openFleetwide', 'closeFleetwideWindow', 'minimizeFleetwideWindow', 'restoreFleetwideWindow', 'toggleFleetwideMaximize', 'dockFleetwideToActivePane', 'fwSetTab', 'fwPickGroup', 'fwToggleMachine', 'fwRunSearch', 'fwStop', 'fwOpenHit', 'fwRunSameFile', 'fwSameTick', 'fwSameCompare', 'fwRunSpace', 'openSendToMachines', 'fwSendUseSelection', 'fwSendStart', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'loadAdminActivity', 'loadMoreAdminActivity', 'downloadAdminActivity', 'openFleetwide', 'closeFleetwideWindow', 'minimizeFleetwideWindow', 'restoreFleetwideWindow', 'toggleFleetwideMaximize', 'dockFleetwideToActivePane', 'fwSetTab', 'fwPickGroup', 'fwToggleMachine', 'fwRunSearch', 'fwStop', 'fwOpenHit', 'fwRunSameFile', 'fwSameTick', 'fwSameCompare', 'fwRunSpace', 'openSendToMachines', 'fwSendUseSelection', 'fwSendStart', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
   'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff',
   'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
   'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
@@ -10160,10 +10160,94 @@ function switchAdminTab(tabId) {
   if (tabId === 'admin-tab-storage') { loadAdminGlobalMounts(); loadAdminImageCache(); }
   if (tabId === 'admin-tab-config') loadMasterConfigEditor();
   if (tabId === 'admin-tab-security') loadAdminSecuritySettings();
+  if (tabId === 'admin-tab-activity') loadAdminActivity();
 
   if (window.lucide && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
   }
+}
+
+// ---------- Activity log (#193) ----------
+const activityUi = { entries: [], total: 0, pageSize: 200 };
+
+function activityQuery(offset) {
+  const v = (id) => (document.getElementById(id)?.value || '').trim();
+  const q = new URLSearchParams();
+  if (v('act-q')) q.set('q', v('act-q'));
+  if (v('act-user')) q.set('user', v('act-user'));
+  // Days in the viewer's own time zone
+  if (v('act-from')) q.set('from', String(Math.floor(new Date(`${v('act-from')}T00:00:00`).getTime() / 1000)));
+  if (v('act-to')) q.set('to', String(Math.floor(new Date(`${v('act-to')}T23:59:59`).getTime() / 1000)));
+  if (document.getElementById('act-failed')?.checked) q.set('failed', 'true');
+  q.set('limit', String(activityUi.pageSize));
+  q.set('offset', String(offset || 0));
+  return q;
+}
+
+async function loadAdminActivity(append = false) {
+  const list = document.getElementById('act-list');
+  const summary = document.getElementById('act-summary');
+  if (!list) return;
+  if (append !== true) {
+    activityUi.entries = [];
+    list.innerHTML = '<div class="act-empty"><i data-lucide="loader-2" class="spin"></i> Loading…</div>';
+    if (window.lucide) lucide.createIcons({ root: list });
+  }
+  try {
+    const resp = await fetch(`/api/admin/activity?${activityQuery(activityUi.entries.length)}`);
+    if (!resp.ok) throw new Error(await resp.text());
+    const data = await resp.json();
+    activityUi.entries = activityUi.entries.concat(data.entries || []);
+    activityUi.total = data.total || 0;
+    const desc = document.getElementById('activity-desc');
+    if (desc && data.retention_days !== undefined && !desc.dataset.kept) {
+      desc.dataset.kept = '1';
+      desc.textContent += data.retention_days ? ` Entries are kept for ${data.retention_days} days.` : ' Entries are kept for good.';
+    }
+    renderAdminActivity();
+  } catch (e) {
+    list.innerHTML = `<div class="act-empty act-bad">Could not load the activity log: ${escapeHtml(e.message || String(e))}</div>`;
+    if (summary) summary.textContent = '';
+  }
+}
+
+function loadMoreAdminActivity() {
+  loadAdminActivity(true);
+}
+
+function renderAdminActivity() {
+  const list = document.getElementById('act-list');
+  const summary = document.getElementById('act-summary');
+  const more = document.getElementById('act-more');
+  if (!list) return;
+  const shown = activityUi.entries.length;
+  if (summary) summary.textContent = activityUi.total ? `${formatNumber(activityUi.total)} entr${activityUi.total === 1 ? 'y' : 'ies'}${shown < activityUi.total ? `, newest ${formatNumber(shown)} shown` : ''}` : '';
+  if (more) more.style.display = shown < activityUi.total ? '' : 'none';
+  if (!shown) {
+    list.innerHTML = '<div class="act-empty">Nothing recorded that matches.</div>';
+    return;
+  }
+  list.innerHTML = activityUi.entries.map(e => `
+    <div class="act-row ${e.ok ? '' : 'act-failed'}">
+      <span class="act-time">${escapeHtml(formatDateTime(e.at))}</span>
+      <span class="act-user">${escapeHtml(e.user)}</span>
+      <span class="act-action">${e.ok ? '' : '<i data-lucide="x-circle"></i> '}${escapeHtml(e.action)}</span>
+      <span class="act-target bk-mono" title="${escapeHtml(e.target)}"><bdi>${escapeHtml(e.target)}</bdi></span>
+      <span class="act-detail" title="${escapeHtml(e.detail)}">${escapeHtml(e.detail)}</span>
+    </div>`).join('');
+  if (window.lucide) lucide.createIcons({ root: list });
+}
+
+function downloadAdminActivity() {
+  const q = activityQuery(0);
+  q.delete('limit');
+  q.delete('offset');
+  const a = document.createElement('a');
+  a.href = `/api/admin/activity/csv?${q}`;
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 async function loadUsersTable() {

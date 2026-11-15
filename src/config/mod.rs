@@ -46,6 +46,28 @@ pub struct AppConfig {
     /// `[proton]`: where the Proton Drive program is and whether admins may download it
     #[serde(default)]
     pub proton: crate::vfs::proton::ProtonConfig,
+    /// `[activity]`: the record of who did what to which files (#193)
+    #[serde(default)]
+    pub activity: ActivityConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActivityConfig {
+    #[serde(default = "default_true")]
+    pub enabled: bool,
+    /// Entries older than this are removed (0 keeps them for good)
+    #[serde(default = "default_activity_days")]
+    pub retention_days: u32,
+}
+
+fn default_activity_days() -> u32 {
+    90
+}
+
+impl Default for ActivityConfig {
+    fn default() -> Self {
+        Self { enabled: true, retention_days: default_activity_days() }
+    }
 }
 
 impl AppConfig {
@@ -149,6 +171,7 @@ impl Default for AppConfig {
             logging: LoggingConfig::default(),
             sftp: None,
             proton: crate::vfs::proton::ProtonConfig::default(),
+            activity: ActivityConfig::default(),
         }
     }
 }

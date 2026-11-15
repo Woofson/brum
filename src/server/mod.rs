@@ -11,6 +11,7 @@ pub mod backup_target;
 pub mod session_cookie;
 pub mod proton_handlers;
 pub mod transfer_handlers;
+pub mod activity_handlers;
 
 pub use middleware::*;
 pub use auth_handlers::*;
@@ -227,6 +228,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/compare/list", post(transfer_handlers::handle_compare_list))
         .route("/api/compare/across", post(transfer_handlers::handle_compare_across))
         .route("/api/compare/files-across", post(transfer_handlers::handle_compare_files_across))
+        .route("/api/admin/activity", get(activity_handlers::handle_list_activity))
+        .route("/api/admin/activity/csv", get(activity_handlers::handle_download_activity))
         .route("/api/tools/sync/runs", get(handle_list_backup_runs))
         .route("/api/tools/sync/runs/:id/files", get(handle_backup_run_files))
         .route("/api/tools/sync/runs/:id/log", get(handle_backup_run_log))

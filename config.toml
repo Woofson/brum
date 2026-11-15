@@ -218,6 +218,10 @@ rotation = "daily"                  # Log rotation schedule: "daily", "hourly", 
 max_files = 14                      # Number of archived log files to retain before purging
 console_enabled = true              # Output logs to stdout/console
 
+[activity]
+enabled = true                      # Record who changed which files (Admin Panel → Activity Log)
+retention_days = 90                 # Remove entries older than this (0 keeps them for good)
+
 # --- User Interface & Panels ---
 [ui]
 default_pane_count = 2           # Default number of visible panes on startup (1 to 4)

@@ -1585,7 +1585,7 @@ pub async fn handle_trash_items(
     }
 }
 
-pub async fn handle_trash_restore(
+async fn handle_trash_restore_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<crate::tools::trash::TrashRestoreRequest>,
@@ -1601,7 +1601,7 @@ pub async fn handle_trash_restore(
     Ok(Json(res))
 }
 
-pub async fn handle_trash_empty(
+async fn handle_trash_empty_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<crate::tools::trash::TrashEmptyRequest>,
@@ -1642,7 +1642,7 @@ pub async fn handle_trash_open_native(
     }
 }
 
-pub async fn handle_trash_delete(
+async fn handle_trash_delete_inner(
     State(state): State<AppState>,
     headers: HeaderMap,
     Json(payload): Json<crate::tools::trash::TrashDeleteRequest>,
@@ -2287,4 +2287,32 @@ pub async fn handle_download_bundled_plugin(
         .header(header::CONTENT_DISPOSITION, format!("attachment; filename=\"{}-{}.grr\"", id, version))
         .body(Body::from(bytes))
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+}
+
+// ---------- Activity log (#193): the trash ----------
+
+pub async fn handle_trash_restore(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<crate::tools::trash::TrashRestoreRequest>) -> Result<Json<crate::tools::trash::TrashActionResult>, (StatusCode, String)> {
+    let who = crate::server::activity_handlers::actor(&state, &headers);
+    let items = payload.items.clone().unwrap_or_default();
+    let r = handle_trash_restore_inner(State(state), headers, Json(payload)).await;
+    let n = r.as_ref().map(|x| x.0.affected_count).unwrap_or(0);
+    crate::server::activity_handlers::log_result(who, "restore from trash", items.first().map(String::as_str).unwrap_or("everything"), format!("{n} item(s)"), &r);
+    r
+}
+
+pub async fn handle_trash_empty(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<crate::tools::trash::TrashEmptyRequest>) -> Result<Json<crate::tools::trash::TrashActionResult>, (StatusCode, String)> {
+    let who = crate::server::activity_handlers::actor(&state, &headers);
+    let r = handle_trash_empty_inner(State(state), headers, Json(payload)).await;
+    let n = r.as_ref().map(|x| x.0.affected_count).unwrap_or(0);
+    crate::server::activity_handlers::log_result(who, "empty trash", "trash", format!("{n} item(s) removed for good"), &r);
+    r
+}
+
+pub async fn handle_trash_delete(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<crate::tools::trash::TrashDeleteRequest>) -> Result<Json<crate::tools::trash::TrashActionResult>, (StatusCode, String)> {
+    let who = crate::server::activity_handlers::actor(&state, &headers);
+    let first = payload.items.first().cloned().unwrap_or_default();
+    let count = payload.items.len();
+    let r = handle_trash_delete_inner(State(state), headers, Json(payload)).await;
+    crate::server::activity_handlers::log_result(who, "delete from trash", &first, format!("{count} item(s), for good"), &r);
+    r
 }

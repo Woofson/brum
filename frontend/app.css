@@ -17697,6 +17697,61 @@ textarea.bk-input {
 }
 
 /* ==========================================================================
+   Activity log (#193)
+   ========================================================================== */
+.act-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.act-filters .settings-input { height: 28px; flex: 1 1 140px; min-width: 0; }
+.act-filters input[type="date"] { flex: 0 1 140px; }
+.act-check { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; white-space: nowrap; }
+.act-summary { font-size: 12px; color: var(--text-dim); margin-bottom: 6px; min-height: 16px; }
+
+.act-list {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.act-row {
+  display: grid;
+  grid-template-columns: 128px 90px 130px minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: 8px;
+  align-items: center;
+  padding: 5px 10px;
+  font-size: 12px;
+  background: var(--bg-dark);
+}
+
+.act-row + .act-row { border-top: 1px solid var(--border); }
+.act-row > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.act-time { color: var(--text-dim); font-size: 11px; }
+.act-user { font-weight: 600; }
+.act-action { display: inline-flex; align-items: center; gap: 4px; }
+.act-action svg { width: 12px; height: 12px; }
+.act-detail { color: var(--text-dim); font-size: 11px; }
+/* Long paths are shortened at the start, so the file name stays visible */
+.act-target { direction: rtl; text-align: left; }
+.act-target bdi { direction: ltr; unicode-bidi: isolate; }
+.act-failed .act-action { color: var(--danger); }
+.act-empty { padding: 18px; text-align: center; color: var(--text-dim); font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px; }
+.act-empty svg { width: 14px; height: 14px; }
+.act-bad { color: var(--danger); }
+
+@media (max-width: 700px) {
+  .act-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .act-time { grid-column: 2; grid-row: 1; text-align: right; }
+  .act-user { grid-column: 1; grid-row: 1; }
+  .act-action { grid-column: 1 / -1; }
+  .act-target, .act-detail { grid-column: 1 / -1; white-space: normal; word-break: break-all; }
+}
+
+/* ==========================================================================
    All machines (#192)
    ========================================================================== */
 .fw-pill { right: 1080px; }

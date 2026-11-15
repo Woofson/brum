@@ -240,6 +240,7 @@ pub async fn handle_backup_target_op(
     headers: HeaderMap,
     Json(req): Json<TargetOp>,
 ) -> Result<Json<serde_json::Value>, ApiError> {
+    let who = crate::server::activity_handlers::actor(&state, &headers);
     let path = checked(&state, &headers, &req.path, true)?;
     let to = match req.to.as_deref() {
         Some(t) => Some(checked(&state, &headers, t, true)?),
@@ -250,7 +251,9 @@ pub async fn handle_backup_target_op(
         None => None,
     };
     let op = req.op.clone();
-    tokio::task::spawn_blocking(move || -> Result<(), String> {
+    // Removals sent by another Brum (backups, copies, syncing) are recorded here (#193)
+    let removal = matches!(op.as_str(), "remove_file" | "remove_dir_all").then(|| (who, path.display().to_string(), op == "remove_dir_all"));
+    let result = tokio::task::spawn_blocking(move || -> Result<(), String> {
         match op.as_str() {
             "rename" => {
                 let to = to.ok_or("Missing destination")?;
@@ -278,6 +281,13 @@ pub async fn handle_backup_target_op(
     })
     .await
     .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-    .map_err(bad)?;
+    .map_err(bad);
+    if let Some((who, target, is_dir)) = removal {
+        // Leftover temporary files of interrupted copies are not worth a line
+        if !target.ends_with(crate::tools::sync::store::PART_SUFFIX) {
+            crate::server::activity_handlers::log_result(who, "delete", &target, if is_dir { "folder and everything inside, sent by another Brum" } else { "sent by another Brum" }.to_string(), &result);
+        }
+    }
+    result?;
     Ok(Json(serde_json::json!({ "success": true })))
 }

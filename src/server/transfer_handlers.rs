@@ -183,7 +183,7 @@ async fn supports(side: &Side) -> Result<bool, String> {
         .map_err(|e| e.to_string())?
 }
 
-pub async fn handle_transfer_start(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<TransferRequest>) -> Result<Json<Value>, ApiError> {
+async fn handle_transfer_start_inner(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<TransferRequest>) -> Result<Json<Value>, ApiError> {
     let claims = extract_claims_or_local(&state, &headers)?;
     require_write(&claims)?;
     check_items(&req.source.items)?;
@@ -249,6 +249,24 @@ fn start_relay(state: &AppState, claims: &crate::auth::Claims, req: &TransferReq
     let tasks = state.tasks.clone();
     std::thread::spawn(move || job.run(&tasks, false));
     Ok(id)
+}
+
+/// Starts a copy between machines, and records it in the activity log (#193)
+pub async fn handle_transfer_start(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<TransferRequest>) -> Result<Json<Value>, ApiError> {
+    let who = crate::server::activity_handlers::actor(&state, &headers);
+    let side = |s: &SideRequest| format!("{}:{}", if s.node.is_empty() { "local" } else if s.node == "remote" { s.url.as_deref().unwrap_or("remote") } else { &s.node }, s.folder);
+    let target = req.source.items.first().map(|i| format!("{}/{}", side(&req.source), i.name)).unwrap_or_else(|| side(&req.source));
+    let n = req.source.items.len();
+    let mut detail = format!("{}to {}", if n > 1 { format!("{n} items ") } else { String::new() }, side(&req.dest));
+    let action = if req.action == "move" { "move between machines" } else { "copy between machines" };
+    let r = handle_transfer_start_inner(State(state), headers, Json(req)).await;
+    if let Ok(Json(v)) = &r {
+        if let Some(mode) = v.get("mode").and_then(|m| m.as_str()) {
+            detail.push_str(if mode == "direct" { " (direct)" } else { " (passed on by this Brum)" });
+        }
+    }
+    crate::server::activity_handlers::log_result(who, action, &target, detail, &r);
+    r
 }
 
 /// Hands the copy to the receiving machine; returns its task id there

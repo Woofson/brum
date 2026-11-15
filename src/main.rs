@@ -309,6 +309,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     let task_mgr = tools::tasks::TaskManager::new();
     let tag_mgr = tools::tags::TagManager::new(auth_mgr.db())?;
     let vault_mgr = vfs::vault::VaultManager::new();
+    if config.activity.enabled {
+        tools::activity::init(auth_mgr.db_path(), config.activity.retention_days);
+    }
     let backup_mgr = tools::sync::BackupManager::new(auth_mgr.db())?.with_sftp_config(config.storage.sftp.clone());
     let plugin_mgr = plugins::PluginManager::new(
         config.plugins.resolve_system_directory(),
