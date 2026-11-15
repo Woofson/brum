@@ -5,6 +5,15 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.1] - 2026-11-15
+
+### Fixes
+- **Windows Without the Visual C++ Runtime (Refs #181)**: `brum.exe` needed Microsoft's Visual C++ runtime (`VCRUNTIME140.dll`), which a fresh Windows does not have: Brum would not start there, and the installer stopped at a "DLL not found" message. The runtime is now built into `brum.exe`, and the release checks that it stays that way. The winget package also lists the runtime as a dependency.
+- **Silent Installs**: A silent install (winget, scripts) no longer starts the tray icon, which kept the install from finishing; it starts at the next sign-in.
+
+### Changes
+- **Windows Build Check**: A workflow started by hand builds `brum.exe` like a release, checks it and offers it as a download, without publishing anything.
+
 ## [1.23.0] - 2026-11-15
 
 Brum as the file manager for all your machines. **All Fleet machines should be updated together**: copies, Compare and pairing between machines need 1.23.0 on both sides (older machines get a clear message and the previous behaviour).
