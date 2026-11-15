@@ -186,117 +186,67 @@ pub fn compare_folders_cancellable(
     selected_items: Option<Vec<String>>,
     cancel: &std::sync::atomic::AtomicBool,
 ) -> Result<FolderDiffResult, std::io::Error> {
+    let map_left = list_side(dir_left_str, recursive, deep_hash_compare, selected_items.as_deref(), cancel)?;
+    let map_right = list_side(dir_right_str, recursive, deep_hash_compare, selected_items.as_deref(), cancel)?;
+    Ok(build_folder_diff(dir_left_str, dir_right_str, map_left, map_right, recursive))
+}
+
+/// One side of a comparison: relative path (with `/`) -> (is folder, size, modified time, SHA-256)
+pub type SideMap = HashMap<String, (bool, u64, Option<u64>, Option<String>)>;
+
+fn side_entry(path: &Path, is_dir: bool, meta: Option<fs::Metadata>, deep: bool) -> (bool, u64, Option<u64>, Option<String>) {
+    let size = if is_dir { 0 } else { meta.as_ref().map_or(0, |m| m.len()) };
+    let mtime = meta.as_ref().and_then(mtime_from_meta);
+    let hash = if !is_dir && deep { calculate_sha256(path).ok() } else { None };
+    (is_dir, size, mtime, hash)
+}
+
+fn rel_key(rel: &Path) -> String {
+    rel.components().map(|c| c.as_os_str().to_string_lossy().to_string()).collect::<Vec<_>>().join("/")
+}
+
+/// Lists one folder for a comparison, on the machine that holds it (also used for comparisons
+/// across Fleet machines, where each machine lists its own side)
+pub fn list_side(dir: &str, recursive: bool, deep_hash_compare: bool, selected_items: Option<&[String]>, cancel: &std::sync::atomic::AtomicBool) -> Result<SideMap, std::io::Error> {
     use std::sync::atomic::Ordering;
-    let p_left = Path::new(dir_left_str);
-    let p_right = Path::new(dir_right_str);
-
-    // Map: path -> (is_dir, size, mtime, hash)
-    let mut map_left: HashMap<String, (bool, u64, Option<u64>, Option<String>)> = HashMap::new();
-    let mut map_right: HashMap<String, (bool, u64, Option<u64>, Option<String>)> = HashMap::new();
-
-    // If specific selected items were requested:
+    let root = Path::new(dir);
+    let mut map = SideMap::new();
     if let Some(items) = selected_items {
         for item in items {
-            let path_l = p_left.join(&item);
-            let path_r = p_right.join(&item);
-
-            if path_l.exists() {
-                let is_dir = path_l.is_dir();
-                let meta = fs::metadata(&path_l).ok();
-                let size = if is_dir { 0 } else { meta.as_ref().map_or(0, |m| m.len()) };
-                let mtime = meta.as_ref().and_then(mtime_from_meta);
-                let hash = if !is_dir && deep_hash_compare { calculate_sha256(&path_l).ok() } else { None };
-                map_left.insert(item.clone(), (is_dir, size, mtime, hash));
-            }
-            if path_r.exists() {
-                let is_dir = path_r.is_dir();
-                let meta = fs::metadata(&path_r).ok();
-                let size = if is_dir { 0 } else { meta.as_ref().map_or(0, |m| m.len()) };
-                let mtime = meta.as_ref().and_then(mtime_from_meta);
-                let hash = if !is_dir && deep_hash_compare { calculate_sha256(&path_r).ok() } else { None };
-                map_right.insert(item, (is_dir, size, mtime, hash));
+            let path = root.join(item);
+            if path.exists() {
+                map.insert(item.replace('\\', "/"), side_entry(&path, path.is_dir(), fs::metadata(&path).ok(), deep_hash_compare));
             }
         }
     } else if !recursive {
-        // Fast Immediate Level Compare: only read immediate children (O(N) ~ 5ms)
-        if p_left.is_dir() {
-            if let Ok(entries) = fs::read_dir(p_left) {
-                for entry in entries.filter_map(|e| e.ok()) {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-                    let meta = entry.metadata().ok();
-                    let size = if is_dir { 0 } else { meta.as_ref().map_or(0, |m| m.len()) };
-                    let mtime = meta.as_ref().and_then(mtime_from_meta);
-                    let hash = if !is_dir && deep_hash_compare { calculate_sha256(&entry.path()).ok() } else { None };
-                    map_left.insert(name, (is_dir, size, mtime, hash));
-                }
+        // Only the folder's own items: fast
+        if let Ok(entries) = fs::read_dir(root) {
+            for entry in entries.filter_map(|e| e.ok()) {
+                let name = entry.file_name().to_string_lossy().to_string();
+                let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+                map.insert(name, side_entry(&entry.path(), is_dir, entry.metadata().ok(), deep_hash_compare));
             }
         }
-
-        if p_right.is_dir() {
-            if let Ok(entries) = fs::read_dir(p_right) {
-                for entry in entries.filter_map(|e| e.ok()) {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
-                    let meta = entry.metadata().ok();
-                    let size = if is_dir { 0 } else { meta.as_ref().map_or(0, |m| m.len()) };
-                    let mtime = meta.as_ref().and_then(mtime_from_meta);
-                    let hash = if !is_dir && deep_hash_compare { calculate_sha256(&entry.path()).ok() } else { None };
-                    map_right.insert(name, (is_dir, size, mtime, hash));
-                }
+    } else if root.is_dir() {
+        for entry in WalkDir::new(root).max_depth(10).same_file_system(true).into_iter().filter_map(|e| e.ok()) {
+            if cancel.load(Ordering::Relaxed) {
+                return Err(cancelled_error());
             }
-        }
-    } else {
-        // Recursive WalkDir
-        if p_left.is_dir() {
-            for entry in WalkDir::new(p_left).max_depth(10).same_file_system(true).into_iter().filter_map(|e| e.ok()) {
-                if cancel.load(Ordering::Relaxed) {
-                    return Err(cancelled_error());
+            if let Ok(rel) = entry.path().strip_prefix(root) {
+                let key = rel_key(rel);
+                if key.is_empty() {
+                    continue;
                 }
-                if let Ok(rel) = entry.path().strip_prefix(p_left) {
-                    let rel_str = rel.to_string_lossy().to_string();
-                    if rel_str.is_empty() {
-                        continue;
-                    }
-                    let is_dir = entry.file_type().is_dir();
-                    let meta = entry.metadata().ok();
-                    let size = if is_dir { 0 } else { meta.as_ref().map_or(0, |m| m.len()) };
-                    let mtime = meta.as_ref().and_then(mtime_from_meta);
-                    let hash = if !is_dir && deep_hash_compare {
-                        calculate_sha256(entry.path()).ok()
-                    } else {
-                        None
-                    };
-                    map_left.insert(rel_str, (is_dir, size, mtime, hash));
-                }
-            }
-        }
-
-        if p_right.is_dir() {
-            for entry in WalkDir::new(p_right).max_depth(10).same_file_system(true).into_iter().filter_map(|e| e.ok()) {
-                if cancel.load(Ordering::Relaxed) {
-                    return Err(cancelled_error());
-                }
-                if let Ok(rel) = entry.path().strip_prefix(p_right) {
-                    let rel_str = rel.to_string_lossy().to_string();
-                    if rel_str.is_empty() {
-                        continue;
-                    }
-                    let is_dir = entry.file_type().is_dir();
-                    let meta = entry.metadata().ok();
-                    let size = if is_dir { 0 } else { meta.as_ref().map_or(0, |m| m.len()) };
-                    let mtime = meta.as_ref().and_then(mtime_from_meta);
-                    let hash = if !is_dir && deep_hash_compare {
-                        calculate_sha256(entry.path()).ok()
-                    } else {
-                        None
-                    };
-                    map_right.insert(rel_str, (is_dir, size, mtime, hash));
-                }
+                map.insert(key, side_entry(entry.path(), entry.file_type().is_dir(), entry.metadata().ok(), deep_hash_compare));
             }
         }
     }
+    Ok(map)
+}
 
+/// Compares two listings made by `list_side`
+pub fn build_folder_diff(dir_left_str: &str, dir_right_str: &str, map_left: SideMap, map_right: SideMap, recursive: bool) -> FolderDiffResult {
+    let deep_hash_compare = map_left.values().chain(map_right.values()).any(|v| v.3.is_some());
     let mut all_keys: HashSet<String> = HashSet::new();
     for k in map_left.keys() {
         all_keys.insert(k.clone());
@@ -436,7 +386,7 @@ pub fn compare_folders_cancellable(
         entries = keep;
     }
 
-    Ok(FolderDiffResult {
+    FolderDiffResult {
         truncated,
         total_entries,
         dir_left: dir_left_str.to_string(),
@@ -448,7 +398,7 @@ pub fn compare_folders_cancellable(
         left_only_count,
         right_only_count,
         entries,
-    })
+    }
 }
 
 pub fn calculate_checksums_for_entries(

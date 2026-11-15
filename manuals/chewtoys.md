@@ -282,6 +282,16 @@ Open it with <kbd>F9</kbd> / <kbd>Ctrl+D</kbd> or **Tools → Compare**; **Find 
 * Filter the list (Modified, Left only, Right only, Identical), search it, and sort it. Each row can open a side-by-side view or be copied across.
 * **Copy across**: **Left to right**, **Right to left** or **Both ways** copies files that are missing or newer on the other side into the same subfolders. Brum says how many files it will copy and asks first; nothing is deleted.
 
+### Two folders on different machines
+* Each side has a machine choice: this Brum or any machine in your Fleet. <kbd>F9</kbd> and **Use my panels** take the machine from each panel too, so a panel on `nas` and a panel on `laptop` are compared as they are.
+* Each machine lists its own folder. With **Compare contents**, each machine also works out the checksums of its own files, so no file travels just to be compared.
+* **Make right like left** / **Make left like right** first shows exactly what will happen: the new items to copy, the files that differ and will be replaced (with a warning when the receiving side has the newer version), and the total size. Nothing happens until you press **Start**.
+* Items that exist only on the receiving side are kept. Tick **Also remove** to move them to the trash on that machine; Brum asks once more first.
+* The copying runs as a copy between machines (see the Configuration manual, "Copying and Moving Between Machines"): in the task list, checked, and it keeps going if you close the tab. Compare again when it is done.
+* **Save as backup…** (when the files come from this Brum) opens Backup & Sync with the same folders filled in, to repeat it on a schedule.
+* A row's arrow copies just that item across. The side-by-side view and the per-row checksum button are for folders on one machine.
+* Both machines need Brum 1.23 or newer; an older one is named in the message.
+
 ### Two files
 Choose two files, or press **Use selected files** (one file selected in each panel, or two in one panel). Text files are shown side by side or inline with the changes marked; images are shown next to each other or with a slider. <kbd>F9</kbd> with one file selected in each panel opens this view directly.
 

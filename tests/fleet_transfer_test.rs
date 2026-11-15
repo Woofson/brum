@@ -243,3 +243,104 @@ async fn an_interrupted_copy_continues_on_the_other_machine() {
     assert_eq!(std::fs::read(dst.join("video.mkv")).unwrap(), data);
     assert!(!dst.join(".video.mkv.brum-part").exists());
 }
+
+/// #191: compare a folder on one machine with a folder on another, then make one side like the other
+#[tokio::test]
+async fn compare_and_sync_across_machines() {
+    let files = tempdir().unwrap();
+    let (l, r) = (files.path().join("left"), files.path().join("right"));
+    std::fs::create_dir_all(l.join("onlyL/deep")).unwrap();
+    std::fs::create_dir_all(&r).unwrap();
+    let set = |p: std::path::PathBuf, body: &[u8], t: i64| {
+        std::fs::write(&p, body).unwrap();
+        filetime::set_file_mtime(&p, filetime::FileTime::from_unix_time(t, 0)).unwrap();
+    };
+    set(l.join("same.txt"), b"same", 1_700_000_000);
+    set(r.join("same.txt"), b"same", 1_700_000_000);
+    set(l.join("changed.txt"), b"new longer text", 1_700_000_500);
+    set(r.join("changed.txt"), b"old", 1_700_000_000);
+    set(l.join("touched.txt"), b"identical bytes", 1_700_000_900);
+    set(r.join("touched.txt"), b"identical bytes", 1_700_000_000);
+    set(l.join("onlyL.txt"), b"left", 1_700_000_000);
+    set(l.join("onlyL/deep/f.txt"), b"deep", 1_700_000_000);
+    set(r.join("onlyR.txt"), b"right", 1_700_000_000);
+
+    let (da, dh) = (tempdir().unwrap(), tempdir().unwrap());
+    let (pa, _) = start_background_server(node_config(&da, true)).await.unwrap();
+    let old = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let po = old.local_addr().unwrap().port();
+    tokio::spawn(async move { axum::serve(old, axum::Router::new()).await.unwrap() });
+    let mut hub = node_config(&dh, true);
+    hub.fleet.nodes.push(node("alpha", &format!("http://127.0.0.1:{pa}")));
+    hub.fleet.nodes.push(node("oldie", &format!("http://127.0.0.1:{po}")));
+    let (ph, _) = start_background_server(hub).await.unwrap();
+    let base = format!("http://127.0.0.1:{ph}");
+    let client = reqwest::Client::new();
+    let token = login(&client, &base).await;
+    let s = |p: &std::path::Path| p.to_string_lossy().to_string();
+
+    let compare = |deep: bool| {
+        let (client, base, token, l, r) = (client.clone(), base.clone(), token.clone(), s(&l), s(&r));
+        async move {
+            let resp = client.post(format!("{base}/api/compare/across")).bearer_auth(&token)
+                .json(&json!({ "left": { "node": "alpha", "folder": l }, "right": { "node": "local", "folder": r }, "recursive": true, "deep": deep }))
+                .send().await.unwrap();
+            assert_eq!(resp.status().as_u16(), 200);
+            resp.json::<Value>().await.unwrap()
+        }
+    };
+    let status = |d: &Value, rel: &str| d["entries"].as_array().unwrap().iter().find(|e| e["relative_path"] == rel).map(|e| e["status"].as_str().unwrap().to_string()).unwrap_or_default();
+
+    // Quick: by size and date
+    let d = compare(false).await;
+    assert_eq!(d["left_machine"], "alpha");
+    assert_eq!(status(&d, "same.txt"), "identical", "{d}");
+    assert_eq!(status(&d, "changed.txt"), "modified");
+    assert_eq!(status(&d, "touched.txt"), "modified", "a different date counts as different in the quick check");
+    assert_eq!(status(&d, "onlyL/deep/f.txt"), "left_only");
+    assert_eq!(status(&d, "onlyR.txt"), "right_only");
+
+    // Exact: each machine works out its own checksums
+    let d = compare(true).await;
+    assert_eq!(status(&d, "touched.txt"), "identical", "{d}");
+    assert_eq!(status(&d, "changed.txt"), "modified");
+
+    // Make the right side like the left: copy what is missing or different, into subfolders too
+    let (st, r0) = start(&client, &base, &token, json!({
+        "action": "copy",
+        "source": { "node": "alpha", "folder": s(&l), "items": [{ "name": "onlyL" }, { "name": "onlyL.txt" }, { "name": "changed.txt" }] },
+        "dest": { "node": "local", "folder": s(&r) },
+    })).await;
+    assert_eq!(st, 200, "{r0}");
+    assert_eq!(wait(&client, &base, &token, r0["task_id"].as_str().unwrap()).await["status"], "completed");
+    let d = compare(true).await;
+    assert_eq!(d["left_only_count"], 0, "{d}");
+    assert_eq!(d["modified_count"], 0, "{d}");
+    assert_eq!(std::fs::read(r.join("onlyL/deep/f.txt")).unwrap(), b"deep");
+
+    // A path below the folder can be copied on its own; nothing may leave the folder
+    std::fs::write(l.join("onlyL/deep/g.txt"), b"g").unwrap();
+    let (st, r1) = start(&client, &base, &token, json!({
+        "action": "copy",
+        "source": { "node": "alpha", "folder": s(&l), "items": [{ "name": "onlyL/deep/g.txt" }] },
+        "dest": { "node": "local", "folder": s(&r) },
+    })).await;
+    assert_eq!(st, 200, "{r1}");
+    assert_eq!(wait(&client, &base, &token, r1["task_id"].as_str().unwrap()).await["status"], "completed");
+    assert_eq!(std::fs::read(r.join("onlyL/deep/g.txt")).unwrap(), b"g");
+    for bad in ["onlyL/../../x", "/etc/passwd", "a//b"] {
+        let (st, _) = start(&client, &base, &token, json!({
+            "action": "copy",
+            "source": { "node": "alpha", "folder": s(&l), "items": [{ "name": bad }] },
+            "dest": { "node": "local", "folder": s(&r) },
+        })).await;
+        assert_eq!(st, 400, "{bad}");
+    }
+
+    // An older machine is named
+    let resp = client.post(format!("{base}/api/compare/across")).bearer_auth(&token)
+        .json(&json!({ "left": { "node": "oldie", "folder": "/tmp" }, "right": { "node": "local", "folder": s(&r) }, "recursive": true }))
+        .send().await.unwrap();
+    assert_eq!(resp.status().as_u16(), 400);
+    assert!(resp.text().await.unwrap().contains("older Brum"));
+}

@@ -17685,10 +17685,119 @@ textarea.bk-input {
   background: var(--bg-dark);
 }
 
+/* Which machine each side is on (#191) */
+.cmp-node {
+  flex: 0 1 150px;
+  max-width: 150px;
+  cursor: pointer;
+}
+
+.cmp-machines {
+  color: var(--accent);
+}
+
+/* "Make one side like the other": the preview */
+.cmp-plan {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.cmp-plan-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.cmp-plan-title svg { width: 16px; height: 16px; color: var(--accent); }
+
+.cmp-plan-paths,
+.cmp-plan-note,
+.cmp-plan-total {
+  font-size: 12px;
+  color: var(--text-dim);
+  line-height: 1.5;
+  word-break: break-all;
+}
+
+.cmp-plan-note {
+  padding: 6px 8px;
+  border-left: 3px solid var(--accent);
+  background: var(--bg-dark);
+  border-radius: var(--radius);
+}
+
+.cmp-plan-group {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-dark);
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.cmp-plan-group summary {
+  cursor: pointer;
+  line-height: 1.6;
+}
+
+.cmp-plan-warn {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.cmp-plan-list {
+  list-style: none;
+  margin: 6px 0 2px;
+  padding: 0;
+  max-height: 220px;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.cmp-plan-list li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 1px 0;
+  min-width: 0;
+}
+
+.cmp-plan-list li span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmp-plan-list svg { width: 12px; height: 12px; flex-shrink: 0; color: var(--text-dim); }
+
+.cmp-plan-more { color: var(--text-dim); font-style: italic; }
+
+.cmp-plan-remove {
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.cmp-plan-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 @media (max-width: 768px) {
   .cmp-paths {
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .cmp-node {
+    max-width: none;
+    flex: 0 1 120px;
   }
 }
 

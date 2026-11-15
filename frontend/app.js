@@ -214,7 +214,7 @@ const BRUM_ACTIONS = new Set([
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
   'resetServerPreferences', 'resetSettingsAvatar', 'resetSingleKeybind', 'resetToolsMenuToDefault',
-  'resetWindowTitleSetting', 'resolveConflictChoice', 'restoreBackupWindow',
+  'resetWindowTitleSetting', 'resolveConflictChoice', 'compareSyncPreview', 'compareSyncBack', 'compareSyncRun', 'compareSaveAsBackup', 'compareNodeChanged', 'restoreBackupWindow',
   'restoreConverterModal', 'restoreFloatingCadStudio', 'restoreFloatingDiff',
   'restoreFloatingDiskUsage', 'restoreFloatingDuplicateFinder', 'restoreFloatingEditor',
   'restoreFloatingHexEditor', 'restoreFloatingLogViewer', 'restoreFloatingMediaPlayer',
@@ -11438,7 +11438,12 @@ async function executeCrossNodeTransfer(action, sources, destination, refreshTar
 
 /** One side of a server copy job: this Brum, or a Fleet machine with its address and login */
 function transferSide(paneIdx, folder) {
-  const node = getPaneNode(paneIdx);
+  return transferSideForNode(getPaneNode(paneIdx)?.id || 'local', folder);
+}
+
+/** Same, by machine id ('local' for this Brum) */
+function transferSideForNode(nodeId, folder) {
+  const node = nodeId && nodeId !== 'local' && typeof getFleetNodeById === 'function' ? getFleetNodeById(nodeId) : null;
   if (!node || node.id === 'local') return { node: 'local', folder };
   const side = { node: node.id, folder, url: (node.endpoint_url || '').trim().replace(/\/+$/, '') };
   if (node.auth_token && node.auth_token.trim()) side.token = node.auth_token.trim();
@@ -17770,7 +17775,7 @@ function initDiffDragResize() {
 const COMPARE_MAX_ROWS = 500;
 // One reusable name comparer: about 15 times faster than comparing names one call at a time
 const compareNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
-const compareState = { mode: 'folders', left: '', right: '', fileLeft: '', fileRight: '', subfolders: true };
+const compareState = { mode: 'folders', left: '', right: '', leftNode: 'local', rightNode: 'local', fileLeft: '', fileRight: '', subfolders: true };
 
 // The window's contents move between the floating window and a Panel; Panels are redrawn from scratch
 function compareBody() {
@@ -17843,8 +17848,44 @@ function compareSetMode(mode) {
 function compareDefaultsFromPanes() {
   const a = App.panes[0];
   const b = App.panes[1] || App.panes[0];
-  if (!compareState.left) compareState.left = a?.path || '';
-  if (!compareState.right) compareState.right = b?.path || '';
+  if (!compareState.left) {
+    compareState.left = a?.path || '';
+    compareState.leftNode = a?.nodeId || 'local';
+  }
+  if (!compareState.right) {
+    compareState.right = b?.path || '';
+    compareState.rightNode = b?.nodeId || 'local';
+  }
+}
+
+// Which machine each side of Compare is on (#191): this Brum or a Fleet machine
+function compareNodeName(id) {
+  if (!id || id === 'local') return getLocalHostDisplayName();
+  const n = typeof getFleetNodeById === 'function' ? getFleetNodeById(id) : null;
+  return n ? n.name : id;
+}
+
+function compareIsAcross() {
+  return (compareState.leftNode || 'local') !== 'local' || (compareState.rightNode || 'local') !== 'local';
+}
+
+function compareNodeSelectHtml(id, current) {
+  const nodes = typeof getAllFleetNodes === 'function' ? getAllFleetNodes().filter(n => n && n.id && n.id !== 'local') : [];
+  if (!nodes.length && (!current || current === 'local')) return '';
+  const opt = (value, label) => `<option value="${escapeHtml(value)}" ${value === (current || 'local') ? 'selected' : ''}>${escapeHtml(label)}</option>`;
+  return `<select id="${id}" class="bk-input cmp-node" title="Which machine this folder is on" data-on-change="compareNodeChanged">
+    ${opt('local', `${getLocalHostDisplayName()} (this Brum)`)}
+    ${nodes.map(n => opt(n.id, n.name || n.id)).join('')}
+  </select>`;
+}
+
+function compareNodeChanged() {
+  compareReadFolderInputs();
+  // The folder picker browses this machine only
+  ['left', 'right'].forEach(side => {
+    const btn = document.getElementById(`cmp-${side}-pick`);
+    if (btn) btn.style.display = compareState[`${side}Node`] === 'local' ? '' : 'none';
+  });
 }
 
 // The folder pickers and options shared by the start screen and the results
@@ -17852,9 +17893,9 @@ function compareFolderBarHtml() {
   return `
     <div class="cmp-bar">
       <div class="cmp-paths">
-        <div class="cmp-path"><span class="cmp-side cmp-left">Left</span><input type="text" id="cmp-left" class="bk-input bk-mono" value="${escapeHtml(compareState.left)}" placeholder="/folder/on/the/left" data-keydown-key="Enter" data-on-keydown="compareRunFolders"><button class="btn btn-sm bk-btn" data-on-click="openSyncFolderPicker" data-click-args="${actionArgs('cmp-left')}" title="Choose a folder"><i data-lucide="folder-open"></i></button></div>
+        <div class="cmp-path"><span class="cmp-side cmp-left">Left</span>${compareNodeSelectHtml('cmp-left-node', compareState.leftNode)}<input type="text" id="cmp-left" class="bk-input bk-mono" value="${escapeHtml(compareState.left)}" placeholder="/folder/on/the/left" data-keydown-key="Enter" data-on-keydown="compareRunFolders"><button class="btn btn-sm bk-btn" id="cmp-left-pick" data-on-click="openSyncFolderPicker" data-click-args="${actionArgs('cmp-left')}" title="Choose a folder" ${compareState.leftNode && compareState.leftNode !== 'local' ? 'style="display:none"' : ''}><i data-lucide="folder-open"></i></button></div>
         <button class="btn btn-icon bk-icon" data-on-click="swapDiffPaths" title="Swap left and right"><i data-lucide="arrow-left-right"></i></button>
-        <div class="cmp-path"><span class="cmp-side cmp-right">Right</span><input type="text" id="cmp-right" class="bk-input bk-mono" value="${escapeHtml(compareState.right)}" placeholder="/folder/on/the/right" data-keydown-key="Enter" data-on-keydown="compareRunFolders"><button class="btn btn-sm bk-btn" data-on-click="openSyncFolderPicker" data-click-args="${actionArgs('cmp-right')}" title="Choose a folder"><i data-lucide="folder-open"></i></button></div>
+        <div class="cmp-path"><span class="cmp-side cmp-right">Right</span>${compareNodeSelectHtml('cmp-right-node', compareState.rightNode)}<input type="text" id="cmp-right" class="bk-input bk-mono" value="${escapeHtml(compareState.right)}" placeholder="/folder/on/the/right" data-keydown-key="Enter" data-on-keydown="compareRunFolders"><button class="btn btn-sm bk-btn" id="cmp-right-pick" data-on-click="openSyncFolderPicker" data-click-args="${actionArgs('cmp-right')}" title="Choose a folder" ${compareState.rightNode && compareState.rightNode !== 'local' ? 'style="display:none"' : ''}><i data-lucide="folder-open"></i></button></div>
       </div>
       <div class="cmp-options">
         <label class="bk-check"><input type="checkbox" id="cmp-subfolders" ${compareState.subfolders ? 'checked' : ''} data-on-change="compareSetSubfolders" data-change-args="${actionArgs(ACTION_CHECKED)}"> Include subfolders</label>
@@ -17885,6 +17926,10 @@ function compareReadFolderInputs() {
   const r = document.getElementById('cmp-right');
   if (l) compareState.left = l.value.trim();
   if (r) compareState.right = r.value.trim();
+  const ln = document.getElementById('cmp-left-node');
+  const rn = document.getElementById('cmp-right-node');
+  if (ln) compareState.leftNode = ln.value || 'local';
+  if (rn) compareState.rightNode = rn.value || 'local';
 }
 
 function compareSetSubfolders(on) {
@@ -17892,12 +17937,14 @@ function compareSetSubfolders(on) {
 }
 
 function useCurrentPanelsForCompare() {
-  compareState.left = App.panes[0]?.path || '';
-  compareState.right = (App.panes[1] || App.panes[0])?.path || '';
-  const l = document.getElementById('cmp-left');
-  const r = document.getElementById('cmp-right');
-  if (l) l.value = compareState.left;
-  if (r) r.value = compareState.right;
+  const a = App.panes[0];
+  const b = App.panes[1] || App.panes[0];
+  compareState.left = a?.path || '';
+  compareState.right = b?.path || '';
+  compareState.leftNode = a?.nodeId || 'local';
+  compareState.rightNode = b?.nodeId || 'local';
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+  else renderFolderSetup();
 }
 
 // Above these, Compare asks first: a big comparison can take minutes
@@ -17985,6 +18032,7 @@ async function compareRunFolders(checksums = false) {
   }
   const body = document.getElementById('diff-modal-body');
   if (!body) return;
+  if (compareIsAcross()) return compareRunAcross(checksums);
   if (!(await compareConfirmSize(checksums))) return;
   compareState.abort = new AbortController();
   compareShowWorking(checksums ? 'Comparing contents with checksums. This can take a while.' : 'Comparing...', true);
@@ -18010,6 +18058,198 @@ async function compareRunFolders(checksums = false) {
     if (e.name === 'AbortError') compareShowMessage('Stopped.');
     else compareShowMessage(e.message || String(e), true);
   }
+}
+
+// Compares folders on two machines (#191): each machine lists, and with `checksums` checks, its own side
+async function compareRunAcross(checksums) {
+  compareState.abort = new AbortController();
+  const ln = compareNodeName(compareState.leftNode);
+  const rn = compareNodeName(compareState.rightNode);
+  compareShowWorking(checksums ? `Comparing contents: ${ln} and ${rn} each check their own files. This can take a while.` : `Comparing ${ln} with ${rn}...`, true);
+  try {
+    const resp = await fetch('/api/compare/across', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        left: transferSideForNode(compareState.leftNode, compareState.left),
+        right: transferSideForNode(compareState.rightNode, compareState.right),
+        recursive: compareState.subfolders,
+        deep: checksums,
+      }),
+      signal: compareState.abort.signal,
+    });
+    if (!resp.ok) {
+      let msg = await resp.text();
+      try { const j = JSON.parse(msg); msg = j.reason || j.error || msg; } catch (_) { /* text */ }
+      throw new Error(msg);
+    }
+    const d = await resp.json();
+    d.across = true;
+    d.left_node = compareState.leftNode;
+    d.right_node = compareState.rightNode;
+    d.deep = checksums;
+    currentFolderDiffData = d;
+    const differences = (d.modified_count || 0) + (d.left_only_count || 0) + (d.right_only_count || 0);
+    currentDiffFilter = (d.entries || []).length > COMPARE_MAX_ROWS && differences > 0 ? 'diff' : 'all';
+    renderFolderDiff(d, currentDiffFilter);
+  } catch (e) {
+    if (e.name === 'AbortError') compareShowMessage('Stopped.');
+    else compareShowMessage(e.message || String(e), true);
+  }
+}
+
+/** What "make one side like the other" does: the topmost items to copy, and to remove */
+function compareSyncPlan(diff, direction) {
+  const fromLeft = direction === 'lr';
+  const onlySource = fromLeft ? 'left_only' : 'right_only';
+  const onlyTarget = fromLeft ? 'right_only' : 'left_only';
+  const entries = diff.entries || [];
+  const topmost = (list) => {
+    const dirs = list.filter(e => e.is_dir).map(e => e.relative_path + '/');
+    return list.filter(e => !dirs.some(d => e.relative_path.startsWith(d)));
+  };
+  const add = topmost(entries.filter(e => e.status === onlySource));
+  const replace = entries.filter(e => e.status === 'modified' && !e.is_dir);
+  const remove = topmost(entries.filter(e => e.status === onlyTarget));
+  const sizeOf = (e) => (fromLeft ? e.size_left : e.size_right) || 0;
+  const bytesUnder = (e) => e.is_dir ? entries.filter(x => x.status === onlySource && !x.is_dir && x.relative_path.startsWith(e.relative_path + '/')).reduce((s, x) => s + sizeOf(x), 0) : sizeOf(e);
+  const olderWins = replace.filter(e => e.time_status === (fromLeft ? 'right_newer' : 'left_newer'));
+  return { add, replace, remove, olderWins, bytes: add.reduce((s, e) => s + bytesUnder(e), 0) + replace.reduce((s, e) => s + sizeOf(e), 0) };
+}
+
+/** Shows exactly what "make one side like the other" will do, before anything happens */
+function compareSyncPreview(direction) {
+  const diff = currentFolderDiffData;
+  if (!diff) return;
+  const body = document.getElementById('diff-modal-body');
+  if (!body) return;
+  const fromLeft = direction === 'lr';
+  const src = fromLeft ? { node: diff.left_node, dir: diff.dir_left } : { node: diff.right_node, dir: diff.dir_right };
+  const dst = fromLeft ? { node: diff.right_node, dir: diff.dir_right } : { node: diff.left_node, dir: diff.dir_left };
+  const srcName = compareNodeName(src.node);
+  const dstName = compareNodeName(dst.node);
+  const plan = compareSyncPlan(diff, direction);
+  compareState.syncPlan = { direction, plan, src, dst };
+  const list = (items, icon) => {
+    const shown = items.slice(0, 200).map(e => `<li><i data-lucide="${e.is_dir ? 'folder' : icon}"></i><span>${escapeHtml(e.relative_path)}${e.is_dir ? '/' : ''}</span></li>`).join('');
+    return `<ul class="cmp-plan-list">${shown}${items.length > 200 ? `<li class="cmp-plan-more">…and ${formatNumber(items.length - 200)} more</li>` : ''}</ul>`;
+  };
+  const nothing = !plan.add.length && !plan.replace.length && !plan.remove.length;
+  body.dataset.view = 'sync-preview';
+  body.innerHTML = `
+    <div class="cmp-plan">
+      <div class="cmp-plan-title"><i data-lucide="${fromLeft ? 'arrow-right' : 'arrow-left'}"></i> Make ${escapeHtml(dstName)} like ${escapeHtml(srcName)}</div>
+      <div class="cmp-plan-paths"><b>From</b> ${escapeHtml(srcName)}: <span class="bk-mono">${escapeHtml(src.dir)}</span><br><b>To</b> ${escapeHtml(dstName)}: <span class="bk-mono">${escapeHtml(dst.dir)}</span></div>
+      ${!diff.deep ? '<div class="cmp-plan-note">Compared by size and date. Files whose date differs but whose contents are the same are copied again; use <b>Compare contents</b> first to skip them.</div>' : ''}
+      ${nothing ? `<div class="bk-summary">Nothing to do: ${escapeHtml(dstName)} already has everything ${escapeHtml(srcName)} has.</div>` : `
+      ${plan.add.length ? `<details class="cmp-plan-group" open><summary><b>Copy ${formatNumber(plan.add.length)} new item${plan.add.length === 1 ? '' : 's'}</b> that ${escapeHtml(dstName)} does not have</summary>${list(plan.add, 'file-plus')}</details>` : ''}
+      ${plan.replace.length ? `<details class="cmp-plan-group" ${plan.replace.length <= 50 ? 'open' : ''}><summary><b>Replace ${formatNumber(plan.replace.length)} file${plan.replace.length === 1 ? '' : 's'}</b> that differ${plan.replace.length === 1 ? 's' : ''}${plan.olderWins.length ? ` <span class="cmp-plan-warn">(${formatNumber(plan.olderWins.length)} of them are newer on ${escapeHtml(dstName)} and will be replaced by the older version)</span>` : ''}</summary>${list(plan.replace, 'file-diff')}</details>` : ''}
+      ${plan.remove.length ? `
+        <label class="bk-check cmp-plan-remove"><input type="checkbox" id="cmp-sync-remove"> Also remove ${formatNumber(plan.remove.length)} item${plan.remove.length === 1 ? '' : 's'} that only ${escapeHtml(dstName)} has. They go to the trash on ${escapeHtml(dstName)}.</label>
+        <details class="cmp-plan-group"><summary>Items only on ${escapeHtml(dstName)} (kept unless ticked above)</summary>${list(plan.remove, 'file-x')}</details>` : ''}
+      <div class="cmp-plan-total">${formatBytes(plan.bytes)} to copy. It runs in the task list, keeps going if you close this tab, and every file is checked when Security &amp; Integrity Checks are on.</div>`}
+      <div class="cmp-plan-actions">
+        <button class="btn btn-sm bk-btn" data-on-click="compareSyncBack"><i data-lucide="arrow-left"></i> Back</button>
+        ${src.node === 'local' && !nothing && !/^[A-Za-z]:|\\/.test(dst.dir) ? `<button class="btn btn-sm bk-btn" data-on-click="compareSaveAsBackup" title="Repeat this on a schedule with Backup &amp; Sync"><i data-lucide="calendar-clock"></i> Save as backup…</button>` : ''}
+        <div style="flex: 1;"></div>
+        ${nothing ? '' : `<button class="btn btn-sm btn-accent bk-btn" data-on-click="compareSyncRun"><i data-lucide="play"></i> Start</button>`}
+      </div>
+    </div>`;
+  if (window.lucide) lucide.createIcons({ root: body });
+  bindActions(body);
+}
+
+function compareSyncBack() {
+  if (currentFolderDiffData) renderFolderDiff(currentFolderDiffData, currentDiffFilter);
+  else renderFolderSetup();
+}
+
+/** Runs the previewed plan: removals to the trash first (only if ticked), then one copy job */
+async function compareSyncRun() {
+  const sp = compareState.syncPlan;
+  if (!sp) return;
+  const { plan, src, dst } = sp;
+  const removeToo = !!document.getElementById('cmp-sync-remove')?.checked;
+  const dstName = compareNodeName(dst.node);
+  const join = (dir, rel) => (/[\\/]$/.test(dir) ? dir : dir + (dir.includes('\\') && !dir.includes('/') ? '\\' : '/')) + rel;
+  if (removeToo && plan.remove.length) {
+    const ok = await showConfirmDialog({
+      title: `Remove ${formatNumber(plan.remove.length)} item${plan.remove.length === 1 ? '' : 's'} on ${dstName}?`,
+      subtitle: dst.dir,
+      message: `These exist only on ${dstName} and go to its trash:\n\n${plan.remove.slice(0, 15).map(e => e.relative_path).join('\n')}${plan.remove.length > 15 ? `\n…and ${plan.remove.length - 15} more` : ''}`,
+      icon: 'trash-2',
+      type: 'danger',
+      confirmText: 'Remove and copy',
+    });
+    if (!ok) return;
+    const { endpoint, headers } = compareNodeAccess(dst.node);
+    const resp = await fetch(`${endpoint}/api/fs/delete`, {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths: plan.remove.map(e => resolveAuthUri(join(dst.dir, e.relative_path))), use_trash: true })
+    }).catch(err => ({ ok: false, text: async () => String(err) }));
+    if (!resp.ok) {
+      showToast(`Could not move the extra items to the trash on ${dstName}: ${await resp.text()}. Nothing was copied.`, 'error');
+      return;
+    }
+  }
+  const items = [...plan.add, ...plan.replace].map(e => ({ name: e.relative_path, conflict: 'overwrite' }));
+  if (items.length) {
+    const resp = await fetch('/api/transfer/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'copy', verify: App.paranoidMode !== false, source: { ...transferSideForNode(src.node, src.dir), items }, dest: transferSideForNode(dst.node, dst.dir) })
+    }).catch(err => ({ ok: false, status: 0, text: async () => String(err) }));
+    if (!resp.ok) {
+      let msg = await resp.text();
+      try { const j = JSON.parse(msg); msg = j.reason || j.error || msg; } catch (_) { /* text */ }
+      showToast(`Copy not started: ${msg}`, 'error');
+      return;
+    }
+    showToast(`Copying ${formatNumber(items.length)} item${items.length === 1 ? '' : 's'} to ${dstName}. It keeps going if you close this tab; compare again when it is done.`, 'info');
+    if (App.autoOpenTasks && !App.taskManagerVisible) openFloatingTaskManager();
+    requestTasksFastBurst(6000);
+    if (typeof pollTasks === 'function') pollTasks();
+  } else {
+    showToast(`Moved ${formatNumber(plan.remove.length)} item${plan.remove.length === 1 ? '' : 's'} to the trash on ${dstName}`, 'success');
+    setTimeout(() => compareRunFolders(!!currentFolderDiffData?.deep), 300);
+  }
+  compareSyncBack();
+}
+
+/** Address and login for talking to a machine from the page (this Brum, or a Fleet machine) */
+function compareNodeAccess(nodeId) {
+  if (!nodeId || nodeId === 'local') return { endpoint: '', headers: {} };
+  const node = getFleetNodeById(nodeId);
+  if (!node) return { endpoint: '', headers: {} };
+  if (shouldRouteViaGateway(node)) {
+    const headers = { 'X-Fleet-Target-Url': node.endpoint_url };
+    if (node.auth_token && node.auth_token.trim()) headers['X-Fleet-Target-Token'] = node.auth_token.trim();
+    return { endpoint: `/api/fleet/proxy/${encodeURIComponent(node.id)}`, headers };
+  }
+  const headers = {};
+  if (node.auth_token && node.auth_token.trim()) headers['Authorization'] = `Bearer ${node.auth_token.trim()}`;
+  return { endpoint: node.endpoint_url.trim().replace(/\/+$/, ''), headers };
+}
+
+/** Opens Backup & Sync with this comparison filled in, to repeat it on a schedule */
+async function compareSaveAsBackup() {
+  const sp = compareState.syncPlan;
+  if (!sp || sp.src.node !== 'local') return;
+  const removeToo = !!document.getElementById('cmp-sync-remove')?.checked;
+  const dest = sp.dst.node === 'local' ? sp.dst.dir : `fleet://${sp.dst.node}${sp.dst.dir.startsWith('/') ? '' : '/'}${sp.dst.dir.replace(/\\/g, '/')}`;
+  openSyncModal();
+  await backupShowList();
+  backupNew();
+  Object.assign(backupUi.draft, {
+    name: `${getBasename(sp.src.dir.replace(/[\\/]+$/, '')) || 'Folder'} to ${compareNodeName(sp.dst.node)}`,
+    source_dir: sp.src.dir,
+    dest_dir: dest,
+    profile_mode: 'copy',
+    never_remove: !removeToo,
+  });
+  backupUi.nameTouched = true;
+  backupRenderEditor();
 }
 
 // ---------- Two files ----------
@@ -18149,6 +18389,8 @@ async function triggerDiff(deepHash = false) {
   // Folders can be huge: fill in the two panels' folders and wait for Compare to be pressed
   compareState.left = App.panes[0]?.path || '';
   compareState.right = (App.panes[1] || App.panes[0])?.path || '';
+  compareState.leftNode = App.panes[0]?.nodeId || 'local';
+  compareState.rightNode = (App.panes[1] || App.panes[0])?.nodeId || 'local';
   compareState.mode = 'folders';
   currentFolderDiffData = null;
   openFloatingDiff();
@@ -18317,8 +18559,14 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
 
   body.innerHTML = `
     ${compareFolderBarHtml()}
-    <div class="cmp-summary">${escapeHtml(compareSummaryText(diff))}</div>
+    <div class="cmp-summary">${diff.across ? `<span class="cmp-machines">${escapeHtml(compareNodeName(diff.left_node))} ⟷ ${escapeHtml(compareNodeName(diff.right_node))}${diff.deep ? ' · contents compared' : ''}:</span> ` : ''}${escapeHtml(compareSummaryText(diff))}</div>
 
+    ${diff.across ? `
+    <div class="diff-align-bar" style="margin-bottom: 8px;">
+      <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-right: 4px; display: flex; align-items: center; gap: 4px;"><i data-lucide="arrow-left-right" style="width: 13px; height: 13px; color: var(--accent);"></i> Make one side like the other:</span>
+      <button class="btn btn-xs diff-align-btn" data-on-click="compareSyncPreview" data-click-args="${actionArgs('lr')}" title="Preview: copy what ${escapeHtml(compareNodeName(diff.right_node))} is missing or has differently; optionally remove what only it has"><i data-lucide="arrow-right" style="width: 12px; height: 12px; color: #60a5fa;"></i> Make right like left</button>
+      <button class="btn btn-xs diff-align-btn" data-on-click="compareSyncPreview" data-click-args="${actionArgs('rl')}" title="Preview: copy what ${escapeHtml(compareNodeName(diff.left_node))} is missing or has differently; optionally remove what only it has"><i data-lucide="arrow-left" style="width: 12px; height: 12px; color: #c084fc;"></i> Make left like right</button>
+    </div>` : `
     <!-- 2. Folder Content Alignment Bar (Batch Sync Actions) -->
     <div class="diff-align-bar" style="margin-bottom: 8px;">
       <span style="font-size: 11px; font-weight: 700; color: var(--text-dim); margin-right: 4px; display: flex; align-items: center; gap: 4px;"><i data-lucide="arrow-left-right" style="width: 13px; height: 13px; color: var(--accent);"></i> Copy across:</span>
@@ -18327,7 +18575,7 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
       <button class="btn btn-xs diff-align-btn btn-accent" data-on-click="executeFolderAlignment" data-click-args="${actionArgs('both')}" title="Both ways: each side gets the files it is missing and the newer version of changed files"><i data-lucide="refresh-cw" style="width: 12px; height: 12px;"></i> Both ways</button>
       <div style="flex: 1;"></div>
       <button class="btn btn-xs btn-outline" data-on-click="calculateAllChecksums" title="Calculate SHA-256 Checksums for all files on demand" style="font-size: 10.5px; height: 26px; display: inline-flex; align-items: center; gap: 4px;"><i data-lucide="hash" style="width: 12px; height: 12px;"></i> Checksums</button>
-    </div>
+    </div>`}
 
     <!-- 3. Filter & Sort Bar -->
     <div class="diff-filter-bar-container" style="display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 8px;">
@@ -18420,7 +18668,7 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
             const badgeClass = e.status === 'identical' ? 'diff-badge-identical' : (e.status === 'modified' ? 'diff-badge-modified' : (e.status === 'left_only' ? 'diff-badge-left' : 'diff-badge-right'));
             const isLeftNewer = e.time_status === 'left_newer';
             const isRightNewer = e.time_status === 'right_newer';
-            const hashPreview = e.hash_left ? (e.hash_left === e.hash_right ? `<span title="${escapeHtml(e.hash_left)}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--success); font-weight: 700;">✔ SHA256</span>` : `<span title="L: ${escapeHtml(e.hash_left)}\nR: ${escapeHtml(e.hash_right || '')}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--accent); font-weight: 700;">≠ SHA256</span>`) : (!e.is_dir ? `<button class="btn btn-icon btn-xs" data-on-click="calculateRowChecksum" data-click-args="${actionArgs(String((e.relative_path) ?? ''))}" title="Calculate SHA-256 on demand" style="width: 20px; height: 20px; font-size: 9px;"><i data-lucide="hash" style="width: 11px; height: 11px;"></i></button>` : '-');
+            const hashPreview = e.hash_left ? (e.hash_left === e.hash_right ? `<span title="${escapeHtml(e.hash_left)}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--success); font-weight: 700;">✔ SHA256</span>` : `<span title="L: ${escapeHtml(e.hash_left)}\nR: ${escapeHtml(e.hash_right || '')}" style="font-family: var(--font-mono); font-size: 9.5px; color: var(--accent); font-weight: 700;">≠ SHA256</span>`) : (!e.is_dir && !diff.across ? `<button class="btn btn-icon btn-xs" data-on-click="calculateRowChecksum" data-click-args="${actionArgs(String((e.relative_path) ?? ''))}" title="Calculate SHA-256 on demand" style="width: 20px; height: 20px; font-size: 9px;"><i data-lucide="hash" style="width: 11px; height: 11px;"></i></button>` : '-');
 
             return `
               <tr id="diff-row-${escapeHtml(e.relative_path.replace(/[^a-zA-Z0-9_-]/g, '_'))}">
@@ -18450,7 +18698,7 @@ function renderFolderDiff(diff, filter = 'all', targetContainer = null) {
                 </td>
                 <td style="text-align: center;">
                   <div class="diff-row-actions">
-                    ${!e.is_dir ? `
+                    ${!e.is_dir && !diff.across ? `
                       <button class="btn btn-icon btn-xs diff-row-btn" data-on-click="openFileDiffView" data-click-args="${actionArgs(String((diff.dir_left + '/' + e.relative_path) ?? ''), String((diff.dir_right + '/' + e.relative_path) ?? ''))}" title="Inspect Side-by-Side Diff">
                         <i data-lucide="eye" style="width: 12px; height: 12px;"></i>
                       </button>
@@ -18493,19 +18741,17 @@ function compareSummaryText(diff) {
 // Makes one side's folder the same as the other's (the folder path, not its contents)
 function alignDiffPaths(direction) {
   compareReadFolderInputs();
-  if (direction === 'lr') compareState.right = compareState.left;
-  else if (direction === 'rl') compareState.left = compareState.right;
+  if (direction === 'lr') { compareState.right = compareState.left; compareState.rightNode = compareState.leftNode; }
+  else if (direction === 'rl') { compareState.left = compareState.right; compareState.leftNode = compareState.rightNode; }
   compareRunFolders(false);
 }
 
 function swapDiffPaths() {
   compareReadFolderInputs();
   [compareState.left, compareState.right] = [compareState.right, compareState.left];
-  const l = document.getElementById('cmp-left');
-  const r = document.getElementById('cmp-right');
-  if (l) l.value = compareState.left;
-  if (r) r.value = compareState.right;
+  [compareState.leftNode, compareState.rightNode] = [compareState.rightNode, compareState.leftNode];
   if (currentFolderDiffData) compareRunFolders(false);
+  else renderFolderSetup();
 }
 
 async function executeFolderAlignment(direction) {
@@ -18591,6 +18837,25 @@ async function compareCopyFiles(rels, fromRoot, toRoot, action = 'copy') {
 async function copyDiffItem(relPath, direction, action = 'copy') {
   if (!currentFolderDiffData) return;
   const diff = currentFolderDiffData;
+  if (diff.across) {
+    const fromLeft = direction === 'lr';
+    const src = fromLeft ? [diff.left_node, diff.dir_left] : [diff.right_node, diff.dir_right];
+    const dst = fromLeft ? [diff.right_node, diff.dir_right] : [diff.left_node, diff.dir_left];
+    const resp = await fetch('/api/transfer/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: action === 'move' ? 'move' : 'copy', verify: App.paranoidMode !== false, source: { ...transferSideForNode(src[0], src[1]), items: [{ name: relPath, conflict: 'overwrite' }] }, dest: transferSideForNode(dst[0], dst[1]) })
+    }).catch(err => ({ ok: false, text: async () => String(err) }));
+    if (!resp.ok) {
+      let msg = await resp.text();
+      try { const j = JSON.parse(msg); msg = j.reason || j.error || msg; } catch (_) { /* text */ }
+      showToast(`Could not copy ${relPath}: ${msg}`, 'error');
+      return;
+    }
+    showToast(`Copying ${relPath} to ${compareNodeName(dst[0])}; see the task list`, 'info');
+    requestTasksFastBurst(6000);
+    return;
+  }
   const isLeftToRight = direction === 'lr';
   const [from, to] = isLeftToRight ? [diff.dir_left, diff.dir_right] : [diff.dir_right, diff.dir_left];
   try {

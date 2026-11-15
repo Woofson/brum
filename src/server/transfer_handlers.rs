@@ -83,14 +83,16 @@ fn bad(e: impl ToString) -> ApiError {
     (StatusCode::BAD_REQUEST, e.to_string())
 }
 
-/// Names chosen in a pane are plain names inside its folder
+/// Items are names inside the source folder, or paths below it written with `/` (from Compare);
+/// never anything that leaves the folder
 fn check_items(items: &[ItemSpec]) -> Result<(), ApiError> {
     if items.is_empty() {
         return Err(bad("Nothing chosen to copy"));
     }
     for i in items {
         let n = i.name.as_str();
-        if n.is_empty() || n == "." || n == ".." || n.contains('/') || n.contains('\\') || n.contains('\0') {
+        let bad_part = |p: &str| p.is_empty() || p == "." || p == ".." || (cfg!(windows) && p.contains(':'));
+        if n.contains('\\') || n.contains('\0') || n.split('/').any(bad_part) {
             return Err(bad(format!("Invalid name: {n}")));
         }
     }
@@ -402,4 +404,114 @@ pub async fn handle_transfer_retry(State(state): State<AppState>, headers: Heade
     let tasks = state.tasks.clone();
     std::thread::spawn(move || job.run(&tasks, true));
     Ok(Json(json!({ "success": true })))
+}
+
+// ---------- Comparing folders on two machines (#191) ----------
+
+#[derive(Deserialize)]
+pub struct CompareListRequest {
+    pub folder: String,
+    #[serde(default)]
+    pub recursive: bool,
+    /// Also work out each file's SHA-256 (exact, slower)
+    #[serde(default)]
+    pub deep: bool,
+}
+
+/// Sets the flag when the request is dropped, so the listing stops when nobody waits for it
+struct StopOnDrop(std::sync::Arc<std::sync::atomic::AtomicBool>);
+
+impl Drop for StopOnDrop {
+    fn drop(&mut self) {
+        self.0.store(true, std::sync::atomic::Ordering::Relaxed);
+    }
+}
+
+async fn list_here(folder: String, recursive: bool, deep: bool) -> Result<crate::tools::diff::SideMap, String> {
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let _guard = StopOnDrop(stop.clone());
+    tokio::task::spawn_blocking(move || crate::tools::diff::list_side(&folder, recursive, deep, None, &stop))
+        .await
+        .map_err(|e| e.to_string())?
+        .map_err(|e| e.to_string())
+}
+
+fn side_json(map: &crate::tools::diff::SideMap) -> Value {
+    Value::Array(map.iter().map(|(k, (d, s, m, h))| json!([k, d, s, m, h])).collect())
+}
+
+fn side_from_json(v: &Value) -> crate::tools::diff::SideMap {
+    let mut map = crate::tools::diff::SideMap::new();
+    for e in v.get("entries").and_then(|e| e.as_array()).into_iter().flatten() {
+        let Some(a) = e.as_array() else { continue };
+        let Some(rel) = a.first().and_then(|x| x.as_str()) else { continue };
+        // A listing from another machine stays inside the compared folder
+        let Ok(rel) = crate::tools::sync::store::safe_rel(rel) else { continue };
+        if rel.is_empty() {
+            continue;
+        }
+        map.insert(rel, (
+            a.get(1).and_then(|x| x.as_bool()).unwrap_or(false),
+            a.get(2).and_then(|x| x.as_u64()).unwrap_or(0),
+            a.get(3).and_then(|x| x.as_u64()),
+            a.get(4).and_then(|x| x.as_str()).map(String::from),
+        ));
+    }
+    map
+}
+
+/// Lists a folder on this machine for a comparison made by another Brum
+pub async fn handle_compare_list(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<CompareListRequest>) -> Result<Json<Value>, ApiError> {
+    let folder = validate_path_access(&state, &headers, &req.folder, false)?;
+    let map = list_here(folder, req.recursive, req.deep).await.map_err(bad)?;
+    Ok(Json(json!({ "entries": side_json(&map) })))
+}
+
+#[derive(Deserialize)]
+pub struct CompareAcrossRequest {
+    pub left: SideRequest,
+    pub right: SideRequest,
+    #[serde(default)]
+    pub recursive: bool,
+    #[serde(default)]
+    pub deep: bool,
+}
+
+async fn list_side_of(side: &Side, recursive: bool, deep: bool) -> Result<crate::tools::diff::SideMap, String> {
+    let Some((url, token)) = &side.remote else {
+        return list_here(side.folder.clone(), recursive, deep).await;
+    };
+    let client = reqwest::Client::builder().connect_timeout(Duration::from_secs(10)).build().map_err(|e| e.to_string())?;
+    let mut r = client.post(format!("{url}/api/compare/list")).json(&json!({ "folder": side.folder, "recursive": recursive, "deep": deep }));
+    if let Some(t) = token {
+        r = r.bearer_auth(t);
+    }
+    let resp = r.send().await.map_err(|e| format!("Cannot reach {}: {e}", side.label))?;
+    match resp.status().as_u16() {
+        200 => {}
+        404 => return Err(format!("{} runs an older Brum; update it to compare folders across machines", side.label)),
+        401 => return Err(format!("{} refused the login. Check the node's token.", side.label)),
+        _ => {
+            let text = resp.text().await.unwrap_or_default();
+            let msg = serde_json::from_str::<Value>(&text).ok().and_then(|v| v.get("error").and_then(|e| e.as_str()).map(String::from)).unwrap_or(text);
+            return Err(format!("{}: {msg}", side.label));
+        }
+    }
+    let v: Value = resp.json().await.map_err(|e| format!("{}: {e}", side.label))?;
+    Ok(side_from_json(&v))
+}
+
+/// Compares a folder on one machine with a folder on another; each machine lists (and with
+/// `deep`, checksums) its own side, so no file travels to be compared
+pub async fn handle_compare_across(State(state): State<AppState>, headers: HeaderMap, Json(req): Json<CompareAcrossRequest>) -> Result<Json<Value>, ApiError> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let left = resolve_side(&state, &headers, &claims, &req.left, false).await?;
+    let right = resolve_side(&state, &headers, &claims, &req.right, false).await?;
+    let (l, r) = tokio::join!(list_side_of(&left, req.recursive, req.deep), list_side_of(&right, req.recursive, req.deep));
+    let (l, r) = (l.map_err(bad)?, r.map_err(bad)?);
+    let diff = crate::tools::diff::build_folder_diff(&req.left.folder, &req.right.folder, l, r, req.recursive);
+    let mut v = serde_json::to_value(diff).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    v["left_machine"] = json!(left.label);
+    v["right_machine"] = json!(right.label);
+    Ok(Json(v))
 }
