@@ -2229,6 +2229,10 @@ function renderPaneTabs(paneIndex) {
 }
 
 let _prefSyncDebounceTimer = null;
+// This browser sends its settings to the server only after it has read the server's copy.
+// Before that, its own copy may be old (another browser changed things since), and sending it
+// would overwrite the newer settings saved from that other browser.
+let _serverPrefsLoaded = false;
 
 function getAllUserPreferences() {
   return {
@@ -2811,9 +2815,15 @@ async function loadUserPreferencesFromServer() {
     const resp = await fetch('/api/user/preferences', { headers });
     if (!resp.ok) return;
     const prefs = await resp.json();
-    if (!prefs || typeof prefs !== 'object' || Object.keys(prefs).length === 0) return;
+    if (!prefs || typeof prefs !== 'object' || Object.keys(prefs).length === 0) {
+      // Nothing saved on the server yet (new install or new account): this browser's copy becomes it
+      _serverPrefsLoaded = true;
+      queueSaveUserPreferencesToServer();
+      return;
+    }
 
     applyAllUserPreferences(prefs);
+    _serverPrefsLoaded = true;
   } catch (e) {
     console.warn('Could not load user preferences from server:', e);
   }
@@ -2821,6 +2831,7 @@ async function loadUserPreferencesFromServer() {
 
 function queueSaveUserPreferencesToServer() {
   clearTimeout(_prefSyncDebounceTimer);
+  if (!_serverPrefsLoaded) return;
   _prefSyncDebounceTimer = setTimeout(async () => {
     try {
       const prefs = getAllUserPreferences();
@@ -25833,6 +25844,10 @@ async function submitUnlockSession() {
       if (errMsg) errMsg.style.display = 'none';
 
       if (App.user) updateHeaderProfile(App.user);
+      // A page opened while locked has not read the server's settings yet
+      if (!_serverPrefsLoaded) {
+        try { await loadUserPreferencesFromServer(); } catch (_) {}
+      }
       applyUserHomeToPanes();
       renderAllPanes();
 
