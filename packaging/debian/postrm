@@ -12,6 +12,11 @@ if [ "$1" = "remove" ]; then
 fi
 
 if [ "$1" = "purge" ]; then
+    # The sign-in setup the package made (never one written by hand). Older versions wrote
+    # the "PAM configuration for Brum" header; newer ones also mark it as the package's.
+    if [ -f /etc/pam.d/brum ] && grep -qE '^# (Created by the brum package|PAM configuration for Brum)' /etc/pam.d/brum; then
+        rm -f /etc/pam.d/brum
+    fi
     if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
         systemctl daemon-reload >/dev/null 2>&1 || true
     fi
