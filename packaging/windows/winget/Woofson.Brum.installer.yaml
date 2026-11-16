@@ -16,14 +16,14 @@ Dependencies:
 Installers:
   - Architecture: x64
     Scope: user
-    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.23.1/Brum-Setup-v1.23.1.exe
-    InstallerSha256: 15E1578D9045C1EAA72F05B9F0DE4873BD12AE9652993F426C365C1C17873E7D
+    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.24.0/Brum-Setup-v1.24.0.exe
+    InstallerSha256: 866E403B7E01BEC3A2B494697C52BF9BB842EAD270263C078EC3113476270F57
     InstallerSwitches:
       Custom: /CURRENTUSER
   - Architecture: x64
     Scope: machine
-    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.23.1/Brum-Setup-v1.23.1.exe
-    InstallerSha256: 15E1578D9045C1EAA72F05B9F0DE4873BD12AE9652993F426C365C1C17873E7D
+    InstallerUrl: https://github.com/Woofson/brum/releases/download/v1.24.0/Brum-Setup-v1.24.0.exe
+    InstallerSha256: 866E403B7E01BEC3A2B494697C52BF9BB842EAD270263C078EC3113476270F57
     InstallerSwitches:
       Custom: /ALLUSERS
 ManifestType: installer
