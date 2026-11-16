@@ -245,6 +245,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/admin/server-settings", get(settings_handlers::handle_get_server_settings).post(settings_handlers::handle_save_server_settings))
         .route("/api/admin/server-settings/trial", get(settings_handlers::handle_network_trial))
         .route("/api/admin/server-settings/keep", post(settings_handlers::handle_keep_network_settings))
+        .route("/api/admin/server-settings/move-from-file", post(settings_handlers::handle_move_from_file))
         .route("/api/admin/activity/csv", get(activity_handlers::handle_download_activity))
         .route("/api/tools/sync/runs", get(handle_list_backup_runs))
         .route("/api/tools/sync/runs/:id/files", get(handle_backup_run_files))

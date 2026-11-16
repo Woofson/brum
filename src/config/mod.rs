@@ -23,11 +23,11 @@ pub struct AppConfig {
     pub ui: UiConfig,
     #[serde(default)]
     pub desktop: DesktopConfig,
-    #[serde(default)]
+    #[serde(default = "default_custom_actions")]
     pub custom_actions: Vec<CustomAction>,
     #[serde(default = "default_open_with")]
     pub open_with: Vec<OpenWithRule>,
-    #[serde(default)]
+    #[serde(default = "default_bookmarks")]
     pub bookmarks: Vec<BookmarkConfig>,
     #[serde(default)]
     pub syncthing: crate::tools::syncthing::SyncthingConfig,
@@ -290,8 +290,12 @@ fn default_root_path() -> String {
         "/".to_string()
     }
 }
-fn default_upload_max_mb() -> usize { 10240 } // 10 GB
+fn default_upload_max_mb() -> usize { 20480 } // 20 GB
 fn default_true() -> bool { true }
+fn default_hostname_size() -> String { "md".to_string() }
+fn default_hostname_icon() -> String { "none".to_string() }
+fn default_hostname_style() -> String { "text".to_string() }
+fn default_hostname_color() -> String { "slate".to_string() }
 /// Placeholder signing secret meaning "none configured"
 pub const DEFAULT_JWT_SECRET: &str = "brum-super-secret-jwt-key-2026";
 fn default_jwt_secret() -> String { DEFAULT_JWT_SECRET.to_string() }
@@ -690,7 +694,8 @@ impl Default for SftpConfig {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StorageConfig {
-    #[serde(default = "default_false")]
+    /// Admins may browse the whole machine (every package shipped this switched on)
+    #[serde(default = "default_true")]
     pub allow_entire_system: bool,
     #[serde(default = "default_false")]
     pub allow_remote_loopback: bool,
@@ -713,7 +718,7 @@ fn default_home_fallback_scheme() -> String {
 impl Default for StorageConfig {
     fn default() -> Self {
         Self {
-            allow_entire_system: false,
+            allow_entire_system: true,
             allow_remote_loopback: false,
             default_user_home_template: default_user_home_template(),
             home_fallback_scheme: default_home_fallback_scheme(),
@@ -1138,13 +1143,13 @@ pub struct UiConfig {
     pub show_hostname_badge: bool, // Top header hostname badge toggle
     #[serde(default)]
     pub hostname_badge: String, // Custom label for hostname badge (empty = auto)
-    #[serde(default)]
+    #[serde(default = "default_hostname_color")]
     pub hostname_color: String, // "amber", "emerald", "sky", "purple", "rose", "orange", "cyan", "slate"
-    #[serde(default)]
+    #[serde(default = "default_hostname_style")]
     pub hostname_style: String, // "subtle", "solid", "outline", "pill", "glow"
-    #[serde(default)]
+    #[serde(default = "default_hostname_icon")]
     pub hostname_icon: String,  // "server", "hard-drive", "cpu", "terminal", "cloud", "shield", "box", "home", "globe", "radio", "none"
-    #[serde(default)]
+    #[serde(default = "default_hostname_size")]
     pub hostname_size: String,  // "sm", "md", "lg"
     #[serde(default)]
     pub window_title: String,   // Custom document / window title (empty = default "Brum - Multi-Pane Web Environment")

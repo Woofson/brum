@@ -68,6 +68,7 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
+  'ssMoveFromFile',
   'openServerSettingsGroup', 'ssEdit', 'ssEditList', 'ssEditNumber', 'ssHostChoice', 'ssKeepNetwork', 'ssPickFolder', 'ssReset', 'ssRestart', 'ssRootAdd', 'ssRootEdit', 'ssRootRemove', 'ssSave', 'ssSearch', 'ssShowGroup', 'ssUndo',
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
   'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup', 'backupUseProton',
@@ -10410,7 +10411,10 @@ function renderServerSettings() {
     banners.push(`<div class="ss-banner"><i data-lucide="lock"></i><div>${escapeHtml(d.locked_reason || '')}</div></div>`);
   } else {
     const inFile = d.settings.filter(s => s.source === 'file').length;
-    if (inFile) banners.push(`<div class="ss-banner"><i data-lucide="file-lock"></i><div>${inFile} of these settings are written in <span class="bk-mono">${escapeHtml(d.config_file || 'config.toml')}</span>. Those are shown locked: the file always wins.</div></div>`);
+    if (inFile) {
+      const move = d.movable ? '<button class="btn btn-sm btn-accent" data-on-click="ssMoveFromFile"><i data-lucide="import"></i> Move them into Brum</button>' : '';
+      banners.push(`<div class="ss-banner${d.movable ? ' ss-banner-restart' : ''}"><i data-lucide="file-lock"></i><div>${inFile} of these settings are written in <span class="bk-mono">${escapeHtml(d.config_file || 'config.toml')}</span>. Those are shown locked: the file always wins.${d.movable ? ' Move them into Brum to change them here.' : ''}</div>${move}</div>`);
+    }
   }
   const waiting = d.settings.filter(s => s.restart_needed).length;
   if (waiting && !Object.keys(SS.edits).length) {
@@ -10629,6 +10633,42 @@ async function ssRestart() {
     await sleep(2500);
   }
   location.href = target;
+}
+
+function ssLabel(key) {
+  return SS_TEXT[key]?.label || key;
+}
+
+async function ssMoveFromFile() {
+  const n = SS.data?.movable || 0;
+  const ok = await showConfirmDialog({
+    title: 'Move settings into Brum?', subtitle: 'From config.toml to Server Settings',
+    message: `${n === 1 ? '1 setting' : `${n} settings`} written in ${SS.data?.config_file || 'config.toml'} move into Brum, where you can change them on this page. The file keeps only what Brum needs before it starts. A copy of the file as it is now is kept next to it. Brum works exactly as before, and nothing needs a restart.`,
+    icon: 'import', type: 'info', confirmText: 'Move them',
+  });
+  if (!ok) return;
+  let data;
+  try {
+    const resp = await fetch('/api/admin/server-settings/move-from-file', { method: 'POST' });
+    if (!resp.ok) throw new Error(await resp.text());
+    data = await resp.json();
+  } catch (e) {
+    showToast(`Not moved: ${e.message || e}`, 'error', 10000);
+    return;
+  }
+  await loadServerSettings();
+  const stayed = data.stayed || [];
+  if (data.moved?.length) {
+    showToast(`${data.moved.length} settings moved into Brum. The old file is kept as ${data.backup}.`, 'success', 8000);
+  }
+  if (stayed.length) {
+    await showConfirmDialog({
+      title: 'Some settings stayed in the file', subtitle: 'They cannot be used as they are written',
+      message: 'These are still set in the file, as before. Fix them there, or remove them from the file and set them on this page.',
+      items: stayed.map(x => `${ssLabel(x.key)}: ${String(x.why || '').replace(x.key, '').trim()}`),
+      icon: 'info', type: 'info', confirmText: 'OK', cancelText: 'Close',
+    });
+  }
 }
 
 async function ssKeepNetwork() {

@@ -90,6 +90,7 @@ pub async fn handle_get_server_settings(State(state): State<AppState>, headers: 
         "settings": settings,
         "file_only": file_only,
         "running": { "host": state.config.server.host, "port": state.config.server.port },
+        "movable": file.as_ref().map(|f| movable(f).len()).unwrap_or(0),
         "trial_seconds_left": trial_seconds_left(&state),
     })))
 }
@@ -314,4 +315,146 @@ fn can_listen(host: &str, port: u16, running_port: u16) -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+// ---------------------------------------------------------------------------------------------
+// Move my settings into Brum (#195): the settings written in config.toml that the page can
+// manage move into Brum's database, and the file keeps only the rest. A copy of the old file
+// is kept next to it. Brum works exactly the same afterwards; that is checked before anything
+// is changed.
+
+/// The settings in the config file that could move into Brum
+fn movable(file: &toml::Table) -> Vec<&'static saved::Spec> {
+    saved::SPECS.iter().filter(|s| saved::table_has(file, s.key) && saved::env_override(s.key).is_none()).collect()
+}
+
+/// Every setting in a parsed config file, as dotted names (lists count as one setting)
+fn leaf_keys(table: &toml::Table) -> Vec<String> {
+    fn go(t: &toml::Table, prefix: &str, out: &mut Vec<String>) {
+        for (k, v) in t {
+            if k.contains('.') {
+                continue; // quoted names with dots: left alone
+            }
+            let name = if prefix.is_empty() { k.clone() } else { format!("{prefix}.{k}") };
+            match v {
+                toml::Value::Table(inner) => go(inner, &name, out),
+                _ => out.push(name),
+            }
+        }
+    }
+    let mut out = Vec::new();
+    go(table, "", &mut out);
+    out
+}
+
+/// The text at the top of a config file after its settings moved into Brum
+const MOVED_HEADER: &str = "# Brum settings file\n#\n# Most settings are now in Brum itself: Admin → Server Settings.\n# This file keeps only what Brum needs before it starts, and what differs from\n# Brum's defaults that Server Settings does not offer. Anything here wins over\n# Server Settings. The file as it was before is kept next to this one\n# (.before-move).\n\n";
+
+/// A free name for the copy of the old file
+fn backup_path(path: &std::path::Path) -> std::path::PathBuf {
+    let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "config.toml".into());
+    let day = chrono::Local::now().format("%Y-%m-%d");
+    let mut candidate = path.with_file_name(format!("{name}.before-move-{day}"));
+    let mut n = 2;
+    while candidate.exists() {
+        candidate = path.with_file_name(format!("{name}.before-move-{day}-{n}"));
+        n += 1;
+    }
+    candidate
+}
+
+/// Replaces a file in one step, keeping its permissions
+fn replace_file(path: &std::path::Path, text: &str) -> std::io::Result<()> {
+    let tmp = path.with_file_name(format!(".{}.new", path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()));
+    std::fs::write(&tmp, text)?;
+    if let Ok(meta) = std::fs::metadata(path) {
+        let _ = std::fs::set_permissions(&tmp, meta.permissions());
+    }
+    std::fs::rename(&tmp, path).inspect_err(|_| {
+        let _ = std::fs::remove_file(&tmp);
+    })
+}
+
+pub async fn handle_move_from_file(State(state): State<AppState>, headers: HeaderMap) -> Result<Json<Value>, ApiError> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    require_admin(&claims)?;
+    let Some(path) = state.config.server.config_file.clone() else {
+        return Err((StatusCode::BAD_REQUEST, "Brum started without a config file, so there is nothing to move.".into()));
+    };
+    let text = std::fs::read_to_string(&path).map_err(|e| (StatusCode::BAD_REQUEST, format!("Could not read {}: {e}", path.display())))?;
+    let file = ConfigManager::parse_table_str(&text).ok_or((StatusCode::BAD_REQUEST, format!("{} could not be read as a settings file.", path.display())))?;
+    if let Some(why) = locked_reason(&state, Some(&file)) {
+        return Err((StatusCode::FORBIDDEN, why));
+    }
+
+    // What moves, and what stays in the file (with the reason)
+    let mut moving: Vec<(&'static saved::Spec, Value)> = Vec::new();
+    let mut staying: Vec<Value> = Vec::new();
+    for spec in movable(&file) {
+        let Some(raw) = saved::table_get(&file, spec.key) else { continue };
+        let value = serde_json::to_value(raw).unwrap_or(Value::Null);
+        match saved::validate(spec, &value) {
+            // The value is moved exactly as written, so Brum gets exactly what it got from the file
+            Ok(_) => moving.push((spec, value)),
+            Err(e) => staying.push(json!({ "key": spec.key, "why": format!("{} {e}", spec.key) })),
+        }
+    }
+    if moving.is_empty() {
+        return Ok(Json(json!({ "success": true, "moved": [], "stayed": staying, "message": "There is nothing in the file to move." })));
+    }
+
+    let mut slim = file.clone();
+    for (spec, _) in &moving {
+        saved::table_remove(&mut slim, spec.key);
+    }
+    let saved_before = state.auth.saved_config_settings();
+    let mut saved_after = saved_before.clone();
+    for (spec, value) in &moving {
+        saved_after.insert(spec.key.to_string(), value.clone());
+    }
+    // Brum must work exactly the same afterwards
+    let before = saved::compose(Some(&file), &saved_before).map_err(|e| (StatusCode::BAD_REQUEST, format!("The current settings cannot be read: {e}")))?;
+    // Whatever is the same as Brum's own default does not need to stay in the file either
+    let target = serde_json::to_value(&before).ok();
+    for leaf in leaf_keys(&slim) {
+        let mut trial = slim.clone();
+        saved::table_remove(&mut trial, &leaf);
+        if saved::compose(Some(&trial), &saved_after).ok().and_then(|c| serde_json::to_value(&c).ok()) == target {
+            slim = trial;
+        }
+    }
+    let after = saved::compose(Some(&slim), &saved_after).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Moving would break the settings ({e}); nothing was changed.")))?;
+    if serde_json::to_value(&before).ok() != serde_json::to_value(&after).ok() {
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, "Moving would change how Brum works, so nothing was changed. Please report this.".into()));
+    }
+
+    // Brum must be allowed to change the file before anything happens
+    if std::fs::OpenOptions::new().append(true).open(&path).is_err() {
+        return Err((StatusCode::FORBIDDEN, format!("Brum is not allowed to change {}. Nothing was changed. Brum may run as a different account than the file's owner, or the file may be mounted read-only (Docker).", path.display())));
+    }
+    let backup = backup_path(&path);
+    std::fs::copy(&path, &backup).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Could not keep a copy of the old file ({e}); nothing was changed.")))?;
+
+    let previous: Vec<(String, Option<String>)> = moving.iter().map(|(s, _)| (s.key.to_string(), state.auth.get_server_setting(&format!("{}{}", saved::KEY_PREFIX, s.key)))).collect();
+    let writes: Vec<(String, Option<String>)> = moving.iter().map(|(s, v)| (s.key.to_string(), Some(saved::stored_text(s, v)))).collect();
+    state.auth.save_config_settings(&writes).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Could not save the settings ({e}); nothing was changed.")))?;
+
+    let body = toml::to_string_pretty(&slim).unwrap_or_default();
+    if let Err(e) = replace_file(&path, &format!("{MOVED_HEADER}{body}")) {
+        let _ = state.auth.save_config_settings(&previous);
+        let _ = std::fs::remove_file(&backup);
+        return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Could not write {} ({e}); nothing was changed.", path.display())));
+    }
+
+    let keys: Vec<&str> = moving.iter().map(|(s, _)| s.key).collect();
+    crate::tools::activity::record(&claims.sub, "server settings moved into Brum", &path.display().to_string(), &format!("{} settings; old file kept as {}", keys.len(), backup.display()), true);
+    tracing::info!("{} moved {} settings from {} into Brum (old file kept as {})", claims.sub, keys.len(), path.display(), backup.display());
+    Ok(Json(json!({
+        "success": true,
+        "moved": keys,
+        "stayed": staying,
+        "backup": backup.display().to_string(),
+        "config_file": path.display().to_string(),
+        "message": format!("{} settings moved into Brum. Brum works exactly as before; nothing needs a restart.", keys.len()),
+    })))
 }

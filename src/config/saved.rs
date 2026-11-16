@@ -211,6 +211,41 @@ pub fn table_has(table: &toml::Table, key: &str) -> bool {
     false
 }
 
+/// The value of a dotted setting in a parsed config file (`[notedog]` counts as `[notes]`)
+pub fn table_get<'a>(table: &'a toml::Table, key: &str) -> Option<&'a toml::Value> {
+    let parts: Vec<&str> = key.split('.').collect();
+    let mut cur = table;
+    for (i, part) in parts.iter().enumerate() {
+        let found = cur.get(*part).or_else(|| if i == 0 && *part == "notes" { cur.get("notedog") } else { None })?;
+        if i + 1 == parts.len() {
+            return Some(found);
+        }
+        cur = found.as_table()?;
+    }
+    None
+}
+
+/// Removes a dotted setting from a parsed config file, and any section it leaves empty
+pub fn table_remove(table: &mut toml::Table, key: &str) {
+    fn go(t: &mut toml::Table, parts: &[&str], top: bool) {
+        let name = if top && parts[0] == "notes" && !t.contains_key("notes") { "notedog" } else { parts[0] };
+        if parts.len() == 1 {
+            t.remove(name);
+            return;
+        }
+        let mut now_empty = false;
+        if let Some(toml::Value::Table(inner)) = t.get_mut(name) {
+            go(inner, &parts[1..], false);
+            now_empty = inner.is_empty();
+        }
+        if now_empty {
+            t.remove(name);
+        }
+    }
+    let parts: Vec<&str> = key.split('.').collect();
+    go(table, &parts, true);
+}
+
 /// Puts `over` on top of `base`: sections are merged setting by setting, everything else replaced
 pub fn deep_merge(base: &mut toml::Table, over: &toml::Table) {
     for (k, v) in over {
@@ -587,6 +622,17 @@ mod tests {
         let s = saved(&[("notes.notes_folder", json!("/new"))]);
         assert_eq!(compose(Some(&file), &s).unwrap().notes.notes_folder, "/old");
         assert!(table_has(&file, "notes.notes_folder"));
+    }
+
+    #[test]
+    fn settings_are_found_and_removed_in_a_file() {
+        let mut t: toml::Table = toml::from_str("[server]\nport = 1\n[notedog]\nnotes_folder = \"/n\"\n[auth.oidc]\nenabled = true\n").unwrap();
+        assert_eq!(table_get(&t, "server.port").and_then(|v| v.as_integer()), Some(1));
+        assert_eq!(table_get(&t, "notes.notes_folder").and_then(|v| v.as_str()), Some("/n"));
+        table_remove(&mut t, "auth.oidc.enabled");
+        table_remove(&mut t, "notes.notes_folder");
+        assert!(!t.contains_key("auth") && !t.contains_key("notedog"), "empty sections go too: {t:?}");
+        assert!(t.contains_key("server"));
     }
 
     #[test]

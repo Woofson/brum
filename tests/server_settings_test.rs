@@ -181,8 +181,8 @@ async fn only_admins_and_never_when_locked() {
 
 #[test]
 fn an_old_full_config_file_works_unchanged() {
-    // With nothing saved in Brum, the shipped example file gives exactly what it gave before
-    let text = include_str!("../config.toml");
+    // With nothing saved in Brum, the full file shipped up to 1.23 gives exactly what it gave before
+    let text = include_str!("fixtures/config-full-1.23.toml");
     let file: toml::Table = toml::from_str(text).unwrap();
     let before = ConfigManager::parse_config_str(text).unwrap();
     let after = saved::compose(Some(&file), &Default::default()).unwrap();
@@ -223,4 +223,91 @@ async fn a_new_port_is_checked_and_tried_out() {
     let left: Option<String> = conn.query_row("SELECT value FROM server_settings WHERE key = 'config_trial'", [], |r| r.get(0)).ok();
     assert_eq!(left, None);
     assert_eq!(next_start(&dir, None).server.port, free);
+}
+
+#[test]
+fn the_new_short_file_works_like_the_old_full_one() {
+    // Fresh installs get the short file; they must work like the full one did, apart from the
+    // defaults that are smarter on purpose
+    let old = serde_json::to_value(ConfigManager::parse_config_str(include_str!("fixtures/config-full-1.23.toml")).unwrap()).unwrap();
+    let new = serde_json::to_value(ConfigManager::parse_config_str(include_str!("../config.toml")).unwrap()).unwrap();
+    let on_purpose = [
+        "storage.default_user_home_template", // C:/Users/{username} on Windows, /data/users in Docker
+        "auth.oidc.default_home_template",
+        "syncthing.enabled",                  // on when Syncthing is found on the machine
+        "bookmarks",                          // the home folder written out instead of "~"
+    ];
+    let mut differ = Vec::new();
+    fn walk(p: &str, a: &Value, b: &Value, out: &mut Vec<String>) {
+        match (a, b) {
+            (Value::Object(x), Value::Object(y)) => {
+                for (k, v) in x {
+                    walk(&if p.is_empty() { k.clone() } else { format!("{p}.{k}") }, v, y.get(k).unwrap_or(&Value::Null), out)
+                }
+            }
+            _ if a != b => out.push(p.to_string()),
+            _ => {}
+        }
+    }
+    walk("", &old, &new, &mut differ);
+    differ.retain(|k| !on_purpose.contains(&k.as_str()));
+    assert!(differ.is_empty(), "the short file changes: {differ:?}");
+}
+
+#[tokio::test]
+async fn move_my_settings_into_brum() {
+    let dir = tempdir().unwrap();
+    let original = include_str!("fixtures/config-full-1.23.toml");
+    let cfg = config(&dir, Some(original));
+    let file = cfg.server.config_file.clone().unwrap();
+    let before = serde_json::to_value(next_start(&dir, Some(&file))).unwrap();
+    let b = Brum::start(cfg).await;
+    let movable = b.get().await["movable"].as_u64().unwrap();
+    assert!(movable > 40, "{movable}");
+
+    let r = b.c.post(format!("{}/move-from-file", b.url())).bearer_auth(&b.token).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let v: Value = r.json().await.unwrap();
+    assert_eq!(v["moved"].as_array().unwrap().len() as u64, movable, "{v}");
+
+    // The old file is kept as it was, the new one keeps only the rest
+    assert_eq!(std::fs::read_to_string(v["backup"].as_str().unwrap()).unwrap(), original);
+    let now = std::fs::read_to_string(&file).unwrap();
+    assert!(!now.contains("upload_max_size_mb") && !now.contains("[paranoid]") && !now.contains("custom_actions"), "{now}");
+    for kept in ["database_path", "[plugins]", "[[bookmarks]]"] {
+        assert!(now.contains(kept), "{kept} stays in the file:\n{now}");
+    }
+    // Brum works exactly the same, and the settings are now changeable in the page
+    assert_eq!(serde_json::to_value(next_start(&dir, Some(&file))).unwrap(), before);
+    let all = b.get().await;
+    assert_eq!(setting(&all, "server.upload_max_size_mb")["source"], json!("brum"));
+    assert_eq!(all["movable"], json!(0));
+    let (st, body) = b.save(json!({ "server.upload_max_size_mb": 1234 })).await;
+    assert_eq!(st, 200, "{body}");
+}
+
+#[tokio::test]
+async fn settings_that_cannot_be_used_stay_and_a_read_only_file_is_left_alone() {
+    let dir = tempdir().unwrap();
+    let text = "[server]\nserver_name = \"Den\"\n[[storage.roots]]\npath = \"/no/such/folder/for/brum\"\n";
+    let cfg = config(&dir, Some(text));
+    let file = cfg.server.config_file.clone().unwrap();
+    let b = Brum::start(cfg).await;
+
+    let mut perms = std::fs::metadata(&file).unwrap().permissions();
+    perms.set_readonly(true);
+    std::fs::set_permissions(&file, perms.clone()).unwrap();
+    let r = b.c.post(format!("{}/move-from-file", b.url())).bearer_auth(&b.token).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 403);
+    assert_eq!(std::fs::read_to_string(&file).unwrap(), text);
+    assert_eq!(setting(&b.get().await, "server.server_name")["source"], json!("file"), "nothing was saved");
+    #[allow(clippy::permissions_set_readonly_false)]
+    perms.set_readonly(false);
+    std::fs::set_permissions(&file, perms).unwrap();
+
+    let v: Value = b.c.post(format!("{}/move-from-file", b.url())).bearer_auth(&b.token).send().await.unwrap().json().await.unwrap();
+    assert_eq!(v["moved"], json!(["server.server_name"]));
+    assert_eq!(v["stayed"][0]["key"], json!("storage.roots"));
+    let now = std::fs::read_to_string(&file).unwrap();
+    assert!(now.contains("/no/such/folder/for/brum") && !now.contains("Den"), "{now}");
 }
