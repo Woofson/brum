@@ -4,7 +4,7 @@
   <img src="assets/showcase-hero.webp" alt="Brum with three panels on three machines: photos on this computer, the same folder on the NAS, and films on the media PC" width="800" />
   <p><em>All your machines, disks and cloud storage in one file manager — By Woofson</em></p>
   <p>
-    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.24.0-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
+    <a href="https://github.com/Woofson/brum/releases/latest"><img src="https://img.shields.io/badge/version-v1.24.1-amber?style=flat-square&color=f59e0b" alt="Version" /></a>
     <a href="https://crates.io/crates/brum"><img src="https://img.shields.io/crates/v/brum?style=flat-square&color=f59e0b" alt="Crates.io" /></a>
     <img src="https://img.shields.io/badge/rust-2021_edition-orange?style=flat-square" alt="Rust 2021" />
     <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square" alt="License MIT" />

@@ -25,6 +25,7 @@ Only the latest release gets fixes, so keep Brum updated. New releases are liste
 
 | Severity | Problem | Affected | Fixed in | Published |
 | :--- | :--- | :--- | :--- | :--- |
+| Medium | [Fleet login gave a system account the role another machine assigned it](https://github.com/Woofson/brum/security/advisories/GHSA-5ch7-vw5j-2fqv) | 1.24.0 and older | 1.24.1 | 2026-11-16 |
 | Low | [Unauthenticated configuration endpoint reveals Fleet machine names and addresses](https://github.com/Woofson/brum/security/advisories/GHSA-8rgf-8pgm-v444) | 1.22.0 and older | 1.23.0 | 2026-11-15 |
 | Low | [Unauthenticated system status reveals the service account name and home folder](https://github.com/Woofson/brum/security/advisories/GHSA-6p5c-gr9f-gxx7) | 1.21.0 and older | 1.22.0 | 2026-11-14 |
 | Medium | [Windows all-users install keeps the service database readable to local users](https://github.com/Woofson/brum/security/advisories/GHSA-9qgm-hfjj-hxq4) | 1.21.0 | 1.22.0 | 2026-11-14 |
