@@ -68,6 +68,7 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
+  'fleetManualForm', 'fleetManualCancel', 'fleetManualSave',
   'ssMoveFromFile',
   'openServerSettingsGroup', 'ssEdit', 'ssEditList', 'ssEditNumber', 'ssHostChoice', 'ssKeepNetwork', 'ssPickFolder', 'ssReset', 'ssRestart', 'ssRootAdd', 'ssRootEdit', 'ssRootRemove', 'ssSave', 'ssSearch', 'ssShowGroup', 'ssUndo',
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
@@ -10658,14 +10659,18 @@ async function ssMoveFromFile() {
   }
   await loadServerSettings();
   const stayed = data.stayed || [];
-  if (data.moved?.length) {
-    showToast(`${data.moved.length} settings moved into Brum. The old file is kept as ${data.backup}.`, 'success', 8000);
+  if (data.moved?.length || data.machines?.length) {
+    const parts = [];
+    const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+    if (data.moved?.length) parts.push(count(data.moved.length, 'setting', 'settings'));
+    if (data.machines?.length) parts.push(count(data.machines.length, 'Fleet machine', 'Fleet machines'));
+    showToast(`${parts.join(' and ')} moved into Brum. The old file is kept as ${data.backup}.`, 'success', 8000);
   }
   if (stayed.length) {
     await showConfirmDialog({
       title: 'Some settings stayed in the file', subtitle: 'They cannot be used as they are written',
       message: 'These are still set in the file, as before. Fix them there, or remove them from the file and set them on this page.',
-      items: stayed.map(x => `${ssLabel(x.key)}: ${String(x.why || '').replace(x.key, '').trim()}`),
+      items: stayed.map(x => x.machine ? `Fleet machine ${x.machine}: ${x.why}` : `${ssLabel(x.key)}: ${String(x.why || '').replace(x.key, '').trim()}`),
       icon: 'info', type: 'info', confirmText: 'OK', cancelText: 'Close',
     });
   }
@@ -45973,8 +45978,9 @@ async function openFleetPairing() {
     <p class="fp-text">Or, in Brum on the new machine: <b>Fleet → Join a Fleet</b>, with the address <span class="bk-mono">${escapeHtml(origin)}</span> and this code.</p>
     ${plainHttp ? '<div class="fp-note">This page is not encrypted (http). Pair over your own network or an overlay network such as NetBird or Tailscale, or put Brum behind https, so nobody can read the secret on the way.</div>' : ''}
     <div class="fp-status" id="fp-status"><i data-lucide="loader-2" class="spin"></i> Waiting for the new machine…</div>
-    <div class="fp-label" style="margin-top: 14px;">Machines paired with this Brum</div>
-    <div id="fp-paired"></div>`);
+    <div class="fp-label" style="margin-top: 14px;">Machines in this Brum's Fleet</div>
+    <div id="fp-paired"></div>
+    <div id="fp-manual"><button class="btn btn-xs" data-on-click="fleetManualForm"><i data-lucide="plus"></i> Add a machine by address</button></div>`);
   fleetPairListPaired();
   clearInterval(fleetPair.timer);
   fleetPair.timer = setInterval(fleetPairTick, 2000);
@@ -46030,13 +46036,120 @@ async function fleetPairListPaired() {
     const resp = await fetch('/api/fleet/paired');
     if (resp.ok) list = await resp.json();
   } catch (_) { /* shown as empty */ }
-  box.innerHTML = list.length ? list.map(m => `
-    <div class="fp-paired-row">
-      <span><b>${escapeHtml(m.name)}</b> <small>${m.role === 'main' ? 'this Brum joined it' : `joined ${escapeHtml(formatDateTime(m.paired_at))}${m.paired_by ? ` (code by ${escapeHtml(m.paired_by)})` : ''}`}</small><br><span class="bk-mono fp-muted">${escapeHtml((m.urls || []).join(', '))}</span></span>
+  fleetPair.machines = list;
+  // Machines written in config.toml: listed by the server, but not kept by Brum
+  const inFile = (App.config?.fleet?.nodes || []).filter(n => !list.some(m => m.id === n.id));
+  const rows = list.map(m => {
+    const urls = `<br><span class="bk-mono fp-muted">${escapeHtml((m.urls || []).join(', '))}</span>`;
+    if (m.role === 'manual') {
+      return `<div class="fp-paired-row">
+        <span><b>${escapeHtml(m.name)}</b> <small>added by hand${m.has_token ? ' · with a token' : ''}${m.details?.read_only ? ' · read only' : ''}</small>${urls}</span>
+        <span class="fp-row-btns"><button class="btn btn-xs" data-on-click="fleetManualForm" data-click-args="${actionArgs(m.id)}" title="Change this machine"><i data-lucide="pencil"></i> Edit</button>
+        <button class="btn btn-xs" data-on-click="fleetPairRemove" data-click-args="${actionArgs(m.id, m.name)}" title="Remove from this Brum's Fleet list"><i data-lucide="trash-2"></i> Remove</button></span>
+      </div>`;
+    }
+    return `<div class="fp-paired-row">
+      <span><b>${escapeHtml(m.name)}</b> <small>${m.role === 'main' ? 'this Brum joined it' : `joined ${escapeHtml(formatDateTime(m.paired_at))}${m.paired_by ? ` (code by ${escapeHtml(m.paired_by)})` : ''}`}</small>${urls}</span>
       <button class="btn btn-xs" data-on-click="fleetPairRemove" data-click-args="${actionArgs(m.id, m.name)}" title="Remove from this Brum's Fleet list"><i data-lucide="trash-2"></i> Remove</button>
-    </div>`).join('') : '<div class="fp-muted">None yet.</div>';
+    </div>`;
+  });
+  inFile.forEach(n => rows.push(`<div class="fp-paired-row">
+      <span><b>${escapeHtml(n.name || n.id)}</b> <small><i data-lucide="lock"></i> in config.toml</small><br><span class="bk-mono fp-muted">${escapeHtml([...new Set([n.url, ...(n.urls || [])].filter(Boolean))].join(', '))}</span></span>
+      <span class="fp-muted" title="Written in config.toml, which wins. Admin Control Panel → Server Settings → Move them into Brum makes it changeable here.">changed in the file</span>
+    </div>`));
+  box.innerHTML = rows.length ? rows.join('') : '<div class="fp-muted">None yet.</div>';
   bindActions(box);
   if (window.lucide) lucide.createIcons({ root: box });
+}
+
+const FLEET_COLOURS = ['amber', 'emerald', 'sky', 'purple', 'rose', 'orange', 'cyan', 'slate'];
+
+/** Add a machine by its address, or change one added that way */
+function fleetManualForm(id) {
+  const box = document.getElementById('fp-manual');
+  if (!box) return;
+  const m = id ? (fleetPair.machines || []).find(x => x.id === id) : null;
+  const d = m?.details || {};
+  const sp = d.start_paths || {};
+  const val = (v) => escapeHtml(v || '');
+  box.innerHTML = `
+    <div class="fp-form">
+      <div class="fp-label">${m ? `Change ${escapeHtml(m.name)}` : 'Add a machine by address'}</div>
+      <p class="fp-text fp-muted" style="display: block;">For a Brum that shares this Fleet's secret, or with an API token made on that machine (avatar menu → API &amp; Fleet Tokens there). Pairing with a code is easier when you can.</p>
+      <label class="fp-label" for="fpm-name">Name</label>
+      <input type="text" id="fpm-name" class="settings-input" value="${val(m?.name)}" placeholder="NAS">
+      <label class="fp-label" for="fpm-urls">Address</label>
+      <input type="text" id="fpm-urls" class="settings-input bk-mono" value="${val((m?.urls || []).join(', '))}" placeholder="http://nas:3140 (several: separate with commas)">
+      <label class="fp-label" for="fpm-token">API token</label>
+      <input type="password" id="fpm-token" class="settings-input bk-mono" autocomplete="new-password" placeholder="${m?.has_token ? 'Saved. Type to replace it, or clear it below' : 'Empty: use the shared Fleet secret'}">
+      ${m?.has_token ? '<label class="fp-check"><input type="checkbox" id="fpm-token-clear"> Remove the saved token</label>' : ''}
+      <label class="fp-label" for="fpm-start">Start folder</label>
+      <input type="text" id="fpm-start" class="settings-input bk-mono" value="${val(d.start_path)}" placeholder="/mnt/storage">
+      <div class="fp-two">
+        <input type="text" id="fpm-start-linux" class="settings-input bk-mono" value="${val(sp.linux)}" placeholder="When it runs Linux (optional)">
+        <input type="text" id="fpm-start-windows" class="settings-input bk-mono" value="${val(sp.windows)}" placeholder="When it runs Windows (optional)">
+      </div>
+      <div class="fp-two">
+        <select id="fpm-colour" class="settings-select" title="Colour">${FLEET_COLOURS.map(c => `<option value="${c}"${(d.color_accent || 'amber') === c ? ' selected' : ''}>${c[0].toUpperCase() + c.slice(1)}</option>`).join('')}</select>
+        <input type="text" id="fpm-tags" class="settings-input" value="${val((d.tags || []).join(', '))}" placeholder="Groups, like servers, home">
+      </div>
+      <label class="fp-check"><input type="checkbox" id="fpm-ro"${d.read_only ? ' checked' : ''}> Read only: never write to this machine</label>
+      <div class="fp-status" id="fpm-status"></div>
+      <div style="display: flex; justify-content: flex-end; gap: 6px;">
+        <button class="btn btn-sm" data-on-click="fleetManualCancel">Cancel</button>
+        <button class="btn btn-sm btn-accent" data-on-click="fleetManualSave" data-click-args="${actionArgs(m ? m.id : '')}"><i data-lucide="save"></i> ${m ? 'Save' : 'Add machine'}</button>
+      </div>
+    </div>`;
+  bindActions(box);
+  if (window.lucide) lucide.createIcons({ root: box });
+  document.getElementById('fpm-name')?.focus();
+}
+
+function fleetManualCancel() {
+  const box = document.getElementById('fp-manual');
+  if (!box) return;
+  box.innerHTML = '<button class="btn btn-xs" data-on-click="fleetManualForm"><i data-lucide="plus"></i> Add a machine by address</button>';
+  bindActions(box);
+  if (window.lucide) lucide.createIcons({ root: box });
+}
+
+async function fleetManualSave(id) {
+  const v = (x) => (document.getElementById(x)?.value || '').trim();
+  const token = v('fpm-token');
+  const clear = document.getElementById('fpm-token-clear')?.checked;
+  const start_paths = {};
+  if (v('fpm-start-linux')) start_paths.linux = v('fpm-start-linux');
+  if (v('fpm-start-windows')) start_paths.windows = v('fpm-start-windows');
+  const body = {
+    name: v('fpm-name'),
+    urls: v('fpm-urls').split(',').map(x => x.trim()).filter(Boolean),
+    token: token ? token : (id && !clear ? '********' : ''),
+    details: {
+      start_path: v('fpm-start') || null,
+      start_paths,
+      read_only: !!document.getElementById('fpm-ro')?.checked,
+      color_accent: document.getElementById('fpm-colour')?.value || null,
+      tags: v('fpm-tags').split(',').map(x => x.trim()).filter(Boolean),
+    },
+  };
+  const status = document.getElementById('fpm-status');
+  if (!body.name || !body.urls.length) {
+    if (status) status.innerHTML = '<span class="fp-bad">Type a name and an address.</span>';
+    return;
+  }
+  try {
+    const resp = await fetch(id ? `/api/fleet/machines/${encodeURIComponent(id)}` : '/api/fleet/machines', {
+      method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+  } catch (e) {
+    if (status) status.innerHTML = `<span class="fp-bad">${escapeHtml(e.message || String(e))}</span>`;
+    return;
+  }
+  showToast(id ? `${body.name} changed` : `${body.name} added to the Fleet`, 'success');
+  fleetManualCancel();
+  await fleetPairRefreshNodes();
+  fleetPairListPaired();
 }
 
 async function fleetPairRemove(id, name) {

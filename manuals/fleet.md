@@ -57,7 +57,9 @@ Make a new code on the main Brum and join from the media PC the same way.
 
 ### Adding machines by hand instead
 
-You can also list machines in `config.toml` under `[[fleet.nodes]]` and give all of them the same secret yourself (`BRUM_JWT_SECRET` or `BRUM_JWT_SECRET_FILE`), or use an API token per machine. See [Shared Cluster Secret](configuration.md#1-shared-cluster-secret-brum_jwt_secret--brum_jwt_secret_file). Machines from `config.toml` and paired machines can be mixed.
+Without a code, a machine can also be added by its address: **Manage Fleet → Add machine → Add a machine by address**, with its name, address(es), an API token made on that machine (or none, when all machines share one secret, set with `BRUM_JWT_SECRET` or `BRUM_JWT_SECRET_FILE`), start folders, colour, groups and read only. The token is kept encrypted. Such machines are changed or removed in the same list, and take effect at once. See [Shared Cluster Secret](configuration.md#1-shared-cluster-secret-brum_jwt_secret--brum_jwt_secret_file).
+
+Machines can also still be written in `config.toml` under `[[fleet.nodes]]`; they show in the list locked. **Admin Control Panel → Server Settings → Move them into Brum** moves them into Brum's list. Paired machines, machines added by address and machines from `config.toml` can be mixed.
 
 ---
 

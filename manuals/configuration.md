@@ -77,7 +77,8 @@ Brum 1.23 and older shipped a long `config.toml` with nearly every setting in it
 What happens:
 
 * The settings the page can manage move into Brum's database, exactly as they were written.
-* `config.toml` keeps only what Brum needs before it starts, plus anything that differs from Brum's defaults that the page does not offer (for example hand-written Fleet machines or Folder rules). Lines that only repeat Brum's defaults are left out.
+* Fleet machines written in the file (`[[fleet.nodes]]`) move into Brum's list of machines, with their API tokens encrypted. They then show in **Fleet → Manage Fleet → Add machine** with **Edit** and **Remove**.
+* `config.toml` keeps only what Brum needs before it starts, plus anything that differs from Brum's defaults that the page does not offer (for example Folder rules). Lines that only repeat Brum's defaults are left out.
 * A copy of the file as it was is kept next to it: `config.toml.before-move-<date>`.
 * Brum works exactly as before, and nothing needs a restart. Brum checks this before changing anything.
 
@@ -272,7 +273,8 @@ Besides the settings listed under [Settings That Stay in `config.toml`](#setting
 [storage.sftp]
 # known_hosts_file = "~/.ssh/known_hosts"   # Where SFTP server keys are remembered
 
-# Hand-written Fleet machines. Machines added with Fleet → Add machine are kept in Brum instead.
+# Fleet machines written by hand. Easier: Fleet → Manage Fleet → Add machine, with a pairing
+# code or "Add a machine by address"; those are kept in Brum and can be changed there.
 # [[fleet.nodes]]
 # id = "homelab-nas"
 # name = "Homelab NAS"

@@ -90,7 +90,7 @@ pub async fn handle_get_server_settings(State(state): State<AppState>, headers: 
         "settings": settings,
         "file_only": file_only,
         "running": { "host": state.config.server.host, "port": state.config.server.port },
-        "movable": file.as_ref().map(|f| movable(f).len()).unwrap_or(0),
+        "movable": file.as_ref().map(|f| movable(f).len() + movable_machines(f).0.len()).unwrap_or(0),
         "trial_seconds_left": trial_seconds_left(&state),
     })))
 }
@@ -347,6 +347,41 @@ fn leaf_keys(table: &toml::Table) -> Vec<String> {
     out
 }
 
+/// The hand-written Fleet machines in the file that can move into Brum's list, and those that
+/// stay (with the reason)
+fn movable_machines(file: &toml::Table) -> (Vec<crate::config::FleetNodeConfig>, Vec<(crate::config::FleetNodeConfig, String)>) {
+    let nodes: Vec<crate::config::FleetNodeConfig> = file
+        .get("fleet")
+        .and_then(|f| f.get("nodes"))
+        .cloned()
+        .and_then(|v| v.try_into().ok())
+        .unwrap_or_default();
+    let listed = crate::tools::pairing::list();
+    let same = |a: &crate::config::FleetNodeConfig, b: &crate::config::FleetNodeConfig| {
+        a.addresses() == b.addresses()
+            && a.token.as_deref().filter(|t| !t.is_empty()) == b.token.as_deref().filter(|t| !t.is_empty())
+            && a.start_path == b.start_path
+            && a.start_paths == b.start_paths
+            && a.read_only == b.read_only
+            && a.color_accent == b.color_accent
+            && a.tags == b.tags
+            && a.name == b.name
+    };
+    let (mut moving, mut staying) = (Vec::new(), Vec::new());
+    for n in nodes {
+        if n.id.trim().is_empty() || n.addresses().is_empty() {
+            staying.push((n, "it has no id or no address".to_string()));
+        } else if listed.iter().any(|m| m.id == n.id || m.urls.iter().any(|u| n.addresses().iter().any(|a| a.eq_ignore_ascii_case(u)))) {
+            staying.push((n, "a machine with the same id or address is already in Brum's list".to_string()));
+        } else if !same(&n, &crate::tools::pairing::PairedMachine::from_node(&n, "").to_node()) {
+            staying.push((n, "it cannot be kept exactly as written".to_string()));
+        } else {
+            moving.push(n);
+        }
+    }
+    (moving, staying)
+}
+
 /// The text at the top of a config file after its settings moved into Brum
 const MOVED_HEADER: &str = "# Brum settings file\n#\n# Most settings are now in Brum itself: Admin → Server Settings.\n# This file keeps only what Brum needs before it starts, and what differs from\n# Brum's defaults that Server Settings does not offer. Anything here wins over\n# Server Settings. The file as it was before is kept next to this one\n# (.before-move).\n\n";
 
@@ -399,7 +434,12 @@ pub async fn handle_move_from_file(State(state): State<AppState>, headers: Heade
             Err(e) => staying.push(json!({ "key": spec.key, "why": format!("{} {e}", spec.key) })),
         }
     }
-    if moving.is_empty() {
+    // Hand-written Fleet machines move into Brum's list of machines, tokens encrypted
+    let (machines, kept_machines) = movable_machines(&file);
+    for (n, why) in &kept_machines {
+        staying.push(json!({ "key": "fleet.nodes", "machine": n.name, "why": why }));
+    }
+    if moving.is_empty() && machines.is_empty() {
         return Ok(Json(json!({ "success": true, "moved": [], "stayed": staying, "message": "There is nothing in the file to move." })));
     }
 
@@ -407,13 +447,29 @@ pub async fn handle_move_from_file(State(state): State<AppState>, headers: Heade
     for (spec, _) in &moving {
         saved::table_remove(&mut slim, spec.key);
     }
+    if !machines.is_empty() {
+        // The entries that stay are kept exactly as written (a token is never written out again)
+        let kept: Vec<toml::Value> = file
+            .get("fleet")
+            .and_then(|f| f.get("nodes"))
+            .and_then(|v| v.as_array())
+            .map(|all| all.iter().filter(|v| !machines.iter().any(|m| v.get("id").and_then(|i| i.as_str()) == Some(m.id.as_str()))).cloned().collect())
+            .unwrap_or_default();
+        if kept.is_empty() {
+            saved::table_remove(&mut slim, "fleet.nodes");
+        } else if let Some(toml::Value::Table(fleet)) = slim.get_mut("fleet") {
+            fleet.insert("nodes".into(), toml::Value::Array(kept));
+        }
+    }
     let saved_before = state.auth.saved_config_settings();
     let mut saved_after = saved_before.clone();
     for (spec, value) in &moving {
         saved_after.insert(spec.key.to_string(), value.clone());
     }
     // Brum must work exactly the same afterwards
-    let before = saved::compose(Some(&file), &saved_before).map_err(|e| (StatusCode::BAD_REQUEST, format!("The current settings cannot be read: {e}")))?;
+    let mut before = saved::compose(Some(&file), &saved_before).map_err(|e| (StatusCode::BAD_REQUEST, format!("The current settings cannot be read: {e}")))?;
+    // The machines that move are listed by Brum from now on instead of by the file
+    before.fleet.nodes.retain(|n| !machines.iter().any(|m| m.id == n.id));
     // Whatever is the same as Brum's own default does not need to stay in the file either
     let target = serde_json::to_value(&before).ok();
     for leaf in leaf_keys(&slim) {
@@ -439,22 +495,38 @@ pub async fn handle_move_from_file(State(state): State<AppState>, headers: Heade
     let writes: Vec<(String, Option<String>)> = moving.iter().map(|(s, v)| (s.key.to_string(), Some(saved::stored_text(s, v)))).collect();
     state.auth.save_config_settings(&writes).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Could not save the settings ({e}); nothing was changed.")))?;
 
+    let mut added: Vec<String> = Vec::new();
+    for n in &machines {
+        if let Err(e) = crate::tools::pairing::add(crate::tools::pairing::PairedMachine::from_node(n, &claims.sub)) {
+            let _ = state.auth.save_config_settings(&previous);
+            added.iter().for_each(|id| { let _ = crate::tools::pairing::remove(id); });
+            let _ = std::fs::remove_file(&backup);
+            return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Could not save the Fleet machine {} ({e}); nothing was changed.", n.name)));
+        }
+        added.push(n.id.clone());
+    }
+
     let body = toml::to_string_pretty(&slim).unwrap_or_default();
     if let Err(e) = replace_file(&path, &format!("{MOVED_HEADER}{body}")) {
         let _ = state.auth.save_config_settings(&previous);
+        added.iter().for_each(|id| { let _ = crate::tools::pairing::remove(id); });
         let _ = std::fs::remove_file(&backup);
         return Err((StatusCode::INTERNAL_SERVER_ERROR, format!("Could not write {} ({e}); nothing was changed.", path.display())));
     }
+    // From now on Brum's list decides for these machines, not the copy read from the file at start-up
+    crate::tools::pairing::mark_moved_from_file(&added);
 
     let keys: Vec<&str> = moving.iter().map(|(s, _)| s.key).collect();
-    crate::tools::activity::record(&claims.sub, "server settings moved into Brum", &path.display().to_string(), &format!("{} settings; old file kept as {}", keys.len(), backup.display()), true);
+    let machine_names: Vec<&str> = machines.iter().map(|n| n.name.as_str()).collect();
+    crate::tools::activity::record(&claims.sub, "server settings moved into Brum", &path.display().to_string(), &format!("{} settings, {} Fleet machines; old file kept as {}", keys.len(), machine_names.len(), backup.display()), true);
     tracing::info!("{} moved {} settings from {} into Brum (old file kept as {})", claims.sub, keys.len(), path.display(), backup.display());
     Ok(Json(json!({
         "success": true,
         "moved": keys,
+        "machines": machine_names,
         "stayed": staying,
         "backup": backup.display().to_string(),
         "config_file": path.display().to_string(),
-        "message": format!("{} settings moved into Brum. Brum works exactly as before; nothing needs a restart.", keys.len()),
+        "message": format!("{} setting(s) and {} Fleet machine(s) moved into Brum. Brum works exactly as before; nothing needs a restart.", keys.len(), machine_names.len()),
     })))
 }

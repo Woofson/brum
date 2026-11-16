@@ -72,7 +72,7 @@ fn remember_live_address(node_id: &str, addr: &str) {
 /// Every Fleet machine this Brum knows: those in `config.toml`, then those paired with a code
 /// (a paired machine that is also in `config.toml` appears once)
 pub fn all_nodes(state: &AppState) -> Vec<FleetNodeConfig> {
-    let mut nodes = state.config.fleet.nodes.clone();
+    let mut nodes: Vec<FleetNodeConfig> = state.config.fleet.nodes.iter().filter(|n| !crate::tools::pairing::moved_from_file(&n.id)).cloned().collect();
     for p in crate::tools::pairing::list() {
         let dup = nodes.iter().any(|n| n.id == p.id || n.addresses().iter().any(|a| p.urls.iter().any(|u| u.trim_end_matches('/') == a)));
         if !dup {

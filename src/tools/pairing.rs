@@ -3,9 +3,13 @@
 //! On the main Brum an admin asks for a code: eight characters, usable once, valid for ten
 //! minutes. The new machine sends the code (with its name and addresses) to the main Brum,
 //! which answers with the secret it signs logins with. From then on both machines accept each
-//! other's logins, and each lists the other as a Fleet machine. Brum never rewrites
-//! `config.toml`: paired machines are kept in Brum's database, and the new machine keeps the
-//! Fleet secret in `fleet-secret.key` next to its database.
+//! other's logins, and each lists the other as a Fleet machine. Paired machines are kept in
+//! Brum's database, and the new machine keeps the Fleet secret in `fleet-secret.key` next to
+//! its database.
+//!
+//! The same list also holds machines an admin added by hand (#195, role "manual"): with an
+//! address, maybe an API token (kept encrypted), start folders, colour and tags, like a
+//! `[[fleet.nodes]]` entry in `config.toml`, but changeable in Manage Fleet without a restart.
 
 use crate::config::FleetNodeConfig;
 use rusqlite::{params, Connection};
@@ -122,17 +126,40 @@ pub fn redeem(code: &str, machine: &str) -> Result<String, String> {
 
 // ---------- Machines paired with this one ----------
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+pub struct MachineDetails {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_path: Option<String>,
+    #[serde(default)]
+    pub start_paths: std::collections::BTreeMap<String, String>,
+    #[serde(default)]
+    pub read_only: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color_accent: Option<String>,
+    #[serde(default)]
+    pub tags: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct PairedMachine {
     pub id: String,
     pub name: String,
     pub urls: Vec<String>,
     #[serde(default)]
     pub os: String,
-    /// "joined" (it joined this Brum) or "main" (this Brum joined it)
+    /// "joined" (it joined this Brum), "main" (this Brum joined it) or "manual" (added by hand)
     pub role: String,
     pub paired_at: i64,
     pub paired_by: String,
+    /// Start folders, read only, colour and tags (machines added by hand)
+    #[serde(default)]
+    pub details: MachineDetails,
+    /// The API token for this machine, decrypted; never sent to the browser
+    #[serde(skip)]
+    pub token: Option<String>,
+    /// Whether it has a token (for the browser)
+    #[serde(default)]
+    pub has_token: bool,
 }
 
 struct Store {
@@ -153,14 +180,41 @@ fn migrate(conn: &Connection) -> rusqlite::Result<()> {
             paired_at INTEGER NOT NULL,
             paired_by TEXT NOT NULL DEFAULT ''
         );",
-    )
+    )?;
+    // Columns for machines added by hand (#195)
+    let cols: Vec<String> = conn
+        .prepare("PRAGMA table_info(fleet_paired)")?
+        .query_map([], |r| r.get::<_, String>(1))?
+        .filter_map(|c| c.ok())
+        .collect();
+    if !cols.iter().any(|c| c == "details") {
+        conn.execute("ALTER TABLE fleet_paired ADD COLUMN details TEXT NOT NULL DEFAULT '{}'", [])?;
+    }
+    if !cols.iter().any(|c| c == "token") {
+        conn.execute("ALTER TABLE fleet_paired ADD COLUMN token TEXT NOT NULL DEFAULT ''", [])?;
+    }
+    Ok(())
 }
 
 fn load(conn: &Connection) -> Vec<PairedMachine> {
-    let Ok(mut stmt) = conn.prepare("SELECT id, name, urls, os, role, paired_at, paired_by FROM fleet_paired ORDER BY name") else { return Vec::new() };
+    let Ok(mut stmt) = conn.prepare("SELECT id, name, urls, os, role, paired_at, paired_by, details, token FROM fleet_paired ORDER BY name") else { return Vec::new() };
     stmt.query_map([], |r| {
         let urls: String = r.get(2)?;
-        Ok(PairedMachine { id: r.get(0)?, name: r.get(1)?, urls: serde_json::from_str(&urls).unwrap_or_default(), os: r.get(3)?, role: r.get(4)?, paired_at: r.get(5)?, paired_by: r.get(6)? })
+        let details: String = r.get(7)?;
+        let token: String = r.get(8)?;
+        let token = Some(crate::secrets::open(&token)).filter(|t| !t.is_empty());
+        Ok(PairedMachine {
+            id: r.get(0)?,
+            name: r.get(1)?,
+            urls: serde_json::from_str(&urls).unwrap_or_default(),
+            os: r.get(3)?,
+            role: r.get(4)?,
+            paired_at: r.get(5)?,
+            paired_by: r.get(6)?,
+            details: serde_json::from_str(&details).unwrap_or_default(),
+            has_token: token.is_some(),
+            token,
+        })
     })
     .map(|rows| rows.filter_map(|r| r.ok()).collect())
     .unwrap_or_default()
@@ -179,6 +233,20 @@ pub fn init(db_path: &str) {
         }
     };
     let _ = STORE.set(Store { db_path: db_path.to_string(), list: RwLock::new(list) });
+}
+
+/// Machines moved out of config.toml into this list while Brum runs (#195): the copy Brum read
+/// from the file at start-up no longer counts, so changes in Manage Fleet apply at once
+static MOVED_FROM_FILE: RwLock<Vec<String>> = RwLock::new(Vec::new());
+
+pub fn mark_moved_from_file(ids: &[String]) {
+    if let Ok(mut m) = MOVED_FROM_FILE.write() {
+        m.extend(ids.iter().cloned());
+    }
+}
+
+pub fn moved_from_file(id: &str) -> bool {
+    MOVED_FROM_FILE.read().map(|m| m.iter().any(|x| x == id)).unwrap_or(false)
 }
 
 pub fn list() -> Vec<PairedMachine> {
@@ -203,13 +271,16 @@ pub fn make_id(name: &str, taken: &[String]) -> String {
 }
 
 /// Adds a machine (or replaces the one with the same addresses or id)
-pub fn add(m: PairedMachine) -> Result<(), String> {
+pub fn add(mut m: PairedMachine) -> Result<(), String> {
     let store = STORE.get().ok_or("Pairing is not available")?;
     let conn = Connection::open(&store.db_path).map_err(|e| e.to_string())?;
     migrate(&conn).map_err(|e| e.to_string())?;
+    m.token = m.token.filter(|t| !t.is_empty());
+    m.has_token = m.token.is_some();
+    let sealed = m.token.as_deref().map(crate::secrets::seal).unwrap_or_default();
     conn.execute(
-        "INSERT OR REPLACE INTO fleet_paired (id, name, urls, os, role, paired_at, paired_by) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
-        params![m.id, m.name, serde_json::to_string(&m.urls).unwrap_or_default(), m.os, m.role, m.paired_at, m.paired_by],
+        "INSERT OR REPLACE INTO fleet_paired (id, name, urls, os, role, paired_at, paired_by, details, token) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+        params![m.id, m.name, serde_json::to_string(&m.urls).unwrap_or_default(), m.os, m.role, m.paired_at, m.paired_by, serde_json::to_string(&m.details).unwrap_or_else(|_| "{}".into()), sealed],
     )
     .map_err(|e| e.to_string())?;
     if let Ok(mut l) = store.list.write() {
@@ -233,12 +304,39 @@ pub fn remove(id: &str) -> Result<bool, String> {
 impl PairedMachine {
     /// As a Fleet machine, like an entry in `config.toml`
     pub fn to_node(&self) -> FleetNodeConfig {
+        let d = &self.details;
         FleetNodeConfig {
             id: self.id.clone(),
             name: self.name.clone(),
             url: self.urls.first().cloned().unwrap_or_default(),
             urls: self.urls.iter().skip(1).cloned().collect(),
-            tags: vec!["paired".to_string()],
+            token: self.token.clone(),
+            start_path: d.start_path.clone(),
+            start_paths: d.start_paths.clone(),
+            read_only: d.read_only,
+            color_accent: d.color_accent.clone(),
+            tags: if self.role == "manual" { d.tags.clone() } else { vec!["paired".to_string()] },
+        }
+    }
+
+    /// A machine added by hand from a `[[fleet.nodes]]` entry
+    pub fn from_node(n: &FleetNodeConfig, by: &str) -> Self {
+        PairedMachine {
+            id: n.id.clone(),
+            name: n.name.clone(),
+            urls: n.addresses(),
+            role: "manual".into(),
+            paired_at: chrono::Utc::now().timestamp(),
+            paired_by: by.to_string(),
+            details: MachineDetails {
+                start_path: n.start_path.clone(),
+                start_paths: n.start_paths.clone(),
+                read_only: n.read_only,
+                color_accent: n.color_accent.clone(),
+                tags: n.tags.clone(),
+            },
+            has_token: n.token.as_deref().is_some_and(|t| !t.is_empty()),
+            token: n.token.clone().filter(|t| !t.is_empty()),
             ..Default::default()
         }
     }
@@ -365,6 +463,7 @@ pub fn join(main_url: &str, code: &str, my_name: &str, my_urls: Vec<String>, db_
         role: "main".into(),
         paired_at: chrono::Utc::now().timestamp(),
         paired_by: String::new(),
+        ..Default::default()
     })?;
     Ok(answer.name)
 }

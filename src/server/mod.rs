@@ -240,6 +240,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/fleet/join", post(pairing_handlers::handle_join_fleet))
         .route("/api/fleet/paired", get(pairing_handlers::handle_list_paired))
         .route("/api/fleet/paired/:id", axum::routing::delete(pairing_handlers::handle_remove_paired))
+        .route("/api/fleet/machines", post(pairing_handlers::handle_add_machine))
+        .route("/api/fleet/machines/:id", axum::routing::put(pairing_handlers::handle_edit_machine))
         .route("/api/admin/access-rules", get(access_handlers::handle_list_access_rules).post(access_handlers::handle_add_access_rule))
         .route("/api/admin/access-rules/:id", axum::routing::delete(access_handlers::handle_remove_access_rule))
         .route("/api/admin/server-settings", get(settings_handlers::handle_get_server_settings).post(settings_handlers::handle_save_server_settings))

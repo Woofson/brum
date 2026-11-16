@@ -617,6 +617,7 @@ pub async fn handle_get_config(
         dto.fleet.nodes.clear();
         dto.fleet.nodes_hidden = true;
     } else {
+        dto.fleet.nodes.retain(|n| !crate::tools::pairing::moved_from_file(&n.id));
         for p in crate::tools::pairing::list() {
             if !dto.fleet.nodes.iter().any(|n| n.id == p.id || p.urls.iter().any(|u| n.urls.contains(u))) {
                 dto.fleet.nodes.push(crate::config::ClientFleetNodeConfigDto::from_node(&p.to_node()));
