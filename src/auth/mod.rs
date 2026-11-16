@@ -1717,6 +1717,10 @@ impl AuthManager {
             }
         };
 
+        // A login made by another Fleet machine carries that machine's view of the account
+        let made_here = claims.origin.as_deref().is_none_or(|o| o == self.machine_id);
+        // Home folder of a system account that has no record here yet, as this machine sees it
+        let mut local_home: Option<String> = None;
         let (db_role, is_disabled, generation) = match cached_status {
             Some(status) => status,
             None => {
@@ -1742,7 +1746,17 @@ impl AuthManager {
                         if !claims.is_pam {
                             return Err("User account no longer exists".into());
                         }
-                        (claims.role.clone(), false, generation)
+                        if made_here {
+                            (claims.role.clone(), false, generation)
+                        } else {
+                            // A system account (Linux/Windows login) that never signed in here:
+                            // it must exist on this machine, gets the role a sign-in here would
+                            // give it, and never more than the machine that made the login gave
+                            let (local_role, home) = Self::local_system_account(&claims.sub)
+                                .ok_or("This account does not exist on this machine")?;
+                            local_home = Some(home);
+                            (Self::narrower_role(&claims.role, &local_role), false, generation)
+                        }
                     }
                 }
             }
@@ -1754,7 +1768,6 @@ impl AuthManager {
         if claims.token_id.is_none() {
             // A login made by another Fleet machine carries that machine's count; this machine's
             // count for the same name is unrelated, so only the machine that made it compares
-            let made_here = claims.origin.as_deref().is_none_or(|o| o == self.machine_id);
             if made_here && claims.session_gen != generation {
                 return Err("Session has ended. Please log in again.".into());
             }
@@ -1780,10 +1793,35 @@ impl AuthManager {
                     claims.allowed_roots = roots;
                 }
             }
+            if let Some(home) = local_home {
+                claims.home_dir = home;
+                claims.allowed_roots = Some("[\"*\"]".to_string());
+            }
         }
         self.apply_owner_scope_to_api_token(&mut claims)?;
 
         Ok(claims)
+    }
+
+    /// A system account of this machine as a direct sign-in here would see it: (role, home folder).
+    /// None when no such account exists here.
+    fn local_system_account(username: &str) -> Option<(String, String)> {
+        #[cfg(not(windows))]
+        {
+            let name = std::ffi::CString::new(username).ok()?;
+            // SAFETY: name is a valid NUL-terminated string; the result is only tested for null
+            if unsafe { libc::getpwnam(name.as_ptr()) }.is_null() {
+                return None;
+            }
+            let (home, role) = get_linux_user_info(username);
+            Some((role, home))
+        }
+        #[cfg(windows)]
+        {
+            // Without a sign-in Windows cannot tell whether the account is an administrator here,
+            // so it counts as a user until it signs in on this machine once
+            Some(("user".to_string(), windows::resolve_windows_home_dir(username)))
+        }
     }
 
     /// An API token can reduce its owner's role, never raise it
@@ -3316,6 +3354,33 @@ mod tests {
         member.update_user_password("admin", "Member-Pass-2!").unwrap();
         member.user_status_cache.lock().unwrap().clear();
         assert!(member.verify_token(&own).is_err());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn fleet_logins_of_system_accounts_get_this_machines_role() {
+        let tmp = tempdir().unwrap();
+        let key = "fleet-shared-secret-0123456789abcdef0123";
+        let open = |name: &str| AuthManager::new(&tmp.path().join(name).to_string_lossy(), key, 24, "builtin", "login", "admin", "Main-Admin-Pass-1!").unwrap();
+        let main = open("main.db");
+        let member = open("member.db");
+        let login = |user: &str, role: &str| {
+            let claims = Claims {
+                sub: user.into(), role: role.into(), home_dir: "/elsewhere".into(), is_pam: true,
+                allowed_roots: Some("[\"/elsewhere\"]".into()), token_id: None, exp: Utc::now().timestamp() + 3600,
+                shell: None, session_gen: 0, sid: Some("s1".into()), origin: Some(main.machine_id.clone()),
+            };
+            main.mint_token_for_claims(&claims).unwrap()
+        };
+        // No such account on the member: refused
+        assert!(member.verify_token(&login("no-such-account-x7q", "admin")).is_err());
+        // "nobody" exists but is no administrator here: admin on the other machine does not carry over
+        let c = member.verify_token(&login("nobody", "admin")).unwrap();
+        assert_eq!(c.role, "user");
+        assert_ne!(c.home_dir, "/elsewhere", "the member uses its own home folder for the account");
+        // root is an administrator here, but a login that is only a user stays a user
+        assert_eq!(member.verify_token(&login("root", "user")).unwrap().role, "user");
+        assert_eq!(member.verify_token(&login("root", "admin")).unwrap().role, "admin");
     }
 
     #[test]
