@@ -486,6 +486,15 @@ pub fn system_data_dir() -> Option<PathBuf> {
 #[cfg(not(windows))]
 const SYSTEM_DATA_DIR: &str = "/var/lib/brum";
 
+/// Whether this process may create files in a folder
+#[cfg(not(windows))]
+fn is_writable_dir(dir: &Path) -> bool {
+    use std::os::unix::ffi::OsStrExt;
+    let Ok(c) = std::ffi::CString::new(dir.as_os_str().as_bytes()) else { return false };
+    // SAFETY: c is a valid NUL-terminated path for the duration of the call
+    unsafe { libc::access(c.as_ptr(), libc::W_OK | libc::X_OK) == 0 }
+}
+
 /// A folder of Brum's own data (profile pictures, SSH host keys, ...): in `/var/lib/brum` for
 /// the system service, otherwise in the user's own settings folder (`~/.config/brum`,
 /// `%APPDATA%\brum`)
@@ -858,8 +867,10 @@ impl LoggingConfig {
                     return dir;
                 }
             }
+            // The shared log folder, only when this Brum may write there: an ordinary user's Brum
+            // on a machine with the service installed keeps its logs in its own home folder
             let var_log = Path::new("/var/log/brum");
-            if var_log.is_dir() {
+            if var_log.is_dir() && is_writable_dir(var_log) {
                 return var_log.to_path_buf();
             }
             if let Some(data_dir) = dirs::data_local_dir().or_else(dirs::data_dir) {
