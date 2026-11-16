@@ -7303,7 +7303,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       if (!entry.is_dir && isImageFile(entry.name) && !entry.path.startsWith('proton://')) {
         thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL, 'assets/brum_icon.webp')}">`;
       } else {
-        thumbHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg');
+        thumbHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg', entry.is_empty);
       }
 
       card.innerHTML = `
@@ -7559,7 +7559,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       item.dataset.index = idx;
       
       item.draggable = !isTouchDevice;
-      const iconHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm');
+      const iconHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm', entry.is_empty);
 
       item.innerHTML = `
         ${iconHtml}
@@ -7999,7 +7999,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
               const iconWrap = tr.querySelector('.row-icon-wrapper');
               if (iconWrap && isMobile) {
                 iconWrap.classList.remove('selected');
-                iconWrap.innerHTML = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm');
+                iconWrap.innerHTML = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm', entry.is_empty);
                 if (window.lucide) lucide.createIcons();
               }
             } else {
@@ -8086,7 +8086,7 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       if (showCheckBadge) {
         iconHtml = `<i data-lucide="check" class="file-icon check-icon" style="width: 15px; height: 15px;"></i>`;
       } else {
-        iconHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm');
+        iconHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm', entry.is_empty);
       }
 
       const ext = entry.name.includes('.') ? entry.name.split('.').pop() : '';
@@ -8384,7 +8384,9 @@ function iconExtension(name) {
   return lower.includes('.') ? lower.split('.').pop() : '';
 }
 
-function renderFileIconHtml(name, is_dir, is_archive, path, size = 'sm') {
+// is_empty: true for a folder known to be empty (outlined icon), false or unknown (null) for
+// one with content or not checked, such as on remote storage (solid icon)
+function renderFileIconHtml(name, is_dir, is_archive, path, size = 'sm', is_empty = null) {
   // 1. Check per-path custom icon (from SQLite / fileTagsMap)
   if (path && fileTagsMap.has(path)) {
     const itemTag = fileTagsMap.get(path);
@@ -8423,7 +8425,8 @@ function renderFileIconHtml(name, is_dir, is_archive, path, size = 'sm') {
       if (lowerName === 'pictures' || lowerName === 'photos') return formatCustomIconToHtml('', size, true, '#a855f7');
       if (lowerName === 'music') return formatCustomIconToHtml('', size, true, '#f43f5e');
       if (lowerName === 'videos') return formatCustomIconToHtml('', size, true, '#06b6d4');
-      return formatCustomIconToHtml(NERDFONT_PRESET['folder'] || '', size, true, '#f59e0b');
+      // Font Awesome folder symbols: outlined when empty, solid otherwise
+      return formatCustomIconToHtml(is_empty === true ? '\uf114' : '\uf07b', size, true, 'var(--folder-color, var(--accent))');
     }
     const themeExt = iconExtension(name);
     if (themeExt && NERDFONT_PRESET[themeExt]) {
@@ -8447,6 +8450,7 @@ function renderFileIconHtml(name, is_dir, is_archive, path, size = 'sm') {
 
   // 4. Default Woofson icon resolution
   const iconDetails = getFileIconDetails(name, is_dir, is_archive);
+  if (iconDetails.plainFolder) iconDetails.type += is_empty === true ? ' dir-empty' : ' dir-filled';
   return formatIconDetailsToHtml(iconDetails, size, is_dir);
 }
 
@@ -8502,7 +8506,7 @@ function getFileIconDetails(name, is_dir, is_archive) {
     if (lower === 'videos') return { icon: 'video', type: 'folder', color: '#06b6d4' };
     if (lower === '.trash' || lower === 'trash') return { icon: 'trash-2', type: 'folder', color: '#ef4444' };
     if (lower === 'desktop') return { icon: 'monitor', type: 'folder', color: '#f59e0b' };
-    return { icon: 'folder', type: 'folder', color: 'var(--accent)' };
+    return { icon: 'folder', type: 'folder dir', color: 'var(--folder-color, var(--accent))', plainFolder: true };
   }
 
   if (isVaultFile(name)) {
@@ -9260,13 +9264,13 @@ async function loadPaneDirectoryTree(paneIndex) {
   bindActions(sidebar);
 }
 
-function createTreeNodeElement(paneIndex, name, path, iconName = 'folder') {
+function createTreeNodeElement(paneIndex, name, path, iconName = 'folder', isEmpty = null) {
   const wrapper = document.createElement('div');
   wrapper.className = 'tree-node-item';
   wrapper.dataset.path = path;
 
   const isActive = App.panes[paneIndex]?.path === path;
-  const treeIconHtml = renderFileIconHtml(name, true, false, path, 'sm');
+  const treeIconHtml = renderFileIconHtml(name, true, false, path, 'sm', isEmpty);
 
   const row = document.createElement('div');
   row.className = `tree-node-row ${isActive ? 'active' : ''}`;
@@ -9327,7 +9331,7 @@ async function toggleTreeNodeExpand(expanderEl, paneIndex, path) {
           } else {
             subdirs.sort((a, b) => a.name.localeCompare(b.name));
             subdirs.forEach(sub => {
-              const childNode = createTreeNodeElement(paneIndex, sub.name, sub.path, 'folder');
+              const childNode = createTreeNodeElement(paneIndex, sub.name, sub.path, 'folder', sub.is_empty);
               childrenContainer.appendChild(childNode);
             });
             if (window.lucide) lucide.createIcons({ root: childrenContainer });
@@ -24441,11 +24445,11 @@ function updatePropertiesModalHeaderIcon(entry) {
   if (!entry) return;
   const bigIconContainer = document.getElementById('prop-big-icon-container');
   if (bigIconContainer) {
-    bigIconContainer.innerHTML = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg');
+    bigIconContainer.innerHTML = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg', entry.is_empty);
   }
   const headerIcon = document.getElementById('prop-header-icon');
   if (headerIcon) {
-    headerIcon.outerHTML = `<span id="prop-header-icon" style="display:inline-flex;align-items:center;margin-right:4px;">${renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm')}</span>`;
+    headerIcon.outerHTML = `<span id="prop-header-icon" style="display:inline-flex;align-items:center;margin-right:4px;">${renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'sm', entry.is_empty)}</span>`;
   }
   if (window.lucide) lucide.createIcons();
 }

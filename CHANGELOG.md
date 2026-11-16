@@ -7,7 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changes
+- **Empty Folders Look Empty (Refs #197)**: Folders with content now have a solid icon and empty folders an outlined one, in the details list, the icon grid, the folder tree and the Nerd Font icon style. Folders on remote storage, where Brum does not look inside, stay solid, so nothing is wrongly shown as empty. Folders with their own icons (Downloads, Pictures, `.git` and others), icons you set yourself and the Emoji style are unchanged.
+
 ### Fixes
+- **Folder Icon Colour Setting Works Again**: Settings → Folder Icon Color Accent had no effect on the standard icons, and "Follow Theme Accent" used a fixed amber instead of the theme's accent colour. Folder icons now use the chosen colour, or the theme's accent.
 - **Linux Service Keeps Its Data in the Standard Places**: The Debian package created an empty `/data` folder, and Brum took any `/data` folder as a sign it was running in Docker. A normal Linux install then kept its database in `/data`, gave new accounts personal folders under `/data/users`, and wrote its logs into root's home folder. The service now keeps its database, keys and note attachments in `/var/lib/brum` and its logs in `/var/log/brum`, both created by systemd. `/data` is only used inside the Docker image. On its first start the service moves the data of an earlier version from `/data` or `/etc/brum` into `/var/lib/brum` once, all or nothing, and leaves a note in the old folder. `sudo brum reset-admin-password` and `sudo brum join` use the same database as the service. Brum started by an ordinary user keeps using that user's home folder.
 - **Nothing of the Service in Root's Home Folder**: The system service also wrote Chewtoys, profile pictures, SSH host keys, empty theme folders and the default Notes folder into root's home folder, and unpacked disk images into root's cache. These now go to `/var/lib/brum`, and unpacked disk images to `/var/cache/brum`. On its first start the service moves what earlier versions left in `/root/.config/brum`. A `/root/Notes` folder made by an earlier version stays in use where it is.
 - **Full Removal Removes the Sign-In Setup**: `apt purge brum` now also removes `/etc/pam.d/brum`, the sign-in setup the package made. A file of that name written by hand is left alone.
