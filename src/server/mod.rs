@@ -496,6 +496,7 @@ mod tests {
             shell: None,
             session_gen: 0,
             sid: None,
+            origin: None,
         };
 
         // 1. "roots_only" scheme returns None for personal home

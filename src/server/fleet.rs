@@ -204,6 +204,7 @@ pub fn extract_fleet_claims(
             shell: None,
             session_gen: 0,
             sid: None,
+            origin: None,
         });
     }
 

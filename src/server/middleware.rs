@@ -403,6 +403,7 @@ pub async fn auth_middleware(
                 shell: None,
                 session_gen: 0,
                 sid: None,
+                origin: None,
             };
             req.extensions_mut().insert(claims);
 
@@ -471,6 +472,7 @@ pub async fn auth_middleware(
             shell: None,
             session_gen: 0,
             sid: None,
+            origin: None,
         };
         req.extensions_mut().insert(claims);
         return Ok(next.run(req).await);
@@ -677,6 +679,7 @@ pub fn extract_claims_or_local(
             shell: None,
             session_gen: 0,
             sid: None,
+            origin: None,
         });
     }
 

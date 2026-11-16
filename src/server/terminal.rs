@@ -139,6 +139,7 @@ pub fn extract_terminal_claims(
                 shell: None,
                 session_gen: 0,
                 sid: None,
+                origin: None,
             });
         }
     } else if !state.config.server.enable_auth || state.config.server.standalone {
@@ -159,6 +160,7 @@ pub fn extract_terminal_claims(
             shell: None,
             session_gen: 0,
             sid: None,
+            origin: None,
         });
     }
 

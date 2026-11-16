@@ -164,6 +164,10 @@ pub struct Claims {
     /// Identifies this one login so logging out can end it
     #[serde(default)]
     pub sid: Option<String>,
+    /// The machine that made this login (its own random id). Only that machine knows the
+    /// account's session generation, so only it compares `session_gen`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub origin: Option<String>,
 }
 
 fn default_allowed_roots_claims() -> Option<String> {
@@ -273,6 +277,8 @@ pub struct AuthManager {
     #[allow(dead_code)]
     pam_service: String,
     cached_pam_service: Arc<std::sync::RwLock<Option<String>>>,
+    /// This machine's own random id, stamped into the logins it makes
+    machine_id: String,
 }
 
 pub fn sanitize_roots_json(roots_opt: Option<&str>, role: &str) -> String {
@@ -624,6 +630,7 @@ impl AuthManager {
             jwt_secret.to_string()
         };
 
+        let machine_id = Self::load_machine_id(&conn)?;
         let auth = Self {
             db: Arc::new(Mutex::new(conn)),
             read_pool: Arc::new(Mutex::new(Vec::new())),
@@ -635,6 +642,7 @@ impl AuthManager {
             auth_mode: auth_mode.to_string(),
             pam_service: pam_service.to_string(),
             cached_pam_service: Arc::new(std::sync::RwLock::new(None)),
+            machine_id,
         };
 
         // Seed default admin user if database is empty
@@ -805,6 +813,27 @@ impl AuthManager {
         if let Ok(mut cache) = self.user_scope_cache.lock() {
             cache.clear();
         }
+    }
+
+    /// This machine's random id, made once and kept in the database
+    fn load_machine_id(conn: &Connection) -> Result<String, Box<dyn std::error::Error + Send + Sync>> {
+        let stored: Option<String> = conn.query_row(
+            "SELECT value FROM security_settings WHERE key = 'machine_id'",
+            [],
+            |row| row.get(0),
+        ).optional()?;
+        if let Some(id) = stored.filter(|v| !v.trim().is_empty()) {
+            return Ok(id);
+        }
+        use rand::RngCore;
+        let mut bytes = [0u8; 16];
+        rand::rngs::OsRng.fill_bytes(&mut bytes);
+        let id = hex::encode(bytes);
+        conn.execute(
+            "INSERT INTO security_settings (key, value) VALUES ('machine_id', ?1) ON CONFLICT(key) DO UPDATE SET value = ?1",
+            params![id],
+        )?;
+        Ok(id)
     }
 
     fn session_generation(&self, username: &str) -> Result<i64, Box<dyn std::error::Error + Send + Sync>> {
@@ -1448,6 +1477,7 @@ impl AuthManager {
             shell: user.shell.clone(),
             session_gen: self.session_generation(&user.username)?,
             sid: Some(sid),
+            origin: Some(self.machine_id.clone()),
         };
 
         let token = encode(
@@ -1510,6 +1540,7 @@ impl AuthManager {
             shell: None,
             session_gen: 0,
             sid: None,
+            origin: None,
         };
 
         let raw_token = encode(
@@ -1721,7 +1752,10 @@ impl AuthManager {
             return Err("User account is disabled".into());
         }
         if claims.token_id.is_none() {
-            if claims.session_gen != generation {
+            // A login made by another Fleet machine carries that machine's count; this machine's
+            // count for the same name is unrelated, so only the machine that made it compares
+            let made_here = claims.origin.as_deref().is_none_or(|o| o == self.machine_id);
+            if made_here && claims.session_gen != generation {
                 return Err("Session has ended. Please log in again.".into());
             }
             if let Some(ref sid) = claims.sid {
@@ -3255,6 +3289,33 @@ mod tests {
         assert_eq!(stored(&auth), 0);
         // The same machine keeps the same secret, so logins survive a restart
         assert!(auth.verify_token(&token).is_ok());
+    }
+
+    #[test]
+    fn fleet_logins_ignore_the_other_machines_session_count() {
+        // Two Fleet machines share the signing key but each counts ended sessions on its own
+        let tmp = tempdir().unwrap();
+        let key = "fleet-shared-secret-0123456789abcdef0123";
+        let open = |name: &str| AuthManager::new(&tmp.path().join(name).to_string_lossy(), key, 24, "builtin", "login", "admin", "Main-Admin-Pass-1!").unwrap();
+        let main = open("main.db");
+        let member = open("member.db");
+        assert_ne!(main.machine_id, member.machine_id);
+        // The admin password changed twice on the main machine, never on the member
+        main.update_user_password("admin", "Changed-Pass-2!").unwrap();
+        main.update_user_password("admin", "Changed-Pass-3!").unwrap();
+        let user = main.get_user_by_username("admin").unwrap().unwrap();
+        let token = main.generate_token(&user).unwrap();
+        assert!(main.verify_token(&token).is_ok());
+        assert!(member.verify_token(&token).is_ok(), "the member must accept a current login from the main machine");
+        // The machine that made a login still ends it when the password changes
+        main.update_user_password("admin", "Changed-Pass-4!").unwrap();
+        main.user_status_cache.lock().unwrap().clear();
+        assert!(main.verify_token(&token).is_err());
+        // A login the member made itself still follows the member's own count
+        let own = member.generate_token(&member.get_user_by_username("admin").unwrap().unwrap()).unwrap();
+        member.update_user_password("admin", "Member-Pass-2!").unwrap();
+        member.user_status_cache.lock().unwrap().clear();
+        assert!(member.verify_token(&own).is_err());
     }
 
     #[test]
