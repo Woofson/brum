@@ -940,6 +940,23 @@ pub async fn handle_save_user_preferences(
     Ok(Json(serde_json::json!({ "success": true })))
 }
 
+/// Saves only the settings that changed (#200), so a browser with older copies of other
+/// settings does not put those back.
+pub async fn handle_patch_user_preferences(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+    Json(payload): Json<serde_json::Value>,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    let claims = extract_claims_or_local(&state, &headers)?;
+    let changes = payload
+        .as_object()
+        .ok_or_else(|| (StatusCode::BAD_REQUEST, "Expected an object of changed settings".to_string()))?;
+    state.auth.merge_user_preferences(&claims.sub, changes)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save user preferences: {}", e)))?;
+
+    Ok(Json(serde_json::json!({ "success": true })))
+}
+
 pub async fn handle_reset_user_preferences(
     State(state): State<AppState>,
     headers: HeaderMap,

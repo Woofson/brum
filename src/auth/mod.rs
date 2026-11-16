@@ -2099,6 +2099,39 @@ impl AuthManager {
         Ok(())
     }
 
+    /// Saves only the settings a browser changed (#200): each top-level key in `changes`
+    /// replaces that key in the saved copy, a `null` removes it, and every other key stays as
+    /// it is. Read and write happen under one lock, so two browsers saving at once both count.
+    pub fn merge_user_preferences(&self, username: &str, changes: &serde_json::Map<String, serde_json::Value>) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let current: Option<String> = conn
+            .query_row("SELECT preferences_json FROM user_preferences WHERE username = ?1", params![username], |r| r.get(0))
+            .ok();
+        let mut merged = match current.map(|c| crate::secrets::open_preferences(&c)) {
+            Some(text) => match serde_json::from_str::<serde_json::Value>(&text) {
+                Ok(serde_json::Value::Object(map)) => map,
+                _ => serde_json::Map::new(),
+            },
+            None => serde_json::Map::new(),
+        };
+        for (key, value) in changes {
+            if value.is_null() {
+                merged.remove(key);
+            } else {
+                merged.insert(key.clone(), value.clone());
+            }
+        }
+        let text = serde_json::to_string(&serde_json::Value::Object(merged))?;
+        let now = Utc::now().to_rfc3339();
+        conn.execute(
+            "INSERT INTO user_preferences (username, preferences_json, updated_at)
+             VALUES (?1, ?2, ?3)
+             ON CONFLICT(username) DO UPDATE SET preferences_json = ?2, updated_at = ?3",
+            params![username, crate::secrets::seal_preferences(&text), now],
+        )?;
+        Ok(())
+    }
+
     pub fn reset_user_preferences(&self, username: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         conn.execute(
@@ -3382,6 +3415,27 @@ mod tests {
         // root is an administrator here, but a login that is only a user stays a user
         assert_eq!(member.verify_token(&login("root", "user")).unwrap().role, "user");
         assert_eq!(member.verify_token(&login("root", "admin")).unwrap().role, "admin");
+    }
+
+    #[test]
+    fn saving_only_changed_settings_keeps_the_others() {
+        let tmp = tempdir().unwrap();
+        let path = tmp.path().join("prefs.db").to_string_lossy().to_string();
+        let auth = AuthManager::new(&path, "secret-key-123456789012345678901234", 24, "builtin", "login", "admin", "admin").unwrap();
+        let read = || serde_json::from_str::<serde_json::Value>(&auth.get_user_preferences("bolt").unwrap().unwrap()).unwrap();
+        let changes = |v: serde_json::Value| v.as_object().unwrap().clone();
+
+        // Nothing saved yet: the changes become the saved copy
+        auth.merge_user_preferences("bolt", &changes(serde_json::json!({"theme": "nord", "column_widths": {"name": 300}}))).unwrap();
+        assert_eq!(read(), serde_json::json!({"theme": "nord", "column_widths": {"name": 300}}));
+
+        // Another browser changes only the theme: the column widths stay
+        auth.merge_user_preferences("bolt", &changes(serde_json::json!({"theme": "dracula"}))).unwrap();
+        assert_eq!(read(), serde_json::json!({"theme": "dracula", "column_widths": {"name": 300}}));
+
+        // null removes a setting
+        auth.merge_user_preferences("bolt", &changes(serde_json::json!({"theme": null}))).unwrap();
+        assert_eq!(read(), serde_json::json!({"column_widths": {"name": 300}}));
     }
 
     #[test]

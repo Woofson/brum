@@ -145,7 +145,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/mounts/:id", delete(handle_delete_mount))
         .route("/api/bookmarks", get(handle_list_bookmarks).post(handle_create_bookmark))
         .route("/api/bookmarks/:id", delete(handle_delete_bookmark))
-        .route("/api/user/preferences", get(handle_get_user_preferences).post(handle_save_user_preferences).delete(handle_reset_user_preferences))
+        .route("/api/user/preferences", get(handle_get_user_preferences).post(handle_save_user_preferences).patch(handle_patch_user_preferences).delete(handle_reset_user_preferences))
         // Public Link Sharing & Advanced Sharing Center
         .route("/share/:token", get(handle_public_share_page))
         .route("/api/shares", get(handle_list_shares).post(handle_create_share))

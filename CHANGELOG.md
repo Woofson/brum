@@ -14,6 +14,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Admin Rights in the Terminal Explained (Refs #199)**: The manual now explains why `sudo` does not work in the terminal of the Linux service, how to allow it on a machine without changing Brum's files, how to undo it, and what you give up. Brum stays locked down by default.
 - **Tip When sudo Is Blocked (Refs #199)**: When `sudo` in a Brum terminal stops with "no new privileges", Brum shows a short tip once, with a link to that part of the manual.
 
+### Fixes
+- **Faster Page Loads (Refs #200)**: Every icon redraw asked the icon library to redraw all icons in the page, hundreds of them, including ones already drawn; this happened many times per refresh and while working. Only new icons and icons that changed are drawn now. Each pane's folder was also listed twice on every refresh; it is listed once. Drawing the panes on a refresh now takes a fraction of the time.
+- **No More Theme Flicker on Refresh (Refs #200)**: A refresh showed up to three themes in a row: the one the browser remembered, the standard theme as a stand-in for themes from theme files and custom themes (only known once the machine's theme list arrived, which came last), and finally the right one. The theme list now arrives with your settings, the last theme shown is remembered in full, and the stand-in is never shown. A normal refresh applies the theme once; after choosing another theme in a different browser, it changes once.
+- **Column Widths and Other Settings No Longer Reset (Refs #200, #196)**: Every settings save sent all settings, so a browser tab left open with older column widths put them back the moment any setting was changed there. A save now sends only the settings that changed. Also, when the page could not read your settings from the server on opening, nothing was saved for the rest of the visit; changes made then are now saved.
+
 ## [1.24.1] - 2026-11-16
 
 ### Security

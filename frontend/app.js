@@ -1,5 +1,31 @@
 // Brum Multi-Pane Web Environment - By Woofson
 
+// ---------------- ICONS: DRAW ONLY WHAT IS NEW (#200) ----------------
+// Lucide keeps `data-lucide` on the icons it has drawn, so every lucide.createIcons() call
+// drew every icon in the page again (hundreds, many times per refresh). Only placeholders and
+// icons whose name was changed since they were drawn (play/pause and other swaps) are drawn now.
+(function drawOnlyNewIcons() {
+  if (typeof window === 'undefined' || !window.lucide || typeof window.lucide.createIcons !== 'function') return;
+  const drawIcons = window.lucide.createIcons;
+  window.lucide.createIcons = function (opts = {}) {
+    const root = (opts && opts.root) || document;
+    if (!root || typeof root.querySelectorAll !== 'function') return;
+    let pending = 0;
+    root.querySelectorAll('[data-lucide]').forEach(el => {
+      const name = el.getAttribute('data-lucide');
+      if (el.tagName.toLowerCase() === 'svg' && el.getAttribute('data-lucide-drawn') === name) return;
+      el.setAttribute('data-lucide-pending', name);
+      pending++;
+    });
+    if (!pending) return;
+    drawIcons.call(this, Object.assign({}, opts, { root, nameAttr: 'data-lucide-pending' }));
+    root.querySelectorAll('[data-lucide-pending]').forEach(el => {
+      if (el.tagName.toLowerCase() === 'svg') el.setAttribute('data-lucide-drawn', el.getAttribute('data-lucide'));
+      el.removeAttribute('data-lucide-pending');
+    });
+  };
+})();
+
 // ---------------- BUTTON WIRING (replaces inline handlers, see #152) ----------------
 // Markup names its actions instead of carrying script. <type> is the event (click, keydown...):
 //   data-on-<type>="functionName"       function to call
@@ -2268,10 +2294,20 @@ function renderPaneTabs(paneIndex) {
 }
 
 let _prefSyncDebounceTimer = null;
+// The settings as they are known to be on the server (shaped like getAllUserPreferences()).
+// Saves send only the settings that differ from it, so a tab with older copies of other
+// settings (column widths, the helper bar...) does not put them back (#200, #196).
+let _prefsBaseline = null;
+// Saving is allowed once the server's copy was read, or after reading it failed (then only
+// what changes during this visit is saved)
+let _prefsSaveAllowed = false;
 // This browser sends its settings to the server only after it has read the server's copy.
 // Before that, its own copy may be old (another browser changed things since), and sending it
 // would overwrite the newer settings saved from that other browser.
 let _serverPrefsLoaded = false;
+// True while settings read from the server are applied: every caller draws and lists the
+// panes right afterwards, so the settings only redraw the pane frames (#200)
+let _fullPaneDrawFollows = false;
 
 function getAllUserPreferences() {
   return {
@@ -2468,7 +2504,7 @@ function applyAllUserPreferences(prefs) {
       App.layout = targetLayout;
       updateActiveLayoutUI(targetLayout);
       if (typeof renderAllPanes === 'function') {
-        renderAllPanes();
+        renderAllPanes(_fullPaneDrawFollows);
       }
     }
   }
@@ -2848,7 +2884,7 @@ function applyAllUserPreferences(prefs) {
   updatePaneTitles();
   applyPaneColors();
   if (typeof renderAllPanes === 'function') {
-    renderAllPanes();
+    renderAllPanes(_fullPaneDrawFollows);
   }
 }
 
@@ -2856,36 +2892,89 @@ async function loadUserPreferencesFromServer() {
   try {
     const headers = {};
     const resp = await fetch('/api/user/preferences', { headers });
-    if (!resp.ok) return;
+    if (!resp.ok) {
+      allowSavingChangesOnly();
+      return;
+    }
     const prefs = await resp.json();
     if (!prefs || typeof prefs !== 'object' || Object.keys(prefs).length === 0) {
       // Nothing saved on the server yet (new install or new account): this browser's copy becomes it
       _serverPrefsLoaded = true;
+      _prefsSaveAllowed = true;
+      _prefsBaseline = null;
       queueSaveUserPreferencesToServer();
       return;
     }
 
-    applyAllUserPreferences(prefs);
+    _fullPaneDrawFollows = true;
+    try {
+      applyAllUserPreferences(prefs);
+    } finally {
+      _fullPaneDrawFollows = false;
+    }
+    _prefsBaseline = snapshotUserPreferences();
     _serverPrefsLoaded = true;
+    _prefsSaveAllowed = true;
   } catch (e) {
     console.warn('Could not load user preferences from server:', e);
+    allowSavingChangesOnly();
   }
+}
+
+// The server's copy could not be read: what this browser shows now counts as "unchanged", and
+// only settings changed from here on are saved. Before, nothing at all was saved for the rest
+// of the visit, so changes (column widths and others) were lost on the next refresh (#200).
+function allowSavingChangesOnly() {
+  if (_prefsSaveAllowed) return;
+  try { _prefsBaseline = snapshotUserPreferences(); } catch (_) { return; }
+  _prefsSaveAllowed = true;
+}
+
+// A separate copy: getAllUserPreferences() hands out live objects (column widths and others)
+// that change in place, which would make every change look like no change
+function snapshotUserPreferences() {
+  return JSON.parse(JSON.stringify(getAllUserPreferences()));
+}
+
+// Top-level settings that differ from the server's copy; a removed setting is sent as null
+function changedUserPreferences(current, baseline) {
+  const changes = {};
+  for (const key of Object.keys(current)) {
+    if (JSON.stringify(current[key]) !== JSON.stringify(baseline[key])) changes[key] = current[key] === undefined ? null : current[key];
+  }
+  for (const key of Object.keys(baseline)) {
+    if (!(key in current)) changes[key] = null;
+  }
+  return changes;
 }
 
 function queueSaveUserPreferencesToServer() {
   clearTimeout(_prefSyncDebounceTimer);
-  if (!_serverPrefsLoaded) return;
+  if (!_prefsSaveAllowed) return;
   _prefSyncDebounceTimer = setTimeout(async () => {
     try {
-      const prefs = getAllUserPreferences();
+      // Copied now: changes made while this save is under way must count as unsaved
+      const prefs = snapshotUserPreferences();
       const headers = { 'Content-Type': 'application/json' };
-
-      const res = await fetch('/api/user/preferences', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(prefs)
-      });
+      let res;
+      if (_prefsBaseline) {
+        const changes = changedUserPreferences(prefs, _prefsBaseline);
+        if (Object.keys(changes).length === 0) return;
+        res = await fetch('/api/user/preferences', {
+          method: 'PATCH',
+          headers,
+          body: JSON.stringify(changes)
+        });
+      } else {
+        // Nothing on the server yet: this browser's copy becomes it
+        res = await fetch('/api/user/preferences', {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(prefs)
+        });
+      }
       if (res.ok) {
+        _prefsBaseline = prefs;
         const badge = document.getElementById('cross-device-sync-badge');
         if (badge) {
           badge.textContent = 'Cloud Synced';
@@ -2900,7 +2989,7 @@ function queueSaveUserPreferencesToServer() {
 
 async function saveCurrentWorkspaceAsDefault() {
   try {
-    const prefs = getAllUserPreferences();
+    const prefs = snapshotUserPreferences();
     const headers = { 'Content-Type': 'application/json' };
 
     const res = await fetch('/api/user/preferences', {
@@ -2909,6 +2998,7 @@ async function saveCurrentWorkspaceAsDefault() {
       body: JSON.stringify(prefs)
     });
     if (res.ok) {
+      _prefsBaseline = prefs;
       showToast('All profile settings, themes, columns & workspaces saved to server profile!', 'success');
       const badge = document.getElementById('cross-device-sync-badge');
       if (badge) {
@@ -2931,6 +3021,8 @@ async function resetServerPreferences() {
       headers
     });
     if (res.ok) {
+      // The server's copy is gone: the next save sends this browser's whole copy again
+      _prefsBaseline = null;
       localStorage.removeItem('cd_pane_custom_names');
       localStorage.removeItem('cd_pane_colors');
       localStorage.removeItem('cd_pane_splits');
@@ -3395,6 +3487,9 @@ async function checkAuthAndLoad() {
       // INSTANT UI DISPLAY: Hydrate preferences from server then render panes!
       document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
       document.documentElement.classList.add('auth-ready');
+      // The theme list comes with the machine's settings: fetch it alongside the user's own
+      // settings, so their theme can be shown straight away (#200)
+      const configLoad = loadConfig();
       try {
         await loadUserPreferencesFromServer();
         applyUserHomeToPanes();
@@ -3406,7 +3501,7 @@ async function checkAuthAndLoad() {
 
       // Non-blocking background data hydration
       Promise.allSettled([
-        loadConfig(),
+        configLoad,
         loadSystemUsersGroups(),
         loadAdminSecuritySettings(),
         loadAllFileTags(),
@@ -3445,6 +3540,9 @@ async function checkAuthAndLoad() {
 
       document.documentElement.classList.remove('auth-pending-login', 'auth-pending-lock', 'auth-verifying');
       document.documentElement.classList.add('auth-ready');
+      // The theme list comes with the machine's settings: fetch it alongside the user's own
+      // settings, so their theme can be shown straight away (#200)
+      const configLoad = loadConfig();
       try {
         await loadUserPreferencesFromServer();
         applyUserHomeToPanes();
@@ -3455,7 +3553,7 @@ async function checkAuthAndLoad() {
       }
 
       Promise.allSettled([
-        loadConfig(),
+        configLoad,
         loadSystemUsersGroups(),
         loadAdminSecuritySettings(),
         loadAllFileTags(),
@@ -4109,6 +4207,7 @@ async function loadConfig() {
         }
       } catch (e) {}
 
+      App._themeListLoaded = true;
       populateThemeSelectors();
 
       // Apply theme: localStorage preference or config.toml default_theme
@@ -26384,6 +26483,24 @@ function isThemeLight(themeDef) {
 function applyTheme(themeId, skipSync = false) {
   if (!themeId) themeId = 'amber-charcoal';
   localStorage.setItem('cd_theme', themeId);
+
+  // Themes from theme files and custom themes are only known once this machine's theme list
+  // has arrived. Until then use the copy of the theme shown last time, or leave the colours
+  // alone, so a refresh does not flash a stand-in theme first (#200).
+  const knownList = (App.config?.themes?.themes && Array.isArray(App.config.themes.themes) && App.config.themes.themes.length > 0)
+    ? App.config.themes.themes
+    : defaultThemeList;
+  let resolvedDef = knownList.find(t => t.id === themeId) || null;
+  if (!resolvedDef) {
+    try {
+      const remembered = JSON.parse(localStorage.getItem('cd_theme_def') || 'null');
+      if (remembered && remembered.id === themeId) resolvedDef = remembered;
+    } catch (_) {}
+  }
+  if (!resolvedDef && !App._themeListLoaded) return;
+  if (resolvedDef) {
+    try { localStorage.setItem('cd_theme_def', JSON.stringify(resolvedDef)); } catch (_) {}
+  }
   const sel = document.getElementById('theme-selector');
   const selSettings = document.getElementById('settings-theme-selector');
   if (sel) sel.value = themeId;
@@ -26402,10 +26519,7 @@ function applyTheme(themeId, skipSync = false) {
     queueSaveUserPreferencesToServer();
   }
 
-  const themeList = (App.config?.themes?.themes && Array.isArray(App.config.themes.themes) && App.config.themes.themes.length > 0)
-    ? App.config.themes.themes
-    : defaultThemeList;
-  const themeDef = themeList.find(t => t.id === themeId) || defaultThemeList.find(t => t.id === 'amber-charcoal');
+  const themeDef = resolvedDef || defaultThemeList.find(t => t.id === 'amber-charcoal');
 
   if (themeDef) {
     const isLight = isThemeLight(themeDef);
@@ -26546,6 +26660,9 @@ async function handleLoginSubmit() {
     if (err) err.style.display = 'none';
     if (pInput) pInput.value = '';
 
+    // The theme list comes with the machine's settings: fetch it alongside the user's own
+    // settings, so their theme can be shown straight away (#200)
+    const configLoad = loadConfig();
     try {
       await loadUserPreferencesFromServer();
       applyUserHomeToPanes(true);
@@ -26556,7 +26673,7 @@ async function handleLoginSubmit() {
     }
 
     Promise.allSettled([
-      loadConfig(),
+      configLoad,
       loadSystemUsersGroups(),
       loadAdminSecuritySettings(),
       loadAllFileTags(),
