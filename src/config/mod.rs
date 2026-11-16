@@ -486,6 +486,19 @@ pub fn system_data_dir() -> Option<PathBuf> {
 #[cfg(not(windows))]
 const SYSTEM_DATA_DIR: &str = "/var/lib/brum";
 
+/// Whether the Brum system service is installed on this machine: its unit file or its data
+/// folder exists. Commands that change the service's data must then run as root.
+#[cfg(not(windows))]
+pub fn system_service_installed() -> bool {
+    if in_container() {
+        return false;
+    }
+    ["/usr/lib/systemd/system/brum.service", "/lib/systemd/system/brum.service", "/etc/systemd/system/brum.service"]
+        .iter()
+        .any(|p| Path::new(p).exists())
+        || Path::new(SYSTEM_DATA_DIR).is_dir()
+}
+
 /// Whether this process may create files in a folder
 #[cfg(not(windows))]
 fn is_writable_dir(dir: &Path) -> bool {

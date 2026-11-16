@@ -38,7 +38,7 @@ Sign in as admin, click the machine name at the top left (**Fleet Control**) →
 
 Pick one of these on the NAS:
 
-* **Terminal** (Linux): `sudo brum join http://main-brum:3140 9WBN-C4C7 --name nas`, then restart Brum there.
+* **Terminal** (Linux): `sudo brum join http://main-brum:3140 9WBN-C4C7 --name nas`, then restart Brum there. Without sudo, Brum stops and shows the command to run, because the service's data needs administrator rights. To join a Brum you run yourself (not the service), add `--user`.
 * **PowerShell as administrator** (Windows): `& "C:\Program Files\Brum\brum.exe" join http://main-brum:3140 9WBN-C4C7 --name nas`, then restart Brum there.
 * **Brum's own page** on the NAS (any system, and the way to go for Docker): sign in as admin, **Fleet Control** → **Manage Fleet** → **Join a Fleet**, type the main Brum's address and the code. Brum restarts by itself.
 

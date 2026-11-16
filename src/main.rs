@@ -156,9 +156,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 // brum join <main Brum address> <code> [--name NAME]
                 let rest: Vec<String> = args[i + 1..].to_vec();
                 let mut name: Option<String> = None;
+                let mut for_user = false;
                 let mut positional = Vec::new();
                 let mut k = 0;
                 while k < rest.len() {
+                    if rest[k] == "--user" {
+                        for_user = true;
+                        k += 1;
+                        continue;
+                    }
                     if rest[k] == "--name" && k + 1 < rest.len() {
                         name = Some(rest[k + 1].clone());
                         k += 2;
@@ -168,7 +174,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     k += 1;
                 }
                 if positional.len() < 2 {
-                    eprintln!("Usage: brum join <main Brum address> <pairing code> [--name NAME]");
+                    eprintln!("Usage: brum join <main Brum address> <pairing code> [--name NAME] [--user]");
                     eprintln!("Make the code on the main Brum: Fleet manager -> Add machine.");
                     return Ok(());
                 }
@@ -176,6 +182,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     eprintln!("This machine already uses a shared secret ({}).", config.server.jwt_secret_source);
                     eprintln!("Remove it to join with a code, or give it the Fleet's secret instead.");
                     return Ok(());
+                }
+                #[cfg(not(windows))]
+                {
+                    // SAFETY: geteuid has no preconditions and cannot fail
+                    let is_root = unsafe { libc::geteuid() } == 0;
+                    // A database named by full path (config file or BRUM_DATABASE_PATH) was chosen on purpose
+                    let chosen_db = std::path::Path::new(&config.server.database_path).is_absolute();
+                    if !is_root && config::system_service_installed() && !for_user && !chosen_db {
+                        let name_arg = name.as_deref().map(|n| format!(" --name \"{n}\"")).unwrap_or_default();
+                        eprintln!("The Brum service is installed on this machine. Joining a Fleet changes the service's data, which needs administrator rights.");
+                        eprintln!("Run it again with sudo:");
+                        eprintln!("    sudo brum join {} {}{}", positional[0], positional[1], name_arg);
+                        eprintln!("Then restart the service: sudo systemctl restart brum");
+                        eprintln!("To join the Brum you run yourself instead (not the service), add --user.");
+                        return Ok(());
+                    }
+                    if !is_root {
+                        println!("Joining with the data of the Brum you run yourself (not the system service):");
+                        println!("    {}", config.server.database_path);
+                        println!();
+                    }
                 }
                 if cfg!(windows) && !win_perms::is_elevated() {
                     println!("Not running as administrator, so this joins with the data of your own desktop mode:");
@@ -288,6 +315,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                 println!("    brum shortcut [COMMAND] [--desktop]");
                 println!("    brum reset-admin-password   Give the built-in admin a new password (run on the Brum machine)");
                 println!("    brum join <address> <code>  Join the Fleet of another Brum with the code it shows (Fleet manager -> Add machine)");
+                println!("                                Linux: run with sudo for the system service; --user joins the Brum you run yourself");
                 println!("    brum tray [install|uninstall] [--all-users]   Windows tray icon, and starting it at sign-in");
                 println!();
                 println!("OPTIONS:");
