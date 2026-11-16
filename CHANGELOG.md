@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixes
+- **Database Location Stays in the File When Moving Settings**: "Move them into Brum" dropped lines from `config.toml` that matched Brum's defaults, including where the database is. That default depends on the machine (a `/data` folder makes it `/data/brum.db`), so the settings that only the file may hold, such as the database location, now always stay exactly as written.
+
+## [1.24.0] - 2026-11-16
+
 ### Features
 - **Fleet Machines Added by Address (Refs #195, Step 5)**: Manage Fleet → Add machine lists every machine in this Brum's Fleet: paired ones, ones added by hand, and ones still written in `config.toml` (locked). Admins can add a machine by its address (name, addresses, API token, start folders, colour, groups, read only), change it and remove it there; changes take effect at once. Tokens are stored encrypted and never sent to the browser. "Move them into Brum" also moves `[[fleet.nodes]]` from `config.toml` into this list, exactly as written; an entry that cannot be kept exactly (no address, or the same id or address as a paired machine) stays in the file, with the reason.
 - **Move My Settings into Brum (Refs #195, Step 3)**: When settings are written in `config.toml`, Server Settings offers "Move them into Brum". The settings the page can manage move into Brum's database, and the file keeps only what Brum needs before it starts, plus anything that differs from Brum's defaults that the page does not offer. A copy of the old file is kept next to it (`config.toml.before-move-<date>`). Brum checks beforehand that it works exactly the same afterwards, and changes nothing if it would not, if the file cannot be changed (owned by another account, mounted read-only in Docker), or if the copy cannot be made. Settings whose values cannot be used as written (for example a shared folder that does not exist) stay in the file, with the reason shown. No restart is needed.

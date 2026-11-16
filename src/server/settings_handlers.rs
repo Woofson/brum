@@ -471,9 +471,14 @@ pub async fn handle_move_from_file(State(state): State<AppState>, headers: Heade
     let mut before = saved::compose(Some(&file), &saved_before).map_err(|e| (StatusCode::BAD_REQUEST, format!("The current settings cannot be read: {e}")))?;
     // The machines that move are listed by Brum from now on instead of by the file
     before.fleet.nodes.retain(|n| !machines.iter().any(|m| m.id == n.id));
-    // Whatever is the same as Brum's own default does not need to stay in the file either
+    // Whatever is the same as Brum's own default does not need to stay in the file either,
+    // except the basics that only the file may set: some defaults (such as where the
+    // database is) depend on the machine, so they stay exactly as written
     let target = serde_json::to_value(&before).ok();
     for leaf in leaf_keys(&slim) {
+        if saved::file_only_reason(&leaf).is_some() {
+            continue;
+        }
         let mut trial = slim.clone();
         saved::table_remove(&mut trial, &leaf);
         if saved::compose(Some(&trial), &saved_after).ok().and_then(|c| serde_json::to_value(&c).ok()) == target {
