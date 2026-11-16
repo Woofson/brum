@@ -5,6 +5,11 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changes
+- **Six New Woofsons Themes**: Soft Amber Graphite, Ember Nordic, Iron & Amber, Blued Steel, Iron & Moss and Blued Olive, dark themes in the Woofsons style, now come with Brum.
+
 ## [1.24.1] - 2026-11-16
 
 ### Security

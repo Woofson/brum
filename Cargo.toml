@@ -168,4 +168,5 @@ assets = [
     ["themes/nord.toml", "etc/brum/themes/nord.toml", "644"],
     ["themes/solarized.toml", "etc/brum/themes/solarized.toml", "644"],
     ["themes/tokyo-night.toml", "etc/brum/themes/tokyo-night.toml", "644"],
+    ["themes/woofsons-plus.toml", "etc/brum/themes/woofsons-plus.toml", "644"],
 ]
