@@ -5,6 +5,7 @@ use std::path::{Path, PathBuf};
 use tracing::{info, warn};
 
 pub mod mask;
+pub mod saved;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
@@ -227,6 +228,10 @@ pub struct ServerConfig {
     pub allowed_origins: Vec<String>,
     #[serde(default = "default_true")]
     pub allow_web_config_edit: bool,
+    /// The config file this configuration was read from (None: no file), so settings set
+    /// there can be shown as "set in config file" and left alone by the web page
+    #[serde(skip)]
+    pub config_file: Option<PathBuf>,
 }
 
 impl Default for ServerConfig {
@@ -249,6 +254,7 @@ impl Default for ServerConfig {
             trusted_proxies: Vec::new(),
             allowed_origins: Vec::new(),
             allow_web_config_edit: true,
+            config_file: None,
         }
     }
 }
@@ -1952,6 +1958,8 @@ pub struct ConfigManager;
 
 /// The config file the last load used (None: built-in defaults), for the start-up log line.
 static LOADED_FROM: std::sync::Mutex<Option<PathBuf>> = std::sync::Mutex::new(None);
+/// How many settings saved in Brum the last load used, for the same log line
+static SAVED_USED: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
 impl ConfigManager {
     /// Parses and normalizes configuration string with smart backslash repair fallback
@@ -2076,10 +2084,29 @@ impl ConfigManager {
     /// so start-up writes this once logging is on.
     /// The settings file in use, for the start-up messages
     pub fn settings_location() -> String {
-        match LOADED_FROM.lock().ok().and_then(|l| l.clone()) {
+        let file = match LOADED_FROM.lock().ok().and_then(|l| l.clone()) {
             Some(p) => std::fs::canonicalize(&p).unwrap_or(p).display().to_string(),
             None => "built-in defaults (no config.toml found)".to_string(),
+        };
+        match SAVED_USED.load(std::sync::atomic::Ordering::Relaxed) {
+            0 => file,
+            1 => format!("{file} + 1 setting saved in Brum"),
+            n => format!("{file} + {n} settings saved in Brum"),
         }
+    }
+
+    /// Reads a config file into its sections, repairing unescaped Windows paths like loading does
+    pub fn parse_table_str(content: &str) -> Option<toml::Table> {
+        toml::from_str::<toml::Table>(content).ok().or_else(|| {
+            let (repaired, _) = repair_toml_windows_paths(content).ok()?;
+            toml::from_str::<toml::Table>(&repaired).ok()
+        })
+    }
+
+    /// The sections of the config file a running Brum was started with (None: no file, or it
+    /// cannot be read now)
+    pub fn read_config_file_table(path: Option<&Path>) -> Option<toml::Table> {
+        Self::parse_table_str(&fs::read_to_string(path?).ok()?)
     }
 
     /// Resolves the currently active configuration path, or the preferred writable location if none exists
@@ -2115,6 +2142,7 @@ impl ConfigManager {
         }
 
         let mut config = AppConfig::default();
+        let mut file_table: Option<toml::Table> = None;
 
         for candidate in Self::candidate_config_paths() {
             if candidate.is_file() {
@@ -2123,6 +2151,8 @@ impl ConfigManager {
                     Ok(content) => match Self::parse_config_str(&content) {
                         Ok(parsed) => {
                             config = parsed;
+                            config.server.config_file = Some(candidate.clone());
+                            file_table = Self::parse_table_str(&content);
                             if let Ok(mut l) = LOADED_FROM.lock() {
                                 *l = Some(candidate.clone());
                             }
@@ -2138,6 +2168,9 @@ impl ConfigManager {
                 }
             }
         }
+
+        // Settings saved in Brum (#195) go under the file: anything the file sets wins
+        Self::apply_saved_settings(&mut config, file_table.as_ref());
 
         // Ensure all built-in default themes (e.g. zink, amber-charcoal) are present
         // even if the user has an existing older config.toml file on disk.
@@ -2205,6 +2238,39 @@ impl ConfigManager {
         config.server.database_path = resolve_windows_database_path(&config.server.database_path);
 
         config
+    }
+
+    /// Where the database is, as start-up will decide it (the file, then the environment)
+    fn boot_database_path(config: &AppConfig) -> String {
+        let db = std::env::var("BRUM_DATABASE_PATH")
+            .or_else(|_| std::env::var("CD_DATABASE_PATH"))
+            .or_else(|_| std::env::var("DATABASE_PATH"))
+            .ok()
+            .map(|d| d.trim().to_string())
+            .filter(|d| !d.is_empty())
+            .unwrap_or_else(|| config.server.database_path.clone());
+        resolve_windows_database_path(&db)
+    }
+
+    /// Puts the settings saved in Brum under the config file's. If they cannot be used, Brum
+    /// starts with the file alone and says why.
+    fn apply_saved_settings(config: &mut AppConfig, file_table: Option<&toml::Table>) {
+        SAVED_USED.store(0, std::sync::atomic::Ordering::Relaxed);
+        if config.server.config_file.is_some() && file_table.is_none() {
+            return; // the file was read by repairing it in a way we could not repeat; keep it as is
+        }
+        let saved = saved::read_from_db_file(&Self::boot_database_path(config));
+        if saved.is_empty() {
+            return;
+        }
+        match saved::compose(file_table, &saved) {
+            Ok(mut merged) => {
+                merged.server.config_file = config.server.config_file.clone();
+                *config = merged;
+                SAVED_USED.store(saved.len(), std::sync::atomic::Ordering::Relaxed);
+            }
+            Err(e) => warn!("The settings saved in Brum could not be used ({e}); starting with the config file alone"),
+        }
     }
 
     fn collect_theme_files_sorted(dir: &Path, files: &mut Vec<PathBuf>) {

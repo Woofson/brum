@@ -2063,6 +2063,29 @@ impl AuthManager {
         Ok(())
     }
 
+    /// Server settings saved in Brum instead of config.toml (#195), secrets decrypted
+    pub fn saved_config_settings(&self) -> std::collections::BTreeMap<String, serde_json::Value> {
+        match self.get_read_conn() {
+            Ok(conn) => crate::config::saved::read_from_conn(&conn),
+            Err(_) => Default::default(),
+        }
+    }
+
+    /// Saves or removes (None) several server settings at once: all of them or none
+    pub fn save_config_settings(&self, changes: &[(String, Option<String>)]) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let mut conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        let tx = conn.transaction()?;
+        for (key, value) in changes {
+            let db_key = format!("{}{}", crate::config::saved::KEY_PREFIX, key);
+            match value {
+                Some(v) => tx.execute("INSERT OR REPLACE INTO server_settings (key, value) VALUES (?1, ?2)", params![db_key, v])?,
+                None => tx.execute("DELETE FROM server_settings WHERE key = ?1", params![db_key])?,
+            };
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     pub fn update_security_settings(&self, settings: &SecuritySettings) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
         let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
         conn.execute("INSERT OR REPLACE INTO security_settings (key, value) VALUES ('auto_lock_enabled', ?1)", params![settings.auto_lock_enabled.to_string()])?;

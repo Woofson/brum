@@ -5,6 +5,11 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Features
+- **Server Settings Saved in Brum (Refs #195, Step 1)**: Server settings can now be saved inside Brum (in its database) instead of only in `config.toml`, as the base for an Admin → Server settings page. At start-up Brum takes its defaults, then the settings saved in Brum, then `config.toml` on top: anything written in the file still wins, and environment variables win over both, so existing setups behave exactly as before. Admins read and save them through `/api/admin/server-settings`; values are checked before saving (a port that cannot work, a folder that does not exist), passwords and keys are stored encrypted and never sent back to the browser, and changes take effect when Brum restarts. `allow_web_config_edit = false` blocks it entirely. The database location, the Fleet signing key, the lock switch, switching logins off and anything that names a program to run can only be set in the file. The start-up log line says how many saved settings are in use.
+
 ## [1.23.1] - 2026-11-15
 
 ### Fixes
