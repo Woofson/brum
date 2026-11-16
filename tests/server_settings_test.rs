@@ -188,3 +188,39 @@ fn an_old_full_config_file_works_unchanged() {
     let after = saved::compose(Some(&file), &Default::default()).unwrap();
     assert_eq!(serde_json::to_value(&before).unwrap(), serde_json::to_value(&after).unwrap());
 }
+
+#[tokio::test]
+async fn a_new_port_is_checked_and_tried_out() {
+    let dir = tempdir().unwrap();
+    let b = Brum::start(config(&dir, None)).await;
+
+    // A port another program holds is refused before anything is saved
+    let busy = std::net::TcpListener::bind("0.0.0.0:0").unwrap();
+    let busy_port = busy.local_addr().unwrap().port();
+    let (st, body) = b.save(json!({ "server.port": busy_port, "server.host": "0.0.0.0" })).await;
+    assert_eq!(st, 400, "{body}");
+    assert!(body.contains("cannot be used"), "{body}");
+    drop(busy);
+    // So is an address this machine does not have
+    let (st, body) = b.save(json!({ "server.host": "203.0.113.77" })).await;
+    assert_eq!(st, 400, "{body}");
+
+    // A free port is saved and remembered as something to try out after the restart
+    let free = std::net::TcpListener::bind("127.0.0.1:0").unwrap().local_addr().unwrap().port();
+    let r = b.c.post(b.url()).bearer_auth(&b.token).json(&json!({ "changes": { "server.port": free } })).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let v: Value = r.json().await.unwrap();
+    assert_eq!(v["network_change"]["port"], json!(free));
+    let conn = rusqlite::Connection::open(dir.path().join("brum.db")).unwrap();
+    let trial: String = conn.query_row("SELECT value FROM server_settings WHERE key = 'config_trial'", [], |r| r.get(0)).unwrap();
+    assert!(trial.contains("server.port"), "{trial}");
+
+    // Not running yet (that starts with the restart), and "keep it" clears it
+    let t: Value = b.c.get(format!("{}/trial", b.url())).bearer_auth(&b.token).send().await.unwrap().json().await.unwrap();
+    assert_eq!(t["seconds_left"], Value::Null);
+    let r = b.c.post(format!("{}/keep", b.url())).bearer_auth(&b.token).send().await.unwrap();
+    assert_eq!(r.status().as_u16(), 200);
+    let left: Option<String> = conn.query_row("SELECT value FROM server_settings WHERE key = 'config_trial'", [], |r| r.get(0)).ok();
+    assert_eq!(left, None);
+    assert_eq!(next_start(&dir, None).server.port, free);
+}

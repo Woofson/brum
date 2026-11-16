@@ -68,6 +68,7 @@ const BRUM_ACTION_EVENTS = [
 const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
   .map(t => `[data-on-${t}], [data-${t}-stop], [data-${t}-prevent], [data-${t}-steps]`).join(', ');
 const BRUM_ACTIONS = new Set([
+  'openServerSettingsGroup', 'ssEdit', 'ssEditList', 'ssEditNumber', 'ssHostChoice', 'ssKeepNetwork', 'ssPickFolder', 'ssReset', 'ssRestart', 'ssRootAdd', 'ssRootEdit', 'ssRootRemove', 'ssSave', 'ssSearch', 'ssShowGroup', 'ssUndo',
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
   'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup', 'backupUseProton',
   'openProtonShare', 'protonShareSave', 'protonShareRemove', 'protonShareCopy', 'protonShareTogglePassword',
@@ -10162,6 +10163,7 @@ function switchAdminTab(tabId) {
   if (tabId === 'admin-tab-security') loadAdminSecuritySettings();
   if (tabId === 'admin-tab-activity') loadAdminActivity();
   if (tabId === 'admin-tab-access') loadAccessRules();
+  if (tabId === 'admin-tab-server') loadServerSettings();
 
   if (window.lucide && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
@@ -10178,6 +10180,492 @@ function accessRulesHtml(rules, removable) {
       <span class="acc-who">${escapeHtml(r.who)}</span>
       <span class="acc-src">${r.from_config ? '<span class="acc-badge" title="Change it in config.toml">config.toml</span>' : (removable ? `<button class="btn btn-xs" data-on-click="removeAccessRule" data-click-args="${actionArgs(r.id)}" title="Remove this rule"><i data-lucide="trash-2"></i></button>` : '')}</span>
     </div>`).join('');
+}
+
+// ---------------------------------------------------------------------------------------------
+// Server Settings (#195): server-wide settings in plain words, saved inside Brum. Anything set in
+// config.toml or by an environment variable is shown locked; changes apply when Brum restarts.
+
+const SS_GROUPS = [
+  { id: 'reach', icon: 'globe', title: 'Who can reach this Brum?', desc: 'Where Brum can be opened from, and how long people stay signed in.',
+    keys: ['server.host', 'server.port', 'server.server_name', 'server.session_duration_hours', 'server.upload_max_size_mb', 'server.allowed_origins', 'server.trusted_proxies'] },
+  { id: 'login', icon: 'log-in', title: 'Who can log in?', desc: 'Which accounts can sign in to this Brum.',
+    keys: ['auth.mode', 'auth.pam_service', 'auth.allow_guest'] },
+  { id: 'sso', icon: 'key-round', title: 'Single sign-on', desc: 'Sign in with an account from Authentik, Keycloak, Authelia or a similar service.',
+    keys: ['auth.oidc.enabled', 'auth.oidc.provider_name', 'auth.oidc.issuer_url', 'auth.oidc.client_id', 'auth.oidc.client_secret', 'auth.oidc.redirect_url', 'auth.oidc.scopes', 'auth.oidc.auto_provision', 'auth.oidc.admin_group', 'auth.oidc.default_user_role', 'auth.oidc.default_home_template', 'auth.oidc.force_sso_only', 'auth.oidc.button_icon'] },
+  { id: 'folders', icon: 'folder-tree', title: 'Which folders can people see?', desc: 'The shared folders everyone with access gets, and where personal folders are.',
+    keys: ['storage.roots', 'storage.allow_entire_system', 'server.root_path', 'storage.default_user_home_template', 'storage.auto_create_home_dirs', 'storage.home_fallback_scheme', 'storage.allow_remote_loopback', 'storage.sftp.host_key_checking'] },
+  { id: 'safety', icon: 'shield-check', title: 'Safety', desc: 'What Brum does to keep files from being lost or damaged.',
+    keys: ['paranoid.trash_enabled', 'paranoid.custom_trash_dir', 'paranoid.confirm_delete', 'paranoid.confirm_overwrite', 'paranoid.enabled', 'paranoid.verify_after_transfer', 'paranoid.checksum_algorithm', 'paranoid.atomic_writes', 'paranoid.windows_native_file_ops', 'paranoid.detect_locking_processes'] },
+  { id: 'fleet', icon: 'network', title: 'Several machines', desc: 'Working with the other Brum machines in your Fleet.',
+    keys: ['fleet.enabled', 'fleet.transfer_jobs'] },
+  { id: 'terminal', icon: 'terminal', title: 'Terminal', desc: 'The command line inside Brum.',
+    keys: ['terminal.enabled', 'terminal.allow_roles', 'terminal.allow_virtual_users', 'terminal.drop_privileges'] },
+  { id: 'chewtoys', icon: 'puzzle', title: 'Chewtoys', desc: 'Small add-on apps that run inside Brum.',
+    keys: ['plugins.enabled', 'plugins.allow_user_installs', 'plugins.default_policy', 'plugins.global_whitelist', 'plugins.global_blacklist'] },
+  { id: 'start', icon: 'layout-dashboard', title: 'What everyone sees first', desc: 'How Brum looks for someone who has not changed their own Settings yet.',
+    keys: ['ui.default_layout', 'ui.default_pane_count', 'ui.default_view_mode', 'ui.show_hidden_files', 'ui.window_title', 'ui.login_title', 'desktop.enable_tray'] },
+  { id: 'services', icon: 'plug', title: 'Other services', desc: 'Programs and services Brum works together with.',
+    keys: ['syncthing.enabled', 'syncthing.url', 'syncthing.api_key', 'proton.allow_download', 'notes.notes_folder'] },
+  { id: 'logs', icon: 'scroll-text', title: 'Logs and records', desc: 'What Brum writes down about itself and about who did what.',
+    keys: ['activity.enabled', 'activity.retention_days', 'logging.level', 'logging.file_enabled', 'logging.console_enabled', 'logging.rotation', 'logging.max_files'] },
+];
+
+const SS_TEXT = {
+  'server.host': { label: 'Can be opened from', help: 'Only this computer is the safest choice. Every network lets other devices at home, or on your VPN, open Brum.', choices: { '127.0.0.1': 'Only this computer', '0.0.0.0': 'Every network this machine is on', '__custom': 'One network address of this machine…' } },
+  'server.port': { label: 'Port', help: 'The number at the end of Brum\'s address (http://machine:3140). Change it only if another program needs 3140.' },
+  'server.server_name': { label: 'Name of this machine', help: 'Shown in the header and to the other machines in your Fleet. Empty uses the computer\'s own name.' },
+  'server.session_duration_hours': { label: 'Stay signed in for (hours)', help: 'After this long, people have to sign in again.' },
+  'server.upload_max_size_mb': { label: 'Largest upload (MB)', help: 'The biggest single file that can be uploaded through the browser. 20480 MB is 20 GB.' },
+  'server.allowed_origins': { label: 'Extra web addresses Brum is opened at', help: 'Only needed when Brum is opened through a public name, like https://files.example.com. Home network and VPN addresses already work. One per line.' },
+  'server.trusted_proxies': { label: 'Reverse proxies to trust', help: 'Only needed behind Caddy, Nginx, Traefik or similar: their addresses, so Brum sees who is really connecting. One per line, like 127.0.0.1 or 172.16.0.0/12.' },
+  'auth.mode': { label: 'Accounts that can sign in', help: 'Brum accounts are made in Users & RBAC. Computer accounts are the accounts of this machine (Linux PAM or Windows).', choices: { mixed: 'Brum accounts and this computer\'s accounts', builtin: 'Only Brum accounts', pam: 'Only this computer\'s accounts' } },
+  'auth.pam_service': { label: 'PAM service', help: 'Linux only. Which login rules computer accounts are checked against. "login" is right for almost everyone.' },
+  'auth.allow_guest': { label: 'Let guests look around without signing in', help: 'Guests can only read, never change anything. Leave it off unless you really want that.' },
+  'auth.oidc.enabled': { label: 'Use single sign-on', help: 'Adds a sign-in button for your identity service on the login page.' },
+  'auth.oidc.provider_name': { label: 'Name on the button', help: 'For example Authentik or Keycloak.' },
+  'auth.oidc.issuer_url': { label: 'Issuer address', help: 'From your identity service, like https://auth.example.com/application/o/brum/' },
+  'auth.oidc.client_id': { label: 'Client ID', help: 'From the application you made for Brum in your identity service.' },
+  'auth.oidc.client_secret': { label: 'Client secret', help: 'From the same place. Stored encrypted; it is never shown again.' },
+  'auth.oidc.redirect_url': { label: 'Return address', help: 'Brum\'s address followed by /api/auth/oidc/callback. Enter the same one in your identity service.' },
+  'auth.oidc.scopes': { label: 'What Brum asks for', help: 'Usually openid, profile, email and groups. One per line.' },
+  'auth.oidc.auto_provision': { label: 'Make a Brum account at first sign-in', help: 'Off means an admin has to make the account first.' },
+  'auth.oidc.admin_group': { label: 'Group that makes someone an admin', help: 'People in this group in your identity service become Brum admins.' },
+  'auth.oidc.default_user_role': { label: 'Everyone else becomes', choices: { user: 'A normal user', readonly: 'Read only', admin: 'An admin' } },
+  'auth.oidc.default_home_template': { label: 'Their own folder', help: '{username} is replaced by the account name, like /home/{username}.' },
+  'auth.oidc.force_sso_only': { label: 'Only allow single sign-on', help: 'Hides the username and password form. Make sure single sign-on works before switching this on.' },
+  'auth.oidc.button_icon': { label: 'Icon on the button', help: 'A Lucide icon name, like shield-check or key-round.' },
+  'storage.roots': { label: 'Shared folders', help: 'Folders everyone with access sees in Places, for example a media disk or a shared NAS folder.' },
+  'storage.allow_entire_system': { label: 'Admins can browse the whole machine', help: 'Off limits admins to the shared folders and their own folder too.' },
+  'server.root_path': { label: 'Top folder of the machine', help: 'Where "the whole machine" starts: / on Linux, C:\\ on Windows.' },
+  'storage.default_user_home_template': { label: 'Personal folder for new Brum accounts', help: '{username} is replaced by the account name, like /home/{username} or D:/Users/{username}.' },
+  'storage.auto_create_home_dirs': { label: 'Make personal folders when missing', help: 'Creates someone\'s folder the first time they sign in, if Brum is allowed to.' },
+  'storage.home_fallback_scheme': { label: 'When a personal folder cannot be used', choices: { auto: 'Find the next best folder', roots_only: 'Show only the shared folders', strict: 'Refuse the sign-in' } },
+  'storage.allow_remote_loopback': { label: 'Allow remote connections to this machine itself', help: 'Lets SFTP, WebDAV and similar connections point at 127.0.0.1. Off protects services that only listen locally.' },
+  'storage.sftp.host_key_checking': { label: 'Checking SFTP servers', help: 'How Brum makes sure an SFTP server is the one it claims to be.', choices: { tofu: 'Remember each server the first time (recommended)', strict: 'Only servers already known', auto_accept: 'Do not check (unsafe)' } },
+  'paranoid.trash_enabled': { label: 'Deleted files go to the bin', help: 'Off deletes files for good straight away. People can still change this for themselves in their own Settings.' },
+  'paranoid.custom_trash_dir': { label: 'Bin folder', help: 'Empty uses the system\'s own bin.' },
+  'paranoid.confirm_delete': { label: 'Ask before deleting', help: 'Shows "Are you sure?" before anything is deleted.' },
+  'paranoid.confirm_overwrite': { label: 'Ask before replacing files', help: 'Asks before a copy or move replaces a file with the same name.' },
+  'paranoid.enabled': { label: 'Check copies', help: 'Compares every copied file with the original, so a damaged copy is noticed. Copies take a little longer.' },
+  'paranoid.verify_after_transfer': { label: 'Check after copying between machines', help: 'Also checks files copied to and from other computers.' },
+  'paranoid.checksum_algorithm': { label: 'How copies are checked', choices: { sha256: 'SHA-256 (recommended)', sha1: 'SHA-1 (faster, weaker)', md5: 'MD5 (fastest, weakest)' } },
+  'paranoid.atomic_writes': { label: 'Save files safely', help: 'Writes a file in full before it replaces the old one, so a crash never leaves half a file.' },
+  'paranoid.windows_native_file_ops': { label: 'Use Windows\' own bin and copying', help: 'Windows only. Uses the Recycle Bin and Windows\' own file operations.' },
+  'paranoid.detect_locking_processes': { label: 'Say which program is using a file', help: 'Windows only. When a file cannot be changed, tells you which program has it open.' },
+  'fleet.enabled': { label: 'Work with other Brum machines', help: 'Off hides the Fleet and refuses connections from other machines.' },
+  'fleet.transfer_jobs': { label: 'Copies between machines at the same time', help: 'The others wait their turn. 2 is a good balance.' },
+  'terminal.enabled': { label: 'Allow the terminal', help: 'Off removes the command line for everyone.' },
+  'terminal.allow_roles': { label: 'Roles that may use it', help: 'One per line, like admin. Anyone with the terminal can do anything their account can do on this machine.' },
+  'terminal.allow_virtual_users': { label: 'Brum accounts may use it too', help: 'Brum accounts are not accounts of this machine, so their terminal runs as the account Brum runs as. Leave off unless you trust them fully.' },
+  'terminal.drop_privileges': { label: 'Run as the signed-in person', help: 'When Brum runs as an administrator, the terminal runs as the person\'s own account instead.' },
+  'plugins.enabled': { label: 'Allow Chewtoys', help: 'Off turns all Chewtoys off.' },
+  'plugins.allow_user_installs': { label: 'People can install Chewtoys themselves', help: 'Off means only admins can install them.' },
+  'plugins.default_policy': { label: 'Which Chewtoys are allowed', choices: { allow_all: 'All of them', whitelist: 'Only the ones listed below as allowed', blacklist: 'All except the ones listed below as blocked' } },
+  'plugins.global_whitelist': { label: 'Allowed Chewtoys', help: 'Their ids, one per line. Used with "Only the ones listed".' },
+  'plugins.global_blacklist': { label: 'Blocked Chewtoys', help: 'Their ids, one per line. Used with "All except".' },
+  'ui.default_layout': { label: 'Panel layout', choices: { quad: 'Four panels', triple: 'Three panels', 'dual-vertical': 'Two panels side by side', 'dual-horizontal': 'Two panels above each other', single: 'One panel' } },
+  'ui.default_pane_count': { label: 'Number of panels', help: 'From 1 to 4.' },
+  'ui.default_view_mode': { label: 'How files are listed', choices: { details: 'Details', compact: 'Compact', grid: 'Big icons' } },
+  'ui.show_hidden_files': { label: 'Show hidden files', help: 'Files whose names start with a dot.' },
+  'ui.window_title': { label: 'Browser tab title', help: 'Empty uses Brum\'s own.' },
+  'ui.login_title': { label: 'Login page title', help: 'Empty uses Brum\'s own.' },
+  'desktop.enable_tray': { label: 'Icon next to the clock', help: 'Windows and Linux desktops: a Brum icon in the system tray.' },
+  'syncthing.enabled': { label: 'Use Syncthing', help: 'Shows Syncthing folders and status in Brum.' },
+  'syncthing.url': { label: 'Syncthing address', help: 'Usually http://127.0.0.1:8384' },
+  'syncthing.api_key': { label: 'Syncthing API key', help: 'From Syncthing: Actions → Settings → API Key. Stored encrypted; it is never shown again.' },
+  'proton.allow_download': { label: 'Admins can install the Proton Drive program', help: 'Lets the Install button download it from proton.me.' },
+  'notes.notes_folder': { label: 'Notes folder', help: 'Where Notes keeps its files.' },
+  'activity.enabled': { label: 'Keep an Activity Log', help: 'Writes down who changed which files and settings, and when.' },
+  'activity.retention_days': { label: 'Keep entries for (days)', help: '0 keeps them for good.' },
+  'logging.level': { label: 'How much Brum writes in its log', choices: { error: 'Only errors', warn: 'Errors and warnings', info: 'Normal (recommended)', debug: 'A lot (for finding problems)', trace: 'Everything (very large)' } },
+  'logging.file_enabled': { label: 'Write the log to a file', help: '' },
+  'logging.console_enabled': { label: 'Show the log in the terminal window', help: '' },
+  'logging.rotation': { label: 'Start a new log file', choices: { daily: 'Every day', hourly: 'Every hour', never: 'Never' } },
+  'logging.max_files': { label: 'Old log files to keep', help: '0 keeps them all.' },
+};
+
+const SS = { data: null, edits: {}, group: 'reach', query: '', restartPending: false };
+
+function ssSetting(key) {
+  return (SS.data?.settings || []).find(s => s.key === key);
+}
+
+function ssCurrent(key) {
+  return Object.prototype.hasOwnProperty.call(SS.edits, key) ? SS.edits[key] : ssSetting(key)?.value;
+}
+
+async function loadServerSettings() {
+  const box = document.getElementById('ss-body');
+  if (!box) return;
+  try {
+    const resp = await fetch('/api/admin/server-settings');
+    if (!resp.ok) throw new Error(await resp.text());
+    SS.data = await resp.json();
+    SS.edits = {};
+  } catch (e) {
+    box.innerHTML = `<div class="act-empty act-bad">Could not load the server settings: ${escapeHtml(e.message || String(e))}</div>`;
+    return;
+  }
+  renderServerSettings();
+}
+
+function ssLockedReason(s) {
+  if (!SS.data?.editable) return SS.data?.locked_reason || 'Settings can only be changed in config.toml on this machine.';
+  if (s.source === 'env') return `Set by the environment variable ${s.env_var}, which always wins.`;
+  if (s.source === 'file') return `Set in ${SS.data.config_file || 'config.toml'}, which always wins. Change it there, or remove it from the file to change it here.`;
+  return '';
+}
+
+function ssBadges(s) {
+  const out = [];
+  if (s.source === 'file') out.push(`<span class="ss-badge ss-badge-lock" title="${escapeHtml(ssLockedReason(s))}"><i data-lucide="lock"></i> In config.toml</span>`);
+  if (s.source === 'env') out.push(`<span class="ss-badge ss-badge-lock" title="${escapeHtml(ssLockedReason(s))}"><i data-lucide="lock"></i> ${escapeHtml(s.env_var)}</span>`);
+  if (SS.edits[s.key] === null) out.push('<span class="ss-badge ss-badge-edit">Back to default when saved</span>');
+  else if (Object.prototype.hasOwnProperty.call(SS.edits, s.key)) out.push('<span class="ss-badge ss-badge-edit">Not saved</span>');
+  else if (s.restart_needed) out.push('<span class="ss-badge ss-badge-restart" title="Saved; Brum uses it after a restart"><i data-lucide="rotate-cw"></i> After restart</span>');
+  if (s.source === 'brum' && SS.data?.editable && SS.edits[s.key] !== null) out.push(`<button class="ss-reset" data-on-click="ssReset" data-click-args="${actionArgs(s.key)}" title="Go back to Brum's default">Default</button>`);
+  return out.join('');
+}
+
+function ssControl(s) {
+  const key = s.key;
+  const k = s.kind || {};
+  const v = ssCurrent(key);
+  const text = SS_TEXT[key] || {};
+  const dis = ssLockedReason(s) ? ' disabled' : '';
+  const args = (extra) => actionArgs(key, ...extra);
+  const id = 'ss-' + key.replace(/[^a-z0-9]/gi, '-');
+  if (k.type === 'bool') {
+    return `<label class="ss-switch"><input type="checkbox" id="${id}"${v ? ' checked' : ''}${dis} data-on-change="ssEdit" data-change-args="${escapeHtml(JSON.stringify([key, { $: 'checked' }]))}"><span></span></label>`;
+  }
+  if (k.type === 'choice') {
+    const opts = k.choices.map(c => `<option value="${escapeHtml(c)}"${c === v ? ' selected' : ''}>${escapeHtml(text.choices?.[c] || c)}</option>`).join('');
+    return `<select class="settings-select ss-input" id="${id}"${dis} data-on-change="ssEdit" data-change-args="${escapeHtml(JSON.stringify([key, { $: 'value' }]))}">${opts}</select>`;
+  }
+  if (k.type === 'host') {
+    const known = v === '127.0.0.1' || v === '0.0.0.0';
+    const sel = known ? v : '__custom';
+    const opts = Object.entries(text.choices).map(([c, label]) => `<option value="${c}"${c === sel ? ' selected' : ''}>${escapeHtml(label)}</option>`).join('');
+    return `<div class="ss-host"><select class="settings-select ss-input" id="${id}"${dis} data-on-change="ssHostChoice" data-change-args="${escapeHtml(JSON.stringify([{ $: 'value' }]))}">${opts}</select>
+      <input type="text" class="settings-input ss-input bk-mono" id="${id}-custom" placeholder="192.168.1.20" value="${known ? '' : escapeHtml(v || '')}" style="${known ? 'display:none' : ''}"${dis} data-on-input="ssEdit" data-input-args="${escapeHtml(JSON.stringify([key, { $: 'value' }]))}"></div>`;
+  }
+  if (k.type === 'number') {
+    return `<input type="number" class="settings-input ss-input ss-num" id="${id}" min="${k.min}" max="${k.max}" step="1" value="${escapeHtml(String(v ?? ''))}"${dis} data-on-input="ssEditNumber" data-input-args="${escapeHtml(JSON.stringify([key, { $: 'value' }]))}">`;
+  }
+  if (k.type === 'list') {
+    const lines = Array.isArray(v) ? v.join('\n') : '';
+    return `<textarea class="settings-input ss-input ss-list bk-mono" id="${id}" rows="${Math.min(6, Math.max(2, (Array.isArray(v) ? v.length : 0) + 1))}"${dis} data-on-input="ssEditList" data-input-args="${escapeHtml(JSON.stringify([key, { $: 'value' }]))}">${escapeHtml(lines)}</textarea>`;
+  }
+  if (k.type === 'secret') {
+    const has = (s.value === '********');
+    const typed = Object.prototype.hasOwnProperty.call(SS.edits, key) ? SS.edits[key] : '';
+    return `<input type="password" autocomplete="new-password" class="settings-input ss-input" id="${id}" value="${escapeHtml(typed)}" placeholder="${has ? 'Saved. Type to replace it' : 'Not set'}"${dis} data-on-input="ssEdit" data-input-args="${escapeHtml(JSON.stringify([key, { $: 'value' }]))}">`;
+  }
+  if (k.type === 'folder') {
+    return `<div class="ss-host"><input type="text" class="settings-input ss-input bk-mono" id="${id}" value="${escapeHtml(v || '')}" placeholder="${k.optional ? 'Not set' : ''}"${dis} data-on-input="ssEdit" data-input-args="${escapeHtml(JSON.stringify([key, { $: 'value' }]))}">
+      ${dis ? '' : `<button class="btn btn-sm" data-on-click="ssPickFolder" data-click-args="${actionArgs(id)}" title="Choose a folder"><i data-lucide="folder-open"></i></button>`}</div>`;
+  }
+  if (k.type === 'folders') return ssRootsHtml(s, !!dis);
+  // text, url
+  return `<input type="text" class="settings-input ss-input${k.type === 'url' ? ' bk-mono' : ''}" id="${id}" maxlength="${k.max_length || 2048}" value="${escapeHtml(v ?? '')}"${dis} data-on-input="ssEdit" data-input-args="${escapeHtml(JSON.stringify([key, { $: 'value' }]))}">`;
+}
+
+function ssRootsHtml(s, locked) {
+  const roots = Array.isArray(ssCurrent(s.key)) ? ssCurrent(s.key) : [];
+  const rows = roots.map((r, i) => `
+    <div class="ss-root">
+      <input type="text" class="settings-input bk-mono" id="ss-root-path-${i}" value="${escapeHtml(r.path || '')}" placeholder="Folder, like /srv/media or D:/Media"${locked ? ' disabled' : ''} data-on-input="ssRootEdit" data-input-args="${actionArgs(i, 'path', { $: 'value' })}">
+      ${locked ? '' : `<button class="btn btn-sm" data-on-click="ssPickFolder" data-click-args="${actionArgs('ss-root-path-' + i)}" title="Choose a folder"><i data-lucide="folder-open"></i></button>`}
+      <input type="text" class="settings-input" id="ss-root-name-${i}" value="${escapeHtml(r.name || '')}" placeholder="Name shown in Places"${locked ? ' disabled' : ''} data-on-input="ssRootEdit" data-input-args="${actionArgs(i, 'name', { $: 'value' })}">
+      <label class="ss-ro" title="People can open the files but not change them"><input type="checkbox"${r.read_only ? ' checked' : ''}${locked ? ' disabled' : ''} data-on-change="ssRootEdit" data-change-args="${actionArgs(i, 'read_only', { $: 'checked' })}"> Read only</label>
+      ${locked ? '' : `<button class="btn btn-sm ss-root-del" data-on-click="ssRootRemove" data-click-args="${actionArgs(i)}" title="Remove this shared folder"><i data-lucide="trash-2"></i></button>`}
+    </div>`).join('');
+  return `<div class="ss-roots">${rows || '<div class="ss-empty">No shared folders yet.</div>'}
+    ${locked ? '' : '<button class="btn btn-sm" data-on-click="ssRootAdd"><i data-lucide="plus"></i> Add a shared folder</button>'}</div>`;
+}
+
+function ssRowHtml(s) {
+  const text = SS_TEXT[s.key] || {};
+  const edited = Object.prototype.hasOwnProperty.call(SS.edits, s.key);
+  const wide = ['list', 'folders'].includes(s.kind?.type);
+  return `<div class="ss-row${edited ? ' ss-edited' : ''}${wide ? ' ss-wide' : ''}" data-key="${escapeHtml(s.key)}">
+    <div class="ss-text">
+      <div class="ss-label">${escapeHtml(text.label || s.key)} ${ssBadges(s)}</div>
+      ${text.help ? `<div class="settings-field-hint">${escapeHtml(text.help)}</div>` : ''}
+    </div>
+    <div class="ss-control">${ssControl(s)}</div>
+  </div>`;
+}
+
+function renderServerSettings() {
+  const box = document.getElementById('ss-body');
+  if (!box || !SS.data) return;
+  const d = SS.data;
+  const banners = [];
+  if (d.trial_seconds_left != null) {
+    banners.push(`<div class="ss-banner ss-banner-warn"><i data-lucide="timer"></i><div><strong>Keep the new address?</strong> If nobody keeps it within ${d.trial_seconds_left} seconds, Brum goes back to the previous address and port.</div><button class="btn btn-sm btn-accent" data-on-click="ssKeepNetwork">Keep it</button></div>`);
+  }
+  if (!d.editable) {
+    banners.push(`<div class="ss-banner"><i data-lucide="lock"></i><div>${escapeHtml(d.locked_reason || '')}</div></div>`);
+  } else {
+    const inFile = d.settings.filter(s => s.source === 'file').length;
+    if (inFile) banners.push(`<div class="ss-banner"><i data-lucide="file-lock"></i><div>${inFile} of these settings are written in <span class="bk-mono">${escapeHtml(d.config_file || 'config.toml')}</span>. Those are shown locked: the file always wins.</div></div>`);
+  }
+  const waiting = d.settings.filter(s => s.restart_needed).length;
+  if (waiting && !Object.keys(SS.edits).length) {
+    banners.push(`<div class="ss-banner ss-banner-restart"><i data-lucide="rotate-cw"></i><div>${waiting === 1 ? '1 saved change waits' : `${waiting} saved changes wait`} for Brum to restart.</div><button class="btn btn-sm btn-accent" data-on-click="ssRestart">Restart Brum now</button></div>`);
+  }
+
+  const q = SS.query.trim().toLowerCase();
+  const chips = SS_GROUPS.map(g => `<button class="ss-chip${!q && g.id === SS.group ? ' active' : ''}" data-on-click="ssShowGroup" data-click-args="${actionArgs(g.id)}"><i data-lucide="${g.icon}"></i> ${escapeHtml(g.title)}</button>`).join('');
+
+  let sections;
+  if (q) {
+    const hits = d.settings.filter(s => {
+      const t = SS_TEXT[s.key] || {};
+      return [s.key, t.label, t.help, ...Object.values(t.choices || {})].join(' ').toLowerCase().includes(q);
+    });
+    sections = hits.length
+      ? `<div class="settings-group-card ss-card">${hits.map(ssRowHtml).join('')}</div>`
+      : `<div class="ss-empty">No setting matches "${escapeHtml(SS.query)}".</div>`;
+  } else {
+    const g = SS_GROUPS.find(x => x.id === SS.group) || SS_GROUPS[0];
+    const rows = g.keys.map(ssSetting).filter(Boolean).map(ssRowHtml).join('');
+    sections = `<div class="settings-group-card ss-card"><div class="ss-group-head"><h4 class="settings-section-title"><i data-lucide="${g.icon}"></i> ${escapeHtml(g.title)}</h4><p class="settings-card-desc">${escapeHtml(g.desc)}</p></div>${rows}</div>`;
+  }
+
+
+  const focusId = document.activeElement?.id;
+  const caret = document.activeElement?.selectionStart;
+  box.innerHTML = `${banners.join('')}<div class="ss-chips">${chips}</div>${sections}<div id="ss-footer-slot"></div>`;
+  bindActions(box);
+  if (window.lucide) lucide.createIcons({ root: box });
+  ssRenderFooter();
+  if (focusId) {
+    const el = document.getElementById(focusId);
+    if (el && box.contains(el)) {
+      el.focus();
+      try { if (caret != null && el.setSelectionRange) el.setSelectionRange(caret, caret); } catch (e) {}
+    }
+  }
+}
+
+function ssRenderFooter() {
+  const slot = document.getElementById('ss-footer-slot');
+  if (!slot) return;
+  const n = Object.keys(SS.edits).length;
+  slot.innerHTML = n ? `<div class="ss-footer"><span>${n === 1 ? '1 change' : `${n} changes`} not saved</span><button class="btn btn-sm" data-on-click="ssUndo">Undo</button><button class="btn btn-sm btn-accent" data-on-click="ssSave"><i data-lucide="save"></i> Save</button></div>` : '';
+  bindActions(slot);
+  if (window.lucide) lucide.createIcons({ root: slot });
+}
+
+// While typing only the row's badges and the save bar change, so the cursor stays put
+function ssRefreshRow(key) {
+  const s = ssSetting(key);
+  const row = document.querySelector(`#ss-body .ss-row[data-key="${CSS.escape(key)}"]`);
+  if (!s || !row) return renderServerSettings();
+  row.classList.toggle('ss-edited', Object.prototype.hasOwnProperty.call(SS.edits, key));
+  const label = row.querySelector('.ss-label');
+  if (label) {
+    label.innerHTML = `${escapeHtml((SS_TEXT[key] || {}).label || key)} ${ssBadges(s)}`;
+    bindActions(label);
+    if (window.lucide) lucide.createIcons({ root: label });
+  }
+  ssRenderFooter();
+}
+
+function ssShowGroup(id) {
+  SS.group = id;
+  SS.query = '';
+  const search = document.getElementById('ss-search');
+  if (search) search.value = '';
+  renderServerSettings();
+}
+
+function ssSearch(value) {
+  SS.query = value || '';
+  renderServerSettings();
+}
+
+function ssSameAsSaved(key, value) {
+  return JSON.stringify(ssSetting(key)?.value ?? null) === JSON.stringify(value ?? null);
+}
+
+function ssEdit(key, value) {
+  const s = ssSetting(key);
+  if (s?.kind?.type === 'secret' && value === '') delete SS.edits[key];
+  else if (ssSameAsSaved(key, value)) delete SS.edits[key];
+  else SS.edits[key] = value;
+  ssRefreshRow(key);
+}
+
+function ssEditNumber(key, value) {
+  if (value === '' || isNaN(Number(value))) return;
+  ssEdit(key, Math.round(Number(value)));
+}
+
+function ssEditList(key, value) {
+  const items = String(value || '').split(/\r?\n/).map(x => x.trim()).filter(Boolean);
+  ssEdit(key, items);
+}
+
+function ssHostChoice(choice) {
+  const custom = document.getElementById('ss-server-host-custom');
+  if (choice === '__custom') {
+    if (custom) { custom.style.display = ''; custom.focus(); }
+    return;
+  }
+  if (custom) custom.style.display = 'none';
+  ssEdit('server.host', choice);
+}
+
+function ssRoots() {
+  return JSON.parse(JSON.stringify(Array.isArray(ssCurrent('storage.roots')) ? ssCurrent('storage.roots') : []));
+}
+
+function ssRootEdit(i, field, value) {
+  const roots = ssRoots();
+  if (!roots[i]) return;
+  roots[i][field] = value;
+  ssEdit('storage.roots', roots);
+}
+
+function ssRootAdd() {
+  const roots = ssRoots();
+  roots.push({ path: '', name: '', read_only: false, allowed_roles: [] });
+  ssEdit('storage.roots', roots);
+  renderServerSettings();
+  setTimeout(() => document.getElementById(`ss-root-path-${roots.length - 1}`)?.focus(), 0);
+}
+
+function ssRootRemove(i) {
+  const roots = ssRoots();
+  roots.splice(i, 1);
+  ssEdit('storage.roots', roots);
+  renderServerSettings();
+}
+
+function ssPickFolder(inputId) {
+  // The picker fills the input and fires its input event, which records the edit
+  openSyncFolderPicker(inputId);
+}
+
+function ssUndo() {
+  SS.edits = {};
+  renderServerSettings();
+}
+
+function ssReset(key) {
+  SS.edits[key] = null;
+  renderServerSettings();
+}
+
+async function ssSave() {
+  const changes = { ...SS.edits };
+  if (!Object.keys(changes).length) return;
+  const touchesNetwork = ['server.host', 'server.port'].some(k => k in changes);
+  if (touchesNetwork) {
+    const host = ssCurrent('server.host');
+    const local = ['localhost', '127.0.0.1', '[::1]'].includes(location.hostname);
+    if (host === '127.0.0.1' && !local) {
+      const ok = await showConfirmDialog({
+        title: 'Only this computer?', subtitle: 'You are using Brum from another device',
+        message: 'After the restart Brum can only be opened on the machine it runs on. This browser will no longer reach it. If nobody keeps the change within two minutes, Brum goes back to the current address by itself.',
+        icon: 'alert-triangle', type: 'warning', confirmText: 'Save anyway',
+      });
+      if (!ok) return;
+    }
+  }
+  let data;
+  try {
+    const resp = await fetch('/api/admin/server-settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ changes }) });
+    if (!resp.ok) throw new Error(await resp.text());
+    data = await resp.json();
+  } catch (e) {
+    // Messages start with the setting's own name; show the label people see instead
+    let msg = String(e.message || e);
+    const key = Object.keys(SS_TEXT).sort((a, b) => b.length - a.length).find(k => msg.startsWith(k + ' ') || msg.includes(' ' + k + ' '));
+    if (key) msg = msg.replace(key, `"${SS_TEXT[key].label}"`);
+    showToast(`Not saved: ${msg}`, 'error', 8000);
+    return;
+  }
+  SS.pendingNetwork = data.network_change || SS.pendingNetwork || null;
+  showToast(data.restart_needed ? 'Saved. The changes take effect when Brum restarts.' : (data.message || 'Saved.'), 'success');
+  await loadServerSettings();
+}
+
+async function ssRestart() {
+  const net = SS.pendingNetwork;
+  const ok = await showConfirmDialog({
+    title: 'Restart Brum?', subtitle: 'Saved settings take effect',
+    message: net
+      ? `Brum restarts with its new address (port ${net.port}). Open it there and press "Keep it" within ${Math.round(net.seconds / 60)} minutes, or Brum goes back to the current address by itself. Copies and other tasks in progress are interrupted.`
+      : 'Brum restarts and this page reloads. Copies and other tasks in progress are interrupted.',
+    icon: 'rotate-cw', type: 'warning', confirmText: 'Restart now',
+  });
+  if (!ok) return;
+  try { await fetch('/api/system/restart', { method: 'POST' }); } catch (e) {}
+  showToast('Brum is restarting…', 'info', 6000);
+  const running = SS.data?.running || {};
+  let target = location.href;
+  // Opened straight at Brum's port (no reverse proxy in between): follow a new port
+  if (net && String(location.port || (location.protocol === 'https:' ? 443 : 80)) === String(running.port) && net.port !== running.port) {
+    target = `${location.protocol}//${location.hostname}:${net.port}${location.pathname}`;
+  }
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+  const answers = async () => {
+    try { return (await fetch('api/system/status', { cache: 'no-store' })).ok; } catch (e) { return false; }
+  };
+  const started = Date.now();
+  await sleep(1500);
+  if (target === location.href) {
+    // Same address: wait until Brum answers again
+    while (Date.now() - started < 60000 && !(await answers())) await sleep(1000);
+  } else {
+    // New port: the page may not check another address itself, so wait for this one to go
+    // quiet and give the new one a moment to start
+    while (Date.now() - started < 10000 && (await answers())) await sleep(500);
+    await sleep(2500);
+  }
+  location.href = target;
+}
+
+async function ssKeepNetwork() {
+  try {
+    const resp = await fetch('/api/admin/server-settings/keep', { method: 'POST' });
+    if (!resp.ok) throw new Error(await resp.text());
+    showToast('The new address is kept.', 'success');
+  } catch (e) {
+    showToast(`Could not keep it: ${e.message || e}`, 'error');
+  }
+  SS.pendingNetwork = null;
+  if (document.getElementById('admin-tab-server')?.classList.contains('active')) loadServerSettings();
+}
+
+// After the restart, an admin is asked to keep a new address straight away
+let ssTrialAsked = false;
+async function ssCheckNetworkTrial() {
+  if (ssTrialAsked) return;
+  ssTrialAsked = true;
+  let data;
+  try {
+    const resp = await fetch('/api/admin/server-settings/trial');
+    if (!resp.ok) return;
+    data = await resp.json();
+  } catch (e) { return; }
+  if (data.seconds_left == null) return;
+  const ok = await showConfirmDialog({
+    title: 'Keep the new address?', subtitle: 'Brum restarted with new network settings',
+    message: `You reached Brum at its new address. Keep it? If nobody answers within ${data.seconds_left} seconds, Brum goes back to the previous address and port by itself.`,
+    icon: 'timer', type: 'info', confirmText: 'Keep it', cancelText: 'Not yet',
+  });
+  if (ok) ssKeepNetwork();
+}
+
+function openServerSettingsGroup(id) {
+  SS.group = id;
+  switchAdminTab('admin-tab-server');
 }
 
 async function loadAccessRules() {
@@ -20957,6 +21445,8 @@ function updateHeaderProfile(user) {
 
   // Show/Hide Admin Control Panel item based on role (Admin only)
   const isAdmin = user.role === 'admin';
+  // A new address or port is being tried out: ask an admin to keep it
+  if (isAdmin) ssCheckNetworkTrial();
   const adminItem = document.getElementById('menu-admin-panel-item');
   if (adminItem) {
     adminItem.style.display = isAdmin ? 'flex' : 'none';

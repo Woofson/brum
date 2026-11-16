@@ -2990,6 +2990,7 @@
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-syncthing"]'><i data-lucide="repeat"></i> Syncthing Global</button>
 
           <div class="settings-sidebar-group-title">Security & Config</div>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-server"]'><i data-lucide="sliders-horizontal"></i> Server Settings</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-config"]'><i data-lucide="file-cog"></i> Server config.toml</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-access"]'><i data-lucide="folder-lock"></i> Folder Rules</button>
@@ -3178,6 +3179,17 @@
           </div>
 
           <!-- Admin Tab 4: Security & Integrity Defaults -->
+          <div class="settings-tab-content" id="admin-tab-server">
+            <div class="settings-card-header" style="margin-bottom: 10px;">
+              <div>
+                <h4 class="settings-section-title"><i data-lucide="sliders-horizontal"></i> Server Settings</h4>
+                <p class="settings-card-desc" style="margin-top: 2px;">How this Brum works for everyone who uses it. Changes are saved inside Brum and take effect when it restarts. Your own look and feel is in Settings instead.</p>
+              </div>
+            </div>
+            <input type="search" id="ss-search" class="settings-input ss-search" placeholder="Find a setting…" data-on-input="ssSearch" data-input-args='[{"$": "value"}]'>
+            <div id="ss-body" class="ss-body"></div>
+          </div>
+
           <div class="settings-tab-content" id="admin-tab-access">
             <div class="settings-card-header" style="margin-bottom: 10px;">
               <div>
@@ -3303,73 +3315,15 @@
               </div>
             </div>
 
-            <!-- Card 2: File Integrity & Transaction Safety -->
+            <!-- Card 2: File safety now lives in Server Settings (#195) -->
             <div class="settings-group-card">
               <div class="settings-card-header">
                 <h4 class="settings-section-title">
-                  <i data-lucide="shield-check"></i> File Integrity &amp; Transaction Safety
+                  <i data-lucide="shield-check"></i> File Safety
                 </h4>
               </div>
-              <p class="settings-card-desc">Cryptographic validation and atomic file system operations.</p>
-
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-paranoid-enabled" checked>
-                  <div>
-                    <strong>Enable Strict File Integrity Checks Globally</strong>
-                    <div class="settings-field-hint">Enforces strict SHA-256 validation on all file copy and move operations.</div>
-                  </div>
-                </label>
-              </div>
-
-              <div class="settings-field">
-                <label class="settings-field-label" for="setting-checksum-algo">Integrity Checksum Algorithm:</label>
-                <select id="setting-checksum-algo" class="settings-select">
-                  <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
-                  <option value="md5">MD5 (Legacy Fast)</option>
-                  <option value="sha1">SHA-1</option>
-                </select>
-                <div class="settings-field-hint">Files transferred with integrity checks have their checksum verified upon completion.</div>
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-atomic-writes" checked>
-                  <div>
-                    <strong>Atomic File Writes</strong>
-                    <div class="settings-field-hint">Write to hidden temporary file first, then atomically rename.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-trash-enabled" checked data-on-change="toggleTrashSetting" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong id="admin-setting-trash-title">Safe Trash Bin</strong>
-                    <div class="settings-field-hint" id="admin-setting-trash-hint">Move deleted items to XDG Trash instead of permanent deletion.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="admin-setting-windows-native-ops" checked data-on-change="toggleWindowsNativeOpsSetting" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Windows Native Shell &amp; Recycle Bin</strong>
-                    <div class="settings-field-hint">Use Windows Shell APIs ($Recycle.Bin, SHFileOperation) across Windows drives instead of POSIX trash.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="admin-setting-detect-file-locks" checked data-on-change="toggleDetectFileLocksSetting" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Windows Process Lock Inspection</strong>
-                    <div class="settings-field-hint">Use Windows Restart Manager to report specific locking process names and PIDs on access violations.</div>
-                  </div>
-                </label>
-              </div>
-
-              <div class="settings-field" style="margin-top: 4px;">
-                <label class="settings-field-label" for="setting-custom-trash-dir">Server Custom Trash Directory (Optional):</label>
-                <input type="text" id="setting-custom-trash-dir" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" data-on-change="saveCustomTrashDir" data-change-args='[{"$": "value"}]'>
-              </div>
+              <p class="settings-card-desc">The bin, "Are you sure?" questions, checking copies and safe saving are set for everyone in Server Settings → Safety. People can still switch the bin on or off for themselves in their own Settings.</p>
+              <div><button class="btn btn-sm" data-on-click="openServerSettingsGroup" data-click-args='["safety"]'><i data-lucide="sliders-horizontal"></i> Open Safety settings</button></div>
             </div>
           </div>
 

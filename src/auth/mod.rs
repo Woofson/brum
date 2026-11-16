@@ -2063,6 +2063,12 @@ impl AuthManager {
         Ok(())
     }
 
+    pub fn delete_server_setting(&self, key: &str) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        let conn = self.db.lock().map_err(|_| "DB lock poisoned")?;
+        conn.execute("DELETE FROM server_settings WHERE key = ?1", params![key])?;
+        Ok(())
+    }
+
     /// Server settings saved in Brum instead of config.toml (#195), secrets decrypted
     pub fn saved_config_settings(&self) -> std::collections::BTreeMap<String, serde_json::Value> {
         match self.get_read_conn() {

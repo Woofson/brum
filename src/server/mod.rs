@@ -65,6 +65,8 @@ pub struct AppState {
 }
 
 pub fn create_router(state: AppState) -> Router {
+    // A new address or port saved in Server settings is being tried out (#195)
+    settings_handlers::start_trial_watch(state.clone());
     let cors_state = state.clone();
     let cors = CorsLayer::new()
         .allow_origin(AllowOrigin::predicate(move |origin: &HeaderValue, parts: &axum::http::request::Parts| {
@@ -241,6 +243,8 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/admin/access-rules", get(access_handlers::handle_list_access_rules).post(access_handlers::handle_add_access_rule))
         .route("/api/admin/access-rules/:id", axum::routing::delete(access_handlers::handle_remove_access_rule))
         .route("/api/admin/server-settings", get(settings_handlers::handle_get_server_settings).post(settings_handlers::handle_save_server_settings))
+        .route("/api/admin/server-settings/trial", get(settings_handlers::handle_network_trial))
+        .route("/api/admin/server-settings/keep", post(settings_handlers::handle_keep_network_settings))
         .route("/api/admin/activity/csv", get(activity_handlers::handle_download_activity))
         .route("/api/tools/sync/runs", get(handle_list_backup_runs))
         .route("/api/tools/sync/runs/:id/files", get(handle_backup_run_files))

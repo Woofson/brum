@@ -825,17 +825,8 @@ pub async fn handle_reload_config(
     })))
 }
 
-pub async fn handle_system_restart(
-    State(state): State<AppState>,
-    headers: HeaderMap,
-) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
-    if !state.config.server.standalone {
-        let claims = extract_claims_or_local(&state, &headers)?;
-        if claims.role != "admin" && claims.role != "Admin" {
-            return Err((StatusCode::FORBIDDEN, "Only administrators can restart the server".to_string()));
-        }
-    }
-
+/// Starts Brum again in a moment (the same way it was started), so a reply can still be sent
+pub fn restart_brum_soon() {
     tokio::spawn(async {
         tokio::time::sleep(tokio::time::Duration::from_millis(300)).await;
         #[cfg(unix)]
@@ -868,6 +859,20 @@ pub async fn handle_system_restart(
             }
         }
     });
+}
+
+pub async fn handle_system_restart(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<serde_json::Value>, (StatusCode, String)> {
+    if !state.config.server.standalone {
+        let claims = extract_claims_or_local(&state, &headers)?;
+        if claims.role != "admin" && claims.role != "Admin" {
+            return Err((StatusCode::FORBIDDEN, "Only administrators can restart the server".to_string()));
+        }
+    }
+
+    restart_brum_soon();
 
     Ok(Json(serde_json::json!({
         "success": true,

@@ -31,7 +31,7 @@ pub enum Kind {
     OptText(usize),
     /// One of these words
     Choice(&'static [&'static str]),
-    /// An address Brum listens on: an IP address or a host name
+    /// An address Brum listens on (an IP address)
     Host,
     /// A web address (http:// or https://), or empty
     Url,
@@ -436,13 +436,10 @@ pub fn validate(spec: &Spec, v: &Value) -> Result<Value, String> {
             }
         }
         Kind::Host => {
-            let s = one_line(v, 253)?;
-            let ok = s.parse::<IpAddr>().is_ok()
-                || (!s.is_empty() && s.chars().all(|c| c.is_ascii_alphanumeric() || c == '.' || c == '-'));
-            if ok {
-                Ok(Value::String(s))
-            } else {
-                Err("must be an IP address (0.0.0.0 for every network, 127.0.0.1 for this computer only) or a host name".into())
+            let s = one_line(v, 64)?;
+            match s.parse::<IpAddr>() {
+                Ok(_) => Ok(Value::String(s)),
+                Err(_) => Err("must be an IP address: 0.0.0.0 for every network, 127.0.0.1 for this computer only, or one of this machine's addresses".into()),
             }
         }
         Kind::Url => {
