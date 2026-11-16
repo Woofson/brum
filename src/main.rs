@@ -173,6 +173,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     positional.push(rest[k].clone());
                     k += 1;
                 }
+                // --user only matters on Linux, where the system service needs sudo
+                #[cfg(windows)]
+                let _ = for_user;
                 if positional.len() < 2 {
                     eprintln!("Usage: brum join <main Brum address> <pairing code> [--name NAME] [--user]");
                     eprintln!("Make the code on the main Brum: Fleet manager -> Add machine.");

@@ -933,6 +933,19 @@ pub fn is_local_absolute_path(path: &str) -> bool {
     Path::new(path.trim()).is_absolute()
 }
 
+/// Windows: whether a path is inside the Windows folder, where Brum never makes personal folders
+fn inside_windows_folder(path: &str) -> bool {
+    #[cfg(windows)]
+    {
+        std::env::var("SystemRoot").map(|root| crate::config::path_is_inside(path, &root)).unwrap_or(false)
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = path;
+        false
+    }
+}
+
 pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) -> Option<String> {
     let scheme = state.config.storage.home_fallback_scheme.to_lowercase();
     let is_admin = claims.role.eq_ignore_ascii_case("admin");
@@ -971,7 +984,7 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
         if candidate_path.is_dir() {
             return Some(candidate);
         }
-        if state.config.storage.auto_create_home_dirs && candidate_path.is_absolute() {
+        if state.config.storage.auto_create_home_dirs && candidate_path.is_absolute() && !inside_windows_folder(&candidate) {
             let _ = std::fs::create_dir_all(candidate_path);
             if candidate_path.is_dir() {
                 return Some(candidate);

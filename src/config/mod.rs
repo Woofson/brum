@@ -955,11 +955,9 @@ impl Default for StorageConfig {
 fn default_user_home_template() -> String {
     #[cfg(windows)]
     {
-        if let Ok(userprofile) = std::env::var("USERPROFILE") {
-            let parent = Path::new(&userprofile).parent().unwrap_or(Path::new("C:\\Users"));
-            return format!("{}/{{username}}", parent.to_string_lossy().replace('\\', "/"));
-        }
-        "C:/Users/{username}".to_string()
+        let drive = std::env::var("SystemDrive").unwrap_or_else(|_| "C:".to_string());
+        let users = windows_users_dir(std::env::var("USERPROFILE").ok().as_deref(), std::env::var("SystemRoot").ok().as_deref(), &drive);
+        format!("{users}/{{username}}")
     }
     #[cfg(not(windows))]
     {
@@ -969,6 +967,30 @@ fn default_user_home_template() -> String {
             "/home/{username}".to_string()
         }
     }
+}
+
+/// The folder that holds people's folders on Windows, worked out from Brum's own user folder
+/// (`C:\\Users\\bolt` gives `C:/Users`). The Windows service runs as SYSTEM, whose folder is inside
+/// the Windows folder (`C:\\Windows\\system32\\config\\systemprofile`): then `<drive>/Users` is used.
+#[cfg_attr(not(windows), allow(dead_code))]
+fn windows_users_dir(userprofile: Option<&str>, system_root: Option<&str>, system_drive: &str) -> String {
+    let fallback = format!("{}/Users", system_drive.trim_end_matches(['\\', '/']));
+    let Some(profile) = userprofile.map(str::trim).filter(|p| !p.is_empty()) else { return fallback };
+    if system_root.is_some_and(|root| path_is_inside(profile, root)) {
+        return fallback;
+    }
+    let profile = profile.replace('\\', "/");
+    match profile.trim_end_matches('/').rsplit_once('/') {
+        Some((parent, _)) if !parent.is_empty() && !parent.ends_with(':') => parent.to_string(),
+        _ => fallback,
+    }
+}
+
+/// Whether a Windows path is the folder `dir` or inside it (letter case and `/` or `\\` ignored)
+pub fn path_is_inside(path: &str, dir: &str) -> bool {
+    let norm = |p: &str| p.trim().replace('/', "\\").trim_end_matches('\\').to_lowercase();
+    let (path, dir) = (norm(path), norm(dir));
+    !dir.is_empty() && (path == dir || path.starts_with(&format!("{dir}\\")))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
@@ -2700,6 +2722,25 @@ impl ConfigManager {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn windows_personal_folders_never_go_inside_the_windows_folder() {
+        use super::{path_is_inside, windows_users_dir};
+        let root = Some(r"C:\Windows");
+        // The service runs as SYSTEM: its own folder is inside the Windows folder
+        assert_eq!(windows_users_dir(Some(r"C:\Windows\system32\config\systemprofile"), root, "C:"), "C:/Users");
+        assert_eq!(windows_users_dir(Some(r"c:\windows\System32\Config\systemprofile\"), root, "C:"), "C:/Users");
+        // Started by a person: the folder next to theirs
+        assert_eq!(windows_users_dir(Some(r"C:\Users\terje"), root, "C:"), "C:/Users");
+        assert_eq!(windows_users_dir(Some(r"D:\Profiles\terje"), root, "C:"), "D:/Profiles");
+        // Nothing usable
+        assert_eq!(windows_users_dir(None, root, "C:"), "C:/Users");
+        assert_eq!(windows_users_dir(Some(r"C:\"), root, "C:"), "C:/Users");
+        assert!(path_is_inside(r"C:/Windows/system32/config/bolt", r"C:\Windows"));
+        assert!(path_is_inside(r"C:\WINDOWS", r"C:\Windows\"));
+        assert!(!path_is_inside(r"C:\WindowsApps\x", r"C:\Windows"));
+        assert!(!path_is_inside(r"C:\Users\bolt", r"C:\Windows"));
+    }
+
     #[cfg(not(windows))]
     #[test]
     fn old_home_items_move_one_by_one() {

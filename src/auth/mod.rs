@@ -1818,9 +1818,10 @@ impl AuthManager {
         }
         #[cfg(windows)]
         {
-            // Without a sign-in Windows cannot tell whether the account is an administrator here,
-            // so it counts as a user until it signs in on this machine once
-            Some(("user".to_string(), windows::resolve_windows_home_dir(username)))
+            // The account must exist here. Without a sign-in Windows cannot tell whether it is an
+            // administrator here, so it counts as a user until it signs in on this machine once.
+            let home = windows::lookup_windows_account(username)?;
+            Some(("user".to_string(), home))
         }
     }
 

@@ -108,6 +108,71 @@ pub fn resolve_windows_home_dir(username: &str) -> String {
     format!("{}\\Users\\{}", sys_drive, clean_user)
 }
 
+/// Looks up a user account of this Windows machine (local or domain) by name, without its
+/// password. Returns its profile folder as Windows records it, or the usual `C:\\Users\\<name>`
+/// when it has never signed in here. `None` when no such user exists; groups and built-in names
+/// such as SYSTEM are not user accounts and count as missing.
+#[cfg(windows)]
+pub fn lookup_windows_account(username: &str) -> Option<String> {
+    use windows_sys::Win32::Foundation::LocalFree;
+    use windows_sys::Win32::Security::Authorization::ConvertSidToStringSidW;
+    use windows_sys::Win32::Security::{LookupAccountNameW, SidTypeUser, SID_NAME_USE};
+    use windows_sys::Win32::System::Registry::{RegGetValueW, HKEY_LOCAL_MACHINE, RRF_RT_REG_SZ};
+
+    let name = username.trim();
+    if name.is_empty() {
+        return None;
+    }
+    let wide_name = to_wide_null(name);
+    let mut sid = vec![0u8; 256];
+    let mut sid_len = sid.len() as u32;
+    let mut domain = vec![0u16; 256];
+    let mut domain_len = domain.len() as u32;
+    let mut kind: SID_NAME_USE = 0;
+    // SAFETY: every buffer is passed with its real size; Windows writes no more than that
+    let found = unsafe {
+        LookupAccountNameW(std::ptr::null(), wide_name.as_ptr(), sid.as_mut_ptr() as _, &mut sid_len, domain.as_mut_ptr(), &mut domain_len, &mut kind)
+    };
+    if found == 0 || kind != SidTypeUser {
+        return None;
+    }
+
+    // The profile folder: HKLM\...\ProfileList\<SID>\ProfileImagePath
+    let mut sid_text_ptr: *mut u16 = std::ptr::null_mut();
+    // SAFETY: sid holds the SID written above; Windows allocates the text, freed with LocalFree
+    let sid_text = unsafe {
+        if ConvertSidToStringSidW(sid.as_mut_ptr() as _, &mut sid_text_ptr) == 0 || sid_text_ptr.is_null() {
+            None
+        } else {
+            let mut len = 0;
+            while *sid_text_ptr.add(len) != 0 {
+                len += 1;
+            }
+            let text = String::from_utf16_lossy(std::slice::from_raw_parts(sid_text_ptr, len));
+            LocalFree(sid_text_ptr as _);
+            Some(text)
+        }
+    };
+    if let Some(sid_text) = sid_text {
+        let key = to_wide_null(&format!("SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\ProfileList\\{sid_text}"));
+        let value = to_wide_null("ProfileImagePath");
+        let mut buf = vec![0u16; 1024];
+        let mut bytes = (buf.len() * 2) as u32;
+        // SAFETY: buf is passed with its size in bytes; REG_EXPAND_SZ values come back expanded
+        let rc = unsafe {
+            RegGetValueW(HKEY_LOCAL_MACHINE, key.as_ptr(), value.as_ptr(), RRF_RT_REG_SZ, std::ptr::null_mut(), buf.as_mut_ptr() as _, &mut bytes)
+        };
+        if rc == 0 {
+            let len = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+            let path = String::from_utf16_lossy(&buf[..len]);
+            if !path.trim().is_empty() {
+                return Some(path);
+            }
+        }
+    }
+    Some(resolve_windows_home_dir(name))
+}
+
 #[cfg(windows)]
 fn to_wide_null(s: &str) -> Vec<u16> {
     s.encode_utf16().chain(std::iter::once(0)).collect()
