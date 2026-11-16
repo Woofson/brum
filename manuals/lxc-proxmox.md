@@ -164,7 +164,7 @@ files.lan.local {
 ## Multi-User Management in LXC
 
 ### Linux System Users (PAM Mode)
-If PAM authentication is enabled in `/etc/brum/config.toml`, any Linux user created in the container can log in directly:
+When **Accounts that can sign in** includes this computer's accounts (the default; **Server Settings → Who can log in?**), any Linux user created in the container can log in directly:
 
 ```bash
 # Add Linux system user

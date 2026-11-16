@@ -73,7 +73,7 @@ brum.exe --uninstall-service
 ```
 
 ### Windows Service Logging & Configuration:
-* **Service Config**: `config.toml` in the install folder (e.g. `C:\Program Files\Brum\config.toml`). See [Which config.toml is used](#which-configtoml-is-used).
+* **Settings**: in Brum itself, **Admin Control Panel → Server Settings**, kept in the database. `config.toml` in the install folder (e.g. `C:\Program Files\Brum\config.toml`) holds only what Brum needs before it starts; a setting written there wins over Server Settings. See [Which config.toml is used](#which-configtoml-is-used).
 * **Database & Auth**: `%PROGRAMDATA%\Brum\brum.db`. This shared data folder is open only to the service and administrators. Versions before 1.21.1 kept the service's database in the install folder; Brum moves it here, with its key file, first-login note and Proton files, on the first start as the service or administrator.
 * **Desktop mode** started by a user without administrator rights keeps its own data in that user's `%APPDATA%\Brum\` instead.
 * **Event Logging**: SCM lifecycle events and errors are recorded directly in the Windows Application Event Log (`eventvwr.msc`).
@@ -112,6 +112,8 @@ Brum reads the **first** of these that exists and ignores the rest:
 
 The background service runs as the Windows system account, whose settings folder is `C:\Windows\System32\config\systemprofile\AppData\Roaming\brum\`. In practice the service uses the copy in the install folder. If an edit seems to be ignored, look for a copy higher up this list. The log shows which file was loaded (`Loading master configuration: ...`).
 
+Settings changed in **Server Settings** are kept in Brum's database, so this matters only for the few settings written in the file. Older installs have a long `config.toml`; **Server Settings → Move them into Brum** moves its settings into Brum and keeps a copy of the old file. Only the service and administrators may change the file in `C:\Program Files\Brum`, so do that from Brum running as the service.
+
 ### Logging in with Windows accounts
 With `mode = "mixed"` (the default), Windows accounts can log in with their Windows password:
 * **Local accounts**: the account name, e.g. `alice`, or `.\alice` for this computer only.
@@ -148,7 +150,7 @@ It shows your own desktop mode when that is running, otherwise the Windows servi
   brum tray uninstall [--all-users]  # stop starting it at sign-in
   ```
 * `brum --minimized` starts desktop mode without opening the browser, with the tray icon. Its menu then says **Quit Brum**, which ends desktop mode.
-* `enable_tray = false` in the `[desktop]` section of `config.toml` switches the tray icon off.
+* **Icon next to the clock** in **Server Settings → What everyone sees first** switches the tray icon off (or `enable_tray = false` under `[desktop]` in `config.toml`).
 
 ---
 

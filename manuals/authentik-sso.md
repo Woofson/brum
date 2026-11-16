@@ -43,7 +43,7 @@ sequenceDiagram
    - **Authorization flow**: Choose your default authorization flow (e.g., `default-provider-authorization-implicit-consent`).
    - **Client type**: `Confidential`
    - **Client ID**: Leave the auto-generated string or enter a custom one (e.g. `brum-sso`).
-   - **Client Secret**: Copy this secret — you will need it for `config.toml`.
+   - **Client Secret**: Copy this secret — you will need it in Brum.
    - **Redirect URIs / Allowed Callback URLs**:
      ```text
      https://files.example.com/api/auth/oidc/callback
@@ -102,15 +102,24 @@ To give certain users **Superadmin** access in Brum automatically:
 
 ## 3. Configuring Brum
 
-You can configure Brum using `config.toml` (or via Docker Environment Variables).
+Set it up in Brum itself, in `config.toml`, or with Docker environment variables. A value in `config.toml` wins over Server Settings, and an environment variable wins over both.
 
-### Option A: Configuration via `config.toml`
+### Option A: In Brum (Server Settings)
+
+1. Open the **Admin Control Panel** → **Server Settings** → **Single sign-on**.
+2. Switch on **Use single sign-on**, and fill in **Issuer address**, **Client ID**, **Client secret** and **Return address** (`https://files.company.com/api/auth/oidc/callback`, the same as in Authentik).
+3. Set **Group that makes someone an admin** to your Authentik admin group (for example `brum-admins`), and choose what everyone else becomes.
+4. **Save**, then **Restart Brum now**.
+
+The client secret is stored encrypted and never shown again. Leave **Only allow single sign-on** off until you have signed in with Authentik once.
+
+### Option B: Configuration via `config.toml`
 
 Add or update the `[auth.oidc]` section in your `config.toml`:
 
 ```toml
 [auth]
-backend = "mixed" # Allows both local admin login and SSO
+mode = "mixed" # Brum accounts and this computer's accounts can still log in next to SSO
 
 [auth.oidc]
 enabled = true
@@ -132,7 +141,7 @@ button_icon = "shield-check" # Icon on login button ("shield-check", "key-round"
 
 ---
 
-### Option B: Configuration via Docker / Environment Variables
+### Option C: Configuration via Docker / Environment Variables
 
 If deploying Brum via Docker Compose or Kubernetes, you can configure SSO entirely via environment variables:
 
@@ -160,10 +169,7 @@ services:
 
 ## 4. Verification & Testing
 
-1. Restart or start Brum:
-   ```bash
-   cargo run
-   ```
+1. Restart Brum (**Restart Brum now** in Server Settings, or restart the service or container).
 2. Open Brum in your browser (`http://localhost:3140` or your domain).
 3. On the login screen, you will now see:
    ```
@@ -184,7 +190,7 @@ services:
 
 ### 1. Error: `redirect_uri_mismatch`
 - **Cause**: The redirect URL configured in Authentik does not match the URL Brum is sending.
-- **Fix**: Verify that the URL in Authentik > Provider > Redirect URIs matches `redirect_url` in `config.toml` exactly (including `http://` vs `https://`, domain, port, and trailing path `/api/auth/oidc/callback`).
+- **Fix**: Verify that the URL in Authentik > Provider > Redirect URIs matches Brum's **Return address** (`redirect_url`) exactly (including `http://` vs `https://`, domain, port, and trailing path `/api/auth/oidc/callback`).
 
 ### 2. Reverse Proxy & HTTPS Headers (Nginx / Traefik / Caddy)
 If Brum is running behind a reverse proxy, ensure your proxy passes standard forwarding headers:
@@ -194,7 +200,7 @@ proxy_set_header X-Forwarded-Host $host;
 proxy_set_header X-Forwarded-Proto $scheme;
 proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 ```
-If `redirect_url` is left blank in `config.toml`, Brum automatically reconstructs the callback URL from these headers.
+If the **Return address** (`redirect_url`) is left blank, Brum automatically reconstructs the callback URL from these headers.
 
 ### 3. Docker Internal Networking
 If Brum and Authentik are in the same Docker network, ensure Brum can resolve Authentik's public or internal hostname. You can test connectivity from inside the container:
@@ -203,7 +209,7 @@ curl -I https://auth.company.com/application/o/brum/.well-known/openid-configura
 ```
 
 ### 4. Direct SSO Bypass (`force_sso_only = true`)
-When `force_sso_only = true` is enabled in `config.toml`, visiting Brum automatically redirects unauthenticated users to Authentik without displaying the local username/password form. If you ever need to access the local admin account when SSO is forced, open:
+When **Only allow single sign-on** (`force_sso_only`) is on, visiting Brum automatically redirects unauthenticated users to Authentik without displaying the local username/password form. If you ever need to access the local admin account when SSO is forced, open:
 ```text
 https://files.example.com/?local=1
 ```

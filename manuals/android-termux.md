@@ -144,25 +144,28 @@ nohup brum --host 0.0.0.0 --port 3140 > /dev/null 2>&1 &
 
 ---
 
-## 6. Configuring Android Storage Roots in `config.toml`
+## 6. Android Folders in Places
 
-Customize the pre-configured bookmarks and storage roots in `~/.config/brum/config.toml` for Android:
+Put the phone's folders in **Places** for everyone: **Admin Control Panel → Server Settings → Which folders can people see? → Shared folders → Add a shared folder**, for example:
+
+| Name | Folder |
+| :--- | :--- |
+| Internal Storage | `/sdcard` |
+| Downloads | `/data/data/com.termux/files/home/storage/downloads` |
+| Photos (DCIM) | `/data/data/com.termux/files/home/storage/dcim` |
+| Documents | `/data/data/com.termux/files/home/storage/documents` |
+| Termux Home | `/data/data/com.termux/files/home` |
+
+Save and **Restart Brum now**. The same in `~/.config/brum/config.toml` (a value there wins over Server Settings), with the Termux shell for the terminal, which can only be set in the file:
 
 ```toml
-[server]
-host = "0.0.0.0"
-port = 3140
-default_path = "/data/data/com.termux/files/home/storage/shared"
+[[storage.roots]]
+name = "Internal Storage"
+path = "/sdcard"
 
-[storage]
-# Pre-configure Android directories in Places & Favorites menu
-roots = [
-    { name = "Internal Storage", path = "/sdcard" },
-    { name = "Downloads", path = "/data/data/com.termux/files/home/storage/downloads" },
-    { name = "Photos (DCIM)", path = "/data/data/com.termux/files/home/storage/dcim" },
-    { name = "Documents", path = "/data/data/com.termux/files/home/storage/documents" },
-    { name = "Termux Home", path = "/data/data/com.termux/files/home" }
-]
+[[storage.roots]]
+name = "Downloads"
+path = "/data/data/com.termux/files/home/storage/downloads"
 
 [terminal]
 default_shell = "/data/data/com.termux/files/usr/bin/bash"

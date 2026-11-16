@@ -157,5 +157,5 @@ In addition to color palettes, Brum supports:
 * **Custom UI Gaps**: Configurable pane and tool gap spacing (`gap = "4px"`).
 * **Border Radius**: Rounding tokens (`radius = "6px"`).
 * **Custom Folder Icon Colors**: Per-theme folder accents (`folder_color`).
-* **Window Title Templates**: Configurable header document titles via `config.toml` (`[ui] title_template = "{path} - Brum"`).
+* **Window Title Templates**: Configurable header document titles via `config.toml` (`[ui] document_title_template = "{path} - Brum"`), or per person in Settings.
 

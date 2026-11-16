@@ -1,270 +1,311 @@
-# Configuration Guide (`config.toml`)
+# Settings and Configuration
 
-Brum loads configuration in a single sub-millisecond pass without directory fragmentation.
-
----
-
-## Configuration File Locations
-
-Brum discovers its configuration in the following order of precedence:
-1. **Command-Line Option**: `--config /path/to/config.toml` *(Explicit override)*
-2. **User Configuration**:
-   - Linux/macOS: `~/.config/brum/config.toml`
-   - Windows: `%APPDATA%\Brum\config.toml` *(e.g. `C:\Users\<User>\AppData\Roaming\Brum\config.toml`)*
-3. **System-Wide Configuration**:
-   - Linux/macOS: `/etc/brum/config.toml`
-   - Windows: `%PROGRAMDATA%\Brum\config.toml` *(e.g. `C:\ProgramData\Brum\config.toml` for Windows Service)*
-4. **Local Directory Fallback**: `./config.toml`
-5. **Custom Themes**: `~/.config/brum/themes/*.toml`, `/etc/brum/themes/*.toml`, `%PROGRAMDATA%\Brum\themes\*.toml`
-6. **Environment Variables**: Overrides prefixed with `BRUM_` (e.g. `BRUM_PORT=3140`, `BRUM_OIDC_ENABLED=true`). The older `CD_` names still work for the server settings below; `BRUM_` wins if both are set
+You do not need to edit any file to set Brum up. Almost everything is set inside Brum, in plain words. This page explains where each kind of setting lives, how to change it, and what is still in `config.toml` for those who want it.
 
 ---
 
-## Complete `config.toml` Reference
+## Where Settings Live
+
+| What | Where | Who |
+| :--- | :--- | :--- |
+| How Brum works for everyone: who can reach it, who can log in, which folders people see, safety, the Fleet and more | **Admin → Server Settings**, saved in Brum's database | Admins |
+| Your own look and feel: theme, layout, icons, keys | **Settings** (the gear), per person | Everyone |
+| What Brum needs before it can start: where its database is, and a few settings that are deliberately kept out of the page | **`config.toml`** | Whoever runs the machine |
+| Settings for containers and services | **Environment variables** (`BRUM_PORT`, `BRUM_JWT_SECRET`, …) | Whoever runs the machine |
+
+When the same setting is set in more than one place, this order decides (the last one wins):
+
+1. Brum's built-in default
+2. Server Settings
+3. `config.toml`
+4. An environment variable
+
+So a setting written in `config.toml` always wins over Server Settings, and the page shows it locked, with the reason. Setups managed by hand, or by tools such as Ansible, keep working exactly as before.
+
+---
+
+## Server Settings
+
+Open the **Admin Control Panel** (avatar menu) → **Server Settings**.
+
+* **Groups**: the settings are grouped by question: *Who can reach this Brum?*, *Who can log in?*, *Single sign-on*, *Which folders can people see?*, *Safety*, *Several machines*, *Terminal*, *Chewtoys*, *What everyone sees first*, *Other services* and *Logs and records*. Every setting says what it does. **Find a setting…** searches all of them.
+* **Changing**: switches, choices in words, a folder picker for folders, and a list editor for shared folders. Changes collect in a bar at the bottom with **Undo** and **Save**. Values are checked before anything is saved: a folder that does not exist, a port that cannot work or a badly written address is refused with a plain message, and nothing is saved.
+* **When changes apply**: when Brum restarts. Saved changes are marked **After restart**, and **Restart Brum now** restarts it from the page (copies and other tasks in progress are interrupted).
+* **Badges**:
+  * **In config.toml** (lock): set in the file, which wins. Change it there, or remove it from the file to change it here.
+  * **BRUM_…** (lock): set by that environment variable, which wins.
+  * **Default**: changed here; click it to go back to Brum's default.
+* **Passwords and keys** (single sign-on secret, Syncthing API key) are stored encrypted and never shown again; the field says **Saved. Type to replace it**.
+* **Admins only**. Every change is written to the **Activity Log**, with who made it.
+
+### Changing the Address or Port
+
+*Can be opened from* and *Port* decide how Brum is reached, so a mistake could lock everyone out. Brum protects against that:
+
+1. Before saving, Brum checks that the address belongs to this machine and that the port is free.
+2. After **Restart Brum now**, the page follows Brum to the new port (when you open Brum directly at its port; behind a reverse proxy the page simply reloads).
+3. Brum asks **Keep the new address?** Press **Keep it** within **two minutes**. If nobody does, for example because Brum can no longer be reached, Brum goes back to the previous address and port by itself and restarts.
+
+A change saved without restarting at once is simply used the next time Brum starts.
+
+### Settings That Stay in `config.toml`
+
+Some settings cannot be changed in the page, on purpose:
+
+| Setting | Why |
+| :--- | :--- |
+| `[server]` `database_path` | Brum needs it to find its database, where the other settings are kept |
+| `[server]` `allow_web_config_edit` | It decides whether settings may be changed in the page at all (see below) |
+| `[server]` `jwt_secret`, `jwt_secret_file` | The shared Fleet signing key; kept out of the database |
+| `[server]` `enable_auth` | Switching logins off from a web page is too easy to do by mistake |
+| `[auth]` `default_admin_user`, `default_admin_pass` | They only matter the very first time Brum starts |
+| `[terminal]` `default_shell`, `user_shells`; `[proton]` `cli_path` | They name programs to run |
+| `[plugins]` `directory`, `user_directory` | They decide where Chewtoys are loaded from |
+| `[logging]` `directory` | Brum needs it before it starts |
+
+**Settings only in the file**: `allow_web_config_edit = false` (or `BRUM_ALLOW_WEB_CONFIG_EDIT=false`) locks Server Settings and the web editor for `config.toml`. The page then shows the settings but cannot change them, for machines managed only over SSH or by configuration tools.
+
+---
+
+## Moving Settings from an Older `config.toml`
+
+Brum 1.23 and older shipped a long `config.toml` with nearly every setting in it. Those settings all show as locked in Server Settings, because the file wins. To manage them in the page instead:
+
+1. Open **Server Settings**. The note at the top says how many settings are written in the file.
+2. Click **Move them into Brum**.
+
+What happens:
+
+* The settings the page can manage move into Brum's database, exactly as they were written.
+* `config.toml` keeps only what Brum needs before it starts, plus anything that differs from Brum's defaults that the page does not offer (for example hand-written Fleet machines or Folder rules). Lines that only repeat Brum's defaults are left out.
+* A copy of the file as it was is kept next to it: `config.toml.before-move-<date>`.
+* Brum works exactly as before, and nothing needs a restart. Brum checks this before changing anything.
+
+Nothing is changed when:
+
+* Brum is not allowed to change the file: it may run as a different account than the file's owner, or the file may be mounted read-only (Docker). Make the file writable for Brum, or edit it by hand.
+* A setting's value cannot be used as it is written, for example a shared folder that does not exist. That setting stays in the file; Brum lists it with the reason, and moves the others.
+
+In Docker, the bundled file lives inside the container; the moved settings are kept in the database on your `/data` volume, so they survive updates of the container.
+
+---
+
+## The `config.toml` File
+
+### Where Brum Looks
+
+Brum uses the first file it finds:
+
+1. The file named by the environment variable `BRUM_CONFIG` (also `CD_CONFIG`, `CONFIG_PATH`, `CONFIG_FILE`)
+2. Your settings folder: `~/.config/brum/config.toml` (Linux), `%APPDATA%\brum\config.toml` (Windows)
+3. Your local data folder: `~/.local/share/brum/config.toml` (Linux), `%LOCALAPPDATA%\brum\config.toml` (Windows)
+4. Next to the program: `config.toml` or `brum.toml` (portable use, and the Windows installer's `C:\Program Files\Brum\config.toml`)
+5. The current folder: `./brum.toml`, `./config.toml`
+6. `/data/config.toml`, then `/etc/brum/config.toml` (packages and Docker)
+
+Without a file, Brum uses its built-in defaults and Server Settings. The log line at start-up says which file is used, and how many settings saved in Brum are in use.
+
+Custom themes are read from `themes` folders next to these (`~/.config/brum/themes/*.toml`, `/etc/brum/themes/*.toml`, `%LOCALAPPDATA%\brum\themes\*.toml`).
+
+### The Short File New Installs Get
 
 ```toml
-# ==============================================================================
-# Brum Master Configuration (v1.23.1)
-# ==============================================================================
-
-# --- Core Server Settings ---
 [server]
-host = "0.0.0.0"                 # "0.0.0.0" (all interfaces), "127.0.0.1" (local-only), or specific overlay IP (e.g. "100.64.0.1")
-port = 3140                      # Brum default port
-root_path = "/"                  # Root filesystem path ("/" on Linux, "C:\\" on Windows)
-upload_max_size_mb = 20480       # Max file upload size in MB (20 GB)
-enable_auth = true               # Enable authentication (automatically disabled in --standalone desktop mode). Off is only allowed on 127.0.0.1 or with trusted_proxies set
-session_duration_hours = 72      # JWT session expiry duration in hours
-database_path = "brum.db"        # SQLite local database
-server_name = ""                 # Friendly node name; also matches WebSocket/CORS origins with/without http:// or https://
-allow_web_config_edit = true     # Web Configuration Editor toggle in Settings (sensitive secrets masked as ********)
-# jwt_secret = "..."             # Master cluster signing key (prefer a secret file or BRUM_JWT_SECRET in /etc/brum/brum.env)
-# jwt_secret_file = "/etc/brum/jwt.secret"  # Read the signing key from this file (chmod 600); see Shared Cluster Secret
+database_path = "brum.db"        # Where Brum keeps its database
+allow_web_config_edit = true     # false: settings only in this file
+# jwt_secret_file = "/etc/brum/jwt.secret"
+# host = "0.0.0.0"               # Also possible here; a value here wins over Server Settings
+# port = 3140
 
-# --- Trusted Reverse Proxies ---
-# CIDRs or IP addresses of reverse proxies (Caddy, Nginx, Traefik, HAProxy, Cloudflare Tunnel, Tailscale Funnel)
-# Forwarded headers (X-Forwarded-For, X-Forwarded-Host, X-Real-IP) are only honored from these IPs.
-trusted_proxies = [
-    # "127.0.0.1",
-    # "::1",
-    # "10.0.0.0/8",
-    # "172.16.0.0/12",
-    # "192.168.0.0/16",
-    # "100.64.0.0/10",           # RFC 6598 CGNAT / Tailscale / NetBird
-]
+[plugins]
+directory = "/etc/brum/plugins"
+user_directory = "~/.config/brum/plugins"
+```
 
-# --- Allowed CORS & WebSocket Origins ---
-# Origins permitted for the Web Terminal (Bite!), remote fleet tunnels, and API calls.
-# Brum automatically permits loopback, *.local, *.lan, *.home.arpa, RFC 1918 LANs, and 100.64.0.0/10 overlay IPs.
-# For custom public FQDNs or MagicDNS domains, explicitly add them:
-allowed_origins = [
-    # "https://brum.tailnet-name.ts.net",
-    # "https://*.ts.net",
-    # "https://*.netbird.cloud",
-    # "https://files.homelab.internal",
-    # "http://100.*:*",
-]
+Any setting from the tables below can be added, with the name in the *In config.toml* column; it then wins over Server Settings. Windows paths are easiest in single quotes: `path = 'D:\Media'`.
 
-# --- Authentication & Access Control ---
-[auth]
-mode = "mixed"                   # Options: "mixed" (PAM + Built-in), "builtin", "pam", "none"
-pam_service = "login"            # Linux PAM service name
-allow_guest = false              # Allow anonymous guest read-only access
-default_admin_user = "admin"
-default_admin_pass = "brum"      # Initial password for fresh DB only (generates random 20-char password if left as "brum" or blank)
+### Editing the File in Brum
 
-# --- OpenID Connect (OIDC / SSO) ---
-[auth.oidc]
-enabled = false
-provider_name = "Authentik"      # Display name on login button
-issuer_url = ""                  # e.g. "https://auth.homelab.lan/application/o/brum/"
-client_id = ""
-client_secret = ""
-redirect_url = ""                # e.g. "https://brum.homelab.lan/api/auth/oidc/callback"
-scopes = ["openid", "profile", "email", "groups"]
-auto_provision = true
-admin_group = "brum-admins"
-default_user_role = "user"
-default_home_template = "/home/{username}"
-force_sso_only = false
-button_icon = "shield-check"
+**Admin → Server config.toml** shows the file in an editor. Passwords and keys (`jwt_secret`, `default_admin_pass`, `client_secret`, …) are shown as `********`; leaving `********` in place keeps the stored value when you save. Brum checks the file before saving, repairs Windows paths written with single backslashes, and reminds you that most changes take effect after a restart. `allow_web_config_edit = false` makes it read-only.
 
-# --- Storage Roots & Filesystem Sandboxing ---
-[storage]
-allow_entire_system = true
-allow_remote_loopback = false
-default_user_home_template = "/home/{username}"
-home_fallback_scheme = "auto"    # "auto", "roots_only", "strict"
-auto_create_home_dirs = true
+---
 
-# Storage Roots: Explicit allowed volumes and mountpoints
-# [[storage.roots]]
-# id = "storage"
-# name = "Mass Storage"
-# path = "/mnt/storage"
-# read_only = false
-# allowed_roles = ["admin", "user"]
+## All Server Settings
 
-# [[storage.roots]]
-# id = "backups"
-# name = "Backups (Read-Only)"
-# path = "/mnt/backups"
-# read_only = true
+Each setting as it is called in Server Settings, its name in `config.toml`, and Brum's default.
 
+### Who can reach this Brum?
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Can be opened from | `[server]` `host` | Every network this machine is on (`0.0.0.0`) |
+| Port | `[server]` `port` | `3140` |
+| Name of this machine | `[server]` `server_name` | empty |
+| Stay signed in for (hours) | `[server]` `session_duration_hours` | `72` |
+| Largest upload (MB) | `[server]` `upload_max_size_mb` | `20480` |
+| Extra web addresses Brum is opened at | `[server]` `allowed_origins` | none |
+| Reverse proxies to trust | `[server]` `trusted_proxies` | none |
+
+### Who can log in?
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Accounts that can sign in | `[auth]` `mode` | Brum accounts and this computer's accounts (`mixed`) |
+| PAM service | `[auth]` `pam_service` | `login` |
+| Let guests look around without signing in | `[auth]` `allow_guest` | off |
+
+### Single sign-on
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Use single sign-on | `[auth.oidc]` `enabled` | off |
+| Name on the button | `[auth.oidc]` `provider_name` | `Authentik` |
+| Issuer address | `[auth.oidc]` `issuer_url` | empty |
+| Client ID | `[auth.oidc]` `client_id` | empty |
+| Client secret | `[auth.oidc]` `client_secret` | empty |
+| Return address | `[auth.oidc]` `redirect_url` | empty |
+| What Brum asks for | `[auth.oidc]` `scopes` | `openid`, `profile`, `email`, `groups` |
+| Make a Brum account at first sign-in | `[auth.oidc]` `auto_provision` | on |
+| Group that makes someone an admin | `[auth.oidc]` `admin_group` | `brum-admins` |
+| Everyone else becomes | `[auth.oidc]` `default_user_role` | A normal user (`user`) |
+| Their own folder | `[auth.oidc]` `default_home_template` | as above |
+| Only allow single sign-on | `[auth.oidc]` `force_sso_only` | off |
+| Icon on the button | `[auth.oidc]` `button_icon` | `shield-check` |
+
+### Which folders can people see?
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Shared folders | `[storage]` `roots` | none |
+| Admins can browse the whole machine | `[storage]` `allow_entire_system` | on |
+| Top folder of the machine | `[server]` `root_path` | / (C:\ on Windows) |
+| Personal folder for new Brum accounts | `[storage]` `default_user_home_template` | C:/Users/{username} on Windows, /data/users/{username} where /data exists (Docker), otherwise /home/{username} |
+| Make personal folders when missing | `[storage]` `auto_create_home_dirs` | on |
+| When a personal folder cannot be used | `[storage]` `home_fallback_scheme` | Find the next best folder (`auto`) |
+| Allow remote connections to this machine itself | `[storage]` `allow_remote_loopback` | off |
+| Checking SFTP servers | `[storage.sftp]` `host_key_checking` | Remember each server the first time (recommended) (`tofu`) |
+
+### Safety
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Deleted files go to the bin | `[paranoid]` `trash_enabled` | on |
+| Bin folder | `[paranoid]` `custom_trash_dir` | empty (the system's bin) |
+| Ask before deleting | `[paranoid]` `confirm_delete` | on |
+| Ask before replacing files | `[paranoid]` `confirm_overwrite` | on |
+| Check copies | `[paranoid]` `enabled` | on |
+| Check after copying between machines | `[paranoid]` `verify_after_transfer` | on |
+| How copies are checked | `[paranoid]` `checksum_algorithm` | SHA-256 (recommended) (`sha256`) |
+| Save files safely | `[paranoid]` `atomic_writes` | on |
+| Use Windows' own bin and copying | `[paranoid]` `windows_native_file_ops` | on |
+| Say which program is using a file | `[paranoid]` `detect_locking_processes` | on |
+
+### Several machines
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Work with other Brum machines | `[fleet]` `enabled` | on |
+| Copies between machines at the same time | `[fleet]` `transfer_jobs` | `2` |
+
+### Terminal
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Allow the terminal | `[terminal]` `enabled` | on |
+| Roles that may use it | `[terminal]` `allow_roles` | `admin`, `root` |
+| Brum accounts may use it too | `[terminal]` `allow_virtual_users` | off |
+| Run as the signed-in person | `[terminal]` `drop_privileges` | on |
+
+### Chewtoys
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Allow Chewtoys | `[plugins]` `enabled` | on |
+| People can install Chewtoys themselves | `[plugins]` `allow_user_installs` | off |
+| Which Chewtoys are allowed | `[plugins]` `default_policy` | All of them (`allow_all`) |
+| Allowed Chewtoys | `[plugins]` `global_whitelist` | `*` |
+| Blocked Chewtoys | `[plugins]` `global_blacklist` | none |
+
+### What everyone sees first
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Panel layout | `[ui]` `default_layout` | Two panels side by side (`dual-vertical`) |
+| Number of panels | `[ui]` `default_pane_count` | `2` |
+| How files are listed | `[ui]` `default_view_mode` | Details (`details`) |
+| Show hidden files | `[ui]` `show_hidden_files` | on |
+| Browser tab title | `[ui]` `window_title` | empty |
+| Login page title | `[ui]` `login_title` | empty (Brum's own) |
+| Icon next to the clock | `[desktop]` `enable_tray` | on |
+
+### Other services
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Use Syncthing | `[syncthing]` `enabled` | on when Brum finds Syncthing on the machine |
+| Syncthing address | `[syncthing]` `url` | `http://127.0.0.1:8384` |
+| Syncthing API key | `[syncthing]` `api_key` | found from Syncthing's own settings when possible |
+| Admins can install the Proton Drive program | `[proton]` `allow_download` | on |
+| Notes folder | `[notes]` `notes_folder` | `~/Notes` |
+
+### Logs and records
+
+| Setting | In config.toml | Default |
+| :--- | :--- | :--- |
+| Keep an Activity Log | `[activity]` `enabled` | on |
+| Keep entries for (days) | `[activity]` `retention_days` | `90` |
+| How much Brum writes in its log | `[logging]` `level` | Normal (recommended) (`info`) |
+| Write the log to a file | `[logging]` `file_enabled` | on |
+| Show the log in the terminal window | `[logging]` `console_enabled` | on |
+| Start a new log file | `[logging]` `rotation` | Every day (`daily`) |
+| Old log files to keep | `[logging]` `max_files` | `14` |
+
+> Configs written before Brum 1.17 use `[notedog]` instead of `[notes]`. It is still read.
+
+---
+
+## Settings Only in `config.toml`
+
+Besides the settings listed under [Settings That Stay in `config.toml`](#settings-that-stay-in-configtoml), these are set in the file (or elsewhere in Brum, as noted):
+
+```toml
 [storage.sftp]
-host_key_checking = "tofu"       # "tofu" (Trust On First Use), "strict", "auto_accept"
-# known_hosts_file = "~/.ssh/known_hosts"
+# known_hosts_file = "~/.ssh/known_hosts"   # Where SFTP server keys are remembered
 
-# --- Multi-Node Fleet Management ---
-[fleet]
-enabled = true
-transfer_jobs = 2                # Copies between Fleet machines running at the same time; others wait their turn
-
+# Hand-written Fleet machines. Machines added with Fleet → Add machine are kept in Brum instead.
 # [[fleet.nodes]]
 # id = "homelab-nas"
-# name = "Homelab NAS (Tailscale)"
-# url = "http://100.64.0.15:3140"
-# token = ""                       # Leave empty for shared BRUM_JWT_SECRET cluster federation; or provide a static API token
-# start_path = "/mnt/storage"      # Initial path (auto-syncs from config unless overridden by user in Fleet Manager)
+# name = "Homelab NAS"
+# url = "http://100.64.0.15:3140"   # or urls = ["http://a:3140", "http://b:3140"]
+# token = ""                        # empty: the shared signing secret; or an API token from that machine
+# start_path = "/mnt/storage"
 # read_only = false
 # color_accent = "#f59e0b"
-# tags = ["homelab", "nas", "tailscale"]
-
-# One machine, several systems or addresses (e.g. a dual-boot box with a hostname per system)
-# [[fleet.nodes]]
-# id = "griffon"
-# name = "Griffon"
-# urls = ["http://griffon:3140", "http://wingriff:3140"]   # Tried in order; the first that answers is used
-# [fleet.nodes.start_paths]                                # Start folder for the system the machine reports
+# tags = ["homelab", "nas"]
+# [fleet.nodes.start_paths]         # Start folder per system the machine reports
 # linux = "/home/bolt"
 # windows = 'C:\Users\bolt'
 
-# --- Modular Chewtoys & Plugins ---
-[plugins]
-enabled = true
-directory = "/etc/brum/plugins"
-user_directory = "~/.config/brum/plugins" # Auto-expands leading tilde (~) to user's home directory
-allow_user_installs = false
-default_policy = "allow_all"     # "allow_all", "whitelist", "blacklist"
-global_whitelist = ["*"]
-global_blacklist = []
+# Folder rules (also in Admin → Folder Rules)
+# [[access.rules]]
+# path = "/srv/media"
+# access = "read"
 
-# --- Logging & Diagnostics ---
-[logging]
-level = "info"                   # "trace", "debug", "info", "warn", "error"
-file_enabled = true
-directory = ""                   # Empty defaults to /var/log/brum or ~/.local/share/brum/logs
-rotation = "daily"               # "daily", "hourly", "never"
-max_files = 14
-console_enabled = true
-
-# --- User Interface & Panels ---
-
-[activity]
-enabled = true                   # Record who changed which files (Admin Panel → Activity Log)
-retention_days = 90              # Remove entries older than this (0 keeps them for good)
+[themes]
+default_theme = "amber-charcoal"    # Theme for people who have not chosen one
 
 [ui]
-default_pane_count = 2           # 1 to 4
-default_layout = "dual-vertical" # "single", "dual-vertical", "dual-horizontal", "triple", "quad"
-show_hidden_files = true
-default_view_mode = "details"    # "details", "compact", "grid"
+show_hostname_badge = true          # The machine name in the header
+hostname_badge = ""                 # Its text (empty: the machine's name)
+hostname_color = "slate"            # amber, emerald, sky, purple, rose, orange, cyan, slate
+hostname_style = "text"             # text, subtle, solid, outline, pill, glow
+hostname_icon = "none"              # server, hard-drive, cpu, terminal, cloud, shield, box, home, globe, radio, none
+hostname_size = "md"                # sm, md, lg
 show_global_refresh = false
-show_hostname_badge = true
-hostname_badge = ""
-hostname_color = "slate"
-hostname_style = "text"
-hostname_icon = "none"
-hostname_size = "md"
-window_title = ""
 
-# --- Web Terminal (Bite!) & PTY Security ---
-[terminal]
-enabled = true
-allow_roles = ["admin", "root"]
-allow_virtual_users = false
-drop_privileges = true
-# default_shell = "/bin/bash"
-
-# --- Desktop Mode & Tray Icon ---
-[desktop]
-enable_tray = true               # Windows: show the Brum tray icon (brum tray, and desktop mode with --minimized)
-
-# --- Color Themes & Aesthetics ---
-[themes]
-default_theme = "amber-charcoal" # "amber-charcoal", "zink", "catppuccin-mocha", "nord", "gruvbox", etc.
-
-# --- Paranoid File Integrity & Safety ---
-[paranoid]
-enabled = true
-checksum_algorithm = "sha256"
-verify_after_transfer = true
-atomic_writes = true
-trash_enabled = true
-confirm_delete = true
-confirm_overwrite = true
-windows_native_file_ops = true
-detect_locking_processes = true
-
-# --- Syncthing P2P Integration ---
-[syncthing]
-enabled = true
-url = "http://127.0.0.1:8384"
-api_key = ""
-
-# --- Notes & Markdown Studio ---
-[notes]
-notes_folder = "~/Notes"
-
-# --- Proton Drive (see proton-drive.md) ---
-[proton]
-allow_download = true   # admins may install Proton's official program from proton.me
-cli_path = ""           # a program to use instead of searching for one
+# Right-click actions, "Open with" rules and global bookmarks have built-in defaults;
+# add [[custom_actions]], [[open_with]] or [[bookmarks]] entries to replace them.
 ```
-
-> Configs written before Brum 1.17 use `[notedog]` for this section. It is still read, so there is no need to change it.
-
----
-
-## Filesystem Sandboxing & Storage Roots
-
-By setting `allow_entire_system = false`, Brum enforces strict sandboxing:
-* Users cannot navigate outside their configured storage roots or personal `$HOME`.
-* Directory traversal attacks (`../`) are safely rejected and sanitized at the kernel VFS layer.
-* Read-only flags (`read_only = true`) prevent accidental deletions, writes, or moves.
-
----
-
-## Automated SemVer Build Metadata
-
-Brum automatically embeds full build metadata at compile time adhering to **SemVer 2.0.0 (Section 10)**:
-* Query build details via CLI: `brum --version` or `brum.exe -v`
-  * Example output: `Brum v1.23.1 (build #419 · commit 8f42092 · 2026-09-30 14:00:00 UTC · x86_64-pc-windows-gnu)`
-* Query status and build info via REST API: `GET /api/system/status` or `GET /api/health`
-* Inspect build metadata in the UI: Open **Settings (Tab 10: About)** or the standalone **About Brum** modal to view the build number (`#419`), git commit hash, and UTC compilation timestamp.
-
----
-
-## Instant 0ms Startup & Cache Optimizations
-
-Brum achieves instantaneous UI rendering and directory browsing through:
-1. **Optimistic Local VFS Pre-Rendering**: Panes render immediately using fast cache metadata while asynchronous re-validation occurs in the background.
-2. **State Persistence**: When `startup_mode = "last_state"`, active panel tabs and directory paths restore seamlessly without UI flicker.
-3. **Remote Fallback Protection**: Setting `remote_startup_fallback = "home"` ensures that if a pane was previously connected to an unavailable remote node or SFTP server, Brum falls back to `$HOME` instantly rather than blocking on network timeouts.
-
----
-
-## Web Configuration Editor & Sensitive Secrets Masking
-
-Brum includes a built-in Web Configuration Editor accessible in **Settings -> Raw Config**:
-
-* **Sensitive Secrets Masking**: When viewing the configuration in the Web UI or querying `/api/system/raw-config`, sensitive keys (`jwt_secret`, `default_admin_pass`, `client_secret`, etc.) are automatically redacted as `********`.
-* **Safe Secret Preservation**: When saving edits in the Web UI, Brum merges the updated TOML with the on-disk file. Any key left as `********` automatically preserves its existing secret value on disk, allowing administrators to edit unrelated settings without accidentally wiping secrets.
-* **Disabling Web Editing**: To enforce strict SSH/CLI-only administration, set `allow_web_config_edit = false` in `config.toml` or set the environment variable:
-  ```bash
-  BRUM_ALLOW_WEB_CONFIG_EDIT=false
-  ```
-  When disabled, the Web UI displays the configuration in read-only mode and rejects write attempts with `403 Forbidden`.
 
 ---
 
@@ -333,7 +374,7 @@ What to know:
 * **Unencrypted networks**: over plain `http`, the secret travels unencrypted. Pair over your own network or an overlay network (NetBird, Tailscale, WireGuard), or put Brum behind `https`.
 * **A machine that already has a secret** (`BRUM_JWT_SECRET`, `jwt_secret`, ...) cannot join with a code; remove that setting first, or give it the Fleet's secret by hand.
 * **Removing**: **Fleet → Add machine** lists the paired machines with **Remove**. That removes the machine from the list; it keeps the secret, so to shut a machine out completely, change the Fleet's secret and pair the others again.
-* **Addresses**: the new machine tells the main Brum its name and the network address it uses towards it. A Brum listening on `127.0.0.1` only cannot be reached by others; set `host = "0.0.0.0"`.
+* **Addresses**: the new machine tells the main Brum its name and the network address it uses towards it. A Brum that can only be opened from its own computer cannot be reached by others: in Server Settings, set *Can be opened from* to *Every network this machine is on*.
 
 ### 3. Config Defaults vs Fleet Manager Overrides
 * **Automatic Ingestion**: Statically configured nodes in `config.toml` are automatically synced into the browser's UI (appearing in **Fleet Control** and the **Paw Menu**).
@@ -357,7 +398,7 @@ With the two panes on different Fleet machines, **F5** (copy) and **F6** (move) 
 * **Pause, Resume, Stop, Retry**: from the task list. **Retry** copies again only the files that did not make it, and a large file that broke off continues where it stopped.
 * **Checked**: with **Security & Integrity Checks** on (the shield in the header, on by default), every file's SHA-256 is worked out on each machine and compared before the copy replaces anything. Each file is written to a temporary `.name.brum-part` file first, so a broken copy never overwrites a good file. A move removes the original only after its copy is checked.
 * **Folders**: whole folders are copied, empty ones included. A same-named item at the target is replaced, or kept with a new name such as `photo (1).jpg` when you choose Keep both.
-* **How many at once**: `transfer_jobs` under `[fleet]` (default `2`). Further copies wait their turn.
+* **How many at once**: *Copies between machines at the same time* in Server Settings → Several machines (`[fleet] transfer_jobs`, default `2`). Further copies wait their turn.
 * **Logins**: each machine uses its usual Fleet login (its `token`, or the shared signing secret). For a direct copy, the receiving machine is given the login for the sending machine for that copy. Read-only machines (`read_only = true`) are never written to.
 * **Older machines**: a machine still on Brum 1.22 or older does not understand these copy jobs. Brum then says so and copies through the browser as before; keep the tab open until it finishes. The same happens for places such as SFTP or Samba opened inside a pane.
 
@@ -394,17 +435,17 @@ access = "none"
 
 Each Brum keeps a record of who changed which files on it: **Admin Panel → Activity Log** (admins only).
 
-* **What is recorded**: saving, new folders, renaming, deleting (to the trash or for good), copying and moving (also between Fleet machines), uploads, packing and unpacking archives, permissions and owners, shares, the trash, user accounts and API tokens, and saving `config.toml` from the web editor. Each entry has the time, the person, what happened, the path and more details; failures are marked with their reason, refusals included.
+* **What is recorded**: saving, new folders, renaming, deleting (to the trash or for good), copying and moving (also between Fleet machines), uploads, packing and unpacking archives, permissions and owners, shares, the trash, user accounts and API tokens, server settings (changes, moves from `config.toml`, and new addresses kept or undone), and saving `config.toml` from the web editor. Each entry has the time, the person, what happened, the path and more details; failures are marked with their reason, refusals included.
 * **Fleet**: a change made through the Fleet is recorded on the machine where it happens, under the person's name, so each machine has its own complete record. Removals sent by another Brum (backups, syncing) are recorded one by one; files arriving from another Brum are recorded as the copy or backup on the Brum that runs it.
 * **Search and download**: search paths, actions and details, filter by person, days or failures only, and download what is shown as a CSV file for a spreadsheet (cells that a spreadsheet would run as formulas are made harmless).
-* **Settings**: `[activity] enabled` and `retention_days` (default 90; `0` keeps everything). Entries are stored in Brum's database; recording never slows down the operation itself.
+* **Settings**: *Keep an Activity Log* and *Keep entries for (days)* in Server Settings → Logs and records (default 90; `0` keeps everything). Entries are stored in Brum's database; recording never slows down the operation itself.
 * **Not recorded**: reading, viewing and downloading files, and passwords (addresses with passwords are masked).
 
 ---
 
 ## Environment Variable Overrides Matrix
 
-Brum supports seamless runtime overrides across containerized, systemd, and homelab environments:
+Environment variables win over Server Settings and `config.toml`. A setting set this way shows in Server Settings with the variable's name and a lock.
 
 | Environment Variable | Overrides Key | Description | Example |
 | :--- | :--- | :--- | :--- |
@@ -415,7 +456,8 @@ Brum supports seamless runtime overrides across containerized, systemd, and home
 | `BRUM_JWT_SECRET` / `JWT_SECRET` | `server.jwt_secret` | Master cluster JWT signing key | `64-hex-char-secret` |
 | `BRUM_JWT_SECRET_FILE` | `server.jwt_secret_file` | File holding the signing key (used when `BRUM_JWT_SECRET` is not set) | `/run/secrets/brum_jwt` |
 | `BRUM_SECRETS_KEY` | *(none)* | Key for stored passwords and tokens, instead of the `brum-secrets.key` file | `64-hex-char-key` |
-| `BRUM_ALLOW_WEB_CONFIG_EDIT` | `server.allow_web_config_edit` | Enable/disable Web Config Editor | `true` or `false` |
+| `BRUM_ALLOW_WEB_CONFIG_EDIT` | `server.allow_web_config_edit` | `false`: settings only in `config.toml` (Server Settings and the file editor are read-only) | `true` or `false` |
+| `BRUM_CONFIG` | *(none)* | The `config.toml` to use | `/etc/brum/config.toml` |
 | `BRUM_OIDC_ENABLED` | `auth.oidc.enabled` | Enable OpenID Connect SSO | `true` or `false` |
 | `BRUM_OIDC_ISSUER_URL` | `auth.oidc.issuer_url` | OIDC IdP Discovery Issuer URL | `https://auth.domain.com/` |
 | `BRUM_OIDC_CLIENT_ID` | `auth.oidc.client_id` | OAuth2 Client ID | `brum-app` |
@@ -423,5 +465,3 @@ Brum supports seamless runtime overrides across containerized, systemd, and home
 | `BRUM_OIDC_REDIRECT_URL` | `auth.oidc.redirect_url` | OAuth2 Callback Redirect URL | `https://domain.com/api/auth/oidc/callback` |
 | `BRUM_OIDC_ADMIN_GROUP` | `auth.oidc.admin_group` | IdP claim group mapped to admin | `brum-admins` |
 | `BRUM_OIDC_FORCE_SSO` | `auth.oidc.force_sso_only` | Disable local password login form | `true` or `false` |
-
-

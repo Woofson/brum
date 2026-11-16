@@ -15,7 +15,7 @@ Welcome to the **Brum** manual and documentation index.
 | [**`chewtoys.md`**](chewtoys.md) | Comprehensive manual for Native Core Functions & Chewtoys (3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Media Player, Terminal, Format Converter, Batch Renamer, Vaults, Fleet Manager) |
 | [**`plugin-development.md`**](plugin-development.md) | Modular Chewtoy & Plugin development guide: `.grr` package standard, `plugin.toml`, `window.Brum` SDK & Admin RBAC |
 | [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, player hotkeys, and mouse/touch gestures |
-| [**`configuration.md`**](configuration.md) | Master `config.toml` reference guide (server, storage roots, sandboxing, fallback schemes, Fleet nodes, OIDC SSO, UI options) |
+| [**`configuration.md`**](configuration.md) | Settings and configuration: Server Settings, moving settings out of `config.toml`, what stays in the file, and every setting with its default |
 | [**`protocols.md`**](protocols.md) | Remote & Client VFS protocols guide (Client Local `client://`, SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
 | [**`proton-drive.md`**](proton-drive.md) | Proton Drive: one-click install of Proton's official program, sign-in with link or QR code, `proton://` panels, backups, share links, Docker |
 | [**`vaults.md`**](vaults.md) | Encrypted `.cdvault` containers with Argon2id + AES-256-GCM RAM-only zero-leakage filesystem |

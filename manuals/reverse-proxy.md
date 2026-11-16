@@ -264,7 +264,7 @@ To manage an entire fleet without generating individual API tokens for each node
 
 ## 10. Trusted Proxies & Rate Limiting (`trusted_proxies`)
 
-When Brum runs behind a reverse proxy (e.g. Caddy, Nginx, Traefik, Apache), client requests arrive with the reverse proxy's socket address as the peer IP. To accurately attribute client IP addresses for brute-force rate limiting and share access logs, configure `trusted_proxies` in `config.toml`:
+When Brum runs behind a reverse proxy (e.g. Caddy, Nginx, Traefik, Apache), client requests arrive with the reverse proxy's socket address as the peer IP. To accurately attribute client IP addresses for brute-force rate limiting and share access logs, tell Brum which proxies to trust. In Brum: **Admin Control Panel → Server Settings → Who can reach this Brum?**, with **Reverse proxies to trust** (one address or range per line), **Extra web addresses Brum is opened at** and **Name of this machine**, then **Restart Brum now**. Or in `config.toml`, where a value wins over Server Settings:
 
 ```toml
 [server]

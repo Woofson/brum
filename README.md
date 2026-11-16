@@ -122,7 +122,7 @@ cargo run --release        # Open http://localhost:3140 in your browser
 
 A main Brum (the one you open in the browser) and two more machines, for example a NAS and a media PC:
 
-1. **Install Brum on all three** (any of the ways above). On the two extra machines, let Brum listen on the network: `host = "0.0.0.0"` under `[server]` in `config.toml` (or the machine's overlay address, such as its Tailscale or NetBird IP), then restart it.
+1. **Install Brum on all three** (any of the ways above). Brum listens on the network by default; if you changed that, set **Can be opened from** back to **Every network this machine is on** in **Admin Control Panel → Server Settings** (or the machine's overlay address, such as its Tailscale or NetBird IP), then restart it.
 2. **Make a code on the main Brum**: sign in as admin, click the machine name at the top left (**Fleet Control**) → **Manage Fleet** → **Add machine**. Brum shows a code such as `9WBN-C4C7` that works once, for ten minutes, together with the command to run.
 3. **Join from the NAS**: run `sudo brum join http://main-brum:3140 9WBN-C4C7 --name nas` and restart Brum there. Or open Brum on the NAS and use **Manage Fleet** → **Join a Fleet**, which restarts by itself.
 4. **Repeat for the media PC** with a new code.
@@ -189,7 +189,7 @@ All operational runbooks, platform guides, and security manuals are available on
 * [**Several machines (Fleet)**](manuals/fleet.md) — Setting up a main Brum and more machines, pairing codes, copies, compare and sync, All machines, folder rules, activity log.
 * [**Power Tools & Chewtoys Manual**](manuals/chewtoys.md) — 3D CAD Studio, Splitter & Combiner, PDF Studio, Sharing Center, Disk Usage, Notes, Media Player, Terminal, Vaults.
 * [**Keyboard Shortcuts & Navigation**](manuals/shortcuts.md) — Orthodox <kbd>F1</kbd>–<kbd>F10</kbd> keys, media player keys, touch gestures.
-* [**Configuration Guide (`config.toml`)**](manuals/configuration.md) — Master config options, storage roots, sandboxing.
+* [**Settings and Configuration**](manuals/configuration.md) — Server Settings, what stays in `config.toml`, and every setting with its default.
 * [**Remote Protocols & VFS Guide**](manuals/protocols.md) — SFTP, SMB, NFS, WebDAV, S3, Proton Drive, Hetzner.
 * [**Transparent Encrypted Vaults Guide**](manuals/vaults.md) — Argon2id + AES-256-GCM in-memory containers.
 * [**Advanced Sharing & Client Portals**](manuals/sharing.md) — Public links, granular ACLs, dynamic watermarking, upload dropzones.

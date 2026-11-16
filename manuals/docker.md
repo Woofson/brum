@@ -81,6 +81,8 @@ services:
       - no-new-privileges:true
 ```
 
+**Settings**: once Brum runs, set it up in **Admin Control Panel → Server Settings**. Those settings are kept in the database on `./data`, so they survive updates of the container. The mounted `./config.toml` line is optional: a setting written there, or given as an environment variable such as `BRUM_PORT`, wins over Server Settings and shows there locked. Keep `BRUM_PORT` and `BRUM_BIND` as they are, so Brum keeps listening where the `ports:` line expects it.
+
 ### Step 2: Start the Service
 ```bash
 docker compose up -d

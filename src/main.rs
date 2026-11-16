@@ -204,7 +204,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
                     Ok(main) => {
                         println!("Joined the Fleet of {}. Both machines now list each other.", main);
                         if instance::is_loopback_host(&config.server.host) {
-                            println!("Note: Brum here only listens on this machine (host = 127.0.0.1); set host = \"0.0.0.0\" in config.toml so the others can reach it.");
+                            println!("Note: Brum here can only be opened on this machine. So the others can reach it, open Admin Control Panel -> Server Settings and set 'Can be opened from' to 'Every network this machine is on' (or host = \"0.0.0.0\" in config.toml).");
                         }
                         if cfg!(windows) {
                             println!("Restart Brum on this machine to finish: restart the Brum service (tray icon -> Restart service).");

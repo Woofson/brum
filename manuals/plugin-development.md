@@ -234,7 +234,8 @@ Each Chewtoy gets its own small key/value store (256 KB, strings only), kept by 
 
 Admins have complete operational control over which Chewtoys standard users can see, install, or run.
 
-### A. Server Configuration (`config.toml`)
+### A. Server Settings
+In **Admin Control Panel → Server Settings → Chewtoys**: allow Chewtoys, let people install them themselves, and choose which are allowed (all, only listed, or all except listed). The same in `config.toml`, where the Chewtoy folders can only be set:
 ```toml
 [plugins]
 enabled = true

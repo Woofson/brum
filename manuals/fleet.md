@@ -25,7 +25,7 @@ Any of the ways in the [Installation Guide](../INSTALL.md) works, and machines m
 
 On the machines that join, Brum must listen on the network, not only on the machine itself:
 
-* **Linux and Windows**: set `host = "0.0.0.0"` under `[server]` in `config.toml`, or the machine's overlay address (for example its Tailscale or NetBird IP) to listen there only. Restart Brum.
+* **Linux and Windows**: Brum listens on every network by default. If you changed that, open **Admin Control Panel → Server Settings → Who can reach this Brum?** and set **Can be opened from** to **Every network this machine is on** (or one network address, such as the machine's Tailscale or NetBird address), then **Restart Brum now**. Desktop mode (`brum -s`) only listens on its own computer; run Brum as a service on machines that join.
 * **Docker**: nothing to do; `-p 3140:3140` already makes it reachable.
 
 Let port `3140` through the machine's firewall from the main Brum.
