@@ -17,6 +17,9 @@ Restart=always
 RestartSec=5
 EnvironmentFile=-/etc/brum/brum.env
 LimitNOFILE=65536
+# Locked down by design: no sudo/su in Brum's terminal, /usr and /boot read-only.
+# To lift this on one machine, use "sudo systemctl edit brum" (not this file); see
+# "Admin Rights in the Terminal" in the Settings and Configuration manual.
 NoNewPrivileges=true
 ProtectSystem=true
 # "-": a missing /etc/brum does not stop Brum from starting (it has built-in defaults)

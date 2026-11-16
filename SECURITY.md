@@ -46,4 +46,5 @@ The full list, always current: [github.com/Woofson/brum/security/advisories](htt
 * **Keep every machine updated.** In a Fleet, update all machines, not only the main Brum.
 * **Give people only what they need**: their own folders, read-only accounts where that is enough, and [folder rules](manuals/configuration.md#folder-rules) for shared places. The [activity log](manuals/configuration.md#activity-log) shows who changed which files.
 * **Pair only machines you trust.** A machine in the Fleet can sign logins the other machines accept. See [Several machines (Fleet)](manuals/fleet.md#safety).
+* **The Linux service is locked down**: `sudo` does not work in its terminal, and system folders are read-only. You can lift this per machine; see [Admin Rights in the Terminal](manuals/configuration.md#admin-rights-in-the-terminal-linux) for how and what it costs.
 * **Protect the files next to the database**: `brum-secrets.key` unlocks saved passwords, and `fleet-secret.key` signs Fleet logins. Brum makes them readable to itself only; keep it that way, and keep them out of shared backups.

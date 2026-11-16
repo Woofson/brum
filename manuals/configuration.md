@@ -217,6 +217,8 @@ Each setting as it is called in Server Settings, its name in `config.toml`, and 
 | Brum accounts may use it too | `[terminal]` `allow_virtual_users` | off |
 | Run as the signed-in person | `[terminal]` `drop_privileges` | on |
 
+On Linux, `sudo` does not work in the terminal of the Brum service, on purpose. See [Admin Rights in the Terminal](#admin-rights-in-the-terminal-linux) for how to allow it.
+
 ### Chewtoys
 
 | Setting | In config.toml | Default |
@@ -308,6 +310,84 @@ show_global_refresh = false
 # Right-click actions, "Open with" rules and global bookmarks have built-in defaults;
 # add [[custom_actions]], [[open_with]] or [[bookmarks]] entries to replace them.
 ```
+
+---
+
+## Admin Rights in the Terminal (Linux)
+
+Brum's Linux service is locked down by design. Its start-up file (`brum.service`) contains two protections, and everything Brum starts inherits them, the terminal included:
+
+* **`NoNewPrivileges=true`**: no program started by Brum can gain more rights than it was started with. `sudo`, `su` and other programs that switch to another account stop with *"The 'no new privileges' flag is set"*. This also stops other programs that need such rights, for example `fusermount` (mounting with `sshfs` or `rclone mount`), `passwd` and `pkexec`.
+* **`ProtectSystem=true`**: the system folders `/usr`, `/boot` and `/efi` are read-only for Brum and everything it starts, even for root. Installing or updating software from a Brum terminal fails, even with `sudo`.
+
+With the default settings the terminal runs as the signed-in person's own Linux account (`drop_privileges`), so it can do what that account can, no more. That is the safe default, and it stays the default. If you want to do admin work from a Brum terminal, you can lift these protections yourself on the machines where you want that.
+
+### Allowing `sudo` in the terminal
+
+In a normal terminal or SSH session on that machine (not inside Brum):
+
+```bash
+sudo systemctl edit brum
+```
+
+An editor opens. Add these three lines in the space it marks, between the two comment lines near the top, then save and close. The first line, `[Service]`, is needed: without it the other two are silently ignored.
+
+```ini
+[Service]
+NoNewPrivileges=false
+ProtectSystem=false
+```
+
+Then restart Brum and open a new Brum terminal (terminals that are already open keep the old rules):
+
+```bash
+sudo systemctl restart brum
+```
+
+Check that the change took:
+
+```bash
+systemctl show brum -p NoNewPrivileges -p ProtectSystem
+```
+
+It should say `NoNewPrivileges=no` and `ProtectSystem=no`. If it still says `yes`, run `sudo systemctl edit brum` again and check that `[Service]` is there and that the lines are not below the comment *"Lines below this comment will be discarded"*.
+
+`sudo` now works in the Brum terminal as it does over SSH: for accounts allowed to use it, and with that account's password. Your change is kept in its own file (`/etc/systemd/system/brum.service.d/override.conf`), so Brum updates do not undo it.
+
+**To undo it:** `sudo systemctl revert brum`, then `sudo systemctl restart brum`.
+
+### What you give up
+
+* Anyone who can open a Brum terminal with an account that may use `sudo` can then do **anything** on the machine. A stolen or left-open Brum login becomes as powerful as an SSH login of that account.
+* Brum itself runs as root. Without `ProtectSystem`, a flaw in Brum could change programs in `/usr`, not only Brum's own files.
+
+On a home network, behind your own sign-in and never on the open internet, many people find that a fair trade. Decide per machine.
+
+### Opening up less
+
+You do not have to lift both protections:
+
+* **Only `sudo`, system folders stay read-only:** add only `NoNewPrivileges=false`. `sudo` works, but installing software still fails.
+* **Only some system folders writable:** keep `ProtectSystem=true` and name the folders you need, for example `ReadWritePaths=/usr/local`.
+* **Only mounting with `sshfs` or `rclone mount`:** this also needs `NoNewPrivileges=false`, because `fusermount` has to gain rights for a moment.
+
+Who may open a terminal at all is set under [Terminal](#terminal) in Server Settings: by default only administrators, and only with Linux accounts. Turning off "Run as the signed-in person" (`drop_privileges`) gives every allowed person a **root** shell, without a password; that is rarely what you want.
+
+### Brum you run as your own user
+
+A Brum installed with `brum service install` runs as your own account, from `~/.config/systemd/user/brum.service`. It has `NoNewPrivileges=true` as well, but no read-only system folders. To allow `sudo` there:
+
+```bash
+systemctl --user edit brum          # add: [Service] and NoNewPrivileges=false
+systemctl --user restart brum
+```
+
+Undo with `systemctl --user revert brum`. A Brum you start by hand in a terminal has neither protection.
+
+### Docker and Windows
+
+* **Docker:** the terminal is a shell inside the container, not on the host, and the image has no `sudo`. The `no-new-privileges` line in `docker-compose.yml` is the same protection for the container. See [The Terminal in Docker](docker.md#4-the-terminal-in-docker).
+* **Windows:** none of this applies. The Windows service has its own rules; see the [Windows manual](windows.md).
 
 ---
 

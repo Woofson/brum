@@ -127,6 +127,8 @@ The host's own files, programs and services are not visible from there. To work 
 ssh you@192.168.1.10          # the host's address on your network
 ```
 
+The image has no `sudo`, and `no-new-privileges` keeps programs in the container from gaining more rights. For admin work, SSH to the host as above.
+
 ### SSH keys that survive updates
 
 Because the terminal's home is `/data`, SSH keys and settings you create there are stored in `/data/.ssh` and kept across container updates and re-creation.

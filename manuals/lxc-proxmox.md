@@ -201,6 +201,8 @@ You can also manage independent web users directly from the **Settings (`F10`) â
 | **`systemctl stop brum`** | Stop the daemon |
 | **`journalctl -u brum -f`** | Follow live application logs |
 
+`sudo` does not work in Brum's terminal under the service, on purpose. To allow it in your container, see [Admin Rights in the Terminal](configuration.md#admin-rights-in-the-terminal-linux).
+
 ### Upgrading to New Version
 ```bash
 # 1. Stop service
