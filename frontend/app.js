@@ -1338,6 +1338,30 @@ function markSignedIn(on) {
 // and leaves it out of the reply, so it never passes through page scripts
 const COOKIE_SESSION_HEADERS = { 'X-Brum-Session': 'cookie' };
 
+// Profile details kept in this browser (name, picture, email, bio) are only for desktop mode
+// and Brum without sign-in, where one person uses it. With sign-in they always come from the
+// signed-in account, so one person's details never show up for the next person on this browser.
+const LOCAL_PROFILE_KEYS = ['cd_local_nickname', 'cd_local_fullname', 'cd_local_avatar', 'cd_local_email', 'cd_local_bio'];
+function localProfileEnabled() {
+  return isStandaloneMode() || window.App?.systemStatus?.auth_enabled === false;
+}
+function getLocalProfile(key) {
+  if (!localProfileEnabled()) return null;
+  try { return localStorage.getItem(key); } catch (_) { return null; }
+}
+function setLocalProfile(key, value) {
+  if (!localProfileEnabled()) return;
+  try {
+    if (value) localStorage.setItem(key, value);
+    else localStorage.removeItem(key);
+  } catch (_) {}
+}
+function clearLocalProfile() {
+  for (const key of LOCAL_PROFILE_KEYS) {
+    try { localStorage.removeItem(key); } catch (_) {}
+  }
+}
+
 // Older Brum versions kept the login in browser storage and in a script-readable cookie.
 // Swap it once for the protected cookie, then forget it.
 async function adoptLegacyStoredLogin() {
@@ -2970,8 +2994,8 @@ function bootApp() {
     if (localStorage.getItem('cd_is_locked') === 'true') {
       try {
         const cached = JSON.parse(localStorage.getItem('cd_user_info') || 'null');
-        const localAvatar = localStorage.getItem('cd_local_avatar');
-        const localNick = localStorage.getItem('cd_local_nickname');
+        const localAvatar = getLocalProfile('cd_local_avatar');
+        const localNick = getLocalProfile('cd_local_nickname');
         const lastUser = localStorage.getItem('cd_last_username') || '';
         const userTextEl = document.getElementById('lock-username-text');
         const hostSuffixEl = document.getElementById('lock-hostname-suffix');
@@ -3280,6 +3304,8 @@ async function checkAuthAndLoad() {
       updateHostnameBadge();
       App.isStandalone = !!sysData.standalone;
       updateStandaloneUI();
+      // With sign-in, details an earlier version kept in this browser belong to nobody in particular
+      if (!localProfileEnabled()) clearLocalProfile();
     }
 
     const isStandalone = !!sysData?.standalone;
@@ -3289,8 +3315,8 @@ async function checkAuthAndLoad() {
     if (meResp && meResp.ok) {
       App.user = await meResp.json();
       if (!isStandalone && !authDisabled) markSignedIn(true);
-      const localAvatar = localStorage.getItem('cd_local_avatar');
-      const localNick = localStorage.getItem('cd_local_nickname');
+      const localAvatar = getLocalProfile('cd_local_avatar');
+      const localNick = getLocalProfile('cd_local_nickname');
       if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
       if (localNick && !App.user.nickname) App.user.nickname = localNick;
       updateHeaderProfile(App.user);
@@ -21457,16 +21483,16 @@ function resetAvatarToDefault() {
 
 function updateHeaderProfile(user) {
   if (!user) return;
-  const localNick = localStorage.getItem('cd_local_nickname');
-  const localAvatar = localStorage.getItem('cd_local_avatar');
-  const localEmail = localStorage.getItem('cd_local_email');
+  const localNick = getLocalProfile('cd_local_nickname');
+  const localAvatar = getLocalProfile('cd_local_avatar');
+  const localEmail = getLocalProfile('cd_local_email');
   const uname = user.nickname || localNick || user.username || 'User';
   const roleStr = (user.role || 'ADMIN').toUpperCase();
   const avatar = user.avatar_url || localAvatar || '👤';
 
   // Synchronize localStorage with latest profile snapshot
   if (user.avatar_url) {
-    localStorage.setItem('cd_local_avatar', user.avatar_url);
+    setLocalProfile('cd_local_avatar', user.avatar_url);
   }
   try {
     localStorage.setItem('cd_user_info', JSON.stringify({
@@ -22104,11 +22130,11 @@ function openUserProfileModal() {
   const editBadge = document.getElementById('profile-edit-role-badge');
   const editAuthType = document.getElementById('profile-edit-auth-type');
 
-  const localNick = localStorage.getItem('cd_local_nickname');
-  const localAvatar = localStorage.getItem('cd_local_avatar');
-  const localEmail = localStorage.getItem('cd_local_email');
-  const localFullName = localStorage.getItem('cd_local_fullname');
-  const localBio = localStorage.getItem('cd_local_bio');
+  const localNick = getLocalProfile('cd_local_nickname');
+  const localAvatar = getLocalProfile('cd_local_avatar');
+  const localEmail = getLocalProfile('cd_local_email');
+  const localFullName = getLocalProfile('cd_local_fullname');
+  const localBio = getLocalProfile('cd_local_bio');
 
   if (editAvatar) renderAvatarElement(editAvatar, user.avatar_url || localAvatar || '👤');
   if (editUname) editUname.textContent = user.nickname || user.full_name || localNick || user.username || 'User';
@@ -22128,6 +22154,8 @@ function openUserProfileModal() {
   if (bioInput) bioInput.value = user.bio || localBio || '';
   if (avatarInput) avatarInput.value = user.avatar_url || localAvatar || '';
   if (passInput) passInput.value = '';
+  const passConfirmInput = document.getElementById('profile-input-password-confirm');
+  if (passConfirmInput) passConfirmInput.value = '';
 
   const passSection = document.getElementById('profile-password-section');
   if (passSection) passSection.style.display = (App.isStandalone || !App.signedIn) ? 'none' : 'block';
@@ -22146,8 +22174,18 @@ async function saveUserProfile() {
   const bio = document.getElementById('profile-input-bio')?.value.trim() || null;
   const avatar_url = document.getElementById('profile-input-avatar')?.value.trim() || null;
   const new_password = document.getElementById('profile-input-password')?.value || null;
+  const confirm_password = document.getElementById('profile-input-password-confirm')?.value || null;
 
   const statusMsg = document.getElementById('profile-status-msg');
+  if (new_password && new_password !== confirm_password) {
+    if (statusMsg) {
+      statusMsg.style.display = 'block';
+      statusMsg.style.color = 'var(--danger)';
+      statusMsg.textContent = 'The passwords do not match. Nothing was saved.';
+    }
+    showToast('Passwords do not match', 'error');
+    return;
+  }
   if (statusMsg) {
     statusMsg.style.display = 'block';
     statusMsg.style.color = 'var(--accent)';
@@ -22155,16 +22193,11 @@ async function saveUserProfile() {
   }
 
   // Persist locally in localStorage for immediate UI feedback
-  if (full_name) localStorage.setItem('cd_local_fullname', full_name);
-  else localStorage.removeItem('cd_local_fullname');
-  if (nickname) localStorage.setItem('cd_local_nickname', nickname);
-  else localStorage.removeItem('cd_local_nickname');
-  if (avatar_url) localStorage.setItem('cd_local_avatar', avatar_url);
-  else localStorage.removeItem('cd_local_avatar');
-  if (email) localStorage.setItem('cd_local_email', email);
-  else localStorage.removeItem('cd_local_email');
-  if (bio) localStorage.setItem('cd_local_bio', bio);
-  else localStorage.removeItem('cd_local_bio');
+  setLocalProfile('cd_local_fullname', full_name);
+  setLocalProfile('cd_local_nickname', nickname);
+  setLocalProfile('cd_local_avatar', avatar_url);
+  setLocalProfile('cd_local_email', email);
+  setLocalProfile('cd_local_bio', bio);
 
   if (!App.user) App.user = {};
   if (full_name) App.user.full_name = full_name;
@@ -22233,11 +22266,11 @@ async function saveUserProfile() {
 
 function openSettingsAccountTab() {
   const user = App.user || {};
-  const localNick = localStorage.getItem('cd_local_nickname');
-  const localAvatar = localStorage.getItem('cd_local_avatar');
-  const localEmail = localStorage.getItem('cd_local_email');
-  const localFullName = localStorage.getItem('cd_local_fullname');
-  const localBio = localStorage.getItem('cd_local_bio');
+  const localNick = getLocalProfile('cd_local_nickname');
+  const localAvatar = getLocalProfile('cd_local_avatar');
+  const localEmail = getLocalProfile('cd_local_email');
+  const localFullName = getLocalProfile('cd_local_fullname');
+  const localBio = getLocalProfile('cd_local_bio');
 
   const avatarPreview = document.getElementById('settings-account-avatar-preview');
   const unameLabel = document.getElementById('settings-account-username-label');
@@ -22343,16 +22376,11 @@ async function saveSettingsUserProfile() {
     statusEl.textContent = 'Saving profile to server...';
   }
 
-  if (full_name) localStorage.setItem('cd_local_fullname', full_name);
-  else localStorage.removeItem('cd_local_fullname');
-  if (nickname) localStorage.setItem('cd_local_nickname', nickname);
-  else localStorage.removeItem('cd_local_nickname');
-  if (avatar_url) localStorage.setItem('cd_local_avatar', avatar_url);
-  else localStorage.removeItem('cd_local_avatar');
-  if (email) localStorage.setItem('cd_local_email', email);
-  else localStorage.removeItem('cd_local_email');
-  if (bio) localStorage.setItem('cd_local_bio', bio);
-  else localStorage.removeItem('cd_local_bio');
+  setLocalProfile('cd_local_fullname', full_name);
+  setLocalProfile('cd_local_nickname', nickname);
+  setLocalProfile('cd_local_avatar', avatar_url);
+  setLocalProfile('cd_local_email', email);
+  setLocalProfile('cd_local_bio', bio);
 
   if (!App.user) App.user = {};
   if (full_name) App.user.full_name = full_name;
@@ -25662,8 +25690,8 @@ function lockSession() {
     } catch (_) {}
   }
 
-  const localNick = localStorage.getItem('cd_local_nickname') || '';
-  const localAvatar = localStorage.getItem('cd_local_avatar') || '';
+  const localNick = getLocalProfile('cd_local_nickname') || '';
+  const localAvatar = getLocalProfile('cd_local_avatar') || '';
   const lastUser = localStorage.getItem('cd_last_username') || '';
   const rawUsername = cachedUser?.username || lastUser || 'admin';
   const uname = cachedUser?.nickname || localNick || cachedUser?.username || lastUser || 'Brum User';
@@ -25749,8 +25777,8 @@ async function submitUnlockSession() {
       if (!App.isStandalone) markSignedIn(true);
       if (data.user) {
         App.user = data.user;
-        const localAvatar = localStorage.getItem('cd_local_avatar');
-        const localNick = localStorage.getItem('cd_local_nickname');
+        const localAvatar = getLocalProfile('cd_local_avatar');
+        const localNick = getLocalProfile('cd_local_nickname');
         if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
         if (localNick && !App.user.nickname) App.user.nickname = localNick;
         try {
@@ -25774,8 +25802,8 @@ async function submitUnlockSession() {
         const data = await loginResp.json();
         markSignedIn(true);
         App.user = data.user;
-        const localAvatar = localStorage.getItem('cd_local_avatar');
-        const localNick = localStorage.getItem('cd_local_nickname');
+        const localAvatar = getLocalProfile('cd_local_avatar');
+        const localNick = getLocalProfile('cd_local_nickname');
         if (localAvatar && !App.user.avatar_url) App.user.avatar_url = localAvatar;
         if (localNick && !App.user.nickname) App.user.nickname = localNick;
         try {
@@ -40707,6 +40735,9 @@ async function logout() {
   } catch (_) {}
   markSignedIn(false);
   localStorage.removeItem('cd_is_locked');
+  // The next person to sign in on this browser starts without this person's details
+  try { localStorage.removeItem('cd_user_info'); } catch (_) {}
+  if (!localProfileEnabled()) clearLocalProfile();
   App.user = null;
   App.isLocked = false;
   document.documentElement.classList.remove('auth-ready', 'auth-pending-lock', 'auth-verifying');

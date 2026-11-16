@@ -2830,11 +2830,11 @@
             <div class="settings-grid-2col" style="margin-top: 10px;" id="settings-profile-password-section">
               <div class="settings-field">
                 <label class="settings-field-label" for="settings-profile-new-pass">New Password (optional):</label>
-                <input type="password" id="settings-profile-new-pass" class="settings-input" placeholder="Leave blank to keep current">
+                <input type="password" id="settings-profile-new-pass" class="settings-input" placeholder="Leave blank to keep current" autocomplete="new-password">
               </div>
               <div class="settings-field">
                 <label class="settings-field-label" for="settings-profile-confirm-pass">Confirm New Password:</label>
-                <input type="password" id="settings-profile-confirm-pass" class="settings-input" placeholder="Confirm new password">
+                <input type="password" id="settings-profile-confirm-pass" class="settings-input" placeholder="Confirm new password" autocomplete="new-password">
               </div>
             </div>
 
@@ -3437,7 +3437,8 @@
 
         <div class="form-group" id="profile-password-section">
           <label>Change Password (leave empty to keep current):</label>
-          <input type="password" id="profile-input-password" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="New password">
+          <input type="password" id="profile-input-password" class="pane-quick-filter" style="width: 100%; padding: 8px;" placeholder="New password" autocomplete="new-password">
+          <input type="password" id="profile-input-password-confirm" class="pane-quick-filter" style="width: 100%; padding: 8px; margin-top: 6px;" placeholder="Confirm new password" autocomplete="new-password">
         </div>
 
         <div id="profile-status-msg" style="font-size: 12px; margin-top: 8px; display: none;"></div>
