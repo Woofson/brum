@@ -995,7 +995,7 @@ pub fn resolve_effective_home(claims: &crate::auth::Claims, state: &AppState) ->
     }
 
     // Fallback B: Container /data directory
-    if Path::new("/data").is_dir() {
+    if crate::config::in_container() && Path::new("/data").is_dir() {
         let container_user_dir = format!("/data/users/{}", sub_name);
         if state.config.storage.auto_create_home_dirs {
             let _ = std::fs::create_dir_all(&container_user_dir);

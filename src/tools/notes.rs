@@ -134,8 +134,14 @@ pub fn get_notes_root_dir(override_path: Option<&str>, config_folder: Option<&st
         }
     }
 
-    // 4. Default: ~/Notes
+    // 4. Default: ~/Notes; for the system service /var/lib/brum/Notes, unless root already
+    //    has a ~/Notes folder that earlier versions used
     let default_notes = home_dir.join("Notes");
+    #[cfg(not(windows))]
+    let default_notes = match crate::config::system_data_dir() {
+        Some(shared) if !default_notes.is_dir() => shared.join("Notes"),
+        _ => default_notes,
+    };
     if !default_notes.exists() {
         let _ = fs::create_dir_all(&default_notes);
         // Create initial default welcome structure: Notes/Welcome/Getting-Started.md
@@ -1099,8 +1105,15 @@ pub fn create_new_note(
 
 /// Resolve the attachments directory for database notes
 pub fn get_notes_attachments_dir() -> PathBuf {
-    if Path::new("/data").is_dir() {
+    if crate::config::in_container() && Path::new("/data").is_dir() {
         let p = PathBuf::from("/data/attachments");
+        let _ = fs::create_dir_all(&p);
+        return p;
+    }
+    // The system service keeps them with its other data in /var/lib/brum
+    #[cfg(not(windows))]
+    if let Some(dir) = crate::config::system_data_dir() {
+        let p = dir.join("attachments");
         let _ = fs::create_dir_all(&p);
         return p;
     }

@@ -411,9 +411,10 @@ pub(crate) fn windows_db_target(
     exe_dir.join(relative)
 }
 
-/// Turns a relative `database_path` into its full Windows location (see `windows_db_target`).
-/// Absolute paths, in-memory databases and other platforms are left as they are.
-pub fn resolve_windows_database_path(path: &str) -> String {
+/// Turns a relative `database_path` into its full location: on Windows see `windows_db_target`,
+/// on Linux and macOS see `system_data_dir`. Absolute paths and in-memory databases are left as
+/// they are.
+pub fn resolve_database_path(path: &str) -> String {
     #[cfg(windows)]
     {
         let p = Path::new(path);
@@ -440,7 +441,197 @@ pub fn resolve_windows_database_path(path: &str) -> String {
     }
     #[cfg(not(windows))]
     {
-        path.to_string()
+        let p = Path::new(path);
+        let resolved = match system_data_dir() {
+            Some(dir) if !path.trim().is_empty() && path != ":memory:" && !p.is_absolute() => dir.join(p).to_string_lossy().to_string(),
+            _ => path.to_string(),
+        };
+        move_legacy_system_data(&resolved);
+        resolved
+    }
+}
+
+/// True inside the Brum Docker image (or another container), where `/data` is Brum's storage.
+/// Outside a container a `/data` folder is just a folder and means nothing to Brum.
+pub fn in_container() -> bool {
+    if std::env::var("BRUM_CONTAINER").map(|v| v.trim() == "1" || v.trim().eq_ignore_ascii_case("true")).unwrap_or(false) {
+        return true;
+    }
+    Path::new("/.dockerenv").exists() || Path::new("/run/.containerenv").exists()
+}
+
+/// Brum's shared data folder when it runs as the system service, `/var/lib/brum`:
+/// - the service: the folder systemd made for it (`StateDirectory=brum` in brum.service)
+/// - root on the command line (`sudo brum reset-admin-password`, `sudo brum join`): the same
+///   folder, once the service keeps its database there, so both work on the same data
+///
+/// None in a container (that uses `/data`) and for ordinary users (they use their home folder).
+#[cfg(not(windows))]
+pub fn system_data_dir() -> Option<PathBuf> {
+    if in_container() {
+        return None;
+    }
+    if let Some(dir) = systemd_dir_env("STATE_DIRECTORY") {
+        return Some(dir);
+    }
+    // SAFETY: geteuid has no preconditions and cannot fail
+    let is_root = unsafe { libc::geteuid() } == 0;
+    let shared = Path::new(SYSTEM_DATA_DIR);
+    if is_root && shared.join("brum.db").is_file() {
+        return Some(shared.to_path_buf());
+    }
+    None
+}
+
+#[cfg(not(windows))]
+const SYSTEM_DATA_DIR: &str = "/var/lib/brum";
+
+/// A folder of Brum's own data (profile pictures, SSH host keys, ...): in `/var/lib/brum` for
+/// the system service, otherwise in the user's own settings folder (`~/.config/brum`,
+/// `%APPDATA%\brum`)
+pub fn private_data_dir(name: &str) -> Option<PathBuf> {
+    #[cfg(not(windows))]
+    if let Some(shared) = system_data_dir() {
+        return Some(shared.join(name));
+    }
+    dirs::config_dir().map(|d| d.join("brum").join(name))
+}
+
+/// The folders and files earlier versions of the system service kept in root's home folder
+/// (`~/.config/brum`), moved once into `/var/lib/brum` when the service starts. Each one moves
+/// on its own, and only when `/var/lib/brum` does not have it yet.
+#[cfg(not(windows))]
+const HOME_ITEMS: &[&str] = &["plugins", "avatars", "attachments", "known_hosts"];
+
+#[cfg(not(windows))]
+fn move_legacy_home_data() {
+    let Some(state_dir) = systemd_dir_env("STATE_DIRECTORY") else { return };
+    if in_container() {
+        return;
+    }
+    let Some(old) = dirs::config_dir().map(|d| d.join("brum")) else { return };
+    move_items_from(&old, &state_dir, HOME_ITEMS);
+}
+
+#[cfg(not(windows))]
+fn move_items_from(old: &Path, state_dir: &Path, names: &[&str]) {
+    let mut moved = Vec::new();
+    for name in names {
+        let (src, dst) = (old.join(name), state_dir.join(name));
+        if !src.exists() || dst.exists() {
+            continue;
+        }
+        let _ = fs::create_dir_all(state_dir);
+        match copy_recursive(&src, &dst) {
+            Ok(()) => {
+                let _ = remove_path(&src);
+                moved.push(*name);
+            }
+            Err(e) => {
+                let _ = remove_path(&dst);
+                eprintln!("brum: could not move {} to {}: {}; it stays where it is", src.display(), dst.display(), e);
+            }
+        }
+    }
+    if !moved.is_empty() {
+        eprintln!("brum: moved {} from {} to {}", moved.join(", "), old.display(), state_dir.display());
+        // Only removed when nothing else is left in it
+        let _ = fs::remove_dir(old);
+    }
+}
+
+/// A folder systemd hands the service (`STATE_DIRECTORY`, `LOGS_DIRECTORY`); the first one if
+/// it lists several
+#[cfg(not(windows))]
+fn systemd_dir_env(name: &str) -> Option<PathBuf> {
+    let v = std::env::var(name).ok()?;
+    let first = v.split(':').next()?.trim();
+    (!first.is_empty() && Path::new(first).is_absolute()).then(|| PathBuf::from(first))
+}
+
+/// The files of one Brum that live beside its database
+#[cfg(not(windows))]
+const DATA_FILES: &[&str] = &["brum.db", "brum.db-wal", "brum.db-shm", "brum-secrets.key", crate::tools::pairing::SECRET_FILE, "initial_admin_credentials.txt"];
+#[cfg(not(windows))]
+const DATA_FOLDERS: &[&str] = &["proton", "attachments"];
+
+/// Once, when the system service first starts with its database in `/var/lib/brum`: moves the
+/// data an earlier version kept elsewhere into it, so accounts and settings carry over.
+/// Earlier versions used `/etc/brum` (the service's working folder, with the shipped config) or
+/// `/data` (when that folder existed, which the Debian package created). If both have a
+/// database, the one changed most recently is moved and the other is left alone.
+/// Only the service itself does this, never the command line, so a running older Brum is never
+/// moved out from under itself.
+#[cfg(not(windows))]
+fn move_legacy_system_data(db_path: &str) {
+    let Some(state_dir) = systemd_dir_env("STATE_DIRECTORY") else { return };
+    if in_container() || Path::new(db_path) != state_dir.join("brum.db") {
+        return;
+    }
+    move_data_from(&[Path::new("/etc/brum"), Path::new("/data")], &state_dir);
+}
+
+/// Moves the newest of the old data folders into `state_dir`, unless it already has a database
+#[cfg(not(windows))]
+fn move_data_from(old_dirs: &[&Path], state_dir: &Path) {
+    if state_dir.join("brum.db").exists() {
+        return;
+    }
+    let newest = |dir: &Path| -> Option<std::time::SystemTime> {
+        ["brum.db", "brum.db-wal"].iter().filter_map(|f| fs::metadata(dir.join(f)).and_then(|m| m.modified()).ok()).max()
+    };
+    let Some((from, _)) = old_dirs
+        .iter()
+        .copied()
+        .filter(|d| d.join("brum.db").is_file())
+        .filter_map(|d| newest(d).map(|t| (d, t)))
+        .max_by_key(|(_, t)| *t)
+    else {
+        return;
+    };
+    let _ = fs::create_dir_all(state_dir);
+    // All or nothing: copy everything first, and remove the old files only when every copy
+    // worked, so the database and its keys are never split over two folders
+    let names: Vec<&str> = DATA_FILES.iter().chain(DATA_FOLDERS).copied().filter(|n| from.join(n).exists() && !state_dir.join(n).exists()).collect();
+    for (i, name) in names.iter().enumerate() {
+        if let Err(e) = copy_recursive(&from.join(name), &state_dir.join(name)) {
+            eprintln!("brum: could not move the data of an earlier version from {} to {} ({}: {}); it stays where it is", from.display(), state_dir.display(), name, e);
+            for done in &names[..=i] {
+                let _ = remove_path(&state_dir.join(done));
+            }
+            return;
+        }
+    }
+    for name in &names {
+        let _ = remove_path(&from.join(name));
+    }
+    let moved = names;
+    // Start-up messages are not logged yet; the service's console output goes to the journal
+    eprintln!("brum: moved the data of an earlier version from {} to {} ({})", from.display(), state_dir.display(), moved.join(", "));
+    let note = format!(
+        "Brum moved its data from this folder to {} on start-up: {}.\nBrum now keeps its database there and its logs in /var/log/brum. This note can be deleted.\n",
+        state_dir.display(),
+        moved.join(", ")
+    );
+    let _ = fs::write(from.join("BRUM-DATA-MOVED.txt"), note);
+}
+
+#[cfg(not(windows))]
+fn remove_path(p: &Path) -> std::io::Result<()> {
+    if p.is_dir() { fs::remove_dir_all(p) } else { fs::remove_file(p) }
+}
+
+#[cfg(not(windows))]
+fn copy_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
+    if src.is_dir() {
+        fs::create_dir_all(dst)?;
+        for entry in fs::read_dir(src)? {
+            let entry = entry?;
+            copy_recursive(&entry.path(), &dst.join(entry.file_name()))?;
+        }
+        Ok(())
+    } else {
+        fs::copy(src, dst).map(|_| ())
     }
 }
 
@@ -453,7 +644,7 @@ fn default_db_path() -> String {
     #[cfg(windows)]
     {
         // 1. Portable use: a database next to brum.exe (outside Program Files and Scoop).
-        //    Returned as a bare name; resolve_windows_database_path() places it.
+        //    Returned as a bare name; resolve_database_path() places it.
         if let Some(exe_dir) = std::env::current_exe().ok().and_then(|e| e.parent().map(Path::to_path_buf)) {
             if !is_installed_exe_dir(&exe_dir, &windows_program_files_dirs()) {
                 for name in ["brum.db", "commanderdog.db"] {
@@ -492,12 +683,14 @@ fn default_db_path() -> String {
     }
     #[cfg(not(windows))]
     {
-        if Path::new("/data").is_dir() {
+        if in_container() && Path::new("/data").is_dir() {
             if Path::new("/data/commanderdog.db").is_file() && !Path::new("/data/brum.db").is_file() {
                 "/data/commanderdog.db".to_string()
             } else {
                 "/data/brum.db".to_string()
             }
+        } else if let Some(dir) = system_data_dir() {
+            dir.join("brum.db").to_string_lossy().to_string()
         } else {
             if Path::new("commanderdog.db").is_file() && !Path::new("brum.db").is_file() {
                 "commanderdog.db".to_string()
@@ -659,6 +852,12 @@ impl LoggingConfig {
 
         #[cfg(not(windows))]
         {
+            // The system service: the folder systemd made for it (LogsDirectory=brum)
+            if !in_container() {
+                if let Some(dir) = systemd_dir_env("LOGS_DIRECTORY") {
+                    return dir;
+                }
+            }
             let var_log = Path::new("/var/log/brum");
             if var_log.is_dir() {
                 return var_log.to_path_buf();
@@ -740,7 +939,7 @@ fn default_user_home_template() -> String {
     }
     #[cfg(not(windows))]
     {
-        if Path::new("/data").exists() {
+        if in_container() && Path::new("/data").exists() {
             "/data/users/{username}".to_string()
         } else {
             "/home/{username}".to_string()
@@ -1361,6 +1560,17 @@ impl PluginsConfig {
     }
 
     pub fn resolve_user_directory(&self) -> PathBuf {
+        // The system service keeps Chewtoys with its other data, not in root's home folder.
+        // The shipped config.toml names the personal folder, so that value counts as unset.
+        #[cfg(not(windows))]
+        {
+            let dir = self.user_directory.trim();
+            if dir.is_empty() || dir == "~/.config/brum/plugins" {
+                if let Some(shared) = system_data_dir() {
+                    return shared.join("plugins");
+                }
+            }
+        }
         expand_tilde_path(&self.user_directory)
     }
 }
@@ -2135,11 +2345,18 @@ impl ConfigManager {
     /// Loads configuration with sub-millisecond fast-path resolution across all standard paths.
     /// Also scans external theme directories (~/.config/brum/themes/*.toml, %LOCALAPPDATA%/brum/themes/*.toml).
     pub fn load_all() -> AppConfig {
-        // Ensure user config and themes directories exist
-        if let Some(user_config_dir) = dirs::config_dir().map(|d| d.join("brum")) {
+        // Ensure user config and themes directories exist (for a person, not for the system
+        // service: nothing of the service belongs in root's home folder)
+        #[cfg(not(windows))]
+        let personal = system_data_dir().is_none();
+        #[cfg(windows)]
+        let personal = true;
+        #[cfg(not(windows))]
+        move_legacy_home_data();
+        if let Some(user_config_dir) = dirs::config_dir().map(|d| d.join("brum")).filter(|_| personal) {
             let _ = fs::create_dir_all(user_config_dir.join("themes"));
         }
-        if let Some(local_data_dir) = dirs::data_local_dir().map(|d| d.join("brum")) {
+        if let Some(local_data_dir) = dirs::data_local_dir().map(|d| d.join("brum")).filter(|_| personal) {
             let _ = fs::create_dir_all(local_data_dir.join("themes"));
         }
         if let Some(local_appdata) = std::env::var_os("LOCALAPPDATA") {
@@ -2240,7 +2457,7 @@ impl ConfigManager {
         }
 
         // Windows: a bare database name never depends on the folder Brum was started from
-        config.server.database_path = resolve_windows_database_path(&config.server.database_path);
+        config.server.database_path = resolve_database_path(&config.server.database_path);
 
         config
     }
@@ -2254,7 +2471,7 @@ impl ConfigManager {
             .map(|d| d.trim().to_string())
             .filter(|d| !d.is_empty())
             .unwrap_or_else(|| config.server.database_path.clone());
-        resolve_windows_database_path(&db)
+        resolve_database_path(&db)
     }
 
     /// Puts the settings saved in Brum under the config file's. If they cannot be used, Brum
@@ -2459,6 +2676,57 @@ impl ConfigManager {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(not(windows))]
+    #[test]
+    fn old_home_items_move_one_by_one() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        let (old, state) = (tmp.path().join("home/.config/brum"), tmp.path().join("state"));
+        fs::create_dir_all(old.join("plugins/calculator")).unwrap();
+        fs::create_dir_all(old.join("themes")).unwrap();
+        fs::create_dir_all(state.join("avatars")).unwrap();
+        fs::create_dir_all(old.join("avatars")).unwrap();
+        fs::write(old.join("plugins/calculator/plugin.toml"), "x").unwrap();
+        fs::write(old.join("known_hosts"), "host").unwrap();
+        fs::write(old.join("avatars/old.png"), "a").unwrap();
+
+        super::move_items_from(&old, &state, super::HOME_ITEMS);
+        assert!(state.join("plugins/calculator/plugin.toml").is_file() && !old.join("plugins").exists());
+        assert_eq!(fs::read_to_string(state.join("known_hosts")).unwrap(), "host");
+        // Already there: left alone on both sides; not one of Brum's data folders: not touched
+        assert!(old.join("avatars/old.png").is_file() && !state.join("avatars/old.png").exists());
+        assert!(old.join("themes").is_dir());
+    }
+
+    #[cfg(not(windows))]
+    #[test]
+    fn old_system_data_moves_once_and_newest_wins() {
+        use std::fs;
+        let tmp = tempfile::tempdir().unwrap();
+        let (etc, data, state) = (tmp.path().join("etc"), tmp.path().join("data"), tmp.path().join("state"));
+        fs::create_dir_all(&etc).unwrap();
+        fs::create_dir_all(data.join("attachments")).unwrap();
+        fs::write(etc.join("brum.db"), "old").unwrap();
+        fs::write(etc.join("config.toml"), "kept").unwrap();
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        fs::write(data.join("brum.db"), "new").unwrap();
+        fs::write(data.join("brum-secrets.key"), "key").unwrap();
+        fs::write(data.join("attachments/a.png"), "img").unwrap();
+        fs::write(data.join("other.txt"), "not Brum's").unwrap();
+
+        super::move_data_from(&[&etc, &data], &state);
+        assert_eq!(fs::read_to_string(state.join("brum.db")).unwrap(), "new");
+        assert_eq!(fs::read_to_string(state.join("brum-secrets.key")).unwrap(), "key");
+        assert_eq!(fs::read_to_string(state.join("attachments/a.png")).unwrap(), "img");
+        assert!(!data.join("brum.db").exists() && !data.join("attachments").exists());
+        assert!(data.join("other.txt").exists() && data.join("BRUM-DATA-MOVED.txt").exists());
+        // The older one is left alone, and nothing happens a second time
+        assert_eq!(fs::read_to_string(etc.join("brum.db")).unwrap(), "old");
+        super::move_data_from(&[&etc, &data], &state);
+        assert_eq!(fs::read_to_string(state.join("brum.db")).unwrap(), "new");
+        assert!(etc.join("brum.db").exists() && etc.join("config.toml").exists());
+    }
+
     #[test]
     fn test_windows_db_target_by_install_kind() {
         use super::{is_installed_exe_dir, windows_db_target};

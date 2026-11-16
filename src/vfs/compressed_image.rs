@@ -60,6 +60,13 @@ pub enum InnerImage {
 
 /// The folder unpacked images are kept in (the name predates CD and disk images)
 pub fn cache_dir() -> PathBuf {
+    // The system service: the folder systemd made for it (CacheDirectory=brum, /var/cache/brum)
+    #[cfg(not(windows))]
+    if !crate::config::in_container() {
+        if let Some(dir) = std::env::var("CACHE_DIRECTORY").ok().and_then(|v| v.split(':').next().map(str::trim).filter(|d| d.starts_with('/')).map(PathBuf::from)) {
+            return dir.join("partclone_cache");
+        }
+    }
     dirs::cache_dir()
         .unwrap_or_else(std::env::temp_dir)
         .join("brum")

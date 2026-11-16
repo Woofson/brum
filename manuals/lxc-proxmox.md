@@ -62,7 +62,7 @@ install -m 755 brum /usr/bin/brum
 ln -sf /usr/bin/brum /usr/local/bin/brum
 
 # 3. Setup configuration hierarchy
-mkdir -p /etc/brum /data
+mkdir -p /etc/brum
 cp config.toml /etc/brum/config.toml
 
 # 4. Install systemd service
@@ -70,6 +70,21 @@ cp brum.service /usr/lib/systemd/system/brum.service 2>/dev/null || cp brum.serv
 systemctl daemon-reload
 systemctl enable --now brum.service
 ```
+
+### Where Brum keeps its files
+
+| What | Where |
+| :--- | :--- |
+| Settings file | `/etc/brum/config.toml` |
+| Database, keys, note attachments, profile pictures, Chewtoys | `/var/lib/brum` |
+| Logs | `/var/log/brum` (and `journalctl -u brum`) |
+| Unpacked disk images | `/var/cache/brum` |
+
+The service creates these folders itself on its first start. Nothing is kept in root's home folder. Run `sudo brum reset-admin-password` or `sudo brum join` as root and they use the same database as the service.
+
+Upgrading from 1.24.0 or earlier, which kept the database in `/data` or `/etc/brum`: the service moves it (with its keys and attachments) to `/var/lib/brum` once on its first start, and leaves a note `BRUM-DATA-MOVED.txt` in the old folder. Other files in `/data` are not touched. Chewtoys, profile pictures and SSH host keys that earlier versions kept in `/root/.config/brum` move to `/var/lib/brum` too. A `/root/Notes` folder made by an earlier version stays in use where it is.
+
+To start completely fresh, remove the package with `apt purge brum` (or `dpkg --purge brum`), not `dpkg -r`: a plain removal keeps `/etc/brum/config.toml` registered, and a reinstall then does not put it back if it was deleted by hand. Then delete `/var/lib/brum` and `/var/log/brum`.
 
 ---
 

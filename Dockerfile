@@ -56,6 +56,8 @@ RUN mkdir -p /data /data/admin /data/users /mnt /etc/brum/plugins \
 
 # Brum runs as user PUID:PGID (default 1000:1000); see docker-entrypoint.sh
 ENV PUID=1000 PGID=1000
+# Tells Brum it runs in its container, where /data is its storage
+ENV BRUM_CONTAINER=1
 
 EXPOSE 3140
 

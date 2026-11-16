@@ -422,8 +422,8 @@ pub async fn handle_get_me(
 }
 
 pub fn get_avatars_dir() -> std::path::PathBuf {
-    if let Some(config_dir) = dirs::config_dir() {
-        config_dir.join("brum").join("avatars")
+    if let Some(dir) = crate::config::private_data_dir("avatars") {
+        dir
     } else {
         std::path::PathBuf::from("data").join("avatars")
     }

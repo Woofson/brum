@@ -180,7 +180,7 @@ Each setting as it is called in Server Settings, its name in `config.toml`, and 
 | Shared folders | `[storage]` `roots` | none |
 | Admins can browse the whole machine | `[storage]` `allow_entire_system` | on |
 | Top folder of the machine | `[server]` `root_path` | / (C:\ on Windows) |
-| Personal folder for new Brum accounts | `[storage]` `default_user_home_template` | C:/Users/{username} on Windows, /data/users/{username} where /data exists (Docker), otherwise /home/{username} |
+| Personal folder for new Brum accounts | `[storage]` `default_user_home_template` | C:/Users/{username} on Windows, /data/users/{username} in Docker, otherwise /home/{username} |
 | Make personal folders when missing | `[storage]` `auto_create_home_dirs` | on |
 | When a personal folder cannot be used | `[storage]` `home_fallback_scheme` | Find the next best folder (`auto`) |
 | Allow remote connections to this machine itself | `[storage]` `allow_remote_loopback` | off |

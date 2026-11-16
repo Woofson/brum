@@ -49,8 +49,8 @@ pub fn resolve_known_hosts_path(custom_path: Option<&str>) -> PathBuf {
         }
     }
 
-    if let Some(cfg) = dirs::config_dir() {
-        return cfg.join("brum").join("known_hosts");
+    if let Some(file) = crate::config::private_data_dir("known_hosts") {
+        return file;
     }
 
     PathBuf::from("known_hosts")

@@ -15,6 +15,14 @@ LimitNOFILE=65536
 NoNewPrivileges=true
 ProtectSystem=true
 ReadWritePaths=/etc/brum
+# Data in /var/lib/brum, logs in /var/log/brum, unpacked disk images in /var/cache/brum
+# (created by systemd); nothing in root's home folder
+StateDirectory=brum
+StateDirectoryMode=0700
+LogsDirectory=brum
+LogsDirectoryMode=0750
+CacheDirectory=brum
+CacheDirectoryMode=0700
 PrivateTmp=true
 
 [Install]

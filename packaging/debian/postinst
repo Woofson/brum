@@ -2,9 +2,9 @@
 set -e
 
 if [ "$1" = "configure" ]; then
-    # Ensure default configuration and data directories exist
+    # Configuration lives in /etc/brum. The service's data (/var/lib/brum) and logs
+    # (/var/log/brum) are created by systemd when it starts; /data is only used in Docker.
     mkdir -p /etc/brum
-    mkdir -p /data
 
     # Create fallback symlink /usr/local/bin/brum -> /usr/bin/brum for compatibility
     if [ ! -e /usr/local/bin/brum ]; then
