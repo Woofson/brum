@@ -30161,6 +30161,39 @@ function closeAppDialog(result) {
   }
 }
 
+// The Linux service blocks sudo on purpose (NoNewPrivileges). When a terminal shows sudo's
+// "no new privileges" message, point once per page load to the manual on how to allow it.
+const TERMINAL_SUDO_HELP_URL = 'https://github.com/Woofson/brum/wiki/Configuration#admin-rights-in-the-terminal-linux';
+let terminalSudoHintShown = false;
+
+function watchForBlockedSudo(watch, data) {
+  if (terminalSudoHintShown) return;
+  const text = typeof data === 'string' ? data : watch.decoder.decode(new Uint8Array(data), { stream: true });
+  // Keep a short tail so the message is found even when it arrives split in two
+  watch.tail = (watch.tail + text).slice(-300);
+  if (/no new privileges/i.test(watch.tail)) {
+    terminalSudoHintShown = true;
+    showTerminalSudoHint();
+  }
+}
+
+function showTerminalSudoHint() {
+  const container = document.getElementById('toast-container');
+  if (!container) return;
+  const duration = 15000;
+  const toast = document.createElement('div');
+  toast.className = 'toast toast-info terminal-sudo-hint';
+  toast.style.setProperty('--toast-duration', `${duration / 1000}s`);
+  toast.innerHTML = `
+    <i data-lucide="info" style="width: 16px; height: 16px; flex-shrink: 0;"></i>
+    <span>sudo is blocked in Brum's terminal by design. You can allow it on this machine:
+      <a href="${TERMINAL_SUDO_HELP_URL}" target="_blank" rel="noopener noreferrer">how, and what it costs</a>.</span>
+  `;
+  container.appendChild(toast);
+  if (window.lucide) lucide.createIcons({ root: toast });
+  setTimeout(() => toast.remove(), duration + 300);
+}
+
 function showToast(message, type = 'info', duration = 3500) {
   const container = document.getElementById('toast-container');
   if (!container) return;
@@ -31852,9 +31885,11 @@ function connectTerminalTab(tab, cwd) {
       }, 400);
     };
 
+    const sudoWatch = { decoder: new TextDecoder(), tail: '' };
     thisWs.onmessage = (e) => {
       if (tab.ws !== thisWs) return;
       hasReceivedData = true;
+      watchForBlockedSudo(sudoWatch, e.data);
       if (tab.instance) {
         if (e.data instanceof ArrayBuffer) {
           tab.instance.write(new Uint8Array(e.data));

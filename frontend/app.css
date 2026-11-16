@@ -9532,6 +9532,11 @@ body.mobile-bar-icons_only .mob-cmd-btn svg,
   border-left: 3px solid #38bdf8;
 }
 
+.toast a {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
 .toast.toast-warning {
   border-left: 3px solid var(--accent);
 }

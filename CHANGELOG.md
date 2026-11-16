@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changes
 - **Six New Woofsons Themes**: Soft Amber Graphite, Ember Nordic, Iron & Amber, Blued Steel, Iron & Moss and Blued Olive, dark themes in the Woofsons style, now come with Brum.
 - **Admin Rights in the Terminal Explained (Refs #199)**: The manual now explains why `sudo` does not work in the terminal of the Linux service, how to allow it on a machine without changing Brum's files, how to undo it, and what you give up. Brum stays locked down by default.
+- **Tip When sudo Is Blocked (Refs #199)**: When `sudo` in a Brum terminal stops with "no new privileges", Brum shows a short tip once, with a link to that part of the manual.
 
 ## [1.24.1] - 2026-11-16
 
