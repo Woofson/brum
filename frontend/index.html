@@ -2121,7 +2121,7 @@
                 <i data-lucide="frame"></i> Panel Border, Focus & Two-Tone Gradient
               </h4>
             </div>
-            <p class="settings-card-desc">Fine-tune panel border thickness, active highlight style, and custom two-tone gradient angle.</p>
+            <p class="settings-card-desc">Fine-tune panel border thickness, active highlight style, two-tone gradient angle, and the glow around the active pane.</p>
 
             <div class="settings-grid-3col">
               <div class="settings-field">
@@ -2155,6 +2155,14 @@
                   <option value="270deg">270° Horizontal (←)</option>
                   <option value="315deg">315° Diagonal (↖)</option>
                   <option value="0deg">0° Vertical (↑)</option>
+                </select>
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="setting-pane-glow">Active Pane Glow:</label>
+                <select id="setting-pane-glow" class="settings-select" data-on-change="applyPaneGlow" data-change-args='[{"$": "value"}]'>
+                  <option value="off">Off (border and pane dot only, inactive dots dimmed)</option>
+                  <option value="soft" selected>Soft (Default)</option>
+                  <option value="strong">Strong</option>
                 </select>
               </div>
             </div>

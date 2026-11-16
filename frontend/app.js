@@ -78,7 +78,7 @@ const BRUM_ACTIONS = new Set([
   'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
   'addCustomFileIconRule', 'addDirectoryToMediaPlaylist', 'addModalTagFromInput', 'addNewBookmark',
   'addPropCustomTag', 'addTracksToMediaPlaylist', 'alignDiffPaths', 'applyBatchAutoTrackNumbers',
-  'applyBatchTagField', 'applyBorderSettings', 'applyCustomBadgePreset',
+  'applyBatchTagField', 'applyBorderSettings', 'applyCustomBadgePreset', 'applyPaneGlow',
   'applyExternalProgramPreset', 'applyPaneCustomTwoTone', 'applyPaneRenameFromInput',
   'applyPaneStartPath', 'applyPermPreset', 'applyPropCustomIconInput', 'applyPropPermPreset',
   'applyTheme', 'autoFitAllColumns', 'autoFitColumn', 'autoSelectDuplicates', 'backupAddExclusion',
@@ -1391,6 +1391,45 @@ function getBasename(path) {
 
 const getPathBasename = getBasename;
 
+// Going up from `fromPath` to `toPath` (an ancestor of it): the name of the item in `toPath`
+// that holds `fromPath`, so the list can put the cursor on the folder just left (#200).
+// Null when `toPath` is not above `fromPath`.
+function childNameTowards(toPath, fromPath) {
+  if (!toPath || !fromPath) return null;
+  // Inside archives and vaults, '#' separates the file from the folder within it
+  const norm = p => String(p).replace(/^(archive|vault):\/\//, '').replace('#', '/');
+  let up = norm(toPath);
+  let from = norm(fromPath);
+  if (up === from) return null;
+  if (/^[a-zA-Z]:/.test(from) || from.includes('\\')) {
+    // Windows paths: either slash, any case
+    up = up.replace(/\\/g, '/').toLowerCase();
+    from = from.replace(/\\/g, '/');
+    if (!from.toLowerCase().startsWith(up.endsWith('/') ? up : up + '/')) return null;
+  } else if (!from.startsWith(up.endsWith('/') ? up : up + '/')) {
+    return null;
+  }
+  const prefixLen = up.endsWith('/') ? up.length : up.length + 1;
+  const name = from.slice(prefixLen).split('/').filter(Boolean)[0];
+  return name || null;
+}
+
+// Bring the row under the cursor into view without moving the list when it is already visible
+// (after the next frame, when renderPaneTable has put back its own scroll position)
+function scrollPaneCursorIntoView(paneIndex) {
+  requestAnimationFrame(() => {
+    const mainView = document.querySelector(`#pane-${paneIndex} .pane-main-view`);
+    if (!mainView) return;
+    const row = mainView.querySelector('.cursor-focus');
+    if (!row) return;
+    const viewRect = mainView.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    if (rowRect.top < viewRect.top + 30 || rowRect.bottom > viewRect.bottom) {
+      row.scrollIntoView({ block: 'center' });
+    }
+  });
+}
+
 function getParentDirectory(path) {
   if (!path) return null;
   const str = String(path);
@@ -2257,6 +2296,7 @@ function getAllUserPreferences() {
     border_width: localStorage.getItem('cd_border_width') || '1px',
     ring_style: localStorage.getItem('cd_ring_style') || 'subtle',
     border_angle: localStorage.getItem('cd_border_angle') || '45deg',
+    pane_glow: localStorage.getItem('cd_pane_glow') || 'soft',
     icon_theme: localStorage.getItem('cd_icon_theme') || 'default',
     global_folder_icon: localStorage.getItem('cd_global_folder_icon') || '',
     custom_file_icons: JSON.parse(localStorage.getItem('cd_custom_file_icons') || '{}'),
@@ -2503,6 +2543,9 @@ function applyAllUserPreferences(prefs) {
     if (typeof applyBorderSettings === 'function') {
       applyBorderSettings(prefs.border_width, prefs.ring_style, prefs.border_angle, true);
     }
+  }
+  if (prefs.pane_glow && typeof applyPaneGlow === 'function') {
+    applyPaneGlow(prefs.pane_glow, true);
   }
 
   // 8b. Layout Gaps, Margin, Corner Radius, Folder Color & Title Template
@@ -6274,6 +6317,13 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
   const cleanPath = sanitizeCredentials(targetPath);
   const authUrl = resolveAuthUri(targetPath);
 
+  // Going up (Backspace, "..", the path bar, Back): put the cursor on the folder just left (#200)
+  let cameUpFrom = null;
+  if (!selectItemName && prevPathOnThisNode && prevPath) {
+    cameUpFrom = childNameTowards(cleanPath, prevPath);
+    if (cameUpFrom) selectItemName = cameUpFrom;
+  }
+
   // Abort any ongoing directory fetch for this pane
   if (pane._abortController) {
     try {
@@ -6309,11 +6359,20 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
       pane.totalSize = cached.total_size || 0;
       pane.isBranchTruncated = !!cached.is_truncated;
       pane.branchMaxLimit = cached.max_limit || 5000;
+      if (cameUpFrom) {
+        const idx = pane.entries.findIndex(e => e.name === cameUpFrom);
+        if (idx !== -1) {
+          pane.cursorIndex = idx;
+          pane.selected.clear();
+          pane.selected.add(pane.entries[idx].path);
+        }
+      }
       try {
         renderPaneBreadcrumbs(paneIndex, pane.path);
         renderPaneTabs(paneIndex);
         if (!pane.dockedTool) {
           renderPaneTable(paneIndex);
+          if (cameUpFrom) scrollPaneCursorIntoView(paneIndex);
         }
       } catch (_) {}
     }
@@ -6473,6 +6532,7 @@ async function loadPaneDirectory(paneIndex, targetPath, pushHistory = true, sele
           mainView.scrollTop = activeTab.scrollTop;
         }
       }
+      if (cameUpFrom) scrollPaneCursorIntoView(paneIndex);
     }
 
     try {
@@ -26239,10 +26299,29 @@ function applyBorderSettings(borderWidth, ringStyle, borderAngle, skipSync = fal
   if (typeof applyPaneColors === 'function') {
     applyPaneColors();
   }
+  applyPaneGlow(null, true);
 
   if (!skipSync) {
     queueSaveUserPreferencesToServer();
   }
+}
+
+// Glow around the active pane (#200): 'soft' (default), 'strong', or 'off'. With 'off' the
+// active pane shows only its border and the bright dot on its pane button; inactive panes'
+// dots are dimmed.
+function applyPaneGlow(glow, skipSync = false) {
+  const allowed = ['off', 'soft', 'strong'];
+  if (allowed.includes(glow)) {
+    localStorage.setItem('cd_pane_glow', glow);
+  } else {
+    glow = localStorage.getItem('cd_pane_glow');
+    if (!allowed.includes(glow)) glow = 'soft';
+    skipSync = true;
+  }
+  document.documentElement.setAttribute('data-pane-glow', glow);
+  const sel = document.getElementById('setting-pane-glow');
+  if (sel) sel.value = glow;
+  if (!skipSync) queueSaveUserPreferencesToServer();
 }
 
 function randomizeLoginBackground(targetEl = null) {
@@ -26648,6 +26727,11 @@ function openSettingsModal() {
   const angleSel = document.getElementById('setting-border-angle');
   if (angleSel) {
     angleSel.value = localStorage.getItem('cd_border_angle') || '45deg';
+  }
+
+  const glowSel = document.getElementById('setting-pane-glow');
+  if (glowSel) {
+    glowSel.value = localStorage.getItem('cd_pane_glow') || 'soft';
   }
 
   const globalRefreshCheckbox = document.getElementById('setting-show-global-refresh');

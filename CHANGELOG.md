@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changes
 - **Six New Woofsons Themes**: Soft Amber Graphite, Ember Nordic, Iron & Amber, Blued Steel, Iron & Moss and Blued Olive, dark themes in the Woofsons style, now come with Brum.
+- **Back Up a Folder, Back to Where You Were (Refs #200)**: Going up a level (Backspace, the ".." row, the path bar or the browser's Back) now puts the cursor on the folder you just left and scrolls it into view, instead of jumping to the top of the list. Going up several levels at once lands on the folder that held where you were.
+- **Active Pane Glow Can Be Turned Off (Refs #200)**: Settings → Panel Border has a new "Active Pane Glow" choice: Soft (as before), Strong, or Off. With Off the active pane shows only its border and the bright dot on its pane button, and the dots of the other panes are dimmed. Together with a 0px border and no ring, panes are completely plain.
 - **Admin Rights in the Terminal Explained (Refs #199)**: The manual now explains why `sudo` does not work in the terminal of the Linux service, how to allow it on a machine without changing Brum's files, how to undo it, and what you give up. Brum stays locked down by default.
 - **Tip When sudo Is Blocked (Refs #199)**: When `sudo` in a Brum terminal stops with "no new privileges", Brum shows a short tip once, with a link to that part of the manual.
 

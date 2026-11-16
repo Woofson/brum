@@ -865,6 +865,18 @@ body {
   box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) var(--pane-active-c1, var(--accent)), 0 0 14px var(--pane-glow, rgba(245, 158, 11, 0.25));
 }
 
+/* Active pane glow setting (#200) */
+:root[data-pane-glow="strong"] .pane.active {
+  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) var(--pane-active-c1, var(--accent)), 0 0 18px var(--pane-glow, rgba(245, 158, 11, 0.25)), 0 0 32px var(--pane-glow, rgba(245, 158, 11, 0.25));
+}
+:root[data-pane-glow="off"] .pane.active {
+  box-shadow: 0 0 0 var(--pane-active-ring-width, 1px) var(--pane-active-c1, var(--accent));
+}
+:root[data-pane-glow="off"] .pane:not(.active) .pane-badge-indicator {
+  opacity: 0.3;
+  box-shadow: none;
+}
+
 /* Pane Rearrangement Drag & Drop */
 .pane-badge[draggable="true"] {
   cursor: grab;
