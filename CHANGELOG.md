@@ -20,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **No Extra Trusted Web Address**: The shipped `config.toml` listed one extra web address under `allowed_origins`, so new installs trusted it for browser requests. It is no longer shipped; existing files may still have it and can drop it (in the file, or in Server Settings → Who can reach this Brum? after moving the settings into Brum).
 - **File Safety in the Security Tab**: The "File Integrity & Transaction Safety" switches in Admin → Security & Integrity did not save anything (the bin switch only changed it for that browser). They are replaced by a link to Server Settings → Safety, where they now work for everyone; people still switch the bin on or off for themselves in their own Settings.
 
+### Fixes
+- **Move Button for Fleet Machines Only**: Server Settings showed "Move them into Brum" only while ordinary settings were still in `config.toml`, so machines written as `[[fleet.nodes]]` could not be moved once the settings had been. The button now shows whenever anything can move, and Manage Fleet → Add machine has a "Move these into Brum" button under the machines still written in the file. The "Config" label on Fleet Control cards points there.
+- **Fleet Control List Scrolling**: The Registered Nodes list in Fleet Control scrolled sideways when a machine showed its system, version and labels, and was held at a fixed height beside a taller form, so it scrolled up and down and cut off the last machine. Card lines now wrap, the list never scrolls sideways, and it uses the full height beside the form (on narrow screens the whole window scrolls instead).
+
 ## [1.23.1] - 2026-11-15
 
 ### Fixes

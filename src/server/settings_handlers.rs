@@ -91,6 +91,7 @@ pub async fn handle_get_server_settings(State(state): State<AppState>, headers: 
         "file_only": file_only,
         "running": { "host": state.config.server.host, "port": state.config.server.port },
         "movable": file.as_ref().map(|f| movable(f).len() + movable_machines(f).0.len()).unwrap_or(0),
+        "movable_machines": file.as_ref().map(|f| movable_machines(f).0.len()).unwrap_or(0),
         "trial_seconds_left": trial_seconds_left(&state),
     })))
 }

@@ -70,6 +70,7 @@ const BRUM_ACTION_SELECTOR = BRUM_ACTION_EVENTS
 const BRUM_ACTIONS = new Set([
   'fleetManualForm', 'fleetManualCancel', 'fleetManualSave',
   'ssMoveFromFile',
+  'fleetMoveFromFile',
   'openServerSettingsGroup', 'ssEdit', 'ssEditList', 'ssEditNumber', 'ssHostChoice', 'ssKeepNetwork', 'ssPickFolder', 'ssReset', 'ssRestart', 'ssRootAdd', 'ssRootEdit', 'ssRootRemove', 'ssSave', 'ssSearch', 'ssShowGroup', 'ssUndo',
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
   'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup', 'backupUseProton',
@@ -10412,9 +10413,16 @@ function renderServerSettings() {
     banners.push(`<div class="ss-banner"><i data-lucide="lock"></i><div>${escapeHtml(d.locked_reason || '')}</div></div>`);
   } else {
     const inFile = d.settings.filter(s => s.source === 'file').length;
-    if (inFile) {
+    const machines = d.movable_machines || 0;
+    if (inFile || d.movable) {
+      const file = `<span class="bk-mono">${escapeHtml(d.config_file || 'config.toml')}</span>`;
+      const parts = [];
+      if (inFile) parts.push(`${inFile} of these settings are written in ${file}. Those are shown locked: the file always wins.`);
+      if (machines) parts.push(`${machines === 1 ? '1 Fleet machine is' : `${machines} Fleet machines are`} written in ${inFile ? 'the file' : file}.`);
+      const where = [d.movable > machines ? 'here' : '', machines ? 'in Manage Fleet' : ''].filter(Boolean).join(' and ');
+      if (d.movable) parts.push(`Move ${d.movable === 1 ? 'it' : 'them'} into Brum to change ${d.movable === 1 ? 'it' : 'them'} ${where}.`);
       const move = d.movable ? '<button class="btn btn-sm btn-accent" data-on-click="ssMoveFromFile"><i data-lucide="import"></i> Move them into Brum</button>' : '';
-      banners.push(`<div class="ss-banner${d.movable ? ' ss-banner-restart' : ''}"><i data-lucide="file-lock"></i><div>${inFile} of these settings are written in <span class="bk-mono">${escapeHtml(d.config_file || 'config.toml')}</span>. Those are shown locked: the file always wins.${d.movable ? ' Move them into Brum to change them here.' : ''}</div>${move}</div>`);
+      banners.push(`<div class="ss-banner${d.movable ? ' ss-banner-restart' : ''}"><i data-lucide="file-lock"></i><div>${parts.join(' ')}</div>${move}</div>`);
     }
   }
   const waiting = d.settings.filter(s => s.restart_needed).length;
@@ -10641,10 +10649,14 @@ function ssLabel(key) {
 }
 
 async function ssMoveFromFile() {
-  const n = SS.data?.movable || 0;
+  const d = SS.data || {};
+  const machines = d.movable_machines || 0;
+  const settings = Math.max(0, (d.movable || 0) - machines);
+  const count = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+  const what = [settings ? count(settings, 'setting', 'settings') : '', machines ? count(machines, 'Fleet machine', 'Fleet machines') : ''].filter(Boolean).join(' and ') || 'Settings';
   const ok = await showConfirmDialog({
     title: 'Move settings into Brum?', subtitle: 'From config.toml to Server Settings',
-    message: `${n === 1 ? '1 setting' : `${n} settings`} written in ${SS.data?.config_file || 'config.toml'} move into Brum, where you can change them on this page. The file keeps only what Brum needs before it starts. A copy of the file as it is now is kept next to it. Brum works exactly as before, and nothing needs a restart.`,
+    message: `${what} written in ${d.config_file || 'config.toml'} move into Brum, where you can change them${settings ? ' on Server Settings' : ''}${machines ? `${settings ? ' and' : ''} in Manage Fleet` : ''}. Tokens are kept encrypted. The file keeps only what Brum needs before it starts. A copy of the file as it is now is kept next to it. Brum works exactly as before, and nothing needs a restart.`,
     icon: 'import', type: 'info', confirmText: 'Move them',
   });
   if (!ok) return;
@@ -10658,6 +10670,7 @@ async function ssMoveFromFile() {
     return;
   }
   await loadServerSettings();
+  if (document.getElementById('fp-paired')) { await fleetPairRefreshNodes(); fleetPairListPaired(); }
   const stayed = data.stayed || [];
   if (data.moved?.length || data.machines?.length) {
     const parts = [];
@@ -46055,11 +46068,28 @@ async function fleetPairListPaired() {
   });
   inFile.forEach(n => rows.push(`<div class="fp-paired-row">
       <span><b>${escapeHtml(n.name || n.id)}</b> <small><i data-lucide="lock"></i> in config.toml</small><br><span class="bk-mono fp-muted">${escapeHtml([...new Set([n.url, ...(n.urls || [])].filter(Boolean))].join(', '))}</span></span>
-      <span class="fp-muted" title="Written in config.toml, which wins. Admin Control Panel → Server Settings → Move them into Brum makes it changeable here.">changed in the file</span>
+      <span class="fp-muted" title="Written in config.toml, which wins. Move these into Brum, below, to change it here.">changed in the file</span>
     </div>`));
+  if (inFile.length && isAdminUser()) rows.push(`<div class="fp-paired-row">
+      <span class="fp-muted">${inFile.length === 1 ? 'This machine is' : 'These machines are'} written in config.toml. Move ${inFile.length === 1 ? 'it' : 'them'} into Brum to change ${inFile.length === 1 ? 'it' : 'them'} here. A copy of the file is kept.</span>
+      <button class="btn btn-xs btn-accent" data-on-click="fleetMoveFromFile"><i data-lucide="import"></i> Move these into Brum</button>
+    </div>`);
   box.innerHTML = rows.length ? rows.join('') : '<div class="fp-muted">None yet.</div>';
   bindActions(box);
   if (window.lucide) lucide.createIcons({ root: box });
+}
+
+/** The same move as Server Settings → Move them into Brum, started from Manage Fleet */
+async function fleetMoveFromFile() {
+  await loadServerSettings();
+  const d = SS.data;
+  if (!d) { showToast('Could not read the server settings.', 'error'); return; }
+  if (!d.editable) { showToast(d.locked_reason || 'Settings can only be changed in config.toml on this machine.', 'error', 10000); return; }
+  if (!d.movable_machines) {
+    showToast('The machines in config.toml cannot be moved as they are written. Admin Control Panel → Server Settings → Move them into Brum shows why.', 'warning', 10000);
+    return;
+  }
+  await ssMoveFromFile();
 }
 
 const FLEET_COLOURS = ['amber', 'emerald', 'sky', 'purple', 'rose', 'orange', 'cyan', 'slate'];
@@ -46307,7 +46337,7 @@ function renderFleetManagerList() {
             ${fleetOsBadge(n)}
             ${getFleetNodeVersionBadge(n.version)}
             ${isAct ? '<span class="fleet-tag-pill" style="font-size: 9px; padding: 1px 4px; background: rgba(245, 158, 11, 0.15); color: var(--accent);">Active</span>' : ''}
-            ${n.is_static ? (n.user_override ? '<span class="fleet-tag-pill" style="font-size: 8.5px; background: rgba(245, 158, 11, 0.15); color: #f59e0b;" title="Custom overrides active (overrides config.toml)">Override</span>' : '<span class="fleet-tag-pill" style="font-size: 8.5px; opacity: 0.7;" title="Inherited from config.toml">Config</span>') : ''}
+            ${n.is_static ? (n.user_override ? '<span class="fleet-tag-pill" style="font-size: 8.5px; background: rgba(245, 158, 11, 0.15); color: #f59e0b;" title="Custom overrides active (overrides config.toml)">Override</span>' : '<span class="fleet-tag-pill" style="font-size: 8.5px; opacity: 0.7;" title="Listed by this Brum&#39;s server. Change it in Manage Fleet → Add machine.">Config</span>') : ''}
             ${isProxy ? '<span class="fleet-tag-pill" style="font-size: 8.5px; padding: 0 4px; background: rgba(56, 189, 248, 0.12); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.25);" title="Routed via Gateway Hub Reverse Proxy">Gateway</span>' : ''}
           </div>
           <div style="display: flex; align-items: center; gap: 4px;">

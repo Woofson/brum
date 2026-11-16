@@ -13523,8 +13523,19 @@ body.standalone-mode .server-only-setting {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  /* Fills the column beside the form, and grows past it up to what the window can show */
+  flex: 1 1 auto;
+  max-height: calc(100vh - 260px);
   overflow-y: auto;
-  max-height: 380px;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  /* One column: the whole window scrolls instead of a box inside it */
+  .fleet-nodes-list {
+    flex: none;
+    max-height: none;
+  }
 }
 
 .fleet-card {
@@ -13552,8 +13563,10 @@ body.standalone-mode .server-only-setting {
 
 .fleet-card-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 4px 8px;
 }
 
 .fleet-card-name {
@@ -13561,8 +13574,11 @@ body.standalone-mode .server-only-setting {
   font-weight: 700;
   color: var(--text-main);
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 4px 6px;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .fleet-card-url {
@@ -13574,8 +13590,10 @@ body.standalone-mode .server-only-setting {
 
 .fleet-card-footer {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 6px;
   font-size: 10.5px;
 }
 
