@@ -18622,3 +18622,32 @@ input[type="checkbox"]:checked::after,
 #ss-safety-body {
   margin-bottom: 16px;
 }
+
+/* Touch screens (#203 follow-up): tablets get the touch button bar (with Actions, the same menu as a
+   right-click) instead of the F1–F10 key bar, and keyboard hints are left out of menus */
+@media (pointer: coarse) and (min-width: 769px) and (max-width: 1366px) {
+  .bottom-fkey-bar {
+    display: none !important;
+  }
+  .mobile-bottom-bar {
+    display: flex !important;
+  }
+  html[data-mobile-bar="off"] .mobile-bottom-bar,
+  body.mobile-bar-off .mobile-bottom-bar,
+  .mobile-bottom-bar.mode-off {
+    display: none !important;
+  }
+}
+@media (pointer: coarse) {
+  .context-menu .context-shortcut,
+  .dropdown-shortcut {
+    display: none !important;
+  }
+}
+.dropdown-shortcut {
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 10.5px;
+  color: var(--text-dim, var(--text-muted));
+  font-family: var(--font-mono);
+}

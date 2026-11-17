@@ -94,7 +94,7 @@ The details are in [Copying and Moving Between Machines](configuration.md#5-copy
 * **Search**: find files by name on every ticked machine; results are grouped by machine, and a click opens the hit in a pane.
 * **Same file**: check one path on every machine: which have it, which differ, and compare two of them.
 * **Free space**: the drives of every machine side by side.
-* **Send**: copy the files selected in a pane to several machines in one go (also from the right-click menu: **Copy to…** → **Send to machines…**).
+* **Send**: copy the files selected in a pane to several machines in one go (also from the right-click menu: **Copy To** → **Send to machines…**).
 
 ### Backups to other machines
 
