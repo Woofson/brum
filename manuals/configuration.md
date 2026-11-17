@@ -384,6 +384,35 @@ systemctl --user restart brum
 
 Undo with `systemctl --user revert brum`. A Brum you start by hand in a terminal has neither protection.
 
+### `/tmp` is the real `/tmp`
+
+Brum's service shares `/tmp` with the rest of the machine on purpose. Its terminal and panels see the same `/tmp` as an SSH login, so:
+
+* files you save in `/tmp` from Brum stay there when Brum restarts, and other programs can see them;
+* `tmux` and `screen` sessions started in a Brum terminal keep working after a Brum restart, and you can attach to them from SSH.
+
+Brum's own temporary files get random names that cannot be guessed, so sharing `/tmp` does not put them at risk.
+
+**Upgrading from 1.24.1 or older:** the Debian and Arch Linux packages replace the start-up file for you; restart Brum afterwards. The LXC install script (`install.sh`) replaces it and restarts Brum itself. Two cases need one extra step:
+
+* **You copied `brum.service` by hand** (from the download archive): copy the new one over it, then run `sudo systemctl daemon-reload` and `sudo systemctl restart brum`.
+* **You used `brum service install`**: run it again, then `systemctl --user daemon-reload` and `systemctl --user restart brum`.
+
+Until then Brum keeps its old private `/tmp`, which is emptied on every restart. Check with `systemctl show brum -p PrivateTmp` (add `--user` for the second case): it should say `PrivateTmp=no`.
+
+**To give Brum its own `/tmp` again** on a machine, run `sudo systemctl edit brum` and add:
+
+```ini
+[Service]
+PrivateTmp=true
+```
+
+Then run `sudo systemctl restart brum` (for `brum service install`, use `systemctl --user edit brum` and `systemctl --user restart brum`). Undo it with `sudo systemctl revert brum`. Doing this costs you three things:
+
+* every Brum restart empties Brum's `/tmp`;
+* `/tmp` in Brum's panels is not the `/tmp` other programs see;
+* `tmux` and `screen` sessions started in a Brum terminal are cut off on every restart. They keep running, but nothing can reach them any more.
+
 ### Docker and Windows
 
 * **Docker:** the terminal is a shell inside the container, not on the host, and the image has no `sudo`. The `no-new-privileges` line in `docker-compose.yml` is the same protection for the container. See [The Terminal in Docker](docker.md#4-the-terminal-in-docker).

@@ -32,7 +32,8 @@ LogsDirectory=brum
 LogsDirectoryMode=0750
 CacheDirectory=brum
 CacheDirectoryMode=0700
-PrivateTmp=true
+# No PrivateTmp on purpose: Brum's terminal and panels see the real /tmp, so files there and
+# tmux/screen sessions started in a Brum terminal survive a Brum restart (#201).
 
 [Install]
 WantedBy=multi-user.target
