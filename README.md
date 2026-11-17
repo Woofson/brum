@@ -61,7 +61,7 @@ To set up a main Brum and two more machines, see [Several machines in ten minute
 Beyond the Fleet, Brum is a file manager you use in the browser, written in Rust. It follows the classic two-pane style of Total Commander and Midnight Commander, so the keyboard does most of the work, and adds a set of everyday tools (see [Built-in Tools](#built-in-tools)).
 
 * **Up to four panes**, each with its own tabs. Copy, move and compare between them with the classic <kbd>F1</kbd>–<kbd>F10</kbd> keys, drag and drop, or touch.
-* **Local and remote storage in one view**: your disks and USB drives next to SFTP, SMB, WebDAV, S3, NFS and Proton Drive. You can also browse inside archives and disk images.
+* **Local and remote storage in one view**: your disks and USB drives next to SFTP, SMB, WebDAV, S3, NFS, Proton Drive, and Jottacloud, Google Drive, OneDrive, Dropbox and many more cloud services through rclone. You can also browse inside archives and disk images.
 * **Several users**, each limited to their own folders, with optional read-only accounts and sign-in through your own identity provider (OIDC).
 * **Runs where you need it**: as a desktop app on Linux and Windows, in Docker on a server or NAS, or as a background service.
 
@@ -191,6 +191,7 @@ All operational runbooks, platform guides, and security manuals are available on
 * [**Keyboard Shortcuts & Navigation**](manuals/shortcuts.md) — Orthodox <kbd>F1</kbd>–<kbd>F10</kbd> keys, media player keys, touch gestures.
 * [**Settings and Configuration**](manuals/configuration.md) — Server Settings, what stays in `config.toml`, and every setting with its default.
 * [**Remote Protocols & VFS Guide**](manuals/protocols.md) — SFTP, SMB, NFS, WebDAV, S3, Proton Drive, Hetzner.
+* [**Cloud Storage (rclone)**](manuals/cloud-storage.md) — Jottacloud, Google Drive, OneDrive, Dropbox and more in panes and backups.
 * [**Transparent Encrypted Vaults Guide**](manuals/vaults.md) — Argon2id + AES-256-GCM in-memory containers.
 * [**Advanced Sharing & Client Portals**](manuals/sharing.md) — Public links, granular ACLs, dynamic watermarking, upload dropzones.
 * [**Windows Desktop & Packaging**](manuals/windows.md) — Winget, Scoop, NSIS Setup, MSI, and Portable ZIP.

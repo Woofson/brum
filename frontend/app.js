@@ -99,6 +99,7 @@ const BRUM_ACTIONS = new Set([
   'fleetMoveFromFile',
   'openServerSettingsGroup', 'ssEdit', 'ssEditList', 'ssEditNumber', 'ssHostChoice', 'ssKeepNetwork', 'ssPickFolder', 'ssReset', 'ssRestart', 'ssRootAdd', 'ssRootEdit', 'ssRootRemove', 'ssSave', 'ssSearch', 'ssShowGroup', 'ssUndo',
   'protonCancelSignIn', 'protonCheckUpdate', 'protonCopyLink', 'protonInstall', 'protonOpenInPanel',
+  'rcloneInstall', 'rcloneCheckUpdate', 'rcloneOpenRemote', 'rcloneTestRemote', 'rcloneRemoveRemote', 'rcloneAddJottacloud',
   'protonOpenLink', 'protonSignIn', 'protonSignOut', 'openProtonSetup', 'backupUseProton',
   'openProtonShare', 'protonShareSave', 'protonShareRemove', 'protonShareCopy', 'protonShareTogglePassword',
   'addActivePanePdfFiles', 'addCurrentOrContextItemToQuickDest', 'addCurrentPaneToQuickDest',
@@ -1487,13 +1488,14 @@ function getParentDirectory(path) {
     return `vault://${vaultFile}#`;
   }
 
-  // Remote URI: sftp://, smb://, webdav://, proton://, nfs://
+  // Remote URI: sftp://, smb://, webdav://, proton://, nfs://, rclone://
   const protoMatch = str.match(/^([a-zA-Z0-9_-]+):\/\/(.*)$/);
   if (protoMatch) {
     const proto = protoMatch[1].toLowerCase();
     const rest = protoMatch[2];
     const parts = rest.split('/').filter(Boolean);
-    const minParts = proto === 'smb' ? 2 : 1;
+    // rclone://remote goes up to the list of remotes (rclone://)
+    const minParts = proto === 'smb' ? 2 : (proto === 'rclone' ? 0 : 1);
     if (parts.length > minParts) {
       parts.pop();
       return `${proto}://${parts.join('/')}`;
@@ -7458,8 +7460,8 @@ function renderPaneTable(paneIndex, preserveScroll = true) {
       card.dataset.index = idx;
 
       let thumbHtml = '';
-      // Proton Drive: each picture would be downloaded in full through Proton's program, so icons are shown
-      if (!entry.is_dir && isImageFile(entry.name) && !entry.path.startsWith('proton://')) {
+      // Proton Drive and cloud storage: each picture would be downloaded in full, so icons are shown
+      if (!entry.is_dir && isImageFile(entry.name) && !entry.path.startsWith('proton://') && !entry.path.startsWith('rclone://')) {
         thumbHtml = `<img src="${getDownloadUrl(entry.path, true)}" class="grid-thumb-img" loading="lazy" alt="${escapeHtml(entry.name)}" data-on-error="useFallbackIcon" data-error-args="${actionArgs(ACTION_EL, 'assets/brum_icon.webp')}">`;
       } else {
         thumbHtml = renderFileIconHtml(entry.name, entry.is_dir, entry.is_archive, entry.path, 'lg', entry.is_empty);
@@ -10360,6 +10362,7 @@ function switchAdminTab(tabId) {
   document.getElementById(tabId)?.classList.add('active');
 
   if (tabId === 'admin-tab-users') loadUsersTable();
+  if (tabId === 'admin-tab-cloud') renderRcloneSetup();
   if (tabId === 'admin-tab-tokens') loadAdminApiTokens();
   if (tabId === 'admin-tab-storage') { loadAdminGlobalMounts(); loadAdminImageCache(); }
   if (tabId === 'admin-tab-config') loadMasterConfigEditor();
@@ -10409,7 +10412,7 @@ const SS_GROUPS = [
   { id: 'start', icon: 'layout-dashboard', title: 'What everyone sees first', desc: 'How Brum looks for someone who has not changed their own Settings yet.',
     keys: ['ui.default_layout', 'ui.default_pane_count', 'ui.default_view_mode', 'ui.show_hidden_files', 'ui.window_title', 'ui.login_title', 'desktop.enable_tray'] },
   { id: 'services', icon: 'plug', title: 'Other services', desc: 'Programs and services Brum works together with.',
-    keys: ['syncthing.enabled', 'syncthing.url', 'syncthing.api_key', 'proton.allow_download', 'notes.notes_folder'] },
+    keys: ['syncthing.enabled', 'syncthing.url', 'syncthing.api_key', 'proton.allow_download', 'rclone.allow_download', 'notes.notes_folder'] },
   { id: 'logs', icon: 'scroll-text', title: 'Logs and records', desc: 'What Brum writes down about itself and about who did what.',
     keys: ['activity.enabled', 'activity.retention_days', 'logging.level', 'logging.file_enabled', 'logging.console_enabled', 'logging.rotation', 'logging.max_files'] },
 ];
@@ -10478,6 +10481,7 @@ const SS_TEXT = {
   'syncthing.url': { label: 'Syncthing address', help: 'Usually http://127.0.0.1:8384' },
   'syncthing.api_key': { label: 'Syncthing API key', help: 'From Syncthing: Actions → Settings → API Key. Stored encrypted; it is never shown again.' },
   'proton.allow_download': { label: 'Admins can install the Proton Drive program', help: 'Lets the Install button download it from proton.me.' },
+  'rclone.allow_download': { label: 'Admins can install rclone (cloud storage)', help: 'Lets the Install button in Cloud Storage download rclone from rclone.org.' },
   'notes.notes_folder': { label: 'Notes folder', help: 'Where Notes keeps its files.' },
   'activity.enabled': { label: 'Keep an Activity Log', help: 'Writes down who changed which files and settings, and when.' },
   'activity.retention_days': { label: 'Keep entries for (days)', help: '0 keeps them for good.' },
@@ -22645,9 +22649,10 @@ async function openPaneFavoritesMenu(e, paneIndex) {
   let trashSummary = { total_items: 0, total_size: 0, files_dir: '' };
   let usbDevices = [];
   let protonStatus = null;
+  let rcloneAvail = null;
 
   try {
-    const [mountsRes, bmRes, rootsRes, trashRes, disksRes, usbRes, protonRes] = await Promise.all([
+    const [mountsRes, bmRes, rootsRes, trashRes, disksRes, usbRes, protonRes, rcloneRes] = await Promise.all([
       fetch(`${endpoint}/api/mounts/accessible`, { headers: authHeaders }).catch(() => null),
       fetch('/api/bookmarks', { headers: {} }).catch(() => null),
       fetch(`${endpoint}/api/storage/roots`, { headers: authHeaders }).catch(() => null),
@@ -22655,9 +22660,12 @@ async function openPaneFavoritesMenu(e, paneIndex) {
       fetch(`${endpoint}/api/tools/disks`, { headers: authHeaders }).catch(() => null),
       fetch(`${endpoint}/api/system/usb`, { headers: authHeaders }).catch(() => null),
       // Proton Drive login lives on this Brum, so it is offered for this machine's panels only
-      isRemote ? Promise.resolve(null) : fetch('/api/proton/status').catch(() => null)
+      isRemote ? Promise.resolve(null) : fetch('/api/proton/status').catch(() => null),
+      // Cloud storage (rclone) belongs to the machine the panel shows
+      fetch(`${endpoint}/api/rclone/available`, { headers: authHeaders }).catch(() => null)
     ]);
     if (protonRes && protonRes.ok) protonStatus = await protonRes.json();
+    if (rcloneRes && rcloneRes.ok) rcloneAvail = await rcloneRes.json();
     if (mountsRes && mountsRes.ok) globalMounts = await mountsRes.json();
     if (bmRes && bmRes.ok) userBookmarks = await bmRes.json();
     if (rootsRes && rootsRes.ok) storageRoots = await rootsRes.json();
@@ -22910,6 +22918,16 @@ async function openPaneFavoritesMenu(e, paneIndex) {
             <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${escapeHtml(protonStatus.account || 'proton:///my-files')}</div>
           </div>
           ${curPanePath.startsWith('proton://') ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
+        </div>
+      ` : ''}
+      ${rcloneAvail && rcloneAvail.available && rcloneAvail.may_use ? `
+        <div class="dropdown-item ${curPanePath.startsWith('rclone://') ? 'active' : ''}" data-action="load-dir" data-pane="${paneIndex}" data-path="rclone://">
+          <i data-lucide="cloud" style="color: var(--accent);"></i>
+          <div style="flex: 1; min-width: 0;">
+            <div style="font-weight: 600;">Cloud Storage</div>
+            <div style="font-size: 10px; color: var(--text-dim); font-family: var(--font-mono);">rclone://</div>
+          </div>
+          ${curPanePath.startsWith('rclone://') ? '<span style="color: var(--accent); font-size: 11px; margin-left: 4px;">✓</span>' : ''}
         </div>
       ` : ''}
       <div class="context-sep" style="margin: 4px 0;"></div>
@@ -33819,7 +33837,7 @@ async function loadImageToViewer(path, paneIndex = null) {
     imgEl.src = blobUrl;
   } catch (err) {
     if (loadId !== currentLoadingImageId) return;
-    if (String(path).startsWith('proton://') || String(err.message || '').startsWith('Proton Drive')) {
+    if (String(path).startsWith('proton://') || String(path).startsWith('rclone://') || String(err.message || '').startsWith('Proton Drive') || String(err.message || '').startsWith('Cloud storage')) {
       loadingDone(err.message || 'This picture could not be downloaded');
       handleImageError();
       return;
@@ -41594,7 +41612,7 @@ function buildSpotlightItems() {
     });
 
     // If query looks like an absolute path or URI, offer to jump directly
-    if (spotlightQuery.startsWith('/') || spotlightQuery.startsWith('~') || spotlightQuery.startsWith('smb://') || spotlightQuery.startsWith('sftp://') || spotlightQuery.startsWith('ssh://') || spotlightQuery.startsWith('proton://')) {
+    if (spotlightQuery.startsWith('/') || spotlightQuery.startsWith('~') || spotlightQuery.startsWith('smb://') || spotlightQuery.startsWith('sftp://') || spotlightQuery.startsWith('ssh://') || spotlightQuery.startsWith('proton://') || spotlightQuery.startsWith('rclone://')) {
       const targetP = spotlightQuery.startsWith('~') ? spotlightQuery.replace('~', userHome) : spotlightQuery;
       const cleanTargetP = sanitizeCredentials(targetP);
       pool.unshift({
@@ -43278,7 +43296,7 @@ let currentGitStatusData = null;
 let currentGitDiffFile = null;
 
 async function fetchGitStatusForPane(paneIndex, path) {
-  if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('ssh://') || path.startsWith('client://') || path.startsWith('proton://')) return;
+  if (!path || path.startsWith('smb://') || path.startsWith('sftp://') || path.startsWith('ssh://') || path.startsWith('client://') || path.startsWith('proton://') || path.startsWith('rclone://')) return;
   try {
     const resp = await fetch(`/api/git/status?path=${encodeURIComponent(path)}`, {
       headers: {}
@@ -52729,10 +52747,237 @@ function openProtonSetup() {
   switchSettingsTab('tab-proton');
 }
 
+// ==========================================================================
+// Cloud storage through rclone (Admin → Cloud Storage, #189)
+// ==========================================================================
+const rcloneUi = { status: null, latest: null, latestError: '', pollTimer: null, busy: false, error: '', about: {} };
+
+function isRcloneTabVisible() {
+  const tab = document.getElementById('admin-tab-cloud');
+  return !!(tab && tab.classList.contains('active') && tab.offsetParent !== null);
+}
+
+async function rcloneLoad() {
+  try {
+    rcloneUi.status = await backupApi('/api/rclone/status');
+    rcloneUi.error = '';
+  } catch (e) {
+    rcloneUi.error = e.message;
+  }
+}
+
+async function renderRcloneSetup() {
+  await rcloneLoad();
+  rcloneRender();
+  rcloneSchedulePoll();
+}
+
+// Checks again while rclone is being downloaded
+function rcloneSchedulePoll() {
+  clearTimeout(rcloneUi.pollTimer);
+  const inst = rcloneUi.status && rcloneUi.status.install;
+  if (!inst || (inst.phase !== 'downloading' && inst.phase !== 'verifying')) return;
+  rcloneUi.pollTimer = setTimeout(async () => {
+    if (!isRcloneTabVisible()) return;
+    await rcloneLoad();
+    const now = rcloneUi.status && rcloneUi.status.install;
+    if (now && now.phase === 'done') {
+      showToast(`rclone ${now.version || ''} installed`, 'success');
+      rcloneUi.latest = null;
+    }
+    rcloneRender();
+    rcloneSchedulePoll();
+  }, 700);
+}
+
+function rcloneProgramCard(st) {
+  const inst = st.install || {};
+  const where = { brum: 'installed by Brum', config: 'set in config.toml', system: 'found on this computer' };
+  const links = `<div class="proton-links">Or install it yourself: the <code>rclone</code> package of your system (for example <code>apt install rclone</code>), or <a href="${escapeHtml(st.download_page)}" target="_blank" rel="noopener noreferrer">rclone's download page</a>.</div>`;
+  let body = '';
+  if (inst.phase === 'downloading' || inst.phase === 'verifying') {
+    const pct = inst.total ? Math.min(100, Math.round((inst.received / inst.total) * 100)) : 0;
+    body = `<div class="proton-line">${inst.phase === 'verifying' ? 'Checking the download against rclone’s published checksum…' : `Downloading rclone ${escapeHtml(inst.version || '')} from rclone.org…`}</div>
+      <div class="proton-progress"><div style="width:${inst.phase === 'verifying' ? 100 : pct}%"></div></div>
+      <div class="form-hint">${formatBytes(inst.received || 0)}${inst.total ? ` of ${formatBytes(inst.total)}` : ''}</div>`;
+    return protonCard('rclone', 'download', body);
+  }
+  if (st.cli) {
+    body = `<div class="proton-line ok"><i data-lucide="check-circle-2"></i> Version ${escapeHtml(st.cli.version || 'unknown')}, ${where[st.cli.source] || 'found'}</div>
+      <div class="form-hint proton-path" title="${escapeHtml(st.cli.path)}">${escapeHtml(st.cli.path)}</div>`;
+    const lt = rcloneUi.latest;
+    const current = String(st.cli.version || '').replace(/-.*$/, '');
+    if (lt && current && protonVersionNewer(lt.version, current)) {
+      body += st.cli.source === 'brum' && st.allow_download
+        ? `<div class="proton-line">Version ${escapeHtml(lt.version)} is available.</div><div class="proton-actions"><button class="btn btn-sm btn-accent" data-on-click="rcloneInstall"><i data-lucide="download"></i> Update to ${escapeHtml(lt.version)}</button></div>`
+        : `<div class="proton-line">Version ${escapeHtml(lt.version)} is available. Update it the way you installed it${st.cli.source === 'system' && st.allow_download ? ', or install Brum’s own copy' : ''}.</div>${st.cli.source === 'system' && st.allow_download ? `<div class="proton-actions"><button class="btn btn-sm" data-on-click="rcloneInstall"><i data-lucide="download"></i> Install ${escapeHtml(lt.version)} for Brum</button></div>` : ''}`;
+    } else if (lt) {
+      body += `<div class="form-hint">This is the newest version.</div>`;
+    } else {
+      body += `<div class="proton-actions"><button class="btn btn-sm" data-on-click="rcloneCheckUpdate"${rcloneUi.busy ? ' disabled' : ''}><i data-lucide="refresh-cw"></i> Check for updates</button></div>`;
+    }
+    if (rcloneUi.latestError) body += `<div class="proton-error">${escapeHtml(rcloneUi.latestError)}</div>`;
+  } else {
+    body = `<div class="proton-line">rclone is not installed yet.</div>`;
+    if (st.allow_download && st.platform) {
+      body += `<div class="proton-actions"><button class="btn btn-sm btn-accent" data-on-click="rcloneInstall"${rcloneUi.busy ? ' disabled' : ''}><i data-lucide="download"></i> Install from rclone.org</button></div>
+        <div class="form-hint">About 25 MB, for ${escapeHtml(st.platform)}. Checked against rclone's published checksum before it is used, and kept in Brum's data folder.</div>`;
+    } else if (!st.allow_download) {
+      body += `<div class="form-hint">Downloading is turned off on this server (<code>[rclone] allow_download</code>). Install it yourself, or set <code>[rclone] cli_path</code>.</div>`;
+    } else {
+      body += `<div class="form-hint">rclone has no download for this kind of computer.</div>`;
+    }
+  }
+  if (inst.phase === 'failed' && inst.error) body += `<div class="proton-error">${escapeHtml(inst.error)}</div>`;
+  body += links;
+  return protonCard('rclone', 'package', body);
+}
+
+function rcloneAboutText(a) {
+  if (!a) return '';
+  if (a.error) return `<span class="proton-error">${escapeHtml(a.error)}</span>`;
+  const u = a.about || {};
+  const parts = [];
+  if (typeof u.used === 'number') parts.push(`${formatBytes(u.used)} used`);
+  if (typeof u.free === 'number') parts.push(`${formatBytes(u.free)} free`);
+  if (typeof u.total === 'number') parts.push(`${formatBytes(u.total)} in all`);
+  return `<span style="color: var(--success, #22c55e);">Works.</span> ${parts.length ? escapeHtml(parts.join(', ')) : 'This service does not tell its storage use.'}`;
+}
+
+function rcloneRemotesCard(st) {
+  if (!st.cli) return '';
+  const list = st.remotes || [];
+  let rows = list.map(r => `
+    <div class="rclone-remote">
+      <span class="rclone-remote-name">${escapeHtml(r.name)}</span>
+      <span class="rclone-remote-kind">${escapeHtml(r.kind || '')}</span>
+      <button class="btn btn-sm btn-accent" data-on-click="rcloneOpenRemote" data-click-args="${actionArgs(r.name)}"><i data-lucide="folder-open"></i> Open</button>
+      <button class="btn btn-sm" data-on-click="rcloneTestRemote" data-click-args="${actionArgs(r.name)}"${rcloneUi.busy ? ' disabled' : ''}><i data-lucide="activity"></i> Test</button>
+      <button class="btn btn-sm" data-on-click="rcloneRemoveRemote" data-click-args="${actionArgs(r.name)}"${rcloneUi.busy ? ' disabled' : ''}><i data-lucide="trash-2"></i> Remove</button>
+      ${rcloneUi.about[r.name] ? `<div class="rclone-remote-about">${rcloneAboutText(rcloneUi.about[r.name])}</div>` : ''}
+    </div>`).join('');
+  if (!rows) rows = '<div class="form-hint">No services yet. Add Jottacloud below, or set up any other service with rclone config (see Settings file).</div>';
+  if (st.remotes_error) rows += `<div class="proton-error">${escapeHtml(st.remotes_error)}</div>`;
+  return protonCard('Services', 'cloud', `<div>${rows}</div>`);
+}
+
+function rcloneAddCard(st) {
+  if (!st.cli) return '';
+  const body = `<div class="rclone-form">
+      <div class="rclone-text">Add <b>Jottacloud</b>: make a personal login token on <a href="https://www.jottacloud.com/web/secure" target="_blank" rel="noopener noreferrer">jottacloud.com → Settings → Security</a> and paste it here. A token works once; make a new one if adding fails.</div>
+      <label class="form-hint" for="rclone-jotta-name">Name in Brum (the address becomes rclone://<i>name</i>)</label>
+      <input type="text" id="rclone-jotta-name" class="pane-quick-filter" value="jotta" autocomplete="off" spellcheck="false">
+      <label class="form-hint" for="rclone-jotta-token">Personal login token</label>
+      <input type="password" id="rclone-jotta-token" class="pane-quick-filter" autocomplete="off" spellcheck="false" placeholder="Paste the token">
+      <div class="proton-actions"><button class="btn btn-sm btn-accent" data-on-click="rcloneAddJottacloud"${rcloneUi.busy ? ' disabled' : ''}><i data-lucide="plus"></i> Add Jottacloud</button></div>
+    </div>`;
+  return protonCard('Add a service', 'plus-circle', body);
+}
+
+function rcloneSettingsFileCard(st) {
+  if (!st.cli) return '';
+  const body = st.config_file
+    ? `<div class="rclone-text">This Brum keeps its services in its own settings file, readable only by Brum:</div>
+       <div class="form-hint proton-path" title="${escapeHtml(st.config_file)}">${escapeHtml(st.config_file)}</div>
+       <div class="form-hint">To set up other services (Google Drive, OneDrive, Dropbox, SFTP, …), run <code>sudo rclone config --config ${escapeHtml(st.config_file)}</code> in a terminal on this machine. They show up here by themselves.</div>`
+    : `<div class="rclone-text">This Brum uses rclone's normal settings file of the account it runs as, the same one <code>rclone config</code> uses in a terminal. Services set up there show up here by themselves.</div>`;
+  return protonCard('Settings file', 'file-cog', body);
+}
+
+function rcloneRender() {
+  const el = document.getElementById('rclone-setup');
+  if (!el) return;
+  const st = rcloneUi.status;
+  if (!st) {
+    el.innerHTML = rcloneUi.error ? `<div class="proton-error">${escapeHtml(rcloneUi.error)}</div>` : '<div class="form-hint">Checking…</div>';
+    return;
+  }
+  // Keep what was typed in the form across redraws
+  const name = document.getElementById('rclone-jotta-name')?.value;
+  const token = document.getElementById('rclone-jotta-token')?.value;
+  el.innerHTML = rcloneProgramCard(st) + rcloneRemotesCard(st) + rcloneAddCard(st) + rcloneSettingsFileCard(st) + (rcloneUi.error ? `<div class="proton-error">${escapeHtml(rcloneUi.error)}</div>` : '');
+  if (name !== undefined && document.getElementById('rclone-jotta-name')) document.getElementById('rclone-jotta-name').value = name;
+  if (token !== undefined && document.getElementById('rclone-jotta-token')) document.getElementById('rclone-jotta-token').value = token;
+  bindActions(el);
+  if (window.lucide && typeof lucide.createIcons === 'function') lucide.createIcons();
+}
+
+async function rcloneRun(fn) {
+  if (rcloneUi.busy) return;
+  rcloneUi.busy = true;
+  rcloneUi.error = '';
+  rcloneRender();
+  try {
+    await fn();
+  } catch (e) {
+    rcloneUi.error = e.message;
+  } finally {
+    rcloneUi.busy = false;
+    rcloneRender();
+    rcloneSchedulePoll();
+  }
+}
+
+function rcloneInstall() {
+  return rcloneRun(async () => {
+    rcloneUi.status = await backupApi('/api/rclone/install', { method: 'POST' });
+  });
+}
+
+function rcloneCheckUpdate() {
+  return rcloneRun(async () => {
+    rcloneUi.latestError = '';
+    try {
+      rcloneUi.latest = await backupApi('/api/rclone/latest');
+    } catch (e) {
+      rcloneUi.latestError = `Could not check for updates: ${e.message}`;
+    }
+  });
+}
+
+function rcloneOpenRemote(name) {
+  closeModal('admin-panel-modal');
+  openPathInActivePane(`rclone://${name}`);
+}
+
+function rcloneTestRemote(name) {
+  return rcloneRun(async () => {
+    try {
+      const r = await backupApi('/api/rclone/remotes/about', { method: 'POST', body: { name } });
+      rcloneUi.about[name] = { about: r.about };
+    } catch (e) {
+      rcloneUi.about[name] = { error: e.message };
+    }
+  });
+}
+
+function rcloneRemoveRemote(name) {
+  if (!confirm(`Remove "${name}" from rclone? Brum and rclone forget its login; the files stay with the service. Backups that use rclone://${name} stop working.`)) return null;
+  return rcloneRun(async () => {
+    rcloneUi.status = await backupApi('/api/rclone/remotes/remove', { method: 'POST', body: { name } });
+    delete rcloneUi.about[name];
+    showToast(`Removed ${name}`, 'info');
+  });
+}
+
+function rcloneAddJottacloud() {
+  const name = (document.getElementById('rclone-jotta-name')?.value || '').trim();
+  const tokenEl = document.getElementById('rclone-jotta-token');
+  const token = (tokenEl?.value || '').trim();
+  if (!name || !token) { showToast('Give a name and paste the token', 'warning'); return null; }
+  return rcloneRun(async () => {
+    rcloneUi.status = await backupApi('/api/rclone/remotes/jottacloud', { method: 'POST', body: { name, token } });
+    if (tokenEl) tokenEl.value = '';
+    rcloneUi.about[name] = null;
+    showToast(`Jottacloud added as rclone://${name}`, 'success');
+  });
+}
+
 // ---------- "Working" message for viewers while a file is fetched (slow for Proton Drive) ----------
 function viewerLoadingText(path) {
   const p = String(path || '');
   if (p.startsWith('proton://')) return 'Downloading from Proton Drive…';
+  if (p.startsWith('rclone://')) return 'Downloading from cloud storage…';
   if (p.includes('://') && !p.startsWith('client://')) return 'Loading from the server…';
   return 'Loading…';
 }

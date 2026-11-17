@@ -47,6 +47,9 @@ pub struct AppConfig {
     /// `[proton]`: where the Proton Drive program is and whether admins may download it
     #[serde(default)]
     pub proton: crate::vfs::proton::ProtonConfig,
+    /// `[rclone]`: where rclone is and whether admins may download it (cloud storage, #189)
+    #[serde(default)]
+    pub rclone: crate::vfs::rclone::RcloneConfig,
     /// `[activity]`: the record of who did what to which files (#193)
     #[serde(default)]
     pub activity: ActivityConfig,
@@ -181,6 +184,7 @@ impl Default for AppConfig {
             logging: LoggingConfig::default(),
             sftp: None,
             proton: crate::vfs::proton::ProtonConfig::default(),
+            rclone: crate::vfs::rclone::RcloneConfig::default(),
             activity: ActivityConfig::default(),
             access: AccessConfig::default(),
         }

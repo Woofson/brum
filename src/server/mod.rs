@@ -10,6 +10,7 @@ pub mod fleet;
 pub mod backup_target;
 pub mod session_cookie;
 pub mod proton_handlers;
+pub mod rclone_handlers;
 pub mod transfer_handlers;
 pub mod activity_handlers;
 pub mod pairing_handlers;
@@ -194,6 +195,13 @@ pub fn create_router(state: AppState) -> Router {
         .route("/api/proton/logout", post(proton_handlers::handle_logout))
         .route("/api/proton/share", get(proton_handlers::handle_share_status).post(proton_handlers::handle_share_set))
         .route("/api/proton/share/remove", post(proton_handlers::handle_share_remove))
+        .route("/api/rclone/available", get(rclone_handlers::handle_available))
+        .route("/api/rclone/status", get(rclone_handlers::handle_status))
+        .route("/api/rclone/latest", get(rclone_handlers::handle_latest))
+        .route("/api/rclone/install", post(rclone_handlers::handle_install))
+        .route("/api/rclone/remotes/about", post(rclone_handlers::handle_about))
+        .route("/api/rclone/remotes/remove", post(rclone_handlers::handle_remove))
+        .route("/api/rclone/remotes/jottacloud", post(rclone_handlers::handle_add_jottacloud))
         // Fleet Manager & Gateway Reverse Proxy
         .route("/api/fleet/nodes", get(fleet::handle_list_fleet_nodes))
         .route("/api/fleet/ping/:node_id", get(fleet::handle_fleet_ping))

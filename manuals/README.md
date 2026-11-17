@@ -17,6 +17,7 @@ Welcome to the **Brum** manual and documentation index.
 | [**`shortcuts.md`**](shortcuts.md) | Complete orthodox keyboard shortcuts (<kbd>F1</kbd>–<kbd>F10</kbd>), panel controls, player hotkeys, and mouse/touch gestures |
 | [**`configuration.md`**](configuration.md) | Settings and configuration: Server Settings, moving settings out of `config.toml`, what stays in the file, and every setting with its default |
 | [**`protocols.md`**](protocols.md) | Remote & Client VFS protocols guide (Client Local `client://`, SFTP, SMB/CIFS, NFS, WebDAV, S3, Proton Drive, Hetzner, Syncthing) |
+| [**`cloud-storage.md`**](cloud-storage.md) | Cloud storage through rclone: install with a checksum check, guided Jottacloud setup, any other service via `rclone config`, `rclone://` panes, copies, backups, who may use it |
 | [**`proton-drive.md`**](proton-drive.md) | Proton Drive: one-click install of Proton's official program, sign-in with link or QR code, `proton://` panels, backups, share links, Docker |
 | [**`vaults.md`**](vaults.md) | Encrypted `.cdvault` containers with Argon2id + AES-256-GCM RAM-only zero-leakage filesystem |
 | [**`sharing.md`**](sharing.md) | Advanced public link sharing, Sharing Center, client portals, granular ACLs, dynamic watermarking & upload dropzones |

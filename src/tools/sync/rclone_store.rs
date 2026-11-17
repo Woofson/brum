@@ -1,5 +1,5 @@
-//! Backups to and from any rclone remote (`rclone://remote/folder`), using the remotes set up
-//! with `rclone config` by the user Brum runs as. Logins stay in rclone's own config.
+//! Backups to and from any rclone remote (`rclone://remote/folder`), using the remotes in
+//! Settings → Cloud Storage (rclone's settings file, see `crate::vfs::rclone`).
 //!
 //! One rclone helper (`rclone rcd`) serves the whole run on a private local port with a random
 //! password; files are copied by rclone itself, straight from place to place.
@@ -8,18 +8,18 @@ use super::store::{DirItem, FileMeta, Listing, RcloneLocation, Store};
 use serde_json::{json, Value};
 use std::io::Read;
 use std::path::PathBuf;
-use std::process::{Child, Command, Stdio};
+use std::process::Stdio;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
 
 pub fn is_available() -> bool {
-    Command::new("rclone").arg("version").stdout(Stdio::null()).stderr(Stdio::null()).status().map(|s| s.success()).unwrap_or(false)
+    crate::vfs::rclone::is_available()
 }
 
-/// The remotes set up with `rclone config` and their kind ("smb", "sftp", ...), for choosing one in the window
+/// The remotes and their kind ("smb", "sftp", ...), for choosing one in the window
 pub fn list_remotes() -> Result<Vec<(String, String)>, String> {
-    let out = Command::new("rclone").args(["listremotes", "--long"]).stdin(Stdio::null()).output().map_err(|e| format!("rclone is not installed: {e}"))?;
+    let out = crate::vfs::rclone::command()?.args(["listremotes", "--long"]).output().map_err(|e| format!("rclone could not start: {e}"))?;
     if !out.status.success() {
         return Err(String::from_utf8_lossy(&out.stderr).trim().to_string());
     }
@@ -50,12 +50,7 @@ enum Limit {
     None,
 }
 
-struct Helper {
-    child: Child,
-    base: String,
-    pass: String,
-    client: reqwest::blocking::Client,
-}
+use crate::vfs::rclone::Helper;
 
 pub struct RcloneStore {
     /// `remote:`
@@ -116,44 +111,11 @@ impl RcloneStore {
         })
     }
 
-    fn start_helper() -> Result<Helper, String> {
-        let port = std::net::TcpListener::bind("127.0.0.1:0").and_then(|l| l.local_addr()).map(|a| a.port()).map_err(|e| e.to_string())?;
-        let pass: String = {
-            use rand::Rng;
-            rand::thread_rng().sample_iter(&rand::distributions::Alphanumeric).take(32).map(char::from).collect()
-        };
-        let child = Command::new("rclone")
-            .args(["rcd", "--rc-serve", "--rc-user", "brum", "--rc-pass", &pass, "--rc-addr"])
-            .arg(format!("127.0.0.1:{port}"))
-            .stdin(Stdio::null())
-            .stdout(Stdio::null())
-            .stderr(Stdio::null())
-            .spawn()
-            .map_err(|e| format!("Could not start rclone (is it installed?): {e}"))?;
-        let client = reqwest::blocking::Client::builder().timeout(None).connect_timeout(Duration::from_secs(5)).build().map_err(|e| e.to_string())?;
-        let mut helper = Helper { child, base: format!("http://127.0.0.1:{port}"), pass, client };
-        let started = Instant::now();
-        loop {
-            let ok = helper.client.post(format!("{}/core/version", helper.base)).basic_auth("brum", Some(&helper.pass)).json(&json!({})).send().map(|r| r.status().is_success()).unwrap_or(false);
-            if ok {
-                return Ok(helper);
-            }
-            if let Ok(Some(_)) = helper.child.try_wait() {
-                return Err("rclone stopped right after starting".into());
-            }
-            if started.elapsed() > Duration::from_secs(15) {
-                let _ = helper.child.kill();
-                return Err("rclone did not start in time".into());
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-    }
-
     /// The helper's address and password, starting it the first time
     fn connection(&self) -> Result<(reqwest::blocking::Client, String, String), String> {
         let mut guard = self.helper.lock().map_err(|_| "rclone helper is unusable".to_string())?;
         if guard.is_none() {
-            *guard = Some(Self::start_helper()?);
+            *guard = Some(crate::vfs::rclone::start_helper()?);
         }
         let h = guard.as_ref().expect("started above");
         Ok((h.client.clone(), h.base.clone(), h.pass.clone()))
@@ -241,7 +203,7 @@ impl RcloneStore {
         } else if low.contains("logon failure") || low.contains("logon_failure") || low.contains("authentication failed") || low.contains("unable to authenticate") {
             ("The server did not accept the login set up for this remote in rclone (rclone config)".to_string(), true)
         } else if low.contains("didn't find section in config file") {
-            (format!("rclone has no remote called \"{remote}\" for the user Brum runs as"), true)
+            (format!("rclone has no remote called \"{remote}\". Remotes are set up in Settings → Cloud Storage."), true)
         } else if low.contains("access is denied") || low.contains("access_denied") || low.contains("permission denied") {
             ("No permission for this on the server".to_string(), false)
         } else if low.contains("connection refused") || low.contains("no route to host") || low.contains("no such host") || low.contains("i/o timeout") || low.contains("network is unreachable") {
@@ -401,7 +363,7 @@ impl Store for RcloneStore {
         // Only used when the other side has no rclone location; rclone_copy handles the rest
         let part = super::store::part_name(rel);
         let target = format!("{}{}", self.fs, self.path(&part));
-        let mut child = Command::new("rclone")
+        let mut child = crate::vfs::rclone::command()?
             .args(["rcat", "--"])
             .arg(&target)
             .stdin(Stdio::piped())
@@ -437,7 +399,7 @@ impl Store for RcloneStore {
             return Err(format!("rclone: {}", String::from_utf8_lossy(&out.stderr).trim()));
         }
         let stamp = chrono::DateTime::from_timestamp(mtime, 0).map(|d| d.format("%Y-%m-%dT%H:%M:%S").to_string()).unwrap_or_default();
-        let touched = Command::new("rclone").args(["touch", "--no-create", "--timestamp", &stamp, "--"]).arg(&target).stdin(Stdio::null()).output();
+        let touched = crate::vfs::rclone::command()?.args(["touch", "--no-create", "--timestamp", &stamp, "--"]).arg(&target).output();
         if !touched.map(|o| o.status.success()).unwrap_or(false) {
             let _ = self.remove_file(&part);
             return Err("rclone could not set the file's time".into());

@@ -136,6 +136,7 @@ pub const SPECS: &[Spec] = &[
     s("syncthing.url", Kind::Url),
     s("syncthing.api_key", Kind::Secret),
     s("proton.allow_download", Kind::Bool),
+    s("rclone.allow_download", Kind::Bool),
     s("notes.notes_folder", Kind::Text(512)),
     // What everyone sees first
     s("ui.default_pane_count", Kind::Int(1, 4)),
@@ -159,6 +160,7 @@ pub const FILE_ONLY: &[(&str, &str)] = &[
     ("terminal.default_shell", "it names a program to run"),
     ("terminal.user_shells", "it names programs to run"),
     ("proton.cli_path", "it names a program to run"),
+    ("rclone.cli_path", "it names a program to run"),
     ("plugins.directory", "it decides where Chewtoys are loaded from"),
     ("plugins.user_directory", "it decides where Chewtoys are loaded from"),
     ("logging.directory", "Brum needs it before it starts"),

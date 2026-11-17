@@ -2995,6 +2995,7 @@
           <button class="settings-nav-btn active" data-on-click="switchAdminTab" data-click-args='["admin-tab-users"]'><i data-lucide="users"></i> Users & RBAC</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-tokens"]'><i data-lucide="key-round"></i> API & Fleet Tokens</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-storage"]'><i data-lucide="server"></i> Remote Storage & Mounts</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-cloud"]'><i data-lucide="cloud"></i> Cloud Storage</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-syncthing"]'><i data-lucide="repeat"></i> Syncthing Global</button>
 
           <div class="settings-sidebar-group-title">Security & Config</div>
@@ -3149,6 +3150,19 @@
           </div>
 
           <!-- Admin Tab 3: Syncthing Global Daemon -->
+          <!-- Cloud storage through rclone (#189) -->
+          <div class="settings-tab-content" id="admin-tab-cloud" style="padding: 16px;">
+            <div style="margin-bottom: 12px;">
+              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="cloud" style="width: 16px; height: 16px;"></i> Cloud Storage
+              </h4>
+              <div class="form-hint" style="margin-top: 2px;">Jottacloud, Google Drive, OneDrive, Dropbox and many more in panes and in Backup &amp; Sync, through rclone. Open them in a pane at <code>rclone://</code>.</div>
+            </div>
+            <div id="rclone-setup" class="proton-setup">
+              <div class="form-hint">Checking…</div>
+            </div>
+          </div>
+
           <div class="settings-tab-content" id="admin-tab-syncthing">
             <div class="settings-group-card">
               <div class="settings-card-header">

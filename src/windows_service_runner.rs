@@ -148,6 +148,8 @@ fn run_service(_arguments: Vec<OsString>) -> Result<(), Box<dyn std::error::Erro
         let oidc_mgr = crate::auth::oidc::OidcManager::new(config.auth.oidc.clone(), auth_mgr_arc.clone());
 
         crate::vfs::proton::init(&config.server.database_path, &config.proton);
+        // The service runs as SYSTEM: keep its rclone remotes in Brum's own data folder
+        crate::vfs::rclone::init(&config.server.database_path, &config.rclone, true);
         let state = crate::server::AppState {
             config: Arc::new(config.clone()),
             auth: auth_mgr_arc,

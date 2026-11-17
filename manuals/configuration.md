@@ -59,7 +59,7 @@ Some settings cannot be changed in the page, on purpose:
 | `[server]` `jwt_secret`, `jwt_secret_file` | The shared Fleet signing key; kept out of the database |
 | `[server]` `enable_auth` | Switching logins off from a web page is too easy to do by mistake |
 | `[auth]` `default_admin_user`, `default_admin_pass` | They only matter the very first time Brum starts |
-| `[terminal]` `default_shell`, `user_shells`; `[proton]` `cli_path` | They name programs to run |
+| `[terminal]` `default_shell`, `user_shells`; `[proton]` `cli_path`; `[rclone]` `cli_path` | They name programs to run |
 | `[plugins]` `directory`, `user_directory` | They decide where Chewtoys are loaded from |
 | `[logging]` `directory` | Brum needs it before it starts |
 
@@ -249,6 +249,7 @@ On Linux, `sudo` does not work in the terminal of the Brum service, on purpose. 
 | Syncthing address | `[syncthing]` `url` | `http://127.0.0.1:8384` |
 | Syncthing API key | `[syncthing]` `api_key` | found from Syncthing's own settings when possible |
 | Admins can install the Proton Drive program | `[proton]` `allow_download` | on |
+| Admins can install rclone (cloud storage) | `[rclone]` `allow_download` | on |
 | Notes folder | `[notes]` `notes_folder` | `~/Notes` |
 
 ### Logs and records

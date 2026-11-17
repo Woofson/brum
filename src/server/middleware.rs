@@ -1334,6 +1334,50 @@ pub fn extract_remote_scheme_host(raw_path: &str) -> Option<(String, String)> {
     Some((scheme_lower, host.trim().to_string()))
 }
 
+/// What one entry of a person's allowed folders grants in cloud storage (rclone)
+enum RcloneGrant {
+    All,
+    /// One remote or a folder in it, as a canonical `rclone://remote/path`
+    Within(String),
+    None,
+}
+
+fn rclone_root_grant(root: &str) -> RcloneGrant {
+    let r = root.trim();
+    if r == "remote" || r == "*://*" || r.eq_ignore_ascii_case("rclone") || r.eq_ignore_ascii_case("rclone://*") {
+        return RcloneGrant::All;
+    }
+    if r.len() > 9 && r[..9].eq_ignore_ascii_case("rclone://") {
+        if let Ok(Some(l)) = crate::vfs::rclone::parse(r) {
+            return RcloneGrant::Within(l.uri());
+        }
+    }
+    RcloneGrant::None
+}
+
+/// Whether this person may use cloud storage (rclone) at all
+pub fn rclone_any_allowed(claims: &crate::auth::Claims) -> bool {
+    if claims.role.eq_ignore_ascii_case("admin") {
+        return true;
+    }
+    let roots: Vec<String> = claims.allowed_roots.as_deref().and_then(|json| serde_json::from_str(json).ok()).unwrap_or_default();
+    roots.iter().any(|r| !matches!(rclone_root_grant(r), RcloneGrant::None))
+}
+
+/// Whether this person may open (part of) a remote, for the list of remotes at `rclone://`
+pub fn rclone_remote_allowed(claims: &crate::auth::Claims, remote: &str) -> bool {
+    if claims.role.eq_ignore_ascii_case("admin") {
+        return true;
+    }
+    let roots: Vec<String> = claims.allowed_roots.as_deref().and_then(|json| serde_json::from_str(json).ok()).unwrap_or_default();
+    let top = format!("rclone://{remote}");
+    roots.iter().any(|r| match rclone_root_grant(r) {
+        RcloneGrant::All => true,
+        RcloneGrant::Within(root) => root == top || root.starts_with(&format!("{top}/")),
+        RcloneGrant::None => false,
+    })
+}
+
 /// Returns the on-disk file behind a vault://, archive:// or image:// path
 fn virtual_container_file(raw_path: &str) -> Option<String> {
     if raw_path.starts_with("archive://") {
@@ -1462,6 +1506,29 @@ fn validate_path_access_inner(
             return Err((StatusCode::FORBIDDEN, "Access denied: Proton Drive is restricted to administrators or users allowed 'remote' or 'proton'".to_string()));
         }
         return Ok(raw_path.to_string());
+    }
+
+    // Cloud storage through rclone (#189): a remote is one account shared by the install, so the
+    // same rule as other remote storage, and a remote name is not a network address to check.
+    // Access can be narrowed to one remote or folder (`rclone://jotta` or `rclone://jotta/Photos`).
+    if raw_path.len() >= 9 && raw_path[..9].eq_ignore_ascii_case("rclone://") {
+        let loc = crate::vfs::rclone::parse(raw_path).map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+        let canonical = match &loc {
+            Some(l) => l.uri(),
+            None => "rclone://".to_string(),
+        };
+        let allowed = user_role.eq_ignore_ascii_case("admin")
+            || allowed_roots.iter().any(|r| match rclone_root_grant(r) {
+                RcloneGrant::All => true,
+                RcloneGrant::Within(root) => canonical == root || canonical.starts_with(&format!("{root}/")),
+                RcloneGrant::None => false,
+            });
+        // The list of remotes itself: anyone with access to at least one of them
+        let lists_remotes = loc.is_none() && !is_write && allowed_roots.iter().any(|r| !matches!(rclone_root_grant(r), RcloneGrant::None));
+        if !allowed && !lists_remotes {
+            return Err((StatusCode::FORBIDDEN, "Access denied: cloud storage (rclone) is restricted to administrators or users allowed 'remote', 'rclone' or that remote".to_string()));
+        }
+        return Ok(canonical);
     }
 
     // 1. Remote network scheme check: enforce admin or explicit entitlement authorization, plus anti-SSRF protections
@@ -1745,6 +1812,41 @@ pub fn resolve_client_ip(
 mod tests {
     use super::*;
     use std::sync::Arc;
+
+    #[test]
+    fn rclone_access_grants() {
+        let user = |role: &str, roots: &str| crate::auth::Claims {
+            sub: "u".into(),
+            role: role.into(),
+            home_dir: "/home/u".into(),
+            is_pam: false,
+            allowed_roots: Some(roots.into()),
+            token_id: None,
+            exp: 0,
+            shell: None,
+            session_gen: 0,
+            sid: None,
+            origin: None,
+        };
+        assert!(rclone_remote_allowed(&user("admin", "[]"), "jotta"));
+        assert!(rclone_remote_allowed(&user("user", r#"["remote"]"#), "jotta"));
+        assert!(rclone_remote_allowed(&user("user", r#"["rclone"]"#), "jotta"));
+        // One remote, or a folder in it, shows that remote only
+        let one = user("user", r#"["rclone://jotta/Photos"]"#);
+        assert!(rclone_remote_allowed(&one, "jotta"));
+        assert!(!rclone_remote_allowed(&one, "jottaX"));
+        assert!(!rclone_remote_allowed(&one, "box"));
+        assert!(rclone_any_allowed(&one));
+        // Everyday local access does not reach cloud storage
+        let plain = user("user", r#"["*"]"#);
+        assert!(!rclone_any_allowed(&plain));
+        assert!(!rclone_remote_allowed(&plain, "jotta"));
+        match rclone_root_grant("rclone://jotta/Photos/") {
+            RcloneGrant::Within(r) => assert_eq!(r, "rclone://jotta/Photos"),
+            _ => panic!("expected a folder grant"),
+        }
+        assert!(matches!(rclone_root_grant("rclone://jotta/../x"), RcloneGrant::None));
+    }
 
     #[test]
     fn test_percent_decode_basic() {

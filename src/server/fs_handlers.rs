@@ -182,6 +182,11 @@ pub async fn handle_list_dir(
             is_truncated: None,
             max_limit: None,
         }))
+    } else if target_path.starts_with("rclone://") {
+        let claims = extract_claims_or_local(&state, &headers)?;
+        crate::vfs::rclone::list_directory(&target_path, move |remote| crate::server::middleware::rclone_remote_allowed(&claims, remote)).await
+            .map(Json)
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Cloud storage: {}", e)))
     } else if target_path.starts_with("smb://") {
         let params = crate::vfs::smb::SmbClient::parse_uri(&target_path, query.user.as_deref(), query.pass.as_deref())
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Invalid SMB URI: {}", e)))?;
@@ -287,6 +292,15 @@ pub async fn handle_read_file(
         }))
     } else if let Some(name) = target_path.strip_prefix("manual://") {
         crate::server::system_handlers::builtin_manual_response(name).map(Json)
+    } else if target_path.starts_with("rclone://") {
+        let local = crate::vfs::rclone::fetch_to_cache(&target_path).await.map_err(|e| (StatusCode::BAD_REQUEST, format!("Cloud storage: {}", e)))?;
+        let lp = local.to_string_lossy().to_string();
+        let mut res = tokio::task::spawn_blocking(move || LocalFs::read_file(&lp, max_b))
+            .await
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Read task join error: {}", e)))?
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to read file: {}", e)))?;
+        res.path = target_path;
+        Ok(Json(res))
     } else if target_path.starts_with("proton://") {
         let user = extract_claims_or_local(&state, &headers)?.sub;
         let local = crate::vfs::proton::fetch_to_cache(&user, &target_path).await.map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)))?;
@@ -359,6 +373,13 @@ async fn handle_write_file_inner(
         SftpClient::write_file(&params, &raw_bytes)
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to save SFTP file: {}", e)))
+    } else if target_path.starts_with("rclone://") {
+        let loc = crate::vfs::rclone::parse(&target_path).ok().flatten().filter(|l| !l.path.is_empty())
+            .ok_or_else(|| (StatusCode::BAD_REQUEST, "Choose a file inside a remote".to_string()))?;
+        let parent = loc.parent().map(|p| p.uri()).unwrap_or_default();
+        crate::vfs::rclone::upload_bytes(&parent, loc.name(), raw_bytes, "overwrite").await
+            .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
+            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Cloud storage: {}", e)))
     } else if target_path.starts_with("proton://") {
         let user = extract_claims_or_local(&state, &headers)?.sub;
         let (parent, name) = crate::vfs::proton::split_cli_path(&crate::vfs::proton::cli_path_of(&target_path));
@@ -421,6 +442,10 @@ async fn handle_mkdir_inner(
         LocalFs::create_dir(&local_target.to_string_lossy())
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create NFS folder: {}", e)))
+    } else if target_path.starts_with("rclone://") {
+        crate::vfs::rclone::mkdir(&target_path).await
+            .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Cloud storage: {}", e)))
     } else if target_path.starts_with("proton://") {
         let user = extract_claims_or_local(&state, &headers)?.sub;
         crate::vfs::proton::mkdir(&user, &target_path).await
@@ -450,6 +475,19 @@ async fn handle_rename_inner(
     let to_path = validate_path_access(&state, &headers, &payload.to, true)?;
     let use_native_ops = payload.windows_native_file_ops.unwrap_or(state.config.paranoid.windows_native_file_ops);
     let detect_locks = payload.detect_locking_processes.unwrap_or(state.config.paranoid.detect_locking_processes);
+
+    if from_path.starts_with("rclone://") || to_path.starts_with("rclone://") {
+        let same_remote = match (crate::vfs::rclone::parse(&from_path), crate::vfs::rclone::parse(&to_path)) {
+            (Ok(Some(a)), Ok(Some(b))) => a.remote == b.remote,
+            _ => false,
+        };
+        if !same_remote {
+            return Err((StatusCode::BAD_REQUEST, "Use Copy or Move to bring items into, out of or between cloud remotes".to_string()));
+        }
+        return crate::vfs::rclone::rename(&from_path, &to_path).await
+            .map(|_| Json(serde_json::json!({ "success": true })))
+            .map_err(|e| (StatusCode::BAD_REQUEST, format!("Cloud storage: {}", e)));
+    }
 
     if from_path.starts_with("proton://") || to_path.starts_with("proton://") {
         if !(from_path.starts_with("proton://") && to_path.starts_with("proton://")) {
@@ -618,6 +656,11 @@ async fn handle_delete_inner(
                         Err(e) => errors.push(format!("{}: {}", path, e)),
                     }
                 }
+                Err(e) => errors.push(format!("{}: {}", path, e)),
+            }
+        } else if valid_path.starts_with("rclone://") {
+            match crate::vfs::rclone::delete(&valid_path).await {
+                Ok(_) => deleted.push(path.clone()),
                 Err(e) => errors.push(format!("{}: {}", path, e)),
             }
         } else if valid_path.starts_with("proton://") {
@@ -1158,6 +1201,30 @@ async fn handle_upload_inner(
             let is_zip_magic = data.len() >= 4 && &data[0..4] == b"PK\x03\x04";
             let is_gzip_magic = data.len() >= 2 && &data[0..2] == b"\x1f\x8b";
 
+            if should_extract && (is_zip_magic || is_gzip_magic) && dest_dir.starts_with("rclone://") {
+                // A dropped folder: unpack privately, then copy it to the remote as a whole
+                let result = async {
+                    let work = tempfile::tempdir().map_err(|e| format!("Temp folder error: {}", e))?;
+                    let archive = work.path().join(if is_zip_magic { "upload.zip" } else { "upload.tar.gz" });
+                    std::fs::write(&archive, &data).map_err(|e| format!("Failed to write temp archive: {}", e))?;
+                    let out_dir = work.path().join("unpacked");
+                    std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
+                    ArchiveHandler::extract_archive(&archive.to_string_lossy(), &out_dir.to_string_lossy()).map_err(|e| format!("Failed to unpack the folder: {}", e))?;
+                    let items: Vec<std::path::PathBuf> = std::fs::read_dir(&out_dir).map_err(|e| e.to_string())?.flatten().map(|e| e.path()).collect();
+                    crate::vfs::rclone::upload_local_paths(&dest_dir, items, conflict_mode).await
+                }
+                .await;
+                if let Err(e) = result {
+                    let err_msg = format!("Cloud storage upload failed: {}", e);
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
+                }
+                uploaded_files.push(file_name);
+                continue;
+            }
+
             if should_extract && (is_zip_magic || is_gzip_magic) && dest_dir.starts_with("proton://") {
                 // A dropped folder: unpack privately, then upload it to Proton Drive as a whole
                 let user = extract_claims_or_local(&state, &headers)?.sub;
@@ -1205,7 +1272,15 @@ async fn handle_upload_inner(
                 continue;
             }
 
-            if dest_dir.starts_with("proton://") {
+            if dest_dir.starts_with("rclone://") {
+                if let Err(e) = crate::vfs::rclone::upload_bytes(&dest_dir, &file_name, data.to_vec(), conflict_mode).await {
+                    let err_msg = format!("Cloud storage upload failed: {}", e);
+                    if let Some(ref tid) = task_id_opt {
+                        state.tasks.fail_task(tid, &err_msg).await;
+                    }
+                    return Err((StatusCode::INTERNAL_SERVER_ERROR, err_msg));
+                }
+            } else if dest_dir.starts_with("proton://") {
                 let user = extract_claims_or_local(&state, &headers)?.sub;
                 if let Err(e) = crate::vfs::proton::upload_bytes(&user, &dest_dir, &file_name, &data, conflict_mode).await {
                     let err_msg = format!("Proton Drive upload failed: {}", e);
@@ -1548,6 +1623,12 @@ pub async fn handle_download(
     let range_header = headers.get(header::RANGE).and_then(|v| v.to_str().ok());
 
     let mut path_str = crate::server::middleware::validate_tree_access(&state, &modified_headers, raw_path, false)?;
+
+    // Cloud storage: fetch a private local copy, then serve it like any local file
+    if path_str.starts_with("rclone://") {
+        let local = crate::vfs::rclone::fetch_to_cache(&path_str).await.map_err(|e| (StatusCode::BAD_REQUEST, format!("Cloud storage: {}", e)))?;
+        path_str = local.to_string_lossy().to_string();
+    }
 
     // Proton Drive: fetch a private local copy, then serve it like any local file
     if path_str.starts_with("proton://") {

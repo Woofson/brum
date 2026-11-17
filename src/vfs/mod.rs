@@ -5,6 +5,7 @@ pub mod disk_image;
 pub mod local;
 pub mod nfs;
 pub mod proton;
+pub mod rclone;
 pub mod s3;
 pub mod sftp;
 pub mod smb;
