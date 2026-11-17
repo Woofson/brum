@@ -5,7 +5,7 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.25.0] - 2026-11-17
 
 ### Changes
 - **Cloud Storage Through rclone (Closes #189)**: Jottacloud, Google Drive, OneDrive, Dropbox, Backblaze B2, pCloud and about 70 other services open in panes at `rclone://`, or through Cloud Storage in a pane's location menu. Browse, view, upload, make folders, rename, delete, and copy or move (F5/F6) between cloud storage and this machine's disks or between services. Admin Control Panel → Cloud Storage installs rclone from rclone.org, checked against rclone's published checksum (or uses the rclone package of your system or the one in the Docker image). It lists the services with Test and Remove, and adds Jottacloud with a personal login token from Jottacloud's website. Other services are set up once with `rclone config` and show up by themselves. The Linux service, Docker and the Windows service keep their services in Brum's own private rclone settings file and take over the remotes their account used before, once, so existing backups to `rclone://` places keep working. Administrators may use every service; other users need `remote`, `rclone` or a single remote (`rclone://jotta`) in their allowed folders. See the new Cloud Storage manual.

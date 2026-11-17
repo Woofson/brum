@@ -6,7 +6,7 @@
 
 #define MyAppName "Brum"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.24.1"
+  #define MyAppVersion "1.25.0"
 #endif
 #define MyAppPublisher "Bolt J Woofson @ Woofsons Lab"
 #define MyAppURL "https://www.arf.ac"
