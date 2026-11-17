@@ -12,7 +12,7 @@ depends=('glibc' 'sqlite' 'libssh2' 'openssl' 'ca-certificates')
 optdepends=('proton-drive-cli-bin: Proton Drive (Brum can also install it in Settings)')
 backup=('etc/brum/config.toml')
 source=("brum-v${pkgver}-linux-${arch}.tar.gz::https://github.com/Woofson/brum/releases/download/v${pkgver}/brum-v${pkgver}-linux-${arch}.tar.gz")
-sha256sums=('0209b6a7edc1808b4a7e3b76c13e38fbabf870d51e293b834b124c3cfd0da2e5')
+sha256sums=('80cb121905afd68c116fe9470d3d14a7818f74e17987ac5a2a0e4ee60ec7a1b8')
 
 package() {
     cd "$srcdir/brum-v${pkgver}-linux-${arch}"
