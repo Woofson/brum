@@ -18619,3 +18619,6 @@ input[type="checkbox"]:checked::after,
 #settings-modal .modal-header {
   gap: 10px;
 }
+#ss-safety-body {
+  margin-bottom: 16px;
+}

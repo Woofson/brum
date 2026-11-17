@@ -2450,10 +2450,10 @@
                 <i data-lucide="shield-alert"></i> Server-Wide Security
               </h4>
             </div>
-            <p class="settings-card-desc">As an admin you also set auto-lock, how long sign-ins last and the defaults for everyone.</p>
+            <p class="settings-card-desc">As an admin you also set the file safety rules for everyone, auto-lock and how long sign-ins last.</p>
             <div style="margin-top: 6px;">
               <button type="button" class="btn btn-outline btn-sm" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openAdminPanel"], ["switchAdminTab", "admin-tab-security"]]' style="height: 28px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px;">
-                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i> Open Security &amp; Auto-Lock
+                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i> Open Security &amp; Safety
               </button>
             </div>
           </div>
@@ -2888,7 +2888,7 @@
 
           <div class="settings-sidebar-group-title">Server</div>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-server"]'><i data-lucide="sliders-horizontal"></i> Server Settings</button>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security &amp; Auto-Lock</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security &amp; Safety</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-config"]'><i data-lucide="file-cog"></i> config.toml (Advanced)</button>
 
           <div class="settings-sidebar-group-title">Storage</div>
@@ -3161,13 +3161,16 @@
             <div class="settings-card-header" style="margin-bottom: 14px;">
               <div>
                 <h4 class="settings-section-title">
-                  <i data-lucide="shield-check"></i> Security &amp; Auto-Lock
+                  <i data-lucide="shield-check"></i> Security &amp; Safety
                 </h4>
                 <p class="settings-card-desc" style="margin-top: 2px;">
-                  Locking the screen when nobody uses Brum, and how long sign-ins last.
+                  How files are kept safe for everyone on this machine, locking the screen when nobody uses Brum, and how long sign-ins last.
                 </p>
               </div>
             </div>
+
+            <!-- File safety for everyone, drawn from the server settings (#203) -->
+            <div id="ss-safety-body"><div class="act-empty">Loading…</div></div>
 
             <!-- Card 1: Auto-Lock -->
             <div class="settings-group-card">
@@ -3231,16 +3234,6 @@
               </div>
             </div>
 
-            <!-- Card 2: File safety now lives in Server Settings (#195) -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="shield-check"></i> File Safety
-                </h4>
-              </div>
-              <p class="settings-card-desc">The bin, "Are you sure?" questions, checking copies and safe saving are set for everyone in Server Settings → Safety. People can still switch the bin on or off for themselves in their own Settings.</p>
-              <div><button class="btn btn-sm" data-on-click="openServerSettingsGroup" data-click-args='["safety"]'><i data-lucide="sliders-horizontal"></i> Open Safety settings</button></div>
-            </div>
           </div>
 
           <!-- Admin Tab 5: Master config.toml Editor -->

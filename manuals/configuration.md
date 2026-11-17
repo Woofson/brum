@@ -28,7 +28,7 @@ So a setting written in `config.toml` always wins over Server Settings, and the 
 
 Open the **Admin Control Panel** (avatar menu) → **Server Settings**.
 
-* **Groups**: the settings are grouped as *Network & Access*, *Sign-in*, *Single Sign-On*, *Folders*, *Safety*, *Fleet*, *Terminal*, *Chewtoys*, *Defaults for New Users*, *Other Services* and *Logs & Records*. Every setting says what it does. **Find a setting…** searches all of them.
+* **Groups**: the settings are grouped as *Network & Access*, *Sign-in*, *Single Sign-On*, *Folders*, *Fleet*, *Terminal*, *Chewtoys*, *Defaults for New Users*, *Other Services* and *Logs & Records*. Every setting says what it does. **Find a setting…** searches all of them.
 * **Changing**: switches, choices in words, a folder picker for folders, and a list editor for shared folders. Changes collect in a bar at the bottom with **Undo** and **Save**. Values are checked before anything is saved: a folder that does not exist, a port that cannot work or a badly written address is refused with a plain message, and nothing is saved.
 * **When changes apply**: when Brum restarts. Saved changes are marked **After restart**, and **Restart Brum now** restarts it from the page (copies and other tasks in progress are interrupted).
 * **Badges**:
@@ -187,6 +187,8 @@ Each setting as it is called in Server Settings, its name in `config.toml`, and 
 | Checking SFTP servers | `[storage.sftp]` `host_key_checking` | Remember each server the first time (recommended) (`tofu`) |
 
 ### Safety
+
+The safety settings for everyone are on their own page, **Admin Control Panel → Security & Safety**, next to auto-lock. They are saved the same way as the other Server Settings.
 
 | Setting | In config.toml | Default |
 | :--- | :--- | :--- |

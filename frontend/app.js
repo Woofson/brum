@@ -10521,7 +10521,7 @@ function switchAdminTab(tabId) {
   if (tabId === 'admin-tab-tokens') loadAdminApiTokens();
   if (tabId === 'admin-tab-storage') { loadAdminGlobalMounts(); loadAdminImageCache(); }
   if (tabId === 'admin-tab-config') loadMasterConfigEditor();
-  if (tabId === 'admin-tab-security') loadAdminSecuritySettings();
+  if (tabId === 'admin-tab-security') { loadAdminSecuritySettings(); loadServerSettings(); }
   if (tabId === 'admin-tab-activity') loadAdminActivity();
   if (tabId === 'admin-tab-access') loadAccessRules();
   if (tabId === 'admin-tab-server') loadServerSettings();
@@ -10556,8 +10556,6 @@ const SS_GROUPS = [
     keys: ['auth.oidc.enabled', 'auth.oidc.provider_name', 'auth.oidc.issuer_url', 'auth.oidc.client_id', 'auth.oidc.client_secret', 'auth.oidc.redirect_url', 'auth.oidc.scopes', 'auth.oidc.auto_provision', 'auth.oidc.admin_group', 'auth.oidc.default_user_role', 'auth.oidc.default_home_template', 'auth.oidc.force_sso_only', 'auth.oidc.button_icon'] },
   { id: 'folders', icon: 'folder-tree', title: 'Folders', desc: 'The shared folders everyone with access gets, and where personal folders are.',
     keys: ['storage.roots', 'storage.allow_entire_system', 'server.root_path', 'storage.default_user_home_template', 'storage.auto_create_home_dirs', 'storage.home_fallback_scheme', 'storage.allow_remote_loopback', 'storage.sftp.host_key_checking'] },
-  { id: 'safety', icon: 'shield-check', title: 'Safety', desc: 'What Brum does to keep files from being lost or damaged.',
-    keys: ['paranoid.trash_enabled', 'paranoid.custom_trash_dir', 'paranoid.confirm_delete', 'paranoid.confirm_overwrite', 'paranoid.enabled', 'paranoid.verify_after_transfer', 'paranoid.checksum_algorithm', 'paranoid.atomic_writes', 'paranoid.windows_native_file_ops', 'paranoid.detect_locking_processes'] },
   { id: 'fleet', icon: 'network', title: 'Fleet', desc: 'Working with the other Brum machines in your Fleet.',
     keys: ['fleet.enabled', 'fleet.transfer_jobs'] },
   { id: 'terminal', icon: 'terminal', title: 'Terminal', desc: 'The command line inside Brum.',
@@ -10571,6 +10569,10 @@ const SS_GROUPS = [
   { id: 'logs', icon: 'scroll-text', title: 'Logs & Records', desc: 'What Brum writes down about itself and about who did what.',
     keys: ['activity.enabled', 'activity.retention_days', 'logging.level', 'logging.file_enabled', 'logging.console_enabled', 'logging.rotation', 'logging.max_files'] },
 ];
+
+// Machine-wide file safety: shown on Admin → Security & Safety, not among the Server Settings groups (#203)
+const SS_SAFETY_GROUP = { id: 'safety', icon: 'shield-check', title: 'File Safety for Everyone', desc: 'What Brum does to keep files from being lost or damaged, for every account on this machine. People can still switch the trash and the questions on or off for themselves in their own Settings.',
+    keys: ['paranoid.trash_enabled', 'paranoid.custom_trash_dir', 'paranoid.confirm_delete', 'paranoid.confirm_overwrite', 'paranoid.enabled', 'paranoid.verify_after_transfer', 'paranoid.checksum_algorithm', 'paranoid.atomic_writes', 'paranoid.windows_native_file_ops', 'paranoid.detect_locking_processes'] };
 
 const SS_TEXT = {
   'server.host': { label: 'Can be opened from', help: 'Only this computer is the safest choice. Every network lets other devices at home, or on your VPN, open Brum.', choices: { '127.0.0.1': 'Only this computer', '0.0.0.0': 'Every network this machine is on', '__custom': 'One network address of this machine…' } },
@@ -10657,8 +10659,15 @@ function ssCurrent(key) {
   return Object.prototype.hasOwnProperty.call(SS.edits, key) ? SS.edits[key] : ssSetting(key)?.value;
 }
 
+// Server Settings are drawn on Admin → Server Settings, and the safety part on Admin → Security & Safety
+function ssBox() {
+  const safety = document.getElementById('ss-safety-body');
+  if (safety && document.getElementById('admin-tab-security')?.classList.contains('active')) return safety;
+  return document.getElementById('ss-body');
+}
+
 async function loadServerSettings() {
-  const box = document.getElementById('ss-body');
+  const box = ssBox();
   if (!box) return;
   try {
     const resp = await fetch('/api/admin/server-settings');
@@ -10761,9 +10770,11 @@ function ssRowHtml(s) {
 }
 
 function renderServerSettings() {
-  const box = document.getElementById('ss-body');
+  const box = ssBox();
   if (!box || !SS.data) return;
   const d = SS.data;
+  const safetyView = box.id === 'ss-safety-body';
+  const inView = (st) => !safetyView || SS_SAFETY_GROUP.keys.includes(st.key);
   const banners = [];
   if (d.trial_seconds_left != null) {
     banners.push(`<div class="ss-banner ss-banner-warn"><i data-lucide="timer"></i><div><strong>Keep the new address?</strong> If nobody keeps it within ${d.trial_seconds_left} seconds, Brum goes back to the previous address and port.</div><button class="btn btn-sm btn-accent" data-on-click="ssKeepNetwork">Keep it</button></div>`);
@@ -10771,9 +10782,9 @@ function renderServerSettings() {
   if (!d.editable) {
     banners.push(`<div class="ss-banner"><i data-lucide="lock"></i><div>${escapeHtml(d.locked_reason || '')}</div></div>`);
   } else {
-    const inFile = d.settings.filter(s => s.source === 'file').length;
+    const inFile = d.settings.filter(st => st.source === 'file' && inView(st)).length;
     const machines = d.movable_machines || 0;
-    if (inFile || d.movable) {
+    if (inFile || (d.movable && !safetyView)) {
       const file = `<span class="bk-mono">${escapeHtml(d.config_file || 'config.toml')}</span>`;
       const parts = [];
       if (inFile) parts.push(`${inFile} of these settings are written in ${file}. Those are shown locked: the file always wins.`);
@@ -10784,7 +10795,7 @@ function renderServerSettings() {
       banners.push(`<div class="ss-banner${d.movable ? ' ss-banner-restart' : ''}"><i data-lucide="file-lock"></i><div>${parts.join(' ')}</div>${move}</div>`);
     }
   }
-  const waiting = d.settings.filter(s => s.restart_needed).length;
+  const waiting = d.settings.filter(st => st.restart_needed && inView(st)).length;
   if (waiting && !Object.keys(SS.edits).length) {
     banners.push(`<div class="ss-banner ss-banner-restart"><i data-lucide="rotate-cw"></i><div>${waiting === 1 ? '1 saved change waits' : `${waiting} saved changes wait`} for Brum to restart.</div><button class="btn btn-sm btn-accent" data-on-click="ssRestart">Restart Brum now</button></div>`);
   }
@@ -10793,7 +10804,11 @@ function renderServerSettings() {
   const chips = SS_GROUPS.map(g => `<button class="ss-chip${!q && g.id === SS.group ? ' active' : ''}" data-on-click="ssShowGroup" data-click-args="${actionArgs(g.id)}"><i data-lucide="${g.icon}"></i> ${escapeHtml(g.title)}</button>`).join('');
 
   let sections;
-  if (q) {
+  if (safetyView) {
+    const g = SS_SAFETY_GROUP;
+    const rows = g.keys.map(ssSetting).filter(Boolean).map(ssRowHtml).join('');
+    sections = `<div class="settings-group-card ss-card"><div class="ss-group-head"><h4 class="settings-section-title"><i data-lucide="${g.icon}"></i> ${escapeHtml(g.title)}</h4><p class="settings-card-desc">${escapeHtml(g.desc)}</p></div>${rows}</div>`;
+  } else if (q) {
     const hits = d.settings.filter(s => {
       const t = SS_TEXT[s.key] || {};
       return [s.key, t.label, t.help, ...Object.values(t.choices || {})].join(' ').toLowerCase().includes(q);
@@ -10810,7 +10825,7 @@ function renderServerSettings() {
 
   const focusId = document.activeElement?.id;
   const caret = document.activeElement?.selectionStart;
-  box.innerHTML = `${banners.join('')}<div class="ss-chips">${chips}</div>${sections}<div id="ss-footer-slot"></div>`;
+  box.innerHTML = `${banners.join('')}${safetyView ? '' : `<div class="ss-chips">${chips}</div>`}${sections}<div class="ss-footer-slot"></div>`;
   bindActions(box);
   if (window.lucide) lucide.createIcons({ root: box });
   ssRenderFooter();
@@ -10824,7 +10839,7 @@ function renderServerSettings() {
 }
 
 function ssRenderFooter() {
-  const slot = document.getElementById('ss-footer-slot');
+  const slot = ssBox()?.querySelector('.ss-footer-slot');
   if (!slot) return;
   const n = Object.keys(SS.edits).length;
   slot.innerHTML = n ? `<div class="ss-footer"><span>${n === 1 ? '1 change' : `${n} changes`} not saved</span><button class="btn btn-sm" data-on-click="ssUndo">Undo</button><button class="btn btn-sm btn-accent" data-on-click="ssSave"><i data-lucide="save"></i> Save</button></div>` : '';
@@ -10835,7 +10850,7 @@ function ssRenderFooter() {
 // While typing only the row's badges and the save bar change, so the cursor stays put
 function ssRefreshRow(key) {
   const s = ssSetting(key);
-  const row = document.querySelector(`#ss-body .ss-row[data-key="${CSS.escape(key)}"]`);
+  const row = ssBox()?.querySelector(`.ss-row[data-key="${CSS.escape(key)}"]`);
   if (!s || !row) return renderServerSettings();
   row.classList.toggle('ss-edited', Object.prototype.hasOwnProperty.call(SS.edits, key));
   const label = row.querySelector('.ss-label');
@@ -11081,6 +11096,7 @@ async function ssCheckNetworkTrial() {
 }
 
 function openServerSettingsGroup(id) {
+  if (id === 'safety') { switchAdminTab('admin-tab-security'); return; }
   SS.group = id;
   switchAdminTab('admin-tab-server');
 }
