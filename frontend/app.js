@@ -166,7 +166,7 @@ const BRUM_ACTIONS = new Set([
   'filterSpotlightCategory', 'findNextMatch', 'findPrevMatch', 'flipImage', 'gitCommitStaged',
   'gitPullCurrentRepo', 'gitPushCurrentRepo', 'gitStageAll', 'gitStageFile', 'gitUnstageAll',
   'gitUnstageFile', 'handleAdminConfigInput', 'handleAdminConfigKeyDown', 'handleAppMarginChange',
-  'handleAvatarFileUpload', 'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
+  'handleChewToyDragLeave', 'handleChewToyDragOver', 'handleChewToyDrop',
   'handleChewToyFileSelect', 'handleConvertOutputNameInput', 'handleDiffSearch',
   'handleDirectFileUpload', 'handleDndSettingChange', 'handleDockedNotebookChange',
   'handleDockedNoteSelect', 'handleDockedSectionChange', 'handleEditorClick', 'handleEditorInput',
@@ -240,7 +240,7 @@ const BRUM_ACTIONS = new Set([
   'removeCustomFileIconRule', 'removeElementById', 'removeModalTag', 'removeNoteTag',
   'removePdfMergeItem', 'removePdfOrganizerPage', 'removePropCustomTag', 'removeTagCoverArt',
   'renderAvatarById', 'renderHexEditorView', 'renderKeybindingsTable', 'replaceAllMatches',
-  'replaceCurrentMatch', 'resetAllColumnWidths', 'resetAvatarToDefault', 'resetCadCamera',
+  'replaceCurrentMatch', 'resetAllColumnWidths', 'resetCadCamera',
   'resetFileTemplatesToDefault', 'resetFleetNodeForm', 'resetGlobalFolderIcon',
   'resetHiddenDrives', 'resetImageTransform', 'resetKeybindingsToDefaults',
   'resetLayoutGapsToDefault', 'resetMenuConfigToDefaults', 'resetPaneName', 'resetRenamerRules',
@@ -261,7 +261,7 @@ const BRUM_ACTIONS = new Set([
   'saveCustomTrashDir', 'saveDockedEditorTab', 'saveFleetNodeProfile', 'saveGlobalFolderIcon',
   'saveGlobalRemoteMount', 'saveHexEditorChanges', 'saveMasterConfigFile', 'saveModalTags',
   'saveNotesFolderSetting', 'saveOpenWithRule', 'savePropertiesSecurity',
-  'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal', 'saveUserProfile',
+  'saveSettingsUserProfile', 'saveTagEditorChanges', 'saveTemplateFromModal', 
   'saveUserRbac', 'scanMountpointTreemap', 'scanPaneForCombineParts', 'scrollViewerToBottom',
   'searchHexBytes', 'seekMedia', 'selectConverterPickerFile', 'selectDatabaseCategory',
   'selectDatabaseNoteById', 'selectDatabaseSection', 'selectElementText', 'selectFleetColor',
@@ -11222,7 +11222,7 @@ async function loadUsersTable() {
             <div class="admin-user-card-body">
               <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px;">
                 <div>
-                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Account Role</label>
+                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Role</label>
                   <select id="user-role-${safeUname}" class="pane-quick-filter" style="width: 100%; height: 28px; padding: 4px 8px; font-size: 11px;">
                     <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Administrator (Full Access)</option>
                     <option value="user" ${u.role === 'user' ? 'selected' : ''}>Standard User (Read/Write)</option>
@@ -11230,11 +11230,11 @@ async function loadUsersTable() {
                   </select>
                 </div>
                 <div>
-                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Home Directory Root</label>
+                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Home folder</label>
                   <input type="text" id="user-home-${safeUname}" class="pane-quick-filter" value="${escapeHtml(u.home_dir || '/')}" style="width: 100%; height: 28px; padding: 4px 8px; font-size: 11px;" placeholder="/home/username">
                 </div>
                 <div>
-                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Terminal Shell</label>
+                  <label style="display: block; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">Shell in the terminal</label>
                   <input type="text" id="user-shell-${safeUname}" list="terminal-shell-presets" class="pane-quick-filter" value="${escapeHtml(u.shell || '')}" style="width: 100%; height: 28px; padding: 4px 8px; font-size: 11px;" placeholder="System Default (/etc/passwd)">
                 </div>
               </div>
@@ -11242,12 +11242,12 @@ async function loadUsersTable() {
               <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                   <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Allowed Folders</label>
-                  <span style="font-size: 10px; color: var(--text-dim);">Accessible storage scopes</span>
+                  <span style="font-size: 10px; color: var(--text-dim);">Shared folders this account sees</span>
                 </div>
                 <div class="admin-roots-selector-box">
                   <label class="admin-chip-checkbox ${hasAllRoots ? 'checked' : ''}" id="chip-root-all-${safeUname}">
                     <input type="checkbox" class="user-root-cb-${safeUname}" value="*" ${hasAllRoots ? 'checked' : ''} data-on-change="toggleAllRootsCheck" data-change-args="${actionArgs(u.username, ACTION_CHECKED)}">
-                    <span>⭐ All Storage Roots (*)</span>
+                    <span>⭐ All shared folders</span>
                   </label>
                   ${storageRoots.filter(r => r.id !== 'system-root').map(r => {
                     const isChecked = hasAllRoots || allowedRoots.includes(r.id) || allowedRoots.includes(r.path);
@@ -11263,8 +11263,8 @@ async function loadUsersTable() {
 
               <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                  <label style="font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;">Allowed Protocol Services &amp; Features</label>
-                  <span style="font-size: 10px; color: var(--text-dim);">Granular RBAC</span>
+                  <label style="font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px;">Allowed Services</label>
+                  <span style="font-size: 10px; color: var(--text-dim);">What this account may use</span>
                 </div>
                 <div class="admin-services-grid">
                   ${services.map(svc => {
@@ -11282,20 +11282,20 @@ async function loadUsersTable() {
               <div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                   <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Chewtoys</label>
-                  <span style="font-size: 10px; color: var(--text-dim);">Whitelist / Blacklist</span>
+                  
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
                   <label class="admin-service-chip" style="width: fit-content; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; ${canInstallPlugins ? 'border-color: rgba(245, 158, 11, 0.35); color: var(--text-main);' : ''}">
                     <input type="checkbox" id="user-plugin-install-${safeUname}" ${canInstallPlugins ? 'checked' : ''} data-on-change="styleCheckboxPill" data-change-args="${actionArgs(ACTION_EL)}">
-                    <span>Allow installing custom ChewToys (.grr)</span>
+                    <span>May install Chewtoys</span>
                   </label>
                   <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px;">
                     <div>
-                      <label style="display: block; font-size: 10px; font-weight: 600; color: var(--text-dim); margin-bottom: 3px;">Allowed ChewToys (* for all)</label>
+                      <label style="display: block; font-size: 10px; font-weight: 600; color: var(--text-dim); margin-bottom: 3px;">Allowed Chewtoys (* for all)</label>
                       <input type="text" id="user-plugin-allowed-${safeUname}" class="pane-quick-filter" value="${escapeHtml(Array.isArray(allowedPlugins) ? allowedPlugins.join(', ') : allowedPlugins)}" style="width: 100%; height: 26px; padding: 2px 8px; font-size: 11px;" placeholder="* or id1, id2">
                     </div>
                     <div>
-                      <label style="display: block; font-size: 10px; font-weight: 600; color: var(--text-dim); margin-bottom: 3px;">Blocked ChewToys (Blacklist)</label>
+                      <label style="display: block; font-size: 10px; font-weight: 600; color: var(--text-dim); margin-bottom: 3px;">Blocked Chewtoys</label>
                       <input type="text" id="user-plugin-blocked-${safeUname}" class="pane-quick-filter" value="${escapeHtml(Array.isArray(blockedPlugins) ? blockedPlugins.join(', ') : blockedPlugins)}" style="width: 100%; height: 26px; padding: 2px 8px; font-size: 11px;" placeholder="None or id1, id2">
                     </div>
                   </div>
@@ -21638,54 +21638,7 @@ function renderAvatarElement(el, avatar) {
   }
 }
 
-function handleAvatarFileUpload(event) {
-  const file = event.target.files?.[0];
-  if (!file) return;
 
-  if (!file.type.startsWith('image/')) {
-    showToast('Please select a valid image file (JPEG, PNG, WebP, GIF)', 'warning');
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    const img = new Image();
-    img.onload = function() {
-      // Create square canvas with high quality resize
-      const canvas = document.createElement('canvas');
-      const targetSize = 160;
-      canvas.width = targetSize;
-      canvas.height = targetSize;
-      const ctx = canvas.getContext('2d');
-
-      // Crop to center square
-      const minDim = Math.min(img.width, img.height);
-      const startX = (img.width - minDim) / 2;
-      const startY = (img.height - minDim) / 2;
-
-      ctx.drawImage(img, startX, startY, minDim, minDim, 0, 0, targetSize, targetSize);
-
-      // Output as compressed WebP
-      const dataUri = canvas.toDataURL('image/webp', 0.85);
-
-      const avatarInput = document.getElementById('profile-input-avatar');
-      const avatarPreview = document.getElementById('profile-edit-avatar');
-      if (avatarInput) avatarInput.value = dataUri;
-      if (avatarPreview) renderAvatarElement(avatarPreview, dataUri);
-      showToast('Profile photo ready! Click "Save Profile" to apply.', 'info');
-    };
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-function resetAvatarToDefault() {
-  const avatarInput = document.getElementById('profile-input-avatar');
-  const avatarPreview = document.getElementById('profile-edit-avatar');
-  if (avatarInput) avatarInput.value = '👤';
-  if (avatarPreview) renderAvatarElement(avatarPreview, '👤');
-  showToast('Avatar reset to default', 'info');
-}
 
 function updateHeaderProfile(user) {
   if (!user) return;
@@ -22327,148 +22280,12 @@ function updateAboutSystemDetails(status) {
   });
 }
 
+// The profile is edited on Settings → Account (#203)
 function openUserProfileModal() {
-  document.getElementById('profile-dropdown-menu')?.classList.remove('active');
-  const user = App.user || {};
-
-  const editAvatar = document.getElementById('profile-edit-avatar');
-  const editUname = document.getElementById('profile-edit-username');
-  const editBadge = document.getElementById('profile-edit-role-badge');
-  const editAuthType = document.getElementById('profile-edit-auth-type');
-
-  const localNick = getLocalProfile('cd_local_nickname');
-  const localAvatar = getLocalProfile('cd_local_avatar');
-  const localEmail = getLocalProfile('cd_local_email');
-  const localFullName = getLocalProfile('cd_local_fullname');
-  const localBio = getLocalProfile('cd_local_bio');
-
-  if (editAvatar) renderAvatarElement(editAvatar, user.avatar_url || localAvatar || '👤');
-  if (editUname) editUname.textContent = user.nickname || user.full_name || localNick || user.username || 'User';
-  if (editBadge) editBadge.textContent = (user.role || 'ADMIN').toUpperCase();
-  if (editAuthType) editAuthType.textContent = formatUserAuthType(user);
-
-  const fullnameInput = document.getElementById('profile-input-fullname');
-  const nickInput = document.getElementById('profile-input-nickname');
-  const emailInput = document.getElementById('profile-input-email');
-  const bioInput = document.getElementById('profile-input-bio');
-  const avatarInput = document.getElementById('profile-input-avatar');
-  const passInput = document.getElementById('profile-input-password');
-
-  if (fullnameInput) fullnameInput.value = user.full_name || localFullName || '';
-  if (nickInput) nickInput.value = user.nickname || localNick || '';
-  if (emailInput) emailInput.value = user.email || localEmail || '';
-  if (bioInput) bioInput.value = user.bio || localBio || '';
-  if (avatarInput) avatarInput.value = user.avatar_url || localAvatar || '';
-  if (passInput) passInput.value = '';
-  const passConfirmInput = document.getElementById('profile-input-password-confirm');
-  if (passConfirmInput) passConfirmInput.value = '';
-
-  const passSection = document.getElementById('profile-password-section');
-  if (passSection) passSection.style.display = (App.isStandalone || !App.signedIn) ? 'none' : 'block';
-
-  const statusMsg = document.getElementById('profile-status-msg');
-  if (statusMsg) statusMsg.style.display = 'none';
-
-  if (window.lucide) lucide.createIcons();
-  showModal('profile-modal');
+  closeProfileMenu();
+  openSettingsTab('page-account');
 }
 
-async function saveUserProfile() {
-  const full_name = document.getElementById('profile-input-fullname')?.value.trim() || null;
-  const nickname = document.getElementById('profile-input-nickname')?.value.trim() || null;
-  const email = document.getElementById('profile-input-email')?.value.trim() || null;
-  const bio = document.getElementById('profile-input-bio')?.value.trim() || null;
-  const avatar_url = document.getElementById('profile-input-avatar')?.value.trim() || null;
-  const new_password = document.getElementById('profile-input-password')?.value || null;
-  const confirm_password = document.getElementById('profile-input-password-confirm')?.value || null;
-
-  const statusMsg = document.getElementById('profile-status-msg');
-  if (new_password && new_password !== confirm_password) {
-    if (statusMsg) {
-      statusMsg.style.display = 'block';
-      statusMsg.style.color = 'var(--danger)';
-      statusMsg.textContent = 'The passwords do not match. Nothing was saved.';
-    }
-    showToast('Passwords do not match', 'error');
-    return;
-  }
-  if (statusMsg) {
-    statusMsg.style.display = 'block';
-    statusMsg.style.color = 'var(--accent)';
-    statusMsg.textContent = 'Saving profile...';
-  }
-
-  // Persist locally in localStorage for immediate UI feedback
-  setLocalProfile('cd_local_fullname', full_name);
-  setLocalProfile('cd_local_nickname', nickname);
-  setLocalProfile('cd_local_avatar', avatar_url);
-  setLocalProfile('cd_local_email', email);
-  setLocalProfile('cd_local_bio', bio);
-
-  if (!App.user) App.user = {};
-  if (full_name) App.user.full_name = full_name;
-  if (nickname) App.user.nickname = nickname;
-  if (avatar_url) App.user.avatar_url = avatar_url;
-  if (email) App.user.email = email;
-  if (bio) App.user.bio = bio;
-  updateHeaderProfile(App.user);
-
-  try {
-    localStorage.setItem('cd_user_info', JSON.stringify({
-      username: App.user.username,
-      full_name: full_name || App.user.full_name,
-      nickname: nickname || App.user.nickname,
-      avatar_url: avatar_url || App.user.avatar_url,
-      email: email || App.user.email,
-      bio: bio || App.user.bio
-    }));
-  } catch (_) {}
-
-  const lockAvatar = document.getElementById('lock-avatar-thumb');
-  if (lockAvatar) renderAvatarElement(lockAvatar, avatar_url || App.user.avatar_url || '👤');
-  const lockUserText = document.getElementById('lock-username-text');
-  if (lockUserText) lockUserText.textContent = nickname || App.user.nickname || full_name || App.user.username || 'Brum User';
-
-  try {
-    const headers = { 'Content-Type': 'application/json', ...COOKIE_SESSION_HEADERS };
-    const resp = await fetch('/api/auth/profile', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ nickname, full_name, bio, email, avatar_url, new_password })
-    });
-
-    if (resp.ok) {
-      const data = await resp.json().catch(() => ({}));
-      if (data.session_renewed) markSignedIn(true);
-      if (statusMsg) {
-        statusMsg.style.color = 'var(--success)';
-        statusMsg.textContent = 'Profile updated successfully!';
-      }
-      // Re-fetch me
-      const meResp = await fetch('/api/auth/me');
-      if (meResp.ok) {
-        App.user = await meResp.json();
-        if (data.avatar_url) App.user.avatar_url = data.avatar_url;
-        updateHeaderProfile(App.user);
-        try {
-          localStorage.setItem('cd_user_info', JSON.stringify(App.user));
-        } catch (_) {}
-      }
-      setTimeout(() => closeModal('profile-modal'), 800);
-    } else {
-      const err = await resp.json().catch(() => ({ error: 'Update failed' }));
-      if (statusMsg) {
-        statusMsg.style.color = 'var(--danger)';
-        statusMsg.textContent = err.error || 'Failed to update profile.';
-      }
-    }
-  } catch (e) {
-    if (statusMsg) {
-      statusMsg.style.color = 'var(--danger)';
-      statusMsg.textContent = `Error: ${e.message}`;
-    }
-  }
-}
 
 function openSettingsAccountTab() {
   const user = App.user || {};
@@ -29776,9 +29593,9 @@ function openPaneSettingsMenu(e, paneIndex, refresh = false) {
           `).join('')}
         </div>
 
-        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Active Ring Style</div>
+        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Active Pane Ring</div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
-          ${[['subtle', 'Subtle'], ['bold', 'Bold'], ['glow', 'Glow'], ['none', 'None']].map(([rKey, rName]) => `
+          ${[['none', 'None'], ['subtle', 'Thin'], ['glow', 'Medium'], ['bold', 'Thick']].map(([rKey, rName]) => `
             <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, `${rKey}`, null)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">${rName}</button>
           `).join('')}
         </div>
@@ -29790,7 +29607,7 @@ function openPaneSettingsMenu(e, paneIndex, refresh = false) {
           `).join('')}
         </div>
 
-        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Global Border Angle</div>
+        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Colour Fade Direction</div>
         <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;">
           ${['45deg', '90deg', '135deg', '180deg', '270deg', '0deg'].map(ang => `
             <button type="button" class="btn btn-xs ${globalAngle === ang ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 9px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, null, `${ang}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">${ang.replace('deg', '°')}</button>
@@ -41267,10 +41084,10 @@ const SPOTLIGHT_STATIC_ACTIONS = [
   { id: 'logviewer', title: 'Log Viewer', sub: 'Real-time log tailing, regex & inverted filter, log level parsing & autoscroll', icon: 'scroll-text', cat: 'actions', action: () => openLogViewer() },
   { id: 'mediaplayer', title: 'Media Player', sub: 'Universal audio, video, chiptune & tracker player, subtitles, PiP popout & playlists', icon: 'assets/media.webp', cat: 'actions', action: () => openMediaPlayer() },
   { id: 'tasks', title: 'Task Manager', sub: 'View active background transfers, speeds, and queued jobs', icon: 'assets/task.webp', cat: 'actions', action: () => openFloatingTaskManager() },
-  { id: 'settings', title: 'User Settings & Preferences', sub: 'Themes, keybindings, and preferences (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
+  { id: 'settings', title: 'Settings', sub: 'Account, appearance, panes, safety, menus and add-ons (F10)', icon: 'assets/amber-frameless-settings.webp', cat: 'actions', action: () => openSettingsModal() },
   { id: 'admin', title: 'Admin Control Panel', sub: 'User management, RBAC, mounts, audit logs', icon: 'assets/amber-frameless-admin.webp', cat: 'actions', action: () => openAdminPanel() },
   { id: 'about', title: 'About Brum', sub: 'What Brum is, version, and links', icon: 'assets/amber-frameless-info.webp', cat: 'actions', action: () => openAboutModal() },
-  { id: 'profile', title: 'User Profile & Password', sub: 'Account credentials, session avatar, and security', icon: 'user', cat: 'actions', action: () => openUserProfileModal() },
+  { id: 'profile', title: 'Profile & Password', sub: 'Your name, picture and password (Settings → Account)', icon: 'user', cat: 'actions', action: () => openUserProfileModal() },
   { id: 'lock', title: 'Lock Session', sub: 'Lock Brum immediately (Ctrl+Alt+L)', icon: 'lock', cat: 'actions', action: () => lockSession() },
   { id: 'mkdir', title: 'New Folder', sub: 'Create a new directory in active pane (F7)', icon: 'folder-plus', cat: 'actions', action: () => triggerMkdir() },
   { id: 'newfile', title: 'New Text File', sub: 'Create a new empty text document', icon: 'file-plus', cat: 'actions', action: () => triggerNewFile() },
