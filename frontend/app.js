@@ -29563,7 +29563,8 @@ function handlePaneBadgeClick(e, paneIndex) {
   openPaneSettingsMenu(e, paneIndex);
 }
 
-function openPaneSettingsMenu(e, paneIndex) {
+// refresh: redraw after a button inside the popup was used, so it stays open showing the new choice
+function openPaneSettingsMenu(e, paneIndex, refresh = false) {
   if (e) {
     e.preventDefault();
     e.stopPropagation();
@@ -29571,7 +29572,7 @@ function openPaneSettingsMenu(e, paneIndex) {
   const existing = document.getElementById('pane-settings-popup');
   const wasOpenForThisPane = existing && existing.dataset.paneIndex === String(paneIndex);
   document.querySelectorAll('#pane-tools-popup, #pane-favorites-popup, #pane-settings-popup, #pane-transfer-popup, #pane-upload-popup, #col-chooser-popover, .breadcrumb-popover').forEach(p => p.remove());
-  if (wasOpenForThisPane) return;
+  if (wasOpenForThisPane && !refresh) return;
 
   const pane = App.panes[paneIndex];
   const currentName = pane?.customName || `${paneIndex + 1}`;
@@ -29579,6 +29580,7 @@ function openPaneSettingsMenu(e, paneIndex) {
   const currentColorConf = colors[paneIndex] || 'default';
   const curBorderWidth = localStorage.getItem('cd_border_width') || '1px';
   const curRingStyle = localStorage.getItem('cd_ring_style') || 'subtle';
+  const curPaneGlow = document.documentElement.getAttribute('data-pane-glow') || 'soft';
   const globalAngle = localStorage.getItem('cd_border_angle') || '45deg';
 
   const resolved = resolvePaneColorConfig(currentColorConf, globalAngle);
@@ -29637,7 +29639,7 @@ function openPaneSettingsMenu(e, paneIndex) {
       <div style="border-top: 1px solid var(--border); padding-top: 10px;">
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px; display: flex; justify-content: space-between;">
           <span>Two-Tone Color Presets</span>
-          <span style="color: var(--accent); cursor: pointer; text-transform: none; font-weight: 600;" data-on-click="cyclePaneColor" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">Cycle ↻</span>
+          <span style="color: var(--accent); cursor: pointer; text-transform: none; font-weight: 600;" data-on-click="cyclePaneColor" data-click-args="${actionArgs((paneIndex))}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">Cycle ↻</span>
         </div>
         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
           ${Object.entries(PANE_COLOR_PRESETS).map(([pId, p]) => {
@@ -29645,7 +29647,7 @@ function openPaneSettingsMenu(e, paneIndex) {
             return `
               <button type="button" class="color-swatch-btn ${isSelected ? 'active' : ''}" 
                       style="display: flex; align-items: center; gap: 5px; padding: 4px 6px; background: var(--bg-panel); border: 1px solid ${isSelected ? 'var(--accent)' : 'var(--border)'}; border-radius: 4px; cursor: pointer; color: var(--text-main); font-size: 10px; width: 100%; text-align: left;"
-                      data-on-click="setPaneColorPref" data-click-args="${actionArgs((paneIndex), `${pId}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">
+                      data-on-click="setPaneColorPref" data-click-args="${actionArgs((paneIndex), `${pId}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">
                 <span style="display: inline-block; width: 11px; height: 11px; border-radius: 50%; background: linear-gradient(135deg, ${p.c1}, ${p.c2}); border: 1px solid rgba(255,255,255,0.25); flex-shrink: 0; box-shadow: 0 0 3px rgba(0,0,0,0.4);"></span>
                 <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; ${isSelected ? 'font-weight: 700; color: var(--accent);' : ''}">${p.name}</span>
               </button>
@@ -29707,11 +29709,11 @@ function openPaneSettingsMenu(e, paneIndex) {
           </div>
           <div style="display: flex; gap: 6px; margin-bottom: ${visibleCount > 2 ? '6px' : '0'};">
             <button type="button" class="btn btn-xs btn-outline" style="flex: 1; padding: 4px 6px; font-size: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; ${paneIndex === 0 ? 'opacity: 0.4; cursor: not-allowed;' : ''}"
-                    ${paneIndex === 0 ? 'disabled' : `data-on-click="swapPanes" data-click-args="${actionArgs(paneIndex, paneIndex - 1)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, paneIndex - 1])}"`}>
+                    ${paneIndex === 0 ? 'disabled' : `data-on-click="swapPanes" data-click-args="${actionArgs(paneIndex, paneIndex - 1)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, paneIndex - 1, true])}"`}>
               <i data-lucide="arrow-left" style="width: 12px; height: 12px;"></i> Move Left
             </button>
             <button type="button" class="btn btn-xs btn-outline" style="flex: 1; padding: 4px 6px; font-size: 10px; display: flex; align-items: center; justify-content: center; gap: 4px; ${paneIndex >= visibleCount - 1 ? 'opacity: 0.4; cursor: not-allowed;' : ''}"
-                    ${paneIndex >= visibleCount - 1 ? 'disabled' : `data-on-click="swapPanes" data-click-args="${actionArgs(paneIndex, paneIndex + 1)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, paneIndex + 1])}"`}>
+                    ${paneIndex >= visibleCount - 1 ? 'disabled' : `data-on-click="swapPanes" data-click-args="${actionArgs(paneIndex, paneIndex + 1)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, paneIndex + 1, true])}"`}>
               Move Right <i data-lucide="arrow-right" style="width: 12px; height: 12px;"></i>
             </button>
           </div>
@@ -29722,7 +29724,7 @@ function openPaneSettingsMenu(e, paneIndex) {
                 ${Array.from({ length: visibleCount }).map((_, pIdx) => {
                   if (pIdx === paneIndex) return '';
                   return `
-                    <button type="button" class="btn btn-xs btn-outline" style="padding: 2px 6px; font-size: 9.5px;" data-on-click="swapPanes" data-click-args="${actionArgs((paneIndex), (pIdx))}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (pIdx)])}">
+                    <button type="button" class="btn btn-xs btn-outline" style="padding: 2px 6px; font-size: 9.5px;" data-on-click="swapPanes" data-click-args="${actionArgs((paneIndex), (pIdx))}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (pIdx), true])}">
                       Pane ${pIdx + 1}
                     </button>
                   `;
@@ -29738,21 +29740,28 @@ function openPaneSettingsMenu(e, paneIndex) {
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Border Width</div>
         <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-bottom: 8px;">
           ${['0px', '1px', '2px', '3px', '4px'].map(bw => `
-            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 10px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(`${bw}`, null, null)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">${bw === '0px' ? '0px (None)' : bw}</button>
+            <button type="button" class="btn btn-xs ${curBorderWidth === bw ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 10px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(`${bw}`, null, null)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">${bw === '0px' ? '0px (None)' : bw}</button>
           `).join('')}
         </div>
 
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Active Ring Style</div>
         <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; margin-bottom: 8px;">
           ${[['subtle', 'Subtle'], ['bold', 'Bold'], ['glow', 'Glow'], ['none', 'None']].map(([rKey, rName]) => `
-            <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, `${rKey}`, null)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">${rName}</button>
+            <button type="button" class="btn btn-xs ${curRingStyle === rKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, `${rKey}`, null)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">${rName}</button>
+          `).join('')}
+        </div>
+
+        <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Active Pane Glow</div>
+        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; margin-bottom: 8px;">
+          ${[['off', 'Off'], ['soft', 'Soft'], ['strong', 'Strong']].map(([gKey, gName]) => `
+            <button type="button" class="btn btn-xs ${curPaneGlow === gKey ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 4px; font-size: 9.5px;" data-on-click="applyPaneGlow" data-click-args="${actionArgs(`${gKey}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">${gName}</button>
           `).join('')}
         </div>
 
         <div style="font-size: 10px; color: var(--text-muted); font-weight: 700; text-transform: uppercase; margin-bottom: 6px;">Global Border Angle</div>
         <div style="display: grid; grid-template-columns: repeat(6, 1fr); gap: 3px;">
           ${['45deg', '90deg', '135deg', '180deg', '270deg', '0deg'].map(ang => `
-            <button type="button" class="btn btn-xs ${globalAngle === ang ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 9px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, null, `${ang}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">${ang.replace('deg', '°')}</button>
+            <button type="button" class="btn btn-xs ${globalAngle === ang ? 'btn-accent' : 'btn-outline'}" style="padding: 2px 2px; font-size: 9px;" data-on-click="applyBorderSettings" data-click-args="${actionArgs(null, null, `${ang}`)}" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">${ang.replace('deg', '°')}</button>
           `).join('')}
         </div>
       </div>
@@ -29787,7 +29796,7 @@ function openPaneSettingsMenu(e, paneIndex) {
       <!-- 7. Cloud Workspace Persistence (Web/Server Mode) -->
       <div class="web-only-setting server-only-setting" style="border-top: 1px solid var(--border); padding-top: 10px; display: flex; justify-content: space-between; align-items: center;">
         <span style="font-size: 10px; color: var(--text-dim);"><i data-lucide="cloud" style="width: 11px; height: 11px; vertical-align: -1px;"></i> Cross-Device Sync</span>
-        <button type="button" class="btn btn-xs btn-outline" style="font-size: 9.5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;" data-on-click="saveCurrentWorkspaceAsDefault" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex)])}">
+        <button type="button" class="btn btn-xs btn-outline" style="font-size: 9.5px; padding: 2px 6px; display: flex; align-items: center; gap: 4px;" data-on-click="saveCurrentWorkspaceAsDefault" data-click-steps="${actionSteps(['openPaneSettingsMenu', null, (paneIndex), true])}">
           Save All to Cloud
         </button>
       </div>
@@ -29812,7 +29821,7 @@ function openPaneSettingsMenu(e, paneIndex) {
   bindActions(popup);
 
   const inputEl = document.getElementById(`pane-setting-name-input-${paneIndex}`);
-  if (inputEl) {
+  if (inputEl && !refresh) {
     setTimeout(() => { inputEl.focus(); inputEl.select(); }, 50);
   }
 
