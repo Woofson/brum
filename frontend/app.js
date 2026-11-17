@@ -152,7 +152,7 @@ const BRUM_ACTIONS = new Set([
   'dockTagEditorToActivePane', 'dockTasksToActivePane', 'dockTerminalToActivePane',
   'docViewerCopyCurrent', 'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent',
   'docViewerRenameCurrent', 'downloadBundledChewToy', 'downloadCurrentMedia',
-  'duplicateFileTemplate', 'duplicatePaneTab', 'editCustomAction', 'editOpenWithRule',
+  'duplicateFileTemplate', 'duplicatePaneTab', 'duplicateSelected', 'editCustomAction', 'editOpenWithRule',
   'editTemplateById', 'enablePathInput', 'executeBatchRename', 'executeBulkRename',
   'executeCompressArchive', 'executeCreateFromTemplate', 'executeCreateShare',
   'executeCreateVault', 'executeDeltaCopy', 'executeDuplicateClean', 'executeExtractArchive',
@@ -23820,6 +23820,7 @@ function showContextMenu(x, y) {
       </div>
 
       <div class="context-item ${App.clipboard ? '' : 'disabled'}" data-on-click="triggerPaste" data-click-args="${actionArgs(App.activePaneIndex)}" data-click-after="hideContextMenu"><i data-lucide="clipboard-paste"></i> <span class="context-label">Paste ${clipInfo}</span> <span class="context-shortcut">Ctrl+V</span></div>
+      ${isDuplicatablePath(App.contextItem?.path) ? `<div class="context-item" data-on-click="duplicateSelected" data-click-after="hideContextMenu"><i data-lucide="copy-plus"></i> <span class="context-label">Duplicate ${selectedCount} items</span></div>` : ''}
       <div class="context-item" data-on-click="openBatchRenamer" data-click-after="hideContextMenu"><i data-lucide="file-signature" style="color: var(--accent);"></i> <span class="context-label">Batch Rename...</span> <span class="context-shortcut">Ctrl+M</span></div>
       <div class="context-item" data-on-click="triggerDelete" data-click-after="hideContextMenu"><i data-lucide="trash-2" style="color: var(--danger);"></i> <span class="context-label">Delete</span> <span class="context-shortcut">F8</span></div>
       <div class="context-item" data-on-click="triggerProperties" data-click-after="hideContextMenu"><i data-lucide="info" style="color: var(--accent);"></i> <span class="context-label">Properties</span> <span class="context-shortcut">Alt+Enter</span></div>
@@ -23877,6 +23878,7 @@ function showContextMenu(x, y) {
 
       <div class="context-item ${App.clipboard ? '' : 'disabled'}" data-on-click="triggerPaste" data-click-args="${actionArgs(App.activePaneIndex)}" data-click-after="hideContextMenu"><i data-lucide="clipboard-paste"></i> <span class="context-label">Paste ${clipInfo}</span> <span class="context-shortcut">Ctrl+V</span></div>
       <div class="context-item" data-on-click="triggerRename" data-click-after="hideContextMenu"><i data-lucide="edit-3"></i> <span class="context-label">Rename</span> <span class="context-shortcut">F2</span></div>
+      ${isDuplicatablePath(App.contextItem?.path) ? `<div class="context-item" data-on-click="duplicateSelected" data-click-after="hideContextMenu"><i data-lucide="copy-plus"></i> <span class="context-label">${selectedCount > 1 ? `Duplicate ${selectedCount} items` : 'Duplicate'}</span></div>` : ''}
       <div class="context-item" data-on-click="triggerDelete" data-click-after="hideContextMenu"><i data-lucide="trash-2" style="color: var(--danger);"></i> <span class="context-label">Delete</span> <span class="context-shortcut">F8</span></div>
       <div class="context-item" data-on-click="triggerProperties" data-click-after="hideContextMenu"><i data-lucide="info" style="color: var(--accent);"></i> <span class="context-label">Properties</span> <span class="context-shortcut">Alt+Enter</span></div>
       ${App.contextItem && String(App.contextItem.path || '').startsWith('proton://') ? `<div class="context-item" data-on-click="openProtonShare" data-click-args="${actionArgs(String(App.contextItem.path))}" data-click-after="hideContextMenu"><i data-lucide="link" style="color: var(--accent);"></i> <span class="context-label">Proton share link…</span></div>` : ''}
@@ -23990,6 +23992,7 @@ function showContextMenu(x, y) {
 
       <div class="context-item ${App.clipboard ? '' : 'disabled'}" data-on-click="triggerPaste" data-click-args="${actionArgs(App.activePaneIndex)}" data-click-after="hideContextMenu"><i data-lucide="clipboard-paste"></i> <span class="context-label">Paste</span> <span class="context-shortcut">Ctrl+V</span></div>
       <div class="context-item" data-on-click="triggerRename" data-click-after="hideContextMenu"><i data-lucide="edit-3"></i> <span class="context-label">Rename</span> <span class="context-shortcut">F2</span></div>
+      ${isDuplicatablePath(App.contextItem?.path) ? `<div class="context-item" data-on-click="duplicateSelected" data-click-after="hideContextMenu"><i data-lucide="copy-plus"></i> <span class="context-label">${selectedCount > 1 ? `Duplicate ${selectedCount} items` : 'Duplicate'}</span></div>` : ''}
       <div class="context-item" data-on-click="triggerDelete" data-click-after="hideContextMenu"><i data-lucide="trash-2" style="color: var(--danger);"></i> <span class="context-label">Delete</span> <span class="context-shortcut">F8</span></div>
       <div class="context-item" data-on-click="triggerProperties" data-click-after="hideContextMenu"><i data-lucide="info" style="color: var(--accent);"></i> <span class="context-label">Properties</span> <span class="context-shortcut">Alt+Enter</span></div>
       ${App.contextItem && String(App.contextItem.path || '').startsWith('proton://') ? `<div class="context-item" data-on-click="openProtonShare" data-click-args="${actionArgs(String(App.contextItem.path))}" data-click-after="hideContextMenu"><i data-lucide="link" style="color: var(--accent);"></i> <span class="context-label">Proton share link…</span></div>` : ''}
@@ -27326,6 +27329,130 @@ function triggerMkdir() {
 
   const confirmBtn = document.getElementById('btn-confirm-mkdir');
   if (confirmBtn) confirmBtn.onclick = executeMkdir;
+}
+
+// ---------- Duplicate: a copy next to the original, "name (copy).ext" ----------
+// Offered for files and folders on this machine's own disks; the copy engine copies to an exact
+// new name there. Remote places (cloud, SFTP, SMB, Proton, other machines) are left out.
+function isDuplicatablePath(path, paneIdx = App.contextPaneIndex ?? App.activePaneIndex) {
+  const nodeId = App.panes[paneIdx]?.nodeId;
+  if (nodeId && nodeId !== 'local') return false;
+  return !!path && !String(path).includes('://');
+}
+
+function duplicateCopyName(name, isDir, taken) {
+  let stem = name;
+  let ext = '';
+  if (!isDir) {
+    const dot = name.lastIndexOf('.');
+    if (dot > 0) { stem = name.slice(0, dot); ext = name.slice(dot); }
+    if (/\.tar$/i.test(stem)) { ext = stem.slice(-4) + ext; stem = stem.slice(0, -4); }
+  }
+  // Duplicating a copy gives "report (copy 2)", not "report (copy) (copy)"
+  const again = stem.match(/^(.*) \(copy(?: \d+)?\)$/);
+  if (again) stem = again[1];
+  const used = new Set([...taken].map(n => n.toLowerCase()));
+  for (let i = 1; i < 10000; i++) {
+    const candidate = `${stem} (copy${i > 1 ? ` ${i}` : ''})${ext}`;
+    if (!used.has(candidate.toLowerCase())) return candidate;
+  }
+  return `${stem} (copy ${Date.now()})${ext}`;
+}
+
+function duplicateTargetPath(path, newName) {
+  const p = String(path);
+  const sep = p.includes('\\') && !p.includes('/') ? '\\' : '/';
+  const cut = p.lastIndexOf(sep);
+  const parent = cut > 0 ? p.slice(0, cut) : (cut === 0 ? sep : '');
+  return parent.endsWith(sep) ? parent + newName : `${parent}${sep}${newName}`;
+}
+
+async function waitForTaskEnd(taskId) {
+  for (;;) {
+    try {
+      const resp = await fetch(`/api/tasks/${encodeURIComponent(taskId)}`);
+      if (resp.ok) {
+        const t = await resp.json();
+        if (['completed', 'failed', 'cancelled'].includes(t.status)) return t;
+      } else if (resp.status === 404) {
+        return { status: 'completed' };
+      }
+    } catch (e) { /* try again */ }
+    await new Promise(r => setTimeout(r, 400));
+  }
+}
+
+async function duplicateSelected() {
+  const paneIdx = App.contextPaneIndex ?? App.activePaneIndex;
+  const pane = App.panes[paneIdx];
+  if (!pane) return;
+  let items = [];
+  const ctx = App.contextItem;
+  if (ctx && pane.selected?.has(ctx.path) && pane.selected.size > 1) {
+    items = (pane.entries || []).filter(e => pane.selected.has(e.path));
+  } else if (ctx) {
+    items = [ctx];
+  } else if (pane.selected?.size) {
+    items = (pane.entries || []).filter(e => pane.selected.has(e.path));
+  } else if (pane.entries && pane.cursorIndex >= 0) {
+    items = [pane.entries[pane.cursorIndex]];
+  }
+  items = items.filter(e => e && e.name !== '..' && e.name !== '.');
+  if (!items.length) return;
+  if (items.some(e => !isDuplicatablePath(e.path, paneIdx))) {
+    showToast('Duplicate works for files and folders on this machine. Use Copy and Paste for other places.', 'info');
+    return;
+  }
+
+  const taken = new Set((pane.entries || []).map(e => e.name));
+  const started = [];
+  for (const it of items) {
+    const newName = duplicateCopyName(it.name, !!it.is_dir, taken);
+    taken.add(newName);
+    try {
+      const resp = await fetch('/api/fs/copy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sources: [it.path], destination: duplicateTargetPath(it.path, newName), conflict_resolution: 'skip' }),
+      });
+      if (!resp.ok) throw new Error(await resp.text());
+      const data = await resp.json();
+      // Refreshed below, once, with the copy selected; the task list must not refresh the panes again
+      // (that would end the rename that starts right after)
+      if (data.task_id && typeof knownCompletedTasks !== 'undefined') knownCompletedTasks.add(data.task_id);
+      started.push({ taskId: data.task_id, name: newName, from: it.name });
+    } catch (e) {
+      showToast(`Could not duplicate ${it.name}: ${sanitizeCredentials(String(e.message || e))}`, 'error');
+    }
+  }
+  if (!started.length) return;
+  if (typeof requestTasksFastBurst === 'function') requestTasksFastBurst(4000);
+
+  const begun = Date.now();
+  const results = await Promise.all(started.map(async job => ({ job, task: job.taskId ? await waitForTaskEnd(job.taskId) : { status: 'completed' } })));
+  const done = results.filter(r => r.task.status === 'completed').map(r => r.job);
+  results.filter(r => r.task.status !== 'completed').forEach(r => {
+    showToast(`Could not duplicate ${r.job.from}${r.task.error_message ? `: ${r.task.error_message}` : ''}`, 'error');
+  });
+  if (!done.length) return;
+
+  const p = App.panes[paneIdx];
+  if (p?.path) {
+    invalidateDirectoryCache(p.nodeId, p.path);
+    p._freshList = true;
+    await loadPaneDirectory(paneIdx, p.path, false, done[0].name, true);
+  }
+  if (done.length > 1) {
+    showToast(`Duplicated ${done.length} items`, 'success');
+    return;
+  }
+  // One quick copy: select it with its name ready to edit (Esc keeps the suggested name)
+  if (Date.now() - begun > 10000) return;
+  const entry = (App.panes[paneIdx]?.entries || []).find(e => e.name === done[0].name);
+  if (!entry) return;
+  App.contextItem = entry;
+  App.contextPaneIndex = paneIdx;
+  triggerRename();
 }
 
 function triggerRename(forceModal = false) {

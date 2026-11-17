@@ -82,6 +82,7 @@ Brum provides orthodox keyboard-driven power navigation paired with intuitive mo
 ## Mouse & Touch Navigation
 
 * **Double-Click Empty Space**: Double-click anywhere on empty panel background space to immediately jump up one directory level (`..`).
+* **Duplicate (Right-Click)**: Right-click a file or folder and choose **Duplicate** to make a copy next to it, named like `report (copy).pdf` (`report (copy 2).pdf` when that name is taken). For one item the copy is selected with its name ready to edit; press Enter to keep a new name or Esc to keep the suggested one. With several items selected, each gets its own copy. Available for files and folders on the machine's own disks; for cloud storage, SFTP, SMB and other machines use Copy and Paste.
 * **Empty Space Right-Click**: Context menu to create files from templates, create directories, paste clipboard items, open terminal, or view disk usage.
 * **Synchronized Scrolling & Directory Navigation**: Accessible directly from individual panel dropdown menus to mirror scrolling offsets and directory navigation across opposite panes.
 * **Mobile Touch Engine**: Long-press (450ms) for context menus, swipe between panels, and adaptive touch hitboxes.
