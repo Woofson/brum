@@ -18553,3 +18553,69 @@ input[type="checkbox"]:checked::after,
 @media (max-width: 640px) {
   .settings-subnav { display: none; }
 }
+
+/* Find a setting (#203) */
+.settings-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  max-width: 320px;
+  height: 28px;
+  margin: 0 10px 0 auto;
+  padding: 0 10px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 400;
+  outline: none;
+}
+.settings-search-input:focus {
+  border-color: var(--toggle-on-border);
+}
+.settings-search-head {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.settings-search-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.settings-search-hit {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  padding: 8px 12px;
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-main);
+  cursor: pointer;
+}
+.settings-search-hit:hover,
+.settings-search-hit:focus-visible {
+  border-color: var(--toggle-on-border);
+  background: var(--bg-hover);
+  outline: none;
+}
+.ssh-label { font-size: 12.5px; font-weight: 600; }
+.ssh-where { font-size: 11px; color: var(--text-muted); }
+.ssh-hint { font-size: 11px; color: var(--text-dim, var(--text-muted)); }
+.settings-search-flash {
+  animation: settingsSearchFlash 1.8s ease;
+}
+@keyframes settingsSearchFlash {
+  0%, 45% { background-color: var(--toggle-on-bg); box-shadow: 0 0 0 1px var(--toggle-on-border); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.settings-search-input::-webkit-search-cancel-button {
+  filter: grayscale(1) brightness(1.4);
+  cursor: pointer;
+}
+#settings-modal .modal-header {
+  gap: 10px;
+}

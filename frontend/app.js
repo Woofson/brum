@@ -226,7 +226,7 @@ const BRUM_ACTIONS = new Set([
   'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu', 'openParanoidSettings',
   'openPathInActivePane', 'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
   'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal', 'openSettingsModal',
-  'openSettingsTab', 'openShareLogs', 'scrollSettingsPart', 'openSharesManager', 'openSplitterFilePicker',
+  'openSettingsTab', 'openShareLogs', 'scrollSettingsPart', 'handleSettingsSearch', 'handleSettingsSearchKey', 'openSettingsSearchHit', 'openSharesManager', 'openSplitterFilePicker',
   'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal', 'openSyncthingModal',
   'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath', 'openUserProfileModal',
   'pauseAllTasks', 'pauseTask', 'retryTask', 'pingAllFleetNodes', 'pingFleetNode', 'playMediaPlaylistItem',
@@ -10317,6 +10317,7 @@ function switchSettingsTab(tabId) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
   tabId = SETTINGS_TAB_ALIASES[tabId] || tabId;
+  if (_settingsSearchIndex || document.getElementById('settings-search')?.value) closeSettingsSearch(false);
 
   // A section inside a page: open its page, then scroll to it
   let target = document.getElementById(tabId);
@@ -10344,6 +10345,132 @@ function switchSettingsTab(tabId) {
     requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
   } else if (area) {
     area.scrollTop = 0;
+  }
+}
+
+// ---------- Find a setting (#203) ----------
+// Searches every setting on the Settings pages (labels, explanations and choices) and lists the
+// matches; a match opens its page and briefly highlights the setting. Settings this person cannot
+// see here (other platforms, admin-only cards) are left out.
+let _settingsSearchIndex = null;
+let _settingsSearchHits = [];
+let _settingsPageBeforeSearch = null;
+
+function settingsSearchText(el) {
+  return (el?.textContent || '').replace(/\s+/g, ' ').trim();
+}
+
+function buildSettingsSearchIndex() {
+  const modal = document.getElementById('settings-modal');
+  const items = [];
+  const hiddenUpTo = (el, page) => {
+    for (let n = el; n && n !== page; n = n.parentElement) {
+      if (getComputedStyle(n).display === 'none') return true;
+    }
+    return false;
+  };
+  modal.querySelectorAll('.settings-tab-content[id^="page-"]').forEach(page => {
+    if (page.id === 'page-search') return;
+    const pageName = settingsSearchText(findTabButton(modal, 'switchSettingsTab', page.id));
+    page.querySelectorAll(':scope > [data-nav-title]').forEach(part => {
+      if (hiddenUpTo(part, page)) return;
+      const partTitle = part.dataset.navTitle;
+      const desc = settingsSearchText(part.querySelector('.settings-card-desc, .form-hint'));
+      items.push({ el: part, page: page.id, where: pageName, label: partTitle, hint: desc, part: partTitle,
+        text: `${partTitle} ${desc} ${pageName}`.toLowerCase() });
+      part.querySelectorAll('.settings-checkbox-row, .settings-field').forEach(row => {
+        if (hiddenUpTo(row, page)) return;
+        if (row.matches('.settings-field') && row.querySelector('.settings-checkbox-row')) return;
+        const label = settingsSearchText(row.querySelector('strong, .settings-field-label, label')).replace(/:$/, '');
+        if (!label) return;
+        const hint = settingsSearchText(row.querySelector('.settings-field-hint'));
+        const choices = [...row.querySelectorAll('option')].map(o => o.textContent).join(' ');
+        items.push({ el: row, page: page.id, where: `${pageName} → ${partTitle}`, label, hint, part: partTitle,
+          text: `${label} ${hint} ${choices} ${partTitle}`.toLowerCase() });
+      });
+    });
+  });
+  return items;
+}
+
+function handleSettingsSearch(value) {
+  const modal = document.getElementById('settings-modal');
+  const results = document.getElementById('page-search');
+  if (!modal || !results) return;
+  const q = (value || '').trim().toLowerCase();
+  if (!q) { closeSettingsSearch(true); return; }
+  if (!_settingsSearchIndex) {
+    _settingsPageBeforeSearch = modal.querySelector('.settings-tab-content.active:not(#page-search)')?.id || 'page-files';
+    _settingsSearchIndex = buildSettingsSearchIndex();
+  }
+  const words = q.split(/\s+/);
+  // Best first: the setting's own name, then its section, then its explanation, then its choices
+  const has = (t) => words.every(w => t.toLowerCase().includes(w));
+  const score = (it) => {
+    const label = it.label.toLowerCase();
+    if (has(label)) return label.startsWith(words[0]) ? 5 : 4;
+    if (has(`${it.label} ${it.part}`)) return 3;
+    if (has(`${it.label} ${it.part} ${it.hint}`)) return 2;
+    return 1;
+  };
+  _settingsSearchHits = _settingsSearchIndex
+    .filter(it => words.every(w => it.text.includes(w)))
+    .map((it, i) => ({ it, i, sc: score(it) }))
+    .sort((a, b) => b.sc - a.sc || a.i - b.i)
+    .map(x => x.it)
+    .slice(0, 60);
+
+  modal.querySelectorAll('.settings-tab-content').forEach(c => c.classList.toggle('active', c === results));
+  modal.querySelectorAll('.settings-nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('settings-subnav')?.remove();
+  const n = _settingsSearchHits.length;
+  results.innerHTML = n
+    ? `<div class="settings-search-head">${n === 60 ? 'The first 60 matches' : (n === 1 ? '1 match' : `${n} matches`)}</div>
+       <div class="settings-search-list">${_settingsSearchHits.map((h, i) => `
+         <button type="button" class="settings-search-hit" data-on-click="openSettingsSearchHit" data-click-args="${actionArgs(i)}">
+           <span class="ssh-label">${escapeHtml(h.label)}</span>
+           <span class="ssh-where">${escapeHtml(h.where)}</span>
+           ${h.hint ? `<span class="ssh-hint">${escapeHtml(h.hint)}</span>` : ''}
+         </button>`).join('')}</div>`
+    : `<div class="ss-empty">No setting matches "${escapeHtml(value.trim())}".</div>`;
+  bindActions(results);
+  const area = modal.querySelector('.settings-content-area');
+  if (area) area.scrollTop = 0;
+}
+
+// Leaves the search; back to the page that was open before, unless a match is being opened
+function closeSettingsSearch(goBack) {
+  const input = document.getElementById('settings-search');
+  if (input) input.value = '';
+  const back = _settingsPageBeforeSearch;
+  _settingsSearchIndex = null;
+  _settingsSearchHits = [];
+  _settingsPageBeforeSearch = null;
+  if (goBack && document.getElementById('page-search')?.classList.contains('active')) switchSettingsTab(back || 'page-files');
+}
+
+function openSettingsSearchHit(i) {
+  const hit = _settingsSearchHits[i];
+  if (!hit) return;
+  closeSettingsSearch(false);
+  switchSettingsTab(hit.page);
+  requestAnimationFrame(() => {
+    hit.el.scrollIntoView({ block: 'center' });
+    hit.el.classList.remove('settings-search-flash');
+    void hit.el.offsetWidth;
+    hit.el.classList.add('settings-search-flash');
+    setTimeout(() => hit.el.classList.remove('settings-search-flash'), 1800);
+  });
+}
+
+function handleSettingsSearchKey(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (_settingsSearchHits.length) openSettingsSearchHit(0);
+  } else if (e.key === 'Escape' && e.target.value) {
+    e.preventDefault();
+    e.stopPropagation();
+    closeSettingsSearch(true);
   }
 }
 
@@ -26843,6 +26970,8 @@ function openSettingsModal() {
   renderIconSettingsTab();
   applyFontSettings();
   loadDriveVisibilitySettings();
+  if (document.getElementById('page-search')?.classList.contains('active')) closeSettingsSearch(true);
+  else closeSettingsSearch(false);
   showModal('settings-modal');
   // The open page's parts in the sidebar (measured once the window is visible)
   const settingsModal = document.getElementById('settings-modal');

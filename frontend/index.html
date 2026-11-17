@@ -1056,6 +1056,7 @@
     <div class="modal-box settings-modal-box">
       <div class="modal-header">
         <span style="display: flex; align-items: center; gap: 7px;"><img src="assets/amber-frameless-settings.webp" alt="Settings" style="width: 16px; height: 16px; object-fit: contain;"> Settings</span>
+        <input type="search" id="settings-search" class="settings-search-input" placeholder="Find a setting…" autocomplete="off" spellcheck="false" aria-label="Find a setting" data-on-input="handleSettingsSearch" data-input-args='[{"$": "value"}]' data-on-keydown="handleSettingsSearchKey" data-keydown-args='[{"$": "event"}]'>
         <button class="btn" data-on-click="closeModal" data-click-args='["settings-modal"]'><i data-lucide="x"></i></button>
       </div>
       
@@ -1072,6 +1073,7 @@
         </div>
 
         <div class="settings-content-area">
+          <div class="settings-tab-content" id="page-search"></div>
           <div class="settings-tab-content" id="page-account">
           <div data-nav-title="Profile" class="settings-group-card">
             <div class="settings-card-header">
@@ -1374,7 +1376,7 @@
 
             <div class="settings-grid-2col">
               <div class="settings-field">
-                <label class="settings-field-label" for="setting-pane-color-0">Pane 1 Color:</label>
+                <label class="settings-field-label" for="setting-pane-color-0">Pane 1:</label>
                 <select id="setting-pane-color-0" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[0, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
@@ -1388,7 +1390,7 @@
                 </select>
               </div>
               <div class="settings-field">
-                <label class="settings-field-label" for="setting-pane-color-1">Pane 2 Color:</label>
+                <label class="settings-field-label" for="setting-pane-color-1">Pane 2:</label>
                 <select id="setting-pane-color-1" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[1, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
@@ -1402,7 +1404,7 @@
                 </select>
               </div>
               <div class="settings-field">
-                <label class="settings-field-label" for="setting-pane-color-2">Pane 3 Color:</label>
+                <label class="settings-field-label" for="setting-pane-color-2">Pane 3:</label>
                 <select id="setting-pane-color-2" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[2, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
@@ -1416,7 +1418,7 @@
                 </select>
               </div>
               <div class="settings-field">
-                <label class="settings-field-label" for="setting-pane-color-3">Pane 4 Color:</label>
+                <label class="settings-field-label" for="setting-pane-color-3">Pane 4:</label>
                 <select id="setting-pane-color-3" class="settings-select" data-on-change="setPaneColorPref" data-change-args='[3, {"$": "value"}]'>
                   <option value="default">Default (Amber Glow #f59e0b → #ea580c)</option>
                   <option value="amber">Amber Gold (#f59e0b → #f97316)</option>
