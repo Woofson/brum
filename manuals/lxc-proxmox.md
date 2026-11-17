@@ -22,6 +22,10 @@ Inside your Debian / Ubuntu LXC container terminal, run:
 curl -fsSL https://raw.githubusercontent.com/Woofson/brum/main/scripts/lxc-install.sh | bash
 ```
 
+The script downloads the latest release (x86_64), checks it against the release's checksum file and installs it. You can also run `./install.sh` from the unpacked release archive.
+
+Running it again upgrades Brum to the latest release and restarts it. Your `/etc/brum/config.toml` is kept; if the shipped one has changed, it is put beside yours as `config.toml.new` for you to compare.
+
 Once installed, Brum is running and enabled on boot:
 - **URL**: `http://<CONTAINER_IP>:3140`
 - **Initial Credentials**: Username `admin`. The dynamic initial password is printed during install and logged in `journalctl -u brum` (or log in directly using your Linux container root/system user via PAM).
