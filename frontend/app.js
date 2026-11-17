@@ -226,7 +226,7 @@ const BRUM_ACTIONS = new Set([
   'openPaneTabContextMenu', 'openPaneToolsMenu', 'openPaneTransferMenu', 'openParanoidSettings',
   'openPathInActivePane', 'openPdfReorderFilePicker', 'openPdfSplitFilePicker', 'openPdfToolModal',
   'openPropertiesColorTab', 'openRemoteModal', 'openSearchModal', 'openSettingsModal',
-  'openSettingsTab', 'openShareLogs', 'openSharesManager', 'openSplitterFilePicker',
+  'openSettingsTab', 'openShareLogs', 'scrollSettingsPart', 'openSharesManager', 'openSplitterFilePicker',
   'openSpotlightModal', 'openSyncFolderPicker', 'openSyncModal', 'openSyncthingModal',
   'openTagEditor', 'openTerminalFromDiskUsage', 'openTerminalInPath', 'openUserProfileModal',
   'pauseAllTasks', 'pauseTask', 'retryTask', 'pingAllFleetNodes', 'pingFleetNode', 'playMediaPlaylistItem',
@@ -4331,6 +4331,7 @@ function toggleTrashSetting(enabled) {
   App.trashEnabled = !!enabled;
   localStorage.setItem('cd_trash_enabled', App.trashEnabled ? 'true' : 'false');
   syncTrashSettingsUI();
+  queueSaveUserPreferencesToServer();
   const binName = getTrashDisplayName(true);
   const targetName = isWindowsHost() ? 'Recycle Bin' : 'trash';
   showToast(App.trashEnabled ? `${binName} enabled (deleted items are moved to ${targetName})` : `${binName} disabled (deleted items will be permanently removed)`, 'info');
@@ -10292,53 +10293,80 @@ function openNoteForContextItem() {
 
 // ---------------- SETTINGS & CONF.D INSPECTOR ----------------
 
+// Settings pages (#203). Old tab names still work: they open the page that now holds that
+// section and scroll to it, so links from menus and other parts of Brum keep working.
+const SETTINGS_TAB_ALIASES = {
+  'tab-general': 'page-files', 'tab-columns': 'settings-columns', 'tab-palette': 'page-appearance',
+  'tab-account': 'page-account', 'tab-security': 'page-safety', 'tab-desktop': 'tab-desktop-apps',
+};
+const SETTINGS_PAGE_HOOKS = {
+  'page-account': () => openSettingsAccountTab(),
+  'page-appearance': () => { populateThemeSelectors(); renderIconSettingsTab(); },
+  'page-files': () => { updateColumnCheckboxes(); loadBookmarksList(); },
+  'page-safety': () => renderSecuritySettingsTab(),
+  'page-menus': () => { renderMenuBuilderCategory(activeMenuCategory); renderToolsSettingsTab(); renderKeybindingsTable(); renderFileTemplatesList(); },
+  'page-apps': () => {
+    loadInstalledChewToys();
+    renderProtonSetup();
+    if (document.body.classList.contains('same-computer')) { renderDesktopAppsTab(); renderOpenWithRules(); }
+  },
+  'tab-about': () => updateAboutModalContent(),
+};
+
 function switchSettingsTab(tabId) {
   const modal = document.getElementById('settings-modal');
   if (!modal) return;
+  tabId = SETTINGS_TAB_ALIASES[tabId] || tabId;
 
-  // Backward compatibility alias for merged tabs
-  if (tabId === 'tab-columns') {
-    tabId = 'tab-general';
-  }
-  if (tabId === 'tab-desktop') {
-    tabId = 'tab-desktop-apps';
-  }
+  // A section inside a page: open its page, then scroll to it
+  let target = document.getElementById(tabId);
+  let pageEl = target?.classList.contains('settings-tab-content') ? target : target?.closest('#settings-modal .settings-tab-content');
+  if (!pageEl) { pageEl = document.getElementById('page-files'); target = pageEl; }
+  const pageId = pageEl.id;
 
   modal.querySelectorAll('.settings-tab-btn, .settings-nav-btn').forEach(btn => btn.classList.remove('active'));
   modal.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+  const activeBtn = findTabButton(modal, 'switchSettingsTab', pageId);
+  if (activeBtn) activeBtn.classList.add('active');
+  pageEl.classList.add('active');
 
-  let activeBtn = null;
-  if (window.event && window.event.currentTarget && (window.event.currentTarget.classList.contains('settings-tab-btn') || window.event.currentTarget.classList.contains('settings-nav-btn'))) {
-    activeBtn = window.event.currentTarget;
-  } else {
-    activeBtn = findTabButton(modal, 'switchSettingsTab', tabId);
+  const hook = SETTINGS_PAGE_HOOKS[pageId];
+  if (hook) {
+    try { hook(); } catch (e) { console.error('Settings page', pageId, e); }
   }
-
-  if (activeBtn) {
-    activeBtn.classList.add('active');
-  }
-
-  document.getElementById(tabId)?.classList.add('active');
-
-  if (tabId === 'tab-general') updateColumnCheckboxes();
-  if (tabId === 'tab-palette') populateThemeSelectors();
-  if (tabId === 'tab-account') openSettingsAccountTab();
-  if (tabId === 'tab-bookmarks') loadBookmarksList();
-  if (tabId === 'tab-proton') renderProtonSetup();
-  if (tabId === 'tab-desktop-apps') renderDesktopAppsTab();
-  if (tabId === 'tab-openwith') renderOpenWithRules();
-  if (tabId === 'tab-context') renderMenuBuilderCategory(activeMenuCategory);
-  if (tabId === 'tab-keys') renderKeybindingsTable();
-  if (tabId === 'tab-icons') renderIconSettingsTab();
-  if (tabId === 'tab-templates') renderFileTemplatesList();
-  if (tabId === 'tab-tools') renderToolsSettingsTab();
-  if (tabId === 'tab-plugins') loadInstalledChewToys();
-  if (tabId === 'tab-security') renderSecuritySettingsTab();
-  if (tabId === 'tab-about') updateAboutModalContent();
+  renderSettingsSubnav(pageEl, activeBtn);
 
   if (window.lucide && typeof lucide.createIcons === 'function') {
     lucide.createIcons();
   }
+  const area = modal.querySelector('.settings-content-area');
+  if (target && target !== pageEl) {
+    requestAnimationFrame(() => target.scrollIntoView({ block: 'start' }));
+  } else if (area) {
+    area.scrollTop = 0;
+  }
+}
+
+// The parts of the open page, listed under its button in the sidebar; hidden parts are left out
+function renderSettingsSubnav(pageEl, activeBtn) {
+  document.getElementById('settings-subnav')?.remove();
+  if (!pageEl || !activeBtn) return;
+  const parts = [...pageEl.querySelectorAll(':scope > [data-nav-title]')].filter(el => el.offsetParent !== null || el.getClientRects().length);
+  if (parts.length < 2) return;
+  parts.forEach((el, i) => { if (!el.id) el.id = `${pageEl.id}-part-${i}`; });
+  const nav = document.createElement('div');
+  nav.id = 'settings-subnav';
+  nav.className = 'settings-subnav';
+  nav.innerHTML = parts.map(el => `<button type="button" class="settings-subnav-item" data-part="${el.id}" data-on-click="scrollSettingsPart" data-click-args="${actionArgs(el.id)}">${el.dataset.navTitle}</button>`).join('');
+  activeBtn.after(nav);
+  bindActions(nav);
+}
+
+function scrollSettingsPart(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  document.querySelectorAll('#settings-subnav .settings-subnav-item').forEach(b => b.classList.toggle('active', b.dataset.part === id));
 }
 
 function switchAdminTab(tabId) {
@@ -10393,27 +10421,27 @@ function accessRulesHtml(rules, removable) {
 // config.toml or by an environment variable is shown locked; changes apply when Brum restarts.
 
 const SS_GROUPS = [
-  { id: 'reach', icon: 'globe', title: 'Who can reach this Brum?', desc: 'Where Brum can be opened from, and how long people stay signed in.',
+  { id: 'reach', icon: 'globe', title: 'Network & Access', desc: 'Where Brum can be opened from, and how long people stay signed in.',
     keys: ['server.host', 'server.port', 'server.server_name', 'server.session_duration_hours', 'server.upload_max_size_mb', 'server.allowed_origins', 'server.trusted_proxies'] },
-  { id: 'login', icon: 'log-in', title: 'Who can log in?', desc: 'Which accounts can sign in to this Brum.',
+  { id: 'login', icon: 'log-in', title: 'Sign-in', desc: 'Which accounts can sign in to this Brum.',
     keys: ['auth.mode', 'auth.pam_service', 'auth.allow_guest'] },
-  { id: 'sso', icon: 'key-round', title: 'Single sign-on', desc: 'Sign in with an account from Authentik, Keycloak, Authelia or a similar service.',
+  { id: 'sso', icon: 'key-round', title: 'Single Sign-On', desc: 'Sign in with an account from Authentik, Keycloak, Authelia or a similar service.',
     keys: ['auth.oidc.enabled', 'auth.oidc.provider_name', 'auth.oidc.issuer_url', 'auth.oidc.client_id', 'auth.oidc.client_secret', 'auth.oidc.redirect_url', 'auth.oidc.scopes', 'auth.oidc.auto_provision', 'auth.oidc.admin_group', 'auth.oidc.default_user_role', 'auth.oidc.default_home_template', 'auth.oidc.force_sso_only', 'auth.oidc.button_icon'] },
-  { id: 'folders', icon: 'folder-tree', title: 'Which folders can people see?', desc: 'The shared folders everyone with access gets, and where personal folders are.',
+  { id: 'folders', icon: 'folder-tree', title: 'Folders', desc: 'The shared folders everyone with access gets, and where personal folders are.',
     keys: ['storage.roots', 'storage.allow_entire_system', 'server.root_path', 'storage.default_user_home_template', 'storage.auto_create_home_dirs', 'storage.home_fallback_scheme', 'storage.allow_remote_loopback', 'storage.sftp.host_key_checking'] },
   { id: 'safety', icon: 'shield-check', title: 'Safety', desc: 'What Brum does to keep files from being lost or damaged.',
     keys: ['paranoid.trash_enabled', 'paranoid.custom_trash_dir', 'paranoid.confirm_delete', 'paranoid.confirm_overwrite', 'paranoid.enabled', 'paranoid.verify_after_transfer', 'paranoid.checksum_algorithm', 'paranoid.atomic_writes', 'paranoid.windows_native_file_ops', 'paranoid.detect_locking_processes'] },
-  { id: 'fleet', icon: 'network', title: 'Several machines', desc: 'Working with the other Brum machines in your Fleet.',
+  { id: 'fleet', icon: 'network', title: 'Fleet', desc: 'Working with the other Brum machines in your Fleet.',
     keys: ['fleet.enabled', 'fleet.transfer_jobs'] },
   { id: 'terminal', icon: 'terminal', title: 'Terminal', desc: 'The command line inside Brum.',
     keys: ['terminal.enabled', 'terminal.allow_roles', 'terminal.allow_virtual_users', 'terminal.drop_privileges'] },
   { id: 'chewtoys', icon: 'puzzle', title: 'Chewtoys', desc: 'Small add-on apps that run inside Brum.',
     keys: ['plugins.enabled', 'plugins.allow_user_installs', 'plugins.default_policy', 'plugins.global_whitelist', 'plugins.global_blacklist'] },
-  { id: 'start', icon: 'layout-dashboard', title: 'What everyone sees first', desc: 'How Brum looks for someone who has not changed their own Settings yet.',
+  { id: 'start', icon: 'layout-dashboard', title: 'Defaults for New Users', desc: 'How Brum looks for someone who has not changed their own Settings yet.',
     keys: ['ui.default_layout', 'ui.default_pane_count', 'ui.default_view_mode', 'ui.show_hidden_files', 'ui.window_title', 'ui.login_title', 'desktop.enable_tray'] },
-  { id: 'services', icon: 'plug', title: 'Other services', desc: 'Programs and services Brum works together with.',
+  { id: 'services', icon: 'plug', title: 'Other Services', desc: 'Programs and services Brum works together with.',
     keys: ['syncthing.enabled', 'syncthing.url', 'syncthing.api_key', 'proton.allow_download', 'rclone.allow_download', 'notes.notes_folder'] },
-  { id: 'logs', icon: 'scroll-text', title: 'Logs and records', desc: 'What Brum writes down about itself and about who did what.',
+  { id: 'logs', icon: 'scroll-text', title: 'Logs & Records', desc: 'What Brum writes down about itself and about who did what.',
     keys: ['activity.enabled', 'activity.retention_days', 'logging.level', 'logging.file_enabled', 'logging.console_enabled', 'logging.rotation', 'logging.max_files'] },
 ];
 
@@ -10425,7 +10453,7 @@ const SS_TEXT = {
   'server.upload_max_size_mb': { label: 'Largest upload (MB)', help: 'The biggest single file that can be uploaded through the browser. 20480 MB is 20 GB.' },
   'server.allowed_origins': { label: 'Extra web addresses Brum is opened at', help: 'Only needed when Brum is opened through a public name, like https://files.example.com. Home network and VPN addresses already work. One per line.' },
   'server.trusted_proxies': { label: 'Reverse proxies to trust', help: 'Only needed behind Caddy, Nginx, Traefik or similar: their addresses, so Brum sees who is really connecting. One per line, like 127.0.0.1 or 172.16.0.0/12.' },
-  'auth.mode': { label: 'Accounts that can sign in', help: 'Brum accounts are made in Users & RBAC. Computer accounts are the accounts of this machine (Linux PAM or Windows).', choices: { mixed: 'Brum accounts and this computer\'s accounts', builtin: 'Only Brum accounts', pam: 'Only this computer\'s accounts' } },
+  'auth.mode': { label: 'Accounts that can sign in', help: 'Brum accounts are made in Admin → Users. Computer accounts are the accounts of this machine (Linux PAM or Windows).', choices: { mixed: 'Brum accounts and this computer\'s accounts', builtin: 'Only Brum accounts', pam: 'Only this computer\'s accounts' } },
   'auth.pam_service': { label: 'PAM service', help: 'Linux only. Which login rules computer accounts are checked against. "login" is right for almost everyone.' },
   'auth.allow_guest': { label: 'Let guests look around without signing in', help: 'Guests can only read, never change anything. Leave it off unless you really want that.' },
   'auth.oidc.enabled': { label: 'Use single sign-on', help: 'Adds a sign-in button for your identity service on the login page.' },
@@ -11213,7 +11241,7 @@ async function loadUsersTable() {
 
               <div>
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                  <label style="font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">Allowed Storage Roots</label>
+                  <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Allowed Folders</label>
                   <span style="font-size: 10px; color: var(--text-dim);">Accessible storage scopes</span>
                 </div>
                 <div class="admin-roots-selector-box">
@@ -11253,7 +11281,7 @@ async function loadUsersTable() {
 
               <div style="margin-top: 6px; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 10px;">
                 <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-                  <label style="font-size: 10px; font-weight: 700; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px;">ChewToys &amp; Plugins Governance (.grr)</label>
+                  <label style="font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Chewtoys</label>
                   <span style="font-size: 10px; color: var(--text-dim);">Whitelist / Blacklist</span>
                 </div>
                 <div style="display: flex; flex-direction: column; gap: 8px;">
@@ -26999,6 +27027,10 @@ function openSettingsModal() {
   applyFontSettings();
   loadDriveVisibilitySettings();
   showModal('settings-modal');
+  // The open page's parts in the sidebar (measured once the window is visible)
+  const settingsModal = document.getElementById('settings-modal');
+  const activePage = settingsModal?.querySelector('.settings-tab-content.active');
+  if (activePage) requestAnimationFrame(() => renderSettingsSubnav(activePage, findTabButton(settingsModal, 'switchSettingsTab', activePage.id)));
 }
 
 function toggleHapticFeedbackSetting(enabled) {

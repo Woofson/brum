@@ -146,7 +146,7 @@ nohup brum --host 0.0.0.0 --port 3140 > /dev/null 2>&1 &
 
 ## 6. Android Folders in Places
 
-Put the phone's folders in **Places** for everyone: **Admin Control Panel → Server Settings → Which folders can people see? → Shared folders → Add a shared folder**, for example:
+Put the phone's folders in **Places** for everyone: **Admin Control Panel → Server Settings → Folders → Shared folders → Add a shared folder**, for example:
 
 | Name | Folder |
 | :--- | :--- |

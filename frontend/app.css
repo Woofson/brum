@@ -18394,3 +18394,162 @@ textarea.bk-input {
   .ss-root input[id^="ss-root-name"] { grid-column: 1 / -1; }
   .ss-root-del { justify-self: end; }
 }
+
+/* ===== Calmer controls (#203) =====
+   Ticked boxes are a soft tint with an accent tick instead of a solid amber block, and the
+   on/off rows in Settings and the Admin Control Panel are switches on the right of the row,
+   so the text is what the eye reads first. Bright amber stays for buttons and the current choice. */
+:root {
+  --toggle-on-bg: rgba(245, 158, 11, 0.18);
+  --toggle-on-bg: color-mix(in srgb, var(--accent) 20%, transparent);
+  --toggle-on-border: rgba(245, 158, 11, 0.55);
+  --toggle-on-border: color-mix(in srgb, var(--accent) 55%, var(--border));
+  --toggle-on-knob: var(--accent);
+}
+
+input[type="checkbox"]:checked {
+  background-color: var(--toggle-on-bg);
+  border-color: var(--toggle-on-border);
+}
+input[type="checkbox"]:checked::after,
+:root[data-theme="zink"] input[type="checkbox"]:checked::after {
+  border-color: var(--accent);
+}
+
+/* Switch: settings rows, Server Settings rows and the pane popup */
+.settings-checkbox-row input[type="checkbox"],
+.ss-switch input[type="checkbox"] + span {
+  --sw-w: 30px;
+  --sw-h: 17px;
+}
+.settings-checkbox-row input[type="checkbox"] {
+  width: var(--sw-w);
+  min-width: var(--sw-w);
+  height: var(--sw-h);
+  min-height: var(--sw-h);
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-dark);
+  margin-top: 1px;
+  justify-content: flex-start;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.settings-checkbox-row input[type="checkbox"]::after,
+.settings-checkbox-row input[type="checkbox"]:checked::after {
+  content: '';
+  display: block;
+  width: 11px;
+  height: 11px;
+  border: none;
+  border-radius: 50%;
+  background: var(--text-dim, var(--text-muted));
+  transform: translateX(2px);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+.settings-checkbox-row input[type="checkbox"]:checked {
+  background: var(--toggle-on-bg);
+  border-color: var(--toggle-on-border);
+}
+.settings-checkbox-row input[type="checkbox"]:checked::after {
+  background: var(--toggle-on-knob);
+  transform: translateX(calc(var(--sw-w) - 11px - 4px));
+}
+.settings-checkbox-row input[type="checkbox"]:hover {
+  border-color: var(--toggle-on-border);
+}
+.settings-checkbox-row input[type="checkbox"]:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Label on the left, switch on the right */
+.settings-checkbox-row {
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  gap: 16px;
+}
+.settings-checkbox-row > div,
+.settings-checkbox-row > span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.settings-checkbox-row strong {
+  font-weight: 600;
+}
+
+/* Server Settings switches in the same calm colours */
+.ss-switch span {
+  background: var(--bg-dark);
+  border: 1px solid var(--border);
+  box-sizing: border-box;
+}
+.ss-switch span::after {
+  top: 2px;
+  left: 2px;
+  width: 11px;
+  height: 11px;
+  background: var(--text-dim, var(--text-muted));
+}
+.ss-switch { width: 30px; height: 17px; }
+.ss-switch input:checked + span {
+  background: var(--toggle-on-bg);
+  border-color: var(--toggle-on-border);
+}
+.ss-switch input:checked + span::after {
+  transform: translateX(13px);
+  background: var(--toggle-on-knob);
+}
+
+/* Chips (allowed folders and services per user): ticked chips read as normal text, not amber */
+.admin-chip-checkbox.checked,
+.admin-service-chip.checked {
+  background: var(--bg-hover);
+  border-color: var(--toggle-on-border);
+  color: var(--text-main);
+  font-weight: 500;
+}
+.admin-service-chip.checked i,
+.admin-service-chip.checked svg {
+  color: var(--text-main);
+}
+
+/* Card headings in normal text colour; the icon keeps the accent (#203) */
+.settings-section-title {
+  color: var(--text-main);
+}
+
+/* Settings pages (#203): sections inside a page, and the list of a page's parts in the sidebar */
+.settings-section {
+  display: block;
+}
+.settings-section > *:first-child {
+  margin-top: 0;
+}
+#settings-modal .settings-content-area .settings-group-card {
+  scroll-margin-top: 12px;
+}
+.settings-subnav {
+  display: flex;
+  flex-direction: column;
+  margin: 2px 0 8px 22px;
+  padding-left: 10px;
+  border-left: 1px solid var(--border);
+}
+.settings-subnav-item {
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+.settings-subnav-item:hover,
+.settings-subnav-item.active {
+  color: var(--text-main);
+  background: var(--bg-hover);
+}
+@media (max-width: 640px) {
+  .settings-subnav { display: none; }
+}

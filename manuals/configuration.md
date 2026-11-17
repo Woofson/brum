@@ -28,7 +28,7 @@ So a setting written in `config.toml` always wins over Server Settings, and the 
 
 Open the **Admin Control Panel** (avatar menu) → **Server Settings**.
 
-* **Groups**: the settings are grouped by question: *Who can reach this Brum?*, *Who can log in?*, *Single sign-on*, *Which folders can people see?*, *Safety*, *Several machines*, *Terminal*, *Chewtoys*, *What everyone sees first*, *Other services* and *Logs and records*. Every setting says what it does. **Find a setting…** searches all of them.
+* **Groups**: the settings are grouped as *Network & Access*, *Sign-in*, *Single Sign-On*, *Folders*, *Safety*, *Fleet*, *Terminal*, *Chewtoys*, *Defaults for New Users*, *Other Services* and *Logs & Records*. Every setting says what it does. **Find a setting…** searches all of them.
 * **Changing**: switches, choices in words, a folder picker for folders, and a list editor for shared folders. Changes collect in a bar at the bottom with **Undo** and **Save**. Values are checked before anything is saved: a folder that does not exist, a port that cannot work or a badly written address is refused with a plain message, and nothing is saved.
 * **When changes apply**: when Brum restarts. Saved changes are marked **After restart**, and **Restart Brum now** restarts it from the page (copies and other tasks in progress are interrupted).
 * **Badges**:
@@ -127,7 +127,7 @@ Any setting from the tables below can be added, with the name in the *In config.
 
 ### Editing the File in Brum
 
-**Admin → Server config.toml** shows the file in an editor. Passwords and keys (`jwt_secret`, `default_admin_pass`, `client_secret`, …) are shown as `********`; leaving `********` in place keeps the stored value when you save. Brum checks the file before saving, repairs Windows paths written with single backslashes, and reminds you that most changes take effect after a restart. `allow_web_config_edit = false` makes it read-only.
+**Admin → config.toml (Advanced)** shows the file in an editor. Passwords and keys (`jwt_secret`, `default_admin_pass`, `client_secret`, …) are shown as `********`; leaving `********` in place keeps the stored value when you save. Brum checks the file before saving, repairs Windows paths written with single backslashes, and reminds you that most changes take effect after a restart. `allow_web_config_edit = false` makes it read-only.
 
 ---
 
@@ -135,7 +135,7 @@ Any setting from the tables below can be added, with the name in the *In config.
 
 Each setting as it is called in Server Settings, its name in `config.toml`, and Brum's default.
 
-### Who can reach this Brum?
+### Network & Access
 
 | Setting | In config.toml | Default |
 | :--- | :--- | :--- |
@@ -147,7 +147,7 @@ Each setting as it is called in Server Settings, its name in `config.toml`, and 
 | Extra web addresses Brum is opened at | `[server]` `allowed_origins` | none |
 | Reverse proxies to trust | `[server]` `trusted_proxies` | none |
 
-### Who can log in?
+### Sign-in
 
 | Setting | In config.toml | Default |
 | :--- | :--- | :--- |
@@ -173,7 +173,7 @@ Each setting as it is called in Server Settings, its name in `config.toml`, and 
 | Only allow single sign-on | `[auth.oidc]` `force_sso_only` | off |
 | Icon on the button | `[auth.oidc]` `button_icon` | `shield-check` |
 
-### Which folders can people see?
+### Folders
 
 | Setting | In config.toml | Default |
 | :--- | :--- | :--- |
@@ -201,7 +201,7 @@ Each setting as it is called in Server Settings, its name in `config.toml`, and 
 | Use Windows' own bin and copying | `[paranoid]` `windows_native_file_ops` | on |
 | Say which program is using a file | `[paranoid]` `detect_locking_processes` | on |
 
-### Several machines
+### Fleet
 
 | Setting | In config.toml | Default |
 | :--- | :--- | :--- |
@@ -229,7 +229,7 @@ On Linux, `sudo` does not work in the terminal of the Brum service, on purpose. 
 | Allowed Chewtoys | `[plugins]` `global_whitelist` | `*` |
 | Blocked Chewtoys | `[plugins]` `global_blacklist` | none |
 
-### What everyone sees first
+### Defaults for New Users
 
 | Setting | In config.toml | Default |
 | :--- | :--- | :--- |
@@ -252,7 +252,7 @@ On Linux, `sudo` does not work in the terminal of the Brum service, on purpose. 
 | Admins can install rclone (cloud storage) | `[rclone]` `allow_download` | on |
 | Notes folder | `[notes]` `notes_folder` | `~/Notes` |
 
-### Logs and records
+### Logs & Records
 
 | Setting | In config.toml | Default |
 | :--- | :--- | :--- |
@@ -468,7 +468,7 @@ To federate nodes without managing static per-node API tokens:
 * **Checks at start-up**: the log says where the secret came from, never the secret. Brum warns when it is shorter than 32 characters. On Linux and macOS it warns when other users can read the file (use `chmod 600`, or `640` with a group for Brum). On Windows it limits the file to Brum's own account, SYSTEM and Administrators.
 * In `[[fleet.nodes]]`, set `token = ""` (or omit `token`).
 * When `token` is empty, Brum's Gateway Hub automatically forwards the caller's active session JWT. Because both nodes share the master signing secret, the remote node validates the signature and authenticates the user instantly.
-* **Static API Tokens**: If a remote node does *not* share the same secret key, create a static API Token on that node (**Settings -> Security -> API Tokens**) and set `token = "<your_token>"` in `config.toml`.
+* **Static API Tokens**: If a remote node does *not* share the same secret key, create a static API Token on that node (**Admin Control Panel → API & Fleet Tokens**) and set `token = "<your_token>"` in `config.toml`.
 
 ### 2. Joining with a Pairing Code
 The quickest way to add a machine, without copying secrets by hand:
@@ -510,7 +510,7 @@ With the two panes on different Fleet machines, **F5** (copy) and **F6** (move) 
 * **Pause, Resume, Stop, Retry**: from the task list. **Retry** copies again only the files that did not make it, and a large file that broke off continues where it stopped.
 * **Checked**: with **Security & Integrity Checks** on (the shield in the header, on by default), every file's SHA-256 is worked out on each machine and compared before the copy replaces anything. Each file is written to a temporary `.name.brum-part` file first, so a broken copy never overwrites a good file. A move removes the original only after its copy is checked.
 * **Folders**: whole folders are copied, empty ones included. A same-named item at the target is replaced, or kept with a new name such as `photo (1).jpg` when you choose Keep both.
-* **How many at once**: *Copies between machines at the same time* in Server Settings → Several machines (`[fleet] transfer_jobs`, default `2`). Further copies wait their turn.
+* **How many at once**: *Copies between machines at the same time* in Server Settings → Fleet (`[fleet] transfer_jobs`, default `2`). Further copies wait their turn.
 * **Logins**: each machine uses its usual Fleet login (its `token`, or the shared signing secret). For a direct copy, the receiving machine is given the login for the sending machine for that copy. Read-only machines (`read_only = true`) are never written to.
 * **Older machines**: a machine still on Brum 1.22 or older does not understand these copy jobs. Brum then says so and copies through the browser as before; keep the tab open until it finishes. The same happens for places such as SFTP or Samba opened inside a pane.
 
@@ -550,7 +550,7 @@ Each Brum keeps a record of who changed which files on it: **Admin Panel → Act
 * **What is recorded**: saving, new folders, renaming, deleting (to the trash or for good), copying and moving (also between Fleet machines), uploads, packing and unpacking archives, permissions and owners, shares, the trash, user accounts and API tokens, server settings (changes, moves from `config.toml`, and new addresses kept or undone), and saving `config.toml` from the web editor. Each entry has the time, the person, what happened, the path and more details; failures are marked with their reason, refusals included.
 * **Fleet**: a change made through the Fleet is recorded on the machine where it happens, under the person's name, so each machine has its own complete record. Removals sent by another Brum (backups, syncing) are recorded one by one; files arriving from another Brum are recorded as the copy or backup on the Brum that runs it.
 * **Search and download**: search paths, actions and details, filter by person, days or failures only, and download what is shown as a CSV file for a spreadsheet (cells that a spreadsheet would run as formulas are made harmless).
-* **Settings**: *Keep an Activity Log* and *Keep entries for (days)* in Server Settings → Logs and records (default 90; `0` keeps everything). Entries are stored in Brum's database; recording never slows down the operation itself.
+* **Settings**: *Keep an Activity Log* and *Keep entries for (days)* in Server Settings → Logs & Records (default 90; `0` keeps everything). Entries are stored in Brum's database; recording never slows down the operation itself.
 * **Not recorded**: reading, viewing and downloading files, and passwords (addresses with passwords are masked).
 
 ---

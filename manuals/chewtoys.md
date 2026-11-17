@@ -124,7 +124,7 @@ Saving a new backup shows a **preview** first ("Will copy 1,204 new files…"), 
 | SFTP server (e.g. Hetzner Storage Box) | `sftp://user@server:port/folder` | Logs in with a password (kept with the backup, never shown again), a key file, the SSH agent or the keys in `~/.ssh`. Host keys are checked as set in `[storage.sftp]`. |
 | rclone remote | `rclone://remote/folder` | Any remote in Admin → Cloud Storage (Jottacloud, Google Drive, Samba, S3…). Logins stay in rclone's settings file. The form lists your remotes. See the [Cloud Storage guide](cloud-storage.md). |
 | Another Brum in the Fleet | `fleet://machine/folder` | Machines from `[[fleet.nodes]]` or saved in Fleet. The receiving Brum must be this version or newer; it writes as the user its token belongs to. The form lists your Fleet machines. |
-| Proton Drive | `proton:///my-files/Backups/Photos` | Uses the backup owner's own Proton login (Settings → Proton Drive). **Copy** and **Copy and keep old versions** only: Proton keeps replaced files in its own version history and removed files in its trash. See the [Proton Drive guide](proton-drive.md#4-backups-to-proton-drive). |
+| Proton Drive | `proton:///my-files/Backups/Photos` | Uses the backup owner's own Proton login (Settings → Apps & Add-ons → Proton Drive). **Copy** and **Copy and keep old versions** only: Proton keeps replaced files in its own version history and removed files in its trash. See the [Proton Drive guide](proton-drive.md#4-backups-to-proton-drive). |
 
 Remote places are for admins and users explicitly allowed to use them. **rsync** can do the copying for Copy backups to a folder or an SSH server; it logs in with SSH keys only.
 
@@ -191,7 +191,7 @@ Calculator, Colours, Cron Builder, Subnet Calculator, Timestamp Converter, Workb
 * **Installed on first start** into the Chewtoy folder (`[plugins] user_directory`), like any `.grr` package.
 * **Kept up to date**: when a newer Brum brings a newer version, the installed copy is updated on start.
 * **Uninstall freely**: an uninstalled bundled Chewtoy stays uninstalled; Brum remembers this in `.bundled.json` in the Chewtoy folder.
-* **Settings → Chewtoys → Bundled with Brum** lists each one with the bundled and installed version, and offers **Install**, **Update** or **Reinstall** and a **Download** of the `.grr` package.
+* **Settings → Apps & Add-ons → Chewtoys → Bundled with Brum** lists each one with the bundled and installed version, and offers **Install**, **Update** or **Reinstall** and a **Download** of the `.grr` package.
 
 ### Colours (Modular Chewtoy)
 * **Five colour systems**: OKLCH, HWB, HSL, HSV and RGB, each with sliders, exact number boxes and transparency. In OKLCH, slider gaps show colours a normal screen cannot display.
@@ -230,7 +230,7 @@ The conversions and calculators you would otherwise search the web for in the ga
 Current ratings and cutting speeds are typical starting points; follow your local electrical code and the tool maker's figures.
 
 ### Tailspin (Optional Chewtoy)
-Tailspin is maintained with Brum but not built in. Install `plugins/tailspin.grr` from the [Brum repository](https://github.com/Woofson/brum/tree/main/plugins) through **Settings → Chewtoys → Install**.
+Tailspin is maintained with Brum but not built in. Install `plugins/tailspin.grr` from the [Brum repository](https://github.com/Woofson/brum/tree/main/plugins) through **Settings → Apps & Add-ons → Chewtoys → Install**.
 * **Wheel**: Type or paste entries, one per line (up to 500), and spin. Keep several named lists; optionally remove the winner after each spin to draw names until the list is empty. The result is shown as one plain line.
 * **Yes / No**: One button, one answer.
 * **Dice**: One die: tap it or press Roll for a short tumble and the result. D&D: d4, d6, d8, d10, d12, d20 and d100, rolls like `2d6+3` or `1d8+1d6+2` (up to 100 dice), and d20 with advantage or disadvantage. Yatzy: five dice, click to hold, three rolls per turn.

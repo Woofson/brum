@@ -1061,583 +1061,90 @@
       
       <div class="settings-modal-layout">
         <!-- Sidebar Navigation -->
-        <div class="settings-sidebar">
-          <div class="settings-sidebar-group-title">Appearance & UI</div>
-          <button class="settings-nav-btn active" data-on-click="switchSettingsTab" data-click-args='["tab-general"]'><i data-lucide="sliders"></i> General</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-account"]'><i data-lucide="user"></i> Account & Profile</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-palette"]'><i data-lucide="palette"></i> Themes</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-icons"]'><i data-lucide="sparkles"></i> Icons & Filetypes</button>
-
-          <div class="settings-sidebar-group-title">Workflow & Chewtoys</div>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-plugins"]'><i data-lucide="puzzle"></i> Chewtoys & Extensions</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-tools"]'><img src="assets/amber-frameless-apps.webp" alt="Tools" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> Tools Menu</button>
-          <button class="settings-nav-btn same-computer-setting" id="settings-nav-desktop-apps" data-on-click="switchSettingsTab" data-click-args='["tab-desktop-apps"]'><i data-lucide="monitor"></i> External Programs</button>
-          <button class="settings-nav-btn same-computer-setting" id="settings-nav-openwith" data-on-click="switchSettingsTab" data-click-args='["tab-openwith"]'><i data-lucide="external-link"></i> Open With</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-context"]'><i data-lucide="mouse-pointer"></i> Context Menu</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-templates"]'><i data-lucide="file-code-2"></i> Templates</button>
-
-          <div class="settings-sidebar-group-title">System & Shortcuts</div>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-proton"]'><i data-lucide="cloud"></i> Proton Drive</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-bookmarks"]'><i data-lucide="bookmark"></i> Bookmarks</button>
-          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-keys"]'><i data-lucide="keyboard"></i> Keybindings</button>
+        <div class="settings-sidebar" id="settings-sidebar">
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["page-account"]'><i data-lucide="user"></i> Account</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["page-appearance"]'><i data-lucide="palette"></i> Appearance</button>
+          <button class="settings-nav-btn active" data-on-click="switchSettingsTab" data-click-args='["page-files"]'><i data-lucide="folder-open"></i> Panes &amp; Files</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["page-safety"]'><i data-lucide="shield-check"></i> Safety</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["page-menus"]'><i data-lucide="keyboard"></i> Menus &amp; Shortcuts</button>
+          <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["page-apps"]'><i data-lucide="puzzle"></i> Apps &amp; Add-ons</button>
           <button class="settings-nav-btn" data-on-click="switchSettingsTab" data-click-args='["tab-about"]'><img src="assets/amber-frameless-info.webp" alt="About" style="width: 14px; height: 14px; object-fit: contain; vertical-align: middle;"> About Brum</button>
         </div>
 
         <div class="settings-content-area">
-          <!-- Tab 1: General UI, View Modes & Desktop Preferences -->
-          <div class="settings-tab-content active" id="tab-general">
-          
-            <!-- Card 1: Layout & Viewport Defaults -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="layout-grid"></i> Layout & Viewport Defaults
-                </h4>
-              </div>
-              <p class="settings-card-desc">Configure default multi-panel arrangements and touchscreen panel limits.</p>
-              
-              <div class="settings-grid-2col">
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-default-layout">Default Desktop Layout:</label>
-                  <select id="setting-default-layout" class="settings-select">
-                    <option value="layout-single">1 Single Pane</option>
-                    <option value="layout-dual-vertical" selected>2 Panes (Dual Vertical)</option>
-                    <option value="layout-dual-horizontal">2 Panes (Dual Horizontal)</option>
-                    <option value="layout-triple">3 Panes (Triple Columns)</option>
-                    <option value="layout-triple-stacked">3 Panes (1 Main + 2 Stacked)</option>
-                    <option value="layout-quad">4 Panes (2x2 Quad Grid)</option>
-                  </select>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-phone-tablet-max-panes">Phone & Tablet Maximum Panels:</label>
-                  <select id="setting-phone-tablet-max-panes" class="settings-select" data-on-change="updatePhoneTabletMaxPanes" data-change-args='[{"$": "value"}]'>
-                    <option value="2" selected>2 Panels (Default: Cap at Dual Panels for Mobile & Tablets)</option>
-                    <option value="1">1 Panel (Single Panel Focus Only)</option>
-                    <option value="3">3 Panels (Allow Triple Layout on Tablets/Foldables)</option>
-                    <option value="4">4 Panels (Allow Full Quad Layout on Tablets/Foldables)</option>
-                  </select>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-pane-tabs-mode">Multi-Tab Panels (Tab Strips):</label>
-                  <select id="setting-pane-tabs-mode" class="settings-select" data-on-change="updatePaneTabsMode" data-change-args='[{"$": "value"}]'>
-                    <option value="pc_only" selected>PC &amp; Desktop Only (&gt;1024px)</option>
-                    <option value="always">All Viewports (PC, Tablet &amp; Phone)</option>
-                    <option value="pc_tablet">PC &amp; Tablet (&ge;600px)</option>
-                    <option value="disabled">Disabled (Single Tab per Panel)</option>
-                  </select>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-mobile-bottom-bar-mode">Mobile &amp; Tablet Bottom Actions Bar:</label>
-                  <select id="setting-mobile-bottom-bar-mode" class="settings-select" data-on-change="updateMobileBottomBarMode" data-change-args='[{"$": "value"}]'>
-                    <option value="icons_text" selected>Icons and Text (Default)</option>
-                    <option value="icons_only">Icons Only</option>
-                    <option value="off">Off (Hidden)</option>
-                  </select>
-                  <div class="settings-field-hint">Display mode for bottom command bar on touch, phone, and tablet screens.</div>
-                </div>
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-pane-reorder" data-on-change="togglePaneReordering" data-change-args='[{"$": "checked"}]' checked>
-                  <div>
-                    <strong>Drag-and-Drop Panel Rearrangement</strong>
-                    <div class="settings-field-hint">Allow dragging the panel number badge (1, 2, 3, 4) in the header to swap and reorder panels.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-activate-on-hover" data-on-change="toggleActivateOnHover" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Activate Panel on Mouse Hover (Focus Follows Mouse)</strong>
-                    <div class="settings-field-hint">Automatically activate panel and switch keyboard focus when hovering the mouse over it.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-sync-scroll" data-on-change="toggleSyncScroll" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Synchronize Pane Scrolling (Sync Scroll)</strong>
-                    <div class="settings-field-hint">Mirror vertical and horizontal scroll positions across all visible file panels.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-sync-nav" data-on-change="toggleSyncNav" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Synchronize Directory Navigation (Sync Nav)</strong>
-                    <div class="settings-field-hint">Mirror relative subfolder and parent folder traversal across visible panels.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-fkeys" data-on-change="toggleFKeyBar" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Bottom Function Key Bar (F1..F10)</strong>
-                    <div class="settings-field-hint">Display classic orthodox commander function key shortcuts at the bottom.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-media-stop-on-close" data-on-change="toggleMediaStopOnClose" data-change-args='[{"$": "checked"}]' checked>
-                  <div>
-                    <strong>Stop Playback on Close (Media Player)</strong>
-                    <div class="settings-field-hint">Stop audio and video playback when closing the Media Player. Use the Minimize button (-) to keep playing in the background pill.</div>
-                  </div>
-                </label>
-              </div>
+          <div class="settings-tab-content" id="page-account">
+          <div data-nav-title="Profile" class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="user"></i> User Profile & Identity
+              </h4>
+              <span class="user-role-badge" id="settings-account-role-badge">ADMIN</span>
             </div>
+            <p class="settings-card-desc">Personalize your identity, avatar photo, full name, display name, and credentials stored directly in your server user profile.</p>
 
-            <!-- Card: Startup & Session Recovery -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="power"></i> Startup &amp; Session Recovery
-                </h4>
-              </div>
-              <p class="settings-card-desc">Configure initial panel directories, session restoration, and remote host startup fallback.</p>
-
-              <div class="settings-grid-2col">
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-startup-mode">Startup Panel Directories:</label>
-                  <select id="setting-startup-mode" class="settings-select" data-on-change="handleStartupSettingChange">
-                    <option value="restore" selected>🔄 Restore Last Session (Remember and restore last opened folders)</option>
-                    <option value="home">🏠 User Home (Always open Home ~ across all panels)</option>
-                    <option value="root">📁 Filesystem Root (Always open Root / or C:\ across all panels)</option>
-                    <option value="custom">⚙️ Custom Presets (Define specific folders per panel)</option>
-                  </select>
-                  <div class="settings-field-hint">Choose what folders are opened when launching Brum.</div>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-startup-remote-fallback">Remote Host on Startup:</label>
-                  <select id="setting-startup-remote-fallback" class="settings-select" data-on-change="handleStartupSettingChange">
-                    <option value="home_fallback" selected>🏠 Reset to Local Home (Fast boot, avoid network lag/timeouts)</option>
-                    <option value="reconnect">🌐 Reconnect to Remote Node (May delay startup if host is offline)</option>
-                  </select>
-                  <div class="settings-field-hint">Panes connected to remote nodes will boot locally to eliminate network connection lag.</div>
-                </div>
-              </div>
-
-              <!-- Collapsible Custom Presets Container -->
-              <div id="wrapper-startup-custom-presets" class="settings-field" style="display: none; margin-top: 8px; padding: 10px; background: rgba(0, 0, 0, 0.15); border: 1px solid var(--border); border-radius: var(--radius);">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                  <label class="settings-field-label" style="margin-bottom: 0;"><strong>Panel Custom Startup Folders:</strong></label>
-                  <button type="button" class="btn btn-xs btn-outline" data-on-click="captureCurrentPathsForCustomStartup" style="height: 24px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
-                    <i data-lucide="folder-check" style="width: 12px; height: 12px;"></i> Use Current Panel Paths
-                  </button>
-                </div>
-                <div class="settings-grid-2col" style="gap: 8px;">
-                  <div>
-                    <label class="settings-field-label" style="font-size: 11px;">Panel 1 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-0" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
-                  </div>
-                  <div>
-                    <label class="settings-field-label" style="font-size: 11px;">Panel 2 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-1" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
-                  </div>
-                  <div>
-                    <label class="settings-field-label" style="font-size: 11px;">Panel 3 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-2" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
-                  </div>
-                  <div>
-                    <label class="settings-field-label" style="font-size: 11px;">Panel 4 Default Path:</label>
-                    <input type="text" id="setting-startup-custom-path-3" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card: Region & Formats -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="globe"></i> Region &amp; Formats
-                </h4>
-              </div>
-              <p class="settings-card-desc">How times, dates, numbers, units and file sizes are shown. Saved with your profile, so they follow you to every device. Chewtoys use them too.</p>
-              <div class="settings-grid-2col">
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-region-time">Time:</label>
-                  <select id="setting-region-time" class="settings-select" data-on-change="setRegionSetting" data-change-args='["time", {"$": "value"}]'>
-                    <option value="24">24-hour (14:30)</option>
-                    <option value="12">12-hour (2:30 PM)</option>
-                    <option value="auto">Follow my browser</option>
-                  </select>
-                </div>
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-region-date">Date:</label>
-                  <select id="setting-region-date" class="settings-select" data-on-change="setRegionSetting" data-change-args='["date", {"$": "value"}]'>
-                    <option value="iso">2026-11-04 (ISO)</option>
-                    <option value="dmy_dot">04.11.2026</option>
-                    <option value="dmy_slash">04/11/2026</option>
-                    <option value="mdy">11/04/2026</option>
-                    <option value="d_mon_y">4 Nov 2026</option>
-                    <option value="auto">Follow my browser</option>
-                  </select>
-                </div>
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-region-number">Numbers:</label>
-                  <select id="setting-region-number" class="settings-select" data-on-change="setRegionSetting" data-change-args='["number", {"$": "value"}]'>
-                    <option value="auto">Follow my browser</option>
-                    <option value="space_comma">1 234 567,5</option>
-                    <option value="dot_comma">1.234.567,5</option>
-                    <option value="comma_dot">1,234,567.5</option>
-                    <option value="space_dot">1 234 567.5</option>
-                    <option value="apostrophe_dot">1’234’567.5</option>
-                  </select>
-                </div>
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-region-sizes">File sizes:</label>
-                  <select id="setting-region-sizes" class="settings-select" data-on-change="setRegionSetting" data-change-args='["sizes", {"$": "value"}]'>
-                    <option value="classic">KB, MB, GB (steps of 1024, classic)</option>
-                    <option value="iec">KiB, MiB, GiB (steps of 1024, exact)</option>
-                    <option value="si">kB, MB, GB (steps of 1000, like drive makers)</option>
-                  </select>
-                </div>
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-region-units">Measurements:</label>
-                  <select id="setting-region-units" class="settings-select" data-on-change="setRegionSetting" data-change-args='["units", {"$": "value"}]'>
-                    <option value="auto">Follow my browser</option>
-                    <option value="metric">Metric (km, kg)</option>
-                    <option value="imperial">Imperial (miles, lb)</option>
-                  </select>
-                </div>
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-region-temperature">Temperature:</label>
-                  <select id="setting-region-temperature" class="settings-select" data-on-change="setRegionSetting" data-change-args='["temperature", {"$": "value"}]'>
-                    <option value="auto">Follow measurements</option>
-                    <option value="c">Celsius (°C)</option>
-                    <option value="f">Fahrenheit (°F)</option>
-                  </select>
-                </div>
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-region-week_start">First day of the week:</label>
-                  <select id="setting-region-week_start" class="settings-select" data-on-change="setRegionSetting" data-change-args='["week_start", {"$": "value"}]'>
-                    <option value="auto">Follow my browser</option>
-                    <option value="mon">Monday</option>
-                    <option value="sun">Sunday</option>
-                    <option value="sat">Saturday</option>
-                  </select>
-                </div>
-              </div>
-              <div class="settings-field" style="margin-top: 8px;">
-                <span class="settings-field-label">Looks like:</span>
-                <div id="setting-region-preview" style="font-family: var(--font-mono); font-size: 12px; color: var(--accent);"></div>
-              </div>
-            </div>
-
-            <!-- Card 2: File Operations & Transfers -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="zap"></i> File Operations & Transfers
-                </h4>
-              </div>
-              <p class="settings-card-desc">Configure copy engine defaults, background job notifications, and drag-and-drop actions.</p>
-
-              <div class="settings-grid-2col">
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-default-copy-action">Default Copy (F5) Engine:</label>
-                  <select id="setting-default-copy-action" class="settings-select" data-on-change="updateDefaultCopyAction" data-change-args='[{"$": "value"}]'>
-                    <option value="deltacopy" selected>⚡ DeltaCopy (Resume & Checksums)</option>
-                    <option value="standard">Standard Copy (Direct Transfer)</option>
-                  </select>
-                  <div class="settings-field-hint">Choose which transfer engine is highlighted and default on F5.</div>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-task-verbosity">Transfer Manager Display Detail:</label>
-                  <select id="setting-task-verbosity" class="settings-select" data-on-change="setTaskVerbosity" data-change-args='[{"$": "value"}]'>
-                    <option value="detailed" selected>Detailed (TeraCopy Stream, Files & Hashes)</option>
-                    <option value="compact">Compact (Overall Progress & Speed Only)</option>
-                    <option value="log">Diagnostic Stream / Verbose Logs</option>
-                  </select>
-                  <div class="settings-field-hint">Choose between rich per-file streams or compact progress.</div>
-                </div>
-              </div>
-
-              <div class="settings-grid-2col" style="margin-top: 4px;">
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-dnd-default-action">Default Drag-and-Drop Action:</label>
-                  <select id="setting-dnd-default-action" class="settings-select" data-on-change="handleDndSettingChange">
-                    <option value="ask">❓ Ask Every Time (Prompt for Move / Copy)</option>
-                    <option value="move">📦 Move (Move items to destination)</option>
-                    <option value="copy">📋 Copy (Copy items to destination)</option>
-                  </select>
-                  <div class="settings-field-hint">Keyboard modifiers: <kbd>Shift</kbd> = Move, <kbd>Alt</kbd>/<kbd>Ctrl</kbd> = Copy.</div>
-                </div>
-
-                <div class="settings-field">
-                  <label class="settings-field-label" for="setting-dnd-prompt-mode">Drag-and-Drop Confirmation:</label>
-                  <select id="setting-dnd-prompt-mode" class="settings-select" data-on-change="handleDndSettingChange">
-                    <option value="ask">💬 Always Ask / Show Confirmation Dialog</option>
-                    <option value="direct">⚡ Direct Execution (No Asking / Silent Action)</option>
-                  </select>
-                  <div class="settings-field-hint">Direct execution performs action immediately upon mouse drop.</div>
-                </div>
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-dnd-paranoid-prompt" checked data-on-change="handleDndSettingChange">
-                  <div>
-                    <strong>Integrity Verification Prompt on Drag-and-Drop</strong>
-                    <div class="settings-field-hint">Show confirmation dialog before initiating SHA-256 verified transfers.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-auto-open-tasks" checked>
-                  <div>
-                    <strong>Floating Transfer Window</strong>
-                    <div class="settings-field-hint">Automatically open floating transfer manager when background jobs start.</div>
-                  </div>
-                </label>
-              </div>
-            </div>
-
-            <!-- Card 3: Navigation, Safety & Trash Bin -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="shield-check"></i> Navigation, Safety & Trash Bin
-                </h4>
-              </div>
-              <p class="settings-card-desc">Safety prompts, directory navigation preferences, and trash retention.</p>
-
-              <div style="display: flex; flex-direction: column; gap: 4px;">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-hidden" data-on-change="toggleGlobalDotfiles" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Show Hidden Files & Dotfiles</strong>
-                    <div class="settings-field-hint">Display hidden files (e.g. <code>.bashrc</code>, <code>.git</code>) across all directory panels.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-confirm-delete" checked>
-                  <div>
-                    <strong>Confirm before deleting files</strong>
-                    <div class="settings-field-hint">Prompt for confirmation before moving files to trash or deleting.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-confirm-overwrite" checked>
-                  <div>
-                    <strong>Confirm before overwriting existing files</strong>
-                    <div class="settings-field-hint">Show overwrite warning dialog when files with the same name already exist.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="setting-windows-native-ops" checked data-on-change="toggleWindowsNativeOpsSetting" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Windows Native Shell & Recycle Bin</strong>
-                    <div class="settings-field-hint">Use Windows native functions ($Recycle.Bin, SHFileOperation) instead of Brum's internal POSIX filesystem engine.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row windows-only-setting">
-                  <input type="checkbox" id="setting-detect-file-locks" checked data-on-change="toggleDetectFileLocksSetting" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Identify Locking Processes (Restart Manager)</strong>
-                    <div class="settings-field-hint">Inspect and report active applications/processes (e.g. Explorer, Excel, Thumbs.db) locking files on Windows.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-remember-paths" checked>
-                  <div>
-                    <strong>Remember last opened directories across sessions</strong>
-                    <div class="settings-field-hint">Restore pane directory paths on subsequent application launches.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-dblclick-up" checked>
-                  <div>
-                    <strong>Double-Click Navigation</strong>
-                    <div class="settings-field-hint">Double-click in empty panel space jumps up to parent directory.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-parent-dir" checked>
-                  <div>
-                    <strong>Parent Directory ("..") Row</strong>
-                    <div class="settings-field-hint">Show classic ".." parent entry at the top of file tables.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-haptic-feedback" checked data-on-change="toggleHapticFeedbackSetting" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Haptic Touch Feedback</strong>
-                    <div class="settings-field-hint">Vibration feedback on touch swipes, row selections & pull-to-refresh on mobile devices.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-global-refresh" data-on-change="toggleGlobalRefreshButton" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Global Header Refresh Button</strong>
-                    <div class="settings-field-hint">Show global "Refresh All" button in the top header bar (off by default).</div>
-                  </div>
-                </label>
-              </div>
-
-              <!-- Trash bin sub-section -->
-              <div style="padding-top: 10px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 8px;">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-user-trash-enabled" checked data-on-change="toggleTrashSetting" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Enable Safe Trash Bin</strong>
-                    <div class="settings-field-hint">Move deleted items to trash directory instead of immediate permanent deletion.</div>
-                  </div>
-                </label>
-
-                <div id="wrapper-custom-trash-dir" class="settings-field" style="margin-left: 28px;">
-                  <label class="settings-field-label" for="setting-user-custom-trash">Custom Trash Directory (Optional):</label>
-                  <input type="text" id="setting-user-custom-trash" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" data-on-change="saveCustomTrashDir" data-change-args='[{"$": "value"}]'>
-                  <div class="settings-field-hint">When a custom directory is set, deleted files are safely timestamped and preserved in that folder.</div>
-                </div>
-              </div>
-            </div>
-
-            <!-- Card 4: Notes Notes Directory -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="notebook-pen"></i> Notes Notes Directory
-                </h4>
-              </div>
-              <p class="settings-card-desc">Configure where Notes ChewToy and TUI store notebooks, markdown notes, and sections.</p>
-
-              <div class="settings-field">
-                <div style="display: flex; gap: 8px; align-items: center;">
-                  <input type="text" id="setting-notes-folder" class="settings-input" style="flex: 1; font-family: var(--font-mono);" placeholder="~/Notes" data-on-change="saveNotesFolderSetting" data-change-args='[{"$": "value"}]'>
-                  <button type="button" class="btn btn-sm btn-outline" data-on-click="browseNotesFolder" title="Use active pane's current path as notes folder" style="height: 28px; white-space: nowrap; display: flex; align-items: center; gap: 5px;">
-                    <i data-lucide="folder-check" style="width: 13px; height: 13px;"></i> Use Active Pane
-                  </button>
-                </div>
-                <div class="settings-field-hint">Also synchronized with <code>config.toml</code> (<code>[notes] notes_folder</code>) and the Notes terminal app (<code>~/.config/notes/notes.toml</code>).</div>
-              </div>
-
-              <div class="settings-field">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-notes-show-manuals" data-on-change="setNotesManualsShown" data-change-args='[{"$": "checked"}]' checked>
-                  <span>Show Brum manuals in Notes</span>
-                </label>
-                <div class="settings-field-hint">Turn off to keep the built-in help pages out of your notebooks and categories. The manuals stay available from the Help buttons in Settings.</div>
-              </div>
-            </div>
-
-            <!-- Card 5: Columns & File List Display -->
-            <div class="settings-group-card">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="columns-3"></i> Columns & File List Display
-                </h4>
-                <button type="button" class="btn btn-xs btn-outline" data-on-click="resetAllColumnWidths" style="display: flex; align-items: center; gap: 4px; height: 26px;">
-                  <i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset Column Widths
+            <div style="display: flex; align-items: center; gap: 16px; margin: 8px 0 14px 0; background: var(--bg-header); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border);">
+              <div style="position: relative; display: inline-block;">
+                <div class="profile-avatar-large" id="settings-account-avatar-preview" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]' title="Click to upload profile photo" style="cursor: pointer;">👤</div>
+                <button type="button" class="btn btn-sm btn-icon" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]' title="Upload Photo" style="position: absolute; bottom: -3px; right: -3px; border-radius: 50%; width: 22px; height: 22px; background: var(--accent); color: #000; border: none; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer;">
+                  <i data-lucide="camera" style="width: 12px; height: 12px;"></i>
                 </button>
               </div>
-              <p class="settings-card-desc">Customize default view modes, table column visibility, and row formatting.</p>
-
-              <div class="settings-field">
-                <label class="settings-field-label">Default Panel View Mode:</label>
-                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
-                  <label class="settings-checkbox-row">
-                    <input type="radio" name="setting-view-mode" value="details" checked data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
-                    <div>
-                      <strong>Details Table</strong>
-                      <div class="settings-field-hint">Orthodox table with Name, Ext, Size, Modified, Mode, Owner, Group, SHA-256.</div>
-                    </div>
-                  </label>
-                  <label class="settings-checkbox-row">
-                    <input type="radio" name="setting-view-mode" value="grid" data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
-                    <div>
-                      <strong>Thumbnail Gallery / Grid</strong>
-                      <div class="settings-field-hint">Visual preview cards for photos, media & documents.</div>
-                    </div>
-                  </label>
-                  <label class="settings-checkbox-row">
-                    <input type="radio" name="setting-view-mode" value="compact" data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
-                    <div>
-                      <strong>Compact Multi-Column List</strong>
-                      <div class="settings-field-hint">High-density multi-column filename browser.</div>
-                    </div>
-                  </label>
+              <input type="file" id="settings-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" data-on-change="handleSettingsAvatarFileUpload" data-change-args='[{"$": "event"}]'>
+              <div style="flex: 1;">
+                <div style="font-weight: 700; font-size: 15px;" id="settings-account-username-label">User</div>
+                <div style="font-size: 11px; color: var(--text-dim);" id="settings-account-auth-type-label">Internal Database Account</div>
+                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                  <button type="button" class="btn btn-sm" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]'><i data-lucide="upload" style="width: 12px;"></i> Upload Photo</button>
+                  <button type="button" class="btn btn-sm" data-on-click="resetSettingsAvatar"><i data-lucide="rotate-ccw" style="width: 12px;"></i> Reset Avatar</button>
                 </div>
-              </div>
-
-              <div class="settings-field" style="margin-top: 6px;">
-                <label class="settings-field-label">Visible Table Columns (Details Mode):</label>
-                <div class="settings-grid-2col" style="margin-top: 4px;" id="column-visibility-checkboxes">
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-name" checked disabled> <strong>File Name</strong> (Always Visible)</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-ext" data-on-change="toggleColumnVisibility" data-change-args='["ext", {"$": "checked"}]'> File Extension (.ext)</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-size" checked data-on-change="toggleColumnVisibility" data-change-args='["size", {"$": "checked"}]'> File Size</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-modified" checked data-on-change="toggleColumnVisibility" data-change-args='["modified", {"$": "checked"}]'> Date Modified</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-created" data-on-change="toggleColumnVisibility" data-change-args='["created", {"$": "checked"}]'> Date Created</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-mode" checked data-on-change="toggleColumnVisibility" data-change-args='["mode", {"$": "checked"}]'> Permissions / Mode</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-owner" checked data-on-change="toggleColumnVisibility" data-change-args='["owner", {"$": "checked"}]'> Owner</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-group" data-on-change="toggleColumnVisibility" data-change-args='["group", {"$": "checked"}]'> Group</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-hash" data-on-change="toggleColumnVisibility" data-change-args='["hash", {"$": "checked"}]'> SHA-256 Checksum</label>
-                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-tags" data-on-change="toggleColumnVisibility" data-change-args='["tags", {"$": "checked"}]'> Tags & Colors</label>
-                </div>
-              </div>
-
-              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-sticky-col-headers" checked data-on-change="toggleStickyColHeaders" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Sticky Column Headers (Frosted Glass)</strong>
-                    <div class="settings-field-hint">Pin column header to the top when scrolling with a dynamic frosted glass effect.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-col-separators" checked data-on-change="toggleColSeparators" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Discrete Column Separators</strong>
-                    <div class="settings-field-hint">Display subtle vertical dividers between table columns.</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-compact-dates" checked data-on-change="toggleCompactDates" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Compact Date Format</strong>
-                    <div class="settings-field-hint">Use short, space-saving timestamps (e.g. <code>09-08 09:15</code> / <code>YYYY-MM-DD</code>).</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-show-dir-tag" data-on-change="toggleShowDirTag" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Show classic &lt;DIR&gt; tag</strong>
-                    <div class="settings-field-hint">Display classic <code>&lt;DIR&gt;</code> in file size column for directories (leave unchecked for clean blank folder sizes).</div>
-                  </div>
-                </label>
-
-                <label class="settings-checkbox-row">
-                  <input type="checkbox" id="setting-file-list-multiline" data-on-change="toggleFileListMultiline" data-change-args='[{"$": "checked"}]'>
-                  <div>
-                    <strong>Multi-Line Subtext on Phone Screens</strong>
-                    <div class="settings-field-hint">Wrap secondary metadata into a second subtext line on narrow phone screens.</div>
-                  </div>
-                </label>
               </div>
             </div>
 
-            <!-- Card 6: Cross-Device Workspace Sync (Web/Server Mode) -->
-            <div class="settings-group-card web-only-setting server-only-setting">
+            <div class="settings-grid-2col">
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-fullname">Full Name:</label>
+                <input type="text" id="settings-profile-fullname" class="settings-input" placeholder="e.g. Bolt J Woofson">
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-nickname">Display Name / Nickname:</label>
+                <input type="text" id="settings-profile-nickname" class="settings-input" placeholder="e.g. Woofson">
+              </div>
+            </div>
+
+            <div class="settings-grid-2col" style="margin-top: 10px;">
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-email">Email Address:</label>
+                <input type="email" id="settings-profile-email" class="settings-input" placeholder="e.g. user@domain.com">
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-bio">Bio / Status:</label>
+                <input type="text" id="settings-profile-bio" class="settings-input" placeholder="e.g. Lead Systems Engineer">
+              </div>
+            </div>
+
+            <div class="settings-field" style="margin-top: 10px;">
+              <label class="settings-field-label" for="settings-profile-avatar-url">Avatar Emoji / URL / Custom Data:</label>
+              <input type="text" id="settings-profile-avatar-url" class="settings-input" placeholder="e.g. 🐕 or /api/auth/avatar/username" data-on-input="renderAvatarById" data-input-args='["settings-account-avatar-preview", {"$": "value"}]'>
+            </div>
+
+            <div class="settings-grid-2col" style="margin-top: 10px;" id="settings-profile-password-section">
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-new-pass">New Password (optional):</label>
+                <input type="password" id="settings-profile-new-pass" class="settings-input" placeholder="Leave blank to keep current" autocomplete="new-password">
+              </div>
+              <div class="settings-field">
+                <label class="settings-field-label" for="settings-profile-confirm-pass">Confirm New Password:</label>
+                <input type="password" id="settings-profile-confirm-pass" class="settings-input" placeholder="Confirm new password" autocomplete="new-password">
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
+              <span id="settings-profile-save-status" style="font-size: 12px; font-weight: 600; display: none;"></span>
+              <button type="button" class="btn btn-accent" data-on-click="saveSettingsUserProfile"><i data-lucide="save"></i> Save Profile Details</button>
+            </div>
+          </div>
+
+            <div data-nav-title="Sync Between Devices" class="settings-group-card web-only-setting server-only-setting">
               <div class="settings-card-header">
                 <h4 class="settings-section-title">
                   <i data-lucide="cloud"></i> Cross-Device Workspace Sync (Server Mode)
@@ -1656,318 +1163,10 @@
               </div>
             </div>
 
-            <!-- Card 7: Desktop Mode & Tray Icon (Desktop Standalone Only) -->
-            <div class="settings-group-card desktop-only-setting">
-              <div class="settings-card-header">
-                <h4 class="settings-section-title">
-                  <i data-lucide="monitor"></i> Desktop Mode & Tray Icon
-                </h4>
-                <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Desktop Standalone Only</span>
-              </div>
-              <p class="settings-card-desc">Brum runs in your browser. Install it as an app from the browser menu ("Install Brum") for a window of its own.</p>
-              <div class="settings-field-hint" style="display: flex; flex-direction: column; gap: 6px;">
-                <div><code>brum --minimized</code> starts desktop mode without opening the browser.</div>
-                <div>On Windows, the Brum icon by the clock shows whether Brum is running and opens it with a click. Start it with <code>brum tray</code>, or at sign-in with <code>brum tray install</code>. Set <code>enable_tray = false</code> in the <code>[desktop]</code> section of <code>config.toml</code> to switch it off.</div>
-              </div>
-            </div>
-
           </div>
 
-        <!-- Tab: External Programs & Desktop Handlers -->
-        <div class="settings-tab-content same-computer-setting" id="tab-desktop-apps" style="padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
-            <div>
-              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="monitor" style="width: 16px; height: 16px;"></i> External Programs & Desktop Handlers
-              </h4>
-              <div class="form-hint" style="margin-top: 2px;">Configure external text editors, media viewers, and terminal emulators for standalone desktop mode.</div>
-            </div>
-            <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Desktop Standalone Only</span>
-          </div>
-
-          <!-- External Text & Code Editor -->
-          <div class="form-group" style="margin-bottom: 20px;">
-            <label style="font-weight: 700; color: var(--text);">External Text & Code Editor (F4):</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-              <input type="text" id="setting-ext-editor" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. code "%1" or gedit "%1" or kate "%1" or subl "%1"'>
-              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["editor"]' title="Test launching the configured editor"><i data-lucide="play"></i> Test</button>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
-              <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "code \"%1\""]'>VS Code</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "codium \"%1\""]'>VSCodium</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "gedit \"%1\""]'>Gedit</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "kate \"%1\""]'>Kate</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "subl \"%1\""]'>Sublime</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "notepad++ \"%1\""]'>Notepad++</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "nvim-qt \"%1\""]'>Neovim GUI</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "xdg-open \"%1\""]'>System Default</button>
-            </div>
-            <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="setting-use-ext-editor-f4" data-on-change="toggleUseExtEditor" data-change-args='[{"$": "checked"}]'>
-              <span><b>Override F4 (Edit):</b> Launch external editor when pressing F4 or clicking Edit (instead of built-in EditorDog)</span>
-            </label>
-          </div>
-
-          <!-- External Document / Media Viewer -->
-          <div class="form-group" style="margin-bottom: 20px;">
-            <label style="font-weight: 700; color: var(--text);">External Document & Media Viewer (F3):</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-              <input type="text" id="setting-ext-viewer" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. xdg-open "%1" or vlc "%1" or mpv "%1" or eog "%1"'>
-              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["viewer"]' title="Test launching the configured viewer"><i data-lucide="play"></i> Test</button>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
-              <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "xdg-open \"%1\""]'>System Default (xdg-open / open)</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "vlc \"%1\""]'>VLC Media Player</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "mpv \"%1\""]'>MPV Video Player</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "eog \"%1\""]'>Eye of GNOME (eog)</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "feh \"%1\""]'>Feh Image Viewer</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "zathura \"%1\""]'>Zathura PDF</button>
-            </div>
-            <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
-              <input type="checkbox" id="setting-use-ext-viewer-f3" data-on-change="toggleUseExtViewer" data-change-args='[{"$": "checked"}]'>
-              <span><b>Override F3 (Quick View):</b> Launch external viewer when pressing F3 or clicking Quick View</span>
-            </label>
-          </div>
-
-          <!-- External Terminal Emulator -->
-          <div class="form-group" style="margin-bottom: 20px;">
-            <label style="font-weight: 700; color: var(--text);">External Terminal Emulator:</label>
-            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
-              <input type="text" id="setting-ext-terminal" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. alacritty --working-directory "%1" or kitty --directory "%1"'>
-              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["terminal"]' title="Test launching the configured terminal"><i data-lucide="terminal"></i> Test</button>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-              <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "alacritty --working-directory \"%1\""]'>Alacritty</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "kitty --directory \"%1\""]'>Kitty</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "gnome-terminal --working-directory=\"%1\""]'>GNOME Terminal</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "konsole --workdir \"%1\""]'>Konsole</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "wezterm start --cwd \"%1\""]'>WezTerm</button>
-              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "x-terminal-emulator"]'>XTerm / Default</button>
-            </div>
-          </div>
-
-          <!-- Parameter Tokens Guide -->
-          <div style="margin-top: 20px; padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 11px;">
-            <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">Dynamic Command Tokens:</div>
-            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-              <span><code>%1</code> or <code>{file}</code> Target file/directory path</span>
-              <span><code>{dir}</code> Parent directory path</span>
-              <span><code>{selection}</code> All selected file paths</span>
-              <span><code>{target_pane}</code> Opposing pane path</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab: Open With & External Handlers -->
-        <div class="settings-tab-content same-computer-setting" id="tab-openwith">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-            <div>
-              <h4 style="color: var(--accent); margin: 0;">Open With & External Application Handlers</h4>
-              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Map file extensions to external desktop applications and custom launchers. Programs open on the computer Brum runs on, so this is offered in the desktop app and when Brum is opened as localhost. Handlers with their own command are for admins.</p>
-            </div>
-            <button class="btn btn-accent btn-sm" data-on-click="showAddOpenWithRulePrompt"><i data-lucide="plus"></i> Add Handler</button>
-          </div>
-
-          <div id="openwith-rules-list" style="margin-top: 12px;">
-            <!-- Populated dynamically via JS -->
-          </div>
-
-          <!-- Add / Edit Rule Form -->
-          <div id="openwith-rule-form" style="display: none; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 12px;">
-            <input type="hidden" id="openwith-edit-id" value="">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Application / Rule Name:</label>
-                <input type="text" id="openwith-input-name" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. VLC Player">
-              </div>
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Matching Extensions (comma-separated):</label>
-                <input type="text" id="openwith-input-exts" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. mp4, mkv, avi, webm">
-                <div style="font-size: 10px; color: var(--text-muted); margin-top: 3px;">Use <code>*</code> for every file and folder, or <code>folder</code> for folders.</div>
-              </div>
-            </div>
-            <div style="margin-bottom: 10px;">
-              <label style="font-size: 11px; display: block; margin-bottom: 4px;">Command Line (%1 or {file} = full path):</label>
-              <input type="text" id="openwith-input-cmd" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono);" placeholder='e.g. vlc "%1" or code "%1"'>
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-accent btn-sm" data-on-click="saveOpenWithRule"><i data-lucide="check"></i> Save Rule</button>
-              <button class="btn btn-sm" data-on-click="hideOpenWithRuleForm">Cancel</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab: Context Menu Customizer & Menu Builder -->
-        <div class="settings-tab-content" id="tab-context">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <h4 style="color: var(--accent); margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="menu" style="width: 16px; height: 16px;"></i> Menu Builder & Context Actions
-              </h4>
-              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Personalize and reorder Folder Context, File Context, App Menu, Spot! launcher, and default download formats.</p>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm btn-accent" data-on-click="showAddCustomActionPrompt"><i data-lucide="plus"></i> New Shell Action</button>
-              <button class="btn btn-sm" data-on-click="resetMenuConfigToDefaults"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
-            </div>
-          </div>
-
-          <!-- Menu Category Selector -->
-          <div style="display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 4px; border-bottom: 1px solid var(--border);">
-            <button type="button" class="btn btn-sm btn-outline active" id="btn-menu-cat-folder" data-on-click="switchMenuBuilderCategory" data-click-args='["folder"]'><i data-lucide="folder"></i> Context Folder</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-file" data-on-click="switchMenuBuilderCategory" data-click-args='["file"]'><i data-lucide="file"></i> Context File</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-app" data-on-click="switchMenuBuilderCategory" data-click-args='["app"]'><i data-lucide="layout-grid"></i> App Menu</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-spot" data-on-click="switchMenuBuilderCategory" data-click-args='["spot"]'><i data-lucide="zap"></i> Spot! Launcher</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-options" data-on-click="switchMenuBuilderCategory" data-click-args='["options"]'><i data-lucide="settings"></i> Options</button>
-            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-shell" data-on-click="switchMenuBuilderCategory" data-click-args='["shell"]'><i data-lucide="terminal"></i> Shell Actions</button>
-          </div>
-
-          <!-- Menu Builder Content Area -->
-          <div id="menu-builder-container" style="min-height: 200px;">
-            <!-- Rendered dynamically via JS -->
-          </div>
-
-          <!-- Add / Edit Custom Shell Action Form -->
-          <div id="custom-action-form" style="display: none; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 14px;">
-            <input type="hidden" id="custom-action-edit-id" value="">
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Action Label:</label>
-                <input type="text" id="custom-action-input-label" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. Git Pull Repo">
-              </div>
-              <div>
-                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Lucide Icon Name:</label>
-                <input type="text" id="custom-action-input-icon" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. git-branch, terminal, file-code">
-              </div>
-            </div>
-            <div style="margin-bottom: 10px;">
-              <label style="font-size: 11px; display: block; margin-bottom: 4px;">Shell Command (Tokens: <code>{file}</code>, <code>{dir}</code>, <code>{selection}</code>, <code>{target_pane}</code>):</label>
-              <input type="text" id="custom-action-input-cmd" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono);" placeholder="e.g. git -C {dir} pull or 7z a -tzip archive.zip {selection}">
-            </div>
-            <div style="display: flex; gap: 8px;">
-              <button class="btn btn-accent btn-sm" data-on-click="saveCustomShellAction"><i data-lucide="check"></i> Save Action</button>
-              <button class="btn btn-sm" data-on-click="hideCustomActionForm">Cancel</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab: File & Document Templates Customizer -->
-        <div class="settings-tab-content" id="tab-templates" style="padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-                <i data-lucide="file-code-2" style="width: 16px; height: 16px;"></i> File & Document Templates
-              </h4>
-              <div class="form-hint" style="margin-top: 2px;">Create new files with boilerplate headers, dynamic dates, and variable replacement anywhere via right-click.</div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm btn-accent" data-on-click="openCreateTemplateModal"><i data-lucide="plus"></i> + New Template</button>
-              <button class="btn btn-sm" data-on-click="resetFileTemplatesToDefault"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 14px; padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 11px;">
-            <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">Dynamic Template Variables:</div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{TITLE}}"]'><code>{{TITLE}}</code> Title</span>
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{FILENAME}}"]'><code>{{FILENAME}}</code> Filename</span>
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{NAME}}"]'><code>{{NAME}}</code> Base Name</span>
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{DATE}}"]'><code>{{DATE}}</code> YYYY-MM-DD</span>
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{TIME}}"]'><code>{{TIME}}</code> HH:MM:SS</span>
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{USER}}"]'><code>{{USER}}</code> Username</span>
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{ISO_DATE}}"]'><code>{{ISO_DATE}}</code> ISO8601</span>
-              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{YEAR}}"]'><code>{{YEAR}}</code> Year</span>
-            </div>
-          </div>
-
-          <div id="settings-templates-list" style="display: flex; flex-direction: column; gap: 8px;">
-            <!-- Populated dynamically via JS -->
-          </div>
-        </div>
-
-        <!-- Tab: Chewtoys & Extensions Manager (.grr) -->
-        <div class="settings-tab-content" id="tab-plugins" style="padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
-            <div>
-              <h4 style="margin: 0; font-size: 13.5px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 8px;">
-                <i data-lucide="puzzle" style="width: 18px; height: 18px; color: var(--accent);"></i> Chewtoys & Extensions (.grr)
-              </h4>
-              <div class="form-hint" style="margin-top: 2px;">
-                Browse, enable, configure, and install modular Chewtoys into your workspace.
-              </div>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="file" id="input-chewtoy-file" accept=".grr,.zip" style="display: none;" data-on-change="handleChewToyFileSelect" data-change-args='[{"$": "event"}]'>
-              <button class="btn btn-sm" id="btn-install-chewtoy" data-on-click="clickElementById" data-click-args='["input-chewtoy-file"]' style="display: flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.15); border-color: var(--accent); color: var(--accent); font-weight: 600;">
-                <i data-lucide="plus"></i> Install Chewtoy (.grr)
-              </button>
-              <button class="btn btn-sm btn-icon" data-on-click="loadInstalledChewToys" data-click-args='[true]' title="Refresh Chewtoys"><i data-lucide="rotate-ccw"></i></button>
-            </div>
-          </div>
-
-          <!-- 1-Click Drag-and-Drop Dropzone -->
-          <div class="chewtoy-dropzone" id="chewtoy-dropzone" data-on-dragover="handleChewToyDragOver" data-dragover-args='[{"$": "event"}]' data-on-dragleave="handleChewToyDragLeave" data-dragleave-args='[{"$": "event"}]' data-on-drop="handleChewToyDrop" data-drop-args='[{"$": "event"}]' data-on-click="clickElementById" data-click-args='["input-chewtoy-file"]'>
-            <div class="chewtoy-dropzone-icon"><i data-lucide="upload-cloud"></i></div>
-            <div style="font-weight: 600; font-size: 12.5px; color: var(--text-main);">Drag & Drop <code style="color: var(--accent); background: rgba(245,158,11,0.12); padding: 1px 6px; border-radius: 4px;">.grr</code> Chewtoy package here</div>
-            <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">or click to browse from your computer</div>
-          </div>
-
-          <!-- Installed Chewtoys Grid Container -->
-          <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px 0;">
-            <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; display: flex; align-items: center; gap: 6px;">
-              <span>Installed Chewtoys</span>
-              <span class="badge" id="chewtoys-count-badge" style="font-size: 10px; padding: 1px 6px; background: rgba(245,158,11,0.2); color: var(--accent);">0</span>
-            </div>
-            <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="chewtoy-filter-input" placeholder="Filter Chewtoys..." data-on-input="filterInstalledChewToys" data-input-args='[{"$": "value"}]' class="form-input" style="height: 26px; font-size: 11.5px; width: 160px; padding: 2px 8px;">
-            </div>
-          </div>
-
-          <div id="chewtoys-installed-grid" class="chewtoys-grid">
-            <!-- Populated dynamically via JS -->
-            <div style="grid-column: 1 / -1; padding: 32px; text-align: center; opacity: 0.6; font-size: 12px;">Loading installed Chewtoys...</div>
-          </div>
-
-          <!-- Chewtoys that ship with Brum -->
-          <div style="margin: 18px 0 8px 0;">
-            <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Bundled with Brum</div>
-            <div class="form-hint" style="margin-top: 2px;">These Chewtoys come with Brum and are kept up to date when Brum is updated. Uninstalled ones stay uninstalled until you install them again here.</div>
-          </div>
-          <div id="chewtoys-bundled-list" class="chewtoys-bundled-list"></div>
-        </div>
-
-        <!-- Tab: Tools & Chewtoys Launchpad Customizer -->
-        <div class="settings-tab-content" id="tab-tools" style="padding: 16px;">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
-            <div>
-              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-                <img src="assets/amber-frameless-apps.webp" alt="Chewtoys" style="width: 16px; height: 16px; object-fit: contain;"> Tools & Chewtoys Launchpad Customizer
-              </h4>
-              <div class="form-hint" style="margin-top: 2px;">Rearrange tool order, toggle menu visibility, or reset the Tools & Utilities launchpad dropdown.</div>
-            </div>
-            <div style="display: flex; gap: 6px;">
-              <button class="btn btn-sm" data-on-click="resetToolsMenuToDefault"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
-            </div>
-          </div>
-
-          <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
-            <span>💡 <strong>Tip:</strong> Drag items up/down or use arrow buttons to reorder. Uncheck boxes to hide tools from the menu.</span>
-            <span id="tools-visible-counter" style="font-weight: 700; color: var(--accent);">16 / 16 Visible</span>
-          </div>
-
-          <div id="settings-tools-list" style="display: flex; flex-direction: column; gap: 6px;">
-            <!-- Populated dynamically via JS -->
-          </div>
-        </div>
-
-        <!-- Tab 2: Palette & Themes -->
-        <div class="settings-tab-content" id="tab-palette">
-          
-          <!-- Card 1: Active Theme & Swatches -->
-          <div class="settings-group-card">
+          <div class="settings-tab-content" id="page-appearance">
+          <div data-nav-title="Theme" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="palette"></i> Brum Theme & Visual Palette
@@ -2052,8 +1251,7 @@
             </div>
           </div>
 
-          <!-- Card 2: Interface & File Manager Text Scaling -->
-          <div class="settings-group-card">
+          <div data-nav-title="Text Size &amp; Fonts" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="type"></i> Interface & Text Scaling
@@ -2113,9 +1311,7 @@
             </div>
           </div>
 
-          <!-- Card 3: Panel Border & Focus Ring Customization -->
-          <!-- Card 3: Panel Border & Focus Highlight -->
-          <div class="settings-group-card">
+          <div data-nav-title="Pane Borders &amp; Focus" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="frame"></i> Panel Border, Focus & Two-Tone Gradient
@@ -2168,8 +1364,7 @@
             </div>
           </div>
 
-          <!-- Card 4: Custom Pane Border Identification Colors -->
-          <div class="settings-group-card">
+          <div data-nav-title="Pane Colours" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="layers"></i> Panel Identification Colors (Two-Tone Complementary)
@@ -2237,8 +1432,7 @@
             </div>
           </div>
 
-          <!-- Card: Panel Gaps, Window Margins & Corner Rounding -->
-          <div class="settings-group-card">
+          <div data-nav-title="Gaps, Margins &amp; Corners" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="layout-grid"></i> Panel Gaps, Outer Margins & Corner Rounding
@@ -2328,8 +1522,87 @@
             </div>
           </div>
 
-          <!-- Card: Dynamic Document Title Engine -->
-          <div class="settings-group-card">
+        <div data-nav-title="Icons &amp; File Types" class="settings-group-card settings-section" id="tab-icons">
+          <h4 class="settings-section-title" style="margin-bottom: 12px;"><i data-lucide="sparkles"></i> Icons &amp; File Types</h4>
+          <!-- Global Theme Preset -->
+          <div class="form-group">
+            <label style="font-weight: 700; font-size: 12px;">Global Icon Theme:</label>
+            <select id="setting-icon-theme" class="pane-quick-filter" style="width: 340px; padding: 6px;" data-on-change="changeGlobalIconTheme" data-change-args='[{"$": "value"}]'>
+              <option value="default" selected>Default (Woofson Classic Lucide + Assets)</option>
+              <option value="nerdfont">Nerd Font Developer Suite (     )</option>
+              <option value="emoji">Rich Emoji Suite (📁 🦀 🐍 ⚡ 📦 📝 🎬)</option>
+              <option value="custom">Custom Rules (Per-Extension Mappings)</option>
+            </select>
+            <div class="form-hint">Choose between classic graphical icons, developer Nerd Fonts, or rich colorful emojis across all panels.</div>
+          </div>
+
+          <!-- Global Default Folder Icon -->
+          <div class="form-group" style="margin-top: 14px;">
+            <label style="font-weight: 700; font-size: 12px;">Global Default Folder Icon / Emote:</label>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" id="setting-global-folder-icon" class="pane-quick-filter" style="width: 240px; padding: 6px 8px; font-family: var(--font-mono), sans-serif;" placeholder="Default folder (e.g. , 📁, , 📂)">
+              <button class="btn btn-sm btn-accent" data-on-click="saveGlobalFolderIcon"><i data-lucide="check"></i> Save</button>
+              <button class="btn btn-sm" data-on-click="resetGlobalFolderIcon"><i data-lucide="rotate-ccw"></i> Reset</button>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;" id="setting-folder-icon-presets">
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'>Default ( Nerd Glyph)</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📁"]'>📁 Yellow Folder</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📂"]'>📂 Open Folder</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["🗂️"]'>🗂️ Card Dividers</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'> Nerd Font Dir</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'> Nerd Font Folder</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📦"]'>📦 Box Package</span>
+              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["🚀"]'>🚀 Rocket Project</span>
+            </div>
+          </div>
+
+          <!-- Per-Filetype & Extension Custom Icon Mapping -->
+          <div class="form-group" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <div>
+                <label style="font-weight: 700; margin: 0;">Per-Filetype & Extension Custom Icons:</label>
+                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Map specific file extensions (e.g. <code>rs</code>, <code>py</code>, <code>md</code>, <code>iso</code>) to any custom emoji, emote, or Nerd Font glyph.</div>
+              </div>
+              <div style="display: flex; gap: 6px;">
+                <button class="btn btn-xs" data-on-click="loadNerdFontPresets"><i data-lucide="code"></i> Load Nerd Fonts</button>
+                <button class="btn btn-xs" data-on-click="loadEmojiPresets"><i data-lucide="smile"></i> Load Emojis</button>
+                <button class="btn btn-xs btn-danger" data-on-click="clearAllCustomFileIcons"><i data-lucide="trash-2"></i> Clear All</button>
+              </div>
+            </div>
+
+            <!-- Add new mapping form -->
+            <div style="display: flex; gap: 8px; align-items: center; background: var(--bg-header); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px;">
+              <div style="display: flex; align-items: center; gap: 4px;">
+                <span style="font-size: 11px; color: var(--text-muted);">Ext:</span>
+                <input type="text" id="setting-new-icon-ext" class="pane-quick-filter" placeholder="e.g. rs, py, zip, folder" style="width: 140px; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
+              </div>
+              <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
+                <span style="font-size: 11px; color: var(--text-muted);">Icon/Emote:</span>
+                <input type="text" id="setting-new-icon-val" class="pane-quick-filter" placeholder="e.g. 🦀, 🐍, , , lucide:code" style="flex: 1; padding: 4px 6px; font-family: var(--font-mono), sans-serif; font-size: 11px;">
+              </div>
+              <button class="btn btn-sm btn-accent" data-on-click="addCustomFileIconRule"><i data-lucide="plus"></i> Add Rule</button>
+            </div>
+
+            <!-- Custom file icon rules table -->
+            <div style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px;">
+              <table class="file-table" style="width: 100%; font-size: 12px;">
+                <thead>
+                  <tr style="background: var(--bg-header); text-align: left;">
+                    <th style="padding: 6px 10px; width: 140px;">Extension / Type</th>
+                    <th style="padding: 6px 10px;">Icon / Glyph</th>
+                    <th style="padding: 6px 10px; width: 80px; text-align: center;">Preview</th>
+                    <th style="padding: 6px 10px; width: 80px; text-align: right;">Action</th>
+                  </tr>
+                </thead>
+                <tbody id="setting-custom-icons-table-body">
+                  <!-- Populated dynamically by JS -->
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+          <div data-nav-title="Window Title" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="compass"></i> Dynamic Document Title Engine
@@ -2355,8 +1628,7 @@
             </div>
           </div>
 
-          <!-- Card 5: Hostname & Environment Indicator Customizer -->
-          <div class="settings-group-card">
+          <div data-nav-title="Machine Name Badge" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="server"></i> Hostname & Fleet Indicator
@@ -2492,27 +1764,7 @@
             </div>
           </div>
 
-          <!-- Card 6: Browser Window & Instance Title -->
-          <div class="settings-group-card">
-            <div class="settings-card-header">
-              <h4 class="settings-section-title">
-                <i data-lucide="layout"></i> Browser Window & Instance Title
-              </h4>
-            </div>
-            <p class="settings-card-desc">Customize the window and browser tab title. Brum dynamically updates the title with the playing track when audio or media playback is active.</p>
-
-            <div class="settings-field">
-              <label class="settings-field-label" for="setting-custom-window-title">Custom Window / Document Title (Optional):</label>
-              <div style="display: flex; gap: 8px;">
-                <input type="text" id="setting-custom-window-title" class="settings-input" style="flex: 1;" placeholder="Brum - Multi-Pane Web Environment" data-on-input="handleWindowTitleSettingChange">
-                <button type="button" class="btn btn-sm btn-outline" style="white-space: nowrap;" data-on-click="resetWindowTitleSetting">Reset Default</button>
-              </div>
-              <div class="settings-field-hint">Leave empty to use the default <code>Brum - Multi-Pane Web Environment</code> or server configuration.</div>
-            </div>
-          </div>
-
-          <!-- Card 7: Login & Lock Screen Branding -->
-          <div class="settings-group-card">
+          <div data-nav-title="Login Screen" class="settings-group-card">
             <div class="settings-card-header">
               <h4 class="settings-section-title">
                 <i data-lucide="shield"></i> Login & Lock Screen Branding
@@ -2540,23 +1792,468 @@
             </div>
           </div>
 
-        </div>
-
-        <!-- Tab: Bookmarks & Favorites -->
-        <!-- Tab: Proton Drive (program and sign-in) -->
-        <div class="settings-tab-content" id="tab-proton" style="padding: 16px;">
-          <div style="margin-bottom: 12px;">
-            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--accent); display: flex; align-items: center; gap: 6px;">
-              <i data-lucide="cloud" style="width: 16px; height: 16px;"></i> Proton Drive
-            </h4>
-            <div class="form-hint" style="margin-top: 2px;">Use your end-to-end encrypted Proton Drive in Brum, through Proton's official program.</div>
           </div>
-          <div id="proton-setup" class="proton-setup">
-            <div class="form-hint">Checking…</div>
-          </div>
-        </div>
 
-        <div class="settings-tab-content" id="tab-bookmarks">
+          <div class="settings-tab-content active" id="page-files">
+            <div data-nav-title="Layout" class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="layout-grid"></i> Layout & Viewport Defaults
+                </h4>
+              </div>
+              <p class="settings-card-desc">Configure default multi-panel arrangements and touchscreen panel limits.</p>
+              
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-default-layout">Default Desktop Layout:</label>
+                  <select id="setting-default-layout" class="settings-select">
+                    <option value="layout-single">1 Single Pane</option>
+                    <option value="layout-dual-vertical" selected>2 Panes (Dual Vertical)</option>
+                    <option value="layout-dual-horizontal">2 Panes (Dual Horizontal)</option>
+                    <option value="layout-triple">3 Panes (Triple Columns)</option>
+                    <option value="layout-triple-stacked">3 Panes (1 Main + 2 Stacked)</option>
+                    <option value="layout-quad">4 Panes (2x2 Quad Grid)</option>
+                  </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-phone-tablet-max-panes">Phone & Tablet Maximum Panels:</label>
+                  <select id="setting-phone-tablet-max-panes" class="settings-select" data-on-change="updatePhoneTabletMaxPanes" data-change-args='[{"$": "value"}]'>
+                    <option value="2" selected>2 Panels (Default: Cap at Dual Panels for Mobile & Tablets)</option>
+                    <option value="1">1 Panel (Single Panel Focus Only)</option>
+                    <option value="3">3 Panels (Allow Triple Layout on Tablets/Foldables)</option>
+                    <option value="4">4 Panels (Allow Full Quad Layout on Tablets/Foldables)</option>
+                  </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-pane-tabs-mode">Multi-Tab Panels (Tab Strips):</label>
+                  <select id="setting-pane-tabs-mode" class="settings-select" data-on-change="updatePaneTabsMode" data-change-args='[{"$": "value"}]'>
+                    <option value="pc_only" selected>PC &amp; Desktop Only (&gt;1024px)</option>
+                    <option value="always">All Viewports (PC, Tablet &amp; Phone)</option>
+                    <option value="pc_tablet">PC &amp; Tablet (&ge;600px)</option>
+                    <option value="disabled">Disabled (Single Tab per Panel)</option>
+                  </select>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-mobile-bottom-bar-mode">Mobile &amp; Tablet Bottom Actions Bar:</label>
+                  <select id="setting-mobile-bottom-bar-mode" class="settings-select" data-on-change="updateMobileBottomBarMode" data-change-args='[{"$": "value"}]'>
+                    <option value="icons_text" selected>Icons and Text (Default)</option>
+                    <option value="icons_only">Icons Only</option>
+                    <option value="off">Off (Hidden)</option>
+                  </select>
+                  <div class="settings-field-hint">Display mode for bottom command bar on touch, phone, and tablet screens.</div>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-pane-reorder" data-on-change="togglePaneReordering" data-change-args='[{"$": "checked"}]' checked>
+                  <div>
+                    <strong>Drag-and-Drop Panel Rearrangement</strong>
+                    <div class="settings-field-hint">Allow dragging the panel number badge (1, 2, 3, 4) in the header to swap and reorder panels.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-activate-on-hover" data-on-change="toggleActivateOnHover" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Activate Panel on Mouse Hover (Focus Follows Mouse)</strong>
+                    <div class="settings-field-hint">Automatically activate panel and switch keyboard focus when hovering the mouse over it.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-sync-scroll" data-on-change="toggleSyncScroll" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Synchronize Pane Scrolling (Sync Scroll)</strong>
+                    <div class="settings-field-hint">Mirror vertical and horizontal scroll positions across all visible file panels.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-sync-nav" data-on-change="toggleSyncNav" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Synchronize Directory Navigation (Sync Nav)</strong>
+                    <div class="settings-field-hint">Mirror relative subfolder and parent folder traversal across visible panels.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-fkeys" data-on-change="toggleFKeyBar" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Bottom Function Key Bar (F1..F10)</strong>
+                    <div class="settings-field-hint">Display classic orthodox commander function key shortcuts at the bottom.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-media-stop-on-close" data-on-change="toggleMediaStopOnClose" data-change-args='[{"$": "checked"}]' checked>
+                  <div>
+                    <strong>Stop Playback on Close (Media Player)</strong>
+                    <div class="settings-field-hint">Stop audio and video playback when closing the Media Player. Use the Minimize button (-) to keep playing in the background pill.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div data-nav-title="Startup" class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="power"></i> Startup &amp; Session Recovery
+                </h4>
+              </div>
+              <p class="settings-card-desc">Configure initial panel directories, session restoration, and remote host startup fallback.</p>
+
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-startup-mode">Startup Panel Directories:</label>
+                  <select id="setting-startup-mode" class="settings-select" data-on-change="handleStartupSettingChange">
+                    <option value="restore" selected>🔄 Restore Last Session (Remember and restore last opened folders)</option>
+                    <option value="home">🏠 User Home (Always open Home ~ across all panels)</option>
+                    <option value="root">📁 Filesystem Root (Always open Root / or C:\ across all panels)</option>
+                    <option value="custom">⚙️ Custom Presets (Define specific folders per panel)</option>
+                  </select>
+                  <div class="settings-field-hint">Choose what folders are opened when launching Brum.</div>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-startup-remote-fallback">Remote Host on Startup:</label>
+                  <select id="setting-startup-remote-fallback" class="settings-select" data-on-change="handleStartupSettingChange">
+                    <option value="home_fallback" selected>🏠 Reset to Local Home (Fast boot, avoid network lag/timeouts)</option>
+                    <option value="reconnect">🌐 Reconnect to Remote Node (May delay startup if host is offline)</option>
+                  </select>
+                  <div class="settings-field-hint">Panes connected to remote nodes will boot locally to eliminate network connection lag.</div>
+                </div>
+              </div>
+
+              <!-- Collapsible Custom Presets Container -->
+              <div id="wrapper-startup-custom-presets" class="settings-field" style="display: none; margin-top: 8px; padding: 10px; background: rgba(0, 0, 0, 0.15); border: 1px solid var(--border); border-radius: var(--radius);">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                  <label class="settings-field-label" style="margin-bottom: 0;"><strong>Panel Custom Startup Folders:</strong></label>
+                  <button type="button" class="btn btn-xs btn-outline" data-on-click="captureCurrentPathsForCustomStartup" style="height: 24px; font-size: 11px; display: flex; align-items: center; gap: 4px;">
+                    <i data-lucide="folder-check" style="width: 12px; height: 12px;"></i> Use Current Panel Paths
+                  </button>
+                </div>
+                <div class="settings-grid-2col" style="gap: 8px;">
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 1 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-0" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
+                  </div>
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 2 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-1" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
+                  </div>
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 3 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-2" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
+                  </div>
+                  <div>
+                    <label class="settings-field-label" style="font-size: 11px;">Panel 4 Default Path:</label>
+                    <input type="text" id="setting-startup-custom-path-3" class="settings-input" style="font-family: var(--font-mono); font-size: 11px;" placeholder="~ (Leave empty for User Home)" data-on-change="handleStartupSettingChange">
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div data-nav-title="Browsing" class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="mouse-pointer-click"></i> Browsing
+                </h4>
+              </div>
+              <p class="settings-card-desc">Hidden files, double-click and ".." row, touch feedback and the header refresh button.</p>
+
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-hidden" data-on-change="toggleGlobalDotfiles" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Show Hidden Files & Dotfiles</strong>
+                    <div class="settings-field-hint">Display hidden files (e.g. <code>.bashrc</code>, <code>.git</code>) across all directory panels.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-dblclick-up" checked>
+                  <div>
+                    <strong>Double-Click Navigation</strong>
+                    <div class="settings-field-hint">Double-click in empty panel space jumps up to parent directory.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-parent-dir" checked>
+                  <div>
+                    <strong>Parent Directory ("..") Row</strong>
+                    <div class="settings-field-hint">Show classic ".." parent entry at the top of file tables.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-haptic-feedback" checked data-on-change="toggleHapticFeedbackSetting" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Haptic Touch Feedback</strong>
+                    <div class="settings-field-hint">Vibration feedback on touch swipes, row selections & pull-to-refresh on mobile devices.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-global-refresh" data-on-change="toggleGlobalRefreshButton" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Global Header Refresh Button</strong>
+                    <div class="settings-field-hint">Show global "Refresh All" button in the top header bar (off by default).</div>
+                  </div>
+                </label>
+              </div>
+
+            </div>
+
+            <div data-nav-title="Columns &amp; File List" id="settings-columns" class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="columns-3"></i> Columns & File List Display
+                </h4>
+                <button type="button" class="btn btn-xs btn-outline" data-on-click="resetAllColumnWidths" style="display: flex; align-items: center; gap: 4px; height: 26px;">
+                  <i data-lucide="rotate-ccw" style="width: 12px; height: 12px;"></i> Reset Column Widths
+                </button>
+              </div>
+              <p class="settings-card-desc">Customize default view modes, table column visibility, and row formatting.</p>
+
+              <div class="settings-field">
+                <label class="settings-field-label">Default Panel View Mode:</label>
+                <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 2px;">
+                  <label class="settings-checkbox-row">
+                    <input type="radio" name="setting-view-mode" value="details" checked data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
+                    <div>
+                      <strong>Details Table</strong>
+                      <div class="settings-field-hint">Orthodox table with Name, Ext, Size, Modified, Mode, Owner, Group, SHA-256.</div>
+                    </div>
+                  </label>
+                  <label class="settings-checkbox-row">
+                    <input type="radio" name="setting-view-mode" value="grid" data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
+                    <div>
+                      <strong>Thumbnail Gallery / Grid</strong>
+                      <div class="settings-field-hint">Visual preview cards for photos, media & documents.</div>
+                    </div>
+                  </label>
+                  <label class="settings-checkbox-row">
+                    <input type="radio" name="setting-view-mode" value="compact" data-on-change="setDefaultViewMode" data-change-args='[{"$": "value"}]'>
+                    <div>
+                      <strong>Compact Multi-Column List</strong>
+                      <div class="settings-field-hint">High-density multi-column filename browser.</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <div class="settings-field" style="margin-top: 6px;">
+                <label class="settings-field-label">Visible Table Columns (Details Mode):</label>
+                <div class="settings-grid-2col" style="margin-top: 4px;" id="column-visibility-checkboxes">
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-name" checked disabled> <strong>File Name</strong> (Always Visible)</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-ext" data-on-change="toggleColumnVisibility" data-change-args='["ext", {"$": "checked"}]'> File Extension (.ext)</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-size" checked data-on-change="toggleColumnVisibility" data-change-args='["size", {"$": "checked"}]'> File Size</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-modified" checked data-on-change="toggleColumnVisibility" data-change-args='["modified", {"$": "checked"}]'> Date Modified</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-created" data-on-change="toggleColumnVisibility" data-change-args='["created", {"$": "checked"}]'> Date Created</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-mode" checked data-on-change="toggleColumnVisibility" data-change-args='["mode", {"$": "checked"}]'> Permissions / Mode</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-owner" checked data-on-change="toggleColumnVisibility" data-change-args='["owner", {"$": "checked"}]'> Owner</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-group" data-on-change="toggleColumnVisibility" data-change-args='["group", {"$": "checked"}]'> Group</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-hash" data-on-change="toggleColumnVisibility" data-change-args='["hash", {"$": "checked"}]'> SHA-256 Checksum</label>
+                  <label class="settings-checkbox-row"><input type="checkbox" id="col-toggle-tags" data-on-change="toggleColumnVisibility" data-change-args='["tags", {"$": "checked"}]'> Tags & Colors</label>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border);">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-sticky-col-headers" checked data-on-change="toggleStickyColHeaders" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Sticky Column Headers (Frosted Glass)</strong>
+                    <div class="settings-field-hint">Pin column header to the top when scrolling with a dynamic frosted glass effect.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-col-separators" checked data-on-change="toggleColSeparators" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Discrete Column Separators</strong>
+                    <div class="settings-field-hint">Display subtle vertical dividers between table columns.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-compact-dates" checked data-on-change="toggleCompactDates" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Compact Date Format</strong>
+                    <div class="settings-field-hint">Use short, space-saving timestamps (e.g. <code>09-08 09:15</code> / <code>YYYY-MM-DD</code>).</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-show-dir-tag" data-on-change="toggleShowDirTag" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Show classic &lt;DIR&gt; tag</strong>
+                    <div class="settings-field-hint">Display classic <code>&lt;DIR&gt;</code> in file size column for directories (leave unchecked for clean blank folder sizes).</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-file-list-multiline" data-on-change="toggleFileListMultiline" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Multi-Line Subtext on Phone Screens</strong>
+                    <div class="settings-field-hint">Wrap secondary metadata into a second subtext line on narrow phone screens.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div data-nav-title="Copying &amp; Moving" class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="zap"></i> File Operations & Transfers
+                </h4>
+              </div>
+              <p class="settings-card-desc">Configure copy engine defaults, background job notifications, and drag-and-drop actions.</p>
+
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-default-copy-action">Default Copy (F5) Engine:</label>
+                  <select id="setting-default-copy-action" class="settings-select" data-on-change="updateDefaultCopyAction" data-change-args='[{"$": "value"}]'>
+                    <option value="deltacopy" selected>⚡ DeltaCopy (Resume & Checksums)</option>
+                    <option value="standard">Standard Copy (Direct Transfer)</option>
+                  </select>
+                  <div class="settings-field-hint">Choose which transfer engine is highlighted and default on F5.</div>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-task-verbosity">Transfer Manager Display Detail:</label>
+                  <select id="setting-task-verbosity" class="settings-select" data-on-change="setTaskVerbosity" data-change-args='[{"$": "value"}]'>
+                    <option value="detailed" selected>Detailed (TeraCopy Stream, Files & Hashes)</option>
+                    <option value="compact">Compact (Overall Progress & Speed Only)</option>
+                    <option value="log">Diagnostic Stream / Verbose Logs</option>
+                  </select>
+                  <div class="settings-field-hint">Choose between rich per-file streams or compact progress.</div>
+                </div>
+              </div>
+
+              <div class="settings-grid-2col" style="margin-top: 4px;">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-dnd-default-action">Default Drag-and-Drop Action:</label>
+                  <select id="setting-dnd-default-action" class="settings-select" data-on-change="handleDndSettingChange">
+                    <option value="ask">❓ Ask Every Time (Prompt for Move / Copy)</option>
+                    <option value="move">📦 Move (Move items to destination)</option>
+                    <option value="copy">📋 Copy (Copy items to destination)</option>
+                  </select>
+                  <div class="settings-field-hint">Keyboard modifiers: <kbd>Shift</kbd> = Move, <kbd>Alt</kbd>/<kbd>Ctrl</kbd> = Copy.</div>
+                </div>
+
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-dnd-prompt-mode">Drag-and-Drop Confirmation:</label>
+                  <select id="setting-dnd-prompt-mode" class="settings-select" data-on-change="handleDndSettingChange">
+                    <option value="ask">💬 Always Ask / Show Confirmation Dialog</option>
+                    <option value="direct">⚡ Direct Execution (No Asking / Silent Action)</option>
+                  </select>
+                  <div class="settings-field-hint">Direct execution performs action immediately upon mouse drop.</div>
+                </div>
+              </div>
+
+              <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-dnd-paranoid-prompt" checked data-on-change="handleDndSettingChange">
+                  <div>
+                    <strong>Integrity Verification Prompt on Drag-and-Drop</strong>
+                    <div class="settings-field-hint">Show confirmation dialog before initiating SHA-256 verified transfers.</div>
+                  </div>
+                </label>
+
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-auto-open-tasks" checked>
+                  <div>
+                    <strong>Floating Transfer Window</strong>
+                    <div class="settings-field-hint">Automatically open floating transfer manager when background jobs start.</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+
+            <div data-nav-title="Region &amp; Formats" class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="globe"></i> Region &amp; Formats
+                </h4>
+              </div>
+              <p class="settings-card-desc">How times, dates, numbers, units and file sizes are shown. Saved with your profile, so they follow you to every device. Chewtoys use them too.</p>
+              <div class="settings-grid-2col">
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-time">Time:</label>
+                  <select id="setting-region-time" class="settings-select" data-on-change="setRegionSetting" data-change-args='["time", {"$": "value"}]'>
+                    <option value="24">24-hour (14:30)</option>
+                    <option value="12">12-hour (2:30 PM)</option>
+                    <option value="auto">Follow my browser</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-date">Date:</label>
+                  <select id="setting-region-date" class="settings-select" data-on-change="setRegionSetting" data-change-args='["date", {"$": "value"}]'>
+                    <option value="iso">2026-11-04 (ISO)</option>
+                    <option value="dmy_dot">04.11.2026</option>
+                    <option value="dmy_slash">04/11/2026</option>
+                    <option value="mdy">11/04/2026</option>
+                    <option value="d_mon_y">4 Nov 2026</option>
+                    <option value="auto">Follow my browser</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-number">Numbers:</label>
+                  <select id="setting-region-number" class="settings-select" data-on-change="setRegionSetting" data-change-args='["number", {"$": "value"}]'>
+                    <option value="auto">Follow my browser</option>
+                    <option value="space_comma">1 234 567,5</option>
+                    <option value="dot_comma">1.234.567,5</option>
+                    <option value="comma_dot">1,234,567.5</option>
+                    <option value="space_dot">1 234 567.5</option>
+                    <option value="apostrophe_dot">1’234’567.5</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-sizes">File sizes:</label>
+                  <select id="setting-region-sizes" class="settings-select" data-on-change="setRegionSetting" data-change-args='["sizes", {"$": "value"}]'>
+                    <option value="classic">KB, MB, GB (steps of 1024, classic)</option>
+                    <option value="iec">KiB, MiB, GiB (steps of 1024, exact)</option>
+                    <option value="si">kB, MB, GB (steps of 1000, like drive makers)</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-units">Measurements:</label>
+                  <select id="setting-region-units" class="settings-select" data-on-change="setRegionSetting" data-change-args='["units", {"$": "value"}]'>
+                    <option value="auto">Follow my browser</option>
+                    <option value="metric">Metric (km, kg)</option>
+                    <option value="imperial">Imperial (miles, lb)</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-temperature">Temperature:</label>
+                  <select id="setting-region-temperature" class="settings-select" data-on-change="setRegionSetting" data-change-args='["temperature", {"$": "value"}]'>
+                    <option value="auto">Follow measurements</option>
+                    <option value="c">Celsius (°C)</option>
+                    <option value="f">Fahrenheit (°F)</option>
+                  </select>
+                </div>
+                <div class="settings-field">
+                  <label class="settings-field-label" for="setting-region-week_start">First day of the week:</label>
+                  <select id="setting-region-week_start" class="settings-select" data-on-change="setRegionSetting" data-change-args='["week_start", {"$": "value"}]'>
+                    <option value="auto">Follow my browser</option>
+                    <option value="mon">Monday</option>
+                    <option value="sun">Sunday</option>
+                    <option value="sat">Saturday</option>
+                  </select>
+                </div>
+              </div>
+              <div class="settings-field" style="margin-top: 8px;">
+                <span class="settings-field-label">Looks like:</span>
+                <div id="setting-region-preview" style="font-family: var(--font-mono); font-size: 12px; color: var(--accent);"></div>
+              </div>
+            </div>
+
+        <div data-nav-title="Bookmarks &amp; Drives" class="settings-group-card settings-section" id="tab-bookmarks">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <span style="font-weight: 600;">Saved Bookmarks & Favorite Paths</span>
             <button class="btn btn-accent" data-on-click="addNewBookmark"><i data-lucide="plus"></i> Add Bookmark</button>
@@ -2596,11 +2293,261 @@
           </div>
         </div>
 
-        <!-- Tab 4: Keybindings -->
-        <div class="settings-tab-content" id="tab-keys">
+            <div data-nav-title="Notes Folder" class="settings-group-card">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="notebook-pen"></i> Notes Notes Directory
+                </h4>
+              </div>
+              <p class="settings-card-desc">Configure where Notes ChewToy and TUI store notebooks, markdown notes, and sections.</p>
+
+              <div class="settings-field">
+                <div style="display: flex; gap: 8px; align-items: center;">
+                  <input type="text" id="setting-notes-folder" class="settings-input" style="flex: 1; font-family: var(--font-mono);" placeholder="~/Notes" data-on-change="saveNotesFolderSetting" data-change-args='[{"$": "value"}]'>
+                  <button type="button" class="btn btn-sm btn-outline" data-on-click="browseNotesFolder" title="Use active pane's current path as notes folder" style="height: 28px; white-space: nowrap; display: flex; align-items: center; gap: 5px;">
+                    <i data-lucide="folder-check" style="width: 13px; height: 13px;"></i> Use Active Pane
+                  </button>
+                </div>
+                <div class="settings-field-hint">Also synchronized with <code>config.toml</code> (<code>[notes] notes_folder</code>) and the Notes terminal app (<code>~/.config/notes/notes.toml</code>).</div>
+              </div>
+
+              <div class="settings-field">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-notes-show-manuals" data-on-change="setNotesManualsShown" data-change-args='[{"$": "checked"}]' checked>
+                  <span>Show Brum manuals in Notes</span>
+                </label>
+                <div class="settings-field-hint">Turn off to keep the built-in help pages out of your notebooks and categories. The manuals stay available from the Help buttons in Settings.</div>
+              </div>
+            </div>
+
+            <div data-nav-title="Desktop Mode" class="settings-group-card desktop-only-setting">
+              <div class="settings-card-header">
+                <h4 class="settings-section-title">
+                  <i data-lucide="monitor"></i> Desktop Mode & Tray Icon
+                </h4>
+                <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Desktop Standalone Only</span>
+              </div>
+              <p class="settings-card-desc">Brum runs in your browser. Install it as an app from the browser menu ("Install Brum") for a window of its own.</p>
+              <div class="settings-field-hint" style="display: flex; flex-direction: column; gap: 6px;">
+                <div><code>brum --minimized</code> starts desktop mode without opening the browser.</div>
+                <div>On Windows, the Brum icon by the clock shows whether Brum is running and opens it with a click. Start it with <code>brum tray</code>, or at sign-in with <code>brum tray install</code>. Set <code>enable_tray = false</code> in the <code>[desktop]</code> section of <code>config.toml</code> to switch it off.</div>
+              </div>
+            </div>
+
+          </div>
+
+          <div class="settings-tab-content" id="page-safety">
+          <div data-nav-title="Confirmations &amp; Safe Saving" class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="lock"></i> Confirmations &amp; Safe Saving
+              </h4>
+            </div>
+            <p class="settings-card-desc">Questions before deleting or overwriting, and saving files so they are never left half written.</p>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-atomic-writes" checked data-on-change="handleUserSecuritySettingChange">
+                <div>
+                  <strong>Atomic File Writes</strong>
+                  <div class="settings-field-hint">Write to temporary files first and atomically swap upon completion to prevent incomplete corruption.</div>
+                </div>
+              </label>
+
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-confirm-delete" checked data-on-change="handleUserSecuritySettingChange">
+                <div>
+                  <strong>Confirm File Deletions (F8 / Delete)</strong>
+                  <div class="settings-field-hint">Show confirmation dialog before moving files to trash or deleting.</div>
+                </div>
+              </label>
+
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-confirm-overwrite" checked data-on-change="handleUserSecuritySettingChange">
+                <div>
+                  <strong>Confirm File Overwrites</strong>
+                  <div class="settings-field-hint">Prompt when destination files already exist during copy and move operations.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div data-nav-title="Trash Bin" class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="trash-2"></i> Trash Bin
+              </h4>
+            </div>
+            <p class="settings-card-desc">Where deleted files go, so they can be brought back.</p>
+              <div style="display: flex; flex-direction: column; gap: 8px;">
+                <label class="settings-checkbox-row">
+                  <input type="checkbox" id="setting-user-trash-enabled" checked data-on-change="toggleTrashSetting" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Enable Safe Trash Bin</strong>
+                    <div class="settings-field-hint">Move deleted items to trash directory instead of immediate permanent deletion.</div>
+                  </div>
+                </label>
+
+                <div id="wrapper-custom-trash-dir" class="settings-field" style="margin-left: 28px;">
+                  <label class="settings-field-label" for="setting-user-custom-trash">Custom Trash Directory (Optional):</label>
+                  <input type="text" id="setting-user-custom-trash" class="settings-input" placeholder="Leave empty for OS default (~/.local/share/Trash)" data-on-change="saveCustomTrashDir" data-change-args='[{"$": "value"}]'>
+                  <div class="settings-field-hint">When a custom directory is set, deleted files are safely timestamped and preserved in that folder.</div>
+                </div>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 4px;">
+                <label class="settings-checkbox-row windows-only-setting">
+                  <input type="checkbox" id="setting-windows-native-ops" checked data-on-change="toggleWindowsNativeOpsSetting" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Windows Native Shell & Recycle Bin</strong>
+                    <div class="settings-field-hint">Use Windows native functions ($Recycle.Bin, SHFileOperation) instead of Brum's internal POSIX filesystem engine.</div>
+                  </div>
+                </label>
+                <label class="settings-checkbox-row windows-only-setting">
+                  <input type="checkbox" id="setting-detect-file-locks" checked data-on-change="toggleDetectFileLocksSetting" data-change-args='[{"$": "checked"}]'>
+                  <div>
+                    <strong>Identify Locking Processes (Restart Manager)</strong>
+                    <div class="settings-field-hint">Inspect and report active applications/processes (e.g. Explorer, Excel, Thumbs.db) locking files on Windows.</div>
+                  </div>
+                </label>
+              </div>
+          </div>
+
+          <div data-nav-title="Checking Copied Files" class="settings-group-card">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="shield-check"></i> Checking Copied Files
+              </h4>
+            </div>
+            <p class="settings-card-desc">Cryptographic checksum verification and transfer safety standards.</p>
+
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-paranoid-enabled" checked data-on-change="handleUserParanoidToggle" data-change-args='[{"$": "checked"}]'>
+                <div>
+                  <strong>Security &amp; Integrity Checks (Standard / Active)</strong>
+                  <div class="settings-field-hint">Enforces strict SHA-256 verification and dry-run safety checks on file copy and move operations.</div>
+                </div>
+              </label>
+            </div>
+
+            <div class="settings-field" style="margin-top: 6px;">
+              <label class="settings-field-label" for="setting-user-checksum-algo">Checksum Verification Algorithm:</label>
+              <select id="setting-user-checksum-algo" class="settings-select" data-on-change="handleUserSecuritySettingChange">
+                <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
+                <option value="md5">MD5 (Fast / Legacy)</option>
+                <option value="sha1">SHA-1</option>
+              </select>
+              <div class="settings-field-hint">Files copied or moved with integrity checks enabled are verified upon completion.</div>
+            </div>
+
+            <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
+              <label class="settings-checkbox-row">
+                <input type="checkbox" id="setting-user-dnd-paranoid-prompt" checked data-on-change="handleUserSecuritySettingChange">
+                <div>
+                  <strong>Drag-and-Drop Verification Confirmation Dialog</strong>
+                  <div class="settings-field-hint">Show transaction pre-flight safety analysis when dragging files between panes.</div>
+                </div>
+              </label>
+            </div>
+          </div>
+
+          <div data-nav-title="Server-Wide Security" class="settings-group-card" id="user-sec-admin-card" style="display: none;">
+            <div class="settings-card-header">
+              <h4 class="settings-section-title">
+                <i data-lucide="shield-alert"></i> Server-Wide Security Policies
+              </h4>
+            </div>
+            <p class="settings-card-desc">As an Administrator, you can also manage server-wide auto-lock timers, token lifespans, and global defaults.</p>
+            <div style="margin-top: 6px;">
+              <button type="button" class="btn btn-outline btn-sm" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openAdminPanel"], ["switchAdminTab", "admin-tab-security"]]' style="height: 28px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px;">
+                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i> Open Server Security &amp; Auto-Lock Policies
+              </button>
+            </div>
+          </div>
+
+          </div>
+
+          <div class="settings-tab-content" id="page-menus">
+        <div data-nav-title="Right-Click Menu" class="settings-group-card settings-section" id="tab-context">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <h4 style="color: var(--text-main); margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="menu" style="width: 16px; height: 16px;"></i> Menu Builder & Context Actions
+              </h4>
+              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Personalize and reorder Folder Context, File Context, App Menu, Spot! launcher, and default download formats.</p>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-sm btn-accent" data-on-click="showAddCustomActionPrompt"><i data-lucide="plus"></i> New Shell Action</button>
+              <button class="btn btn-sm" data-on-click="resetMenuConfigToDefaults"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
+            </div>
+          </div>
+
+          <!-- Menu Category Selector -->
+          <div style="display: flex; gap: 6px; overflow-x: auto; margin-bottom: 14px; padding-bottom: 4px; border-bottom: 1px solid var(--border);">
+            <button type="button" class="btn btn-sm btn-outline active" id="btn-menu-cat-folder" data-on-click="switchMenuBuilderCategory" data-click-args='["folder"]'><i data-lucide="folder"></i> Context Folder</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-file" data-on-click="switchMenuBuilderCategory" data-click-args='["file"]'><i data-lucide="file"></i> Context File</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-app" data-on-click="switchMenuBuilderCategory" data-click-args='["app"]'><i data-lucide="layout-grid"></i> App Menu</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-spot" data-on-click="switchMenuBuilderCategory" data-click-args='["spot"]'><i data-lucide="zap"></i> Spot! Launcher</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-options" data-on-click="switchMenuBuilderCategory" data-click-args='["options"]'><i data-lucide="settings"></i> Options</button>
+            <button type="button" class="btn btn-sm btn-outline" id="btn-menu-cat-shell" data-on-click="switchMenuBuilderCategory" data-click-args='["shell"]'><i data-lucide="terminal"></i> Shell Actions</button>
+          </div>
+
+          <!-- Menu Builder Content Area -->
+          <div id="menu-builder-container" style="min-height: 200px;">
+            <!-- Rendered dynamically via JS -->
+          </div>
+
+          <!-- Add / Edit Custom Shell Action Form -->
+          <div id="custom-action-form" style="display: none; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 14px;">
+            <input type="hidden" id="custom-action-edit-id" value="">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Action Label:</label>
+                <input type="text" id="custom-action-input-label" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. Git Pull Repo">
+              </div>
+              <div>
+                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Lucide Icon Name:</label>
+                <input type="text" id="custom-action-input-icon" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. git-branch, terminal, file-code">
+              </div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="font-size: 11px; display: block; margin-bottom: 4px;">Shell Command (Tokens: <code>{file}</code>, <code>{dir}</code>, <code>{selection}</code>, <code>{target_pane}</code>):</label>
+              <input type="text" id="custom-action-input-cmd" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono);" placeholder="e.g. git -C {dir} pull or 7z a -tzip archive.zip {selection}">
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-accent btn-sm" data-on-click="saveCustomShellAction"><i data-lucide="check"></i> Save Action</button>
+              <button class="btn btn-sm" data-on-click="hideCustomActionForm">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div data-nav-title="Tools Menu" class="settings-group-card settings-section" id="tab-tools">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <img src="assets/amber-frameless-apps.webp" alt="Chewtoys" style="width: 16px; height: 16px; object-fit: contain;"> Tools & Chewtoys Launchpad Customizer
+              </h4>
+              <div class="form-hint" style="margin-top: 2px;">Rearrange tool order, toggle menu visibility, or reset the Tools & Utilities launchpad dropdown.</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-sm" data-on-click="resetToolsMenuToDefault"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
+            </div>
+          </div>
+
+          <div style="margin-bottom: 12px; padding: 8px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 11px; display: flex; align-items: center; justify-content: space-between;">
+            <span>💡 <strong>Tip:</strong> Drag items up/down or use arrow buttons to reorder. Uncheck boxes to hide tools from the menu.</span>
+            <span id="tools-visible-counter" style="font-weight: 700; color: var(--accent);">16 / 16 Visible</span>
+          </div>
+
+          <div id="settings-tools-list" style="display: flex; flex-direction: column; gap: 6px;">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+        <div data-nav-title="Keyboard Shortcuts" class="settings-group-card settings-section" id="tab-keys">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px; flex-wrap: wrap;">
             <div>
-              <h4 style="color: var(--accent); margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
+              <h4 style="color: var(--text-main); margin: 0; font-size: 13px; font-weight: 700; display: flex; align-items: center; gap: 6px;">
                 <i data-lucide="keyboard" style="width: 16px; height: 16px;"></i> Keybindings & Hotkey Manager
               </h4>
               <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Customize keyboard shortcuts, remap functions, detect conflicts, and sync preferences.</p>
@@ -2648,87 +2595,231 @@
           </div>
         </div>
 
-        <!-- Tab: Icons & Filetypes Customizer -->
-        <div class="settings-tab-content" id="tab-icons" style="padding: 16px;">
-          <!-- Global Theme Preset -->
-          <div class="form-group">
-            <label style="font-weight: 700; font-size: 12px;">Global Icon Theme:</label>
-            <select id="setting-icon-theme" class="pane-quick-filter" style="width: 340px; padding: 6px;" data-on-change="changeGlobalIconTheme" data-change-args='[{"$": "value"}]'>
-              <option value="default" selected>Default (Woofson Classic Lucide + Assets)</option>
-              <option value="nerdfont">Nerd Font Developer Suite (     )</option>
-              <option value="emoji">Rich Emoji Suite (📁 🦀 🐍 ⚡ 📦 📝 🎬)</option>
-              <option value="custom">Custom Rules (Per-Extension Mappings)</option>
-            </select>
-            <div class="form-hint">Choose between classic graphical icons, developer Nerd Fonts, or rich colorful emojis across all panels.</div>
+        <div data-nav-title="Templates" class="settings-group-card settings-section" id="tab-templates">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <div>
+              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="file-code-2" style="width: 16px; height: 16px;"></i> File & Document Templates
+              </h4>
+              <div class="form-hint" style="margin-top: 2px;">Create new files with boilerplate headers, dynamic dates, and variable replacement anywhere via right-click.</div>
+            </div>
+            <div style="display: flex; gap: 6px;">
+              <button class="btn btn-sm btn-accent" data-on-click="openCreateTemplateModal"><i data-lucide="plus"></i> + New Template</button>
+              <button class="btn btn-sm" data-on-click="resetFileTemplatesToDefault"><i data-lucide="rotate-ccw"></i> Reset Defaults</button>
+            </div>
           </div>
 
-          <!-- Global Default Folder Icon -->
-          <div class="form-group" style="margin-top: 14px;">
-            <label style="font-weight: 700; font-size: 12px;">Global Default Folder Icon / Emote:</label>
+          <div style="margin-bottom: 14px; padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 11px;">
+            <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">Dynamic Template Variables:</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{TITLE}}"]'><code>{{TITLE}}</code> Title</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{FILENAME}}"]'><code>{{FILENAME}}</code> Filename</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{NAME}}"]'><code>{{NAME}}</code> Base Name</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{DATE}}"]'><code>{{DATE}}</code> YYYY-MM-DD</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{TIME}}"]'><code>{{TIME}}</code> HH:MM:SS</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{USER}}"]'><code>{{USER}}</code> Username</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{ISO_DATE}}"]'><code>{{ISO_DATE}}</code> ISO8601</span>
+              <span class="var-chip" data-on-click="copyVariableTag" data-click-args='["{{YEAR}}"]'><code>{{YEAR}}</code> Year</span>
+            </div>
+          </div>
+
+          <div id="settings-templates-list" style="display: flex; flex-direction: column; gap: 8px;">
+            <!-- Populated dynamically via JS -->
+          </div>
+        </div>
+
+          </div>
+
+          <div class="settings-tab-content" id="page-apps">
+        <div data-nav-title="Chewtoys" class="settings-group-card settings-section" id="tab-plugins">
+          <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; gap: 12px; flex-wrap: wrap;">
+            <div>
+              <h4 style="margin: 0; font-size: 13.5px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 8px;">
+                <i data-lucide="puzzle" style="width: 18px; height: 18px; color: var(--accent);"></i> Chewtoys & Extensions (.grr)
+              </h4>
+              <div class="form-hint" style="margin-top: 2px;">
+                Browse, enable, configure, and install modular Chewtoys into your workspace.
+              </div>
+            </div>
             <div style="display: flex; gap: 8px; align-items: center;">
-              <input type="text" id="setting-global-folder-icon" class="pane-quick-filter" style="width: 240px; padding: 6px 8px; font-family: var(--font-mono), sans-serif;" placeholder="Default folder (e.g. , 📁, , 📂)">
-              <button class="btn btn-sm btn-accent" data-on-click="saveGlobalFolderIcon"><i data-lucide="check"></i> Save</button>
-              <button class="btn btn-sm" data-on-click="resetGlobalFolderIcon"><i data-lucide="rotate-ccw"></i> Reset</button>
-            </div>
-            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;" id="setting-folder-icon-presets">
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'>Default ( Nerd Glyph)</span>
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📁"]'>📁 Yellow Folder</span>
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📂"]'>📂 Open Folder</span>
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["🗂️"]'>🗂️ Card Dividers</span>
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'> Nerd Font Dir</span>
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='[""]'> Nerd Font Folder</span>
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["📦"]'>📦 Box Package</span>
-              <span class="icon-preset-chip" data-on-click="selectGlobalFolderPreset" data-click-args='["🚀"]'>🚀 Rocket Project</span>
+              <input type="file" id="input-chewtoy-file" accept=".grr,.zip" style="display: none;" data-on-change="handleChewToyFileSelect" data-change-args='[{"$": "event"}]'>
+              <button class="btn btn-sm" id="btn-install-chewtoy" data-on-click="clickElementById" data-click-args='["input-chewtoy-file"]' style="display: flex; align-items: center; gap: 6px; background: rgba(245, 158, 11, 0.15); border-color: var(--accent); color: var(--accent); font-weight: 600;">
+                <i data-lucide="plus"></i> Install Chewtoy (.grr)
+              </button>
+              <button class="btn btn-sm btn-icon" data-on-click="loadInstalledChewToys" data-click-args='[true]' title="Refresh Chewtoys"><i data-lucide="rotate-ccw"></i></button>
             </div>
           </div>
 
-          <!-- Per-Filetype & Extension Custom Icon Mapping -->
-          <div class="form-group" style="margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-              <div>
-                <label style="font-weight: 700; margin: 0;">Per-Filetype & Extension Custom Icons:</label>
-                <div style="font-size: 11px; color: var(--text-muted); margin-top: 2px;">Map specific file extensions (e.g. <code>rs</code>, <code>py</code>, <code>md</code>, <code>iso</code>) to any custom emoji, emote, or Nerd Font glyph.</div>
-              </div>
-              <div style="display: flex; gap: 6px;">
-                <button class="btn btn-xs" data-on-click="loadNerdFontPresets"><i data-lucide="code"></i> Load Nerd Fonts</button>
-                <button class="btn btn-xs" data-on-click="loadEmojiPresets"><i data-lucide="smile"></i> Load Emojis</button>
-                <button class="btn btn-xs btn-danger" data-on-click="clearAllCustomFileIcons"><i data-lucide="trash-2"></i> Clear All</button>
-              </div>
-            </div>
+          <!-- 1-Click Drag-and-Drop Dropzone -->
+          <div class="chewtoy-dropzone" id="chewtoy-dropzone" data-on-dragover="handleChewToyDragOver" data-dragover-args='[{"$": "event"}]' data-on-dragleave="handleChewToyDragLeave" data-dragleave-args='[{"$": "event"}]' data-on-drop="handleChewToyDrop" data-drop-args='[{"$": "event"}]' data-on-click="clickElementById" data-click-args='["input-chewtoy-file"]'>
+            <div class="chewtoy-dropzone-icon"><i data-lucide="upload-cloud"></i></div>
+            <div style="font-weight: 600; font-size: 12.5px; color: var(--text-main);">Drag & Drop <code style="color: var(--accent); background: rgba(245,158,11,0.12); padding: 1px 6px; border-radius: 4px;">.grr</code> Chewtoy package here</div>
+            <div style="font-size: 11px; opacity: 0.7; margin-top: 2px;">or click to browse from your computer</div>
+          </div>
 
-            <!-- Add new mapping form -->
-            <div style="display: flex; gap: 8px; align-items: center; background: var(--bg-header); padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 10px;">
-              <div style="display: flex; align-items: center; gap: 4px;">
-                <span style="font-size: 11px; color: var(--text-muted);">Ext:</span>
-                <input type="text" id="setting-new-icon-ext" class="pane-quick-filter" placeholder="e.g. rs, py, zip, folder" style="width: 140px; padding: 4px 6px; font-family: var(--font-mono); font-size: 11px;">
-              </div>
-              <div style="display: flex; align-items: center; gap: 4px; flex: 1;">
-                <span style="font-size: 11px; color: var(--text-muted);">Icon/Emote:</span>
-                <input type="text" id="setting-new-icon-val" class="pane-quick-filter" placeholder="e.g. 🦀, 🐍, , , lucide:code" style="flex: 1; padding: 4px 6px; font-family: var(--font-mono), sans-serif; font-size: 11px;">
-              </div>
-              <button class="btn btn-sm btn-accent" data-on-click="addCustomFileIconRule"><i data-lucide="plus"></i> Add Rule</button>
+          <!-- Installed Chewtoys Grid Container -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin: 16px 0 8px 0;">
+            <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8; display: flex; align-items: center; gap: 6px;">
+              <span>Installed Chewtoys</span>
+              <span class="badge" id="chewtoys-count-badge" style="font-size: 10px; padding: 1px 6px; background: rgba(245,158,11,0.2); color: var(--accent);">0</span>
             </div>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <input type="text" id="chewtoy-filter-input" placeholder="Filter Chewtoys..." data-on-input="filterInstalledChewToys" data-input-args='[{"$": "value"}]' class="form-input" style="height: 26px; font-size: 11.5px; width: 160px; padding: 2px 8px;">
+            </div>
+          </div>
 
-            <!-- Custom file icon rules table -->
-            <div style="max-height: 240px; overflow-y: auto; border: 1px solid var(--border); border-radius: 6px;">
-              <table class="file-table" style="width: 100%; font-size: 12px;">
-                <thead>
-                  <tr style="background: var(--bg-header); text-align: left;">
-                    <th style="padding: 6px 10px; width: 140px;">Extension / Type</th>
-                    <th style="padding: 6px 10px;">Icon / Glyph</th>
-                    <th style="padding: 6px 10px; width: 80px; text-align: center;">Preview</th>
-                    <th style="padding: 6px 10px; width: 80px; text-align: right;">Action</th>
-                  </tr>
-                </thead>
-                <tbody id="setting-custom-icons-table-body">
-                  <!-- Populated dynamically by JS -->
-                </tbody>
-              </table>
+          <div id="chewtoys-installed-grid" class="chewtoys-grid">
+            <!-- Populated dynamically via JS -->
+            <div style="grid-column: 1 / -1; padding: 32px; text-align: center; opacity: 0.6; font-size: 12px;">Loading installed Chewtoys...</div>
+          </div>
+
+          <!-- Chewtoys that ship with Brum -->
+          <div style="margin: 18px 0 8px 0;">
+            <div style="font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.8;">Bundled with Brum</div>
+            <div class="form-hint" style="margin-top: 2px;">These Chewtoys come with Brum and are kept up to date when Brum is updated. Uninstalled ones stay uninstalled until you install them again here.</div>
+          </div>
+          <div id="chewtoys-bundled-list" class="chewtoys-bundled-list"></div>
+        </div>
+
+        <div data-nav-title="External Programs" class="settings-group-card settings-section same-computer-setting" id="tab-desktop-apps">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <div>
+              <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+                <i data-lucide="monitor" style="width: 16px; height: 16px;"></i> External Programs & Desktop Handlers
+              </h4>
+              <div class="form-hint" style="margin-top: 2px;">Configure external text editors, media viewers, and terminal emulators for standalone desktop mode.</div>
+            </div>
+            <span class="user-role-badge" style="background: rgba(245, 158, 11, 0.2); color: var(--accent);">Desktop Standalone Only</span>
+          </div>
+
+          <!-- External Text & Code Editor -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label style="font-weight: 700; color: var(--text);">External Text & Code Editor (F4):</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+              <input type="text" id="setting-ext-editor" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. code "%1" or gedit "%1" or kate "%1" or subl "%1"'>
+              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["editor"]' title="Test launching the configured editor"><i data-lucide="play"></i> Test</button>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+              <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "code \"%1\""]'>VS Code</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "codium \"%1\""]'>VSCodium</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "gedit \"%1\""]'>Gedit</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "kate \"%1\""]'>Kate</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "subl \"%1\""]'>Sublime</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "notepad++ \"%1\""]'>Notepad++</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "nvim-qt \"%1\""]'>Neovim GUI</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["editor", "xdg-open \"%1\""]'>System Default</button>
+            </div>
+            <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="setting-use-ext-editor-f4" data-on-change="toggleUseExtEditor" data-change-args='[{"$": "checked"}]'>
+              <span><b>Override F4 (Edit):</b> Launch external editor when pressing F4 or clicking Edit (instead of built-in EditorDog)</span>
+            </label>
+          </div>
+
+          <!-- External Document / Media Viewer -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label style="font-weight: 700; color: var(--text);">External Document & Media Viewer (F3):</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+              <input type="text" id="setting-ext-viewer" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. xdg-open "%1" or vlc "%1" or mpv "%1" or eog "%1"'>
+              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["viewer"]' title="Test launching the configured viewer"><i data-lucide="play"></i> Test</button>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+              <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "xdg-open \"%1\""]'>System Default (xdg-open / open)</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "vlc \"%1\""]'>VLC Media Player</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "mpv \"%1\""]'>MPV Video Player</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "eog \"%1\""]'>Eye of GNOME (eog)</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "feh \"%1\""]'>Feh Image Viewer</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["viewer", "zathura \"%1\""]'>Zathura PDF</button>
+            </div>
+            <label style="font-weight: normal; display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="setting-use-ext-viewer-f3" data-on-change="toggleUseExtViewer" data-change-args='[{"$": "checked"}]'>
+              <span><b>Override F3 (Quick View):</b> Launch external viewer when pressing F3 or clicking Quick View</span>
+            </label>
+          </div>
+
+          <!-- External Terminal Emulator -->
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label style="font-weight: 700; color: var(--text);">External Terminal Emulator:</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 6px;">
+              <input type="text" id="setting-ext-terminal" class="pane-quick-filter" style="flex: 1; font-family: var(--font-mono); padding: 7px 10px;" placeholder='e.g. alacritty --working-directory "%1" or kitty --directory "%1"'>
+              <button class="btn btn-sm" data-on-click="testExternalProgram" data-click-args='["terminal"]' title="Test launching the configured terminal"><i data-lucide="terminal"></i> Test</button>
+            </div>
+            <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+              <span style="font-size: 10px; color: var(--text-muted); align-self: center; margin-right: 2px;">Quick Presets:</span>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "alacritty --working-directory \"%1\""]'>Alacritty</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "kitty --directory \"%1\""]'>Kitty</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "gnome-terminal --working-directory=\"%1\""]'>GNOME Terminal</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "konsole --workdir \"%1\""]'>Konsole</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "wezterm start --cwd \"%1\""]'>WezTerm</button>
+              <button type="button" class="ext-preset-btn" data-on-click="applyExternalProgramPreset" data-click-args='["terminal", "x-terminal-emulator"]'>XTerm / Default</button>
+            </div>
+          </div>
+
+          <!-- Parameter Tokens Guide -->
+          <div style="margin-top: 20px; padding: 10px 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 6px; font-size: 11px;">
+            <div style="font-weight: 700; color: var(--accent); margin-bottom: 4px;">Dynamic Command Tokens:</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+              <span><code>%1</code> or <code>{file}</code> Target file/directory path</span>
+              <span><code>{dir}</code> Parent directory path</span>
+              <span><code>{selection}</code> All selected file paths</span>
+              <span><code>{target_pane}</code> Opposing pane path</span>
             </div>
           </div>
         </div>
 
-        <!-- Tab 10: About Brum & System Information -->
+        <div data-nav-title="Open With" class="settings-group-card settings-section same-computer-setting" id="tab-openwith">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div>
+              <h4 style="color: var(--text-main); margin: 0;">Open With & External Application Handlers</h4>
+              <p style="color: var(--text-muted); font-size: 11px; margin: 4px 0 0;">Map file extensions to external desktop applications and custom launchers. Programs open on the computer Brum runs on, so this is offered in the desktop app and when Brum is opened as localhost. Handlers with their own command are for admins.</p>
+            </div>
+            <button class="btn btn-accent btn-sm" data-on-click="showAddOpenWithRulePrompt"><i data-lucide="plus"></i> Add Handler</button>
+          </div>
+
+          <div id="openwith-rules-list" style="margin-top: 12px;">
+            <!-- Populated dynamically via JS -->
+          </div>
+
+          <!-- Add / Edit Rule Form -->
+          <div id="openwith-rule-form" style="display: none; background: var(--bg-active); border: 1px solid var(--border); border-radius: 6px; padding: 12px; margin-top: 12px;">
+            <input type="hidden" id="openwith-edit-id" value="">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+              <div>
+                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Application / Rule Name:</label>
+                <input type="text" id="openwith-input-name" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. VLC Player">
+              </div>
+              <div>
+                <label style="font-size: 11px; display: block; margin-bottom: 4px;">Matching Extensions (comma-separated):</label>
+                <input type="text" id="openwith-input-exts" class="pane-quick-filter" style="width: 100%;" placeholder="e.g. mp4, mkv, avi, webm">
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 3px;">Use <code>*</code> for every file and folder, or <code>folder</code> for folders.</div>
+              </div>
+            </div>
+            <div style="margin-bottom: 10px;">
+              <label style="font-size: 11px; display: block; margin-bottom: 4px;">Command Line (%1 or {file} = full path):</label>
+              <input type="text" id="openwith-input-cmd" class="pane-quick-filter" style="width: 100%; font-family: var(--font-mono);" placeholder='e.g. vlc "%1" or code "%1"'>
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-accent btn-sm" data-on-click="saveOpenWithRule"><i data-lucide="check"></i> Save Rule</button>
+              <button class="btn btn-sm" data-on-click="hideOpenWithRuleForm">Cancel</button>
+            </div>
+          </div>
+        </div>
+
+        <div data-nav-title="Proton Drive" class="settings-group-card settings-section" id="tab-proton">
+          <div style="margin-bottom: 12px;">
+            <h4 style="margin: 0; font-size: 13px; font-weight: 700; color: var(--text-main); display: flex; align-items: center; gap: 6px;">
+              <i data-lucide="cloud" style="width: 16px; height: 16px;"></i> Proton Drive
+            </h4>
+            <div class="form-hint" style="margin-top: 2px;">Use your end-to-end encrypted Proton Drive in Brum, through Proton's official program.</div>
+          </div>
+          <div id="proton-setup" class="proton-setup">
+            <div class="form-hint">Checking…</div>
+          </div>
+        </div>
+
+          </div>
+
         <div class="settings-tab-content" id="tab-about" style="padding: 16px;">
           <div class="about-brum">
             <div class="about-brum-head">
@@ -2777,200 +2868,6 @@
             <div class="about-brum-credit">Made by Bolt J Woofson, <a href="https://www.arf.ac" target="_blank" rel="noopener noreferrer">Woofsons Lab</a></div>
           </div>
         </div>
-
-        <!-- Tab: Account & User Profile -->
-        <div class="settings-tab-content" id="tab-account" style="padding: 16px;">
-          <!-- User Profile Card -->
-          <div class="settings-group-card">
-            <div class="settings-card-header">
-              <h4 class="settings-section-title">
-                <i data-lucide="user"></i> User Profile & Identity
-              </h4>
-              <span class="user-role-badge" id="settings-account-role-badge">ADMIN</span>
-            </div>
-            <p class="settings-card-desc">Personalize your identity, avatar photo, full name, display name, and credentials stored directly in your server user profile.</p>
-
-            <div style="display: flex; align-items: center; gap: 16px; margin: 8px 0 14px 0; background: var(--bg-header); padding: 12px; border-radius: var(--radius); border: 1px solid var(--border);">
-              <div style="position: relative; display: inline-block;">
-                <div class="profile-avatar-large" id="settings-account-avatar-preview" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]' title="Click to upload profile photo" style="cursor: pointer;">👤</div>
-                <button type="button" class="btn btn-sm btn-icon" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]' title="Upload Photo" style="position: absolute; bottom: -3px; right: -3px; border-radius: 50%; width: 22px; height: 22px; background: var(--accent); color: #000; border: none; padding: 0; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 5px rgba(0,0,0,0.5); cursor: pointer;">
-                  <i data-lucide="camera" style="width: 12px; height: 12px;"></i>
-                </button>
-              </div>
-              <input type="file" id="settings-avatar-file-input" accept="image/png,image/jpeg,image/webp,image/gif" style="display: none;" data-on-change="handleSettingsAvatarFileUpload" data-change-args='[{"$": "event"}]'>
-              <div style="flex: 1;">
-                <div style="font-weight: 700; font-size: 15px;" id="settings-account-username-label">User</div>
-                <div style="font-size: 11px; color: var(--text-dim);" id="settings-account-auth-type-label">Internal Database Account</div>
-                <div style="display: flex; gap: 6px; margin-top: 8px;">
-                  <button type="button" class="btn btn-sm" data-on-click="clickElementById" data-click-args='["settings-avatar-file-input"]'><i data-lucide="upload" style="width: 12px;"></i> Upload Photo</button>
-                  <button type="button" class="btn btn-sm" data-on-click="resetSettingsAvatar"><i data-lucide="rotate-ccw" style="width: 12px;"></i> Reset Avatar</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="settings-grid-2col">
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-fullname">Full Name:</label>
-                <input type="text" id="settings-profile-fullname" class="settings-input" placeholder="e.g. Bolt J Woofson">
-              </div>
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-nickname">Display Name / Nickname:</label>
-                <input type="text" id="settings-profile-nickname" class="settings-input" placeholder="e.g. Woofson">
-              </div>
-            </div>
-
-            <div class="settings-grid-2col" style="margin-top: 10px;">
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-email">Email Address:</label>
-                <input type="email" id="settings-profile-email" class="settings-input" placeholder="e.g. user@domain.com">
-              </div>
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-bio">Bio / Status:</label>
-                <input type="text" id="settings-profile-bio" class="settings-input" placeholder="e.g. Lead Systems Engineer">
-              </div>
-            </div>
-
-            <div class="settings-field" style="margin-top: 10px;">
-              <label class="settings-field-label" for="settings-profile-avatar-url">Avatar Emoji / URL / Custom Data:</label>
-              <input type="text" id="settings-profile-avatar-url" class="settings-input" placeholder="e.g. 🐕 or /api/auth/avatar/username" data-on-input="renderAvatarById" data-input-args='["settings-account-avatar-preview", {"$": "value"}]'>
-            </div>
-
-            <div class="settings-grid-2col" style="margin-top: 10px;" id="settings-profile-password-section">
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-new-pass">New Password (optional):</label>
-                <input type="password" id="settings-profile-new-pass" class="settings-input" placeholder="Leave blank to keep current" autocomplete="new-password">
-              </div>
-              <div class="settings-field">
-                <label class="settings-field-label" for="settings-profile-confirm-pass">Confirm New Password:</label>
-                <input type="password" id="settings-profile-confirm-pass" class="settings-input" placeholder="Confirm new password" autocomplete="new-password">
-              </div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px; border-top: 1px solid var(--border); padding-top: 12px;">
-              <span id="settings-profile-save-status" style="font-size: 12px; font-weight: 600; display: none;"></span>
-              <button type="button" class="btn btn-accent" data-on-click="saveSettingsUserProfile"><i data-lucide="save"></i> Save Profile Details</button>
-            </div>
-          </div>
-
-          <!-- Server Workspace Synchronization Card -->
-          <div class="settings-group-card" style="margin-top: 16px;">
-            <div class="settings-card-header">
-              <h4 class="settings-section-title">
-                <i data-lucide="cloud"></i> Server Workspace & Cloud Sync
-              </h4>
-              <span class="badge badge-success" id="settings-cloud-sync-badge">Cloud Synced</span>
-            </div>
-            <p class="settings-card-desc">All multi-pane arrangements, custom pane names, colors, open tabs, themes, and bookmarks are synchronized with your user account in the server database for seamless cross-device continuity.</p>
-
-            <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
-              <button type="button" class="btn btn-sm btn-accent" data-on-click="saveCurrentWorkspaceAsDefault"><i data-lucide="cloud-upload"></i> Save Current Workspace to Profile</button>
-              <button type="button" class="btn btn-sm" data-on-click="loadUserPreferencesFromServer"><i data-lucide="refresh-cw"></i> Sync Workspace from Server</button>
-              <button type="button" class="btn btn-sm btn-danger" data-on-click="resetServerPreferences"><i data-lucide="rotate-ccw"></i> Reset Server Profile</button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Tab: Security & Integrity Checks -->
-        <div class="settings-tab-content" id="tab-security" style="padding: 16px;">
-          <!-- Card 1: File Integrity & Verification -->
-          <div class="settings-group-card">
-            <div class="settings-card-header">
-              <h4 class="settings-section-title">
-                <i data-lucide="shield-check"></i> File Integrity &amp; Verification
-              </h4>
-            </div>
-            <p class="settings-card-desc">Cryptographic checksum verification and transfer safety standards.</p>
-
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-paranoid-enabled" checked data-on-change="handleUserParanoidToggle" data-change-args='[{"$": "checked"}]'>
-                <div>
-                  <strong>Security &amp; Integrity Checks (Standard / Active)</strong>
-                  <div class="settings-field-hint">Enforces strict SHA-256 verification and dry-run safety checks on file copy and move operations.</div>
-                </div>
-              </label>
-            </div>
-
-            <div class="settings-field" style="margin-top: 6px;">
-              <label class="settings-field-label" for="setting-user-checksum-algo">Checksum Verification Algorithm:</label>
-              <select id="setting-user-checksum-algo" class="settings-select" data-on-change="handleUserSecuritySettingChange">
-                <option value="sha256" selected>SHA-256 (Cryptographic / Strict)</option>
-                <option value="md5">MD5 (Fast / Legacy)</option>
-                <option value="sha1">SHA-1</option>
-              </select>
-              <div class="settings-field-hint">Files copied or moved with integrity checks enabled are verified upon completion.</div>
-            </div>
-
-            <div style="display: flex; flex-direction: column; gap: 4px; margin-top: 4px;">
-              <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-dnd-paranoid-prompt" checked data-on-change="handleUserSecuritySettingChange">
-                <div>
-                  <strong>Drag-and-Drop Verification Confirmation Dialog</strong>
-                  <div class="settings-field-hint">Show transaction pre-flight safety analysis when dragging files between panes.</div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Card 2: Transaction Safety & File Protection -->
-          <div class="settings-group-card">
-            <div class="settings-card-header">
-              <h4 class="settings-section-title">
-                <i data-lucide="lock"></i> Transaction Safety &amp; Protection
-              </h4>
-            </div>
-            <p class="settings-card-desc">Atomic filesystem write operations and safe deletion policies.</p>
-
-            <div style="display: flex; flex-direction: column; gap: 4px;">
-              <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-atomic-writes" checked data-on-change="handleUserSecuritySettingChange">
-                <div>
-                  <strong>Atomic File Writes</strong>
-                  <div class="settings-field-hint">Write to temporary files first and atomically swap upon completion to prevent incomplete corruption.</div>
-                </div>
-              </label>
-
-              <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-trash-enabled" checked data-on-change="handleUserSecuritySettingChange">
-                <div>
-                  <strong>Safe Trash Bin</strong>
-                  <div class="settings-field-hint">Move deleted files to the operating system Trash bin instead of permanent unrecoverable deletion.</div>
-                </div>
-              </label>
-
-              <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-confirm-delete" checked data-on-change="handleUserSecuritySettingChange">
-                <div>
-                  <strong>Confirm File Deletions (F8 / Delete)</strong>
-                  <div class="settings-field-hint">Show confirmation dialog before moving files to trash or deleting.</div>
-                </div>
-              </label>
-
-              <label class="settings-checkbox-row">
-                <input type="checkbox" id="setting-user-confirm-overwrite" checked data-on-change="handleUserSecuritySettingChange">
-                <div>
-                  <strong>Confirm File Overwrites</strong>
-                  <div class="settings-field-hint">Prompt when destination files already exist during copy and move operations.</div>
-                </div>
-              </label>
-            </div>
-          </div>
-
-          <!-- Card 3: Server Administration Link (if admin) -->
-          <div class="settings-group-card" id="user-sec-admin-card" style="display: none;">
-            <div class="settings-card-header">
-              <h4 class="settings-section-title">
-                <i data-lucide="shield-alert"></i> Server-Wide Security Policies
-              </h4>
-            </div>
-            <p class="settings-card-desc">As an Administrator, you can also manage server-wide auto-lock timers, token lifespans, and global defaults.</p>
-            <div style="margin-top: 6px;">
-              <button type="button" class="btn btn-outline btn-sm" data-on-click="closeModal" data-click-args='["settings-modal"]' data-click-steps='[["openAdminPanel"], ["switchAdminTab", "admin-tab-security"]]' style="height: 28px; display: inline-flex; align-items: center; gap: 6px; font-size: 11px;">
-                <i data-lucide="external-link" style="width: 12px; height: 12px;"></i> Open Server Security &amp; Auto-Lock Policies
-              </button>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   </div>
@@ -2991,18 +2888,22 @@
       <div class="settings-modal-layout">
         <!-- Admin Sidebar Navigation -->
         <div class="settings-sidebar">
-          <div class="settings-sidebar-group-title">Server Administration</div>
-          <button class="settings-nav-btn active" data-on-click="switchAdminTab" data-click-args='["admin-tab-users"]'><i data-lucide="users"></i> Users & RBAC</button>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-tokens"]'><i data-lucide="key-round"></i> API & Fleet Tokens</button>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-storage"]'><i data-lucide="server"></i> Remote Storage & Mounts</button>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-cloud"]'><i data-lucide="cloud"></i> Cloud Storage</button>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-syncthing"]'><i data-lucide="repeat"></i> Syncthing Global</button>
-
-          <div class="settings-sidebar-group-title">Security & Config</div>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-server"]'><i data-lucide="sliders-horizontal"></i> Server Settings</button>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security & Integrity</button>
-          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-config"]'><i data-lucide="file-cog"></i> Server config.toml</button>
+          <div class="settings-sidebar-group-title">Users &amp; Access</div>
+          <button class="settings-nav-btn active" data-on-click="switchAdminTab" data-click-args='["admin-tab-users"]'><i data-lucide="users"></i> Users</button>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-access"]'><i data-lucide="folder-lock"></i> Folder Rules</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-tokens"]'><i data-lucide="key-round"></i> API &amp; Fleet Tokens</button>
+
+          <div class="settings-sidebar-group-title">Server</div>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-server"]'><i data-lucide="sliders-horizontal"></i> Server Settings</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-security"]'><i data-lucide="shield-check"></i> Security &amp; Auto-Lock</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-config"]'><i data-lucide="file-cog"></i> config.toml (Advanced)</button>
+
+          <div class="settings-sidebar-group-title">Storage</div>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-storage"]'><i data-lucide="server"></i> Network Shares</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-cloud"]'><i data-lucide="cloud"></i> Cloud Storage</button>
+          <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-syncthing"]'><i data-lucide="repeat"></i> Syncthing</button>
+
+          <div class="settings-sidebar-group-title">Records</div>
           <button class="settings-nav-btn" data-on-click="switchAdminTab" data-click-args='["admin-tab-activity"]'><i data-lucide="history"></i> Activity Log</button>
         </div>
 

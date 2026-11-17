@@ -150,7 +150,7 @@ It shows your own desktop mode when that is running, otherwise the Windows servi
   brum tray uninstall [--all-users]  # stop starting it at sign-in
   ```
 * `brum --minimized` starts desktop mode without opening the browser, with the tray icon. Its menu then says **Quit Brum**, which ends desktop mode.
-* **Icon next to the clock** in **Server Settings → What everyone sees first** switches the tray icon off (or `enable_tray = false` under `[desktop]` in `config.toml`).
+* **Icon next to the clock** in **Server Settings → Defaults for New Users** switches the tray icon off (or `enable_tray = false` under `[desktop]` in `config.toml`).
 
 ---
 

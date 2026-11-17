@@ -145,7 +145,7 @@ Everything goes through `postMessage`. Send `{ type: "BRUM_REQ", reqId, action, 
 
 `context` includes `activePath`, `selectedFiles`, `theme`, `isDocked`, `viewport`, `storage` (your saved values, see E), `capabilities` (`{ eyedropper, clipboard }`) and `region` (the user's formats, below).
 
-`context.region` holds the user's choices from **Settings → General → Region & Formats**, already resolved (never "follow my browser"):
+`context.region` holds the user's choices from **Settings → Panes & Files → Region & Formats**, already resolved (never "follow my browser"):
 
 | Key | Values |
 | --- | --- |

@@ -142,7 +142,7 @@ In **Backup & Sync**, choose **Proton Drive** under *Where to keep it* (or type 
 
 Brum's image includes what Proton's Alpine build needs (`libstdc++`). Then:
 
-1. Open **Settings → Proton Drive** and click **Install**. The program goes into `/data/proton/bin/`, so it survives container updates.
+1. Open **Settings → Apps & Add-ons → Proton Drive** and click **Install**. The program goes into `/data/proton/bin/`, so it survives container updates.
 2. Click **Sign in**, and open the link or scan the code with your phone.
 
 No extra volumes or environment variables are needed. To use a program you downloaded yourself, put it in the data volume (for example `./data/proton/bin/proton-drive`) and make it executable.
@@ -155,5 +155,5 @@ No extra volumes or environment variables are needed. To use a program you downl
 | :--- | :--- |
 | *The program was downloaded but does not start* | On Alpine without Brum's image, install `libstdc++` (`apk add libstdc++`). |
 | *Could not reach proton.me* | The server needs internet access to `proton.me` (download) and `drive-api.proton.me` (files). |
-| *Not signed in to Proton Drive* | The login ended (signed out elsewhere, or removed in Proton's session list). Sign in again in Settings → Proton Drive. |
+| *Not signed in to Proton Drive* | The login ended (signed out elsewhere, or removed in Proton's session list). Sign in again in Settings → Apps & Add-ons → Proton Drive. |
 | *Access denied: Proton Drive is restricted…* | An admin must allow `remote` or `proton` for your user. |
