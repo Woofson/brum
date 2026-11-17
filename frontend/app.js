@@ -152,7 +152,7 @@ const BRUM_ACTIONS = new Set([
   'dockTagEditorToActivePane', 'dockTasksToActivePane', 'dockTerminalToActivePane',
   'docViewerCopyCurrent', 'docViewerDeleteCurrent', 'docViewerEditFile', 'docViewerMoveCurrent',
   'docViewerRenameCurrent', 'downloadBundledChewToy', 'downloadCurrentMedia',
-  'duplicateFileTemplate', 'duplicatePaneTab', 'duplicateSelected', 'editCustomAction', 'editOpenWithRule',
+  'duplicateFileTemplate', 'duplicatePaneTab', 'duplicateSelected', 'newTabFromTabStrip', 'editCustomAction', 'editOpenWithRule',
   'editTemplateById', 'enablePathInput', 'executeBatchRename', 'executeBulkRename',
   'executeCompressArchive', 'executeCreateFromTemplate', 'executeCreateShare',
   'executeCreateVault', 'executeDeltaCopy', 'executeDuplicateClean', 'executeExtractArchive',
@@ -567,6 +567,14 @@ function renderAvatarById(id, value) {
 function findTabButton(modal, opener, tabId) {
   return modal.querySelector(`[data-on-click="${opener}"][data-click-args='${JSON.stringify([tabId])}']`) ||
     modal.querySelector(`[onclick*="${tabId}"]`);
+}
+
+// Double-click on the empty part of a pane's tab row opens a new tab, like the + button
+function newTabFromTabStrip(ev, paneIndex) {
+  if (ev?.target?.closest?.('.pane-tab-item, .btn-new-tab')) return;
+  ev?.preventDefault?.();
+  setActivePane(paneIndex);
+  createPaneTab(paneIndex);
 }
 
 function closePaneTabOnMiddleClick(ev, paneIndex, tabIndex) {
@@ -2221,7 +2229,7 @@ function renderPaneTabs(paneIndex) {
     pane.tabs[pane.activeTabIndex].nodeId = pane.nodeId || 'local';
   }
 
-  let tabsHtml = `<div class="pane-tabs-scroll" id="pane-tabs-scroll-${paneIndex}">`;
+  let tabsHtml = `<div class="pane-tabs-scroll" id="pane-tabs-scroll-${paneIndex}" data-on-dblclick="newTabFromTabStrip" data-dblclick-args="${actionArgs(ACTION_EVENT, paneIndex)}" title="Double-click for a new tab">`;
 
   pane.tabs.forEach((tab, tIdx) => {
     const isActive = tIdx === pane.activeTabIndex;

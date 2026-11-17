@@ -81,6 +81,7 @@ Brum provides orthodox keyboard-driven power navigation paired with intuitive mo
 
 ## Mouse & Touch Navigation
 
+* **Double-Click the Tab Row**: Double-click the empty part of a pane's tab row (next to the tabs) to open a new tab, like the **+** button.
 * **Double-Click Empty Space**: Double-click anywhere on empty panel background space to immediately jump up one directory level (`..`).
 * **Right-Click Menu**: Right-clicking a folder shows Open, Open in New Tab, the other pane and the terminal first; a file shows Open With, Quick View and Edit first, plus tools for its kind (PDF Studio, media player, 3D CAD Studio, browsing inside archives and disk images, vaults). Then come Cut, Copy, Paste, Copy To, Move To and Duplicate; Rename and Delete; Download, Share and Archives; Tools, Custom Actions and New; and Properties. Paste only shows when something was copied. **Settings → Menus & Shortcuts → Right-Click Menu** switches items on or off and changes their order for folders and for files; with several items selected, the file list's switches apply.
 * **Duplicate (Right-Click)**: Right-click a file or folder and choose **Duplicate** to make a copy next to it, named like `report (copy).pdf` (`report (copy 2).pdf` when that name is taken). For one item the copy is selected with its name ready to edit; press Enter to keep a new name or Esc to keep the suggested one. With several items selected, each gets its own copy. Available for files and folders on the machine's own disks; for cloud storage, SFTP, SMB and other machines use Copy and Paste.
