@@ -3,6 +3,7 @@ pub mod checksum;
 pub mod compressed_image;
 pub mod disk_image;
 pub mod local;
+pub mod ownership;
 pub mod nfs;
 pub mod proton;
 pub mod rclone;

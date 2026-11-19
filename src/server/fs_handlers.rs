@@ -389,8 +389,18 @@ async fn handle_write_file_inner(
     } else {
         let tp = target_path.clone();
         let atomic = payload.atomic.unwrap_or(state.config.paranoid.atomic_writes);
+        let owner = file_owner(&state, &headers);
         tokio::task::spawn_blocking(move || {
-            LocalFs::write_file(&tp, &raw_bytes, atomic)
+            // Saving replaces the file: keep its owner and permissions; a new file (and
+            // any folders made for it) goes to the signed-in user (#208).
+            let path = LocalFs::resolve_local_path(&tp);
+            let before = crate::vfs::ownership::snapshot(&path);
+            LocalFs::write_file(&tp, &raw_bytes, atomic)?;
+            match before {
+                Some(snap) => crate::vfs::ownership::restore(&path, &snap),
+                None => crate::vfs::ownership::adopt_with_parents(&path, owner),
+            }
+            Ok::<(), std::io::Error>(())
         })
         .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Write task join error: {}", e)))?
@@ -452,8 +462,12 @@ async fn handle_mkdir_inner(
             .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Proton Drive: {}", e)))
     } else {
+        let owner = file_owner(&state, &headers);
         LocalFs::create_dir(&target_path)
-            .map(|_| Json(serde_json::json!({ "success": true, "path": target_path })))
+            .map(|_| {
+                crate::vfs::ownership::adopt_with_parents(&LocalFs::resolve_local_path(&target_path), owner);
+                Json(serde_json::json!({ "success": true, "path": target_path }))
+            })
             .map_err(|e| (StatusCode::BAD_REQUEST, format!("Failed to create folder: {}", e)))
     }
 }
@@ -817,6 +831,12 @@ async fn handle_copy_inner(
     let tid = task_id.clone();
     let sources = validated_sources;
     let destination = validated_dest;
+    // Hand what lands in a local destination to the signed-in user once the job is done (#208).
+    let watch = local_target(&state, &headers, &destination)
+        .map(|dir| crate::vfs::ownership::Watch::new(dir, file_owner(&state, &headers)));
+    let landed: Vec<std::path::PathBuf> = local_target(&state, &headers, &destination)
+        .map(|dir| sources.iter().filter_map(|s| std::path::Path::new(s).file_name().map(|n| dir.join(n))).collect())
+        .unwrap_or_default();
 
     tokio::spawn(async move {
         crate::vfs::transfer::VfsTransfer::execute_batch_transfer(
@@ -828,6 +848,9 @@ async fn handle_copy_inner(
             paranoid,
             conflict_resolution,
         ).await;
+        if let Some(w) = watch {
+            let _ = tokio::task::spawn_blocking(move || w.finish(&landed)).await;
+        }
     });
 
     Ok(Json(serde_json::json!({ "success": true, "task_id": task_id, "copied_count": payload.sources.len() })))
@@ -877,6 +900,12 @@ async fn handle_deltacopy_inner(
     opts.owner = Some(extract_claims_or_local(&state, &headers)?.sub);
     let tasks_mgr = state.tasks.clone();
     let cancel_token = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    // Hand what lands in the destination to the signed-in user once the job is done (#208).
+    let watch = local_target(&state, &headers, &validated_dest)
+        .map(|dir| crate::vfs::ownership::Watch::new(dir, file_owner(&state, &headers)));
+    let landed: Vec<std::path::PathBuf> = local_target(&state, &headers, &validated_dest)
+        .map(|dir| validated_sources.iter().filter_map(|s| std::path::Path::new(s).file_name().map(|n| dir.join(n))).collect())
+        .unwrap_or_default();
 
     tokio::spawn(async move {
         let _ = crate::tools::deltacopy::DeltaCopyEngine::run_deltacopy(
@@ -886,6 +915,9 @@ async fn handle_deltacopy_inner(
             opts,
             cancel_token,
         ).await;
+        if let Some(w) = watch {
+            let _ = tokio::task::spawn_blocking(move || w.finish(&landed)).await;
+        }
     });
 
     Ok(Json(serde_json::json!({
@@ -920,6 +952,12 @@ async fn handle_move_inner(
     let tid = task_id.clone();
     let sources = validated_sources;
     let destination = validated_dest;
+    // Hand what lands in a local destination to the signed-in user once the job is done (#208).
+    let watch = local_target(&state, &headers, &destination)
+        .map(|dir| crate::vfs::ownership::Watch::new(dir, file_owner(&state, &headers)));
+    let landed: Vec<std::path::PathBuf> = local_target(&state, &headers, &destination)
+        .map(|dir| sources.iter().filter_map(|s| std::path::Path::new(s).file_name().map(|n| dir.join(n))).collect())
+        .unwrap_or_default();
 
     tokio::spawn(async move {
         crate::vfs::transfer::VfsTransfer::execute_batch_transfer(
@@ -931,6 +969,9 @@ async fn handle_move_inner(
             paranoid,
             conflict_resolution,
         ).await;
+        if let Some(w) = watch {
+            let _ = tokio::task::spawn_blocking(move || w.finish(&landed)).await;
+        }
     });
 
     Ok(Json(serde_json::json!({ "success": true, "task_id": task_id, "moved_count": payload.sources.len() })))
@@ -2054,6 +2095,18 @@ fn actor(state: &AppState, headers: &HeaderMap) -> Option<String> {
     extract_claims_or_local(state, headers).ok().map(|c| c.sub)
 }
 
+/// The Linux account new files are handed to for this request (#208); None when Brum
+/// does not run as root or the user has no matching non-root account.
+fn file_owner(state: &AppState, headers: &HeaderMap) -> Option<crate::vfs::ownership::Owner> {
+    extract_claims_or_local(state, headers).ok().and_then(|c| crate::vfs::ownership::for_user(&c.sub))
+}
+
+/// A validated path on this machine's disks (not a network or cloud location).
+fn local_target(state: &AppState, headers: &HeaderMap, raw: &str) -> Option<std::path::PathBuf> {
+    let p = validate_path_access(state, headers, raw, true).ok()?;
+    (!p.contains("://")).then(|| LocalFs::resolve_local_path(&p))
+}
+
 /// Records the outcome of one operation: `detail` says more; a failure adds its reason
 fn log_outcome(who: Option<String>, action: &str, paths: &[String], detail: String, r: &ApiResult) {
     let Some(who) = who else { return };
@@ -2152,7 +2205,16 @@ pub async fn handle_move(State(state): State<AppState>, headers: HeaderMap, Json
 pub async fn handle_upload(State(state): State<AppState>, headers: HeaderMap, Query(query): Query<HashMap<String, String>>, multipart: Multipart) -> ApiResult {
     let who = actor(&state, &headers);
     let dest = query.get("destination").cloned().unwrap_or_else(|| "~".to_string());
+    let watch = local_target(&state, &headers, &dest).map(|dir| crate::vfs::ownership::Watch::new(dir, file_owner(&state, &headers)));
     let r = handle_upload_inner(State(state), headers, Query(query), multipart).await;
+    if let (Some(w), Ok(Json(v))) = (watch, &r) {
+        // Uploaded files (and folders), also when they replaced or joined existing ones (#208).
+        let dir = w.dir().to_path_buf();
+        let also: Vec<std::path::PathBuf> = v.get("uploaded").and_then(|u| u.as_array()).map(|a| {
+            a.iter().filter_map(|x| x.as_str()).filter_map(|n| n.split('/').next()).map(|n| dir.join(n)).collect()
+        }).unwrap_or_default();
+        let _ = tokio::task::spawn_blocking(move || w.finish(&also)).await;
+    }
     let names: Vec<String> = match &r {
         Ok(Json(v)) => v.get("uploaded").and_then(|u| u.as_array()).map(|a| a.iter().filter_map(|x| x.as_str().map(String::from)).collect()).unwrap_or_default(),
         Err(_) => Vec::new(),
@@ -2168,14 +2230,35 @@ pub async fn handle_upload(State(state): State<AppState>, headers: HeaderMap, Qu
 
 pub async fn handle_archive_create(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<ArchiveCreateRequest>) -> ApiResult {
     let (who, paths, target) = (actor(&state, &headers), payload.sources.clone(), payload.target_path.clone());
+    let (owner, local) = (file_owner(&state, &headers), local_target(&state, &headers, &target));
+    let existed = local.as_ref().map(|p| p.exists()).unwrap_or(true);
     let r = handle_archive_create_inner(State(state), headers, Json(payload)).await;
+    if let (Some(p), Ok(_), false) = (local, &r, existed) {
+        crate::vfs::ownership::adopt_with_parents(&p, owner);
+    }
     log_outcome(who, "pack", &paths, format!("into {target}"), &r);
     r
 }
 
 pub async fn handle_archive_extract(State(state): State<AppState>, headers: HeaderMap, Json(payload): Json<ArchiveExtractRequest>) -> ApiResult {
     let (who, archive, target) = (actor(&state, &headers), payload.archive_path.clone(), payload.target_dir.clone());
+    let owner = file_owner(&state, &headers);
+    let local = local_target(&state, &headers, &target);
+    let watch = local.as_ref().filter(|p| p.is_dir()).map(|p| crate::vfs::ownership::Watch::new(p.clone(), owner));
     let r = handle_archive_extract_inner(State(state), headers, Json(payload)).await;
+    if r.is_ok() {
+        // Unpacked into an existing folder: hand over what is new; into a new folder: the whole folder (#208).
+        match (watch, local) {
+            (Some(w), _) => { let _ = tokio::task::spawn_blocking(move || w.finish(&[])).await; }
+            (None, Some(p)) => {
+                let _ = tokio::task::spawn_blocking(move || {
+                    crate::vfs::ownership::adopt_with_parents(&p, owner);
+                    crate::vfs::ownership::adopt(&p, owner);
+                }).await;
+            }
+            _ => {}
+        }
+    }
     log_outcome(who, "unpack", &[archive], format!("into {target}"), &r);
     r
 }

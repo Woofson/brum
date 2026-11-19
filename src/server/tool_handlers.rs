@@ -157,6 +157,38 @@ fn validate_sibling_output(
     validate_path_access(state, headers, &parent.to_string_lossy(), true).map(|_| ())
 }
 
+/// Watch the local folder a tool writes into, so its new files go to the signed-in user (#208).
+fn watch_outputs(state: &AppState, headers: &HeaderMap, dir: &Path) -> Option<crate::vfs::ownership::Watch> {
+    if dir.as_os_str().is_empty() || dir.to_string_lossy().contains("://") {
+        return None;
+    }
+    let owner = crate::server::middleware::extract_claims_or_local(state, headers)
+        .ok()
+        .and_then(|c| crate::vfs::ownership::for_user(&c.sub))?;
+    Some(crate::vfs::ownership::Watch::new(dir.to_path_buf(), Some(owner)))
+}
+
+/// Hand a notes folder (or a note's folder) and what Brum created in it to the signed-in user (#208).
+fn own_notes_tree(state: &AppState, headers: &HeaderMap, path: &Path) {
+    let owner = crate::server::middleware::extract_claims_or_local(state, headers)
+        .ok()
+        .and_then(|c| crate::vfs::ownership::for_user(&c.sub));
+    if owner.is_none() || path.as_os_str().is_empty() {
+        return;
+    }
+    crate::vfs::ownership::adopt_with_parents(path, owner);
+    crate::vfs::ownership::adopt(path, owner);
+}
+
+/// A note's saved versions live in a hidden folder at the top of the notes folder.
+fn own_note_versions(state: &AppState, headers: &HeaderMap, note: &Path) {
+    own_notes_tree(state, headers, &crate::tools::notes::get_version_dir_for_note(note));
+}
+
+fn parent_dir(p: &str) -> std::path::PathBuf {
+    crate::vfs::local::LocalFs::resolve_local_path(p).parent().map(Path::to_path_buf).unwrap_or_default()
+}
+
 pub async fn handle_convert_file(
     State(state): State<AppState>,
     headers: HeaderMap,
@@ -170,9 +202,16 @@ pub async fn handle_convert_file(
             None
         }
     };
-    crate::tools::converter::ConvertEngine::convert_file(&payload)
+    let out_dir = parent_dir(payload.output_path.as_deref().unwrap_or(&payload.source_path));
+    let watch = watch_outputs(&state, &headers, &out_dir);
+    let r = crate::tools::converter::ConvertEngine::convert_file(&payload)
         .map(Json)
-        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Conversion failed: {}", e)))
+        .map_err(|e| (StatusCode::BAD_REQUEST, format!("Conversion failed: {}", e)));
+    if let (Some(w), Ok(_)) = (watch, &r) {
+        let also: Vec<std::path::PathBuf> = payload.output_path.iter().map(|o| crate::vfs::local::LocalFs::resolve_local_path(o)).collect();
+        w.finish(&also);
+    }
+    r
 }
 
 #[derive(Deserialize)]
@@ -216,6 +255,10 @@ pub async fn handle_notes_info(
         .map(|f| validate_path_access(&state, &headers, f, false))
         .transpose()?;
     let info = crate::tools::notes::scan_notes_hierarchy(folder.as_deref(), Some(cfg_folder));
+    // Opening a notes folder may create its default notebook and welcome note.
+    if let Some(f) = folder.as_deref() {
+        own_notes_tree(&state, &headers, &crate::vfs::local::LocalFs::resolve_local_path(f));
+    }
     Ok(Json(info))
 }
 
@@ -253,6 +296,10 @@ pub async fn handle_notes_save_version(
         if let Ok(bytes) = std::fs::read(p) {
             let _ = crate::tools::notes::create_note_snapshot(p, &bytes);
         }
+        if let Some(folder) = p.parent() {
+            own_notes_tree(&state, &headers, folder);
+        }
+        own_note_versions(&state, &headers, p);
     }
     Ok(Json(serde_json::json!({ "success": true })))
 }
@@ -313,7 +360,9 @@ pub async fn handle_notes_encrypt(
     let p = Path::new(&valid_path);
     let pass = payload.passphrase.as_deref().unwrap_or(crate::tools::notes::DEFAULT_NOTE_PASSPHRASE);
 
-    if payload.convert_to_plain.unwrap_or(false) {
+    let folder = p.parent().map(Path::to_path_buf).unwrap_or_default();
+    let before = crate::vfs::ownership::snapshot(p);
+    let r = if payload.convert_to_plain.unwrap_or(false) {
         match crate::tools::notes::decrypt_and_save_plain_note(p, pass) {
             Ok(new_path) => Ok(Json(NotesEncryptResponse {
                 success: true,
@@ -331,7 +380,18 @@ pub async fn handle_notes_encrypt(
             })),
             Err(err) => Err((StatusCode::BAD_REQUEST, err)),
         }
+    };
+    if let Ok(Json(resp)) = &r {
+        // The note keeps its owner and permissions when saved under a new name or in place.
+        let new_path = Path::new(&resp.path);
+        match before {
+            Some(snap) => crate::vfs::ownership::restore(new_path, &snap),
+            None => own_notes_tree(&state, &headers, &folder),
+        }
+        own_note_versions(&state, &headers, p);
+        own_note_versions(&state, &headers, new_path);
     }
+    r
 }
 
 #[derive(Deserialize)]
@@ -357,7 +417,11 @@ pub async fn handle_notes_create_note(
         payload.passphrase.as_deref(),
         payload.initial_content.as_deref(),
     ) {
-        Ok(note) => Ok(Json(note)),
+        Ok(note) => {
+            own_notes_tree(&state, &headers, sec_p);
+            own_note_versions(&state, &headers, Path::new(&note.path));
+            Ok(Json(note))
+        }
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
@@ -377,7 +441,10 @@ pub async fn handle_notes_section_encrypt(
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
     match crate::tools::notes::encrypt_section_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
-        Ok(count) => Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count }))),
+        Ok(count) => {
+            own_notes_tree(&state, &headers, p);
+            Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count })))
+        }
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
@@ -390,7 +457,10 @@ pub async fn handle_notes_section_decrypt(
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
     match crate::tools::notes::decrypt_section_dir(p, &payload.passphrase) {
-        Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
+        Ok(count) => {
+            own_notes_tree(&state, &headers, p);
+            Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count })))
+        }
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
@@ -410,7 +480,10 @@ pub async fn handle_notes_notebook_encrypt(
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
     match crate::tools::notes::encrypt_notebook_dir(p, &payload.passphrase, payload.cached_pass.as_deref()) {
-        Ok(count) => Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count }))),
+        Ok(count) => {
+            own_notes_tree(&state, &headers, p);
+            Ok(Json(serde_json::json!({ "success": true, "encrypted_count": count })))
+        }
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
@@ -423,7 +496,10 @@ pub async fn handle_notes_notebook_decrypt(
     let valid_path = validate_path_access(&state, &headers, &payload.path, true)?;
     let p = Path::new(&valid_path);
     match crate::tools::notes::decrypt_notebook_dir(p, &payload.passphrase) {
-        Ok(count) => Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count }))),
+        Ok(count) => {
+            own_notes_tree(&state, &headers, p);
+            Ok(Json(serde_json::json!({ "success": true, "decrypted_count": count })))
+        }
         Err(err) => Err((StatusCode::BAD_REQUEST, err)),
     }
 }
@@ -772,6 +848,7 @@ pub async fn handle_notes_migrate_export(
         }
     }
 
+    own_notes_tree(&state, &headers, &root);
     Ok(Json(serde_json::json!({
         "success": true,
         "exported_count": exported_count,
@@ -1900,9 +1977,18 @@ pub async fn handle_split_file(
     let chunk_size = payload.chunk_size_mb.max(1) * 1024 * 1024;
     let gen_chk = payload.generate_checksum.unwrap_or(true);
 
-    crate::tools::splitter::split_file_sync(Path::new(&valid_source), valid_dest.as_deref().map(Path::new), chunk_size, gen_chk)
+    let out_dir = match valid_dest.as_deref() {
+        Some(d) => crate::vfs::local::LocalFs::resolve_local_path(d),
+        None => parent_dir(&valid_source),
+    };
+    let watch = watch_outputs(&state, &headers, &out_dir);
+    let r = crate::tools::splitter::split_file_sync(Path::new(&valid_source), valid_dest.as_deref().map(Path::new), chunk_size, gen_chk)
         .map(Json)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+    if let (Some(w), Ok(_)) = (watch, &r) {
+        w.finish(&[]);
+    }
+    r
 }
 
 pub async fn handle_combine_files(
@@ -1916,9 +2002,14 @@ pub async fn handle_combine_files(
         .collect();
     let valid_dest = validate_path_access(&state, &headers, &payload.dest_path, true)?;
 
-    crate::tools::splitter::combine_files_sync(&parts, Path::new(&valid_dest), payload.expected_sha256.as_deref())
+    let watch = watch_outputs(&state, &headers, &parent_dir(&valid_dest));
+    let r = crate::tools::splitter::combine_files_sync(&parts, Path::new(&valid_dest), payload.expected_sha256.as_deref())
         .map(Json)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()));
+    if let (Some(w), Ok(_)) = (watch, &r) {
+        w.finish(&[crate::vfs::local::LocalFs::resolve_local_path(&valid_dest)]);
+    }
+    r
 }
 
 
@@ -1955,9 +2046,14 @@ pub async fn handle_pdf_merge(
     let valid_dst = validate_path_access(&state, &headers, &payload.destination, true)?;
     let local_dst = crate::vfs::local::LocalFs::resolve_local_path(&valid_dst);
 
-    crate::tools::pdf::PdfEngine::merge(&local_sources, &local_dst, payload.add_bookmarks.unwrap_or(true))
+    let watch = watch_outputs(&state, &headers, local_dst.parent().unwrap_or(Path::new("")));
+    let r = crate::tools::pdf::PdfEngine::merge(&local_sources, &local_dst, payload.add_bookmarks.unwrap_or(true))
         .map(|_| Json(serde_json::json!({ "success": true, "destination": valid_dst })))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e));
+    if let (Some(w), Ok(_)) = (watch, &r) {
+        w.finish(&[local_dst.clone()]);
+    }
+    r
 }
 
 pub async fn handle_pdf_split(
@@ -1971,7 +2067,8 @@ pub async fn handle_pdf_split(
     let valid_dst_dir = validate_path_access(&state, &headers, &payload.destination_dir, true)?;
     let local_dst_dir = crate::vfs::local::LocalFs::resolve_local_path(&valid_dst_dir);
 
-    crate::tools::pdf::PdfEngine::split(
+    let watch = watch_outputs(&state, &headers, &local_dst_dir);
+    let r = crate::tools::pdf::PdfEngine::split(
         &local_src,
         &local_dst_dir,
         &payload.split_mode,
@@ -1983,7 +2080,11 @@ pub async fn handle_pdf_split(
         let files_str: Vec<String> = files.iter().map(|p| p.to_string_lossy().to_string()).collect();
         Json(serde_json::json!({ "success": true, "files": files_str }))
     })
-    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
+    .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e));
+    if let (Some(w), Ok(_)) = (watch, &r) {
+        w.finish(&[]);
+    }
+    r
 }
 
 pub async fn handle_pdf_reorder(
@@ -1997,9 +2098,19 @@ pub async fn handle_pdf_reorder(
     let valid_dst = validate_path_access(&state, &headers, &payload.destination, true)?;
     let local_dst = crate::vfs::local::LocalFs::resolve_local_path(&valid_dst);
 
-    crate::tools::pdf::PdfEngine::reorder_and_rotate(&local_src, &payload.pages, &local_dst)
+    let before = crate::vfs::ownership::snapshot(&local_dst);
+    let watch = watch_outputs(&state, &headers, local_dst.parent().unwrap_or(Path::new("")));
+    let r = crate::tools::pdf::PdfEngine::reorder_and_rotate(&local_src, &payload.pages, &local_dst)
         .map(|_| Json(serde_json::json!({ "success": true, "destination": valid_dst })))
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e));
+    if r.is_ok() {
+        // Reordering may write over the same file: keep its owner and permissions.
+        match before {
+            Some(snap) => crate::vfs::ownership::restore(&local_dst, &snap),
+            None => if let Some(w) = watch { w.finish(&[local_dst.clone()]); },
+        }
+    }
+    r
 }
 
 

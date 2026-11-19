@@ -825,6 +825,9 @@ pub async fn handle_public_upload_share(
         };
         let safe_name = target_path.file_name().unwrap_or_default().to_string_lossy().to_string();
         std::io::Write::write_all(&mut file, &data).map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, format!("Failed to write file {}: {}", safe_name, e)))?;
+        drop(file);
+        // A guest's upload belongs to the person who shared the folder (#208).
+        crate::vfs::ownership::adopt(&target_path, crate::vfs::ownership::for_user(&share.created_by));
         saved_count += 1;
 
         let _ = state.auth.log_share_access(

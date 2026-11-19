@@ -1069,7 +1069,13 @@ impl BackupManager {
             let p2 = p.clone();
             let mgr2 = mgr.clone();
             let rid2 = rid.clone();
-            let record = tokio::task::spawn_blocking(move || mgr2.run_backup(&p2, spec, &rid2, progress, cancel, tasks)).await;
+            let p3 = p.clone();
+            let record = tokio::task::spawn_blocking(move || {
+                let rec = mgr2.run_backup(&p2, spec, &rid2, progress, cancel, tasks);
+                // What the backup wrote into a local folder belongs to the backup's owner (#208).
+                hand_to_owner(&p3, &[p3.dest_dir.clone()]);
+                rec
+            }).await;
             mgr.release(&p.id);
             match record {
                 Ok(rec) => mgr.notify(&p, &rec).await,
@@ -1728,6 +1734,11 @@ impl BackupManager {
         let total_bytes = preview.bytes;
         let target_label = if p.mode() == Mode::Git && same_path(target_path, &p.source_dir) { "their original places".to_string() } else { target_path.to_string() };
         let warn_list = warnings;
+        // Where restored files land: the chosen folder, or each source's own folder (#208).
+        let mut restored_into = vec![target_path.to_string()];
+        if same_path(target_path, &p.source_dir) {
+            restored_into.extend(p.all_sources().iter().map(|s| s.to_string()));
+        }
         tokio::spawn(async move {
             let mgr2 = mgr.clone();
             let p2 = p.clone();
@@ -1786,6 +1797,7 @@ impl BackupManager {
                     pr.files_done += 1;
                     pr.bytes_done += meta.size;
                 }
+                hand_to_owner(&p2, &restored_into);
                 rec.status = if stopped { "cancelled".into() } else if rec.counts.failed > 0 || rec.warnings > 0 { "warning".into() } else { "ok".into() };
                 rec.message = Some(format!(
                     "{}{} restored to {}{}{}{}",
@@ -2060,5 +2072,20 @@ impl LogWriter {
 impl Drop for LogWriter {
     fn drop(&mut self) {
         self.close();
+    }
+}
+
+/// Hand files a backup or restore created in local folders to the backup's owner, when
+/// Brum runs as root and the owner has their own Linux account (#208). Only inside folders
+/// that already belong to that account; see `vfs::ownership`.
+fn hand_to_owner(p: &BackupProfile, paths: &[String]) {
+    let owner = p.owner.as_deref().and_then(crate::vfs::ownership::for_user);
+    if owner.is_none() {
+        return;
+    }
+    for path in paths.iter().filter(|x| !x.trim().is_empty() && !x.contains("://")) {
+        let local = crate::vfs::local::LocalFs::resolve_local_path(path.trim());
+        crate::vfs::ownership::adopt_with_parents(&local, owner);
+        crate::vfs::ownership::adopt(&local, owner);
     }
 }

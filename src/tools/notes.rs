@@ -520,7 +520,7 @@ pub fn migrate_legacy_versions_dir(root: &Path) {
 }
 
 /// Helper to get the version history directory for a note
-fn get_version_dir_for_note(note_path: &Path) -> PathBuf {
+pub fn get_version_dir_for_note(note_path: &Path) -> PathBuf {
     let root = if let Some(parent3) = note_path.parent().and_then(|p| p.parent()).and_then(|p| p.parent()) {
         parent3.to_path_buf()
     } else {
