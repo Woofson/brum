@@ -207,7 +207,7 @@ All operational runbooks, platform guides, and security manuals are available on
 
 ## Support & Contributions
 
-Brum is made by one person in their spare time. If it has been useful to you, and only if you feel like it, you're very welcome to buy me a coffee. Thank you!
+I am very humbled for your support. If you find Brum worthy of a ko-fi, I would be very very grateful. Thank you.
 
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/J7P327BXTR)
 
@@ -215,5 +215,5 @@ Brum is made by one person in their spare time. If it has been useful to you, an
 
 ## License
 
-MIT License © [Bolt J Woofson](https://www.arf.ac) @ Woofsons Lab
+MIT, see [LICENSE](LICENSE). Copyright (c) 2026 Bolt J Woofson.
 
