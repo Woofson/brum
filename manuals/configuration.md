@@ -22,6 +22,31 @@ When the same setting is set in more than one place, this order decides (the las
 
 So a setting written in `config.toml` always wins over Server Settings, and the page shows it locked, with the reason. Setups managed by hand, or by tools such as Ansible, keep working exactly as before.
 
+### Where Are My Settings Kept?
+
+Your own settings (theme, layout, column widths, pane names and colours, keys and the rest of **Settings**) are kept in two places:
+
+1. **In your browser.** Each browser you use Brum in keeps a copy, so Brum opens with your look straight away, before it has heard from the machine.
+2. **On the Brum machine**, in its database, under your account. This copy is what makes your settings follow you to every phone, tablet and computer you sign in on.
+
+When you open Brum, the browser shows its own copy first and then takes the machine's copy. When you change a setting, only that one setting is sent to the machine. Other browsers pick it up the next time they open Brum or refresh.
+
+A few things to know:
+
+- **A brand-new Brum, or a new account, starts from the browser's copy.** The first time a browser signs in and the machine has nothing saved for you yet, the browser's copy becomes the machine's copy. That is why a theme or name from an older Brum at the same address can come back after a fresh install.
+- **Each Fleet machine keeps its own copy.** Settings made on one machine do not follow you to another machine in the Fleet.
+- **The name badge, the app title and the login page title are saved as your own settings for now**, not as the machine's. They will move to Server Settings later.
+
+#### Starting over with default settings
+
+Removing only one of the two copies is not enough: the other one fills it again. To start clean everywhere:
+
+1. In every browser you use Brum in **except one**, delete Brum's site data. In most browsers: the padlock or site icon in the address bar, then **Cookies and site data** (or **Site settings**), then **Delete**. This signs you out there.
+2. In the last browser, open **Settings → Account → Sync Between Devices** and click **Reset Server Defaults**. Then delete Brum's site data in this browser too.
+3. Sign in again. Brum starts with its default settings, and they become your new copy on the machine.
+
+Server Settings, Fleet machines and everything else an admin sets are not affected.
+
 ---
 
 ## Server Settings

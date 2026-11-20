@@ -5,6 +5,16 @@ All notable changes to **Brum** (formerly CommanderDog) will be documented in th
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.1] - 2026-11-20
+
+### Fixes
+- **A Wrong Password No Longer Locks the Computer's Account**: Signing in to Brum with a Windows or Linux account could get that account locked on the computer itself after a few typos. Brum asked Windows up to four times for every wrong password (and Linux up to five times), and the lock screen quietly sent a wrong password a second time through the login. Windows 11 locks an account after 10 failures by default, and some Linux systems (Arch Linux) after 3. Now a wrong password counts once on the computer: Brum only asks again when the refusal was not about the password, and stops at once when the account is locked, disabled or expired. Brum also pauses sign-in tries for an account after 2 wrong passwords in 15 minutes for Linux accounts and 3 for Windows accounts, before the computer would lock it, and says so on the login page and lock screen. The login page and lock screen share this count, and the right password clears it. Brum's own accounts keep 10 tries in 5 minutes.
+- **Microsoft Accounts on Windows Confirmed (Closes #178)**: Signing in with a Microsoft account's email address, made possible in 1.21.0, is now confirmed on Windows 11. Brum remembers which form of the name Windows accepted and asks only that way next time, so a wrong password costs one failure there too.
+- **Files Brum Creates Belong to You (Fixes #208)**: Under the Linux service, files saved, uploaded, created, copied, moved, unpacked or made by tools through Brum in your own folders were owned by root, so your own account could not change them without `sudo`. They now belong to your Linux account, and saving a file keeps its owner and permissions (including the executable bit). System folders and folders owned by others are left as they are. Nothing changes for the desktop app, Windows, root, or accounts without a Linux login.
+
+### Documentation
+- **Where Are My Settings Kept? (Refs #196)**: The Settings and Configuration manual explains the two copies of your settings (in each browser and on the Brum machine), why an old theme or name can come back after a fresh install, and how to start over with default settings everywhere.
+
 ## [1.25.0] - 2026-11-17
 
 ### Changes
