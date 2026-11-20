@@ -33,19 +33,15 @@ When you open Brum, the browser shows its own copy first and then takes the mach
 
 A few things to know:
 
-- **A brand-new Brum, or a new account, starts from the browser's copy.** The first time a browser signs in and the machine has nothing saved for you yet, the browser's copy becomes the machine's copy. That is why a theme or name from an older Brum at the same address can come back after a fresh install.
+- **A brand-new Brum, or a new account, starts from Brum's own defaults.** When the machine has nothing saved for you yet, the browser forgets what it remembered and the page opens again with Brum's defaults. What a browser remembered may belong to another account, or to an older Brum at the same address, so it is never taken over.
 - **Each Fleet machine keeps its own copy.** Settings made on one machine do not follow you to another machine in the Fleet.
 - **The machine name badge and the login page are not your own settings.** They belong to the machine, so everyone sees the same, in every browser. Admins set them in **Admin → Server Settings → Machine Name Badge & Login Page**.
 
 #### Starting over with default settings
 
-Removing only one of the two copies is not enough: the other one fills it again. To start clean everywhere:
+Open **Settings → Account → Sync Between Devices** and click **Reset to Brum's defaults**. Brum asks first. Then the machine's copy of your settings is removed, and this browser reloads with Brum's defaults. Your other browsers do the same the next time they open Brum.
 
-1. In every browser you use Brum in **except one**, delete Brum's site data. In most browsers: the padlock or site icon in the address bar, then **Cookies and site data** (or **Site settings**), then **Delete**. This signs you out there.
-2. In the last browser, open **Settings → Account → Sync Between Devices** and click **Reset Server Defaults**. Then delete Brum's site data in this browser too.
-3. Sign in again. Brum starts with its default settings, and they become your new copy on the machine.
-
-Server Settings, Fleet machines and everything else an admin sets are not affected.
+Only personal settings are reset. Notes kept in the browser, game scores and where tool windows were placed are left alone, and so are Server Settings, Fleet machines and everything else an admin sets.
 
 ---
 

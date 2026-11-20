@@ -2898,6 +2898,50 @@ function machineDisplay() {
   try { return JSON.parse(localStorage.getItem('cd_machine_display') || '{}') || {}; } catch (_) { return {}; }
 }
 
+// Which browser-stored items are personal settings: the ones the settings code reads, plus the
+// panes' own items and the full theme. Other items (sign-in, notes kept in the browser, game
+// scores, window positions of tools) are left alone.
+function personalSettingStorageKeys() {
+  const seen = new Set();
+  const realGet = Storage.prototype.getItem;
+  Storage.prototype.getItem = function (k) {
+    if (this === window.localStorage && typeof k === 'string') seen.add(k);
+    return realGet.call(this, k);
+  };
+  try { getAllUserPreferences(); } catch (_) {} finally { Storage.prototype.getItem = realGet; }
+  const keep = new Set(['cd_user_info', 'cd_last_username', 'cd_is_locked', 'cd_token', 'cd_signed_in',
+    'cd_session_credentials', 'cd_cached_hostname', 'cd_cached_version', 'cd_cached_build', 'cd_machine_display']);
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const k = localStorage.key(i);
+      if (k && (k.startsWith('cd_pane_') || k.startsWith('cd_layout') || k === 'cd_theme_def')) seen.add(k);
+    }
+  } catch (_) {}
+  return [...seen].filter(k => k.startsWith('cd_') && !keep.has(k) && !k.startsWith('cd_local_'));
+}
+
+function freshDefaultsMarker() {
+  let last = '';
+  try { last = localStorage.getItem('cd_last_username') || ''; } catch (_) {}
+  return 'cd_fresh_defaults:' + (App.user?.username || last || App.systemStatus?.current_user || '');
+}
+
+function startedFromDefaultsThisVisit() {
+  try { return sessionStorage.getItem(freshDefaultsMarker()) === '1'; } catch (_) { return true; }
+}
+
+// Forgets this browser's personal settings and opens the page again, so everything starts from
+// Brum's defaults. Done once per visit: after the reload the defaults are saved as the server copy.
+function startFromBrumDefaults() {
+  _prefsSaveAllowed = false; // nothing from the old copy may be saved before the page opens again
+  clearTimeout(_prefSyncDebounceTimer);
+  try {
+    sessionStorage.setItem(freshDefaultsMarker(), '1');
+    personalSettingStorageKeys().forEach(k => localStorage.removeItem(k));
+  } catch (_) { return; }
+  location.reload();
+}
+
 async function loadUserPreferencesFromServer() {
   try {
     const headers = {};
@@ -2908,11 +2952,17 @@ async function loadUserPreferencesFromServer() {
     }
     const prefs = await resp.json();
     if (!prefs || typeof prefs !== 'object' || Object.keys(prefs).length === 0) {
-      // Nothing saved on the server yet (new install or new account): this browser's copy becomes it
+      // Nothing saved on the server yet (new install, new account, or settings reset): start from
+      // Brum's own defaults, never from what this browser remembers. That copy may be another
+      // account's, or from an older Brum at the same address (#196).
+      if (!startedFromDefaultsThisVisit()) {
+        startFromBrumDefaults();
+        return;
+      }
       _serverPrefsLoaded = true;
       _prefsSaveAllowed = true;
       _prefsBaseline = null;
-      queueSaveUserPreferencesToServer();
+      queueSaveUserPreferencesToServer(); // the defaults become the server copy
       return;
     }
 
@@ -3031,6 +3081,12 @@ async function saveCurrentWorkspaceAsDefault() {
 }
 
 async function resetServerPreferences() {
+  const ok = await showConfirmDialog({
+    title: 'Back to Brum\'s defaults?', subtitle: 'Your own settings on this machine',
+    message: 'Your theme, layout, columns, panes and other settings go back to how Brum comes. This browser reloads now; your other browsers follow the next time they open Brum. Settings made by an admin for everyone are not changed.',
+    icon: 'rotate-ccw', type: 'warning', confirmText: 'Reset my settings',
+  });
+  if (!ok) return;
   try {
     const headers = {};
     const res = await fetch('/api/user/preferences', {
@@ -3038,16 +3094,11 @@ async function resetServerPreferences() {
       headers
     });
     if (res.ok) {
-      // The server's copy is gone: the next save sends this browser's whole copy again
-      _prefsBaseline = null;
-      localStorage.removeItem('cd_pane_custom_names');
-      localStorage.removeItem('cd_pane_colors');
-      localStorage.removeItem('cd_pane_splits');
-      applyPaneSplits(DEFAULT_PANE_SPLITS);
-      App.panes.forEach((p) => { p.customName = null; });
-      updatePaneTitles();
-      applyPaneColors();
-      showToast('Cross-device profile settings reset on server.', 'info');
+      // The server's copy is gone: this browser starts over with Brum's defaults now, and every
+      // other browser does the same the next time it opens Brum (#196)
+      try { sessionStorage.removeItem(freshDefaultsMarker()); } catch (_) {}
+      showToast('Your settings are back to Brum\'s defaults.', 'info');
+      setTimeout(startFromBrumDefaults, 600);
       const badge = document.getElementById('cross-device-sync-badge');
       if (badge) {
         badge.textContent = 'Reset';
